@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateDimensionAnchors, validateFieldLineShape, validatePointLabelPlacement } from "./figureFeatureTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -627,8 +628,23 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     );
+    // A named annotation is an explicit binding, not permission to pick the
+    // first case-folded symbol in the inventory (R and r are different values).
+    const quantityBindings = document.annotations.filter((annotation) =>
+      annotation.kind === "label" && annotation.labelMode !== "append" &&
+      annotation.targetIds.length === 1 && annotation.targetIds[0] === entity.id &&
+      annotation.quantityId !== undefined && !annotation.text,
+    );
+    const boundQuantity = quantityBindings.length === 1
+      ? document.quantities.find((quantity) => quantity.id === quantityBindings[0]!.quantityId)
+      : undefined;
+    const bindingMatchesSymbol = boundQuantity && (boundQuantity.symbol === undefined
+      ? componentValueUnitMatches(entity.id, boundQuantity.unit, document)
+      : typeof boundQuantity.symbol === "string" && normalizeIdentifier(boundQuantity.symbol) === normalizeIdentifier(entity.label));
     const quantityText = entity.kind === "component" && isComponentDesignator(entity.label)
-      ? matchingQuantityText(entity.label, document.quantities)
+      ? bindingMatchesSymbol
+        ? matchingQuantityText(boundQuantity.id, document.quantities, true)
+        : matchingQuantityText(entity.label, document.quantities)
       : undefined;
     const supplementalText = valueAnnotation?.text ?? quantityText;
     const combinedText = supplementalText
@@ -1090,6 +1106,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
   if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
@@ -1189,19 +1206,76 @@ function isComponentDesignator(text: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(text.trim());
 }
 
+// SI prefix case is significant even though this check only proves dimension.
+const COMPONENT_VALUE_UNIT_PREFIX = "(?:da|[qryzafpnμumcdhkMGTPEZYRQ])?";
+const COMPONENT_VALUE_UNITS = {
+  resistance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}(?:Ω|[oO]hms?)$`),
+  voltage: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}V$`),
+  current: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}A$`),
+  capacitance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}F$`),
+  inductance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}H$`),
+};
+
+/** A quantity without a symbol needs a dimension tied to the executable glyph. */
+function componentValueUnitMatches(entityId: string, unit: unknown, document: SceneDocument): boolean {
+  if (typeof unit !== "string" || !unit.trim()) return false;
+  const construction = document.constructions.find((candidate) =>
+    candidate.operator === "symbol" && candidate.outputs.includes(entityId));
+  const symbol = construction?.inputs.symbol;
+  if (typeof symbol !== "string") return false;
+  const kind = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalizedUnit = unit.trim().normalize("NFKC");
+  const matches = (dimension: keyof typeof COMPONENT_VALUE_UNITS) => COMPONENT_VALUE_UNITS[dimension].test(normalizedUnit);
+  switch (kind) {
+    case "resistor": case "lamp": case "galvanometer": return matches("resistance");
+    case "battery": case "cell": case "ac_source": case "alternating_source":
+    case "diode": case "zener": return matches("voltage");
+    case "voltmeter": return matches("voltage") || matches("resistance");
+    case "ammeter": return matches("current") || matches("resistance");
+    case "capacitor": return matches("capacitance");
+    case "inductor": case "coil": return matches("inductance");
+    default: return false;
+  }
+}
+
 function matchingQuantityText(
   designator: string,
   quantities: SceneDocument["quantities"],
+  exactId = false,
 ): string | undefined {
   const key = normalizeIdentifier(designator);
-  const quantity = quantities.find((candidate) =>
-    normalizeIdentifier(candidate.id) === key ||
-    (typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key),
+  const symbolMatches = quantities.filter((candidate) =>
+    typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key,
   );
-  if (!quantity) return undefined;
-  if (typeof quantity.label === "string" && quantity.label.trim()) return quantity.label.trim();
+  const exactMatches = quantities.filter((candidate) => candidate.id === designator);
+  const aliases = quantities.filter((candidate) =>
+    // IDs are opaque aliases, but cannot turn a declared physical r into R.
+    !(typeof candidate.symbol === "string" &&
+      normalizeIdentifier(candidate.symbol).toLowerCase() === key.toLowerCase() &&
+      normalizeIdentifier(candidate.symbol) !== key),
+  );
+  const exactAliases = aliases.filter((candidate) => candidate.id === designator);
+  const normalizedAliases = aliases.filter((candidate) => normalizeIdentifier(candidate.id) === key);
+  const candidates = exactId ? exactMatches
+    : symbolMatches.length > 0 ? symbolMatches
+    : exactAliases.length > 0 ? exactAliases
+    : normalizedAliases.length > 0 ? normalizedAliases
+    : aliases.filter((candidate) => normalizeIdentifier(candidate.id).toLowerCase() === key.toLowerCase());
+  // Conflicting aliases have no unique value. Do not make inventory order a
+  // source of physical authority.
+  const quantity = candidates[0];
+  if (!quantity || candidates.some((candidate) =>
+    candidate.value !== quantity.value || candidate.unit !== quantity.unit || candidate.label !== quantity.label,
+  )) return undefined;
+  if (!exactId && typeof quantity.label === "string" && quantity.label.trim()) return quantity.label.trim();
   const value = quantity.value;
   if (typeof value !== "number" && typeof value !== "string") return undefined;
+  if (exactId) {
+    // This inferred label is new ink: use the stored scalar, never a stale
+    // display label, an unresolved reference, or an underflowed literal.
+    if (typeof value === "string" && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return undefined;
+    try { resolveNumber(value, new Map()); } catch { return undefined; }
+  }
   const unit = typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim())
     ? ` ${quantity.unit.trim()}`
     : "";
@@ -1209,7 +1283,7 @@ function matchingQuantityText(
 }
 
 function normalizeIdentifier(value: string): string {
-  return value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) =>
+  return value.trim().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)),
   );
 }
@@ -1908,6 +1982,7 @@ function evaluateConstruction(
       return [{ kind: "path", infinite: true, points: [vertex, { x: vertex.x + u.x + v.x, y: vertex.y + u.y + v.y }] }];
     }
     case "angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms")) throw new Error("incidentLineArms is only supported by right_angle_mark");
       const vertex = point(["vertex"]);
       const aRef = first(inputs, ["a", "first"]);
       const bRef = first(inputs, ["b", "second"]);
@@ -1941,9 +2016,13 @@ function evaluateConstruction(
       }];
     }
     case "right_angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms") && typeof inputs.incidentLineArms !== "boolean") {
+        throw new Error("right_angle_mark incidentLineArms must be boolean");
+      }
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const arm = inputs.incidentLineArms === true ? resolveIncidentLineArmPoint : resolveAngleArmPoint;
+      const a = arm(first(inputs, ["a", "first"]), vertex, geometry);
+      const b = arm(first(inputs, ["b", "second"]), vertex, geometry);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
       // A square corner asserts perpendicularity. Normalize first so the
@@ -2165,7 +2244,19 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         }
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
-        residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
+        const acute = spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]));
+        residual = Math.abs(acute - expectedAngle);
+        // With verified parts, the claim is checked against the angle the
+        // figure actually forms: two directed vectors form one angle in
+        // [0, 180]; two undirected lines form both an angle and its supplement.
+        if (isVerifiedPartsEnabled(document) && spaceAcuteAngle(values[0], values[1]) === null) {
+          const directed = (value: Geometry | undefined) => value?.kind === "path" && value.directed === true;
+          const alternative = directed(values[0]) && directed(values[1])
+            ? directedAngleBetween(asLine(values[0]), asLine(values[1]))
+            : !directed(values[0]) && !directed(values[1]) ? Math.PI - acute : acute;
+          residual = Math.min(residual, Math.abs(alternative - expectedAngle));
+          if (directed(values[0]) && directed(values[1])) residual = Math.abs(alternative - expectedAngle);
+        }
         passed = residual < angularTolerance(assertion);
         break;
       }
@@ -5156,6 +5247,26 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
 }
+/** Opt-in straight-owner incidence; default angle-arm endpoint semantics stay unchanged. */
+function resolveIncidentLineArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+  if (typeof value !== "string") throw new Error("incident angle arm must reference an existing straight path");
+  const resolved = geometry.get(value);
+  assertPlanarGeometry(resolved);
+  if (resolved?.kind !== "path" || resolved.closed || resolved.sampledCurve !== undefined || resolved.points.length !== 2) {
+    throw new Error("incident angle arm must reference an existing straight path");
+  }
+  const [a, b] = resolved.points as [Point, Point], span = distance(a, b);
+  if (!(span > EPSILON)) throw new Error("incident angle arm is degenerate");
+  if (pointGeometryResidual({ kind: "point", point: vertex }, resolved) > EPSILON) {
+    throw new Error("incident angle vertex is not on its straight arm");
+  }
+  if (!geometryCanReachTarget(resolved, vertex, EPSILON)) {
+    throw new Error("incident angle vertex is behind its ray origin");
+  }
+  if (distance(b, vertex) > EPSILON) return b;
+  if (distance(a, vertex) > EPSILON) return a;
+  throw new Error("incident angle arm has no noncoincident endpoint");
+}
 function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
 function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   if (typeof value === "string") {
@@ -5193,6 +5304,11 @@ function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(di
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
 function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function directedAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
+  const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
+  const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
+  return Math.acos(Math.max(-1, Math.min(1, firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y)));
+}
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
@@ -5540,7 +5656,7 @@ function attachAngleMeasureLabels(
     );
     if (annotation) consumedAnnotationIds.add(annotation.id);
     const quantityText = annotation?.quantityId
-      ? matchingQuantityText(annotation.quantityId, document.quantities)
+      ? matchingQuantityText(annotation.quantityId, document.quantities, true)
       : matchingQuantityText(entityId, document.quantities);
     const assertion = document.assertions.find((candidate) =>
       candidate.predicate === "angle_between" &&

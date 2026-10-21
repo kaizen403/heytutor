@@ -17,6 +17,7 @@ import type {
   RenderPrimitive,
   RenderScene,
   SceneDocument,
+  TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
   describeSceneFamily,
@@ -35,6 +36,8 @@ import { isDsaConstructionGuide } from "./diagramInk";
 const DIAGRAM_POINT_RADIUS = 2;
 
 export interface VerifiedScenePresentationOptions {
+  /** Accepted numeric authority: source givens may appear before derivation. */
+  turnPlan?: Pick<TurnPlanV3, "givens" | "derived">;
   /** Narration follows the turn's voice; every figure label stays unchanged. */
   narrationLanguage?: NarrationLanguage;
   /**
@@ -103,6 +106,12 @@ export function buildVerifiedDiagramPresentation(
   );
   const holdLaterDsaFrames = options.layout === "code_lesson" && dsaExampleFrames.length > 1;
   const introGroupId = holdLaterDsaFrames ? orderedGroupIds[0]! : null;
+  // A measurement is one atom: its source-given label, bar and witnesses.
+  // Textless companions cannot establish identity from a number of their own.
+  const sourceGivenMeasurementIds = new Set(renderScene.primitives
+    .filter((primitive) => (primitive.kind === "label" || primitive.kind === "dimension")
+      && isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan))
+    .map((primitive) => primitive.entityId));
 
   const add = (
     groupId: string,
@@ -180,6 +189,11 @@ export function buildVerifiedDiagramPresentation(
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
+        ((command.type === "LABEL" || command.type === "DIMENSION")
+          && isSourceGivenMeasurement(primitive, command.text, document, options.turnPlan))
+          || (!command.text && sourceGivenMeasurementIds.has(primitive.entityId)
+            && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"
+              || primitive.provenance?.labelLeader === true)),
       ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
       if (deferReason !== null && index !== null) {
@@ -378,7 +392,7 @@ export function buildVerifiedDiagramPresentation(
 ${answerTargets.size ? "Computed answer labels stay hidden until this teaching sequence ends. Derive their values in narration and WRITE before the lesson ends; FOCUS only traces their geometry." : ""}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
-Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
+Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. This is a reference, not an opening script: derived labels wait until the corresponding result has been derived. Introduce setup objects and symbols first; speak or FOCUS a computed value only with the work step that establishes it. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
 Verified meaning of each focus target: ${targetMeanings || "none"}. A target denotes this whole part; do not reinterpret it as one of its entries or another part.
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
@@ -387,7 +401,7 @@ When you say what a labeled point is, for example the object O or the image I, t
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
-Read the figure to the student before you calculate with it: name each labeled part, say what it physically represents, and say which way it points or where it acts, with [FOCUS:entity_id] on the part you just named. Never substitute into a figure the student has not been told how to read.
+Read the figure's setup before using it: name the given objects, directions and symbols with [FOCUS:entity_id] on the part just named. A solved label is not a given; derive its value in the work column before reading it aloud or focusing it. Never use the label list as a pre-calculation answer tour.
 ${options.figureFamily === "solid_figure" ? "For mensuration, explain which part is the base, which labelled measurement is perpendicular height, and which is radius or slant length before its formula. For surface area, explain which source surfaces are exposed and which joining faces are internal; for volume, explain the stated addition, subtraction or conservation. Point at the corresponding existing parts with FOCUS, never invent a missing face or measurement." : ""}
 ${options.figureFamily ? `The construction on the board is a ${describeSceneFamily(options.figureFamily)} figure. ` : ""}This figure is what it is. If it is not the setup this question is about, or the labelled parts are not the objects the question names, say in one plain sentence that the picture on the board does not show this setup, then teach the question in words and in the work column. Do not rename a part to make it fit and do not describe apparatus that is not in the list.
 ${options.layout === "code_lesson"
@@ -576,6 +590,7 @@ function deferralReason(
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
   codeLesson = false,
+  sourceGiven = false,
 ): "annotation" | "named" | null {
   // DSA figures are a worked example, not a physics apparatus. Values and
   // indices belong on the boxes as they appear — holding them for FOCUS
@@ -598,8 +613,43 @@ function deferralReason(
   if (primitive.provenance?.annotation === "highlight") return "annotation";
   if (command.visualStyle?.strokeRole === "trace") return "annotation";
 
+  if (sourceGiven) return null;
+
   if (command.type === "LABEL" || command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "named";
   return null;
+}
+
+/** Presentation order only; never invent authority from a matching number. */
+function isSourceGivenMeasurement(
+  primitive: RenderPrimitive,
+  labelText: string | undefined,
+  document: SceneDocument,
+  turnPlan: VerifiedScenePresentationOptions["turnPlan"],
+): boolean {
+  if (!turnPlan || !labelText) return false;
+  // Compatibility folding would turn 10³ into 103 and change value identity.
+  const compact = (text: string): string => text.normalize("NFC")
+    .replace(/\\(?:mathrm|text)\{([^}]*)\}/g, "$1")
+    .replace(/\\(?:theta|alpha|beta|gamma|Omega)\b/g, (token) =>
+      ({ "\\theta": "θ", "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\Omega": "Ω" })[token] ?? token)
+    .replace(/\b(?:degrees?|deg)\b/g, "°")
+    .replace(/\b(?:ohms?)\b/g, "Ω")
+    .replace(/\\[,;!]|[\s{}$]/g, "");
+  const annotationId = primitive.provenance?.annotationId;
+  const annotation = document.annotations.find((entry) => entry.id === annotationId || entry.id === primitive.id);
+  const binding = annotation?.quantityId ?? primitive.entityId;
+  // Even an answer with the same value/unit, or a misleading given-like text,
+  // stays deferred when its explicit identity is a derived result.
+  if (turnPlan.derived.some((quantity) => quantity.id === binding || quantity.symbol === binding)) return false;
+  const text = compact(labelText);
+  return turnPlan.givens.some((given) => {
+    if (given.provenance !== "given" || !Number.isFinite(given.value)) return false;
+    const value = compact(`${given.value}${given.unit ?? ""}`);
+    const named = compact(`${given.symbol}=${given.value}${given.unit ?? ""}`);
+    if (text === named) return true;
+    const bound = given.id === binding || given.symbol === binding;
+    return bound && text === value;
+  });
 }
 
 function annotationVisualStyle(
@@ -780,8 +830,8 @@ const IRREGULAR_PLURALS: Record<string, string> = {
 const IRREGULAR_SINGULARS: Record<string, string> = Object.fromEntries(
   Object.entries(IRREGULAR_PLURALS).map(([singular, plural]) => [plural, singular]),
 );
-/** A label short enough to say after its role: "its pole P", "the weight mg". */
-const SPEAKABLE_LABEL = /^[A-Za-z]{1,2}[′']?$/;
+/** Setup symbols may have Greek letters/indices, never an equation or value. */
+const SPEAKABLE_LABEL = /^[A-Za-z\p{Script=Greek}]{1,2}(?:_(?:[A-Za-z\p{Script=Greek}\d]+|\{[A-Za-z\p{Script=Greek}\d]+\})|[\d₀-₉ₐ-ₜᵢⱼ]+)?[′']?$/u;
 
 function cleanRole(role: string | undefined): string {
   return (role ?? "")
@@ -973,7 +1023,7 @@ function matchEntitiesInSentence(
     if (lettered) continue;
     for (const candidate of candidates) {
       if (candidate.kind !== "phrase") continue;
-      const index = findSpokenToken(sentence, candidate.text, 0);
+      const index = findUnclaimedToken(sentence, candidate.text, claimed);
       if (index < 0) continue;
       claimed.push({ start: index, end: index + candidate.text.length, text: candidate.text });
       matches.set(entityId, {
@@ -981,6 +1031,7 @@ function matchEntitiesInSentence(
         index,
         strong: true,
       });
+      break;
     }
   }
   for (const [entityId, candidates] of candidatesByEntity) {
@@ -1002,6 +1053,22 @@ function matchEntitiesInSentence(
 
 function firstSpokenWord(sentence: string): string {
   return /^[\p{L}\p{N}]+/u.exec(sentence)?.[0] ?? sentence.trim().split(/\s+/)[0] ?? "";
+}
+
+/** A later "angle mark" must not reuse the suffix of "right angle mark". */
+function unambiguousCueMatch(sentence: string, match: CuedMatch, matches: CuedMatch[]): CuedMatch {
+  const end = match.index + match.token.length;
+  let start = match.index;
+  const sharesEarlierSuffix = () => matches.some((other) =>
+    other.index < match.index && other.token !== match.token
+    && other.token.toLowerCase().endsWith(sentence.slice(start, end).toLowerCase()),
+  );
+  while (start > 0 && sharesEarlierSuffix()) {
+    const previousWord = /\S+\s*$/.exec(sentence.slice(0, start));
+    if (!previousWord) break;
+    start = previousWord.index;
+  }
+  return { ...match, token: sentence.slice(start, end), index: start };
 }
 
 function capitaliseSentence(text: string): string {
@@ -1032,18 +1099,24 @@ function spokenCueSentence(cue: string, groupIndex: number, language?: Narration
  * beat twelve seconds long with the pen idle for two thirds of it. Two parts
  * with the same head phrase share the words, and the window.
  */
-function entityPhrase(entity: SceneEntity, language?: NarrationLanguage): string | null {
+function entityPhrase(entity: SceneEntity, namedInCue = false, language?: NarrationLanguage): string | null {
   const role = cleanRole(entity.role).replace(/\s+label$/i, "");
   const label = entity.label?.trim();
+  const symbol = label && SPEAKABLE_LABEL.test(label) ? label : null;
   // Primitive implementation roles do not establish a physical meaning.
   // Identify an already-labelled part without guessing from its id or topic.
   if (label && SPEAKABLE_LABEL.test(label) && /^(?:polyline|helper point)$/i.test(role)) {
     return language === "hinglish" ? `${label} वाला part` : `the part marked ${label}`;
   }
   if (!role) {
-    return label && SPEAKABLE_LABEL.test(label) ? label : null;
+    return symbol;
   }
-  if (UNSPEAKABLE_ROLE.test(role)) return null;
+  if (UNSPEAKABLE_ROLE.test(role)) return namedInCue ? symbol : null;
+  // Roles are planner prose, not a second narration channel. A value or a
+  // statement belongs to teaching after derivation, even when spelled out.
+  if (/[\p{N}=<>+×÷^]/u.test(role) || /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|quarter|is|are|equals?|occurs?|when|because|solved|computed|answer)\b/i.test(role)) {
+    return language === "hinglish" ? (symbol ? `part ${symbol}` : "यह part") : (symbol ? `the part ${symbol}` : "the part");
+  }
   const words = roleWords(role);
   const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
   const headPhrase = cut > 0 && roleHeadWord(role) ? roleHeadText(role, words, cut) : role;
@@ -1177,6 +1250,16 @@ function cueRevealBeat(input: {
     if (!texts.includes(text)) texts.push(text);
     drawnTextsByEntity.set(entry.entityId, texts);
   }
+  // Naming a part must not also reveal its measured/derived value. Only a
+  // bare symbol can join the intro; a symbolic dimension keeps its bar and
+  // witnesses together. All value annotations remain available to teaching.
+  const symbolicEntityIds = new Set([...drawnTextsByEntity]
+    .filter(([, texts]) => texts.some((text) => SPEAKABLE_LABEL.test(text)))
+    .map(([entityId]) => entityId));
+  const introDeferred = input.deferred.filter((entry) => {
+    const text = commands[entry.index]?.text?.trim();
+    return text ? SPEAKABLE_LABEL.test(text) : symbolicEntityIds.has(entry.entityId);
+  });
   // A measurement has no ink of its own in the beat, only its withheld
   // dimension and label; it is still matched so "and range" can pull R in.
   const matchedIds = [...entityIds];
@@ -1200,19 +1283,30 @@ function cueRevealBeat(input: {
         .sort((left, right) => right.length - left.length)[0];
       if (parent) matches.set(entityId, { ...matches.get(parent)!, strong: false });
     }
-    return matches;
+    const allMatches = [...matches.values()];
+    return new Map([...matches].map(([id, match]) => [id, unambiguousCueMatch(sentence, match, allMatches)]));
   };
 
   const nameable = entityIds.filter((entityId) => {
     const entity = entitiesById.get(entityId);
     return Boolean(entity && (entity.label || entity.role));
   });
+  // A dimension may consist entirely of deferred ink. Retain the old cue's
+  // part-name signal (e.g. "length L"), never its explanatory/result prose.
+  // Only an entity can be named: a deferred annotation (a battery's polarity
+  // mark `source_polarity`) has no entity to phrase, and naming it threw.
+  const cueMatches = matchAll(input.cue);
+  for (const entry of introDeferred) {
+    if (cueMatches.get(entry.entityId)?.strong && entitiesById.has(entry.entityId) && !nameable.includes(entry.entityId)) {
+      nameable.push(entry.entityId);
+    }
+  }
   // The hand needs at least this long for the group's ink (labels the
   // sentence names included). A sentence shorter than that leaves the pen
   // running past the voice, so it too earns the rest of the names.
   const floorMs = (currentMatches: Map<string, CuedMatch>): number =>
     input.commandIndices.reduce((sum, index) => sum + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[index]!)), 0)
-    + input.deferred.reduce((sum, entry) =>
+    + introDeferred.reduce((sum, entry) =>
       currentMatches.get(entry.entityId)?.strong
         ? sum + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[entry.index]!))
         : sum, 0);
@@ -1238,7 +1332,7 @@ function cueRevealBeat(input: {
       items.push({ index, entityId, ...previous });
     }
     const pulled: number[] = [];
-    for (const entry of input.deferred) {
+    for (const entry of introDeferred) {
       const match = sentenceMatches.get(entry.entityId);
       if (!match?.strong) continue;
       const item: BeatItem = { index: entry.index, entityId: entry.entityId, token: match.token, position: match.index };
@@ -1300,7 +1394,7 @@ function cueRevealBeat(input: {
     const phrases: string[] = [];
     for (const entityId of nameable) {
       if (skip?.has(entityId)) continue;
-      const phrase = entityPhrase(entitiesById.get(entityId)!, input.language);
+      const phrase = entityPhrase(entitiesById.get(entityId)!, cueMatches.get(entityId)?.strong, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     return phrases;
@@ -1358,11 +1452,13 @@ function cueRevealBeat(input: {
     }
     return { narration, placed };
   };
-  const explanationOf = (cue: string): string =>
-    input.language === "hinglish" && cueSubject(cue) !== "the physical setup"
-      ? spokenCueSentence(cue, input.groupIndex, input.language) : "";
-  const composeCue = (cue: string, explain: boolean, closingTiers = 1): ComposedBeat =>
-    compose(spokenCueSentence(cue, input.groupIndex, input.language), explain ? explanationOf(cue) : "", closingTiers);
+  // Keep main's ink/voice pacing, but planner prose is never an opening
+  // narration channel, even when dense ink could accommodate its explanation.
+  const neutralSetup = input.language === "hinglish"
+    ? input.groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं."
+    : input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.";
+  const composeCue = (_cue: string, _explain: boolean, closingTiers = 1): ComposedBeat =>
+    compose(neutralSetup, "", closingTiers);
 
   // The voice may not outrun the ink. A planner cue of four joined teaching
   // narrations (58 s against 6 s of ink), or a Hinglish walk with the whole

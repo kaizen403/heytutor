@@ -1,0 +1,2 @@
+# Constructor-law rollout and native app admission/save boundary.
+tsx scripts/verify/verify-constructor-law-completion.ts

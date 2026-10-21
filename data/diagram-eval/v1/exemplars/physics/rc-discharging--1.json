@@ -1,0 +1,299 @@
+{
+  "topic_id": "physics|12|kirchhoffs-laws",
+  "question": "A capacitor C, initially charged with its upper plate positive at voltage V0, is connected directly across a resistor R at t=0. No cell remains in this circuit. Draw the complete discharge loop, showing the initial conventional current and capacitor plate polarities.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "RC discharge loop with no source, conventional discharge current and capacitor polarity"
+    },
+    "source": {
+      "question": "A capacitor C, initially charged with its upper plate positive at voltage V0, is connected directly across a resistor R at t=0. No cell remains in this circuit. Draw the complete discharge loop, showing the initial conventional current and capacitor plate polarities.",
+      "family": "circuit_network"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Ctop",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Ebottom",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "left",
+        "kind": "connector",
+        "role": "left"
+      },
+      {
+        "id": "R",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R"
+      },
+      {
+        "id": "top",
+        "kind": "connector",
+        "role": "top"
+      },
+      {
+        "id": "capacitor",
+        "kind": "component",
+        "role": "capacitor",
+        "label": "C"
+      },
+      {
+        "id": "bottom",
+        "kind": "connector",
+        "role": "bottom"
+      },
+      {
+        "id": "I",
+        "kind": "vector",
+        "role": "I",
+        "label": "I"
+      },
+      {
+        "id": "plus",
+        "kind": "point",
+        "role": "plus",
+        "label": "+"
+      },
+      {
+        "id": "minus",
+        "kind": "point",
+        "role": "minus",
+        "label": "−"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_Ctop",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Ctop"
+        ]
+      },
+      {
+        "id": "make_D",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "make_Ebottom",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Ebottom"
+        ]
+      },
+      {
+        "id": "make_left",
+        "operator": "connect",
+        "inputs": {
+          "start": "A",
+          "end": "Ebottom"
+        },
+        "outputs": [
+          "left"
+        ]
+      },
+      {
+        "id": "make_R",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "R"
+        ]
+      },
+      {
+        "id": "make_top",
+        "operator": "connect",
+        "inputs": {
+          "start": "B",
+          "end": "Ctop"
+        },
+        "outputs": [
+          "top"
+        ]
+      },
+      {
+        "id": "make_capacitor",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "capacitor",
+          "start": "Ctop",
+          "end": "D"
+        },
+        "outputs": [
+          "capacitor"
+        ]
+      },
+      {
+        "id": "make_bottom",
+        "operator": "connect",
+        "inputs": {
+          "start": "D",
+          "end": "Ebottom"
+        },
+        "outputs": [
+          "bottom"
+        ]
+      },
+      {
+        "id": "make_I",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            1.6,
+            2.5
+          ],
+          "direction": [
+            -4,
+            0
+          ],
+          "length": 0.8
+        },
+        "outputs": [
+          "I"
+        ]
+      },
+      {
+        "id": "make_plus",
+        "operator": "point",
+        "inputs": {
+          "x": 6.5,
+          "y": 1.9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "plus"
+        ]
+      },
+      {
+        "id": "make_minus",
+        "operator": "point",
+        "inputs": {
+          "x": 6.5,
+          "y": 1.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "minus"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "Ctop",
+      "D",
+      "Ebottom",
+      "left",
+      "R",
+      "top",
+      "capacitor",
+      "bottom",
+      "I",
+      "plus",
+      "minus"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "Ctop",
+          "D",
+          "Ebottom",
+          "left",
+          "R",
+          "top",
+          "capacitor",
+          "bottom",
+          "I",
+          "plus",
+          "minus"
+        ],
+        "dependsOn": [],
+        "narrationCue": "RC discharge loop with no source, conventional discharge current and capacitor polarity"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "RC discharge loop with no source, conventional discharge current and capacitor polarity"
+      }
+    ]
+  }
+}
