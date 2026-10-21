@@ -18,6 +18,10 @@ out/
 
 # Test / coverage
 coverage/
+!apps/tutor/app/admin/(panel)/coverage/
+!apps/tutor/app/admin/(panel)/coverage/page.tsx
+!apps/tutor/app/api/admin/coverage/
+!apps/tutor/app/api/admin/coverage/route.ts
 !data/question-bank/reports/coverage/
 !data/question-bank/reports/coverage/**
 .nyc_output/

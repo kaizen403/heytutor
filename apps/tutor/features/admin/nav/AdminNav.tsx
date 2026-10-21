@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ChartColumn,
   FlaskConical,
   GraduationCap,
   LayoutDashboard,
@@ -39,6 +40,12 @@ const SECTIONS: AdminSection[] = [
     label: "Fails",
     icon: TriangleAlert,
     active: (p) => p.startsWith("/admin/fails"),
+  },
+  {
+    href: "/admin/coverage",
+    label: "Coverage",
+    icon: ChartColumn,
+    active: (p) => p.startsWith("/admin/coverage"),
   },
 ];
 
