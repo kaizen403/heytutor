@@ -1293,9 +1293,11 @@ function cueRevealBeat(input: {
   });
   // A dimension may consist entirely of deferred ink. Retain the old cue's
   // part-name signal (e.g. "length L"), never its explanatory/result prose.
+  // Only an entity can be named: a deferred annotation (a battery's polarity
+  // mark `source_polarity`) has no entity to phrase, and naming it threw.
   const cueMatches = matchAll(input.cue);
   for (const entry of introDeferred) {
-    if (cueMatches.get(entry.entityId)?.strong && !nameable.includes(entry.entityId)) {
+    if (cueMatches.get(entry.entityId)?.strong && entitiesById.has(entry.entityId) && !nameable.includes(entry.entityId)) {
       nameable.push(entry.entityId);
     }
   }
