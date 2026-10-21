@@ -8,24 +8,23 @@ export function setSentryRelease(envFile, release) {
   if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1) throw new Error("A regular deployment environment file is required");
   const original = readFileSync(envFile, "utf8");
   const newline = original.includes("\r\n") ? "\r\n" : "\n";
-  const assignment = `SENTRY_RELEASE=${release}`;
-  let replaced = false;
-  const updated = original.split(/\r?\n/).map(line => {
-    if (!/^\s*(?:export\s+)?SENTRY_RELEASE\s*=/.test(line)) return line;
-    if (replaced) return "";
-    replaced = true;
-    return assignment;
-  }).join(newline);
-  const next = replaced ? updated : `${original}${original.endsWith("\n") || !original ? "" : newline}${assignment}${newline}`;
-  const environment = "SENTRY_ENVIRONMENT=production";
-  let environmentReplaced = false;
-  let production = next.split(/\r?\n/).map(line => {
-    if (!/^\s*(?:export\s+)?SENTRY_ENVIRONMENT\s*=/.test(line)) return line;
-    if (environmentReplaced) return "";
-    environmentReplaced = true;
-    return environment;
-  }).join(newline);
-  if (!environmentReplaced) production += `${production.endsWith("\n") || !production ? "" : newline}${environment}${newline}`;
+  let production = original;
+  for (const [name, value] of [
+    ["SENTRY_RELEASE", release],
+    ["SENTRY_ENVIRONMENT", "production"],
+    ["NEXT_PUBLIC_SENTRY_ENVIRONMENT", "production"],
+  ]) {
+    const assignment = `${name}=${value}`;
+    const pattern = new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=`);
+    let replaced = false;
+    production = production.split(/\r?\n/).map(line => {
+      if (!pattern.test(line)) return line;
+      if (replaced) return "";
+      replaced = true;
+      return assignment;
+    }).join(newline);
+    if (!replaced) production += `${production.endsWith("\n") || !production ? "" : newline}${assignment}${newline}`;
+  }
   if (production === original) return;
   const temporary = `${envFile}.release-${process.pid}`;
   try {
