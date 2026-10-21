@@ -164,7 +164,9 @@ function legacyParallelLoadInterpretation(
 function parallelTopologyRepairIssue(assertion: SceneAssertion, actual?: number): SceneIssue {
   return {
     code: "parallel_topology_repaired",
-    message: `Assertion ${assertion.id}: a circuit branch was removed before validation; the load count cannot certify the original circuit. Supply an unaltered canonical network`,
+    message: `Assertion ${assertion.id} (pathCount on ${assertion.entities.join(", ")}): the reader removed a circuit branch before validation, so this count cannot certify the circuit as drawn. ` +
+      "A connector is removed when it joins the same two terminals as a component and nothing claims it as an intentional short or bypass. " +
+      "Valid when no connector duplicates a component's terminal pair: join each wire to the terminal or node it actually reaches.",
     severity: "fatal",
     entityIds: assertion.entities,
     expected: assertion.expected,
@@ -413,7 +415,7 @@ export function evaluateTopologyAssertion(
       if (edgeIds.length < 1) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id} path requires at least one edge`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id} path requires at least one edge`),
           severity,
           entityIds: assertion.entities,
         });
@@ -425,7 +427,7 @@ export function evaluateTopologyAssertion(
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: entities do not form an ordered path`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id} (path on ${edgeIds.join(", ")}): consecutive edges must share an endpoint and no node may repeat; ${orderedPathBreak(graph, edgeIds)}`),
           severity,
           entityIds: assertion.entities,
           expected: assertion.expected ?? true,
@@ -438,7 +440,7 @@ export function evaluateTopologyAssertion(
       if (assertion.entities.length < 2) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id} pathCount needs two terminal nodes`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id} pathCount needs two terminal nodes`),
           severity,
           entityIds: assertion.entities,
         });
@@ -449,7 +451,7 @@ export function evaluateTopologyAssertion(
       if (paths === null) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: pathCount graph is too complex for deterministic validation limits`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id}: pathCount graph is too complex for deterministic validation limits`),
           severity,
           entityIds: assertion.entities,
         });
@@ -536,7 +538,7 @@ export function evaluateTopologyAssertion(
       if (edgeIds.length < 2) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id} sameTerminalPair needs ≥2 edges`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id} sameTerminalPair needs ≥2 edges`),
           severity,
           entityIds: assertion.entities,
         });
@@ -577,7 +579,7 @@ export function evaluateTopologyAssertion(
       if (assertion.entities.length !== 1) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id} degree needs exactly one node`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id} degree needs exactly one node`),
           severity,
           entityIds: assertion.entities,
         });
@@ -590,7 +592,7 @@ export function evaluateTopologyAssertion(
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: node degree ${degree} ≠ ${expected}`,
+          message: topologyFinding(assertion, `Assertion ${assertion.id}: node degree ${degree} ≠ ${expected}`),
           severity,
           entityIds: assertion.entities,
           expected,
@@ -606,6 +608,26 @@ export function evaluateTopologyAssertion(
 
 function assertNeverTopologyPredicate(predicate: never): never {
   throw new Error(`unhandled topology predicate ${String(predicate)}`);
+}
+
+/** The engine's finding leads; a candidate-authored reason is quoted as the claim, never in its place. */
+function topologyFinding(assertion: SceneAssertion, finding: string): string {
+  return assertion.reason ? `${finding} The candidate's claim: "${assertion.reason}".` : finding;
+}
+
+/** Where an ordered path first fails: a repeated or missing edge, two consecutive edges with no shared endpoint, or a repeated node. */
+function orderedPathBreak(graph: TopologyGraph, edgeIds: string[]): string {
+  const repeated = edgeIds.find((id, index) => edgeIds.indexOf(id) !== index);
+  if (repeated) return `edge ${repeated} is listed twice`;
+  const missing = edgeIds.filter((id) => !graph.edgeById.has(id));
+  if (missing.length > 0) return `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not a connector or component edge of the circuit graph`;
+  for (let index = 1; index < edgeIds.length; index += 1) {
+    const previous = graph.edgeById.get(edgeIds[index - 1]!)!, current = graph.edgeById.get(edgeIds[index]!)!;
+    if (![previous.a, previous.b].some((node) => node === current.a || node === current.b)) {
+      return `${previous.id} (${previous.a}–${previous.b}) and ${current.id} (${current.a}–${current.b}) share no endpoint`;
+    }
+  }
+  return "the listed edges revisit a node, so they do not form one simple path or cycle";
 }
 
 function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean {
