@@ -172,7 +172,7 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   transverse_field: ["perpendicular", "parallel"],
   polarizer: ["angle_between", "perpendicular"],
   contact_body: ["perpendicular", "opposite_direction", "connected", "parallel", "angle_between", "on", "equal_length"],
-  circuit_network: ["path", "sameTerminalPair", "pathCount", "degree", "connected", "perpendicular", "angle_between"],
+  circuit_network: ["path", "sameTerminalPair", "pathCount", "loadBranchCount", "degree", "connected", "perpendicular", "angle_between"],
   state_plot: ["connected", "on", "between", "ordered_along", "perpendicular"],
   analytic_curve: ["on", "function_value", "root", "incident", "perpendicular"],
   bounded_region: ["function_value", "root", "between"],
@@ -371,7 +371,7 @@ export function inferSceneCapabilities(
   const circuitTopology = circuitTopologyFromProblemStructure(hints.problemIR);
   if (circuitTopology?.twoLoop) {
     planningGuidance.add(
-      `ProblemIR structure shows a multi-loop network (${circuitTopology.sources} source(s), ${circuitTopology.branches} branch component(s)): draw the two-loop network with both sources and the shared branch, never a single series resistor chain.`,
+      `The explicit ProblemIR branch graph contains multiple independent cycles (${circuitTopology.sources} declared source(s), ${circuitTopology.branches} declared branches). Preserve its nodes, branch endpoints and component states; do not collapse it to a single series chain or invent additional sources or a shared branch.`,
     );
   }
   const riverVariant = riverBoatVariantFromProblemStructure(hints.problemIR);

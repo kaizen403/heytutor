@@ -48,6 +48,7 @@ tsx scripts/verify/verify-vsepr-label-geometry.ts
 tsx scripts/verify/verify-pinned-label-precision.ts
 tsx scripts/verify/verify-instrument-labels.ts
 tsx scripts/verify/verify-label-ink-clearance.ts
+tsx scripts/verify/verify-label-owner-placement.ts
 tsx scripts/verify/verify-archetype-point-ownership.ts
 tsx scripts/verify/verify-solid-measurement-proof.ts
 pnpm verify:startup

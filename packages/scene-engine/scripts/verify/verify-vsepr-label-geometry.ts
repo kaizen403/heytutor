@@ -3,9 +3,9 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { boundsOverlap, type LabelBounds } from "../../src/labels/labelEngine";
 
 for (const question of [
-  "The shape of CO2 molecule is:",
-  "Statement I: F2O < H2O < Cl2O is the correct trend in terms of bond angle. Statement II: SiF4, SnF4 and PbF4 are ionic in nature.",
-  "The molecule/ion with square pyramidal shape is: PF5, BrF5, PCl5, [Ni(CN)4]2-",
+  "The shape and bond angle of CO2 molecule are:",
+  "Compare the bond angles of F2O and H2O and Cl2O.",
+  "Compare the molecular shapes and bond angles of PF5 and BrF5 and PCl5.",
 ]) {
   const document = buildVseprScene(question, [], false);
   if (!document) throw new Error(`VSEPR figure declined: ${question}`);

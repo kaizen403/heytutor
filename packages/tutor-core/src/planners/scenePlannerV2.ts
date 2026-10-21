@@ -1,3 +1,5 @@
+import { renderRepairErrors } from "./sceneRepairErrors";
+import { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
@@ -15,6 +17,8 @@ export interface SceneRepairError {
   message: string;
   severity: "fatal" | "warning";
   path?: string;
+  assertionId?: string;
+  constructionId?: string;
   entityIds?: string[];
   expected?: unknown;
   actual?: unknown;
@@ -33,6 +37,8 @@ export interface SceneCandidateValidation<T = unknown> {
 export interface ScenePlannerResponse {
   document: SceneDocumentCandidate;
   rawContent: string;
+  /** Internal repair obligation, never supplied by the model. */
+  repairSeed?: SceneDocumentCandidate;
   phase: "plan" | "repair";
   lane: ScenePlannerLane;
   elapsedMs: number;
@@ -41,6 +47,7 @@ export interface ScenePlannerResponse {
 }
 
 export interface ScenePlannerOptions extends ScenePlannerPromptContext {
+  preserveRequiredGeometry?: boolean;
   proxyUrl: string;
   sessionId?: string;
   /** Client-generated Langfuse turn id shared with teaching and TTS. */
@@ -184,7 +191,8 @@ PREVIOUS STRUCTURE
 ${JSON.stringify(previousStructure)}
 
 STRUCTURED VALIDATION ERRORS
-${JSON.stringify(errors)}
+Each line names the element by its id in the previous candidate, what the validator found, and what a valid version needs.
+${renderRepairErrors(candidate, errors)}
 
 Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
   const connectivityGuidance = errors.some((error) =>
@@ -224,7 +232,7 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     : null;
 }
 
-const ENGINE_ONLY_SOURCE_KEYS = ["synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
+const ENGINE_ONLY_SOURCE_KEYS = ["diagramYieldPolicy", "yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
 
 /**
  * Canonicalize provenance that is already fixed by the request envelope. This
@@ -435,11 +443,21 @@ export async function planSceneDocumentWithRepair<T>(
   const collect = (settled: Settled): ScenePlannerResponse | null => {
     const round = inFlight.get(settled.key)?.round;
     inFlight.delete(settled.key);
-    if (round) round.settled += 1;
+    if (round) {
+      round.settled += 1;
+      if (settled.candidate && plannerOptions.preserveRequiredGeometry) settled.candidate.repairSeed = round.seed.response.repairSeed ?? round.seed.response.document;
+    }
     return settled.candidate;
   };
   const evaluate = async (candidate: ScenePlannerResponse) => {
-    const candidateValidation = await validate(candidate.document);
+    let candidateValidation = await validate(candidate.document);
+    if (candidate.repairSeed) {
+      const lost = [
+        ...validateRepairSurvivorship(candidate.repairSeed, candidate.document),
+        ...validateRepairCandidateSetSurvivorship(evaluated.filter(entry => entry.response.phase === "plan").map(entry => entry.response.document), candidate.document),
+      ];
+      if (lost.length) candidateValidation = { valid: false, errors: [...candidateValidation.errors, ...lost] };
+    }
     notifySceneObserver(() => plannerOptions.onCandidateValidation?.(candidate, candidateValidation));
     tutorDebug("planner", "semantic scene candidate validation", {
       phase: candidate.phase,
@@ -562,6 +580,17 @@ export async function planSceneDocumentWithRepair<T>(
   for (const entry of inFlight.values()) entry.controller.abort();
 
   if (evaluated.length === 0) return null;
+  // A second initial lane can settle after a repair. Its typed core obligations
+  // must still constrain final selection, and survive later authority revalidation.
+  const initialDocuments = evaluated.filter(entry => entry.response.phase === "plan").map(entry => entry.response.document);
+  for (const entry of evaluated) {
+    if (!entry.response.repairSeed) continue;
+    const lost = validateRepairCandidateSetSurvivorship(initialDocuments, entry.response.document);
+    if (lost.length) {
+      entry.validation = { valid: false, errors: [...entry.validation.errors, ...lost] };
+      notifySceneObserver(() => plannerOptions.onCandidateValidation?.(entry.response, entry.validation));
+    }
+  }
   const ranked = [...evaluated].sort((a, b) => compareValidations(a.validation, b.validation));
   const selected = ranked[0]!;
   const { response, validation } = selected;
@@ -601,7 +630,14 @@ export async function revalidateScenePlanWithRepairResult<T>(
   observe?: ScenePlannerOptions["onCandidateValidation"],
 ): Promise<ScenePlanWithRepairResult<T>> {
   const candidates = await Promise.all(result.candidates.map(async (candidate) => {
-    const validation = await validate(candidate.response.document);
+    let validation = await validate(candidate.response.document);
+    if (candidate.response.repairSeed) {
+      const lost = [
+        ...validateRepairSurvivorship(candidate.response.repairSeed, candidate.response.document),
+        ...validateRepairCandidateSetSurvivorship(result.candidates.filter(entry => entry.response.phase === "plan").map(entry => entry.response.document), candidate.response.document),
+      ];
+      if (lost.length) validation = { valid: false, errors: [...validation.errors, ...lost] };
+    }
     notifySceneObserver(() => observe?.(candidate.response, validation));
     return { ...candidate, validation };
   }));

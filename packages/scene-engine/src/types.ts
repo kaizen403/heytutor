@@ -5,10 +5,17 @@ export type VisualMode = "scene" | "text_only";
 export type Severity = "fatal" | "warning";
 
 export interface SceneIssue {
+  /** A proof gap may be removed locally; a contradiction must remain fatal. */
+  failureKind?: "truth" | "proof";
+  /** A numerically matching label lacks only its source unit declaration. */
+  proofKind?: "unit_declaration";
   code: string;
   message: string;
   severity: Severity;
   path?: string;
+  /** Stable diagnostic identity after reader pruning/normalization shifts indexes. */
+  assertionId?: string;
+  constructionId?: string;
   entityIds?: string[];
   expected?: unknown;
   actual?: unknown;
@@ -189,6 +196,8 @@ export interface ValidationResult {
 }
 
 export interface CompileOptions {
+  /** Explicit rollout override. Otherwise retain an admitted document's policy. */
+  yieldPolicy?: "off" | "verified_parts";
   viewport?: { x: number; y: number; width: number; height: number; padding?: number };
   /**
    * Ink measure for label collision boxes. Defaults to the shared exact

@@ -12,7 +12,8 @@
  *   is still declined by that later check, so the demand is no bypass;
  * - a point placed by its parameter angle, a parametric or polar curve, a
  *   conic written x*x, a rail circuit and a photoelectric energy ladder still
- *   draw nothing and record picture_demand_unmet.
+ *   draw nothing and record picture_demand_unmet. A rail circuit whose rod
+ *   ends carry a lone "+" or "−" polarity note is refused earlier, at compile.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-picture-demand-conic-rows.ts
  */
@@ -55,7 +56,7 @@ const withoutTier = (document: SceneDocument | undefined) => {
 };
 
 const DRAWN = new Set(["conic_operator", "thread_spheres"]);
-const counts = { drawn: 0, laterDecline: 0, protected: 0 };
+const counts = { drawn: 0, laterDecline: 0, protected: 0, polarityRefused: 0 };
 
 for (const row of rows) {
   const label = `${row.id} ${row.case} (${row.topic})`;
@@ -69,6 +70,21 @@ for (const row of rows) {
     allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(decision, source)),
   };
   const validation = validateProductionSceneCandidate({ candidate: structuredClone(row.document) as unknown as Record<string, unknown>, question: row.question, turnPlan: row.turnPlan });
+  // A lone "+" or "−" polarity note cannot bind a terminal, so the compiler
+  // refuses it in both yield modes, before the picture demand is consulted.
+  // Only a protected row may end here, and it still draws nothing.
+  if (!validation.valid && validation.errors.some((issue) => issue.code === "polarity_binding_ambiguous")) {
+    assert(!DRAWN.has(row.case), `${label}: a drawn row is not refused for its polarity note`);
+    const refused = selectProductionScene({
+      question: row.question, turnPlan: row.turnPlan, problemIR: null, candidateValidation: validation,
+      fastRepresentation: null, exactFigureSource: "planner", solverAuthorityBlocked: row.solverBlocked,
+      requiredRetryEnabled: true, policy,
+    });
+    assert.equal(refused.representation, null, `${label}: strict draws no stand in`);
+    counts.protected += 1;
+    counts.polarityRefused += 1;
+    continue;
+  }
   assert(validation.valid && validation.value, `${label}: the recorded candidate must still validate`);
   assert.equal(hash(validation.value.document), row.docHash, `${label}: revalidation keeps the recorded document`);
   const selection = selectProductionScene({
@@ -141,4 +157,4 @@ for (const [id, question] of REWORDED) {
   assert.equal(selection.representation, null, `${label}: strict draws no stand in`);
   reworded += 1;
 }
-console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still picture_demand_unmet ${counts.protected}, reworded protected ${reworded})`);
+console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still drawing nothing ${counts.protected} (${counts.polarityRefused} refused earlier for a lone polarity sign), reworded protected ${reworded})`);

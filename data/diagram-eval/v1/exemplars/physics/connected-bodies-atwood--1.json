@@ -1,0 +1,492 @@
+{
+  "topic_id": "physics|3|connected-bodies-and-pulleys",
+  "question": "Two masses m1 and m2, with m2 > m1, hang from a light inextensible string over a fixed frictionless pulley. Draw the apparatus and a separate free-body diagram for each mass, showing the common tension and the opposite acceleration directions.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Fixed pulley with two hanging masses, both free-body diagrams and acceleration directions"
+    },
+    "source": {
+      "question": "Two masses m1 and m2, with m2 > m1, hang from a light inextensible string over a fixed frictionless pulley. Draw the apparatus and a separate free-body diagram for each mass, showing the common tension and the opposite acceleration directions.",
+      "archetype": "atwood"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "pulley",
+        "kind": "circle",
+        "role": "pulley"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "p2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "left_string",
+        "kind": "segment",
+        "role": "left string"
+      },
+      {
+        "id": "right_string",
+        "kind": "segment",
+        "role": "right string"
+      },
+      {
+        "id": "mass1",
+        "kind": "rectangle",
+        "role": "mass1",
+        "label": "m1"
+      },
+      {
+        "id": "mass2",
+        "kind": "rectangle",
+        "role": "mass2",
+        "label": "m2"
+      },
+      {
+        "id": "support",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "axle",
+        "kind": "segment",
+        "role": "axle"
+      },
+      {
+        "id": "o_one",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "body_one",
+        "kind": "rectangle",
+        "role": "body one",
+        "label": "m1"
+      },
+      {
+        "id": "T_one",
+        "kind": "vector",
+        "role": "T one",
+        "label": "T"
+      },
+      {
+        "id": "W_one",
+        "kind": "vector",
+        "role": "W one",
+        "label": "m1g"
+      },
+      {
+        "id": "a_one",
+        "kind": "vector",
+        "role": "a one",
+        "label": "a"
+      },
+      {
+        "id": "o_two",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "body_two",
+        "kind": "rectangle",
+        "role": "body two",
+        "label": "m2"
+      },
+      {
+        "id": "T_two",
+        "kind": "vector",
+        "role": "T two",
+        "label": "T"
+      },
+      {
+        "id": "W_two",
+        "kind": "vector",
+        "role": "W two",
+        "label": "m2g"
+      },
+      {
+        "id": "a_two",
+        "kind": "vector",
+        "role": "a two",
+        "label": "a"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_pulley",
+        "operator": "circle",
+        "inputs": {
+          "center": "C",
+          "radius": 0.65
+        },
+        "outputs": [
+          "pulley"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": -0.65,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 0.65,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_p1",
+        "operator": "point",
+        "inputs": {
+          "x": -0.65,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p1"
+        ]
+      },
+      {
+        "id": "make_p2",
+        "operator": "point",
+        "inputs": {
+          "x": 0.65,
+          "y": -0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "p2"
+        ]
+      },
+      {
+        "id": "make_left_string",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "p1"
+        },
+        "outputs": [
+          "left_string"
+        ]
+      },
+      {
+        "id": "make_right_string",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "p2"
+        },
+        "outputs": [
+          "right_string"
+        ]
+      },
+      {
+        "id": "make_mass1",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "p1",
+          "width": 0.7,
+          "height": 0.8
+        },
+        "outputs": [
+          "mass1"
+        ]
+      },
+      {
+        "id": "make_mass2",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "p2",
+          "width": 0.8,
+          "height": 1
+        },
+        "outputs": [
+          "mass2"
+        ]
+      },
+      {
+        "id": "make_support",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "support"
+        ]
+      },
+      {
+        "id": "make_axle",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "support"
+        },
+        "outputs": [
+          "axle"
+        ]
+      },
+      {
+        "id": "make_o_one",
+        "operator": "point",
+        "inputs": {
+          "x": -3.3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "o_one"
+        ]
+      },
+      {
+        "id": "make_body_one",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "o_one",
+          "width": 0.8,
+          "height": 0.8
+        },
+        "outputs": [
+          "body_one"
+        ]
+      },
+      {
+        "id": "make_T_one",
+        "operator": "vector",
+        "inputs": {
+          "start": "o_one",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.65
+        },
+        "outputs": [
+          "T_one"
+        ]
+      },
+      {
+        "id": "make_W_one",
+        "operator": "vector",
+        "inputs": {
+          "start": "o_one",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.3
+        },
+        "outputs": [
+          "W_one"
+        ]
+      },
+      {
+        "id": "make_a_one",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -2.3,
+            -0.5
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 0.9
+        },
+        "outputs": [
+          "a_one"
+        ]
+      },
+      {
+        "id": "make_o_two",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "o_two"
+        ]
+      },
+      {
+        "id": "make_body_two",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "o_two",
+          "width": 0.8,
+          "height": 0.8
+        },
+        "outputs": [
+          "body_two"
+        ]
+      },
+      {
+        "id": "make_T_two",
+        "operator": "vector",
+        "inputs": {
+          "start": "o_two",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.65
+        },
+        "outputs": [
+          "T_two"
+        ]
+      },
+      {
+        "id": "make_W_two",
+        "operator": "vector",
+        "inputs": {
+          "start": "o_two",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 2.1
+        },
+        "outputs": [
+          "W_two"
+        ]
+      },
+      {
+        "id": "make_a_two",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            4.3,
+            -0.5
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.9
+        },
+        "outputs": [
+          "a_two"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "C",
+      "pulley",
+      "A",
+      "B",
+      "p1",
+      "p2",
+      "left_string",
+      "right_string",
+      "mass1",
+      "mass2",
+      "support",
+      "axle",
+      "o_one",
+      "body_one",
+      "T_one",
+      "W_one",
+      "a_one",
+      "o_two",
+      "body_two",
+      "T_two",
+      "W_two",
+      "a_two"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "C",
+          "pulley",
+          "A",
+          "B",
+          "p1",
+          "p2",
+          "left_string",
+          "right_string",
+          "mass1",
+          "mass2",
+          "support",
+          "axle",
+          "o_one",
+          "body_one",
+          "T_one",
+          "W_one",
+          "a_one",
+          "o_two",
+          "body_two",
+          "T_two",
+          "W_two",
+          "a_two"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Fixed pulley with two hanging masses, both free-body diagrams and acceleration directions"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Fixed pulley with two hanging masses, both free-body diagrams and acceleration directions"
+      }
+    ]
+  }
+}

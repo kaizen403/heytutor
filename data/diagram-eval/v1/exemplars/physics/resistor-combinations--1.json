@@ -1,187 +1,583 @@
 {
   "topic_id": "physics|12|resistor-combinations",
-  "question": "Three resistors R1 = 10 ohm, R2 = 15 ohm, and R3 = 30 ohm are connected in parallel; conventional current flows through them from left to right.",
+  "question": "Compare two ideal circuits, each powered by a cell E: first R1 and R2 in series, then the same resistors in parallel. Draw complete loops and mark the common series current, the two branch currents and the total current through each cell.",
   "figure_kind": "circuit",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "parallel resistor network with the stated values"
+      "reason": "Series and parallel networks with cells, complete loops and common versus split currents"
     },
     "source": {
-      "question": "Three resistors R1 = 10 ohm, R2 = 15 ohm, and R3 = 30 ohm are connected in parallel; conventional current flows through them from left to right.",
-      "synthesizedFamily": true,
-      "archetype": "resistor_network",
-      "slotSources": {
-        "resistors": "plan",
-        "resistorCount": "stem",
-        "topology": "stem"
-      },
-      "exactGrounding": null
+      "question": "Compare two ideal circuits, each powered by a cell E: first R1 and R2 in series, then the same resistors in parallel. Draw complete loops and mark the common series current, the two branch currents and the total current through each cell.",
+      "archetype": "resistor_network"
     },
-    "quantities": [
-      {
-        "id": "q_R1",
-        "symbol": "R1",
-        "value": 10,
-        "unit": "ohm"
-      },
-      {
-        "id": "q_R2",
-        "symbol": "R2",
-        "value": 15,
-        "unit": "ohm"
-      },
-      {
-        "id": "q_R3",
-        "symbol": "R3",
-        "value": 30,
-        "unit": "ohm"
-      }
-    ],
+    "quantities": [],
     "entities": [
       {
-        "id": "n0",
+        "id": "Aseries",
         "kind": "point",
-        "role": "node"
+        "role": "construction helper"
       },
       {
-        "id": "n1",
+        "id": "Bseries",
         "kind": "point",
-        "role": "node"
+        "role": "construction helper"
       },
       {
-        "id": "R1",
-        "kind": "component",
-        "role": "resistor",
-        "label": "R1=10Ω"
+        "id": "Cseries",
+        "kind": "point",
+        "role": "construction helper"
       },
       {
-        "id": "R2",
-        "kind": "component",
-        "role": "resistor",
-        "label": "R2=15Ω"
+        "id": "Dseries",
+        "kind": "point",
+        "role": "construction helper"
       },
       {
-        "id": "R3",
+        "id": "leftseries",
+        "kind": "connector",
+        "role": "leftseries"
+      },
+      {
+        "id": "cellseries",
+        "kind": "component",
+        "role": "cell",
+        "label": "E"
+      },
+      {
+        "id": "rightseries",
+        "kind": "connector",
+        "role": "rightseries"
+      },
+      {
+        "id": "totalseries",
+        "kind": "vector",
+        "role": "totalseries",
+        "label": "I"
+      },
+      {
+        "id": "Aparallel",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Bparallel",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Cparallel",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Dparallel",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "leftparallel",
+        "kind": "connector",
+        "role": "leftparallel"
+      },
+      {
+        "id": "cellparallel",
+        "kind": "component",
+        "role": "cell",
+        "label": "E"
+      },
+      {
+        "id": "rightparallel",
+        "kind": "connector",
+        "role": "rightparallel"
+      },
+      {
+        "id": "totalparallel",
+        "kind": "vector",
+        "role": "totalparallel",
+        "label": "I"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "R1series",
         "kind": "component",
         "role": "resistor",
-        "label": "R3=30Ω"
+        "label": "R1"
+      },
+      {
+        "id": "R2series",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R2"
+      },
+      {
+        "id": "common",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I"
+      },
+      {
+        "id": "R1parallel",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R1"
+      },
+      {
+        "id": "PL",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "PR",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "joinL",
+        "kind": "connector",
+        "role": "joinL"
+      },
+      {
+        "id": "R2parallel",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R2"
+      },
+      {
+        "id": "joinR",
+        "kind": "connector",
+        "role": "joinR"
+      },
+      {
+        "id": "branch1",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I1"
+      },
+      {
+        "id": "branch2",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I2"
       }
     ],
     "constructions": [
       {
-        "id": "make_n0",
+        "id": "make_Aseries",
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 2,
+          "y": 3,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "n0"
+          "Aseries"
         ]
       },
       {
-        "id": "make_n1",
+        "id": "make_Bseries",
         "operator": "point",
         "inputs": {
-          "x": 4,
-          "y": 2,
+          "x": 5,
+          "y": 3,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "n1"
+          "Bseries"
         ]
       },
       {
-        "id": "make_R1",
-        "operator": "symbol",
+        "id": "make_Cseries",
+        "operator": "point",
         "inputs": {
-          "symbol": "resistor",
-          "start": "n0",
-          "end": "n1"
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "R1"
+          "Cseries"
         ]
       },
       {
-        "id": "make_R2",
-        "operator": "symbol",
+        "id": "make_Dseries",
+        "operator": "point",
         "inputs": {
-          "symbol": "resistor",
-          "start": "n0",
-          "end": "n1"
+          "x": 5,
+          "y": 0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "R2"
+          "Dseries"
         ]
       },
       {
-        "id": "make_R3",
+        "id": "make_leftseries",
+        "operator": "connect",
+        "inputs": {
+          "start": "Aseries",
+          "end": "Cseries"
+        },
+        "outputs": [
+          "leftseries"
+        ]
+      },
+      {
+        "id": "make_cellseries",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "Cseries",
+          "end": "Dseries"
+        },
+        "outputs": [
+          "cellseries"
+        ]
+      },
+      {
+        "id": "make_rightseries",
+        "operator": "connect",
+        "inputs": {
+          "start": "Dseries",
+          "end": "Bseries"
+        },
+        "outputs": [
+          "rightseries"
+        ]
+      },
+      {
+        "id": "make_totalseries",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            2.0,
+            -0.5
+          ],
+          "direction": [
+            -5,
+            0
+          ],
+          "length": 0.8
+        },
+        "outputs": [
+          "totalseries"
+        ]
+      },
+      {
+        "id": "make_Aparallel",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Aparallel"
+        ]
+      },
+      {
+        "id": "make_Bparallel",
+        "operator": "point",
+        "inputs": {
+          "x": 13,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Bparallel"
+        ]
+      },
+      {
+        "id": "make_Cparallel",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Cparallel"
+        ]
+      },
+      {
+        "id": "make_Dparallel",
+        "operator": "point",
+        "inputs": {
+          "x": 13,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Dparallel"
+        ]
+      },
+      {
+        "id": "make_leftparallel",
+        "operator": "connect",
+        "inputs": {
+          "start": "Aparallel",
+          "end": "Cparallel"
+        },
+        "outputs": [
+          "leftparallel"
+        ]
+      },
+      {
+        "id": "make_cellparallel",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "Cparallel",
+          "end": "Dparallel"
+        },
+        "outputs": [
+          "cellparallel"
+        ]
+      },
+      {
+        "id": "make_rightparallel",
+        "operator": "connect",
+        "inputs": {
+          "start": "Dparallel",
+          "end": "Bparallel"
+        },
+        "outputs": [
+          "rightparallel"
+        ]
+      },
+      {
+        "id": "make_totalparallel",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            10.0,
+            -0.5
+          ],
+          "direction": [
+            -5,
+            0
+          ],
+          "length": 0.8
+        },
+        "outputs": [
+          "totalparallel"
+        ]
+      },
+      {
+        "id": "make_M",
+        "operator": "point",
+        "inputs": {
+          "x": 2.5,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "make_R1series",
         "operator": "symbol",
         "inputs": {
           "symbol": "resistor",
-          "start": "n0",
-          "end": "n1"
+          "start": "Aseries",
+          "end": "M"
         },
         "outputs": [
-          "R3"
+          "R1series"
+        ]
+      },
+      {
+        "id": "make_R2series",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "M",
+          "end": "Bseries"
+        },
+        "outputs": [
+          "R2series"
+        ]
+      },
+      {
+        "id": "make_common",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R1series",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "common"
+        ]
+      },
+      {
+        "id": "make_R1parallel",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "Aparallel",
+          "end": "Bparallel"
+        },
+        "outputs": [
+          "R1parallel"
+        ]
+      },
+      {
+        "id": "make_PL",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "PL"
+        ]
+      },
+      {
+        "id": "make_PR",
+        "operator": "point",
+        "inputs": {
+          "x": 13,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "PR"
+        ]
+      },
+      {
+        "id": "make_joinL",
+        "operator": "connect",
+        "inputs": {
+          "start": "Aparallel",
+          "end": "PL"
+        },
+        "outputs": [
+          "joinL"
+        ]
+      },
+      {
+        "id": "make_R2parallel",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "PL",
+          "end": "PR"
+        },
+        "outputs": [
+          "R2parallel"
+        ]
+      },
+      {
+        "id": "make_joinR",
+        "operator": "connect",
+        "inputs": {
+          "start": "PR",
+          "end": "Bparallel"
+        },
+        "outputs": [
+          "joinR"
+        ]
+      },
+      {
+        "id": "make_branch1",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R1parallel",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "branch1"
+        ]
+      },
+      {
+        "id": "make_branch2",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R2parallel",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "branch2"
         ]
       }
     ],
     "relations": [],
-    "assertions": [
-      {
-        "id": "same_pair",
-        "predicate": "sameTerminalPair",
-        "entities": [
-          "R1",
-          "R2",
-          "R3"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "label_R1",
-        "predicate": "label_attached",
-        "entities": [
-          "R1"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      }
-    ],
-    "annotations": [
-      {
-        "id": "current_sense",
-        "kind": "sense",
-        "targetIds": [
-          "R1"
-        ]
-      }
-    ],
+    "assertions": [],
+    "annotations": [],
     "requiredEntityIds": [
-      "n0",
-      "n1",
-      "R1",
-      "R2",
-      "R3"
+      "Aseries",
+      "Bseries",
+      "Cseries",
+      "Dseries",
+      "leftseries",
+      "cellseries",
+      "rightseries",
+      "totalseries",
+      "Aparallel",
+      "Bparallel",
+      "Cparallel",
+      "Dparallel",
+      "leftparallel",
+      "cellparallel",
+      "rightparallel",
+      "totalparallel",
+      "M",
+      "R1series",
+      "R2series",
+      "common",
+      "R1parallel",
+      "PL",
+      "PR",
+      "joinL",
+      "R2parallel",
+      "joinR",
+      "branch1",
+      "branch2"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
-          "n0",
-          "n1",
-          "R1",
-          "R2",
-          "R3"
+          "Aseries",
+          "Bseries",
+          "Cseries",
+          "Dseries",
+          "leftseries",
+          "cellseries",
+          "rightseries",
+          "totalseries",
+          "Aparallel",
+          "Bparallel",
+          "Cparallel",
+          "Dparallel",
+          "leftparallel",
+          "cellparallel",
+          "rightparallel",
+          "totalparallel",
+          "M",
+          "R1series",
+          "R2series",
+          "common",
+          "R1parallel",
+          "PL",
+          "PR",
+          "joinL",
+          "R2parallel",
+          "joinR",
+          "branch1",
+          "branch2"
         ],
         "dependsOn": [],
-        "narrationCue": "parallel resistor network with the stated values"
+        "narrationCue": "Series and parallel networks with cells, complete loops and common versus split currents"
       }
     ],
     "teachingTimeline": [
@@ -190,10 +586,8 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "parallel resistor network with the stated values"
+        "narrationIntent": "Series and parallel networks with cells, complete loops and common versus split currents"
       }
     ]
-  },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  }
 }

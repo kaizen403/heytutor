@@ -1,0 +1,2 @@
+# Explicit passive load count and bounded legacy pathCount interpretation.
+tsx scripts/verify/verify-parallel-load-count.ts

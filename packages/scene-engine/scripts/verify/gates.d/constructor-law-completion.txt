@@ -1,0 +1,3 @@
+# Native constructor laws only; existing completion gates remain independent.
+tsx scripts/verify/verify-right-angle-incident-arms.ts
+tsx scripts/verify/verify-constructor-law-completion.ts
