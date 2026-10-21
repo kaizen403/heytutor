@@ -11,7 +11,7 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
   if (!sourceGraphProductHolds(model.kind, model.reactant, model)) return null;
   const carbonCounts = [model.reactant, model.product].map(molecule => molecule.atoms.filter(atom => atom.element === "C").length);
   if (JSON.stringify(carbonCounts) !== JSON.stringify(model.carbonCounts)) return null;
-  if (model.kind === "radical_hbr") {
+  if (model.kind === "radical_hbr" || model.requestedStereoCount || model.stereo) {
     const proof = asymmetricTreeStereo(model.product);
     if (!proof || JSON.stringify(proof) !== JSON.stringify(model.stereo)) return null;
   }

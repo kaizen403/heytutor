@@ -114,6 +114,7 @@ export function readOrganicReactionSource(question: string, mentions: readonly R
   for (const pattern of requests) for (const match of question.matchAll(pattern)) {
     if (consumed.slice(match.index!, match.index! + match[0].length).every(Boolean)) continue;
     if (match[1] && match[1] !== reference) return decline("unbound requested product variable");
+    if (/\bstereo(?:isomers|cent(?:re|er)s?)\b/i.test(match[0]) && !stereo) return decline("requested stereochemical result has no computed graph proof");
     if (/\b(?:count|number of|how many)\b/i.test(match[0]) && /\bstereoisomers\b/i.test(match[0])) requestedStereoCount = true;
     own(match.index!, match.index! + match[0].length, "requested reaction result"); requestCount++;
   }

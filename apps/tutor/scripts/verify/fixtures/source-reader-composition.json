@@ -50,5 +50,13 @@
   {"id": "later-solution-extra-object", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot the solution and draw a phase portrait.", "draw": false},
   {"id": "later-solution-foreign-equation", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot the solution of another equation.", "draw": false},
   {"id": "later-solution-unread-source", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+mystery. Plot the solution.", "draw": false},
-  {"id": "later-solution-multiple-sources", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Another first-order ODE has solution y = exp(-2*x). Plot the solution.", "draw": false}
+  {"id": "later-solution-multiple-sources", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Another first-order ODE has solution y = exp(-2*x). Plot the solution.", "draw": false},
+  {"id": "hofmann-unproved-stereo-count-real", "kind": "reaction", "question": "Propanamide reacts with Br2 and aqueous NaOH. Draw the product and count its stereoisomers.", "draw": false},
+  {"id": "hofmann-unproved-stereo-count-acetamide", "kind": "reaction", "question": "Acetamide reacts with Br2 and aqueous NaOH. Draw the product and state the number of stereoisomers.", "draw": false},
+  {"id": "hofmann-unproved-stereo-count-benzamide", "kind": "reaction", "question": "Benzamide reacts with Br2 and aqueous NaOH. Draw the product and count its stereoisomers.", "draw": false},
+  {"id": "hofmann-unproved-stereocentres", "kind": "reaction", "question": "Propanamide reacts with Br2 and aqueous NaOH. Draw the product and mark its stereocentres.", "draw": false},
+  {"id": "hofmann-unproved-stereocenters", "kind": "reaction", "question": "Acetamide reacts with Br2 and aqueous NaOH. Draw the product and identify all stereocenters.", "draw": false},
+  {"id": "hofmann-stated-count-is-not-proof", "kind": "reaction", "question": "Propanamide reacts with Br2 and aqueous NaOH. Draw the product and count its stereoisomers; N = 2.", "draw": false},
+  {"id": "hofmann-product-preserved-with-proof-boundary", "kind": "reaction", "question": "Propanamide reacts with Br2 and aqueous NaOH. Draw the product.", "draw": true, "product": "ethanamine", "productRole": "product", "smiles": "CCN", "checkUnprovedStereoBoundary": true},
+  {"id": "radical-proved-stereoisomers-preserved", "kind": "reaction", "question": "3-Methylhex-2-ene reacts with HBr in the presence of peroxide to form an addition product A. What is the number of possible stereoisomers of A?", "draw": true, "product": "Product A", "productRole": "addition product A", "smiles": "CC(Br)C(C)CCC", "stereoCount": 4}
 ]

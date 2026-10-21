@@ -4,7 +4,9 @@ import { writeFileSync } from "node:fs";
 import * as engine from "@heytutor/scene-engine";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { sameMolecularGraph } from "../../../../packages/scene-engine/src/chemistry/organic/reactionGraph";
-import { parseSmiles, type Molecule } from "../../../../packages/scene-engine/src/chemistry/organic/smiles";
+import { buildOrganicReactionFigure } from "../../../../packages/scene-engine/src/chemistry/organic/reactionFigure";
+import type { OrganicReactionSource } from "../../../../packages/scene-engine/src/chemistry/organic/reactionSource";
+import { parseSmiles } from "../../../../packages/scene-engine/src/chemistry/organic/smiles";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import fixture from "./fixtures/source-reader-composition.json";
@@ -12,7 +14,7 @@ import fixture from "./fixtures/source-reader-composition.json";
 type Row = { id: string; question: string } & (
   | { kind: "function"; draw: boolean; expression?: string; fraction?: number }
   | { kind: "vsepr"; claim: string; admit: boolean }
-  | { kind: "reaction"; draw: boolean; product?: string; smiles?: string }
+  | { kind: "reaction"; draw: boolean; product?: string; smiles?: string; productRole?: string; stereoCount?: number; checkUnprovedStereoBoundary?: boolean }
 );
 const rows = fixture as Row[];
 const results: Array<{ id: string; route: string; passed: boolean; error?: string }> = [];
@@ -65,18 +67,31 @@ async function main(): Promise<void> {
         });
         assert.equal(saved.ok, row.admit, "canonical persistence must accept true geometry and reject false or misowned geometry");
       } else {
-        const model = actual.document.source.organicReaction as {
-          product: Molecule; productRole: string; bindings: Array<{ start: number; end: number; text: string; role: string }>;
-        } | undefined;
+        const model = actual.document.source.organicReaction as OrganicReactionSource | undefined;
         assert.ok(model, "the computed reaction operator must issue the figure");
         const expected = parseSmiles(row.smiles!);
         assert.ok(expected && sameMolecularGraph(model.product, expected), "the named product must equal an independently authored connected graph");
-        assert.equal(model.productRole, row.product);
+        assert.equal(model.productRole, row.productRole ?? row.product);
         assert.ok(texts.includes(row.product!), "the proved source name is attached to visible product geometry");
-        assert.ok(model.bindings.some(binding => binding.role === "formed product name"));
+        if (!row.productRole) assert.ok(model.bindings.some(binding => binding.role === "formed product name"));
         for (const binding of model.bindings) assert.equal(row.question.slice(binding.start, binding.end), binding.text, "every binding owns its original exact span");
         assert.ok(actual.document.constructions.some(step => step.id === "make_product_b0"), "the name never substitutes for the computed bonds");
-        assert.ok(!actual.document.quantities.some(quantity => quantity.symbol === "N"), "a product-only request does not invent an unrequested stereoisomer answer");
+        if (row.stereoCount === undefined) {
+          assert.ok(!actual.document.quantities.some(quantity => quantity.symbol === "N"), "a product-only request does not invent an unrequested stereoisomer answer");
+        } else {
+          assert.equal(model.requestedStereoCount, true);
+          assert.equal(model.stereo?.count, row.stereoCount);
+          assert.equal(actual.document.quantities.find(quantity => quantity.id === "reaction_stereoisomers")?.value, row.stereoCount);
+          assert.ok(texts.includes(`N=${row.stereoCount}`), "the proved count must actually be visible");
+        }
+        if (row.checkUnprovedStereoBoundary) {
+          assert.equal(model.kind, "hofmann");
+          assert.equal(model.stereo, undefined);
+          assert.equal(buildOrganicReactionFigure(row.question, { ...model, requestedStereoCount: true }), null, "the figure cannot silently omit an unproved requested count");
+          const forged = { centres: [], count: 99, rootedTrees: [] };
+          assert.equal(buildOrganicReactionFigure(row.question, { ...model, requestedStereoCount: true, stereo: forged }), null, "a cached count cannot replace a fresh product graph proof");
+          assert.equal(buildOrganicReactionFigure(row.question, { ...model, stereo: forged }), null, "a cached proof must be checked even without an explicit count request");
+        }
       }
       results.push({ id: row.id, route, passed: true });
     } catch (error) {
