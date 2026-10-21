@@ -74,6 +74,16 @@ A figure earns `exact_verified` only through a fatal numeric assertion
 stated Ea and ΔH). Shapes, level diagrams and cells are
 `qualitative_verified`, which is the honest tier for them.
 
+Native VSEPR angle labels pass save admission through
+`certifyVseprSourceDocument` in `chemistry/sourceEvidence.ts`. It regenerates
+the complete source graph and checks planner scalars by species and role;
+only matching graph-bound labels gain numeric authority. Stripping family
+metadata cannot skip this check. Unknown or ambiguous derived roles decline,
+and projected angles or inequality bounds do not prove an exact measurement.
+The common plan audit still checks all other values. Run the offline tutor
+gate `scripts/verify/verify-vsepr-source-evidence.ts` for live/save/reopen,
+answer staging and graph/plan tampering controls.
+
 ## The subject test
 
 `classify.ts` reads chemistry vocabulary against physics vocabulary; a lone

@@ -99,6 +99,8 @@ jobs:
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: VSEPR source evidence and save regressions (offline)
+        run: pnpm --filter @heytutor/tutor exec tsx --tsconfig tsconfig.json scripts/verify/verify-vsepr-source-evidence.ts
       - name: Atomic scene label regressions
         run: pnpm --filter @heytutor/tutor verify:atomic-labels
       - name: Figure tour narration regressions

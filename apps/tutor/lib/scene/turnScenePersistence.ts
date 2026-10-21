@@ -4,6 +4,7 @@ import {
   SCENE_ARTIFACTS_V3_VERSION,
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
+  certifyVseprSourceDocument,
   validateProblemIR,
   validateSceneDocument,
   validateSceneQuantityAgreement,
@@ -297,6 +298,12 @@ export async function canonicalizeTurnSceneMetadata(
 
   // The same function runs live before a figure is drawn (useQuestionHandler),
   // so a scene this would refuse is never shown and then lost.
+  // A missing optional plan is safe for an exact native source graph; an
+  // explicitly invalid plan must not silently gain that legacy allowance.
+  if (!turnPlan && metadata.sceneArtifacts.turnPlan != null
+    && certifyVseprSourceDocument(document, question, null).status !== "not_applicable") {
+    return failure("scene_turn_plan_invalid", `native VSEPR scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
+  }
   const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
   if (admissionFailure) return failure("scene_admission_failed", admissionFailure);
 
