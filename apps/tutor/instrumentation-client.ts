@@ -1,26 +1,22 @@
 import * as Sentry from "@sentry/nextjs";
 import {
-  sentryBeforeBreadcrumb,
-  sentryBeforeSend,
-  sentryBeforeSendLog,
   sentryClientDsn,
   sentryDataCollection,
-  sentryTracesSampler,
+  sentryLogPrivacyIntegration,
 } from "@/lib/obs/sentryPrivacy";
 
-const dsn = sentryClientDsn();
+import { sentryBrowserRuntimeEnabled, sentryBrowserRuntimeOptions } from "@/lib/obs/sentryRuntime";
 
-if (dsn) {
+const dsn = sentryClientDsn({ NODE_ENV: process.env.NODE_ENV, NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN });
+
+if (dsn && sentryBrowserRuntimeEnabled()) {
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV,
+    ...sentryBrowserRuntimeOptions(),
     dataCollection: sentryDataCollection(),
-    tracesSampler: sentryTracesSampler,
-    beforeSend: sentryBeforeSend,
-    beforeSendLog: sentryBeforeSendLog,
-    beforeBreadcrumb: sentryBeforeBreadcrumb,
     integrations: (defaults) => [
       ...defaults,
+      sentryLogPrivacyIntegration(),
       Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
     ],
     ignoreErrors: [
@@ -32,4 +28,6 @@ if (dsn) {
   });
 }
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart: typeof Sentry.captureRouterTransitionStart = (...args) => {
+  if (dsn && sentryBrowserRuntimeEnabled()) return Sentry.captureRouterTransitionStart(...args);
+};

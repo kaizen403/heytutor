@@ -289,13 +289,55 @@ export function hatchRegion(points: MarkPoint[], spacing = 14): MarkPoint[][] {
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
   const segments: MarkPoint[][] = [];
+  // Each stroke is a 45 degree line across the bounding box, clipped to the
+  // region itself. Unclipped, the strokes filled a parallelogram twice the
+  // box's width, so a triangle under a graph was hatched across the board.
   for (let x = minX - (maxY - minY); x < maxX + (maxY - minY); x += spacing) {
-    segments.push([
-      { x, y: minY },
-      { x: x + (maxY - minY), y: maxY },
-    ]);
+    segments.push(...clipSegmentToPolygon({ x, y: minY }, { x: x + (maxY - minY), y: maxY }, points));
   }
   return segments;
+}
+
+/** The parts of segment start to end inside a simple polygon (even odd rule). */
+export function clipSegmentToPolygon(start: MarkPoint, end: MarkPoint, polygon: MarkPoint[]): MarkPoint[][] {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const cuts: number[] = [];
+  polygon.forEach((a, index) => {
+    const b = polygon[(index + 1) % polygon.length]!;
+    const ex = b.x - a.x;
+    const ey = b.y - a.y;
+    const denominator = dx * ey - dy * ex;
+    if (Math.abs(denominator) < EPSILON) return;
+    const t = ((a.x - start.x) * ey - (a.y - start.y) * ex) / denominator;
+    const u = ((a.x - start.x) * dy - (a.y - start.y) * dx) / denominator;
+    // Half open on the edge so a stroke through a vertex is cut once.
+    if (u >= 0 && u < 1) cuts.push(Math.min(1, Math.max(0, t)));
+  });
+  const at = (t: number): MarkPoint => ({ x: start.x + dx * t, y: start.y + dy * t });
+  const inside = (t: number): boolean => pointInPolygon(at(t), polygon);
+  const stations = [...new Set([0, 1, ...cuts])].sort((left, right) => left - right);
+  const pieces: MarkPoint[][] = [];
+  for (let index = 1; index < stations.length; index += 1) {
+    const t0 = stations[index - 1]!;
+    const t1 = stations[index]!;
+    if (t1 - t0 < 1e-6 || !inside((t0 + t1) / 2)) continue;
+    const last = pieces.at(-1);
+    const from = at(t0);
+    if (last && Math.hypot(last[1]!.x - from.x, last[1]!.y - from.y) < EPSILON) last[1] = at(t1);
+    else pieces.push([from, at(t1)]);
+  }
+  return pieces;
+}
+
+function pointInPolygon(point: MarkPoint, polygon: MarkPoint[]): boolean {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const a = polygon[index]!;
+    const b = polygon[previous]!;
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 export function bracePoints(start: MarkPoint, end: MarkPoint, offset = 18): MarkPoint[] {

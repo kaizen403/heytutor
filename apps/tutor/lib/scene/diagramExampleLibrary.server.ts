@@ -22,6 +22,10 @@ function libraryPath(): string {
   return resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl");
 }
 
+function diagramLibrary(): readonly DiagramExemplar[] {
+  return cachedLibrary ??= loadDiagramExemplarLibrary(libraryPath(), []);
+}
+
 /**
  * The turn's subject as the client sent it. Anything other than maths,
  * physics or chemistry (absent from an old client, or `other`) is null, and
@@ -32,14 +36,13 @@ export function parseLiveDiagramExampleSubject(value: unknown): DiagramExemplarS
   return parseDiagramExemplarSubject(value);
 }
 
-function liveLibrary(question: string, subject: DiagramExemplarSubject | null): DiagramExemplar[] {
-  cachedLibrary ??= loadDiagramExemplarLibrary(libraryPath(), []);
+function liveLibrary(question: string, subject: DiagramExemplarSubject | null, exemplars = diagramLibrary()): DiagramExemplar[] {
   // This is the production form of the evaluation leak guard. A curated
   // exemplar whose source question matches the live question is unavailable
   // both to the picker catalogue and to id resolution. The subject filter
   // applies to both in the same way: a physics turn never sees, nor resolves,
   // a maths or chemistry entry.
-  return filterDiagramExemplarsForSubject(filterDiagramExemplarsForEvaluation(cachedLibrary, [question]), subject);
+  return filterDiagramExemplarsForSubject(filterDiagramExemplarsForEvaluation(exemplars, [question]), subject);
 }
 
 export function filterLiveDiagramExamples(
@@ -66,6 +69,16 @@ export function resolveLiveDiagramExamples(
   return filterLiveDiagramExamples(liveLibrary(question, subject), question, ids, subject);
 }
 
+const WORKED_EXAMPLES_INTRO = "\n\nWORKED SCENE EXAMPLES\nUse only their structural ideas; never copy quantities, labels, or facts.\n\n";
+
+function sceneExampleText(example: DiagramExemplar, index: number): string {
+  return [
+    `EXAMPLE ${index + 1} (${example.id})`,
+    `Figure: ${example.depicts}`,
+    `SCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
+  ].join("\n");
+}
+
 export function injectLiveDiagramExamples(rawBody: string, examples: readonly DiagramExemplar[]): string {
   if (examples.length === 0) return rawBody;
   const parsed = JSON.parse(rawBody) as { messages?: Array<{ role?: unknown; content?: unknown }> };
@@ -74,14 +87,10 @@ export function injectLiveDiagramExamples(rawBody: string, examples: readonly Di
     message.role === "user" && typeof message.content === "string");
   if (userIndex < 0) return rawBody;
   const user = parsed.messages[userIndex]!;
-  const workedExamples = examples.map((example, index) => [
-    `EXAMPLE ${index + 1} (${example.id})`,
-    `Figure: ${example.depicts}`,
-    `SCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
-  ].join("\n")).join("\n\n");
+  const workedExamples = examples.map(sceneExampleText).join("\n\n");
   parsed.messages[userIndex] = {
     ...user,
-    content: `${String(user.content)}\n\nWORKED SCENE EXAMPLES\nUse only their structural ideas; never copy quantities, labels, or facts.\n\n${workedExamples}`,
+    content: `${String(user.content)}${WORKED_EXAMPLES_INTRO}${workedExamples}`,
   };
   return JSON.stringify(parsed);
 }
@@ -103,25 +112,70 @@ function pickerInput(rawBody: string, question: string): {
   }
 }
 
-export function buildLiveDiagramPickerBody(rawBody: string, question: string): string {
-  const { plan, subject } = pickerInput(rawBody, question);
-  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question, subject), { question, plan });
+function pickerPrompt(question: string, plan: TurnPlanV3 | null, catalogue: string): string {
   const planSummary = diagramPlanRetrievalText(plan);
-  const prompt = [
+  return [
     "Pick up to 3 catalogue examples whose DRAWN FIGURE would best guide a diagram for the student question.",
     "Match meaning, not shared words. Return none when no figure fits.",
     'Return strict JSON only: {"ids":["catalogue-id"]} or {"ids":[]}.',
     `QUESTION\n${question}`,
     ...(planSummary ? [`TURN PLAN SUMMARY\n${planSummary}`] : []),
-    `CATALOGUE\n${catalogue.text}`,
+    `CATALOGUE\n${catalogue}`,
   ].join("\n\n");
+}
+
+export function buildLiveDiagramPickerBody(rawBody: string, question: string, exemplars?: readonly DiagramExemplar[]): string {
+  const { plan, subject } = pickerInput(rawBody, question);
+  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question, subject, exemplars), { question, plan });
   return JSON.stringify({
     model: "server-selected",
     max_tokens: 60,
     temperature: 0,
     stream: false,
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user", content: pickerPrompt(question, plan, catalogue.text) }],
   });
+}
+
+export interface LiveDiagramPromptInputBound {
+  inputByteMultiplier: number;
+  addedInputBytes: number;
+}
+
+/** Serialized message bytes, including JSON escaping, rather than JS character count. */
+function jsonStringContentBytes(text: string): number {
+  return new TextEncoder().encode(JSON.stringify(text)).length - 2;
+}
+
+/**
+ * Pre-dispatch bound on server-added serialized-message bytes. Apply to the
+ * client's serialized messages, then add the estimator's protocol overhead.
+ * Scene injection receives at most three allowlisted IDs; requests without
+ * those IDs need no scene allowance. The picker summary selects fields from
+ * the submitted plan once, so its bytes are already bounded by client input.
+ */
+export function liveDiagramPromptInputBounds(exemplars: readonly DiagramExemplar[] = diagramLibrary()): {
+  picker: LiveDiagramPromptInputBound;
+  scene: LiveDiagramPromptInputBound;
+} {
+  // A packed catalogue is a subset of these exact lines in some order. Use
+  // the real formatter so Unicode, escaping and oversized-line omissions
+  // follow its policy without duplicating its character/token limit.
+  const catalogueLines = exemplars.map((example) => buildDiagramExampleCatalogue([example]).text).filter(Boolean);
+  const catalogueBytes = jsonStringContentBytes(catalogueLines.join("\n"));
+  const framingBytes = new TextEncoder().encode(JSON.stringify([
+    { role: "user", content: pickerPrompt("", null, "") },
+  ])).length + jsonStringContentBytes("\n\nTURN PLAN SUMMARY\n");
+  // Trace transport permits 2,000 UTF-16 units even for an invalid/missing
+  // plan; JSON escaping requires at most six UTF-8 bytes per unit.
+  const questionBytes = 2_000 * 6;
+  const sceneBytes = exemplars.map((example) => jsonStringContentBytes(sceneExampleText(example, 0)))
+    .sort((left, right) => right - left).slice(0, 3);
+  return {
+    picker: { inputByteMultiplier: 1, addedInputBytes: framingBytes + questionBytes + catalogueBytes },
+    scene: { inputByteMultiplier: 1, addedInputBytes: sceneBytes.length === 0 ? 0
+      : jsonStringContentBytes(WORKED_EXAMPLES_INTRO) + sceneBytes.reduce((sum, bytes) => sum + bytes, 0)
+        + (sceneBytes.length - 1) * jsonStringContentBytes("\n\n") },
+  };
 }
 
 export function parseLiveDiagramExampleIds(value: string | null | undefined): string[] {

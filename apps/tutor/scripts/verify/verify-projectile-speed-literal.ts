@@ -303,7 +303,7 @@ kept("two unlisted bodies retain their named launch speeds", run(TWO_BODIES, bod
 // 9. Both callers hold it: the live hook and the lab call this validation.
 for (const file of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
   const source = readFileSync(resolve(__dirname, "../..", file), "utf8");
-  check(/validateProductionSceneCandidate\(\{ candidate, question, turnPlan: authoritativePlan \}\)/.test(source), `${file} validates candidates through production selection`);
+  check(/validateProductionSceneCandidate\(\{\s*candidate,\s*question,\s*turnPlan:\s*authoritativePlan(?:,\s*yieldPolicy:[^}]*)?\s*\}\)/.test(source), `${file} validates candidates through production selection`);
 }
 
 console.log(`verify-projectile-speed-literal: ${checks} checks ok`);

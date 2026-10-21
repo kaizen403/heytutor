@@ -83,6 +83,8 @@ export type ExecuteCommandOptions = {
   getAudioPositionMs?: () => number;
   /** Media ms per wall ms; default 1. */
   getPlaybackRate?: () => number;
+  /** Waits for `getAudioPositionMs` on a pumped export clock instead of wall-time polling. */
+  waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
   /** A following work cue bounds transient POINT motion; final timing may arrive late. */
   getPointDeadlineMs?: () => number | null;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */

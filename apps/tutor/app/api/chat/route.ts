@@ -1068,10 +1068,10 @@ export async function POST(request: Request): Promise<Response> {
   const providerBody = JSON.parse(bodyFor(route.model)) as Record<string, unknown>;
   const attemptCostFor = (model: string) =>
     maximumLlmCost(providerBody.messages, completionTokenCap(providerBody), [model]);
-  let reservedUsd = 0;
-  for (let attempt = 0; attempt < TEACHING_UPSTREAM_ATTEMPTS; attempt++) {
-    reservedUsd += attemptCostFor(teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS));
-  }
+  // Admit a complete first generation. Later attempts grow this same durable
+  // receipt immediately before dispatch, rather than requiring three lessons'
+  // maximum cost to be affordable before the student can hear the first one.
+  const reservedUsd = attemptCostFor(teachingAttemptModel(route, 0, TEACHING_UPSTREAM_ATTEMPTS));
   const reserved = await reservePaidUsage({ actor, grant, kind: "teaching", traceId, usd: reservedUsd });
   if (reserved instanceof Response) return reserved;
   reservation = reserved;
@@ -1108,6 +1108,21 @@ export async function POST(request: Request): Promise<Response> {
     while (attempt < TEACHING_UPSTREAM_ATTEMPTS) {
       if (requestSignal.aborted) break;
       const model = teachingAttemptModel(route, attempt, TEACHING_UPSTREAM_ATTEMPTS);
+      if (attemptCount > 0) {
+        const denied = await reservation.ensureReserved(attemptedCost() + attemptCostFor(model));
+        if (denied) {
+          endLlmGeneration(turnTrace, {
+            output: PUBLIC_CHAT_ERROR,
+            metadata: { ...teachingMetadata, error: true, reason: "retry_reservation_denied", status: denied.status, attempt_count: attemptCount },
+            model: calledModel,
+            updateTrace: shouldUpdateParentTraceOutput(kind, userInput),
+            level: "ERROR",
+          });
+          flushInBackground();
+          return denied;
+        }
+        if (requestSignal.aborted) break;
+      }
       if (model !== route.model && !teachingMetadata.teaching_model_fallback) {
         markModelFallback(lastFailure ?? "upstream_connect_failure");
         tutorDebug("chat", "teaching falls back to the alternate deployment", { from: route.model, to: model, after: lastFailure });
