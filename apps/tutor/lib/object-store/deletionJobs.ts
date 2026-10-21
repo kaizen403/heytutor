@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ObjectDeletionJob, Prisma } from "@prisma/client";
 import { prisma } from "../db/prisma";
 import { deletePrefix } from "./s3";
+import { logWorkerFailure } from "../obs/workerFailureLog";
 
 const LEASE_MS = 5 * 60 * 1000;
 const POLL_MS = 30_000;
@@ -77,7 +78,7 @@ export async function runObjectDeletionBatch(
       await deletePrefix(job.prefix);
       if (await finishDeletion(job)) result.completed++;
       else result.stale++;
-    } catch {
+    } catch (error) {
       // Provider rejection, timeout, or DB failure never confirms deletion or
       // releases capacity. A crashed transaction leaves this receipt retryable.
       const backoff = Math.min(6 * 60 * 60 * 1000, 30_000 * 2 ** Math.min(job.attempts - 1, 10));
@@ -85,6 +86,7 @@ export async function runObjectDeletionBatch(
         where: { id: job.id, attempts: job.attempts, nextAttemptAt: job.nextAttemptAt },
         data: { nextAttemptAt: new Date(now.getTime() + backoff) },
       });
+      logWorkerFailure("object_cleanup", error);
       if (rescheduled.count) result.failed++;
       else result.stale++;
     }
@@ -114,8 +116,8 @@ export function startObjectDeletionWorker(): () => void {
         await runExpiredRetentionCleanup(new Date(now));
         lastMaintenance = now;
       }
-    } catch {
-      console.error("[objects] cleanup worker failed; durable jobs remain queued");
+    } catch (error) {
+      logWorkerFailure("object_cleanup", error);
     } finally {
       running = false;
     }

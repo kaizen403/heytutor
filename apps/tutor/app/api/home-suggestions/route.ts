@@ -1,5 +1,5 @@
 import { ensureUser, requireSessionUserId, isAuthFailure } from "@/lib/auth";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { AVAILABLE_SUBJECTS, parseSubjects } from "@/lib/account/types";
 import { fallbackHomeSuggestions } from "@/lib/account/homeSuggestions";
@@ -35,6 +35,21 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+async function suggestionCache(userId: string) {
+  try {
+    return await prisma.homeSuggestionCache.upsert({
+      where: { userId }, create: { userId, packs: [] }, update: {},
+    });
+  } catch (error) {
+    // Prisma can emulate an empty-update upsert. Another first load may win
+    // its insert; recover that same user's row without resetting its packs.
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
+    const winner = await prisma.homeSuggestionCache.findUnique({ where: { userId } });
+    if (!winner) throw error;
+    return winner;
+  }
+}
+
 async function context(userId: string) {
   const [user, recentTurns, cache] = await Promise.all([
     prisma.user.findUnique({
@@ -50,11 +65,7 @@ async function context(userId: string) {
       take: 6,
       select: { id: true, question: true },
     }),
-    prisma.homeSuggestionCache.upsert({
-      where: { userId },
-      create: { userId, packs: [] },
-      update: {},
-    }),
+    suggestionCache(userId),
   ]);
   return {
     subjects: parseSubjects(user?.subjects).filter((subject) =>
