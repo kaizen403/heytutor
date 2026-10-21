@@ -13,6 +13,8 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
+import { claimsSourceLawGraph, readSourceLawGraph } from "./sourceLawGraph";
+import { buildSourceLawGraphFigure } from "./lawGraphFigure";
 import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
@@ -1658,6 +1660,7 @@ function galvanicCue(lower: string): boolean {
  * words are present too.
  */
 export function isElectrochemStem(question: string): boolean {
+  if (claimsSourceLawGraph(question, "chem_electrochem")) return true;
   const lower = chemStem(question);
   if (PHYSICS_WORDS.test(lower) && !REDOX_WORDS.test(lower)) return false;
   if (conductancePlotCue(lower)) return true;
@@ -2018,6 +2021,11 @@ function buildConductancePlot(question: string): SceneDocument | null {
  * about that variation.
  */
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  const sourceLaw = readSourceLawGraph(question, "chem_electrochem");
+  if (sourceLaw.state !== "unclaimed") {
+    if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
+  }
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   if (statedPotentials(question) === null) return null;
   if (!chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
