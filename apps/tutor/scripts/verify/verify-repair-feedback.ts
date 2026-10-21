@@ -113,6 +113,20 @@ async function main(): Promise<void> {
     "a validator-stamped construction id wins over the path");
   check(repairErrorElement(candidate, error({ path: "assertions[0]", assertionId: "a_second" })) === "assertion a_second",
     "a validator-stamped assertion id wins over the path");
+  const ambiguous: SceneDocumentCandidate = {
+    constructions: [
+      { id: "segment", operator: "segment", inputs: { start: "p1", end: "p2" } },
+      { id: "make_edge", operator: "make_edge", inputs: { start: "p2", end: "p3" } },
+    ],
+  };
+  check(repairErrorElement(ambiguous, error({ path: "constructions[0]", message: "make_edge: segment endpoints must be distinct" })) === "construction make_edge (make_edge)",
+    "an explicit id prefix wins over a later word that matches another construction id");
+  const splitValues = renderRepairErrors(candidate, [
+    error({ code: "invalid_parameter", path: "constructions[0]", constructionId: "c_left", message: "tangent_line domain is outside the curve", actual: { domain: [0, 1] }, expected: { domain: [0, 2] } }),
+    error({ code: "invalid_parameter", path: "constructions[1]", constructionId: "c_right", message: "tangent_line domain is outside the curve", actual: { domain: [3, 4] }, expected: { domain: [0, 5] } }),
+  ]);
+  check(lines(splitValues).length === 2 && splitValues.includes("[0,1]") && splitValues.includes("[3,4]") && splitValues.includes("[0,2]") && splitValues.includes("[0,5]") && splitValues.includes("\"start\":\"p1\"") && splitValues.includes("\"start\":\"p2\""),
+    "findings that share a message but not a measured value stay separate, each with its own value and inputs");
   const merged = renderRepairErrors(candidate, [0, 1, 2].map((index) => error({ code: "invalid_id", path: `relations[${index}].id`, message: `relations[${index}] needs a non-empty id` })));
   check(lines(merged).length === 1 && /relations\[0\]\.id; relations\[1\]\.id; relations\[2\]\.id/.test(merged), "findings that differ only in an index are one line");
   const withInputs = renderRepairErrors(candidate, [error({ path: "constructions[0]", message: "c_left: connect endpoints must be distinct" })]);

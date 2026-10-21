@@ -50,8 +50,11 @@ export function repairErrorElement(candidate: SceneDocumentCandidate, error: Sce
     const items = (candidate as Record_)[collection];
     const noun = COLLECTION_NOUNS[collection] ?? collection;
     const field = rest ? ` field ${rest.replace(/^\./, "")}` : "";
-    const named = Array.isArray(items) ? items.find((item): item is Record_ =>
-      isRecord(item) && typeof item.id === "string" && item.id.length > 0 && mentions(error.message, item.id)) : undefined;
+    // Only an explicit "id:" prefix names the element. A later word such as
+    // "segment" must not steal the finding from the construction the compiler named.
+    const prefix = /^([A-Za-z_][\w-]*)\s*:/.exec(error.message.trim())?.[1];
+    const named = prefix && Array.isArray(items) ? items.find((item): item is Record_ =>
+      isRecord(item) && item.id === prefix) : undefined;
     if (named) {
       const operator = collection === "constructions" && typeof named.operator === "string" ? ` (${named.operator})` : "";
       return `${noun} ${String(named.id)}${operator}${field}`;
@@ -60,11 +63,6 @@ export function repairErrorElement(candidate: SceneDocumentCandidate, error: Sce
   }
   if (Array.isArray(error.entityIds) && error.entityIds.length > 0) return `entities ${error.entityIds.slice(0, 8).join(", ")}${error.entityIds.length > 8 ? ", …" : ""}`;
   return error.path ? error.path : "the document";
-}
-
-function mentions(text: string, id: string): boolean {
-  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`).test(text);
 }
 
 function compact(value: unknown): string {
@@ -102,7 +100,7 @@ export function renderRepairErrors(
   // Errors that differ only in an index ("relations[0] needs …", "relations[1] needs …") are one finding.
   const groups = new Map<string, { error: SceneRepairError; elements: string[] }>();
   for (const error of fatal) {
-    const key = `${error.code}|${error.message.replace(/\[\d+\]/g, "[]")}`;
+    const key = `${error.code}|${error.message.replace(/\[\d+\]/g, "[]")}|${JSON.stringify(error.actual ?? null)}|${JSON.stringify(error.expected ?? null)}`;
     const element = repairErrorElement(candidate, error);
     const group = groups.get(key);
     if (group) { if (!group.elements.includes(element)) group.elements.push(element); }

@@ -2344,7 +2344,8 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           return;
         }
         const ratio = numerator / denominator;
-        report({ ratio: roundMeasured(ratio) });
+        // Three-decimal rounding hid a 1.0004 ratio that still fails the 0.0001 check.
+        report({ ratio: Number(ratio.toPrecision(8)) });
         residual = Math.abs(ratio - Number(assertion.expected));
         passed = residual < tolerance(assertion);
         break;
@@ -2550,8 +2551,12 @@ function assertionFinding(assertion: SceneAssertion, measured: unknown, residual
     : measured !== undefined ? `measured ${JSON.stringify(measured)}, expected ${JSON.stringify(assertion.expected)}`
       : residual !== undefined && Number.isFinite(residual) ? `residual ${roundMeasured(residual)}, expected ${JSON.stringify(assertion.expected ?? true)}`
         : `it does not hold for the constructed geometry`;
+  const limit = typeof assertion.tolerance === "number" ? assertion.tolerance : 1e-4;
+  const gap = residual !== undefined && Number.isFinite(residual)
+    ? ` Difference ${Number(residual.toPrecision(12))}; required under ${limit}.`
+    : "";
   const claim = assertion.reason ? ` The candidate's claim: "${assertion.reason}".` : "";
-  return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${claim}`;
+  return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${gap}${claim}`;
 }
 
 function isDerivedDirection(entityId: string | undefined, document: SceneDocument): boolean {
