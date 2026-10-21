@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-vsepr-source-structure.ts
+tsx scripts/verify/verify-vsepr-review-wordings.ts
