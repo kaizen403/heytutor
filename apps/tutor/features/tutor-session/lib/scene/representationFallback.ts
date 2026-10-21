@@ -1023,22 +1023,57 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     // Structural rule, not a marker list: the producer draws whole curves
     // over one shared window, so with two or more curves the question may
     // say nothing about x beyond the curve equations themselves.
-    if (speaksAboutIndependentVariable(normalized, unquotedPositions, equationSpans)) return [];
+    const rest = textOutsideEquations(normalized, unquotedPositions, equationSpans);
+    if (speaksAboutIndependentVariable(rest)) return [];
+    // Positive evidence: the refusals above cannot list every way to write a
+    // domain ("for inputs below two", "from zero to pi"). Draw only when the
+    // rest of the stem asks for nothing beyond plotting the curves together.
+    if (!isNeutralPlottingRequest(rest)) return [];
   }
   return facts;
 }
 
-/** Blank the quoted text and every accepted equation span, then report
- * whether the rest still speaks about the independent variable: the token x
+/** The stem with its quoted text and every accepted equation span blanked. */
+function textOutsideEquations(source: string, unquoted: Uint8Array, equationSpans: ReadonlyArray<readonly [number, number]>): string {
+  const characters = source.split("").map((character, index) => unquoted[index] ? character : " ");
+  for (const [start, end] of equationSpans) for (let index = start; index < end && index < characters.length; index++) characters[index] = " ";
+  return characters.join("");
+}
+
+// The whole of what a multi-curve stem may say outside its equations: plot
+// the curves together, optionally to find where they meet. Built from the
+// recorded wordings this producer draws right plus the retained plural and
+// Hinglish plotting forms; any other word declines.
+const NEUTRAL_PLOTTING_PHRASES = new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:` + [
+  String.raw`(?:solve|represent)\s+graphically`,
+  String.raw`(?:(?:and|then|to)\s+)?find\s+(?:where\s+they\s+(?:meet|intersect)|(?:the\s+)?points?\s+of\s+intersection)`,
+  String.raw`find\s+where\s+meets\s+the\s+curve`,
+  String.raw`(?:on|in|using)\s+(?:the\s+same|one)(?:\s+set\s+of)?\s+(?:axes|graph|grid|figure)`,
+  String.raw`using\s+a\s+(?:table\s+of\s+values|normal\s+scale)`,
+  String.raw`the\s+graphs?\s+of`,
+  String.raw`(?:the|both|these)\s+(?:curves|functions|equations)`,
+  String.raw`(?:ko\s+)?ek\s+hi\s+graph\s+(?:par|pe)\s+draw\s+karo`,
+  String.raw`ka\s+graph\s+banao`,
+  String.raw`draw|sketch|plot|graph|show|and|aur`,
+].join("|") + String.raw`)(?![\p{L}\p{N}_])`, "giu");
+
+/** True only when the text outside the curve equations consists of plotting
+ * verbs, "and", a same-axes phrase, a table of values, a request to find where
+ * the curves meet, plain punctuation and the empty brackets an equation
+ * wrapper leaves behind. It only declines; it never admits, routes or builds
+ * geometry. */
+function isNeutralPlottingRequest(rest: string): boolean {
+  return /^[\s,.;:!?()]*$/u.test(rest.replace(NEUTRAL_PLOTTING_PHRASES, " "));
+}
+
+/** Report whether the text outside the equations still speaks about the
+ * independent variable: the token x
  * (the only variable the non-native reader accepts), any numeral (a bound, a
  * setting or a value of x), interval, set or inequality notation, or a
  * comparison, sign or side relation. A domain, piecewise piece, interval or
  * evaluation needs one of these, and the whole-curve producer can honour none
  * of them. It only declines; it never admits, routes or builds geometry. */
-function speaksAboutIndependentVariable(source: string, unquoted: Uint8Array, equationSpans: ReadonlyArray<readonly [number, number]>): boolean {
-  const characters = source.split("").map((character, index) => unquoted[index] ? character : " ");
-  for (const [start, end] of equationSpans) for (let index = start; index < end && index < characters.length; index++) characters[index] = " ";
-  const rest = characters.join("");
+function speaksAboutIndependentVariable(rest: string): boolean {
   return /(?<![\p{L}\p{N}_])x(?![\p{L}\p{N}_])/iu.test(rest) ||
     /\p{N}/u.test(rest) ||
     /[<>≤≥≠⩽⩾∈∉=|[\]]/u.test(rest) ||
