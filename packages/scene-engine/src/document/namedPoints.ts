@@ -52,13 +52,18 @@ export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Rec
   const retainedVertices = ownedIncidentAngleVertices(raw);
   const question = sourceQuestion(raw);
   const usedLabels = new Set<string>();
+  // Verified-parts recovery may omit an inferred name it could not attach; it
+  // records those points so the name is not inferred again.
+  const source = isRecord(raw.source) ? raw.source : {};
+  const unlabelled = new Set(source.diagramYieldPolicy === "verified_parts" && Array.isArray(source.yieldUnlabelledPoints)
+    ? source.yieldUnlabelledPoints.filter((id): id is string => typeof id === "string") : []);
   const entities = raw.entities.map((entity) => {
     if (!isRecord(entity) || typeof entity.id !== "string") return entity;
     if (typeof entity.label === "string" && entity.label.trim()) {
       usedLabels.add(normalizeLabel(entity.label));
       return entity;
     }
-    if (String(entity.kind ?? "") !== "point") return entity;
+    if (String(entity.kind ?? "") !== "point" || unlabelled.has(entity.id)) return entity;
     const label = inferPointLabel(entity.id, String(entity.role ?? ""), question, usedLabels);
     if (!label) return entity;
     usedLabels.add(normalizeLabel(label));
