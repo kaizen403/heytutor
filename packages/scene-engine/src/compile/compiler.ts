@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateDimensionAnchors, validateFieldLineShape, validatePointLabelPlacement } from "./figureFeatureTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -1110,6 +1111,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
   if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   // Native bond truth is core geometry under both yield policies; labels or
@@ -2250,7 +2252,19 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         }
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
-        residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
+        const acute = spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]));
+        residual = Math.abs(acute - expectedAngle);
+        // With verified parts, the claim is checked against the angle the
+        // figure actually forms: two directed vectors form one angle in
+        // [0, 180]; two undirected lines form both an angle and its supplement.
+        if (isVerifiedPartsEnabled(document) && spaceAcuteAngle(values[0], values[1]) === null) {
+          const directed = (value: Geometry | undefined) => value?.kind === "path" && value.directed === true;
+          const alternative = directed(values[0]) && directed(values[1])
+            ? directedAngleBetween(asLine(values[0]), asLine(values[1]))
+            : !directed(values[0]) && !directed(values[1]) ? Math.PI - acute : acute;
+          residual = Math.min(residual, Math.abs(alternative - expectedAngle));
+          if (directed(values[0]) && directed(values[1])) residual = Math.abs(alternative - expectedAngle);
+        }
         passed = residual < angularTolerance(assertion);
         break;
       }
@@ -5298,6 +5312,11 @@ function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(di
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
 function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function directedAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
+  const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
+  const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
+  return Math.acos(Math.max(-1, Math.min(1, firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y)));
+}
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
