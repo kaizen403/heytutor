@@ -12,9 +12,12 @@ import {
   CONCEPT_LESSON_RUNTIME_ADDON,
   LESSON_OPENING_PROMPT_ADDON,
   TUTOR_SYSTEM_PROMPT,
+  defaultSpeechMsPerChar,
+  getBestWriteCharScheduleMs,
   getMockCodeLessonPlan,
+  mathToSpeech,
 } from "@heytutor/tutor-core";
-import { WORK_ZONE, fitBoardText } from "@heytutor/drawing";
+import { WORK_ZONE, fitBoardText, parseDrawingCommands } from "@heytutor/drawing";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildResumeTeachingPrompt, buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -80,19 +83,25 @@ assert(
   "values the question does state must not be demoted to assumptions",
 );
 assert(
-  unchecked.systemPrompt.includes("TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"),
+  unchecked.systemPrompt.includes("TURN PLAN V3 (PLANNER WORKING; NOT A GLOBAL ANSWER KEY)"),
   "without a solver projection the plan must not be introduced as verified",
 );
 assert(
-  unchecked.systemPrompt.includes("if your own line disagrees with the number below"),
-  "an unchecked plan must tell the tutor to trust its own written working",
+  unchecked.systemPrompt.includes("correct an unsupported planner value only after checking its derivation"),
+  "unsupported planner numbers remain correctable after checking the derivation",
 );
+
+const solverProjection = {
+  schemaVersion: "solver-authority/v1", problemId: "synthetic-collision", status: "verified",
+  expressions: [], constraints: [], representationIntents: [],
+  bindings: [{ requestId: "first_velocity", quantityId: "v1f", symbol: "v1f", unit: "m/s", approximate: 2.5, errorBound: 0 }],
+};
 
 const verified = buildTurnTeachingPrompt({
   question,
   diagramPromptAddon: "FIGURE ADDON MARKER",
   turnPlan: plan,
-  solverProjection: { verified: true },
+  solverProjection,
   codeLesson: null,
   isDsa: false,
   familiarity: "new",
@@ -108,7 +117,7 @@ const conditional = buildTurnTeachingPrompt({
     "Turn-plan model was unavailable; visual requirement was classified conservatively.",
     "Removed 2 invalid planner dependency references.",
   ] },
-  solverProjection: { verified: true },
+  solverProjection,
   codeLesson: null,
   isDsa: false,
   familiarity: "normal",
@@ -120,8 +129,9 @@ assert(!conditional.systemPrompt.includes("Turn-plan model was unavailable"), "d
 assert(!conditional.systemPrompt.includes("Removed 2 invalid planner dependency"), "do not teach planner repair notes");
 
 assert(
-  verified.systemPrompt.includes("AUTHORITATIVE TURN PLAN V3"),
-  "a solver-verified plan keeps its authority",
+  verified.systemPrompt.includes("INDEPENDENT SOLVER AUTHORITY V1 — EXPLICIT BINDINGS ONLY") &&
+    !verified.systemPrompt.includes("AUTHORITATIVE TURN PLAN V3"),
+  "explicit solver outputs keep their authority without certifying the whole planner block",
 );
 assert(
   verified.systemPrompt.includes("FIGURE ADDON MARKER"),
@@ -160,8 +170,8 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "lessons announced terminals, curves and fragments that were never on the board",
   ],
   [
-    "trust the board",
-    "a plan claiming 62 J after a 24 J collision must not override the tutor's own written working",
+    "your own board working cannot override a solver-bound value",
+    "unchecked board arithmetic cannot override an independently confirmed result",
   ],
   [
     "a units line on its own is not a check",
@@ -231,8 +241,8 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "\"v sub s\" never matches the row V_s, so a subscripted symbol was the token most often left unmatched",
   ],
   [
-    "the words that name the row come last in the step",
-    "29% of rows had their first matched token past 35% of the sentence because the reason came after the row; the runtime then dragged the cue to the sentence start",
+    "the row is spoken token for token near the beginning of the step",
+    "putting a reason before the row delays its first cue; name the row early and explain afterward",
   ],
   // FOCUS placement: 1277 tags, 26% carried several ids, 98.7% sat at the end of
   // the step, and the label was inside the runtime's clause anchor in 28%.
@@ -257,6 +267,7 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
 // Wording that taught the failure. Each of these was the sentence the model
 // obeyed, so its return is a regression whatever else the prompt says.
 const RETIRED_WORDING: [needle: string, why: string][] = [
+  ["the words that name the row come last in the step", "the reason-first instruction directly conflicts with early row cues"],
   ["[FOCUS:id_a,id_b]", "the combined tag form was offered as an optional form and used in 26% of tags"],
   ["several at once", "the tour rule told the model to combine ids that the placement rule tells it to separate"],
   ["immediately after the spoken name", "said the placement without forbidding the end of the step, and 98.7% of tags landed there"],
@@ -328,9 +339,13 @@ for (const step of exampleSteps) {
       );
     }
     if (type === "WRITE") {
+      const before = step.slice(0, tag.index).replace(TAG, "").trim();
+      const command = parseDrawingCommands(tag[0]).commands[0];
+      assert(command, "the example WRITE must parse as the actual command");
+      const cue = getBestWriteCharScheduleMs(before, command, null);
       assert(
-        after.length === 0,
-        `the example keeps talking after [WRITE:${body.split(",")[0]}]: the row's words come last and the step ends on the tag`,
+        cue?.matched && (cue.offsetsMs[0] ?? 0) <= mathToSpeech(before).length * defaultSpeechMsPerChar * 0.35,
+        `the example row "${body.split(",")[0]}" needs its own early spoken cue before WRITE; a short reason may follow`,
       );
       const spoken = step.replace(TAG, "").toLowerCase();
       // The unknown row "v = ?" is the one = with no spoken form: the sentence

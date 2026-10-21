@@ -207,10 +207,10 @@ async function verifyChatPlannerPriority(): Promise<number> {
     assert(fireworks.dispatched[0]!.max_tokens === 4800 && JSON.stringify(fireworks.dispatched[0]!.thinking) === '{"type":"disabled"}',
       "Fireworks keeps its existing scene planner body");
     process.env.LLM_PROVIDER = "azure";
-    const standardTeaching = await post({ teaching: true, reserve: 183, settle: 10 });
-    const priorityTeaching = await post({ teaching: true, flag: "1", reserve: 183, settle: 10 });
+    const standardTeaching = await post({ teaching: true, reserve: 61, settle: 10 });
+    const priorityTeaching = await post({ teaching: true, flag: "1", reserve: 61, settle: 10 });
     for (const flag of ["0", "true"]) {
-      const unchanged = await post({ teaching: true, flag, reserve: 183, settle: 10 });
+      const unchanged = await post({ teaching: true, flag, reserve: 61, settle: 10 });
       assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(standardTeaching.dispatched[0]), "invalid and zero priority flags preserve teaching dispatch and accounting");
     }
     assert(JSON.stringify(standardTeaching.dispatched[0]) === JSON.stringify(priorityTeaching.dispatched[0]),
