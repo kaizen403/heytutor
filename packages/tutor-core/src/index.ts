@@ -21,6 +21,7 @@ export * from "./text/questionText";
 export * from "./planners/sceneCapabilities";
 export * from "./planners/opticsPlanAudit";
 export * from "./planners/problemPlannerV1";
+export * from "./planners/sceneRepairErrors";
 export * from "./tts/elevenLabsClient";
 export * from "./tts/elevenLabsWebSocketClient";
 export * from "./tts/httpTtsPolicy";

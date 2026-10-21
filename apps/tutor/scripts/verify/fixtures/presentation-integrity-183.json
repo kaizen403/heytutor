@@ -1,0 +1,568 @@
+{
+ "source": "Recorded planner documents, davao/.context/overnight-20261019/dimensions/selected-documents.jsonl (fwcheck 19 Oct 2026); post-merge review of #183.",
+ "polarityCircuits": [
+  {
+   "key": "bbe00350777170774e1f",
+   "question": "In a Wheatstone bridge, AB = 1.2 Ω, BC = 1.8 Ω, AD = 1.6 Ω and DC = S. A 9.0 V source has its positive terminal at A and negative at C, and a galvanometer joins B and D. Find S for balance. If S is then replaced by 2.0 Ω, find the potentials of B and D relative to C and the direction of current through the galvanometer.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated Wheatstone bridge can be represented with four resistor arms, a galvanometer between B and D, and a source across A and C.\"\n  },\n  \"source\": {\n    \"question\": \"In a Wheatstone bridge, AB = 1.2 Ω, BC = 1.8 Ω, AD = 1.6 Ω and DC = S. A 9.0 V source has its positive terminal at A and negative at C, and a galvanometer joins B and D. Find S for balance. If S is then replaced by 2.0 Ω, find the potentials of B and D relative to C and the direction of current through the galvanometer.\"\n  },\n  \"quantities\": [\n    {\"id\":\"ab\",\"symbol\":\"R_AB\",\"value\":1.2,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"bc\",\"symbol\":\"R_BC\",\"value\":1.8,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"ad\",\"symbol\":\"R_AD\",\"value\":1.6,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"v\",\"symbol\":\"V_AC\",\"value\":9,\"unit\":\"V\",\"provenance\":\"given\"},\n    {\"id\":\"s2\",\"symbol\":\"R_DC,replacement\",\"value\":2,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"s\",\"symbol\":\"S_balance\",\"value\":2.4,\"unit\":\"Ω\",\"provenance\":\"derived\",\"dependsOn\":[\"ab\",\"bc\",\"ad\"]},\n    {\"id\":\"vb\",\"symbol\":\"V_B−V_C\",\"value\":5.4,\"unit\":\"V\",\"provenance\":\"derived\",\"dependsOn\":[\"v\",\"ab\",\"bc\"]},\n    {\"id\":\"vd\",\"symbol\":\"V_D−V_C\",\"value\":5,\"unit\":\"V\",\"provenance\":\"derived\",\"dependsOn\":[\"v\",\"ad\",\"s2\"]}\n  ],\n  \"entities\": [\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"node\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"node\",\"label\":\"B\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"node\",\"label\":\"C\"},\n    {\"id\":\"D\",\"kind\":\"point\",\"role\":\"node\",\"label\":\"D\"},\n    {\"id\":\"ab_arm\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"R_AB\"},\n    {\"id\":\"bc_arm\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"R_BC\"},\n    {\"id\":\"ad_arm\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"R_AD\"},\n    {\"id\":\"dc_arm\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"S\"},\n    {\"id\":\"G\",\"kind\":\"component\",\"role\":\"galvanometer\",\"label\":\"G\"},\n    {\"id\":\"source\",\"kind\":\"component\",\"role\":\"source\",\"label\":\"9.0 V\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"make_A\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":0,\"coordinateSpace\":\"layout\"},\"outputs\":[\"A\"]},\n    {\"id\":\"make_B\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"B\"]},\n    {\"id\":\"make_C\",\"operator\":\"point\",\"inputs\":{\"x\":4,\"y\":0,\"coordinateSpace\":\"layout\"},\"outputs\":[\"C\"]},\n    {\"id\":\"make_D\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":-2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"D\"]},\n    {\"id\":\"make_ab\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"A\",\"end\":\"B\"},\"outputs\":[\"ab_arm\"]},\n    {\"id\":\"make_bc\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"B\",\"end\":\"C\"},\"outputs\":[\"bc_arm\"]},\n    {\"id\":\"make_ad\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"A\",\"end\":\"D\"},\"outputs\":[\"ad_arm\"]},\n    {\"id\":\"make_dc\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"D\",\"end\":\"C\"},\"outputs\":[\"dc_arm\"]},\n    {\"id\":\"make_G\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"galvanometer\",\"start\":\"B\",\"end\":\"D\"},\"outputs\":[\"G\"]},\n    {\"id\":\"make_source\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"battery\",\"start\":\"A\",\"end\":\"C\"},\"outputs\":[\"source\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"upper_path\",\"predicate\":\"path\",\"entities\":[\"ab_arm\",\"bc_arm\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"lower_path\",\"predicate\":\"path\",\"entities\":[\"ad_arm\",\"dc_arm\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"bridge_connected\",\"predicate\":\"connected\",\"entities\":[\"ab_arm\",\"bc_arm\",\"ad_arm\",\"dc_arm\",\"G\",\"source\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"ab_value\",\"kind\":\"callout\",\"targetIds\":[\"ab_arm\"],\"quantityId\":\"ab\"},\n    {\"id\":\"bc_value\",\"kind\":\"callout\",\"targetIds\":[\"bc_arm\"],\"quantityId\":\"bc\"},\n    {\"id\":\"ad_value\",\"kind\":\"callout\",\"targetIds\":[\"ad_arm\"],\"quantityId\":\"ad\"},\n    {\"id\":\"source_polarity\",\"kind\":\"polarity\",\"targetIds\":[\"source\",\"A\",\"C\"],\"text\":\"A +; C −\"},\n    {\"id\":\"replacement\",\"kind\":\"callout\",\"targetIds\":[\"dc_arm\"],\"quantityId\":\"s2\",\"text\":\"Replace S\"},\n    {\"id\":\"balance_result\",\"kind\":\"callout\",\"targetIds\":[\"dc_arm\"],\"quantityId\":\"s\"},\n    {\"id\":\"b_result\",\"kind\":\"callout\",\"targetIds\":[\"B\"],\"quantityId\":\"vb\"},\n    {\"id\":\"d_result\",\"kind\":\"callout\",\"targetIds\":[\"D\"],\"quantityId\":\"vd\"},\n    {\"id\":\"current_direction\",\"kind\":\"sense\",\"targetIds\":[\"G\"],\"text\":\"B to D\"},\n    {\"id\":\"loading_note\",\"kind\":\"narration\",\"targetIds\":[\"B\",\"D\",\"G\"],\"text\":\"The stated node potentials are open-circuit values. Current through a passive galvanometer flows from B to D; exact loaded potentials require its resistance.\"}\n  ],\n  \"requiredEntityIds\": [\"A\",\"B\",\"C\",\"D\",\"ab_arm\",\"bc_arm\",\"ad_arm\",\"dc_arm\",\"G\",\"source\"],\n  \"revealGroups\": [\n    {\n      \"id\":\"setup\",\n      \"entityIds\":[\"A\",\"B\",\"C\",\"D\",\"ab_arm\",\"bc_arm\",\"ad_arm\",\"dc_arm\",\"G\",\"source\"],\n      \"dependsOn\":[],\n      \"narrationCue\":\"Show the given bridge, with the source positive at A and negative at C.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"show_setup\",\"action\":\"show\",\"targetIds\":[\"setup\",\"ab_value\",\"bc_value\",\"ad_value\",\"source_polarity\"]},\n    {\"id\":\"show_balance\",\"action\":\"show\",\"targetIds\":[\"balance_result\"]},\n    {\"id\":\"show_replacement\",\"action\":\"show\",\"targetIds\":[\"replacement\"]},\n    {\"id\":\"show_potentials\",\"action\":\"show\",\"targetIds\":[\"b_result\",\"d_result\",\"current_direction\",\"loading_note\"]}\n  ]\n}"
+  },
+  {
+   "key": "392fb58e6664d2cd7a1a",
+   "question": "A Wheatstone bridge has arms AB=10 Ω, BC=20 Ω, AD=15 Ω and DC=X. An ideal 12 V source is connected across A and C, with a galvanometer between B and D. Determine X for zero galvanometer current by Kirchhoff’s laws. At balance find the source current and the current in each branch. Does interchanging the source and galvanometer diagonals preserve the balance condition?",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated bridge arms and diagonals determine a verifiable circuit topology.\"\n  },\n  \"source\": {\n    \"question\": \"A Wheatstone bridge has arms AB=10 Ω, BC=20 Ω, AD=15 Ω and DC=X. An ideal 12 V source is connected across A and C, with a galvanometer between B and D. Determine X for zero galvanometer current by Kirchhoff’s laws. At balance find the source current and the current in each branch. Does interchanging the source and galvanometer diagonals preserve the balance condition?\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": true\n  },\n  \"quantities\": [\n    {\"id\":\"rAB\",\"symbol\":\"R_AB\",\"value\":10,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"rBC\",\"symbol\":\"R_BC\",\"value\":20,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"rAD\",\"symbol\":\"R_AD\",\"value\":15,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"v\",\"symbol\":\"V_AC\",\"value\":12,\"unit\":\"V\",\"provenance\":\"given\"},\n    {\"id\":\"x\",\"symbol\":\"X\",\"value\":30,\"unit\":\"Ω\",\"provenance\":\"derived\",\"dependsOn\":[\"rAB\",\"rBC\",\"rAD\"]},\n    {\"id\":\"iAB\",\"symbol\":\"I_AB\",\"value\":0.4,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"v\",\"rAB\",\"rBC\"]},\n    {\"id\":\"iBC\",\"symbol\":\"I_BC\",\"value\":0.4,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"iAB\"]},\n    {\"id\":\"iAD\",\"symbol\":\"I_AD\",\"value\":0.26666666666666666,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"v\",\"rAD\",\"x\"]},\n    {\"id\":\"iDC\",\"symbol\":\"I_DC\",\"value\":0.26666666666666666,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"iAD\"]},\n    {\"id\":\"iG\",\"symbol\":\"I_G\",\"value\":0,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"x\"]},\n    {\"id\":\"iS\",\"symbol\":\"I_source\",\"value\":0.6666666666666666,\"unit\":\"A\",\"provenance\":\"derived\",\"dependsOn\":[\"iAB\",\"iAD\"]}\n  ],\n  \"entities\": [\n    {\"id\":\"A\",\"kind\":\"point\",\"role\":\"bridge node\",\"label\":\"A\"},\n    {\"id\":\"B\",\"kind\":\"point\",\"role\":\"bridge node\",\"label\":\"B\"},\n    {\"id\":\"C\",\"kind\":\"point\",\"role\":\"bridge node\",\"label\":\"C\"},\n    {\"id\":\"D\",\"kind\":\"point\",\"role\":\"bridge node\",\"label\":\"D\"},\n    {\"id\":\"AB\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"10 Ω\"},\n    {\"id\":\"BC\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"20 Ω\"},\n    {\"id\":\"AD\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"15 Ω\"},\n    {\"id\":\"DC\",\"kind\":\"component\",\"role\":\"bridge arm\",\"label\":\"X\"},\n    {\"id\":\"G\",\"kind\":\"component\",\"role\":\"galvanometer\",\"label\":\"G\"},\n    {\"id\":\"L\",\"kind\":\"point\",\"role\":\"source-route junction\"},\n    {\"id\":\"SL\",\"kind\":\"point\",\"role\":\"source terminal\"},\n    {\"id\":\"SR\",\"kind\":\"point\",\"role\":\"source terminal\"},\n    {\"id\":\"R\",\"kind\":\"point\",\"role\":\"source-route junction\"},\n    {\"id\":\"AL\",\"kind\":\"connector\",\"role\":\"wire\"},\n    {\"id\":\"LS\",\"kind\":\"connector\",\"role\":\"wire\"},\n    {\"id\":\"RC\",\"kind\":\"connector\",\"role\":\"wire\"},\n    {\"id\":\"SRR\",\"kind\":\"connector\",\"role\":\"wire\"},\n    {\"id\":\"sourceAC\",\"kind\":\"component\",\"role\":\"source\",\"label\":\"12 V\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"makeA\",\"operator\":\"point\",\"inputs\":{\"x\":-3,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"A\"]},\n    {\"id\":\"makeB\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":2,\"coordinateSpace\":\"world\"},\"outputs\":[\"B\"]},\n    {\"id\":\"makeC\",\"operator\":\"point\",\"inputs\":{\"x\":3,\"y\":0,\"coordinateSpace\":\"world\"},\"outputs\":[\"C\"]},\n    {\"id\":\"makeD\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":-2,\"coordinateSpace\":\"world\"},\"outputs\":[\"D\"]},\n    {\"id\":\"makeAB\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"A\",\"end\":\"B\"},\"outputs\":[\"AB\"]},\n    {\"id\":\"makeBC\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"B\",\"end\":\"C\"},\"outputs\":[\"BC\"]},\n    {\"id\":\"makeAD\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"A\",\"end\":\"D\"},\"outputs\":[\"AD\"]},\n    {\"id\":\"makeDC\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"D\",\"end\":\"C\"},\"outputs\":[\"DC\"]},\n    {\"id\":\"makeG\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"galvanometer\",\"start\":\"B\",\"end\":\"D\"},\"outputs\":[\"G\"]},\n    {\"id\":\"makeL\",\"operator\":\"point\",\"inputs\":{\"x\":-3,\"y\":-4,\"coordinateSpace\":\"world\"},\"outputs\":[\"L\"]},\n    {\"id\":\"makeSL\",\"operator\":\"point\",\"inputs\":{\"x\":-1,\"y\":-4,\"coordinateSpace\":\"world\"},\"outputs\":[\"SL\"]},\n    {\"id\":\"makeSR\",\"operator\":\"point\",\"inputs\":{\"x\":1,\"y\":-4,\"coordinateSpace\":\"world\"},\"outputs\":[\"SR\"]},\n    {\"id\":\"makeR\",\"operator\":\"point\",\"inputs\":{\"x\":3,\"y\":-4,\"coordinateSpace\":\"world\"},\"outputs\":[\"R\"]},\n    {\"id\":\"makeAL\",\"operator\":\"connect\",\"inputs\":{\"start\":\"A\",\"end\":\"L\"},\"outputs\":[\"AL\"]},\n    {\"id\":\"makeLS\",\"operator\":\"connect\",\"inputs\":{\"start\":\"L\",\"end\":\"SL\"},\"outputs\":[\"LS\"]},\n    {\"id\":\"makeRC\",\"operator\":\"connect\",\"inputs\":{\"start\":\"R\",\"end\":\"C\"},\"outputs\":[\"RC\"]},\n    {\"id\":\"makeSRR\",\"operator\":\"connect\",\"inputs\":{\"start\":\"SR\",\"end\":\"R\"},\"outputs\":[\"SRR\"]},\n    {\"id\":\"makeSource\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"battery\",\"start\":\"SL\",\"end\":\"SR\"},\"outputs\":[\"sourceAC\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"upperBranch\",\"predicate\":\"path\",\"entities\":[\"AB\",\"BC\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"lowerBranch\",\"predicate\":\"path\",\"entities\":[\"AD\",\"DC\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"middleDiagonal\",\"predicate\":\"connected\",\"entities\":[\"G\",\"AB\",\"BC\",\"AD\",\"DC\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"sourceRoute\",\"predicate\":\"path\",\"entities\":[\"AL\",\"LS\",\"sourceAC\",\"SRR\",\"RC\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"upperSense\",\"kind\":\"sense\",\"targetIds\":[\"AB\"]},\n    {\"id\":\"lowerSense\",\"kind\":\"sense\",\"targetIds\":[\"AD\"]},\n    {\"id\":\"sourcePolarity\",\"kind\":\"polarity\",\"targetIds\":[\"sourceAC\"],\"text\":\"A positive\"}\n  ],\n  \"requiredEntityIds\": [\n    \"A\",\"B\",\"C\",\"D\",\"AB\",\"BC\",\"AD\",\"DC\",\"G\",\n    \"L\",\"SL\",\"SR\",\"R\",\"AL\",\"LS\",\"RC\",\"SRR\",\"sourceAC\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\":\"setup\",\n      \"entityIds\":[\"A\",\"B\",\"C\",\"D\",\"AB\",\"BC\",\"AD\",\"DC\",\"G\",\"L\",\"SL\",\"SR\",\"R\",\"AL\",\"LS\",\"RC\",\"SRR\",\"sourceAC\"],\n      \"dependsOn\":[],\n      \"narrationCue\":\"Four bridge arms join A, B, C and D. The source is across A–C and the galvanometer is across B–D.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\":\"showSetup\",\"revealGroupId\":\"setup\",\"annotationIds\":[\"sourcePolarity\"],\"text\":\"Use the stated arm values and take A positive relative to C for the branch-current directions.\"},\n    {\"id\":\"balance\",\"targetIds\":[\"AB\",\"BC\",\"AD\",\"DC\",\"G\"],\"text\":\"At zero galvanometer current, B and D have equal potential. Kirchhoff’s laws give R_AB/R_BC = R_AD/X, so X = 30 Ω and I_G = 0 A.\"},\n    {\"id\":\"branchCurrents\",\"targetIds\":[\"AB\",\"BC\",\"AD\",\"DC\"],\"annotationIds\":[\"upperSense\",\"lowerSense\"],\"text\":\"At balance, I_AB = I_BC = 0.4 A and I_AD = I_DC = 4/15 A.\"},\n    {\"id\":\"sourceCurrent\",\"targetIds\":[\"sourceAC\"],\"text\":\"Kirchhoff’s current law gives I_source = 2/3 A.\"},\n    {\"id\":\"swap\",\"targetIds\":[\"A\",\"B\",\"C\",\"D\",\"G\",\"sourceAC\"],\"text\":\"Yes. After interchanging the diagonals, zero current across A–C requires R_AB/R_AD = R_BC/X; 10/15 = 20/30, so balance is preserved.\"}\n  ]\n}"
+  },
+  {
+   "key": "b4e6f5d3c8ccfcfcd301",
+   "question": "A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated two-loop circuit can be represented with two sources and a shared resistor branch.\"\n  },\n  \"source\": {\n    \"question\": \"A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.\"\n  },\n  \"quantities\": [\n    {\"id\":\"eL\",\"symbol\":\"E_L\",\"value\":14,\"unit\":\"V\",\"provenance\":\"given\"},\n    {\"id\":\"rL\",\"symbol\":\"R_L\",\"value\":2,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"rM\",\"symbol\":\"R_M\",\"value\":8,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"rR\",\"symbol\":\"R_R\",\"value\":9,\"unit\":\"Ω\",\"provenance\":\"given\"},\n    {\"id\":\"eR\",\"symbol\":\"E_R\",\"value\":10,\"unit\":\"V\",\"provenance\":\"given\"},\n    {\"id\":\"v\",\"symbol\":\"V_P − V_Q\",\"value\":8,\"unit\":\"V\",\"provenance\":\"derived\"},\n    {\"id\":\"iL\",\"symbol\":\"I_L\",\"value\":3,\"unit\":\"A\",\"provenance\":\"derived\"},\n    {\"id\":\"iM\",\"symbol\":\"I_M\",\"value\":1,\"unit\":\"A\",\"provenance\":\"derived\"},\n    {\"id\":\"iR\",\"symbol\":\"I_R\",\"value\":2,\"unit\":\"A\",\"provenance\":\"derived\"}\n  ],\n  \"entities\": [\n    {\"id\":\"P\",\"kind\":\"point\",\"role\":\"junction\",\"label\":\"P\"},\n    {\"id\":\"Q\",\"kind\":\"point\",\"role\":\"junction\",\"label\":\"Q\"},\n    {\"id\":\"LT\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"LM\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"LB\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"RT\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"RM\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"RB\",\"kind\":\"point\",\"role\":\"terminal\"},\n    {\"id\":\"leftTopWire\",\"kind\":\"connector\"},\n    {\"id\":\"leftBottomWire\",\"kind\":\"connector\"},\n    {\"id\":\"rightTopWire\",\"kind\":\"connector\"},\n    {\"id\":\"rightBottomWire\",\"kind\":\"connector\"},\n    {\"id\":\"leftBattery\",\"kind\":\"component\",\"role\":\"source\"},\n    {\"id\":\"leftResistor\",\"kind\":\"component\",\"role\":\"resistor\"},\n    {\"id\":\"middleResistor\",\"kind\":\"component\",\"role\":\"resistor\"},\n    {\"id\":\"rightResistor\",\"kind\":\"component\",\"role\":\"resistor\"},\n    {\"id\":\"rightBattery\",\"kind\":\"component\",\"role\":\"source\"}\n  ],\n  \"constructions\": [\n    {\"id\":\"makeP\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"P\"]},\n    {\"id\":\"makeQ\",\"operator\":\"point\",\"inputs\":{\"x\":0,\"y\":-2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"Q\"]},\n    {\"id\":\"makeLT\",\"operator\":\"point\",\"inputs\":{\"x\":-2,\"y\":2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"LT\"]},\n    {\"id\":\"makeLM\",\"operator\":\"point\",\"inputs\":{\"x\":-2,\"y\":0,\"coordinateSpace\":\"layout\"},\"outputs\":[\"LM\"]},\n    {\"id\":\"makeLB\",\"operator\":\"point\",\"inputs\":{\"x\":-2,\"y\":-2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"LB\"]},\n    {\"id\":\"makeRT\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"RT\"]},\n    {\"id\":\"makeRM\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":0,\"coordinateSpace\":\"layout\"},\"outputs\":[\"RM\"]},\n    {\"id\":\"makeRB\",\"operator\":\"point\",\"inputs\":{\"x\":2,\"y\":-2,\"coordinateSpace\":\"layout\"},\"outputs\":[\"RB\"]},\n    {\"id\":\"makeLeftTopWire\",\"operator\":\"connect\",\"inputs\":{\"start\":\"LT\",\"end\":\"P\"},\"outputs\":[\"leftTopWire\"]},\n    {\"id\":\"makeLeftBottomWire\",\"operator\":\"connect\",\"inputs\":{\"start\":\"Q\",\"end\":\"LB\"},\"outputs\":[\"leftBottomWire\"]},\n    {\"id\":\"makeRightTopWire\",\"operator\":\"connect\",\"inputs\":{\"start\":\"P\",\"end\":\"RT\"},\"outputs\":[\"rightTopWire\"]},\n    {\"id\":\"makeRightBottomWire\",\"operator\":\"connect\",\"inputs\":{\"start\":\"RB\",\"end\":\"Q\"},\"outputs\":[\"rightBottomWire\"]},\n    {\"id\":\"makeLeftBattery\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"battery\",\"start\":\"LB\",\"end\":\"LM\"},\"outputs\":[\"leftBattery\"]},\n    {\"id\":\"makeLeftResistor\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"LM\",\"end\":\"LT\"},\"outputs\":[\"leftResistor\"]},\n    {\"id\":\"makeMiddleResistor\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"P\",\"end\":\"Q\"},\"outputs\":[\"middleResistor\"]},\n    {\"id\":\"makeRightResistor\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"resistor\",\"start\":\"RT\",\"end\":\"RM\"},\"outputs\":[\"rightResistor\"]},\n    {\"id\":\"makeRightBattery\",\"operator\":\"symbol\",\"inputs\":{\"symbol\":\"battery\",\"start\":\"RM\",\"end\":\"RB\"},\"outputs\":[\"rightBattery\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\":\"leftLoop\",\"predicate\":\"path\",\"entities\":[\"leftBottomWire\",\"leftBattery\",\"leftResistor\",\"leftTopWire\",\"middleResistor\"],\"expected\":true,\"severity\":\"fatal\"},\n    {\"id\":\"rightLoop\",\"predicate\":\"path\",\"entities\":[\"rightTopWire\",\"rightResistor\",\"rightBattery\",\"rightBottomWire\",\"middleResistor\"],\"expected\":true,\"severity\":\"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\":\"leftResistance\",\"kind\":\"label\",\"targetIds\":[\"leftResistor\"],\"text\":\"2 Ω\",\"quantityId\":\"rL\"},\n    {\"id\":\"middleResistance\",\"kind\":\"label\",\"targetIds\":[\"middleResistor\"],\"text\":\"8 Ω\",\"quantityId\":\"rM\"},\n    {\"id\":\"rightResistance\",\"kind\":\"label\",\"targetIds\":[\"rightResistor\"],\"text\":\"9 Ω\",\"quantityId\":\"rR\"},\n    {\"id\":\"leftEmf\",\"kind\":\"label\",\"targetIds\":[\"leftBattery\"],\"text\":\"14 V\",\"quantityId\":\"eL\"},\n    {\"id\":\"rightEmf\",\"kind\":\"label\",\"targetIds\":[\"rightBattery\"],\"text\":\"10 V\",\"quantityId\":\"eR\"},\n    {\"id\":\"leftPolarity\",\"kind\":\"polarity\",\"targetIds\":[\"leftBattery\"],\"text\":\"Positive terminal faces P\"},\n    {\"id\":\"rightPolarity\",\"kind\":\"polarity\",\"targetIds\":[\"rightBattery\"],\"text\":\"Positive terminal faces Q\"}\n  ],\n  \"requiredEntityIds\": [\n    \"P\",\"Q\",\"LT\",\"LM\",\"LB\",\"RT\",\"RM\",\"RB\",\n    \"leftTopWire\",\"leftBottomWire\",\"rightTopWire\",\"rightBottomWire\",\n    \"leftBattery\",\"leftResistor\",\"middleResistor\",\"rightResistor\",\"rightBattery\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\":\"network\",\n      \"entityIds\":[\n        \"P\",\"Q\",\"LT\",\"LM\",\"LB\",\"RT\",\"RM\",\"RB\",\n        \"leftTopWire\",\"leftBottomWire\",\"rightTopWire\",\"rightBottomWire\",\n        \"leftBattery\",\"leftResistor\",\"middleResistor\",\"rightResistor\",\"rightBattery\"\n      ],\n      \"dependsOn\":[],\n      \"narrationCue\":\"Identify P and Q, the three branches, and the two battery polarities.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\":\"setup\",\n      \"revealGroupId\":\"network\",\n      \"targetIds\":[\"P\",\"Q\",\"leftBattery\",\"leftResistor\",\"middleResistor\",\"rightResistor\",\"rightBattery\"],\n      \"narration\":\"Set up the two loops with the 8 Ω resistor shared between P and Q. Apply the junction and loop rules to determine the voltage and branch currents.\"\n    }\n  ]\n}"
+  },
+  {
+   "key": "da962fb427407962af58",
+   "question": "A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated components and junctions determine a two-loop network with three branches between P and Q.\"\n  },\n  \"source\": {\n    \"question\": \"A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": true\n  },\n  \"quantities\": [\n    {\"id\": \"vL\", \"symbol\": \"E_L\", \"value\": 14, \"unit\": \"V\"},\n    {\"id\": \"rL\", \"symbol\": \"R_L\", \"value\": 2, \"unit\": \"Ω\"},\n    {\"id\": \"rM\", \"symbol\": \"R_M\", \"value\": 8, \"unit\": \"Ω\"},\n    {\"id\": \"rR\", \"symbol\": \"R_R\", \"value\": 9, \"unit\": \"Ω\"},\n    {\"id\": \"vR\", \"symbol\": \"E_R\", \"value\": 10, \"unit\": \"V\"}\n  ],\n  \"entities\": [\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"top junction\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"bottom junction\", \"label\": \"Q\"},\n    {\"id\": \"lt\", \"kind\": \"point\", \"role\": \"left upper terminal\"},\n    {\"id\": \"lm\", \"kind\": \"point\", \"role\": \"left lower terminal\"},\n    {\"id\": \"rt\", \"kind\": \"point\", \"role\": \"right upper terminal\"},\n    {\"id\": \"rm\", \"kind\": \"point\", \"role\": \"right middle terminal\"},\n    {\"id\": \"rb\", \"kind\": \"point\", \"role\": \"right lower terminal\"},\n    {\"id\": \"RL\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"2 Ω\"},\n    {\"id\": \"EL\", \"kind\": \"component\", \"role\": \"source\", \"label\": \"14 V\"},\n    {\"id\": \"RM\", \"kind\": \"component\", \"role\": \"shared resistor\", \"label\": \"8 Ω\"},\n    {\"id\": \"RR\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"9 Ω\"},\n    {\"id\": \"ER\", \"kind\": \"component\", \"role\": \"source\", \"label\": \"10 V\"},\n    {\"id\": \"wl\", \"kind\": \"connector\", \"role\": \"left return wire\"},\n    {\"id\": \"wr1\", \"kind\": \"connector\", \"role\": \"right upper wire\"},\n    {\"id\": \"wr2\", \"kind\": \"connector\", \"role\": \"right return wire\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"pP\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"pQ\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"pLt\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"lt\"]},\n    {\"id\": \"pLm\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"lm\"]},\n    {\"id\": \"pRt\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rt\"]},\n    {\"id\": \"pRm\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 1, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rm\"]},\n    {\"id\": \"pRb\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rb\"]},\n    {\"id\": \"sRL\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"lt\", \"end\": \"P\"}, \"outputs\": [\"RL\"]},\n    {\"id\": \"sEL\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"battery\", \"start\": \"lm\", \"end\": \"lt\"}, \"outputs\": [\"EL\"]},\n    {\"id\": \"sRM\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"P\", \"end\": \"Q\"}, \"outputs\": [\"RM\"]},\n    {\"id\": \"sRR\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"P\", \"end\": \"rt\"}, \"outputs\": [\"RR\"]},\n    {\"id\": \"sER\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"battery\", \"start\": \"rm\", \"end\": \"rb\"}, \"outputs\": [\"ER\"]},\n    {\"id\": \"cL\", \"operator\": \"connect\", \"inputs\": {\"start\": \"Q\", \"end\": \"lm\"}, \"outputs\": [\"wl\"]},\n    {\"id\": \"cR1\", \"operator\": \"connect\", \"inputs\": {\"start\": \"rt\", \"end\": \"rm\"}, \"outputs\": [\"wr1\"]},\n    {\"id\": \"cR2\", \"operator\": \"connect\", \"inputs\": {\"start\": \"rb\", \"end\": \"Q\"}, \"outputs\": [\"wr2\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"leftLoop\", \"predicate\": \"path\", \"entities\": [\"RL\", \"EL\", \"wl\", \"RM\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rightLoop\", \"predicate\": \"path\", \"entities\": [\"RR\", \"wr1\", \"ER\", \"wr2\", \"RM\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"threeBranches\", \"predicate\": \"pathCount\", \"entities\": [\"P\", \"Q\"], \"expected\": 3, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"leftPolarity\", \"kind\": \"polarity\", \"targetIds\": [\"EL\"], \"text\": \"Positive terminal toward P\"},\n    {\"id\": \"rightPolarity\", \"kind\": \"polarity\", \"targetIds\": [\"ER\"], \"text\": \"Positive terminal toward Q\"}\n  ],\n  \"requiredEntityIds\": [\"P\", \"Q\", \"lt\", \"lm\", \"rt\", \"rm\", \"rb\", \"RL\", \"EL\", \"RM\", \"RR\", \"ER\", \"wl\", \"wr1\", \"wr2\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"network\",\n      \"entityIds\": [\"P\", \"Q\", \"lt\", \"lm\", \"rt\", \"rm\", \"rb\", \"RL\", \"EL\", \"RM\", \"RR\", \"ER\", \"wl\", \"wr1\", \"wr2\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Identify the three branches between P and Q and the opposite battery polarities.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\n      \"id\": \"setup\",\n      \"revealGroupIds\": [\"network\"],\n      \"narration\": \"The left, middle, and right branches meet at P and Q. Take P to Q as positive for each branch current.\"\n    },\n    {\n      \"id\": \"solve\",\n      \"revealGroupIds\": [\"network\"],\n      \"narration\": \"Kirchhoff’s rules give V_P − V_Q = 8 V. The left current is 3 A from Q to P; the middle current is 1 A from P to Q; the right current is 2 A from P to Q. At P, 3 A enters and 1 A + 2 A leaves.\"\n    }\n  ]\n}"
+  },
+  {
+   "key": "72071025f61bb7e3475a",
+   "question": "A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two sources and three resistor branches can be shown as a two-loop network with a shared middle branch.\"\n  },\n  \"source\": {\n    \"question\": \"A two-loop circuit has a middle 8 Ω resistor joining junction P at the top to junction Q at the bottom. The left side, from Q up to P, contains an ideal 14 V battery whose positive terminal faces P and a 2 Ω resistor. The right side, from P down to Q, contains a 9 Ω resistor and an ideal 10 V battery whose positive terminal faces Q. Using Kirchhoff's junction and loop rules, find V_P - V_Q and the size and direction of the current in each branch.\"\n  },\n  \"quantities\": [\n    {\"id\": \"rM\", \"symbol\": \"R_M\", \"value\": 8, \"unit\": \"Ω\"},\n    {\"id\": \"eL\", \"symbol\": \"E_L\", \"value\": 14, \"unit\": \"V\"},\n    {\"id\": \"rL\", \"symbol\": \"R_L\", \"value\": 2, \"unit\": \"Ω\"},\n    {\"id\": \"rR\", \"symbol\": \"R_R\", \"value\": 9, \"unit\": \"Ω\"},\n    {\"id\": \"eR\", \"symbol\": \"E_R\", \"value\": 10, \"unit\": \"V\"}\n  ],\n  \"entities\": [\n    {\"id\": \"P\", \"kind\": \"point\", \"role\": \"junction\", \"label\": \"P\"},\n    {\"id\": \"Q\", \"kind\": \"point\", \"role\": \"junction\", \"label\": \"Q\"},\n    {\"id\": \"lt\", \"kind\": \"point\"},\n    {\"id\": \"lm\", \"kind\": \"point\"},\n    {\"id\": \"lb\", \"kind\": \"point\"},\n    {\"id\": \"rt\", \"kind\": \"point\"},\n    {\"id\": \"rm\", \"kind\": \"point\"},\n    {\"id\": \"rb\", \"kind\": \"point\"},\n    {\"id\": \"wlTop\", \"kind\": \"connector\"},\n    {\"id\": \"wlBottom\", \"kind\": \"connector\"},\n    {\"id\": \"wrTop\", \"kind\": \"connector\"},\n    {\"id\": \"wrBottom\", \"kind\": \"connector\"},\n    {\"id\": \"RL\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"2 Ω\"},\n    {\"id\": \"EL\", \"kind\": \"component\", \"role\": \"source\", \"label\": \"14 V\"},\n    {\"id\": \"RM\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"8 Ω\"},\n    {\"id\": \"RR\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"9 Ω\"},\n    {\"id\": \"ER\", \"kind\": \"component\", \"role\": \"source\", \"label\": \"10 V\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeP\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"P\"]},\n    {\"id\": \"makeQ\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 4, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"Q\"]},\n    {\"id\": \"makeLt\", \"operator\": \"point\", \"inputs\": {\"x\": -3, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"lt\"]},\n    {\"id\": \"makeLm\", \"operator\": \"point\", \"inputs\": {\"x\": -3, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"lm\"]},\n    {\"id\": \"makeLb\", \"operator\": \"point\", \"inputs\": {\"x\": -3, \"y\": 4, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"lb\"]},\n    {\"id\": \"makeRt\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rt\"]},\n    {\"id\": \"makeRm\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rm\"]},\n    {\"id\": \"makeRb\", \"operator\": \"point\", \"inputs\": {\"x\": 3, \"y\": 4, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"rb\"]},\n    {\"id\": \"makeWlTop\", \"operator\": \"connect\", \"inputs\": {\"start\": \"P\", \"end\": \"lt\"}, \"outputs\": [\"wlTop\"]},\n    {\"id\": \"makeRL\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"lt\", \"end\": \"lm\"}, \"outputs\": [\"RL\"]},\n    {\"id\": \"makeEL\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"battery\", \"start\": \"lm\", \"end\": \"lb\"}, \"outputs\": [\"EL\"]},\n    {\"id\": \"makeWlBottom\", \"operator\": \"connect\", \"inputs\": {\"start\": \"lb\", \"end\": \"Q\"}, \"outputs\": [\"wlBottom\"]},\n    {\"id\": \"makeRM\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"P\", \"end\": \"Q\"}, \"outputs\": [\"RM\"]},\n    {\"id\": \"makeWrTop\", \"operator\": \"connect\", \"inputs\": {\"start\": \"P\", \"end\": \"rt\"}, \"outputs\": [\"wrTop\"]},\n    {\"id\": \"makeRR\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"rt\", \"end\": \"rm\"}, \"outputs\": [\"RR\"]},\n    {\"id\": \"makeER\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"battery\", \"start\": \"rm\", \"end\": \"rb\"}, \"outputs\": [\"ER\"]},\n    {\"id\": \"makeWrBottom\", \"operator\": \"connect\", \"inputs\": {\"start\": \"rb\", \"end\": \"Q\"}, \"outputs\": [\"wrBottom\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"leftBranch\", \"predicate\": \"path\", \"entities\": [\"wlTop\", \"RL\", \"EL\", \"wlBottom\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rightBranch\", \"predicate\": \"path\", \"entities\": [\"wrTop\", \"RR\", \"ER\", \"wrBottom\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"leftLoop\", \"predicate\": \"path\", \"entities\": [\"wlTop\", \"RL\", \"EL\", \"wlBottom\", \"RM\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rightLoop\", \"predicate\": \"path\", \"entities\": [\"wrTop\", \"RR\", \"ER\", \"wrBottom\", \"RM\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"leftPolarity\", \"kind\": \"polarity\", \"targetIds\": [\"EL\"], \"text\": \"Positive toward P\"},\n    {\"id\": \"rightPolarity\", \"kind\": \"polarity\", \"targetIds\": [\"ER\"], \"text\": \"Positive toward Q\"}\n  ],\n  \"requiredEntityIds\": [\"P\", \"Q\", \"lt\", \"lm\", \"lb\", \"rt\", \"rm\", \"rb\", \"wlTop\", \"wlBottom\", \"wrTop\", \"wrBottom\", \"RL\", \"EL\", \"RM\", \"RR\", \"ER\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"P\", \"Q\", \"lt\", \"lm\", \"lb\", \"rt\", \"rm\", \"rb\", \"wlTop\", \"wlBottom\", \"wrTop\", \"wrBottom\", \"RL\", \"EL\", \"RM\", \"RR\", \"ER\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Identify the three branches between P and Q and the polarity of each source.\"\n    }\n  ],\n  \"teachingTimeline\": []\n}"
+  },
+  {
+   "key": "259436dbe07fe72ffeea",
+   "question": "Draw an ideal cell with internal resistance powering an external resistor. Compare the open-switch and closed-switch states, identifying emf, terminal voltage, current direction and the locations where power is dissipated. Use symbolic electrical quantities.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"Two separate symbolic circuit views show the open and closed states of the same cell, internal resistance, switch, and external resistor.\"\n  },\n  \"source\": {\n    \"question\": \"Draw an ideal cell with internal resistance powering an external resistor. Compare the open-switch and closed-switch states, identifying emf, terminal voltage, current direction and the locations where power is dissipated. Use symbolic electrical quantities.\",\n    \"representationTier\": \"qualitative_verified\",\n    \"nonMetric\": true\n  },\n  \"quantities\": [],\n  \"entities\": [\n    {\"id\": \"o0\", \"kind\": \"point\"},\n    {\"id\": \"o1\", \"kind\": \"point\"},\n    {\"id\": \"o2\", \"kind\": \"point\"},\n    {\"id\": \"o3\", \"kind\": \"point\"},\n    {\"id\": \"o4\", \"kind\": \"point\"},\n    {\"id\": \"ocell\", \"kind\": \"component\", \"role\": \"ideal cell\", \"label\": \"E\"},\n    {\"id\": \"or\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"r\"},\n    {\"id\": \"oswitch\", \"kind\": \"component\", \"role\": \"open switch\"},\n    {\"id\": \"oR\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"R\"},\n    {\"id\": \"owire\", \"kind\": \"connector\", \"role\": \"return wire\"},\n    {\"id\": \"c0\", \"kind\": \"point\"},\n    {\"id\": \"c1\", \"kind\": \"point\"},\n    {\"id\": \"c2\", \"kind\": \"point\"},\n    {\"id\": \"c3\", \"kind\": \"point\"},\n    {\"id\": \"c4\", \"kind\": \"point\"},\n    {\"id\": \"ccell\", \"kind\": \"component\", \"role\": \"ideal cell\", \"label\": \"E\"},\n    {\"id\": \"cr\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"r\"},\n    {\"id\": \"cswitch\", \"kind\": \"component\", \"role\": \"closed switch\"},\n    {\"id\": \"cR\", \"kind\": \"component\", \"role\": \"resistor\", \"label\": \"R\"},\n    {\"id\": \"cwire\", \"kind\": \"connector\", \"role\": \"return wire\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"po0\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"o0\"]},\n    {\"id\": \"po1\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"o1\"]},\n    {\"id\": \"po2\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"o2\"]},\n    {\"id\": \"po3\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"o3\"]},\n    {\"id\": \"po4\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"o4\"]},\n    {\"id\": \"make_ocell\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"cell\", \"start\": \"o0\", \"end\": \"o1\"}, \"outputs\": [\"ocell\"]},\n    {\"id\": \"make_or\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"o1\", \"end\": \"o2\"}, \"outputs\": [\"or\"]},\n    {\"id\": \"make_oswitch\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"switch\", \"start\": \"o2\", \"end\": \"o3\"}, \"outputs\": [\"oswitch\"]},\n    {\"id\": \"make_oR\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"o3\", \"end\": \"o4\"}, \"outputs\": [\"oR\"]},\n    {\"id\": \"make_owire\", \"operator\": \"connect\", \"inputs\": {\"start\": \"o4\", \"end\": \"o0\"}, \"outputs\": [\"owire\"]},\n    {\"id\": \"pc0\", \"operator\": \"point\", \"inputs\": {\"x\": 7, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"c0\"]},\n    {\"id\": \"pc1\", \"operator\": \"point\", \"inputs\": {\"x\": 7, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"c1\"]},\n    {\"id\": \"pc2\", \"operator\": \"point\", \"inputs\": {\"x\": 9, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"c2\"]},\n    {\"id\": \"pc3\", \"operator\": \"point\", \"inputs\": {\"x\": 11, \"y\": 2, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"c3\"]},\n    {\"id\": \"pc4\", \"operator\": \"point\", \"inputs\": {\"x\": 11, \"y\": 0, \"coordinateSpace\": \"layout\"}, \"outputs\": [\"c4\"]},\n    {\"id\": \"make_ccell\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"cell\", \"start\": \"c0\", \"end\": \"c1\"}, \"outputs\": [\"ccell\"]},\n    {\"id\": \"make_cr\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"c1\", \"end\": \"c2\"}, \"outputs\": [\"cr\"]},\n    {\"id\": \"make_cswitch\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"switch\", \"start\": \"c2\", \"end\": \"c3\"}, \"outputs\": [\"cswitch\"]},\n    {\"id\": \"make_cR\", \"operator\": \"symbol\", \"inputs\": {\"symbol\": \"resistor\", \"start\": \"c3\", \"end\": \"c4\"}, \"outputs\": [\"cR\"]},\n    {\"id\": \"make_cwire\", \"operator\": \"connect\", \"inputs\": {\"start\": \"c4\", \"end\": \"c0\"}, \"outputs\": [\"cwire\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"open_components\", \"predicate\": \"path\", \"entities\": [\"ocell\", \"or\", \"oswitch\", \"oR\", \"owire\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"closed_components\", \"predicate\": \"path\", \"entities\": [\"ccell\", \"cr\", \"cswitch\", \"cR\", \"cwire\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"open_state\", \"kind\": \"callout\", \"targetIds\": [\"oswitch\"], \"text\": \"Open\"},\n    {\"id\": \"open_polarity\", \"kind\": \"polarity\", \"targetIds\": [\"ocell\"], \"text\": \"Positive terminal at o1; negative terminal at o0.\"},\n    {\"id\": \"open_voltage\", \"kind\": \"callout\", \"targetIds\": [\"ocell\", \"or\"], \"text\": \"Terminal voltage: V_open\"},\n    {\"id\": \"closed_state\", \"kind\": \"callout\", \"targetIds\": [\"cswitch\"], \"text\": \"Closed\"},\n    {\"id\": \"closed_polarity\", \"kind\": \"polarity\", \"targetIds\": [\"ccell\"], \"text\": \"Positive terminal at c1; negative terminal at c0.\"},\n    {\"id\": \"closed_voltage\", \"kind\": \"callout\", \"targetIds\": [\"ccell\", \"cr\"], \"text\": \"Terminal voltage: V_closed\"},\n    {\"id\": \"external_sense\", \"kind\": \"sense\", \"targetIds\": [\"cr\", \"cswitch\", \"cR\", \"cwire\"], \"text\": \"I: positive terminal through r, switch, and R to negative terminal.\"},\n    {\"id\": \"source_sense\", \"kind\": \"sense\", \"targetIds\": [\"ccell\"], \"text\": \"Inside the ideal cell: negative to positive terminal.\"},\n    {\"id\": \"internal_heat\", \"kind\": \"highlight\", \"targetIds\": [\"cr\"], \"text\": \"Internal power dissipation\"},\n    {\"id\": \"external_heat\", \"kind\": \"highlight\", \"targetIds\": [\"cR\"], \"text\": \"External power dissipation\"}\n  ],\n  \"requiredEntityIds\": [\n    \"ocell\", \"or\", \"oswitch\", \"oR\", \"owire\",\n    \"ccell\", \"cr\", \"cswitch\", \"cR\", \"cwire\"\n  ],\n  \"revealGroups\": [\n    {\n      \"id\": \"open\",\n      \"entityIds\": [\"o0\", \"o1\", \"o2\", \"o3\", \"o4\", \"ocell\", \"or\", \"oswitch\", \"oR\", \"owire\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Open switch: I=0, V_open=E, and neither resistor dissipates power.\"\n    },\n    {\n      \"id\": \"closed\",\n      \"entityIds\": [\"c0\", \"c1\", \"c2\", \"c3\", \"c4\", \"ccell\", \"cr\", \"cswitch\", \"cR\", \"cwire\"],\n      \"dependsOn\": [\"open\"],\n      \"narrationCue\": \"Closed switch: conventional current follows the indicated loop. I=E/(R+r), V_closed=E−Ir=IR, P_internal=I²r, and P_external=I²R. The ideal cell and switch dissipate no power; EI=P_internal+P_external.\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"groupId\": \"open\", \"narrationCue\": \"The ideal cell has emf E. With the switch open, I=0 and V_open=E; both resistive powers are zero.\"},\n    {\"groupId\": \"closed\", \"narrationCue\": \"Closing the switch gives I=E/(R+r). Current leaves the positive terminal, crosses r, the switch and R, and returns to the negative terminal; inside the cell it travels toward the positive terminal. V_closed=E−Ir=IR=ER/(R+r). Power is dissipated at r and R: P_internal=I²r, P_external=I²R, and EI=P_internal+P_external.\"}\n  ]\n}"
+  }
+ ],
+ "givenLabelRows": [
+  {
+   "key": "c3ed97ecc4e9c7d06e1e",
+   "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given coordinate lines and their intersection have exact plan-backed geometry.\"\n  },\n  \"source\": {\n    \"question\": \"Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"y\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"intersection x-coordinate\", \"value\": -2, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"intersection y-coordinate\", \"value\": 3, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\"},\n    {\"id\": \"vStart\", \"kind\": \"point\"},\n    {\"id\": \"vEnd\", \"kind\": \"point\"},\n    {\"id\": \"hStart\", \"kind\": \"point\"},\n    {\"id\": \"hEnd\", \"kind\": \"point\"},\n    {\"id\": \"vertical\", \"kind\": \"line\", \"role\": \"vertical line\", \"label\": \"x = -2\"},\n    {\"id\": \"horizontal\", \"kind\": \"line\", \"role\": \"horizontal line\", \"label\": \"y = 3\"},\n    {\"id\": \"solution\", \"kind\": \"point\", \"role\": \"intersection\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -4, \"xMax\": 4, \"yMin\": -4, \"yMax\": 5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeVStart\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": -4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"vStart\"]},\n    {\"id\": \"makeVEnd\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": 5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"vEnd\"]},\n    {\"id\": \"makeHStart\", \"operator\": \"point\", \"inputs\": {\"x\": -4, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"hStart\"]},\n    {\"id\": \"makeHEnd\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"hEnd\"]},\n    {\"id\": \"makeVertical\", \"operator\": \"line\", \"inputs\": {\"start\": \"vStart\", \"end\": \"vEnd\"}, \"outputs\": [\"vertical\"]},\n    {\"id\": \"makeHorizontal\", \"operator\": \"line\", \"inputs\": {\"start\": \"hStart\", \"end\": \"hEnd\"}, \"outputs\": [\"horizontal\"]},\n    {\"id\": \"findIntersection\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"vertical\", \"second\": \"horizontal\"}, \"outputs\": [\"solution\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"onVertical\", \"predicate\": \"on\", \"entities\": [\"solution\", \"vertical\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"onHorizontal\", \"predicate\": \"on\", \"entities\": [\"solution\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"solutionLabel\", \"kind\": \"label\", \"targetIds\": [\"solution\"], \"text\": \"(-2, 3)\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"vertical\", \"horizontal\", \"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"vStart\", \"vEnd\", \"hStart\", \"hEnd\", \"vertical\", \"horizontal\"], \"dependsOn\": []},\n    {\"id\": \"intersection\", \"entityIds\": [\"solution\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"showIntersection\", \"revealGroupId\": \"intersection\", \"annotationIds\": [\"solutionLabel\"]}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x",
+      "value": -2,
+      "sourceText": "x = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "y",
+      "value": 3,
+      "sourceText": "y = 3",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "intersection x-coordinate"
+     },
+     {
+      "id": "u2",
+      "symbol": "intersection y-coordinate"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "intersection x-coordinate",
+      "value": -2,
+      "sourceText": "d1 = -2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "intersection y-coordinate",
+      "value": 3,
+      "sourceText": "d2 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The line x = -2 is vertical, and the line y = 3 is horizontal.",
+      "expected": "They intersect at (-2, 3), the solution of both equations.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "u1",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Cartesian coordinate line definitions",
+     "Intersection solves simultaneous equations"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "97594b884fa29092a3d8",
+   "question": "Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given equations can be graphed and their intersection labelled.\"\n  },\n  \"source\": {\n    \"question\": \"Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x+y\", \"value\": 6, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"x-y\", \"value\": 2, \"provenance\": \"given\"},\n    {\"id\": \"ux\", \"symbol\": \"x\", \"value\": 4, \"provenance\": \"derived\"},\n    {\"id\": \"uy\", \"symbol\": \"y\", \"value\": 2, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"l1\", \"kind\": \"polyline\", \"role\": \"graph of the first equation\", \"label\": \"x + y = 6\"},\n    {\"id\": \"l2\", \"kind\": \"polyline\", \"role\": \"graph of the second equation\", \"label\": \"x - y = 2\"},\n    {\"id\": \"p\", \"kind\": \"point\", \"role\": \"intersection of the graphs\", \"label\": \"(4, 2)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"cax\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -1, \"xMax\": 7, \"yMin\": -3, \"yMax\": 7}, \"outputs\": [\"ax\"]},\n    {\"id\": \"c1\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"6-x\", \"variable\": \"x\", \"xMin\": -1, \"xMax\": 7}, \"outputs\": [\"l1\"]},\n    {\"id\": \"c2\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"x-2\", \"variable\": \"x\", \"xMin\": -1, \"xMax\": 7}, \"outputs\": [\"l2\"]},\n    {\"id\": \"cp\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"l1\", \"second\": \"l2\"}, \"outputs\": [\"p\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"a1\", \"predicate\": \"function_value\", \"entities\": [\"l1\"], \"expected\": {\"x\": 4, \"y\": 2}, \"severity\": \"fatal\"},\n    {\"id\": \"a2\", \"predicate\": \"function_value\", \"entities\": [\"l2\"], \"expected\": {\"x\": 4, \"y\": 2}, \"severity\": \"fatal\"},\n    {\"id\": \"a3\", \"predicate\": \"on\", \"entities\": [\"p\", \"l1\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"a4\", \"predicate\": \"on\", \"entities\": [\"p\", \"l2\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"ax\", \"l1\", \"l2\", \"p\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\", \"l1\", \"l2\"], \"dependsOn\": [], \"narrationCue\": \"Graph the two given equations.\"},\n    {\"id\": \"intersection\", \"entityIds\": [\"p\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Calculate and label the point where the graphs intersect.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"step1\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"step2\", \"revealGroupId\": \"intersection\"}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x+y",
+      "value": 6,
+      "sourceText": "x + y = 6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "x-y",
+      "value": 2,
+      "sourceText": "x - y = 2",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "ux",
+      "symbol": "x"
+     },
+     {
+      "id": "uy",
+      "symbol": "y"
+     }
+    ],
+    "derived": [
+     {
+      "id": "ux",
+      "symbol": "x",
+      "value": 4,
+      "sourceText": "dx = 4",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     },
+     {
+      "id": "uy",
+      "symbol": "y",
+      "value": 2,
+      "sourceText": "dy = 2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "On the coordinate graph, the lines x + y = 6 and x - y = 2 intersect at the labelled point (4, 2).",
+      "expected": "Point of intersection: (4, 2).",
+      "relatedQuantityIds": [
+       "ux",
+       "uy"
+      ]
+     }
+    ],
+    "lawIds": [
+     "A solution of two linear equations is the intersection of their graphs",
+     "Addition and subtraction of simultaneous equations"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "ba121e5dcf03b49f7f9e",
+   "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The two given equations determine one coincident horizontal graph.\"\n  },\n  \"source\": {\n    \"question\": \"Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"2y\", \"value\": -6, \"provenance\": \"given\", \"sourceText\": \"2y = -6\"},\n    {\"id\": \"g2\", \"symbol\": \"-5y\", \"value\": 15, \"provenance\": \"given\", \"sourceText\": \"-5y = 15\"},\n    {\"id\": \"u1\", \"symbol\": \"y\", \"value\": -3, \"provenance\": \"derived\", \"dependsOn\": [\"g1\", \"g2\"], \"sourceText\": \"d1 = -3\"},\n    {\"id\": \"u2\", \"symbol\": \"x\"}\n  ],\n  \"entities\": [\n    {\"id\": \"ax\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"pLeft\", \"kind\": \"point\", \"role\": \"point on the common graph\"},\n    {\"id\": \"pRight\", \"kind\": \"point\", \"role\": \"point on the common graph\"},\n    {\"id\": \"commonLine\", \"kind\": \"line\", \"role\": \"graph of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -5, \"yMax\": 2}, \"outputs\": [\"ax\"]},\n    {\"id\": \"makeLeft\", \"operator\": \"point\", \"inputs\": {\"x\": -4, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pLeft\"]},\n    {\"id\": \"makeRight\", \"operator\": \"point\", \"inputs\": {\"x\": 4, \"y\": -3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"pRight\"]},\n    {\"id\": \"makeCommonLine\", \"operator\": \"line\", \"inputs\": {\"start\": \"pLeft\", \"end\": \"pRight\"}, \"outputs\": [\"commonLine\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"leftOnGraph\", \"predicate\": \"on\", \"entities\": [\"pLeft\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"rightOnGraph\", \"predicate\": \"on\", \"entities\": [\"pRight\", \"commonLine\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"givenOne\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"2y = -6\", \"placementIntent\": \"above\"},\n    {\"id\": \"givenTwo\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"-5y = 15\", \"placementIntent\": \"below\"},\n    {\"id\": \"commonValue\", \"kind\": \"label\", \"targetIds\": [\"commonLine\"], \"text\": \"y = -3\", \"quantityId\": \"u1\"},\n    {\"id\": \"solutionDescription\", \"kind\": \"narration\", \"targetIds\": [\"commonLine\"], \"text\": \"The graphs coincide. There are infinitely many solutions: all ordered pairs (x, -3), where x is any real number.\"}\n  ],\n  \"requiredEntityIds\": [\"ax\", \"pLeft\", \"pRight\", \"commonLine\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"ax\"], \"dependsOn\": [], \"narrationCue\": \"Graph the two given equations.\"},\n    {\"id\": \"graph\", \"entityIds\": [\"pLeft\", \"pRight\", \"commonLine\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Both equations produce the same horizontal line.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\", \"annotationIds\": []},\n    {\"id\": \"showGraph\", \"revealGroupId\": \"graph\", \"annotationIds\": [\"givenOne\", \"givenTwo\"]},\n    {\"id\": \"describeSolutions\", \"revealGroupId\": \"graph\", \"annotationIds\": [\"commonValue\", \"solutionDescription\"]}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "2y",
+      "value": -6,
+      "sourceText": "2y = -6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "-5y",
+      "value": 15,
+      "sourceText": "-5y = 15",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "y"
+     },
+     {
+      "id": "u2",
+      "symbol": "x"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "y",
+      "value": -3,
+      "sourceText": "d1 = -3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Both equations graph as the same horizontal line.",
+      "expected": "y = -3",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The coincident lines give infinitely many solutions.",
+      "expected": "All ordered pairs (x, -3), where x is any real number.",
+      "relatedQuantityIds": [
+       "u2",
+       "u1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Division property of equality",
+     "Coincident-lines criterion for infinitely many solutions"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "e4680815b02fcde59d31",
+   "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given coordinate lines and their intersection have exact plan-backed geometry.\"\n  },\n  \"source\": {\n    \"question\": \"Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x\", \"value\": -2, \"provenance\": \"given\", \"sourceText\": \"x = -2\"},\n    {\"id\": \"g2\", \"symbol\": \"y\", \"value\": 3, \"provenance\": \"given\", \"sourceText\": \"y = 3\"},\n    {\"id\": \"u1\", \"symbol\": \"x_intersection\", \"value\": -2, \"provenance\": \"derived\", \"dependsOn\": [\"g1\"], \"sourceText\": \"d1 = -2\"},\n    {\"id\": \"u2\", \"symbol\": \"y_intersection\", \"value\": 3, \"provenance\": \"derived\", \"dependsOn\": [\"g2\"], \"sourceText\": \"d2 = 3\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"coordinate axes\"},\n    {\"id\": \"v0\", \"kind\": \"point\", \"role\": \"display endpoint\"},\n    {\"id\": \"v1\", \"kind\": \"point\", \"role\": \"display endpoint\"},\n    {\"id\": \"h0\", \"kind\": \"point\", \"role\": \"display endpoint\"},\n    {\"id\": \"h1\", \"kind\": \"point\", \"role\": \"display endpoint\"},\n    {\"id\": \"vertical\", \"kind\": \"line\", \"role\": \"given vertical line\", \"label\": \"x = -2\"},\n    {\"id\": \"horizontal\", \"kind\": \"line\", \"role\": \"given horizontal line\", \"label\": \"y = 3\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"graphical solution\", \"label\": \"(-2, 3)\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"c_axes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -4, \"xMax\": 2, \"yMin\": -1, \"yMax\": 5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"c_v0\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": -1, \"coordinateSpace\": \"world\"}, \"outputs\": [\"v0\"]},\n    {\"id\": \"c_v1\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": 5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"v1\"]},\n    {\"id\": \"c_h0\", \"operator\": \"point\", \"inputs\": {\"x\": -4, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"h0\"]},\n    {\"id\": \"c_h1\", \"operator\": \"point\", \"inputs\": {\"x\": 2, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"h1\"]},\n    {\"id\": \"c_vertical\", \"operator\": \"line\", \"inputs\": {\"start\": \"v0\", \"end\": \"v1\"}, \"outputs\": [\"vertical\"]},\n    {\"id\": \"c_horizontal\", \"operator\": \"line\", \"inputs\": {\"start\": \"h0\", \"end\": \"h1\"}, \"outputs\": [\"horizontal\"]},\n    {\"id\": \"c_crossing\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"vertical\", \"second\": \"horizontal\"}, \"outputs\": [\"crossing\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"on_vertical\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"vertical\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on_horizontal\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"right_angle\", \"predicate\": \"perpendicular\", \"entities\": [\"vertical\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [],\n  \"requiredEntityIds\": [\"axes\", \"vertical\", \"horizontal\", \"crossing\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"v0\", \"v1\", \"h0\", \"h1\", \"vertical\", \"horizontal\"], \"dependsOn\": []},\n    {\"id\": \"solution\", \"entityIds\": [\"crossing\"], \"dependsOn\": [\"setup\"]}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"show_setup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"show_intersection\", \"revealGroupId\": \"solution\"}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x",
+      "value": -2,
+      "sourceText": "x = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "y",
+      "value": 3,
+      "sourceText": "y = 3",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "x_intersection"
+     },
+     {
+      "id": "u2",
+      "symbol": "y_intersection"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "x_intersection",
+      "value": -2,
+      "sourceText": "d1 = -2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "y_intersection",
+      "value": 3,
+      "sourceText": "d2 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The graph of x = -2 is a vertical line, and the graph of y = 3 is a horizontal line.",
+      "expected": "The lines cross at (-2, 3): two units left and three units up from the origin.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "u1",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Cartesian coordinate graphing",
+     "Intersection of perpendicular coordinate lines"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "2e25d954976bb699f1d6",
+   "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The given equations define a vertical line and a horizontal line with a constructible intersection.\"\n  },\n  \"source\": {\n    \"question\": \"Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x\", \"value\": -2, \"unit\": null, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"y\", \"value\": 3, \"unit\": null, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"x_intersection\", \"value\": -2, \"unit\": null, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"y_intersection\", \"value\": 3, \"unit\": null, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\", \"role\": \"Cartesian axes\"},\n    {\"id\": \"vx\", \"kind\": \"point\", \"role\": \"point fixing the given x-coordinate\"},\n    {\"id\": \"hy\", \"kind\": \"point\", \"role\": \"point fixing the given y-coordinate\"},\n    {\"id\": \"vertical\", \"kind\": \"line\", \"role\": \"graph of x = -2\", \"label\": \"x = -2\"},\n    {\"id\": \"horizontal\", \"kind\": \"line\", \"role\": \"graph of y = 3\", \"label\": \"y = 3\"},\n    {\"id\": \"crossing\", \"kind\": \"point\", \"role\": \"intersection of the two graphs\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"c_axes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -2, \"yMax\": 6}, \"outputs\": [\"axes\"]},\n    {\"id\": \"c_vx\", \"operator\": \"point\", \"inputs\": {\"x\": \"g1\", \"y\": 0, \"coordinateSpace\": \"world\"}, \"outputs\": [\"vx\"]},\n    {\"id\": \"c_hy\", \"operator\": \"point\", \"inputs\": {\"x\": 0, \"y\": \"g2\", \"coordinateSpace\": \"world\"}, \"outputs\": [\"hy\"]},\n    {\"id\": \"c_vertical\", \"operator\": \"line\", \"inputs\": {\"start\": \"vx\", \"direction\": [0, 1]}, \"outputs\": [\"vertical\"]},\n    {\"id\": \"c_horizontal\", \"operator\": \"line\", \"inputs\": {\"start\": \"hy\", \"direction\": [1, 0]}, \"outputs\": [\"horizontal\"]},\n    {\"id\": \"c_crossing\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"vertical\", \"second\": \"horizontal\"}, \"outputs\": [\"crossing\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"on_vertical\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"vertical\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on_horizontal\", \"predicate\": \"on\", \"entities\": [\"crossing\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"lines_perpendicular\", \"predicate\": \"perpendicular\", \"entities\": [\"vertical\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"solution_label\", \"kind\": \"label\", \"targetIds\": [\"crossing\"], \"text\": \"(-2, 3)\", \"placementIntent\": \"beside intersection\", \"style\": {\"transient\": false}}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"vx\", \"hy\", \"vertical\", \"horizontal\", \"crossing\"],\n  \"revealGroups\": [\n    {\n      \"id\": \"setup\",\n      \"entityIds\": [\"axes\", \"vx\", \"hy\", \"vertical\", \"horizontal\"],\n      \"dependsOn\": [],\n      \"narrationCue\": \"Draw x = -2 vertically and y = 3 horizontally.\"\n    },\n    {\n      \"id\": \"intersection\",\n      \"entityIds\": [\"crossing\"],\n      \"dependsOn\": [\"setup\"],\n      \"narrationCue\": \"The lines cross at (-2, 3).\"\n    }\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"show_setup\", \"revealGroupId\": \"setup\", \"annotationIds\": []},\n    {\"id\": \"show_intersection\", \"revealGroupId\": \"intersection\", \"annotationIds\": [\"solution_label\"]}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x",
+      "value": -2,
+      "sourceText": "x = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "y",
+      "value": 3,
+      "sourceText": "y = 3",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "x_intersection"
+     },
+     {
+      "id": "u2",
+      "symbol": "y_intersection"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "x_intersection",
+      "value": -2,
+      "sourceText": "d1 = -2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "y_intersection",
+      "value": 3,
+      "sourceText": "d2 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The graph of x = -2 is a vertical line, and the graph of y = 3 is a horizontal line.",
+      "expected": "The two lines cross at (-2, 3), left of the y-axis and above the x-axis.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "u1",
+       "u2"
+      ]
+     }
+    ],
+    "lawIds": [
+     "Cartesian-coordinate line equations",
+     "Intersection of graphs of simultaneous equations"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "e18e3ff304d83de2a9ae",
+   "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": \"scene\",\n  \"source\": {\n    \"question\": \"Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.\",\n    \"representationTier\": \"exact\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"2y\", \"value\": -6, \"sourceText\": \"2y = -6\", \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"-5y\", \"value\": 15, \"sourceText\": \"-5y = 15\", \"provenance\": \"given\"},\n    {\"id\": \"d1\", \"symbol\": \"y\", \"value\": -3, \"sourceText\": \"From 2y = -6, y = -6/2 = -3; from -5y = 15, y = 15/(-5) = -3.\", \"provenance\": \"derived\", \"dependsOn\": [\"g1\", \"g2\"]}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\"},\n    {\"id\": \"coincidentGraph\", \"kind\": \"polyline\", \"role\": \"graph of both equations\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"makeAxes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -5, \"yMax\": 1}, \"outputs\": [\"axes\"]},\n    {\"id\": \"makeGraph\", \"operator\": \"function_curve\", \"inputs\": {\"expression\": \"-6/2\", \"xMin\": -5, \"xMax\": 5}, \"outputs\": [\"coincidentGraph\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [],\n  \"annotations\": [\n    {\"id\": \"givenOne\", \"kind\": \"label\", \"targetIds\": [\"coincidentGraph\"], \"text\": \"2y = -6\", \"quantityId\": \"g1\"},\n    {\"id\": \"givenTwo\", \"kind\": \"callout\", \"targetIds\": [\"coincidentGraph\"], \"text\": \"-5y = 15\", \"quantityId\": \"g2\"},\n    {\"id\": \"result\", \"kind\": \"narration\", \"targetIds\": [\"coincidentGraph\"], \"text\": \"Both graphs coincide at y = -3. Infinitely many solutions: (x, -3) for every real x.\", \"quantityId\": \"d1\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"coincidentGraph\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"coincidentGraph\"]},\n    {\"id\": \"answer\", \"entityIds\": []}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"showSetup\", \"revealGroupId\": \"setup\", \"annotationIds\": [\"givenOne\", \"givenTwo\"]},\n    {\"id\": \"showAnswer\", \"revealGroupId\": \"answer\", \"annotationIds\": [\"result\"]}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "2y",
+      "value": -6,
+      "sourceText": "2y = -6",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "-5y",
+      "value": 15,
+      "sourceText": "-5y = 15",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "number of solutions"
+     },
+     {
+      "id": "u2",
+      "symbol": "solution set"
+     }
+    ],
+    "derived": [
+     {
+      "id": "d1",
+      "symbol": "y",
+      "value": -3,
+      "sourceText": "From 2y = -6, y = -6/2 = -3; from -5y = 15, y = 15/(-5) = -3.",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1",
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Both graphs are the same horizontal line.",
+      "expected": "y = -3",
+      "relatedQuantityIds": [
+       "d1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The system has infinitely many solutions.",
+      "expected": "All points (x, -3), where x is any real number.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2",
+       "d1"
+      ]
+     }
+    ],
+    "lawIds": [
+     "division property of equality",
+     "coincident-lines solution rule"
+    ],
+    "assumptions": []
+   }
+  },
+  {
+   "key": "8e4fd7571fc85a555658",
+   "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+   "raw": "{\n  \"schemaVersion\": \"scene-document/v2\",\n  \"visualDecision\": {\n    \"mode\": \"scene\",\n    \"reason\": \"The stated coordinate equations define a vertical and a horizontal line whose intersection can be constructed.\"\n  },\n  \"source\": {\n    \"question\": \"Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.\"\n  },\n  \"quantities\": [\n    {\"id\": \"g1\", \"symbol\": \"x\", \"value\": -2, \"provenance\": \"given\"},\n    {\"id\": \"g2\", \"symbol\": \"y\", \"value\": 3, \"provenance\": \"given\"},\n    {\"id\": \"u1\", \"symbol\": \"intersection x-coordinate\", \"value\": -2, \"provenance\": \"derived\"},\n    {\"id\": \"u2\", \"symbol\": \"intersection y-coordinate\", \"value\": 3, \"provenance\": \"derived\"}\n  ],\n  \"entities\": [\n    {\"id\": \"axes\", \"kind\": \"axes\"},\n    {\"id\": \"v0\", \"kind\": \"point\"},\n    {\"id\": \"v1\", \"kind\": \"point\"},\n    {\"id\": \"h0\", \"kind\": \"point\"},\n    {\"id\": \"h1\", \"kind\": \"point\"},\n    {\"id\": \"vertical\", \"kind\": \"line\", \"label\": \"x = -2\"},\n    {\"id\": \"horizontal\", \"kind\": \"line\", \"label\": \"y = 3\"},\n    {\"id\": \"solution\", \"kind\": \"point\"}\n  ],\n  \"constructions\": [\n    {\"id\": \"make_axes\", \"operator\": \"axes\", \"inputs\": {\"xMin\": -5, \"xMax\": 5, \"yMin\": -5, \"yMax\": 5}, \"outputs\": [\"axes\"]},\n    {\"id\": \"make_v0\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": -4, \"coordinateSpace\": \"world\"}, \"outputs\": [\"v0\"]},\n    {\"id\": \"make_v1\", \"operator\": \"point\", \"inputs\": {\"x\": -2, \"y\": 5, \"coordinateSpace\": \"world\"}, \"outputs\": [\"v1\"]},\n    {\"id\": \"make_h0\", \"operator\": \"point\", \"inputs\": {\"x\": -5, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"h0\"]},\n    {\"id\": \"make_h1\", \"operator\": \"point\", \"inputs\": {\"x\": 5, \"y\": 3, \"coordinateSpace\": \"world\"}, \"outputs\": [\"h1\"]},\n    {\"id\": \"make_vertical\", \"operator\": \"line\", \"inputs\": {\"start\": \"v0\", \"end\": \"v1\"}, \"outputs\": [\"vertical\"]},\n    {\"id\": \"make_horizontal\", \"operator\": \"line\", \"inputs\": {\"start\": \"h0\", \"end\": \"h1\"}, \"outputs\": [\"horizontal\"]},\n    {\"id\": \"find_solution\", \"operator\": \"intersection\", \"inputs\": {\"first\": \"vertical\", \"second\": \"horizontal\"}, \"outputs\": [\"solution\"]}\n  ],\n  \"relations\": [],\n  \"assertions\": [\n    {\"id\": \"on_vertical\", \"predicate\": \"on\", \"entities\": [\"solution\", \"vertical\"], \"expected\": true, \"severity\": \"fatal\"},\n    {\"id\": \"on_horizontal\", \"predicate\": \"on\", \"entities\": [\"solution\", \"horizontal\"], \"expected\": true, \"severity\": \"fatal\"}\n  ],\n  \"annotations\": [\n    {\"id\": \"solution_coordinates\", \"kind\": \"label\", \"targetIds\": [\"solution\"], \"text\": \"(-2, 3)\", \"placementIntent\": \"near\"}\n  ],\n  \"requiredEntityIds\": [\"axes\", \"vertical\", \"horizontal\", \"solution\"],\n  \"revealGroups\": [\n    {\"id\": \"setup\", \"entityIds\": [\"axes\", \"v0\", \"v1\", \"h0\", \"h1\", \"vertical\", \"horizontal\"], \"dependsOn\": [], \"narrationCue\": \"Draw x = -2 vertically and y = 3 horizontally.\"},\n    {\"id\": \"intersection\", \"entityIds\": [\"solution\"], \"dependsOn\": [\"setup\"], \"narrationCue\": \"Their intersection is the graphical solution.\"}\n  ],\n  \"teachingTimeline\": [\n    {\"id\": \"show_setup\", \"revealGroupId\": \"setup\"},\n    {\"id\": \"show_intersection\", \"revealGroupId\": \"intersection\", \"annotationIds\": [\"solution_coordinates\"]}\n  ]\n}",
+   "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+    "visualRequirement": "required",
+    "givens": [
+     {
+      "id": "g1",
+      "symbol": "x",
+      "value": -2,
+      "sourceText": "x = -2",
+      "provenance": "given"
+     },
+     {
+      "id": "g2",
+      "symbol": "y",
+      "value": 3,
+      "sourceText": "y = 3",
+      "provenance": "given"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "u1",
+      "symbol": "intersection x-coordinate"
+     },
+     {
+      "id": "u2",
+      "symbol": "intersection y-coordinate"
+     }
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "symbol": "intersection x-coordinate",
+      "value": -2,
+      "sourceText": "d1 = -2",
+      "provenance": "derived",
+      "dependsOn": [
+       "g1"
+      ]
+     },
+     {
+      "id": "u2",
+      "symbol": "intersection y-coordinate",
+      "value": 3,
+      "sourceText": "d2 = 3",
+      "provenance": "derived",
+      "dependsOn": [
+       "g2"
+      ]
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Graph x = -2 as a vertical line and y = 3 as a horizontal line on the same coordinate plane.",
+      "expected": "The lines meet at (-2, 3), the graphical solution.",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "u1",
+       "u2"
+      ],
+      "relatedEntityHints": [
+       "vertical line",
+       "horizontal line",
+       "intersection"
+      ]
+     }
+    ],
+    "lawIds": [
+     "intersection-of-coordinate-lines"
+    ],
+    "assumptions": []
+   }
+  }
+ ]
+}

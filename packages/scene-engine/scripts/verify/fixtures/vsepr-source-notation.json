@@ -1,0 +1,403 @@
+{
+  "scope": "Positively owned source VSEPR notation; every member of an explicit shared roster must independently satisfy actual ligand/paired-lone-pair counts. Ambiguous ownership and odd-electron notation decline. No matching-subset selection.",
+  "rows": [
+    {
+      "id": "greptile-exact",
+      "question": "Show the molecular shape of SF4 using AX4E notation",
+      "expectedFormulas": [
+        "SF4"
+      ],
+      "counts": [
+        [
+          4,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "reverse-exact",
+      "question": "Use AX4E notation for SF4",
+      "expectedFormulas": [
+        "SF4"
+      ],
+      "counts": [
+        [
+          4,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "ammonia",
+      "question": "Show the molecular shape of NH3 using AX3E notation.",
+      "expectedFormulas": [
+        "NH3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "nitrogen-trifluoride",
+      "question": "Show the molecular shape of NF3 with AX3E notation.",
+      "expectedFormulas": [
+        "NF3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "xenon-tetrafluoride",
+      "question": "Show the molecular geometry of XeF4 using AX4E2 notation.",
+      "expectedFormulas": [
+        "XeF4"
+      ],
+      "counts": [
+        [
+          4,
+          2
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "carbon-dioxide",
+      "question": "Show the molecular shape of CO2 using AX2 notation.",
+      "expectedFormulas": [
+        "CO2"
+      ],
+      "counts": [
+        [
+          2,
+          0
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "methane-zero-pairs",
+      "question": "Show the molecular geometry of CH4 using AX4E0 notation.",
+      "expectedFormulas": [
+        "CH4"
+      ],
+      "counts": [
+        [
+          4,
+          0
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "water",
+      "question": "Draw the molecular shape of H2O in AX2E2 notation.",
+      "expectedFormulas": [
+        "H2O"
+      ],
+      "counts": [
+        [
+          2,
+          2
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "xenon-difluoride",
+      "question": "Show the molecular geometry of XeF2 using AX2E3 notation.",
+      "expectedFormulas": [
+        "XeF2"
+      ],
+      "counts": [
+        [
+          2,
+          3
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "reversed-for",
+      "question": "Use AX3E notation for the molecular shape of NH3.",
+      "expectedFormulas": [
+        "NH3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "preposed-method",
+      "question": "Using AX3E notation, show the molecular geometry of NH3.",
+      "expectedFormulas": [
+        "NH3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "separate-method",
+      "question": "Show the molecular shape of NH3. Use AX3E notation.",
+      "expectedFormulas": [
+        "NH3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "unicode-counts",
+      "question": "Show the molecular shape of XeF4 using AX\u2084E\u2082 notation.",
+      "expectedFormulas": [
+        "XeF4"
+      ],
+      "counts": [
+        [
+          4,
+          2
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "split-owned-methods",
+      "question": "Show SF4 using AX4E notation and XeF4 using AX4E2 notation.",
+      "expectedFormulas": [
+        "SF4",
+        "XeF4"
+      ],
+      "counts": [
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "explicit-for-one-owner",
+      "question": "Show the molecular shapes of SF4 and XeF4 using AX4E notation for SF4.",
+      "expectedFormulas": [
+        "SF4",
+        "XeF4"
+      ],
+      "counts": [
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          2
+        ]
+      ],
+      "note": null
+    },
+    {
+      "id": "wrong-lone-pairs",
+      "question": "Show the molecular shape of SF4 using AX4E2 notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "wrong-ligands",
+      "question": "Show the molecular shape of SF4 using AX5E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "missing-lone-pair",
+      "question": "Show the molecular shape of NH3 using AX3 notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "foreign-lone-pair",
+      "question": "Show the molecular shape of CO2 using AX2E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "wrong-methane",
+      "question": "Show the molecular shape of CH4 using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "wrong-water",
+      "question": "Show the molecular shape of H2O using AX2E3 notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "wrong-xenon",
+      "question": "Show the molecular shape of XeF4 using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "unbound-only",
+      "question": "Show the molecular shape using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "direct-extra-member",
+      "question": "Show the molecular shapes of SF4 and AX4E.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "extra-unowned-notation",
+      "question": "Show the molecular shape of SF4 using AX4E notation and AX3E.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "shared-opposed-counts",
+      "question": "Show the molecular shapes of SF4 and XeF4 using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "shared-same-counts-unbound",
+      "question": "Show the molecular shapes of NH3 and NF3 using AX3E notation.",
+      "expectedFormulas": [
+        "NH3",
+        "NF3"
+      ],
+      "counts": [
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          1
+        ]
+      ],
+      "note": "Root reviewed contract: explicitly shared roster is independently checked for every molecule; identical source classes are supported."
+    },
+    {
+      "id": "split-second-wrong",
+      "question": "Show SF4 using AX4E notation and XeF4 using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "postposed-other-molecule",
+      "question": "Show the molecular shapes of SF4 and CH4 using AX4E notation for CH4.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "postposed-coordinated-opposed",
+      "question": "Show the molecular shapes of SF4 and XeF4 using AX4E2 notation for XeF4 and SF4.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "unknown-formula",
+      "question": "Show the molecular shapes of SF4 and XYZ using AX4E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "extra-unknown-formula",
+      "question": "Show the molecular shape of SF4 using AX4E notation. Also draw XYZ.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "malformed-class-charge",
+      "question": "Show the molecular shape of SF4 using AX4E- notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "malformed-class-suffix",
+      "question": "Show the molecular shape of SF4 using AX4E2foo notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "odd-electron-ambiguous",
+      "question": "Show the molecular shape of NO2 using AX2E notation.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "Shared multiple owners and odd-electron notation are bounded unsupported requests; other negatives are contradictory, unbound or malformed source members."
+    },
+    {
+      "id": "explicit-both-shared-matching",
+      "question": "Show the molecular shapes of both SF4 and SeF4 using AX4E notation.",
+      "expectedFormulas": [
+        "SF4",
+        "SeF4"
+      ],
+      "counts": [
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          1
+        ]
+      ],
+      "note": "Explicit both binds the complete two-member roster."
+    },
+    {
+      "id": "ambiguous-standalone-multiple",
+      "question": "SF4 and CH4 are mentioned. Use AX4E notation to show the molecular geometry.",
+      "expectedFormulas": [],
+      "counts": [],
+      "note": "No local notation owner and two globally selected species; do not select the matching SF4 subset."
+    }
+  ]
+}
