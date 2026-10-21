@@ -1,0 +1,2 @@
+# Scene repair feedback on recorded Kimi refusals: named elements, measured findings, bounded, no plan values.
+tsx --tsconfig tsconfig.json scripts/verify/verify-repair-feedback.ts

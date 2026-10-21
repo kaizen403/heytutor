@@ -80,6 +80,7 @@ jobs:
         run: |
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-pr246-review-blockers.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-repair-measured-precision.ts
       - name: Symbolic planner regressions
         run: |
           pnpm --filter @heytutor/scene-engine verify:symbolic-planner
