@@ -954,6 +954,7 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
   const ownedEqualities = new Set<number>();
   const ownedExpressionEnds = new Set<number>();
   const declaredNames = new Set<string>();
+  const equationSpans: Array<readonly [number, number]> = [];
   let previousEquationEnd = -1;
   const equations = nativeInventory ? /(?<![\p{L}\p{N}_])(?:y|([\p{L}][\p{L}\p{N}_]*)\s*\(\s*x\s*\))\s*=\s*/giu : /\by\s*=\s*/gi;
   for (const match of normalized.matchAll(equations)) {
@@ -965,6 +966,7 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     const start = lhs + match[0].length;
     const read = readCompleteSupportedExpression(normalized.slice(start), boundary, nativeInventory);
     if (!read) return [];
+    equationSpans.push([lhs, start + read.end]);
     // A scalar condition on an already declared curve is not another curve.
     // "draw y=0" still declares a full horizontal line; "where y=0" asks
     // about the existing curve. Neither condition nor its answer adds ink.
@@ -1018,8 +1020,29 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     const stem = normalized.split("").map((ch, i) => unquotedPositions[i] ? ch : " ").join("");
     if (/[<>≤≥]/u.test(stem) || /\[\s*-?[\d.]+\s*,\s*-?[\d.]+\s*[\])]/u.test(stem) || /\b(?:on|in|over)\s+\(\s*-?[\d.]+\s*,/iu.test(stem) ||
         /\b(?:otherwise|elsewhere|outside|beyond|afterwards?|after\s+that|greater\s+than|less\s+than|more\s+than|piecewise|(?:negative|positive)\s+x|x\s+is\s+(?:negative|positive))\b/iu.test(stem)) return [];
+    // Structural rule, not a marker list: the producer draws whole curves
+    // over one shared window, so with two or more curves the question may
+    // say nothing about x beyond the curve equations themselves.
+    if (speaksAboutIndependentVariable(normalized, unquotedPositions, equationSpans)) return [];
   }
   return facts;
+}
+
+/** Blank the quoted text and every accepted equation span, then report
+ * whether the rest still speaks about the independent variable: the token x
+ * (the only variable the non-native reader accepts), any numeral (a bound, a
+ * setting or a value of x), interval, set or inequality notation, or a
+ * comparison, sign or side relation. A domain, piecewise piece, interval or
+ * evaluation needs one of these, and the whole-curve producer can honour none
+ * of them. It only declines; it never admits, routes or builds geometry. */
+function speaksAboutIndependentVariable(source: string, unquoted: Uint8Array, equationSpans: ReadonlyArray<readonly [number, number]>): boolean {
+  const characters = source.split("").map((character, index) => unquoted[index] ? character : " ");
+  for (const [start, end] of equationSpans) for (let index = start; index < end && index < characters.length; index++) characters[index] = " ";
+  const rest = characters.join("");
+  return /(?<![\p{L}\p{N}_])x(?![\p{L}\p{N}_])/iu.test(rest) ||
+    /\p{N}/u.test(rest) ||
+    /[<>≤≥≠⩽⩾∈∉=|[\]]/u.test(rest) ||
+    /(?<![\p{L}\p{N}_])(?:(?:greater|less|more|fewer|smaller|larger|bigger|higher|lower)\s+than|at\s+(?:least|most)|exceed\w*|(?:non-?)?(?:negative|positive)|left|right|quadrants?|domain|intervals?|remaining|rest\s+of|before|until|till|up\s+to|onwards?)(?![\p{L}\p{N}_])/iu.test(rest);
 }
 
 /** Prove each parameter clause against the engine's existing stem-owned
