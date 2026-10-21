@@ -24,9 +24,10 @@ interface Fixture {
   mustRetainNative?: boolean;
   mustRetainFast?: boolean;
   /** Two or more curves while the stem still speaks about x (a set domain,
-   * f'(x), an evaluation at x = 2) or carries a numeral outside the curve
-   * equations: the whole-curve source-grounded producer must decline. Native
-   * routes keep their own proof; mustDrawExplicitCurves then applies to them. */
+   * f'(x), an evaluation at x = 2), carries a numeral, or says anything but
+   * plotting words outside the curve equations: the whole-curve
+   * source-grounded producer must decline. Native routes keep their own
+   * proof; mustDrawExplicitCurves then applies to them. */
   sourceGroundedDeclines?: boolean;
   exactCurveExpressions?: readonly string[];
   equations: readonly SourceEquation[];
@@ -249,7 +250,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "existing-calculus-positive",
     question: "A curve y=x^2 and the line y=4 enclose a region. Sketch the region, then find its area using integration.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -523,7 +524,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "quoted-example-then-unquoted-functions",
     question: "The note says 'y=99'. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -543,7 +544,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-bare-prime-comma",
     question: "Calculate f', then graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -553,7 +554,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-bare-second-prime-comma",
     question: "Find f'', then graph y=x^3 and y=6*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
@@ -573,7 +574,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "quoted-prime-example-then-unquoted-functions",
     question: "The note reads 'plot y=99 after computing f’'. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -611,7 +612,7 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
   {
     id: "quoted-ascii-prime-then-genuine-graphs",
     question: "The note says 'Compute f'(x), then graph y=99; do not draw it.' Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -621,7 +622,7 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
   {
     id: "quoted-curly-prime-then-genuine-graphs",
     question: "The note says ‘Compute f’(x), then graph y=99; do not draw it.’ Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -631,7 +632,7 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
   {
     id: "mixed-single-quote-later-genuine-graphs",
     question: "The note prints 'y=99’. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -641,7 +642,7 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
   {
     id: "mixed-curly-single-quote-later-genuine-graphs",
     question: "The note prints ‘y=99'. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -651,7 +652,7 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
   {
     id: "mixed-double-quote-later-genuine-graphs",
     question: "The note prints \"y=99”. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -666,7 +667,7 @@ const quotedCloseProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-number-ascii-before-prose-parentheses",
     question: "The note says 'y=99' (ignore it). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -676,7 +677,7 @@ const quotedCloseProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-number-curly-before-prose-parentheses",
     question: "The note says ‘y=99’ (ignore it). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -686,7 +687,7 @@ const quotedCloseProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-number-mixed-before-prose-parentheses",
     question: "The note says 'y=99’ (ignore it). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -696,7 +697,7 @@ const quotedCloseProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-variable-before-prose-parentheses",
     question: "The sheet prints 'y=x' (a quoted example). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -706,7 +707,7 @@ const quotedCloseProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-word-before-prose-parentheses",
     question: "The note says 'example' (ignore this word). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -720,7 +721,7 @@ const quotedCloseSingleProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-word-single-prose-token-parentheses",
     question: "The note says 'note' (ignored). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -730,7 +731,7 @@ const quotedCloseSingleProseFixtures: readonly Fixture[] = [
   {
     id: "quoted-variable-single-prose-token-parentheses",
     question: "The note says 'y=x' (ignore). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -785,7 +786,7 @@ const quoteArgumentClassFixtures: readonly Fixture[] = [
   {
     id: "quote-argument-closing-prose-period",
     question: "The note says 'y=x' (ignore it.). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -795,7 +796,7 @@ const quoteArgumentClassFixtures: readonly Fixture[] = [
   {
     id: "quote-argument-closing-prose-exclamation",
     question: "The note says 'y=x' (ignore it!). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -828,7 +829,7 @@ const ordinaryQuoteContextFixtures: readonly Fixture[] = [
   {
     id: "ordinary-quote-before-and-after-genuine-graphs",
     question: "The note says 'example'. Graph y=x^2 and y=2*x. Ignore 'example'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -838,7 +839,7 @@ const ordinaryQuoteContextFixtures: readonly Fixture[] = [
   {
     id: "curly-ordinary-quote-before-and-after-genuine-graphs",
     question: "The note says ‘example’. Graph y=x^2 and y=2*x. Ignore ‘example’.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -848,7 +849,7 @@ const ordinaryQuoteContextFixtures: readonly Fixture[] = [
   {
     id: "mixed-ordinary-quote-before-and-after-genuine-graphs",
     question: "The note says 'example’. Graph y=x^2 and y=2*x. Ignore ‘example'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -858,7 +859,7 @@ const ordinaryQuoteContextFixtures: readonly Fixture[] = [
   {
     id: "phrase-quote-before-and-after-genuine-graphs",
     question: "The note says 'a plain example'. Graph y=x^2 and y=2*x. Ignore 'a plain example'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -868,7 +869,7 @@ const ordinaryQuoteContextFixtures: readonly Fixture[] = [
   {
     id: "different-word-quotes-before-and-after-genuine-graphs",
     question: "The note says 'overview'. Graph y=x^2 and y=2*x. Ignore 'caption'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -891,7 +892,7 @@ const ordinaryQuoteCombinedFixtures: readonly Fixture[] = [
   {
     id: "word-quote-prose-and-later-quote-genuine-graphs",
     question: "The note says 'example' (ignore it). Graph y=x^2 and y=2*x. Ignore 'example'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -901,7 +902,7 @@ const ordinaryQuoteCombinedFixtures: readonly Fixture[] = [
   {
     id: "numeric-quote-prose-and-later-quote-genuine-graphs",
     question: "The note says 'y=99' (ignore it). Graph y=x^2 and y=2*x. Ignore 'y=99'.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -1013,10 +1014,14 @@ const rootCurve = sourceEquation("y=sqrt(x)", [[0, 0], [1, 1], [4, 2]]);
 const logCurve = sourceEquation("y=log(x)", [[1, 0], [2, Math.log(2)], [4, Math.log(4)]]);
 const squareCurve = sourceEquation("y=x^2", [[0, 0], [1, 1], [2, 4]]);
 const fallingCurve = sourceEquation("y=1-x", [[0, 1], [1, 0], [2, -1]]);
+// Two curves draw only when the rest of the stem is plotting words; any other
+// tail ("near the origin", "between the stated bounds") declines the
+// whole-curve producer (reviews/pr-252-delta2.md).
+const neutralPairTails = new Set(["on the same axes", "in one graph", "using one set of axes", "ka graph banao"]);
 for (const [first, second] of [[rootCurve, squareCurve], [logCurve, fallingCurve]]) {
   for (const tail of ["on the same axes", "in one graph", "to compare the curves", "then discuss the result", "using one set of axes", "with both curves labelled", "near the origin", "between the stated bounds", "ka graph banao", "regarding their shapes"]) lexicalOwnershipFixtures.push({
     id: `lexical-pair-${first!.sourceText}-${tail}`, question: `Draw ${first!.sourceText} and ${second!.sourceText} ${tail}.`,
-    mustDrawExplicitCurves: true, discreteDomain: false, equations: [first!, second!],
+    mustDrawExplicitCurves: neutralPairTails.has(tail), sourceGroundedDeclines: !neutralPairTails.has(tail), discreteDomain: false, equations: [first!, second!],
   });
 }
 for (const curve of [rootCurve, logCurve]) for (const question of [
@@ -1066,11 +1071,11 @@ lexicalOwnershipFixtures.push(
   { id: "lexical-named-function-owned-y-alias", question: "Draw y(x)=x^2, y=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: true, sourceGroundedDeclines: true, discreteDomain: false, equations: [squareCurve, sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
   { id: "lexical-named-function-normalized-alias", question: "Draw f(x)=2x and y=2*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
   { id: "lexical-family-inventory-overflow", question: "Plot y=x, y=x^2, y=x^3, y=sqrt(x), and y=log(x) on one set of axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
-  { id: "lexical-family-wrapped-inventory", question: "Plot (y = log(x)) together with (y = x^2) on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, squareCurve] },
+  { id: "lexical-family-wrapped-inventory", question: "Plot (y = log(x)) together with (y = x^2) on the same axes.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [logCurve, squareCurve] },
   // The native label is only "parabola". The withdrawn prototype relabelled
   // that document; immutable native admission instead uses a complete source copy.
   { id: "lexical-native-implicit-single", question: "Plot (y = x^2) on the same axes.", mustDrawExplicitCurves: true, mustRetainNative: false, discreteDomain: false, equations: [squareCurve] },
-  { id: "lexical-separated-equation-wrapper", question: "For comparison display (y = log(x)) beside (y = sin(x)) on shared axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, sourceEquation("y=sin(x)", [[0, 0], [1, Math.sin(1)], [2, Math.sin(2)]])] },
+  { id: "lexical-separated-equation-wrapper", question: "For comparison display (y = log(x)) beside (y = sin(x)) on shared axes.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [logCurve, sourceEquation("y=sin(x)", [[0, 0], [1, Math.sin(1)], [2, Math.sin(2)]])] },
   { id: "lexical-attached-evaluation", question: "Compare y=sqrt(x) (at x=2) with y=log(x) using a common frame.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [rootCurve, logCurve] },
   { id: "lexical-wrapped-attached-evaluation", question: "Compare (y=sqrt(x)) (at x=2) with (y=log(x)) using a common frame.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [rootCurve, logCurve] },
   { id: "lexical-zero-curve-native", question: "In a joint graph show y(x)=x^2 together with y=sin(x).", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
@@ -2161,6 +2166,18 @@ function verifyPiecewiseDefinitionsDecline(): void {
     "Sketch y = x^2 for x up to 2 then y = 4",
     "Sketch y = x^2 up to 2, then y = 4",
     "Sketch y = 2x until 3, and y = 6 from there on",
+    // Positive evidence (reviews/pr-252-delta2.md): number words and nouns
+    // got past every refusal above. With two or more curves the text outside
+    // the equations must be plotting words only, or the producer declines.
+    "Sketch y = x^2 for inputs below two and y = 4 for inputs above two",
+    "Graph y = x^2 when the input is under two, and y = 4 when the input is over two",
+    "Draw y = x^2 between minus two and two, and y = 4 everywhere else",
+    "Plot y = x^2 for small inputs and y = 4 for large inputs",
+    "Sketch y = x^2 on the first half of the axis and y = 4 on the second half",
+    "Sketch y = sin(x) from zero to pi and y = 0 from pi to two pi",
+    "Sketch y = x^2 for t below two and y = 4 for t above two",
+    "Draw the step graph: y = 1 for inputs under zero and y = 2 for inputs over zero",
+    "Sketch y = x^2 below the threshold of two and y = 4 above it",
   ];
   for (const question of piecewise) {
     const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
