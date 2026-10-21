@@ -13,6 +13,9 @@ export interface SceneIssue {
   message: string;
   severity: Severity;
   path?: string;
+  /** Stable diagnostic identity after reader pruning/normalization shifts indexes. */
+  assertionId?: string;
+  constructionId?: string;
   entityIds?: string[];
   expected?: unknown;
   actual?: unknown;
