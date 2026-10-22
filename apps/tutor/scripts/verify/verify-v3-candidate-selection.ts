@@ -12,13 +12,10 @@
  *    plan's given and asked quantities (then more values, fewer warnings,
  *    more bound labels). A figure judged fully right keeps winning, and no
  *    winner shows fewer quantities or values than the loser.
- * 3. Salvage. v3 p3c-t1 and p3e1-t1: every turn plan lane was rejected and
- *    the empty fallback plan ran no scene planning (p3c-t1 drew the bare
- *    qualitative family instead). Salvage fails closed: it keeps a given only
- *    when no wording is needed to tell whose value it is, which neither
- *    recorded lane allows (p3c-t1 states two speeds; each lane carries a
- *    second quantity of every given's dimension), so both turns behave as on
- *    main. A salvaged plan, when there is one, still requests ProblemIR.
+ * 3. Every lane rejected. v3 p3c-t1 and p3e1-t1: replaying the recorded
+ *    rejected lanes through planTurnV3 admits no plan, so the turn runs main's
+ *    fallback plan with no givens and requests no ProblemIR. Nothing from a
+ *    rejected lane is kept as a given.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -29,8 +26,7 @@ import {
   normalizeSceneDocumentModelOutput,
   parseTurnPlanV3Content,
   planSceneDocumentWithRepair,
-  salvageRejectedTurnPlanV3,
-  type RejectedTurnPlanV3,
+  planTurnV3,
   type TurnPlanV3ParseTrace,
 } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
@@ -41,7 +37,7 @@ import {
   selectProductionScene,
   validateProductionSceneCandidate,
 } from "../../features/tutor-session/lib/scene/productionSceneSelection";
-import { turnPlanRequestsNumericAuthority } from "../../features/tutor-session/lib/scene/diagramGeneration";
+import { selectBestAvailableTurnPlan } from "../../features/tutor-session/lib/scene/diagramGeneration";
 
 interface SelectionCase {
   id: string;
@@ -53,7 +49,7 @@ interface SelectionCase {
 }
 const fixture = JSON.parse(readFileSync(resolve(__dirname, "fixtures/v3-planner-selection.json"), "utf8")) as {
   selection: SelectionCase[];
-  salvage: Array<{ id: string; question: string; planContents: string[] }>;
+  allLanesRejected: Array<{ id: string; question: string; planContents: string[] }>;
 };
 
 const validateCase = (entry: SelectionCase) => entry.candidates.map((candidate) => {
@@ -199,75 +195,35 @@ assert.ok(changedFromSparser >= 3, "the richer figure now wins where the old sco
   }
 }
 
-// --- 3. salvage from the recorded rejected turn plans -----------------------
-for (const entry of fixture.salvage) {
-  const rejections: RejectedTurnPlanV3[] = [];
-  for (const content of entry.planContents) {
-    const trace: TurnPlanV3ParseTrace = {};
-    assert.equal(parseTurnPlanV3Content(content, entry.question, trace), null, `${entry.id}: the recorded lane is still rejected`);
-    assert.ok(trace.arithmetic && trace.issues?.length);
-    rejections.push({ lane: "primary", requestKind: "initial", plan: trace.arithmetic.plan, issues: trace.issues });
-  }
-  // Fail closed: on 0180e8af4 the owner rule kept p3c-t1's v_r = 6 and v_m = 8
-  // and p3e1-t1's theta_app = 60. Neither lane can show those givens are
-  // unambiguous without reading wording, so nothing is salvaged.
-  const before = entry.id === "v3/p3c-t1" ? 2 : 1;
-  const salvaged = salvageRejectedTurnPlanV3(entry.question, rejections);
-  assert.equal(salvaged, null, `${entry.id}: no given is salvaged`);
-
-  // Mutations on the recorded plans: a value the question does not state and
-  // a derived value relabelled as given are both dropped.
-  const mutated = rejections.map((rejection) => {
-    const plan = structuredClone(rejection.plan) as { givens: Array<Record<string, unknown>>; derived: Array<Record<string, unknown>> };
-    plan.givens = [
-      ...plan.givens.map((given) => ({ ...given, value: (given.value as number) + 1 })),
-      ...plan.derived.map((derived) => ({ ...derived, provenance: "given" })),
-    ];
-    return { ...rejection, plan };
-  });
-  const leaked = salvageRejectedTurnPlanV3(entry.question, mutated);
-  const statedDerived = rejections.flatMap((rejection) => (rejection.plan as { derived: Array<{ value: number; unit?: string }> }).derived)
-    .filter((derived) => entry.question.includes(String(derived.value)));
-  assert.ok(leaked === null || leaked.givens.every((given) => statedDerived.some((derived) => derived.value === given.value)),
-    `${entry.id}: shifted values and derived values never become givens`);
-
-  const fallback = createFallbackTurnPlanV3(entry.question);
-  assert.equal(turnPlanRequestsNumericAuthority(entry.question, fallback, "fallback"), false, `${entry.id}: the fallback plan requests no ProblemIR`);
-  console.log(`  ${entry.id}: salvaged givens ${before} (0180e8af4) -> 0; the turn runs the fallback plan as on main`);
-}
-
-// A salvaged plan goes through ProblemIR like an accepted one (which corrects
-// derived values only, never the salvaged givens); the empty fallback does not.
-{
-  const thrown = "A ball is thrown at 20 m/s at 30° above the horizontal from a cliff 45 m high. Find its time of flight and range.";
-  const plan = {
-    schemaVersion: "turn-plan/v3", question: thrown,
-    givens: [
-      { id: "u", symbol: "u", value: 20, unit: "m/s", sourceText: "thrown at 20 m/s", provenance: "given" },
-      { id: "theta", symbol: "theta", value: 30, unit: "deg", sourceText: "30° above the horizontal", provenance: "given" },
-      { id: "h", symbol: "h", value: 45, unit: "m", sourceText: "a cliff 45 m high", provenance: "given" },
-    ],
-    unknowns: [{ id: "T", symbol: "T", unit: "s" }],
-    derived: [{ id: "T", symbol: "T", value: 4.3, unit: "s", sourceText: "solved", provenance: "derived", dependsOn: ["u", "theta", "h"] }],
-    qualitativeClaims: [{ id: "c1", claim: "The ball lands after 12 s.", expected: "12 s", relatedQuantityIds: ["T"] }],
-    lawIds: ["projectile_motion"], assumptions: [], visualRequirement: "required",
-  };
-  const salvaged = salvageRejectedTurnPlanV3(thrown, [{ lane: "primary", requestKind: "initial", plan,
-    issues: [{ code: "claim_quantity_mismatch", path: "qualitativeClaims[0].claim", message: "measured claim disagrees" }] }]);
-  assert.ok(salvaged, "a lane with unambiguous givens is salvaged");
-  assert.deepEqual(salvaged.givens.map((given) => given.id), ["u", "theta", "h"]);
-  assert.equal(turnPlanRequestsNumericAuthority(thrown, salvaged, "salvaged"), true, "the salvaged plan requests ProblemIR");
-  assert.equal(turnPlanRequestsNumericAuthority(thrown, createFallbackTurnPlanV3(thrown), "fallback"), false, "the fallback plan requests no ProblemIR");
-}
-
-// The live hook decides ProblemIR through that helper with the plan's origin.
+// --- 3. every lane rejected: main's fallback plan, no givens, no ProblemIR ---
 {
   const hook = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
-  assert.match(hook, /const planOrigin = plannedTurn \? "accepted" : salvagedTurnPlan \? "salvaged" : "fallback";\s*if \(turnPlanRequestsNumericAuthority\(question, turnPlan, planOrigin\)\)/,
-    "the live hook sends a salvaged plan to ProblemIR");
+  const nativeFetch = globalThis.fetch;
+  try {
+    for (const entry of fixture.allLanesRejected) {
+      for (const content of entry.planContents) {
+        const trace: TurnPlanV3ParseTrace = {};
+        assert.equal(parseTurnPlanV3Content(content, entry.question, trace), null, `${entry.id}: the recorded lane is still rejected`);
+      }
+      // Both initial lanes and the corrected retry answer with recorded rejected plans.
+      let calls = 0;
+      globalThis.fetch = async () => new Response(JSON.stringify({
+        choices: [{ message: { content: entry.planContents[calls++ % entry.planContents.length] } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+      const plannedTurn = await planTurnV3(entry.question, { proxyUrl: "http://planner.test", timeoutMs: 20_000 });
+      const fallback = createFallbackTurnPlanV3(entry.question);
+      const turnPlan = selectBestAvailableTurnPlan(undefined, plannedTurn?.turnPlan, fallback, plannedTurn?.peerTurnPlans);
+      assert.ok(plannedTurn === null && turnPlan === fallback && turnPlan.givens.length === 0 && calls === 3 &&
+        /if \(plannedTurn && turnPlanNeedsNumericAuthority\(question, turnPlan\)\)/.test(hook) && !hook.includes("onRejectedPlan"),
+        `${entry.id}: every lane rejected yields main's fallback plan with no givens and requests no ProblemIR`);
+      console.log(`  ${entry.id}: ${calls} rejected lanes; the turn runs main's fallback plan (0 givens), no ProblemIR`);
+    }
+  } finally {
+    globalThis.fetch = nativeFetch;
+  }
 }
 
-console.log("verify-v3-candidate-selection: exact source first, coverage-first selection, and question-stated salvage hold on the recorded turns");
+console.log("verify-v3-candidate-selection: exact source first, coverage-first selection, and the fallback when every lane is rejected hold on the recorded turns");
 }
 
 main().catch((error: unknown) => {

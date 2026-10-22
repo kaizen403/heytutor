@@ -23,8 +23,6 @@ import {
   subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
-  salvageRejectedTurnPlanV3,
-  type RejectedTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
   questionRequiresVisual,
@@ -157,7 +155,7 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-  turnPlanRequestsNumericAuthority,
+  turnPlanNeedsNumericAuthority,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -1141,7 +1139,6 @@ export function useQuestionHandler(
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
           const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
-          const rejectedTurnPlans: RejectedTurnPlanV3[] = [];
           // Set when any attempt returns a plan. A later losing lane must not
           // leave transport_error on the turn if planning stops before the
           // assignment below.
@@ -1160,7 +1157,6 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
-            onRejectedPlan: (rejected) => { rejectedTurnPlans.push(rejected); },
             onRequestOutcome: (outcome) => {
               if (outcome.code === "accepted") turnPlanAdmitted = true;
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
@@ -1202,27 +1198,13 @@ export function useQuestionHandler(
           };
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
-          // Every lane rejected: keep the givens the question itself states
-          // (and the law ids) so scene planning still runs; no rejected
-          // derived value or claim survives (v3 p3c-t1, p3e1-t1).
-          const salvagedTurnPlan = plannedTurn ? null : salvageRejectedTurnPlanV3(question, rejectedTurnPlans);
-          if (salvagedTurnPlan) {
-            tutorDebug("planner", "turn plan salvaged from rejected lanes", {
-              given_ids: salvagedTurnPlan.givens.map((given) => given.id),
-              law_ids: salvagedTurnPlan.lawIds,
-              rejected_lanes: rejectedTurnPlans.length,
-            });
-          }
           turnPlan = selectBestAvailableTurnPlan(
             undefined,
             plannedTurn?.turnPlan,
-            salvagedTurnPlan ?? createFallbackTurnPlanV3(question),
+            createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
-          // A salvaged plan goes through ProblemIR too, which solves its derived values.
-          // Its givens are not rechecked there; salvage keeps only unambiguous ones.
-          const planOrigin = plannedTurn ? "accepted" : salvagedTurnPlan ? "salvaged" : "fallback";
-          if (turnPlanRequestsNumericAuthority(question, turnPlan, planOrigin)) {
+          if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
             problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
               proxyUrl: plannerUrl,
