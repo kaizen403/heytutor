@@ -3,6 +3,7 @@ import { validateDimensionAnchors, validateFieldLineShape, validatePointLabelPla
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
+import { validateVelocityTriangleTruth } from "./velocityTriangleTruth";
 import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
 import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
@@ -413,6 +414,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+  issues.push(...validateVelocityTriangleTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   if (verifiedPartsEnabled) {
     issues.push(...validateMarkedAngleTruth(document, geometry));
