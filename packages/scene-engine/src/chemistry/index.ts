@@ -24,6 +24,7 @@ export { ChemScene, chemStem, planQuantity, numberAfter, type ChemPlanQuantity, 
 export { parseFormula, parseComplex, formulaTokens, complexTokens, normalizeChemistryText, ligandSpec } from "./formula";
 export { ELEMENTS, elementBySymbol, elementByName, elementByZ, resolveElement, valenceElectrons } from "./elements";
 export { electronConfiguration, dElectronCount } from "./electronConfiguration";
+export { certifyVseprSourceDocument, type VseprSourceCertification } from "./sourceEvidence";
 export { verifiedVseprStructure } from "./vseprStructure";
 export { verifiedOrganicNeighbourhoodStructure } from "./organic/neighbourhoodStructure";
 export { vseprPlanConflict } from "./vsepr";

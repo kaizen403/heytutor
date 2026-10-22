@@ -24,6 +24,7 @@ import {
   dipoleAccount,
   dipoleIsTheAsk,
   fajanAsked,
+  parseExamBondLines,
   shapeIsTheAsk,
   type DipoleInput,
 } from "./bondingFigures";
@@ -716,6 +717,15 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   return null;
 }
 
+/** A closed carbon bond line is one molecule, not a list of VSEPR fragments.
+ * CH2=C=O must not become a bent CH2, and a hyphen before the next atom is
+ * a bond rather than a charge invented on the preceding group. Discrete
+ * formulas and separate ions (CH4, or CH3- beside CH2) have no such line.
+ */
+function connectedCarbonStructure(question: string): boolean {
+  return parseExamBondLines(question).some((line) => line.atoms.some((atom) => atom.element === "C"));
+}
+
 const MAX_SPECIES = 4;
 
 /**
@@ -726,7 +736,7 @@ const MAX_SPECIES = 4;
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
   const lower = text.toLowerCase();
-  if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower)) return [];
+  if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
