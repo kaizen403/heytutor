@@ -1,0 +1,48 @@
+[
+  {
+    "id": "atomic-stopping-source",
+    "question": "In an atomic electron model, the work function is 3 eV and photon energy is 5 eV. The stopping potential is 2 V. Draw the photoelectric energy balance.",
+    "draw": true,
+    "chemistry": true,
+    "Vstop": 2
+  },
+  {
+    "id": "atomic-threshold-nm",
+    "question": "In an atomic electron model, the work function is 2 eV and photon energy is 3 eV. The threshold wavelength is 619.9209921660013 nm. Draw the photoelectric energy balance.",
+    "draw": true,
+    "chemistry": true,
+    "lambda0Nm": 619.9209921660013
+  },
+  {
+    "id": "atomic-threshold-m",
+    "question": "In an atomic electron model, the work function is 2 eV and photon energy is 3 eV. The threshold wavelength is 6.199209921660013e-7 m. Draw the photoelectric energy balance.",
+    "draw": true,
+    "chemistry": true,
+    "lambda0Nm": 619.9209921660013
+  },
+  {
+    "id": "atomic-stopping-conflict",
+    "question": "In an atomic electron model, the work function is 3 eV and photon energy is 5 eV. The stopping potential is 3 V. Draw the photoelectric energy balance.",
+    "draw": false,
+    "chemistry": true
+  },
+  {
+    "id": "atomic-threshold-conflict",
+    "question": "In an atomic electron model, the work function is 2 eV and photon energy is 3 eV. The threshold wavelength is 600 nm. Draw the photoelectric energy balance.",
+    "draw": false,
+    "chemistry": true
+  },
+  {
+    "id": "parameterized-direct-not-dispatcher",
+    "question": "The work function is 3 eV and photon energy is 5 eV. The stopping potential is 2 V. Draw the photoelectric energy balance.",
+    "draw": true,
+    "chemistry": false,
+    "Vstop": 2
+  },
+  {
+    "id": "foreign-incoming-electron",
+    "question": "In an atomic electron model, photon energy is 5 eV and work function is 3 eV. An incoming electron has kinetic energy 2 eV. Draw the photoelectric energy balance.",
+    "draw": false,
+    "chemistry": true
+  }
+]

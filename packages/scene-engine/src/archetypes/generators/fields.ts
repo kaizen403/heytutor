@@ -4,9 +4,10 @@
  * runtime renders as ⊗ / ⊙ markers.
  */
 import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 import { parseResistorTree, type ResistorTree } from "../resistorTree";
 import { numbersWithUnit, UNIT } from "../slots";
+import { readTwoLoopTopology } from "../../physics/apparatusSource";
 
 function pageNormalGrid(scene: SceneBuilder, prefix: string, origin: Vec2, columns: number, rows: number, spacing: number, into: boolean, role: string): string[] {
   const ids: string[] = [];
@@ -73,8 +74,8 @@ function dipoleInField(context: GeneratorContext) {
   const theta = num(context, "theta", 30);
   const half = 1.3;
   const axis: Vec2 = { x: Math.cos(theta * Math.PI / 180), y: Math.sin(theta * Math.PI / 180) };
-  const scene = new SceneBuilder(context.question, `electric dipole at ${fmt(theta)}° to a uniform field`, "dipole_in_field");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "electric dipole in a uniform field", "dipole_in_field");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   for (let index = 0; index < 4; index += 1) {
     scene.point(`E${index}_a`, { x: -3.2, y: -1.5 + index }, "field line start");
     scene.vector(`E${index}`, `E${index}_a`, { direction: { x: 1, y: 0 }, length: 6.4 }, "uniform electric field", index === 3 ? "E" : undefined);
@@ -86,7 +87,7 @@ function dipoleInField(context: GeneratorContext) {
   scene.vector("p", "O", { direction: axis, length: 2.2 }, "dipole moment", "p");
   scene.point("ref_end", { x: 2.2, y: 0 }, "field direction reference end");
   scene.segment("ref", "O", "ref_end", "field direction reference");
-  scene.angleMark("angle", "O", "p", "ref", `θ=${fmt(theta)}°`);
+  scene.angleMark("angle", "O", "p", "ref", angleLabel(context, "theta"));
   scene.vector("F_pos", "pos", { direction: { x: 1, y: 0 }, length: 1.1 }, "force on +q", "qE");
   scene.vector("F_neg", "neg", { direction: { x: -1, y: 0 }, length: 1.1 }, "force on −q", "qE");
   scene.assert("dipole_angle", "angle_between", ["p", "ref"], { value: theta, unit: "degree" });
@@ -218,7 +219,9 @@ function satelliteOrbit(context: GeneratorContext) {
   const radius = maybeNum(context, "radius");
   const height = maybeNum(context, "height");
   const planetRadius = maybeNum(context, "planetRadius") ?? 6.4e6;
-  const orbitRadius = radius ?? (height !== null ? planetRadius + height : null);
+  // A display planet size cannot become a measured orbital radius. Both
+  // operands must come from the question before their sum is numeric ink.
+  const orbitRadius = radius ?? (height !== null && grounded(context, "height") && grounded(context, "planetRadius") ? planetRadius + height : null);
   const orbitDisplay = 3;
   const planetDisplay = orbitRadius !== null && orbitRadius > planetRadius ? Math.max(0.5, orbitDisplay * planetRadius / orbitRadius) : 1.2;
   const scene = new SceneBuilder(context.question, "satellite on a circular orbit around the planet", "satellite_orbit");
@@ -279,11 +282,6 @@ function ohmLabel(symbol: string, value: number | undefined): string {
  */
 function namesSource(question: string): boolean {
   return /\b(?:battery|batteries|cells?|emf|e\.m\.f|source|supply|\d+(?:\.\d+)?\s*(?:V|volts?)\b|connected across|applied across)\b/i.test(question);
-}
-
-/** Enough circuit vocabulary to trust that the stem describes a network (guards OCR garbage). */
-function describesNetwork(question: string): boolean {
-  return /\b(?:resist|ohm|Ω|batter|cells?|emf|volt|current|branch|loop|junction|network|circuit|node)/i.test(question);
 }
 
 /**
@@ -515,24 +513,25 @@ function internalResistanceConcept(context: GeneratorContext) {
 }
 
 function twoLoopNetwork(context: GeneratorContext) {
-  // "Kirchhoff" alone (an OCR page, a definition) does not describe a network.
-  if (!describesNetwork(context.question.replace(/kirchhoff/gi, ""))) return null;
-  const values = numbers(context, "resistors");
-  const emfs = numbers(context, "emfs");
+  const source = readTwoLoopTopology(context.question);
+  if (!source) return null;
+  const resistors = [source.left, source.right, source.shared];
+  const sources = [source.leftSource, source.rightSource];
   const scene = new SceneBuilder(context.question, "two-loop network: two sources with a shared middle branch", "two_loop_network");
-  values.slice(0, 3).forEach((value, index) => scene.quantity(`q_R${index + 1}`, `R${index + 1}`, value, "ohm"));
-  emfs.slice(0, 2).forEach((value, index) => scene.quantity(`q_E${index + 1}`, `E${index + 1}`, value, "V"));
+  resistors.forEach(({ symbol, value }, index) => { if (value !== null) scene.quantity(`q_R${index + 1}`, symbol, value, "ohm"); });
+  sources.forEach(({ symbol, value }, index) => { if (value !== null) scene.quantity(`q_E${index + 1}`, symbol, value, "V"); });
   scene.point("n_tl", { x: 0, y: 2 }, "node");
   scene.point("n_tc", { x: 3, y: 2 }, "node", "A");
   scene.point("n_tr", { x: 6, y: 2 }, "node");
   scene.point("n_bl", { x: 0, y: 0 }, "node");
   scene.point("n_bc", { x: 3, y: 0 }, "node", "B");
   scene.point("n_br", { x: 6, y: 0 }, "node");
-  scene.symbol("r1", "resistor", "n_tl", "n_tc", "resistor", ohmLabel("R1", values[0]));
-  scene.symbol("r2", "resistor", "n_tc", "n_tr", "resistor", ohmLabel("R2", values[1]));
-  scene.symbol("r3", "resistor", "n_tc", "n_bc", "resistor", ohmLabel("R3", values[2]));
-  scene.symbol("v1", "battery", "n_bl", "n_tl", "source", emfs[0] !== undefined ? `E1=${fmt(emfs[0])} V` : "E1");
-  scene.symbol("v2", "battery", "n_br", "n_tr", "source", emfs[1] !== undefined ? `E2=${fmt(emfs[1])} V` : "E2");
+  scene.symbol("r1", "resistor", "n_tl", "n_tc", "resistor", ohmLabel(source.left.symbol, source.left.value ?? undefined));
+  scene.symbol("r2", "resistor", "n_tc", "n_tr", "resistor", ohmLabel(source.right.symbol, source.right.value ?? undefined));
+  scene.symbol("r3", "resistor", "n_tc", "n_bc", "resistor", ohmLabel(source.shared.symbol, source.shared.value ?? undefined));
+  const top = source.positiveTerminal === "top";
+  scene.symbol("v1", "battery", top ? "n_tl" : "n_bl", top ? "n_bl" : "n_tl", "source", source.leftSource.value !== null ? `${source.leftSource.symbol}=${fmt(source.leftSource.value)} V` : source.leftSource.symbol);
+  scene.symbol("v2", "battery", top ? "n_tr" : "n_br", top ? "n_br" : "n_tr", "source", source.rightSource.value !== null ? `${source.rightSource.symbol}=${fmt(source.rightSource.value)} V` : source.rightSource.symbol);
   scene.connect("w_bl", "n_bl", "n_bc", "return path");
   scene.connect("w_br", "n_bc", "n_br", "return path");
   scene.point("i1_at", { x: 1.2, y: 2.6 }, "current label anchor");
@@ -577,11 +576,12 @@ function wheatstoneBridge(context: GeneratorContext) {
 function meterBridge(context: GeneratorContext) {
   const balance = maybeNum(context, "balance");
   const l = balance !== null && balance > 0 && balance < 100 ? balance : 50;
+  const balanceShown = balance === l && grounded(context, "balance");
   const known = maybeNum(context, "known");
-  const scene = new SceneBuilder(context.question, `metre bridge balanced at ${fmt(l)} cm along the wire`, "meter_bridge");
-  if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
+  const scene = new SceneBuilder(context.question, "metre bridge balanced along the wire", "meter_bridge");
+  if (balanceShown) scene.quantity("l", "l", l, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", `J (${fmt(l)} cm)`);
+  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", balanceShown ? `J (${fmt(l)} cm)` : "J");
   scene.point("C", { x: 10, y: 0 }, "wire end", "C");
   scene.symbol("wire_AJ", "resistor", "A", "J", "bridge wire, left of the jockey", "l");
   scene.symbol("wire_JC", "resistor", "J", "C", "bridge wire, right of the jockey", "100−l");
@@ -630,12 +630,13 @@ function capacitorNetwork(context: GeneratorContext) {
 function potentiometer(context: GeneratorContext) {
   const balance = maybeNum(context, "balance");
   const wireLength = maybeNum(context, "wireLength");
-  const total = wireLength !== null && wireLength > 0 ? wireLength * (wireLength < 20 ? 100 : 1) : 100;
+  const total = wireLength !== null && wireLength > 0 ? wireLength : 100;
   const l = balance !== null && balance > 0 && balance < total ? balance : total * 0.6;
-  const scene = new SceneBuilder(context.question, `potentiometer balanced at ${fmt(l)} cm from the end A`, "potentiometer");
-  if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
+  const balanceShown = balance === l && grounded(context, "balance");
+  const scene = new SceneBuilder(context.question, "potentiometer balanced from the end A", "potentiometer");
+  if (balanceShown) scene.quantity("l", "l", l, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", `J (${fmt(l)} cm)`);
+  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", balanceShown ? `J (${fmt(l)} cm)` : "J");
   scene.point("B", { x: 10, y: 0 }, "wire end", "B");
   scene.symbol("wire_AJ", "resistor", "A", "J", "potentiometer wire, A to the jockey", "l");
   scene.symbol("wire_JB", "resistor", "J", "B", "potentiometer wire, jockey to B", "L−l");

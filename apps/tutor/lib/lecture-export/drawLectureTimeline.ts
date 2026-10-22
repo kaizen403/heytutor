@@ -1,5 +1,18 @@
-import { isStoredCommandTrustedGeometry, type DrawCommand, type VerifiedDiagram } from "@heytutor/drawing";
-import { createScheduledWriteClock, mathToSpeech } from "@heytutor/tutor-core";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
+import {
+  capSceneBatchDurations,
+  isCuedSceneBatch,
+  catchUpWriteScheduleOffsets,
+  createScheduledWriteClock,
+  getBestWriteCharScheduleMs,
+  getCommandDrawDurationMs,
+  getCommandSpeechWindow,
+  inkPaceContextForSegment,
+  leadWriteScheduleToSpeech,
+  mathToSpeech,
+  selectInkPace,
+} from "@heytutor/tutor-core";
+import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
 import type { ExecuteCommandOptions } from "@/features/tutor-session/hooks/turn/types";
 import { drawSegmentInk, planSegmentInk } from "@/features/tutor-session/lib/turn/segmentInk";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
@@ -24,10 +37,11 @@ export async function drawLectureTimeline(options: {
   cues: ReplayCue[];
   executeCommand: ExportExecuteCommand;
   getClockMs: () => number;
-  getDiagram?: () => VerifiedDiagram | null;
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
   setAnimationSpeed?: (rate: number) => void;
+  /** The committed figure FOCUS traces resolve against, read per command. */
+  getDiagram?: () => VerifiedDiagram | null;
   /** Cues before this one are already on the board. */
   startCueIndex?: number;
   /** Runs as each cue begins, before it draws. */
@@ -50,13 +64,16 @@ export async function drawLectureTimeline(options: {
     options.setAnimationSpeed?.(1);
 
     if (cue.commands.length > 0) {
-      await drawExportCue({
+      const getDiagram = options.getDiagram ?? (() => null);
+      const codeLesson = getDiagram()?.layout === "code_lesson" ||
+        cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
+      await (codeLesson ? drawCodeLessonExportCue : drawExportCue)({
         cue,
         executeCommand,
         getClockMs,
-        getDiagram: options.getDiagram,
         waitForAdvance,
         shouldCancel,
+        getDiagram,
       });
     }
 
@@ -64,53 +81,215 @@ export async function drawLectureTimeline(options: {
   }
 }
 
+/**
+ * One recorded sentence, drawn by the same engine as the live lesson and the
+ * replay (`drawSegmentInk`), on the recording's clock.
+ *
+ * This used to be its own scheduler. Without a word alignment (always the case
+ * for the Sarvam voice) every shape started at 0 ms, so a figure intro's parts
+ * were all drawn in the first seconds of the sentence and the board then stood
+ * still under the rest of it (17 s to 39 s of a 203 s lesson, 19 Oct 2026).
+ * FOCUS also had no schedule and traced at the top of its sentence. Now every
+ * cued part waits for its word, estimated across the clip's real length when
+ * there is no alignment, and FOCUS traces each part as it is named.
+ */
 async function drawExportCue(options: {
   cue: ReplayCue;
   executeCommand: ExportExecuteCommand;
   getClockMs: () => number;
-  getDiagram?: () => VerifiedDiagram | null;
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
+  getDiagram: () => VerifiedDiagram | null;
 }): Promise<void> {
   const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
   const narration = cue.narration;
+  const durationMs = cue.durationMs;
   const trustedDiagramGeometry =
     cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command);
-  const codeLesson = options.getDiagram?.()?.layout === "code_lesson";
   const plan = planSegmentInk({
     commands: cue.commands,
     verifiedDiagramIntro: trustedDiagramGeometry,
     hasNarration: narration.length > 0,
-    sceneText: codeLesson,
   });
-  const spokenLength = mathToSpeech(narration.trim()).length;
+  // The cue (recorded audio, or its replay estimate) owns speech time.
+  // Notation expands when spoken; a fixed per-character rate can place
+  // estimated targets after that cue and exhaust the bounded tail.
+  const spokenChars = mathToSpeech(narration.trim()).length;
   const getDrawClockMs = createScheduledWriteClock({
     getRawPositionMs: () => Math.max(0, getClockMs() - cue.startMs),
     nowMs: getClockMs,
   });
+  // The export clock only moves when the encoder pumps it, so a wait is a
+  // wait for the next pump, never wall-time polling.
+  const waitUntilMs = async (targetMs: number, getTargetMs?: () => number): Promise<void> => {
+    while (!shouldCancel() && getDrawClockMs() + 10 < (getTargetMs?.() ?? targetMs)) {
+      await waitForAdvance();
+    }
+  };
 
-  // Export and the finished player use the live lesson's cue words, spoken
-  // order and FOCUS deadlines. A separate loop used to draw the whole figure
-  // at the start, then hold the board while its voice continued.
   await drawSegmentInk({
     plan,
     verifiedDiagramIntro: trustedDiagramGeometry,
     clock: {
       narration,
       getTimings: () => cue.segment.timings,
-      totalSpeechMs: cue.durationMs,
-      estimatedSpeechMs: cue.durationMs,
-      msPerChar: spokenLength > 0 ? cue.durationMs / spokenLength : undefined,
+      totalSpeechMs: narration ? durationMs : Math.max(plan.totalDrawWeight, 200),
+      estimatedSpeechMs: durationMs,
+      // Without an alignment, cue words are estimated across the clip's
+      // real length rather than the default speaking rate.
+      msPerChar: !cue.segment.timings && spokenChars > 0 ? durationMs / spokenChars : undefined,
       getAudioPositionMs: getDrawClockMs,
+      // The board's time source is this media clock.
       getPlaybackRate: () => 1,
       nowMs: getClockMs,
-      waitForAdvance,
-      ...(codeLesson ? { isSpeechComplete: () => getClockMs() >= cue.endMs } : {}),
+      // No isSpeechComplete: a figure part still drawing when its sentence
+      // ends keeps its pace in the file (the next cue waits for it) instead
+      // of landing instantly.
+      canAdvanceAfterSpeech: () => true,
+      waitUntilMs,
     },
-    getDiagram: options.getDiagram ?? (() => null),
+    getDiagram: options.getDiagram,
     isCancelled: shouldCancel,
     waitWhilePaused: async () => !shouldCancel(),
     execute: executeCommand,
-    commandOptions: () => ({ applyLayout: false, trustedDiagramGeometry, isCancelled: shouldCancel, waitForAdvance }),
+    commandOptions: () => ({
+      applyLayout: false,
+      isCancelled: shouldCancel,
+      trustedDiagramGeometry,
+    }),
   });
+}
+
+/**
+ * A code lesson keeps the export scheduler its walk-through was tuned on: the
+ * code panel is drawn from lecture time and its FRAME and TYPE beats settle
+ * on this clock. The live runner's spoken walks would run them past the
+ * bounded export tail.
+ */
+async function drawCodeLessonExportCue(options: {
+  cue: ReplayCue;
+  executeCommand: ExportExecuteCommand;
+  getClockMs: () => number;
+  waitForAdvance: () => Promise<void>;
+  shouldCancel: () => boolean;
+  getDiagram?: () => VerifiedDiagram | null;
+}): Promise<void> {
+  const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
+  const segmentCommands = cue.commands;
+  const narration = cue.narration;
+  const paceContext = inkPaceContextForSegment({
+    verifiedDiagramIntro: cue.trustedDiagramGeometry,
+    commandCount: segmentCommands.length,
+    hasNarration: narration.length > 0,
+  });
+  const commandPaces = segmentCommands.map((command) => selectInkPace(command, paceContext));
+  const pacedDurations = segmentCommands.map((command, index) =>
+    getCommandDrawDurationMs(command, commandPaces[index]),
+  );
+  const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
+  const sceneDurations = sceneBatch
+    ? capSceneBatchDurations(pacedDurations, undefined, { cued: isCuedSceneBatch(segmentCommands) })
+    : null;
+  const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
+  const durationMs = cue.durationMs;
+  // The cue (recorded audio, or its replay estimate) owns speech time.
+  // Notation expands when spoken; a fixed per-character rate can place
+  // estimated WRITE targets after that cue and exhaust the bounded tail.
+  const spokenLength = mathToSpeech(narration.trim()).length;
+  const estimatedSpeechMsPerChar = spokenLength > 0 ? durationMs / spokenLength : undefined;
+  const trustedDiagramGeometry =
+    cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command);
+
+  const getDrawClockMs = createScheduledWriteClock({
+    getRawPositionMs: () => Math.max(0, getClockMs() - cue.startMs),
+    nowMs: getClockMs,
+  });
+
+  let textCommandIndex = 0;
+  for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
+    if (shouldCancel()) {
+      return;
+    }
+    const command = segmentCommands[commandIndex]!;
+    const pace = commandPaces[commandIndex]!;
+    const isTextCommand =
+      command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE";
+    const scheduleWorkWrite =
+      isTextCommand &&
+      command.type !== "TYPE" &&
+      Boolean(narration) &&
+      !(trustedDiagramGeometry && command.type === "LABEL");
+    const writePlan = scheduleWorkWrite
+      ? getBestWriteCharScheduleMs(
+          narration,
+          command,
+          cue.segment.timings,
+          durationMs,
+          textCommandIndex,
+          estimatedSpeechMsPerChar,
+        )
+      : null;
+
+    if (writePlan && writePlan.offsetsMs.length > 0) {
+      const audioPosAtScheduleMs = Math.round(getDrawClockMs());
+      const effectiveOffsets = catchUpWriteScheduleOffsets(
+        leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
+        audioPosAtScheduleMs,
+      );
+      await executeCommand(command, {
+        applyLayout: false,
+        isCancelled: shouldCancel,
+        trustedDiagramGeometry,
+        inkPace: pace,
+        writeSchedule: {
+          charStartOffsetsMs: effectiveOffsets,
+          charDurationsMs: writePlan.charDurationsMs,
+          getAudioPositionMs: getDrawClockMs,
+        },
+      });
+      if (isTextCommand) {
+        textCommandIndex += 1;
+      }
+      continue;
+    }
+
+    const speechWindow =
+      narration && cue.segment.timings
+        ? getCommandSpeechWindow(narration, command, cue.segment.timings, textCommandIndex)
+        : {
+            startMs: 0,
+            durationMs,
+            matched: false,
+          };
+
+    if (speechWindow.startMs > 0) {
+      await waitUntilExportClock(
+        getDrawClockMs,
+        speechWindow.startMs,
+        waitForAdvance,
+        shouldCancel,
+      );
+    }
+    if (shouldCancel()) {
+      return;
+    }
+
+    const commandWeight = pacedDurations[commandIndex] ?? getCommandDrawDurationMs(command, pace);
+    const commandBudgetMs = sceneDurations
+      ? sceneDurations[commandIndex] ?? commandWeight
+      : totalDrawWeight > 0
+        ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
+        : Math.max(Math.round(speechWindow.durationMs), 50);
+
+    await executeCommand(command, {
+      applyLayout: false,
+      isCancelled: shouldCancel,
+      speechDurationMs: commandBudgetMs,
+      trustedDiagramGeometry,
+      inkPace: pace,
+    });
+    if (isTextCommand) {
+      textCommandIndex += 1;
+    }
+  }
 }

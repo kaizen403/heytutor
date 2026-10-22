@@ -9,7 +9,9 @@
  */
 import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
+import { chemicalHeatCapacityRequested } from "./semanticCues";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { buildSymbolicStatePathLaw } from "./statePathLaw";
 
 const FAMILY = "chem_thermo" as const;
 const R_J = 8.314;
@@ -54,8 +56,8 @@ function claimsFirstLaw(stem: string): boolean {
   return law && pieces;
 }
 
-function claimsHeat(stem: string): boolean {
-  return /heat capacity|molar heat capacity|c_?p|c_?v/.test(stem) && !/rate constant|arrhenius/.test(stem);
+function claimsHeat(stem: string, originalQuestion: string): boolean {
+  return chemicalHeatCapacityRequested(stem, originalQuestion) && !/rate constant|arrhenius/.test(stem);
 }
 
 function claimsHess(stem: string): boolean {
@@ -76,7 +78,7 @@ function claimsEquilibrium(stem: string): boolean {
 export function claimsChemicalThermodynamics(question: string): boolean {
   const stem = chemStem(question);
   if (veto(stem)) return false;
-  return claimsSystems(stem) || claimsFirstLaw(stem) || claimsHeat(stem) || claimsHess(stem) || claimsEntropy(stem) || claimsEquilibrium(stem);
+  return claimsSystems(stem) || claimsFirstLaw(stem) || claimsHeat(stem, question) || claimsHess(stem) || claimsEntropy(stem) || claimsEquilibrium(stem);
 }
 
 function box(c: ChemScene, ids: string[]): void {
@@ -540,6 +542,7 @@ function hessSteps(question: string): HessStep[] | null {
 
 function buildHess(question: string, _stem: string): SceneDocument | null {
   const steps = hessSteps(question);
+  if (steps?.length === 0) return buildSymbolicStatePathLaw(question);
   if (!steps || steps.length < 2 || steps.some((step) => !(step.factor > 0))) return null;
   const signed = steps.map((step) => step.value * step.factor * (step.reversed ? -1 : 1));
   const net = signed.reduce((sum, value) => sum + value, 0);
@@ -661,7 +664,7 @@ export function buildChemicalThermodynamicsScene(
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", R_J)) return null;
   if (claimsSystems(stem)) return buildSystems(question, stem);
   if (claimsFirstLaw(stem)) return buildFirstLaw(question, stem);
-  if (claimsHeat(stem)) return buildHeat(question, stem);
+  if (claimsHeat(stem, question)) return buildHeat(question, stem);
   if (claimsHess(stem)) return buildHess(question, stem);
   if (claimsEntropy(stem)) return buildEntropy(question, stem);
   if (claimsEquilibrium(stem)) return buildEquilibrium(question, stem);

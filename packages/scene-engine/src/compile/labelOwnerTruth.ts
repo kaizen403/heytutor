@@ -1,4 +1,5 @@
 import type { RenderPrimitive, SceneDocument, SceneIssue } from "../types";
+import { circularStrokeDistance } from "./circularStrokeDistance";
 type Point = { x: number; y: number };
 function segmentDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x-a.x, dy = b.y-a.y;
@@ -18,17 +19,8 @@ function distance(p: Point, primitive: RenderPrimitive, owner = false): number {
   if (!first) return Infinity;
   if (primitive.kind === "point") return Math.hypot(p.x-first.x,p.y-first.y);
   if (primitive.kind === "circle" || primitive.kind === "arc") {
-    const radius = primitive.radius ?? 0;
-    const radial = Math.hypot(p.x-first.x,p.y-first.y);
-    if (primitive.kind === "circle") return owner && radial <= radius ? 0 : Math.abs(radial-radius);
-    const start = primitive.startAngle ?? 0, end = primitive.endAngle ?? start;
-    const sweep = end-start;
-    const tau = 2*Math.PI;
-    const normalized = (a: number) => ((a % tau)+tau) % tau;
-    const angle = Math.atan2(p.y-first.y,p.x-first.x);
-    const along = normalized(sweep < 0 ? start-angle : angle-start);
-    if (Math.abs(sweep) >= tau || along <= Math.abs(sweep)) return Math.abs(radial-radius);
-    return Math.min(...[start,end].map(a => Math.hypot(p.x-first.x-radius*Math.cos(a),p.y-first.y-radius*Math.sin(a))));
+    if (primitive.kind === "circle" && owner && Math.hypot(p.x-first.x,p.y-first.y) <= (primitive.radius ?? 0)) return 0;
+    return circularStrokeDistance(p, primitive);
   }
   if (primitive.kind === "axes") {
     const points = primitive.points;

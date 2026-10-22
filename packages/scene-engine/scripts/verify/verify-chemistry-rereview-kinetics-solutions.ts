@@ -890,8 +890,8 @@ const cases: Case[] = [
   {
     "id": "F4-o2",
     "question": "50 mL of 0.1 M CH3COOH (Ka = 1 × 10⁻⁵) is titrated with 0.1 M NaOH.",
-    "require": false,
-    "kind": "refuse-titration",
+    "require": true,
+    "kind": "titration",
     "pK": 5,
     "base": false
   },
@@ -1481,7 +1481,7 @@ const cases: Case[] = [
     "kind": "henry",
     "label": "x=4e-5",
     "extraLabels": [
-      "p=0.003 bar"
+      "p=0.003059 bar"
     ]
   },
   {
@@ -1510,8 +1510,9 @@ const cases: Case[] = [
   {
     "id": "M14-sup",
     "question": "The rate constant of a first order reaction is k = 2.5 × 10⁻³ s⁻¹. Find the half life of the reaction.",
-    "require": false,
-    "kind": "refuse-kinetics"
+    "require": true,
+    "kind": "half",
+    "half": 277.25887222397813
   },
   {
     "id": "M14-caretless",

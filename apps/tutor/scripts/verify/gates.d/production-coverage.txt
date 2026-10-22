@@ -1,0 +1,2 @@
+# Saved lessons only: private aggregate coverage, read-only boundary, synthetic UI.
+pnpm verify:production-coverage

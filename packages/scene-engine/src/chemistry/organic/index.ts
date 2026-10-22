@@ -5,101 +5,40 @@
  * the structure images. This family draws the skeletal structure of every
  * compound the stem names (up to six, each its own reveal group), the
  * constitutional isomers of a small formula the stem asks about, and for a
- * reaction stem "reactant -> product" with the reagent over the arrow. It
- * never computes a product: when only the reactant and reagent are named,
- * the product slot is a box with "?" for the tutor to fill while speaking.
+ * reaction stem "reactant -> product" with the reagent over the arrow.
+ * Positively source-bound radical HBr and primary-amide degradation use
+ * checked atom edits. Other supported reaction schematics leave an unnamed
+ * product as "?" rather than guessing its graph.
  */
 import type { SceneDocument } from "../../types";
 import { ChemScene, chemStem, type ChemPlanQuantity } from "../sceneKit";
 import { complexTokens, formulaTokens, normalizeChemistryText } from "../formula";
-import { moleculeFromName, normalizeName } from "./names";
+import { moleculeFromName } from "./names";
+import { findMentions, type Mention } from "./namedMentions";
 import { layoutBounds, layoutMolecule, type LaidOutMolecule, type Vec2 } from "./layout";
 import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { organicFacts } from "./facts";
-import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
+import { carbonSiteRequest } from "./neighbourhood";
+import { buildNeighbourhoodComparison } from "./neighbourhoodPanel";
+import { parseSmiles, type Molecule } from "./smiles";
 
+import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
+import { readOrganicReactionSource } from "./reactionSource";
+import { buildOrganicReactionFigure } from "./reactionFigure";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
 export { moleculeFromName } from "./names";
 export { organicFacts } from "./facts";
 
-const MAX_HEAVY_ATOMS = 24;
 const MAX_MOLECULES = 6;
 
 /* ------------------------------------------------------------------------- */
 /* Finding names in a stem                                                   */
 /* ------------------------------------------------------------------------- */
 
-interface Mention {
-  readonly molecule: Molecule;
-  readonly key: string;
-  readonly text: string;
-  /** Character offset in the scanned text. */
-  readonly start: number;
-  readonly end: number;
-  /** True when the hit was a condensed formula alias (CH3CHO), not a word name. */
-  readonly weak: boolean;
-}
-
-const TOKEN_SPLIT = /\s+/;
-const TRIM_LEAD = /^[("'[]+/;
-const TRIM_TAIL = /[.,;:?!)"'\]]+$/;
-const SENTENCE_END = /[.;:?!]$/;
-/** A name followed by one of these is a named test or reaction, not a compound in the question. */
-const NAMED_PROCESS = /^(?:test|tests|reagent|reagents|reaction|reactions|rearrangement|synthesis|condensation|coupling|ring|rings|nucleus)$/i;
-/** Solvents named in passing; they never carry the cue on their own. */
-const SOLVENT = /^(?:dmf|thf|dioxane|1,4-dioxane|tetrahydrofuran|dimethylformamide|n,n-dimethylformamide|dichloromethane|ccl4|chcl3)$/i;
-
-/** Every compound name in the stem, longest span first, in order of appearance. */
-export function findMentions(text: string): Mention[] {
-  const raw = text.split(TOKEN_SPLIT).filter(Boolean);
-  const tokens: Array<{ text: string; start: number; end: number; breaks: boolean }> = [];
-  let cursor = 0;
-  for (const piece of raw) {
-    const start = text.indexOf(piece, cursor);
-    cursor = start + piece.length;
-    const trimmed = piece.replace(TRIM_LEAD, "").replace(TRIM_TAIL, "");
-    tokens.push({ text: trimmed, start, end: cursor, breaks: SENTENCE_END.test(piece) });
-  }
-  const mentions: Mention[] = [];
-  let i = 0;
-  while (i < tokens.length) {
-    let found: Mention | null = null;
-    let used = 1;
-    for (let span = Math.min(4, tokens.length - i); span >= 1; span -= 1) {
-      const slice = tokens.slice(i, i + span);
-      if (slice.slice(0, -1).some((token) => token.breaks)) continue;
-      if (slice.some((token) => token.text.length === 0)) continue;
-      let candidate = slice.map((token) => token.text).join(" ");
-      if (!/[a-z]/i.test(candidate)) continue;
-      // OCR splits a systematic name at its substituent prefix: "2,4-dimethyl
-      // pentane". Read it whole, and never take the bare parent on its own,
-      // which drew pentane for 2,4-dimethylpentane.
-      if (span > 1 && /(?:yl|-)$/i.test(slice[0]!.text) && !moleculeFromName(candidate)) {
-        candidate = slice.map((token) => token.text).join("");
-      }
-      if (span === 1 && i > 0 && !tokens[i - 1]!.breaks && /(?:yl|-|\d-[a-z]+o)$/i.test(tokens[i - 1]!.text)) continue;
-      // A formula split across tokens ("CH3 OH", "(CH3 CO),0") is OCR debris
-      // from a drawn structure; a student writes CH3OH as one token.
-      if (span > 1 && !/[a-z]{3,}/.test(candidate)) continue;
-      if (span === 1 && candidate.length < 3) continue;
-      const molecule = moleculeFromName(candidate);
-      if (!molecule) continue;
-      if (heavyAtomCount(molecule) > MAX_HEAVY_ATOMS) continue;
-      const following = tokens[i + span];
-      if (following && NAMED_PROCESS.test(following.text) && !slice[slice.length - 1]!.breaks) continue;
-      const weak = SOLVENT.test(candidate) || (/\d/.test(candidate) && !/[a-z]{4,}/i.test(candidate.replace(/[^a-z]/gi, "").replace(/^(ch|c\d|h\d)+$/i, "")));
-      found = { molecule, key: molecule.name ?? normalizeName(candidate), text: candidate, start: slice[0]!.start, end: slice[slice.length - 1]!.end, weak };
-      used = span;
-      break;
-    }
-    if (found) mentions.push(found);
-    i += used;
-  }
-  return mentions;
-}
+export { findMentions } from "./namedMentions";
 
 function distinctMentions(mentions: Mention[]): Mention[] {
   const seen = new Set<string>();
@@ -421,11 +360,21 @@ function factsLine(stem: string, molecule: Molecule): string {
 /**
  * The figure, or null. Reads named compounds in order of appearance; with a
  * reaction cue draws reactant, reagent arrow, and the named product or a
- * "?" box; with an isomer question draws the tabled isomers; otherwise the
- * named compounds in a row, each in its own reveal group.
+ * "?" box. The private source-reaction path first computes supported graph
+ * transformations; other isomer/name requests retain the existing row path.
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   if (!isOrganicStem(question)) return null;
+  // This operator owns every original source/request span and proves the
+  // complete graph result. Do not let a narrower structural-label heuristic
+  // reinterpret its carbon-count or named-product request as a site claim.
+  const sourceReaction = readOrganicReactionSource(question, findMentions(question));
+  if (sourceReaction.status === "source") return buildOrganicReactionFigure(question, sourceReaction.model);
+  const requestedSite = carbonSiteRequest(question);
+  if (requestedSite === "unsupported") return null;
+  if (requestedSite) return buildNeighbourhoodComparison(question, requestedSite);
+  if (molecularShapeRequested(question)) return null;
+  if (sourceReaction.status === "declined") return null;
   // One text for every index: mentions, cues and roles are all read from the
   // same normalised string. Mixing raw-question indices with a whitespace-
   // collapsed copy shifted every cue on an OCR stem.

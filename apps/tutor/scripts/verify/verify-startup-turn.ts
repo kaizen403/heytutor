@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { getSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
-import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient, type TutorVoiceKey, type TutorVoicePreferences, type CodeLessonPlan } from "@heytutor/tutor-core";
+import { findSpokenToken, mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient, type TutorVoiceKey, type TutorVoicePreferences, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type ProblemIR } from "@heytutor/scene-engine";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -21,6 +22,7 @@ import { CodeLessonController } from "../../features/tutor-session/lib/code-less
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import { taughtSegmentCount, unsavedLessonBoard, unsavedNoticeAction } from "../../features/tutor-session/lib/board/unsavedBoard";
+import * as teachingAPI from "../../../../packages/tutor-core/src/llm/llmAPI";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -103,30 +105,59 @@ assert(selectFastVerifiedRepresentation({ question: recordedPlan.question, turnP
 assert.equal(selectFastVerifiedRepresentation({ question: numericQuestion, turnPlan: numericPlan }), null, "the numeric fixture must retain normal model validation");
 assert.equal(synthesizeFamilyScene({ question: failedCompileQuestion, turnPlan: failedCompilePlan }), null, "the pole-crossing fixture must genuinely fail the deterministic family compile");
 
-type Mode = "ready" | "hinglish-opening" | "startup-timeout" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only" | "hedge-wins" | "hedge-primary-wins" | "hedge-fails" | "early-on" | "early-off" | "early-stop" | "early-doubt" | "early-pause" | "early-parity" | "early-late-ack";
+type Mode = "ready" | "hinglish-opening" | "startup-timeout" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only" | "hedge-wins" | "hedge-primary-wins" | "hedge-fails" | "early-on" | "early-off" | "early-stop" | "early-doubt" | "early-pause" | "early-parity" | "early-late-ack" | "opening-prefetch-success" | "opening-prefetch-silent" | "opening-prefetch-stop" | "opening-prefetch-stop-scene";
 type Event = { atMs: number; name: string; data?: unknown };
 const HELD_PLANNER_MS = 15_000;
 export interface FrozenStartupFixture {
   plan: TurnPlanV3;
   /** Captured provider output appended after the stock teaching steps. */
   teachingTail?: string;
+  /** Frozen, compiled planner output; all presentation/control/handler paths remain real. */
+  stopBeforeFigure?: {
+    representation: NonNullable<ReturnType<typeof selectFastVerifiedRepresentation>>;
+    stalePlan?: TurnPlanV3;
+    expectGiven: boolean;
+    uninterrupted?: boolean;
+  };
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
-  recordedCodeLesson?: { plan: CodeLessonPlan; response: string };
+  recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
   requireGivenRows?: boolean;
   /** A test-only fault at the actual selector boundary proves the parity gate is red-capable. */
   dropSelectedFigureWhenEarly?: boolean;
+  /** Synthetic failures at real teaching boundaries; never dispatch a provider. */
+  teachingFailure?: "fetch" | "read" | "callback" | "internal" | "auth" | "forbidden" | "cancel";
+  /** Load the real preparation module afresh for each OFF/ON comparison. */
+  openingPrefetchEnabled?: boolean;
+  /** Hold fake scene responses so authority-only preparation has a measurable overlap. */
+  sceneResponseDelayMs?: number;
+  /** Deliberately corrupt preparation to prove the exact-opening gate can fail. */
+  mutatePreparedOpeningWhenEnabled?: boolean;
+}
+
+/** Content hashes keep the reusable hook trace free of question/narration/geometry text. */
+export interface FrozenStartupProjection {
+  requests: Array<{ kind: string; bodyHash: string }>;
+  output: Array<{ kind: string; contentHash: string }>;
+  stages: Array<{ name: string; atMs: number }>;
+  prefetched: Array<{ atMs: number; textHash: string; voiceSettingsHash: string; voiceKey: TutorVoiceKey }>;
+  planHash: string;
+  sceneHash: string;
+  visualStatus: string | null;
+  errors: number;
+  errorOutputHash: string;
 }
 
 const HEDGE_MODES: Mode[] = ["hedge-wins", "hedge-primary-wins", "hedge-fails"];
 const compiledHooks = new Map<string, string>();
 
 export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = false, fixture?: FrozenStartupFixture) {
-  const earlyMode = mode.startsWith("early-") || mode === "startup-timeout";
+  const openingPrefetchMode = mode.startsWith("opening-prefetch-");
+  const earlyMode = mode.startsWith("early-") || mode === "startup-timeout" || openingPrefetchMode;
   const plannerHoldMs = mode === "early-late-ack" ? 10 : HELD_PLANNER_MS;
-  const recoveryMode = mode === "early-stop" || mode === "early-doubt" || mode === "startup-timeout";
+  const recoveryMode = mode === "early-stop" || mode === "early-doubt" || mode === "startup-timeout" || Boolean(fixture?.stopBeforeFigure);
   const mounted = recoveryMode ? recoveryHookRuntime() : null;
   let detachOpeningMirror = () => {};
   let now = 0;
@@ -136,6 +167,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const saved = new Map<string, PropertyDescriptor | undefined>();
   const originalDateNow = Date.now;
   const record = (name: string, data?: unknown) => events.push({ atMs: now, name, data });
+  const hash = (value: unknown) => createHash("sha256").update(typeof value === "string" ? value : JSON.stringify(value) ?? "undefined").digest("hex");
   const replace = (key: string, value: unknown) => {
     saved.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -233,6 +265,13 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   const completion = (value: unknown) => Response.json({ choices: [{ message: { content: JSON.stringify(value) } }] });
   replace("fetch", async (url: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers);
+    if (fixture?.openingPrefetchEnabled !== undefined && (url.endsWith("/api/chat") || url.endsWith("/api/visual-need"))) {
+      const kind = url.endsWith("/api/visual-need") ? "visual-need"
+        : headers.has("x-turn-planner-version") ? "turn-plan"
+        : headers.has("x-problem-ir-version") ? "problem-authority"
+        : headers.has("x-scene-planner-version") ? "scene" : "teaching";
+      record("request-body", { kind, bodyHash: hash(String(init?.body)) });
+    }
     if (fixture && ["x-turn-planner-version", "x-problem-ir-version", "x-scene-planner-version"]
       .some((name) => headers.has(name))) {
       record("frozen-planner-request", { body: JSON.parse(String(init?.body)),
@@ -250,7 +289,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
           segments: [{ id: `${parentId}-figure`, orderIndex: 0, narration: "The range follows from horizontal motion.",
             spokenText: "The range follows from horizontal motion.", command: serializeSegmentCommands(savedCommands, { trustedDiagramGeometry: true }),
             audioUrl: null, durationMs: null, timings: null }],
-        }] : timeoutSeed,
+        }] : fixture?.stopBeforeFigure ? params.storedTurnsRef.current : timeoutSeed,
       });
     }
     if (url.endsWith("/api/visual-need")) {
@@ -320,11 +359,19 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     }
     if (headers.get("x-scene-planner-version") === "2") {
       record("scene-model-request", { phase: headers.get("x-scene-planner-phase") });
+      if (fixture?.sceneResponseDelayMs) await new Promise<void>((resolve) => { setTimer(resolve, fixture.sceneResponseDelayMs); });
       return completion({ schemaVersion: "scene-document/v2", source: { question }, entities: [{ id: "invalid-model-mark", kind: "not-a-real-entity" }] });
     }
     const hedgeRequest = headers.get("x-heytutor-teaching-hedge") === "1";
     record("teaching-request", { retry: headers.get("x-heytutor-reasoning-retry") === "1", hedge: hedgeRequest });
     teachingRequestBodies.push(JSON.parse(String(init?.body)));
+    if (fixture?.teachingFailure === "fetch") throw new TypeError("synthetic request network failure");
+    if (fixture?.teachingFailure === "auth" || fixture?.teachingFailure === "forbidden") {
+      return new Response("synthetic authorization denied", { status: fixture.teachingFailure === "auth" ? 401 : 403 });
+    }
+    if (fixture?.teachingFailure === "cancel") return await new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    });
     if (mode === "startup-timeout") throw new DOMException("The operation timed out", "TimeoutError");
     if (hedgeRequest && mode === "hedge-fails") {
       return new Response("provider busy", { status: 503 });
@@ -343,6 +390,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       cancelled: false,
     };
     streams.push(stream);
+    if (fixture?.teachingFailure === "read") controller.error(new TypeError("synthetic response network failure"));
     return stream.response;
   });
 
@@ -372,7 +420,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       options.onAudioReady?.();
       options.onStart?.();
       options.onAudioCaptured?.({ bytes: Uint8Array.of(82, 73, 70, 70), mimeType: "audio/wav" });
-      if (mode === "early-stop" && !acknowledgementHeld && text === buildEarlyLessonOpeningSegment().narration) {
+      if (!acknowledgementHeld && ((mode === "early-stop" && text === buildEarlyLessonOpeningSegment().narration) ||
+        (fixture?.stopBeforeFigure && !fixture.stopBeforeFigure.uninterrupted))) {
         acknowledgementHeld = true;
         await new Promise<void>((resolve) => { heldAcknowledgement.finish = resolve; });
       }
@@ -384,6 +433,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   };
   const ref = <T,>(current: T) => ({ current });
   const cancelTimers = new Map<number, () => void>();
+  const fixtureCodeController = fixture?.recordedCodeLesson ? new CodeLessonController() : null;
   const params = {
     sessionId: boardId, boards: [{ id: boardId, title: "Projectile lesson", createdAt: 0, preview: "" }],
     phase: "idle", boardLoaded: true, narrationText: "", isReplaying: false, enableKeyboardControls: false,
@@ -401,7 +451,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     stopTurnRef: ref(null), rewoundRef: ref(false), replayAudioRef: ref(null), replayDrawClockRef: ref(null),
     replayAudioPreloadRef: ref(new Map()), replayGenerationRef: ref(0), replayCueRef: ref(null),
     ttsClientRef: ref(provider), ensureTTSClient: () => provider as unknown as TTSClient,
-    ...(fixture?.recordedCodeLesson ? { codeLessonControllerRef: ref(new CodeLessonController()) } : {}),
+    ...(fixtureCodeController ? { codeLessonControllerRef: ref(fixtureCodeController) } : {}),
     voicePreferencesRef: ref<TutorVoicePreferences>({ voiceKey: "en-IN", lowLatency: false }),
     pendingVoicePreferencesRef: ref<TutorVoicePreferences | null>(fixture?.voiceKey || mode === "hinglish-opening"
       ? { voiceKey: fixture?.voiceKey ?? "hi-IN", lowLatency: false } : null),
@@ -417,7 +467,17 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     setIsPaused() {}, setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
     setStoredTurnsCount() {}, setBoards() {}, setActiveVerifiedDiagram() {},
     beginBoardEpoch: async () => { record("board-epoch"); }, resetBoardLayout() {},
-    executeCommandWithCancel: async (command: DrawCommand) => { record("board-command", command); },
+    executeCommandWithCancel: async (command: DrawCommand) => {
+      record("board-command", command);
+      if (fixture?.recordedCodeLesson?.revealCommittedCode && command.type === "TYPE") {
+        const controller = fixtureCodeController;
+        const id = command.semanticRef?.entityId ?? command.text ?? "";
+        let typedMs = 0;
+        await controller?.typeBlock(id, { clock: () => (typedMs += 1_000), delay: async ms => { typedMs += ms; } });
+        const block = controller?.getActivePlan()?.sections.flatMap(section => section.blocks).find(block => block.id === id);
+        record("typed-code", { id, code: block?.code.slice(0, controller?.getState().revealedChars[id] ?? 0) });
+      }
+    },
     reserveTextCommandPlacements: async (command: DrawCommand) => [command],
     raceWithCancel: <T,>(promise: Promise<T>) => promise,
     cancellableDelay: (delay: number) => new Promise<void>((resolve) => {
@@ -433,10 +493,21 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     onError(error: unknown) { record("turn-error", error); },
   };
   const loaded = new Map<string, Record<string, unknown>>();
+  if (fixture?.teachingFailure === "internal") {
+    let currentTrace: unknown = null;
+    Object.defineProperty(params.currentTraceIdRef, "current", { configurable: true,
+      get: () => currentTrace,
+      set: (value: unknown) => {
+        if (value === "offline-teaching-trace") throw new TypeError("synthetic internal fetch trace bug");
+        currentTrace = value;
+      },
+    });
+  }
   function loadHook(file: string): Record<string, unknown> {
     const cached = loaded.get(file);
     if (cached) return cached;
-    const source = readFileSync(file, "utf8");
+    const source = readFileSync(file.endsWith("/useQuestionHandler.ts")
+      ? process.env.STARTUP_TURN_HANDLER_SOURCE ?? file : file, "utf8");
     let compiled = compiledHooks.get(source);
     if (!compiled) {
       compiled = ts.transpileModule(source, {
@@ -447,6 +518,14 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     const hookModule = { exports: {} };
     const localRequire = (specifier: string) => {
       if (specifier === "react") return mounted?.api ?? react;
+      if (specifier === "@heytutor/tutor-core" && fixture?.teachingFailure) return {
+        ...requireApp(specifier), ...teachingAPI,
+        streamLLMResponse: (options: teachingAPI.StreamLLMResponseParams, onDelta?: (chunk: string) => void) =>
+          teachingAPI.streamLLMResponse(options, chunk => {
+            if (fixture.teachingFailure === "callback") throw new TypeError("synthetic internal fetch callback bug");
+            onDelta?.(chunk);
+          }),
+      };
       if (specifier === "@/lib/billing/billingClient") return {
         ...requireApp(path.join(app, "lib/billing/billingClient.ts")),
         beginTurn: async () => { record("turn-admission"); return { ok: true }; },
@@ -463,10 +542,19 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       const target = specifier.startsWith("@/") ? path.join(app, specifier.slice(2))
         : specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier;
       if (target.endsWith("/earlyLessonOpening")) return loadHook(`${target}.ts`);
-      if (fixture?.dropSelectedFigureWhenEarly && target.endsWith("/productionSceneSelection")) {
+      if (target.endsWith("/lessonOpeningPreparation")) {
+        const actual = loadHook(`${target}.ts`);
+        if (!fixture?.mutatePreparedOpeningWhenEnabled || !fixture.openingPrefetchEnabled) return actual;
+        return { ...actual, prepareLessonOpening(...args: unknown[]) {
+          const opening = (actual.prepareLessonOpening as (...values: unknown[]) => TutorSegment | null)(...args);
+          return opening ? { ...opening, narration: `${opening.narration} Deliberate parity mutation.` } : null;
+        } };
+      }
+      if ((fixture?.dropSelectedFigureWhenEarly || fixture?.stopBeforeFigure) && target.endsWith("/productionSceneSelection")) {
         const actual: typeof import("../../features/tutor-session/lib/scene/productionSceneSelection") = requireApp(target);
         return { ...actual, selectProductionScene(input: Parameters<typeof actual.selectProductionScene>[0]) {
           const selected = actual.selectProductionScene(input);
+          if (fixture?.stopBeforeFigure) return { ...selected, representation: fixture.stopBeforeFigure.representation, visualStatus: "validated" };
           return earlyEnabled && selected.representation
             ? { ...selected, representation: null, visualStatus: "text_only", reason: "deliberate parity mutation" }
             : selected;
@@ -481,10 +569,12 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
 
   const savedHedgeFlag = process.env.NEXT_PUBLIC_TEACHING_HEDGE;
   const savedEarlyFlag = process.env.NEXT_PUBLIC_EARLY_LESSON_OPENING;
+  const savedOpeningPrefetchFlag = process.env.NEXT_PUBLIC_LESSON_OPENING_PREFETCH;
   // The hook reads the flag once at module load, and each scenario loads it fresh.
   if (hedgeEnabled) process.env.NEXT_PUBLIC_TEACHING_HEDGE = "1";
   else delete process.env.NEXT_PUBLIC_TEACHING_HEDGE;
   process.env.NEXT_PUBLIC_EARLY_LESSON_OPENING = earlyEnabled ? "1" : "0";
+  process.env.NEXT_PUBLIC_LESSON_OPENING_PREFETCH = fixture?.openingPrefetchEnabled ? "1" : "0";
   try {
     forgetVerifiedScene(question, { boardId });
     const lifecycle = params as unknown as UseTurnLifecycleParams;
@@ -539,7 +629,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     }
     const turn = handler.handleQuestion(dispatchedQuestion, resume ? { resume } : undefined)
       .catch((error: unknown) => {
-        if (!recoveryMode || !isBenignTurnAbort(error)) throw error;
+        if ((!recoveryMode && !mode.startsWith("opening-prefetch-stop")) || !isBenignTurnAbort(error)) throw error;
         record("stopped-planning-abort");
       }).finally(() => { done = true; });
     await flush();
@@ -549,12 +639,174 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     assert(claimAt >= 0 && historyAt >= 0 && billingAt >= 0, "startup requires positive claim, history and billing receipts");
     assert(claimAt < historyAt, "fresh history is read under the held claim");
     assert(historyAt < billingAt, "successful owned history precedes billing");
+    if (fixture?.teachingFailure) {
+      await pump(() => events.some(event => event.name === "teaching-request"));
+      if (fixture.teachingFailure === "cancel") renderControl().stopTurn({ keepVisibleBoard: true });
+      if (fixture.teachingFailure === "callback") {
+        await pump(() => streams.length === 1);
+        content(0, "[STEP]Synthetic callback input.[/STEP]");
+      }
+      await pump(() => done);
+      await turn;
+      const errors = events.filter(event => event.name === "turn-error").map(event => event.data as { message: string });
+      const failure = lifecycle.boardPageRef.current?.failureTelemetry;
+      const network = fixture.teachingFailure === "fetch" || fixture.teachingFailure === "read";
+      const cancelled = fixture.teachingFailure === "cancel";
+      assert.equal(errors.length, cancelled ? 0 : 1, "Stop stays quiet; a current failure reaches the student exactly once");
+      if (!cancelled) {
+        assert.equal(failure?.code, network ? "transport_error" : "lesson_not_taught", "only boundary-typed network failures get the transport code");
+        assert.equal(errors[0]?.message, network ? "network error. check your connection" : "something went wrong. try asking again.");
+      } else assert.notEqual(failure?.failed, true, "Stop cannot classify a failed teaching attempt");
+      const requests = events.filter(event => event.name === "teaching-request").length;
+      assert.equal(requests, network && hedgeEnabled ? 2 : 1, "classification cannot introduce an extra request allowance");
+      assert.equal(lifecycle.turnAbortRef.current, null);
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.phaseRef.current, "idle");
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      assert.equal(lifecycle.turnTelemetryRef.current, null);
+      assert.equal(heldLocks.size, 0, "failure settlement releases native lesson ownership");
+      for (const stream of streams) assert.equal(stream.response.body?.locked, false);
+      assert.equal(timers.size, 0, "failure settlement leaves no startup/queue timers");
+      return { mode, teachingFailure: fixture.teachingFailure, requests, code: failure?.code ?? null,
+        message: errors[0]?.message ?? null };
+    }
     assert(heldLocks.has(`heytutor-lesson:${boardId}`), "the native claim remains held throughout the live teaching turn");
     const outputs = () => events.filter((event) => ["enqueue", "enqueue-intro", "playback", "board-command"].includes(event.name));
+    const startupProjection = (): FrozenStartupProjection => {
+      const scene = lifecycle.boardPageRef.current?.turn.scene;
+      return {
+        requests: events.filter((event) => event.name === "request-body").map((event) => event.data as { kind: string; bodyHash: string }),
+        output: outputs().map((event) => ({ kind: event.name, contentHash: hash(event.data) })),
+        stages: events.filter((event) => ["turn-admission", "turn-plan-request", "turn-plan-response", "problem-authority-request",
+          "problem-authority-response", "scene-model-request", "teaching-request", "usable-step-delivered", "cancel-requested"].includes(event.name))
+          .map(({ name, atMs }) => ({ name, atMs })),
+        prefetched: events.filter((event) => event.name === "opening-prefetch").map((event) => {
+          const data = event.data as { text: string; options?: { voiceSettings?: unknown }; voiceKey: TutorVoiceKey };
+          return { atMs: event.atMs, textHash: hash(data.text), voiceSettingsHash: hash(data.options?.voiceSettings), voiceKey: data.voiceKey };
+        }),
+        planHash: hash(lifecycle.boardPageRef.current?.turnPlan ?? null),
+        sceneHash: hash(scene?.sceneDocument ?? null),
+        visualStatus: scene?.visualStatus ?? null,
+        errors: events.filter((event) => event.name === "turn-error").length,
+        errorOutputHash: hash(events.filter((event) => ["turn-error", "error-state"].includes(event.name))
+          .map((event) => ({ kind: event.name, data: event.data instanceof Error
+            ? { name: event.data.name, message: event.data.message } : event.data }))),
+      };
+    };
+    if (fixture?.stopBeforeFigure) {
+      const test = fixture.stopBeforeFigure;
+      let figureEventsFrom = 0;
+      await pump(() => streams.length === 1);
+      content(0, "[STEP]We identify the rod before calculating the requested length.[WRITE:Identify the rod,80,150][/STEP]");
+      if (test.uninterrupted) {
+        finishStream(0);
+        await pump(() => done);
+        await turn;
+      } else {
+        await pump(() => Boolean(heldAcknowledgement.finish));
+        assert.equal(events.filter(event => event.name === "board-command" && (event.data as DrawCommand).type.startsWith("DRAW_")).length, 0,
+          "Stop catches the actual handler before any figure ink");
+        renderControl().stopTurn();
+        heldAcknowledgement.finish!();
+        await pump(() => done);
+        await turn;
+        const stopped = renderControl();
+        assert.equal(stopped.pausedLessonOffer, true, "actual Stop offers Continue after taught opening");
+        assert.equal(lifecycle.boardPageRef.current?.figureDrawn, false);
+        assert(lifecycle.boardPageRef.current?.turn.scene?.sceneArtifacts, "paused scene retains saved artifacts");
+        // Freeze the paused planner scene in the authenticated history fixture.
+        // This isolates handler reconstruction from partial-save ink pruning.
+        const pausedScene = lifecycle.boardPageRef.current!.turn.scene!;
+        for (const row of lifecycle.storedTurnsRef.current) Object.assign(row, structuredClone(pausedScene));
+        if (test.stalePlan) {
+          // Corrupt only persisted authority, leaving the real paused question and runtime plan intact.
+          for (const row of lifecycle.storedTurnsRef.current) {
+            row.sceneArtifacts = { ...row.sceneArtifacts as object, turnPlan: test.stalePlan };
+            const scene = structuredClone(test.representation.sceneDocument);
+            scene.source.question = test.stalePlan.question;
+            row.sceneDocument = scene;
+          }
+        }
+        let continued: Promise<void> | undefined;
+        handleRef.current = (text, options) => continued = handler.handleQuestion(text, options);
+        figureEventsFrom = events.length;
+        stopped.flushPausedLesson();
+        await pump(() => streams.length === 2);
+        assert(continued, "Continue dispatches the actual question handler");
+        content(1, "[STEP]We continue identifying the rod without deriving the requested result.[WRITE:Continue the setup,80,200][/STEP]");
+        finishStream(1);
+        let resumed = false;
+        void continued.finally(() => { resumed = true; });
+        await pump(() => resumed);
+        await continued;
+      }
+      const figureEvents = events.slice(figureEventsFrom);
+      const intro = figureEvents.filter(event => event.name === "enqueue-intro")
+        .flatMap(event => (event.data as TutorSegment[]).flatMap(getSegmentCommands));
+      assert(intro.some(command => command.type.startsWith("DRAW_")), "real handler releases the compiled figure");
+      assert.equal(intro.some(command => command.text === "L = 5 m"), test.expectGiven,
+        "given L = 5 m must remain visible on Continue; invalid saved authority must fail closed");
+      assert(!intro.some(command => command.text === "R = 5 m"), "same-valued derived measurement remains withheld");
+      assert(!intro.some(command => command.semanticRef?.entityId === "result"), "derived measurement bar and witnesses also remain withheld");
+      assert.equal(intro.filter(command => command.semanticRef?.entityId === "given").length,
+        test.expectGiven ? 4 : 0, "given measurement label, bar and both witnesses move as one atom");
+      const teachingPlaybackAt = figureEvents.findIndex(event => event.name === "playback" &&
+        /We (?:identify|continue identifying) the rod/.test((event.data as { text: string }).text));
+      assert(teachingPlaybackAt >= 0, "actual runner reaches teaching after the figure intro");
+      const committed = figureEvents.slice(0, teachingPlaybackAt).filter(event => event.name === "board-command").map(event => event.data as DrawCommand);
+      assert.equal(committed.some(command => command.text === "L = 5 m"), test.expectGiven, "given reaches the actual board runner");
+      assert(!committed.some(command => command.text === "R = 5 m"), "derived label never reaches the board before derivation");
+      assert(!events.some(event => event.name === "turn-error"), "Stop/Continue completes without turn failures");
+      assert.equal(timers.size, 0);
+      return { mode, stopBeforeFigure: !test.uninterrupted, givenVisible: test.expectGiven, stalePlan: Boolean(test.stalePlan) };
+    }
+    if (openingPrefetchMode) {
+      assert.equal(earlyEnabled, false, "opening prefetch does not enable the acknowledgement experiment");
+      assert.equal(outputs().length, 0, "preparing audio cannot release speech or ink while planning is held");
+      if (mode.startsWith("opening-prefetch-stop")) {
+        if (mode === "opening-prefetch-stop-scene") await pump(() => events.some((event) => event.name === "scene-model-request"));
+        record("cancel-requested");
+        renderControl().stopTurn({ supersede: true });
+        await advance(HELD_PLANNER_MS);
+        await pump(() => done);
+        await turn;
+        await advance(now + 31_000);
+        assert.equal(streams.length, 0, "Stop before authority prevents teaching dispatch");
+      } else {
+        await pump(() => streams.length === 1);
+        assert.equal(outputs().length, 0, "planning and prefetch retain the usable-step release gate");
+        if (mode === "opening-prefetch-silent") {
+          content(0, "[STEP][PAUSE:11][/STEP]");
+          finishStream(0);
+        } else {
+          record("usable-step-delivered");
+          content(0, "[STEP]We identify what the question asks us to establish.[WRITE:Identify the target,80,150][/STEP]");
+          finishStream(0);
+        }
+        await pump(() => done);
+        await turn;
+      }
+      if (mode !== "opening-prefetch-success") assert.equal(outputs().length, 0, "silent failure and Stop cannot release prefetched speech or board work");
+      if (mode === "opening-prefetch-silent") assert(events.some((event) => event.name === "turn-error"), "a control-only teaching response still fails visibly");
+      if (mode === "opening-prefetch-success") {
+        assert(!events.some((event) => event.name === "turn-error"), "frozen successful teaching reaches the actual runner");
+        assert.equal(events.filter((event) => event.name === "enqueue" && (event.data as TutorSegment).delivery === "opening").length, 1);
+      }
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      assert.equal(timers.size, 0);
+      return { mode, startup: startupProjection() };
+    }
     if (fixture?.recordedCodeLesson) {
       await pump(() => streams.length === 1);
       content(0, fixture.recordedCodeLesson.response);
       finishStream(0);
+      for (const [index, response] of (fixture.recordedCodeLesson.continuationResponses ?? []).entries()) {
+        await pump(() => streams.length > index + 1 || done);
+        assert(!done, "a missing committed code block must request continuation rather than silently finish");
+        content(index + 1, response);
+        finishStream(index + 1);
+      }
       await pump(() => done);
       await turn;
       await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
@@ -562,7 +814,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(lifecycle.turnActiveRef.current, false);
       assert.equal(lifecycle.phaseRef.current, "idle");
       assert.equal(timers.size, 0);
-      return { mode, recordedCodeEvents: events };
+      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies };
     }
     if (earlyMode) {
       const opening = buildEarlyLessonOpeningSegment();
@@ -758,6 +1010,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         drawing: events.filter((event) => event.name === "board-command").map((event) => event.data as DrawCommand)
           .filter((command) => command.type.startsWith("DRAW_") || ["LABEL", "DIMENSION", "ARROW"].includes(command.type))
           .map(({ type, params, text }) => ({ type, params, text })),
+        ...(fixture?.openingPrefetchEnabled === undefined ? {} : { startup: startupProjection() }),
       };
     }
     assert.equal(streams.length, 1, `${mode}: planning must reach the real teaching stream`);
@@ -1004,7 +1257,17 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
           }
           assert.match(openingSpeech[0]!.text, /range of a projectile/, "ordinary question framing retains its target");
           assert.match(openingSpeech[1]!.text, /launch velocity u/, "the first figure beat keeps its verified physical meaning");
-          assert.match(openingSpeech[2]!.text, /the parabolic path with its highest point and range/, "the next figure beat retains its complete verified source explanation");
+          assert.match(openingSpeech[1]!.text, /^(?:पहले इस figure का setup देखते हैं|ये setup है)\./, "the first figure beat starts with neutral Hinglish setup speech");
+          assert.match(openingSpeech[2]!.text, /^अब (?:figure का अगला हिस्सा देखते हैं|अगला हिस्सा देखते हैं)\./, "the next figure beat continues the neutral setup tour");
+          for (const beat of openingSpeech.slice(1)) {
+            assert.doesNotMatch(beat.text, /the parabolic path with its highest point and range|\d/, "figure beats must not speak the planner explanation or computed values");
+          }
+          const figureIntro = events.find((event) => event.name === "enqueue-intro")!.data as TutorSegment[];
+          assert.deepEqual(figureIntro.map((beat) => beat.narration), openingSpeech.slice(1).map((beat) => beat.text), "the actual runner speaks both verified neutral figure beats");
+          for (const beat of figureIntro) for (const command of getSegmentCommands(beat)) {
+            assert(command.spokenCue?.token && findSpokenToken(mathToSpeech(beat.narration), mathToSpeech(command.spokenCue.token)) >= 0,
+              "neutral runtime figure beats keep schedulable cue tokens for every mark");
+          }
         }
         const marks = telemetry.flatMap((payload) => payload.events ?? []);
         const named = (name: string) => marks.filter((event) => event.name === name);
@@ -1089,6 +1352,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     else process.env.NEXT_PUBLIC_TEACHING_HEDGE = savedHedgeFlag;
     if (savedEarlyFlag === undefined) delete process.env.NEXT_PUBLIC_EARLY_LESSON_OPENING;
     else process.env.NEXT_PUBLIC_EARLY_LESSON_OPENING = savedEarlyFlag;
+    if (savedOpeningPrefetchFlag === undefined) delete process.env.NEXT_PUBLIC_LESSON_OPENING_PREFETCH;
+    else process.env.NEXT_PUBLIC_LESSON_OPENING_PREFETCH = savedOpeningPrefetchFlag;
     params.clearCancelTimers();
     timers.clear();
     forgetVerifiedScene(question, { boardId });
@@ -1157,6 +1422,10 @@ async function main() {
   assert(checkedModes > 0, "a selected entrypoint must actually execute a scenario");
   console.log("verify-startup-turn:", { checked_modes: checkedModes });
   if (!selected) verifySymlinkEntrypoint();
+  if (!selected) {
+    const { verifyContinueGivenMeasurement } = await import("./verify-continue-given-measurement");
+    await verifyContinueGivenMeasurement();
+  }
   console.log("verify-startup-turn: actual handler, validation, first-step gate, opening delivery, hedge, retry, Stop, and cleanup verified");
 }
 function isDirectEntrypoint() {

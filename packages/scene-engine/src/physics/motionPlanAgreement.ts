@@ -76,7 +76,7 @@ export function motionPlanConflicts(turnPlan: unknown, values: MotionValues, que
   for (const row of rows(turnPlan)) {
     if (typeof row.value !== "number" || !Number.isFinite(row.value)) continue;
     const unit = measured(row.unit);
-    const target = bound.get(motionSymbolKey(row.symbol)) ?? bound.get(motionSymbolKey(row.id));
+    const target = motionRoleBinding(row.symbol, row.id, row.unit, bound);
     if (target && (!unit || target.dimension !== unit.dimension)) {
       // A velocity named vAB cannot become a time just because its number
       // also equals the encounter time. No conversion can repair that type.
@@ -151,7 +151,29 @@ export interface MotionQuantityAuthority {
 
 export type MotionBindings = ReadonlyMap<string, { dimension: MotionDimension; si: number; signed?: boolean }>;
 
-export const motionSymbolKey = (value: unknown) => String(value ?? "").normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/[^a-z0-9]/g, "");
+export const motionSymbolKey = (value: unknown) => String(value ?? "").normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/\\delta|δ/g, "delta").replace(/[^a-z0-9]/g, "");
+
+export const MOTION_TIME_DIFFERENCE_KEYS = ["delta", "deltat", "tdiff", "difft", "timedifference", "differenceintime", "diffintime", "differencetime", "difference", "diff", "timesaved", "savedtime"] as const;
+const timeDifferenceKeys = new Set<string>(MOTION_TIME_DIFFERENCE_KEYS);
+
+function motionRoleBinding(symbolValue: unknown, idValue: unknown, unit: unknown, bound: MotionBindings) {
+  const symbol = motionSymbolKey(symbolValue), id = motionSymbolKey(idValue);
+  const lookup = (key: string) => {
+    const target = bound.get(key);
+    // Delta/difference alone names no dimension. Explicit delta-t keeps its
+    // time contract, but a delta angle or distance must not become a time.
+    return target?.dimension === "time" && /^(?:delta|difference|diff)$/.test(key) && measured(unit)?.dimension !== "time"
+      ? undefined : target;
+  };
+  const direct = lookup(symbol);
+  if (direct) return direct;
+  const fallback = lookup(id);
+  // An explicit delta cannot collapse onto the underlying t/x/v role. A
+  // descriptive difference id also cannot override a non-difference symbol.
+  if (symbol.startsWith("delta") && symbol !== id && !(timeDifferenceKeys.has(symbol) && timeDifferenceKeys.has(id))) return undefined;
+  if (fallback?.dimension === "time" && timeDifferenceKeys.has(id) && symbol && !timeDifferenceKeys.has(symbol)) return undefined;
+  return fallback;
+}
 
 export function motionUnitFactor(unit: unknown): { dimension: MotionDimension; factor: number } | null {
   return measured(unit);
@@ -184,7 +206,7 @@ export function motionQuantityAuthority(question: string, turnPlan: unknown, con
   const reasons: string[] = [];
   for (const conflict of conflicts) {
     const unit = measured(conflict.unit);
-    const target = bound.get(motionSymbolKey(conflict.symbol)) ?? bound.get(motionSymbolKey(conflict.id));
+    const target = motionRoleBinding(conflict.symbol, conflict.id, conflict.unit, bound);
     if (unit && target && target.dimension === unit.dimension) {
       if (corrections.some((correction) => correction.quantityId === conflict.id)) continue;
       const corrected = Number((target.si / unit.factor).toPrecision(12));

@@ -2383,7 +2383,7 @@ function resolveUnitSymbol(symbol: string): { base: string; factor: number } | n
 }
 
 /** Convert between units only when they provably measure the same thing. */
-function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
+export function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
   const from = unitScale(fromUnit);
   const to = unitScale(toUnit);
   if (from && to) {
@@ -2566,15 +2566,20 @@ export function validateSceneQuantityAgreement(
       planned.value,
       planned.unit,
     );
+    const written = `${JSON.stringify(quantity.value ?? null)}${quantity.unit ? ` ${quantity.unit}` : ""}`;
     if (!equivalent) {
-      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`, message: `${quantity.id} disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`,
+        message: `Quantity ${quantity.id} (symbol ${quantity.symbol ?? "none"}) is written as ${written}, which is not the value TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when its value and unit are copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}, or the quantity is left out.` });
     }
     if (
       planned.unit !== undefined &&
       normalizeUnit(quantity.unit) !== normalizeUnit(planned.unit) &&
       !equivalent
     ) {
-      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`, message: `${quantity.id} unit disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`,
+        message: `Quantity ${quantity.id} has unit ${JSON.stringify(quantity.unit ?? null)}, not the unit TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when the unit is copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}.` });
     }
   });
 
@@ -2672,10 +2677,7 @@ export function validateTurnPlanSceneProofs(
   ].join(" ").toLowerCase();
   issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
-  issues.push(...validatePoweredCircuitClosure(
-    document,
-    [plan.question, evidenceText, ...plan.assumptions].join(" ").toLowerCase(),
-  ));
+  issues.push(...validateCircuitTerminalClosure(document, plan.question, plan));
   const resistorIds = document.constructions.flatMap((construction) =>
     construction.operator === "symbol" &&
     typeof construction.inputs.symbol === "string" &&
@@ -2742,17 +2744,25 @@ export function validateTurnPlanSceneProofs(
     }
 
     const proofIssues: SceneIssue[] = [];
-    evaluateTopologyAssertion({
+    const membersProve = evaluateTopologyAssertion({
       id: `turnplan_${concept}_proof`,
       predicate,
       entities: members,
       expected: true,
       severity: "fatal",
       reason: `The ${concept} view does not prove the ${concept} topology required by TurnPlanV3`,
-    }, document, proofIssues);
+    }, document, proofIssues) === true;
+    // When the resistors do form the arrangement, what is missing is the view
+    // itself: say so, rather than send a repair after correct wiring.
+    const groupNames = document.revealGroups.map((candidate) => candidate.id).join(", ") || "none";
+    const missingView = membersProve
+      ? `TurnPlanV3 asks for the ${concept} view. ${members.join(", ")} do form the ${concept} arrangement, but no reveal group is identified as that view ` +
+        `(a reveal group whose id or narration cue says "${concept}"; reveal groups now: ${groupNames}). ` +
+        `Valid when one reveal group's id or narration cue says "${concept}" and it lists ${members.join(", ")}; keep the wiring.`
+      : `The ${concept} view failed its required topology proof`;
     issues.push({
       ...(proofIssues[0] ?? {
-        message: `The ${concept} view failed its required topology proof`,
+        message: missingView,
         severity: "fatal" as const,
         entityIds: members,
       }),
@@ -2767,7 +2777,7 @@ export function validateTurnPlanSceneProofs(
 
 const CLOSED_ROUTE_EDGE_OPERATORS = new Set(["segment", "connect", "symbol"]);
 const CLOSED_ROUTE_TOPOLOGY_PREDICATES = new Set([
-  "connected", "path", "pathCount", "sameTerminalPair", "degree", "on",
+  "connected", "path", "pathCount", "loadBranchCount", "sameTerminalPair", "degree", "on",
 ]);
 const CLOSED_ROUTE_SYMBOLS = new Set([
   "resistor", "battery", "cell", "capacitor", "inductor", "lamp",
@@ -3660,10 +3670,31 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
-function validatePoweredCircuitClosure(
+/** The nodes a closure search reached, named for repair feedback (at most twelve). */
+function reachedNodes(visited: ReadonlySet<string>, start: string): string {
+  const others = [...visited].filter((node) => node !== start);
+  if (others.length === 0) return "no other node";
+  return others.length > 12 ? `${others.slice(0, 12).join(", ")} and ${others.length - 12} more` : others.join(", ");
+}
+
+/**
+ * Prove only the declared electrical source terminals have a component path.
+ * Shared by plan admission and every save tier; no coordinates or full-plan
+ * obligations are inferred. The actual question, not submitted source/plan
+ * question metadata, supplies wording; validated plan facts retain open states.
+ */
+export function validateCircuitTerminalClosure(
   document: SceneDocument,
-  evidenceText: string,
+  question: string,
+  plan: Pick<TurnPlanV3, "lawIds" | "qualitativeClaims" | "assumptions"> | null = null,
 ): SceneIssue[] {
+  if (document.visualDecision.mode !== "scene") return [];
+  const evidenceText = [
+    question,
+    ...(plan?.lawIds ?? []),
+    ...(plan?.qualitativeClaims ?? []).flatMap((claim) => [claim.id, claim.claim]),
+    ...(plan?.assumptions ?? []),
+  ].join(" ").toLowerCase();
   if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
     return [];
   }
@@ -3683,6 +3714,10 @@ function validatePoweredCircuitClosure(
       .test(semantic);
   });
   const issues: SceneIssue[] = [];
+  // This selects repair wording only; it never creates a component or join.
+  const capacitorRepair = evidenceText.includes("capacitor") || document.constructions.some((construction) =>
+    construction.operator === "symbol" && construction.inputs.symbol === "capacitor") ||
+    document.entities.some((entity) => entity.role?.toLowerCase().includes("capacitor"));
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();
     for (const edge of edges) {
@@ -3701,9 +3736,16 @@ function validatePoweredCircuitClosure(
       }
     }
     if (!visited.has(source.end)) {
+      const componentContract = capacitorRepair
+        ? 'If the required component is a capacitor, use symbol {symbol:"capacitor",start:point_id,end:point_id} with one component output. '
+        : "Use symbol {symbol:component_kind,start:point_id,end:point_id} with one component output for each required component. ";
       issues.push({
         code: "source_loop_not_closed",
-        message: `Source ${source.id} is not part of a closed component path`,
+        message: `Source ${source.id} terminals ${source.start} and ${source.end} have no closed component path. ` +
+          `Without passing through ${source.id}, ${source.start} reaches only ${reachedNodes(visited, source.start)}, and no component or wire joins those to ${source.end}. ` +
+          componentContract +
+          "Attach connect wires to the declared outer terminal point IDs and their intended circuit nodes; never bypass a component to fake closure. " +
+          "Free plate segments and coincident coordinates do not establish a component edge. Preserve declared terminal IDs; do not invent a wire to close the path.",
         severity: "fatal",
         entityIds: [source.id],
       });
@@ -3793,7 +3835,9 @@ function validateSemanticVectorGeometry(
       if (residual > 0.04) {
         issues.push({
           code: "physical_direction_relation_failed",
-          message: `${entity.id} must be ${predicate} to ${surface.id}`,
+          message: `${entity.id} must be ${predicate} to ${surface.id}: the angle between their directions is ` +
+            `${Math.round(Math.acos(Math.min(1, Math.abs(first.x * second.x + first.y * second.y) / (firstLength * secondLength))) * 1800 / Math.PI) / 10} degrees, ` +
+            `and ${predicate === "parallel" ? "0" : "90"} is needed. Valid when ${entity.id} is constructed along ${predicate === "parallel" ? `${surface.id}'s own direction` : `the normal of ${surface.id}`}.`,
           severity: "fatal",
           entityIds: [entity.id, surface.id],
           residual,
@@ -4826,6 +4870,17 @@ function claimEquivalentMeasuredQuantity(
     canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
+/** Compare a computed result with a plan result's last represented digit.
+ * Numeric plans cannot retain trailing zeroes. Never infer precision from a
+ * different quantity or use this relaxation for authoritative source givens. */
+export function equivalentRoundedMeasuredQuantity(
+  computedValue: number, computedUnit: unknown, plannedValue: number, plannedUnit: unknown,
+): boolean {
+  return numericSign(computedValue) === numericSign(plannedValue) && equivalentDisplayedMeasuredQuantity(
+    computedValue, computedUnit, plannedValue, plannedUnit, displayedNumberTolerance(String(plannedValue)),
+  );
+}
+
 function equivalentDisplayedMeasuredQuantity(
   firstValue: number,
   firstUnit: unknown,
@@ -4888,6 +4943,7 @@ export interface ProofObligation {
 export const TOPOLOGY_ASSERTION_PREDICATES = [
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
   "connected",

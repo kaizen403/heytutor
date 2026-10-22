@@ -45,10 +45,16 @@ async function run(captured: ReplayCue, cancelAtMs?: number) {
   return starts;
 }
 async function main() {
-  const intro = presentation().introSegments[0]!, commands = getSegmentCommands(intro);
-  const capturedIntro = cue(intro.narration, commands, retained.introDurationMs, true);
+  const introSegments = presentation().introSegments;
+  const commands = introSegments.flatMap((segment) => getSegmentCommands(segment));
+  assert.equal(commands.length, 8, "all original figure marks remain");
+  // Main speaks this intro in beats so the pen does not idle. The launch
+  // velocity is named in the first beat; the later beats keep the other marks.
+  const launch = introSegments[0]!;
+  const launchCommands = getSegmentCommands(launch);
+  const capturedIntro = cue(launch.narration, launchCommands, retained.introDurationMs, true);
   const starts = await run(capturedIntro);
-  assert.equal(starts.length, 8, "all original figure marks remain");
+  assert.equal(starts.length, launchCommands.length, "the launch-velocity beat draws every mark it names");
   assert.ok(starts.at(-1)!.atMs > 5_000,
     "late launch-velocity words retain figure work instead of an early dump and frozen board");
   assert.ok(starts.at(-1)!.atMs < retained.introDurationMs, "the final named part starts during its voice");
@@ -65,7 +71,7 @@ async function main() {
   assert.ok(work[1]!.options.focusSchedule?.targets.some((target) => target.id === retained.focusTarget),
     "the real replay wrapper forwards its verified diagram to the shared FOCUS scheduler");
   const stopped = await run(capturedIntro, 1_000);
-  assert.ok(stopped.length < commands.length, "cancelling does not release late figure marks");
+  assert.ok(stopped.length < launchCommands.length, "cancelling does not release late figure marks");
   assert.ok(stopped.every((entry) => entry.atMs < 1_000));
   assert.match(lecturePageCacheKey([]), /@render-[a-f0-9]{64}$/, "rendering source content invalidates old timing exports");
   console.log(JSON.stringify({ introStartsMs: starts.map((entry) => entry.atMs),

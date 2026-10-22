@@ -1,0 +1,3 @@
+tsx scripts/verify/verify-chemistry-photoelectric-surface-ownership.ts
+tsx scripts/verify/verify-chemistry-photoelectric-label-role.ts
+tsx scripts/verify/verify-chemistry-photoelectric-wavelength-owners.ts
