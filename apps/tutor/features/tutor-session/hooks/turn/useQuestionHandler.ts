@@ -1142,6 +1142,10 @@ export function useQuestionHandler(
           const turnPlanSpan = tel.span("turn-plan", "planner");
           const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
           const rejectedTurnPlans: RejectedTurnPlanV3[] = [];
+          // Set when any attempt returns a plan. A later losing lane must not
+          // leave transport_error on the turn if planning stops before the
+          // assignment below.
+          let turnPlanAdmitted = false;
           // A cancelled or failed turn plan still closes its span.
           const closeTurnPlanSpanOnFailure = (error: unknown): never => {
             turnPlanSpan.end({ aborted: true });
@@ -1158,11 +1162,12 @@ export function useQuestionHandler(
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
             onRejectedPlan: (rejected) => { rejectedTurnPlans.push(rejected); },
             onRequestOutcome: (outcome) => {
+              if (outcome.code === "accepted") turnPlanAdmitted = true;
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
               const previous = page.failureTelemetry ?? { subject: "other" };
               page.failureTelemetry = readFailedTurnTelemetry({
                 ...previous,
-                ...turnPlanFailureTelemetry(outcome),
+                ...(turnPlanAdmitted ? { stage: undefined, code: undefined } : turnPlanFailureTelemetry(outcome)),
                 requestCount: (previous.requestCount ?? 0) + 1,
                 issueCodes: [...(previous.issueCodes ?? []), ...outcome.issueCodes],
                 unknownIssueCount: (previous.unknownIssueCount ?? 0) + outcome.unrecognizedIssueCount,
