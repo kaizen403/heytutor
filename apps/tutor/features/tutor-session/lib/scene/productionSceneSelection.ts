@@ -7,7 +7,7 @@ import {
   ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
-  validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
+  validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   validateProjectileMeasurementPlan,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
@@ -286,7 +286,10 @@ export function validateProductionSceneCandidate(input: {
     ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
     ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
-  const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
+  const sourceIssues = [
+    ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
+    ...validatePvSourceBinding(validated.document, question, authoritativePlan),
+  ];
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
