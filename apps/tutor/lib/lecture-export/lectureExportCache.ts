@@ -64,11 +64,14 @@ async function indexedDbEntry(key: string, value?: CachedLectureExport): Promise
         };
         // Clean only this page's obsolete exports. Other pages retain their
         // cache until used, and same-build MP4/WebM files remain valid.
-        const cursor = store.openCursor();
+        const page = keyParts(key)!.page;
+        // '@' is the page/revision separator; 'A' is its exclusive successor.
+        // Unlike a '\uffff' suffix, this bounds every possible revision string.
+        const cursor = store.openKeyCursor(IDBKeyRange.bound(`${page}@`, `${page}A`, false, true));
         cursor.onsuccess = () => {
           const row = cursor.result;
           if (!row) return;
-          if (obsoleteForPage(row.key, key)) row.delete();
+          if (obsoleteForPage(row.key, key)) store.delete(row.primaryKey);
           row.continue();
         };
         transaction.oncomplete = () => resolve(found);
