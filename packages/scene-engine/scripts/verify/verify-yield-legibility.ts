@@ -40,5 +40,19 @@ assert.equal(validateAxisNamePlacement([...frame, prim("primitive_frame_label_y"
   const refused = validateAngleLabelWedge(doc, [arc2d, outside]);
   assert.equal(refused.length, 1, "a 2D arc's name outside its wedge is refused");
   assert.equal(refused[0]!.path, "annotations[0].text", "an annotation name points at its own text so it can be omitted");
+  const second = prim("lab2", "name_a2b", "label", [[470, 450]], { text: "beta", provenance: { annotationId: "name_a2b" } });
+  const both = { ...doc, annotations: [...doc.annotations, { id: "name_a2b", kind: "label", targetIds: ["a2"], text: "beta" }] } as unknown as SceneDocument;
+  const extra = validateAngleLabelWedge(both, [arc2d, inside, second]);
+  assert.equal(extra.length, 1, "a second name on the same angle is checked, not skipped");
+  assert.equal(extra[0]!.path, "annotations[1].text", "the failed second name points at its own text");
+}
+{
+  const doc = { entities: [{ id: "O", kind: "point" }, { id: "t", kind: "angle_mark", role: "angle with x", label: "θ" }],
+    constructions: [{ id: "make_t", operator: "space_angle_mark", inputs: { vertex: "O" }, outputs: ["t"] }] } as unknown as SceneDocument;
+  const arc = prim("arc", "t", "polyline", Array.from({ length: 9 }, (_, i) => [500 + 40 * Math.cos(-i / 8 * Math.PI / 3), 400 + 40 * Math.sin(-i / 8 * Math.PI / 3)] as [number, number]));
+  const shared = prim("O2", "O2", "point", [[500, 400]]);
+  const misplaced = prim("lab", "t", "label", [[510, 460]], { text: "θ" });
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced]).length, 0, "without the alias the shared vertex skips the check");
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced], new Map([["O", "O2"]])).length, 1, "an aliased shared vertex still refuses a name outside the wedge");
 }
 console.log("yield legibility: tiny figures, 3D axis names, angle names in their wedge");

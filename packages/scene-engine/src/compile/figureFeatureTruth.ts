@@ -173,9 +173,20 @@ export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneI
 }
 
 /** An angle mark's name must sit inside the wedge its arc spans from the vertex. */
-export function validateAngleLabelWedge(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+export function validateAngleLabelWedge(
+  document: SceneDocument,
+  primitives: RenderPrimitive[],
+  pointAliases: ReadonlyMap<string, string> = new Map(),
+): SceneIssue[] {
   const issues: SceneIssue[] = [];
   const marks = document.entities.filter((entity) => entity.kind === "angle_mark");
+  const renderedPoint = (id: string | undefined): Point | undefined => {
+    if (!id) return undefined;
+    const direct = primitives.find((p) => p.entityId === id && p.kind === "point")?.points[0];
+    if (direct) return direct;
+    const renderedId = pointAliases.get(id);
+    return renderedId ? primitives.find((p) => p.entityId === renderedId && p.kind === "point")?.points[0] : undefined;
+  };
   for (const mark of marks) {
     const construction = document.constructions.find((c) => c.outputs.includes(mark.id));
     const vertexId = typeof construction?.inputs.vertex === "string" ? construction.inputs.vertex : undefined;
@@ -185,21 +196,20 @@ export function validateAngleLabelWedge(document: SceneDocument, primitives: Ren
     const arc = arcPrimitive
       ? { points: [arcPrimitive.startAngle!, (arcPrimitive.startAngle! + arcPrimitive.endAngle!) / 2, arcPrimitive.endAngle!].map((a) => ({ x: arcPrimitive.points[0]!.x + (arcPrimitive.radius ?? 0) * Math.cos(a), y: arcPrimitive.points[0]!.y + (arcPrimitive.radius ?? 0) * Math.sin(a) })) }
       : primitives.find((p) => p.entityId === mark.id && p.kind === "polyline" && p.points.length >= 3);
-    const vertex = arcPrimitive?.points[0] ?? (vertexId ? primitives.find((p) => p.entityId === vertexId && p.kind === "point")?.points[0] : undefined);
-    const label = primitives.find((p) => p.kind === "label" && !p.provenance?.usesLeader && (p.entityId === mark.id ||
+    const vertex = arcPrimitive?.points[0] ?? renderedPoint(vertexId);
+    const labels = primitives.filter((p) => p.kind === "label" && !p.provenance?.usesLeader && p.points[0] && (p.entityId === mark.id ||
       (document.annotations ?? []).some((annotation) => annotation.id === p.provenance?.annotationId && annotation.targetIds.length === 1 && annotation.targetIds[0] === mark.id)));
-    if (!vertex || !arc || !label?.points[0]) continue;
+    if (!vertex || !arc || labels.length === 0) continue;
     const angleOf = (p: Point) => Math.atan2(p.y - vertex.y, p.x - vertex.x);
     const start = angleOf(arc.points[0]!), middle = angleOf(arc.points[Math.floor(arc.points.length / 2)]!), end = angleOf(arc.points.at(-1)!);
     const norm = (a: number) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    // Sweep from start through the middle to the end, in whichever sense passes the middle.
     const ccw = norm(middle - start) <= norm(end - start);
     const span = ccw ? norm(end - start) : norm(start - end);
-    const offset = ccw ? norm(angleOf(label.points[0]) - start) : norm(start - angleOf(label.points[0]));
     const margin = (15 * Math.PI) / 180;
-    const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
-    if (!inside) {
-      // Point the omission at the text's own source: a label annotation or the entity label.
+    for (const label of labels) {
+      const offset = ccw ? norm(angleOf(label.points[0]!) - start) : norm(start - angleOf(label.points[0]!));
+      const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
+      if (inside) continue;
       const annotationIndex = (document.annotations ?? []).findIndex((annotation) => annotation.id === label.provenance?.annotationId);
       const index = document.entities.findIndex((entity) => entity.id === mark.id);
       const path = annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : index >= 0 && document.entities[index]!.label ? `entities[${index}].label` : undefined;
