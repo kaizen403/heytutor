@@ -9,6 +9,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
+  validateProjectileMeasurementPlan,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -283,6 +284,7 @@ export function validateProductionSceneCandidate(input: {
     })),
     // A bare projectile speed or height is read as m/s or m; hold it to the plan (72 km/h is 20, never 72; 80 cm is 0.8).
     ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
+    ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
@@ -352,6 +354,8 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   requiredRetryEnabled?: boolean;
   /** Additive completion is an explicit final-selection experiment, off by default. */
   completionEnabled?: boolean;
+  /** Constructor-law marks are a separate default-off rollout; explicit input wins over the environment. */
+  constructorLawsEnabled?: boolean;
   solverAuthority?: unknown;
   policy?: { preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[] };
 }
@@ -567,14 +571,36 @@ function completeSelectedScene(
   selected: SelectedRepresentation, input: ProductionSceneSelectionInput, turnPlan: TurnPlanV3,
 ): { selected: SelectedRepresentation; completion: SceneCompletionAdmission } {
   let proposal: SceneCompletionResult | undefined;
-  const rejected = (rejection: string) => ({ selected, completion: {
-    adopted: false, additions: proposal?.additions ?? [], skipped: proposal?.skipped ?? [], rejection,
-  } });
+  const constructorLawsEnabled = input.constructorLawsEnabled ?? process.env.NEXT_PUBLIC_SCENE_COMPLETION_CONSTRUCTOR_LAWS === "1";
+  const rejected = (rejection: string): { selected: SelectedRepresentation; completion: SceneCompletionAdmission } => {
+    if (constructorLawsEnabled) {
+      // Retry the entire original profile, never a fragment of the rejected
+      // extension. Explicit false also bounds this retry when the env is on.
+      const original = completeSelectedScene(selected, { ...input, constructorLawsEnabled: false }, turnPlan);
+      const targets = [...new Set(proposal?.additions.flatMap(addition => addition.kind === "right_angle" &&
+        proposal!.document.constructions.some(construction => construction.outputs.includes(addition.id) &&
+          construction.operator === "right_angle_mark" && construction.inputs.incidentLineArms === true)
+        ? addition.targetIds : []) ?? [])];
+      return { selected: original.selected, completion: {
+        adopted: original.completion.adopted,
+        additions: original.completion.adopted ? original.completion.additions : [],
+        skipped: original.completion.skipped.length < 256
+          ? [...original.completion.skipped, { code: "constructor_extension_rejected", ...(targets.length ? { entityIds: targets } : {}) }]
+          : original.completion.skipped,
+        rejection: `constructor extension rejected; original completion profile retained: ${rejection}${original.completion.rejection
+          ? `; original completion rejection: ${original.completion.rejection}` : ""}`,
+      } };
+    }
+    return { selected, completion: {
+      adopted: false, additions: proposal?.additions ?? [], skipped: proposal?.skipped ?? [], rejection,
+    } };
+  };
   try {
     // The proposal may fail or throw. Keep the accepted fallback and all
     // caller-owned authority isolated from that speculative work.
     proposal = completeSceneDocument(structuredClone(selected.sceneDocument), {
       enabled: true, turnPlan: structuredClone(turnPlan),
+      constructorLawsEnabled,
       baseRenderScene: structuredClone(selected.renderScene), solverAuthority: structuredClone(input.solverAuthority),
     });
     if (!completionRetainsDocument(selected.sceneDocument, proposal.document)) return rejected("completion changed existing document data");

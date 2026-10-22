@@ -14,7 +14,7 @@
  * the student is only revising.
  */
 import { isConceptLessonQuestion } from "./reasoningEffort";
-import { BOARD_ROWS_PER_PAGE, type SubjectFamiliarity } from "./systemPrompt";
+import { BOARD_ROWS_PER_PAGE, ROW_FIRST_TEACHING_PROMPT, type SubjectFamiliarity } from "./systemPrompt";
 
 export type LessonScope = "compact" | "standard" | "extended" | "deep";
 
@@ -239,14 +239,15 @@ export function resolveLessonBudget(
 export function lessonScopePromptAddon(budget: LessonBudget, options: { conceptLesson?: boolean } = {}): string {
   if (options.conceptLesson) {
     return `LESSON LENGTH FOR THIS QUESTION
-This overrides earlier step counts and instructions to fill pages. Aim for ${budget.minSteps}-${budget.maxSteps} connected teaching steps. Each step is one spoken sentence: at most a few words of reason, then the board row spoken token for token, then its tag, then the step ends. Say every = as equals, never is. The row's own words are that sentence, so the pen writes them as they are said. Do not spend a sentence on the reason and only then name the row.
+This overrides earlier step counts and instructions to fill pages. Aim for ${budget.minSteps}-${budget.maxSteps} connected teaching steps. ${ROW_FIRST_TEACHING_PROMPT} Say every = as equals, never is. The row is spoken token for token so the pen writes it as it is said.
 Explain a figure part in that same sentence, with [FOCUS] right after its spoken name. Do not repeat that explanation in a separate figure tour.
 Do not pad the lesson to reach a count or fill a page. Combine a definition with its immediate use, avoid duplicate equations and recap rows, and stop when the question is answered. Keep necessary reasoning and a meaningful check; do not split trivial algebra into several spoken announcements. The board can turn pages when needed. The governing relation and the closing result each end with [EMPHASIZE:last] immediately after that [WRITE], in the same step. Do not box a definition or a routine line. Do not write a summary or a final "one idea to remember" row; end on the last new idea or check.
 State a law's assumptions in a few words at the start of its formula sentence, then speak the formula with equals, and keep that condition attached when substituting or stating the result. If the question leaves the regime unspecified, distinguish the relevant cases rather than silently choosing one. For example, static friction adjusts up to μ_s N; sliding friction equals μ_k N and opposes relative sliding. Never present f = μN as the universal friction law and qualify it afterward. A rough surface alone does not establish sliding. Use distinct static and kinetic symbols, and explicitly introduce the sliding-down case before deriving its acceleration. Label any illustrative choice of motion or sign convention, and do not infer motion from a schematic arrow. Components replace a vector in the equations; they are not additional forces.`;
   }
   return `LESSON LENGTH FOR THIS QUESTION
-This overrides every earlier step count. Teach this question in ${budget.minSteps}-${budget.maxSteps} steps, and [WRITE] a board line in each of them. A step that only moves the marker over the figure writes nothing and does not count toward that range, so spend the range on the working and not on a figure tour.
+This overrides every earlier step count. Teach this question in ${budget.minSteps}-${budget.maxSteps} steps, and [WRITE] in each of them. ${ROW_FIRST_TEACHING_PROMPT} A step that only moves the marker over the figure writes nothing and does not count toward that range, so spend the range on the working and not on a figure tour.
 This question needs about ${budget.boardPages} board ${budget.boardPages === 1 ? "page" : "pages"} of work (${BOARD_ROWS_PER_PAGE} rows fit on a page). Keep writing past the bottom of the first page. The board turns to a fresh page by itself and the finished page is saved to the student's notes. Never compress a derivation, drop a rung of the ladder, or skip the interpretation so the work fits on one page.
+Plan the whole solution across that range before starting. Let two short consecutive rows share a step when they make one algebraic move, with each row fully spoken and written in order. Never drop an intermediate row, necessary condition, requested part, interpretation or meaningful check to meet the range. Do not pad to the minimum or add a recap; trim repeated announcements and group routine arithmetic instead.
 One tag is not optional: the row that carries the answer to this question ends with [EMPHASIZE:last] in that same step, so the student can find it on a full page.
 ${scopeGuidance(budget.scope)}`;
 }
@@ -256,9 +257,9 @@ function scopeGuidance(scope: LessonScope): string {
     case "compact":
       return "This is a single-step question. Still keep the whole ladder: what the symbols mean, the relation in symbols, the rearranged form, the substitution with units, the result, and what the result means. Give each one its own row.";
     case "standard":
-      return "Give each algebraic move its own step and its own board row instead of collapsing two moves into one line. Say why each move follows from the one before it.";
+      return "Give each algebraic move its own board row instead of skipping a transformation. Two short consecutive rows can share a step without losing either row. Say why each move follows from the one before it.";
     case "extended":
-      return "This question has several stages. Name the stage before you start it, write every intermediate line rather than jumping to the simplified form, and after each stage say in one sentence what you now know. Finish with a check of the result: units, sign, a limiting case, or substituting back.";
+      return "This question has several stages. Name the stage before you start it, retain the intermediate rows without giving every trivial simplification a separate spoken step, and after each stage say in one sentence what you now know. Finish with a check of the result: units, sign, a limiting case, or substituting back.";
     case "deep":
       return "This question has several parts or a full derivation. Announce each part before you start it and finish it before moving on. Write every intermediate line, including the algebra you would normally do in your head, and state the reason for each move. After each part, write one line recording the result of that part so the later parts can use it. Finish with a check of the result: units, sign, a limiting case, or substituting back.";
   }

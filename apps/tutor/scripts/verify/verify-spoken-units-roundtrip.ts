@@ -256,16 +256,18 @@ const tourScene: RenderScene = {
     { id: "f2_point", entityId: "f2", groupId: "graph_group", kind: "point", points: [{ x: 1100, y: 600 }] },
   ],
 };
+// Main's teaching order (0ba127390) keeps a setup tour name only: a role
+// carrying a value or a statement is a value teaching derives later, so the
+// tour says "the part" for it. What this check still owns is that no role
+// reaches the voice with its punctuation stripped ("20 m s", "t 4 s"), and
+// that every cue token the tour times its ink under is still found.
 for (const language of ["hinglish", "english"] as const) {
-  check(`the ${language} tour speaks "20 m/s" and "t = 4 s", not "20 m s" and "t 4 s"`, () => {
+  check(`the ${language} tour never speaks a value role, whole or stripped ("20 m s", "t 4 s")`, () => {
     const presentation = buildVerifiedDiagramPresentation(tourDocument, tourScene, { narrationLanguage: language });
     const tour = presentation.introSegments.map((segment) => segment.narration).join(" ");
-    assert.match(tour, /reaches 20 m\/s/, `the tour must name the role as written: ${tour}`);
-    assert.match(tour, /\bt = 4 s\b/, `the tour must name the role as written: ${tour}`);
+    assert.doesNotMatch(tour, /reaches 20|\bt = 4 s\b|\bt = 10 s\b/, `a value role reached the setup tour before derivation: ${tour}`);
     assert.doesNotMatch(tour, /\b20 m s\b|\bt 4 s\b|\bt 10 s\b/, `punctuation stripped from a role: ${tour}`);
-    const spoken = language === "hinglish" ? hinglish(tour) : mathToSpeech(tour);
-    assert.match(spoken, language === "hinglish" ? /reaches twenty meters per second/ : /reaches 20 meters per second/, spoken);
-    assert.match(spoken, language === "hinglish" ? /t equals four seconds/ : /t equals 4 s/, spoken);
+    assert.match(tour, /velocity time graph|velocity-time graph/, `the plain role head is still spoken: ${tour}`);
     for (const segment of presentation.introSegments) {
       for (const command of segment.commands ?? []) {
         if (!command.spokenCue?.token) continue;

@@ -10,6 +10,7 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  TeachingTransportError,
   TEACHING_HEDGE_AFTER_MS,
   type TeachingAttemptKind,
   type TeachingStartupRetryReason,
@@ -60,7 +61,7 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
-import { readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
+import { billingFailureTelemetry, readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   fetchBoardDetail,
@@ -100,6 +101,7 @@ import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
+import { prepareLessonOpening, shouldPrepareLessonOpening } from "../../lib/turn/lessonOpeningPreparation";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   markTurnCompleted,
@@ -811,6 +813,32 @@ export function useQuestionHandler(
           if (earlyOpeningWaitPhase && phaseRef.current === "speaking") setPhaseIfCurrent(earlyOpeningWaitPhase);
         }, () => {});
       }
+      let openingPreparationAttempted = false;
+      const prepareOriginalOpening = (authoritativePlan?: TurnPlanV3) => {
+        if (openingPreparationAttempted || !STREAM_SEGMENTS_LIVE || !shouldPrepareLessonOpening({
+          kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+          isDsa: dsaClassification.isDsa, earlyAcknowledgement: earlyOpeningStarted,
+          current: isCurrentTurn(), paused: isPausedRef.current,
+        })) return;
+        const opening = prepareLessonOpening({ question, narrationLanguage: turnNarrationLanguage,
+          turnPlan: authoritativePlan, authoritySettled: authoritativePlan !== undefined });
+        if (!opening?.narration.trim() || !tts.prefetchSegment) return;
+        // No enqueue/save/playback here. A rejected, cancelled, or silent
+        // teaching attempt must remain silent. The normal final prefetch is
+        // retained: the TTS client deduplicates it, or retries a lost prefetch.
+        try {
+          tts.prefetchSegment(opening.narration, {
+            traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+            voiceSettings: voiceSettingsForDelivery(opening.delivery),
+          });
+          openingPreparationAttempted = true;
+          // The provider can decline lookahead; this is not an audio-ready receipt.
+          tel.mark("lesson-opening-prefetch-requested", { stage: authoritativePlan ? "authority" : "question" });
+        } catch {
+          // Optional preparation cannot prevent the unchanged final path.
+        }
+      };
+      prepareOriginalOpening();
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
@@ -1289,6 +1317,7 @@ export function useQuestionHandler(
         // Also run when the turn has no numeric ProblemIR request. The overlap
         // callback repeats this on final IR before deriving any final gate.
         turnPlan = applyDeterministicSourceAuthority(turnPlan, null);
+        if (!problemAuthorityPromise) prepareOriginalOpening(turnPlan);
         let usedVerifiedRecovery = false;
         // One bounded join for numeric and nonnumeric plans, before either
         // speculative or final scene requests capture their example IDs.
@@ -1325,6 +1354,7 @@ export function useQuestionHandler(
             ), authority);
             const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
             const authorityAudit = refreshedAuthority.audit;
+            if (authorityAudit.status !== "contradiction") prepareOriginalOpening(reconciledPlan);
             tutorDebug("planner", "solver authority audit", {
               status: authorityAudit.status,
               issue_codes: authorityAudit.issues.map((issue) => issue.code),
@@ -1669,7 +1699,9 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              originalQuestion: question,
               narrationLanguage: turnNarrationLanguage,
+              ...(turnPlan ? { turnPlan } : {}),
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),
             },
@@ -1714,6 +1746,8 @@ export function useQuestionHandler(
         if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
+            sceneArtifacts: resume.scene.sceneArtifacts,
+            question: resume.lessonQuestion,
           }, turnNarrationLanguage);
           if (restored) {
             activeDiagram = restored.diagram;
@@ -1908,6 +1942,8 @@ export function useQuestionHandler(
             ...pagePromptInput,
             lessonQuestion: doubt.lessonQuestion,
             codeLessonBoard,
+            codeFigureVisible: Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
+              activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current)),
             solverProjection: inherited?.solverProjection ?? null,
           })
         : resume
@@ -2737,12 +2773,12 @@ export function useQuestionHandler(
         const billing = parseBillingFailureFromUnknown(error);
         page.failureTelemetry = {
           ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
-          stage: "teaching", code: billing ? "budget_limit" : error instanceof TypeError ? "transport_error" : "lesson_not_taught",
+          ...(billing ? billingFailureTelemetry(billing) : { stage: "teaching", code: error instanceof TeachingTransportError ? "transport_error" : "lesson_not_taught" } as const),
         };
         let message = "something went wrong. try asking again.";
         if (billing) {
           message = studentBillingMessage(billing.code);
-        } else if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+        } else if (error instanceof TeachingTransportError) {
           message = "network error. check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
           message = "audio generation failed. the lesson continues without voice";

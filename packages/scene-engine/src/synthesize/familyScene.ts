@@ -201,7 +201,7 @@ function synthesizeFromFamilies(
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
-      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+      || (obligations && visualObligationRejection(obligations, compiled.document, question))) return null;
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
   }
@@ -213,7 +213,7 @@ function synthesizeFromFamilies(
   if (sectionDocument) {
     const compiled = tryCompile(sectionDocument);
     if (compiled && !demandRejection(compiled.document, demand)
-      && !(obligations && visualObligationRejection(obligations, compiled.document))) {
+      && !(obligations && visualObligationRejection(obligations, compiled.document, question))) {
       const metricProof = hasPlanMetricProof(compiled.document);
       return { ...compiled, tier: metricProof ? "exact_verified" : "qualitative_verified", nonMetric: !metricProof,
         reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
@@ -230,7 +230,7 @@ function synthesizeFromFamilies(
     if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
     const compiled = tryCompile(relativeMotionDocument(question, relativeMotion.source));
     if (!compiled || demandRejection(compiled.document, demand)) return null;
-    if (obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    if (obligations && visualObligationRejection(obligations, compiled.document, question)) return null;
     const metricProof = !schematic && hasPlanMetricProof(compiled.document);
     return {
       ...compiled,
@@ -257,7 +257,7 @@ function synthesizeFromFamilies(
   const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
-  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
+  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document, question))) {
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
@@ -285,7 +285,7 @@ function synthesizeFromFamilies(
     // A candidate that compiles yet drops a named body, a connection, a given
     // dimension, or a proved relation is a partial scene: reject it the same
     // way, so only whole figures reach the board.
-    if (obligations && visualObligationRejection(obligations, compiled.document)) continue;
+    if (obligations && visualObligationRejection(obligations, compiled.document, question)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -317,7 +317,7 @@ function synthesizeFromFamilies(
   if (
     conceptCompiled
     && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document))
+    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, question))
   ) {
     return {
       ...conceptCompiled,

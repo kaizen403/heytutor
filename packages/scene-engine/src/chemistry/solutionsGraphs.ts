@@ -23,6 +23,8 @@
  * at equivalence) are computed alongside and used for the caption; on JEE
  * inputs they agree with the exact curve to two decimals.
  */
+import { claimsSourceLawGraph, readSourceLawGraph } from "./sourceLawGraph";
+import { buildSourceLawGraphFigure } from "./lawGraphFigure";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { CHEMISTRY_SCALAR_PATTERN, parseChemistryScalar, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, findChemistryQuantities, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
@@ -661,6 +663,7 @@ function titrationCue(stem: string): boolean {
 
 /** True when this family should draw for the stem. */
 export function isSolutionsGraphStem(question: string): boolean {
+  if (claimsSourceLawGraph(question, "chem_solutions")) return true;
   const stem = chemStem(question);
   if (FIGURE_PRESENT.test(stem)) return false;
   return claimsSolutionLesson(question) || titrationCue(stem) || RAOULT_CUE.test(stem) || COLLIGATIVE_CUE.test(stem);
@@ -1458,6 +1461,11 @@ export function buildSolutionsGraphScene(
   quantities: ChemPlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  const sourceLaw = readSourceLawGraph(question, "chem_solutions");
+  if (sourceLaw.state !== "unclaimed") {
+    if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
+  }
   void schematic;
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   const stem = chemStem(question);

@@ -60,7 +60,10 @@ function validSpan(question: string, span: ChemistrySpan): boolean {
   return Number.isInteger(span.start) && Number.isInteger(span.end) && span.start >= 0 && span.end <= question.length && span.end > span.start;
 }
 function continuesScalar(tail: string): boolean {
-  return /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
+  // An unresolved superscript/modifier is still part of the source token,
+  // even when notation normalization deliberately left a damaged run raw.
+  return /^\s*[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+    || /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
 }
 /** Match against the original question, never a caller's truncated substring. */
 function completeScalarSpan(question: string, span: ChemistrySpan): boolean {
@@ -500,11 +503,16 @@ function inventoryNotationSpans(question: string, end: number, dimension?: Chemi
 }
 /** Literal inventory for semantic consumers that bind species/clause spans themselves. */
 export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "after">): ChemRead<readonly ChemistryReading[]> {
+  return findChemistryQuantitiesOutsideSyntax(input, []);
+}
+/** Syntax spans enter only through independently closed deterministic operators. */
+function findChemistryQuantitiesOutsideSyntax(input: Omit<ChemistryQuantityInput, "after">,
+  syntax: readonly ChemistrySpan[]): ChemRead<readonly ChemistryReading[]> {
   const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(scope.end, body.end);
   const readings: ChemistryReading[] = []; let consumed = -1;
-  const notation = inventoryNotationSpans(input.question, end, input.dimension);
+  const notation = [...inventoryNotationSpans(input.question, end, input.dimension), ...syntax];
   for (const match of input.question.matchAll(new RegExp(SCALAR, "g"))) {
     const start = match.index! + match[0].length - match[0].trimStart().length;
     const tokenEnd = match.index! + match[0].trimEnd().length;
@@ -556,7 +564,10 @@ export interface ChemistryQuantityConsumption {
  * Equal values at different occurrences do not share consumption. */
 export function chemistryQuantityInventoryOwned(question: string, dimension: ChemistryDimension,
   consumed: readonly ChemistryQuantityConsumption[]): boolean {
-  const inventory = findChemistryQuantities({question, dimension});
+  return chemistryQuantityInventoryMatches(question,dimension,consumed,findChemistryQuantities({question,dimension}));
+}
+function chemistryQuantityInventoryMatches(question: string, dimension: ChemistryDimension,
+  consumed: readonly ChemistryQuantityConsumption[], inventory: ChemRead<readonly ChemistryReading[]>): boolean {
   if (!inventory.ok) return false;
   const sameSpan = (a: ChemistrySpan, b: ChemistrySpan): boolean => a.start === b.start && a.end === b.end;
   if (consumed.some(({reading, owner}) => !owner || reading.dimension !== dimension
@@ -663,4 +674,74 @@ export function matchedChemistryScalar(question: string, match: RegExpMatchArray
   const span = match.indices?.[group]; if (!span) return null;
   const [start, end] = span;
   const parsed = parseChemistryScalar(question, { start, end }); return parsed.ok ? parsed.reading : null;
+}
+
+
+/** A source interval is a complete expression: the delimiter owns its minus
+ * sign, unlike a standalone negative literal. Existing standalone scalar and
+ * inventory callers do not acquire this operator boundary contract. */
+export type ChemistrySourceInterval = {state:"absent"} | {state:"invalid"} | {
+  state:"valid"; domain:[number,number]; readings:[ChemistryReading,ChemistryReading];
+  scalarSpans:[ChemistrySpan,ChemistrySpan]; unitSpans:[ChemistrySpan,ChemistrySpan];
+  delimiterSpan:ChemistrySpan; span:ChemistrySpan;
+};
+export interface ChemistrySourceIntervalInput {question:string;dimension:ChemistryDimension;targetUnit:ChemistryUnit}
+export function readChemistrySourceInterval(input:ChemistrySourceIntervalInput):ChemistrySourceInterval {
+  const body=input.question.slice(0,chemistryQuestionSpan(input.question).end);
+  const pattern=new RegExp(`\\b(?:from|over|between|for)\\s+(?<lo>${SCALAR})(?<middle>[^;!?\\n,.]{0,24}?)\\s*(?<separator>\\bto\\b|\\band\\b|[–—-])\\s*(?<hi>${SCALAR})`,"gdi");
+  const matches=[...body.matchAll(pattern)];
+  if(matches.length!==1){
+    return matches.length>1||/\b(?:from|over|between|for)\s+(?:unknown|unreadable|unspecified)\b[^;.!?\n]{0,40}\b(?:to|and)\b/i.test(body)?{state:"invalid"}:{state:"absent"};
+  }
+  const match=matches[0]!;
+  const lo=match.indices!.groups!.lo!,hi=match.indices!.groups!.hi!,delimiter=match.indices!.groups!.separator!;
+  const scalarSpans:[ChemistrySpan,ChemistrySpan]=[{start:lo[0],end:lo[1]},{start:hi[0],end:hi[1]}];
+  const highSpace=/^\s*/.exec(body.slice(hi[1]))![0].length;
+  const highStart=hi[1]+highSpace;
+  const highUnit=unitAt(body.slice(highStart));
+  if(!highUnit||!highUnit.def.dimensions.includes(input.dimension)
+    ||continuesUnit(body.slice(highStart+highUnit.text.length)))return{state:"invalid"};
+  const highSpan={start:highStart,end:highStart+highUnit.text.length};
+  const middle=body.slice(lo[1],delimiter[0]);const lowSpace=/^\s*/.exec(middle)![0].length;
+  const explicitLow=middle.trim()===""?null:unitAt(middle.slice(lowSpace));
+  if(middle.trim()!==""&&(!explicitLow||middle.slice(lowSpace)!==explicitLow.text
+    &&middle.slice(lowSpace).trimEnd()!==explicitLow.text))return{state:"invalid"};
+  const lowUnit=explicitLow??highUnit;if(!lowUnit.def.dimensions.includes(input.dimension))return{state:"invalid"};
+  const lowSpan=explicitLow?{start:lo[1]+lowSpace,end:lo[1]+lowSpace+explicitLow.text.length}:highSpan;
+  const tail=body.slice(highSpan.end);
+  if(!/^(?:\s*$|\s*[,.;!?]|\s+(?:using|with)\b|\s+and\s+(?:mark|show|label|calculate|compute|determine)\b)/i.test(tail))return{state:"invalid"};
+  const readings:ChemistryReading[]=[];
+  for(const[index,def]of[lowUnit.def,highUnit.def].entries()){
+    const scalar=scalarValue(input.question,scalarSpans[index]!);if(!scalar.ok)return{state:"invalid"};
+    const value=canonicalValue(scalar.reading,def,input.dimension);if(!value.ok)return{state:"invalid"};
+    const unitSpan=index===0?lowSpan:highSpan;
+    const explicit=index===1||explicitLow!==null;
+    const span={start:scalarSpans[index]!.start,end:explicit?unitSpan.end:scalarSpans[index]!.end};
+    const reading:ChemistryReading={value:value.reading,rawValue:scalar.reading,rawUnit:explicit?body.slice(unitSpan.start,unitSpan.end):null,
+      canonicalUnit:canonical[input.dimension],dimension:input.dimension,source:{kind:"stem_given",span,text:input.question.slice(span.start,span.end)}};
+    const converted=convertChemistryReading(reading,input.targetUnit);if(!converted.ok)return{state:"invalid"};readings.push(converted.reading);
+  }
+  if(!(readings[1]!.value>readings[0]!.value))return{state:"invalid"};
+  return{state:"valid",domain:[readings[0]!.value,readings[1]!.value],readings:[readings[0]!,readings[1]!],scalarSpans,
+    unitSpans:[lowSpan,highSpan],delimiterSpan:{start:delimiter[0],end:delimiter[1]},span:{start:match.index!,end:highSpan.end}};
+}
+/** Reparse the entire source interval before excluding its expression tokens.
+ * No caller-provided span or numeric match can authorize an exclusion. */
+export function chemistrySourceIntervalOwnsDimension(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  const outside=findChemistryQuantitiesOutsideSyntax({question:input.question,dimension:input.dimension},[actual.span]);
+  return outside.ok&&outside.reading.length===0;
+}
+/** A closed interval owns its entire syntax in every dimension's inventory.
+ * Reprove the original operator first; callers cannot supply exclusion spans.
+ * All physical literals outside it retain the ordinary owner/span checks. */
+export function chemistrySourceIntervalInventoryOwned(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval,dimension:ChemistryDimension,
+  consumed:readonly ChemistryQuantityConsumption[]):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  return chemistryQuantityInventoryMatches(input.question,dimension,consumed,
+    findChemistryQuantitiesOutsideSyntax({question:input.question,dimension},[actual.span]));
 }

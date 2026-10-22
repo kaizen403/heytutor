@@ -314,8 +314,14 @@ export async function canonicalizeTurnSceneMetadata(
     document,
     renderScene,
     {
+      originalQuestion: question,
       ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
       ...(narrationLanguage ? { narrationLanguage } : {}),
+      // The live intro letters a source given ("x = -2") with the plan, and
+      // restore reads the same saved plan, so without it the saved intro
+      // dropped that label and replay never drew it. Only a plan validated
+      // against this question is passed; no plan keeps every value deferred.
+      ...(turnPlan ? { turnPlan } : {}),
     },
   );
   // A turn that continues a page (a resume after Stop, or a doubt) teaches

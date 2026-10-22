@@ -9,7 +9,7 @@
  * the source is unbound and no river figure is drawn.
  */
 import { STEM_NUMBER, parseStemNumber, prepareStem } from "../archetypes/slots";
-import { motionPlanConflicts, motionQuantityAuthority, type MotionBindings, type MotionDimension, type MotionPlanConflict, type MotionQuantityAuthority, type MotionValues } from "./motionPlanAgreement";
+import { MOTION_TIME_DIFFERENCE_KEYS, motionPlanConflicts, motionQuantityAuthority, type MotionBindings, type MotionDimension, type MotionPlanConflict, type MotionQuantityAuthority, type MotionValues } from "./motionPlanAgreement";
 
 export interface RiverCrossingSpeeds {
   readonly status: "bound";
@@ -139,6 +139,19 @@ export function riverNormalHeadingStated(question: string): boolean {
   return statedHeadings(question, CARDINAL_HEADING).some((match) => NORMAL_TO[match[1]!.toLowerCase()]!.includes(flow));
 }
 
+const PATH_REQUEST = String.raw`\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b`;
+const TIME_REQUEST = String.raw`\b(?:(?:shortest|minimum|least|minimal)\s+(?:possible\s+)?(?:crossing\s+)?time|as\s+(?:quickly|soon|fast)\s+as\s+possible|quickest)\b`;
+
+/** The question with each stated heading blanked to spaces, so match offsets stay put. */
+function withoutStatedHeadings(question: string): string {
+  let withoutHeadings = question;
+  for (const match of statedHeadings(question, HEADING_ACROSS).reverse()) {
+    const start = match.index ?? 0;
+    withoutHeadings = `${withoutHeadings.slice(0, start)}${" ".repeat(match[0].length)}${withoutHeadings.slice(start + match[0].length)}`;
+  }
+  return withoutHeadings;
+}
+
 /**
  * Shortest path: head upstream so the boat lands directly opposite. A stated
  * heading "straight across" is where the boat points, the least-time case,
@@ -148,18 +161,26 @@ export function riverNormalHeadingStated(question: string): boolean {
  * crossing time is bound.
  */
 export function riverShortestPathAsked(question: string): boolean {
-  let withoutHeadings = question;
-  for (const match of statedHeadings(question, HEADING_ACROSS).reverse()) {
-    const start = match.index ?? 0;
-    withoutHeadings = `${withoutHeadings.slice(0, start)}${" ".repeat(match[0].length)}${withoutHeadings.slice(start + match[0].length)}`;
-  }
-  return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(withoutHeadings);
+  return new RegExp(PATH_REQUEST, "i").test(withoutStatedHeadings(question));
 }
 
 /** Shortest time: head along the bank normal and drift downstream, asked or stated as the heading. */
 export function riverShortestTimeAsked(question: string): boolean {
-  return /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(question) ||
-    riverNormalHeadingStated(question);
+  const paths = [...withoutStatedHeadings(question).matchAll(new RegExp(PATH_REQUEST, "gi"))];
+  const times = question.matchAll(new RegExp(TIME_REQUEST, "gi"));
+  const separate = (between: string) => /[.;:?!()[\]]/.test(between)
+    || /\b(?:and|compar(?:e|ed|ing)|than|if|when|then|instead|versus|vs|or|but|while|also)\b/i.test(between);
+  return riverNormalHeadingStated(question) || [...times].some((time) => {
+    const bridges = paths.map((path) => time.index! >= path.index!
+      ? question.slice(path.index! + path[0].length, time.index)
+      : question.slice(time.index! + time[0].length, path.index));
+    // A nearby same-clause condition minimizes the constrained path, not a
+    // second crossing. Separate requests keep their own time and drift.
+    if (bridges.some(between => !separate(between) && (between.match(/\b[\p{L}\p{N}]+\b/gu)?.length ?? 0) <= 4)) return false;
+    // Do not widen the old reader for a distant ambiguous same-clause phrase.
+    return bridges.length === 0 || bridges.some(separate)
+      || /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(time[0]);
+  });
 }
 
 /**
@@ -198,6 +219,31 @@ export function riverCrossingValues(speeds: RiverCrossingSpeeds, question = ""):
 const BOAT_SYMBOLS = new Set(["vb", "vboat", "boatspeed", "vbw", "vbinstillwater", "vswimmer"]);
 const RIVER_SYMBOLS = new Set(["vc", "vriver", "vcurrent", "riverspeed", "vstream", "vw", "vwater"]);
 
+/** New comparison roles need two requested times, not merely two mode words. */
+function riverCrossingComparisonAsked(question: string): boolean {
+  const paths = [...withoutStatedHeadings(question).matchAll(new RegExp(PATH_REQUEST, "gi"))];
+  const times = [...question.matchAll(new RegExp(TIME_REQUEST, "gi"))];
+  const request = String.raw`\b(?:find|calculate|determine|compute|give|obtain)\s+(?:the\s+)?`;
+  const timeObject = new RegExp(`${request}(?:(?:shortest|minimum|least|minimal)\\s+(?:possible\\s+)?(?:crossing\\s+)?)?time\\b`, "i");
+  const clauseAt = (index: number) => {
+    const before = question.slice(0, index).split(/[.;:?!()[\]]/).at(-1) ?? "";
+    return before + question.slice(index).split(/[.;:?!()[\]]/)[0];
+  };
+  return paths.some(path => times.some(time => {
+    const between = time.index! >= path.index!
+      ? question.slice(path.index! + path[0].length, time.index)
+      : question.slice(time.index! + time[0].length, path.index);
+    if (/[.;:?!()[\]]/.test(between)) {
+      // Each separate clause must request a time of its own. A comparison
+      // about speeds elsewhere cannot authorize a second crossing time.
+      return timeObject.test(clauseAt(path.index!)) && timeObject.test(clauseAt(time.index!));
+    }
+    return timeObject.test(between) || new RegExp(`${request}$`, "i").test(between)
+      || /\band\s+(?:the\s+)?(?:crossing\s+)?time\b/i.test(between)
+      || /\b(?:compare\s+(?:it|this|that)\s+(?:with|to)|compared\s+(?:with|to)|versus|vs|than)\s+(?:the\s+)?$/i.test(between);
+  }));
+}
+
 /**
  * Plan values outside the figure's values, plus a plan that names the boat
  * or current speed by its symbol but gives the other role's value (a swap).
@@ -216,7 +262,7 @@ export function riverCrossingPlanConflicts(speeds: RiverCrossingSpeeds, turnPlan
 function riverCrossingBindings(speeds: RiverCrossingSpeeds, question: string): MotionBindings {
   const k = speeds.unit === "km/h" ? 1000 / 3600 : 1;
   const vb = speeds.vb * k; const vc = speeds.vc * k;
-  const bound = new Map<string, { dimension: MotionDimension; si: number }>();
+  const bound = new Map<string, { dimension: MotionDimension; si: number; signed?: boolean }>();
   for (const name of BOAT_SYMBOLS) bound.set(name, { dimension: "velocity", si: vb });
   for (const name of RIVER_SYMBOLS) bound.set(name, { dimension: "velocity", si: vc });
   if (/\b(?:downstream|upstream)\b/i.test(question) && vb > vc) {
@@ -226,7 +272,21 @@ function riverCrossingBindings(speeds: RiverCrossingSpeeds, question: string): M
   const path = riverShortestPathAsked(question); const quick = riverShortestTimeAsked(question);
   if (speeds.widthM !== null && path !== quick && (quick || vb > vc)) {
     const time = quick ? speeds.widthM / vb : speeds.widthM / Math.sqrt(vb * vb - vc * vc);
-    for (const name of ["t", "tcross", "tcrossing", "tmin", "tminimum"]) bound.set(name, { dimension: "time", si: time });
+    // A stated oblique heading is a separate crossing the source does not
+    // solve. Its generic time must not be rewritten to the comparison's minimum.
+    const otherHeading = quick && new RegExp(`${STEM_NUMBER}\\s*(?:degrees?|deg\\b|°|radians?|rad\\b)`, "i").test(question);
+    for (const name of otherHeading ? ["tmin", "tminimum"] : ["t", "tcross", "tcrossing", "tmin", "tminimum"]) {
+      bound.set(name, { dimension: "time", si: time });
+    }
+  }
+  if (speeds.widthM !== null && path && quick && vb > vc && riverCrossingComparisonAsked(question)) {
+    const shortest = speeds.widthM / vb;
+    const opposite = speeds.widthM / Math.sqrt(vb * vb - vc * vc);
+    for (const name of ["tmin", "tminimum", "tshortest", "tfast"]) bound.set(name, { dimension: "time", si: shortest });
+    for (const name of ["tstraight", "topposite", "tpath"]) bound.set(name, { dimension: "time", si: opposite });
+    for (const name of MOTION_TIME_DIFFERENCE_KEYS) {
+      bound.set(name, { dimension: "time", si: opposite - shortest, signed: true });
+    }
   }
   return bound;
 }

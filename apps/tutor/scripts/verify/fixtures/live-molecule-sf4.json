@@ -1,0 +1,40 @@
+{
+  "sourceArtifact": "C/live-lesson-93aa/stored-board.json",
+  "sourceArtifactSha256": "46eff3c08c3b8f8d459fb83ca47fa0f95d7bd09fc342e29a5f33448238420a2a",
+  "sourceTurnId": "24193b2c-2030-4522-a6fa-06f591278400",
+  "question": "What is the shape of SF4, and where does its lone pair go? Keep the explanation brief, please.",
+  "turnPlan": {
+    "givens": [],
+    "lawIds": [
+      "VSEPR theory"
+    ],
+    "derived": [],
+    "question": "What is the shape of SF4, and where does its lone pair go? Keep the explanation brief, please.",
+    "unknowns": [],
+    "assumptions": [],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Molecular shape",
+        "expected": "Seesaw: four S\u2013F bonds and one lone pair occupy five electron domains around sulfur.",
+        "relatedEntityHints": [
+          "SF4",
+          "sulfur"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Lone-pair position",
+        "expected": "The lone pair occupies an equatorial position in the trigonal-bipyramidal electron-domain arrangement, minimizing repulsion.",
+        "relatedEntityHints": [
+          "lone pair",
+          "sulfur"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  },
+  "problemIR": null,
+  "IRProvenance": "Persisted problemIR is null. Original pre-persistence IR was not recovered; do not claim original full-IR replay."
+}

@@ -28,6 +28,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/admin/users` | `app/api/admin/users/route.ts` | GET | Admin panel user list with activity aggregates (`query`, `sort`, `page`, `pageSize`) |
 | `/api/admin/users/[userId]` | `app/api/admin/users/[userId]/route.ts` | GET | Admin panel user drill-down: profile, settings, boards, turns, chat, spend |
 | `/api/admin/turns` | `app/api/admin/turns/route.ts` | GET | Admin panel turn log (`outcome`, `userId`, `boardId`, `query`, `days`, pagination) |
+| `/api/admin/coverage` | `app/api/admin/coverage/route.ts` | GET | Saved lesson figure coverage and empty-reason totals by subject/chapter over a UTC `from`/`to` window; no source text. [Definitions and read-only CLI](../ops/production-coverage.md) |
 
 All `/api/admin/*` routes gate on `requireAdminRequest()` (staff/admins only
 once the login gate is on; open only while `AUTH_DISABLED=1` for local testing)
@@ -57,6 +58,7 @@ Production and dev both use `tsx server.ts` (not `next start`):
 |------|---------|
 | `auth.ts` | `getUserId()`, `ensureUser()` — Auth.js session, or cookie only while `AUTH_DISABLED=1` |
 | `db/prisma.ts` | Prisma client singleton |
+| `admin/coverage.ts` / `admin/coverageQueries.ts` | Content-free saved lesson coverage reducer + shared enforced read-only snapshot for the admin page and report script |
 | `boards/boardsClient.ts` | Frontend API client — fetch/create/update boards, `saveTurn()` |
 | `boards/boardTitle.ts` | Board title prompt + fallback heuristics |
 | `boards/notesChatClient.ts` | Notes-sidebar chat client |
