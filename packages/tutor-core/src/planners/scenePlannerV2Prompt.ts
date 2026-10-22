@@ -152,7 +152,7 @@ AUTHORITY
 - Faithful visual:scene; else text_only,empty arrays,source/operator reason.
 - Show the problem setup, not a solved answer sheet. Do not place derived scalar answers initially; calculate after setup. Stated spatial givens need exact plan-backed geometry.
 - Question/AUTHORITATIVE TURN PLAN are fixed evidence. Copy exact quantity id/value/unit. Invent no measurements,signs,components,topology or assumptions beyond one symbolic representative. Display lengths never establish physical values.
-- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member showing each named feature; its normalized world/space literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
+- Symbolic:use owner symbols,never stock quantities. Missing values alone never justify text_only. A named class with no stated member (curve,conic,lines,planes,vectors,region) gets one generic nondegenerate member; literals prove shape,not data. source:{question,representationTier:"qualitative_verified",nonMetric:true},quantities:[]. Preserve givens.
 - Plan claims requesting data never block that figure. Invariants/examples are advice; source wins. Symbolic scenes must be complete.
 - All arrays present, even empty. Unique IDs; one producer/entity,ordered dependencies,reused IDs. No duplicate geometry/terminal pairs. Preserve output arity/order.
 - Deterministic curves,regions,solids,intersections,transforms,normals,rays only. Function regions:function_curve + function_region. Never guess.
@@ -169,7 +169,7 @@ RELATIONS
 
 LABELS AND REVEAL
 - Labels:owners/values,at most16 characters. Narrate explanations. No figure titles,captions or underlines.
-- Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no positioning geometry or helper/junction/wire-terminal labels. Paths from targetIds,never coordinates/CIRCLE_AROUND.
+- Label each named owner once:entity.label or annotation,never both. Angle symbols label an angle mark. Derived coordinate labels:numbers or kπ/n,(x,y) or x=/y=,no other arithmetic. Attach to owners; no helper labels. Paths from targetIds,never coordinates.
 - Kinds:label,callout,caption,narration,enclose,highlight,trace,badge,spin,equal_tick,equal_arc,parallel_mark,hatch,brace,endpoint,loop,sense,drop,ghost,extend,frame,polarity,slope_triangle. style:{count:1|2|3,pointStyle:"filled"|"open"|"cross"|"square",transient:boolean}.
 - One group unless staged/separate views. revealGroups.entityIds:entity IDs; timeline acts on existing targets.
 Entity kinds:point,segment,ray,line,circle,arc,rectangle,polygon,polyline,vector,axes,object,component,connector,label,dimension,angle_mark,right_angle_mark,tick_mark,sign_badge,wavefront_family,aperture,screen_pattern,transverse_field,polarizer,linear_region,group.`;
@@ -408,7 +408,7 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   relative_velocity: "Outputs [vA,vB,vA-vB].",
   motion_graph: "Output 1 polyline.",
   uniform_circular_motion: "Outputs [particle,circle,radius,velocity,acceleration].",
-  projectile_trajectory: 'Outputs [trajectory,launch velocity]; no units key; the path is not a sampled curve. showMeasurements:true appends [R dimension,height dimension]. heightReference default "level_ground":H above level ground(level landing only);"launch":Δh above launch(not H). No units block;source-backed numeric only. Analytic:tangent_line/vector along path;never guess an independent direction.',
+  projectile_trajectory: 'Outputs [trajectory,launch velocity]; no units key; the path is not a sampled curve. showMeasurements [R dimension,height dimension]. heightReference:H above level ground;Δh above launch. No units block;source-backed numeric. tangent_line/vector;never guess an independent direction.',
   work_interval: "Outputs [force,displacement].",
   spring_energy: "Outputs [spring,mass].",
   potential_curve: "Output 1 polyline.",

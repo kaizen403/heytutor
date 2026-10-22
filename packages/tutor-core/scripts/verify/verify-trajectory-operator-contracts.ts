@@ -70,11 +70,10 @@ const validated = validateSceneDocument({
 const projectileIssues = validated.report.issues.filter((issue) => issue.severity === "fatal" && issue.code.startsWith("invalid_projectile_trajectory_"));
 check(projectileIssues.length === 0, `every offered projectile key is accepted: ${JSON.stringify(projectileIssues)}`);
 
-// The universal catalog on current main already exceeds the older 24_500
-// initial budget. This clarification adds the sampled-curve sentence (48
-// characters) and must stay inside the same room main now uses.
+// Capability guidance sits on top of the bare catalog, which stays inside the
+// 24_500 transport budget. This scoped prompt must stay at the length main ships.
 const question = "Draw the supplied conditional outcomes and mark every joint leaf probability.";
 const prompt = buildSceneDocumentPlannerPrompt(question, { ...inferSceneCapabilities(question), constructionOperators: SUPPORTED_SCENE_CONSTRUCTION_OPERATORS });
-check(prompt.length + 800 <= 25_000, `full catalog fits the initial transport budget: ${prompt.length}`);
+check(prompt.length + 800 <= 24_800, `full catalog fits the initial transport budget: ${prompt.length}`);
 
 console.log(`verify-trajectory-operator-contracts: ok (${checks} checks, full catalog ${prompt.length} chars)`);
