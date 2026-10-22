@@ -60,6 +60,12 @@ for (const row of rows) for (const [route, produce] of [["ordinary", synthesizeF
         assert.deepEqual(validateTurnPlanV3(productOnlyPlan, row.question).issues, [], "authored complete product-only plan is valid");
         assert.deepEqual(validateSceneQuantityAgreement(actual.document.quantities, productOnlyPlan, texts), [], "product-only complete empty numeric plan admits");
       }
+      if (row.kind === "radical_hbr") {
+        if (row.name && !row.carbons) {
+          assert.equal(model.product.name, row.name);
+          assert.ok(texts.includes(row.name), "requested radical product name is visible");
+        } else assert.equal(model.product.name, undefined, "unrequested radical product name stays unset");
+      }
       if (row.carbons) {
         assert.deepEqual(model.carbonCounts, row.carbons);
         assert.equal(model.product.name, row.name);

@@ -3,12 +3,20 @@ import type { SceneDocument } from "../../types";
 import { ChemScene } from "../sceneKit";
 import { layoutBounds, layoutMolecule } from "./layout";
 import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
-import type { OrganicReactionSource } from "./reactionSource";
-import { asymmetricTreeStereo, sourceGraphProductHolds } from "./reactionGraph";
+import { radicalProductNamingRequested, type OrganicReactionSource } from "./reactionSource";
+import { asymmetricTreeStereo, radicalBromoalkaneName, sourceGraphProductHolds } from "./reactionGraph";
 
 export function buildOrganicReactionFigure(question: string, model: OrganicReactionSource): SceneDocument | null {
   if (question !== model.question) return null;
   if (!sourceGraphProductHolds(model.kind, model.reactant, model)) return null;
+  if (model.kind === "radical_hbr") {
+    const proved = radicalBromoalkaneName(model.product);
+    const naming = radicalProductNamingRequested(question);
+    if (naming) {
+      const visible = model.product.name ?? model.productRole;
+      if (!proved || visible !== proved) return null;
+    } else if (model.product.name !== undefined) return null;
+  }
   const carbonCounts = [model.reactant, model.product].map(molecule => molecule.atoms.filter(atom => atom.element === "C").length);
   if (JSON.stringify(carbonCounts) !== JSON.stringify(model.carbonCounts)) return null;
   if (model.kind === "radical_hbr" || model.requestedStereoCount || model.stereo) {

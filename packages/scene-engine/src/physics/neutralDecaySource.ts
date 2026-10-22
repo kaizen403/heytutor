@@ -2,7 +2,7 @@
  * solver. A claimed unsupported decay source is terminal before catalog
  * defaults; it is never silently described as radioactive nuclei. */
 import { SceneBuilder } from "../archetypes/document";
-import { explicitFunctions } from "../archetypes/slots";
+import { explicitFunctions, normalizeCompleteExpression } from "../archetypes/slots";
 import { kineticsFromStem, solveKinetics } from "../chemistry/kinetics";
 import { chemicalKineticsContext } from "../chemistry/semanticCues";
 import { chemStem } from "../chemistry/sceneKit";
@@ -56,7 +56,10 @@ function completeRequestedFunction(question: string): string[] | null {
       positiveRequest = true;
     }
     let whole: string;
-    try { whole = parseMathExpression(rawRhs).source.replace(/\s+/g, "").replace(/^\+/, ""); } catch { return null; }
+    // Normalize the complete clause, including ordinary juxtaposition such as
+    // exp(-2x). Do not drop an unread tail first: only this whole identity
+    // may match the recovering slot reader.
+    try { whole = parseMathExpression(normalizeCompleteExpression(rawRhs)).source.replace(/\s+/g, "").replace(/^\+/, ""); } catch { return null; }
     if (!checked.includes(whole)) checked.push(whole);
     if (boundary) clauseStart = start + boundary.index + boundary[0].length;
   }

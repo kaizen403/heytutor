@@ -119,6 +119,28 @@ export function sameMolecularGraph(first: Molecule, second: Molecule): boolean {
   return search();
 }
 
+/** Anti-Markovnikov HBr product whose graph is exactly a terminal bromoalkane.
+ * Branched or internal bromides stay unnamed until a complete name is proved. */
+export function radicalBromoalkaneName(product: Molecule): string | null {
+  const bromines = product.atoms.filter(atom => atom.element === "Br");
+  const carbons = product.atoms.filter(atom => atom.element === "C");
+  if (bromines.length !== 1 || carbons.length + bromines.length !== product.atoms.length) return null;
+  if (product.atoms.some(atom => atom.charge !== 0 || atom.aromatic)
+    || product.bonds.some(bond => bond.order !== 1 || bond.aromatic || bond.direction)
+    || product.bonds.length !== product.atoms.length - 1) return null;
+  const carbonNeighbours = (index: number): number => neighbours(product, index).filter(entry => product.atoms[entry.atom]!.element === "C").length;
+  if (carbons.some(atom => carbonNeighbours(atom.index) > 2)) return null;
+  const attached = neighbours(product, bromines[0]!.index);
+  if (attached.length !== 1 || product.atoms[attached[0]!.atom]!.element !== "C") return null;
+  const attachedCarbons = carbonNeighbours(attached[0]!.atom);
+  if (attachedCarbons !== (carbons.length === 1 ? 0 : 1)) return null;
+  const root = ["meth", "eth", "prop", "but", "pent", "hex", "hept", "oct", "non", "dec"][carbons.length - 1];
+  if (!root) return null;
+  const name = carbons.length <= 2 ? `bromo${root}ane` : `1-bromo${root}ane`;
+  const parsed = moleculeFromName(name);
+  return parsed && sameMolecularGraph(product, parsed) ? name : null;
+}
+
 /** A functional-group naming operation, checked through the existing full-name parser. */
 export function primaryAmineName(product: Molecule): string | null {
   const nitrogens = product.atoms.filter(atom => atom.element === "N" && atom.hydrogens === 2 && neighbours(product, atom.index).length === 1);
@@ -147,6 +169,10 @@ export function sourceGraphProductHolds(kind: "radical_hbr" | "hofmann", reactan
     || JSON.stringify(bondKey(proposed.product)) !== JSON.stringify(bondKey(expected.product))
     || JSON.stringify(proposed.atomMap) !== JSON.stringify(expected.atomMap)
     || JSON.stringify(proposed.consumed) !== JSON.stringify(expected.consumed)) return false;
-  if (kind === "radical_hbr") return proposed.product.name === undefined;
+  if (kind === "radical_hbr") {
+    if (proposed.product.name === undefined) return true;
+    const proved = radicalBromoalkaneName(expected.product);
+    return proved !== null && proposed.product.name === proved;
+  }
   return proposed.product.name === primaryAmineName(expected.product);
 }

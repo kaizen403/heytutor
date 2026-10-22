@@ -27,6 +27,43 @@
     "count": 1
   },
   {
+    "id": "radical-requested-name",
+    "question": "Propene reacts with HBr and peroxide. Draw and name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-only",
+    "question": "Propene reacts with HBr and peroxide. Name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-butene",
+    "question": "But-1-ene reacts with HBr and ROOR. Show and name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C4H9Br",
+    "name": "1-bromobutane"
+  },
+  {
+    "id": "radical-name-major",
+    "question": "Propene is treated with HBr in the presence of peroxide. Draw and name the major product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-branched-declined",
+    "question": "2-Methylbut-1-ene reacts with HBr and peroxide. Draw and name the product.",
+    "draw": false
+  },
+  {
     "id": "hofmann-aryl",
     "question": "Benzamide is treated with Br2 and aqueous NaOH. Show the amine product and compare its carbon count with the amide.",
     "kind": "hofmann",

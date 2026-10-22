@@ -1,6 +1,6 @@
 /** Positive reaction roles and requested results over exact original source spans. */
 import type { Molecule } from "./smiles";
-import { addRadicalHBr, asymmetricTreeStereo, degradePrimaryAmide, primaryAmineName, sameMolecularGraph, type GraphProduct, type StereoTreeProof } from "./reactionGraph";
+import { addRadicalHBr, asymmetricTreeStereo, degradePrimaryAmide, primaryAmineName, radicalBromoalkaneName, sameMolecularGraph, type GraphProduct, type StereoTreeProof } from "./reactionGraph";
 
 export interface ReactionMention { molecule: Molecule; text: string; start: number; end: number }
 export interface ReactionSpan { start: number; end: number; text: string; role: string }
@@ -17,6 +17,12 @@ export interface OrganicReactionSource extends GraphProduct {
 }
 export type OrganicReactionRead = { status: "not_applicable" } | { status: "declined"; reason: string } | { status: "source"; model: OrganicReactionSource };
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const productNoun = String.raw`(?:the |its |an? )?(?:(?:major |addition |amine )?product)`;
+
+/** "Draw and name the product" asks for the chemical name, not only the graph. */
+export function radicalProductNamingRequested(question: string): boolean {
+  return new RegExp(String.raw`\b(?:draw|show|name)(?: and name)? ${productNoun}\b`, "i").test(question) && /\bname\b/i.test(question);
+}
 
 /** The mention reader is shared with the ordinary organic family; only actual
  * positively governed reactant occurrences enter a transformation. */
@@ -121,6 +127,12 @@ export function readOrganicReactionSource(question: string, mentions: readonly R
   for (const match of question.matchAll(/\b(?:and|when)\b/gi)) own(match.index!, match.index! + match[0].length, "request coordination");
   const leftovers = [...question.matchAll(/[\p{L}\p{N}]/gu)].filter(match => consumed.slice(match.index!, match.index! + match[0].length).some(owned => !owned));
   if (!requestCount || leftovers.length) return decline("unconsumed reaction source or request");
+  if (radicalClaim && radicalProductNamingRequested(question)) {
+    const proved = radicalBromoalkaneName(transformed.product);
+    if (!proved) return decline("unsupported complete product name");
+    if (productRole === "product") transformed.product.name = proved;
+    else if (productRole !== proved) return decline("requested product name is not the computed graph name");
+  }
   return { status: "source", model: { question, kind: radicalClaim ? "radical_hbr" : "hofmann", reactant, ...transformed, bindings, productRole,
     ...(stereo ? { stereo } : {}), requestedStereoCount, carbonCounts: [reactant, transformed.product].map(molecule => molecule.atoms.filter(atom => atom.element === "C").length), gabrielExcluded } };
 }
