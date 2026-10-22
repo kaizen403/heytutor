@@ -65,6 +65,7 @@ import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } f
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import { commitWorkRowInk, isInDiagramZone, registerBoardAnchor, resolveVisibleEmphasisRow, workColumnMaxWidth } from "../lib/board/boardLayout";
+import { emphasisGroupRows, markEmphasisGroupBoxed, nextWorkRowGroup, rowGroupBounds } from "./useBoardLayout";
 import { fitRecordedWorkRow } from "../lib/board/workTextPresentation";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
@@ -101,6 +102,7 @@ export interface UseCommandExecutionParams {
     y: number,
     applyLayout: boolean,
     introLayoutCheckpoint?: IntroLayoutCheckpoint,
+    placement?: { rowGroup?: string; isCancelled?: () => boolean },
   ) => Promise<{ x: number; y: number }>;
   raceWithCancel: <T>(promise: Promise<T>) => Promise<T | undefined>;
   inkPaceRef: RefObject<InkPace>;
@@ -229,6 +231,8 @@ export function useCommandExecution({
         segmentIndex?: number;
         isCancelled?: () => boolean;
         textPlacementReserved?: boolean;
+        /** The rows one recorded WRITE wraps into on replay share this group. */
+        workRowGroup?: string;
         inkPace?: InkPace;
         /**
          * One spoken window per FOCUS target, in media ms from the segment's
@@ -689,6 +693,7 @@ export function useCommandExecution({
             );
             const { fontSize: wrappedSize, lines } = fitRecordedWorkRow(command.text, columnWidth, requestedFontSize);
             if (lines.length > 1) {
+              const workRowGroup = nextWorkRowGroup();
               for (const [index, line] of lines.entries()) {
                 if (commandCancelled()) return;
                 const indent = index === 0 ? 0 : WORK_CONTINUATION_INDENT;
@@ -698,7 +703,7 @@ export function useCommandExecution({
                     text: line,
                     params: [TEXT_LAYOUT.marginX + indent, y, wrappedSize],
                   },
-                  { ...options, applyLayout: true, textPlacementReserved: false },
+                  { ...options, applyLayout: true, textPlacementReserved: false, workRowGroup },
                 );
               }
               break;
@@ -727,7 +732,9 @@ export function useCommandExecution({
                     ? false
                     : command.type === "WRITE" || options.applyLayout !== false,
                   options.introLayoutCheckpoint,
+                  { rowGroup: options.workRowGroup, isCancelled: commandCancelled },
                 );
+            if (commandCancelled()) return;
             if (isInDiagramZone(placement.x, placement.y)) {
               const diagramLabels = boardLayoutRef.current.rects.filter(
                 (r) => r.x >= DIAGRAM_ZONE.x,
@@ -1470,19 +1477,23 @@ export function useCommandExecution({
           );
           if (!row) break;
           const { flightMs, drawMs } = speechSplit(command);
+          // A WRITE that wrapped is one answer over several rows; the box
+          // frames all of them, never only the line the selector named.
+          const answerRows = emphasisGroupRows(row, boardLayoutRef.current.rects);
+          const frame = rowGroupBounds(answerRows);
 
           // Box the formula. A full-weight underline under a line of algebra
           // reads as a correction; a frame reads as "hold on to this".
-          await wb.flyCursorTo(row.x - 6, row.y - 5, flightMs);
+          await wb.flyCursorTo(frame.x - 6, frame.y - 5, flightMs);
           if (commandCancelled()) return;
           await drawAnnotation(
             "box",
-            emphasisBoxPath(row.x, row.y, row.width, row.height),
+            emphasisBoxPath(frame.x, frame.y, frame.width, frame.height),
             Math.min(drawMs, 460),
           );
           if (commandCancelled()) return;
-          // A boxed answer survives the next page turn (useBoardLayout).
-          row.boxed = true;
+          // A boxed answer survives the next page turn whole (useBoardLayout).
+          markEmphasisGroupBoxed(answerRows);
 
           // Then run the highlighter over the part the student writes down.
           // The span is measured from the row's own text, so it lands on the

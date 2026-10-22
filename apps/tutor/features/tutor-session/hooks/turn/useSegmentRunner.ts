@@ -184,9 +184,12 @@ export function useSegmentRunner({
       if (segment.verifiedDiagramIntro !== true) {
         const prepared: DrawCommand[] = [];
         for (const command of segmentCommands) {
+          // A stopped or replaced turn reserves nothing more: the board and
+          // its layout may already belong to the next turn.
+          if (isCancelled()) return;
           // One work row can come back as several: a line too long for the
           // column is wrapped there rather than shrunk to fit.
-          const resolved = await reserveTextCommandPlacements(command);
+          const resolved = await reserveTextCommandPlacements(command, { isCancelled });
           for (const row of resolved) {
             prepared.push(row);
             if (row !== command) reservedTextCommands.add(row);

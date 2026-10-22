@@ -65,43 +65,158 @@ export const PAGE_TURN_HOLD_MS = 1_500;
  */
 export const MAX_CARRIED_ANSWER_ROWS = Math.max(1, Math.floor(BOARD_WORK_ROWS_PER_PAGE / 2));
 
-/** Boxed work rows on the board, top to bottom, the latest few kept. */
-export function boxedAnswerRowsToCarry(rects: readonly BoardTextRect[]): BoardTextRect[] {
+let workRowGroupSequence = 0;
+
+/** A fresh id for the rows one authored WRITE becomes. */
+export function nextWorkRowGroup(): string {
+  workRowGroupSequence += 1;
+  return `g${workRowGroupSequence}`;
+}
+
+/**
+ * What every wrapped piece of one WRITE copies from its tag: the tag's
+ * position and the words before it. The same rule the ink planner uses to
+ * keep a continuation behind its head (`continuesAuthoredWrite`); a zero
+ * position or empty words are a default, not evidence of one tag.
+ */
+export function authoredWriteKey(command: Pick<DrawCommand, "type" | "charPosition" | "narrationBefore">): string | undefined {
+  if (command.type !== "WRITE") return undefined;
+  if (!Number.isSafeInteger(command.charPosition) || command.charPosition <= 0) return undefined;
+  if (typeof command.narrationBefore !== "string" || command.narrationBefore.trim().length === 0) return undefined;
+  return `${command.charPosition}\u0000${command.narrationBefore}`;
+}
+
+/**
+ * The group a work row joins. The live reservation knows it (one call wraps
+ * one WRITE). A replay, the lecture player and export see the stored pieces
+ * one at a time, and persistence keeps no group id, so a piece joins the row
+ * written just before it when both copy the same authored tag.
+ */
+export function workRowGroupFor(
+  layout: BoardLayoutState,
+  command: DrawCommand,
+  y: number,
+  explicit?: string,
+): { rowGroup: string; authoredKey?: string } {
+  const authoredKey = authoredWriteKey(command);
+  if (explicit) return { rowGroup: explicit, ...(authoredKey ? { authoredKey } : {}) };
+  let previous: BoardTextRect | undefined;
+  for (const rect of layout.rects) {
+    if (rect.workIndex != null && (previous === undefined || rect.workIndex > previous.workIndex!)) previous = rect;
+  }
+  // A continuation lies below its head on the same page, as in
+  // `continuesAuthoredWrite`.
+  if (authoredKey && previous?.rowGroup && previous.authoredKey === authoredKey && y > previous.y) {
+    return { rowGroup: previous.rowGroup, authoredKey };
+  }
+  return { rowGroup: nextWorkRowGroup(), ...(authoredKey ? { authoredKey } : {}) };
+}
+
+/**
+ * The visible rows `[EMPHASIZE]` frames when it resolves to `row`: every
+ * written row of its WRITE, top to bottom. `[EMPHASIZE:last]` names the last
+ * line of a wrapped answer; boxing that line alone carried "+ 2|A||B|cos θ"
+ * onto every later page by itself (25 of 273 boxed rows in the v3 lessons
+ * wrapped in a figure column).
+ */
+export function emphasisGroupRows(row: BoardTextRect, rects: readonly BoardTextRect[]): BoardTextRect[] {
+  if (!row.rowGroup) return [row];
+  const rows = rects
+    .filter((rect) => rect.rowGroup === row.rowGroup && !rect.pendingInk && rect.x < DIAGRAM_ZONE.x &&
+      (rect.text ?? "").trim().length > 0)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  return rows.includes(row) ? rows : [row];
+}
+
+/** One box around a group of rows. */
+export function rowGroupBounds(rows: readonly BoardTextRect[]): { x: number; y: number; width: number; height: number } {
+  const left = Math.min(...rows.map((row) => row.x));
+  const top = Math.min(...rows.map((row) => row.y));
+  const right = Math.max(...rows.map((row) => row.x + row.width));
+  const bottom = Math.max(...rows.map((row) => row.y + row.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+/** Mark the whole group boxed once its box is drawn. */
+export function markEmphasisGroupBoxed(rows: readonly BoardTextRect[]): void {
+  for (const row of rows) row.boxed = true;
+}
+
+/**
+ * Boxed answers on the board, oldest first, each a whole group. The latest
+ * groups are kept up to the carry cap; a group too tall for what is left of
+ * the cap is skipped, never cut.
+ */
+export function boxedAnswerRowsToCarry(rects: readonly BoardTextRect[]): BoardTextRect[][] {
   const boxed = rects
     .filter((rect) => rect.boxed === true && !rect.pendingInk && rect.x < DIAGRAM_ZONE.x &&
       rect.y >= TEXT_LAYOUT.headingBottomY && (rect.text ?? "").trim().length > 0)
     .sort((a, b) => a.y - b.y || a.x - b.x);
-  return boxed.slice(Math.max(0, boxed.length - MAX_CARRIED_ANSWER_ROWS));
+  const groups: BoardTextRect[][] = [];
+  const byId = new Map<string, BoardTextRect[]>();
+  for (const rect of boxed) {
+    const existing = rect.rowGroup ? byId.get(rect.rowGroup) : undefined;
+    if (existing) {
+      existing.push(rect);
+      continue;
+    }
+    const group = [rect];
+    groups.push(group);
+    if (rect.rowGroup) byId.set(rect.rowGroup, group);
+  }
+  const kept: BoardTextRect[][] = [];
+  let rows = 0;
+  for (let index = groups.length - 1; index >= 0; index--) {
+    const group = groups[index]!;
+    if (rows + group.length > MAX_CARRIED_ANSWER_ROWS) continue;
+    kept.unshift(group);
+    rows += group.length;
+  }
+  return kept;
 }
 
 /**
  * Where carried answers land on a fresh page: the work column's first rows,
- * in order, at their own size. A row too wide for the column is not shrunk;
- * it is left behind (the board type scale never shrinks a row).
+ * in order, at their own size. A group with a row too wide for the column is
+ * not shrunk; the whole group is left behind (the board type scale never
+ * shrinks a row, and half an answer is not an answer).
  */
 export function placeCarriedAnswerRows(
   layout: BoardLayoutState,
-  rows: readonly BoardTextRect[],
+  groups: readonly (readonly BoardTextRect[])[],
   diagramActive: boolean,
-): BoardTextRect[] {
-  const placed: BoardTextRect[] = [];
+): BoardTextRect[][] {
+  const placed: BoardTextRect[][] = [];
   const scratch: BoardLayoutState = { rects: [...layout.rects], nextY: layout.nextY };
-  for (const row of rows) {
-    const slot = findWorkTextSlot({
-      layout: scratch,
-      requestedX: TEXT_LAYOUT.marginX,
-      requestedY: getWorkAreaFlowStartY(scratch),
-      width: row.width,
-      height: row.height,
-      diagramActive,
-      sequential: true,
-      runtimeOwnsX: true,
-    });
-    if (!slot || row.width > slot.maxWidth) continue;
-    const carried: BoardTextRect = { ...row, x: slot.x, y: slot.y, pendingInk: false, boxed: true };
-    scratch.rects.push(carried);
-    scratch.nextY = Math.max(scratch.nextY, slot.y + TEXT_LAYOUT.lineHeight);
-    placed.push(carried);
+  for (const group of groups) {
+    const before = { rects: [...scratch.rects], nextY: scratch.nextY };
+    const carriedGroup: BoardTextRect[] = [];
+    for (const row of group) {
+      const slot = findWorkTextSlot({
+        layout: scratch,
+        requestedX: TEXT_LAYOUT.marginX,
+        requestedY: getWorkAreaFlowStartY(scratch),
+        width: row.width,
+        height: row.height,
+        diagramActive,
+        sequential: true,
+        runtimeOwnsX: true,
+      });
+      if (!slot || row.width > slot.maxWidth) {
+        carriedGroup.length = 0;
+        break;
+      }
+      const carried: BoardTextRect = { ...row, x: slot.x, y: slot.y, pendingInk: false, boxed: true };
+      scratch.rects.push(carried);
+      scratch.nextY = Math.max(scratch.nextY, slot.y + TEXT_LAYOUT.lineHeight);
+      carriedGroup.push(carried);
+    }
+    if (carriedGroup.length !== group.length) {
+      scratch.rects = before.rects;
+      scratch.nextY = before.nextY;
+      continue;
+    }
+    placed.push(carriedGroup);
   }
   return placed;
 }
@@ -239,6 +354,13 @@ export function useBoardLayout({
     return command.type === "WRITE" ? WORK_ROW_FONT_SIZE : BOARD_TYPE_SCALE.label;
   }, []);
 
+  /**
+   * Turn the work column to a fresh page. Resolves false, with the layout
+   * untouched, when the turn stopped before its ink was wiped: the rows the
+   * layout records are still the rows on the board, so Continue or a doubt
+   * never writes over them. Once the wipe has run the page is fresh, and a
+   * stop after that only leaves carried answers unwritten.
+   */
   const eraseWorkColumnForNewPage = useCallback(async (
     text?: string,
     options: {
@@ -246,24 +368,34 @@ export function useBoardLayout({
       hold?: boolean;
       /** A recorded row that starts the new page: carry only above it. */
       incoming?: BoardTextRect;
+      /**
+       * The turn that asked for this page. `cancelRef` is shared, and a quick
+       * replacement turn clears it while an older turn is still holding; the
+       * older turn must never wipe or reset the newer turn's board.
+       */
+      isCancelled?: () => boolean;
     } = {},
-  ): Promise<void> => {
+  ): Promise<boolean> => {
     const wb = whiteboardRef.current;
-    const boxedRows = boxedAnswerRowsToCarry(boardLayoutRef.current.rects);
-    if (options.hold && wb && !cancelRef.current) {
+    const stopped = () => cancelRef.current || options.isCancelled?.() === true;
+    const boxedGroups = boxedAnswerRowsToCarry(boardLayoutRef.current.rects);
+    if (options.hold && wb && !stopped()) {
       const until = performance.now() + PAGE_TURN_HOLD_MS;
-      while (!cancelRef.current && performance.now() < until) {
+      while (!stopped() && performance.now() < until) {
         await new Promise<void>((resolve) => setTimeout(resolve, Math.min(100, Math.max(until - performance.now(), 0))));
       }
     }
-    if (wb && !cancelRef.current) {
+    if (stopped()) return false;
+    if (wb) {
       tutorDebug("draw", "layout erasing work area", {
         text: text?.slice(0, 60),
         rect_count: boardLayoutRef.current.rects.length,
-        carried_answers: boxedRows.length,
+        carried_answers: boxedGroups.reduce((count, group) => count + group.length, 0),
       });
       captureNotesEpoch();
-      await wb.eraseWorkInk(700, () => cancelRef.current);
+      // The wipe drops every work stroke before it animates, so once it has
+      // started the board is a fresh page whether or not the sweep finishes.
+      await wb.eraseWorkInk(700, stopped);
     }
     const diagramActive = fbdPhaseStartedRef.current;
     const survivingDiagramRects = diagramActive
@@ -273,26 +405,35 @@ export function useBoardLayout({
       : [];
     resetBoardLayout(true, true);
     boardLayoutRef.current.rects.push(...survivingDiagramRects);
-    if (boxedRows.length === 0 || cancelRef.current) return;
-    const carried = placeCarriedAnswerRows(boardLayoutRef.current, boxedRows, diagramActive);
+    if (boxedGroups.length === 0 || stopped()) return true;
+    const carried = placeCarriedAnswerRows(boardLayoutRef.current, boxedGroups, diagramActive);
     // A recording made before answers were carried starts its page at the
     // top. Writing the answers there would stack two rows on one line.
     const incoming = options.incoming;
-    if (incoming && carried.some((row) => textRectsOverlap(row, incoming))) return;
-    for (const row of carried) {
-      if (cancelRef.current) return;
-      const fontSize = row.fontSize ?? WORK_ROW_FONT_SIZE;
-      if (wb) {
-        const inkSettings = wb.getInkSettings();
-        await wb.writeText(row.text!, row.x, row.y, 0, undefined, fontSize, () => cancelRef.current, inkSettings);
-        await wb.drawAnnotation("box", emphasisBoxPath(row.x, row.y, row.width, row.height), 0, {
-          inkSettings,
-          shouldCancel: () => cancelRef.current,
-        });
+    if (incoming && carried.some((group) => group.some((row) => textRectsOverlap(row, incoming)))) return true;
+    for (const group of carried) {
+      if (stopped()) return true;
+      // Recorded before its ink, so a stop part way through a group leaves
+      // reserved space rather than unrecorded ink.
+      for (const row of group) {
+        registerBoardAnchor(boardLayoutRef.current, row);
+        boardLayoutRef.current.nextY = Math.max(boardLayoutRef.current.nextY, row.y + TEXT_LAYOUT.lineHeight);
       }
-      registerBoardAnchor(boardLayoutRef.current, row);
-      boardLayoutRef.current.nextY = Math.max(boardLayoutRef.current.nextY, row.y + TEXT_LAYOUT.lineHeight);
+      if (!wb) continue;
+      const inkSettings = wb.getInkSettings();
+      for (const row of group) {
+        if (stopped()) return true;
+        await wb.writeText(row.text!, row.x, row.y, 0, undefined, row.fontSize ?? WORK_ROW_FONT_SIZE, stopped, inkSettings);
+      }
+      if (stopped()) return true;
+      // One frame around the whole answer, as `[EMPHASIZE]` drew it.
+      const frame = rowGroupBounds(group);
+      await wb.drawAnnotation("box", emphasisBoxPath(frame.x, frame.y, frame.width, frame.height), 0, {
+        inkSettings,
+        shouldCancel: stopped,
+      });
     }
+    return true;
   }, [captureNotesEpoch, cancelRef, fbdPhaseStartedRef, resetBoardLayout, whiteboardRef]);
 
   const resolveTextPlacement = useCallback(
@@ -307,9 +448,22 @@ export function useBoardLayout({
        * Replay, the lecture player, export and board restore flow the same
        * rows through here and follow their recording without a hold.
        */
-      placement: { holdPageTurn?: boolean } = {},
+      placement: {
+        holdPageTurn?: boolean;
+        /** The rows one live WRITE wraps into share this group. */
+        rowGroup?: string;
+        /** The turn placing this row; an older turn never turns a newer turn's page. */
+        isCancelled?: () => boolean;
+      } = {},
       /** `maxWidth` is the work column at this row — callers must fit ink to it. */
     ): Promise<{ x: number; y: number; maxWidth: number }> => {
+      // A work row joins its WRITE's group: a box frames the whole group and a
+      // page turn carries it whole or not at all.
+      const asWorkRow = (rect: BoardTextRect): BoardTextRect => {
+        const identified = withWorkRowIdentity(boardLayoutRef.current, rect);
+        if (identified.x >= DIAGRAM_ZONE.x) return identified;
+        return { ...identified, ...workRowGroupFor(boardLayoutRef.current, command, rect.y, placement.rowGroup) };
+      };
       if (!applyLayout || !command.text) {
         if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
           const rect = {
@@ -331,12 +485,18 @@ export function useBoardLayout({
               fbdPhaseStartedRef.current,
             )
           ) {
-            await eraseWorkColumnForNewPage(command.text, { incoming: rect });
+            const turned = await eraseWorkColumnForNewPage(command.text, {
+              incoming: rect,
+              isCancelled: placement.isCancelled,
+            });
+            // Stopped before the wipe: the board still shows the old page,
+            // so this row is not recorded over it.
+            if (!turned) return { x, y, maxWidth: BOARD_WIDTH };
           }
           if (introLayoutCheckpoint) introLayoutCheckpoint.registerAnchor(rect);
           else registerBoardAnchor(
             boardLayoutRef.current,
-            command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
+            command.type === "WRITE" ? asWorkRow(rect) : rect,
           );
         }
         // Coordinates were supplied verbatim (replay, or a reserved row): the
@@ -378,13 +538,20 @@ export function useBoardLayout({
       let slot = findSlot();
 
       if (slot === null) {
-        await eraseWorkColumnForNewPage(command.text, { hold: placement.holdPageTurn === true });
-        layout = boardLayoutRef.current;
-        slot = findSlot() ?? {
+        const turned = await eraseWorkColumnForNewPage(command.text, {
+          hold: placement.holdPageTurn === true,
+          isCancelled: placement.isCancelled,
+        });
+        const fallback = {
           x: TEXT_LAYOUT.marginX,
-          y: getWorkAreaFlowStartY(layout),
+          y: getWorkAreaFlowStartY(boardLayoutRef.current),
           maxWidth: Math.max(DIAGRAM_ZONE.x - 28 - TEXT_LAYOUT.marginX, 40),
         };
+        // Stopped before the wipe: the page and its records stay as they are,
+        // and this row, which will never be written, reserves nothing.
+        if (!turned) return fallback;
+        layout = boardLayoutRef.current;
+        slot = findSlot() ?? fallback;
       }
 
       const rect = {
@@ -398,7 +565,7 @@ export function useBoardLayout({
       };
       registerBoardAnchor(
         boardLayoutRef.current,
-        command.type === "WRITE" ? withWorkRowIdentity(boardLayoutRef.current, rect) : rect,
+        command.type === "WRITE" ? asWorkRow(rect) : rect,
       );
       boardLayoutRef.current.nextY = Math.max(
         boardLayoutRef.current.nextY,
@@ -424,7 +591,14 @@ export function useBoardLayout({
    * says what to write, never how large.
    */
   const reserveTextCommandPlacements = useCallback(
-    async (command: DrawCommand): Promise<DrawCommand[]> => {
+    async (
+      command: DrawCommand,
+      options: {
+        /** The live turn reserving this row; see `eraseWorkColumnForNewPage`. */
+        isCancelled?: () => boolean;
+      } = {},
+    ): Promise<DrawCommand[]> => {
+      if (cancelRef.current || options.isCancelled?.() === true) return [];
       if (command.type !== "WRITE" || !command.text) return [command];
       const [x, y] = command.params;
       if (!Number.isFinite(x) || !Number.isFinite(y)) return [command];
@@ -437,6 +611,8 @@ export function useBoardLayout({
       if (lines.length === 0) return [];
 
       const placed: DrawCommand[] = [];
+      // Every row this WRITE wraps into is one answer.
+      const rowGroup = nextWorkRowGroup();
       for (const [index, line] of lines.entries()) {
         const indent = index === 0 ? 0 : WORK_CONTINUATION_INDENT;
         const row: DrawCommand = {
@@ -445,7 +621,14 @@ export function useBoardLayout({
           params: [TEXT_LAYOUT.marginX + indent, y, fontSize],
         };
         // Reservation is the live turn's own placement: a page turn here holds.
-        const slot = await resolveTextPlacement(row, row.params[0]!, y, true, undefined, { holdPageTurn: true });
+        const slot = await resolveTextPlacement(row, row.params[0]!, y, true, undefined, {
+          holdPageTurn: true,
+          rowGroup,
+          isCancelled: options.isCancelled,
+        });
+        // A stopped turn writes nothing more; the rows it did not reserve
+        // must not reach the pen.
+        if (cancelRef.current || options.isCancelled?.() === true) return placed;
         placed.push({
           ...row,
           params: [slot.x, slot.y, fontSize],
@@ -453,7 +636,7 @@ export function useBoardLayout({
       }
       return placed;
     },
-    [boardLayoutRef, fbdPhaseStartedRef, resolveTextPlacement],
+    [boardLayoutRef, cancelRef, fbdPhaseStartedRef, resolveTextPlacement],
   );
 
   return {

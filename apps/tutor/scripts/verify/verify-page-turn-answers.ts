@@ -242,7 +242,8 @@ function executorMarksBoxedRows() {
   assert(start >= 0 && end > start, "found the EMPHASIZE executor");
   const body = source.slice(start, end);
   const boxAt = body.indexOf('"box"');
-  const markAt = body.indexOf("row.boxed = true");
+  // The whole wrapped answer is marked (verify-wrapped-answer-groups).
+  const markAt = body.indexOf("markEmphasisGroupBoxed(answerRows)");
   assert(boxAt >= 0 && markAt > boxAt, "the executor marks a row boxed once its box is drawn");
   console.log("page turn answers: EMPHASIZE marks the row it boxed");
 }
