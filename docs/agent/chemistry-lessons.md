@@ -80,9 +80,12 @@ the complete source graph and checks planner scalars by species and role;
 only matching graph-bound labels gain numeric authority. Stripping family
 metadata cannot skip this check. Unknown or ambiguous derived roles decline,
 and projected angles or inequality bounds do not prove an exact measurement.
-The common plan audit still checks all other values. Run the offline tutor
-gate `scripts/verify/verify-vsepr-source-evidence.ts` for live/save/reopen,
-answer staging and graph/plan tampering controls.
+The common plan audit still checks all other values. A closed carbon bond
+line, such as CH2=C=O or CH3-CH=CH-C≡N, is declined: the formula reader
+must not split it into a fragment molecule or invent a charge on the bond
+hyphen. Separate formulas, including CH3- next to CH2, stay eligible. Run
+the offline tutor gate `scripts/verify/verify-vsepr-source-evidence.ts` for
+live/save/reopen, answer staging and graph/plan tampering controls.
 
 ## The subject test
 

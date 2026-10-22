@@ -10,7 +10,7 @@ import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/l
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
-import { VSEPR_PROBES } from "../../../../packages/scene-engine/src/chemistry/vsepr";
+import { buildVseprScene, isVseprStem, VSEPR_PROBES } from "../../../../packages/scene-engine/src/chemistry/vsepr";
 
 let checks = 0;
 function check(condition: unknown, message: string): asserts condition { checks++; assert.ok(condition, message); }
@@ -21,7 +21,7 @@ function makePlan(question: string): TurnPlanV3 {
 function quantity(symbol: string, value: number, sourceText: string, unit?: string): TurnPlanQuantityV3 {
   return { id: `q_${symbol}`, symbol, value, sourceText, ...(unit ? { unit } : {}), provenance: "derived" };
 }
-function fixture(question = "Use VSEPR to compare the molecular shapes of ClF3 and BrF5.") {
+function fixture(question = "Use VSEPR to compare the molecular shapes and bond angles of ClF3 and BrF5.") {
   const plan = makePlan(question);
   const fresh = synthesizeFamilyScene({ question, turnPlan: plan });
   check(fresh?.family === "chem_vsepr", "synthetic source must select native VSEPR");
@@ -64,6 +64,20 @@ async function main(): Promise<void> {
   check(labels.includes("quoted") && labels.includes("inequality"), "existing angle evidence labels are retained");
   check(certifyVseprSourceDocument(sample.document, sample.question, sample.plan).status === "certified", "native source graph earns a certificate");
 
+  const carbonChain = "State the hybridisation of each carbon atom in CH3-CH=CH-C≡N and in CH2=C=O.";
+  const ketene = "What is the hybridization of each carbon in CH2=C=O?";
+  const nitrile = "Assign hybridization at each carbon of CH2=CH-C≡N.";
+  for (const question of [carbonChain, ketene, nitrile]) {
+    check(isVseprStem(question) === false, "a closed carbon bond line is not a VSEPR species list");
+    check(buildVseprScene(question, [], false) === null, "a carbon bond line does not draw a split fragment");
+    const selectedChain = selectProductionScene({ question, turnPlan: makePlan(question), problemIR: null, requiredRetryEnabled: true });
+    check(selectedChain.representation?.sceneDocument?.source.chemistryFamily !== "chem_vsepr", "production selection does not admit the fragment figure");
+  }
+  const separateIons = "Compare the shapes of CH3- and CH2.";
+  check(isVseprStem(separateIons) && buildVseprScene(separateIons, [], false) !== null, "separate CH3- and CH2 formulas remain drawable");
+  const fragment = buildVseprScene(separateIons, [], false);
+  check(fragment !== null && certifyVseprSourceDocument(fragment, ketene, makePlan(ketene)).status === "rejected", "a fragment graph cannot be certified against the intact carbon chain");
+
   const facts = structuredClone(sample.plan);
   facts.givens = [
     { ...quantity("valenceCl", 7, "Chlorine has seven outer-shell electrons.", "electrons"), provenance: "given" },
@@ -85,7 +99,7 @@ async function main(): Promise<void> {
   unrelatedGiven.givens.push({ ...quantity("mass", 12, "An unrelated mass.", "g"), provenance: "given" });
   check(admitted(sample.document, sample.question, unrelatedGiven), "unused unrelated givens keep the ordinary generic audit");
 
-  const exact = fixture("Compare the VSEPR shapes and bond angles of ClF3 and XeF4.");
+  const exact = fixture("Use VSEPR to compare the molecular shapes and bond angles of ClF3 and XeF4.");
   exact.plan.derived = [
     quantity("angleClF3", 87.5, "Bond angle of ClF3 is 87.5 degrees.", "degrees"),
     quantity("angleXeF4", 90, "Bond angle of XeF4 is 90 degrees.", "degrees"),
