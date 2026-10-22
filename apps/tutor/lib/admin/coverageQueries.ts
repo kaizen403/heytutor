@@ -1,14 +1,30 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { aggregateCoverage, type CoverageFact, type CoverageWindow } from "./coverage";
+import { aggregateCoverage, COVERAGE_SCAN_BUDGET, type CoverageFact, type CoverageWindow } from "./coverage";
 
 /**
  * Only structured projections leave Postgres: no identities, source text,
  * full artifacts, geometry, narration or audio. Chapters were never saved;
  * NULL is intentional, not a guess based on the drawing family or question.
+ * `scoped` keeps the newest budget rows plus one witness; segment ink is read
+ * only for the rows that enter the report.
  */
 export function productionCoverageQuery(window: CoverageWindow): Prisma.Sql {
   return Prisma.sql`
-    WITH facts AS (
+    WITH scoped AS MATERIALIZED (
+      SELECT t.id, t.created_at
+      FROM turns t
+      WHERE t.kind = 'lesson' AND t.status IN ('complete', 'stopped')
+        AND COALESCE(t.scene_artifacts #>> '{boardContinuation,schemaVersion}', '') <> 'board-continuation/v1'
+        AND t.created_at >= ${new Date(window.from)} AND t.created_at < ${new Date(window.to)}
+      ORDER BY t.created_at DESC, t.id DESC
+      LIMIT ${COVERAGE_SCAN_BUDGET + 1}
+    ),
+    chosen AS (
+      SELECT id FROM scoped
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${COVERAGE_SCAN_BUDGET}
+    ),
+    facts AS (
       SELECT
         t.scene_artifacts #>> '{failureTelemetry,subject}' AS subject,
         NULL::text AS "chapterId",
@@ -28,15 +44,15 @@ export function productionCoverageQuery(window: CoverageWindow): Prisma.Sql {
           WHERE s.turn_id = t.id AND s.command -> 'trustedDiagramGeometry' = 'true'::jsonb
             AND ink ->> 'type' IN ('DRAW_LINE', 'DRAW_CIRCLE', 'DRAW_ARC', 'DRAW_RECT', 'DRAW_POINT', 'ARROW', 'DIMENSION')
             AND COALESCE(ink #>> '{visualStyle,strokeRole}', '') <> 'trace'
-        ) AS "hasTrustedInk"
+        ) AS "hasTrustedInk",
+        (SELECT COUNT(*) FROM scoped) AS "windowMatches"
       FROM turns t
-      WHERE t.kind = 'lesson' AND t.status IN ('complete', 'stopped')
-        AND COALESCE(t.scene_artifacts #>> '{boardContinuation,schemaVersion}', '') <> 'board-continuation/v1'
-        AND t.created_at >= ${new Date(window.from)} AND t.created_at < ${new Date(window.to)}
+      INNER JOIN chosen ON chosen.id = t.id
     )
     SELECT subject, "chapterId", requirement, "visualStatus", status, "degradationReason", "issueCodes",
-      "failureCode", "failureIssueCodes", "recordedUnknownIssueCount", strategy, "hasTrustedInk", COUNT(*) AS count
-    FROM facts GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12
+      "failureCode", "failureIssueCodes", "recordedUnknownIssueCount", strategy, "hasTrustedInk",
+      "windowMatches", COUNT(*) AS count
+    FROM facts GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13
   `;
 }
 
@@ -48,6 +64,7 @@ export async function loadProductionCoverage(database: PrismaClient, window: Cov
     if (state[0]?.readOnly !== "on") throw new Error("coverage_requires_read_only");
     await tx.$executeRaw`SET LOCAL statement_timeout = '15s'`;
     const facts = await tx.$queryRaw<CoverageFact[]>(productionCoverageQuery(window));
+    if (facts.length > 0 && facts.some(fact => fact.windowMatches == null)) throw new Error("coverage_scan_mismatch");
     return aggregateCoverage(facts, window);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 30_000 });
 }

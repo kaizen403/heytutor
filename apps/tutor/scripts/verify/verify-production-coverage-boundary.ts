@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { mock } from "node:test";
 import type { PrismaClient } from "@prisma/client";
-import type { CoverageFact, CoverageReport, CoverageWindow } from "../../lib/admin/coverage";
+import { COVERAGE_SCAN_BUDGET, type CoverageFact, type CoverageReport, type CoverageWindow } from "../../lib/admin/coverage";
 
 const load = createRequire(import.meta.url);
 const root = resolve(import.meta.dirname, "../..");
@@ -52,7 +52,8 @@ const compact = (sql: string) => sql.replace(/\s+/g, " ").trim();
 
 let denied = false;
 let readOnly: unknown = "on";
-let failure: "set" | "setting" | "facts" | null = null;
+let failure: "set" | "setting" | "facts" | "unbounded" | null = null;
+let pause: { entered: () => void; released: Promise<void> } | null = null;
 let transactions = 0;
 let factQueries = 0;
 let networkCalls = 0;
@@ -93,7 +94,9 @@ const tx = new Proxy({
     factQueries++;
     steps.push("facts");
     if (failure === "facts") throw new Error(canary);
-    return facts;
+    if (failure === "unbounded") return facts;
+    const lessons = facts.reduce((sum, row) => sum + Number(row.count), 0);
+    return facts.map(row => ({ ...row, windowMatches: lessons }));
   },
 }, { get(target, key) { return key in target ? Reflect.get(target, key) : deniedAccess(key); } });
 const db = new Proxy({
@@ -101,6 +104,12 @@ const db = new Proxy({
     transactions++;
     steps.push("transaction");
     transactionOptions.push(options);
+    const waiting = pause;
+    if (waiting) {
+      pause = null;
+      waiting.entered();
+      await waiting.released;
+    }
     return run(tx);
   },
 }, { get(target, key) { return key in target ? Reflect.get(target, key) : deniedAccess(key); } });
@@ -114,7 +123,7 @@ mock.module(resolve(root, "lib/auth/requireAdmin.ts"), { namedExports: {
 mock.module(resolve(root, "lib/db/prisma.ts"), { namedExports: { prisma: db } });
 
 function reset() {
-  denied = false; readOnly = "on"; failure = null;
+  denied = false; readOnly = "on"; failure = null; pause = null;
   transactions = 0; factQueries = 0; steps.length = 0;
   queries.length = 0; transactionOptions.length = 0;
 }
@@ -133,13 +142,18 @@ function assertSafeReport(report: CoverageReport) {
   assert.equal(report.emptyReasons.find(row => row.requirement === "none")?.lessons, 5,
     "legitimate no-figure results remain visible without becoming required failures");
   assert.equal(report.emptyReasons.find(row => row.evidence === "validated_without_saved_ink")?.lessons, 1);
+  assert.deepEqual(report.scan, { budget: COVERAGE_SCAN_BUDGET, scanned: 20, truncated: false });
+  assert(!JSON.stringify(report).includes("windowMatches"), "the witness count stays inside the scan flag");
   assert(!JSON.stringify(report).includes(canary), "untrusted dimensions, extra columns and diagnostic text stay private");
 }
 function assertQueryBoundary(query: RecordedQuery) {
   const sql = compact(query.sql);
   assert.doesNotMatch(sql, /\b(?:insert|update|delete|upsert|truncate|alter|drop|create|grant|revoke|copy)\b/i);
   assert.doesNotMatch(sql, /\b(?:question|raw_response|rawResponse|narration|spoken_text|audio_url|scene_document|trace_id|preview|title)\b/i);
-  assert.doesNotMatch(sql, /\b(?:limit|offset)\b/i, "the complete selected window cannot be truncated");
+  assert.doesNotMatch(sql, /\boffset\b/i, "coverage never pages with an offset");
+  assert.equal(sql.match(/\blimit\b/gi)?.length, 2, "the scan keeps the budget and one truncation witness");
+  assert.match(sql, /\bmaterialized\b/i);
+  assert.doesNotMatch(sql, /\b5000\b|\b5001\b/, "the scan budget is a bound parameter");
   assert.match(sql, /\bgroup\s+by\b/i, "database projects grouped counts, never per-student records");
   assert.match(sql, /failureTelemetry/);
   assert.match(sql, /visualRequirement/);
@@ -152,7 +166,7 @@ function assertQueryBoundary(query: RecordedQuery) {
   assert.match(sql, /created_at\s*<\s*\?/i, "end is exclusive and bound as data");
   assert.doesNotMatch(sql, /2026-10-01|2026-10-20/, "window values are never interpolated into SQL");
   assert.deepEqual(query.values.map(value => value instanceof Date ? value.toISOString().slice(0, 10) : value),
-    [window.from, window.to]);
+    [window.from, window.to, COVERAGE_SCAN_BUDGET + 1, COVERAGE_SCAN_BUDGET]);
 }
 const assertNotCached = (response: Response) => assert.match(response.headers.get("cache-control") ?? "", /(?:^|,)\s*no-store(?:,|$)/);
 
@@ -209,6 +223,32 @@ async function main() {
     assert.equal(factQueries, 1);
     assert.equal(steps[0], "auth");
 
+    reset();
+    let releaseHeld!: () => void;
+    let markEntered!: () => void;
+    const released = new Promise<void>(resolve => { releaseHeld = resolve; });
+    const entered = new Promise<void>(resolve => { markEntered = resolve; });
+    pause = { entered: markEntered, released };
+    const held = route.GET(request());
+    try {
+      await entered;
+      const busy = await route.GET(request());
+      assert.equal(busy.status, 429);
+      assertNotCached(busy);
+      assert.deepEqual(await busy.json(), { error: "coverage_busy" });
+      assert.equal(transactions, 1, "a busy response does not open a second transaction");
+      assert.equal(factQueries, 0, "a busy response does not read lesson rows");
+    } finally {
+      releaseHeld();
+      pause = null;
+    }
+    const finished = await held;
+    assert.equal(finished.status, 200);
+    assertSafeReport(await finished.json());
+    reset();
+    const afterBusy = await route.GET(request());
+    assert.equal(afterBusy.status, 200, "a finished coverage query releases its slot");
+
     for (const state of ["off", null, true, "ON"]) {
       reset(); readOnly = state;
       await assert.rejects(loadProductionCoverage(db as unknown as PrismaClient, window));
@@ -226,6 +266,14 @@ async function main() {
       assert.equal(typeof body.error, "string");
       assert.equal(factQueries, point === "facts" ? 1 : 0);
     }
+    reset();
+    failure = "unbounded";
+    const unbounded = await route.GET(request());
+    assert.equal(unbounded.status, 500, "a result without the scan witness fails closed");
+    assert.deepEqual(await unbounded.json(), { error: "coverage_failed" });
+    reset();
+    const recovered = await route.GET(request());
+    assert.equal(recovered.status, 200, "a failed coverage query releases its slot");
     assert.deepEqual(parseProductionCoverageArgs(["--from", window.from, "--to", window.to]), { help: false, window });
     assert.deepEqual(parseProductionCoverageArgs(["--to", window.to, "--from", window.from]), { help: false, window });
     assert.deepEqual(parseProductionCoverageArgs(["--help"]), { help: true });
@@ -260,7 +308,7 @@ async function main() {
     console.warn = originalWarn;
     mock.restoreAll();
   }
-  console.log("✓ production coverage boundary: admin-gated, read-only, bounded, complete and content-free");
+  console.log("✓ production coverage boundary: admin-gated, read-only, single-flight, scan-capped and content-free");
 }
 
 void main().catch(error => { console.error(error); process.exitCode = 1; });

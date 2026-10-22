@@ -30,7 +30,12 @@ return a generic 500 without exception or row details.
 
 Only saved `lesson` turns with status `complete` or `stopped` are included,
 selected by their creation time. Live checkpoints, doubt/resume turns and
-recorded board continuations are excluded. There is no sampling or row limit.
+recorded board continuations are excluded. A window of at most 5,000 matching
+lessons is complete (`scan.truncated` is false). A larger window keeps the
+newest 5,000 lessons (`scan.budget`) and sets `scan.truncated`.
+`scan.scanned` and every counter, including `savedLessons`, describe that
+scanned set. Counts still reconcile inside it. The report does not sample at
+random.
 
 | Counter | Saved evidence |
 | --- | --- |
@@ -54,9 +59,11 @@ Subject uses the saved closed `failureTelemetry.subject` enum. Historical
 missing subjects are `unknown`; they are never inferred from student words.
 **Current saved turns have no chapter binding.** Their chapter is explicitly
 `Unrecorded`. No topic, chapter, family or law is guessed from question text.
-The reducer can accept explicit checked-in taxonomy chapter IDs when a future
-save path supplies them; the current query intentionally supplies no chapter.
-Do not present the historical chapter table as chapter-level attribution.
+A chapter-classification pass would invent labels for history, so this report
+does not do one. The reducer can accept explicit checked-in taxonomy chapter
+IDs when a future save path supplies them; the current query intentionally
+supplies no chapter. Do not present the historical chapter table as
+chapter-level attribution.
 
 ## Empty diagnostics and privacy
 
@@ -76,10 +83,20 @@ degradation can mask a later fallback decision.
 The SQL selects scalar enum/code paths and a trusted-ink existence check, never
 questions, narration, names, emails, board titles, raw responses, full artifacts,
 geometry, audio, or trace links. Untrusted strings are collapsed to known enums
-or counts before serialization. Errors log a constant code only. Both readers
-start a repeatable-read transaction, set `READ ONLY`, check that PostgreSQL
-reports it as `on`, and fail closed otherwise. A 15-second statement timeout and
-30-second transaction timeout bound each request. There is no write option.
+or counts before serialization. The route answers a database failure with
+`coverage_failed` and logs only the constant `[admin] coverage_query_failed`.
+It does not log the exception object. The shared Prisma client still records
+driver errors, so a timeout, pool, or read-only failure may also print
+Prisma's own message. That message has no lesson row; the bound parameters
+are the two window dates and the scan budget. The CLI uses a separate client
+with logging off. One coverage query may run in a server process at a time.
+A second request receives `429` and `coverage_busy` and does not open another
+transaction. The page disables Apply and Refresh while its own request is in
+flight. Both readers start a repeatable-read transaction, set `READ ONLY`,
+check that PostgreSQL reports it as `on`, and fail closed otherwise. A
+15-second statement timeout and 30-second transaction timeout bound each
+request. There is no write option. A result that omits the scan witness fails
+closed.
 
 ## Synthetic verification
 
@@ -104,5 +121,6 @@ pnpm --filter @heytutor/tutor verify:production-coverage-db
 
 It checks the real SQL, inclusive/exclusive dates, complete/stopped lessons,
 continuation/doubt/resume/live exclusion, trusted versus untrusted/trace-only
-ink, unknowns, diagnostic conservation, suppression and source-text redaction.
+ink, unknowns, diagnostic conservation, suppression, source-text redaction,
+and the newest-5,000 scan cap.
 No schema migration or new provider configuration is required.
