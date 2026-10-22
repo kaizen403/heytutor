@@ -48,6 +48,11 @@ const restated = "A 120 m train at 20 m/s passes a 180 m platform. Find the time
 {
   // The normalisation is the one final selection uses.
   assert.equal(normalizeSceneSourceQuestion("  Speed  x² − 3 × 2 "), "speed x^2 - 3 * 2");
+  // π reads as pi, as main's normalizeQuestion did: a scene whose source
+  // spells "pi" for an asked "π" is the same question (PR #249 review).
+  assert.equal(normalizeSceneSourceQuestion("Area under y = sin x from 0 to π"), "area under y = sin x from 0 to pi");
+  assert.ok(sceneSourceQuestionMatches({ source: { question: "Area under y = sin x from 0 to pi" } }, "Area under y = sin x from 0 to π"),
+    "a scene planned for the pi spelling matches the asked π question");
   assert.ok(sceneSourceQuestionMatches({ source: { question: `  ${asked.toUpperCase()} ` } }, asked));
   assert.ok(!sceneSourceQuestionMatches({ source: { question: restated } }, asked));
   assert.ok(!sceneSourceQuestionMatches({ source: {} }, asked), "a missing source question is not an exact match");

@@ -245,6 +245,7 @@ export function normalizeSceneSourceQuestion(value: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
+    .replace(/π/g, "pi")
     .replace(/²/g, "^2")
     .replace(/³/g, "^3")
     .toLowerCase()
