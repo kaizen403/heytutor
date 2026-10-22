@@ -39,6 +39,29 @@ const VAGUE = [
 const MEASURED = /measured|residual|found|share no endpoint|revisit|listed twice|not a connector|relation holds|does not hold|Counted paths/i;
 const MAX_CHARS = 4000;
 
+/**
+ * The invalid_id refusals a candidate carries apart from its relation ids:
+ * the same candidate validated with every relation given an id. The relation
+ * id exemption must not hide any of them.
+ */
+const otherIdRefusals = (item: Item, candidate: SceneDocumentCandidate): string[] => {
+  const filled = structuredClone(candidate) as { relations?: unknown[] };
+  filled.relations = (filled.relations ?? []).map((relation, index) =>
+    typeof relation === "object" && relation !== null && !(relation as { id?: unknown }).id ? { ...relation, id: `relation_${index}_filled` } : relation);
+  return validateProductionSceneCandidate({ candidate: filled as never, question: item.question, turnPlan: item.turnPlan as never }).errors
+    .filter((error) => error.severity === "fatal" && error.code === "invalid_id").map((error) => error.path ?? "");
+};
+
+/** The relation id exemption covers relation ids alone: an entity that loses its id is still refused for it. */
+const entityIdStillRefuses = (item: Item, candidate: SceneDocumentCandidate) => {
+  const variant = structuredClone(candidate) as { entities?: Array<Record<string, unknown>> };
+  if (!variant.entities?.[0]?.id) return;
+  delete variant.entities[0].id;
+  const refused = validateProductionSceneCandidate({ candidate: variant as never, question: item.question, turnPlan: item.turnPlan as never });
+  check(!refused.valid && refused.errors.some((error) => error.severity === "fatal" && error.code === "invalid_id" && error.path === "entities[0].id"),
+    `${item.id}: an entity without an id is still refused with invalid_id beside the relation id exemption`);
+};
+
 const lines = (text: string) => text.split("\n").filter((line) => line.startsWith("- "));
 const numbers = (value: unknown): number[] => typeof value === "number" ? [value]
   : Array.isArray(value) ? value.flatMap(numbers) : typeof value === "object" && value !== null ? Object.values(value).flatMap(numbers) : [];
@@ -57,14 +80,23 @@ async function main(): Promise<void> {
     // (verify-v3-scene-validity), so a refusal recorded only for relation ids
     // now reaches the later stages: it is accepted, or refused for what the
     // id stage used to hide, and never again for a relation id.
+    // Any other invalid id the record was refused for must still refuse it
+    // (PR #249 review: the exemption once left those unchecked).
     const relationIdsOnly = item.codes.every((code) => code === "invalid_id") &&
       ((candidate as { relations?: unknown[] }).relations ?? []).some((relation) => !(relation as { id?: unknown } | null)?.id);
-    if (relationIdsOnly && validation.valid) continue;
+    const otherIds = relationIdsOnly ? otherIdRefusals(item, candidate) : [];
+    if (relationIdsOnly && otherIds.length === 0 && validation.valid) {
+      entityIdStillRefuses(item, candidate);
+      continue;
+    }
     check(!validation.valid, `${item.id}: still refused`);
     const errors = validation.errors as SceneRepairError[];
     const fatal = errors.filter((error) => error.severity === "fatal");
-    if (relationIdsOnly) check(!fatal.some((error) => error.code === "invalid_id" && /^relations\[/.test(error.path ?? "")), `${item.id}: a relation id no longer refuses the candidate`);
-    else for (const code of item.codes) check(fatal.some((error) => error.code === code), `${item.id}: still refused with ${code}`);
+    if (relationIdsOnly) {
+      check(!fatal.some((error) => error.code === "invalid_id" && /^relations\[/.test(error.path ?? "")), `${item.id}: a relation id no longer refuses the candidate`);
+      for (const path of otherIds) check(fatal.some((error) => error.code === "invalid_id" && error.path === path), `${item.id}: still refused with invalid_id at ${path}`);
+      entityIdStillRefuses(item, candidate);
+    } else for (const code of item.codes) check(fatal.some((error) => error.code === code), `${item.id}: still refused with ${code}`);
     const text = renderRepairErrors(candidate, errors);
     rendered.set(item.id, text);
     check(text === renderRepairErrors(candidate, errors) && JSON.stringify(candidate) === before, `${item.id}: rendering is deterministic and leaves the candidate unchanged`);
