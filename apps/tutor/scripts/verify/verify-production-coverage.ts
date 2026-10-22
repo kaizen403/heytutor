@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { aggregateCoverage, parseCoverageWindow, type CoverageFact } from "../../lib/admin/coverage";
+import { aggregateCoverage, coverageScan, COVERAGE_SCAN_BUDGET, parseCoverageWindow, type CoverageFact } from "../../lib/admin/coverage";
 
 const window = parseCoverageWindow(new URLSearchParams("from=2026-10-01&to=2026-10-08"));
 const fact = (extra: Partial<CoverageFact> = {}): CoverageFact => ({ subject: "physics", chapterId: null,
@@ -15,6 +15,7 @@ const report = aggregateCoverage([
   fact({ visualStatus: "validated", hasTrustedInk: false }),
 ], window);
 assert.equal(report.totals.savedLessons, 9);
+assert.deepEqual(report.scan, { budget: COVERAGE_SCAN_BUDGET, scanned: 9, truncated: false });
 assert.equal(report.totals.needed, 7);
 assert.equal(report.totals.neededDrawn, 3);
 assert.equal(report.totals.neededEmpty, 4);
@@ -28,6 +29,15 @@ assert(report.emptyReasons.some(row => row.evidence === "validated_without_saved
 assert(report.subjects.some(row => row.subject === "unknown"));
 assert(report.chapters.every(row => row.chapterId === null && row.chapter === "Unrecorded"));
 assert.equal(aggregateCoverage([], window).totals.savedLessons, 0);
+assert.deepEqual(aggregateCoverage([], window).scan, { budget: COVERAGE_SCAN_BUDGET, scanned: 0, truncated: false });
+const partial = aggregateCoverage([fact({ count: BigInt(COVERAGE_SCAN_BUDGET), windowMatches: COVERAGE_SCAN_BUDGET + 1 })], window);
+assert.equal(partial.totals.savedLessons, COVERAGE_SCAN_BUDGET);
+assert.deepEqual(partial.scan, { budget: COVERAGE_SCAN_BUDGET, scanned: COVERAGE_SCAN_BUDGET, truncated: true });
+assert.equal(partial.scan.truncated, true);
+assert.deepEqual(coverageScan([fact({ count: BigInt(COVERAGE_SCAN_BUDGET), windowMatches: COVERAGE_SCAN_BUDGET })]).truncated, false);
+assert.throws(() => coverageScan([fact({ count: 2n, windowMatches: 1 })]), /coverage_scan_mismatch/);
+assert.throws(() => coverageScan([fact({ windowMatches: 2 }), fact({ windowMatches: 3 })]), /coverage_scan_mismatch/);
+assert.throws(() => coverageScan([fact({ windowMatches: 2 }), fact({})]), /coverage_scan_mismatch/);
 assert.equal(aggregateCoverage([fact({ recordedUnknownIssueCount: 5 })], window).emptyReasons[0]!.unknownIssueCount, 5);
 const chapters = aggregateCoverage([fact({ chapterId: "physics|1" }), fact({ chapterId: "physics|2" })], window);
 assert.equal(chapters.chapters.length, 2, "an explicit taxonomy binding is grouped, not guessed");
