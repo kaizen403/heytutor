@@ -13,7 +13,9 @@ const handlerText = readFileSync(join(appRoot, "features/tutor-session/hooks/tur
 const handler = ts.createSourceFile("useQuestionHandler.ts", handlerText, ts.ScriptTarget.Latest, true);
 const awaitCurrentTurn = handler.statements.find((node) =>
   ts.isFunctionDeclaration(node) && node.name?.text === "awaitCurrentTurn");
-assert.ok(awaitCurrentTurn, "the production turn-continuation guard must exist");
+if (!awaitCurrentTurn || !ts.isFunctionDeclaration(awaitCurrentTurn)) {
+  throw new Error("the production turn-continuation guard must exist");
+}
 const start = handlerText.indexOf("const turnPlanStartedAt = Date.now();");
 const end = handlerText.indexOf("tel.meta({ diagram_subject: diagramSubject });");
 assert.ok(start >= 0 && end > start, "the production planner outcome block must exist");
