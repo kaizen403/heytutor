@@ -484,21 +484,6 @@ export function parseExamBondLines(text: string): BondLine[] {
   return lines;
 }
 
-/** Every written bond line, or a refusal when one of them fails valence.
- * A hybridization figure must not keep a later closed formula and drop the broken line. */
-export function readClosedBondLines(text: string): { status: "none" } | { status: "incomplete" } | { status: "ok"; lines: BondLine[] } {
-  const normalized = text.replace(/[–—−]/g, "-").replace(/≡/g, "#");
-  const matches = [...normalized.matchAll(BOND_LINE)];
-  if (matches.length === 0) return { status: "none" };
-  const lines: BondLine[] = [];
-  for (const match of matches) {
-    const parsed = bondLineFrom(match[0].replace(/\s+/g, ""));
-    if (!parsed) return { status: "incomplete" };
-    lines.push(parsed);
-  }
-  return { status: "ok", lines };
-}
-
 export function parseExamBondLine(text: string): BondLine | null {
   return parseExamBondLines(text)[0] ?? null;
 }
