@@ -91,6 +91,10 @@ assert(codes(lineDocument("y=4.5-.75x+(x-2)(x-6)")).includes("equation_label_con
     revealGroups: [{ id: "all", entityIds: ["ax", "c"], dependsOn: [], narrationCue: "Circle." }], teachingTimeline: [] });
   assert(codes(circle("y=2*x")).includes("equation_label_contradicts_geometry"), "a false label on an implicit curve is refused");
   assert(!codes(circle("x^2+y^2=4")).some((code) => code.startsWith("equation_label")), "the implicit curve's own equation passes");
+  assert(!codes(circle("1000*(x^2+y^2-4)=0")).some((code) => code.startsWith("equation_label")), "a scaled equation of the same curve passes");
+  const slow = lineDocument(`y=${"x".repeat(50)}z`); slow.quantities = [{ id: "xx", symbol: "xx", value: 1 }];
+  const started = Date.now(); codes(slow);
+  assert(Date.now() - started < 2000, "splitting a long name into known factors stays fast");
 }
 // 2. A polarity badge named as a field (B on a rod reads as a field along the rod).
 function badgeDocument(label: string | undefined, role: string): SceneDocument {

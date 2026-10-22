@@ -32,13 +32,17 @@ function equationOf(text: string): { lhs: string; rhs: string } | null {
 /** Split an implicit product of known names ("mx" = m·x, "kxy") into its factors, or null. */
 function factorNames(name: string, bound: ReadonlySet<string>): string[] | null {
   const known = [...bound, "x", "y"].filter(Boolean).sort((a, b) => b.length - a.length);
+  // Remember suffixes that cannot be split, so the search stays linear in the name.
+  const failed = new Set<string>();
   const walk = (rest: string): string[] | null => {
     if (!rest) return [];
+    if (failed.has(rest)) return null;
     for (const factor of known) {
       if (!rest.startsWith(factor)) continue;
       const tail = walk(rest.slice(factor.length));
       if (tail) return [factor, ...tail];
     }
+    failed.add(rest);
     return null;
   };
   return walk(name);
@@ -134,8 +138,15 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
     let undefinedAt = 0;
     const misses = points.some((point) => {
       try {
-        // Contour paths approximate an implicit curve; allow their grid error.
-        return Math.abs(relation.evaluate(point.x, point.y)) > (value?.kind === "multi_path" ? 0.05 : 1e-4) * scale;
+        // Compare distance from the labelled curve (|F| / |grad F|), so a scaled
+        // equation is judged like the plain one. Contours allow their grid error.
+        const f = relation.evaluate(point.x, point.y);
+        const h = 1e-6 * scale;
+        const gx = (relation.evaluate(point.x + h, point.y) - relation.evaluate(point.x - h, point.y)) / (2 * h);
+        const gy = (relation.evaluate(point.x, point.y + h) - relation.evaluate(point.x, point.y - h)) / (2 * h);
+        const gradient = Math.hypot(gx, gy);
+        const distance = gradient > 1e-12 ? Math.abs(f) / gradient : Math.abs(f) > 1e-9 ? Infinity : 0;
+        return distance > (value?.kind === "multi_path" ? 0.05 : 1e-4) * scale;
       } catch {
         undefinedAt += 1;
         return false;
