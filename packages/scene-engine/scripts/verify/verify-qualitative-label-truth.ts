@@ -38,6 +38,8 @@ assert(!compileSceneDocument(lineDocument("y - 3 = m(x - 2)")).ok, "flag off ref
 assert(compileSceneDocument(lineDocument("4y = 18 - 3x")).ok, "the member's own equation passes");
 assert(codes(lineDocument("y = 2*x")).includes("equation_label_contradicts_geometry"), "an equation the drawn line does not satisfy is refused");
 assert(codes(lineDocument("1e-13*(y-2*x)=0")).includes("equation_label_contradicts_geometry"), "a tiny scale factor does not hide a false equation");
+{ const multi = lineDocument("y=4.5+k12*x"); multi.quantities = [{ id: "k12", symbol: "k12", value: -0.75 }];
+  assert(!codes(multi).some((code) => code.startsWith("equation_label")), "a multi-digit quantity name stays whole"); }
 assert(!codes(lineDocument("y=4.5-0.75e0*x")).some((code) => code.startsWith("equation_label")), "an unsigned exponent is part of a number, not a name");
 assert(!codes(lineDocument("y - 3 = m(x - 2)", [undefined, undefined])).includes("equation_label_unbound_parameter"), "a representative line may carry its symbolic form");
 assert(compileSceneDocument(lineDocument("f(x)=4.5-0.75x")).ok, "function notation names the ordinate, not a free parameter");
