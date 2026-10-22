@@ -149,14 +149,14 @@ check("Lewis-unsupported-declines", () => {
   for (const formula of ["N2O5", "[Fe(CN)6]3-"]) assert.equal(api.lewisStructure(formula), null, formula);
 });
 for (const formula of ["MgCl2", "CaF2", "PbO2", "SiO2"]) check(`VSEPR-solid-${formula}`, () => assert.equal(api.vseprGeometry(formula), null));
-check("VSEPR-per-species-filter-preserves-CO2", () => {
+check("VSEPR-whole-request-preserves-supported-standalone-CO2", () => {
   assert.equal(api.vseprGeometry("CO2").shape, "linear");
   assert.equal(api.vseprGeometry("BeCl2").shape, "linear");
   assert.equal(api.vseprGeometry("XeF4").shape, "square planar");
   const results = api.vseprSpecies("Compare the shapes of SiO2 and CO2.");
-  assert.equal(results.length, 1);
-  assert.equal(results[0].central.symbol, "C");
-  compiled("VSEPR-CO2-option", api.buildVseprScene("Compare the shapes of SiO2 and CO2.", [], false));
+  assert.equal(results.length, 0, "an unsupported requested member must not disappear");
+  assert.equal(api.buildVseprScene("Compare the shapes of SiO2 and CO2.", [], false), null);
+  compiled("VSEPR-CO2-standalone", api.buildVseprScene("Draw the molecular shape of CO2.", [], false));
 });
 for (const [complex, geometry, unpaired, boxes] of [
   ["[NiCl2(PPh3)2]", "tetrahedral", 2, [[2, 2], [2, 1, 1]]],
@@ -308,15 +308,16 @@ function speciesProblem(question: string, names: readonly string[]): ProblemIR {
 // Existing general authority checks; F2 binding audits are deferred below.
 check("standalone-network-whole-IR-refusal", () => {
   const question = "Compare the shapes of SiO2 and CO2.";
-  const document: SceneDocument = api.buildVseprScene(question, [], false);
-  assert.ok(document, "eligible CO2 per-species geometry must remain");
+  assert.equal(api.buildVseprScene(question, [], false), null, "the raw request must refuse a supported subset even without IR");
+  const document: SceneDocument = api.buildVseprScene("Draw the molecular shape of CO2.", [], false);
+  assert.ok(document, "supported standalone CO2 must remain available");
   compiled("standalone-CO2-eligible-only", document);
   const problem = speciesProblem(question, ["SiO2", "CO2"]);
   const obligations = deriveVisualObligations(problem);
-  const result = checkVisualObligations(obligations, document);
+  const result = checkVisualObligations(obligations, document, question);
   assert.equal(result.satisfied, false);
   assert.ok(result.missing.some((miss) => miss.problemEntityIds.includes("species0")), "SiO2 obligation must remain missing");
-  assert.match(visualObligationRejection(obligations, document) ?? "", /SiO2/);
+  assert.match(visualObligationRejection(obligations, document, question) ?? "", /SiO2/);
   assert.equal(synthesizeFamilyScene({ question, problemIR: problem }), null, "full source IR must reject a CO2 fragment");
   assert.equal(api.buildVseprScene("Draw the molecular shape of SiO2.", [], false), null);
 });
@@ -326,11 +327,12 @@ check("standalone-supported-CO2-compiled-positive", () => {
   assert.ok(document);
   compiled("standalone-supported-CO2", document);
   assert.equal(api.vseprGeometry("CO2").shape, "linear");
-  // Ordinary body obligations cannot map a formula label to a whole molecule.
-  // Direct compile is not source-bound F2 admission; report that limit honestly.
+  // A formula label alone remains insufficient. The external question enables
+  // the bounded, freshly regenerated complete VSEPR structure witness.
   const problem = speciesProblem(question, ["CO2"]);
   assert.equal(checkVisualObligations(deriveVisualObligations(problem), document).satisfied, false);
-  assert.equal(synthesizeFamilyScene({ question, problemIR: problem }), null);
+  assert.equal(checkVisualObligations(deriveVisualObligations(problem), document, question).satisfied, true);
+  assert.equal(synthesizeFamilyScene({ question, problemIR: problem })?.family, "chem_vsepr");
 });
 check("composition-main-Pauli-complete-word", () => {
   assert.equal(api.isOrbitalStem("Explain the Pauli exclusion principle in the nitrogen atom."), true);

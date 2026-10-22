@@ -237,11 +237,14 @@ export function withEvaluatedOutputLabels(
   construction.outputs.forEach((id) => checkedOutputIds.add(id));
   if (labels.length !== construction.outputs.length) throw new Error("derived labels must match construction output arity");
   const byOutput = new Map(construction.outputs.map((id, outputIndex) => [id, labels[outputIndex]]));
+  // Verified-parts recovery may omit a generated label it could not attach.
+  const omitted = new Set(isVerifiedPartsEnabled(document) && Array.isArray(document.source.yieldUnlabelledPoints)
+    ? document.source.yieldUnlabelledPoints.filter((id): id is string => typeof id === "string") : []);
   return {
     ...document,
     entities: document.entities.map((entity) => {
       const label = byOutput.get(entity.id);
-      return label ? { ...entity, label } : entity;
+      return label && !omitted.has(entity.id) ? { ...entity, label } : entity;
     }),
   };
 }

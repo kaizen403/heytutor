@@ -52,6 +52,8 @@ export function studentBillingMessage(code: string): string {
     case "out_of_credits":
     case "daily_usd_limit":
       return OUT_OF_USAGE_TITLE;
+    case "retry_budget":
+      return "This attempt needs more usage than is available. Try a new question.";
     case "no_grant":
       return "Could not start the lesson";
     case "notes_limit":

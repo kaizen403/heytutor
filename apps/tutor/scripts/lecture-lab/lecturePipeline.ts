@@ -817,7 +817,7 @@ export async function runLecture(
       ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          { narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
+          { originalQuestion: question, turnPlan, narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
         )
       : null;
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {

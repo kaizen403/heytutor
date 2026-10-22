@@ -58,6 +58,30 @@ removing a short, load or source cannot establish a branch-count proof. The flag
 normalization and JSON round trips. Existing strict graph-path successes retain
 their prior behavior.
 
+## Capacitor terminals
+
+A capacitor uses the existing atomic component construction:
+
+```json
+{"operator":"symbol","inputs":{"symbol":"capacitor","start":"n1","end":"n2"},"outputs":["C"]}
+```
+
+Declare `C` as a `component` and `n1`/`n2` as terminal points. The engine owns
+two equal parallel plates, their positive gap and the two separate leads.
+Connect wires to the outer terminal IDs. Plate segments, their positions and
+their roles never establish a capacitor edge. A battery/capacitor loop closes
+through explicit symbol/connect edges; this proves schematic connectivity,
+not steady DC conduction through the dielectric. A physical plate/dielectric
+view needs its own proved geometry and cannot be guessed from this symbol.
+
+`source_loop_not_closed` identifies the disconnected source terminals and
+provides the component input contract. Its capacitor example is conditional;
+a negative mention must not instruct the planner to add a capacitor. Repair
+must attach each outer terminal to its intended node, never add a bypass or
+infer a plate-to-wire join. The same engine-owned closure proof also applies
+at the shared save boundary, including qualitative/question-representation
+payloads. Source question metadata cannot override the actual question there.
+
 ## Repair feedback and authority
 
 A failed `pathCount` reports its assertion id, requested terminal nodes, expected

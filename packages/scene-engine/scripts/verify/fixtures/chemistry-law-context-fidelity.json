@@ -1,0 +1,1052 @@
+{
+  "schema": "law-fidelity-source-context-science-golds/v1",
+  "createdAt": "2026-10-19T08:13:50.384943+00:00",
+  "beforeAnyTargetOutputs": true,
+  "head": "11ac2fa8f95a9d1617db4b7785253d32c8c1ad97",
+  "rows": [
+    {
+      "id": "native13-0-heldout-HCl-pH-grid",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "heldout14"
+    },
+    {
+      "id": "native13-1-canonical-XI-012",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration C and AgCl molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 291,
+                "end": 304
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "original31"
+    },
+    {
+      "id": "native13-2-pipeline-canonical-XI-012",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration C and AgCl molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 291,
+                "end": 304
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "original31"
+    },
+    {
+      "id": "native13-3-canonical-XI-012-original",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration C and AgCl molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 291,
+                "end": 304
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-4-heldout-AgBr-common-ion",
+      "question": "Excess solid AgBr is equilibrated at 298 K with solutions containing an initial NaBr concentration C. Plot the molar solubility s of AgBr against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 5.00*10^-13 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgBr present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgBr(s)",
+        "Ag+(aq)",
+        "Br-(aq)",
+        "NaBr",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaBr concentration C and AgBr molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgBr retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgBr(s) ⇌ Ag+(aq) + Br-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 291,
+                "end": 304
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgBr retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgBr retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "heldout14"
+    },
+    {
+      "id": "native13-5-canonical-XI-012-repeated-axis-agrees",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately. Use C on the horizontal axis and s on the vertical axis.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration C and AgCl molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 291,
+                "end": 304
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-6-canonical-XI-032-repeated-axis-agrees",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). Use log10(C/(mol L^-1)) on the horizontal axis and pH on the vertical axis.",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-7-pipeline-canonical-XI-032",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log₁₀(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log₁₀([H^+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "original31"
+    },
+    {
+      "id": "native13-8-canonical-XI-032-verb-synonym",
+      "question": "At 25 °C, Sketch pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-9-canonical-XI-012-verb-synonym",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Sketch the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration C and AgCl molar solubility s on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 293,
+                "end": 306
+              },
+              "text": "s(C+s) = K_sp"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is C+s.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is C+s.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-10-canonical-XI-032",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "original31"
+    },
+    {
+      "id": "native13-11-canonical-XI-032-original",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HCl",
+        "ideal",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-acid-identity",
+          "requiredInkAbsent": "HCl identity on this concentration-pH plot.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "presentTypedIdentityField": false,
+          "note": "The model x/y symbols identify logarithmic concentration and pH, but not the acid; source HCl identity currently survives as verified note text/question, not a dedicated chemical-identity field."
+        },
+        {
+          "id": "concentration-authority-relation",
+          "requiredInkAbsent": "[H+] = C under the stated fully-ionised ideal-acid approximation.",
+          "category": "model_relation_annotation",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "This is a symbolic relation explaining numeric authority, not new geometry. A future representation contract may place explanation in narration/work area, but locked present grades are unchanged."
+        },
+        {
+          "id": "fully-ionised-ideal-assumption",
+          "requiredInkAbsent": "Stated full-ionisation/ideal-acid qualification.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "Does not require a new diagram operator. Canonical source80 must_label asked for the qualification; this ledger does not retrospectively waive it."
+        },
+        {
+          "id": "water-neglect-domain-qualifier",
+          "requiredInkAbsent": "Water self-ionisation is neglected only over the supplied finite concentration interval.",
+          "category": "narration_only_model_assumption",
+          "visualFact": false,
+          "narrationOnlyAssumption": true,
+          "domainIsAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Fully ionised HCl: [H+] = C; water self-ionisation neglected only over supplied range."
+          ],
+          "note": "A limitation of the model, not an extra curve/shape. Current finite endpoints already prevent visual extrapolation; narration/work-area explanation is a separate boundary from the frozen visible-label rubric."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "native13-12-transfer-product-variables-values",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration D. Plot the molar solubility u of AgCl against D for D = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_prod = 8.00*10^-10 (mol L^-1)^2 in the concentration convention, use u(D+u) = K_prod. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic D axes show D = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "equilibrium",
+        "AgCl(s)",
+        "Ag+(aq)",
+        "Cl-(aq)",
+        "NaCl",
+        "suppression"
+      ],
+      "originalLockedObligations": [
+        {
+          "id": "source-solute-and-solubility-identities",
+          "requiredInkAbsent": "Initial added NaCl concentration D and AgCl molar solubility u on the axes/title.",
+          "category": "visual_source_identity",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "presentTypedIdentityField": false,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is D+u.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "The numeric x/y axes are generic symbols with correct units; species names are absent. The retained solid is in model notes but the initial soluble-salt identity is not a dedicated model field."
+        },
+        {
+          "id": "dissolution-equilibrium",
+          "requiredInkAbsent": "AgCl(s) ⇌ Ag+(aq) + Cl-(aq).",
+          "category": "visible_chemical_relation_in_frozen_rubric",
+          "visualFact": true,
+          "narrationOnlyAssumption": false,
+          "couldBeExplainedInNarrationOrWorkArea": true,
+          "frozenCanonicalRubricRequiresVisibleLabel": true,
+          "presentTypedEquilibriumField": false,
+          "modelEvidence": {
+            "relationSource": {
+              "span": {
+                "start": 293,
+                "end": 308
+              },
+              "text": "u(D+u) = K_prod"
+            },
+            "notes": [
+              "Positive root; total common-ion concentration is D+u.",
+              "Excess AgCl retained; supplied concentration-equilibrium model.",
+              "Zero datum is separate from logarithmic axes."
+            ]
+          },
+          "note": "The actual numeric model proves the quadratic law and retained solid but carries no explicit typed ion-equilibrium object. Do not invent this annotation from arbitrary role/caption strings."
+        },
+        {
+          "id": "common-ion-suppression-explanation",
+          "requiredInkAbsent": "Common-ion suppression / total equilibrium common-ion concentration is added concentration plus dissolved salt.",
+          "category": "narration_explanation_requested_as_label_by_frozen_rubric",
+          "visualFact": false,
+          "narrationOnlyAssumption": false,
+          "narrationOnlyExplanation": true,
+          "fallingCurveAlreadyVisuallyCorrect": true,
+          "modelEvidence": [
+            "Positive root; total common-ion concentration is D+u.",
+            "Excess AgCl retained; supplied concentration-equilibrium model.",
+            "Zero datum is separate from logarithmic axes."
+          ],
+          "note": "Explanation of the already-correct curve; not another required geometric operator. Existing canonical must_label required visible wording, so locked PARTIAL remains."
+        }
+      ],
+      "cohort": "independent74"
+    },
+    {
+      "id": "AgI-transfer",
+      "question": "Excess solid AgI is equilibrated at 298 K with solutions containing an initial NaI concentration C. Plot the molar solubility s of AgI against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgI present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true,
+      "kind": "common-ion",
+      "mustShow": [
+        "AgI(s)",
+        "Ag+(aq)",
+        "I-(aq)",
+        "NaI",
+        "equilibrium",
+        "suppression"
+      ]
+    },
+    {
+      "id": "HBr-transfer",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HBr against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HBr",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ]
+    },
+    {
+      "id": "HNO3-transfer",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HNO3 against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "kind": "ideal-acid",
+      "mustShow": [
+        "HNO3",
+        "fully ionised",
+        "[H+]=C",
+        "water ionisation",
+        "neglected",
+        "range only"
+      ]
+    },
+    {
+      "id": "unsupported-monatomic-MgCl",
+      "question": "Excess solid MgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of MgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid MgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "unsupported-monatomic-ZnCl",
+      "question": "Excess solid ZnCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of ZnCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid ZnCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "unsupported-monatomic-HgCl",
+      "question": "Excess solid HgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of HgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid HgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "unsupported-monatomic-BrCl",
+      "question": "Excess solid BrCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of BrCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid BrCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "cross-request",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgBr against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "cross-donor",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaBr concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "wrong-common-relation",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C-s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "wrong-pressure-dimension",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 bar in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false,
+      "kind": "common-ion",
+      "mustShow": []
+    },
+    {
+      "id": "partial-acid",
+      "question": "At 25 °C, plot pH of ideal partly ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": false,
+      "kind": "ideal-acid",
+      "mustShow": []
+    },
+    {
+      "id": "wrong-acid-balance",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). Also use [H+] = 2C.",
+      "draw": false,
+      "kind": "ideal-acid",
+      "mustShow": []
+    }
+  ],
+  "mutations": [
+    {
+      "id": "raw-cross-species-label",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-wrong-ion-charge",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-missing-context",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-wrong-context-relation",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-source-question-mismatch",
+      "expectedValid": false
+    },
+    {
+      "id": "model-forged-context",
+      "expectedValid": false
+    },
+    {
+      "id": "model-changed-physical-relation",
+      "expectedValid": false
+    },
+    {
+      "id": "paint-cross-species",
+      "expectedValid": false
+    },
+    {
+      "id": "paint-invisible-context",
+      "expectedValid": false
+    }
+  ],
+  "rules": "13 original locked obligations remain unchanged. Mutation tests must inspect actual emitted raw document + ordinary compiled paint, with external exact question source. No context flag/caption-only or native opening/admission waiver."
+}
