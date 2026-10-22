@@ -58,6 +58,13 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
   const uncommitted = input.visualStatus == null || (UNCOMMITTED_VISUAL_STATUSES as readonly string[]).includes(input.visualStatus);
   if (uncommitted) {
     const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
+    // The planner may skip a figure the plan did not require. That taught
+    // lesson is the text outcome, not a failed turn. A required figure stays
+    // a failure even when narration was saved.
+    if (code === "planner_declined" && taught === true &&
+      (plan.visualRequirement === "optional" || plan.visualRequirement === "none")) {
+      return verdict("healthy");
+    }
     if (code) return verdict("failed", code);
   }
   if (input.visualStatus === "retry_required") return verdict("failed", "required_visual_unavailable");

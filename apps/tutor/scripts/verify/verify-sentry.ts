@@ -813,6 +813,24 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     { stage: "scene_planner", code: "transport_error" });
   strictAssert.deepEqual(telemetry.sceneRequestFailureTelemetry({ httpStatus: 200, bodyParsed: true, errorPresent: false, declined: true, timedOut: false }),
     { stage: "scene_planner", code: "planner_declined" });
+  const taughtNarration = [{ narration: "Synthetic taught narration." }];
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn, visualStatus: "text_only", segments: taughtNarration,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "optional" },
+      failureTelemetry: { subject: "physics", stage: "scene_planner", code: "planner_declined" },
+    },
+  }, failureEnv), null, "an optional figure the planner skips is not a failed taught lesson");
+  const requiredDecline = telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn, visualStatus: "text_only", segments: taughtNarration,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "required" },
+      failureTelemetry: { subject: "physics", stage: "scene_planner", code: "planner_declined" },
+    },
+  }, failureEnv);
+  assert(requiredDecline, "a required figure the planner skips still fails");
+  strictAssert.equal(requiredDecline.tags.code, "planner_declined");
+  strictAssert.equal(requiredDecline.tags.figure_need, "required");
   const relevanceFailure = telemetry.buildFailedTurnSentryEvent({ ...failedTurn, sceneArtifacts: {
     turnPlan: { visualRequirement: "required" },
     failureTelemetry: { subject: "physics", stage: "validation", code: "scene_relevance_rejected" },
