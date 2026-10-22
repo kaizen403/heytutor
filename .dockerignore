@@ -20,6 +20,14 @@ dist
 **/dist
 coverage
 **/coverage
+# Staff coverage routes share the directory name. Re-include the directory
+# before its files; excluding a directory blocks every file inside it.
+!apps/tutor/app/admin/(panel)/coverage/
+!apps/tutor/app/admin/(panel)/coverage/**
+!apps/tutor/app/api/admin/coverage/
+!apps/tutor/app/api/admin/coverage/**
+!data/question-bank/reports/coverage/
+!data/question-bank/reports/coverage/**
 *.tsbuildinfo
 
 .DS_Store

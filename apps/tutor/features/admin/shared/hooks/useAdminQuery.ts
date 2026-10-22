@@ -18,6 +18,7 @@ interface FetchState<T> {
 function errorForStatus(status: number): string {
   if (status === 401) return "unauthorized";
   if (status === 404) return "not_found";
+  if (status === 429) return "busy";
   return "request_failed";
 }
 
