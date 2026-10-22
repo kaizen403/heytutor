@@ -781,6 +781,31 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   strictAssert.equal(diagnosed?.stage, undefined);
   strictAssert.equal(diagnosed?.requestCount, 16);
   strictAssert.deepEqual(diagnosed?.issueCodes, ["scene_without_readable_label"], "unknown diagnostic strings cannot carry identity");
+  const quantityFailure = telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "required" },
+      failureTelemetry: { subject: "chemistry", failed: true, stage: "validation", code: "candidate_invalid" },
+      degradation: {
+        reason: "candidate_invalid",
+        candidateCount: 3,
+        issueCodes: ["displayed_quantity_unverified", "scene_quantity_mismatch", "synthetic_private_issue"],
+      },
+    },
+  }, failureEnv);
+  assert(quantityFailure, "a quantity-agreement rejection still produces a failed-turn event");
+  strictAssert.equal(quantityFailure.tags.subject, "chemistry");
+  strictAssert.equal(quantityFailure.tags.stage, "validation");
+  strictAssert.equal(quantityFailure.tags.code, "candidate_invalid");
+  strictAssert.equal(quantityFailure.tags.figure_need, "required");
+  strictAssert.deepEqual(quantityFailure.extra.issue_codes, ["displayed_quantity_unverified", "scene_quantity_mismatch", "unknown_issue"]);
+  strictAssert.equal(quantityFailure.extra.unknown_issue_count, 1, "only the unrecognized issue code is counted as unknown");
+  strictAssert.equal(quantityFailure.extra.validation_issue_count, 3);
+  strictAssert.equal(quantityFailure.extra.candidate_count, 3);
+  const scrubbedQuantity = scrubSentryEvent(quantityFailure);
+  strictAssert.deepEqual(scrubbedQuantity.extra?.issue_codes, ["displayed_quantity_unverified", "scene_quantity_mismatch", "unknown_issue"],
+    "the privacy boundary keeps the same validation codes");
+  assert(!JSON.stringify(scrubbedQuantity).includes("synthetic_private_issue"), "an unrecognized issue code cannot pass the privacy boundary");
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "timeout", httpStatus: null }), { stage: "turn_plan", code: "planner_deadline" });
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "http_error", httpStatus: 429 }), { stage: "turn_plan", code: "rate_limit" });
   strictAssert.equal(telemetry.turnPlanFailureTelemetry({ code: "accepted", httpStatus: 200 }), undefined);
@@ -788,6 +813,24 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     { stage: "scene_planner", code: "transport_error" });
   strictAssert.deepEqual(telemetry.sceneRequestFailureTelemetry({ httpStatus: 200, bodyParsed: true, errorPresent: false, declined: true, timedOut: false }),
     { stage: "scene_planner", code: "planner_declined" });
+  const taughtNarration = [{ narration: "Synthetic taught narration." }];
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn, visualStatus: "text_only", segments: taughtNarration,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "optional" },
+      failureTelemetry: { subject: "physics", stage: "scene_planner", code: "planner_declined" },
+    },
+  }, failureEnv), null, "an optional figure the planner skips is not a failed taught lesson");
+  const requiredDecline = telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn, visualStatus: "text_only", segments: taughtNarration,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "required" },
+      failureTelemetry: { subject: "physics", stage: "scene_planner", code: "planner_declined" },
+    },
+  }, failureEnv);
+  assert(requiredDecline, "a required figure the planner skips still fails");
+  strictAssert.equal(requiredDecline.tags.code, "planner_declined");
+  strictAssert.equal(requiredDecline.tags.figure_need, "required");
   const relevanceFailure = telemetry.buildFailedTurnSentryEvent({ ...failedTurn, sceneArtifacts: {
     turnPlan: { visualRequirement: "required" },
     failureTelemetry: { subject: "physics", stage: "validation", code: "scene_relevance_rejected" },

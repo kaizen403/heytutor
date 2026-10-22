@@ -30,7 +30,21 @@ export const FAILED_TURN_ISSUE_CODES = [
   "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch",
   "scene_without_readable_label", "planner_declined_required_scene", "unsupported_operator",
   "scene_source_question_mismatch", "scene_solver_plan_contradiction", "solver_value_mismatch",
-  "numeric_authority_contradiction", "unknown_issue",
+  "numeric_authority_contradiction",
+  // Fatal scene-validation identifiers. Candidate admission promotes these to
+  // fatal; free-text messages and dynamic suffixes stay unknown_issue.
+  "displayed_quantity_unverified", "scene_quantity_unverified", "scene_quantity_mismatch", "scene_unit_mismatch",
+  "invalid_projectile_trajectory_units",
+  "matrix_source_input_unsupported", "matrix_source_missing_program",
+  "spherical_refraction_image_disagrees",
+  "coordinate_source_unsupported", "coordinate_source_input_unsupported", "coordinate_source_mismatch",
+  "point_line_source_unsupported", "point_line_source_ambiguous", "point_line_source_input_unsupported",
+  "point_line_source_line_mismatch", "point_line_drawn_line_mismatch", "point_line_source_point_mismatch",
+  "section_source_unsupported", "section_source_mismatch",
+  "turnplan_loop_member_not_proven", "turnplan_loop_member_bypassed", "turnplan_route_direction_not_proven",
+  "source_loop_not_closed", "physical_vector_mixed_coordinate_spaces", "physical_relation_mixed_coordinate_spaces",
+  "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
+  "unknown_issue",
 ] as const;
 export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "mock", "unknown"] as const;
 
