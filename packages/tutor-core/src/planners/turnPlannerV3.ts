@@ -34,7 +34,7 @@ export interface TurnPlannerV3Options {
  * authority: only its issues reach the corrected retry
  * (`turnPlanRetryFeedback`).
  */
-export interface RejectedTurnPlanV3 {
+interface RejectedTurnPlanV3 {
   lane: "primary" | "alternate";
   requestKind: TurnPlanRequestOutcome["requestKind"];
   /** The normalized, arithmetic-reconciled plan object the validator refused. */
@@ -421,7 +421,7 @@ export function createFallbackTurnPlanV3(question: string): TurnPlanV3 {
  * Each path is resolved to the quantity or claim id it points at, so the
  * model can act on "derived[1]" without seeing the rejected plan.
  */
-export function turnPlanRetryFeedback(rejections: readonly RejectedTurnPlanV3[]): string | null {
+function turnPlanRetryFeedback(rejections: readonly RejectedTurnPlanV3[]): string | null {
   const seen = new Set<string>();
   const lines: string[] = [];
   for (const rejection of rejections) {
@@ -585,7 +585,8 @@ function enforceMinimumVisualRequirement(plan: TurnPlanV3, question: string): Tu
 
 /**
  * Intermediate states of one lane's post-HTTP parse, filled in when a caller
- * passes an observer. Offline gates read it; the live path passes nothing.
+ * passes an observer. Offline gates read it, and the live path passes one on
+ * every lane so a refused plan's validator issues reach the corrected retry.
  */
 export interface TurnPlanV3ParseTrace {
   normalized?: unknown;
