@@ -125,16 +125,19 @@ export function readOrganicReactionSource(question: string, mentions: readonly R
     if (/\bstereo(?:isomers|cent(?:re|er)s?)\b/i.test(match[0]) && !stereo) return decline("requested stereochemical result has no computed graph proof");
     if (/\b(?:count|number of|how many)\b/i.test(match[0]) && /\bstereoisomers\b/i.test(match[0])) requestedStereoCount = true;
     if (/\bcarbon count\b|\bnumber of carbon atoms\b/i.test(match[0])) requestedCarbonCount = true;
+    if (/\bcarbon atom (?:lost|removed)\b/i.test(match[0])
+      && transformed.product.atoms.filter(atom => atom.element === "C").length >= reactant.atoms.filter(atom => atom.element === "C").length) {
+      return decline("requested lost carbon is not removed");
+    }
     own(match.index!, match.index! + match[0].length, "requested reaction result"); requestCount++;
   }
   for (const match of question.matchAll(/\b(?:and|when)\b/gi)) own(match.index!, match.index! + match[0].length, "request coordination");
   const leftovers = [...question.matchAll(/[\p{L}\p{N}]/gu)].filter(match => consumed.slice(match.index!, match.index! + match[0].length).some(owned => !owned));
   if (!requestCount || leftovers.length) return decline("unconsumed reaction source or request");
-  if (radicalClaim && radicalProductNamingRequested(question)) {
+  if (radicalClaim && radicalProductNamingRequested(question) && productRole === "product") {
     const proved = radicalBromoalkaneName(transformed.product);
     if (!proved) return decline("unsupported complete product name");
-    if (productRole === "product") transformed.product.name = proved;
-    else if (productRole !== proved) return decline("requested product name is not the computed graph name");
+    transformed.product.name = proved;
   }
   return { status: "source", model: { question, kind: radicalClaim ? "radical_hbr" : "hofmann", reactant, ...transformed, bindings, productRole,
     ...(stereo ? { stereo } : {}), requestedStereoCount, requestedCarbonCount, carbonCounts: [reactant, transformed.product].map(molecule => molecule.atoms.filter(atom => atom.element === "C").length), gabrielExcluded } };

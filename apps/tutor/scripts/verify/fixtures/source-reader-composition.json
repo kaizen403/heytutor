@@ -32,6 +32,8 @@
   { "id": "radical-name-branched-declined", "kind": "reaction", "question": "2-Methylbut-1-ene reacts with HBr and peroxide. Draw and name the product.", "draw": false },
   { "id": "radical-carbon-count", "kind": "reaction", "question": "Propene reacts with HBr and peroxide. Draw the product and show how the carbon count changes.", "draw": true, "product": "product", "productRole": "product", "smiles": "CCCBr", "carbonCount": [3, 3] },
   { "id": "radical-carbon-count-treated", "kind": "reaction", "question": "Propene is treated with HBr in the presence of peroxide. Show how the carbon count changes.", "draw": true, "product": "product", "productRole": "product", "smiles": "CCCBr", "carbonCount": [3, 3] },
+  { "id": "radical-alias-name", "kind": "reaction", "question": "Propene reacts with HBr and peroxide to give propyl bromide. Draw and name the product.", "draw": true, "product": "propyl bromide", "smiles": "CCCBr" },
+  { "id": "radical-lost-carbon-declined", "kind": "reaction", "question": "Propene reacts with HBr and peroxide. Draw the product and show the carbon atom lost.", "draw": false },
   { "id": "named-radical-form-transfer", "kind": "reaction", "question": "But-1-ene reacts with HBr in the presence of peroxide to form 1-bromobutane. Draw the product.", "draw": true, "product": "1-bromobutane", "smiles": "CCCCBr" },
   { "id": "named-hofmann-produce-transfer", "kind": "reaction", "question": "Propanamide is treated with Br2 and aqueous NaOH to produce ethanamine. Draw the product.", "draw": true, "product": "ethanamine", "smiles": "CCN" },
   { "id": "named-wrong-regioisomer", "kind": "reaction", "question": "Propene reacts with HBr in presence of peroxide to give 2-bromopropane. Draw the product.", "draw": false },

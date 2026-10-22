@@ -4,7 +4,7 @@ import { ChemScene } from "../sceneKit";
 import { layoutBounds, layoutMolecule } from "./layout";
 import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { radicalProductNamingRequested, type OrganicReactionSource } from "./reactionSource";
-import { asymmetricTreeStereo, radicalBromoalkaneName, sourceGraphProductHolds } from "./reactionGraph";
+import { asymmetricTreeStereo, radicalBromoalkaneName, radicalDisplayedNameHolds, sourceGraphProductHolds } from "./reactionGraph";
 
 export function buildOrganicReactionFigure(question: string, model: OrganicReactionSource): SceneDocument | null {
   if (question !== model.question) return null;
@@ -12,9 +12,10 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
   if (model.kind === "radical_hbr") {
     const proved = radicalBromoalkaneName(model.product);
     const naming = radicalProductNamingRequested(question);
-    if (naming) {
-      const visible = model.product.name ?? model.productRole;
-      if (!proved || visible !== proved) return null;
+    if (naming && model.productRole === "product") {
+      if (!proved || model.product.name !== proved) return null;
+    } else if (naming && !/^(?:addition )?product(?: [A-Z])?$/.test(model.productRole)) {
+      if (!radicalDisplayedNameHolds(model.product, model.productRole)) return null;
     } else if (model.product.name !== undefined) return null;
   }
   const carbonCounts = [model.reactant, model.product].map(molecule => molecule.atoms.filter(atom => atom.element === "C").length);

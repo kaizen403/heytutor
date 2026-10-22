@@ -159,6 +159,13 @@ export function primaryAmineName(product: Molecule): string | null {
   return parsed && sameMolecularGraph(product, parsed) ? name : null;
 }
 
+/** A displayed radical name must be the proved systematic name or a graph-identical alias. */
+export function radicalDisplayedNameHolds(product: Molecule, visible: string): boolean {
+  if (visible === radicalBromoalkaneName(product)) return true;
+  const parsed = moleculeFromName(visible);
+  return parsed !== null && sameMolecularGraph(product, parsed);
+}
+
 /** Recheck a proposed product by the allowed atom edit, not by a proof flag or name. */
 export function sourceGraphProductHolds(kind: "radical_hbr" | "hofmann", reactant: Molecule, proposed: GraphProduct): boolean {
   const expected = kind === "radical_hbr" ? addRadicalHBr(reactant) : degradePrimaryAmide(reactant);
