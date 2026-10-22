@@ -703,6 +703,14 @@ assert(
 if (wheatstoneScene) {
   assert(wheatstoneScene.family === "circuit_network", "Wheatstone must use circuit_network");
 }
+const wheatstoneKirchhoff = "Draw a Wheatstone bridge and explain its balance using Kirchhoff's laws.";
+for (const [route, produce] of [["ordinary", synthesizeFamilyScene], ["last", synthesizeLastResortScene]] as const) {
+  const scene = produce({ question: wheatstoneKirchhoff, families: ["circuit_network"] });
+  assert(scene, `${route} must keep the Wheatstone bridge when Kirchhoff is the explanation`);
+  assert(scene.family === "circuit_network", `${route} Wheatstone stays a circuit`);
+  assert(scene.document.source.archetype === "wheatstone_bridge", `${route} must not replace the bridge with a law example`);
+  assert(scene.document.source.sourceModel !== "circuit_law_example", `${route} Kirchhoff mention is not a symbolic law example`);
+}
 
 const kirchhoffQuestion =
   "Draw a labelled diagram for Kirchhoff's laws and their applications. Show the circuit symbols and labelled terminals.";

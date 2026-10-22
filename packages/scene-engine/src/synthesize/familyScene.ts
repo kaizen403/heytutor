@@ -273,13 +273,18 @@ function synthesizeFromFamilies(
       return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
         reason: "Both source resistor arrangements and their deterministically computed equivalent resistances." };
     }
-    if (circuitExample.status !== "example") return null;
-    const document = buildCircuitLawExample(question);
-    const compiled = document ? tryCompile(document) : null;
-    if (!compiled || demandRejection(compiled.document, demand)
-      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
-    return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
-      reason: "Explicitly illustrative symbolic law example; reference arrows are not solved currents or supplied topology." };
+    if (circuitExample.status !== "example") {
+      // Kirchhoff beside a named bridge explains that apparatus. It is not a
+      // request to replace the bridge with a symbolic law example.
+      if (!/\b(?:wheatstone|met(?:er|re)\s*bridge|potentiometer)\b/i.test(question)) return null;
+    } else {
+      const document = buildCircuitLawExample(question);
+      const compiled = document ? tryCompile(document) : null;
+      if (!compiled || demandRejection(compiled.document, demand)
+        || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+      return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+        reason: "Explicitly illustrative symbolic law example; reference arrows are not solved currents or supplied topology." };
+    }
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
