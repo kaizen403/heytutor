@@ -110,6 +110,8 @@ type Event = { atMs: number; name: string; data?: unknown };
 const HELD_PLANNER_MS = 15_000;
 export interface FrozenStartupFixture {
   plan: TurnPlanV3;
+  /** Captured provider output appended after the stock teaching steps. */
+  teachingTail?: string;
   /** Frozen, compiled planner output; all presentation/control/handler paths remain real. */
   stopBeforeFigure?: {
     representation: NonNullable<ReturnType<typeof selectFastVerifiedRepresentation>>;
@@ -1204,6 +1206,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         }
         record("usable-step-delivered");
         content(active, "The range follows from horizontal motion.[WRITE:R = u t,80,150][/STEP]\n[STEP]The flight time comes from vertical motion.[WRITE:t = 2 u sin(theta) / g,80,205][/STEP]");
+        if (fixture?.teachingTail) content(active, fixture.teachingTail);
         finishStream(active);
       }
       await pump(() => done);
@@ -1338,6 +1341,10 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       ...(mode === "hinglish-opening" ? {
         playbacks: events.filter((event) => event.name === "playback").map((event) => event.data),
         prefetched: events.filter((event) => event.name === "opening-prefetch").map((event) => event.data),
+      } : {}),
+      ...(fixture?.teachingTail ? {
+        collected: lifecycle.collectedSegmentsRef.current,
+        recorded: lifecycle.recordedSegmentsRef.current,
       } : {}) };
   } finally {
     detachOpeningMirror();

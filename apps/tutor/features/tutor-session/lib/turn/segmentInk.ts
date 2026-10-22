@@ -118,6 +118,8 @@ export type SegmentInkClock = {
   /** Holds a word wait without spending its deadline while the lesson is paused. */
   isPaused?: () => boolean;
   nowMs?: () => number;
+  /** Recorded players advance a virtual media clock rather than wall timers. */
+  waitForAdvance?: () => Promise<void>;
   /** The voice has ended; a code block still typing finishes on the wall clock. */
   isSpeechComplete?: () => boolean;
   canAdvanceAfterSpeech?: () => boolean;
@@ -573,6 +575,7 @@ export async function drawSegmentInk(input: {
           getPlaybackRate: clock.getPlaybackRate,
           ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
           ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+          ...(clock.waitForAdvance ? { waitForAdvance: clock.waitForAdvance } : {}),
           ...(getTargetMs ? { getTargetMs } : {}),
         });
       }
