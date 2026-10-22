@@ -276,10 +276,21 @@ function mergeWritelessRun(run: readonly TutorSegment[]): TutorSegment {
 }
 
 /**
+ * The most words one folded run speaks as a single request. A run is
+ * released as its own segment once the next step would cross it, and a new
+ * run starts with that step. The recorded runs it was built for are 247 to
+ * 398 characters (v1 to v3 lessons), so they still fold whole; a long run
+ * pays one voice start per cap instead of one per step, and no request
+ * nears a provider's text limit (Sarvam takes 2,500 characters) or waits on
+ * the whole response before it is spoken.
+ */
+export const MAX_FOLDED_RUN_CHARS = 600;
+
+/**
  * Streaming form of `foldWritelessFocusRuns`: push prepared segments in
  * order, emit what `push` returns, and `flush` once the response ends. A
  * write-less FOCUS segment is held until the next segment shows whether a
- * run follows.
+ * run follows, or until the run reaches `MAX_FOLDED_RUN_CHARS`.
  */
 export function createWritelessFocusFolder(diagram: VerifiedDiagram | null): {
   push: (segment: TutorSegment) => TutorSegment[];
@@ -290,29 +301,36 @@ export function createWritelessFocusFolder(diagram: VerifiedDiagram | null): {
   const enabled = diagram?.layout !== "code_lesson";
   let held: TutorSegment[] = [];
   let heldFocus = 0;
+  let heldChars = 0;
   let folded = 0;
   const release = (): TutorSegment[] => {
     const run = held;
     const focusCount = heldFocus;
     held = [];
     heldFocus = 0;
+    heldChars = 0;
     if (focusCount < 2) return run;
     folded += focusCount - 1;
     return [mergeWritelessRun(run)];
   };
+  const hold = (segment: TutorSegment, focus: boolean): TutorSegment[] => {
+    const words = segment.narration.trim().length;
+    // Joined with one space, as `mergeWritelessRun` joins them.
+    const joined = heldChars === 0 ? words : heldChars + (words > 0 ? 1 + words : 0);
+    const out = held.length > 0 && joined > MAX_FOLDED_RUN_CHARS ? release() : [];
+    // A spoken tail cut off by the cap is spoken on its own, never opens a run.
+    if (!focus && held.length === 0) return [...out, segment];
+    held.push(segment);
+    if (focus) heldFocus += 1;
+    if (words > 0) heldChars = heldChars === 0 ? words : heldChars + 1 + words;
+    return out;
+  };
   return {
     push: (segment) => {
       if (!enabled) return [segment];
-      if (isWritelessFocusSegment(segment)) {
-        held.push(segment);
-        heldFocus += 1;
-        return [];
-      }
+      if (isWritelessFocusSegment(segment)) return hold(segment, true);
       // A sentence's spoken tail stays with the words before it.
-      if (isNarrationOnlySegment(segment) && held.length > 0) {
-        held.push(segment);
-        return [];
-      }
+      if (isNarrationOnlySegment(segment) && held.length > 0) return hold(segment, false);
       return [...release(), segment];
     },
     flush: release,

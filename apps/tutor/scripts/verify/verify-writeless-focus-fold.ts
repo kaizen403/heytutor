@@ -187,6 +187,68 @@ async function main() {
   assert.equal(getSegmentCommands(repeated[0]!).filter(command => command.type === "FOCUS" && command.text === "north_ref").length, 1,
     "one trace per target in a merged segment");
 
+  // A long pointing run is spoken in bounded groups (PR #249 review, P2):
+  // one request per run grew without limit, could wait on the whole response
+  // and cross a provider's text limit (Sarvam takes 2,500 characters).
+  const cap = (placement as { MAX_FOLDED_RUN_CHARS?: number }).MAX_FOLDED_RUN_CHARS ?? 600;
+  assert(cap <= 2_500, `a folded run stays under the Sarvam text limit (cap ${cap})`);
+  const recordedRuns = [247, 271, 362, 398];
+  assert(recordedRuns.every(chars => chars <= cap), "every recorded pointing run (v1 to v3) still folds whole");
+  const targets = ["origin", "north_ref", "v_air", "v_wind", "v_ground", "theta_mark"];
+  const longSteps = Array.from({ length: 10 }, (_, index) => {
+    const id = targets[index % targets.length]!;
+    return `[STEP]\nNow look at ${id} [FOCUS:${id}] once more, and notice how its direction and its length set up every part of the velocity triangle we are about to solve, step ${index + 1}.\n[/STEP]`;
+  });
+  const longLesson = buildLessonSegments([
+    "[STEP]\nFirst the givens. [WRITE:v_air = 200 km/h,90,211]\n[/STEP]",
+    ...longSteps,
+    "[STEP]\nSo we add them. [WRITE:v_ground = v_air + v_wind,90,277]\n[/STEP]",
+  ].join("\n"));
+  const longUnfolded = longLesson.flatMap(segment => placement.prepareVerifiedLessonSegments([segment], diagram).segments);
+  // Each step parses as its pointing words plus a spoken tail; the run is
+  // everything between the two rows.
+  const between = (list: readonly TutorSegment[]) => list.slice(1, -1);
+  assert(longUnfolded.length >= 3 && !between(longUnfolded).some(segment => getSegmentCommands(segment).some(command => command.type === "WRITE")),
+    "the fixture is one pointing run between two rows");
+  const parts = between(longUnfolded).map(segment => segment.narration.trim().length).filter(chars => chars > 0);
+  const runChars = parts.reduce((sum, chars) => sum + chars + 1, -1);
+  assert(runChars > cap * 2 && Math.max(...parts) <= cap, `the fixture run (${runChars} chars, ${longSteps.length} steps) crosses the cap at least twice`);
+  const longPrepared = placement.prepareVerifiedLessonSegments(longLesson, diagram).segments;
+  const groups = between(longPrepared);
+  for (const group of groups) {
+    assert(group.narration.length <= cap, `a folded run speaks at most ${cap} characters in one request (found ${group.narration.length})`);
+  }
+  assert(groups.length * 3 <= longSteps.length * 2, `the run still folds (${longSteps.length} steps in ${groups.length} requests)`);
+  // A group is cut only where the next part would cross the cap, so the cap
+  // adds no voice start the limit does not need.
+  const firstPart = (group: TutorSegment) => {
+    const first = getSegmentCommands(group)[0];
+    return first
+      ? between(longUnfolded).find(segment => getSegmentCommands(segment).includes(first))!
+      : between(longUnfolded).find(segment => group.narration.startsWith(segment.narration.trim()))!;
+  };
+  for (let index = 0; index + 1 < groups.length; index++) {
+    assert(groups[index]!.narration.length + 1 + firstPart(groups[index + 1]!).narration.trim().length > cap,
+      `group ${index + 1} is released only when the next part would cross the cap`);
+  }
+  assert.equal(words(longPrepared), words(longUnfolded), "a capped run keeps every word, in order");
+  assert.deepEqual(longPrepared.flatMap(getSegmentCommands), longUnfolded.flatMap(getSegmentCommands), "a capped run keeps every command, in order");
+  // Streaming never holds more than the cap while it waits to see the run end.
+  const longFolder = placement.createWritelessFocusFolder(diagram);
+  let pending = 0;
+  const streamedLong: TutorSegment[] = [];
+  for (const segment of longUnfolded) {
+    pending += segment.narration.trim().length;
+    const out = longFolder.push(segment);
+    for (const released of out) pending -= released.narration.trim().length;
+    pending = Math.max(0, pending);
+    streamedLong.push(...out);
+    assert(pending <= cap, `the streaming fold holds at most ${cap} characters of speech (held ${pending})`);
+  }
+  streamedLong.push(...longFolder.flush());
+  assert.deepEqual(streamedLong.map(segment => segment.narration), longPrepared.map(segment => segment.narration), "streamed and batch folds cap the run the same way");
+  console.log(`verify-writeless-focus-fold: a ${runChars} character run of ${longSteps.length} steps is spoken in ${groups.length} requests of at most ${cap}`);
+
   // A code lesson never folds.
   const codeLesson = placement.foldWritelessFocusRuns(raw, { ...diagram, layout: "code_lesson" } as VerifiedDiagram);
   assert.equal(codeLesson.foldedFocusSegmentCount, 0, "a code lesson's FOCUS beats are never folded");
