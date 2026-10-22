@@ -30,7 +30,8 @@ function equationOf(text: string): { lhs: string; rhs: string } | null {
 }
 
 function freeParameters(text: string, bound: ReadonlySet<string>): string[] {
-  const names = text.match(/[A-Za-zα-ωΑ-Ω]+/g) ?? [];
+  // Whole names, digits and subscripts included ("k1", "m₂"), so a bound quantity is recognised.
+  const names = text.match(/[A-Za-zα-ωΑ-Ω][A-Za-z0-9_₀-₉α-ωΑ-Ω]*/g) ?? [];
   return [...new Set(names.filter((name) => {
     if (name === "x" || name === "y" || bound.has(name)) return false;
     if (FUNCTIONS.has(name.toLowerCase())) return false;
@@ -67,6 +68,8 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
   };
   const checkEquation = (ownerId: string, text: unknown, path: string) => {
     if (!frame || typeof text !== "string") return;
+    // Only judge notation the checker reads: LaTeX and other markup is skipped, never refused.
+    if (/[\\{}]/.test(text)) return;
     const equation = equationOf(text);
     if (!equation) return;
     const entity = document.entities.find((candidate) => candidate.id === ownerId);
@@ -104,13 +107,17 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
       return [0, 0.25, 0.5, 0.75].map((t) => ({ x: point.x + (next.x - point.x) * t, y: point.y + (next.y - point.y) * t }));
     });
     const scale = Math.max(1, ...points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y))));
+    // An equation undefined at drawn points ("y = sqrt(x)" on x < 0) does not
+    // describe them. One undefined boundary sample is tolerated.
+    let undefinedAt = 0;
     const misses = points.some((point) => {
       try {
         return Math.abs(relation.evaluate(point.x, point.y)) > 1e-4 * scale;
       } catch {
+        undefinedAt += 1;
         return false;
       }
-    });
+    }) || undefinedAt > 1;
     if (misses) {
       issues.push({ code: "equation_label_contradicts_geometry", severity: "fatal", failureKind: "truth", entityIds: [ownerId], path,
         message: "The drawn element does not satisfy its equation label" });
@@ -126,7 +133,7 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
   // A sense badge along a wire or arm can mark a current or a turning sense;
   // a field never lies along the conductor it acts on.
   const vectorName = /\b(?:field|flux)\b/i;
-  const fieldLabel = /^\s*(?:B|E|H|Φ|Φ_?B)(?:\s|_|⃗|$)/u;
+  const fieldLabel = /^\s*(?:B|E|H|Φ)(?:_?[0-9₀-₉A-Za-z]{0,3})?(?:\s|⃗|$)/u;
   for (const construction of document.constructions) {
     if (construction.operator !== "sign_badge") continue;
     for (const id of construction.outputs) {

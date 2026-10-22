@@ -68,6 +68,16 @@ assert(codes(lineDocument("y=4.5-.75x+(x-2)(x-6)")).includes("equation_label_con
   assert(!codes(curve).some((code) => code.startsWith("equation_label")), "a built-in function on the left is not function notation");
 }
 
+// Greptile #235 round 2.
+{
+  const numbered = lineDocument("y=4.5+k1*x"); numbered.quantities = [{ id: "k1", symbol: "k1", value: -0.75 }];
+  assert(!codes(numbered).some((code) => code.startsWith("equation_label")), "a numbered bound quantity is read as one name");
+  assert(!codes(lineDocument("y=\\frac{18-3x}{4}")).some((code) => code.startsWith("equation_label")), "LaTeX the checker cannot read is skipped, never refused");
+  const negative: SceneDocument = structuredClone(lineDocument("y=sqrt(x)", [undefined, undefined]));
+  negative.constructions.find((c) => c.id === "make_P")!.inputs = { x: -4, y: 0, coordinateSpace: "world" };
+  negative.constructions.find((c) => c.id === "make_A")!.inputs = { x: -1, y: 0, coordinateSpace: "world" };
+  assert(codes(negative).includes("equation_label_contradicts_geometry"), "an equation undefined at the drawn points is refused");
+}
 // 2. A polarity badge named as a field (B on a rod reads as a field along the rod).
 function badgeDocument(label: string | undefined, role: string): SceneDocument {
   return {
@@ -91,6 +101,7 @@ function badgeDocument(label: string | undefined, role: string): SceneDocument {
 assert(codes(badgeDocument("B", "magnetic field")).includes("sign_badge_names_vector"), "a polarity badge cannot stand for B");
 assert(!prepareVerifiedParts(badgeDocument("B", "magnetic field"), { enabled: true }).compiledScene?.ok, "flag on refuses it too (a truth failure)");
 assert(codes(badgeDocument(undefined, "magnetic field direction")).includes("sign_badge_names_vector"), "a badge whose role is a field is refused");
+for (const label of ["B₁", "E2", "B_1"]) assert(codes(badgeDocument(label, "direction")).includes("sign_badge_names_vector"), `a numbered field name is refused: ${label}`);
 for (const [label, role] of [["I₁", "source-current reference"], ["τ", "torque into the page"], [undefined, "resistor current"]] as const) {
   assert(!codes(badgeDocument(label, role)).includes("sign_badge_names_vector"), `a current or turning sense along a path passes: ${label ?? role}`);
 }
