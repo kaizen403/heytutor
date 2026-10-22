@@ -189,14 +189,15 @@ export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneI
     const positive = [0, 1, 2].map((index) => primitives.find((p) => numberedStroke(p, prefix) === index));
     if (positive.some((line) => !line)) continue;
     const extras = primitives.filter((p) => (numberedStroke(p, prefix) ?? -1) >= 3);
-    const ownerOf = new Map(extras.map((extra) => {
+    const ownerOf = new Map<RenderPrimitive, number | null>();
+    for (const extra of extras) {
       let owner: number | null = null, best = -0.85;
       positive.forEach((line, index) => {
         const alignment = oppositeAlignment(extra, line!);
         if (alignment !== null && alignment < best) { best = alignment; owner = index; }
       });
-      return [extra, owner] as const;
-    }));
+      ownerOf.set(extra, owner);
+    }
     const own = "xyz".indexOf(match[2]!);
     const distanceTo = (line: RenderPrimitive) => Math.min(...segments(line).map(([s, t]) => segmentDistance(label.points[0]!, s, t)));
     const nearest = (halves: RenderPrimitive[]) => halves.length ? Math.min(...halves.map(distanceTo)) : Infinity;
