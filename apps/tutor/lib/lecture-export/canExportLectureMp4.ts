@@ -62,7 +62,7 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
   return turns.some(turnHasExportableAudio);
 }
 
-export { LECTURE_PAGE_CACHE_REVISION } from "./lectureRenderFingerprint";
+export { LECTURE_PAGE_CACHE_REVISION };
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to

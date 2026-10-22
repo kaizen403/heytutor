@@ -702,6 +702,9 @@ const turnRoute = load("app/api/boards/[boardId]/turns/[turnId]/route.ts", {
 const requestErrors: unknown[] = [];
 const instrumentation = load("instrumentation.ts", {
   "@sentry/nextjs": { captureRequestError: (error: unknown) => requestErrors.push(error) },
+  // Exercise the production request-error adapter; the runtime matrix lives in
+  // verify-sentry-runtime.ts and this fixture never initializes a real client.
+  "./lib/obs/sentryRuntime": { sentryServerRuntimeEnabled: () => true },
 });
 async function nextCheckpointResponse(request: Request, params: Row): Promise<Response> {
   try {

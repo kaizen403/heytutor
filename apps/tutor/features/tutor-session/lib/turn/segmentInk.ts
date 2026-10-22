@@ -121,9 +121,17 @@ export type SegmentInkClock = {
   /** Holds a word wait without spending its deadline while the lesson is paused. */
   isPaused?: () => boolean;
   nowMs?: () => number;
+  /** Recorded players advance a virtual media clock rather than wall timers. */
+  waitForAdvance?: () => Promise<void>;
   /** The voice has ended; a code block still typing finishes on the wall clock. */
   isSpeechComplete?: () => boolean;
   canAdvanceAfterSpeech?: () => boolean;
+  /**
+   * Waits until `getAudioPositionMs` reaches a media time. A recorded export
+   * clock only moves when its frames are pumped, so it waits on that pump
+   * rather than on wall-time polling. Absent, the wall-clock wait is used.
+   */
+  waitUntilMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
 };
 
 type TraceMetadata = Record<string, unknown>;
@@ -591,15 +599,21 @@ export async function drawSegmentInk(input: {
         await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
         if (isCancelled()) return;
       }
-      await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
-        shouldCancel: isCancelled,
-        getPlaybackRate: clock.getPlaybackRate,
-        ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
-        ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
-        ...(command.type === "TYPE" && cueStartMs === null
-          ? { getTargetMs: () => typeCommandStartMs(command, clock, textCommandIndex) }
-          : {}),
-      });
+      const getTargetMs = command.type === "TYPE" && cueStartMs === null
+        ? () => typeCommandStartMs(command, clock, textCommandIndex)
+        : undefined;
+      if (clock.waitUntilMs) {
+        await clock.waitUntilMs(cueStartMs ?? commandStartMs, getTargetMs);
+      } else {
+        await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
+          shouldCancel: isCancelled,
+          getPlaybackRate: clock.getPlaybackRate,
+          ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+          ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+          ...(clock.waitForAdvance ? { waitForAdvance: clock.waitForAdvance } : {}),
+          ...(getTargetMs ? { getTargetMs } : {}),
+        });
+      }
       if (isCancelled()) {
         return;
       }
@@ -695,6 +709,7 @@ export async function drawSegmentInk(input: {
         ? { getPointDeadlineMs: () => readWorkCue(clock.getTimings()) }
         : {}),
       ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+      ...(clock.waitUntilMs ? { waitUntilAudioMs: clock.waitUntilMs } : {}),
       getAudioPositionMs: clock.getAudioPositionMs,
       getPlaybackRate: clock.getPlaybackRate,
       // The sentence's own clock for the code lesson. TYPE, FRAME and

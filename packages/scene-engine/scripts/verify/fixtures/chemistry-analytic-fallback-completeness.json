@@ -1,0 +1,936 @@
+[
+  {
+    "id": "recorded-5510d9d34aa746d9|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "n",
+          "symbol": "n",
+          "value": 1,
+          "unit": "mol",
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "T0",
+          "symbol": "T₀",
+          "value": 300,
+          "unit": "K",
+          "provenance": "given",
+          "sourceText": "T0 = 300"
+        },
+        {
+          "id": "g",
+          "symbol": "γ",
+          "value": 1.6666666666666667,
+          "sourceText": "γ=5/3",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 8.314,
+          "unit": "J/(mol K)",
+          "provenance": "given",
+          "sourceText": "R = 8.314"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "Ti",
+          "symbol": "T_isothermal",
+          "unit": "K"
+        },
+        {
+          "id": "pi",
+          "symbol": "P_isothermal/P₀"
+        },
+        {
+          "id": "Wi",
+          "symbol": "W_isothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Q_isothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "T_adiabatic",
+          "unit": "K"
+        },
+        {
+          "id": "pa",
+          "symbol": "P_adiabatic/P₀"
+        },
+        {
+          "id": "Wa",
+          "symbol": "W_adiabatic",
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Q_adiabatic",
+          "unit": "J"
+        }
+      ],
+      "derived": [
+        {
+          "id": "Ti",
+          "symbol": "T_isothermal",
+          "value": 300,
+          "unit": "K"
+        },
+        {
+          "id": "pi",
+          "symbol": "P_isothermal/P₀",
+          "value": 0.5
+        },
+        {
+          "id": "Wi",
+          "symbol": "W_isothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Q_isothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "T_adiabatic",
+          "value": 188.98815748423098,
+          "unit": "K"
+        },
+        {
+          "id": "pa",
+          "symbol": "P_adiabatic/P₀",
+          "value": 0.314980262
+        },
+        {
+          "id": "Wa",
+          "symbol": "W_adiabatic",
+          "value": 1384.4286880141551,
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Q_adiabatic",
+          "value": 0,
+          "unit": "J"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "curves",
+          "expected": "Label the upper curve isothermal: P=P₀V₀/V, ending at P₀/2. Label the lower curve adiabatic: P=P₀(V₀/V)^(5/3), ending at 2^(−5/3)P₀."
+        },
+        {
+          "id": "smaller",
+          "expected": "W_adiabatic < W_isothermal."
+        }
+      ],
+      "lawIds": [
+        "ideal-gas law PV=nRT",
+        "reversible isothermal work W=nRT ln(Vf/Vi)",
+        "reversible adiabatic laws TV^(γ−1)=constant and PV^γ=constant",
+        "first law ΔU=Q−W",
+        "monatomic ideal-gas internal energy U=(3/2)nRT",
+        "reversible expansion work W=∫P dV"
+      ],
+      "assumptions": [
+        "Work is positive when done by the gas; heat is positive when absorbed.",
+        "The stated final volume is twice the initial volume in each separate trial."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-db96e69e6d35d2cc|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [],
+      "lawIds": [],
+      "assumptions": [
+        "Turn-plan model was unavailable; visual requirement was classified conservatively."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-f8acf2b13e77e7ad|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "n",
+          "symbol": "n",
+          "value": 1,
+          "unit": "mol",
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "T0",
+          "symbol": "T₀",
+          "value": 300,
+          "unit": "K",
+          "provenance": "given",
+          "sourceText": "T0 = 300"
+        },
+        {
+          "id": "vr",
+          "symbol": "Vf/V₀",
+          "value": 2,
+          "provenance": "given",
+          "sourceText": "vr = 2"
+        },
+        {
+          "id": "g",
+          "symbol": "γ",
+          "value": 1.6666666666666667,
+          "sourceText": "γ=5/3",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 8.314,
+          "unit": "J/(mol K)",
+          "provenance": "given",
+          "sourceText": "R = 8.314"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀"
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀"
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "unit": "J"
+        }
+      ],
+      "derived": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "value": 300,
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀",
+          "value": 0.5
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "value": 188.98815748423098,
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀",
+          "value": 0.3149802624737183
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "value": 1384.4286880141551,
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "value": 0,
+          "unit": "J"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "curves",
+          "expected": "Both curves start at (V₀,P₀) and end at volume 2V₀. The isotherm ends at P₀/2; the adiabatic curve ends at a lower pressure and stays below the isotherm during expansion."
+        },
+        {
+          "id": "smaller",
+          "expected": "The adiabatic curve encloses the smaller area beneath it, so its work is smaller."
+        }
+      ],
+      "lawIds": [
+        "ideal-gas law",
+        "isothermal ideal-gas relation",
+        "reversible isothermal work",
+        "reversible adiabatic temperature–volume relation",
+        "reversible adiabatic pressure–volume relation",
+        "first law of thermodynamics",
+        "monatomic ideal-gas heat capacity"
+      ],
+      "assumptions": [
+        "Work done means work done by the gas, taken as positive during expansion.",
+        "Heat absorbed means heat entering the gas, taken as positive."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-c7114f0ed8ab375c|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "n",
+          "symbol": "n",
+          "value": 1,
+          "unit": "mol",
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "T0",
+          "symbol": "T₀",
+          "value": 300,
+          "unit": "K",
+          "provenance": "given",
+          "sourceText": "T0 = 300"
+        },
+        {
+          "id": "gamma",
+          "symbol": "γ",
+          "value": 1.6666666666666667,
+          "sourceText": "γ=5/3",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 8.314,
+          "unit": "J/(mol K)",
+          "provenance": "given",
+          "sourceText": "R = 8.314"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "Ti",
+          "symbol": "T_isothermal",
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "P_isothermal/P₀"
+        },
+        {
+          "id": "Wi",
+          "symbol": "W_isothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Q_isothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "T_adiabatic",
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "P_adiabatic/P₀"
+        },
+        {
+          "id": "Wa",
+          "symbol": "W_adiabatic",
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Q_adiabatic",
+          "unit": "J"
+        }
+      ],
+      "derived": [
+        {
+          "id": "Ti",
+          "symbol": "T_isothermal",
+          "value": 300,
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "P_isothermal/P₀",
+          "value": 0.5
+        },
+        {
+          "id": "Wi",
+          "symbol": "W_isothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Q_isothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "T_adiabatic",
+          "value": 188.98815748423098,
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "P_adiabatic/P₀",
+          "value": 0.3149802624737183
+        },
+        {
+          "id": "Wa",
+          "symbol": "W_adiabatic",
+          "value": 1384.4286880141553,
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Q_adiabatic",
+          "value": 0,
+          "unit": "J"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "curves",
+          "expected": "On a sketch with V horizontal and P vertical, label the adiabatic curve below the isothermal curve throughout V₀<V≤2V₀."
+        },
+        {
+          "id": "work",
+          "expected": "W_adiabatic < W_isothermal."
+        }
+      ],
+      "lawIds": [
+        "ideal-gas-law",
+        "reversible-isothermal-work",
+        "reversible-adiabatic-relations",
+        "first-law-of-thermodynamics",
+        "ideal-gas-heat-capacity-relation"
+      ],
+      "assumptions": [
+        "Work is positive when done by the gas; heat is positive when absorbed by the gas.",
+        "The stated final volume 2V₀ applies to both trials."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-9d82d85098a2932d|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "n",
+          "symbol": "n",
+          "value": 1,
+          "unit": "mol",
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "T0",
+          "symbol": "T₀",
+          "value": 300,
+          "unit": "K",
+          "provenance": "given",
+          "sourceText": "T0 = 300"
+        },
+        {
+          "id": "vr",
+          "symbol": "Vf/V₀",
+          "value": 2,
+          "provenance": "given",
+          "sourceText": "vr = 2"
+        },
+        {
+          "id": "gamma",
+          "symbol": "γ",
+          "value": 1.6666666666666667,
+          "sourceText": "γ=5/3",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 8.314,
+          "unit": "J/(mol K)",
+          "provenance": "given",
+          "sourceText": "R = 8.314"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀"
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀"
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "unit": "J"
+        }
+      ],
+      "derived": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "value": 300,
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀",
+          "value": 0.5
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "value": 188.98815748423095,
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀",
+          "value": 0.31498026247371824
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "value": 1384.4286880141558,
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "value": 0,
+          "unit": "J"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "curves",
+          "expected": "From (V₀,P₀), draw both curves decreasing to V=2V₀. Label the upper curve isothermal, ending at P₀/2; label the steeper lower curve adiabatic, ending at about 0.315P₀."
+        },
+        {
+          "id": "area",
+          "expected": "The adiabatic curve has the smaller area under it between V₀ and 2V₀, so its work is smaller."
+        }
+      ],
+      "lawIds": [
+        "ideal-gas law",
+        "reversible isothermal work W=nRT ln(Vf/Vi)",
+        "first law of thermodynamics with work done by gas positive",
+        "reversible adiabatic relations TV^(γ−1)=constant and PV^γ=constant",
+        "ideal-gas heat capacity Cv=R/(γ−1)",
+        "P–V work W=∫P dV"
+      ],
+      "assumptions": []
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-184030cccfd433a1|physics|8|isothermal-and-adiabatic-processes|q2",
+    "question": "One mole of a monatomic ideal gas starts at T0=300 K, volume V0 and pressure P0. In separate reversible trials it expands to 2V0 either isothermally or adiabatically; take γ=5/3 and R=8.314 J/(mol K). Find each final temperature, final pressure as a fraction of P0, work done and heat absorbed. Sketch both P-V curves from the same starting state, labelling the isothermal and adiabatic curves and identifying the curve with the smaller work.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "n",
+          "symbol": "n",
+          "value": 1,
+          "unit": "mol",
+          "provenance": "given",
+          "sourceText": "n = 1"
+        },
+        {
+          "id": "T0",
+          "symbol": "T₀",
+          "value": 300,
+          "unit": "K",
+          "provenance": "given",
+          "sourceText": "T0 = 300"
+        },
+        {
+          "id": "vr",
+          "symbol": "Vf/V₀",
+          "value": 2,
+          "provenance": "given",
+          "sourceText": "vr = 2"
+        },
+        {
+          "id": "gam",
+          "symbol": "γ",
+          "value": 1.6666666666666667,
+          "sourceText": "γ=5/3",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 8.314,
+          "unit": "J/(mol K)",
+          "provenance": "given",
+          "sourceText": "R = 8.314"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀"
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀"
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "unit": "J"
+        }
+      ],
+      "derived": [
+        {
+          "id": "Ti",
+          "symbol": "Tf,isothermal",
+          "value": 300,
+          "unit": "K"
+        },
+        {
+          "id": "Pi",
+          "symbol": "Pf,isothermal/P₀",
+          "value": 0.5
+        },
+        {
+          "id": "Wi",
+          "symbol": "Wisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Qi",
+          "symbol": "Qisothermal",
+          "value": 1728.8476977526154,
+          "unit": "J"
+        },
+        {
+          "id": "Ta",
+          "symbol": "Tf,adiabatic",
+          "value": 188.98815748423095,
+          "unit": "K"
+        },
+        {
+          "id": "Pa",
+          "symbol": "Pf,adiabatic/P₀",
+          "value": 0.31498026247371824
+        },
+        {
+          "id": "Wa",
+          "symbol": "Wadiabatic",
+          "value": 1384.4286880141558,
+          "unit": "J"
+        },
+        {
+          "id": "Qa",
+          "symbol": "Qadiabatic",
+          "value": 0,
+          "unit": "J"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "curves",
+          "expected": "Label the upper curve isothermal, P=P₀(V₀/V), ending at (2V₀,0.5P₀). Label the steeper lower curve adiabatic, P=P₀(V₀/V)^γ, ending at (2V₀,0.3149803P₀)."
+        },
+        {
+          "id": "area",
+          "expected": "The adiabatic curve has the smaller area under it, so Wadiabatic < Wisothermal."
+        }
+      ],
+      "lawIds": [
+        "ideal-gas law",
+        "reversible isothermal work W=nRT ln(Vf/V₀)",
+        "reversible adiabatic relations TV^(γ−1)=constant and PV^γ=constant",
+        "adiabatic work W=nR(T₀−Tf)/(γ−1)",
+        "first law ΔU=Q−W; ideal-gas internal energy depends only on temperature"
+      ],
+      "assumptions": [
+        "Work is positive when done by the gas; heat is positive when absorbed.",
+        "The two trials start independently from the stated initial state."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "recorded-3013888f48d0382d|physics|19|transistor-characteristics-common-emitter|hard",
+    "question": "Draw Transistor characteristics in common emitter configuration as a plot of current against voltage and label the axes.",
+    "turnPlan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "q1",
+          "symbol": "Q1",
+          "value": 1,
+          "sign": "positive",
+          "sourceText": "Transistor Q1 in common emitter configuration",
+          "provenance": "given"
+        },
+        {
+          "id": "q2",
+          "symbol": "Q2",
+          "value": 1,
+          "sign": "positive",
+          "sourceText": "Transistor Q2 in common emitter configuration",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "u_ic_vce",
+          "symbol": "I_C vs V_CE",
+          "unit": null
+        },
+        {
+          "id": "u_ib",
+          "symbol": "I_B",
+          "unit": null
+        }
+      ],
+      "derived": [
+        {
+          "id": "u_ic_vce",
+          "symbol": "I_C vs V_CE curve",
+          "value": 1
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "expected": "true"
+        },
+        {
+          "id": "c2",
+          "expected": "true"
+        },
+        {
+          "id": "c3",
+          "expected": "true"
+        },
+        {
+          "id": "c4",
+          "expected": "true"
+        },
+        {
+          "id": "c5",
+          "expected": "true"
+        },
+        {
+          "id": "c6",
+          "expected": "true"
+        }
+      ],
+      "lawIds": [
+        "common_emitter_characteristics"
+      ],
+      "assumptions": [
+        "Standard common emitter configuration with NPN transistor.",
+        "Plot is schematic, not to scale.",
+        "Active and saturation regions are shown.",
+        "Base current values are arbitrary but distinct."
+      ]
+    },
+    "families": null,
+    "draw": false,
+    "allowAxes": false,
+    "provenance": "Authored diagram-eval bank question; recorded planner counterfactual from reviewer990."
+  },
+  {
+    "id": "stated-parabola",
+    "question": "Sketch the curve y=x^2.",
+    "turnPlan": null,
+    "families": null,
+    "draw": true,
+    "allowAxes": false,
+    "provenance": "Source relation or explicit coordinate-axis request; positive preservation control."
+  },
+  {
+    "id": "stated-parametric",
+    "question": "Sketch the curve given by x = t^2 - 1, y = t^3 - t near t = 2, mark the point at that parameter, and draw the tangent there.",
+    "turnPlan": null,
+    "families": null,
+    "draw": true,
+    "allowAxes": false,
+    "provenance": "Source relation or explicit coordinate-axis request; positive preservation control."
+  },
+  {
+    "id": "explicit-coordinate-axes",
+    "question": "Draw the Cartesian coordinate axes.",
+    "turnPlan": null,
+    "families": [
+      "coordinate_figure"
+    ],
+    "draw": true,
+    "allowAxes": true,
+    "provenance": "Source relation or explicit coordinate-axis request; positive preservation control."
+  },
+  {
+    "id": "named-pv-cycle",
+    "question": "An ideal gas follows cycle A-B-C-D-A. A to B is isobaric expansion, B to C is isochoric heating, C to D is isobaric compression, and D to A is isochoric cooling. Sketch its P-V diagram.",
+    "turnPlan": null,
+    "families": null,
+    "draw": true,
+    "allowAxes": false,
+    "provenance": "Four explicitly named source processes define the qualitative P-V cycle."
+  }
+]

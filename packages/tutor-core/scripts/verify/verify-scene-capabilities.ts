@@ -115,6 +115,7 @@ const EXPECTED_EXECUTABLE_PROOF_PREDICATES = [
   "wave_cycles",
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
 ] as const;
@@ -145,6 +146,7 @@ const EXPECTED_PLANNER_PROOF_PREDICATES = [
   "wave_cycles",
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
 ] as const;

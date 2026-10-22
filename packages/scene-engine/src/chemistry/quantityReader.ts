@@ -2,6 +2,7 @@
  * Chemistry-only physical givens. Original JS spans and unit case are authority. */
 import type { ChemPlanQuantity } from "./sceneKit";
 import { parseFormula } from "./formula";
+import { findSymbolicArrheniusSources } from "./symbolicArrheniusSource";
 
 export interface ChemistrySpan { start: number; end: number }
 export type ChemistryDimension = "dimensionless" | "time" | "temperature" | "temperature_delta"
@@ -49,7 +50,8 @@ export type ChemistryQuantityDeclaration =
 
 const DECIMAL = String.raw`(?:\d+(?:\.\d+|\.(?!\s+[A-Za-z]))?|\.\d+)`;
 const EXPONENT = String.raw`(?:[+\-−]?\d{1,4}|\(\s*[+\-−]?\d{1,4}\s*\))`;
-const SCALAR = String.raw`[+\-−]?\s*(?:${DECIMAL}\s*/\s*${DECIMAL}(?:st|nd|rd|th)?|(?:${DECIMAL}\s*[x×*]\s*)?10\s*\^\s*${EXPONENT}|${DECIMAL}(?:[eE][+\-−]?\d{1,4})?)`;
+const UNICODE_EXPONENT = String.raw`[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,4}`;
+const SCALAR = String.raw`[+\-−]?\s*(?:${DECIMAL}\s*/\s*${DECIMAL}(?:st|nd|rd|th)?|(?:${DECIMAL}\s*[x×*]\s*)?10\s*(?:\^\s*${EXPONENT}|${UNICODE_EXPONENT})|${DECIMAL}(?:[eE][+\-−]?\d{1,4})?)`;
 /** One whole token plus two empty compatibility captures; all parsing lives here. */
 export const CHEMISTRY_NUMBER_PATTERN = `(${SCALAR})()()`;
 export const CHEMISTRY_SCALAR_PATTERN = SCALAR;
@@ -60,7 +62,11 @@ function validSpan(question: string, span: ChemistrySpan): boolean {
   return Number.isInteger(span.start) && Number.isInteger(span.end) && span.start >= 0 && span.end <= question.length && span.end > span.start;
 }
 function continuesScalar(tail: string): boolean {
-  return /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
+  // An unresolved superscript/modifier is still part of the source token,
+  // even when notation normalization deliberately left a damaged run raw.
+  return /^\s*(?:10\s*)?[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+
+    || /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
 }
 /** Match against the original question, never a caller's truncated substring. */
 function completeScalarSpan(question: string, span: ChemistrySpan): boolean {
@@ -88,13 +94,20 @@ function scalarValue(question: string, span: ChemistrySpan): ChemRead<number> {
   const clean = token.replace(/\s/g, "");
   let value: number; let nonzero: boolean;
   const fraction = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\/((?:\d+(?:\.\d*)?|\.\d+))(?:st|nd|rd|th)?$/.exec(clean);
-  const power = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10\^\(?([+-]?\d+)\)?$/.exec(clean);
+  const power = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10\^\(?([+-]?\d+)\)?$/.exec(clean)
+    ?? /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10([⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,4})$/.exec(clean);
   if (fraction) {
     if (Number(fraction[2]) === 0) return fail("malformed", span);
     value = Number(fraction[1]) / Number(fraction[2]); nonzero = Number(fraction[1]) !== 0;
   } else if (power) {
     const mantissa = power[1] === undefined ? (clean.startsWith("-") ? -1 : 1) : power[1] === "-" ? -1 : power[1] === "+" ? 1 : Number(power[1]);
-    value = mantissa * 10 ** Number(power[2]); nonzero = mantissa !== 0;
+    // Decode only the complete captured exponent after original-span and
+    // full-token validation. No transformed question or prefix is authority.
+    const exponent = [...power[2]!].map(character => {
+      const digit = "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(character);
+      return digit >= 0 ? String(digit) : character === "⁻" ? "-" : character === "⁺" ? "+" : character;
+    }).join("");
+    value = mantissa * 10 ** Number(exponent); nonzero = mantissa !== 0;
   } else { value = Number(clean); nonzero = /[1-9]/.test(clean.split(/[eE]/)[0]!); }
   return Number.isFinite(value) && !(nonzero && value === 0) ? { ok: true, reading: value } : fail("malformed", span);
 }
@@ -102,6 +115,8 @@ function scalarValue(question: string, span: ChemistrySpan): ChemRead<number> {
 export interface ChemistryArrheniusEquation {
   natural: boolean;
   coefficient: { value: number; span: ChemistrySpan; text: string };
+  /** Only an explicit log assignment supplies an absolute log intercept. */
+  intercept?: { value: number; span: ChemistrySpan; text: string };
   source: { span: ChemistrySpan; text: string };
 }
 /** A coefficient is authority only inside a complete original Arrhenius
@@ -109,7 +124,7 @@ export interface ChemistryArrheniusEquation {
 export function readChemistryArrheniusEquation(question: string): ChemRead<ChemistryArrheniusEquation> {
   const end = chemistryQuestionSpan(question).end;
   const patterns = [
-    { pattern: new RegExp(String.raw`\b(ln|log)\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 3 },
+    { pattern: new RegExp(String.raw`\b([lL](?:[nN]|[oO][gG]))\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 3 },
     { pattern: new RegExp(String.raw`\be\s*\^?\s*\(\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\s*\)`, "gd"), group: 1 },
     { pattern: new RegExp(String.raw`\be\s*\^?\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 1 },
   ];
@@ -119,16 +134,30 @@ export function readChemistryArrheniusEquation(question: string): ChemRead<Chemi
     if (/(?:\p{L}|\p{N}|\p{M}|_)$/u.test(question.slice(0,start)) || /(?:\p{Sm}|[/^*·∙·-])\s*$/u.test(question.slice(0,start))
       || /^(?:\p{L}|\p{N}|\p{M}|[_⁺⁻])/u.test(question.slice(stop))
       || /^(?:\p{Sm}|[/^*·∙·-])|^\.(?=\p{L}|\p{N}|\p{M}|[_.])/u.test(question.slice(stop).trimStart())) return fail("malformed", {start,end:stop});
+    let interceptReading: ChemistryArrheniusEquation["intercept"];
     if (group === 3) {
       const intercept = match.indices![2]!;
-      if (!scalarValue(question,{start:intercept[0],end:intercept[1]}).ok) return fail("malformed",{start:intercept[0],end:intercept[1]});
+      const span = { start: intercept[0], end: intercept[1] }, value = scalarValue(question, span);
+      if (!value.ok) return fail("malformed", span);
+      interceptReading = { value: value.reading, span, text: question.slice(span.start, span.end) };
     }
     const pair = match.indices![group]!; const span = {start:pair[0],end:pair[1]};
     const value = scalarValue(question,span);
     if (!value.ok || !(value.reading > 0)) return fail("malformed",span);
-    readings.push({natural:match[1] !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]}});
+    readings.push({natural:match[1]?.toLowerCase() !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]},...(interceptReading ? {intercept:interceptReading} : {})});
   }
-  if (readings.length !== 1) return fail(readings.length ? "ambiguous" : /\b(?:ln|log)\s*k\s*=|\be\s*\^?\s*\(?\s*[-−]/.test(question.slice(0,end)) ? "malformed" : "missing");
+  // Inventory declarations before accepting one successful expression. An
+  // unread log assignment or exponential sibling cannot disappear behind it.
+  // An uppercase equilibrium K assignment is supplied unsupported material,
+  // never a lowercase rate k or an absent expression permitting a generic plot.
+  const owners = /\b(?:[lL](?:[nN]|[oO][gG])\s*[kK]\s*=|e\s*(?:\^\s*|\(\s*|[-−]))/g;
+  const symbolic = findSymbolicArrheniusSources(question.slice(0, end));
+  for (const owner of question.slice(0,end).matchAll(owners)) {
+    if (symbolic.some(source => source.exponential.span.start === owner.index)) continue;
+    if (!readings.some(reading => reading.source.span.start === owner.index))
+      return fail("malformed", {start:owner.index!,end:owner.index!+owner[0].length});
+  }
+  if (readings.length !== 1) return fail(readings.length ? "ambiguous" : /\b[lL](?:[nN]|[oO][gG])\s*k\s*=|\be\s*\^?\s*\(?\s*[-−]/.test(question.slice(0,end)) ? "malformed" : "missing");
   return {ok:true,reading:readings[0]!};
 }
 
@@ -138,6 +167,8 @@ function unit(unit: ChemistryUnit, dimensions: ChemistryDimension | readonly Che
   units.push({ unit, dimensions: typeof dimensions === "string" ? [dimensions] : dimensions, factor, pattern: new RegExp(`^(?:${pattern})(?![A-Za-z0-9])`), offset });
 }
 const perMol = String.raw`(?:/\s*mol|mol\s*\^?\s*\(?[-−]1\)?)`;
+// The existing molar-mass/Faraday units also allow a balanced denominator.
+const enclosedPerMol = String.raw`(?:/\s*\(\s*mol\s*\)|${perMol})`;
 const thermalMol = String.raw`(?:/\s*\(\s*mol\s*K\s*\)|/\s*mol\s*/?\s*K|/\s*K\s*/\s*mol|mol\s*\^?\(?[-−]1\)?\s*K\s*\^?\(?[-−]1\)?|K\s*\^?\(?[-−]1\)?\s*mol\s*\^?\(?[-−]1\)?|/\s*K\s*mol)`;
 for (const [symbol, factor] of [["kJ", 1000], ["J", 1], ["kcal", 4184], ["cal", 4.184]] as const) {
   if (symbol === "J" || symbol === "kJ") {
@@ -148,8 +179,8 @@ for (const [symbol, factor] of [["kJ", 1000], ["J", 1], ["kcal", 4184], ["cal", 
   unit(symbol, "energy", factor, symbol);
 }
 unit("eV", "energy", 1.602176634e-19, "eV");
-unit("g/mol", "molar_mass", 1, String.raw`g\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)|amu|u`);
-unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)`);
+unit("g/mol", "molar_mass", 1, String.raw`g\s*${enclosedPerMol}|amu|u`);
+unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*${enclosedPerMol}`);
 unit("g/cm^3", "density", 1, String.raw`g\s*(?:/\s*(?:cm\s*\^?3|mL|cc)|cm\s*\^?\(?-3\)?)`);
 unit("kg/m^3", "density", .001, String.raw`kg\s*(?:/\s*m\s*\^?3|m\s*\^?\(?-3\)?)`);
 unit("mol/L", "concentration", 1, String.raw`M|molar|mol\s*(?:/\s*[Ll]|[Ll]\s*\^?\(?-1\)?|dm\s*\^?\(?-3\)?|/\s*dm\s*\^?3|per litre)`);
@@ -162,7 +193,7 @@ unit("L bar/(mol K)", "gas_constant", 100, String.raw`(?:[Ll]\s*bar|bar\s*[Ll])\
 unit("mol/(L atm)", "concentration_pressure", 1, String.raw`mol\s*/\s*\(\s*[Ll]\s*atm\s*\)`);
 unit("mol/(L bar)", "concentration_pressure", 1.01325, String.raw`mol\s*/\s*\(\s*[Ll]\s*bar\s*\)`);
 unit("K kg/mol", "colligative_constant", 1, String.raw`(?:K|°\s*C)\s*kg\s*/\s*mol|(?:K|°\s*C)\s*kg\s*mol\s*\^?\(?-1\)?`);
-unit("C/mol", "faraday_constant", 1, String.raw`C\s*${perMol}`);
+unit("C/mol", "faraday_constant", 1, String.raw`C\s*${enclosedPerMol}`);
 unit("mol^-1", "avogadro_constant", 1, String.raw`mol\s*\^?\(?-1\)?|/\s*mol`);
 unit("kg m/s", "momentum", 1, String.raw`kg\s*m\s*/\s*s`);
 unit("m/s", "speed", 1, String.raw`m\s*/\s*s|m\s*s\s*\^?\(?-1\)?`);
@@ -212,7 +243,25 @@ function unitAt(text: string): { def: UnitDefinition; text: string } | null {
       normalized += ascii[superscript.indexOf(ch)]!; sourceEnds.push(i+1);
     } else { normalized += /[·⋅]/.test(ch) ? " " : ch; sourceEnds.push(i+1); }
   }
-  const matches = units.flatMap(def => { const m = def.pattern.exec(normalized); return m ? [{ def, text: text.slice(0, sourceEnds[m[0].length-1]) }] : []; });
+  const matches = units.flatMap(def => {
+    const m = def.pattern.exec(normalized);
+    if (!m) return [];
+    const candidate = text.slice(0, sourceEnds[m[0].length - 1]);
+    // A unit's own exponent/denominator parentheses must balance. A closing
+    // question delimiter after an unparenthesized exponent is not unit ink.
+    const open: string[] = [];
+    let end = candidate.length;
+    for (let index = 0; index < candidate.length; index++) {
+      const char = candidate[index]!;
+      if (char === "(") open.push(char);
+      else if (char === ")") {
+        if (open.length) open.pop();
+        else if (/^\)+$/.test(candidate.slice(index))) { end = index; break; }
+        else return [];
+      }
+    }
+    return open.length ? [] : [{ def, text: candidate.slice(0, end) }];
+  });
   return matches.sort((a,b) => b.text.length - a.text.length)[0] ?? null;
 }
 // Internal compound factors and aliases come from the same finite registry.
@@ -224,6 +273,7 @@ function continuesUnit(tail: string): boolean {
   const rest = tail.trimStart();
   const factor = /^[A-Za-zÅå°]+/.exec(rest)?.[0];
   return /^(?:\s*[/^~!*·⋅⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]|[A-Za-z0-9])/.test(tail)
+    || /^\.(?=[\p{L}\p{N}\p{M}_])/u.test(tail)
     || (rest.length < tail.length && (!!unitAt(rest) || (!!factor && unitFactors.has(factor))));
 }
 /** The plain component role cannot certify a prefix of a name, charged
@@ -471,7 +521,14 @@ function inventoryNotationSpans(question: string, end: number, dimension?: Chemi
     const start = match.index!;
     if (/[A-Za-z0-9_]/.test(body[start - 1] ?? "")) continue;
     const parsed = unitAt(body.slice(start));
-    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) spans.push({ start, end: start + parsed.text.length });
+    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) {
+      const unitEnd = start + parsed.text.length;
+      // The scalar lexer can include a sentence's full stop in an exponent
+      // token ("-1."). Only this internal notation mask owns that punctuation;
+      // the physical reading and its exact original unit span still end at 1.
+      const sentenceStop = body[unitEnd] === "." && (unitEnd + 1 === body.length || /\s/.test(body[unitEnd + 1]!));
+      spans.push({ start, end: unitEnd + (sentenceStop ? 1 : 0) });
+    }
   }
   // Integral electrons between reaction separators are chemical notation,
   // not the start of a broken scientific-notation voltage (e.g. 2e- V).
@@ -500,11 +557,16 @@ function inventoryNotationSpans(question: string, end: number, dimension?: Chemi
 }
 /** Literal inventory for semantic consumers that bind species/clause spans themselves. */
 export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "after">): ChemRead<readonly ChemistryReading[]> {
+  return findChemistryQuantitiesOutsideSyntax(input, []);
+}
+/** Syntax spans enter only through independently closed deterministic operators. */
+function findChemistryQuantitiesOutsideSyntax(input: Omit<ChemistryQuantityInput, "after">,
+  syntax: readonly ChemistrySpan[]): ChemRead<readonly ChemistryReading[]> {
   const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(scope.end, body.end);
   const readings: ChemistryReading[] = []; let consumed = -1;
-  const notation = inventoryNotationSpans(input.question, end, input.dimension);
+  const notation = [...inventoryNotationSpans(input.question, end, input.dimension), ...syntax];
   for (const match of input.question.matchAll(new RegExp(SCALAR, "g"))) {
     const start = match.index! + match[0].length - match[0].trimStart().length;
     const tokenEnd = match.index! + match[0].trimEnd().length;
@@ -556,7 +618,10 @@ export interface ChemistryQuantityConsumption {
  * Equal values at different occurrences do not share consumption. */
 export function chemistryQuantityInventoryOwned(question: string, dimension: ChemistryDimension,
   consumed: readonly ChemistryQuantityConsumption[]): boolean {
-  const inventory = findChemistryQuantities({question, dimension});
+  return chemistryQuantityInventoryMatches(question,dimension,consumed,findChemistryQuantities({question,dimension}));
+}
+function chemistryQuantityInventoryMatches(question: string, dimension: ChemistryDimension,
+  consumed: readonly ChemistryQuantityConsumption[], inventory: ChemRead<readonly ChemistryReading[]>): boolean {
   if (!inventory.ok) return false;
   const sameSpan = (a: ChemistrySpan, b: ChemistrySpan): boolean => a.start === b.start && a.end === b.end;
   if (consumed.some(({reading, owner}) => !owner || reading.dimension !== dimension
@@ -663,4 +728,74 @@ export function matchedChemistryScalar(question: string, match: RegExpMatchArray
   const span = match.indices?.[group]; if (!span) return null;
   const [start, end] = span;
   const parsed = parseChemistryScalar(question, { start, end }); return parsed.ok ? parsed.reading : null;
+}
+
+
+/** A source interval is a complete expression: the delimiter owns its minus
+ * sign, unlike a standalone negative literal. Existing standalone scalar and
+ * inventory callers do not acquire this operator boundary contract. */
+export type ChemistrySourceInterval = {state:"absent"} | {state:"invalid"} | {
+  state:"valid"; domain:[number,number]; readings:[ChemistryReading,ChemistryReading];
+  scalarSpans:[ChemistrySpan,ChemistrySpan]; unitSpans:[ChemistrySpan,ChemistrySpan];
+  delimiterSpan:ChemistrySpan; span:ChemistrySpan;
+};
+export interface ChemistrySourceIntervalInput {question:string;dimension:ChemistryDimension;targetUnit:ChemistryUnit}
+export function readChemistrySourceInterval(input:ChemistrySourceIntervalInput):ChemistrySourceInterval {
+  const body=input.question.slice(0,chemistryQuestionSpan(input.question).end);
+  const pattern=new RegExp(`\\b(?:from|over|between|for)\\s+(?<lo>${SCALAR})(?<middle>[^;!?\\n,.]{0,24}?)\\s*(?<separator>\\bto\\b|\\band\\b|[–—-])\\s*(?<hi>${SCALAR})`,"gdi");
+  const matches=[...body.matchAll(pattern)];
+  if(matches.length!==1){
+    return matches.length>1||/\b(?:from|over|between|for)\s+(?:unknown|unreadable|unspecified)\b[^;.!?\n]{0,40}\b(?:to|and)\b/i.test(body)?{state:"invalid"}:{state:"absent"};
+  }
+  const match=matches[0]!;
+  const lo=match.indices!.groups!.lo!,hi=match.indices!.groups!.hi!,delimiter=match.indices!.groups!.separator!;
+  const scalarSpans:[ChemistrySpan,ChemistrySpan]=[{start:lo[0],end:lo[1]},{start:hi[0],end:hi[1]}];
+  const highSpace=/^\s*/.exec(body.slice(hi[1]))![0].length;
+  const highStart=hi[1]+highSpace;
+  const highUnit=unitAt(body.slice(highStart));
+  if(!highUnit||!highUnit.def.dimensions.includes(input.dimension)
+    ||continuesUnit(body.slice(highStart+highUnit.text.length)))return{state:"invalid"};
+  const highSpan={start:highStart,end:highStart+highUnit.text.length};
+  const middle=body.slice(lo[1],delimiter[0]);const lowSpace=/^\s*/.exec(middle)![0].length;
+  const explicitLow=middle.trim()===""?null:unitAt(middle.slice(lowSpace));
+  if(middle.trim()!==""&&(!explicitLow||middle.slice(lowSpace)!==explicitLow.text
+    &&middle.slice(lowSpace).trimEnd()!==explicitLow.text))return{state:"invalid"};
+  const lowUnit=explicitLow??highUnit;if(!lowUnit.def.dimensions.includes(input.dimension))return{state:"invalid"};
+  const lowSpan=explicitLow?{start:lo[1]+lowSpace,end:lo[1]+lowSpace+explicitLow.text.length}:highSpan;
+  const tail=body.slice(highSpan.end);
+  if(!/^(?:\s*$|\s*[,.;!?]|\s+(?:using|with)\b|\s+and\s+(?:mark|show|label|calculate|compute|determine)\b)/i.test(tail))return{state:"invalid"};
+  const readings:ChemistryReading[]=[];
+  for(const[index,def]of[lowUnit.def,highUnit.def].entries()){
+    const scalar=scalarValue(input.question,scalarSpans[index]!);if(!scalar.ok)return{state:"invalid"};
+    const value=canonicalValue(scalar.reading,def,input.dimension);if(!value.ok)return{state:"invalid"};
+    const unitSpan=index===0?lowSpan:highSpan;
+    const explicit=index===1||explicitLow!==null;
+    const span={start:scalarSpans[index]!.start,end:explicit?unitSpan.end:scalarSpans[index]!.end};
+    const reading:ChemistryReading={value:value.reading,rawValue:scalar.reading,rawUnit:explicit?body.slice(unitSpan.start,unitSpan.end):null,
+      canonicalUnit:canonical[input.dimension],dimension:input.dimension,source:{kind:"stem_given",span,text:input.question.slice(span.start,span.end)}};
+    const converted=convertChemistryReading(reading,input.targetUnit);if(!converted.ok)return{state:"invalid"};readings.push(converted.reading);
+  }
+  if(!(readings[1]!.value>readings[0]!.value))return{state:"invalid"};
+  return{state:"valid",domain:[readings[0]!.value,readings[1]!.value],readings:[readings[0]!,readings[1]!],scalarSpans,
+    unitSpans:[lowSpan,highSpan],delimiterSpan:{start:delimiter[0],end:delimiter[1]},span:{start:match.index!,end:highSpan.end}};
+}
+/** Reparse the entire source interval before excluding its expression tokens.
+ * No caller-provided span or numeric match can authorize an exclusion. */
+export function chemistrySourceIntervalOwnsDimension(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  const outside=findChemistryQuantitiesOutsideSyntax({question:input.question,dimension:input.dimension},[actual.span]);
+  return outside.ok&&outside.reading.length===0;
+}
+/** A closed interval owns its entire syntax in every dimension's inventory.
+ * Reprove the original operator first; callers cannot supply exclusion spans.
+ * All physical literals outside it retain the ordinary owner/span checks. */
+export function chemistrySourceIntervalInventoryOwned(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval,dimension:ChemistryDimension,
+  consumed:readonly ChemistryQuantityConsumption[]):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  return chemistryQuantityInventoryMatches(input.question,dimension,consumed,
+    findChemistryQuantitiesOutsideSyntax({question:input.question,dimension},[actual.span]));
 }

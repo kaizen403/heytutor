@@ -1,4 +1,4 @@
-import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
+import type { RenderPoint, RenderPrimitive, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import {
   add2, bounded, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, placement, rejectUnknownKeys,
   requireUnits, scale2, scalar, SourceInputError, sourceUnits, unit2, validationNumber,
@@ -33,6 +33,7 @@ export type RemainderGeometry =
   | { kind: "point"; point: RenderPoint; remainder: RemainderMark }
   | { kind: "path"; points: RenderPoint[]; directed?: true; closed?: true; remainder: RemainderMark }
   | { kind: "circle"; center: RenderPoint; radius: number; remainder: RemainderMark }
+  | { kind: "dimension"; a: RenderPoint; b: RenderPoint; remainder: RemainderMark }
   | { kind: "multi_path"; paths: RenderPoint[][]; remainder: RemainderMark };
 
 const COUNTS: Record<(typeof CHAPTER_REMAINDER_OPERATORS)[number], number> = {
@@ -96,6 +97,11 @@ function readGraph(inputs: Record<string, unknown>, context: SourceContext): Rem
   if (inputs.quantity !== "position" && inputs.quantity !== "velocity") invalid("quantity", "motion_graph quantity must be position or velocity");
   if (!Array.isArray(inputs.points) || inputs.points.length < 2 || inputs.points.length > 64) invalid("points", "motion_graph needs 2 to 64 samples");
   const samples = inputs.points.map((point, index) => {
+    // A [t, value] pair names the same sample as {t, value}; the order is the
+    // graph's own axis order, time first.
+    if (Array.isArray(point) && point.length === 2) {
+      return { t: scalar(point[0], `points[${index}].t`, context), value: scalar(point[1], `points[${index}].value`, context) };
+    }
     if (!isRecord(point)) invalid("points", "each sample needs t and value");
     rejectUnknownKeys(point, ["t", "value"], "points");
     return { t: scalar(point.t, `points[${index}].t`, context), value: scalar(point.value, `points[${index}].value`, context) };
@@ -134,9 +140,7 @@ function readCircular(inputs: Record<string, unknown>, context: SourceContext): 
   ];
 }
 
-function landingTime(speed: number, angle: number, gravity: number, incline: number, height: number, direction: number): number {
-  const ux = speed * Math.cos(angle);
-  const uy = speed * Math.sin(angle);
+function landingTime(ux: number, uy: number, gravity: number, incline: number, height: number, direction: number): number {
   const slope = Math.tan(incline) * direction;
   const quadratic = 0.5 * gravity;
   const linear = ux * slope - uy;
@@ -197,18 +201,27 @@ function projectileScalar(value: unknown, key: string, dimension: ProjectileDime
 }
 
 function readProjectile(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): RemainderGeometry[] {
-  rejectUnknownKeys(inputs, ["speed", "launchAngleDeg", "gravity", "inclineAngleDeg", "initialHeight", "direction", "origin", "displayScale", "samples"]);
+  rejectUnknownKeys(inputs, ["speed", "launchAngleDeg", "gravity", "inclineAngleDeg", "initialHeight", "direction", "origin", "displayScale", "samples", "showMeasurements", "heightReference"]);
+  if (inputs.showMeasurements !== undefined && typeof inputs.showMeasurements !== "boolean") invalid("showMeasurements", "showMeasurements must be a boolean");
   const speed = projectileScalar(inputs.speed, "speed", "speed", context, document);
   if (!(speed > 0)) invalid("speed", "speed must be positive");
-  const launch = projectileScalar(inputs.launchAngleDeg, "launchAngleDeg", "angle", context, document, 1e6) * Math.PI / 180;
+  const degrees = projectileScalar(inputs.launchAngleDeg, "launchAngleDeg", "angle", context, document, 1e6);
+  const launch = degrees * Math.PI / 180;
+  const cardinal = degrees % 360;
+  const launchVector = { x: speed * (Math.abs(cardinal) === 90 || Math.abs(cardinal) === 270 ? 0 : Math.cos(launch)),
+    y: speed * (cardinal === 0 || Math.abs(cardinal) === 180 ? 0 : Math.sin(launch)) };
+  if (launchVector.y === 0 && cardinal !== 0 && Math.abs(cardinal) !== 180) invalid("precision", "a nonzero launch component underflowed at the stated angle");
   const gravity = projectileScalar(inputs.gravity, "gravity", "acceleration", context, document);
   if (!(gravity > 0)) invalid("gravity", "gravity must be positive");
   const incline = (inputs.inclineAngleDeg === undefined ? 0 : projectileScalar(inputs.inclineAngleDeg, "inclineAngleDeg", "angle", context, document, 360)) * Math.PI / 180;
+  const heightReference = inputs.heightReference ?? "level_ground";
+  if (heightReference !== "launch" && heightReference !== "level_ground") invalid("heightReference", "heightReference must be launch or level_ground");
+  if (inputs.showMeasurements === true && heightReference === "level_ground" && incline !== 0) invalid("heightReference", "an inclined landing line requires heightReference:launch (vertical rise), not a height above level ground");
   const height = inputs.initialHeight === undefined ? 0 : projectileScalar(inputs.initialHeight, "initialHeight", "length", context, document);
   if (height < 0) invalid("initialHeight", "initial height cannot be negative");
   const direction = inputs.direction === "down" ? -1 : 1;
   if (inputs.direction !== undefined && inputs.direction !== "up" && inputs.direction !== "down") invalid("direction", "incline direction must be up or down");
-  const time = landingTime(speed, launch, gravity, incline, height, direction);
+  const time = landingTime(launchVector.x, launchVector.y, gravity, incline, height, direction);
   const samples = inputs.samples === undefined ? 49 : scalar(inputs.samples, "samples", context);
   if (!Number.isInteger(samples) || samples < 8 || samples > 129) invalid("samples", "samples must be an integer from 8 to 129");
   const origin = placement(inputs.origin, "origin", context);
@@ -216,15 +229,32 @@ function readProjectile(inputs: Record<string, unknown>, context: SourceContext,
   const points = Array.from({ length: samples }, (_, index) => {
     const t = time * index / (samples - 1);
     return {
-      x: origin.x + speed * Math.cos(launch) * t * displayScale,
-      y: origin.y + (height + speed * Math.sin(launch) * t - 0.5 * gravity * t * t) * displayScale,
+      x: origin.x + launchVector.x * t * displayScale,
+      y: origin.y + (height + launchVector.y * t - 0.5 * gravity * t * t) * displayScale,
     };
   });
-  const launchVector = { x: speed * Math.cos(launch), y: speed * Math.sin(launch) };
-  return [
+  const result: RemainderGeometry[] = [
     { kind: "path", points, remainder: mark("trajectory", { x: time, y: height }, "s", displayScale) },
     arrow(origin, launchVector, displayScale, mark("launch", launchVector, "m/s", displayScale), { x: 0, y: height * displayScale }),
   ];
+  if (inputs.showMeasurements === true) {
+    const launchPoint = points[0]!, landing = points.at(-1)!;
+    const peakTime = Math.max(0, Math.min(time, launchVector.y / gravity));
+    const rise = Math.max(0, launchVector.y * peakTime - 0.5 * gravity * peakTime * peakTime);
+    const peak = { x: launchPoint.x + launchVector.x * peakTime * displayScale, y: launchPoint.y + rise * displayScale };
+    const range = launchVector.x * time;
+    if ((range === 0 && launchVector.x !== 0) || (rise === 0 && launchVector.y > 0)) invalid("precision", "a nonzero projectile measurement underflowed; it cannot be certified as zero");
+    result.push(range === 0
+      ? { kind: "point", point: landing, remainder: mark("R", { x: 0, y: 0 }, "m", displayScale) }
+      : { kind: "dimension", a: { x: launchPoint.x, y: landing.y }, b: landing, remainder: mark("R", { x: range, y: 0 }, "m", displayScale) });
+    const measuredHeight = heightReference === "launch" ? rise : height + rise;
+    const heightSymbol = heightReference === "launch" ? "Δh" : "H";
+    result.push(measuredHeight === 0
+      ? { kind: "point", point: peak, remainder: mark(heightSymbol, { x: 0, y: 0 }, "m", displayScale) }
+      : { kind: "dimension", a: { x: peak.x, y: heightReference === "launch" ? launchPoint.y : origin.y }, b: peak,
+        remainder: mark(heightSymbol, { x: 0, y: measuredHeight }, "m", displayScale) });
+  }
+  return result;
 }
 
 function readWork(inputs: Record<string, unknown>, context: SourceContext): RemainderGeometry[] {
@@ -406,7 +436,7 @@ export function evaluateChapterRemainderConstruction(operator: string, inputs: R
 }
 
 export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[], allowQuantitySymbols = false): string[] {
-  if (!isOperator(operator) || outputs.length !== COUNTS[operator]) invalid("outputs", "remainder labels require every ordered output");
+  if (!isOperator(operator) || (outputs.length !== COUNTS[operator] && !(operator === "projectile_trajectory" && outputs.length === 4))) invalid("outputs", "remainder labels require every ordered output");
   return outputs.map((output, index) => {
     if (!isRecord(output) || !isRecord(output.remainder)) invalid("outputs", "remainder geometry is missing source metadata");
     const metadata = output.remainder as unknown as RemainderMark;
@@ -415,9 +445,51 @@ export function chapterRemainderOutputLabels(operator: string, outputs: readonly
     const requestedText = requested?.[index];
     // An identifier names a quantity; it does not assert its value. Do not
     // normalize superscripts/operators into identifiers or accept equations.
-    if (allowQuantitySymbols && typeof requestedText === "string" && /^[\p{L}][\p{L}\p{M}\p{Nd}_₀-₉]*$/u.test(requestedText)) return requestedText;
+    if (allowQuantitySymbols && !(operator === "projectile_trajectory" && index >= 2) &&
+        typeof requestedText === "string" && /^[\p{L}][\p{L}\p{M}\p{Nd}_₀-₉]*$/u.test(requestedText)) return requestedText;
     if (requestedText !== undefined && requestedText !== symbol && requestedText !== numeric) invalid("label", "remainder labels must be the role symbol or the verified magnitude");
     return requestedText === numeric ? numeric : symbol;
+  });
+}
+
+/** A native measurement cannot silently become a different physical symbol
+ * through an entity label or a replacing/append annotation, even in yield mode. */
+export function validateProjectileMeasurementLabels(construction: SceneConstruction, document: SceneDocument, values: RemainderGeometry[]): void {
+  if (construction.operator !== "projectile_trajectory" || construction.inputs.showMeasurements !== true) return;
+  for (const [index, value] of values.entries()) {
+    if (index < 2) continue;
+    const id = construction.outputs[index], role = value.remainder.role;
+    const allowed = [role, `${role}=${compactNumber(value.remainder.magnitude)}`];
+    const entity = document.entities.find(e => e.id === id), label = entity?.label;
+    if (index === 3 && ((role === "Δh" && /\babove\s+(?:the\s+)?(?:level\s+)?ground\b/i.test(entity?.role ?? "")) ||
+        (role === "H" && /\brise\b|\babove\s+(?:the\s+)?launch\b/i.test(entity?.role ?? "")))) {
+      invalid("heightReference", "The declared height role must agree with heightReference: H above level ground or Δh above launch.");
+    }
+    // Only whole-text labels/braces can repeat a measurement symbol. Badges
+    // truncate text and polarity/spin split or reinterpret it; neither can
+    // establish this scalar's meaning. Narration carries no ink.
+    const annotations = document.annotations.filter(a => a.kind !== "narration" && a.targetIds.includes(id!));
+    if (annotations.some(a => a.text !== undefined && !["label", "callout", "brace"].includes(a.kind))) {
+      invalid("label", "Projectile measurements support whole-text label, callout or brace annotations only.");
+    }
+    const annotationTexts = annotations.map(a => a.text);
+    if ([label, ...annotationTexts].some(text => text !== undefined && !allowed.includes(text))) {
+      invalid("label", `Computed projectile ${role} must retain its own symbol or verified magnitude; use heightReference to choose H above level ground or Δh above launch.`);
+    }
+  }
+}
+
+/** A nonzero computed measurement may not project to a zero-length bar.
+ * True zero measurements were emitted as point markers by the operator. */
+export function validateProjectileMeasurementProjection(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+  const ids = new Set(document.constructions.filter(c => c.operator === "projectile_trajectory" && c.inputs.showMeasurements === true).flatMap(c => c.outputs.slice(2)));
+  return primitives.flatMap(p => {
+    if (!ids.has(p.entityId) || p.kind !== "dimension") return [];
+    const a = p.provenance?.measuredStart, b = p.provenance?.measuredEnd;
+    if (isRecord(a) && isRecord(b) && typeof a.x === "number" && typeof a.y === "number" && typeof b.x === "number" && typeof b.y === "number" &&
+        Number.isFinite(Math.hypot(a.x - b.x, a.y - b.y)) && Math.hypot(a.x - b.x, a.y - b.y) >= 1) return [];
+    return [{ code: "projectile_measurement_collapsed", severity: "fatal" as const, failureKind: "truth" as const,
+      entityIds: [p.entityId], message: "A nonzero projectile measurement is not resolved at the rendered scale." }];
   });
 }
 
@@ -431,8 +503,9 @@ export function validateChapterRemainderConstruction(
   const operator = construction.operator;
   if (!isOperator(operator)) return;
   const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
-  if (outputs.length !== COUNTS[operator] || new Set(outputs).size !== outputs.length) {
-    issues.push({ code: `invalid_${operator}_outputs`, severity: "fatal", message: `${operator} requires ${COUNTS[operator]} distinct outputs`, path: `constructions[${index}].outputs` });
+  const count = operator === "projectile_trajectory" && construction.inputs?.showMeasurements === true ? 4 : COUNTS[operator];
+  if (outputs.length !== count || new Set(outputs).size !== outputs.length) {
+    issues.push({ code: `invalid_${operator}_outputs`, severity: "fatal", message: `${operator} requires ${count} distinct outputs`, path: `constructions[${index}].outputs` });
   }
   if (!isRecord(construction.inputs)) {
     issues.push({ code: `invalid_${operator}_inputs`, severity: "fatal", message: "inputs must be an object", path: `constructions[${index}].inputs` });
@@ -448,7 +521,10 @@ export function validateChapterRemainderConstruction(
     },
     geometry: () => undefined,
   };
-  try { evaluateChapterRemainderConstruction(operator, construction.inputs, context, document); }
+  try {
+    const values = evaluateChapterRemainderConstruction(operator, construction.inputs, context, document);
+    validateProjectileMeasurementLabels(construction, document, values);
+  }
   catch (error) {
     issues.push({
       code: `invalid_${operator}_${error instanceof SourceInputError ? error.key : "inputs"}`,

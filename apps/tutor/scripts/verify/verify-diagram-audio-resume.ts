@@ -61,7 +61,10 @@ const intro = intros[0]!;
 const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
 // The body centre is a hidden force anchor. P uses a nearby label without a
 // callout and waits until named; the mass label and all force ink remain.
-assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 8]);
+// Label owner placement (Oct 2026) gives "mg sinθ" a leader to its own arrow
+// instead of a free slot nearer the incline and the angle mark than its own
+// arrow, so the third beat has 9 commands.
+assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 9]);
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };

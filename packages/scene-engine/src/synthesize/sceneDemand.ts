@@ -22,7 +22,7 @@ import type { SceneDocument } from "../types";
 import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
 import { CONIC_OPERATORS } from "../compile/conicGeometry";
 import {
-  circuitTopologyFromProblemStructure,
+  circuitDemandMayBeMultiLoop,
   isPlanarConicStem,
   isRiverBoatProblemIR,
   isRiverBoatStem,
@@ -360,11 +360,10 @@ export function sceneDemand(
     forbids.push("resistor_chain");
   }
 
-  // Solved structure outranks the English reading. A network the solver found
-  // to carry two loops is never a single-path chain, whatever the stem calls
-  // it, and a solved river crossing must show its banks.
-  const topology = circuitTopologyFromProblemStructure(problemIR);
-  if (topology?.twoLoop && !forbids.includes("resistor_chain")) forbids.push("resistor_chain");
+  // Demand vetoes retain main's conservative inventory boundary as well as
+  // proved graph topology. Inventory is not planner authority to invent loops,
+  // but missing graph evidence cannot authorize a possible network as a chain.
+  if (circuitDemandMayBeMultiLoop(problemIR) && !forbids.includes("resistor_chain")) forbids.push("resistor_chain");
   if (isRiverBoatProblemIR(problemIR) && !requires.includes("river_banks")) {
     requires.push("river_banks");
   }

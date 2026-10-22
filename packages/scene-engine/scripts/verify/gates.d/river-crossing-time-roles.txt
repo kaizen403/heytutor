@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-river-crossing-time-roles.ts

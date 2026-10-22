@@ -63,6 +63,13 @@ export type LabelSideRegion =
 /** Overlap id a candidate carries when its box leaves one of `sideRegions`. */
 export const LABEL_WRONG_SIDE = "wrong_side";
 
+/**
+ * Overlap id a candidate carries when, without a leader, its box sits nearer
+ * another entity's stroke than any stroke of its own owner. Such a label
+ * names the wrong mark: the vector "A" written beside its vertical component.
+ */
+export const LABEL_NEARER_FOREIGN = "nearer_foreign_ink";
+
 export interface LabelObstacle {
   id: string;
   entityId?: string;
@@ -71,6 +78,8 @@ export interface LabelObstacle {
   /** Precise ink segments. When present, collision uses these instead of the
    * coarse axis-aligned bounds (important for long diagonal rays). */
   segments?: Array<[RenderPoint, RenderPoint]>;
+  /** Kind of the primitive this obstacle was built from, when known. */
+  primitiveKind?: RenderPrimitive["kind"];
 }
 
 export type LabelSlot =
@@ -570,30 +579,44 @@ function placeLabelsInternal(
         : unionBounds(
             obstacles.filter((obstacle) => obstacle.entityId === owner.entityId).map((obstacle) => obstacle.bounds),
           );
+      const ownership = owner.useOwnerBounds === false ? null : strokeOwnership(owner, obstacles);
       // Point labels can use a closer compass slot when the usual margin wastes
       // clear interior space. Every candidate still clears ink by minGapPx.
       const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
-      const candidates: LabelPlacementCandidate[] = owner.requireLeader ? [] : anchorGaps.flatMap((anchorGap, gapIndex) => SLOT_OFFSETS.map((slot) => {
-        const anchor = ownerBounds ? anchorOnBounds(ownerBounds, slot.slot) : owner.anchor;
-        const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, anchorGap);
-        const collisionBounds = candidateInkBounds(owner.text, bounds, options);
-        const overlaps = solverObstacles
-          .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
-          .map((obstacle) => obstacle.id);
-        const outside = outsideOwnerView(collisionBounds, owner);
-        if (outside) overlaps.push("view_clip");
-        if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
-        if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
-        const incident = incidentAligned(slot.slot, owner.incidentTangents);
-        const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
-        return {
-          slot: slot.slot,
-          bounds,
-          collisionBounds,
-          score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
-          overlaps,
-          usesLeader: false,
-        };
+      const candidates: LabelPlacementCandidate[] = owner.requireLeader ? [] : anchorGaps.flatMap((anchorGap, gapIndex) => SLOT_OFFSETS.flatMap((slot) => {
+        const boxAnchor = ownerBounds ? anchorOnBounds(ownerBounds, slot.slot) : owner.anchor;
+        // A box anchor in empty air beside a diagonal stroke keeps its slot
+        // and gains slots taken along the stroke itself, for when the box slot
+        // sits nearer another mark than its owner.
+        const placements = [
+          { anchor: boxAnchor, bounds: textBoundsAtSlot(owner.text, boxAnchor, slot.slot, options, anchorGap) },
+          ...(ownership && ownerBounds && !onInk(boxAnchor, ownership.ink)
+            ? strokeSlotPlacements(owner, ownership, slot, options, anchorGap)
+            : []),
+        ];
+        return placements.map(({ anchor, bounds }) => {
+          const collisionBounds = candidateInkBounds(owner.text, bounds, options);
+          const overlaps = solverObstacles
+            .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
+            .map((obstacle) => obstacle.id);
+          const margin = ownership ? ownershipMargin(collisionBounds, ownership) : Infinity;
+          if (overlaps.length === 0 && margin < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
+          const outside = outsideOwnerView(collisionBounds, owner);
+          if (outside) overlaps.push("view_clip");
+          if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
+          if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+          const incident = incidentAligned(slot.slot, owner.incidentTangents);
+          const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
+          return {
+            slot: slot.slot,
+            bounds,
+            collisionBounds,
+            score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08 +
+              (margin < OWNERSHIP_CLEAR_MARGIN_PX ? AMBIGUOUS_OWNER_PENALTY : 0),
+            overlaps,
+            usesLeader: false,
+          };
+        });
       }));
 
       // Only feasibility consumes this branch: the caller receives no chosen
@@ -672,6 +695,9 @@ function placeLabelsInternal(
               ...(owner.allowLeader !== false && leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
             };
             if (owner.requireLeader && !candidate.usesLeader) overlaps.push("leader_required");
+            // Without a drawn leader nothing ties the text to its owner but
+            // proximity, so it must sit nearest its owner like a slot label.
+            if (overlaps.length === 0 && !candidate.usesLeader && ownership && ownershipMargin(collisionBounds, ownership) < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
             // Routing cannot repair a glyph box that is already illegal. Keep
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
@@ -1501,6 +1527,7 @@ export function obstaclesFromPrimitives(primitives: RenderPrimitive[]): LabelObs
       id: primitive.id,
       entityId: primitive.entityId,
       kind: primitive.kind === "label" ? "label" as const : "geometry" as const,
+      primitiveKind: primitive.kind,
       segments,
       bounds: {
         x: minX - pad,
@@ -1606,4 +1633,202 @@ function anchorOnBounds(bounds: LabelBounds, slot: Exclude<LabelSlot, "leader">)
     case "southeast": return { x: right, y: bottom };
     case "southwest": return { x: left, y: bottom };
   }
+}
+
+/**
+ * Px a foreign stroke must be nearer than the owner's own ink before a label
+ * reads as naming it. Ties stay legal: at a shared tip, or along a component
+ * drawn on an axis, the two strokes are the same distance away.
+ */
+const OWNERSHIP_TOLERANCE_PX = 1;
+
+/** A box anchor further than this from the owner's ink sits in empty air. */
+const SLOT_ANCHOR_DRIFT_PX = 8;
+
+interface StrokeOwnership {
+  ink: Array<[RenderPoint, RenderPoint]>;
+  /** The owner's longest single stroke, where its stroke slots are taken. */
+  stroke: Array<[RenderPoint, RenderPoint]>;
+  foreign: Array<Array<[RenderPoint, RenderPoint]>>;
+}
+
+/** Primitive kinds drawn as one straight open stroke whose label names the stroke. */
+const OPEN_STROKE_KINDS = new Set<RenderPrimitive["kind"]>(["line", "ray", "vector"]);
+
+/**
+ * A polyline of at most this many straight pieces (a right-angle mark, a bent
+ * path) is judged like a stroke. Sampled curves, waves and component symbols
+ * have many pieces and keep their own label anchors.
+ */
+const STROKE_POLYLINE_MAX_PIECES = 2;
+
+/**
+ * The owner's own stroke ink and every other entity's stroke ink, for owners
+ * drawn only as straight open strokes (segments, rays, vectors, right-angle
+ * marks and other short open polylines), whose label is placed around the
+ * stroke and must read as naming it.
+ *
+ * Closed shapes, axes, circles and sampled curves name a region, a frame or
+ * a graph, and keep their own anchors; owners whose label is held to a side
+ * region, a placement box or the anchor itself already follow a stronger
+ * rule. None of these are judged here and their slots are unchanged.
+ */
+function strokeOwnership(owner: LabelOwner, obstacles: LabelObstacle[]): StrokeOwnership | null {
+  if (owner.sideRegions?.length || owner.placementBounds || owner.pinToAnchor) return null;
+  const own = obstacles.filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId === owner.entityId);
+  if (own.length === 0 || !own.every((obstacle) => isOpenStroke(obstacle))) return null;
+  const strokes = own.map((obstacle) => obstacle.segments!);
+  const strokeLength = (segments: Array<[RenderPoint, RenderPoint]>) =>
+    segments.reduce((sum, [start, end]) => sum + Math.hypot(end.x - start.x, end.y - start.y), 0);
+  const stroke = strokes.reduce((longest, segments) => strokeLength(segments) > strokeLength(longest) ? segments : longest);
+  const ink = strokes.flat();
+  const foreign = obstacles
+    .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== undefined && obstacle.entityId !== owner.entityId && obstacle.segments?.length)
+    .map((obstacle) => obstacle.segments!);
+  return { ink, stroke, foreign };
+}
+
+function isOpenStroke(obstacle: LabelObstacle): boolean {
+  const segments = obstacle.segments;
+  if (!segments?.length || !obstacle.primitiveKind) return false;
+  if (!OPEN_STROKE_KINDS.has(obstacle.primitiveKind) && !(obstacle.primitiveKind === "polyline" && segments.length <= STROKE_POLYLINE_MAX_PIECES)) return false;
+  const start = segments[0]![0];
+  const end = segments.at(-1)![1];
+  return segments.length === 1 || Math.hypot(end.x - start.x, end.y - start.y) > 1;
+}
+
+/**
+ * A label this much nearer its owner than any other stroke names it without
+ * doubt. Under it (a slot at a tip the owner shares with another vector, or
+ * beside a component drawn on an axis) the slot is legal but ranks behind
+ * every clear one.
+ */
+const OWNERSHIP_CLEAR_MARGIN_PX = 8;
+const AMBIGUOUS_OWNER_PENALTY = 12;
+
+/** Nearest foreign stroke distance minus nearest owner stroke distance. */
+function ownershipMargin(box: LabelBounds, ownership: StrokeOwnership): number {
+  const own = segmentsToBoundsDistance(ownership.ink, box);
+  let foreign = Infinity;
+  for (const segments of ownership.foreign) {
+    if (screenedByOwner(box, segments, ownership.stroke)) continue;
+    foreign = Math.min(foreign, segmentsToBoundsDistance(segments, box));
+    if (foreign - own < -OWNERSHIP_TOLERANCE_PX) break;
+  }
+  return foreign - own;
+}
+
+/**
+ * A foreign stroke wholly across the owner's straight stroke from a label
+ * beside it cannot be read as the label's owner: the owner lies between them.
+ * A photon arrow ending on an energy level, with the level's name under the
+ * level, is such a stroke. Beyond the owner's ends (a tip shared with another
+ * vector) nothing is screened.
+ */
+function screenedByOwner(box: LabelBounds, segments: Array<[RenderPoint, RenderPoint]>, stroke: Array<[RenderPoint, RenderPoint]>): boolean {
+  if (stroke.length !== 1) return false;
+  const [start, end] = stroke[0]!;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return false;
+  const along = (point: RenderPoint) => ((point.x - start.x) * dx + (point.y - start.y) * dy) / (length * length);
+  const across = (point: RenderPoint) => (dx * (point.y - start.y) - dy * (point.x - start.x)) / length;
+  const corners = [
+    { x: box.x, y: box.y }, { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height },
+  ];
+  if (!corners.every((corner) => along(corner) > 0 && along(corner) < 1)) return false;
+  const side = Math.sign(across(corners[0]!));
+  if (side === 0 || !corners.every((corner) => Math.sign(across(corner)) === side)) return false;
+  return segments.every(([a, b]) => across(a) * side <= OWNERSHIP_TOLERANCE_PX && across(b) * side <= OWNERSHIP_TOLERANCE_PX);
+}
+
+function onInk(point: RenderPoint, ink: Array<[RenderPoint, RenderPoint]>): boolean {
+  return segmentsToBoundsDistance(ink, { x: point.x, y: point.y, width: 0, height: 0 }) <= SLOT_ANCHOR_DRIFT_PX;
+}
+
+/** Fractions along the owner's main stroke where a stroke slot may sit. */
+const STROKE_SLOT_STATIONS = [0.5, 0.3, 0.7];
+
+/** Furthest a stroke slot slides out before it is given up. */
+const STROKE_SLOT_MAX_SLIDE_PX = 96;
+
+/**
+ * Compass slots taken along a stroke whose box anchor is in empty air.
+ *
+ * The axis-aligned box of a diagonal stroke has its edge midpoints and two of
+ * its corners off the ink: the east edge of a vector drawn up and to the right
+ * is exactly where its vertical component is drawn, so the old east slot wrote
+ * the vector's name beside the component. Here each slot starts on the stroke
+ * itself (its label anchor, then stations along the longest stroke) and
+ * slides out in the slot's direction until the box clears the stroke by the
+ * same margin a box anchor gives an axis-aligned stroke. A slot that runs
+ * along the stroke and never clears it is dropped.
+ */
+function strokeSlotPlacements(
+  owner: LabelOwner,
+  ownership: StrokeOwnership,
+  slot: { slot: Exclude<LabelSlot, "leader">; dx: number; dy: number },
+  options: LabelEngineOptions,
+  anchorGap: number,
+): Array<{ anchor: RenderPoint; bounds: LabelBounds }> {
+  // A box anchor sits the obstacle pad (4 px) outside the ink.
+  const clearance = anchorGap + 4;
+  const stations = [
+    ...(onInk(owner.anchor, ownership.ink) ? [owner.anchor] : []),
+    ...STROKE_SLOT_STATIONS.map((fraction) => pointAlongStroke(ownership.stroke, fraction)),
+  ].filter((point, index, all) => all.findIndex((other) => Math.hypot(other.x - point.x, other.y - point.y) < 4) === index);
+  return stations.flatMap((anchor) => {
+    for (let slide = 0; slide <= STROKE_SLOT_MAX_SLIDE_PX; slide += 2) {
+      const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, slide);
+      if (segmentsToBoundsDistance(ownership.ink, bounds) >= clearance) return [{ anchor, bounds }];
+    }
+    return [];
+  });
+}
+
+function pointAlongStroke(stroke: Array<[RenderPoint, RenderPoint]>, fraction: number): RenderPoint {
+  const lengths = stroke.map(([start, end]) => Math.hypot(end.x - start.x, end.y - start.y));
+  let remaining = lengths.reduce((sum, length) => sum + length, 0) * fraction;
+  for (let index = 0; index < stroke.length; index += 1) {
+    const [start, end] = stroke[index]!;
+    const length = lengths[index]!;
+    if (remaining <= length || index === stroke.length - 1) {
+      const t = length === 0 ? 0 : Math.min(1, remaining / length);
+      return { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
+    }
+    remaining -= length;
+  }
+  return stroke[0]![0];
+}
+
+function segmentsToBoundsDistance(segments: Array<[RenderPoint, RenderPoint]>, box: LabelBounds): number {
+  let best = Infinity;
+  for (const [start, end] of segments) {
+    best = Math.min(best, segmentToBoundsDistance(start, end, box));
+    if (best === 0) return 0;
+  }
+  return best;
+}
+
+function segmentToBoundsDistance(start: RenderPoint, end: RenderPoint, box: LabelBounds): number {
+  if (segmentIntersectsBounds(start, end, box)) return 0;
+  const pointToBox = (point: RenderPoint) => Math.hypot(
+    Math.max(box.x - point.x, 0, point.x - (box.x + box.width)),
+    Math.max(box.y - point.y, 0, point.y - (box.y + box.height)),
+  );
+  const corners = [
+    { x: box.x, y: box.y }, { x: box.x + box.width, y: box.y },
+    { x: box.x, y: box.y + box.height }, { x: box.x + box.width, y: box.y + box.height },
+  ];
+  return Math.min(pointToBox(start), pointToBox(end), ...corners.map((corner) => pointToSegmentDistance(corner, start, end)));
+}
+
+function pointToSegmentDistance(point: RenderPoint, start: RenderPoint, end: RenderPoint): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t));
 }

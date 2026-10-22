@@ -1,0 +1,141 @@
+[
+  {
+    "id": "conceptual-kirchhoff-symbols-terminals",
+    "question": "Draw a labelled diagram for Kirchhoff's laws and their applications. Show the circuit symbols and labelled terminals.",
+    "draw": true,
+    "mode": "example"
+  },
+  {
+    "id": "explicit-example-kcl-kvl-transfer",
+    "question": "Illustrate Kirchhoff's current and voltage laws with an example circuit. Label a junction, a closed loop and the terminals of the components. Do not assign numerical values.",
+    "draw": true,
+    "mode": "example"
+  },
+  {
+    "id": "symbolic-law-view-transfer",
+    "question": "Draw an illustrative symbolic circuit to explain Kirchhoff's current law and voltage law. Mark the junction and the loop; show the source polarities.",
+    "draw": true,
+    "mode": "example"
+  },
+  {
+    "id": "missing-particular-current-circuit",
+    "question": "Using Kirchhoff's rules, calculate the current in each branch of the circuit shown in the missing figure. Draw that circuit and label its terminals.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "shared-r3-explicitly-not-present",
+    "question": "The left loop contains source E1 and resistor R1. The right loop contains source E2 and resistor R2. A shared middle resistor R3 is not present. Both sources have their positive terminals at the top. Draw the circuit.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "explicit-source-polarity-contradiction",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R3. The left loop contains source E1 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the top. E1 has its positive terminal at the bottom.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "current-law-only",
+    "question": "Illustrate Kirchhoff's current law with a symbolic example circuit. Label the junction and reference current directions.",
+    "draw": true,
+    "mode": "example",
+    "lawSet": [
+      "current"
+    ]
+  },
+  {
+    "id": "voltage-law-only",
+    "question": "Sketch an example circuit to explain Kirchhoff's voltage law. Show the closed loop and labelled terminals.",
+    "draw": true,
+    "mode": "example",
+    "lawSet": [
+      "voltage"
+    ]
+  },
+  {
+    "id": "complete-six-twelve-source",
+    "question": "The left loop consists of a 6 V ideal battery, resistor R1 = 2 ohm, and shared resistor R3 = 4 ohm. The right loop consists of a 12 V ideal battery, resistor R2 = 6 ohm, and the same shared R3. Both battery positive terminals are at the top. Draw the two-loop circuit and label the source values.",
+    "draw": true,
+    "mode": "source",
+    "quantities": {
+      "E1": 6,
+      "E2": 12,
+      "R1": 2,
+      "R2": 6,
+      "R3": 4
+    }
+  },
+  {
+    "id": "example-with-unread-given",
+    "question": "Illustrate Kirchhoff's current and voltage laws with an example circuit. The battery emf is unreadable V.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "example-not-positive",
+    "question": "Do not illustrate Kirchhoff's current and voltage laws with an example circuit.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "example-other-request",
+    "question": "Illustrate Kirchhoff's current and voltage laws with an example circuit. Also draw a capacitor charging graph.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "example-calculate-missing",
+    "question": "Illustrate Kirchhoff's laws with an example circuit and calculate the numerical current in the given circuit.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "unordered-numeric-source",
+    "question": "In the circuit a 6 V battery and a 12 V battery are connected with resistors of 2 ohm, 4 ohm and 6 ohm forming two loops. Use Kirchhoff's laws to find the current in each branch.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "physics|12|kirchhoffs-laws|medium",
+    "question": "Draw the standard setup for Kirchhoff's laws and their applications and label the named quantities. Show the circuit symbols and labelled terminals.",
+    "draw": true,
+    "mode": "example"
+  },
+  {
+    "id": "physics|12|kirchhoffs-laws|hard",
+    "question": "Draw Kirchhoff's laws and their applications and mark any named directions, levels, or components on the figure. Show the circuit symbols and labelled terminals.",
+    "draw": true,
+    "mode": "example"
+  },
+  {
+    "id": "standard-current-setup-coordinated-label",
+    "question": "Draw the standard setup for Kirchhoff's current law and label the reference current directions.",
+    "draw": true,
+    "mode": "example",
+    "lawSet": [
+      "current"
+    ]
+  },
+  {
+    "id": "voltage-coordinated-polarities",
+    "question": "Illustrate Kirchhoff's voltage law with an example circuit and mark the source polarities.",
+    "draw": true,
+    "mode": "example",
+    "lawSet": [
+      "voltage"
+    ]
+  },
+  {
+    "id": "standard-setup-unread-component",
+    "question": "Draw the standard setup for Kirchhoff's laws and label the named quantities. The resistance of R1 is unreadable ohm.",
+    "draw": false,
+    "mode": "decline"
+  },
+  {
+    "id": "coordinated-mark-other-request",
+    "question": "Draw Kirchhoff's laws and mark any named directions, levels, or components on the figure. Also plot a capacitor charging graph.",
+    "draw": false,
+    "mode": "decline"
+  }
+]

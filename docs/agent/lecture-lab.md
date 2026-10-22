@@ -152,7 +152,7 @@ pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.json
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
 # strict uses the same planner+examples path and teaches text-only if it fails.
-# Every paid lab uses the configured Azure deployment and production 60 s budget.
+# Every paid lab uses the configured provider and production 60 s budget.
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model configured --scene-planner-limit-ms 60000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
@@ -176,18 +176,42 @@ lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
-Paid lab runs load `.env.local` and require a fully configured Azure provider.
+Paid lab runs load `.env.local` and require a fully configured provider.
 Use `--model configured` (the default), the production 60,000 ms scene limit,
-and a positive `--max-usd` on every run. All planner, ProblemIR, teaching, and
-example-picker calls use the configured deployment. Azure fallback to Fireworks
-is rejected before dispatch. Preflight and measured usage price `gpt-6-1-sol`
-at US$2 input, US$0.10 cached input, and US$10 output per million tokens.
+and a positive `--max-usd` on every run. Azure lanes use the configured
+deployment; Azure fallback is rejected before dispatch. On Fireworks, the
+authenticated standard-evaluation header pins planner, ProblemIR and teaching
+to standard Kimi K3 (never Fast); the picker uses the configured cheap model.
+The supported Fireworks picker identities are standard K3 and DeepSeek Flash.
+Authenticated preflight compares the effective lane models and prices between
+server and runner. Unknown model/price identities fail before paid dispatch.
+Use effective local price overrides when the published rates change; do not
+reprice historical runs or change production settings for a measurement.
+For Fireworks credit-capped probes use the higher DeepSeek Flash rates:
+`FIREWORKS_DEEPSEEK_FLASH_INPUT_USD_PER_1M=0.30` and
+`FIREWORKS_DEEPSEEK_FLASH_OUTPUT_USD_PER_1M=1.20`, supplied to **both** CLI and
+dev-server processes before the round. K3 rates are $3 input, $0.30 cached and
+$15 output per million tokens. Do not edit `.env.local` during a round: the
+server may reload a different model or price after preflight.
 By default (`--spend-mode conservative`), unknown usage is charged conservatively
-with Azure reasoning headroom included.
-Every summary and row records provider and deployment; every completed planner
-call retains its actual model and measured usage. `--model standard` remains a
+with server output headroom and proxy retry bounds included. Server-prepared
+picker catalogue and scene-example additions also reserve input headroom.
+The exact model/rate profile, server caps and input bounds are recorded in
+summary/row execution identity and must match on resume, including when the
+Fireworks deployment is null. Every completed planner call retains its actual
+model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+The exported `assertLabBudgetPreflight` and `labRequestBudgetDecision` in
+`apps/tutor/scripts/lecture-lab/run.ts` own the actual runner's per-request
+reservation policy. The latter is pure: it uses the captured endpoint, profile
+prices and server bounds, not fresh environment lookups. Query-string chat
+requests cannot bypass the cap; picker and scene additions keep their input
+bounds, and teaching reserves all three upstream attempts. The offline
+`verify-lab-request-budget.ts` gate checks those outcomes and the main wiring,
+including five mutation controls. Use conservative mode for these probes;
+`response_usage` below is not a hard provider-bill cap.
 
 For provider-metric reconciled experiments, opt into `--spend-mode response_usage
 --max-usd 10`. This is a cap on the known response-usage subtotal, priced at the

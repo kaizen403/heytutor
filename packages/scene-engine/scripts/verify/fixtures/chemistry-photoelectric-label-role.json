@@ -1,0 +1,1138 @@
+{
+  "restorations": [
+    {
+      "id": "review-labelled-sodium",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "review-emitter-collector",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "negative-distinct-labelled-material",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on copper plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-two-labelled-sodium",
+      "question": "Sodium plate A has work function 2.3 eV. Sodium plate B has work function 4.7 eV. Photons of energy 3 eV fall on plate B. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-illuminated-collector",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-na",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-cu",
+      "question": "The work function of copper is 2 eV. Photons of energy 3 eV fall on copper plate B. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-zn",
+      "question": "The work function of zinc is 2 eV. Photons of energy 3 eV fall on zinc plate Q. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-cs",
+      "question": "The work function of caesium is 2 eV. Photons of energy 3 eV fall on caesium plate P. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-al",
+      "question": "The work function of aluminium is 2 eV. Photons of energy 3 eV fall on aluminium plate X. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-symbol",
+      "question": "The work function of Na is 2 eV. Photons of energy 3 eV strike Na plate A. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "alias-repeat-target",
+      "question": "Sodium plate A has work function 2.3 eV. Photons of energy 3 eV fall on plate A. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-reach",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-collected",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons are collected by a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-travel",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. Photoelectrons travel to the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-opposite",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. A collector receives the emitted electrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-anode",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector collects the photoelectrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "collector-passive-no-value",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. A collector is present in the photocell. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "desiredGap": "An unproved present collector has no positive electron-receiver role. Owner approved conservative refusal; keep draw=true science oracle and original raw required result."
+    },
+    {
+      "id": "negative-label-reuse-conflict",
+      "question": "Sodium plate A has work function 2.3 eV. Copper plate A has work function 4.7 eV. Photons of energy 3 eV fall on plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-same-material-two",
+      "question": "Sodium plate A has work function 2.3 eV. Sodium plate B has work function 2.3 eV. Photons of energy 3 eV fall on plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-collector-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. The collector has work function 4.7 eV. Photons of energy 3 eV fall on the emitter. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-collector-threshold-of",
+      "question": "The sodium emitter has work function 2.3 eV. The work function of the collector is 4.7 eV. Photons of energy 3 eV fall on the emitter. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-collector-passive-lit",
+      "question": "The sodium emitter has work function 2.3 eV. The collector is illuminated by photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "negative-collector-active-hit",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV strike the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-phi-negative",
+      "question": "The work function of sodium is -2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-phi-negative",
+      "question": "The sodium emitter has work function -2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-phi-unknown",
+      "question": "The work function of sodium is unknown. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-phi-unknown",
+      "question": "The sodium emitter has work function unknown. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-phi-unreadable",
+      "question": "The work function of sodium is unreadable. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-phi-unreadable",
+      "question": "The sodium emitter has work function unreadable. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-phi-bad-exponent",
+      "question": "The work function of sodium is 2.3e- eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-phi-bad-exponent",
+      "question": "The sodium emitter has work function 2.3e- eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-phi-foreign-unit",
+      "question": "The work function of sodium is 2.3 kg. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-phi-foreign-unit",
+      "question": "The sodium emitter has work function 2.3 kg. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-repeat-conflict",
+      "question": "The work function of sodium is 2.3 eV. The work function of sodium is 4.7 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-repeat-conflict",
+      "question": "The sodium emitter has work function 2.3 eV. The work function of sodium is 4.7 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-repeat-unread",
+      "question": "The work function of sodium is 2.3 eV. The work function of sodium is unreadable. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-repeat-unread",
+      "question": "The sodium emitter has work function 2.3 eV. The work function of sodium is unreadable. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-repeat-negative",
+      "question": "The work function of sodium is 2.3 eV. The work function of sodium is -4.7 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-repeat-negative",
+      "question": "The sodium emitter has work function 2.3 eV. The work function of sodium is -4.7 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-repeat-agree",
+      "question": "The work function of sodium is 2.3 eV. The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "inheritedGap": "Exact4d and normalized no-label/no-collector public outcomes decline agreeing repeated work-function declarations; this surface patch retains the existing numeric policy. Science oracle remains draw=true."
+    },
+    {
+      "id": "collector-repeat-agree",
+      "question": "The sodium emitter has work function 2.3 eV. The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "inheritedGap": "Exact4d and normalized no-label/no-collector public outcomes decline agreeing repeated work-function declarations; this surface patch retains the existing numeric policy. Science oracle remains draw=true."
+    },
+    {
+      "id": "generic-potassium",
+      "question": "The work function of potassium is 2 eV. Photons of energy 3 eV fall on metal K. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "lowercase-article",
+      "question": "A metal of work function 2 eV is illuminated by photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "known-original",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+      "draw": true,
+      "requiredRestoration": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    }
+  ],
+  "collectorBoundaries": [
+    {
+      "id": "collector-possessive-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector's work function is 2.3 eV. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "collector-parenthetic-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector (work function 2.3 eV) receives the electrons. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "collector-passive-contrast",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector receives the electrons. Draw the photoelectric diagram.",
+      "draw": true
+    }
+  ],
+  "photonPhysics": [
+    {
+      "id": "alias-photon-absent",
+      "question": "The work function of sodium is 2.3 eV. Light falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": null,
+      "draw": false
+    },
+    {
+      "id": "alias-photon-unread",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy unreadable eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "alias-photon-negative",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy -3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "alias-photon-stale-phi",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "alias-photon-stale-photon",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 4,
+      "draw": false
+    },
+    {
+      "id": "alias-photon-valid",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": true
+    },
+    {
+      "id": "collector-photon-absent",
+      "question": "The sodium emitter has work function 2.3 eV. Light falls on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": null,
+      "draw": false
+    },
+    {
+      "id": "collector-photon-unread",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy unreadable eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "collector-photon-negative",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy -3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "collector-photon-stale-phi",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2,
+      "photonSlot": 3,
+      "draw": false
+    },
+    {
+      "id": "collector-photon-stale-photon",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 4,
+      "draw": false
+    },
+    {
+      "id": "collector-photon-valid",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "phiSlot": 2.3,
+      "photonSlot": 3,
+      "draw": true
+    }
+  ],
+  "collectorPhysics": [
+    {
+      "id": "collector-possessive-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector's work function is 2.3 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "collector-parenthetic-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector (work function 2.3 eV) receives the electrons. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "collector-passive-contrast",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector receives the electrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    }
+  ],
+  "collectorList": [
+    {
+      "id": "active-list-emitter-first",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter and the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "active-list-collector-first",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the collector and the emitter. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "passive-list-collector-first",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV are used. The collector and emitter are illuminated. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "passive-list-emitter-first",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV are used. The emitter and collector are illuminated. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    },
+    {
+      "id": "receiving-contrast",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiSlot": 2.3,
+      "photonSlot": 3
+    }
+  ],
+  "roleProofTransfers": [
+    {
+      "id": "alias-Q7",
+      "question": "The work function of zinc is 2 eV. Photons of energy 3 eV fall on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-element-label",
+      "question": "The work function of zinc is 2 eV. Photons of energy 3 eV fall on zinc plate S. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "same-material-two",
+      "question": "Sodium plate A has work function 2 eV. Sodium plate B is also present. Photons of energy 3 eV fall on plate A. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "conflicting-label",
+      "question": "Sodium plate Q2 has work function 2 eV. Copper plate Q2 is illuminated by photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-reused",
+      "question": "The work function of sodium plate Q7 is 2 eV. Photons of energy 3 eV strike plate Q7. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": false,
+      "desiredGap": "Work-function cue does not consume plate Q7 inside the owner phrase; existing strict numeric policy safely refuses. Positive science oracle remains unchanged; out of surface-role scope."
+    },
+    {
+      "id": "collector-electrons-arrive",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons arrive at a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-photons-reach",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV reach the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-illuminated-adjective",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. An illuminated collector receives the emitted electrons. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-incident",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV are incident on the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-brightly-illuminated",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. A brightly illuminated collector receives the emitted electrons. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-modal-passive",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector has been illuminated by the same light. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-receives-photons",
+      "question": "The sodium emitter has work function 2.3 eV. The collector receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "collector-threshold-energy",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. A collector with threshold energy 2 eV receives the electrons. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "missing-photon",
+      "question": "The work function of zinc is 2 eV. Light falls on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "frequency-derived",
+      "question": "The work function of zinc is 2 eV. Light of frequency 1e15 Hz falls on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "frequency-stale-slot",
+      "question": "The work function of zinc is 2 eV. Light of frequency 1e15 Hz falls on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "wavelength-derived",
+      "question": "The work function of zinc is 2 eV. Light of wavelength 400 nm falls on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3.0996049608300074,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "photon-channels-conflict",
+      "question": "The work function of zinc is 2 eV. Photons of energy 3 eV and wavelength 400 nm fall on zinc plate Q7. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "mixed-particles",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector receives electrons and photons. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "electron-proof-then-photon",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Photons reach the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "electron-proof-then-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. The collector has threshold energy 2 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "electron-proof-target-modifier",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach an illuminated collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "electron-proof-target-adverb",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a brightly illuminated collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "receiver-particles-only",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector receives only the emitted electrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "receiver-photoelectrons",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The collector collects photoelectrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "receiver-passive",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons are collected by a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "receiver-arrive",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons arrive at a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "repeated-proved-receivers",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach the collector. The collector collects the emitted electrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-without-emitter-photon-collector",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A and reach a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "requiredRestoration": true
+    },
+    {
+      "id": "alias-passive-without-emitter",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium plate A. The emitted electrons reach a collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "plain-material-unknown-photon-collector",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV reach the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "sole-collector-own-phi",
+      "question": "The collector has work function 2.3 eV. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "sole-collector-of-phi",
+      "question": "The work function of the collector is 2.3 eV. Photons of energy 3 eV reach the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "sole-named-collector-own-phi",
+      "question": "The sodium collector has work function 2.3 eV. Photons of energy 3 eV fall on the sodium collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    },
+    {
+      "id": "sole-collector-phi-unread",
+      "question": "The collector has work function unreadable. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "phiEv": 2.3,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "only-choices",
+      "question": "Draw the photoelectric diagram for sodium plate A. Options: (a) work function 2 eV and photon energy 3 eV; (b) no emission.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "photon-only-in-choice",
+      "question": "Sodium plate A has work function 2 eV. Draw the photoelectric diagram. Options: (a) photon energy 3 eV; (b) no emission.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "phi-only-in-choice",
+      "question": "Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram. Options: (a) work function 2 eV; (b) no emission.",
+      "draw": false,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": false,
+      "requiredRestoration": true
+    },
+    {
+      "id": "actual-stem-values",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. Draw the photoelectric diagram. Options: (a) emission; (b) no emission.",
+      "draw": true,
+      "phiEv": 2,
+      "photonEv": 3,
+      "physicsDraw": true,
+      "requiredRestoration": true
+    }
+  ],
+  "referenceTransfers": [
+    {
+      "id": "named-owner-indefinite-target",
+      "question": "Collector A has work function 2.3 eV. Photons of energy 3 eV fall on a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-definite-target",
+      "question": "Collector A has work function 2.3 eV. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "anonymous-owner-named-target",
+      "question": "The collector has work function 2.3 eV. Photons of energy 3 eV fall on collector B. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "anonymous-owner-definite-target",
+      "question": "The collector has work function 2.3 eV. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-conjoined-photons",
+      "question": "The collector has work function 2 eV and receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-pronoun-target",
+      "question": "The collector has work function 2 eV. It receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-pronoun-passive",
+      "question": "The collector has work function 2 eV. Photons of energy 3 eV fall on it. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-with-phi",
+      "question": "A collector with work function 2 eV is illuminated by photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-repeat-target",
+      "question": "The collector has work function 2 eV. Photons of energy 3 eV reach the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "plateA-electron-sink",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. The collector collects the emitted electrons. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "plateA-photon-target",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. The collector collects photons. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "plateA-later-photon-target",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. The collector collects the emitted electrons. The collector receives photons. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-same-target",
+      "question": "Collector A has work function 2.3 eV. Photons of energy 3 eV fall on collector A. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-other-target",
+      "question": "Collector A has work function 2.3 eV. Photons of energy 3 eV fall on collector B. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2.3,
+      "photonEv": 3
+    },
+    {
+      "id": "plateA-collector-second-threshold",
+      "question": "The work function of sodium is 2 eV. Photons of energy 3 eV fall on sodium plate A. The collector has work function 2.3 eV. The collector receives photons. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "material-collector-same-alias",
+      "question": "The sodium collector A has work function 2 eV. Photons of energy 3 eV fall on collector A. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-photon-mismatch",
+      "question": "Collector A has work function 2 eV. Photons of energy 3 eV fall on collector A. The incident photon frequency is 1e14 Hz. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-missing-photons",
+      "question": "Collector A has work function 2 eV. The collector is illuminated. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-pronoun-receiver",
+      "question": "Collector A has work function 2 eV. It receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-coordinated-receiver",
+      "question": "Collector A has work function 2 eV and receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "indefinite-owner-indefinite-target",
+      "question": "A collector has work function 2 eV. Photons of energy 3 eV fall on a collector. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "competing-emitter-pronoun-recipient",
+      "question": "The sodium emitter has work function 2 eV. Photons of energy 3 eV fall on the emitter. The collector receives electrons. It receives photons. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-other-referent-pronoun",
+      "question": "Collector A has work function 2 eV. The emitted electrons reach collector B. It receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owned-coordinated-electron-photon",
+      "question": "The collector has work function 2 eV and collects electrons and receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "material-label-owner-pronoun",
+      "question": "The sodium collector A has work function 2 eV. It receives photons of energy 3 eV. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "named-owner-repeated-definite",
+      "question": "Collector A has work function 2 eV. The collector collects electrons. Photons of energy 3 eV fall on the collector. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "competing-emitter-object-pronoun-reach",
+      "question": "The sodium emitter has work function 2 eV. Photons of energy 3 eV fall on the emitter. The collector receives electrons. Photons reach it. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "competing-emitter-object-pronoun-illumination",
+      "question": "The sodium emitter has work function 2 eV. Photons of energy 3 eV fall on the emitter. The collector receives electrons. Light illuminates it. Draw the photoelectric diagram.",
+      "draw": false,
+      "physicsDraw": false,
+      "phiEv": 2,
+      "photonEv": 3
+    },
+    {
+      "id": "sole-owner-object-pronoun-reach",
+      "question": "The collector has work function 2 eV. Photons of energy 3 eV reach it. Draw the photoelectric diagram.",
+      "draw": true,
+      "physicsDraw": true,
+      "phiEv": 2,
+      "photonEv": 3
+    }
+  ],
+  "thermoOwners": [
+    {
+      "id": "collector-threshold-energy",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. A collector with threshold energy 2 eV receives the electrons. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "electron-proof-then-threshold",
+      "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. The collector has threshold energy 2 eV. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "no-emitter-threshold-fallback",
+      "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV reach the collector. The collector has threshold energy 2 eV. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "unowned-threshold-alone",
+      "question": "The threshold energy is 2 eV. Draw a diagram.",
+      "draw": false
+    },
+    {
+      "id": "reaction-states-explicit-profile",
+      "question": "The potential energy of the reactants is 20 kJ, the potential energy of the products is 10 kJ and the threshold energy is 80 kJ. Draw the energy profile and find the activation energy of the forward and backward reactions.",
+      "draw": true,
+      "labels": [
+        "E_a = 60 kJ",
+        "\u0394H = \u221210 kJ"
+      ]
+    },
+    {
+      "id": "reaction-states-owned-without-profile-word",
+      "question": "The potential energy of the reactants is 20 kJ, the potential energy of the products is 10 kJ and the threshold energy is 80 kJ. Draw the diagram.",
+      "draw": true,
+      "labels": [
+        "E_a = 60 kJ",
+        "\u0394H = \u221210 kJ"
+      ]
+    },
+    {
+      "id": "activation-owned-independent",
+      "question": "For an exothermic reaction the activation energy of the forward reaction is 60 kJ/mol and \u0394H = \u221220 kJ/mol. Draw the energy profile diagram and find the activation energy of the backward reaction.",
+      "draw": true,
+      "labels": [
+        "E_a = 60 kJ/mol",
+        "\u0394H = \u221220 kJ/mol"
+      ]
+    },
+    {
+      "id": "catalyst-owned-independent",
+      "question": "Show with an energy profile diagram how a catalyst lowers the activation energy of an exothermic reaction without changing \u0394H.",
+      "draw": true,
+      "labels": [
+        "with catalyst",
+        "E_a",
+        "E_a (catalyst)",
+        "\u0394H"
+      ]
+    },
+    {
+      "id": "energy-barrier-owned-independent",
+      "question": "Draw an energy barrier diagram for an exothermic reaction.",
+      "draw": true,
+      "labels": [
+        "R",
+        "P",
+        "TS"
+      ]
+    }
+  ]
+}

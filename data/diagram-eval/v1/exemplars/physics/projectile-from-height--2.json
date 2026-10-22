@@ -1,0 +1,452 @@
+{
+  "topic_id": "physics|2|projectile-from-height",
+  "question": "A ball is thrown horizontally at 12 m/s from the top of a tower 19.6 m high that stands on level ground. Take g = 9.8 m/s². Find how long the ball is in the air, how far from the foot of the tower it lands, and its speed and direction just before it hits the ground.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ball thrown horizontally from a tower"
+    },
+    "source": {
+      "question": "A ball is thrown horizontally at 12 m/s from the top of a tower 19.6 m high that stands on level ground. Take g = 9.8 m/s². Find how long the ball is in the air, how far from the foot of the tower it lands, and its speed and direction just before it hits the ground."
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 12,
+        "unit": "m/s"
+      },
+      {
+        "id": "h",
+        "symbol": "h",
+        "value": 19.6,
+        "unit": "m"
+      },
+      {
+        "id": "g",
+        "symbol": "g",
+        "value": 9.8,
+        "unit": "m/s^2"
+      },
+      {
+        "id": "T",
+        "symbol": "T",
+        "value": 2,
+        "unit": "s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "foot of tower",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "top of tower, launch point",
+        "label": "A"
+      },
+      {
+        "id": "path",
+        "kind": "polyline",
+        "role": "trajectory"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "landing point",
+        "label": "B"
+      },
+      {
+        "id": "u_vec",
+        "kind": "vector",
+        "role": "launch velocity, horizontal",
+        "label": "u = 12 m/s"
+      },
+      {
+        "id": "v_vec",
+        "kind": "vector",
+        "role": "velocity just before landing",
+        "label": "v"
+      },
+      {
+        "id": "tower",
+        "kind": "segment",
+        "role": "tower"
+      },
+      {
+        "id": "G0",
+        "kind": "point",
+        "role": "ground start"
+      },
+      {
+        "id": "G1",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "level ground",
+        "label": "ground"
+      },
+      {
+        "id": "ahead",
+        "kind": "segment",
+        "role": "horizontal ahead of B"
+      },
+      {
+        "id": "H0",
+        "kind": "point",
+        "role": "height mark foot"
+      },
+      {
+        "id": "H1",
+        "kind": "point",
+        "role": "height mark top"
+      },
+      {
+        "id": "dim_h",
+        "kind": "dimension",
+        "role": "tower height",
+        "label": "h = 19.6 m"
+      },
+      {
+        "id": "dim_R",
+        "kind": "dimension",
+        "role": "distance from the foot",
+        "label": "R"
+      },
+      {
+        "id": "theta",
+        "kind": "angle_mark",
+        "role": "angle below the horizontal",
+        "label": "θ"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "c_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 19.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "c_path",
+        "operator": "constant_acceleration_trajectory",
+        "inputs": {
+          "initialPosition": [
+            0,
+            "h"
+          ],
+          "initialVelocity": [
+            "u",
+            0
+          ],
+          "acceleration": [
+            0,
+            -9.8
+          ],
+          "tMin": 0,
+          "tMax": "T",
+          "units": {
+            "length": "m",
+            "time": "s"
+          }
+        },
+        "outputs": [
+          "path"
+        ]
+      },
+      {
+        "id": "c_B",
+        "operator": "trajectory_state",
+        "inputs": {
+          "trajectory": "path",
+          "time": "T",
+          "kind": "position"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "c_u_vec",
+        "operator": "trajectory_state",
+        "inputs": {
+          "trajectory": "path",
+          "time": 0,
+          "kind": "velocity",
+          "timeScale": 0.5
+        },
+        "outputs": [
+          "u_vec"
+        ]
+      },
+      {
+        "id": "c_v_vec",
+        "operator": "trajectory_state",
+        "inputs": {
+          "trajectory": "path",
+          "time": "T",
+          "kind": "velocity",
+          "timeScale": 0.35
+        },
+        "outputs": [
+          "v_vec"
+        ]
+      },
+      {
+        "id": "c_tower",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "A"
+        },
+        "outputs": [
+          "tower"
+        ]
+      },
+      {
+        "id": "c_G0",
+        "operator": "point",
+        "inputs": {
+          "x": -5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G0"
+        ]
+      },
+      {
+        "id": "c_G1",
+        "operator": "point",
+        "inputs": {
+          "x": 32,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G1"
+        ]
+      },
+      {
+        "id": "c_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "G0",
+          "end": "B"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "c_ahead",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "G1"
+        },
+        "outputs": [
+          "ahead"
+        ]
+      },
+      {
+        "id": "c_H0",
+        "operator": "point",
+        "inputs": {
+          "x": -2.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "H0"
+        ]
+      },
+      {
+        "id": "c_H1",
+        "operator": "point",
+        "inputs": {
+          "x": -2.5,
+          "y": 19.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "H1"
+        ]
+      },
+      {
+        "id": "c_dim_h",
+        "operator": "dimension",
+        "inputs": {
+          "start": "H0",
+          "end": "H1"
+        },
+        "outputs": [
+          "dim_h"
+        ]
+      },
+      {
+        "id": "c_dim_R",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "B"
+        },
+        "outputs": [
+          "dim_R"
+        ]
+      },
+      {
+        "id": "c_theta",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "v_vec",
+          "b": "ahead"
+        },
+        "outputs": [
+          "theta"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "u_horizontal",
+        "predicate": "parallel",
+        "entities": [
+          "u_vec",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_ground",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "A",
+      "path",
+      "B",
+      "u_vec",
+      "v_vec",
+      "tower",
+      "G0",
+      "G1",
+      "ground",
+      "ahead",
+      "H0",
+      "H1",
+      "dim_h",
+      "dim_R",
+      "theta"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "A",
+          "tower",
+          "G0",
+          "ground",
+          "H0",
+          "H1",
+          "dim_h",
+          "u_vec"
+        ],
+        "dependsOn": [],
+        "narrationCue": "tower of height h; ball leaves A horizontally at u"
+      },
+      {
+        "id": "flight",
+        "entityIds": [
+          "path",
+          "B",
+          "dim_R"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "half parabola to B, a distance R from the foot"
+      },
+      {
+        "id": "impact",
+        "entityIds": [
+          "G1",
+          "ahead",
+          "v_vec",
+          "theta"
+        ],
+        "dependsOn": [
+          "flight"
+        ],
+        "narrationCue": "at B, v points below the horizontal at θ"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "tower of height h; ball leaves A horizontally at u"
+      },
+      {
+        "id": "reveal_flight",
+        "action": "reveal",
+        "targetId": "flight",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "half parabola to B, a distance R from the foot"
+      },
+      {
+        "id": "reveal_impact",
+        "action": "reveal",
+        "targetId": "impact",
+        "dependsOn": [
+          "reveal_flight"
+        ],
+        "narrationIntent": "at B, v points below the horizontal at θ"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}

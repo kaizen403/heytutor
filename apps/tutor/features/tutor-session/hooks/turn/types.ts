@@ -82,8 +82,12 @@ export type ExecuteCommandOptions = {
   isPaused?: () => boolean;
   /** Media ms from the segment's audio start; the FOCUS and cue waits read it. */
   getAudioPositionMs?: () => number;
+  /** Recorded playback/export advances waits with its media clock, not host timers. */
+  waitForAdvance?: () => Promise<void>;
   /** Media ms per wall ms; default 1. */
   getPlaybackRate?: () => number;
+  /** Waits for `getAudioPositionMs` on a pumped export clock instead of wall-time polling. */
+  waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
   /** A following work cue bounds transient POINT motion; final timing may arrive late. */
   getPointDeadlineMs?: () => number | null;
   /** Runtime-only explanation motion; resolves already-written work, never figure anchors. */

@@ -1,0 +1,208 @@
+[
+  {
+    "id": "H01",
+    "question": "The work function of sodium is 2.3 eV. A copper sheet receives photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H02",
+    "question": "The work function of sodium is 2.3 eV. Copper absorbs photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H04",
+    "question": "The work function of sodium is 2.3 eV. Copper receives light of photon energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H07",
+    "question": "A metal plate has work function 2 eV and another has 5 eV. Photons of energy 3 eV fall on the latter. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H08",
+    "question": "One metal has work function 2 eV and another has 5 eV. Photons of energy 3 eV fall on the second one. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H09",
+    "question": "One metal has work function 2 eV, the other 5 eV. Photons of energy 3 eV fall on the other. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "H11",
+    "question": "The work function of sodium is 2.3 eV. Copper catches photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Unproved or second illuminated sample cannot borrow first work function."
+  },
+  {
+    "id": "P01",
+    "question": "Light of photon energy 10.2 eV from a hydrogen discharge tube falls on a potassium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "phiEv": 2.3,
+    "photonEv": 10.2,
+    "why": "Photon source is not emitting surface."
+  },
+  {
+    "id": "P02",
+    "question": "A photon of energy 10.2 eV emitted by a hydrogen atom falls on a sodium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "phiEv": 2.3,
+    "photonEv": 10.2,
+    "why": "Photon source is not emitting surface."
+  },
+  {
+    "id": "Q03",
+    "question": "Light of wavelength 400 nm falls on a metal of work function 2 eV. The photoelectrons are collected by the collector. Draw it.",
+    "draw": true,
+    "phiEv": 2,
+    "photonEv": 3.1,
+    "why": "Drawing request is not collector role fact."
+  },
+  {
+    "id": "Q04",
+    "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Draw it.",
+    "draw": true,
+    "phiEv": 2.3,
+    "photonEv": 3,
+    "why": "Drawing request is not collector role fact."
+  },
+  {
+    "id": "eval-hydrogen-discharge-q4",
+    "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on it, and a hydrogen discharge in the same practical emits at 656 nm. Take hc = 1240 eV nm. Find the maximum kinetic energy of the photoelectrons from the sodium, in eV.",
+    "draw": true,
+    "phiEv": 2.3,
+    "photonEv": 3.1,
+    "why": "Auxiliary discharge is not second surface."
+  },
+  {
+    "id": "transfer-gentle-receiver",
+    "question": "The work function of sodium is 2.3 eV. A copper foil gently receives photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "transfer-intercepted-light",
+    "question": "The work function of potassium is 2.1 eV. A silver plate intercepts light of photon energy 4 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "transfer-elliptical-former",
+    "question": "A metal plate has work function 1.8 eV and another has 4.2 eV. Photons of energy 3 eV fall on the former. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "transfer-elliptical-other",
+    "question": "One sample has work function 2.5 eV, the other 4.5 eV. Photons of energy 3 eV fall on the other. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "transfer-second-phi-explicit",
+    "question": "One metal has work function 2 eV and another has work function 5 eV. Photons of energy 3 eV fall on the second one. Draw the photoelectric diagram.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "transfer-neon-discharge",
+    "question": "A lithium plate of work function 2.5 eV receives photons of energy 4 eV from a neon discharge tube. Draw the photoelectric diagram.",
+    "draw": true,
+    "why": "Independent noun-phrase, ellipse or request-role transfer.",
+    "phiEv": 2.5,
+    "photonEv": 4
+  },
+  {
+    "id": "transfer-helium-atom",
+    "question": "A photon of energy 6 eV emitted by a helium atom falls on a copper plate of work function 4 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "why": "Independent noun-phrase, ellipse or request-role transfer.",
+    "phiEv": 4,
+    "photonEv": 6
+  },
+  {
+    "id": "transfer-mercury-source",
+    "question": "A mercury vapour lamp emits photons of energy 3 eV onto a sodium plate of work function 2 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "why": "Independent noun-phrase, ellipse or request-role transfer.",
+    "phiEv": 2,
+    "photonEv": 3
+  },
+  {
+    "id": "transfer-show-request",
+    "question": "The sodium emitter has work function 2.3 eV. Photons of energy 3 eV fall on the emitter. The emitted electrons reach a collector. Show it.",
+    "draw": true,
+    "why": "Independent noun-phrase, ellipse or request-role transfer.",
+    "phiEv": 2.3,
+    "photonEv": 3
+  },
+  {
+    "id": "transfer-label-request",
+    "question": "Light of wavelength 400 nm falls on a metal of work function 2 eV. The photoelectrons are collected by the collector. Label it.",
+    "draw": true,
+    "why": "Independent noun-phrase, ellipse or request-role transfer.",
+    "phiEv": 2,
+    "photonEv": 3.1
+  },
+  {
+    "id": "collector-actually-lit",
+    "question": "Light of wavelength 400 nm falls on a metal of work function 2 eV. The photoelectrons are collected by the collector. The collector is illuminated. Draw it.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "request-not-a-blanket-exemption",
+    "question": "Light of wavelength 400 nm falls on a metal of work function 2 eV. The photoelectrons are collected by the collector. Draw it and illuminate the collector.",
+    "draw": false,
+    "why": "Independent noun-phrase, ellipse or request-role transfer."
+  },
+  {
+    "id": "negative-material-made-from",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a target made from copper. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-material-constructed-from",
+    "question": "The work function of sodium is 2.3 eV. Light of photon energy 3 eV falls on a plate constructed from copper. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-material-produced-by",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a copper plate produced by a sodium manufacturer. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-other-threshold-unknown",
+    "question": "A metal plate has work function 2 eV and another has an unknown work function. Photons of energy 3 eV fall on the latter. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-other-threshold-unreadable",
+    "question": "One metal has work function 2 eV; the other has work function unreadable. Photons of energy 3 eV fall on the other. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-other-threshold-bad-unit",
+    "question": "One metal has work function 2 eV and another has 5 qV. Photons of energy 3 eV fall on the second one. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "negative-other-threshold-unitless",
+    "question": "One metal has work function 2 eV and the other 5. Photons of energy 3 eV fall on the other. Draw the photoelectric diagram.",
+    "draw": false
+  },
+  {
+    "id": "positive-source-from-no-attribute",
+    "question": "The work function of sodium is 2.3 eV. Light from a hydrogen atom supplies photon energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "draw": true,
+    "phiEv": 2.3,
+    "photonEv": 3
+  }
+]

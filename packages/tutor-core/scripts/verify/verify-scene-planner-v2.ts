@@ -3,6 +3,17 @@ import {
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
 } from "../../src/planners/scenePlannerV2";
+import { SCENE_CONSTRUCTION_INPUT_CONTRACTS } from "../../src/planners/scenePlannerV2Prompt";
+
+// The engine refuses a function_region over a motion_graph drawn with a
+// timeScale other than 1 or an origin, so the planner must not be told that
+// the "0" baseline always works.
+const functionRegionContract = SCENE_CONSTRUCTION_INPUT_CONTRACTS.split("\n")
+  .find((line) => line.startsWith("- function_region:")) ?? "";
+if (!/lower=function_curve "0" only if the motion_graph has timeScale 1 and no origin; else a polygon through the graph's own drawn points/
+  .test(functionRegionContract)) {
+  throw new Error(`function_region contract still offers the "0" baseline for a scaled motion graph: ${functionRegionContract}`);
+}
 
 const normalizedStringSource = normalizeSceneDocumentModelOutput(
   {
