@@ -26,7 +26,7 @@ import {
   SpeechSynthesisTTSClient,
 } from "@heytutor/tutor-core";
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
-import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
+import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
@@ -200,6 +200,9 @@ export function useSegmentRunner({
       // student watched a silent 1.5–2× dump while TTS was still connecting.
       const hasNarration = narration.length > 0;
       const hasCommand = segmentCommands.length > 0;
+      const codeBeatOwner = codeLessonControllerRef?.current;
+      const codeBeatPlan = codeBeatOwner?.getActivePlan();
+      const codeBeatTargets = requiredCodeBeatTargets(segmentCommands, codeBeatPlan);
       const inkPlan = planSegmentInk({
         commands: segmentCommands,
         verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
@@ -914,8 +917,8 @@ export function useSegmentRunner({
             }),
           ]));
         } catch (error) {
-          speechAborted = true;
           terminalSpeechFailure = !isCancelled();
+          speechAborted = true;
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -927,8 +930,9 @@ export function useSegmentRunner({
             error: error instanceof Error ? error.message : String(error),
             timed_out: timedOut,
           });
-          // Kill zombie WS/HTTP work so the next paragraph is not blocked.
-          tts.abandonSpeaking?.();
+          // The shared provider may already be playing a successor turn.
+          // Kill zombie work only while this segment still owns the turn.
+          if (terminalSpeechFailure) tts.abandonSpeaking?.();
           // Do not count a silent fallback as a successful lecture beat. Let
           // the queue stop after repeated failures and show its retry message.
           // Browser recovery only succeeds after its utterance actually ends.
@@ -985,7 +989,9 @@ export function useSegmentRunner({
           // promises are independent: Promise.all rejects on the draw side
           // while the speech carries on narrating a board that has frozen.
           startOwnedDraw = () => {
-            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
+            const generation = drawGeneration;
+            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, generation), (error) => {
+              if (isCancelled() || generation !== drawGeneration) return;
               speechAborted = true;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
               tutorDebug("segment", "draw failed; silencing narration", {
@@ -1004,6 +1010,8 @@ export function useSegmentRunner({
           if (rollbackIntroInk) introDrawOwnerRef.current = { owner: segmentFallbackOwner, freeze: freezeIntroDraw };
           startOwnedDraw();
 
+          let pairedFailed = false;
+          let pairedFailure: unknown;
           try {
             await Promise.all([
               speakSegmentWithTimeout(narration, {
@@ -1032,10 +1040,22 @@ export function useSegmentRunner({
             // The initial draw may have settled before Pause. Completion still
             // joins the CURRENT replay, not just that first execution.
             await ownedDraw;
+          } catch (error) {
+            pairedFailed = true;
+            pairedFailure = error;
           } finally {
             drawGeneration++;
             await ownedDraw.catch(() => undefined);
             if (introDrawOwnerRef.current?.owner === segmentFallbackOwner) introDrawOwnerRef.current = null;
+          }
+
+          if (pairedFailed) {
+            if (!isCancelled() && codeBeatOwner && codeLessonControllerRef?.current === codeBeatOwner &&
+                codeBeatOwner.getActivePlan() === codeBeatPlan && codeBeatOwner.getState().mode === "lesson") {
+              const incomplete = incompleteCodeBeatFailure(codeBeatTargets, codeBeatOwner.getState().revealedChars, pairedFailure);
+              if (incomplete) throw incomplete;
+            }
+            throw pairedFailure;
           }
 
           if (isCancelled()) return;

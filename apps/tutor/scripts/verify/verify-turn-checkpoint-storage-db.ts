@@ -41,7 +41,7 @@ async function main() {
   const objects = new Map<string, number>();
   const deleted: string[] = [];
   const uploadAttempts: string[] = [];
-  let failUploadsWith: string | null = null;
+  let failUploadsWith: Error | null = null;
   let uploadPause: ((key: string) => Promise<void>) | null = null;
   mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: {
     headObjectSize: async (key: string) => objects.has(key) ? { status: "found", bytes: objects.get(key)! } : { status: "missing" },
@@ -49,7 +49,7 @@ async function main() {
     uploadAudio: async (key: string, bytes: Uint8Array) => {
       uploadAttempts.push(key);
       await uploadPause?.(key);
-      if (failUploadsWith) throw new Error(failUploadsWith);
+      if (failUploadsWith) throw failUploadsWith;
       objects.set(key, bytes.byteLength);
       return `/api/media?key=${encodeURIComponent(key)}`;
     },
@@ -69,7 +69,9 @@ async function main() {
   const storage = load(resolve(root, "lib/boards/storageQuota.ts")) as typeof import("../../lib/boards/storageQuota");
   const { turnMetadataStorageBytes } = load(resolve(root, "lib/boards/storageAccounting.ts")) as typeof import("../../lib/boards/storageAccounting");
   const { runObjectDeletionBatch } = load(resolve(root, "lib/object-store/deletionJobs.ts")) as typeof import("../../lib/object-store/deletionJobs");
-  const { handleTurnCheckpoint, handleTurnClose } = load(resolve(root, "lib/boards/turnCheckpoint.ts")) as typeof import("../../lib/boards/turnCheckpoint");
+  // Controlled source copies challenge error contracts without changing product
+  // files. Normal/CI execution loads the canonical checkpoint handler.
+  const { handleTurnCheckpoint, handleTurnClose } = load(process.env.CHECKPOINT_TEST_SOURCE ?? resolve(root, "lib/boards/turnCheckpoint.ts")) as typeof import("../../lib/boards/turnCheckpoint");
   const boardRoute = load(resolve(root, "app/api/boards/[boardId]/route.ts")) as typeof import("../../app/api/boards/[boardId]/route");
 
   const userId = randomUUID(), boardId = randomUUID();
@@ -150,9 +152,12 @@ async function main() {
     assert.equal(turn.checkpointSeq, 2);
 
     // --- an abandoned attempt deletes only its own folder ----------------------
-    failUploadsWith = "object store down";
+    const growthCause = new Error("object store down");
+    failUploadsWith = growthCause;
     await assert.rejects(put(lesson, { seq: 3, baseCount: 3, appendSegments: [row(3, "So 5.")] }, { 3: MP3(2_000, 3) }),
-      /object store down/);
+      error => error === growthCause, "failed growth preserves its original cause for the request-error boundary after reservation cleanup");
+    assert.equal((await turnRow(lesson)).checkpointSeq, 2, "a failed upload cannot advance the saved checkpoint");
+    assert.equal(await prisma.segment.count({ where: { turnId: lesson } }), 3, "failed growth keeps earlier rows");
     failUploadsWith = null;
     const jobs = await prisma.objectDeletionJob.findMany({ where: { userId } });
     assert.equal(jobs.length, 1, "the failed attempt left its durable cleanup intent");
@@ -169,8 +174,12 @@ async function main() {
 
     // --- a retried first create gets a fresh folder ----------------------------
     const retried = randomUUID();
-    failUploadsWith = "lost";
-    await assert.rejects(put(retried, { seq: 1, baseCount: 0, appendSegments: [row(0, "", CLEAR), row(1, "Hi.")] }, { 1: MP3(1_000) }));
+    const createCause = new Error("lost");
+    failUploadsWith = createCause;
+    await assert.rejects(put(retried, { seq: 1, baseCount: 0, appendSegments: [row(0, "", CLEAR), row(1, "Hi.")] }, { 1: MP3(1_000) }),
+      error => error === createCause, "failed first create preserves its original cause for the request-error boundary after reservation cleanup");
+    assert.equal(await prisma.turn.count({ where: { id: retried } }), 0, "a failed first upload never publishes a turn");
+    assert.equal(await prisma.segment.count({ where: { turnId: retried } }), 0);
     failUploadsWith = null;
     const abandonedCreate = await prisma.objectDeletionJob.findFirstOrThrow({ where: { userId } });
     assert.equal(abandonedCreate.pendingTurns, 0, "the abandoned create gave its turn slot back");

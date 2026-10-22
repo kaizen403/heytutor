@@ -50,6 +50,7 @@ import {
   type TurnStorageReservation,
 } from "@/lib/boards/storageQuota";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
+import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
   audioPrefixMatchesType,
@@ -71,6 +72,8 @@ import {
 /** The keepalive close carries words and ink only; browsers cap keepalive bodies at 64 KiB in total. */
 export const MAX_CLOSE_BODY_BYTES = 16 * 1024;
 export const MAX_RESUME_STATE_BYTES = 128 * 1024;
+/** Keep checkpoint commits below the client's 30s minimum save deadline. */
+const CHECKPOINT_TRANSACTION_OPTIONS = { timeout: 15_000, maxWait: 5_000 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const VISUAL_STATUSES = new Set(["validated", "text_only", "legacy", "retry_required"]);
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
@@ -540,7 +543,7 @@ async function closeStatusOnly(
       const status = nextTurnStatus(currentStatus, input.status);
       const ownsMetadata = input.seq > current.checkpointSeq;
       const hasMetadata = input.rawResponse !== undefined || input.resumeState !== undefined;
-      return tx.turn.update({
+      const turn = await tx.turn.update({
         where: { id: current.id },
         data: {
           status,
@@ -549,7 +552,11 @@ async function closeStatusOnly(
           ...(ownsMetadata && hasMetadata ? { checkpointSeq: input.seq } : {}),
         },
       });
-    });
+      const segments = await tx.segment.findMany({ where: { turnId: turn.id },
+        select: { narration: true, spokenText: true, command: true } });
+      const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments });
+      return { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId };
+    }, CHECKPOINT_TRANSACTION_OPTIONS);
     const segments = await prisma.segment.findMany({ where: { turnId: turn.id }, orderBy: { orderIndex: "asc" } });
     return json(turnBody({ ...turn, segments }));
   } catch (error) {
@@ -945,8 +952,9 @@ async function applyCheckpoint(
           if (current && current.metadataBytes > BigInt(retainedMetadataBytes)) {
             await refundTurnMetadataStorage(tx, userId, current.metadataBytes - BigInt(retainedMetadataBytes));
           }
-          return { kind: "saved", turn: { ...turn, segments }, sceneAccepted: ownsScene };
-        });
+          const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments });
+          return { kind: "saved", turn: { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId, segments }, sceneAccepted: ownsScene };
+        }, CHECKPOINT_TRANSACTION_OPTIONS);
       } catch (error) {
         lastError = error;
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;

@@ -18,7 +18,7 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { IncompleteCodeBeatError, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { workColumnRows } from "../../lib/board/boardLayout";
 import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
@@ -167,6 +167,32 @@ export function useTurnControl(
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
   const segmentFailureGenerationRef = useRef(turnGenerationRef.current);
+  // A later successful beat resets the consecutive-failure watchdog, but it
+  // cannot supply an earlier missing step or make the whole lesson complete.
+  const missingTeachingSegmentsRef = useRef(new Set<number>());
+
+  const canCompleteTeaching = useCallback((generation: number, errorQuestion: string): boolean => {
+    if (generation !== turnGenerationRef.current || cancelRef.current) return false;
+    if (segmentFailureGenerationRef.current !== generation || missingTeachingSegmentsRef.current.size === 0) return true;
+    const page = boardPageRef.current;
+    if (page?.boardId === sessionId) {
+      page.failureTelemetry = {
+        ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other",
+        failed: true, stage: "teaching", code: "teaching_segment_failed",
+      };
+    }
+    turnTelemetryRef.current?.mark("teaching-incomplete", {
+      missing_segment_count: missingTeachingSegmentsRef.current.size,
+    });
+    // Close the actually taught prefix before the handler can publish a full
+    // response or release end-of-lesson answers. Never replay partial ink here.
+    cancelRef.current = true;
+    stopTurnRef.current?.();
+    const failure = { message: "Part of the lesson could not play. Please try again.", question: errorQuestion };
+    setLastError(failure);
+    onError?.(failure);
+    return false;
+  }, [turnGenerationRef, cancelRef, boardPageRef, sessionId, turnTelemetryRef, stopTurnRef, setLastError, onError]);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -222,6 +248,7 @@ export function useTurnControl(
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
+      const segmentPage = boardPageRef.current?.boardId === sessionId ? boardPageRef.current : null;
       const segmentToRun = normalizeSegmentForAlignment(segment);
       collectedSegmentsRef.current.push(segmentToRun);
       const index = collectedSegmentsRef.current.length - 1;
@@ -263,6 +290,7 @@ export function useTurnControl(
         if (segmentFailureGenerationRef.current !== turnGeneration) {
           segmentFailureGenerationRef.current = turnGeneration;
           consecutiveSegmentFailuresRef.current = 0;
+          missingTeachingSegmentsRef.current.clear();
         }
 
         try {
@@ -278,6 +306,7 @@ export function useTurnControl(
           // history or publish an error against the replacement turn.
           if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
+          missingTeachingSegmentsRef.current.add(index);
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
             index,
@@ -293,6 +322,31 @@ export function useTurnControl(
             stack: error instanceof Error ? (error.stack ?? "").slice(0, 600) : "",
             consecutive_failures: consecutiveSegmentFailuresRef.current,
           });
+          const markTeachingSegmentFailure = () => {
+            if (!segmentPage || segmentPage !== boardPageRef.current || segmentPage.boardId !== sessionId) return;
+            segmentPage.failureTelemetry = {
+              ...segmentPage.failureTelemetry, subject: segmentPage.failureTelemetry?.subject ?? "other",
+              failed: true, stage: "teaching", code: "teaching_segment_failed",
+            };
+          };
+          if (error instanceof IncompleteCodeBeatError) {
+            const failure = { message: error.message, question: liveQuestionRef.current };
+            turnTelemetryRef.current?.mark("code-beat-incomplete", {
+              segment_index: index,
+              block_id: error.blockId,
+              intended_chars: error.intendedChars,
+              shown_chars: error.shownChars,
+              cause: String(error.cause instanceof Error ? error.cause.message : error.cause).slice(0, 300),
+            });
+            // Stop captures the real prefix and offers Continue with the same
+            // plan. Do not admit later blocks or publish a completed lesson.
+            markTeachingSegmentFailure();
+            stopTurnRef.current?.();
+            cancelRef.current = true;
+            setLastError(failure);
+            onError?.(failure);
+            return;
+          }
           // Two in a row means the drawing pipeline is gone, not that one
           // command was unlucky. Stop the turn rather than narrate the rest of
           // the lesson to a board that has stopped moving.
@@ -303,6 +357,7 @@ export function useTurnControl(
               index,
               consecutive_failures: consecutiveSegmentFailuresRef.current,
             });
+            markTeachingSegmentFailure();
             cancelRef.current = true;
             const failure = {
               message: "The lesson could not continue playing. Please try again.",
@@ -331,7 +386,9 @@ export function useTurnControl(
       turnTelemetryRef,
       liveQuestionRef,
       setLastError,
+      stopTurnRef,
       onError,
+      boardPageRef,
     ],
   );
 
@@ -570,6 +627,7 @@ export function useTurnControl(
         return;
       }
       const revealDeferredAnnotations = options?.revealDeferredAnnotations ?? true;
+      const errorQuestion = options?.errorQuestion ?? liveQuestionRef.current;
       const parsed = parseDrawingCommands(responseText);
 
       if (isEmptyTutorResponse(responseText, parsed)) {
@@ -642,9 +700,7 @@ export function useTurnControl(
         await segmentQueue;
         const drawQueue = drawChainRef.current;
         await drawQueue;
-        if (turnGeneration !== turnGenerationRef.current) {
-          return;
-        }
+        if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
         const leftover = activeDiagram && revealDeferredAnnotations
         ? remainingDeferredAnnotations(activeDiagram)
         : [];
@@ -719,9 +775,7 @@ export function useTurnControl(
       await segmentQueue;
       const drawQueue = drawChainRef.current;
       await drawQueue;
-      if (turnGeneration !== turnGenerationRef.current) {
-        return;
-      }
+      if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
       const leftover = activeDiagram && revealDeferredAnnotations
         ? remainingDeferredAnnotations(activeDiagram)
         : [];
@@ -750,6 +804,7 @@ export function useTurnControl(
     [
       enqueueSegment,
       enqueueVerifiedIntro,
+      canCompleteTeaching,
       activeVerifiedDiagramRef,
       codeLessonControllerRef,
       segmentPlanStatsRef,

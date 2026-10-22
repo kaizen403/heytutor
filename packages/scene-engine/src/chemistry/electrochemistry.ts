@@ -13,7 +13,9 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
+import { claimsSourceLawGraph, readSourceLawGraph } from "./sourceLawGraph";
+import { buildSourceLawGraphFigure } from "./lawGraphFigure";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -539,15 +541,17 @@ interface SpeciesToken {
 }
 
 function literalValue(text: string, dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit): number | null {
-  const r = findChemistryQuantities({ question: text, dimension, targetUnit });
-  return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
+  const r = readChemistryQuantityInventoryDeclaration({ question: text, dimension, targetUnit,owner:dimension });
+  return r.state === "valid" ? r.reading.value : null;
 }
 function readConcentration(text: string): number | null {
   return literalValue(text, "concentration", "mol/L");
 }
-function readPressure(text: string): number | null {
+function readPressure(text: string): ChemistryQuantityDeclaration {
   // Cell gas activities are relative to the 1 bar standard state.
-  return literalValue(text, "pressure", "bar");
+  const declared = readChemistryQuantityDeclaration({question:text,after:/\bpressure\b/,owner:"gas-phase pressure",dimension:"pressure",targetUnit:"bar",allowAgreeingRepeats:true});
+  if (declared.state === "invalid") return declared;
+  return readChemistryQuantityInventoryDeclaration({question:text,dimension:"pressure",targetUnit:"bar",owner:"gas-phase pressure",allowAgreeingRepeats:true});
 }
 
 interface OriginalCellReaction {
@@ -564,7 +568,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
   const side = `${term}(?:\\s*\\+\\s*${term})*`;
-  const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
+  const arrow = String.raw`(?:->|<=>|→|⟶|⇌|⇄|↔|⇒)`;
   const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/.-])(?<![+−/\\-\\d]\\s*)${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*(?:\\+|[\\(\\[\\{]))`, "gu");
   const operators = new Set<number>();
   const original: OriginalCellReaction[] = [];
@@ -602,7 +606,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   for (const owner of source.matchAll(owners)) {
     const start = owner.index! + owner[0].length;
     const tail = source.slice(start);
-    const supplied = Boolean(owner[1] || owner[2]) || /^(?:[A-Z]|\d|[+−/.-]\s*\d|unknown\b|unreadable\b|(?:->|→|⟶|⇌|⇄|↔|⇒))/.test(tail);
+    const supplied = Boolean(owner[1] || owner[2]) || /^(?:[A-Z]|\d|[+−/.-]\s*\d|unknown\b|unreadable\b|(?:->|<=>|→|⟶|⇌|⇄|↔|⇒))/.test(tail);
     if (supplied && !original.some(reaction => reaction.start === start)) invalid = true;
   }
   return {operators, reactions: original, invalid};
@@ -807,11 +811,13 @@ function readSpeciesTokens(text: string): SpeciesToken[] | null {
         continue;
       }
       const phaseMatch = /\(\s*(aq|s|g|l)\b/.exec(part);
+      const pressure = readPressure(part);
+      if (pressure.state === "invalid") return null;
       tokens.push({
         formula,
         phase: (phaseMatch?.[1] as SpeciesToken["phase"]) ?? null,
         concentration: readConcentration(part),
-        pressure: readPressure(part),
+        pressure: pressure.state === "valid" ? pressure.reading.value : null,
       });
       break;
     }
@@ -1772,6 +1778,7 @@ function galvanicCue(lower: string): boolean {
  * words are present too.
  */
 export function isElectrochemStem(question: string): boolean {
+  if (claimsSourceLawGraph(question, "chem_electrochem")) return true;
   const lower = chemStem(question);
   if (PHYSICS_WORDS.test(lower) && !REDOX_WORDS.test(lower)) return false;
   if (conductancePlotCue(lower)) return true;
@@ -2132,6 +2139,11 @@ function buildConductancePlot(question: string): SceneDocument | null {
  * about that variation.
  */
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  const sourceLaw = readSourceLawGraph(question, "chem_electrochem");
+  if (sourceLaw.state !== "unclaimed") {
+    if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
+  }
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   if (statedPotentials(question) === null) return null;
   if (!chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;

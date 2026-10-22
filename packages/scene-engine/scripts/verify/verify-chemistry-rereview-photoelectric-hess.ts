@@ -1,10 +1,12 @@
 /** Real-source regressions for coordinator #137 re-review; no model calls. */
 import assert from "node:assert/strict";
-import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
+import { readChemistryQuantity } from "../../src/chemistry/quantityReader";
+import { createHash } from "node:crypto";
+import { buildAtomicRadiationScene, isAtomicRadiationStem } from "../../src/chemistry/atomicRadiation";
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
 import { compileSceneDocument } from "../../src/compile/compiler";
-import { inferChemistryFamilies } from "../../src/chemistry/router";
+import { inferChemistryFamilies, isChemistryQuestion } from "../../src/chemistry/router";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
@@ -21,6 +23,7 @@ function labels(document: SceneDocument | null): string[] {
 function check(name: string, run: () => void): void {
   try { run(); checks++; } catch (error) { failures.push(name + ": " + String(error)); }
 }
+// These retained label checks agree with main; supplied-hc authority is deferred to #166.
 const sourceHcStems = [
   "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1240 eV nm. Find the stopping potential in volts.",
   "The work function of a metal is 2.0 eV. Light has wavelength 300 nm. Using hc=1240 eV nm, calculate the photoelectron kinetic energy.",
@@ -37,25 +40,8 @@ for (const question of sourceHcStems) check("source hc supplies its wavelength l
   assert.equal(synthesis.document.source.chemistryFamily, "chem_orbital");
   assert.ok(labels(synthesis.document).includes("K=2.13 eV"));
 });
-for (const hc of ["4e- eV nm", "1e999 eV nm", "unknown", "-1240 eV nm", "0 eV nm", "1240 kg", "1240 eV nm/s", "1240 eV nm; hc=1200 eV nm"])
-  check("supplied damaged hc never becomes a fixed product: " + hc, () => {
-    const question = `Light of wavelength 300 nm falls on a metal. Its work function is 2.0 eV. Take hc=${hc}. Find photoelectron kinetic energy.`;
-    assert.equal(buildAtomicRadiationScene(question, [], false), null);
-    assert.equal(synthesizeFamilyScene({ question }), null);
-  });
-for (const declaration of ["hc=unknown; hc=1240 eV nm", "hc=1240 eV nm; hc=unknown", "hc=; hc=1240 eV nm", "hc=1240 eV nm; hc=", "hc=1240 eV nm; hc=1240 eV nm"])
-  check("each explicit hc owner must be resolved: " + declaration, () => {
-    const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. ${declaration}. Find kinetic energy.`;
-    assert.equal(buildAtomicRadiationScene(question, [], false), null);
-    assert.equal(synthesizeFamilyScene({ question }), null);
-  });
-for (const hc of ["1000", "1200", "1500", "2000", "1241"])
-  check("a supplied incompatible hc cannot replace the physical reference: " + hc, () => {
-    const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. hc=${hc} eV nm. Find kinetic energy.`;
-    assert.equal(buildAtomicRadiationScene(question, [], false), null);
-    assert.equal(synthesizeFamilyScene({ question }), null);
-  });
-for (const [product, expected] of [["1239.84", "K=2.00 eV"], ["1240", "K=2.01 eV"]] as const)
+// Photoelectric hc refusal promises move to #166; original inputs/assertions are preserved at cb226db9.
+for (const [product, expected] of [["1239.84", "K=2.00 eV"]] as const)
   check("an admitted source hc rounding convention supplies the actual wavelength law: " + product, () => {
     const question = `For the photoelectric effect wavelength is 300 nm and work function is 2.128 eV. Take hc=${product} eV nm. Find kinetic energy.`;
     assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes(expected));
@@ -65,11 +51,7 @@ check("SI source hc converts value and unit together", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.";
   assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=2.13 eV"));
 });
-check("hc is not allowed to contradict explicitly stated h", () => {
-  const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. h=6.62607015e-34 J s and hc=1240 eV nm. Find kinetic energy.";
-  assert.equal(buildAtomicRadiationScene(question, [], false), null);
-  assert.equal(synthesizeFamilyScene({ question }), null);
-});
+// The h/hc contradiction integration promise is archived for #166 with its observed main outcome.
 for (const suffix of ["Options: (a) hc=unknown (b) hc=1240 eV nm", "Options: (a) h=0 J s (b) c=1 m/s", "Options: (a) hc=1200 eV nm (b) hc=1240 eV nm"])
   check("option-only constants cannot change body authority: " + suffix, () => {
     const defaultBody = "For the photoelectric effect wavelength is 300 nm and work function is 2 eV. Find kinetic energy. " + suffix;
@@ -115,12 +97,7 @@ for (const value of ["4e- kJ", "1e999 kJ", "unknown", "20 kg", "20 kJ/mol"])
     assert.equal(buildThermoGraphScene(question, [], false), null);
     assert.equal(synthesizeFamilyScene({ question }), null);
   });
-check("current-main multiple-metal comparison retains its subject and honestly declines single-metal ink", () => {
-  const question = "Two metals A and B have work functions 2.0 eV and 3.0 eV. Find a single incident wavelength that makes A’s maximum photoelectron kinetic energy twice B’s, with both emitting. Compute their stopping potentials and threshold wavelengths. At 500 nm determine which metal still emits. Use hc=1240 eV nm and the one-photon model.";
-  assert.ok(inferChemistryFamilies(question).includes("chem_orbital"));
-  assert.equal(buildAtomicRadiationScene(question, [], false), null);
-  assert.equal(synthesizeFamilyScene({ question }), null);
-});
+// Multiple-metal photoelectric ownership remains a #166 promise; do not claim it fixed here.
 const atomicLaneRows = [
   {
     "id": "M13-4",
@@ -143,18 +120,6 @@ const atomicLaneRows = [
   {
     "id": "M13-7",
     "question": "Calculate the de Broglie wavelength of an electron moving with a velocity of 2 × 10^6 m/s (h = 6.626 × 10^-34 J s, mass 9.1 × 10^-31 kg).",
-    "expectedK": null,
-    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
-  },
-  {
-    "id": "M13-a",
-    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it (h = 6.626 × 10^-34 J s, c = 3 × 10^8 m/s). Find the kinetic energy of the photoelectrons.",
-    "expectedK": null,
-    "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
-  },
-  {
-    "id": "M13-b",
-    "question": "The work function of potassium is 2.25 eV. Light of wavelength 300 nm falls on it (h = 6.626 × 10^-34 J s). Find the kinetic energy of the photoelectrons.",
     "expectedK": null,
     "reason": "Unsupported photon-only chemistry ask or unchanged rounded h/c reference policy; honest chemistry decline"
   },
@@ -340,7 +305,6 @@ check("exact lane-D wave and particle wording retains its source-grounded photon
   assert.ok(labels(ordinary.document).includes("K=0.48 eV"));
 });
 const laneDUnsupported = [
-  "Two metals A and B have work functions 2.0 eV and 3.0 eV. Find a single incident wavelength that makes A’s maximum photoelectron kinetic energy twice B’s, with both emitting. Compute their stopping potentials and threshold wavelengths. At 500 nm determine which metal still emits. Use hc=1240 eV nm and the one-photon model.",
   "A nonrelativistic particle has momentum 3.313×10^-24 kg m/s. Using h=6.626×10^-34 J s, find its de Broglie wavelength.",
 ];
 for (const question of laneDUnsupported) check("exact lane-D unsupported physics ask declines honestly: " + question, () => {
@@ -378,5 +342,203 @@ for (const question of [
   labels(synthesizeFamilyScene({ question })?.document ?? null);
 });
 
+// BEGIN PR137 unread work-function owners (public-source freeze 15 Oct 2026).
+// Main-compatible controls retained after restoring main photoelectric behavior.
+// Stronger unread/duplicate-owner contracts remain in the immutable #166 transfer archive.
+const workFunctionOwnerRows = [
+  {
+    "id": "WF-REPORTED-UNREAD-FIRST",
+    "question": "Work function is unknown. The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "e370d8e9fbcec42830a0df1746905b75506c525f9b692c094f9a21b856daa3b0",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-EMPTY-FIRST",
+    "question": "For the photoelectric effect, the work function is ; the work function is 2 eV. Light of frequency 1e15 Hz is incident. Draw the diagram.",
+    "questionSha256": "bc071b3e88bcfae8967f2c5937582f7115ea6e10f1c3cee1f28bb0cab9570f49",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-METAL-A-UNREAD",
+    "question": "Metal A’s work function is unknown. Metal B’s work function is 2 eV. Light of frequency 1e15 Hz falls on metal A. Draw the photoelectric diagram.",
+    "questionSha256": "3d91a5311b5f55e6cfd1713ee6aebcfe34e5dc43d076e7a85756cf82956eabd8",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-SINGLE-EV",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "5d89f6cebb1b1943f393e24cc95ec9c9a2ed80e6819058f60f3b1031283639b8",
+    "expected": "draw"
+  },
+] as const;
+// Independent SI constants and the source frequency, not a family-derived value.
+const workFunctionPhotonEv = 6.62607015e-34 * 1e15 / 1.602176634e-19;
+for (const row of workFunctionOwnerRows) check("original work-function owner: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const direct = buildAtomicRadiationScene(row.question, [], false);
+  const schematic = buildAtomicRadiationScene(row.question, [], true);
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  if (row.expected === "decline") {
+    assert.equal(direct, null, "direct builder must decline every unresolved or ambiguous owner");
+    assert.equal(schematic, null, "schematic builder must preserve the same owner boundary");
+    assert.equal(ordinary, null, "ordinary family route must not draw a substituted work function");
+    return;
+  }
+  assert.ok(ordinary?.renderScene, "single declaration must draw through the ordinary route");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [direct, schematic, ordinary.document]) {
+    assert.ok(document, "single declaration must retain direct and schematic figures");
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "work-function label must use the source value after J/eV conversion");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 unread work-function owners.
+
+// BEGIN PR137 work-function diagram-reference controls (separate source freeze).
+const workFunctionReferenceRows = [
+  {
+    "id": "WF-REFERENCE-BARE",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw a photoelectric diagram showing the work function.",
+    "questionSha256": "370d111a0b48903c03e24b41e807eabcfc95300849223cdc283327be115f543a",
+    "expected": "draw"
+  },
+] as const;
+for (const row of workFunctionReferenceRows) check("work-function diagram-reference role: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const direct = buildAtomicRadiationScene(row.question, [], false);
+  const schematic = buildAtomicRadiationScene(row.question, [], true);
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  assert.ok(ordinary?.renderScene, "a bare diagram reference must retain the single declared value");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [direct, schematic, ordinary.document]) {
+    assert.ok(document);
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "bare reference must retain the original work-function label");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 work-function diagram-reference controls.
+
+// BEGIN PR137 complete decimal work-function scalar controls.
+const workFunctionDecimalRows = [
+  {
+    "id": "WF-DECIMAL-E-EXPONENT",
+    "question": "The work function is 2.e0 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "bcfe29494af99804232df335fdad25b8a4ceaddf4ed858705012b00ddeae139a",
+    "expected": "draw"
+  },
+  {
+    "id": "WF-DECIMAL-TIMES-EXPONENT",
+    "question": "The work function is 2.×10^0 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "272a8dbd73b18db40426bf512b7354695ed21c08b2c814bde47755427c8ab5b8",
+    "expected": "draw"
+  }
+] as const;
+for (const row of workFunctionDecimalRows) check("complete decimal work-function scalar: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const source = readChemistryQuantity({ question: row.question, after: /work function/, dimension: "energy", targetUnit: "eV" });
+  assert.ok(source.ok, "the public quantity reader must accept the complete decimal scalar");
+  assert.equal(source.reading.value, 2, "both complete source scalars independently equal 2 eV");
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  assert.ok(ordinary?.renderScene, "a complete decimal scalar must retain the ordinary figure");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [buildAtomicRadiationScene(row.question, [], false), buildAtomicRadiationScene(row.question, [], true), ordinary.document]) {
+    assert.ok(document, "a complete decimal scalar must retain direct and schematic figures");
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "both complete decimal scalar spellings state exactly 2 eV");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 complete decimal work-function scalar controls.
+
+// BEGIN PR137 public physics asked work-function ownership controls.
+// Asking to infer a work function supplies no declaration for chemistry ink.
+const askedWorkFunctionPhysicsRows = [
+  {
+    "id": "physics|17|photoelectric-effect-and-observations|q2",
+    "question": "A metal emits photoelectrons with stopping potential 0.50 V under 500 nm illumination. Infer its work function and threshold wavelength. Predict stopping potential under 400 nm light. If intensity doubles at 500 nm with fixed absorption and collection efficiency, describe the saturated current and stopping potential. Use hc=1240 eV nm, with electronvolts for energies.",
+    "questionSha256": "15fec9163349c562e92e9b91998a9d0b7bc5b504ecf4917a68b0ef1461a73242"
+  },
+  {
+    "id": "physics|17|photoelectric-graphs-and-stopping-potential|q2",
+    "question": "A metal has stopping potentials 0.40 V and 1.20 V at frequencies 6.0e14 Hz and 8.0e14 Hz. Assume Einstein’s one-photon equation and a straight-line graph of stopping potential against frequency. Infer h/e, work function in eV and threshold frequency. Predict the stopping potential at 7.0e14 Hz and explain how the graph changes if the beam intensity alone triples.",
+    "questionSha256": "e7783213243bb458d62eb1b0b717474d9b4639670f78df2103d70da9c2398c61"
+  }
+] as const;
+for (const row of askedWorkFunctionPhysicsRows) check("public physics asked work-function role: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  assert.equal(isAtomicRadiationStem(row.question), false, "an asked work function without a supplied declaration must retain physics ownership");
+  assert.ok(!inferChemistryFamilies(row.question).includes("chem_orbital"), "an asked work function cannot select the chemistry orbital family");
+});
+// END PR137 public physics asked work-function ownership controls.
+
+// BEGIN PR137 cb226db9 regression rows (coordinator review pr-137-delta4.md, set A). Head, main and
+// fadbe137 pass all 35; the cb226db9 work function reader fails all 35. #166 must keep these outcomes.
+const PLANCK_J_S = 6.62607015e-34, ELEMENTARY_CHARGE_C = 1.602176634e-19, LIGHT_SPEED_M_S = 299792458;
+const photonEv = (kind: "f" | "nm", value: number): number => kind === "f" ? PLANCK_J_S * value / ELEMENTARY_CHARGE_C : PLANCK_J_S * LIGHT_SPEED_M_S / (value * 1e-9) / ELEMENTARY_CHARGE_C;
+const pr137DeclineRows = ["Metal A has work function 2 eV. Metal B has unknown work function. Light falls on metal B. Draw the photoelectric diagram.", "Metal A has work function 2 eV while metal B has an unknown work function. Light falls on metal B.", "Work function 2 eV for metal A; work function unknown for metal B. Light falls on metal B.", "Metal A has work function 2 eV. Metal B has a larger work function. Light falls on metal B. Draw the photoelectric diagram.", "A metal has work function 2 eV. Draw the photoelectric energy diagram and mark the work function.", "A metal has work function 2 eV. Explain why light below the threshold cannot eject electrons even though it is intense, by comparing photon energy with the work function.", "Sodium has work function 2.3 eV. Draw an energy diagram showing the work function and explain the threshold.", "A surface with work function 4.2 eV is illuminated. Draw the photoelectric energy diagram and label the work function.", "Caesium has a work function of about 2.1 eV. Explain why caesium is used in photocells, comparing its work function with other metals.", "A metal of work function 2.0 eV is used. Find the threshold wavelength and explain the meaning of the work function.", "A metal with work function 2.0 eV is used in a photocell. Find the threshold frequency. Why does the work function differ between metals?", "Photoelectric effect: work function 2 eV. Explain the role of the work function.", "A metal of work function 2 eV and another metal of unknown work function are illuminated. Draw the photoelectric diagram for the second metal."] as const;
+for (const [index, question] of pr137DeclineRows.entries()) check(`cb226db9 regression A${index}: unread or unbound work function declines in chemistry`, () => {
+  assert.equal(isAtomicRadiationStem(question), true);
+  assert.equal(isChemistryQuestion(question), true);
+  assert.equal(synthesizeFamilyScene({ question }), null, "no fabricated photoelectric figure");
+});
+const pr137PhysicsRouteRows = ["If the work function of the metal is doubled, what happens to the stopping potential? Draw the stopping potential versus frequency graph.", "What happens to the stopping potential if the work function is increased? Draw the graph.", "Explain why the work function is different for different metals.", "The work function is the minimum energy needed to remove an electron from a metal surface. Explain the photoelectric effect with a diagram.", "Work function: define it and draw the photoelectric energy diagram.", "The work function is directly proportional to the threshold frequency. Draw the graph of stopping potential against frequency.", "The work function equals the photon energy at threshold. Draw the photoelectric energy diagram.", "Explain how stopping potential depends on frequency when the work function is fixed. Draw the graph.", "The work function was measured for sodium using a photocell. Draw the graph of stopping potential against frequency.", "The work function of caesium is low, so it is used in photocells. Explain with a diagram.", "Work function: the minimum energy needed to free an electron from a metal. Draw the photoelectric energy diagram.", "State Einstein's photoelectric equation. The work function is the intercept of which graph?"] as const;
+for (const [index, question] of pr137PhysicsRouteRows.entries()) check(`cb226db9 regression A${index + 13}: conceptual work function stem keeps physics ownership`, () => {
+  assert.equal(isAtomicRadiationStem(question), false);
+  assert.equal(isChemistryQuestion(question), false);
+  assert.ok(!inferChemistryFamilies(question).includes("chem_orbital"));
+});
+const pr137DrawRows: ReadonlyArray<readonly [string, number, "f" | "nm", number]> = [
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Find the kinetic energy and compare it with the work function.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Explain what happens if the work function were larger.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Label the work function on the diagram.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram and show the work function.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Show the work function on an energy diagram.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function of the metal.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function (φ).", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function, φ.", 2, "f", 1e15],
+  ["The work function of caesium is 2.14 eV. Light of frequency 6e14 Hz is incident on the metal surface. Find the maximum kinetic energy and the stopping potential. How would the answer change if the work function were higher?", 2.14, "f", 6e14],
+  ["A metal with work function 2 eV is illuminated by light of wavelength 300 nm. Find the kinetic energy of the photoelectrons. Explain why no electrons are emitted if the photon energy is less than the work function.", 2, "nm", 300],
+];
+for (const [index, [question, phi, kind, value]] of pr137DrawRows.entries()) check(`cb226db9 regression A${index + 32}: supplied work function draws its own values`, () => {
+  const synthesis = synthesizeFamilyScene({ question });
+  assert.ok(synthesis, "the supplied declaration must draw");
+  assert.equal(synthesis.document.source.chemistryFamily, "chem_orbital");
+  const energy = photonEv(kind, value);
+  const text = labels(synthesis.document);
+  for (const expected of [`phi=${phi.toFixed(2)} eV`, `E=${energy.toFixed(2)} eV`, `K=${(energy - phi).toFixed(2)} eV`]) assert.ok(text.includes(expected), `${expected} in ${text.join(" | ")}`);
+});
+// END PR137 cb226db9 regression rows.
+
+// Main-compatible original photo controls remain; all deferred desired assertions and exact source
+// are preserved by cb226db9 and the #166 transfer ledger. Genuine reviewer128 parity is a separate proof.
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }

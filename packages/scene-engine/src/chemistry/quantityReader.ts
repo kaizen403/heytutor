@@ -36,6 +36,16 @@ export interface ChemistryQuantityInput {
   dimension: ChemistryDimension; targetUnit?: ChemistryUnit;
   unitConvention?: { unit: ChemistryUnit; sourceSpan: ChemistrySpan };
 }
+export interface ChemistryDeclarationOccurrence {
+  /** Inventory-bound literals have no textual cue; their source span is unchanged. */
+  readonly cueSpan?: ChemistrySpan;
+  readonly payloadSpan: ChemistrySpan;
+  readonly read: ChemRead<ChemistryReading>;
+}
+export type ChemistryQuantityDeclaration =
+  | { state: "absent"; owner: string; occurrences: readonly ChemistryDeclarationOccurrence[] }
+  | { state: "valid"; owner: string; reading: ChemistryReading; occurrences: readonly ChemistryDeclarationOccurrence[] }
+  | { state: "invalid"; owner: string; code: Extract<ChemRead<never>, {ok:false}>["code"]; failure: Extract<ChemRead<never>, {ok:false}>; occurrences: readonly ChemistryDeclarationOccurrence[] };
 
 const DECIMAL = String.raw`(?:\d+(?:\.\d+|\.(?!\s+[A-Za-z]))?|\.\d+)`;
 const EXPONENT = String.raw`(?:[+\-−]?\d{1,4}|\(\s*[+\-−]?\d{1,4}\s*\))`;
@@ -50,7 +60,10 @@ function validSpan(question: string, span: ChemistrySpan): boolean {
   return Number.isInteger(span.start) && Number.isInteger(span.end) && span.start >= 0 && span.end <= question.length && span.end > span.start;
 }
 function continuesScalar(tail: string): boolean {
-  return /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
+  // An unresolved superscript/modifier is still part of the source token,
+  // even when notation normalization deliberately left a damaged run raw.
+  return /^\s*[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+    || /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
 }
 /** Match against the original question, never a caller's truncated substring. */
 function completeScalarSpan(question: string, span: ChemistrySpan): boolean {
@@ -361,6 +374,79 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
   }
   return readings.length === 1 ? { ok: true, reading: readings[0]! } : fail(readings.length ? "ambiguous" : "missing");
 }
+
+/** Source material requiring a strict quantity read; this classifier grants no numeric authority. */
+export function chemistryQuantityPayloadPresent(text: string): boolean {
+  return new RegExp(`(?<![A-Za-z0-9_.])${SCALAR}`).test(text)
+    || [...text.matchAll(/(?<![\p{L}\p{N}_])(?=[A-Za-z\u00b0\u00b5\u00c5])/gu)].some(match => unitAt(text.slice(match.index)) !== null)
+    || /\b(?:unknown|unreadable|unspecified|undefined|NaN|cannot\s+be\s+read)\b/i.test(text);
+}
+
+/** A mention/request is not a declaration; an assignment or supplied payload is. */
+function isQuantityDeclaration(question: string, cue: ChemistrySpan, end: number): boolean {
+  const cueText = question.slice(cue.start, cue.end);
+  const tail = question.slice(cue.end, end);
+  const prefix = question.slice(0,cue.start).split(/[.;?!\n]/).at(-1) ?? "";
+  const local = tail.split(/[;?!\n]|\.(?=\s|$)|,(?=\s*[A-Za-z])|\b(?:and|but|while|whereas|with|using|from|where|when|whose|which)\b|\bgiven\b(?!\s+(?:as\b|[+\-−.\d]|unknown\b|unreadable\b))/i)[0]!;
+  // A conditional comparison with another named quantity supplies no new
+  // scalar. A stated numeric bound still remains supplied input.
+  if (/\bif\s+(?:(?:the|a|an|its)\s+)*$/i.test(prefix)
+    && /^\s*(?:(?:is|was|are|were)\s+)?(?:less|greater|higher|lower|larger|smaller)\s+than\b/i.test(tail)
+    && !new RegExp(SCALAR).test(local)) return false;
+  if (/[=:]\s*$|\b(?:is|was|are|equals|equal\s+to)\s*$/i.test(cueText)) return true;
+  const supplied = /^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:[=:]|\d|[+\-−](?=\s*(?:\d|\.\d))|\.(?=\d)|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|are|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN)\b)/i.test(tail);
+  if (supplied) return true;
+  const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their|unknown|unreadable|unspecified|undefined)\s+)*$/i.test(prefix);
+  if (requested) return false;
+  // An unavailable adjective belongs to this owner, rather than to a later
+  // readable sibling. A requested unknown quantity still supplies no input.
+  if (/\b(?:unknown|unreadable|unspecified|undefined|NaN)\s+$/i.test(prefix)) return true;
+  // A scalar in this owner's argument cannot disappear merely because the
+  // strict reader does not support its intervening verb phrase. Stop at an
+  // argument boundary, before a speed or other owner can lend its value.
+  return chemistryQuantityPayloadPresent(local)
+    || /\b(?:has|have)\s+(?:(?:a|an|the)\s+)*$/i.test(prefix) && local.replace(/[\s,]/g, "").length > 0;
+}
+
+/**
+ * Read one family-bound quantity owner without erasing supplied-invalid state.
+ * The strict literal/unit readers are unchanged. Repeats are accepted only by
+ * an explicit same-owner opt-in, and retain every original occurrence span.
+ */
+export function readChemistryQuantityDeclaration(input: ChemistryQuantityInput & {
+  owner: string; allowAgreeingRepeats?: boolean;
+}): ChemistryQuantityDeclaration {
+  const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
+  const invalid = (failure: Extract<ChemRead<never>, {ok:false}>, occurrences: readonly ChemistryDeclarationOccurrence[]): ChemistryQuantityDeclaration =>
+    ({state:"invalid",owner:input.owner,code:failure.code,failure,occurrences});
+  if (!input.owner || !validSpan(input.question, scope)) return invalid({ok:false,code:"malformed",span:scope},[]);
+  const end = Math.min(scope.end,body.end);
+  const flags = input.after.flags.replace(/[gy]/g, "");
+  const cue = new RegExp(input.after.source, flags + (flags.includes("i") || input.cueCaseSensitive ? "g" : "ig"));
+  const matches = [...input.question.slice(scope.start,end).matchAll(cue)];
+  const occurrences: ChemistryDeclarationOccurrence[] = [];
+  const readings: ChemistryReading[] = [];
+  for (const [index,match] of matches.entries()) {
+    const cueSpan = {start:scope.start+match.index!,end:scope.start+match.index!+match[0].length};
+    const stop = matches[index+1] ? scope.start+matches[index+1]!.index! : end;
+    const payloadSpan = {start:cueSpan.end,end:stop};
+    // An anchored, family-selected payload is itself a declaration, including
+    // a damaged/empty value. Ordinary bare mentions remain genuine absence.
+    const declared = match[0].length === 0 || isQuantityDeclaration(input.question,cueSpan,stop);
+    if (!declared) continue;
+    const read = payloadSpan.start < payloadSpan.end
+      ? readChemistryQuantity({...input,after:/^/,within:payloadSpan})
+      : {ok:false,code:"missing"} as const;
+    occurrences.push({cueSpan,payloadSpan,read});
+    if (!read.ok) return invalid(read,occurrences);
+    readings.push(read.reading);
+  }
+  if (readings.length === 0) return {state:"absent",owner:input.owner,occurrences};
+  if (readings.length > 1 && (!input.allowAgreeingRepeats || readings.some(reading => !valuesAgree(reading.value,readings[0]!.value)))) {
+    return invalid({ok:false,code:"ambiguous"},occurrences);
+  }
+  return {state:"valid",owner:input.owner,reading:readings[0]!,occurrences};
+}
 /** Exponent digits in a complete registered unit or parsed atomic charge are
  * notation, not independent physical scalars. Evidence uses original spans;
  * damaged or continued expressions receive no exemption. */
@@ -417,11 +503,16 @@ function inventoryNotationSpans(question: string, end: number, dimension?: Chemi
 }
 /** Literal inventory for semantic consumers that bind species/clause spans themselves. */
 export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "after">): ChemRead<readonly ChemistryReading[]> {
+  return findChemistryQuantitiesOutsideSyntax(input, []);
+}
+/** Syntax spans enter only through independently closed deterministic operators. */
+function findChemistryQuantitiesOutsideSyntax(input: Omit<ChemistryQuantityInput, "after">,
+  syntax: readonly ChemistrySpan[]): ChemRead<readonly ChemistryReading[]> {
   const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(scope.end, body.end);
   const readings: ChemistryReading[] = []; let consumed = -1;
-  const notation = inventoryNotationSpans(input.question, end, input.dimension);
+  const notation = [...inventoryNotationSpans(input.question, end, input.dimension), ...syntax];
   for (const match of input.question.matchAll(new RegExp(SCALAR, "g"))) {
     const start = match.index! + match[0].length - match[0].trimStart().length;
     const tokenEnd = match.index! + match[0].trimEnd().length;
@@ -449,6 +540,20 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
   }
   return { ok: true, reading: readings };
 }
+/** All literals within a family-bound owner, such as one gas phase. */
+export function readChemistryQuantityInventoryDeclaration(input: Omit<ChemistryQuantityInput,"after"> & {
+  owner: string; allowAgreeingRepeats?: boolean;
+}): ChemistryQuantityDeclaration {
+  const inventory = findChemistryQuantities(input);
+  if (!inventory.ok) return {state:"invalid",owner:input.owner,code:inventory.code,failure:inventory,occurrences:[]};
+  const occurrences = inventory.reading.map((reading): ChemistryDeclarationOccurrence => ({payloadSpan:reading.source.span,read:{ok:true,reading}}));
+  if (!input.owner) return {state:"invalid",owner:input.owner,code:"source_conflict",failure:{ok:false,code:"source_conflict"},occurrences};
+  if (inventory.reading.length === 0) return {state:"absent",owner:input.owner,occurrences};
+  if (inventory.reading.length > 1 && (!input.allowAgreeingRepeats || inventory.reading.some(reading => !valuesAgree(reading.value,inventory.reading[0]!.value)))) {
+    return {state:"invalid",owner:input.owner,code:"ambiguous",failure:{ok:false,code:"ambiguous"},occurrences};
+  }
+  return {state:"valid",owner:input.owner,reading:inventory.reading[0]!,occurrences};
+}
 export interface ChemistryQuantityConsumption {
   readonly reading: ChemistryReading;
   /** A family-owned semantic role, never an inferred numeric match. */
@@ -459,7 +564,10 @@ export interface ChemistryQuantityConsumption {
  * Equal values at different occurrences do not share consumption. */
 export function chemistryQuantityInventoryOwned(question: string, dimension: ChemistryDimension,
   consumed: readonly ChemistryQuantityConsumption[]): boolean {
-  const inventory = findChemistryQuantities({question, dimension});
+  return chemistryQuantityInventoryMatches(question,dimension,consumed,findChemistryQuantities({question,dimension}));
+}
+function chemistryQuantityInventoryMatches(question: string, dimension: ChemistryDimension,
+  consumed: readonly ChemistryQuantityConsumption[], inventory: ChemRead<readonly ChemistryReading[]>): boolean {
   if (!inventory.ok) return false;
   const sameSpan = (a: ChemistrySpan, b: ChemistrySpan): boolean => a.start === b.start && a.end === b.end;
   if (consumed.some(({reading, owner}) => !owner || reading.dimension !== dimension
@@ -538,10 +646,10 @@ export function resolveChemistryGiven(input: ChemistryQuantityInput & { quantiti
   return { ok: true, reading: { ...stem.reading, source: { ...stem.reading.source, kind: "plan_given", planQuantityId: boundGivens[0]!.id } } };
 }
 /** Family-local semantic expectations: a present damaged or incompatible literal is never omitted. */
-export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]; cueCaseSensitive?: boolean}[]): boolean {
+export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]; cueCaseSensitive?: boolean; owner?: string; allowAgreeingRepeats?: boolean}[]): boolean {
   return cues.every(cue => {
-    const reads = cue.dimensions.map(dimension => readChemistryQuantity({question, after: cue.after, dimension, cueCaseSensitive:cue.cueCaseSensitive}));
-    return reads.some(r => r.ok) || reads.every(r => !r.ok && r.code === "missing");
+    const reads = cue.dimensions.map(dimension => readChemistryQuantityDeclaration({question, after: cue.after, dimension, cueCaseSensitive:cue.cueCaseSensitive,owner:cue.owner ?? cue.after.source,allowAgreeingRepeats:cue.allowAgreeingRepeats}));
+    return reads.some(r => r.state === "valid") || reads.every(r => r.state === "absent");
   });
 }
 /** Reject contradictory supported physical givens before a legacy adapter can mask a failed binding. */
@@ -566,4 +674,74 @@ export function matchedChemistryScalar(question: string, match: RegExpMatchArray
   const span = match.indices?.[group]; if (!span) return null;
   const [start, end] = span;
   const parsed = parseChemistryScalar(question, { start, end }); return parsed.ok ? parsed.reading : null;
+}
+
+
+/** A source interval is a complete expression: the delimiter owns its minus
+ * sign, unlike a standalone negative literal. Existing standalone scalar and
+ * inventory callers do not acquire this operator boundary contract. */
+export type ChemistrySourceInterval = {state:"absent"} | {state:"invalid"} | {
+  state:"valid"; domain:[number,number]; readings:[ChemistryReading,ChemistryReading];
+  scalarSpans:[ChemistrySpan,ChemistrySpan]; unitSpans:[ChemistrySpan,ChemistrySpan];
+  delimiterSpan:ChemistrySpan; span:ChemistrySpan;
+};
+export interface ChemistrySourceIntervalInput {question:string;dimension:ChemistryDimension;targetUnit:ChemistryUnit}
+export function readChemistrySourceInterval(input:ChemistrySourceIntervalInput):ChemistrySourceInterval {
+  const body=input.question.slice(0,chemistryQuestionSpan(input.question).end);
+  const pattern=new RegExp(`\\b(?:from|over|between|for)\\s+(?<lo>${SCALAR})(?<middle>[^;!?\\n,.]{0,24}?)\\s*(?<separator>\\bto\\b|\\band\\b|[–—-])\\s*(?<hi>${SCALAR})`,"gdi");
+  const matches=[...body.matchAll(pattern)];
+  if(matches.length!==1){
+    return matches.length>1||/\b(?:from|over|between|for)\s+(?:unknown|unreadable|unspecified)\b[^;.!?\n]{0,40}\b(?:to|and)\b/i.test(body)?{state:"invalid"}:{state:"absent"};
+  }
+  const match=matches[0]!;
+  const lo=match.indices!.groups!.lo!,hi=match.indices!.groups!.hi!,delimiter=match.indices!.groups!.separator!;
+  const scalarSpans:[ChemistrySpan,ChemistrySpan]=[{start:lo[0],end:lo[1]},{start:hi[0],end:hi[1]}];
+  const highSpace=/^\s*/.exec(body.slice(hi[1]))![0].length;
+  const highStart=hi[1]+highSpace;
+  const highUnit=unitAt(body.slice(highStart));
+  if(!highUnit||!highUnit.def.dimensions.includes(input.dimension)
+    ||continuesUnit(body.slice(highStart+highUnit.text.length)))return{state:"invalid"};
+  const highSpan={start:highStart,end:highStart+highUnit.text.length};
+  const middle=body.slice(lo[1],delimiter[0]);const lowSpace=/^\s*/.exec(middle)![0].length;
+  const explicitLow=middle.trim()===""?null:unitAt(middle.slice(lowSpace));
+  if(middle.trim()!==""&&(!explicitLow||middle.slice(lowSpace)!==explicitLow.text
+    &&middle.slice(lowSpace).trimEnd()!==explicitLow.text))return{state:"invalid"};
+  const lowUnit=explicitLow??highUnit;if(!lowUnit.def.dimensions.includes(input.dimension))return{state:"invalid"};
+  const lowSpan=explicitLow?{start:lo[1]+lowSpace,end:lo[1]+lowSpace+explicitLow.text.length}:highSpan;
+  const tail=body.slice(highSpan.end);
+  if(!/^(?:\s*$|\s*[,.;!?]|\s+(?:using|with)\b|\s+and\s+(?:mark|show|label|calculate|compute|determine)\b)/i.test(tail))return{state:"invalid"};
+  const readings:ChemistryReading[]=[];
+  for(const[index,def]of[lowUnit.def,highUnit.def].entries()){
+    const scalar=scalarValue(input.question,scalarSpans[index]!);if(!scalar.ok)return{state:"invalid"};
+    const value=canonicalValue(scalar.reading,def,input.dimension);if(!value.ok)return{state:"invalid"};
+    const unitSpan=index===0?lowSpan:highSpan;
+    const explicit=index===1||explicitLow!==null;
+    const span={start:scalarSpans[index]!.start,end:explicit?unitSpan.end:scalarSpans[index]!.end};
+    const reading:ChemistryReading={value:value.reading,rawValue:scalar.reading,rawUnit:explicit?body.slice(unitSpan.start,unitSpan.end):null,
+      canonicalUnit:canonical[input.dimension],dimension:input.dimension,source:{kind:"stem_given",span,text:input.question.slice(span.start,span.end)}};
+    const converted=convertChemistryReading(reading,input.targetUnit);if(!converted.ok)return{state:"invalid"};readings.push(converted.reading);
+  }
+  if(!(readings[1]!.value>readings[0]!.value))return{state:"invalid"};
+  return{state:"valid",domain:[readings[0]!.value,readings[1]!.value],readings:[readings[0]!,readings[1]!],scalarSpans,
+    unitSpans:[lowSpan,highSpan],delimiterSpan:{start:delimiter[0],end:delimiter[1]},span:{start:match.index!,end:highSpan.end}};
+}
+/** Reparse the entire source interval before excluding its expression tokens.
+ * No caller-provided span or numeric match can authorize an exclusion. */
+export function chemistrySourceIntervalOwnsDimension(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  const outside=findChemistryQuantitiesOutsideSyntax({question:input.question,dimension:input.dimension},[actual.span]);
+  return outside.ok&&outside.reading.length===0;
+}
+/** A closed interval owns its entire syntax in every dimension's inventory.
+ * Reprove the original operator first; callers cannot supply exclusion spans.
+ * All physical literals outside it retain the ordinary owner/span checks. */
+export function chemistrySourceIntervalInventoryOwned(input:ChemistrySourceIntervalInput,
+  interval:ChemistrySourceInterval,dimension:ChemistryDimension,
+  consumed:readonly ChemistryQuantityConsumption[]):boolean {
+  const actual=readChemistrySourceInterval(input);
+  if(actual.state!=="valid"||interval.state!=="valid"||JSON.stringify(actual)!==JSON.stringify(interval))return false;
+  return chemistryQuantityInventoryMatches(input.question,dimension,consumed,
+    findChemistryQuantitiesOutsideSyntax({question:input.question,dimension},[actual.span]));
 }

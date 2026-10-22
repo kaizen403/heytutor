@@ -1,0 +1,2 @@
+# Keep main's conservative circuit picture-demand veto separate from planner guidance.
+tsx scripts/verify/verify-circuit-demand-veto.ts

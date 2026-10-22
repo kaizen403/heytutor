@@ -27,9 +27,10 @@ jobs:
     timeout-minutes: 35
     services:
       postgres:
-        # Docker Official Image mirror; same manifest as docker.io/library/postgres:17.
-        # Avoid shared GitHub runner Docker Hub pull quotas; pin reviewed bytes.
-        image: public.ecr.aws/docker/library/postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+        # Docker Official Image via Google's Docker Hub mirror; same pinned manifest as
+        # docker.io/library/postgres:17. public.ecr.aws hit "toomanyrequests: Data limit
+        # exceeded" on shared runners; Docker Hub has pull quotas. Pin reviewed bytes.
+        image: mirror.gcr.io/library/postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
         env:
           POSTGRES_USER: security
           POSTGRES_PASSWORD: security_ci_only
@@ -71,8 +72,15 @@ jobs:
         run: |
           pnpm rebuild @prisma/client @prisma/engines esbuild prisma
           pnpm --filter @heytutor/tutor exec prisma generate
+      - name: Verify gate list preservation and execution
+        run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
+      - name: Yield switch and PR246 review blocker regressions (offline)
+        run: |
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-pr246-review-blockers.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-repair-measured-precision.ts
       - name: Symbolic planner regressions
         run: |
           pnpm --filter @heytutor/scene-engine verify:symbolic-planner
@@ -90,19 +98,63 @@ jobs:
           pnpm lint
       - name: Build production applications
         run: pnpm build
+      - name: Failed-turn Sentry privacy and reporting regressions (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor verify:sentry
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-runtime.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-log-privacy.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-tts-relay-cancellation.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-worker-failure-log.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-billing-failure-telemetry.ts
+          pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-teaching-reservation-budget.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-home-suggestion-race.ts
+          node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Atomic scene label regressions
+        run: pnpm --filter @heytutor/tutor verify:atomic-labels
+      - name: Figure tour narration regressions
+        run: pnpm --filter @heytutor/tutor verify:primitive-tour
+      - name: Text-only lesson narration and board regressions (offline)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-text-only-narration.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-text-only-board.ts
+      - name: DSA verified intro ordering regressions
+        run: pnpm --filter @heytutor/tutor verify:dsa-intro-order
+      - name: Source-grounded board title regressions
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-board-title.ts
       - name: Storage admission and save feedback regressions
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
         run: pnpm --filter @heytutor/tutor verify:board-playback-export
-      - name: Voice recovery, stored work pages and compact lesson regressions
+      - name: Teaching network, completion and speech ownership (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-teaching-network-recovery.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-completion-integrity.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-failure-classification.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-segment-speech-ownership.ts
+      - name: Teaching truth and scoped solver authority (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-truth-authority.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-code-teaching-truth.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-programming-example-integrity.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-statement-truth.ts
+      - name: Recorded lesson scheduling and persistence (no external calls)
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-recorded-lesson-integrity.ts
+      - name: Kimi board and voice sync regressions (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-row-focus-sync.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-kimi-lesson-pacing.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-kimi-code-obligations.ts
+      - name: Lesson admission, voice recovery, work pages and programming sync regressions
         run: |
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-native-startup.ts
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-pause-resume.ts
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-paused-arrival.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
+          pnpm --filter @heytutor/tutor verify:lesson-qa-3
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

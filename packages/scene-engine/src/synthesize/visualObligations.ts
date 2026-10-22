@@ -37,6 +37,8 @@ import {
 import type { ExpressionNodeIR, ProblemIR } from "../ir/problemIR";
 import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import type { SceneDocument, SceneIssue } from "../types";
+import { verifiedVseprStructure } from "../chemistry/vseprStructure";
+import type { VseprFigure } from "../chemistry/vsepr";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -243,18 +245,20 @@ export function deriveVisualObligations(problem: ProblemIR): VisualObligationSet
 export function checkVisualObligations(
   set: VisualObligationSet,
   document: SceneDocument,
+  originalQuestion?: string,
 ): VisualObligationCheckResult {
   const satisfiedIds: string[] = [];
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
-  const mapping = mapProblemEntities(set, document);
+  const molecule = verifiedVseprStructure(document, originalQuestion);
+  const mapping = mapProblemEntities(set, document, molecule);
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
       unsupportedIds.push(obligation.id);
       continue;
     }
-    const miss = checkObligation(obligation, document, mapping);
+    const miss = checkObligation(obligation, document, mapping, molecule);
     if (miss) missing.push(miss);
     else satisfiedIds.push(obligation.id);
   }
@@ -308,8 +312,9 @@ export function visualObligationIssues(
 export function visualObligationRejection(
   set: VisualObligationSet,
   document: SceneDocument,
+  originalQuestion?: string,
 ): string | null {
-  const result = checkVisualObligations(set, document);
+  const result = checkVisualObligations(set, document, originalQuestion);
   return result.missing.length > 0 ? result.missing[0]!.message : null;
 }
 
@@ -338,6 +343,7 @@ function checkObligation(
   obligation: VisualObligation,
   document: SceneDocument,
   mapping: ReadonlyMap<string, string>,
+  molecule: VseprFigure | null,
 ): VisualObligationMiss | null {
   switch (obligation.kind) {
     case "named_body": {
@@ -363,7 +369,7 @@ function checkObligation(
           problemEntityIds: [...obligation.problemEntityIds],
         };
       }
-      return sceneIdsConnected(document, sceneIds)
+      return (molecularAtomsConnected(molecule, sceneIds) || sceneIdsConnected(document, sceneIds))
         ? null
         : {
             obligationId: obligation.id,
@@ -430,10 +436,12 @@ function describeBody(obligation: NamedBodyObligation): string {
 function mapProblemEntities(
   set: VisualObligationSet,
   document: SceneDocument,
+  molecule: VseprFigure | null,
 ): Map<string, string> {
   const mapping = new Map<string, string>();
   const consumed = new Set<string>();
   const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const molecularBodies = new Set(molecule?.structures.flatMap((structure) => [structure.formulaId, ...structure.atomIds]) ?? []);
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
     problemLabel === null ||
     (typeof entity.label === "string" &&
@@ -441,6 +449,9 @@ function mapProblemEntities(
   // Text is not a physical body. Structural kinds constrain identity even
   // when the label is exact: a trajectory's name on a point cannot name a curve.
   const kindHolds = (entity: SceneDocument["entities"][number], obligation: NamedBodyObligation): boolean => {
+    // An atom symbol or formula represents a body only when the complete
+    // source-derived molecule (including every bond/electron) was checked.
+    if (["body", "component"].includes(obligation.problemKind) && molecularBodies.has(entity.id)) return true;
     switch (obligation.problemKind) {
       case "point": return entity.kind === "point";
       // Analytic straight lines may be rendered as sampled function curves.
@@ -456,6 +467,18 @@ function mapProblemEntities(
   };
   for (const obligation of set.obligations) {
     if (obligation.kind !== "named_body") continue;
+    if (["body", "component"].includes(obligation.problemKind) && obligation.problemLabel &&
+      /^(?:equatorial\s+)?lone\s+pair$/i.test(obligation.problemLabel.trim())) {
+      const equatorial = /^equatorial\s/i.test(obligation.problemLabel.trim());
+      const pair = molecule?.structures.flatMap((structure) => structure.lonePairs)
+        .find((candidate) => (!equatorial || candidate.equatorial) && !consumed.has(candidate.entityIds[0]));
+      if (pair) {
+        // The representative id denotes both freshly checked electron marks.
+        mapping.set(obligation.problemEntityId, pair.entityIds[0]);
+        consumed.add(pair.entityIds[0]);
+        continue;
+      }
+    }
     const direct = byId.get(obligation.problemEntityId);
     if (direct && !consumed.has(direct.id) && kindHolds(direct, obligation) && labelHolds(direct, obligation.problemLabel)) {
       mapping.set(obligation.problemEntityId, direct.id);
@@ -477,6 +500,24 @@ function mapProblemEntities(
     }
   }
   return mapping;
+}
+
+function molecularAtomsConnected(molecule: VseprFigure | null, ids: readonly string[]): boolean {
+  if (ids.length < 2) return false;
+  return molecule?.structures.some((structure) => {
+    if (!ids.every((id) => structure.atomIds.includes(id))) return false;
+    const reached = new Set([ids[0]!]);
+    // Only bonds between the requested atoms count; two ligand atoms alone
+    // do not acquire a direct bond through an unrequested central atom.
+    for (let pass = 0; pass < ids.length; pass += 1) {
+      for (const [a, b] of structure.bonds) {
+        if (!ids.includes(a) || !ids.includes(b)) continue;
+        if (reached.has(a)) reached.add(b);
+        if (reached.has(b)) reached.add(a);
+      }
+    }
+    return ids.every((id) => reached.has(id));
+  }) ?? false;
 }
 
 /** Resolve constraint endpoints through the body map, then by direct lookup. */

@@ -10,6 +10,7 @@ import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuota
 import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
 import { mediaProxyUrl } from "@/lib/object-store/mediaUrl";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
+import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
@@ -350,7 +351,8 @@ export async function POST(request: Request, context: RouteContext) {
         });
 
         await settleTurnStorage(reservation, false, tx, retainedBytes);
-        return { turn, insertedSegments };
+        const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments: insertedSegments });
+        return { turn: { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId }, insertedSegments };
       });
       break;
     } catch (error) {

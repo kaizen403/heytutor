@@ -767,7 +767,7 @@ async function main() {
     assert(/parentTraceId: previousTraceId,/.test(handler), "billing gets that lineage");
     assert(/traceId: currentTraceIdRef\.current,\s*kind: doubt \? "doubt" : resume \? "resume" : "lesson",/.test(handler),
       "a resume saves under its own trace, as kind resume");
-    const plan = between(file, "page.solverProjection = problemAuthority?.projection ?? null;", "page.turn.scene = {");
+    const plan = between(file, "page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;", "page.turn.scene = {");
     assert(plan.includes("setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection))"),
       "the lesson's solver projection rides its checkpoints for a reload");
     assert(handler.includes("if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));"),

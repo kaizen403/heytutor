@@ -53,6 +53,8 @@ model BillingPurchase {
   currency        String
   usageMillicents Int       @map("usage_millicents")
   spentMillicents Int       @default(0) @map("spent_millicents")
+  /// The code that discounted `amount`, e.g. PH50; null at full price.
+  promoCode       String?   @map("promo_code")
   keyId           String    @map("key_id")
   testMode        Boolean   @map("test_mode")
   orderId         String?   @unique @map("order_id")
@@ -194,6 +196,11 @@ model Turn {
   validationReport   Json?     @map("validation_report")
   visualStatus       String?   @map("visual_status")
   sceneArtifacts     Json?     @map("scene_artifacts")
+  /// Reserved event id and durable, content-free Sentry outbox for failed outcomes.
+  sentryEventId      String?   @map("sentry_event_id") @db.VarChar(32)
+  sentryFailureEvent Json?     @map("sentry_failure_event")
+  sentryReportedAt   DateTime? @map("sentry_reported_at") @db.Timestamptz(6)
+  sentryNextAttemptAt DateTime? @map("sentry_next_attempt_at") @db.Timestamptz(6)
   /// live | stopped | complete. Legacy rows default to complete.
   status             String    @default("complete")
   /// lesson | doubt | resume

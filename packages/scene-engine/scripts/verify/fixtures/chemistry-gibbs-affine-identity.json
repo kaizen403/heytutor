@@ -1,0 +1,70 @@
+{
+  "scope": "Private Gibbs source-issuer whole-expression affine identity; exact rational coefficients compared to source-derived displaycoefficients under existing13-significant-digit serialization. Samplechecks remain secondary numerical controls. Equivalentaffine forms staypositive; genuinelynonaffine functions refuse regardlessof finitesampling.",
+  "sourceQuestion": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+  "displayCoefficients": {
+    "slope": "-0.625",
+    "intercept": "5"
+  },
+  "rows": [
+    {
+      "id": "direct-affine",
+      "expression": "5-0.625*x",
+      "expectedValid": true,
+      "science": "Exactly the same affine display law over the entire domain."
+    },
+    {
+      "id": "reordered-factored-affine",
+      "expression": "10/2-(5*x)/8",
+      "expectedValid": true,
+      "science": "Exactly the same affine display law over the entire domain."
+    },
+    {
+      "id": "combined-affine",
+      "expression": "(40-5*x)/8",
+      "expectedValid": true,
+      "science": "Exactly the same affine display law over the entire domain."
+    },
+    {
+      "id": "nested-affine",
+      "expression": "5+(-1.25)*(x/2)",
+      "expectedValid": true,
+      "science": "Exactly the same affine display law over the entire domain."
+    },
+    {
+      "id": "zero-annihilation",
+      "expression": "5-0.625*x+0*x*x",
+      "expectedValid": true,
+      "science": "Exactly the same affine display law over the entire domain."
+    },
+    {
+      "id": "hidden-sine-all-samples",
+      "expression": "5-0.625*x+1e-6*sin(16*pi*x)*(x-1.6)*(x-5.6)*(x-3.2)",
+      "expectedValid": false,
+      "science": "Non-affine, vanishes at129displaygrid samples, bothregionmidpoints, andsourcezerocrossing."
+    },
+    {
+      "id": "hidden-cosine-all-samples",
+      "expression": "5-0.625*x+1e-7*(1-cos(32*pi*x))*(x-1.6)*(x-5.6)*(x-3.2)",
+      "expectedValid": false,
+      "science": "Non-affine, same complete finite-sample vanishing set."
+    },
+    {
+      "id": "nonlinear-polynomial",
+      "expression": "5-0.625*x+1e-7*x*(x-2)*(x-4)*(x-6)*(x-8)*(x-3.2)",
+      "expectedValid": false,
+      "science": "Non-affine. Earlier new midpoint checks already reject."
+    },
+    {
+      "id": "wrong-affine-slope",
+      "expression": "5-0.626*x",
+      "expectedValid": false,
+      "science": "Affine but wrong source-derived slope."
+    },
+    {
+      "id": "wrong-affine-intercept",
+      "expression": "5.001-0.625*x",
+      "expectedValid": false,
+      "science": "Affine but wrong source-derived intercept."
+    }
+  ]
+}

@@ -39,6 +39,8 @@ export interface DrawCommandVisualStyle {
   dashed?: boolean;
   /** Verified closed region rendered below its boundary ink. */
   fillRole?: 'region';
+  /** Engine-owned excluded endpoint; its center masks underlying figure ink. */
+  pointStyle?: 'open';
   correspondingFamily?: 1 | 2 | 3;
   /** Verified distance ink; witnesses must travel and reveal with their bar. */
   measurementRole?: 'bar' | 'witness';
@@ -133,19 +135,23 @@ const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
 // Semantic text tags delimit a broken row even with symbolic parameters.
-// Other command words may be ordinary list/notation text, such as
-// [clear, undo], [frame, 2] or [Type: I]. Only a numeric command prefix is
-// unambiguous inside a canonical text body: a colon starts its numeric
-// parameters, while a comma needs a second numeric value to distinguish a list.
+// Other command words, including numeric arguments, may be ordinary notation:
+// [Type: 1], [frame: 0] and [highlight, 3, 4]. The outer coordinate suffix
+// closes a canonical row; nested brackets alone do not introduce commands.
+// A closed row may also quote a full DRAW_LINE, HIGHLIGHT or FRAME tag. Keep
+// that tag as literal row text; only a tag outside the row is a command.
 const SEMANTIC_TEXT_COMMANDS = 'WRITE|LABEL|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE';
-const NUMERIC_PARAMETER = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?`;
-const NUMERIC_BODY_BOUNDARY = String.raw`\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::\s*(?=[+-]?(?:\d|\.\d))|,\s*(?=${NUMERIC_PARAMETER}\s*,\s*${NUMERIC_PARAMETER}))`;
-const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|${NUMERIC_BODY_BOUNDARY}|\[(?:STEP|\/STEP)\]`;
+const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|\[(?:STEP|\/STEP)\]`;
 const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
 // Body-outside-header repair remains stricter: it cannot swallow a real tag
 // with symbolic parameters or borrow that tag's coordinates. Bare text-tag
 // boundaries also matter here, unlike names nested inside a canonical body.
-const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?=[:,])|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
+// In this malformed spelling, a command followed by numeric coordinates or
+// a colon still stops repair. A two-word comma list (e.g. [clear, undo]) is
+// text, while semantic tags retain their boundaries even with word arguments.
+// TYPE also takes a symbolic code-block id, so either separator must keep it
+// as a command when there is no canonical outer row bracket.
+const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS}|TYPE)\s*(?=[:,])|\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::|,(?!\s*[\p{L}_][\p{L}\p{N}_]*\s*\]))|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.

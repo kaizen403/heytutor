@@ -1,0 +1,16 @@
+# Add one gate per line. Commands run in order and stop on failure.
+pnpm verify:lab-visual-need
+pnpm verify:production-selection
+pnpm verify:diagram-experiments
+tsx scripts/verify/verify-figure-source.ts
+tsx scripts/verify/verify-diagram-strategy.ts
+tsx scripts/verify/verify-live-diagram-picker.ts
+tsx scripts/verify/verify-trace-tag-preservation.ts
+tsx scripts/verify/verify-diagram-anchors.ts
+tsx scripts/verify/verify-topic-coverage-sample.ts
+tsx scripts/verify/verify-topic-coverage-report.ts
+tsx scripts/verify/verify-figure-relevance-check.ts
+tsx scripts/verify/verify-diagram-eval.ts
+tsx scripts/verify/verify-lab-runner-regressions.ts
+tsx scripts/verify/verify-lab-judging-regressions.ts
+tsx scripts/verify/verify-lab-response-usage.ts

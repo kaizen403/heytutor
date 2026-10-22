@@ -1,0 +1,2 @@
+# Feature-owned structured completion gates.
+pnpm verify:completion

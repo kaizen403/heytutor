@@ -9,6 +9,7 @@ import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { relayTtsWebSocket } from "./lib/tts/wsRelay";
 import { protectNodeRequest } from "./lib/http/nodeRequest";
 import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
+import { startFailedTurnSentryWorker } from "./lib/obs/failedTurnSentry";
 import { prisma } from "./lib/db/prisma";
 import { assertOwnedTrace } from "./lib/obs/traceOwnership";
 import { readTraceIdHeader } from "@heytutor/tutor-core";
@@ -51,6 +52,7 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
 
 app.prepare().then(() => {
   startObjectDeletionWorker();
+  startFailedTurnSentryWorker();
   const server = createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
     if (!protectNodeRequest(req, res)) return;
     const parsedUrl = parseUrl(req.url ?? "", true);
@@ -76,6 +78,9 @@ app.prepare().then(() => {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {
+    // Next installs its own upgrade listener via getRequestHandler. Leave HMR
+    // untouched so it can retain the visible page's development entries.
+    if (dev && request.url?.split("?", 1)[0] === "/_next/webpack-hmr") return;
     if (socket instanceof Socket) socket.setTimeout(10_000, () => socket.destroy());
     void (async () => {
     const { pathname, query } = parseUrl(request.url ?? "", true);

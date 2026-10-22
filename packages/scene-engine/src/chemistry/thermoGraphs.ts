@@ -11,6 +11,8 @@
  * cycle closes from the stem's own steps.
  */
 import { fmt } from "../archetypes/document";
+import { buildMeasuredGibbsGraph, claimsMeasuredGibbsGraph } from "./gibbsLaw";
+import { numericalValuesRequested, requestedSourceRoleStarts } from "./sourceRoleRequests";
 import type { SceneDocument } from "../types";
 import { buildChemicalThermodynamicsScene, claimsChemicalThermodynamics } from "./chemicalThermodynamics";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
@@ -85,13 +87,14 @@ function classifyThermoStem(question: string): ThermoKind | null {
 
 /** True when this family should draw for the stem. Include vetoes. */
 export function isThermoGraphStem(question: string): boolean {
+  if (claimsMeasuredGibbsGraph(question)) return true;
   if (claimsChemicalThermodynamics(question)) return true;
   return classifyThermoStem(question) !== null;
 }
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -107,9 +110,9 @@ function energyCueAfter(phrase: RegExp): RegExp {
 function energyNear(question: string, phrase: RegExp, _window = 70): Energy | null {
   for (const [dimension, targetUnit] of [["molar_energy", "kJ/mol"], ["energy", "kJ"]] as const) {
     const after = energyCueAfter(phrase);
-    const read = readChemistryQuantity({question, after, dimension, targetUnit});
-    if (read.ok) return {value: read.reading.value, unit: targetUnit};
-    if (read.code === "malformed" || read.code === "ambiguous") return null;
+    const read = readChemistryQuantityDeclaration({question, after, dimension, targetUnit,owner:phrase.source});
+    if (read.state === "valid") return {value: read.reading.value, unit: targetUnit};
+    if (read.state === "invalid" && (read.code === "malformed" || read.code === "ambiguous")) return null;
   }
   return null;
 }
@@ -275,11 +278,38 @@ function readMechanismSteps(stem: string): ProfileStep[] | null {
   return signs.map((step) => ({ ea: step.slow ? 2.6 : 1.1, dH: step.sign > 0 ? plusMagnitude : -minusMagnitude, slow: step.slow }));
 }
 
+/** Only complete source-bound step signs are qualitative, never physical givens. */
+function mechanismEnthalpyInputsValid(question: string, steps: readonly ProfileStep[]): boolean {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  const pattern = /(?<![\p{L}\p{N}_])(?:and\s+)?[a-z(][a-z0-9()+]*\s*(?:->|→|⟶|−>|-->|⇒)\s*[a-z(][a-z0-9()+]*(?:\s+is|\s*[;,(:])?\s*(?:a\s+|the\s+)?(?<speed>slow|fast)\b[^;.]{0,40}?(?<cue>δh|∆h|\bah\b|\bdh\b|enthalpy)(?<payload>\s*[=:]?\s*(?<sign>[+−–—-])\s*ve\b)/gidu;
+  const matches = [...body.matchAll(pattern)];
+  if (matches.length !== steps.length) return false;
+  const claims = matches.map(match => ({cue:match.indices!.groups!.cue!,payload:match.indices!.groups!.payload!,
+    sign:match.groups!.sign === "+" ? 1 : -1,slow:match.groups!.speed!.toLowerCase() === "slow"}));
+  for (const [index,claim] of claims.entries()) {
+    if (claim.sign !== Math.sign(steps[index]!.dH) || claim.slow !== !!steps[index]!.slow) return false;
+    const nextStep = matches[index+1]?.index ?? body.length;
+    const tail = body.slice(claim.payload[1],nextStep).split(/[;!?\n]|\.(?=\s|$)/)[0]!;
+    // A physical or expression continuation cannot hide after a sign token.
+    if (chemistryQuantityPayloadPresent(tail)
+      || /^[\s,]*(?:and\s+)?(?:[=:+*/^×·−-]|(?:is|was|are|equals|equal\s+to)\b)/i.test(tail)) return false;
+  }
+  const owners = [...body.matchAll(new RegExp(DELTA_H_SYMBOL.source,"gi"))];
+  return owners.every((owner,index) => {
+    if (claims.some(claim => claim.cue[0] === owner.index && claim.cue[1] === owner.index!+owner[0].length)) return true;
+    const reads = (["energy","molar_energy"] as const).map(dimension => readChemistryQuantityDeclaration({question,
+      after:DELTA_H_SYMBOL,within:{start:owner.index!,end:owners[index+1]?.index ?? body.length},dimension,owner:"mechanism enthalpy declaration"}));
+    // This operator consumes qualitative step signs, not an additional
+    // measured enthalpy that could contradict the stated net direction.
+    return reads.every(read => read.state === "absent");
+  });
+}
+
 const PROFILE_THRESHOLD_CUE = /threshold\s+energy/;
 const PROFILE_REACTANT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/;
 const PROFILE_PRODUCT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/;
 const PROFILE_CATALYST_REDUCTION_CUE = /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/;
-const PROFILE_CATALYST_BARRIER_CUE = /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/;
+const PROFILE_CATALYST_BARRIER_CUE = /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|\bcatalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/;
 const PROFILE_CATALYST_ROLE_CUE = /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/;
 
 /** Only complete requested/qualitative roles omit a physical profile input. */
@@ -306,6 +336,9 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     {phrase:FORWARD_ACTIVATION,role:"forward",sign:0},
     {phrase:BACKWARD_ACTIVATION,role:"backward",sign:0},
     {phrase:GENERIC_ACTIVATION,role:"forward",sign:0},
+    {phrase:/(?:forward|uncatalys[ez]d)\s+activation\s+energies\b/,role:"forward",sign:0},
+    {phrase:/(?:backward|reverse)\s+activation\s+energies\b/,role:"backward",sign:0},
+    {phrase:/\bactivation\s+energies\b/,role:"forward",sign:0},
     {phrase:PROFILE_THRESHOLD_CUE,role:"threshold",sign:0},
     {phrase:PROFILE_REACTANT_CUE,role:"reactants",sign:0},
     {phrase:PROFILE_PRODUCT_CUE,role:"products",sign:0},
@@ -324,7 +357,9 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
   // A specific catalyst/forward/backward role owns any nested generic phrase.
   const owners = found.filter(owner => !found.some(other => other.start <= owner.start && other.end >= owner.end
     && (other.start < owner.start || other.end > owner.end))).sort((a,b)=>a.start-b.start);
+  const requestedRoles = requestedSourceRoleStarts(body, owners.map(owner=>({start:owner.start,end:owner.end})));
   const values = new Map<string,Energy>();
+  const consumed: ChemistryQuantityConsumption[] = [];
   const qualitativeSigns: number[] = [];
   for (const [index,owner] of owners.entries()) {
     const next = owners[index+1];
@@ -334,7 +369,7 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     const payload = body.slice(owner.end,end);
     // Adjacent aliases name one original value, which the next owner validates.
     if (next && owner.role === next.role && end === next.start && /^\s*[,:(]?\s*$/.test(payload)) continue;
-    if (profileEnergyReferenceOnly(body,owner.start,owner.end,end)) continue;
+    if (requestedRoles.has(owner.start) || profileEnergyReferenceOnly(body,owner.start,owner.end,end)) continue;
     if (owner.sign !== 0 && /^\s*(?:heat|energy)?\s*$/i.test(payload)) {
       qualitativeSigns.push(owner.sign);continue;
     }
@@ -342,7 +377,11 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     for (const [dimension,targetUnit] of [["molar_energy","kJ/mol"],["energy","kJ"]] as const) {
       const read = readChemistryQuantity({question:body,after:new RegExp(`^(?:${energyCueAfter(owner.phrase).source})`,"i"),
         within:{start:owner.start,end},dimension,targetUnit});
-      if (read.ok) {energy={value:read.reading.value,unit:targetUnit};break;}
+      if (read.ok) {
+        energy={value:read.reading.value,unit:targetUnit};
+        consumed.push({reading:read.reading,owner:owner.role});
+        break;
+      }
     }
     if (!energy) return null;
     const value = owner.sign === -1 ? -Math.abs(energy.value) : owner.sign === 1 ? Math.abs(energy.value) : energy.value;
@@ -350,6 +389,10 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     if (previous && (previous.unit !== energy.unit || !chemistryCanonicalValuesAgree(previous.value,value))) return null;
     values.set(owner.role,{value,unit:energy.unit});
   }
+  // A closed label request consumes no literal. Every actual energy occurrence
+  // still needs its own source span and role before any qualitative derivation.
+  if (!(["energy","molar_energy"] as const).every(dimension=>chemistryQuantityInventoryOwned(question,dimension,
+    consumed.filter(item=>item.reading.dimension === dimension)))) return null;
   const enthalpy = values.get("dH");
   return enthalpy === undefined || qualitativeSigns.every(sign=>sign===Math.sign(enthalpy.value)) ? values : null;
 }
@@ -407,7 +450,7 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   if (ea !== null && dH !== null && eaBack !== null && !chemistryCanonicalValuesAgree(eaBack,ea-dH)) return null;
   if (ea !== null && threshold && energyR && !chemistryCanonicalValuesAgree(ea,threshold.value-energyR.value)) return null;
   if (ea !== null && dH !== null && threshold && energyP && !chemistryCanonicalValuesAgree(ea-dH,threshold.value-energyP.value)) return null;
-  if (/\bnumeric(?:al)?\b/.test(stem) && (ea === null || dH === null)) return null;
+  if (numericalValuesRequested(stem) && (ea === null || dH === null)) return null;
 
   const exothermic = EXOTHERMIC.test(stem);
   const endothermic = ENDOTHERMIC.test(stem);
@@ -1017,7 +1060,69 @@ function buildEllingham(question: string, stem: string): SceneDocument {
 
 /* -------------------------------------------------------------- maxwell */
 
+/** Source roles validate a qualitative comparison; they grant no numeric curve. */
+function maxwellTemperatureRoles(question: string): { lower: string; higher: string } | null {
+  const body = chemistryQuestionSpan(question);
+  const cue = /\b(?:(lower|higher)\s+temperature(?:\s+T_?([12])\b)?|T_?([12])\b|temperatures?\b)/gi;
+  const matches = [...question.slice(body.start, body.end).matchAll(cue)];
+  const values = new Map<string, number>();
+  const consumed: ChemistryQuantityConsumption[] = [];
+  const unnamed: ChemistryReading[] = [];
+  let typed = false;
+  for (const [index, match] of matches.entries()) {
+    const role = match[1]?.toLowerCase();
+    const symbol = match[2] ?? match[3];
+    const owners = role ? [role, ...(symbol ? [`T${symbol}`] : [])] : [symbol ? `T${symbol}` : "unspecified"];
+    const start = body.start + match.index!;
+    const end = matches[index + 1] ? body.start + matches[index + 1]!.index! : body.end;
+    const after = new RegExp(match[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    const read = readChemistryQuantityDeclaration({ question, after, within: { start, end },
+      dimension: "temperature", targetUnit: "K", owner: `Maxwell ${owners[0]}` });
+    if (read.state === "invalid") return null;
+    if (read.state === "absent") continue;
+    if (!(read.reading.value > 0)) return null;
+    for (const owner of owners) {
+      const previous = values.get(owner);
+      if (previous !== undefined && !chemistryCanonicalValuesAgree(previous, read.reading.value)) return null;
+      values.set(owner, read.reading.value);
+    }
+    if (owners[0] === "unspecified") unnamed.push(read.reading);
+    else {
+      typed = true;
+      consumed.push({ reading: read.reading, owner: `Maxwell ${owners[0]}` });
+    }
+  }
+  if (!typed) {
+    // An anonymous list still has distinct original operands. Preserve the
+    // established qualitative two-temperature ask without merging its owners.
+    const inventory = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
+    if (!inventory.ok || inventory.reading.length > 2 || inventory.reading.some(reading => !(reading.value > 0))) return null;
+    if (inventory.reading.length === 2 && chemistryCanonicalValuesAgree(inventory.reading[0]!.value, inventory.reading[1]!.value)) return null;
+    inventory.reading.forEach((reading, index) => consumed.push({ reading, owner: `Maxwell anonymous ${index + 1}` }));
+  } else if (unnamed.length) return null;
+  if (!chemistryQuantityInventoryOwned(question, "temperature", consumed)) return null;
+  const lower = values.get("lower"), higher = values.get("higher");
+  if (lower !== undefined && higher !== undefined && !(lower < higher)) return null;
+  const t1 = values.get("T1"), t2 = values.get("T2");
+  let reversed = false;
+  if (t1 !== undefined && t2 !== undefined) {
+    if (chemistryCanonicalValuesAgree(t1, t2)) return null;
+    reversed = t1 > t2;
+    if ((lower !== undefined && !chemistryCanonicalValuesAgree(lower, Math.min(t1, t2)))
+      || (higher !== undefined && !chemistryCanonicalValuesAgree(higher, Math.max(t1, t2)))) return null;
+  } else if (t1 !== undefined || t2 !== undefined) {
+    // A lone numbered value does not prove which of two curves is hotter.
+    if (lower === undefined || higher === undefined) return null;
+    const indexed = t1 ?? t2!;
+    if (!chemistryCanonicalValuesAgree(indexed, lower) && !chemistryCanonicalValuesAgree(indexed, higher)) return null;
+    reversed = t1 !== undefined ? chemistryCanonicalValuesAgree(indexed, higher) : chemistryCanonicalValuesAgree(indexed, lower);
+  }
+  return reversed ? { lower: "T_2", higher: "T_1" } : { lower: "T_1", higher: "T_2" };
+}
+
 function buildMaxwell(question: string, stem: string): SceneDocument | null {
+  const temperatures = maxwellTemperatureRoles(question);
+  if (!temperatures) return null;
   const speeds = /speed|velocit/.test(stem) && !/energy/.test(stem);
   const c = new ChemScene(question, "Maxwell Boltzmann distribution at two temperatures", THERMO_FAMILY);
   const s = c.scene;
@@ -1025,8 +1130,8 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
   c.text("x_title", { x: 4.35, y: -0.14 }, speeds ? "speed" : "kinetic energy", "axis title");
   c.text("y_title", { x: 0.9, y: 1.02 }, "fraction", "axis title");
   // Equal areas: the T2 curve is flatter and its most probable value larger.
-  s.curve("t1", "2*x^2*exp(-x^2)", 0, 4.6, "distribution at the lower temperature", "T_1", 97);
-  s.curve("t2", "0.7071*x^2*exp(-x^2/2)", 0, 4.6, "distribution at the higher temperature", "T_2", 97);
+  s.curve("t1", "2*x^2*exp(-x^2)", 0, 4.6, "distribution at the lower temperature", temperatures.lower, 97);
+  s.curve("t2", "0.7071*x^2*exp(-x^2/2)", 0, 4.6, "distribution at the higher temperature", temperatures.higher, 97);
   s.labelled("t1", "t2");
   proveOnCurve(c, "t1_peak", "t1", 1, 2 * Math.exp(-1));
   proveOnCurve(c, "t2_peak", "t2", Math.SQRT2, 0.7071 * 2 * Math.exp(-1));
@@ -1038,8 +1143,8 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
     s.labelled("ea_line");
   }
   const caption = speeds
-    ? "Raising the temperature from T_1 to T_2 shifts the most probable speed to the right and flattens the curve; the area under each curve is the same because it counts all the molecules."
-    : "Raising the temperature from T_1 to T_2 flattens and broadens the curve. The fraction of molecules with energy above E_a (the area to the right of the dashed line) grows sharply, which is why the rate rises so fast with temperature.";
+    ? `Raising the temperature from ${temperatures.lower} to ${temperatures.higher} shifts the most probable speed to the right and flattens the curve; the area under each curve is the same because it counts all the molecules.`
+    : `Raising the temperature from ${temperatures.lower} to ${temperatures.higher} flattens and broadens the curve. The fraction of molecules with energy above E_a (the area to the right of the dashed line) grows sharply, which is why the rate rises so fast with temperature.`;
   return c.build({ caption });
 }
 
@@ -1048,6 +1153,7 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (claimsMeasuredGibbsGraph(question)) return buildMeasuredGibbsGraph(question, quantities);
   // Neither the profile nor the qualitative Maxwell operator solves a
   // numeric molecular fraction. Do not substitute a two-temperature cartoon.
   const bodyStem = chemStem(question.slice(0, chemistryQuestionSpan(question).end));
@@ -1063,12 +1169,15 @@ export function buildThermoGraphScene(question: string, quantities: ChemPlanQuan
   // operands as extra givens; retain that guard for all other operators.
   // Single profiles consume the checked per-original role map below. Keep
   // aggregate checks for every other operator and qualitative mechanism.
-  const singleProfile = kind === "profile" && readMechanismSteps(stem) === null;
-  if (!singleProfile && (!chemistryQuantityCuesValid(question, [
+  const mechanism = kind === "profile" ? readMechanismSteps(stem) : null;
+  const singleProfile = kind === "profile" && mechanism === null;
+  if (mechanism && !mechanismEnthalpyInputsValid(question,mechanism)) return null;
+  if (!singleProfile && kind !== "gibbs" && (!chemistryQuantityCuesValid(question, [
     ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
-  ]) || (kind !== "gibbs" && !chemistryQuantityCuesValid(question, [
-    {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
-  ])))) return null;
+  ]) || !chemistryQuantityCuesValid(question, [
+    ...(mechanism ? [] : [{after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"] as const}]),
+    {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
+  ]))) return null;
   switch (kind) {
     case "profile": {
       const spec = readProfile(stem, question, quantities, schematic);

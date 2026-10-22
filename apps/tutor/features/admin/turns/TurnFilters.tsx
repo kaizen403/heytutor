@@ -8,7 +8,7 @@ import { FilterSelect } from "../shared/components/FilterSelect";
 const OUTCOME_OPTIONS: Array<{ value: TurnsOutcomeFilter; label: string }> = [
   { value: "all", label: "All outcomes" },
   { value: "validated", label: "Verified diagram" },
-  { value: "failed", label: "Without verified diagram" },
+  { value: "failed", label: "Confirmed failures" },
 ];
 
 const DAYS_OPTIONS = [

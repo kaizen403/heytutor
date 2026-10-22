@@ -146,11 +146,20 @@ unset. Do not set `AUTH_DEV_LOGIN`.
 Sentry project `personal-9bo/heytutor` receives crashes and logs. Set
 `NEXT_PUBLIC_SENTRY_DSN` and `SENTRY_DSN` in `.env.production` before the
 build. The public DSN is baked into the browser bundle, so changing it needs
-a rebuild. Warn, error, and `[http]` access lines are logs. Lines starting
-with `[tutor:` stay on the machine because they include the question. Source
+a rebuild. Deployment stamps `SENTRY_ENVIRONMENT=production` and
+`NEXT_PUBLIC_SENTRY_ENVIRONMENT=production`; server capture needs the former
+plus production `NODE_ENV`, and browser capture also needs the canonical
+`app.accelute.co` hostname. Leave the deployment markers unset in local/lab
+environments. Only approved operational warn/error and normalized `[http]`
+access lines become logs; arbitrary console prose and identifiers stay local.
+The final log envelope also removes attributes inherited from SDK scopes. Source
 maps upload when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are
 set. A missing token does not fail the build. `SENTRY_ENABLED=0` stops the
 server SDK on the next process start.
+
+Persisted turn failures use a bounded durable Sentry queue. See
+[failed-turn events and owner alert setup](failed-turn-sentry.md) for the release
+setting, historical backfill and the two alert rules.
 
 Because `setup-vm.sh` and `deploy.sh` `source` `.env.production`, keep it
 shell-compatible: quote values that contain `#`, spaces, or other

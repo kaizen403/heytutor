@@ -33,6 +33,18 @@ const kirchhoffIR: ProblemStructureView = {
     { kind: "connected", entityIds: ["n1", "n2"] },
     { kind: "connected", entityIds: ["n1", "n2"] },
   ],
+  // Explicit branch endpoints establish two cycles. Inventory size and
+  // repeated connected membership above are not topology evidence.
+  solveRequests: [{ kind: "dc_network", network: {
+    model: "ideal_dc", nodes: ["a", "b", "c", "d"],
+    branches: [
+      { id: "e1", kind: "voltage_source", from: "a", to: "b" },
+      { id: "r1", kind: "resistor", from: "b", to: "c" },
+      { id: "r2", kind: "resistor", from: "c", to: "a" },
+      { id: "e2", kind: "voltage_source", from: "a", to: "d" },
+      { id: "r3", kind: "resistor", from: "d", to: "c" },
+    ],
+  } }],
 };
 
 // Stem wording alone says nothing about loops; only the solve does.

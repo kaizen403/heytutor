@@ -1,5 +1,6 @@
-import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
+import { calculateLlmCostDetails, roundUsd, type LlmRate } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
+import { plannerTierCostMultiplier } from "../../lib/llm/planningSpeed";
 import type { FigureSource } from "@heytutor/scene-engine";
 import {
   diagramStrategyAllowsFigureSource,
@@ -58,6 +59,19 @@ export interface PlannerUsageSummary {
 }
 
 export interface PlannerModelCall {
+  requestKind?: "turn_plan" | "problem_ir" | "scene" | "picker" | "other";
+  phase?: string | null;
+  lane?: string | null;
+  elapsedMs?: number;
+  requestChars?: number;
+  /** Provider-bound messages after server catalogue/example injection. */
+  promptChars?: number | null;
+  reasoningEffort?: string | null;
+  serviceTierRequested?: string | null;
+  serviceTier?: string | null;
+  /** null is not reported; zero is an explicit provider report. */
+  reasoningTokens?: number | null;
+  costMultiplier?: number;
   model: string;
   pricingModel?: string;
   status: number;
@@ -322,8 +336,21 @@ export function estimateLabCallWorstCaseUsd(input: {
   messages: unknown;
   maxTokens: number;
   model: string;
+  inputByteMultiplier?: number;
+  addedInputBytes?: number;
+  /** Frozen preflight prices; legacy callers still resolve their model rates. */
+  rates?: LlmRate;
 }): number {
-  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length + 2_048;
+  const multiplier = input.inputByteMultiplier ?? 1;
+  const added = input.addedInputBytes ?? 0;
+  if (!Number.isSafeInteger(multiplier) || multiplier < 1 || !Number.isSafeInteger(added) || added < 0) {
+    throw new Error("invalid server-prepared input expansion bound");
+  }
+  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length * multiplier + added + 2_048;
+  if (input.rates) {
+    return roundUsd(roundUsd(promptBytes / 1_000_000 * input.rates.inputUsdPer1M)
+      + roundUsd(Math.max(0, input.maxTokens) / 1_000_000 * input.rates.outputUsdPer1M));
+  }
   return calculateLlmCostDetails(
     { input: promptBytes, output: Math.max(0, input.maxTokens) },
     { model: input.model },
@@ -488,6 +515,7 @@ export class PlannerUsageTracker {
     reservedUsd?: number,
     maxAttempts = 1,
     fallbackModel = "unknown",
+    profile: Pick<PlannerModelCall, "requestKind" | "phase" | "lane" | "elapsedMs" | "requestChars" | "serviceTierRequested"> = {},
   ): Promise<void> {
     let usage: ReturnType<typeof parseProviderUsage> | null = null;
     let payloadModel: string | null = null;
@@ -519,6 +547,12 @@ export class PlannerUsageTracker {
       this.upstreamAttempts(response, maxAttempts),
       maxAttempts,
       this.pricingModel(model, fallbackModel),
+      { ...profile,
+        promptChars: response.headers.has("x-heytutor-planner-prompt-chars") ? Number(response.headers.get("x-heytutor-planner-prompt-chars")) : null,
+        reasoningEffort: response.headers.get("x-heytutor-reasoning-effort"),
+        serviceTierRequested: response.headers.get("x-heytutor-service-tier-requested") ?? profile.serviceTierRequested,
+        serviceTier: response.headers.get("x-heytutor-service-tier"),
+      },
     );
   }
 
@@ -633,6 +667,7 @@ export class PlannerUsageTracker {
     attempts = 1,
     maxAttempts = 1,
     pricingModel = model,
+    profile: Partial<PlannerModelCall> = {},
   ): void {
     if (this.finishedTraces.has(traceId)) return;
     const pending = this.takePendingWorstCase(traceId, reservedUsd);
@@ -642,13 +677,17 @@ export class PlannerUsageTracker {
     const summary = this.byTrace.get(traceId) ?? emptyUsage();
     const worstCaseUsd = pending.usd;
     const usageKnown = hasPricedUsage(usage) && pricingModel !== "unknown";
+    const costMultiplier = plannerTierCostMultiplier(profile.serviceTier, profile.serviceTierRequested === "priority");
     const measuredUsd = usageKnown
-      ? (calculateLlmCostDetails(usage!, { model: pricingModel }).total ?? 0)
+      ? (calculateLlmCostDetails(usage!, { model: pricingModel }).total ?? 0) * costMultiplier
       : null;
     const unresolvedAttempts = usageKnown ? attempts - 1 : attempts;
     const unresolvedAllowanceUsd =
       (worstCaseUsd / maxAttempts) * unresolvedAttempts;
     const call: PlannerModelCall = {
+      ...profile,
+      reasoningTokens: usage?.reasoning ?? null,
+      costMultiplier,
       model,
       pricingModel,
       status,
@@ -731,6 +770,7 @@ export class PlannerUsageTracker {
     traceId: string,
     model = "unknown",
     reservedUsd?: number,
+    profile: Pick<PlannerModelCall, "requestKind" | "phase" | "lane" | "elapsedMs" | "requestChars" | "serviceTierRequested"> = {},
   ): void {
     const pending = this.pendingWorstCaseByTrace
       .get(traceId)
@@ -744,6 +784,8 @@ export class PlannerUsageTracker {
       reservedUsd,
       pending?.maxAttempts ?? 1,
       pending?.maxAttempts ?? 1,
+      model,
+      profile,
     );
   }
 

@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { buildKineticsScene, kineticsFromStem, solveKinetics } from "../../src/chemistry/kinetics";
+import { readChemistryLiteral } from "../../src/chemistry/quantityReader";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
 
-interface Row { id: string; question: string; questionSha256: string; kind: "interval" | "decline" | "temperature" }
+interface Row { id: string; question: string; questionSha256: string; kind: "interval" | "decline" | "temperature" | "initial" | "arrhenius"; a0?: number; k?: number; timeUnit?: string; Ea?: number; EaLiteral?: string; T1?: number; T2?: number }
 const ROWS: readonly Row[] = [
   {
     "id": "legacy-zero-order-reaction-subject",
@@ -147,6 +148,135 @@ const ROWS: readonly Row[] = [
     "question": "The rate constant doubles as temperature increases from 300 K to 310 K. Draw ln k vs 1/T and find Ea.",
     "kind": "temperature",
     "questionSha256": "1a4dfdd0e49e2143b5434820ccb1e0b9efcd4e6f2f679224a8dc09ff09f8d077"
+  },
+  // Public #137 P1 plus fresh source-owned named-reactant declarations.
+  {
+    "id": "P1-NAMED-INITIAL-EXACT",
+    "question": "A first order reaction has initial concentration of A is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "kind": "initial", "a0": 2, "k": 0.0231, "timeUnit": "min",
+    "questionSha256": "64165739c33235c00223216d0bf202a44ec9102df8d8f0e2518eceec1d42d5e0"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-A",
+    "question": "For a first order reaction, the initial concentration of A is 3 M and k = 0.015 min^-1. Plot [A] against time.",
+    "kind": "initial", "a0": 3, "k": 0.015, "timeUnit": "min",
+    "questionSha256": "f7f0801c415f76e32202a2eb5f5941b3ec4b91befd55c1d1de4e6e871b81b111"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-BRACKET-A",
+    "question": "A first order reaction has initial concentration of [A] = 0.8 mol/L. The rate constant is 0.02 s^-1. Draw the concentration-time curve.",
+    "kind": "initial", "a0": 0.8, "k": 0.02, "timeUnit": "s",
+    "questionSha256": "f91dfc18fe1ceb27cbb78294e2c1ba3526fb8d79c6f059aa5e54a2f467b0c05d"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-REACTANT-A",
+    "question": "A first order reaction has initial concentration of reactant A = 4 M and k = 0.04 h^-1. Draw [A] versus t.",
+    "kind": "initial", "a0": 4, "k": 0.04, "timeUnit": "h",
+    "questionSha256": "f442942701814168aec35cbdae3d27f82826ec87a425db6686ced5e58a2726cc"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-UNREAD-CONTROL",
+    "question": "A first order reaction has initial concentration of A is unknown. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "kind": "decline",
+    "questionSha256": "b697faa5cd36bb3e6d6ac5f679fbae774cab93e9eb8d41d84de421734f8f83ad"
+  },
+  // Public #137 temperature-range P1 and independently frozen local-unit controls.
+  {
+    "id": "P1-TEMPERATURE-RANGE-EXACT",
+    "question": "A first order reaction has initial concentration 2 M and activation energy 50 kJ/mol when the temperature is raised from 300 K to 310 K. Draw the Arrhenius plot.",
+    "kind": "arrhenius",
+    "a0": 2,
+    "Ea": 50000,
+    "EaLiteral": "50 kJ/mol",
+    "T1": 300,
+    "T2": 310,
+    "questionSha256": "e5c2a8f3e327b9b97ec2898edc958a7f4838f609144828bfa0b50116e1315de7"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-FRESH-INCREASE",
+    "question": "A first order reaction has initial concentration 1.5 M and activation energy 60 kJ/mol as its temperature increases from 290 K to 320 K. Draw the Arrhenius plot.",
+    "kind": "arrhenius",
+    "a0": 1.5,
+    "Ea": 60000,
+    "EaLiteral": "60 kJ/mol",
+    "T1": 290,
+    "T2": 320,
+    "questionSha256": "05e7b9804f471b0bb4e0088fa7d8f485982b12ec42e1308c1001afce2931098e"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-FRESH-JOULES",
+    "question": "The initial concentration is 0.8 mol/L for a first order reaction with Ea = 40000 J/mol while temperature rises from 280 K to 305 K. Draw ln k against 1/T.",
+    "kind": "arrhenius",
+    "a0": 0.8,
+    "Ea": 40000,
+    "EaLiteral": "40000 J/mol",
+    "T1": 280,
+    "T2": 305,
+    "questionSha256": "02c9ce23a20138e4bf9fb38876d8ed8b7aa097e103c26d803f8533f9196a43b8"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-FRESH-RAISED",
+    "question": "For a first order reaction, initial concentration is 3 M and activation energy is 75 kJ/mol when temperature is raised from 310 K to 330 K. Sketch the Arrhenius plot.",
+    "kind": "arrhenius",
+    "a0": 3,
+    "Ea": 75000,
+    "EaLiteral": "75 kJ/mol",
+    "T1": 310,
+    "T2": 330,
+    "questionSha256": "1aa20f1b9c76bb106909bf1fa0eb03073d7e9a3139a54e31a7bc27b0776de84d"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-FRESH-NAMED-A",
+    "question": "A first order reaction has initial concentration of A is 0.5 M and activation energy 45 kJ/mol when the temperature changes from 300 K to 315 K. Draw ln k versus 1/T.",
+    "kind": "arrhenius",
+    "a0": 0.5,
+    "Ea": 45000,
+    "EaLiteral": "45 kJ/mol",
+    "T1": 300,
+    "T2": 315,
+    "questionSha256": "5e1bceed0527d53f8d9aff3580b3f9b2ebffc9c808369917476ac64bd40e0b51"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-FRESH-COOLING",
+    "question": "A first order reaction has initial concentration 4 M and activation energy 55 kJ/mol as temperature falls from 320 K to 300 K. Draw the Arrhenius plot.",
+    "kind": "arrhenius",
+    "a0": 4,
+    "Ea": 55000,
+    "EaLiteral": "55 kJ/mol",
+    "T1": 320,
+    "T2": 300,
+    "questionSha256": "801ed3ecfae509d74a1728868e301746c0b6560c311c393aeab6281762672abf"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-KEEP-ACTUAL-ASK",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. The temperature is held at 300 K. Draw [A] versus time and find the interval as concentration falls from 0.50 to 0.25 M.",
+    "kind": "interval",
+    "questionSha256": "7ead5cfcc39df867fffe39ef723935d5d33f5814741f33dad20fe319c8a322d2"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-REFUSE-FIRST-KELVIN",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Draw [A] versus time and find the interval as concentration falls from 0.50 K to 0.25 M.",
+    "kind": "decline",
+    "questionSha256": "7e15dda01eae3434428b4aadb6eb2dede941a1004757f595d8575a8ef84925c4"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-REFUSE-SECOND-KELVIN",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Draw [A] versus time and calculate how long concentration takes to fall from 0.50 M to 0.25 K.",
+    "kind": "decline",
+    "questionSha256": "2cac88d51dbd6c703a3cf2c14597a0846a0e12f7aacf4b609573fcff476a9d7e"
+  },
+  {
+    "id": "P1-TEMPERATURE-RANGE-REFUSE-RATE",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Calculate the time for concentration to decrease from 0.50 M to 0.25 M/h. Draw [A] against time.",
+    "kind": "decline",
+    "questionSha256": "81c13d0ac28d5c7c231b1b7c2645d7f91dcb7600e242669217f832fc44db86ed"
+  },
+  // Both Kelvin readings exceed100 K; refusal must retain the nearer concentration owner.
+  {
+    "id": "P1-TEMPERATURE-RANGE-REFUSE-NEAR-CONCENTRATION-OWNER",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Draw [A] versus time and find the interval as concentration falls from 300 K to 310 K.",
+    "kind": "decline",
+    "questionSha256": "1bed3c4eef4a40baa0c19567088c6ac5e405388bd4e3036d65517e41c4459138"
   }
 ];
 
@@ -204,6 +334,60 @@ for (const row of ROWS) {
         nearRaw(solution.Ea, independentEa);
         stored(scene, independentEa, ["J/mol"]);
         checkedScene(scene, row.question);
+      } else if (row.kind === "arrhenius") {
+        assert.ok(spec && spec.arrhenius && scene, "An unrelated Kelvin pair must retain the asked Arrhenius figure");
+        assert.ok(row.a0 !== undefined && row.Ea !== undefined && row.EaLiteral !== undefined && row.T1 !== undefined && row.T2 !== undefined);
+        // Prove each literal against its original full unit before checking the family parse.
+        for (const value of [row.T1, row.T2]) {
+          const literal = `${value} K`, start = row.question.indexOf(literal);
+          assert.ok(start >= 0);
+          const reading = readChemistryLiteral({ question: row.question, scalarSpan: { start, end: start + String(value).length }, dimension: "temperature", targetUnit: "K" });
+          assert.ok(reading.ok, "The original endpoint must be a complete Kelvin literal");
+          nearRaw(reading.reading.value, value);
+          assert.equal(reading.reading.source.text, literal);
+          assert.deepEqual(reading.reading.source.span, { start, end: start + literal.length });
+        }
+        const eaStart = row.question.indexOf(row.EaLiteral);
+        assert.ok(eaStart >= 0);
+        const eaScalar = /^\d+/.exec(row.EaLiteral); assert.ok(eaScalar);
+        const energy = readChemistryLiteral({ question: row.question, scalarSpan: { start: eaStart, end: eaStart + eaScalar[0].length }, dimension: "molar_energy", targetUnit: "J/mol" });
+        assert.ok(energy.ok); nearRaw(energy.reading.value, row.Ea);
+        assert.equal(energy.reading.source.text, row.EaLiteral);
+        assert.deepEqual(energy.reading.source.span, { start: eaStart, end: eaStart + row.EaLiteral.length });
+        nearRaw(spec.a0, row.a0); assert.equal(spec.concUnit, "M");
+        assert.equal(spec.order, 1);
+        assert.equal(spec.plot, "arrhenius");
+        assert.deepEqual(spec.concentrationsAsked, [], "Kelvin endpoints must not become concentration requests");
+        nearRaw(spec.arrhenius.T1, row.T1); nearRaw(spec.arrhenius.T2, row.T2); nearRaw(spec.arrhenius.Ea, row.Ea);
+        const solution = solveKinetics(spec);
+        // Independent Arrhenius law, valid for heating and cooling; no absolute k is supplied.
+        const ratio = Math.exp((row.Ea / 8.314) * (1 / row.T1 - 1 / row.T2));
+        nearRaw(solution.Ea, row.Ea); nearRaw(solution.T2, row.T2); nearRaw(solution.ratio, ratio);
+        assert.deepEqual(solution.timesForConcentrations, []);
+        stored(scene, row.Ea, ["J/mol"]); stored(scene, row.T1, ["K"]); stored(scene, row.T2, ["K"]); stored(scene, ratio, [""]);
+        assert.ok(!scene.quantities.some(quantity => quantity.id === "k"), "An unspecified absolute rate constant cannot be invented");
+        const rendered = checkedScene(scene, row.question);
+        for (const label of ["1/T", "lnk", "slope=-E_a/R", `T_1=${row.T1}K`, `T_2=${row.T2}K`, `E_a=${row.Ea / 1000}kJ/mol`])
+          assert.ok(rendered.labels.includes(label), `Compiled Arrhenius label missing: ${label}`);
+      } else if (row.kind === "initial") {
+        assert.ok(spec && scene, "Complete named-reactant initial concentration must reach the decay figure");
+        assert.ok(row.a0 !== undefined && row.k !== undefined && row.timeUnit !== undefined);
+        assert.equal(spec.order, 1);
+        nearRaw(spec.a0, row.a0);
+        assert.equal(spec.concUnit, "M", "mol/L and M declarations normalize to molarity");
+        nearRaw(spec.k, row.k);
+        assert.equal(spec.timeUnit, row.timeUnit);
+        const solution = solveKinetics(spec);
+        // Independent first-order law: A(t) = A0*exp(-k*t), so tHalf = ln(2)/k.
+        const halfLife = Math.LN2 / row.k;
+        nearRaw(solution.k, row.k);
+        nearRaw(solution.tHalf, halfLife);
+        stored(scene, row.k, [`1/${row.timeUnit}`]);
+        stored(scene, halfLife, [row.timeUnit]);
+        const rendered = checkedScene(scene, row.question);
+        assert.ok(rendered.labels.includes("[A]/[A]_0"), "Compiled normalized concentration axis missing");
+        assert.ok(rendered.labels.some(text => text.startsWith("t_1/2=") && text.endsWith(row.timeUnit!)),
+          "Compiled half-life mark must carry the source time unit");
       } else {
         assert.ok(spec && scene, "Complete source-owned concentration request must reach the figure");
         assert.equal(spec.order, 0);

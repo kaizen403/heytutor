@@ -7,8 +7,11 @@ const root = resolve(import.meta.dirname, "../..");
 // Import the real, independent header parser while excluding unrelated scene
 // compilation initialization from this paid-HTTP boundary test.
 const headers = load(resolve(root, "../../packages/tutor-core/src/llm/traceHeaders.ts")) as typeof import("../../../../packages/tutor-core/src/llm/traceHeaders");
+const fastMode = load(resolve(root, "../../packages/tutor-core/src/llm/fastMode.ts"));
+const reasoning = load(resolve(root, "../../packages/tutor-core/src/llm/reasoningEffort.ts"));
+const debug = load(resolve(root, "../../packages/tutor-core/src/tutorDebug.ts"));
 mock.module(resolve(root, "../../packages/tutor-core/src/index.ts"), {
-  namedExports: { ...headers, normalizeTutorQuestion: (value: string) => value.trim() },
+  namedExports: { ...headers, ...fastMode, ...reasoning, ...debug, normalizeTutorQuestion: (value: string) => value.trim() },
 });
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -28,6 +31,9 @@ const actor = {
 const billingPath = resolve(import.meta.dirname, "../../lib/billing");
 const appPath = resolve(import.meta.dirname, "../../app/api");
 let remainingMillicents = 0;
+let allowPaidFixtures = false;
+const reservations: Array<{ id: string; traceId?: string; kind: string; millicents: number }> = [];
+const settlements: Array<{ reservationId: string; actualMillicents?: number }> = [];
 const ownedTraces = new Map<string, { userId: string; expiresAt: Date }>([
   ["original", { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) }],
   ["foreign", { userId: "another-account", expiresAt: new Date(Date.now() + 86_400_000) }],
@@ -39,8 +45,16 @@ mock.module(resolve(billingPath, "ledger.ts"), {
   namedExports: {
     loadPeriodBalance: async () => ({ remainingMillicents, remainingPct: remainingMillicents > 0 ? 100 : 0, planId: "free" }),
     cacheUsageOnUser: async () => undefined,
-    reservePeriodUsage: async () => { throw new Error("invalid or unauthorized request cannot reserve paid vendor work"); },
-    settlePeriodUsage: async () => { throw new Error("no paid work was dispatched"); },
+    reservePeriodUsage: async (input: { traceId?: string; kind: string; millicents: number }) => {
+      if (!allowPaidFixtures) throw new Error("invalid or unauthorized request cannot reserve paid vendor work");
+      const id = `receipt-${reservations.length + 1}`;
+      reservations.push({ id, ...input });
+      return { id, amountMillicents: input.millicents, remainingMillicents, planId: "free" };
+    },
+    settlePeriodUsage: async (input: { reservationId: string; actualMillicents?: number }) => {
+      if (!allowPaidFixtures) throw new Error("no paid work was dispatched");
+      settlements.push(input);
+    },
   },
 });
 mock.module(resolve(import.meta.dirname, "../../lib/db/prisma.ts"), {
@@ -64,6 +78,155 @@ const routes = [
   ["stt", load(resolve(appPath, "stt/route.ts")) as typeof import("../../app/api/stt/route")],
   ["extract-question", load(resolve(appPath, "extract-question/route.ts")) as typeof import("../../app/api/extract-question/route")],
 ] as const;
+
+async function verifyChatPlannerPriority(): Promise<number> {
+  // Every provider request is served by the fetch fixture below. Disabling the
+  // exporter also prevents inherited local Langfuse credentials doing work.
+  const fixtureEnv: Record<string, string | undefined> = {
+    LANGFUSE_ENABLED: "0", LLM_PROVIDER: "azure", AZURE_OPENAI_ENDPOINT: "https://paid-route-fixture.invalid",
+    AZURE_OPENAI_API_KEY: "fixture-only", AZURE_OPENAI_DEPLOYMENT: "gpt-6.1-sol",
+    AZURE_OPENAI_MIN_REASONING_EFFORT: undefined,
+    AZURE_GPT_SOL_INPUT_USD_PER_1M: "2", AZURE_GPT_SOL_OUTPUT_USD_PER_1M: "10", AZURE_GPT_SOL_CACHED_INPUT_USD_PER_1M: "0.1",
+    DIAGRAM_PLANNER_PRIORITY: undefined, FIREWORKS_API_KEY: "fixture-only",
+    FIREWORKS_MODEL: "accounts/fireworks/models/kimi-k3", FIREWORKS_MAX_TOKENS: "3600",
+    FIREWORKS_SCENE_PLANNER_MAX_TOKENS: "4800", FIREWORKS_TURN_PLANNER_MAX_TOKENS: "2800",
+    FIREWORKS_PROBLEM_IR_MAX_TOKENS: "3600", FIREWORKS_CODE_LESSON_MAX_TOKENS: "4200",
+    FIREWORKS_KIMI_K3_INPUT_USD_PER_1M: "3", FIREWORKS_KIMI_K3_OUTPUT_USD_PER_1M: "15", FIREWORKS_KIMI_K3_CACHED_INPUT_USD_PER_1M: "0.3",
+  };
+  const originalEnv = new Map(Object.keys(fixtureEnv).map(key => [key, process.env[key]]));
+  const originalFetch = globalThis.fetch;
+  let scenarios = 0;
+  try {
+    for (const [key, value] of Object.entries(fixtureEnv)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    const chat = load(resolve(appPath, "chat/route.ts")) as typeof import("../../app/api/chat/route");
+    allowPaidFixtures = true;
+    const usage = { prompt_tokens: 1_000, completion_tokens: 800, total_tokens: 1_800,
+      prompt_tokens_details: { cached_tokens: 200 }, completion_tokens_details: { reasoning_tokens: 100 } };
+    const messages = [{ role: "user", content: "Explain pressure." }];
+    const body = { messages, service_tier: "priority", reasoning_effort: "high",
+      thinking: { type: "enabled", budget_tokens: 8192 }, max_tokens: 100_000,
+      max_completion_tokens: 100_000, n: 100, model: "client-owned-model", tools: [{ type: "function" }] };
+    const post = async (options: {
+      flag?: string; returnedTier?: "priority" | "default"; missingUsage?: boolean; retry?: boolean;
+      teaching?: boolean; plannerHeaders?: Record<string, string>; reserve: number; settle?: number;
+    }) => {
+      if (options.flag === undefined) delete process.env.DIAGRAM_PLANNER_PRIORITY;
+      else process.env.DIAGRAM_PLANNER_PRIORITY = options.flag;
+      resetTurnGrantsForTests();
+      remainingMillicents = 3_500;
+      const grant = createLessonGrant({ userId: actor.userId, traceId: "original", usdMillicents: remainingMillicents });
+      assert(grant.ok, "chat fixture has an owned funded grant");
+      reservations.length = 0; settlements.length = 0;
+      const dispatched: Record<string, unknown>[] = [];
+      globalThis.fetch = async (input, init) => {
+        assert(String(input) === (process.env.LLM_PROVIDER === "azure"
+          ? "https://paid-route-fixture.invalid/openai/v1/chat/completions"
+          : "https://api.fireworks.ai/inference/v1/chat/completions"), "chat dispatch uses only the configured provider fixture");
+        assert(reservations.length === 1 && settlements.length === 0, "the real paid reservation precedes every upstream attempt");
+        const sent = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        dispatched.push(sent);
+        if (options.retry && dispatched.length === 1) return new Response("transient fixture failure", { status: 503, headers: { "retry-after": "0" } });
+        if (options.teaching) return new Response(
+          `data: ${JSON.stringify({ choices: [{ delta: { content: "Pressure is force per unit area." } }] })}\n\ndata: ${JSON.stringify({ choices: [], usage })}\n\ndata: [DONE]\n\n`,
+          { headers: { "content-type": "text/event-stream" } },
+        );
+        return Response.json({ model: sent.model, choices: [{ message: { content: "{}" } }],
+          ...(options.returnedTier ? { service_tier: options.returnedTier } : {}),
+          ...(options.missingUsage ? {} : { usage }),
+        });
+      };
+      const response = await chat.POST(new Request("https://example.test/api/chat", {
+        method: "POST", headers: { "content-type": "application/json", "x-heytutor-trace-id": "original",
+          "x-heytutor-fast-mode": "0", ...(options.teaching ? { "x-heytutor-teaching-pass": "planned" }
+            : { "x-planner": "1", "x-scene-planner-version": "2", ...options.plannerHeaders }) },
+        body: JSON.stringify(body),
+      }));
+      assert(response.status === 200, "the real chat POST returns the successful provider fixture");
+      await response.text();
+      assert(dispatched.length === (options.retry ? 2 : 1), "planner retry count stays inside the reserved attempt ceiling");
+      assert(reservations[0]?.kind === (options.teaching ? "teaching" : "planner"), "chat reserves the admitted paid lane");
+      assert(reservations[0]?.millicents === options.reserve, `chat reserves ${options.reserve} millicents, got ${reservations[0]?.millicents}`);
+      assert(settlements.length === 1 && settlements[0]?.reservationId === reservations[0]?.id, "chat settles its own reservation exactly once");
+      assert(settlements[0]?.actualMillicents === options.settle, `chat settlement is ${options.settle ?? "the retained reservation"}, got ${settlements[0]?.actualMillicents}`);
+      for (const sent of dispatched) {
+        assert(JSON.stringify(sent.messages) === JSON.stringify(messages), "only sanitized client messages cross the route");
+        assert(sent.n === 1 && sent.tools === undefined && sent.model !== body.model, "client fan-out, tools, and model cannot cross the paid boundary");
+        assert(sent.stream === Boolean(options.teaching), "the server owns planner JSON versus teaching streaming");
+      }
+      scenarios++;
+      return { dispatched, response };
+    };
+    // 47 ASCII prompt bytes + 2048 protocol allowance; 6848 completion tokens.
+    // Two attempts cost $0.145340 standard / $0.290680 priority, rounded once
+    // by the actual ledger seam to 146 / 291 millicents. Cached usage costs
+    // $0.009620 standard / $0.019240 priority, rounded to 10 / 20 millicents.
+    const priority = await post({ flag: "1", returnedTier: "priority", reserve: 291, settle: 20 });
+    assert(priority.dispatched[0]!.service_tier === "priority", "exact flag 1 selects Azure planner priority");
+    assert(priority.dispatched[0]!.reasoning_effort === "low" && priority.dispatched[0]!.max_completion_tokens === 6848,
+      "priority preserves the scene planner's low effort and content/reasoning cap");
+    assert(priority.response.headers.get("x-heytutor-service-tier") === "priority", "actual priority tier is returned in diagnostics");
+    const fallback = await post({ flag: "1", returnedTier: "default", reserve: 291, settle: 10 });
+    assert(fallback.dispatched[0]!.service_tier === "priority" && fallback.response.headers.get("x-heytutor-service-tier") === "default",
+      "requested priority and actual standard fallback remain distinct");
+    await post({ flag: "1", reserve: 291, settle: 20 });
+    await post({ flag: "1", missingUsage: true, reserve: 291 });
+    const retry = await post({ flag: "1", returnedTier: "default", retry: true, reserve: 291 });
+    assert(retry.dispatched.every(sent => sent.service_tier === "priority"), "priority remains selected on both reserved attempts");
+    assert(retry.response.headers.get("x-heytutor-upstream-attempts") === "2", "a real retry exposes both attempts without refunding unknown earlier usage");
+    for (const flag of [undefined, "0", "true", " 1 "]) {
+      const standard = await post({ flag, returnedTier: "default", reserve: 146, settle: 10 });
+      assert(JSON.stringify(standard.dispatched[0]) === JSON.stringify({ messages, n: 1, stream: false,
+        response_format: { type: "json_object" }, reasoning_effort: "low", max_completion_tokens: 6848, model: "gpt-6.1-sol" }),
+        "omitted or invalid priority flags preserve the complete legacy Azure planner wire body");
+      assert(standard.response.headers.get("x-heytutor-service-tier-requested") === "auto", "omitted tier diagnostics reflect deployment-auto behavior");
+      assert(standard.dispatched[0]!.reasoning_effort === "low" && standard.dispatched[0]!.max_completion_tokens === 6848,
+        "client vendor knobs cannot expand standard planner reasoning or output");
+    }
+    const autoPriority = await post({ returnedTier: "priority", reserve: 146, settle: 20 });
+    assert(autoPriority.dispatched[0]!.service_tier === undefined && autoPriority.response.headers.get("x-heytutor-service-tier") === "priority",
+      "an off-path deployment-returned priority tier still settles at 2x");
+    for (const [plannerHeaders, cap, reserve] of [
+      [{ "x-turn-planner-version": "3" }, 4848, 211],
+      [{ "x-problem-ir-version": "1" }, 5648, 243],
+      [{ "x-code-lesson-version": "1" }, 6248, 267],
+    ] as const) {
+      const planner = await post({ flag: "1", returnedTier: "priority", plannerHeaders, reserve, settle: 20 });
+      assert(planner.dispatched[0]!.service_tier === "priority" && planner.dispatched[0]!.max_completion_tokens === cap,
+        "each Azure planner lane keeps its existing cap while opting into priority");
+    }
+    process.env.LLM_PROVIDER = "fireworks";
+    const fireworks = await post({ flag: "1", reserve: 157, settle: 15 });
+    for (const flag of [undefined, "0", "true"]) {
+      const unchanged = await post({ flag, reserve: 157, settle: 15 });
+      assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(fireworks.dispatched[0]), "every priority flag value preserves the Fireworks wire body and accounting");
+    }
+    assert(fireworks.dispatched[0]!.service_tier === undefined && fireworks.dispatched[0]!.reasoning_effort === undefined,
+      "planner priority and client vendor options do not leak to Fireworks");
+    assert(fireworks.dispatched[0]!.max_tokens === 4800 && JSON.stringify(fireworks.dispatched[0]!.thinking) === '{"type":"disabled"}',
+      "Fireworks keeps its existing scene planner body");
+    process.env.LLM_PROVIDER = "azure";
+    const standardTeaching = await post({ teaching: true, reserve: 61, settle: 10 });
+    const priorityTeaching = await post({ teaching: true, flag: "1", reserve: 61, settle: 10 });
+    for (const flag of ["0", "true"]) {
+      const unchanged = await post({ teaching: true, flag, reserve: 61, settle: 10 });
+      assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(standardTeaching.dispatched[0]), "invalid and zero priority flags preserve teaching dispatch and accounting");
+    }
+    assert(JSON.stringify(standardTeaching.dispatched[0]) === JSON.stringify(priorityTeaching.dispatched[0]),
+      "priority flag changes neither teaching dispatch nor reservation/settlement");
+    assert(priorityTeaching.dispatched[0]!.service_tier === undefined && priorityTeaching.dispatched[0]!.reasoning_effort === "low"
+      && priorityTeaching.dispatched[0]!.max_completion_tokens === 5648, "the client cannot select teaching tier, reasoning, or output cap");
+    return scenarios;
+  } finally {
+    allowPaidFixtures = false;
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of originalEnv) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    resetTurnGrantsForTests();
+  }
+}
 
 async function main(): Promise<void> {
   const originalFetch = globalThis.fetch;
@@ -125,6 +288,8 @@ async function main(): Promise<void> {
       assert(foreign.status === 402,
         `${name}: account credit cannot authorize another account's trace`);
     }
+    const chatScenarios = await verifyChatPlannerPriority();
+    console.log(`✓ ${chatScenarios} actual chat POST scenarios cover planner tier scoping, retry reservations, returned-tier/unknown-usage settlement, and teaching/client isolation`);
   } finally {
     globalThis.fetch = originalFetch;
     resetTurnGrantsForTests();

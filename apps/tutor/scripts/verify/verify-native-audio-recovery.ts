@@ -17,7 +17,7 @@ const requireApp = createRequire(path.join(app, "package.json"));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const savePath = path.join(app, "features/tutor-session/lib/turn/liveTurnSave.ts");
 const clientPath = fileURLToPath(new URL("../../../../packages/tutor-core/src/tts/streamingSpeechClient.ts", import.meta.url));
-const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated"];
+const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race"];
 const noop = () => {};
 const ref = <T,>(current: T) => ({ current });
 
@@ -80,8 +80,10 @@ async function main() {
   };
   const gestureCase = selected.startsWith("gesture-");
   let gesturePermitted = !gestureCase;
-  const healthy = ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
-  const allStalled = selected === "stall-all" || selected.startsWith("runner-") && !healthy;
+  const relayCase = selected.startsWith("relay-");
+  let rejectDecode: ((error: Error) => void) | undefined;
+  const healthy = relayCase || ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
+  const allStalled = selected === "relay-final-zero" || selected === "stall-all" || selected.startsWith("runner-") && !healthy;
   const positivePlateau = ["runner-positive", "runner-ws-positive", "runner-intro", "runner-stop", "runner-stale"].includes(selected);
   class NativeAudio {
     static instances: NativeAudio[] = [];
@@ -103,6 +105,7 @@ async function main() {
       if (!gesturePermitted) throw new DOMException("offline native gesture required", "NotAllowedError");
       this.playedOffsets.push(this.seekOffset); this.paused = false; this.started = now; this.onplaying?.();
       if (selected === "runner-error") schedule(() => this.onerror?.(), 50);
+      if (selected === "relay-final-media-error") schedule(() => this.onerror?.(), 600);
       if (selected === "ended-zero" && NativeAudio.instances[0] === this) schedule(() => this.onended?.(), 50);
       if (!allStalled && (healthy || NativeAudio.instances[0] !== this)) {
         if (selected !== "gesture-zero-repeated") this.endTimer = schedule(() => { this.seekOffset = durationSec; this.paused = true; this.onended?.(); }, (durationSec - this.seekOffset) * 1_000 / this.playbackRate + (selected === "gesture-delay" ? 300 : 0));
@@ -121,6 +124,7 @@ async function main() {
     async resume() { this.state = "running"; } async suspend() { this.state = "suspended"; } async close() { this.state = "closed"; }
     async decodeAudioData(bytes: ArrayBuffer) {
       assert.equal(createHash("sha256").update(new Uint8Array(bytes)).digest("hex"), digest); decoded++;
+      if (selected === "relay-final-decode-error") await new Promise<never>((_resolve, reject) => { rejectDecode = reject; });
       return { duration: durationSec, sampleRate: 24_000, numberOfChannels: 1, length: 101_760, getChannelData: () => new Float32Array(101_760).fill(0.1) };
     }
     createGain() { return { gain: { value: 1 }, connect() {}, disconnect() {} }; }
@@ -131,29 +135,31 @@ async function main() {
     }
   }
   replace("performance", { now: () => now }); replace("setTimeout", schedule); replace("clearTimeout", (id: number) => timers.delete(id));
-  replace("window", globalThis); replace("Audio", selected.includes("webaudio") ? undefined : NativeAudio); replace("AudioContext", RunningContext);
+  replace("window", globalThis); replace("Audio", selected.includes("webaudio") || selected === "relay-final-decode-error" ? undefined : NativeAudio); replace("AudioContext", RunningContext);
   replace("location", { protocol: "http:", host: "offline.invalid", origin: "http://offline.invalid" });
   const chunk = { audio_base64: Buffer.from(wav).toString("base64"), alignment: {
     character_start_times_seconds: [...narration].map((_, i) => i * durationSec / narration.length),
     character_end_times_seconds: [...narration].map((_, i) => (i + 1) * durationSec / narration.length),
   } };
   replace("fetch", async (input: unknown) => {
-    if (String(input).endsWith("/api/tts/ws-ticket")) return ["ws-capture", "capture-cancel", "ws-prefetch-cancel", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy"].includes(selected) ? Response.json({ ticket: "offline" }) : new Response(null, { status: 401 });
+    if (String(input).endsWith("/api/tts/ws-ticket")) return ["ws-capture", "capture-cancel", "ws-prefetch-cancel", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy"].includes(selected) || relayCase ? Response.json({ ticket: "offline" }) : new Response(null, { status: 401 });
     assert(String(input).endsWith("/api/tts/stream"), "external/provider dispatch forbidden"); fetches++;
-    return selected.startsWith("ws-no-final") && !selected.endsWith("healthy") ? new Response(null, { status: 503 }) : new Response(JSON.stringify(chunk) + "\n");
+    return (selected.startsWith("ws-no-final") && !selected.endsWith("healthy")) || ["relay-unfinished-skip", "relay-final-decode-error"].includes(selected) ? new Response(null, { status: 503 }) : new Response(JSON.stringify(chunk) + "\n");
   });
   class OfflineSocket {
+    static instances: OfflineSocket[] = [];
     static OPEN = 1; static CONNECTING = 0; readyState = 0;
     onopen: (() => void) | null = null; onclose: (() => void) | null = null; onerror: (() => void) | null = null;
-    listeners = new Map<string, Set<(event: { data: string }) => void>>(); segment = 0;
-    constructor(url: string) { assert(url.startsWith("ws"), "offline socket URL"); schedule(() => { this.readyState = 1; this.onopen?.(); this.emit({ type: "ready" }); }); }
+    listeners = new Map<string, Set<(event: { data: string }) => void>>(); segment = 0; sentTexts = 0;
+    constructor(url: string) { OfflineSocket.instances.push(this); assert(url.startsWith("ws"), "offline socket URL"); schedule(() => { this.readyState = 1; this.onopen?.(); this.emit({ type: "ready" }); }); }
     addEventListener(type: string, fn: (event: { data: string }) => void) { const set = this.listeners.get(type) ?? new Set(); set.add(fn); this.listeners.set(type, set); }
     removeEventListener(type: string, fn: (event: { data: string }) => void) { this.listeners.get(type)?.delete(fn); }
     emit(message: object) { for (const fn of this.listeners.get("message") ?? []) fn({ data: JSON.stringify(message) }); }
     send(raw: string) {
-      const message = JSON.parse(raw); if (message.segment_index) this.segment = message.segment_index;
+      const message = JSON.parse(raw); if (message.segment_index) { this.segment = message.segment_index; this.sentTexts++; }
       if (message.flush) {
-        const final = { ...chunk, context_id: `segment_${this.segment}`, isFinal: !selected.startsWith("ws-no-final") };
+        if (relayCase && this.sentTexts > 1) return;
+        const final = { ...chunk, context_id: `segment_${this.segment}`, isFinal: !selected.startsWith("ws-no-final") && selected !== "relay-unfinished-skip" };
         schedule(() => this.emit(final));
         if (selected === "ws-capture") schedule(() => this.emit(final), 50);
       }
@@ -167,6 +173,90 @@ async function main() {
   URL.revokeObjectURL = url => { revokedUrls.add(url); };
   const client = new StreamingSpeechClient(); client.setPlaybackRate(selected === "runner-slow" ? 0.5 : 1.25);
   try {
+    if (relayCase) {
+      const warm = client.prewarm(); await advance(100); await warm;
+      let starts = 0, ends = 0, captures = 0;
+      const state = { outcome: "pending" as "pending" | "resolved" | "rejected" };
+      const active = client.speakSegment(narration, { onStart: () => starts++, onEnd: () => ends++, onAudioCaptured: audio => { captures++; assert.deepEqual(audio.bytes, wav); } });
+      void active.then(() => { state.outcome = "resolved"; }, () => { state.outcome = "rejected"; });
+      await advance(250);
+      const current = Reflect.get(client, "currentJob") as { contextFinal: boolean; claimed: boolean; settled: boolean; capturedChunks: Uint8Array[] } | null;
+      assert(current && current.claimed && !current.settled, "actual current ownership exists before relay failure");
+      const unfinished = selected === "relay-unfinished-skip";
+      assert.equal(current.contextFinal, !unfinished);
+      assert.equal(captures, unfinished ? 0 : 1);
+      if (!["relay-final-zero", "relay-final-decode-error", "relay-unfinished-skip"].includes(selected)) {
+        assert.equal(starts, 1); assert(NativeAudio.instances[0]!.currentTime > .05, "actual current clip advances before generation fails");
+      } else assert.equal(starts, 0);
+      const pumpRace = selected === "relay-prefetch-pump-race";
+      client.prefetchSegment("This unfinished future sentence must fail independently.");
+      if (!pumpRace) await advance(20);
+      const jobs = Reflect.get(client, "jobs") as Array<{ contextFinal: boolean; settled: boolean; claimed: boolean; textSent: boolean }>;
+      const pending = jobs.find(job => !job.claimed);
+      assert(pending && pending.textSent === !pumpRace && !pending.contextFinal && !pending.settled,
+        pumpRace ? "public prefetch pump is awaiting AudioContext before send" : "unfinished lookahead sent while current drains");
+      const clip = NativeAudio.instances[0], lateEnd = clip?.onended;
+      if (selected === "relay-final-pause") client.pause();
+      const socket = OfflineSocket.instances[0]!;
+      if (["relay-final-close", "relay-old-close-owner"].includes(selected)) socket.close();
+      else socket.emit(selected === "relay-final-error" ? { type: "error", message: "controlled unfinished generation rejected" } : { type: "skip", reason: "tts_budget" });
+      await flush();
+      assert.equal(pending.settled, true, "relay failure rejects unfinished future generation");
+      if (pumpRace) assert.equal(socket.sentTexts, 1, "failed waiting pump cannot send the rejected future sentence");
+      if (unfinished) {
+        assert.equal(current.settled, true, "relay failure rejects the unfinished current generation immediately");
+        await advance(20_000); assert.equal(state.outcome, "rejected", "unfinished current is not a completed spoken clip");
+        assert.equal(starts, 0); assert.equal(ends, 0); assert.equal(captures, 0); assert.equal(NativeAudio.instances.length, 0); return;
+      }
+      assert.equal(state.outcome, "pending", "network failure cannot reject still-owned complete buffered current audio");
+      assert.equal(current.settled, false); assert.equal(ends, 0, "no early success for buffered current");
+      const chunkCount = current.capturedChunks.length;
+      socket.emit({ ...chunk, context_id: "segment_1", isFinal: true }); await flush();
+      assert.equal(current.capturedChunks.length, chunkCount, "failed socket cannot add late bytes to completed current");
+      if (selected === "relay-final-decode-error") {
+        assert(rejectDecode, "actual WebAudio decode is pending"); rejectDecode(new Error("controlled decode failure"));
+        await advance(20_000); assert.equal(state.outcome, "rejected"); assert.equal(starts, 0); assert.equal(ends, 0); return;
+      }
+      if (selected === "relay-final-zero") {
+        await advance(20_000); assert.equal(state.outcome, "rejected", "two nonadvancing native clocks still reject boundedly");
+        assert.equal(starts, 0); assert.equal(ends, 0); assert.equal(NativeAudio.instances.length, 2); assert.equal(fetches, 0); return;
+      }
+      if (selected === "relay-final-media-error") {
+        await advance(2_000); assert.equal(state.outcome, "rejected"); assert.equal(ends, 0); assert.equal(fetches, 0); return;
+      }
+      if (selected === "relay-final-pause") {
+        const position = clip!.currentTime; await advance(8_000); assert.equal(clip!.currentTime, position);
+        assert.equal(state.outcome, "pending"); assert.equal(ends, 0); client.resume();
+      }
+      if (["relay-final-stop", "relay-final-successor"].includes(selected)) {
+        client.stop(); await flush();
+        assert.equal(state.outcome, "resolved", "existing explicit cancellation resolves quietly without announcing onEnd");
+        assert.equal(ends, 0); lateEnd?.(); await flush(); assert.equal(ends, 0);
+        if (selected === "relay-final-successor") {
+          const successor = { outcome: "pending" as "pending" | "resolved" | "rejected", starts: 0 };
+          void client.playAudio(wav, { onStart: () => successor.starts++ }).then(() => { successor.outcome = "resolved"; }, () => { successor.outcome = "rejected"; });
+          await advance(300); lateEnd?.(); await flush(); assert.equal(successor.outcome, "pending", "old completion cannot finish successor");
+          assert.equal(ends, 0); await advance(5_000); assert.equal(successor.outcome, "resolved"); assert.equal(successor.starts, 1);
+        } else await advance(5_000);
+        assert.equal(ends, 0); assert.equal(fetches, 0); return;
+      }
+      await advance(5_000);
+      if (selected === "relay-old-close-owner") {
+        const lateClose = socket.onclose;
+        const nextState = { outcome: "pending" as "pending" | "resolved" | "rejected" };
+        void client.speakSegment(narration, { onEnd: () => ends++ }).then(() => { nextState.outcome = "resolved"; }, () => { nextState.outcome = "rejected"; });
+        await advance(250);
+        const nextSocket = OfflineSocket.instances.at(-1)!;
+        assert.notEqual(nextSocket, socket, "successor owns a fresh live socket");
+        lateClose?.(); await flush();
+        assert.equal(Reflect.get(client, "ws"), nextSocket, "late old close cannot clear successor socket ownership");
+        assert.equal(nextState.outcome, "pending"); await advance(5_000);
+        assert.equal(nextState.outcome, "resolved"); assert.equal(ends, 2); assert.equal(fetches, 0); return;
+      }
+      assert.equal(state.outcome, "resolved", "buffered current reaches its actual native end"); assert.equal(ends, 1); assert.equal(starts, 1);
+      assert.equal(captures, 1); assert.equal(NativeAudio.instances.length, 1); assert.equal(fetches, 0, "complete current is not resynthesized");
+      return;
+    }
     if (gestureCase) {
       let starts = 0, ends = 0, blocked: string | null = null;
       let outcome: "pending" | "resolved" | "rejected" = "pending";

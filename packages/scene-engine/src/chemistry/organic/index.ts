@@ -18,6 +18,7 @@ import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { organicFacts } from "./facts";
 import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
 
+import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
@@ -425,7 +426,7 @@ function factsLine(stem: string, molecule: Molecule): string {
  * named compounds in a row, each in its own reveal group.
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
-  if (!isOrganicStem(question)) return null;
+  if (!isOrganicStem(question) || molecularShapeRequested(question)) return null;
   // One text for every index: mentions, cues and roles are all read from the
   // same normalised string. Mixing raw-question indices with a whitespace-
   // collapsed copy shifted every cue on an OCR stem.

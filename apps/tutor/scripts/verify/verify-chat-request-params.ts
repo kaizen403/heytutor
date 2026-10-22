@@ -66,6 +66,7 @@ let testNumber = 0;
 const reservations = new Map<string, number>();
 const settlements: { id: string; reserved: number; actual: number | undefined }[] = [];
 let reservationCounter = 0;
+let onReservationExtension: (() => void) | undefined;
 const ownedTraces = new Map<string, { userId: string; expiresAt: Date }>();
 const generations: { turn: { seq: number; model?: string }; params: { metadata?: Record<string, unknown>; level?: string; model?: string } }[] = [];
 let turnSeq = 0;
@@ -110,12 +111,14 @@ mock.module(path("lib/billing/ledger.ts"), {
     loadPeriodBalance: async () => periodBalance(),
     cacheUsageOnUser: async () => undefined,
     addPeriodSpend: async () => periodBalance(),
-    reservePeriodUsage: async ({ millicents }: { millicents: number }) => {
-      if (millicents <= 0 || millicents > remaining) return null;
-      const id = `reservation-${testNumber}-${reservationCounter++}`;
-      reservations.set(id, millicents);
+    reservePeriodUsage: async ({ millicents, reservationId, onDenied }: { millicents: number; reservationId?: string; onDenied?: (reason: "insufficient_balance") => void }) => {
+      if (millicents <= 0 || millicents > remaining) { onDenied?.("insufficient_balance"); return null; }
+      const id = reservationId ?? `reservation-${testNumber}-${reservationCounter++}`;
+      const amount = (reservationId ? reservations.get(id) ?? 0 : 0) + millicents;
+      reservations.set(id, amount);
       remaining -= millicents;
-      return { id, amountMillicents: millicents, remainingMillicents: remaining, planId: "free" };
+      if (reservationId) onReservationExtension?.();
+      return { id, amountMillicents: amount, remainingMillicents: remaining, planId: "free" };
     },
     settlePeriodUsage: async ({ reservationId, actualMillicents }: { reservationId: string; actualMillicents?: number }) => {
       const reserved = reservations.get(reservationId);
@@ -263,6 +266,7 @@ function arrange(credits = 10_000_000): string {
   reservations.clear();
   settlements.length = 0;
   reservationCounter = 0;
+  onReservationExtension = undefined;
   ownedTraces.clear();
   generations.length = 0;
   turnSeq = 0;
@@ -351,6 +355,69 @@ function generationFor(seq: number) {
 }
 
 const routeChecks: [string, () => Promise<void>][] = [
+  ["a funded full first generation starts without prepaying hypothetical retries", async () => {
+    const trace = arrange(2170);
+    const models: string[] = [];
+    const bodies: Record<string, unknown>[] = [];
+    installScriptedProvider(["stream"], models, bodies);
+    const response = await chat.POST(chatRequest(trace, {
+      headers: { "x-heytutor-teaching-pass": "planned" },
+      body: { messages: [{ role: "system", content: "x".repeat(200_000) }, { role: "user", content: "Explain a synthetic chemistry concept." }] },
+    }));
+    assert.equal(response.status, 200, "the full first generation fits even though three maximum generations do not");
+    await response.text();
+    await settleMicrotasks();
+    assert.deepEqual(models, [ROUTER]);
+    assert.equal(bodies[0]!.max_tokens, 3600, "budget admission never truncates the lesson");
+    assert.equal(settlements.length, 1);
+    assert.equal(reservationCounter, 1);
+    assert.equal(pendingAi(), 0);
+  }],
+  ["an unaffordable uncertain retry stops before the second provider dispatch", async () => {
+    const trace = arrange(700);
+    const models: string[] = [];
+    installScriptedProvider(["throw"], models);
+    const response = await chat.POST(chatRequest(trace, {
+      headers: { "x-heytutor-teaching-pass": "planned" },
+      body: { messages: [{ role: "system", content: "x".repeat(100_000) }, { role: "user", content: "Explain a synthetic chemistry concept." }] },
+    }));
+    assert.equal(response.status, 402);
+    const denied = await response.json() as { code: string; remaining: number };
+    assert.equal(denied.code, "retry_budget");
+    assert(denied.remaining > 0, "a request budget denial preserves the available account balance");
+    assert.deepEqual(models, [ROUTER], "no vendor request leaves without its complete maximum charge");
+    assert.equal(settlements.length, 1);
+    assert.equal(settlements[0]!.actual, settlements[0]!.reserved, "the uncertain first dispatch remains charged");
+    assert.equal(reservationCounter, 1, "retries retain one logical admission");
+    assert.equal(pendingAi(), 0);
+    assert.equal(reservations.size, 0);
+    assert.equal(generationFor(1).metadata?.reason, "retry_reservation_denied");
+    const nextTrace = `${trace}-new-question`;
+    ownedTraces.set(nextTrace, { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) });
+    const nextGrant = grants.createLessonGrant({ userId: actor.userId, traceId: nextTrace, usdMillicents: remaining });
+    assert(nextGrant.ok);
+    installScriptedProvider(["stream"], []);
+    const nextLesson = await chat.POST(chatRequest(nextTrace, { headers: { "x-heytutor-teaching-pass": "planned" } }));
+    assert.equal(nextLesson.status, 200, "a fresh affordable question still teaches from the remaining balance");
+    await nextLesson.text();
+    await settleMicrotasks();
+  }],
+  ["Stop after a retry top-up refunds only the never-dispatched attempt", async () => {
+    const trace = arrange();
+    const abort = new AbortController();
+    onReservationExtension = () => abort.abort(new DOMException("student stopped", "AbortError"));
+    const models: string[] = [];
+    installScriptedProvider(["throw"], models);
+    const response = await chat.POST(chatRequest(trace, { signal: abort.signal }));
+    assert.equal(response.status, 500);
+    assert.deepEqual(models, [ROUTER]);
+    assert.equal(settlements.length, 1);
+    assert(settlements[0]!.actual! > 0 && settlements[0]!.actual! < settlements[0]!.reserved,
+      "the uncertain first attempt stays charged; the funded second attempt was never sent");
+    assert.equal(reservationCounter, 1);
+    assert.equal(reservations.size, 0);
+    assert.equal(pendingAi(), 0);
+  }],
   ["planner calls forward the requested temperature and record provider perf metrics", async () => {
     const trace = arrange();
     const forwarded: Record<string, unknown>[] = [];
@@ -538,12 +605,11 @@ const routeChecks: [string, () => Promise<void>][] = [
     assert.equal(generations[1]!.turn.model, STANDARD, "the Langfuse generation starts as the model called");
     assert.equal(generationFor(2).model, STANDARD, "the Langfuse generation ends as the model called");
     assert.equal(generationFor(1).model, ROUTER);
-    // Standard Kimi K3 is priced at two thirds of the router. The first
-    // request reserves two router attempts and one standard fallback; the
-    // retry reserves three standard attempts. Same usage, two thirds the charge.
+    // Each request funds its first complete generation; retries top up only
+    // when needed. Standard Kimi K3 is two thirds of the router's price.
     assert.equal(settlements.length, 2);
     const [router, standard] = settlements;
-    assert(Math.abs(router!.reserved / standard!.reserved - 4 / 3) < 0.01, `reservation priced per attempt model: ${router!.reserved} vs ${standard!.reserved}`);
+    assert(Math.abs(router!.reserved / standard!.reserved - 3 / 2) < 0.02, `reservation priced per attempt model: ${router!.reserved} vs ${standard!.reserved}`);
     assert(Math.abs(standard!.actual! / router!.actual! - 2 / 3) < 0.01, `settlement priced for the model called: ${standard!.actual} vs ${router!.actual}`);
     assert.equal(reservations.size, 0);
   }],
@@ -581,7 +647,7 @@ const routeChecks: [string, () => Promise<void>][] = [
     // standard deployment.
     const attemptCost = (model: string) => paidUsage.maximumLlmCost(bodies[0]!.messages, Number(bodies[0]!.max_tokens), [model]);
     const millicents = (usd: number) => Math.ceil(usd * 1000);
-    assert.equal(settlements[0]!.reserved, millicents(2 * attemptCost(ROUTER) + attemptCost(STANDARD)), "the reservation covers the alternate's price");
+    assert.equal(settlements[0]!.reserved, millicents(2 * attemptCost(ROUTER)), "the maximum reached funds two uncertain router attempts; the free 503 reuses coverage for the cheaper alternate");
     assert.equal(
       settlements[0]!.actual,
       millicents(paidUsage.actualLlmCost({ input: 800, output: 200 }, STANDARD)! + attemptCost(ROUTER)),

@@ -448,6 +448,8 @@ export class StreamingSpeechClient implements TTSClient {
   /** Context numbering for this socket; the relay echoes it back. */
   private sentSegmentSequence = 0;
   private streamHandler: ((event: MessageEvent) => void) | null = null;
+  /** Invalidates pumps awaiting the audio port when their generator fails. */
+  private streamGeneration = 0;
   private idleCompleteTimer: number | null = null;
   private watchdogTimer: number | null = null;
   /** Bumped by abandonSpeaking() so in-flight speakSegment work can bail out. */
@@ -1148,16 +1150,14 @@ export class StreamingSpeechClient implements TTSClient {
         };
 
         ws.onclose = () => {
+          if (this.ws !== ws) return;
+          this.detachStreamHandler();
           this.ws = null;
           this.connectPromise = null;
           this.connectedTraceId = undefined;
           this.connectedSessionId = undefined;
           this.connectedVoice = undefined;
-          this.detachStreamHandler();
-          this.rejectAllJobs(new Error("websocket closed"));
-          this.currentJob = null;
-          this.chunkTargetJob = null;
-          this.jobs = [];
+          this.failStreamGeneration(new Error("websocket closed"));
         };
       });
     })();
@@ -1277,6 +1277,8 @@ export class StreamingSpeechClient implements TTSClient {
     }
 
     const ws = this.ws;
+    const streamGeneration = this.streamGeneration;
+    const speakGeneration = this.speakGeneration;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       const error = new Error("websocket not open for tts segment");
       for (const job of this.jobs) {
@@ -1304,6 +1306,8 @@ export class StreamingSpeechClient implements TTSClient {
     } catch {
       return;
     }
+    if (this.halted || this.ws !== ws || ws.readyState !== WebSocket.OPEN ||
+      this.streamGeneration !== streamGeneration || this.speakGeneration !== speakGeneration) return;
     this.attachStreamHandler(ws, ctx);
 
     // Every queued sentence gets its text out now, each on a context of its
@@ -1474,13 +1478,7 @@ export class StreamingSpeechClient implements TTSClient {
                 : payload.message ?? "websocket tts error",
             );
             this.wsDisabledUntil = Date.now() + TTS_WS_DISABLE_AFTER_FAIL_MS;
-            if (this.currentJob && !this.currentJob.settled) {
-              this.currentJob.settled = true;
-              this.currentJob.reject(error);
-            }
-            this.rejectAllJobs(error);
-            this.currentJob = null;
-            this.chunkTargetJob = null;
+            this.failStreamGeneration(error);
           }
           return;
         }
@@ -1843,6 +1841,35 @@ export class StreamingSpeechClient implements TTSClient {
     this.chunkTargetJob = null;
     this.detachStreamHandler();
     void this.pumpJobQueue();
+  }
+
+  /** A failed generator cannot cancel a complete clip already owned by playback. */
+  private failStreamGeneration(error: unknown): void {
+    this.streamGeneration += 1;
+    const current = this.currentJob;
+    const keepCurrent = current && current.claimed && !current.settled && current.contextFinal &&
+      current.capturedChunks.some(chunk => chunk.length > 0);
+    if (!keepCurrent) {
+      this.rejectAllJobs(error);
+      this.currentJob = null;
+      this.chunkTargetJob = null;
+      return;
+    }
+
+    // Its native output, completion promise and progress watchdog retain their
+    // owner. Stop/reset still use rejectAllJobs and halt that output normally.
+    this.detachStreamHandler();
+    this.jobsByContext.clear();
+    this.unboundJobs = [];
+    this.finishedContexts.clear();
+    for (const job of this.jobs) {
+      if (job !== current && !job.settled) {
+        job.settled = true;
+        job.reject(error);
+      }
+    }
+    this.jobs = this.jobs.filter(job => job === current);
+    this.chunkTargetJob = current;
   }
 
   private rejectAllJobs(error: unknown): void {
@@ -2723,9 +2750,9 @@ export class StreamingSpeechClient implements TTSClient {
     }
     this.prefetches.clear();
     if (!this.playing && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close();
-      this.ws = null;
-      this.connectPromise = null;
+      // Settle a sentence waiting for its first audio before the old socket's
+      // asynchronous close becomes stale. An audible line keeps its socket.
+      this.resetConnection();
     }
   }
 

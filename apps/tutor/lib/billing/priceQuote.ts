@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { PaymentError } from "./razorpayConfig";
 import { type PaymentOffer, type PurchasePlanId } from "./razorpayProtocol";
+import { findPromoCode } from "./promoCodes";
 
 const TTL_MS = 30 * 60_000;
 function sign(payload: string, secret: string): Buffer {
@@ -20,6 +21,12 @@ export function readPriceQuote(token: unknown, planId: PurchasePlanId, secret: s
         !Number.isSafeInteger(value.amount) || value.amount < 100 || value.amount > 100_000_000 ||
         !Number.isSafeInteger(value.usageMillicents) || value.usageMillicents < 0 ||
         !Number.isFinite(value.expiresAt) || value.expiresAt <= now || value.expiresAt > now + TTL_MS) throw new Error();
-    return { planId, amount: value.amount, currency: value.currency, usageMillicents: value.usageMillicents };
+    // A withdrawn or expired code stops its outstanding quotes too.
+    if (value.promoCode !== undefined) {
+      const promo = findPromoCode(value.promoCode, now);
+      if (promo?.code !== value.promoCode || !promo.plans.includes(planId)) throw new Error();
+    }
+    return { planId, amount: value.amount, currency: value.currency, usageMillicents: value.usageMillicents,
+      ...(value.promoCode ? { promoCode: value.promoCode } : {}) };
   } catch { throw new PaymentError("price_changed", 409); }
 }

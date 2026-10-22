@@ -20,8 +20,9 @@
  */
 import type { SceneDocument } from "../types";
 import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
+import { CONIC_OPERATORS } from "../compile/conicGeometry";
 import {
-  circuitTopologyFromProblemStructure,
+  circuitDemandMayBeMultiLoop,
   isPlanarConicStem,
   isRiverBoatProblemIR,
   isRiverBoatStem,
@@ -32,6 +33,13 @@ import {
 /** Observable properties of a compiled document, read from operators and entities. */
 export type PictureFeature =
   | "conic"
+  /**
+   * A conic plotted by a general curve operator from its equation (an
+   * implicit curve, a circle, or a function curve in x^2), as opposed to the
+   * engine's own conic operator, which places every point by its parameter.
+   * Every plotted conic is also a `conic`.
+   */
+  | "plotted_conic"
   | "point_charges"
   | "bohr_levels"
   | "resistor_chain"
@@ -196,6 +204,75 @@ const CAPACITOR_NETWORK =
 
 const INSTRUMENT = /(?:microscope|telescope)/i;
 
+/*
+ * A stem that places a point on an ellipse or a hyperbola by its parameter
+ * angle: "the eccentric angle θ = π/6", "the points with parameters θ",
+ * "P(θ)", "at θ = π/3", "(a cos θ, b sin θ)", "parametric form".
+ *
+ * The conic operator's own parameter is not that angle for a hyperbola (it
+ * is hyperbolic, cosh and sinh, where the stem means a sec θ and b tan θ), and
+ * on an ellipse the judged figures put the point at the wrong angle or drew
+ * the angle to the curve instead of the auxiliary circle. So these stems keep
+ * asking for a plotted conic, which is today's rule. Reading too many stems
+ * this way only keeps today's rule; reading too few draws the wrong angle, so
+ * the wordings are wide.
+ */
+
+/**
+ * A parameter angle as stems write it: θ, φ, α or β, in Greek or spelled out,
+ * after an optional LaTeX backslash or dollar, with an optional subscript
+ * (θ1, θ_1, θ_{1}, θ₁). A Greek letter is not a word character, so the name
+ * ends at `(?![A-Za-z0-9])`; `\b` would never match after it.
+ */
+const ANGLE_NAME =
+  String.raw`[\\$]*(?:[θϑΘφϕΦαβ]|(?:var)?theta|(?:var)?phi|alpha|beta)(?:_?\{?\d+\}?|[₀-₉]+)?(?![A-Za-z0-9])`;
+/** The parameter t, which an ellipse also uses for its angle (x = 3 cos t). */
+const PARAMETER_T = String.raw`t(?![A-Za-z0-9])`;
+
+/** The angle named outright: it belongs to an ellipse or a hyperbola, whatever else the stem says. */
+const ECCENTRIC_ANGLE_WORDS = /\be[xc]centric[\s-]+angles?\b|\bauxiliary\s+circles?\b/i;
+
+/** Wordings that place a point by its parameter angle. */
+const PARAMETRIC_ANGLE_POINT = new RegExp([
+  // "parametric coordinates", "parametric form", "the parametric equations".
+  String.raw`\bparametric\s+(?:coordinates?|points?|angles?|forms?|equations?|representations?)\b`,
+  // "parameter θ", "parameters θ", "parameter t", "whose parameter is π/3".
+  String.raw`\bparameters?\s+(?:is\b|are\b|${ANGLE_NAME}|${PARAMETER_T})`,
+  // "at θ", "where θ", "for θ", "corresponding to θ", Hinglish "par θ" and
+  // "pe theta", LaTeX "at $\theta". Quotes as in "at 'θ'".
+  String.raw`\b(?:at|with|where|when|for|corresponding\s+to|par|pe)\s+['‘’"“”]?${ANGLE_NAME}`,
+  // "at t = π/3": t with an angle for its value.
+  String.raw`\b(?:at|with|where|when|for|corresponding\s+to|par|pe)\s+t\s*=\s*[-+]?[^,;]{0,10}?(?:π|\\?pi\b|°|deg)`,
+  // "the point θ = π/4", "the point 'θ'".
+  String.raw`\bpoints?\s+['‘’"“”]?${ANGLE_NAME}`,
+  // A trig function of the parameter: "a cos θ", "(acosθ, bsinθ)", "4 sec θ",
+  // "\cos\theta", "\sec{\theta}". Before t the function must be spaced or bracketed
+  // ("x = 3 cos t", "sin(t)"), so "cost" and "constant t" are not read.
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)\s*(?:\^\s*\d+\s*)?[({]?\s*${ANGLE_NAME}`,
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)(?:\s*\^\s*\d+)?(?:\s+|\s*[({]\s*)${PARAMETER_T}`,
+  // The rectangular hyperbola's point (ct, c/t).
+  String.raw`\(\s*(?:c|\d+(?:\.\d+)?)\s*t\s*,\s*(?:c|\d+(?:\.\d+)?)\s*\/\s*t\s*\)`,
+].join("|"), "i");
+
+/**
+ * The point form P(θ), P(α), P(θ1), P(\theta), P(t). Case sensitive so that a
+ * function such as f(t) or r(θ) is not read as a point.
+ */
+const NAMED_PARAMETER_POINT = new RegExp(String.raw`\b[A-Z]\s*\(\s*(?:${ANGLE_NAME}|${PARAMETER_T})\s*\)`);
+
+const ELLIPSE_OR_HYPERBOLA = /\b(?:ellipse|elipse|hyperbola)\b/i;
+const PARABOLA = /\bparabola\b/i;
+
+function isParametricAnglePointStem(stem: string): boolean {
+  if (ECCENTRIC_ANGLE_WORDS.test(stem)) return true;
+  // A parabola's parameter t is not an angle, and the operator's (p t^2, 2 p t)
+  // is the textbook point, so a stem about a parabola alone keeps the conic
+  // operator. Any other conic stem, even one that names its curve only by
+  // the equation, is read for the parameter angle.
+  if (PARABOLA.test(stem) && !ELLIPSE_OR_HYPERBOLA.test(stem)) return false;
+  return PARAMETRIC_ANGLE_POINT.test(stem) || NAMED_PARAMETER_POINT.test(stem);
+}
+
 const OPTICS_CURVED_SURFACE =
   /(?:lens maker|thin lens formula|spherical (?:surface|interface|mirror)|refraction at a spherical|(?:convex|concave) (?:lens|mirror))/i;
 
@@ -210,8 +287,12 @@ export function sceneDemand(
   const forbids: PictureFeature[] = [];
 
   // A stem that names a conic must show one. Without this a tangent line, or a
-  // constant lifted out of "2x + y = 1", satisfies the compile and wins.
-  if (isPlanarConicStem(stem)) requires.push("conic");
+  // constant lifted out of "2x + y = 1", satisfies the compile and wins. A
+  // point placed by its parameter angle still needs a plotted conic: the
+  // reader cannot see the stem, so the exception lives here.
+  if (isPlanarConicStem(stem)) {
+    requires.push(isParametricAnglePointStem(stem) ? "plotted_conic" : "conic");
+  }
 
   if (isRiverBoatStem(stem)) requires.push("river_banks");
 
@@ -257,10 +338,13 @@ export function sceneDemand(
   }
 
   // A field question is not a mass on a string. Nothing in electromagnetism or
-  // atomic physics is drawn with a tension and a weight.
+  // atomic physics is drawn with a tension and a weight. Charged spheres hung
+  // on threads are the exception: their equilibrium is the tension and mg.
+  // Only the noun counts; flux threading a surface or a bead threaded on a
+  // ring hangs nothing.
   if (
     isMagneticSource(stem) ||
-    (ELECTROSTATIC_SUBJECT.test(stem) && !/\bpendulum|\bhanging|suspended/i.test(stem)) ||
+    (ELECTROSTATIC_SUBJECT.test(stem) && !/\bpendulum|\bhanging|suspended|\bthreads?\b/i.test(stem)) ||
     NON_LEVEL_ATOMIC.test(stem)
   ) {
     if (!forbids.includes("suspended_body")) forbids.push("suspended_body");
@@ -276,11 +360,10 @@ export function sceneDemand(
     forbids.push("resistor_chain");
   }
 
-  // Solved structure outranks the English reading. A network the solver found
-  // to carry two loops is never a single-path chain, whatever the stem calls
-  // it, and a solved river crossing must show its banks.
-  const topology = circuitTopologyFromProblemStructure(problemIR);
-  if (topology?.twoLoop && !forbids.includes("resistor_chain")) forbids.push("resistor_chain");
+  // Demand vetoes retain main's conservative inventory boundary as well as
+  // proved graph topology. Inventory is not planner authority to invent loops,
+  // but missing graph evidence cannot authorize a possible network as a chain.
+  if (circuitDemandMayBeMultiLoop(problemIR) && !forbids.includes("resistor_chain")) forbids.push("resistor_chain");
   if (isRiverBoatProblemIR(problemIR) && !requires.includes("river_banks")) {
     requires.push("river_banks");
   }
@@ -308,13 +391,16 @@ export function pictureFeatures(document: SceneDocument): Set<PictureFeature> {
     `${entity.id} ${entity.role} ${entity.label ?? ""}`;
   const entityText = document.entities.map(describe).join(" | ");
 
-  if (
-    operators.has("implicit_curve")
+  const plottedConic = operators.has("implicit_curve")
     || operators.has("circle")
     || document.constructions.some((construction) =>
       construction.operator === "function_curve"
-      && /x\s*\^\s*2/.test(String(construction.inputs.expression ?? "")))
-  ) {
+      && /x\s*\^\s*2/.test(String(construction.inputs.expression ?? "")));
+  if (plottedConic) features.add("plotted_conic");
+  // The engine's own conic operator draws an ellipse, a hyperbola or a
+  // parabola from its parameters; its anchors, directrices, asymptotes and
+  // tangents all reference one. A figure drawn that way shows the conic.
+  if (plottedConic || CONIC_OPERATORS.some((operator) => operators.has(operator))) {
     features.add("conic");
   }
 
