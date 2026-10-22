@@ -24,6 +24,7 @@ import {
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
+  vseprPlanConflict,
   validateTurnPlanSceneProofs,
   validateCircuitTerminalClosure,
   type SceneDocument,
@@ -123,6 +124,8 @@ export function sceneSaveAdmissionFailure(input: {
     return `scene source inputs are unsupported or disagree: ${formatIssues(vsepr.issues)}`;
   }
   if (turnPlan) {
+    const molecularConflict = vseprPlanConflict(question, turnPlan);
+    if (molecularConflict) return molecularConflict;
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.

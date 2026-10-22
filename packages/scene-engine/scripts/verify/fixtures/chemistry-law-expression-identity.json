@@ -1,0 +1,72 @@
+{
+  "scope": "Whole-expression source identity. Common-ion canonicalclosed nonlinear expression only; pH exactaffinecoefficients allow equivalent affine forms. Four hidden perturbations vanish at all129displaygrid samples, existing5fatal samples and actualsourcepoint probes.",
+  "questions": {
+    "common-ion": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+    "ideal-acid": "At 25 \u00b0C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1))."
+  },
+  "rows": [
+    {
+      "id": "common-ion-canonical-json",
+      "kind": "common-ion",
+      "replacement": null,
+      "addition": null,
+      "expectedValid": true
+    },
+    {
+      "id": "ideal-acid-canonical-json",
+      "kind": "ideal-acid",
+      "replacement": null,
+      "addition": null,
+      "expectedValid": true
+    },
+    {
+      "id": "pH-direct-affine",
+      "kind": "ideal-acid",
+      "replacement": "5-0.625*x",
+      "addition": null,
+      "expectedValid": true
+    },
+    {
+      "id": "pH-factored-affine",
+      "kind": "ideal-acid",
+      "replacement": "(40-5*x)/8",
+      "addition": null,
+      "expectedValid": true
+    },
+    {
+      "id": "pH-zero-annihilation",
+      "kind": "ideal-acid",
+      "replacement": "5-0.625*x+0*x*x",
+      "addition": null,
+      "expectedValid": true
+    },
+    {
+      "id": "common-ion-hidden-sine",
+      "kind": "common-ion",
+      "replacement": null,
+      "addition": "1e-6*sin(16*pi*x)*(x-8/3)*(x-16/3)",
+      "expectedValid": false
+    },
+    {
+      "id": "common-ion-hidden-cosine",
+      "kind": "common-ion",
+      "replacement": null,
+      "addition": "1e-7*(1-cos(32*pi*x))*(x-8/3)*(x-16/3)",
+      "expectedValid": false
+    },
+    {
+      "id": "ideal-acid-hidden-sine",
+      "kind": "ideal-acid",
+      "replacement": null,
+      "addition": "1e-6*sin(16*pi*x)",
+      "expectedValid": false
+    },
+    {
+      "id": "ideal-acid-hidden-cosine",
+      "kind": "ideal-acid",
+      "replacement": null,
+      "addition": "1e-7*(1-cos(32*pi*x))",
+      "expectedValid": false
+    }
+  ]
+}

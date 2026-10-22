@@ -59,7 +59,7 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
-import { readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
+import { billingFailureTelemetry, readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   fetchBoardDetail,
@@ -1672,6 +1672,7 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              originalQuestion: question,
               narrationLanguage: turnNarrationLanguage,
               ...(turnPlan ? { turnPlan } : {}),
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
@@ -2724,7 +2725,7 @@ export function useQuestionHandler(
         const billing = parseBillingFailureFromUnknown(error);
         page.failureTelemetry = {
           ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
-          stage: "teaching", code: billing ? "budget_limit" : error instanceof TeachingTransportError ? "transport_error" : "lesson_not_taught",
+          ...(billing ? billingFailureTelemetry(billing) : { stage: "teaching", code: error instanceof TeachingTransportError ? "transport_error" : "lesson_not_taught" } as const),
         };
         let message = "something went wrong. try asking again.";
         if (billing) {

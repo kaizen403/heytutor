@@ -26,6 +26,7 @@ import { SENTRY_TUNNEL_PATH } from "../../lib/obs/sentryTunnel";
 import * as privacy from "../../lib/obs/sentryPrivacy";
 import * as telemetry from "../../lib/obs/failedTurnTelemetry";
 import * as failedTurnRuntime from "../../lib/obs/failedTurnRuntime";
+import * as workerFailureLog from "../../lib/obs/workerFailureLog";
 import type { FailedTurnInput, FailedTurnSentryEvent } from "../../lib/obs/failedTurnTelemetry";
 import type { FailedTurnSentryDelivery, PendingFailedTurnSentry } from "../../lib/obs/failedTurnSentry";
 import * as requestBody from "../../lib/http/requestBody";
@@ -152,7 +153,7 @@ const failureEvent = {
   level: "warning",
   tags: {
     area: "turn-failure", subject: "physics", stage: "scene_planner", code: "candidate_invalid",
-    figure_need: "required", strict_subjects: "physics,chemistry", provider: "azure",
+    figure_need: "required", billing_code: "none", strict_subjects: "physics,chemistry", provider: "azure",
     deployment: "gpt-6.1-sol", release: "a".repeat(40), environment: "production",
     board_id: "synthetic-board-id",
   },
@@ -184,8 +185,8 @@ assert(scrubSentryBreadcrumb({ category: "console", message: "question text" }) 
 assert(sentryBeforeSendLog({ message: "[tutor:planner] 3 villagers" }) == null, "tutor debug logs stay on the machine");
 assert(
   sentryBeforeSendLog({ message: "[http] GET /api/chat 200 12ms token=raw" })?.message ===
-    "[http] GET /api/chat 200 12ms token=[redacted]",
-  "http access logs are kept and secrets are scrubbed",
+    "[http] GET /api/chat 200 12ms",
+  "approved HTTP access logs remove all appended text and tokens",
 );
 
 const root = resolve(import.meta.dirname, "../..");
@@ -197,7 +198,7 @@ assert(nextConfig.includes("errorHandler"), "a Sentry outage during build must n
 assert(read("instrumentation.ts").includes("onRequestError"), "server request errors are captured");
 assert(read("lib/tts/wsRelay.ts").includes("captureTtsRelayFailure"), "the speech relay reports upstream failures");
 assert(read("sentry.server.config.ts").includes("consoleLoggingIntegration"), "server console lines are Sentry logs");
-assert(read("sentry.server.config.ts").includes("sentryBeforeSendLog"), "server logs are scrubbed");
+assert(read("lib/obs/sentryRuntime.ts").includes("sentryBeforeSendLog"), "server logs are scrubbed");
 assert(read("lib/obs/sentryNode.ts").includes("consoleLoggingIntegration"), "the custom server sends console logs");
 assert(
   read("instrumentation-client.ts").includes('levels: ["warn", "error"]'),
@@ -296,7 +297,7 @@ function loadModule<T>(relative: string, dependencies: Record<string, unknown>, 
 const finalPrivacy = process.env.SENTRY_TEST_PRIVACY_SOURCE ? loadModule<typeof privacy>("lib/obs/sentryPrivacy.ts", {
   "./failedTurnTelemetry": telemetry, "./sentryTunnel": { SENTRY_TUNNEL_PATH },
 }) : privacy;
-for (const tag of ["code", "stage", "subject"] as const) {
+for (const tag of ["code", "stage", "subject", "billing_code"] as const) {
   const hostile = `Synthetic private ${tag}: synthetic-user@example.test question text`;
   const finalScrub = finalPrivacy.scrubSentryEvent({ ...structuredClone(failureEvent),
     tags: { ...failureEvent.tags, [tag]: hostile },
@@ -453,7 +454,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     "@prisma/client": { Prisma: { JsonNull: null, DbNull: null } },
     "@sentry/nextjs": Sentry, "../db/prisma": { prisma: tx }, "./sentryPrivacy": privacy,
     "./failedTurnTelemetry": telemetry,
-    "./failedTurnRuntime": failedTurnRuntime,
+    "./failedTurnRuntime": failedTurnRuntime, "./workerFailureLog": workerFailureLog,
     "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
   });
   class StorageQuotaError extends Error {}
@@ -536,7 +537,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   strictAssert.equal(captured.level, "warning");
   strictAssert.deepEqual(captured.fingerprint, ["turn-failure", "scene_planner", "candidate_invalid", "physics"]);
   strictAssert.deepEqual(captured.tags, { area: "turn-failure", subject: "physics", stage: "scene_planner", code: "candidate_invalid",
-    figure_need: "required", strict_subjects: "chemistry,physics", provider: "azure", deployment: "gpt-6.1-sol",
+    figure_need: "required", billing_code: "none", strict_subjects: "chemistry,physics", provider: "azure", deployment: "gpt-6.1-sol",
     release: "a".repeat(40), environment: "production", reporting_origin: "live" });
   strictAssert.deepEqual(captured.extra, { candidate_count: 2, validation_issue_count: 1, unknown_issue_count: 0, request_count: 0,
     issue_codes: ["scene_without_readable_label"], segment_count: 1 });
@@ -819,7 +820,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     } },
     "./sentryPrivacy": { ...privacy, sentryServerDsn: () => "https://synthetic@example.ingest.sentry.io/1" },
     "./failedTurnTelemetry": telemetry, "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
-    "./failedTurnRuntime": failedTurnRuntime,
+    "./failedTurnRuntime": failedTurnRuntime, "./workerFailureLog": workerFailureLog,
   }, { NODE_ENV: "production", SENTRY_ENVIRONMENT: "production", SENTRY_DSN: "https://synthetic@example.ingest.sentry.io/1" });
   const rejectedAttempt = await productionReporter.runFailedTurnSentryBatch({ now, limit: 1 });
   strictAssert.equal(rejectedAttempt.reported, 0);
@@ -971,7 +972,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       "../db/prisma": { prisma: { $queryRaw: async () => { databaseReads++; return []; },
         turn: { findMany: async () => { databaseReads++; return []; } } } },
       "./sentryPrivacy": { ...privacy, sentryServerDsn: () => "https://synthetic@example.ingest.sentry.io/1" },
-      "./failedTurnTelemetry": telemetry, "./failedTurnRuntime": failedTurnRuntime,
+      "./failedTurnTelemetry": telemetry, "./failedTurnRuntime": failedTurnRuntime, "./workerFailureLog": workerFailureLog,
       "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
     }, runtimeEnv);
     strictAssert.equal(await off.queueFailedTurnSentry(offTx, { ...failedTurn, id: "synthetic-local-fail" }, { env: runtimeEnv }), null);
