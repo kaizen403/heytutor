@@ -208,7 +208,7 @@
         "operator": "point",
         "inputs": {
           "x": 6.7743,
-          "y": 5.6843,
+          "y": 5.684312631484247,
           "coordinateSpace": "world"
         },
         "outputs": [
