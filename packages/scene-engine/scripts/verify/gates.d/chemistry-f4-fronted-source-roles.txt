@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-chemistry-f4-fronted-source-roles.ts

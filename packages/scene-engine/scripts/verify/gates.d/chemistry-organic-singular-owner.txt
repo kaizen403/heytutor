@@ -1,0 +1,2 @@
+# Singular references retain the last resolved property owner.
+tsx scripts/verify/verify-organic-singular-owner.ts

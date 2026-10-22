@@ -1,0 +1,109 @@
+[
+  {
+    "id": "valid-0",
+    "literal": "3.2 × 10⁻¹⁹ J",
+    "valid": true,
+    "value": 3.2e-19
+  },
+  {
+    "id": "valid-1",
+    "literal": "3.2e-19 J",
+    "valid": true,
+    "value": 3.2e-19
+  },
+  {
+    "id": "valid-2",
+    "literal": "10⁻³ J",
+    "valid": true,
+    "value": 0.001
+  },
+  {
+    "id": "valid-3",
+    "literal": "2 × 10⁺² J",
+    "valid": true,
+    "value": 200
+  },
+  {
+    "id": "valid-4",
+    "literal": "10⁰ J",
+    "valid": true,
+    "value": 1
+  },
+  {
+    "id": "valid-5",
+    "literal": "1 × 10⁻⁹⁹ J",
+    "valid": true,
+    "value": 1e-99
+  },
+  {
+    "id": "valid-6",
+    "literal": "2.5 * 10¹ J",
+    "valid": true,
+    "value": 25
+  },
+  {
+    "id": "invalid-0",
+    "literal": "10⁻⁻¹⁵ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-1",
+    "literal": "10⁻¹⁵⁺ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-2",
+    "literal": "10⁺ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-3",
+    "literal": "10⁻1 J",
+    "valid": false
+  },
+  {
+    "id": "invalid-4",
+    "literal": "10¹5 J",
+    "valid": false
+  },
+  {
+    "id": "invalid-5",
+    "literal": "10⁽²⁾ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-6",
+    "literal": "10¹²³⁴⁵ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-7",
+    "literal": "10¹ⁿ J",
+    "valid": false
+  },
+  {
+    "id": "invalid-8",
+    "literal": "10¹ ^2 J",
+    "valid": false
+  },
+  {
+    "id": "invalid-9",
+    "literal": "10¹⁻² J",
+    "valid": false
+  },
+  {
+    "id": "invalid-10",
+    "literal": "10¹ ² J",
+    "valid": false
+  },
+  {
+    "id": "invalid-11",
+    "literal": "10¹e3 J",
+    "valid": false
+  },
+  {
+    "id": "invalid-12",
+    "literal": "3.2 × 10⁻⁻¹⁹ J",
+    "valid": false
+  }
+]

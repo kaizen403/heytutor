@@ -7,6 +7,7 @@ import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 import { parseResistorTree, type ResistorTree } from "../resistorTree";
 import { numbersWithUnit, UNIT } from "../slots";
+import { readTwoLoopTopology } from "../../physics/apparatusSource";
 
 function pageNormalGrid(scene: SceneBuilder, prefix: string, origin: Vec2, columns: number, rows: number, spacing: number, into: boolean, role: string): string[] {
   const ids: string[] = [];
@@ -283,11 +284,6 @@ function namesSource(question: string): boolean {
   return /\b(?:battery|batteries|cells?|emf|e\.m\.f|source|supply|\d+(?:\.\d+)?\s*(?:V|volts?)\b|connected across|applied across)\b/i.test(question);
 }
 
-/** Enough circuit vocabulary to trust that the stem describes a network (guards OCR garbage). */
-function describesNetwork(question: string): boolean {
-  return /\b(?:resist|ohm|Ω|batter|cells?|emf|volt|current|branch|loop|junction|network|circuit|node)/i.test(question);
-}
-
 /**
  * Close the network through a source below it. The long (positive) plate faces
  * the left wire, so conventional current leaves the source, rises into `left`
@@ -517,24 +513,25 @@ function internalResistanceConcept(context: GeneratorContext) {
 }
 
 function twoLoopNetwork(context: GeneratorContext) {
-  // "Kirchhoff" alone (an OCR page, a definition) does not describe a network.
-  if (!describesNetwork(context.question.replace(/kirchhoff/gi, ""))) return null;
-  const values = numbers(context, "resistors");
-  const emfs = numbers(context, "emfs");
+  const source = readTwoLoopTopology(context.question);
+  if (!source) return null;
+  const resistors = [source.left, source.right, source.shared];
+  const sources = [source.leftSource, source.rightSource];
   const scene = new SceneBuilder(context.question, "two-loop network: two sources with a shared middle branch", "two_loop_network");
-  values.slice(0, 3).forEach((value, index) => scene.quantity(`q_R${index + 1}`, `R${index + 1}`, value, "ohm"));
-  emfs.slice(0, 2).forEach((value, index) => scene.quantity(`q_E${index + 1}`, `E${index + 1}`, value, "V"));
+  resistors.forEach(({ symbol, value }, index) => { if (value !== null) scene.quantity(`q_R${index + 1}`, symbol, value, "ohm"); });
+  sources.forEach(({ symbol, value }, index) => { if (value !== null) scene.quantity(`q_E${index + 1}`, symbol, value, "V"); });
   scene.point("n_tl", { x: 0, y: 2 }, "node");
   scene.point("n_tc", { x: 3, y: 2 }, "node", "A");
   scene.point("n_tr", { x: 6, y: 2 }, "node");
   scene.point("n_bl", { x: 0, y: 0 }, "node");
   scene.point("n_bc", { x: 3, y: 0 }, "node", "B");
   scene.point("n_br", { x: 6, y: 0 }, "node");
-  scene.symbol("r1", "resistor", "n_tl", "n_tc", "resistor", ohmLabel("R1", values[0]));
-  scene.symbol("r2", "resistor", "n_tc", "n_tr", "resistor", ohmLabel("R2", values[1]));
-  scene.symbol("r3", "resistor", "n_tc", "n_bc", "resistor", ohmLabel("R3", values[2]));
-  scene.symbol("v1", "battery", "n_bl", "n_tl", "source", emfs[0] !== undefined ? `E1=${fmt(emfs[0])} V` : "E1");
-  scene.symbol("v2", "battery", "n_br", "n_tr", "source", emfs[1] !== undefined ? `E2=${fmt(emfs[1])} V` : "E2");
+  scene.symbol("r1", "resistor", "n_tl", "n_tc", "resistor", ohmLabel(source.left.symbol, source.left.value ?? undefined));
+  scene.symbol("r2", "resistor", "n_tc", "n_tr", "resistor", ohmLabel(source.right.symbol, source.right.value ?? undefined));
+  scene.symbol("r3", "resistor", "n_tc", "n_bc", "resistor", ohmLabel(source.shared.symbol, source.shared.value ?? undefined));
+  const top = source.positiveTerminal === "top";
+  scene.symbol("v1", "battery", top ? "n_tl" : "n_bl", top ? "n_bl" : "n_tl", "source", source.leftSource.value !== null ? `${source.leftSource.symbol}=${fmt(source.leftSource.value)} V` : source.leftSource.symbol);
+  scene.symbol("v2", "battery", top ? "n_tr" : "n_br", top ? "n_br" : "n_tr", "source", source.rightSource.value !== null ? `${source.rightSource.symbol}=${fmt(source.rightSource.value)} V` : source.rightSource.symbol);
   scene.connect("w_bl", "n_bl", "n_bc", "return path");
   scene.connect("w_br", "n_bc", "n_br", "return path");
   scene.point("i1_at", { x: 1.2, y: 2.6 }, "current label anchor");

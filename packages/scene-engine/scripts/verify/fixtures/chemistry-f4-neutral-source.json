@@ -1,0 +1,478 @@
+[
+  {
+    "id": "photo-source-400nm",
+    "kind": "photo",
+    "question": "In the photoelectric effect, work function is 2 eV and wavelength is 400 nm. Draw the energy balance.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 3.0996049608300065,
+      "kineticEV": 1.0996049608300065
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "photo-source-3eV",
+    "kind": "photo",
+    "question": "In the photoelectric effect, work function is 2 eV and photon energy is 3 eV. Draw the energy threshold.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 3,
+      "kineticEV": 1
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "unread-photon-original",
+    "kind": "photo",
+    "question": "In the photoelectric effect, work function is 2 eV and photon energy is unreadable. The frequency is 1e15 Hz. Draw the energy threshold.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "unknown-first-work-function-original",
+    "kind": "photo",
+    "question": "Work function is unknown. The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-missing-work-function",
+    "kind": "photo",
+    "question": "In the photoelectric effect, photons of energy 5.0 eV fall on a metal. Find the kinetic energy of the emitted electrons.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-below-threshold",
+    "kind": "photo",
+    "question": "In the photoelectric effect the work function of a metal is 4.0 eV. Photons of energy 2.0 eV are incident. Are electrons emitted?",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 4,
+      "photonEnergyEV": 2,
+      "kineticEV": null
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "matter-momentum-original",
+    "kind": "matter",
+    "question": "An electron has momentum 1e-24 kg m/s and speed 1e6 m/s. Draw its de Broglie wavelength.",
+    "draw": true,
+    "physical": {
+      "wavelengthM": 6.62607015e-10
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "matter-speed-original",
+    "kind": "matter",
+    "question": "An electron has speed 1e6 m/s. Find its momentum and draw its de Broglie wavelength.",
+    "draw": true,
+    "physical": {
+      "wavelengthM": 7.274201504007026e-10
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "matter-zero-declaration",
+    "kind": "matter",
+    "question": "An electron has momentum 0 kg m s^-1 and speed 1e6 m/s. Draw its de Broglie wavelength.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "matter-damaged-declaration",
+    "kind": "matter",
+    "question": "An electron has momentum about 1e- kg m/s and speed 1e6 m/s. Draw its de Broglie wavelength.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "uncertainty-original",
+    "kind": "uncertainty",
+    "question": "Using Heisenberg uncertainty, uncertainty in position is 1e-10 m and uncertainty in momentum is 1e-24 kg m/s. Draw the uncertainty relation.",
+    "draw": true,
+    "physical": {
+      "productJS": 1e-34,
+      "above": true
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "uncertainty-damaged-momentum",
+    "kind": "uncertainty",
+    "question": "Using Heisenberg uncertainty, uncertainty in position is 1e-10 m and uncertainty in momentum is 1e-24 kg. Draw the uncertainty relation.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-explicit-hc1240",
+    "kind": "photo",
+    "question": "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1240 eV nm. Find the stopping potential in volts.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 4.133333333333334,
+      "kineticEV": 2.1333333333333337
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "photo-explicit-hc1239-84",
+    "kind": "photo",
+    "question": "For the photoelectric effect wavelength is 300 nm and work function is 2.128 eV. Take hc=1239.84 eV nm. Find kinetic energy.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2.128,
+      "photonEnergyEV": 4.1328,
+      "kineticEV": 2.0048
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "photo-explicit-SI-hc",
+    "kind": "photo",
+    "question": "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 4.132806614440008,
+      "kineticEV": 2.132806614440008
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "photo-damaged-hc",
+    "kind": "photo",
+    "question": "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1e- J m. Find kinetic energy.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-conflicting-givens",
+    "kind": "photo",
+    "question": "For an atomic electron, work function is 2 eV; photon energy is 3 eV; incident light wavelength is 400 nm. Draw the photoelectric energy balance.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-atomic-owner",
+    "kind": "photo",
+    "question": "In an atomic electron model, work function is 2 eV and photon energy is 3 eV. Draw the photoelectric energy balance.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 3,
+      "kineticEV": 1
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "photo-emitted-owner",
+    "kind": "photo",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron wavelength is 1.227 nm. Draw the photoelectric energy balance.",
+    "draw": false,
+    "physical": {},
+    "group": "radiation"
+  },
+  {
+    "id": "photo-matter-wavelength-separate",
+    "kind": "photo",
+    "question": "In an atomic electron model, photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm. Draw the photoelectric energy balance.",
+    "draw": true,
+    "physical": {
+      "workFunctionEV": 2,
+      "photonEnergyEV": 3,
+      "kineticEV": 1
+    },
+    "group": "radiation"
+  },
+  {
+    "id": "constant-c-hc-frequency",
+    "question": "In the photoelectric effect, work function is 2 eV and incident light frequency is 6e14 Hz. Use c = 3e8 m/s and hc = 1240 eV nm. Draw the maximum photoelectron energy balance.",
+    "expectedSourceOutcome": "source",
+    "scientificGold": {
+      "photonEnergyEV": 2.48,
+      "maximumKineticEV": 0.48,
+      "authority": "Both supplied product hc and c imply h=hc/c; an absent h must not silently default to a different authority."
+    },
+    "group": "static"
+  },
+  {
+    "id": "constant-h-hc-paired-measurement",
+    "question": "For photoelectric emission, work function is 2 eV, incident photon frequency is 7.5e14 Hz and incident photon wavelength is 400 nm. Use h = 6.6e-34 J s and hc = 1.98e-25 J m. Draw the energy balance.",
+    "expectedSourceOutcome": "source",
+    "scientificGold": {
+      "photonEnergyEV": 3.0895469918580774,
+      "maximumKineticEV": 1.0895469918580774,
+      "authority": "Supplied h and hc imply c=3e8 m/s; h*frequency and hc/wavelength agree exactly as supplied."
+    },
+    "group": "static"
+  },
+  {
+    "id": "constant-all-three-conflict",
+    "question": "In the photoelectric effect, work function is 2 eV and incident light frequency is 6e14 Hz. Use h = 6.6e-34 J s, c = 3e8 m/s and hc = 2.1e-25 J m. Draw the energy balance.",
+    "expectedSourceOutcome": "declined",
+    "scientificGold": {
+      "reason": "Explicit h*c=1.98e-25 J m conflicts with explicit hc=2.1e-25 J m; none may be hidden or replaced."
+    },
+    "group": "static"
+  },
+  {
+    "id": "conceptual-explicit-unread-constant",
+    "question": "Explain the photoelectric effect. The Planck constant is unreadable J s. Draw a photoelectric energy schematic.",
+    "expectedSourceOutcome": "symbolic-unused-h",
+    "scope": "pure conceptual zero-numeric symbol relation; no constant/default authority",
+    "scientificGold": {
+      "reason": "Unused word-unreadable Planck constant does not prevent a purely symbolic qualitative relation; no numerical source claim is emitted."
+    },
+    "group": "static"
+  },
+  {
+    "id": "generic-mass-conditioned-provenance",
+    "question": "A particle of mass 2e-25 kg has momentum 1e-24 kg m/s and speed 1e6 m/s. Draw its de Broglie wavelength using the stated momentum.",
+    "expectedSourceOutcome": "source-conditioned-or-decline",
+    "scientificGold": {
+      "wavelengthNm": 0.662607015,
+      "nominalMomentumFromExplicitMassKgMS": 2e-19,
+      "requiredVisible": [
+        "source stated p",
+        "source stated speed",
+        "explicit generic mass if a mass-based consistency claim is displayed",
+        "lambda conditioned on supplied p",
+        "a truthful discrepancy note if the p/mv mismatch is shown"
+      ],
+      "forbiddenVisible": [
+        "electron mass m_e as the supplied particle mass",
+        "unqualified assertion that all exact givens agree"
+      ]
+    },
+    "group": "static"
+  },
+  {
+    "id": "young-only-excluded-energy",
+    "question": "Young\u2019s double-slit experiment uses light of wavelength 500 nm, slit separation 0.50 mm and screen distance 1.0 m. A separate metal has work function 2.0 eV. Draw only the Young apparatus and find the fringe width; do not draw photoelectric energy levels.",
+    "expectedRequestedFigure": "Young apparatus, not photoelectric",
+    "scientificGold": {
+      "fringeWidthM": 0.001,
+      "sourceRequest": "Explicit positive Young request and excluded photoelectric view. A usable photoelectric numeric submodel does not supersede this visual request."
+    },
+    "group": "static"
+  },
+  {
+    "id": "young-only-lamp-background",
+    "question": "A Young double-slit experiment uses 500 nm light, slit separation 0.50 mm and screen distance 1.0 m. The source lamp cathode has work function 2.0 eV. Sketch the interference apparatus and mark the fringe width.",
+    "expectedRequestedFigure": "Young apparatus",
+    "scientificGold": {
+      "fringeWidthM": 0.001,
+      "sourceRequest": "The lamp work function is background to the requested interference view; no statement says this light illuminates that metal as a photoelectric target."
+    },
+    "group": "static"
+  },
+  {
+    "id": "combined-wave-particle-numeric-obligation",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Using hc=1240 eV nm, find fringe width and maximum photoelectron energy; identify the wave and particle observations.",
+    "expectedRequestedFigure": "Both wave and particle observations",
+    "scientificGold": {
+      "fringeWidthM": 0.001,
+      "photonEnergyEV": 2.48,
+      "maximumKineticEV": 0.48,
+      "grading": "A photoelectric-only restoration retains the main numeric guarantee but remains PARTIAL; a Young-only view is also PARTIAL. No full-coverage credit until both requested parts are represented honestly."
+    },
+    "group": "static"
+  },
+  {
+    "id": "ode-original-minute",
+    "question": "For a first order differential equation the half life is 20 min. Plot the fraction remaining after 60 min.",
+    "expectedDraw": true,
+    "halfLife": 20,
+    "unit": "min",
+    "elapsed": 60,
+    "fraction": 0.125,
+    "group": "decay"
+  },
+  {
+    "id": "ode-minutes-request-seconds",
+    "question": "For a first order differential equation the half life is 20 min. Plot the fraction remaining after 3600 s.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "halfLifeMin": 20,
+      "elapsedMin": 60,
+      "fractionRemaining": 0.125,
+      "required": "Full original time units converted consistently; requestedinstant and1/8 are visible on the curve, no radioactive material claim."
+    },
+    "halfLife": 20,
+    "unit": "min",
+    "elapsed": 60,
+    "fraction": 0.125,
+    "group": "decay"
+  },
+  {
+    "id": "ode-seconds-request-minutes",
+    "question": "For a first order differential equation the half life is 1200 s. Plot the fraction remaining after 60 min.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "halfLifeS": 1200,
+      "elapsedS": 3600,
+      "fractionRemaining": 0.125,
+      "required": "All source units converted consistently; no20s reinterpretation and no implicit default."
+    },
+    "halfLife": 1200,
+    "unit": "s",
+    "elapsed": 3600,
+    "fraction": 0.125,
+    "group": "decay"
+  },
+  {
+    "id": "ode-supplied-unknown-half-life",
+    "question": "For a first order differential equation the half life is unknown. Plot the fraction remaining after 60 min.",
+    "expectedDraw": false,
+    "scientificGold": "No numerical half-life/rate is supplied. A claimed unread required half-life must not become a default1s/20s exponential with false numeric marks.",
+    "halfLife": 20,
+    "unit": "min",
+    "elapsed": 60,
+    "fraction": 0.125,
+    "group": "decay"
+  },
+  {
+    "id": "ode-malformed-elapsed-unit",
+    "question": "For a first order differential equation the half life is 20 min. Plot the fraction remaining after 60 kg.",
+    "expectedDraw": false,
+    "scientificGold": "The requested elapsed operand has a mass unit. It cannot be ignored and replaced with illustrative half-life marks; whole requested numerical source is unsupported.",
+    "halfLife": 20,
+    "unit": "min",
+    "elapsed": 60,
+    "fraction": 0.125,
+    "group": "decay"
+  },
+  {
+    "id": "math-years-mass",
+    "question": "A quantity decays so that its half-life is 10 years. How much of an initial 80 g remains after 20 years?",
+    "expectedDraw": false,
+    "group": "decay"
+  },
+  {
+    "id": "math-years-multipart",
+    "question": "A 2 kg block falls under gravity while a sample of 80 g decays with half-life 10 years. How much of the sample remains after 20 years? Take g = 10 m/s^2.",
+    "expectedDraw": false,
+    "group": "decay"
+  },
+  {
+    "id": "ode-competing-law",
+    "question": "For a first order differential equation dy/dt = -t*y, the half life is 20 min. Plot the fraction remaining after 60 min.",
+    "expectedDraw": false,
+    "group": "decay"
+  },
+  {
+    "id": "capital-let-math",
+    "question": "Let complex Z satisfy Z^2 = -1. Plot Z in the Argand plane.",
+    "chemistry": false,
+    "group": "subject"
+  },
+  {
+    "id": "capital-equation-math",
+    "question": "Complex A satisfies A^2 + 1 = 0. Plot its real and imaginary components.",
+    "chemistry": false,
+    "group": "subject"
+  },
+  {
+    "id": "stability-comparison-original",
+    "question": "Which is more stable, complex Z or complex W?",
+    "chemistry": true,
+    "group": "subject"
+  },
+  {
+    "id": "ligand-role-capital",
+    "question": "Complex Z has four ammonia ligands. Show its coordination geometry.",
+    "chemistry": true,
+    "group": "subject"
+  },
+  {
+    "id": "background-after-unknown-generic",
+    "group": "radiation",
+    "kind": "photo",
+    "question": "The work function is unknown. The source lamp cathode has work function 2.0 eV. Draw the photoelectric energy diagram.",
+    "draw": false,
+    "physical": {}
+  },
+  {
+    "id": "background-lamp-with-target-unknown",
+    "group": "radiation",
+    "kind": "photo",
+    "question": "The source lamp cathode has work function 2.0 eV. Light falls on a metal of unknown work function. Draw the photoelectric energy balance.",
+    "draw": false,
+    "physical": {}
+  },
+  {
+    "id": "positive-photoelectric-after-unrelated-negation",
+    "question": "The source lamp cathode has work function unknown. Photons of energy 3 eV are available. Do not draw decorative arrows and show the photoelectric energy balance.",
+    "expectedDraw": false,
+    "expectedSourceOutcome": "declined",
+    "scientificGold": {
+      "reason": "Do not owns only decorative arrows; show positively requests the photoelectric energy balance. The unknown work function of the relevant lamp cathode must stay terminal, never become a background exemption/default."
+    },
+    "cohort": "authored-request-polarity2",
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "The source lamp cathode has work function unknown. Photons of energy 3 eV are available. Do not draw decorative arrows and show the photoelectric energy balance.",
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "lawIds": [],
+      "assumptions": [],
+      "visualRequirement": "required",
+      "qualitativeClaims": []
+    },
+    "problemIR": null,
+    "group": "polarity"
+  },
+  {
+    "id": "excluded-energy-coordinated-without-semicolon",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "expectedDraw": true,
+    "expectedRequestedFigure": "double_slit on both public routes",
+    "scientificGold": {
+      "fringeWidthM": 0.001,
+      "reason": "The photoelectric energy-level view is explicitly excluded as the coordinated argument of draw; its words cannot confer source priority. Actual non-null compiled Young output is required, not detector/source status alone."
+    },
+    "cohort": "authored-request-polarity2",
+    "plan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "lawIds": [],
+      "assumptions": [],
+      "visualRequirement": "required",
+      "qualitativeClaims": []
+    },
+    "problemIR": null,
+    "group": "polarity"
+  },
+  {
+    "id": "passive-unknown-work-function-exact",
+    "question": "A source lamp cathode has unknown work function. The cathode is illuminated by light of photon energy 3 eV. Draw it.",
+    "expectedDraw": false,
+    "expectedSourceOutcome": "declined",
+    "group": "polarity"
+  },
+  {
+    "id": "passive-unknown-post-cue-transfer",
+    "question": "A source lamp cathode has work function unknown. The cathode is illuminated by light of photon energy 3 eV. Draw it.",
+    "expectedDraw": false,
+    "expectedSourceOutcome": "declined",
+    "group": "polarity"
+  }
+]

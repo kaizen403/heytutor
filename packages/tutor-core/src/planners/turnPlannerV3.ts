@@ -221,6 +221,7 @@ async function requestTurnPlanV3(
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   let outcomeCode: TurnPlanOutcomeCode = "transport_failed";
+  let responseReceived = false;
   let subject: DiagramSubject | undefined;
   const parseOutcome: TurnPlanParseOutcome = {
     code: "plan_processing_failed", issueCodes: [], unrecognizedIssueCount: 0,
@@ -274,6 +275,7 @@ async function requestTurnPlanV3(
         ],
       }),
     });
+    responseReceived = true;
     try {
       const status = response.status;
       if (Number.isInteger(status) && status >= 100 && status <= 599) httpStatus = status;
@@ -314,6 +316,9 @@ async function requestTurnPlanV3(
   } catch (error) {
     if (options.signal?.aborted) outcomeCode = "cancelled";
     else if (timeoutController.signal.aborted) outcomeCode = "timeout";
+    else if (outcomeCode === "transport_failed" && isAbortError(error)) outcomeCode = "cancelled";
+    // Fetch returned, then a getter threw before a more specific code was chosen.
+    else if (outcomeCode === "transport_failed" && responseReceived) outcomeCode = "plan_processing_failed";
     else if (outcomeCode === "accepted") outcomeCode = "plan_processing_failed";
     tutorDebug("planner", `turn plan v3 ${phase} failed`, {
       reason: error instanceof Error ? error.message : String(error),
@@ -1159,6 +1164,10 @@ const RESULT_UNIT_TOKENS = new Set([
   "weber",
   "webers",
 ]);
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
 
 function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal {
   const controller = new AbortController();

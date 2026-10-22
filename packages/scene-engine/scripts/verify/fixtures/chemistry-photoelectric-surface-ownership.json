@@ -1,0 +1,753 @@
+[
+  {
+    "id": "R1",
+    "question": "Metal B's work function is 2 eV. Metal A's is unknown. Light of frequency 1e15 Hz falls on metal A. Draw the photoelectric diagram.",
+    "questionSha256": "5c41bd19546e21e14f932041ecc9ca263ced5c46d4e55d4472d84a1d841d42d0",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": true,
+    "reviewPrefixCompleted": false
+  },
+  {
+    "id": "R2",
+    "question": "Metal A's work function is 2 eV. Metal B's is unknown. Light of frequency 1e15 Hz falls on metal B. Draw the photoelectric diagram.",
+    "questionSha256": "58a1c4b3f2537ef4ff11db95a8d752c572051fc2686085f38e0abda8ac49ffce",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": true,
+    "reviewPrefixCompleted": false
+  },
+  {
+    "id": "R3",
+    "question": "For metal A the work function is 2 eV; for metal B it is unknown. Light of frequency 1e15 Hz falls on metal B. Draw the photoelectric diagram.",
+    "questionSha256": "813ea11f2e70dec11bb40397ce21a9047ad174578b9449811e52fe805819ec9f",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": false,
+    "reviewPrefixCompleted": true,
+    "reviewQuotedPrefix": "For metal A the work function is 2 eV; for metal B it is unknown. Light of frequency 1e15 Hz falls on metal B.",
+    "explicitCompletion": " Draw the photoelectric diagram.",
+    "notRecoveredFrom128": true
+  },
+  {
+    "id": "R4",
+    "question": "The work function is 2 eV for metal A. Light of frequency 1e15 Hz falls on metal B. Draw the photoelectric diagram.",
+    "questionSha256": "783047bd4aa6ae8f29f881dbacde096ba44bcbb8db25d55d21a9726dcc133cd1",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": false,
+    "reviewPrefixCompleted": true,
+    "reviewQuotedPrefix": "The work function is 2 eV for metal A. Light of frequency 1e15 Hz falls on metal B.",
+    "explicitCompletion": " Draw the photoelectric diagram.",
+    "notRecoveredFrom128": true
+  },
+  {
+    "id": "R5",
+    "question": "Light of frequency 1e15 Hz falls on metal B. Metal A's work function is 2 eV. Draw the photoelectric diagram.",
+    "questionSha256": "bfb5305cd683cef995cb087658e661289d6da67a8a886adb83030b1bcedd31de",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": false,
+    "reviewPrefixCompleted": true,
+    "reviewQuotedPrefix": "Light of frequency 1e15 Hz falls on metal B. Metal A's work function is 2 eV.",
+    "explicitCompletion": " Draw the photoelectric diagram.",
+    "notRecoveredFrom128": true
+  },
+  {
+    "id": "R6",
+    "question": "The work function of sodium is 2.3 eV and that of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric energy diagram.",
+    "questionSha256": "2488e4495124f7a03413a838c695ab4d993bae668cfa23b978619cc80df23e88",
+    "kind": "review-derived-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "reviewSection": "pr-137-delta3.md problem3",
+    "verbatimCompleteReviewQuestion": true,
+    "reviewPrefixCompleted": false,
+    "independentPhysicalOracle": {
+      "illuminatedCopperPhiEv": 4.7,
+      "photonEnergyEv": 3,
+      "emissionAllowed": false,
+      "reason": "3 eV < 4.7 eV; sodium-derived K=0.70 eV is wrong. Guard must conservatively decline this unsupported multi-surface stem."
+    }
+  },
+  {
+    "id": "N-NAMED-PAIR",
+    "question": "Potassium has work function 2 eV, while sodium has work function 2.3 eV. Light of frequency 1e15 Hz falls on sodium. Draw the photoelectric diagram.",
+    "questionSha256": "63da8f36cc8b912b1e0c15580471614b67d024ec1aa11ee710321481c4d3eeb4",
+    "kind": "qa-authored-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct canonical material identities or explicit unresolved plurality; no value extraction or second-metal solving."
+  },
+  {
+    "id": "N-SYMBOL-ROLES",
+    "question": "The work function of K is 2 eV. Light of frequency 1e15 Hz falls on Na. Draw the photoelectric diagram.",
+    "questionSha256": "ba0d64756c8382b4fd115f921177ae65f39a3e95d078193442e70cf48f7ac954",
+    "kind": "qa-authored-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct canonical material identities or explicit unresolved plurality; no value extraction or second-metal solving."
+  },
+  {
+    "id": "N-GENERIC-CD",
+    "question": "Surface C has work function 2 eV. Light of frequency 1e15 Hz falls on surface D. Draw the photoelectric diagram.",
+    "questionSha256": "1a1bd179b7cc4e39d977475838742df75946c882a5664ea72704bb7fa20db167",
+    "kind": "qa-authored-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct canonical material identities or explicit unresolved plurality; no value extraction or second-metal solving."
+  },
+  {
+    "id": "N-ANOTHER-SURFACE",
+    "question": "The work function of gold is 2 eV. Light of frequency 1e15 Hz falls on another surface. Draw the photoelectric diagram.",
+    "questionSha256": "a199a518de138f94d06acca59e6ef524e0fd93e350fe7cfa994c83974a904af2",
+    "kind": "qa-authored-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct canonical material identities or explicit unresolved plurality; no value extraction or second-metal solving."
+  },
+  {
+    "id": "N-ALIAS-DISTINCT",
+    "question": "Aluminum has work function 2 eV. Light of frequency 1e15 Hz falls on silver. Draw the photoelectric diagram.",
+    "questionSha256": "2ea95677e49775b22fc876d1c93cb33fd3da86ba922dd092243ef8de3d033fb6",
+    "kind": "qa-authored-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct canonical material identities or explicit unresolved plurality; no value extraction or second-metal solving."
+  },
+  {
+    "id": "P-UNNAMED",
+    "question": "A metal has work function 2 eV. Light of frequency 1e15 Hz falls on its surface. Draw the photoelectric diagram.",
+    "questionSha256": "6122b25b5570916d613eee35fb916d5cf0f137609c0d620192bde32e1931a9fd",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-GENERIC-Z",
+    "question": "Metal Z has work function 2 eV. Light of frequency 1e15 Hz falls on surface Z. Draw the photoelectric diagram.",
+    "questionSha256": "d9255875b1e027e1777854cad4be54872f6f06afc32bd02dc4f0a32f5f2013d7",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-CS-SYMBOL",
+    "question": "Cesium has work function 2.1 eV. Light of frequency 1e15 Hz falls on Cs. Draw the photoelectric diagram.",
+    "questionSha256": "078ab6ec04ed3bace44489eecbb19a28a2a455e1d0c870043d4f10a36632cd99",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.1,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.0356676969238587,
+      "labels": [
+        "phi=2.10 eV",
+        "E=4.14 eV",
+        "K=2.04 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-AL-SYMBOL",
+    "question": "The work function of Al is 2 eV. Light of frequency 1e15 Hz falls on aluminium. Draw the photoelectric diagram.",
+    "questionSha256": "d485fea0608a2d4f482fa9dd7838beaef354c88ddd0f6ed4ceb49231f436c0d1",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-PROSE-IN-K",
+    "question": "In the experiment the work function is 2 eV. Light of frequency 1e15 Hz falls on the metal at 300 K. Draw the photoelectric diagram.",
+    "questionSha256": "1d8da6658a892a2979a85f2ac22b7b6a49c62346bb1a9da2cb6991d1fb461609",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-SAME-ALIAS-PARALLEL",
+    "question": "The work function of caesium is 2.1 eV; that of cesium is also 2.1 eV. Light of frequency 1e15 Hz falls on Cs. Draw the photoelectric diagram.",
+    "questionSha256": "2ab4b3fc5a858ce2b5a72c35b6c0394d9d23afafee3952ce03ef54a4a9b2cfd4",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "sourceQuestionPinned": true,
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.1,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.0356676969238587,
+      "labels": [
+        "phi=2.10 eV",
+        "E=4.14 eV",
+        "K=2.04 eV"
+      ]
+    },
+    "oracleBasis": "Independent fixed SI h/e and source frequency; one material identity after exact alias deduplication. Prose In and unit K add none."
+  },
+  {
+    "id": "P-SINGLE-BELOW-THRESHOLD",
+    "question": "The work function of gold is 4 eV. Photons of energy 2 eV fall on gold. Draw the photoelectric diagram.",
+    "questionSha256": "11adff1533dea5787943e4071af6ecf11526bc0f0e89cf6cfef731f4fd07ddf0",
+    "kind": "qa-authored-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 4,
+      "photonEv": 2,
+      "kineticEv": null,
+      "labels": [
+        "phi=4.00 eV",
+        "E=2.00 eV",
+        "no emission"
+      ],
+      "mustNotHaveKLabel": true
+    },
+    "oracleBasis": "Independent threshold comparison2<4; repeated gold is one identity."
+  },
+  {
+    "id": "C-CONCEPTUAL",
+    "question": "Explain why the work function is different for different metals.",
+    "questionSha256": "c6b7d56cce0a9166cd824cd52e36a5c25c47e8d801474d64afa1cb5f438767ec",
+    "kind": "qa-authored-nonclaim",
+    "expected": {
+      "isAtomicRadiationStem": false,
+      "mustEqualMainEntireOutcome": true
+    },
+    "oracleBasis": "No supplied numeric photoelectric source declaration; recognition functions unchanged."
+  },
+  {
+    "id": "C-SHARED-LEVEL",
+    "question": "A hydrogen atom emits a photon during the transition from n = 4 to n = 2. Draw the energy level diagram.",
+    "questionSha256": "f65dad5ee5fd3509f186992d8a46c2566a42a52c1ff3c6cdf66f8570738154ae",
+    "kind": "qa-authored-nonclaim",
+    "expected": {
+      "isAtomicRadiationStem": false,
+      "mustEqualMainEntireOutcome": true
+    },
+    "oracleBasis": "Existing shared-level veto unchanged."
+  },
+  {
+    "id": "P-LEAD-VERB",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz falls on the metal. Explain how increasing intensity can lead to a higher photocurrent. Draw the photoelectric diagram.",
+    "kind": "root-requested-additive-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.3,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 1.835667696923859,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.14 eV",
+        "K=1.84 eV"
+      ]
+    },
+    "oracleBasis": "Source work function/frequency and independent SI h/e. The verb lead in can lead to is not a physical material owner.",
+    "questionSha256": "32a8749acb954986c7d25ac6a3848f390e0f3800f9d3c154bdae505e531c5f59"
+  },
+  {
+    "id": "N-LEAD-MATERIAL",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz falls on lead. Draw the photoelectric diagram.",
+    "kind": "root-requested-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Sodium is the source work-function owner; lead is a distinct illuminated metal. The unchanged single-phi builder cannot bind that value to lead.",
+    "questionSha256": "1f69dbb500cf4336c95e0063dfa91b872aee38d3bd2ea0919392883677c5a79a"
+  },
+  {
+    "id": "N-ILLUMINATES-COPPER",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz illuminates copper. Draw the photoelectric diagram.",
+    "questionSha256": "51226ebb21980c9fb01a6a2257e9d04350559aa9f03e19278ebd9889fe03160b",
+    "kind": "root-requested-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "N-COPPER-ILLUMINATED",
+    "question": "The work function of sodium is 2.3 eV. Copper is illuminated by light of frequency 1e15 Hz. Draw the photoelectric diagram.",
+    "questionSha256": "ebea2f13e8243a0ead4d2372230d7205f94aae6baa3b4b534b2dad0d0968a088",
+    "kind": "root-requested-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "P-ILLUMINATES-SODIUM",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz illuminates sodium. Draw the photoelectric diagram.",
+    "questionSha256": "dab709e8e8ffa13492f25c0fbd70bec1843826a9795e19b9bc63e8d06ab1c01f",
+    "kind": "root-requested-additive-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.3,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 1.835667696923859,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.14 eV",
+        "K=1.84 eV"
+      ]
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "N-UNRESOLVED-PARALLEL",
+    "question": "The work function of Na is 2 eV and that of X is unknown. Light of frequency 1e15 Hz falls on X. Draw the photoelectric diagram.",
+    "questionSha256": "0dcbd33bb0cb11ed2a8365f3411c1c070492ec9d629b3b867ca113a769c27cf4",
+    "kind": "root-authorized-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "The supplied Na value cannot bind to unresolved owner/illumination target X."
+  },
+  {
+    "id": "N-PARALLEL-MATERIAL-LIST",
+    "question": "Na and Cu have work functions of 2 eV and 4 eV, respectively. Light of frequency 1e15 Hz falls on Cu. Draw the photoelectric diagram.",
+    "questionSha256": "b9bd9560119838ca6244bf1f8844fef7cedb1480ce92287aa8a960b5aec06116",
+    "kind": "root-authorized-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two canonical materials have distinct work functions; Cu phi4 must not borrow first Na phi2. Conservative refusal is required."
+  },
+  {
+    "id": "P-NONMATERIAL-COMPARISON",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz falls on the metal. Compare the photon momentum with that of an electron. Draw the photoelectric diagram.",
+    "questionSha256": "26531498e3798a439b6568237f0543d0273d619ac6916fdcff73a2d7d4a64b7c",
+    "kind": "root-authorized-additive-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.3,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 1.835667696923859,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.14 eV",
+        "K=1.84 eV"
+      ]
+    },
+    "oracleBasis": "A photon-momentum comparison is not a parallel work-function material owner. Preserve independent Na phi, SI h/e energy and complete main outcomes."
+  },
+  {
+    "id": "R-PREFIX-FOR-SODIUM",
+    "question": "For sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "9fe0b8a0bfac0f2cfbdcd7a5b63e08ef7239a3c9bf6d86b4ae9449405c99be01",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-NA",
+    "question": "For Na, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "7327ab1b91fafd0e5fce092d9260a0b7a84b3072c7ae2022b601dcc3cdd67fc6",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-NOCOMMA",
+    "question": "For sodium the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "7026e8224d16ac27f22a67033c3732afcbeb27d773327a306c03460690417887",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-COLON",
+    "question": "For sodium: the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "ca095540e53f0eda2ca080eef2f61782cdb1ad4e0bbba84eabd13c1c070005f5",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-IN-SODIUM",
+    "question": "In sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "1602b3db9db8a5aab54f4909946b95c3f299bf3706fe1fc7ed93d988cd246621",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-CASE-OF-SODIUM",
+    "question": "In the case of sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "9b0ea4f463a088ade6510584c3291d735f9b31e48b112a8ac2cb0c166fe09160",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "R-K-POTASSIUM-ALIAS",
+    "question": "The work function of potassium is 2 eV. Light of frequency 1e15 Hz falls on metal K. Draw the photoelectric diagram.",
+    "questionSha256": "ee8fa22b76245a1ead2476117363c9b421ea5bca1d223c32724d6972a111bae3",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "P-V-VANADIUM-ALIAS",
+    "question": "The work function of vanadium is 2 eV. Light of frequency 1e15 Hz falls on metal V. Draw the photoelectric diagram.",
+    "questionSha256": "2a25579a7cdca1dbec9e1ea8938309bed6655f57c103b5b7b2993fd8efda75fe",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "P-W-TUNGSTEN-ALIAS",
+    "question": "Metal W has work function 2 eV. Light of frequency 1e15 Hz falls on tungsten. Draw the photoelectric diagram.",
+    "questionSha256": "aa16ef0fc179614d1511a97d8c808deb022d895c244e52583a257312fbd075bb",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "N-K-DISTINCT-NA",
+    "question": "The work function of sodium is 2 eV. Light of frequency 1e15 Hz falls on metal K. Draw the photoelectric diagram.",
+    "questionSha256": "68ac53b15b2b46ed8d1a857031bc138ae88de5a31753666ca2a5bc941dd41840",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Na and K are genuinely distinct metals; deduplication must not erase this ownership conflict."
+  }
+]

@@ -273,9 +273,36 @@ try {
     onRequestOutcome: (outcome) => responseTail.push(outcome) }), null, "the existing response-tail failure remains rejected");
   assert.equal(responseTail.length, 3);
   assert.ok(responseTail.every(({ code }) => code === "plan_processing_failed"), "HTTP-200 null is not called accepted when response construction fails");
+  const received: TurnPlanRequestOutcome[] = [];
+  globalThis.fetch = async () => {
+    const value = response(JSON.stringify(plan));
+    return new Proxy(value, {
+      get(target, prop) {
+        if (prop === "ok") throw new Error(privateSentinel);
+        const got = Reflect.get(target, prop, target);
+        return typeof got === "function" ? got.bind(target) : got;
+      },
+    });
+  };
+  assert.equal(await auditTurnPlanV3(question, plan, {
+    proxyUrl: "http://planner.test", timeoutMs: 1_000,
+    onRequestOutcome: (outcome) => received.push(outcome),
+  }), null, "a throw after the response arrives still rejects the plan");
+  assert.equal(received[0]?.httpStatus, 200, "the received status stays visible");
+  assert.equal(received[0]?.code, "plan_processing_failed", "a received response is not a transport failure");
+  assert.ok(!JSON.stringify(received).includes(privateSentinel));
+  const unrecognizedAbort: TurnPlanRequestOutcome[] = [];
+  globalThis.fetch = async () => { throw new DOMException(privateSentinel, "AbortError"); };
+  assert.equal(await auditTurnPlanV3(question, plan, {
+    proxyUrl: "http://planner.test", timeoutMs: 1_000,
+    onRequestOutcome: (outcome) => unrecognizedAbort.push(outcome),
+  }), null);
+  assert.equal(unrecognizedAbort[0]?.httpStatus, null);
+  assert.equal(unrecognizedAbort[0]?.code, "cancelled", "an abort our deadline and caller signals did not own is not transport");
+  assert.ok(!JSON.stringify(unrecognizedAbort).includes(privateSentinel));
   assert.deepEqual(Object.keys(outcomes[0]!).sort(),
     ["code", "elapsedMs", "httpStatus", "issueCodes", "lane", "phase", "requestKind", "unrecognizedIssueCount"]);
-  console.log("TurnPlan content-free outcomes passed: 25 scenarios.");
+  console.log("TurnPlan content-free outcomes passed: 27 scenarios.");
 } finally {
   globalThis.fetch = originalFetch;
 }
