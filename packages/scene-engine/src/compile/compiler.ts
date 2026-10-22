@@ -1,7 +1,7 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
-import { validateDimensionAnchors, validateFieldLineShape, validatePointLabelPlacement } from "./figureFeatureTruth";
+import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -1152,7 +1152,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
   if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
-  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives));
+  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives),
+    ...validateFigureLegibility(primitives), ...validateAxisNamePlacement(primitives), ...validateAngleLabelWedge(document, primitives, coincidentPointAliases));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   // Native bond truth is core geometry under both yield policies; labels or

@@ -29,7 +29,7 @@ subject, which does not reach that code.
 
 | Family | Module | Draws | Grounding |
 |---|---|---|---|
-| `chem_organic` | `organic/` | skeletal structures from IUPAC or common names, reaction schemes with the reagent on the arrow, constitutional isomers, and the hybridisation of each carbon on a closed bond line | a name the parser fully resolves, or a closed bond line such as CH3-CH=CH-C≡N; never a partial parse |
+| `chem_organic` | `organic/` | skeletal structures from IUPAC or common names, reaction schemes with the reagent on the arrow, constitutional isomers | a name the parser fully resolves; never a partial parse |
 | `chem_vsepr` | `vsepr.ts` | AXnEm shape with wedge and dash bonds, lone pairs, the characteristic angle, hybridisation and shape text | a parseable p-block formula with one central atom |
 | `chem_lewis` | `lewis.ts` | Lewis structure with bond orders, lone pairs, formal charges, resonance forms side by side | a formula the octet method resolves |
 | `chem_mo` | `moDiagram.ts` | three-column MO diagram for period 2 diatomics and ions, CO, NO, CN-; compact ladders for comparisons | a diatomic species token |
@@ -81,12 +81,9 @@ only matching graph-bound labels gain numeric authority. Stripping family
 metadata cannot skip this check. Unknown or ambiguous derived roles decline,
 and projected angles or inequality bounds do not prove an exact measurement.
 The common plan audit still checks all other values. A closed carbon bond
-line, such as CH2=C=O or CH3-CH=CH-C≡N, is not a VSEPR fragment: the formula
-reader must not split it into a fragment molecule or invent a charge on the
-bond hyphen. When the stem asks for the hybridisation of each carbon, the
-organic family draws that same closed line and labels every carbon from its
-bond orders. Separate formulas, including CH3- next to CH2, stay eligible
-for VSEPR. Run
+line, such as CH2=C=O or CH3-CH=CH-C≡N, is declined: the formula reader
+must not split it into a fragment molecule or invent a charge on the bond
+hyphen. Separate formulas, including CH3- next to CH2, stay eligible. Run
 the offline tutor gate `scripts/verify/verify-vsepr-source-evidence.ts` for
 live/save/reopen, answer staging and graph/plan tampering controls.
 
