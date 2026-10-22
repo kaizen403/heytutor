@@ -76,6 +76,8 @@ export function useSegmentRunner({
   const speechClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
+  /** Turn that owns the in-flight draw chain. A newer turn must not wait on it. */
+  const drawChainGenerationRef = useRef<number | null>(null);
   const startupStatusOwnerRef = useRef<symbol | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
@@ -978,9 +980,12 @@ export function useSegmentRunner({
         } else if (hasNarration) {
           tutorDebug("segment", "paired narration+draw", { index });
 
-          // Finish prior ink first, then speak + draw this segment together so the
-          // marker stays with the words (do not let speech race ahead on drawChain).
-          await drawChainRef.current.catch(() => undefined);
+          // Finish this turn's prior ink first, then speak so the marker stays
+          // with the words. A newer turn must not wait on ink the previous turn
+          // left unsettled, or its voice never starts.
+          if (drawChainGenerationRef.current === turnGeneration) {
+            await drawChainRef.current.catch(() => undefined);
+          }
           if (isCancelled()) return;
           if (!(await waitWhilePaused())) return;
 
@@ -1005,6 +1010,7 @@ export function useSegmentRunner({
             });
             // Observe immediately, but retain the rejection for the paired join.
             drawChainRef.current = ownedDraw.catch(() => undefined);
+            drawChainGenerationRef.current = turnGeneration;
           };
           if (rollbackIntroInk) introDrawOwnerRef.current = { owner: segmentFallbackOwner, freeze: freezeIntroDraw };
           startOwnedDraw();
