@@ -76,6 +76,11 @@ jobs:
         run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
+      - name: Yield switch and PR246 review blocker regressions (offline)
+        run: |
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-pr246-review-blockers.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-repair-measured-precision.ts
       - name: Symbolic planner regressions
         run: |
           pnpm --filter @heytutor/scene-engine verify:symbolic-planner
@@ -96,6 +101,13 @@ jobs:
       - name: Failed-turn Sentry privacy and reporting regressions (no external calls)
         run: |
           pnpm --filter @heytutor/tutor verify:sentry
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-runtime.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-log-privacy.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-tts-relay-cancellation.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-worker-failure-log.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-billing-failure-telemetry.ts
+          pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-teaching-reservation-budget.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-home-suggestion-race.ts
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
@@ -115,6 +127,12 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
         run: pnpm --filter @heytutor/tutor verify:board-playback-export
+      - name: Teaching network, completion and speech ownership (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-teaching-network-recovery.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-completion-integrity.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-failure-classification.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-segment-speech-ownership.ts
       - name: Teaching truth and scoped solver authority (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-truth-authority.ts

@@ -2383,7 +2383,7 @@ function resolveUnitSymbol(symbol: string): { base: string; factor: number } | n
 }
 
 /** Convert between units only when they provably measure the same thing. */
-function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
+export function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
   const from = unitScale(fromUnit);
   const to = unitScale(toUnit);
   if (from && to) {
@@ -2566,15 +2566,20 @@ export function validateSceneQuantityAgreement(
       planned.value,
       planned.unit,
     );
+    const written = `${JSON.stringify(quantity.value ?? null)}${quantity.unit ? ` ${quantity.unit}` : ""}`;
     if (!equivalent) {
-      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`, message: `${quantity.id} disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`,
+        message: `Quantity ${quantity.id} (symbol ${quantity.symbol ?? "none"}) is written as ${written}, which is not the value TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when its value and unit are copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}, or the quantity is left out.` });
     }
     if (
       planned.unit !== undefined &&
       normalizeUnit(quantity.unit) !== normalizeUnit(planned.unit) &&
       !equivalent
     ) {
-      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`, message: `${quantity.id} unit disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`,
+        message: `Quantity ${quantity.id} has unit ${JSON.stringify(quantity.unit ?? null)}, not the unit TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when the unit is copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}.` });
     }
   });
 
@@ -2739,17 +2744,25 @@ export function validateTurnPlanSceneProofs(
     }
 
     const proofIssues: SceneIssue[] = [];
-    evaluateTopologyAssertion({
+    const membersProve = evaluateTopologyAssertion({
       id: `turnplan_${concept}_proof`,
       predicate,
       entities: members,
       expected: true,
       severity: "fatal",
       reason: `The ${concept} view does not prove the ${concept} topology required by TurnPlanV3`,
-    }, document, proofIssues);
+    }, document, proofIssues) === true;
+    // When the resistors do form the arrangement, what is missing is the view
+    // itself: say so, rather than send a repair after correct wiring.
+    const groupNames = document.revealGroups.map((candidate) => candidate.id).join(", ") || "none";
+    const missingView = membersProve
+      ? `TurnPlanV3 asks for the ${concept} view. ${members.join(", ")} do form the ${concept} arrangement, but no reveal group is identified as that view ` +
+        `(a reveal group whose id or narration cue says "${concept}"; reveal groups now: ${groupNames}). ` +
+        `Valid when one reveal group's id or narration cue says "${concept}" and it lists ${members.join(", ")}; keep the wiring.`
+      : `The ${concept} view failed its required topology proof`;
     issues.push({
       ...(proofIssues[0] ?? {
-        message: `The ${concept} view failed its required topology proof`,
+        message: missingView,
         severity: "fatal" as const,
         entityIds: members,
       }),
@@ -3657,6 +3670,13 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
+/** The nodes a closure search reached, named for repair feedback (at most twelve). */
+function reachedNodes(visited: ReadonlySet<string>, start: string): string {
+  const others = [...visited].filter((node) => node !== start);
+  if (others.length === 0) return "no other node";
+  return others.length > 12 ? `${others.slice(0, 12).join(", ")} and ${others.length - 12} more` : others.join(", ");
+}
+
 /**
  * Prove only the declared electrical source terminals have a component path.
  * Shared by plan admission and every save tier; no coordinates or full-plan
@@ -3722,6 +3742,7 @@ export function validateCircuitTerminalClosure(
       issues.push({
         code: "source_loop_not_closed",
         message: `Source ${source.id} terminals ${source.start} and ${source.end} have no closed component path. ` +
+          `Without passing through ${source.id}, ${source.start} reaches only ${reachedNodes(visited, source.start)}, and no component or wire joins those to ${source.end}. ` +
           componentContract +
           "Attach connect wires to the declared outer terminal point IDs and their intended circuit nodes; never bypass a component to fake closure. " +
           "Free plate segments and coincident coordinates do not establish a component edge. Preserve declared terminal IDs; do not invent a wire to close the path.",
@@ -3814,7 +3835,9 @@ function validateSemanticVectorGeometry(
       if (residual > 0.04) {
         issues.push({
           code: "physical_direction_relation_failed",
-          message: `${entity.id} must be ${predicate} to ${surface.id}`,
+          message: `${entity.id} must be ${predicate} to ${surface.id}: the angle between their directions is ` +
+            `${Math.round(Math.acos(Math.min(1, Math.abs(first.x * second.x + first.y * second.y) / (firstLength * secondLength))) * 1800 / Math.PI) / 10} degrees, ` +
+            `and ${predicate === "parallel" ? "0" : "90"} is needed. Valid when ${entity.id} is constructed along ${predicate === "parallel" ? `${surface.id}'s own direction` : `the normal of ${surface.id}`}.`,
           severity: "fatal",
           entityIds: [entity.id, surface.id],
           residual,

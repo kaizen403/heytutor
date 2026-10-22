@@ -1,0 +1,1450 @@
+{
+  "schema": "pr230-independent-whole-source-golds/v1",
+  "createdAt": "2026-10-19T07:29:01.510395+00:00",
+  "head": "59bb20e6c8608c0c746c8f12e6d1e1940dde78d7",
+  "rows": [
+    {
+      "id": "gibbs-0-supported",
+      "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG.",
+      "draw": true,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-0-opposed-axes",
+      "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-0-unsupported-mark",
+      "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG. Shade the part of the plot where the reaction is spontaneous.",
+      "draw": false,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-0-agreeing-axes",
+      "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "gibbs-1-supported",
+      "question": "For a constant-pressure reaction, draw Delta G = Delta H - T Delta S from 250 to 400 K. Delta H = +60 kJ/mol and Delta S = +200 J/(mol K), independent of temperature. Mark Delta G = 0 and label the positive and negative regions.",
+      "draw": true,
+      "domain": [
+        250,
+        400
+      ],
+      "slope": -0.2,
+      "intercept": 60,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-1-opposed-axes",
+      "question": "For a constant-pressure reaction, draw Delta G = Delta H - T Delta S from 250 to 400 K. Delta H = +60 kJ/mol and Delta S = +200 J/(mol K), independent of temperature. Mark Delta G = 0 and label the positive and negative regions. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        250,
+        400
+      ],
+      "slope": -0.2,
+      "intercept": 60,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-1-unsupported-mark",
+      "question": "For a constant-pressure reaction, draw Delta G = Delta H - T Delta S from 250 to 400 K. Delta H = +60 kJ/mol and Delta S = +200 J/(mol K), independent of temperature. Mark Delta G = 0 and label the positive and negative regions. Also draw the tangent at the upper temperature endpoint.",
+      "draw": false,
+      "domain": [
+        250,
+        400
+      ],
+      "slope": -0.2,
+      "intercept": 60,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-1-agreeing-axes",
+      "question": "For a constant-pressure reaction, draw Delta G = Delta H - T Delta S from 250 to 400 K. Delta H = +60 kJ/mol and Delta S = +200 J/(mol K), independent of temperature. Mark Delta G = 0 and label the positive and negative regions. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        250,
+        400
+      ],
+      "slope": -0.2,
+      "intercept": 60,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "gibbs-2-supported",
+      "question": "Using temperature-independent enthalpy change Delta H = -40 kJ/mol and entropy change Delta S = -100 J/(mol K), plot Gibbs energy change against temperature over 300-500 K. Show Delta G = Delta H - T Delta S and mark the zero crossing.",
+      "draw": true,
+      "domain": [
+        300,
+        500
+      ],
+      "slope": 0.1,
+      "intercept": -40,
+      "crossing": 400,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-2-opposed-axes",
+      "question": "Using temperature-independent enthalpy change Delta H = -40 kJ/mol and entropy change Delta S = -100 J/(mol K), plot Gibbs energy change against temperature over 300-500 K. Show Delta G = Delta H - T Delta S and mark the zero crossing. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        300,
+        500
+      ],
+      "slope": 0.1,
+      "intercept": -40,
+      "crossing": 400,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-2-unsupported-mark",
+      "question": "Using temperature-independent enthalpy change Delta H = -40 kJ/mol and entropy change Delta S = -100 J/(mol K), plot Gibbs energy change against temperature over 300-500 K. Show Delta G = Delta H - T Delta S and mark the zero crossing. Also show the entropy change as a separate curve.",
+      "draw": false,
+      "domain": [
+        300,
+        500
+      ],
+      "slope": 0.1,
+      "intercept": -40,
+      "crossing": 400,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-2-agreeing-axes",
+      "question": "Using temperature-independent enthalpy change Delta H = -40 kJ/mol and entropy change Delta S = -100 J/(mol K), plot Gibbs energy change against temperature over 300-500 K. Show Delta G = Delta H - T Delta S and mark the zero crossing. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        300,
+        500
+      ],
+      "slope": 0.1,
+      "intercept": -40,
+      "crossing": 400,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "gibbs-3-supported",
+      "question": "Plot Delta G = Delta H - T Delta S from 100 to 300 K. Delta H = 20 kJ/mol and Delta S = 100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+      "draw": true,
+      "domain": [
+        100,
+        300
+      ],
+      "slope": -0.1,
+      "intercept": 20,
+      "crossing": 200,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-3-opposed-axes",
+      "question": "Plot Delta G = Delta H - T Delta S from 100 to 300 K. Delta H = 20 kJ/mol and Delta S = 100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        100,
+        300
+      ],
+      "slope": -0.1,
+      "intercept": 20,
+      "crossing": 200,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-3-unsupported-mark",
+      "question": "Plot Delta G = Delta H - T Delta S from 100 to 300 K. Delta H = 20 kJ/mol and Delta S = 100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Fill the negative Gibbs energy region with shading.",
+      "draw": false,
+      "domain": [
+        100,
+        300
+      ],
+      "slope": -0.1,
+      "intercept": 20,
+      "crossing": 200,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-3-agreeing-axes",
+      "question": "Plot Delta G = Delta H - T Delta S from 100 to 300 K. Delta H = 20 kJ/mol and Delta S = 100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        100,
+        300
+      ],
+      "slope": -0.1,
+      "intercept": 20,
+      "crossing": 200,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "gibbs-4-supported",
+      "question": "Plot Delta G = Delta H - T Delta S over 400-800 K. Delta H = -30 kJ and Delta S = -50 J/K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+      "draw": true,
+      "domain": [
+        400,
+        800
+      ],
+      "slope": 0.05,
+      "intercept": -30,
+      "crossing": 600,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-4-opposed-axes",
+      "question": "Plot Delta G = Delta H - T Delta S over 400-800 K. Delta H = -30 kJ and Delta S = -50 J/K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        400,
+        800
+      ],
+      "slope": 0.05,
+      "intercept": -30,
+      "crossing": 600,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-4-unsupported-mark",
+      "question": "Plot Delta G = Delta H - T Delta S over 400-800 K. Delta H = -30 kJ and Delta S = -50 J/K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Also draw the reaction apparatus.",
+      "draw": false,
+      "domain": [
+        400,
+        800
+      ],
+      "slope": 0.05,
+      "intercept": -30,
+      "crossing": 600,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-4-agreeing-axes",
+      "question": "Plot Delta G = Delta H - T Delta S over 400-800 K. Delta H = -30 kJ and Delta S = -50 J/K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        400,
+        800
+      ],
+      "slope": 0.05,
+      "intercept": -30,
+      "crossing": 600,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "gibbs-5-supported",
+      "question": "Plot Delta G = Delta H - T Delta S between 200 and 450 K. Delta H = 4.8e4 J/mol and Delta S = 0.160 kJ/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+      "draw": true,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs"
+    },
+    {
+      "id": "gibbs-5-opposed-axes",
+      "question": "Plot Delta G = Delta H - T Delta S between 200 and 450 K. Delta H = 4.8e4 J/mol and Delta S = 0.160 kJ/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put ΔG on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "The requested ordered axes oppose the implemented T→ΔG law plot; inverse plotting is unsupported and must not be silently substituted."
+    },
+    {
+      "id": "gibbs-5-unsupported-mark",
+      "question": "Plot Delta G = Delta H - T Delta S between 200 and 450 K. Delta H = 4.8e4 J/mol and Delta S = 0.160 kJ/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Also plot the enthalpy change versus temperature.",
+      "draw": false,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "A complete required visual request must be supported or declined atomically; the supplied line alone is incomplete."
+    },
+    {
+      "id": "gibbs-5-agreeing-axes",
+      "question": "Plot Delta G = Delta H - T Delta S between 200 and 450 K. Delta H = 4.8e4 J/mol and Delta S = 0.160 kJ/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Put T on the horizontal axis and ΔG on the vertical axis.",
+      "draw": true,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Consistent repeated axis semantics must preserve the source line."
+    },
+    {
+      "id": "henry-0-formal-owner",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-0-not-obeying",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas not obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "henry-1-formal-owner",
+      "question": "Sketch P_R versus the dissolved mole fraction z_R for a hypothetical gas G obeying P_R = H_C z_R at 298 K, with H_C = 6.00*10^4 bar. Use 0<=z_R<=4.00*10^-5 and mark the point for P_R=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-1-not-obeying",
+      "question": "Sketch P_R versus the dissolved mole fraction z_R for a hypothetical gas not obeying P_R = H_C z_R at 298 K, with H_C = 6.00*10^4 bar. Use 0<=z_R<=4.00*10^-5 and mark the point for P_R=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "henry-2-formal-owner",
+      "question": "Sketch p_R versus the dissolved mole fraction x_R for a hypothetical gas R obeying p_R = K_H x_R at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_R<=4.00*10^-5 and mark the point for p_R=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-2-not-obeying",
+      "question": "Sketch p_R versus the dissolved mole fraction x_R for a hypothetical gas not obeying p_R = K_H x_R at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_R<=4.00*10^-5 and mark the point for p_R=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "henry-3-formal-owner",
+      "question": "Draw p_G versus the dissolved mole fraction x_G for a hypothetical gas X obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-3-not-obeying",
+      "question": "Draw p_G versus the dissolved mole fraction x_G for a hypothetical gas not obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "henry-4-formal-owner",
+      "question": "Plot p_G versus the dissolved mole fraction x_G for a hypothetical gas Z obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-4-not-obeying",
+      "question": "Plot p_G versus the dissolved mole fraction x_G for a hypothetical gas not obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "henry-5-formal-owner",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas A obeying p_G = K_H x_G at 298 K, with K_H = 4.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.800 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          2e-05,
+          0.8
+        ],
+        [
+          4e-05,
+          1.6
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-5-not-obeying",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas not obeying p_G = K_H x_G at 298 K, with K_H = 4.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.800 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": false,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          2e-05,
+          0.8
+        ],
+        [
+          4e-05,
+          1.6
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry",
+      "reason": "The source expressly denies that the hypothetical gas obeys the given law; prose negation cannot become a gas identifier."
+    },
+    {
+      "id": "gibbs-greptile-required-area-shading",
+      "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG. Also shade the area under the curve.",
+      "draw": false,
+      "domain": [
+        200,
+        450
+      ],
+      "slope": -0.16,
+      "intercept": 48,
+      "crossing": 300,
+      "family": "chem_thermo",
+      "kind": "gibbs",
+      "reason": "Exact open P1 wording: unimplemented required area shading must refuse the whole requested figure."
+    },
+    {
+      "id": "henry-context-uppercase-for",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G FOR a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    },
+    {
+      "id": "henry-context-uppercase-predicate",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a HYPOTHETICAL GAS G OBEYING p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+      "family": "chem_solutions",
+      "draw": true,
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "scientificGold": {
+        "ask_style": "short_topic_ask",
+        "chapter": "Solutions",
+        "difficulty": "easy",
+        "expected_math_or_facts": [
+          "x_G=p_G/K_H=1.50×10⁻⁵ at 0.900 bar.",
+          "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+        ],
+        "figure_kind": "Henry-law pressure–composition graph",
+        "figure_need": "required",
+        "figure_need_reason": "The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "grade": 12,
+        "id": "CHEM-H80-XII-004",
+        "must_label": [
+          "x_G (dimensionless)",
+          "p_G / bar",
+          "298 K",
+          "Slope K_H=6.00×10⁴ bar",
+          "(1.50×10⁻⁵, 0.900 bar)"
+        ],
+        "must_not_show": [
+          "A negative slope or a nonzero intercept.",
+          "x_G labelled with pressure units.",
+          "An endpoint at 24.0 bar for the stated x_G limit."
+        ],
+        "must_show": [
+          "A straight line through the origin with p_G=2.40 bar at x_G=4.00×10⁻⁵.",
+          "A point at x_G=1.50×10⁻⁵ and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+        ],
+        "notes": "CBSE 2026–27 Class 12; Solutions. The line’s slope, origin and pressure-to-composition mapping are the requested visual.",
+        "prompt_kind": "short_topic_ask",
+        "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00×10⁴ bar. Use 0≤x_G≤4.00×10⁻⁵ and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+        "reference_sources": [
+          {
+            "locator": "Class XII, pp. 8–9, Solutions",
+            "title": "CBSE Chemistry (043), Classes XI–XII, 2026–27 syllabus",
+            "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+          },
+          {
+            "locator": "§1.3.2, Henry’s law, equation (1.11)",
+            "title": "NCERT Chemistry, Class XII: Solutions",
+            "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+          }
+        ],
+        "source": {
+          "kind": "authored",
+          "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+        },
+        "subject": "chemistry",
+        "topic": "Henry-law line and gas solubility",
+        "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+        "trap": null
+      },
+      "kind": "henry"
+    }
+  ],
+  "notes": "Old fixtures/golds untouched. source/public-route and compiled-geometry expectations are frozen before candidate outputs. Henry formal identifiers need not equal arbitrary p/x subscripts; the supplied relation governs their meanings.",
+  "original36BeforeAnyTargetImportsSha256": "da7b1a02a5f6aea7e494ca57303946a5da46b170884a64d89c6fb3403b9c4fdc",
+  "extensionGoldBeforeExactRowOutputsSha256": "5d9c91ffbcf8dd134ef4346633f77c1404703d822f6c89f630e5939add47129e",
+  "contextCase2BeforeExactOutputsSha256": "621822627b58da7c17eb183f0df00da84d512fea49f2bad41046e399f014f7f8"
+}

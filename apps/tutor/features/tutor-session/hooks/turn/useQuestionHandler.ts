@@ -10,6 +10,7 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  TeachingTransportError,
   TEACHING_HEDGE_AFTER_MS,
   type TeachingAttemptKind,
   type TeachingStartupRetryReason,
@@ -58,7 +59,7 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
-import { readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
+import { billingFailureTelemetry, readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   fetchBoardDetail,
@@ -1671,7 +1672,9 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              originalQuestion: question,
               narrationLanguage: turnNarrationLanguage,
+              ...(turnPlan ? { turnPlan } : {}),
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),
             },
@@ -1716,6 +1719,8 @@ export function useQuestionHandler(
         if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
+            sceneArtifacts: resume.scene.sceneArtifacts,
+            question: resume.lessonQuestion,
           }, turnNarrationLanguage);
           if (restored) {
             activeDiagram = restored.diagram;
@@ -2720,12 +2725,12 @@ export function useQuestionHandler(
         const billing = parseBillingFailureFromUnknown(error);
         page.failureTelemetry = {
           ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
-          stage: "teaching", code: billing ? "budget_limit" : error instanceof TypeError ? "transport_error" : "lesson_not_taught",
+          ...(billing ? billingFailureTelemetry(billing) : { stage: "teaching", code: error instanceof TeachingTransportError ? "transport_error" : "lesson_not_taught" } as const),
         };
         let message = "something went wrong. try asking again.";
         if (billing) {
           message = studentBillingMessage(billing.code);
-        } else if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+        } else if (error instanceof TeachingTransportError) {
           message = "network error. check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
           message = "audio generation failed. the lesson continues without voice";

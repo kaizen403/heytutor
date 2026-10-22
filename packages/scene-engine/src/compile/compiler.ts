@@ -1,9 +1,11 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
+import { validateDimensionAnchors, validateFieldLineShape, validatePointLabelPlacement } from "./figureFeatureTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
+import { validateVelocityTriangleTruth } from "./velocityTriangleTruth";
 import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
 import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
@@ -326,7 +328,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const hasAnnotation = document.annotations.some((annotation) => annotation.targetIds.includes(entityId));
     const annotationPositionedLabel = entity?.kind === "label" && hasAnnotation;
     if (!geometry.has(entityId) && entity?.kind !== "group" && !annotationPositionedLabel) {
-      issues.push({ code: "unconstructed_required_entity", message: `Required entity ${entityId} has no deterministic construction`, severity: "fatal", entityIds: [entityId] });
+      issues.push({ code: "unconstructed_required_entity", message: `Required entity ${entityId} has no deterministic construction: no valid construction lists ${entityId} in its outputs. Valid when one construction that compiles outputs ${entityId}, or ${entityId} is removed from requiredEntityIds and every reveal group`, severity: "fatal", entityIds: [entityId] });
     }
   }
 
@@ -407,13 +409,14 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         coincidentPathAliases.set(entityId, existing);
       }
       else if (overlayId) directionOverlayIds.add(overlayId);
-      else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}`, severity: "fatal", entityIds: [existing, entityId] });
+      else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}: both constructions produce the same geometry. Valid when ${entityId} is built from its own inputs so it differs from ${existing}, or it is removed`, severity: "fatal", entityIds: [existing, entityId] });
     } else {
       geometrySignatures.set(signature, [...existingIds, entityId]);
     }
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+  issues.push(...validateVelocityTriangleTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   issues.push(...validateLaunchVelocityTruth(document, geometry));
   if (verifiedPartsEnabled) {
@@ -1110,6 +1113,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
   if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
@@ -2146,6 +2150,9 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   }
   let passed = false;
   let residual: number | undefined;
+  /** What the engine measured, reported when the assertion fails. */
+  let measured: unknown;
+  const report = (value: unknown) => { measured = value; };
   try {
     switch (predicate) {
       case "exists": passed = assertion.entities.every((id) => geometry.has(id) || document.entities.some((entity) => entity.id === id)); break;
@@ -2218,6 +2225,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
         break;
@@ -2233,6 +2241,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           ? markedAngles[1]!
           : values.length === 4 ? spaceAcuteAngle(values[2], values[3]) ?? acuteAngleBetween(asLine(values[2]), asLine(values[3])) : NaN;
         if (!Number.isFinite(firstAngle) || !Number.isFinite(secondAngle)) break;
+        measured = { degrees: [roundMeasured(firstAngle * 180 / Math.PI), roundMeasured(secondAngle * 180 / Math.PI)] };
         residual = Math.abs(firstAngle - secondAngle);
         passed = residual < tolerance(assertion);
         break;
@@ -2241,13 +2250,33 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         // A world angle mark carries the angle it draws, so it can be proved alone.
         const markedWorldAngle = values.length === 1 ? spaceMarkedAngle(values[0]) : null;
         if (markedWorldAngle !== null) {
+          measured = { degrees: roundMeasured(markedWorldAngle * 180 / Math.PI) };
           residual = Math.abs(markedWorldAngle - expectedAngleRadians(assertion.expected));
           passed = residual < angularTolerance(assertion);
           break;
         }
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
-        residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
+        const acute = spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]));
+        residual = Math.abs(acute - expectedAngle);
+        // The angle the comparison reads, reported when the assertion fails.
+        let reading = acute;
+        // With verified parts, the claim is checked against the angle the
+        // figure actually forms: two directed vectors form one angle in
+        // [0, 180]; two undirected lines form both an angle and its supplement.
+        if (isVerifiedPartsEnabled(document) && spaceAcuteAngle(values[0], values[1]) === null) {
+          const directed = (value: Geometry | undefined) => value?.kind === "path" && value.directed === true;
+          const alternative = directed(values[0]) && directed(values[1])
+            ? directedAngleBetween(asLine(values[0]), asLine(values[1]))
+            : !directed(values[0]) && !directed(values[1]) ? Math.PI - acute : acute;
+          if (Math.abs(alternative - expectedAngle) < residual) reading = alternative;
+          residual = Math.min(residual, Math.abs(alternative - expectedAngle));
+          if (directed(values[0]) && directed(values[1])) {
+            residual = Math.abs(alternative - expectedAngle);
+            reading = alternative;
+          }
+        }
+        measured = { degrees: roundMeasured(reading * 180 / Math.PI) };
         passed = residual < angularTolerance(assertion);
         break;
       }
@@ -2322,6 +2351,8 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           return;
         }
         const ratio = numerator / denominator;
+        // Three-decimal rounding hid a 1.0004 ratio that still fails the 0.0001 check.
+        report({ ratio: Number(ratio.toPrecision(8)) });
         residual = Math.abs(ratio - Number(assertion.expected));
         passed = residual < tolerance(assertion);
         break;
@@ -2427,14 +2458,18 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           : null;
         if (sampled) {
           residual = sampledCurveCartesianResidual(sampled, { x: expected.x, y: expected.y }, expected);
+          report({ distanceFromPoint: roundMeasured(residual) });
         } else if (graph) {
           // A piecewise linear graph is read at x by its own vertices; a
           // value outside its time span is not on the graph.
           const y = expected.x >= graph.min && expected.x <= graph.max ? graph.evaluate(expected.x) : Number.NaN;
+          report(Number.isFinite(y) ? { x: expected.x, y: roundMeasured(y) } : { x: expected.x, outsideGraph: [graph.min, graph.max] });
           residual = Number.isFinite(y) ? Math.abs(y - expected.y) : Number.POSITIVE_INFINITY;
         } else {
           const expression = curveExpression(assertion.entities[0], document);
-          residual = Math.abs(expression.evaluate(expected.x) - expected.y);
+          const y = expression.evaluate(expected.x);
+          report({ x: expected.x, y: roundMeasured(y) });
+          residual = Math.abs(y - expected.y);
         }
         passed = residual < tolerance(assertion);
         break;
@@ -2446,6 +2481,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           : isRecord(expected) && typeof expected.x === "number" ? expected.x : null;
         if (x === null) throw new Error("root expected must be x or {x}");
         const expression = curveExpression(assertion.entities[0], document);
+        report({ x, y: roundMeasured(expression.evaluate(x)) });
         residual = Math.abs(expression.evaluate(x));
         passed = residual < tolerance(assertion);
         break;
@@ -2473,7 +2509,61 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
     return;
   }
   if (assertion.expected === false) passed = !passed;
-  if (!passed) issues.push({ code: "assertion_failed", message: assertion.reason ?? `Assertion ${assertion.id} failed`, severity, entityIds: assertion.entities, expected: assertion.expected, residual });
+  if (!passed) {
+    issues.push({
+      code: "assertion_failed",
+      message: assertionFinding(assertion, measured, residual),
+      severity, entityIds: assertion.entities, expected: assertion.expected, residual,
+      ...(measured !== undefined ? { actual: measured } : {}),
+    });
+  }
+}
+
+/** What each predicate checks, in the engine's own terms. */
+const ASSERTION_RULES: Partial<Record<string, string>> = {
+  angle_between: "between two line or vector operands it measures the acute angle (0 to 90 degrees); with verified parts two directed vectors are read from 0 to 180 degrees and two lines also match the supplement; a single world angle-mark operand is read at the angle it draws",
+  equal_angle: "it compares two marked angles, or the acute angles of two line pairs",
+  equal_length: "it compares the lengths of the listed segments or point pairs",
+  distance_ratio: "it compares |first pair| / |second pair| with the expected ratio",
+  function_value: "the curve must pass through the expected point {x, y}",
+  root: "the curve must be zero at the expected x",
+  parallel: "the two operand directions must be parallel",
+  perpendicular: "the two operand directions must be perpendicular",
+  collinear: "the listed points must lie on one line",
+  on: "the point must lie on the support it names",
+  incident: "the point must lie on the support it names",
+  between: "the middle point must lie between the other two",
+  inside: "the first entity must lie inside the second",
+  same_side: "the points must lie on the same side of the line",
+  opposite_direction: "the two directions must point opposite ways",
+  connected: "the listed entities must share endpoints",
+  exists: "every listed entity must be constructed",
+  label_attached: "the label must be attached to its entity",
+};
+
+function roundMeasured(value: number): number {
+  return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
+}
+
+/**
+ * The engine's finding for a failed assertion: which assertion, on which
+ * entities, the rule its predicate checks, what was measured and what was
+ * expected. A candidate-authored reason is quoted as the claim; it never
+ * replaces the finding.
+ */
+function assertionFinding(assertion: SceneAssertion, measured: unknown, residual: number | undefined): string {
+  const rule = ASSERTION_RULES[assertion.predicate] ?? `the ${assertion.predicate} relation must hold`;
+  const negated = assertion.expected === false;
+  const found = negated ? "the relation holds, but the assertion expects it not to"
+    : measured !== undefined ? `measured ${JSON.stringify(measured)}, expected ${JSON.stringify(assertion.expected)}`
+      : residual !== undefined && Number.isFinite(residual) ? `residual ${roundMeasured(residual)}, expected ${JSON.stringify(assertion.expected ?? true)}`
+        : `it does not hold for the constructed geometry`;
+  const limit = typeof assertion.tolerance === "number" ? assertion.tolerance : 1e-4;
+  const gap = residual !== undefined && Number.isFinite(residual)
+    ? ` Difference ${Number(residual.toPrecision(12))}; required under ${limit}.`
+    : "";
+  const claim = assertion.reason ? ` The candidate's claim: "${assertion.reason}".` : "";
+  return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${gap}${claim}`;
 }
 
 function isDerivedDirection(entityId: string | undefined, document: SceneDocument): boolean {
@@ -5295,6 +5385,11 @@ function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(di
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
 function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function directedAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
+  const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
+  const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
+  return Math.acos(Math.max(-1, Math.min(1, firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y)));
+}
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });

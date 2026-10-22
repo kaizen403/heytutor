@@ -50,6 +50,19 @@ for (const yieldPolicy of ["off", "verified_parts"] as const) {
     }
   }
   const matching = structuredClone(rise);
+  // Verified parts require each dimension end to meet other drawn ink. The
+  // operator measures the flight; these points are the ground and the rise foot.
+  // Copy the shared id lists first: the trajectory outputs are that same array.
+  const vx = 20 * Math.cos(30 * Math.PI / 180);
+  const marks = [["range_a", 0, 0], ["range_b", vx * 3, 0], ["height_a", vx, 15], ["height_b", vx, 20]] as const;
+  matching.requiredEntityIds = [...matching.requiredEntityIds];
+  matching.revealGroups[0] = { ...matching.revealGroups[0]!, entityIds: [...matching.revealGroups[0]!.entityIds] };
+  for (const [id, x, y] of marks) {
+    matching.entities.push({ id, kind: "point", role: "measurement end" });
+    matching.constructions.push({ id: `make_${id}`, operator: "point", inputs: { x, y }, outputs: [id] });
+    matching.requiredEntityIds.push(id);
+    matching.revealGroups[0]!.entityIds.push(id);
+  }
   matching.annotations.push({ id: "rise_label", kind: "label", targetIds: ["height"], text: "Δh" });
   check(validateProductionSceneCandidate({ question, turnPlan: plan, candidate: matching as unknown as Record<string, unknown>, yieldPolicy }).valid,
     "matching native measurement annotation remains supported");

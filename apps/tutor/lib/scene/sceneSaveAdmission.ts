@@ -24,6 +24,7 @@ import {
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
   validateProjectileMeasurementPlan,
+  vseprPlanConflict,
   validateTurnPlanSceneProofs,
   validateCircuitTerminalClosure,
   type SceneDocument,
@@ -117,6 +118,8 @@ export function sceneSaveAdmissionFailure(input: {
 }): string | null {
   const { document, question, turnPlan, tier } = input;
   if (turnPlan) {
+    const molecularConflict = vseprPlanConflict(question, turnPlan);
+    if (molecularConflict) return molecularConflict;
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.

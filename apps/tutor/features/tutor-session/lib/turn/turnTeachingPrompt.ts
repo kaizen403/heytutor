@@ -16,6 +16,7 @@ import {
   CODE_LESSON_SYSTEM_PROMPT,
   DSA_EXPLANATION_SYSTEM_PROMPT,
   CONCEPT_LESSON_RUNTIME_ADDON,
+  DERIVATION_ORDER_POLICY,
   FAMILIARITY_ADDONS,
   FAST_MODE_TEACHING_ADDON,
   TUTOR_CONTINUATION_PROMPT,
@@ -215,8 +216,7 @@ ${JSON.stringify({
 })}${assumptions.length > 0 ? `
 PROBLEM CONDITIONS
 The assumptions listed above are proposed modelling conditions, not established facts, extra givens or automatic prerequisites. Check each against the exact question and the applicable law. Keep conditions actually stated by the question as facts; neither a drawing nor a qualitative claim establishes an unstated condition. Do not impose an incidental process assumption on an end result already fixed by the givens.
-Before the first calculation that genuinely depends on a needed unstated assumption, explicitly say "assuming" and explain the condition. Say which requested result is not uniquely determined without that necessary condition; do not invent a dependency just because the plan listed it.
-When giving that dependent answer, say "under that assumption" in the SAME STEP as its numeric value. The answer's [WRITE] row must carry a compact condition too, or follow a row stating it, so the student's saved notes remain conditional. This applies even when some other quantity in the plan is solver-verified. Do not silently drop the condition at the final answer.` : ""}${assumedSymbols.length > 0
+Apply DERIVATION BEFORE RESULTS: introduce each genuinely necessary unstated condition once before its first use, explicitly say "assuming", and write one condition row so the saved notes scope all dependent working and results. Say once which requested result is not uniquely determined without that necessary condition; do not invent a dependency just because the plan listed it. Preserve that scope through the final answer even when other quantities are solver-verified; a new condition starts a new case, not a repeated suffix on each answer.` : ""}${assumedSymbols.length > 0
   ? `
 NOT STATED BY THE QUESTION: ${assumedSymbols.join(", ")}. The question never supplies these; they are illustrative values chosen so the idea can be worked through.
 Never call them given. Say "suppose" or "take, for example" the first time each one is spoken, and [WRITE] that word on the row that carries it. Never present a result computed from them as a fact about the world.`
@@ -326,6 +326,7 @@ const FIGURE_LESSON_FLOW_LINES: readonly RegExp[] = [
   /^A complete metric diagram has already been compiled/,
   /^A source-grounded conceptual representation/,
   /^Read the figure to the student before you calculate/,
+  /^Read the figure's setup before using it:/,
   /^WRITE the left work column/,
   /This figure is what it is/,
   /^The left side of the board is the code editor/,
@@ -497,7 +498,15 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     givenSegments: [],
     lessonBudget: DOUBT_LESSON_BUDGET,
     systemPrompt: `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${DOUBT_CONTINUATION_PROMPT}${codeBoard ? "" : `\n\n${TEACHING_STATEMENT_TRUTH_ADDON}`}\n\n--- this lesson ---\n${runtimeAddon}`,
+    // The doubt's own instruction comes first: a cut off doubt continues the
+    // doubt, not the lesson. Only the derivation order rule is carried over;
+    // the lesson continuation would tell it to finish the whole derivation.
+    continuationPrompt: [
+      DOUBT_CONTINUATION_PROMPT,
+      codeBoard ? "" : DERIVATION_ORDER_POLICY,
+      codeBoard ? "" : TEACHING_STATEMENT_TRUTH_ADDON,
+      `--- this lesson ---\n${runtimeAddon}`,
+    ].filter(Boolean).join("\n\n"),
   };
 }
 
@@ -732,7 +741,12 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ? resolveLessonBudget(lessonQuestion, input.familiarity)
       : DOUBT_LESSON_BUDGET,
     systemPrompt: `${basePrompt}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT}${codeBoard ? "" : `\n\n${TEACHING_STATEMENT_TRUTH_ADDON}`}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: [
+      codeBoard ? "" : basePrompt,
+      afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT,
+      codeBoard ? "" : TEACHING_STATEMENT_TRUTH_ADDON,
+      `--- this lesson ---\n${runtimeAddon}`,
+    ].filter(Boolean).join("\n\n"),
   };
 }
 

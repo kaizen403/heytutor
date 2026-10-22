@@ -105,7 +105,7 @@ const codeLessonAddon =
 /** The lesson flow the figure addon carries, which a doubt must not be given. */
 const LESSON_FLOW = [
   "is being explained as it is revealed",
-  "Read the figure to the student before you calculate with it",
+  "Read the figure's setup before using it:",
   "do not speak a step with the marker parked",
   "This figure is what it is",
   "[ANNOTATE:entity_id] with one of",

@@ -1,0 +1,206 @@
+{
+  "claims": [
+    {
+      "id": "exact-neither-nor",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur has neither two lone pairs nor three lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "formula-neither-nor",
+      "question": "Show the molecular shape of SF4",
+      "claim": "SF4 has neither two lone pairs nor three lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "zero-or-two-excluded",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur has neither zero lone pairs nor two lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "three-or-four-excluded",
+      "question": "Show the molecular shape of SF4",
+      "claim": "SF4 has neither three lone pairs nor four lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "repeated-explicit-not-control",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur does not have two lone pairs and does not have three lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "true-count-first-negated",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur has neither one lone pair nor two lone pairs.",
+      "draw": false
+    },
+    {
+      "id": "true-count-second-negated",
+      "question": "Show the molecular shape of SF4",
+      "claim": "SF4 has neither two lone pairs nor one lone pair.",
+      "draw": false
+    },
+    {
+      "id": "true-count-first-three-alternative",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur has neither one lone pair nor three lone pairs.",
+      "draw": false
+    },
+    {
+      "id": "single-false-negation-control",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur does not have one lone pair.",
+      "draw": false
+    },
+    {
+      "id": "correct-positive-with-rejected-alternative",
+      "question": "Show the molecular shape of SF4",
+      "claim": "Sulfur has one lone pair, not two lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "shared-noun-neither-true",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur has neither two nor three lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "shared-noun-neither-first-false",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur has neither one nor two lone pairs.",
+      "draw": false
+    },
+    {
+      "id": "shared-noun-neither-last-false",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur has neither three nor one lone pair.",
+      "draw": false
+    },
+    {
+      "id": "count-new-predicate-ends-negation",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur has neither two lone pairs nor three lone pairs, and it has one lone pair.",
+      "draw": true
+    },
+    {
+      "id": "foreign-count-owner-not-inherited",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 has neither two lone pairs nor three lone pairs, whereas XeF4 has two lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "new-positive-false-count-must-refuse",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur has neither two lone pairs nor three lone pairs, and it has four lone pairs.",
+      "draw": false
+    },
+    {
+      "id": "not-or-true-alternatives",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur does not have two lone pairs or three lone pairs.",
+      "draw": true
+    },
+    {
+      "id": "shared-noun-foreign-atom-not-central",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "There are neither one nor two lone pairs on each fluorine atom.",
+      "draw": true
+    }
+  ],
+  "requests": [
+    {
+      "id": "exact-lewis-excluded-geometry",
+      "question": "Draw the Lewis structure of water, not its molecular geometry",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "ammonia-lewis-not-shape",
+      "question": "Show the Lewis structure of ammonia, not its molecular shape.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "water-lewis-rather-than-geometry",
+      "question": "Draw the Lewis dot structure of water rather than its molecular geometry.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "water-lewis-explicit-negative-draw",
+      "question": "Draw water's Lewis structure; do not draw the molecular geometry.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "co2-lewis-instead-of-geometry",
+      "question": "Show the Lewis structure of carbon dioxide instead of its molecular geometry.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "water-geometry-not-lewis",
+      "question": "Show the molecular geometry of water, not its Lewis structure.",
+      "requested": true,
+      "lewis": false
+    },
+    {
+      "id": "sf4-shape-not-lewis",
+      "question": "Draw the molecular shape of SF4, not its Lewis structure.",
+      "requested": true,
+      "lewis": false
+    },
+    {
+      "id": "water-both-in-one-clause",
+      "question": "Draw the Lewis structure and molecular geometry of water.",
+      "requested": true,
+      "lewis": false
+    },
+    {
+      "id": "water-lewis-also-geometry",
+      "question": "Draw the Lewis structure of water. Also show its molecular geometry.",
+      "requested": true,
+      "lewis": false
+    },
+    {
+      "id": "water-geometry-rather-than-lewis",
+      "question": "Draw the molecular geometry of water rather than its Lewis structure.",
+      "requested": true,
+      "lewis": false
+    },
+    {
+      "id": "excluded-both-geometry-and-angles",
+      "question": "Draw the Lewis structure of water, not its molecular geometry or its bond angles.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "new-positive-after-exclusion",
+      "question": "Draw the Lewis structure of H2O; do not draw molecular geometry. Also show its molecular shape.",
+      "requested": true
+    },
+    {
+      "id": "not-only-is-not-exclusion",
+      "question": "Draw not only the molecular geometry but also the Lewis structure of H2O.",
+      "requested": true
+    },
+    {
+      "id": "genuine-shape-negated-angles",
+      "question": "Draw the shape of H2O, not the bond angles.",
+      "requested": true
+    },
+    {
+      "id": "method-excluded",
+      "question": "Draw the Lewis structure of water, not using VSEPR.",
+      "requested": false,
+      "lewis": true
+    },
+    {
+      "id": "method-required",
+      "question": "Use VSEPR to show the molecular geometry of H2O.",
+      "requested": true
+    }
+  ]
+}
