@@ -245,7 +245,8 @@ for (const entry of fixture.salvage) {
     const fast = selectFastVerifiedRepresentation({ question: entry.question, turnPlan: gate.turnPlan, problemIR: null, families: gate.families });
     return gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && fast === null;
   };
-  // A salvaged plan goes through ProblemIR like an accepted one; the empty fallback does not.
+  // A salvaged plan goes through ProblemIR like an accepted one (which corrects derived
+  // values only, never the salvaged givens); the empty fallback does not.
   assert.equal(turnPlanRequestsNumericAuthority(entry.question, salvaged, "salvaged"), true, `${entry.id}: the salvaged plan requests ProblemIR`);
   assert.equal(turnPlanRequestsNumericAuthority(entry.question, fallback, "fallback"), false, `${entry.id}: the fallback plan requests no ProblemIR`);
   if (entry.id === "v3/p3c-t1") {

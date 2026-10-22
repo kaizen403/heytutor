@@ -47,9 +47,15 @@ export function turnPlanNeedsNumericAuthority(question: string, plan: TurnPlanV3
 
 /**
  * Whether a turn's plan gets the ProblemIR/solver authority. An accepted plan
- * does, and so does a plan salvaged from rejected lanes: its givens are values
- * no validator accepted, so the solver rechecks them like any other plan. The
- * empty fallback plan has nothing to bind and runs no ProblemIR.
+ * does, and so does a plan salvaged from rejected lanes, so its derived values
+ * are solved from its givens like any other plan's. ProblemIR does not recheck
+ * the salvaged givens themselves: reconcileTurnPlanWithSolver
+ * (scene-engine solverAuthority.ts) corrects derived values only. The guard on
+ * a salvaged given is salvageRejectedTurnPlanV3 in tutor-core: the question
+ * must state its value and unit, and when it states more than one value of
+ * that kind, the question clause around the given's sourceText must name its
+ * owner (the owner rule). The empty fallback plan has nothing to bind and runs
+ * no ProblemIR.
  */
 export function turnPlanRequestsNumericAuthority(
   question: string,

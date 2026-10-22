@@ -1214,7 +1214,8 @@ export function useQuestionHandler(
             salvagedTurnPlan ?? createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
-          // A salvaged plan goes through ProblemIR too: nothing accepted its givens.
+          // A salvaged plan goes through ProblemIR too, which solves its derived values.
+          // Its givens are not rechecked there; the salvage owner rule is their guard.
           const planOrigin = plannedTurn ? "accepted" : salvagedTurnPlan ? "salvaged" : "fallback";
           if (turnPlanRequestsNumericAuthority(question, turnPlan, planOrigin)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
