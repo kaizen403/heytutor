@@ -4870,6 +4870,17 @@ function claimEquivalentMeasuredQuantity(
     canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
+/** Compare a computed result with a plan result's last represented digit.
+ * Numeric plans cannot retain trailing zeroes. Never infer precision from a
+ * different quantity or use this relaxation for authoritative source givens. */
+export function equivalentRoundedMeasuredQuantity(
+  computedValue: number, computedUnit: unknown, plannedValue: number, plannedUnit: unknown,
+): boolean {
+  return numericSign(computedValue) === numericSign(plannedValue) && equivalentDisplayedMeasuredQuantity(
+    computedValue, computedUnit, plannedValue, plannedUnit, displayedNumberTolerance(String(plannedValue)),
+  );
+}
+
 function equivalentDisplayedMeasuredQuantity(
   firstValue: number,
   firstUnit: unknown,
