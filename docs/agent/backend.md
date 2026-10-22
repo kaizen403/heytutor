@@ -28,7 +28,7 @@ routes are Next.js route handlers, plus a custom WebSocket relay in `server.ts`.
 | `/api/admin/users` | `app/api/admin/users/route.ts` | GET | Admin panel user list with activity aggregates (`query`, `sort`, `page`, `pageSize`) |
 | `/api/admin/users/[userId]` | `app/api/admin/users/[userId]/route.ts` | GET | Admin panel user drill-down: profile, settings, boards, turns, chat, spend |
 | `/api/admin/turns` | `app/api/admin/turns/route.ts` | GET | Admin panel turn log (`outcome`, `userId`, `boardId`, `query`, `days`, pagination) |
-| `/api/admin/coverage` | `app/api/admin/coverage/route.ts` | GET | Saved lesson figure coverage and empty-reason totals by subject/chapter over a UTC `from`/`to` window; no source text. [Definitions and read-only CLI](../ops/production-coverage.md) |
+| `/api/admin/coverage` | `app/api/admin/coverage/route.ts` | GET | Saved lesson figure coverage and empty-reason totals by subject/chapter over a UTC `from`/`to` window. One query per process; over 5,000 lessons, the newest 5,000 with `scan.truncated`. No source text. [Definitions and read-only CLI](../ops/production-coverage.md) |
 
 All `/api/admin/*` routes gate on `requireAdminRequest()` (staff/admins only
 once the login gate is on; open only while `AUTH_DISABLED=1` for local testing)
