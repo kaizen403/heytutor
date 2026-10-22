@@ -16,6 +16,7 @@ const awaitCurrentTurn = handler.statements.find((node) =>
 if (!awaitCurrentTurn || !ts.isFunctionDeclaration(awaitCurrentTurn)) {
   throw new Error("the production turn-continuation guard must exist");
 }
+const turnGuard = awaitCurrentTurn;
 const start = handlerText.indexOf("const turnPlanStartedAt = Date.now();");
 const end = handlerText.indexOf("tel.meta({ diagram_subject: diagramSubject });");
 assert.ok(start >= 0 && end > start, "the production planner outcome block must exist");
@@ -55,7 +56,7 @@ async function runStoppedPlan(fetchImpl: typeof fetch): Promise<{ telemetry: Ret
     subjectFromRejectedTurnPlanOutcomes: () => "other",
     tel: { span: () => ({ end() {} }), meta() {}, mark() {} },
   });
-  const source = `${awaitCurrentTurn.getText(handler)}\n(async () => {\n${block}\n})()`;
+  const source = `${turnGuard.getText(handler)}\n(async () => {\n${block}\n})()`;
   let error: unknown;
   try {
     await new Script(compile(source), { filename: "live-turn-plan-outcome.cjs" }).runInContext(context);
