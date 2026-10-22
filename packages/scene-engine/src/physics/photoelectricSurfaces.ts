@@ -1,0 +1,445 @@
+/** A single-threshold figure must not borrow another illuminated material's value. */
+import { elementByName, resolveElement } from "../chemistry/elements";
+import { CHEMISTRY_SCALAR_PATTERN, chemistryCanonicalValuesAgree, readChemistryQuantityDeclaration } from "../chemistry/quantityReader";
+import { photonEnergyEvFromFrequencyHz, photonEnergyEvFromWavelengthMetres } from "./photonEnergy";
+
+const SURFACE_NOUN = "metal|surface|plate|sheet|foil|cathode|anode|emitter|electrode|target|sample|collector";
+const LABEL = /^(?:[A-Z][A-Z0-9]*|\d+)$/;
+
+/** One nominal argument, never an open-ended scan across an unknown predicate. */
+function surfaceArgument(body: string, start: number): { kind: "material" | "source" | "other"; elements: Set<string>; end: number } {
+  const tail = body.slice(start);
+  const elements = new Set<string>();
+  let kind: "material" | "source" | "other" | null = null;
+  let end = 0;
+  for (const token of tail.matchAll(/\b[A-Za-z0-9]+\b/g)) {
+    if (/[.;!?,\n]/.test(tail.slice(end, token.index))) break;
+    const word = token[0];
+    const element = resolveElement(word);
+    if (element) { elements.add(`element:${element.symbol}`); end = token.index! + word.length; continue; }
+    if (/^(?:lamps?|lights?|radiation|vapou?rs?|arcs?|lines?|spectr(?:um|a)|lasers?|beams?|photons?|discharges?|tubes?)$/i.test(word)) {
+      kind ??= "source";
+    } else if (new RegExp(`^(?:${SURFACE_NOUN})s?$`, "i").test(word)) {
+      kind = "material";
+    } else if (kind === "material" && LABEL.test(word)) {
+      end = token.index! + word.length;
+      break;
+    } else if (!/^(?:a|an|the|one|two|another|other|second|different|distinct|separate|thin|thick|clean|smooth|freshly|polished|bright|bare|flat|solid|metallic|alkali|gas|ultraviolet|visible|monochromatic|atoms?)$/i.test(word)) break;
+    end = token.index! + word.length;
+  }
+  return { kind: kind ?? (elements.size ? "material" : "other"), elements, end: start + end };
+}
+
+/** A source-governed element is excluded only inside a radiation noun phrase.
+ * The named target check below still takes precedence over this source role. */
+function radiationSourceArgument(body: string, start: number): boolean {
+  for (const connector of body.matchAll(/\b(?:(?:emitted|produced|released)\s+by|from)\s+/gi)) {
+    const argumentStart = connector.index! + connector[0].length;
+    if (start < argumentStart || start >= surfaceArgument(body,argumentStart).end) continue;
+    const prefix = body.slice(0,connector.index!);
+    for (const particle of prefix.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
+      const begin = particle.index! + particle[0].length;
+      const end = connector.index!;
+      const attribute = prefix.slice(begin,end);
+      if (!attribute.trim()) return true;
+      const role = /^\s+of\s+(?:photon\s+)?(energy|frequency|wavelength)\b/i.exec(attribute);
+      if (!role) continue;
+      const dimension = role[1]!.toLowerCase() === "energy" ? "energy"
+        : role[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+      const read = readChemistryQuantityDeclaration({question:body,
+        within:{start:begin+role[0].length,end},after:/^/,
+        owner:"radiation source noun-phrase attribute",dimension});
+      // A target made from a material is not the radiation's source.
+      if (read.state === "valid" && !body.slice(read.reading.source.span.end,end).trim()) return true;
+    }
+  }
+  return false;
+}
+
+/** A source-class noun can also own a threshold or a relative predicate.
+ * An embedded source NP does not own its enclosing radiation's predicate;
+ * nominal source subjects separately require a proved source operation. */
+function sourceHasMaterialRole(body: string, argumentEnd: number): boolean {
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  // Modifiers belong to this immediate possessed noun head, never to a
+  // later material reached through an intervening predicate/preposition.
+  if (/^\s*(?:(?:has|have|had|with|of|whose)\s+|['’]s\s+)(?:(?!(?:of|from|for|on|onto|in|at|to|by|with|and|but|while|whereas|is|are|was|were)\b)[A-Za-z0-9.+−^*×-]+\s+)*work functions?\b/i.test(tail)) return true;
+  if (/^\s*,?\s*(?:that|which)\b/i.test(tail) && !radiationSourcePredicates(tail.replace(/^\s*,\s*/, ""))) return true;
+  return false;
+}
+
+/** The source NP must be governed as a source; its usual purpose is no proof.
+ * Coordinated unknown predicates cannot disappear behind an emitting one. */
+function nominalRadiationSource(body: string, start: number, argumentEnd: number): boolean {
+  for (const cue of body.matchAll(/\b(?:illuminated|irradiated)\s+by\s+/gi)) {
+    const argumentStart = cue.index! + cue[0].length;
+    if (start >= argumentStart && start < surfaceArgument(body,argumentStart).end) return true;
+  }
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  return radiationSourcePredicates(tail);
+}
+
+function radiationSourcePredicates(tail: string): boolean {
+  return tail.split(/\b(?:and|but|while|whereas)\b|,/i).every(predicate => {
+    const operation = /^\s*(?:(?:that|which)\s+)?(?:(?:in|at)\s+(?:(?!(?:and|but|while|whereas)\b)[A-Za-z]+\s+)+)?(emits?|produces?|releases?|supplies?|provides?|illuminates?)\s+(.+)$/i.exec(predicate);
+    if (!operation) return false;
+    if (/^illuminates?$/i.test(operation[1]!)) return true;
+    const object = operation[2]!;
+    if (/^(?:(?:a|an|the)\s+)?(?:(?:ultraviolet|visible|monochromatic)\s+)*(?:photons?|light|radiation|beams?)\b/i.test(object)) return true;
+    const emissionChannel = /^(?:(?:(?:a|the)\s+)?(?:spectral\s+)?line\s+)?at\s+/i;
+    if (!/^emits?$/i.test(operation[1]!) || !emissionChannel.test(object)) return false;
+    return (["length","frequency"] as const).some(dimension => {
+      const read = readChemistryQuantityDeclaration({question:object,after:emissionChannel,
+        owner:"stated radiation-source emission channel",dimension});
+      return read.state === "valid" && read.reading.value > 0 && read.reading.source.span.end === object.trimEnd().length;
+    });
+  });
+}
+
+/** A material-qualified radiation NP ("sodium light") is itself light,
+ * unlike a lamp. Prove its supplied channel and transport to a named target. */
+function transportedRadiationArgument(body: string, start: number, argumentEnd: number): boolean {
+  if (!/\b(?:light|radiation|photons?|beams?)\s*$/i.test(body.slice(start,argumentEnd))) return false;
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  const transport = /^(.*?)\s+(?:falls?\s+(?:on|onto)|(?:is|are)\s+incident\s+on|strikes?|hits?|illuminates?)\s+(.+)$/i.exec(tail);
+  if (!transport || surfaceArgument(transport[2]!,0).elements.size === 0) return false;
+  const attribute = /^(?:of|with)\s+(?:photon\s+)?(energy|frequency|wavelength)\s+(.+)$/i.exec(transport[1]!.trim());
+  if (!attribute) return false;
+  const dimension = attribute[1]!.toLowerCase() === "energy" ? "energy"
+    : attribute[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+  return completeQuantity(attribute[2]!,dimension);
+}
+
+/** Parallel samples can omit the repeated material/work-function noun. Bind a
+ * bare parallel value through the shared quantity reader, never photon prose. */
+function ellipticalWorkFunctionOwner(body: string): boolean {
+  const stated = readChemistryQuantityDeclaration({question:body,
+    after:/\bwork functions?(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/i,
+    owner:"photoelectric sample work function",dimension:"energy",targetUnit:"eV",allowAgreeingRepeats:true});
+  const thresholds = stated.occurrences.flatMap(occurrence => occurrence.read.ok ? [occurrence.read.reading] : []);
+  for (const cue of body.matchAll(/\b(?:another|other|second(?:\s+one)?|latter|former)\b/gi)) {
+    if (thresholds.length > 1) return true;
+    if (!thresholds.some(reading => reading.source.span.end <= cue.index!)) continue;
+    const start = cue.index! + cue[0].length;
+    const tail = body.slice(start);
+    const parallelRole = /^\s*(?:one\s+)?(?:(?:has|have|had|is|are|was|were|=)\s*)?(?:(?:a|an|the)\s+)?(?:(?:unknown|unreadable|undefined)\s+)?work functions?\b/i;
+    if (parallelRole.test(tail)) return true;
+    const payload = new RegExp(`^\\s*(?:one\\s+)?(?:(?:has|have|had|is|are|was|were|=)\\s*)?(?:(?:a|an|the)\\s+)?(${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|undefined)`, "i").exec(tail);
+    if (!payload) continue;
+    const scalarStart = start + payload[0].lastIndexOf(payload[1]!);
+    const read = readChemistryQuantityDeclaration({question:body,after:/^/,
+      within:{start:scalarStart,end:body.length},owner:"parallel sample work function",dimension:"energy",targetUnit:"eV"});
+    // A supplied-invalid parallel threshold is still a second owner; it
+    // cannot disappear and let the first sample lend its readable value.
+    if (read.state !== "absent") return true;
+  }
+  return false;
+}
+
+/** A nominal argument identifies a sample, not just its material class. */
+interface CollectorReference {
+  kind: "named" | "definite" | "indefinite" | "pronoun";
+  identity?: string;
+}
+function collectorReference(argument: string): CollectorReference | null {
+  const original = argument.trim();
+  if (/^it$/i.test(original)) return {kind:"pronoun"};
+  const article = /^(a|an|the)\s+/i.exec(original);
+  const value = original.slice(article?.[0].length ?? 0);
+  const noun = /\bcollector\b/i.exec(value);
+  if (!noun) return null;
+  const head = value.slice(0,noun.index).trim();
+  const material = head ? resolveElement(head) : null;
+  if (head && !material) return null;
+  const label = value.slice(noun.index+noun[0].length).trim();
+  if (label && !LABEL.test(label)) return null;
+  if (label || material) return {kind:"named",identity:label ? `generic:${label}` : `element:${material!.symbol}`};
+  return {kind:article && /^(?:a|an)$/i.test(article[1]!) ? "indefinite" : "definite"};
+}
+
+function completeQuantity(argument: string, dimension: "energy" | "frequency" | "length"): boolean {
+  const read = readChemistryQuantityDeclaration({question:argument,after:/^/,
+    owner:"collector role attribute",dimension});
+  return read.state === "valid" && read.reading.value > 0
+    && read.reading.source.span.end === argument.trimEnd().length;
+}
+
+type ParticleKind = "electron" | "photon";
+function particleKind(argument: string): ParticleKind | null {
+  const value = argument.trim().replace(/^(?:(?:only|the|a|an|emitted|ejected)\s+)*/i, "");
+  if (/^(?:photo)?electrons?$/i.test(value)) return "electron";
+  if (/^(?:photons?|light|radiation)$/i.test(value)) return "photon";
+  const supplied = /^(?:photons?|light|radiation)\s+of\s+(?:photon\s+)?(energy|frequency|wavelength)\s+(.+)$/i.exec(value);
+  if (!supplied) return null;
+  const dimension = supplied[1]!.toLowerCase() === "energy" ? "energy"
+    : supplied[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+  return completeQuantity(supplied[2]!,dimension) ? "photon" : null;
+}
+
+interface CollectorRole { kind: "receiver" | "photon_target" | "threshold_owner"; identity: string }
+interface CollectorPredicate { kind: CollectorRole["kind"]; reference: CollectorReference }
+
+/** A coordinated predicate keeps its subject; particle noun lists do not. */
+function collectorPredicates(reference: CollectorReference, predicate: string): CollectorPredicate[] | null {
+  const parts = predicate.split(/\s+and\s+(?=(?:receives?|collects?|(?:is|are|was|were)\s|(?:has|have)\s))/i);
+  const roles: CollectorPredicate[] = [];
+  for (const part of parts) {
+    const owns = /^(?:has|have)\s+(?:(?:a|the)\s+)?work functions?\s+(.+)$/i.exec(part);
+    if (owns && completeQuantity(owns[1]!,"energy")) { roles.push({kind:"threshold_owner",reference}); continue; }
+    const receiving = /^(?:receives?|collects?)\s+(.+)$/i.exec(part);
+    const particles = receiving ? particleKind(receiving[1]!) : null;
+    if (particles) { roles.push({kind:particles === "electron" ? "receiver" : "photon_target",reference}); continue; }
+    const illuminated = /^(?:(?:is|are|was|were)(?:\s+being)?|(?:has|have)\s+been(?:\s+being)?)\s+(?:illuminated|irradiated)(?:\s+by\s+(.+))?$/i.exec(part);
+    if (illuminated && (!illuminated[1] || particleKind(illuminated[1]) === "photon")) {
+      roles.push({kind:"photon_target",reference}); continue;
+    }
+    return null;
+  }
+  return roles;
+}
+function collectorClauseRoles(clause: string): CollectorPredicate[] | null {
+  const value = clause.trim();
+  const reverseOwner = /^(?:the\s+)?work functions?\s+of\s+(.+?)\s+(?:is|are|=)\s*(.+)$/i.exec(value);
+  if (reverseOwner) {
+    const reference = collectorReference(reverseOwner[1]!);
+    if (reference && completeQuantity(reverseOwner[2]!,"energy")) return [{kind:"threshold_owner",reference}];
+  }
+  const attributed = /^(.+?)\s+with\s+(?:(?:a|the)\s+)?work functions?\s+(.+?)\s+((?:is|are|was|were)\s+.+)$/i.exec(value);
+  if (attributed) {
+    const reference = collectorReference(attributed[1]!);
+    const predicates = reference ? collectorPredicates(reference,attributed[3]!) : null;
+    if (reference && predicates && completeQuantity(attributed[2]!,"energy")) return [{kind:"threshold_owner",reference},...predicates];
+  }
+  const subject = /^(.+?)\s+((?:has|have|receives?|collects?|is|are|was|were)\s+.+)$/i.exec(value);
+  if (subject) {
+    const reference = collectorReference(subject[1]!);
+    if (reference) return collectorPredicates(reference,subject[2]!);
+  }
+  const transport = /^(.+?)\s+(?:reach(?:es)?|hits?|strikes?|arrives?\s+at|travels?\s+to|moves?\s+to|flows?\s+to|go(?:es)?\s+to|falls?\s+on|(?:is|are)\s+incident\s+on|(?:is|are)\s+(?:collected|received)\s+by)\s+(.+)$/i.exec(value);
+  if (transport) {
+    const particles = particleKind(transport[1]!);
+    const reference = collectorReference(transport[2]!);
+    if (reference && particles) return [{kind:particles === "electron" ? "receiver" : "photon_target",reference}];
+  }
+  return null;
+}
+
+/** Resolve only proved references. An indefinite collector introduces a sample;
+ * a definite/pronominal reference needs one compatible existing collector. */
+function collectorRoles(body: string, identities: Set<string>, labelBindings: Map<string,string>): CollectorRole[] | null {
+  const roles: CollectorRole[] = [];
+  const collectors = new Set<string>();
+  const bound = (identity: string) => identity.startsWith("generic:")
+    ? labelBindings.get(identity.slice("generic:".length)) ?? identity : identity;
+  const resolved = new Map<CollectorReference,string>();
+  for (const clause of body.split(/[;!?\n]|\.(?=\s|$)/)) {
+    // A pure diagram request supplies no factual collector role. Extra
+    // predicates (including illumination) must still pass the role audit.
+    if (/^\s*(?:draw|show|label)\s+it\s*$/i.test(clause)) continue;
+    if (!/\bcollectors?\b|\bit\b/i.test(clause)) continue;
+    const predicates = collectorClauseRoles(clause);
+    if (!predicates) return null;
+    for (const predicate of predicates) {
+      const reference = predicate.reference;
+      let identity = resolved.get(reference);
+      if (!identity) {
+        if (reference.kind === "named") identity = bound(reference.identity!);
+        else if (reference.kind === "indefinite") identity = `collector:${collectors.size+1}`;
+        else {
+          if (collectors.size > 1 || reference.kind === "pronoun" && collectors.size !== 1) return null;
+          identity = [...collectors][0] ?? "collector:1";
+          if (reference.kind === "pronoun" && [...identities].some(sample => bound(sample) !== identity)) return null;
+        }
+        resolved.set(reference,identity);
+        collectors.add(identity);
+      }
+      roles.push({kind:predicate.kind,identity});
+    }
+  }
+  return roles;
+}
+
+interface SurfaceScope { multiple: boolean; restored: boolean }
+
+function photoelectricSurfaceScope(question: string): SurfaceScope {
+  let restored = false;
+  const options = /\boptions?\s*:|\(a\)\s+[^()]{3,}\(b\)/i.exec(question);
+  const body = question.slice(0, options?.index ?? question.length);
+  if (ellipticalWorkFunctionOwner(body)) return {multiple:true,restored};
+  const suppliedMaterial = /\b\d+(?:\.\d+)?\s*(?:eV|J|Hz|nm)\b|\b(?:unknown|unreadable|undefined)\b/i.test(body);
+  for (const cue of body.matchAll(/\b(another|other|second|two|multiple|different|distinct|separate)\b/gi)) {
+    // A general comparison between metal classes supplies no second sample.
+    if (/^(?:different|distinct|separate)$/i.test(cue[1]!) && !suppliedMaterial) continue;
+    if (surfaceArgument(body, cue.index! + cue[0].length).kind === "material") return {multiple:true,restored};
+  }
+  const passiveIllumination = /^\s+(?:(?:is|are|was|were)(?:\s+being)?|(?:has|have|had)\s+been(?:\s+being)?|(?:can|could|may|might|will|would|shall|should|must)\s+(?:be|have\s+been)(?:\s+being)?)\s+(?:illuminated|irradiated)\b/i;
+  const identities = new Set<string>();
+  const genericSpans: Array<{ start: number; end: number }> = [];
+  const generic = new RegExp(`\\b(?:${SURFACE_NOUN})s?\\s+([A-Za-z0-9]+)(?:\\s*(?:,|and|or|aur)\\s*([A-Za-z0-9]+))?\\b`, "gi");
+  const genericMatches = [...body.matchAll(generic)];
+  const labelBindings = new Map<string,string>();
+  for (const match of genericMatches) {
+    // Only an immediately adjacent material head proves an alias. A remote
+    // sodium mention cannot identify an otherwise anonymous plate A.
+    const head = /\b([A-Za-z]+)\s+$/.exec(body.slice(0,match.index));
+    const material = head ? resolveElement(head[1]!) : null;
+    if (!material) continue;
+    for (const label of match.slice(1)) {
+      if (!label || !LABEL.test(label)) continue;
+      const identity = `element:${material.symbol}`;
+      const prior = labelBindings.get(label);
+      if (prior && prior !== identity) return {multiple:true,restored};
+      labelBindings.set(label,identity);
+    }
+  }
+  // Labels identify samples, so A and B remain two samples even when both
+  // samples consist of sodium. A material alias never coalesces these labels.
+  if (labelBindings.size > 1) return {multiple:true,restored};
+  for (const match of genericMatches) {
+    for (const label of match.slice(1)) {
+      if (!label || !LABEL.test(label)) continue;
+      const binding = labelBindings.get(label);
+      const element = resolveElement(label);
+      const originalIdentity = element ? `element:${element.symbol}` : `generic:${label}`;
+      identities.add(binding ?? originalIdentity);
+      restored ||= binding !== undefined && binding !== originalIdentity;
+      const at = match.index! + match[0].indexOf(label);
+      genericSpans.push({ start: at, end: at + label.length });
+    }
+  }
+  // An unresolved parallel work-function owner cannot inherit the first value.
+  for (const match of body.matchAll(/\bthat of\s+(?:the\s+)?([A-Za-z]+)\b/gi)) {
+    const sentence = body.slice(0, match.index!).split(/[.!?](?:\s|$)/).at(-1)!;
+    if (!/\bwork functions?\b[\s\S]*(?:[;,]|\b(?:and|while|whereas|but))\s*$/i.test(sentence)) continue;
+    if (!resolveElement(match[1]!)) return {multiple:true,restored};
+  }
+  const tokens = [...body.matchAll(/\b[A-Za-z]+\b/g)];
+  const targets = new Set<string>();
+  const thresholdOwners = new Set<string>();
+  for (const cue of body.matchAll(/\bwork functions?\s+(?:of|for)\s+/gi)) {
+    for (const identity of surfaceArgument(body, cue.index! + cue[0].length).elements) thresholdOwners.add(identity);
+  }
+  for (const cue of body.matchAll(/\b(?:(?:falls?|incident|shone)\s+(?:on|onto)|(?:directed|aimed)\s+at|strikes?|hits?|illuminates?)\s+/gi)) {
+    const argument = surfaceArgument(body, cue.index! + cue[0].length);
+    for (const identity of argument.elements) targets.add(identity);
+  }
+  for (const match of tokens) {
+    if (!resolveElement(match[0])) continue;
+    const argument = surfaceArgument(body, match.index!);
+    if (passiveIllumination.test(body.slice(argument.end))) {
+      for (const identity of argument.elements) targets.add(identity);
+    }
+  }
+  const unresolvedTarget = /\b(?:latter|former)\b|\b(?:on|onto|at)\s+(?:it|this|that)\b/i.test(body);
+  for (const match of tokens) {
+    const at = match.index!;
+    if (genericSpans.some(span => at >= span.start && at < span.end)) continue;
+    const token = match[0];
+    const element = resolveElement(token);
+    if (!element) continue;
+    const before = body.slice(0, at);
+    const after = body.slice(at + token.length);
+    // Material ownership/receiving roles outrank the usual role of a lamp,
+    // spectral line or discharge. Source-class names alone prove no target.
+    const argument = surfaceArgument(body, at);
+    const materialRole = thresholdOwners.has(`element:${element.symbol}`) || sourceHasMaterialRole(body, argument.end);
+    const photonSource = !materialRole && (radiationSourceArgument(body,at)
+      || argument.kind === "source" && (nominalRadiationSource(body,at,argument.end)
+        || transportedRadiationArgument(body,at,argument.end)));
+    if (photonSource && !targets.has(`element:${element.symbol}`)) continue;
+    if (/^lead$/i.test(token) && /\b(?:can|could|may|might|will|would|shall|should|must|to)\s+$/i.test(before)) continue;
+    // A bare qualitative comparison does not introduce a second sample/value.
+    if (/\b(?:lower|higher|less|greater|smaller|larger)\s+than\s+(?:that\s+of\s+)?$/i.test(before)
+      && /^\s*(?:[.!?]|$)/.test(after) && !unresolvedTarget
+      && targets.size === 1 && !targets.has(`element:${element.symbol}`)) continue;
+    if (!elementByName(token)) {
+      // A capitalised symbol must occupy a material role; 300 K and prose In do not.
+      if (new RegExp(`\\b(?:${SURFACE_NOUN})\\s+$`, "i").test(before)) {
+        identities.add(`element:${element.symbol}`);
+        continue;
+      }
+      const owner = token.length > 1 && !/^(?:He|As|In|At|No|Be|Am)$/.test(token)
+        || /\b(?:of|for|on|at)\s+(?:the\s+)?$/i.test(before)
+        || /^\s+(?:(?:has|have)\s+(?:a\s+)?)?work functions?\b/i.test(after)
+        || /^\s+[\d.]+\s*eV\b/.test(after)
+        || /^(?:\s*(?:,|and|or)\s+[A-Z][a-z]?)+\s+(?:has|have)\s+work functions?\b/i.test(after)
+        || /(?:\b(?:and|or)|,)\s*$/.test(before) && /^\s+(?:has|have)\s+work functions?\b/i.test(after);
+      if (!owner) continue;
+    }
+    identities.add(`element:${element.symbol}`);
+  }
+  if (/\bcollectors?\b/i.test(body)) {
+    const roles = collectorRoles(body,identities,labelBindings);
+    if (!roles) return {multiple:true,restored};
+    // Electron sinks supply no second threshold. An illuminated collector
+    // instead needs its own unique threshold, not another material's value.
+    if (!roles.every(role => role.kind === "receiver")) {
+      const owners = roles.filter(role => role.kind === "threshold_owner");
+      const boundIdentity = (identity: string) => identity.startsWith("generic:")
+        ? labelBindings.get(identity.slice("generic:".length)) ?? identity : identity;
+      const ownerIds = new Set(owners.map(owner => boundIdentity(owner.identity)));
+      const owner = [...ownerIds][0];
+      const allThresholdsOwned = owners.length === [...body.matchAll(/\bwork functions?\b/gi)].length;
+      if (!owner || ownerIds.size !== 1 || !allThresholdsOwned
+        || !roles.some(role => role.kind === "photon_target")
+        || /\bemitters?\b/i.test(body)
+        || roles.some(role => boundIdentity(role.identity) !== owner)) return {multiple:true,restored};
+      identities.add(owner);
+    }
+    restored = true;
+  }
+  return {multiple:identities.size > 1,restored};
+}
+
+/** Restored sample identities require a complete source-bound energy model.
+ * The radiation reader owns photon channels and constants, including derived E. */
+export function sourcePhotoelectricSurfaceScopeHolds(question: string, completeSource: boolean): boolean {
+  const scope = photoelectricSurfaceScope(question);
+  return !scope.multiple && (!scope.restored || completeSource);
+}
+
+export function multiplePhotoelectricSurfaces(question: string): boolean {
+  return photoelectricSurfaceScope(question).multiple;
+}
+
+/** Newly identified samples may not expose a loose parser's borrowed value.
+ * Existing single-surface behavior stays on its original numeric reader. */
+export function restoredPhotoelectricInputsValid(question: string, actualPhi: number | null, actualPhoton: number | null): boolean {
+  const scope = photoelectricSurfaceScope(question);
+  if (scope.multiple) return false;
+  if (!scope.restored) return true;
+  const agrees = (value: number): boolean => actualPhi !== null && value > 0
+    && chemistryCanonicalValuesAgree(value,actualPhi);
+  const stated = readChemistryQuantityDeclaration({question,
+    after:/\bwork functions?(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/i,
+    owner:"identified photoelectric sample work function",dimension:"energy",targetUnit:"eV",allowAgreeingRepeats:true});
+  if (stated.state !== "valid" || !agrees(stated.reading.value)) return false;
+  // A parallel same-material owner is another supplied threshold occurrence.
+  // An unrelated 'that of an electron' comparison is not a work-function cue.
+  for (const match of question.matchAll(/\bthat of\s+(?:the\s+)?([A-Za-z]+)\b/gi)) {
+    const sentence = question.slice(0,match.index).split(/[.!?](?:\s|$)/).at(-1)!;
+    if (!/\bwork functions?\b[\s\S]*(?:[;,]|\b(?:and|while|whereas|but))\s*$/i.test(sentence)) continue;
+    const read = readChemistryQuantityDeclaration({question,after:/^/,
+      within:{start:match.index!+match[0].length,end:question.length},
+      owner:"parallel identified sample work function",dimension:"energy",targetUnit:"eV"});
+    if (read.state !== "valid" || !agrees(read.reading.value)) return false;
+  }
+  // Every explicitly supplied photon channel must agree with the energy the
+  // caller will draw. Absence cannot authorize the physics generator's default;
+  // unread energy cannot disappear into a frequency/wavelength fallback.
+  const energy = readChemistryQuantityDeclaration({question,
+    after:/\b(?:photon energy|photons? of energy|energy of (?:the )?photons?)\b/i,
+    owner:"incident photon energy",dimension:"energy",targetUnit:"eV",allowAgreeingRepeats:true});
+  const frequency = readChemistryQuantityDeclaration({question,after:/\bfrequency\b/i,
+    owner:"incident photon frequency",dimension:"frequency",targetUnit:"Hz",allowAgreeingRepeats:true});
+  const wavelength = readChemistryQuantityDeclaration({question,after:/\bwavelength\b/i,
+    owner:"incident photon wavelength",dimension:"length",targetUnit:"m",allowAgreeingRepeats:true});
+  if ([energy,frequency,wavelength].some(read => read.state === "invalid")) return false;
+  const candidates = [
+    energy.state === "valid" ? energy.reading.value : null,
+    frequency.state === "valid" ? photonEnergyEvFromFrequencyHz(frequency.reading.value) : null,
+    wavelength.state === "valid" ? photonEnergyEvFromWavelengthMetres(wavelength.reading.value) : null,
+  ].filter((value): value is number => value !== null);
+  return actualPhoton !== null && candidates.length > 0 && candidates.every(value => value > 0
+    && chemistryCanonicalValuesAgree(value,actualPhoton));
+}

@@ -8,6 +8,7 @@
  * an ionic radius in pm, or a bond length is written only when this module is
  * not inventing it. Ionic radii are not read from the covalent-radius table.
  */
+import { molecularOverlapRequested } from "./semanticCues";
 import type { SceneDocument } from "../types";
 import { elementBySymbol, isMetal, valenceElectrons, type ElementRecord } from "./elements";
 import { electronConfiguration } from "./electronConfiguration";
@@ -115,8 +116,7 @@ export function ionicTransferAsked(stem: string): boolean {
 }
 
 export function overlapAsked(stem: string): boolean {
-  if (/collision|projectile|elastic/.test(stem)) return false;
-  return /orbital overlap|head-?on|sideways overlap|end-?on overlap|axial overlap|lateral overlap/.test(stem);
+  return molecularOverlapRequested(stem);
 }
 
 export function topologyAsked(stem: string): boolean {

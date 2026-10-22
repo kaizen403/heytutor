@@ -1,0 +1,22 @@
+[
+  {
+    "id": "missing-multiply-0",
+    "question": "The equilibrium constant K = 3.2 10⁻¹⁵ at 300 K.",
+    "valid": false
+  },
+  {
+    "id": "missing-multiply-1",
+    "question": "The equilibrium constant K = 3.2 10^-15 at 300 K.",
+    "valid": false
+  },
+  {
+    "id": "missing-multiply-2",
+    "question": "The equilibrium constant K = 3.2 10¹⁵ at 300 K.",
+    "valid": false
+  },
+  {
+    "id": "missing-multiply-3",
+    "question": "The equilibrium constant K = 3.2 10^15 at 300 K.",
+    "valid": false
+  }
+]

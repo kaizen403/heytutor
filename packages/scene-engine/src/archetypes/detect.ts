@@ -14,6 +14,7 @@
  * or teaches text-only), and (c) the cue tables are exercised as a test
  * oracle by the archetype picture gate rather than grown per question.
  */
+import { readRadiationSource, requestedPhotoelectricResult } from "../physics/radiationSource";
 import { riverCrossingSpeeds } from "../physics/riverCrossingSource";
 import { riverBoatVariant } from "../synthesize/familyClassification";
 import { levelRelationSource } from "../physics/levelRelationSource";
@@ -1679,6 +1680,22 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
       }
+    }
+  }
+
+  // Fresh source truth can break a lexical tie only for its requested result.
+  // Real planner/IR geometry and the ordinary catalog requirements stay prior.
+  const radiation = readRadiationSource(question);
+  if (bonus.size === 0 && radiation.status === "source" && radiation.model.kind === "photoelectric"
+    && requestedPhotoelectricResult(question)) {
+    const set = CUE_SET_BY_ID.get("photoelectric");
+    const candidate = set ? scoreCueSet(set, stem, bonus) : null;
+    if (candidate && candidate.score >= (candidate.set.minScore ?? 2)) {
+      const bag = fillSlots(candidate.set, stem, plan);
+      if (requiredSlotsPresent(candidate.set.id, bag)) return {
+        id: candidate.set.id, slots: bag.values, sources: bag.sources, score: candidate.score,
+        runnerUp: null, evidence: [...candidate.evidence, "complete source photoelectric state"],
+      };
     }
   }
 

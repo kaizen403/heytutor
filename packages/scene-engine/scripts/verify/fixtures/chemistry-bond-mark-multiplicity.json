@@ -1,0 +1,129 @@
+{
+  "bondRows": [
+    {
+      "id": "co2-genuine",
+      "formula": "CO2",
+      "mutation": "none",
+      "accept": true
+    },
+    {
+      "id": "co2-reversed-endpoints",
+      "formula": "CO2",
+      "mutation": "reversed",
+      "accept": true
+    },
+    {
+      "id": "co2-unequal-collinear-review",
+      "formula": "CO2",
+      "mutation": "unequal-collinear",
+      "accept": false
+    },
+    {
+      "id": "co2-coincident",
+      "formula": "CO2",
+      "mutation": "coincident",
+      "accept": false
+    },
+    {
+      "id": "co2-near-coincident",
+      "formula": "CO2",
+      "mutation": "near-coincident",
+      "accept": false
+    },
+    {
+      "id": "co2-skewed",
+      "formula": "CO2",
+      "mutation": "skewed",
+      "accept": false
+    },
+    {
+      "id": "co2-insufficient-joint-overlap",
+      "formula": "CO2",
+      "mutation": "short-overlap",
+      "accept": false
+    },
+    {
+      "id": "co2-broken-multiplicity",
+      "formula": "CO2",
+      "mutation": "broken",
+      "accept": false
+    },
+    {
+      "id": "n2-genuine-triple",
+      "formula": "N2",
+      "mutation": "none",
+      "accept": true
+    },
+    {
+      "id": "n2-reversed-triple",
+      "formula": "N2",
+      "mutation": "reversed",
+      "accept": true
+    },
+    {
+      "id": "n2-unequal-collinear-triple",
+      "formula": "N2",
+      "mutation": "unequal-collinear",
+      "accept": false
+    },
+    {
+      "id": "co2-native-subpixel-overlap",
+      "formula": "CO2",
+      "mutation": "subpixel",
+      "accept": false
+    },
+    {
+      "id": "co2-beyond-rounding-detached",
+      "formula": "CO2",
+      "mutation": "detached",
+      "accept": false
+    },
+    {
+      "id": "co2-authored-thin-distinct-native-strokes",
+      "formula": "CO2",
+      "mutation": "thin-width-separated",
+      "accept": true
+    }
+  ],
+  "existingRows": [
+    {
+      "question": "Draw the skeletal structure of butanal.",
+      "accept": true
+    },
+    {
+      "question": "Draw the skeletal structure of butan-2-one.",
+      "accept": true
+    },
+    {
+      "question": "Draw the skeletal structure of propan-1-ol.",
+      "accept": true
+    }
+  ],
+  "styleRows": [
+    {
+      "id": "co2-authored-visible-thin-width",
+      "formula": "CO2",
+      "strokeWidth": 0.5,
+      "accept": true
+    },
+    {
+      "id": "co2-authored-overlapping-width",
+      "formula": "CO2",
+      "strokeWidth": 5,
+      "accept": false
+    },
+    {
+      "id": "co2-authored-invisible-width",
+      "formula": "CO2",
+      "strokeWidth": 0,
+      "accept": false
+    },
+    {
+      "id": "co2-unsupported-dashed-multibond",
+      "formula": "CO2",
+      "dashed": true,
+      "accept": false
+    }
+  ],
+  "literalMultilineQuestion": "Compare butan-1-ol and 2-methylpropan-1-ol."
+}

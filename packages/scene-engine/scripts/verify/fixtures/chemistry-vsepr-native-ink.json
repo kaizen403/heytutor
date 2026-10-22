@@ -1,0 +1,114 @@
+[
+  {
+    "id": "CO2-default",
+    "formula": "CO2",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "CO2-invisible",
+    "formula": "CO2",
+    "target": "all",
+    "width": 0,
+    "accept": false
+  },
+  {
+    "id": "CO2-overlapping",
+    "formula": "CO2",
+    "target": "all",
+    "width": 50,
+    "accept": false
+  },
+  {
+    "id": "CO2-authored-thin",
+    "formula": "CO2",
+    "target": "all",
+    "width": 0.5,
+    "accept": true
+  },
+  {
+    "id": "HCN-default",
+    "formula": "HCN",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "HCN-invisible",
+    "formula": "HCN",
+    "target": "all",
+    "width": 0,
+    "accept": false
+  },
+  {
+    "id": "HCN-overlapping",
+    "formula": "HCN",
+    "target": "all",
+    "width": 50,
+    "accept": false
+  },
+  {
+    "id": "HCN-authored-thin",
+    "formula": "HCN",
+    "target": "all",
+    "width": 0.5,
+    "accept": true
+  },
+  {
+    "id": "CH4-default-wedge-dash",
+    "formula": "CH4",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "CH4-plain-invisible",
+    "formula": "CH4",
+    "target": "plain",
+    "width": 0,
+    "accept": false
+  },
+  {
+    "id": "CH4-dash-invisible",
+    "formula": "CH4",
+    "target": "dash",
+    "width": 0,
+    "accept": false
+  },
+  {
+    "id": "CH4-wedge-invisible",
+    "formula": "CH4",
+    "target": "wedge",
+    "width": 0,
+    "accept": false
+  },
+  {
+    "id": "NH3-default-style-controls",
+    "formula": "NH3",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "SF4-default-style-controls",
+    "formula": "SF4",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "XeF4-default-style-controls",
+    "formula": "XeF4",
+    "target": "all",
+    "width": null,
+    "accept": true
+  },
+  {
+    "id": "NH3-authored-thin-style-controls",
+    "formula": "NH3",
+    "target": "all",
+    "width": 0.5,
+    "accept": true
+  }
+]

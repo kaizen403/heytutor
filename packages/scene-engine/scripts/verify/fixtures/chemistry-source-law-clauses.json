@@ -759,6 +759,145 @@
       "forbidNotes": [
         "[H+] = C"
       ]
+    },
+    {
+      "id": "review-threshold-equals-lower",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 6.40*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          640000000000000,
+          0
+        ],
+        [
+          1000000000000000,
+          1.125
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 640000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "transfer-threshold-equals-lower",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 1 eV, over 1.60*10^14 to 8.00*10^14 Hz. Use K_max = hν-φ and h = 6.25*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          160000000000000,
+          0
+        ],
+        [
+          800000000000000,
+          4
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 160000000000000,
+        "lowerHz": 160000000000000,
+        "upperHz": 800000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-strictly-inside-domain",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 5.00*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          640000000000000,
+          0
+        ],
+        [
+          1000000000000000,
+          1.125
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 500000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": true
+      }
+    },
+    {
+      "id": "threshold-below-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 7.00*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 700000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-at-upper-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 0 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 0,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-zero-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 6.40*10^14 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 640000000000000,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-reversed-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 8.00*10^14 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 800000000000000,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-negative-action-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 0 to 1.00*10^15 Hz. Use K_max = hν-φ and h = -3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": -640000000000000,
+        "lowerHz": 0,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
     }
   ]
 }

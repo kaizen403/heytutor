@@ -9,6 +9,7 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { inferChemistryFamilies, isChemistryQuestion } from "../../src/chemistry/router";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
+import { readRadiationSource } from "../../src/physics/radiationSource";
 
 let checks = 0;
 const failures: string[] = [];
@@ -19,6 +20,35 @@ function labels(document: SceneDocument | null): string[] {
   const text = compiled.renderScene.primitives.flatMap(mark => mark.text ? [mark.text] : []);
   assert.ok(!text.some(label => /NaN|Infinity/.test(label)));
   return text;
+}
+/** Physics keeps the original scalar/unit obligation at the old display precision. */
+function energyValue(text: readonly string[], symbol: "phi" | "E" | "K"): number | null {
+  const owner = symbol === "phi" ? "(?:phi|φ)" : symbol === "E" ? "(?:E|hν|hv)" : "K";
+  const pattern = new RegExp("^" + owner + "\\s*=\\s*([+-]?(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)(?:e[+-]?[0-9]+)?)\\s+eV$");
+  const hits = text.flatMap(label => { const match = pattern.exec(label); return match ? [Number(match[1])] : []; });
+  assert.equal(hits.length, 1, symbol + " must have one complete painted eV value");
+  return hits[0]!;
+}
+function expectedEnergy(text: readonly string[], expected: string): boolean {
+  if (text.includes(expected)) return true;
+  const parsed = /^(phi|E|K)=([+-]?[0-9]+(?:\.[0-9]+)?) eV$/.exec(expected);
+  if (!parsed) return false;
+  const decimals = (parsed[2]!.split(".")[1] ?? "").length;
+  const actual = energyValue(text, parsed[1] as "phi" | "E" | "K");
+  return actual !== null && Math.abs(actual - Number(parsed[2])) <= 0.5 * 10 ** -decimals + Math.abs(Number(parsed[2])) * 1e-12;
+}
+function physicsPhotoelectric(document: SceneDocument, question: string): void {
+  assert.equal(document.source.question, question);
+  assert.equal(document.source.chemistryFamily, undefined, "physics issuer must not borrow chemistry attribution");
+  assert.equal(document.source.archetype, "photoelectric", "actual photoelectric producer is required");
+  const source = readRadiationSource(question); assert.equal(source.status, "source");
+  assert.ok(source.status === "source" && source.model.kind === "photoelectric");
+  for (const [symbol, expected] of [["phi", source.model.workFunctionEV], ["E", source.model.photonEnergyEV]] as const) {
+    const q = document.quantities.find(value => value.symbol === symbol);
+    assert.ok(q && q.unit === "eV" && typeof q.value === "number" && Number.isFinite(q.value));
+    assert.ok(Math.abs(q.value - expected) <= 0.0000005, "quantity retains the ordinary builder's six-decimal serialization");
+  }
+  labels(document);
 }
 function check(name: string, run: () => void): void {
   try { run(); checks++; } catch (error) { failures.push(name + ": " + String(error)); }
@@ -37,15 +67,15 @@ for (const question of sourceHcStems) check("source hc supplies its wavelength l
   assert.ok(direct.includes("K=2.13 eV"));
   const synthesis = synthesizeFamilyScene({ question });
   assert.ok(synthesis);
-  assert.equal(synthesis.document.source.chemistryFamily, "chem_orbital");
-  assert.ok(labels(synthesis.document).includes("K=2.13 eV"));
+  physicsPhotoelectric(synthesis.document, question);
+  assert.ok(expectedEnergy(labels(synthesis.document), "K=2.13 eV"));
 });
 // Photoelectric hc refusal promises move to #166; original inputs/assertions are preserved at cb226db9.
 for (const [product, expected] of [["1239.84", "K=2.00 eV"]] as const)
   check("an admitted source hc rounding convention supplies the actual wavelength law: " + product, () => {
     const question = `For the photoelectric effect wavelength is 300 nm and work function is 2.128 eV. Take hc=${product} eV nm. Find kinetic energy.`;
     assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes(expected));
-    assert.ok(labels(synthesizeFamilyScene({ question })?.document ?? null).includes(expected));
+    assert.ok(expectedEnergy(labels(synthesizeFamilyScene({ question })?.document ?? null), expected));
   });
 check("SI source hc converts value and unit together", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.";
@@ -294,15 +324,15 @@ const laneDPhotoelectric = [
 ];
 for (const question of laneDPhotoelectric) check("exact lane-D source hc: " + question, () => {
   assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=2.13 eV"));
-  assert.ok(labels(synthesizeFamilyScene({ question })?.document ?? null).includes("K=2.13 eV"));
+  assert.ok(expectedEnergy(labels(synthesizeFamilyScene({ question })?.document ?? null), "K=2.13 eV"));
 });
 check("exact lane-D wave and particle wording retains its source-grounded photon panel", () => {
   const question = "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Using hc=1240 eV nm, find fringe width and maximum photoelectron energy; identify the wave and particle observations.";
   assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=0.48 eV"));
   const ordinary = synthesizeFamilyScene({ question });
   assert.ok(ordinary);
-  assert.equal(ordinary.document.source.chemistryFamily, "chem_orbital");
-  assert.ok(labels(ordinary.document).includes("K=0.48 eV"));
+  physicsPhotoelectric(ordinary.document, question);
+  assert.ok(expectedEnergy(labels(ordinary.document), "K=0.48 eV"));
 });
 const laneDUnsupported = [
   "A nonrelativistic particle has momentum 3.313×10^-24 kg m/s. Using h=6.626×10^-34 J s, find its de Broglie wavelength.",
@@ -385,20 +415,23 @@ for (const row of workFunctionOwnerRows) check("original work-function owner: " 
     return;
   }
   assert.ok(ordinary?.renderScene, "single declaration must draw through the ordinary route");
-  assert.equal(ordinary.family, "chem_orbital");
+  assert.equal(ordinary.family, "energy_level");
+  physicsPhotoelectric(ordinary.document, row.question);
   for (const document of [direct, schematic, ordinary.document]) {
     assert.ok(document, "single declaration must retain direct and schematic figures");
     assert.equal(document.source.question, row.question);
-    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    if (document === ordinary.document) physicsPhotoelectric(document, row.question);
+    else assert.equal(document.source.chemistryFamily, "chem_orbital");
     const text = labels(document);
-    assert.ok(text.includes("phi=2.00 eV"), "work-function label must use the source value after J/eV conversion");
+    assert.ok(expectedEnergy(text, "phi=2.00 eV"), "work-function label must use the source value after J/eV conversion");
     for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
-      const label = text.find(value => value.startsWith(symbol + "="));
-      assert.ok(label, symbol + " label is required");
-      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
-      assert.ok(scalar, "complete two-decimal energy label: " + label);
-      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
-        symbol + " must agree with the independent photoelectric value");
+      if (document.source.chemistryFamily === "chem_orbital") {
+        const label = text.find(value => value.startsWith(symbol + "="));
+        assert.ok(label && new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").test(label), "direct facade keeps complete two-decimal labels");
+      }
+      const scalar = energyValue(text, symbol);
+      assert.ok(scalar !== null && Math.abs(scalar - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value at the original precision");
     }
   }
 });
@@ -419,20 +452,23 @@ for (const row of workFunctionReferenceRows) check("work-function diagram-refere
   const schematic = buildAtomicRadiationScene(row.question, [], true);
   const ordinary = synthesizeFamilyScene({ question: row.question });
   assert.ok(ordinary?.renderScene, "a bare diagram reference must retain the single declared value");
-  assert.equal(ordinary.family, "chem_orbital");
+  assert.equal(ordinary.family, "energy_level");
+  physicsPhotoelectric(ordinary.document, row.question);
   for (const document of [direct, schematic, ordinary.document]) {
     assert.ok(document);
     assert.equal(document.source.question, row.question);
-    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    if (document === ordinary.document) physicsPhotoelectric(document, row.question);
+    else assert.equal(document.source.chemistryFamily, "chem_orbital");
     const text = labels(document);
-    assert.ok(text.includes("phi=2.00 eV"), "bare reference must retain the original work-function label");
+    assert.ok(expectedEnergy(text, "phi=2.00 eV"), "bare reference must retain the original work-function label");
     for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
-      const label = text.find(value => value.startsWith(symbol + "="));
-      assert.ok(label, symbol + " label is required");
-      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
-      assert.ok(scalar, "complete two-decimal energy label: " + label);
-      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
-        symbol + " must agree with the independent photoelectric value");
+      if (document.source.chemistryFamily === "chem_orbital") {
+        const label = text.find(value => value.startsWith(symbol + "="));
+        assert.ok(label && new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").test(label), "direct facade keeps complete two-decimal labels");
+      }
+      const scalar = energyValue(text, symbol);
+      assert.ok(scalar !== null && Math.abs(scalar - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value at the original precision");
     }
   }
 });
@@ -460,20 +496,23 @@ for (const row of workFunctionDecimalRows) check("complete decimal work-function
   assert.equal(source.reading.value, 2, "both complete source scalars independently equal 2 eV");
   const ordinary = synthesizeFamilyScene({ question: row.question });
   assert.ok(ordinary?.renderScene, "a complete decimal scalar must retain the ordinary figure");
-  assert.equal(ordinary.family, "chem_orbital");
+  assert.equal(ordinary.family, "energy_level");
+  physicsPhotoelectric(ordinary.document, row.question);
   for (const document of [buildAtomicRadiationScene(row.question, [], false), buildAtomicRadiationScene(row.question, [], true), ordinary.document]) {
     assert.ok(document, "a complete decimal scalar must retain direct and schematic figures");
     assert.equal(document.source.question, row.question);
-    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    if (document === ordinary.document) physicsPhotoelectric(document, row.question);
+    else assert.equal(document.source.chemistryFamily, "chem_orbital");
     const text = labels(document);
-    assert.ok(text.includes("phi=2.00 eV"), "both complete decimal scalar spellings state exactly 2 eV");
+    assert.ok(expectedEnergy(text, "phi=2.00 eV"), "both complete decimal scalar spellings state exactly 2 eV");
     for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
-      const label = text.find(value => value.startsWith(symbol + "="));
-      assert.ok(label, symbol + " label is required");
-      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
-      assert.ok(scalar, "complete two-decimal energy label: " + label);
-      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
-        symbol + " must agree with the independent photoelectric value");
+      if (document.source.chemistryFamily === "chem_orbital") {
+        const label = text.find(value => value.startsWith(symbol + "="));
+        assert.ok(label && new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").test(label), "direct facade keeps complete two-decimal labels");
+      }
+      const scalar = energyValue(text, symbol);
+      assert.ok(scalar !== null && Math.abs(scalar - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value at the original precision");
     }
   }
 });
@@ -506,8 +545,9 @@ const PLANCK_J_S = 6.62607015e-34, ELEMENTARY_CHARGE_C = 1.602176634e-19, LIGHT_
 const photonEv = (kind: "f" | "nm", value: number): number => kind === "f" ? PLANCK_J_S * value / ELEMENTARY_CHARGE_C : PLANCK_J_S * LIGHT_SPEED_M_S / (value * 1e-9) / ELEMENTARY_CHARGE_C;
 const pr137DeclineRows = ["Metal A has work function 2 eV. Metal B has unknown work function. Light falls on metal B. Draw the photoelectric diagram.", "Metal A has work function 2 eV while metal B has an unknown work function. Light falls on metal B.", "Work function 2 eV for metal A; work function unknown for metal B. Light falls on metal B.", "Metal A has work function 2 eV. Metal B has a larger work function. Light falls on metal B. Draw the photoelectric diagram.", "A metal has work function 2 eV. Draw the photoelectric energy diagram and mark the work function.", "A metal has work function 2 eV. Explain why light below the threshold cannot eject electrons even though it is intense, by comparing photon energy with the work function.", "Sodium has work function 2.3 eV. Draw an energy diagram showing the work function and explain the threshold.", "A surface with work function 4.2 eV is illuminated. Draw the photoelectric energy diagram and label the work function.", "Caesium has a work function of about 2.1 eV. Explain why caesium is used in photocells, comparing its work function with other metals.", "A metal of work function 2.0 eV is used. Find the threshold wavelength and explain the meaning of the work function.", "A metal with work function 2.0 eV is used in a photocell. Find the threshold frequency. Why does the work function differ between metals?", "Photoelectric effect: work function 2 eV. Explain the role of the work function.", "A metal of work function 2 eV and another metal of unknown work function are illuminated. Draw the photoelectric diagram for the second metal."] as const;
 for (const [index, question] of pr137DeclineRows.entries()) check(`cb226db9 regression A${index}: unread or unbound work function declines in chemistry`, () => {
-  assert.equal(isAtomicRadiationStem(question), true);
-  assert.equal(isChemistryQuestion(question), true);
+  assert.equal(isAtomicRadiationStem(question), false, "generic metal source is not an atomic-chemistry routing role");
+  assert.equal(isChemistryQuestion(question), false);
+  assert.equal(readRadiationSource(question).status, "declined", "unread or incomplete source is terminal before physics defaults");
   assert.equal(synthesizeFamilyScene({ question }), null, "no fabricated photoelectric figure");
 });
 const pr137PhysicsRouteRows = ["If the work function of the metal is doubled, what happens to the stopping potential? Draw the stopping potential versus frequency graph.", "What happens to the stopping potential if the work function is increased? Draw the graph.", "Explain why the work function is different for different metals.", "The work function is the minimum energy needed to remove an electron from a metal surface. Explain the photoelectric effect with a diagram.", "Work function: define it and draw the photoelectric energy diagram.", "The work function is directly proportional to the threshold frequency. Draw the graph of stopping potential against frequency.", "The work function equals the photon energy at threshold. Draw the photoelectric energy diagram.", "Explain how stopping potential depends on frequency when the work function is fixed. Draw the graph.", "The work function was measured for sodium using a photocell. Draw the graph of stopping potential against frequency.", "The work function of caesium is low, so it is used in photocells. Explain with a diagram.", "Work function: the minimum energy needed to free an electron from a metal. Draw the photoelectric energy diagram.", "State Einstein's photoelectric equation. The work function is the intercept of which graph?"] as const;
@@ -531,10 +571,10 @@ const pr137DrawRows: ReadonlyArray<readonly [string, number, "f" | "nm", number]
 for (const [index, [question, phi, kind, value]] of pr137DrawRows.entries()) check(`cb226db9 regression A${index + 32}: supplied work function draws its own values`, () => {
   const synthesis = synthesizeFamilyScene({ question });
   assert.ok(synthesis, "the supplied declaration must draw");
-  assert.equal(synthesis.document.source.chemistryFamily, "chem_orbital");
+  physicsPhotoelectric(synthesis.document, question);
   const energy = photonEv(kind, value);
   const text = labels(synthesis.document);
-  for (const expected of [`phi=${phi.toFixed(2)} eV`, `E=${energy.toFixed(2)} eV`, `K=${(energy - phi).toFixed(2)} eV`]) assert.ok(text.includes(expected), `${expected} in ${text.join(" | ")}`);
+  for (const expected of [`phi=${phi.toFixed(2)} eV`, `E=${energy.toFixed(2)} eV`, `K=${(energy - phi).toFixed(2)} eV`]) assert.ok(expectedEnergy(text, expected), `${expected} in ${text.join(" | ")}`);
 });
 // END PR137 cb226db9 regression rows.
 

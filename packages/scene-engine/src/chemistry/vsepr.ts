@@ -24,6 +24,7 @@ import {
   dipoleAccount,
   dipoleIsTheAsk,
   fajanAsked,
+  parseExamBondLines,
   shapeIsTheAsk,
   type DipoleInput,
 } from "./bondingFigures";
@@ -32,6 +33,7 @@ import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } fr
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
+import type { VseprBondInkPlan } from "./representation/bondInk";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -518,7 +520,9 @@ function localMoleculeOwners(
 function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
   let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
-  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+  // A colon connects a typed property to its value (electron geometry:
+  // tetrahedral); it must not turn that value into a free molecular claim.
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
     const clause = rawClause.toLowerCase();
     const mentions = shapeOwnerMentions(rawClause);
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
@@ -713,6 +717,15 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   return null;
 }
 
+/** A closed carbon bond line is one molecule, not a list of VSEPR fragments.
+ * CH2=C=O must not become a bent CH2, and a hyphen before the next atom is
+ * a bond rather than a charge invented on the preceding group. Discrete
+ * formulas and separate ions (CH4, or CH3- beside CH2) have no such line.
+ */
+function connectedCarbonStructure(question: string): boolean {
+  return parseExamBondLines(question).some((line) => line.atoms.some((atom) => atom.element === "C"));
+}
+
 const MAX_SPECIES = 4;
 
 /**
@@ -723,7 +736,7 @@ const MAX_SPECIES = 4;
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
   const lower = text.toLowerCase();
-  if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower)) return [];
+  if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
@@ -973,6 +986,15 @@ function drawOrders(result: VseprResult): boolean {
     if (pairs > 4) return false;
   }
   return true;
+}
+
+/** Same source-derived layout/seating policy consumed by production and audit. */
+export function vseprBondInkPlan(result: VseprResult): VseprBondInkPlan[] | null {
+  const layout = layoutFor(result);
+  const seated = layout ? seatLigands(result, layout) : null;
+  if (!seated) return null;
+  return seated.map(({ slot, ligand }) => ({ ligandLabel: ligand.label, style: slot.style,
+    strokeCount: drawOrders(result) && slot.style !== "wedge" ? ligand.bondOrder : 1 }));
 }
 
 interface DrawnSpecies {

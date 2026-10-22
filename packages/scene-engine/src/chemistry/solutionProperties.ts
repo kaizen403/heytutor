@@ -17,13 +17,15 @@ function fit(text: string): string {
   return text;
 }
 
-function shown(value: number): string {
+function shown(value: number, significant = false): string {
   if (!Number.isFinite(value)) return "";
   // Decimal rounding must never turn a finite nonzero quantity into zero.
   if (value !== 0 && Math.abs(value) < 0.001) {
     const [mantissa, exponent] = value.toExponential(3).split("e");
     return `${Number(mantissa)}e${Number(exponent)}`;
   }
+  // Four significant digits keep dilute values readable across decimal scales.
+  if (significant) return String(Number(value.toPrecision(4)));
   return String(Number(value.toFixed(3)));
 }
 
@@ -272,11 +274,11 @@ function concentrationScene(question: string, stem: string): SceneDocument | nul
     const name1 = pair[2]!.toUpperCase();
     const name2 = pair[4]!.toUpperCase();
     return panel(question, "mole fractions of the stated components", [
-      `x${name1}=${shown(x1)}`,
-      `x${name2}=${shown(x2)}`,
+      `x${name1}=${shown(x1, true)}`,
+      `x${name2}=${shown(x2, true)}`,
       "sum=1",
       `n=${total} mol`,
-    ], `x_${name1} = ${n1}/${total} = ${x1.toFixed(2)} and x_${name2} = ${n2}/${total} = ${x2.toFixed(2)}. The two mole fractions add to 1.`);
+    ], `x_${name1} = ${n1}/${total} = ${shown(x1, true)} and x_${name2} = ${n2}/${total} = ${shown(x2, true)}. The two mole fractions add to 1.`);
   }
   if (/x_?[a-z]\s*=\s*\d/.test(stem) && /x_?[a-z]\s*=\s*\d/.test(stem.slice(stem.search(/x_?[a-z]/) + 2))) {
     const found = [...question.matchAll(new RegExp(String.raw`x_?([a-z])\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "gid"))];
@@ -382,11 +384,11 @@ function henryScene(question: string, stem: string): SceneDocument | null {
     if (partial === null || !(partial > 0)) return null;
     const concentration = kH * partial;
     return panel(question, "Henry concentration at the stated gas partial pressure", [
-      fit(`c=${shown(concentration)} mol/L`),
+      fit(`c=${shown(concentration, true)} mol/L`),
       `p=${partial} ${unit}`,
       "c=kH*p",
       "T fixed",
-    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${shown(kH)} × ${shown(partial)} = ${shown(concentration)}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
+    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${shown(kH, true)} × ${shown(partial, true)} = ${shown(concentration, true)}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
   }
   const zero = /zero partial pressure|partial pressure is zero|\bp\s*=\s*0\b/.test(stem);
   const mole = take(new RegExp(String.raw`mole fraction(?:\s+of(?:\s+the)?\s+dissolved gas)?(?:\s+is)?\s*(${CHEMISTRY_SCALAR_PATTERN})|x\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
@@ -399,12 +401,12 @@ function henryScene(question: string, stem: string): SceneDocument | null {
   c.scene.curve("henry", `(${scale})*(${kH})*x`, 0, 1, "Henry partial pressure", undefined, 17);
   c.scene.point("state", { x, y: scale * pressure }, "stated dissolved gas");
   c.scene.assert("on_line", "function_value", ["henry"], { x, y: Number((scale * pressure).toFixed(8)) }, "warning");
-  c.text("p_l", { x: 0.05, y: 0.78 }, fit(`p=${shown(pressure)} ${unit}`), "gas partial pressure");
+  c.text("p_l", { x: 0.05, y: 0.78 }, fit(`p=${shown(pressure, true)} ${unit}`), "gas partial pressure");
   c.text("law_l", { x: 0.05, y: -0.55 }, "p=kH*x", "declared Henry convention");
-  c.text("x_l", { x: 0.05, y: -0.95 }, fit(x === 0 ? "x=0" : `x=${shown(x)}`), "dissolved mole fraction");
+  c.text("x_l", { x: 0.05, y: -0.95 }, fit(x === 0 ? "x=0" : `x=${shown(x, true)}`), "dissolved mole fraction");
   c.text("temp_l", { x: 0.05, y: -1.3 }, "T fixed", "temperature held fixed");
   c.text("scale_l", { x: 0.55, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
-  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${shown(kH)} × ${x} = ${shown(pressure)} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
+  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${shown(kH, true)} × ${x} = ${shown(pressure, true)} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
 }
 
 function nonvolatileScene(question: string, stem: string): SceneDocument | null {
@@ -424,7 +426,7 @@ function nonvolatileScene(question: string, stem: string): SceneDocument | null 
   c.scene.assert("on_line", "function_value", ["solvent"], { x: Number(solvent.toFixed(8)), y: Number((scale * pressure).toFixed(8)) }, "warning");
   c.text("p_l", { x: 0.05, y: 0.78 }, fit(`p=${shown(pressure)} ${unit}`), "solution vapour pressure");
   c.text("zero_l", { x: 0.05, y: -0.55 }, "solute p=0", "nonvolatile solute");
-  c.text("x_l", { x: 0.05, y: -0.95 }, fit(`xsolv=${shown(solvent)}`), "solvent mole fraction");
+  c.text("x_l", { x: 0.05, y: -0.95 }, fit(`xsolv=${shown(solvent, true)}`), "solvent mole fraction");
   c.text("scale_l", { x: 0.05, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
   return c.build({ caption: `The nonvolatile solute adds no vapour pressure. p = x_solvent p° = ${solvent} × ${shown(pure)} = ${shown(pressure)} ${unit}. The line is display-scaled and is not a second volatile component.` });
 }
