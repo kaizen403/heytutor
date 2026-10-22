@@ -451,8 +451,8 @@ function describeIssuePath(plan: unknown, path: string): string {
 const UNIT_WORDS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
   [/^(?:deg|degs|degree|degrees|°)$/i, ["°", "degrees", "degree", "deg"]],
   [/^(?:rad|rads|radian|radians)$/i, ["radians", "radian", "rad"]],
-  [/^m\/s$/, ["m/s", "m s^-1", "m s⁻¹", "ms^-1", "ms⁻¹", "m s-1", "m/sec", "metres per second", "meters per second", "metre per second", "meter per second"]],
-  [/^km\/h$/i, ["km/h", "km/hr", "km/hour", "kmph", "km h^-1", "km h⁻¹", "km hr^-1", "km hr⁻¹", "km per hour", "kilometres per hour", "kilometers per hour", "kilometre per hour", "kilometer per hour"]],
+  [/^m\/s$/, ["m/s", "m s^-1", "m s⁻¹", "ms^-1", "ms⁻¹", "m s-1", "m/sec", "mps", "metres per second", "meters per second", "metre per second", "meter per second"]],
+  [/^km\/h$/i, ["km/h", "km/hr", "km/hrs", "km/hour", "kmph", "kmh", "km h^-1", "km h⁻¹", "km h-1", "km hr^-1", "km hr⁻¹", "km hr-1", "km per hour", "kilometres per hour", "kilometers per hour", "kilometre per hour", "kilometer per hour"]],
   [/^m\/s(?:\^2|²)$/, ["m/s²", "m/s^2", "m s^-2", "m s⁻²", "ms^-2", "ms⁻²", "metres per second squared", "meters per second squared"]],
   [/^s$/, ["s", "sec", "secs", "second", "seconds"]],
   [/^m$/, ["m", "metre", "metres", "meter", "meters"]],
@@ -535,49 +535,8 @@ function quantityKey(value: number, unit: string | undefined): string {
 }
 
 const STATED_NUMBER = /(?<![\w.^])-?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.]*\d)/g;
-
-/** Whether two units measure one thing: the same dimension ("m/s", "km/h") or a shared spelling. */
-function sameMeasure(first: string, second: string): boolean {
-  if (measuredUnitsShareDimension(first, second)) return true;
-  const other = new Set(unitSpellings(second).map((spelling) => spelling.toLowerCase()));
-  return unitSpellings(first).some((spelling) => other.has(spelling.toLowerCase()));
-}
-
-/**
- * The numbers a text states, each with the unit printed after it (if any),
- * and the text with every number and its unit blanked out. A unit is read
- * with the spellings questionStatesQuantity accepts first ("6 km/hr" is
- * km/h, "8 metres per second" is m/s), so a value that states a given's kind
- * is always counted as one.
- */
-function statedNumbers(text: string): { numbers: Array<{ value: number; unit?: string }>; words: string } {
-  const normalized = text.normalize("NFC").replace(/[−–—]/g, "-");
-  const printed = displayedMeasurementUnits(normalized);
-  const numbers: Array<{ value: number; unit?: string }> = [];
-  let words = normalized;
-  for (const match of normalized.matchAll(STATED_NUMBER)) {
-    const start = match.index ?? 0;
-    const end = start + match[0].length;
-    const after = normalized.slice(end);
-    const spelled = spellingAfterNumber(after, KNOWN_SPELLING_LIST);
-    const unitWord = after.match(UNIT_AFTER_NUMBER)?.[0];
-    const printedUnit = printed.get(start + match[0].search(/[\d.]/));
-    const unit = (spelled && KNOWN_UNIT_SPELLINGS.get(spelled)) ?? printedUnit ?? unitWord?.trim();
-    numbers.push({ value: Number(match[0]), ...(unit ? { unit } : {}) });
-    const printedEnd = printedUnit && after.includes(printedUnit) ? after.indexOf(printedUnit) + printedUnit.length : 0;
-    const spelledEnd = spelled ? after.length - after.replace(/^\s+/, "").length + spelled.length : 0;
-    const span = end - start + Math.max(unitWord?.length ?? 0, printedEnd, spelledEnd);
-    words = words.slice(0, start) + " ".repeat(span) + words.slice(start + span);
-  }
-  return { numbers, words };
-}
-
-/** The numbers in the text that measure what a given with this unit measures (bare numbers for a unitless given). */
-function competingStatedNumbers(text: string, unit: string | undefined): Array<{ value: number; unit?: string }> {
-  return statedNumbers(text).numbers.filter((number) =>
-    unit ? number.unit !== undefined && sameMeasure(unit, number.unit) : number.unit === undefined);
-}
-const competingStatedCount = (text: string, unit: string | undefined) => competingStatedNumbers(text, unit).length;
+/** Numbers written as words ("six m/s"); read only when a unit follows. */
+const NUMBER_WORD = /(?<![\p{L}])(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)(?![\p{L}])/giu;
 
 /** Whether two units are one unit in two spellings ("km/h" and "km/hr"), not merely one dimension. */
 function sameUnit(first: string | undefined, second: string | undefined): boolean {
@@ -586,135 +545,103 @@ function sameUnit(first: string | undefined, second: string | undefined): boolea
   return unitSpellings(first).some((spelling) => other.has(spelling.toLowerCase()));
 }
 
-/** Quantity kinds and modifiers that never name whose quantity it is. */
-const GENERIC_OWNER_WORDS = new Set([
-  "speed", "velocity", "vel", "rate", "angle", "theta", "phi", "alpha", "beta", "distance", "dist", "displacement", "disp",
-  "time", "mass", "length", "len", "height", "width", "force", "acc", "accel", "acceleration", "initial", "init", "final",
-  "mag", "magnitude", "value", "val", "given", "relative", "rel", "component", "comp", "total", "net", "max", "min", "avg",
-  "average", "resultant", "actual", "apparent",
-]);
-/** Words of a source clause that name no object. */
-const CLAUSE_STOPWORDS = new Set([
-  "at", "an", "and", "as", "of", "the", "to", "in", "on", "is", "are", "was", "with", "while", "by", "from", "for", "its",
-  "it", "be", "has", "have", "per", "than", "then", "that", "this", "when",
-]);
-const splitOwnerWords = (text: string) => text.normalize("NFKC").replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").toLowerCase()
-  .split(/[^\p{L}]+/u).filter(Boolean);
-
-/**
- * The words a given's id and symbol use for its owner: the symbol's subscript
- * ("r" of v_r, "rain" of v_{rain}) and the id's words after a one letter
- * quantity prefix ("rain" of rain_speed or v_rain), less quantity kinds.
- */
-function givenOwnerTokens(id: string, symbol: string): string[] {
-  const subscript = symbol.normalize("NFKC").match(/_\{?([^}]*)\}?/)?.[1] ?? "";
-  const idWords = splitOwnerWords(id);
-  return [...new Set([
-    ...splitOwnerWords(subscript),
-    ...idWords.filter((word, index) => word.length > 1 || index > 0),
-  ])].filter((token) => !GENERIC_OWNER_WORDS.has(token));
+/** A unit as its UNIT_WORDS row writes it ("kmph" is km/h), else as written; none for no unit. */
+function canonicalUnit(unit: string | undefined): string | undefined {
+  const trimmed = unit?.trim();
+  return trimmed ? knownUnitRow(trimmed.replace(/\s+/g, ""))?.[1][0] ?? trimmed : undefined;
 }
 
-/** Where one clause of a question ends: sentence punctuation, a comma, or a joining word. */
-const CLAUSE_BOUNDARY = /[.;:!?](?=\s|$)|,(?!\d)|\s(?:and|but|while|whilst|whereas)\s/giu;
-/** Words before a clause's subject noun that are not it ("a", "the", "his"). */
-const SUBJECT_LEAD_WORDS = new Set([
-  "a", "an", "the", "this", "that", "these", "those", "his", "her", "its", "their", "our", "my", "your", "each", "every",
-  "another", "one", "some", "if", "when", "while", "now", "suppose", "then", "also", "and", "so",
-]);
-/** Words that stand for a subject without naming it. */
-const PRONOUNS = new Set(["he", "she", "it", "they", "we", "you", "i", "him", "them", "there", "here", "who", "which"]);
+/** Units of every dimension the measurement reader knows. */
+const READABLE_DIMENSIONS = ["1", "m", "s", "kg", "g", "m/s", "m/s^2", "N", "J", "W", "V", "A", "ohm", "deg", "K", "mol", "Hz", "Pa", "C",
+  "T", "F", "H", "Wb", "eV", "L", "m^2", "m^3", "N/m", "kg/m^3", "kg m/s", "N m", "rad/s"];
+/** Whether a unit's dimension can be read at all; no unit is dimensionless. */
+function unitReadable(unit: string | undefined): boolean {
+  const canonical = canonicalUnit(unit);
+  return canonical === undefined || READABLE_DIMENSIONS.some((reference) => measuredUnitsShareDimension(canonical, reference));
+}
 
 /**
- * The clauses of the question that contain this span, one per place the span
- * occurs: the span widened to the clause boundaries around it (a span that
- * crosses a boundary takes in both clauses). Empty when the question never
- * says the span.
+ * Whether a quantity in `other` may measure what a quantity in `unit`
+ * measures: the same dimension read through the shared spellings ("kmph" and
+ * "m/s" do), both unitless, or a unit whose dimension cannot be read.
  */
-function questionClausesAround(question: string, span: string): string[] {
-  const flat = (text: string) => text.normalize("NFC").replace(/[−–—]/g, "-").replace(/\s+/g, " ").trim();
-  const asked = flat(question);
-  const lowerAsked = asked.toLowerCase();
-  const source = flat(span).toLowerCase().replace(/[.,;:!?]+$/, "");
-  if (!source || lowerAsked.length !== asked.length) return [];
-  const boundaries = [...asked.matchAll(CLAUSE_BOUNDARY)].map((match) => [match.index ?? 0, (match.index ?? 0) + match[0].length] as const);
-  const clauses: string[] = [];
-  for (let at = lowerAsked.indexOf(source); at >= 0; at = lowerAsked.indexOf(source, at + 1)) {
-    const end = at + source.length;
-    const before = boundaries.filter(([, stop]) => stop <= at).at(-1);
-    const after = boundaries.find(([begin]) => begin >= end);
-    clauses.push(asked.slice(before?.[1] ?? 0, after?.[0] ?? asked.length));
+function mayShareDimension(unit: string | undefined, other: string | undefined): boolean {
+  return !unitReadable(other) || measuredUnitsShareDimension(canonicalUnit(unit), canonicalUnit(other)) || sameUnit(unit, other);
+}
+
+/**
+ * The numbers a text states that may measure what a given in `unit`
+ * measures, with one unit reader: a number in the given's own spelling (any
+ * spelling questionStatesQuantity accepts for it) is `own`; any other number
+ * is read with the known spellings, then the printed unit, then a unit
+ * symbol, and counts when that unit may share the given's dimension. A
+ * number word counts when such a unit follows it. For a unitless given the
+ * bare numbers count.
+ */
+function statedNumbersOfDimension(text: string, unit: string | undefined): Array<{ value: number; own: boolean }> {
+  const normalized = text.normalize("NFC").replace(/[−–—]/g, "-");
+  const own = unit ? unitSpellings(unit) : null;
+  const printed = displayedMeasurementUnits(normalized);
+  const read = (after: string, at?: number) => {
+    const spelled = spellingAfterNumber(after, KNOWN_SPELLING_LIST);
+    return (spelled && KNOWN_UNIT_SPELLINGS.get(spelled)) ?? (at === undefined ? undefined : printed.get(at)) ?? after.match(UNIT_AFTER_NUMBER)?.[0]?.trim();
+  };
+  const numbers: Array<{ value: number; own: boolean }> = [];
+  for (const match of normalized.matchAll(STATED_NUMBER)) {
+    const start = match.index ?? 0;
+    const after = normalized.slice(start + match[0].length);
+    const value = Number(match[0]);
+    const unitRead = read(after, start + match[0].search(/[\d.]/));
+    if (!own) {
+      const bare = !UNIT_AFTER_NUMBER.test(after);
+      if (bare || unitRead === undefined || !unitReadable(unitRead)) numbers.push({ value, own: bare });
+    } else if (spellingAfterNumber(after, own) !== undefined) {
+      numbers.push({ value, own: true });
+    } else if (unitRead !== undefined && mayShareDimension(unit, unitRead)) {
+      numbers.push({ value, own: false });
+    }
   }
-  return clauses;
+  if (own) {
+    for (const match of normalized.matchAll(NUMBER_WORD)) {
+      const after = normalized.slice((match.index ?? 0) + match[0].length);
+      const unitRead = spellingAfterNumber(after, own) ?? read(after);
+      if (unitRead !== undefined && mayShareDimension(unit, unitRead)) numbers.push({ value: Number.NaN, own: false });
+    }
+  }
+  return numbers;
 }
 
 /**
- * The subject noun of a clause: its first word before the stated value, past
- * articles and possessives, when another word follows it before the value
- * ("rain" of "Rain falls at 6 m/s", "man" of "a man rows at 4 m/s"). None
- * when that word is a pronoun, a joining word, a participle or adverb
- * ("Running at 8 m/s") or has no verb after it ("falls at 6 m/s").
+ * Words that make a stated value relative to another body, or derive a
+ * second value from it ("relative to", "w.r.t.", "appears", "twice that",
+ * "faster than"). Read across the whole question: a pronoun or a later
+ * sentence can carry the reference.
  */
-function clauseSubjectNoun(clause: string): string | undefined {
-  const firstNumber = clause.search(/(?<![\w.^])-?(?:\d|\.\d)/u);
-  const lead = (firstNumber < 0 ? clause : clause.slice(0, firstNumber)).match(/\p{L}+/gu) ?? [];
-  const index = lead.findIndex((word) => !SUBJECT_LEAD_WORDS.has(word.toLowerCase()));
-  const word = lead[index]?.toLowerCase();
-  if (!word || word.length < 2 || PRONOUNS.has(word) || CLAUSE_STOPWORDS.has(word) || /(?:ing|ly)$/.test(word)) return undefined;
-  const next = lead[index + 1]?.toLowerCase();
-  return next && !CLAUSE_STOPWORDS.has(next) ? word : undefined;
-}
-
-/** A capital label letter ("B" of "boat B"); a clause opening "A man" uses "A" as an article. */
-const isLabelLetter = (word: string, wordIndex: number) => word.length === 1 && /\p{Lu}/u.test(word) && !(wordIndex === 0 && word === "A");
+const RELATIVE_MARKER = /(?<![\p{L}])(?:relative(?:ly)?|with\s+respect\s+to|w\.?\s?r\.?\s?t|appears?|appeared|appearing|apparent(?:ly)?|seems?|seemed|as\s+seen|seen\s+(?:by|from)|observed\s+(?:by|from)|frame|twice|thrice|double|triple|half|times|than)(?![\p{L}])/iu;
 
 /**
- * Whether a clause word names an owner token. A one letter token ("r" of
- * v_r) is named only by that capital label letter ("boat B", "Car A") or by
- * the clause's subject noun ("rain" for r) when the clause has no label
- * letter: "rows" or "runs" name no "r". A
- * longer token is named by a word it starts or abbreviates.
+ * Whether a salvaged given is unambiguous without reading wording:
+ * (a) no other quantity of the lane may share its dimension (`others` is
+ * every quantity of the lane but this given, given or not, stated or not;
+ * a unit whose dimension cannot be read counts);
+ * (b) the question states exactly one number of that dimension, read with
+ * the one unit reader of questionStatesQuantity plus the given's own unit
+ * spelling;
+ * (c) that number is the given's value in the given's unit; and
+ * (d) neither the question nor the given's sourceText marks a value as
+ * relative or derived from another ("relative to", "appears", "twice").
+ * If in doubt, drop.
  */
-function clauseWordNamesToken(word: string, token: string, wordIndex: number, subject: string | undefined): boolean {
-  if (word.length === 1) return isLabelLetter(word, wordIndex) && token === word.toLowerCase();
-  const lower = word.toLowerCase();
-  if (CLAUSE_STOPWORDS.has(lower)) return false;
-  if (token.length === 1) return lower === subject && lower.startsWith(token);
-  return lower.startsWith(token) || (lower.length >= 3 && token.startsWith(lower));
-}
-
-/**
- * Source evidence that a salvaged given belongs to its own quantity when the
- * question states more than one value of its kind: its sourceText states
- * exactly this value and no other of its kind, the span is found in the
- * question, the question's clause around it states no other value of its
- * kind, a word of that clause names the given's owner (its symbol subscript
- * or id), and no other given of the same kind in the lane is named by that
- * clause. "v_r = 8 m/s" with source "man walks at 8 m/s", or "rows at 4 m/s"
- * in "a man rows at 4 m/s", has no such evidence.
- */
-function sourceTextNamesOwner(
+function salvagedGivenUnambiguous(
   question: string,
-  given: { id: string; symbol: string; value: number; unit?: string; sourceText?: unknown },
-  laneGivens: ReadonlyArray<{ id: string; symbol: string; unit?: string }>,
+  given: { value: number; unit?: string; sourceText?: unknown },
+  others: ReadonlyArray<{ unit?: string }>,
 ): boolean {
-  if (typeof given.sourceText !== "string" || !given.sourceText.trim()) return false;
-  if (!questionStatesQuantity(given.sourceText, given.value, given.unit)) return false;
-  if (competingStatedCount(given.sourceText, given.unit) !== 1) return false;
-  const clauses = questionClausesAround(question, given.sourceText);
-  return clauses.length > 0 && clauses.every((clause) => {
-    if (competingStatedCount(clause, given.unit) !== 1) return false;
-    const words = statedNumbers(clause).words.match(/\p{L}+/gu) ?? [];
-    // A clause with a label letter ("Boat A moves") is owned by the label, so its subject noun names no letter.
-    const labelled = words.some((word, index) => isLabelLetter(word, index));
-    const subject = labelled ? undefined : clauseSubjectNoun(clause);
-    const names = (id: string, symbol: string) => givenOwnerTokens(id, symbol)
-      .some((token) => words.some((word, index) => clauseWordNamesToken(word, token, index, subject)));
-    if (!names(given.id, given.symbol)) return false;
-    return !laneGivens.some((other) => other.id !== given.id &&
-      (given.unit ? other.unit !== undefined && sameMeasure(given.unit, other.unit) : other.unit === undefined) &&
-      names(other.id, other.symbol));
-  });
+  if (others.some((other) => mayShareDimension(given.unit, other.unit))) return false;
+  const stated = statedNumbersOfDimension(question, given.unit);
+  if (stated.length !== 1 || !stated[0]!.own || stated[0]!.value !== given.value) return false;
+  if (!questionStatesQuantity(question, given.value, given.unit)) return false;
+  return !RELATIVE_MARKER.test(question) && !(typeof given.sourceText === "string" && RELATIVE_MARKER.test(given.sourceText));
 }
 
 /** Indices of `givens` that a rejection's issue paths name ("givens[2].value"). */
@@ -731,16 +658,16 @@ function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number>
  * Every lane was rejected. Rather than a plan with no facts (which runs no
  * scene planning), keep only what the question itself states: the best
  * rejected plan's givens whose value and unit appear in the question, and its
- * law ids. A given the rejection's issues name is dropped, and so is a value
- * the rejected lanes bind to different symbols (swapped roles). When the
- * question states more than one value of a given's kind (6 m/s and 8 m/s),
- * nothing has checked which quantity owns which value, so the given is kept
- * only when the question clause around its sourceText names its owner
- * (`sourceTextNamesOwner`), unless every stated value of that kind is this
- * same value in this unit; one lane
- * binding v_r = 8 and v_m = 6 keeps neither. Every derived value, unknown and claim is withdrawn, so nothing the
- * validator refused can reach a label or the narration as authority. Returns
- * null when no given survives or the result fails validation.
+ * law ids. Nothing rechecks a salvaged given (ProblemIR solves derived values
+ * only), and which quantity a stated value belongs to cannot be read from
+ * wording, so a given is kept only when it is unambiguous without wording
+ * (`salvagedGivenUnambiguous`): the lane's one quantity of its dimension, the
+ * question's one number of that dimension, that number its value, and no
+ * relative marker. A given the rejection's issues name is dropped, and so is
+ * a value the rejected lanes bind to different symbols. Every derived value,
+ * unknown and claim is withdrawn, so nothing the validator refused can reach
+ * a label or the narration as authority. Returns null when no given survives
+ * or the result fails validation.
  */
 export function salvageRejectedTurnPlanV3(
   question: string,
@@ -785,12 +712,13 @@ export function salvageRejectedTurnPlanV3(
     const seen = new Set<string>();
     // A given the validator named in its issues is not salvaged.
     const flagged = flaggedGivenIndices(rejection.issues);
-    const laneGivens = plan.givens.flatMap((raw) => {
-      const given = record(raw);
-      return given && typeof given.id === "string" && typeof given.symbol === "string"
-        ? [{ id: given.id, symbol: given.symbol, ...(typeof given.unit === "string" && given.unit.trim() ? { unit: given.unit.trim() } : {}) }]
-        : [];
-    });
+    // Every quantity of the lane, given or not, stated or not, kept or not.
+    const unitOf = (entry: Record<string, unknown>) => typeof entry.unit === "string" && entry.unit.trim() ? entry.unit.trim() : undefined;
+    const laneQuantities = (["givens", "derived", "unknowns"] as const).flatMap((list) =>
+      (Array.isArray(plan[list]) ? plan[list] as unknown[] : []).flatMap((raw, index) => {
+        const entry = record(raw);
+        return entry ? [{ list, index, id: entry.id, unit: unitOf(entry) }] : [];
+      }));
     const givens = plan.givens.flatMap((raw, index) => {
       const given = record(raw);
       if (flagged.has(index)) return [];
@@ -800,11 +728,8 @@ export function salvageRejectedTurnPlanV3(
       const unit = typeof given.unit === "string" && given.unit.trim() ? given.unit.trim() : undefined;
       if (!questionStatesQuantity(question, given.value, unit)) return [];
       if (swapped.has(quantityKey(given.value, unit))) return [];
-      // More than one stated value of this kind: keep it only with source evidence of its owner,
-      // unless every one of them is this value in this unit, when no swap can change a label.
-      const competing = competingStatedNumbers(question, unit);
-      if (competing.length > 1 && !competing.every((number) => number.value === given.value && sameUnit(number.unit, unit)) &&
-          !sourceTextNamesOwner(question, { id: given.id, symbol: given.symbol, value: given.value, unit, sourceText: given.sourceText }, laneGivens)) return [];
+      const others = laneQuantities.filter((other) => other.list === "givens" ? other.index !== index : other.id !== given.id);
+      if (!salvagedGivenUnambiguous(question, { value: given.value, unit, sourceText: given.sourceText }, others)) return [];
       seen.add(given.id);
       return [{
         id: given.id,

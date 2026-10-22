@@ -8,7 +8,10 @@
  * 2. The corrected turn plan retry carries the validator's issues and gets a
  *    minimum budget when there is something to fix (v3 p3e1-t1: 5.2 s, aborted).
  * 3. Salvage keeps only givens whose value and unit the question states, plus
- *    law ids; no derived value, unknown or claim survives.
+ *    law ids; no derived value, unknown or claim survives. It fails closed
+ *    (3c): a given is kept only when it is the lane's one quantity of its
+ *    dimension, the question's one number of that dimension is its value, and
+ *    nothing marks a value as relative. Every review probe drops.
  *
  * Mock transport only; no model calls.
  */
@@ -195,36 +198,52 @@ const rejectedPlan = {
   assert.ok(!questionStatesQuantity("v2 = 4 m/s", 2, "m/s"), "a subscript digit is not a stated value");
   assert.ok(!questionStatesQuantity("6 ms delay", 6, "m"), "a longer unit word is not this unit");
 
+  // Salvage keeps only givens it can prove unambiguous (3c): the lane's one
+  // quantity of its dimension, the question's one number of that dimension.
   const issues = [{ code: "claim_quantity_mismatch", path: "qualitativeClaims[0].claim", message: "measured claim 12 m/s disagrees" }];
-  const salvaged = salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: rejectedPlan, issues }]);
+  const thrown = "A ball is thrown at 20 m/s at 30° above the horizontal from a cliff 45 m high. Find its time of flight.";
+  const ballPlan = {
+    schemaVersion: "turn-plan/v3", question: thrown,
+    givens: [
+      { id: "u", symbol: "u", value: 20, unit: "m/s", sourceText: "thrown at 20 m/s", provenance: "given" },
+      { id: "theta", symbol: "theta", value: 30, unit: "deg", sourceText: "30° above the horizontal", provenance: "given" },
+      { id: "h", symbol: "h", value: 45, unit: "m", sourceText: "a cliff 45 m high", provenance: "given" },
+      { id: "invented", symbol: "g", value: 9.8, unit: "m/s^2", sourceText: "g = 9.8", provenance: "given" },
+    ],
+    unknowns: [{ id: "T", symbol: "T", unit: "s" }],
+    derived: [{ id: "T", symbol: "T", value: 4.3, unit: "s", sourceText: "h = -u sin(theta) T + g T^2/2", provenance: "derived", dependsOn: ["u", "theta", "h"] }],
+    qualitativeClaims: [{ id: "c1", claim: "The ball lands after 12 s.", expected: "12 s", relatedQuantityIds: ["T"] }],
+    lawIds: ["projectile_motion", "kinematics"],
+    assumptions: [], visualRequirement: "required",
+  };
+  const salvaged = salvageRejectedTurnPlanV3(thrown, [{ lane: "primary", requestKind: "initial", plan: ballPlan, issues }]);
   assert.ok(salvaged, "question-stated givens are salvaged");
-  assert.deepEqual(salvaged.givens.map((given) => [given.id, given.value, given.unit]), [["vr", 6, "m/s"], ["vm", 8, "m/s"]],
+  assert.deepEqual(salvaged.givens.map((given) => [given.id, given.value, given.unit]), [["u", 20, "m/s"], ["theta", 30, "deg"], ["h", 45, "m"]],
     "a value the question does not state (g = 9.8) is dropped");
   assert.deepEqual(salvaged.derived, [], "no derived value survives");
   assert.deepEqual(salvaged.unknowns, []);
   assert.deepEqual(salvaged.qualitativeClaims, [], "no claim survives");
-  assert.deepEqual(salvaged.lawIds, ["relative_velocity", "pythagorean_theorem"], "law ids are kept");
-  assert.equal(salvaged.visualRequirement, "required");
-  assert.equal(salvaged.question, question);
+  assert.deepEqual(salvaged.lawIds, ["projectile_motion", "kinematics"], "law ids are kept");
+  assert.equal(salvaged.question, thrown);
 
   // Mutation: a changed value, a changed unit, or a derived value relabelled
   // as given is not stated by the question and does not survive.
   const mutated = {
-    ...rejectedPlan,
+    ...ballPlan,
     givens: [
-      { ...rejectedPlan.givens[0]!, value: 7 },
-      { ...rejectedPlan.givens[1]!, unit: "km/h" },
-      { id: "vrel", symbol: "v_rel", value: 10, unit: "m/s", sourceText: "sqrt(36+64)", provenance: "given" },
+      { ...ballPlan.givens[0]!, value: 21 },
+      { ...ballPlan.givens[1]!, unit: "rad" },
+      { id: "T2", symbol: "T", value: 4.3, unit: "s", sourceText: "solved", provenance: "given" },
     ],
   };
-  assert.equal(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: mutated, issues }]), null,
+  assert.equal(salvageRejectedTurnPlanV3(thrown, [{ lane: "primary", requestKind: "initial", plan: mutated, issues }]), null,
     "with no question-stated given there is nothing to salvage");
   // The best rejected plan is the one with the most stated givens.
-  const best = salvageRejectedTurnPlanV3(question, [
+  const best = salvageRejectedTurnPlanV3(thrown, [
     { lane: "primary", requestKind: "initial", plan: mutated, issues },
-    { lane: "alternate", requestKind: "initial", plan: rejectedPlan, issues },
+    { lane: "alternate", requestKind: "initial", plan: ballPlan, issues },
   ]);
-  assert.deepEqual(best?.givens.map((given) => given.id), ["vr", "vm"]);
+  assert.deepEqual(best?.givens.map((given) => given.id), ["u", "theta", "h"]);
 }
 // --- 3b. salvage keeps no wrong unit, flagged given or swapped role ----------
 {
@@ -244,154 +263,176 @@ const rejectedPlan = {
   assert.ok(questionStatesQuantity("a glass of refractive index 1.5 and 3 identical slabs", 1.5), "a bare number is stated");
   assert.ok(questionStatesQuantity("a glass of refractive index 1.5 and 3 identical slabs", 3), "a count before a noun is stated");
 
-  // Wrong unit prefixes: the plan's (8, m) and (6, km) are not the question's 8 m/s and 6 m/s.
-  const wrongUnits = { ...rejectedPlan, givens: [
-    { id: "vm", symbol: "v_m", value: 8, unit: "m", sourceText: "8 m/s", provenance: "given" },
-    { id: "vr", symbol: "v_r", value: 6, unit: "m/s", sourceText: "rain falls vertically at 6 m/s", provenance: "given" },
-  ] };
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: wrongUnits, issues: [] }])?.givens.map((given) => given.id), ["vr"],
-    "a given whose unit is a prefix of the stated unit is dropped");
-  const unitless = { ...rejectedPlan, givens: [{ id: "n", symbol: "n", value: 8, sourceText: "8", provenance: "given" }, rejectedPlan.givens[0]!] };
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: unitless, issues: [] }])?.givens.map((given) => given.id), ["vr"],
+  const thrown = "A ball is thrown at 20 m/s at 30° above the horizontal. Find its range.";
+  const u = { id: "u", symbol: "u", value: 20, unit: "m/s", sourceText: "thrown at 20 m/s", provenance: "given" };
+  const theta = { id: "theta", symbol: "theta", value: 30, unit: "deg", sourceText: "30° above the horizontal", provenance: "given" };
+  const plan = (givens: Array<Record<string, unknown>>) => ({ ...rejectedPlan, question: thrown, givens, unknowns: [], derived: [] });
+  const ids = (lanes: Array<Array<Record<string, unknown>>>, issues: Array<{ code: string; path: string; message: string }> = []) =>
+    salvageRejectedTurnPlanV3(thrown, lanes.map((givens, index) => ({ lane: index === 0 ? "primary" : "alternate", requestKind: "initial", plan: plan(givens), issues })))
+      ?.givens.map((given) => given.id) ?? null;
+  // Wrong unit prefixes: the plan's (20, m) is not the question's 20 m/s.
+  assert.deepEqual(ids([[{ ...u, unit: "m" }, theta]]), ["theta"], "a given whose unit is a prefix of the stated unit is dropped");
+  assert.deepEqual(ids([[{ id: "n", symbol: "n", value: 20, sourceText: "20", provenance: "given" }, theta]]), ["theta"],
     "a unitless given never matches a number followed by a unit");
 
   // A given the rejection's issues name is dropped.
-  const flaggedIssues = [{ code: "given_role_mismatch", path: "givens[1].symbol", message: "v_m is the rain's speed" }];
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: flaggedIssues }])?.givens.map((given) => given.id), ["vr"],
+  assert.deepEqual(ids([[u, theta]], [{ code: "given_role_mismatch", path: "givens[1].value", message: "theta is from the vertical" }]), ["u"],
     "a given named in the rejection's issue paths is dropped");
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [{ code: "x", path: "givens[0]", message: "x" }, { code: "y", path: "givens[1].value", message: "y" }] }]),
+  assert.equal(ids([[u, theta]], [{ code: "x", path: "givens[0]", message: "x" }, { code: "y", path: "givens[1].value", message: "y" }]),
     null, "with every stated given flagged there is nothing to salvage");
 
-  // Swapped roles: two lanes bind 6 and 8 to opposite symbols; neither value survives.
-  const swappedPlan = { ...rejectedPlan, givens: [
-    { ...rejectedPlan.givens[0]!, value: 8, sourceText: "8 m/s" },
-    { ...rejectedPlan.givens[1]!, value: 6, sourceText: "6 m/s" },
-  ] };
-  assert.equal(salvageRejectedTurnPlanV3(question, [
-    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
-    { lane: "alternate", requestKind: "initial", plan: swappedPlan, issues: [] },
-  ]), null, "values the rejected lanes bind to different symbols are dropped");
+  // Swapped roles across lanes: the same symbols carry each other's values; neither survives.
+  assert.equal(ids([[u, theta], [{ ...u, value: 30, unit: "deg" }, { ...theta, value: 20, unit: "m/s" }]]), null,
+    "values the rejected lanes bind to different symbols are dropped");
   // Lanes that agree keep both; a lane naming one more symbol is not a swap.
-  const extraSymbol = { ...rejectedPlan, givens: [...rejectedPlan.givens.slice(0, 2), { id: "vw", symbol: "v_w", value: 9, unit: "m/s", provenance: "given" }] };
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [
-    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
-    { lane: "alternate", requestKind: "initial", plan: extraSymbol, issues: [] },
-  ])?.givens.map((given) => given.id), ["vr", "vm"], "agreeing lanes keep their givens");
-  // A lane that only respells a symbol (v_r and v_rain for one 6 m/s) is no swap.
-  const respelled = { ...rejectedPlan, givens: [{ ...rejectedPlan.givens[0]!, symbol: "v_rain" }, rejectedPlan.givens[1]!] };
-  assert.deepEqual(salvageRejectedTurnPlanV3(question, [
-    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
-    { lane: "alternate", requestKind: "initial", plan: respelled, issues: [] },
-  ])?.givens.map((given) => given.id), ["vr", "vm"], "a respelled symbol with the same value is no swap");
+  assert.deepEqual(ids([[u, theta], [u, theta, { id: "h", symbol: "h", value: 9, unit: "m", provenance: "given" }]]), ["u", "theta"], "agreeing lanes keep their givens");
+  // A lane that only respells a symbol (u and u_0 for one 20 m/s) is no swap.
+  assert.deepEqual(ids([[u, theta], [{ ...u, symbol: "u_0" }, theta]]), ["u", "theta"], "a respelled symbol with the same value is no swap");
 }
 
-// --- 3c. one lane with swapped roles keeps no given it cannot own ----------
+// --- 3c. salvage fails closed: no given whose owner only wording could tell --
 {
-  // PR #249 review: one rejected lane binds v_r = 8 and v_m = 6. Both values
-  // are stated, no second lane disagrees, and nothing rechecked them, so a
-  // rain arrow labelled 8 m/s passed the stated value label check.
-  const asked = "Rain falls at 6 m/s, man walks at 8 m/s. How should he hold his umbrella?";
+  // PR #249: three reviews in a row fooled an owner rule that read English
+  // wording to decide which quantity a stated value belongs to. Salvage now
+  // keeps a given only when it is the lane's one quantity of its dimension,
+  // the question states exactly one number of that dimension, that number is
+  // the given's value, and nothing marks a stated value as relative.
   const claimIssue = [{ code: "claim_quantity_mismatch", path: "qualitativeClaims[0].claim", message: "measured claim disagrees" }];
-  const lane = (givens: Array<Record<string, unknown>>) => [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: asked, givens }, issues: claimIssue }];
-  const vr = (value: number, sourceText?: string) => ({ id: "vr", symbol: "v_r", value, unit: "m/s", ...(sourceText ? { sourceText } : {}), provenance: "given" });
-  const vm = (value: number, sourceText?: string) => ({ id: "vm", symbol: "v_m", value, unit: "m/s", ...(sourceText ? { sourceText } : {}), provenance: "given" });
-  const ids = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(asked, lane(givens))?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
+  type Quantity = Record<string, unknown>;
+  const q = (id: string, value: number, unit: string | undefined, sourceText?: string, symbol = `v_${id.replace(/^v/, "")}`): Quantity =>
+    ({ id, symbol, value, ...(unit ? { unit } : {}), ...(sourceText ? { sourceText } : {}), provenance: "given" });
+  const salvageOf = (asked: string, givens: Quantity[], rest: { unknowns?: Quantity[]; derived?: Quantity[] } = {}) =>
+    salvageRejectedTurnPlanV3(asked, [{ lane: "primary", requestKind: "initial",
+      plan: { ...rejectedPlan, question: asked, givens, unknowns: rest.unknowns ?? [], derived: rest.derived ?? [] }, issues: claimIssue }]);
+  const keptOf = (asked: string, givens: Quantity[], rest?: { unknowns?: Quantity[]; derived?: Quantity[] }) =>
+    salvageOf(asked, givens, rest)?.givens.map((given) => `${given.id}=${given.value}`) ?? [];
 
-  assert.equal(ids([vr(8, "man walks at 8 m/s"), vm(6, "Rain falls at 6 m/s")]), null,
-    "the reviewer's repro: swapped givens whose source clauses name the other owner are dropped");
-  assert.equal(ids([vr(8, "8 m/s"), vm(6, "6 m/s")]), null, "a bare value names no owner");
-  assert.equal(ids([vr(8), vm(6)]), null, "no sourceText is no evidence");
-  assert.equal(ids([vr(8, "Rain falls at 6 m/s"), vm(6, "man walks at 8 m/s")]), null,
-    "a clause that names the owner but states another value is no evidence");
-  assert.equal(ids([vr(8, "the rain falls at 8 m/s"), vm(6, "the man walks at 6 m/s")]), null, "a clause the question never says is no evidence");
-  assert.equal(ids([vr(8, "man walks at 8 m/s"), vm(6, "Rain falls at 6 m/s, man walks")]), null, "a clause that also names another owner of this kind is no evidence");
-
-  // Correctly owned salvaged givens are kept, alone or beside a dropped one.
-  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8, "man walks at 8 m/s")]), ["vr=6", "vm=8"], "owned givens are kept");
-  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8)]), ["vr=6"], "only the owned given is kept");
-  assert.deepEqual(ids([{ ...vr(6, "Rain falls at 6 m/s"), symbol: "v_{rain}", id: "rain_speed" }, { ...vm(8, "man walks at 8 m/s"), symbol: "v", id: "man_speed" }]),
-    ["rain_speed=6", "man_speed=8"], "an owner word in the id or a braced subscript is evidence");
-  assert.equal(ids([{ ...vr(8, "man walks at 8 m/s"), symbol: "v", id: "rain_speed" }]), null, "a generic id word (speed) is no owner");
-  // A value of a kind the question states once needs no owner evidence.
-  const timed = "Rain falls at 6 m/s, man walks at 8 m/s for 5 s.";
-  assert.deepEqual(salvageRejectedTurnPlanV3(timed, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: timed,
-    givens: [vr(8, "8 m/s"), vm(6, "6 m/s"), { id: "t", symbol: "t", value: 5, unit: "s", sourceText: "5 s", provenance: "given" }] }, issues: claimIssue }])?.givens.map((given) => given.id),
-    ["t"], "the only stated time is kept while the swapped speeds are dropped");
-  // Label letters own their values.
-  const cars = "Car A moves at 10 m/s and car B moves at 15 m/s. Find the velocity of A relative to B.";
-  const car = (id: string, value: number, sourceText: string) => ({ id, symbol: `v_${id.slice(1)}`, value, unit: "m/s", sourceText, provenance: "given" });
-  const carIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(cars, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: cars, givens }, issues: claimIssue }])?.givens.map((given) => given.id) ?? null;
-  assert.deepEqual(carIds([car("vA", 10, "Car A moves at 10 m/s"), car("vB", 15, "car B moves at 15 m/s")]), ["vA", "vB"], "a label letter owns its value");
-  assert.equal(carIds([car("vA", 15, "car B moves at 15 m/s"), car("vB", 10, "Car A moves at 10 m/s")]), null, "swapped label letters are dropped");
-
-  // PR #249 second review: the competing value count read "km/hr" as km and
-  // "metres per second" as metres, so it counted no speed and skipped the
-  // owner rule, while questionStatesQuantity accepted both spellings.
+  // Every probe from the three reviews. Each names the givens that would be
+  // a false label (a swapped value, or a relative value on an absolute
+  // quantity); none of them may survive. The lanes carry no other quantity,
+  // so the question side of the rule is what drops them.
+  const umbrella = "Rain falls at 6 m/s, man walks at 8 m/s. How should he hold his umbrella?";
+  const probes: Array<{ name: string; question: string; givens: Quantity[]; falseIds: string[] }> = [
+    { name: "rain 6 m/s and man 8 m/s swapped, owner spans", question: umbrella,
+      givens: [q("vr", 8, "m/s", "man walks at 8 m/s"), q("vm", 6, "m/s", "Rain falls at 6 m/s")], falseIds: ["vr", "vm"] },
+    { name: "rain 6 m/s and man 8 m/s swapped, bare spans", question: umbrella,
+      givens: [q("vr", 8, "m/s", "8 m/s"), q("vm", 6, "m/s", "6 m/s")], falseIds: ["vr", "vm"] },
+    { name: "rain 6 m/s and man 8 m/s swapped, no spans", question: umbrella, givens: [q("vr", 8, "m/s"), q("vm", 6, "m/s")], falseIds: ["vr", "vm"] },
+    { name: "rain 6 m/s and man 8 m/s swapped, ids name the other owner", question: umbrella,
+      givens: [q("rain_speed", 8, "m/s", "man walks at 8 m/s", "v_{rain}"), q("man_speed", 6, "m/s", "Rain falls at 6 m/s", "v")], falseIds: ["rain_speed", "man_speed"] },
+    { name: "river flows at 3 m/s, man \"rows at 4 m/s\" as v_r", question: "A river flows at 3 m/s and a man rows at 4 m/s. Find the time to cross.",
+      givens: [q("vr", 4, "m/s", "rows at 4 m/s"), q("vm", 3, "m/s")], falseIds: ["vr", "vm"] },
+    { name: "rain \"runs at 8 m/s\" as v_r", question: "Rain falls at 6 m/s and a man runs at 8 m/s. How should he hold his umbrella?",
+      givens: [q("vr", 8, "m/s", "runs at 8 m/s"), q("vm", 6, "m/s")], falseIds: ["vr", "vm"] },
+    ...[[q("vA", 15, "m/s", "15 m/s"), q("vB", 10, "m/s", "10 m/s")], [q("vA", 10, "m/s", "10 m/s"), q("vB", 15, "m/s", "15 m/s")]].map((givens, index) => ({
+      name: `two trains at 10 m/s and 15 m/s respectively, ${index === 0 ? "swapped" : "correct"} lane`,
+      question: "Two trains A and B move at 10 m/s and 15 m/s respectively. Find the velocity of A relative to B.",
+      // Respectively binds by position, which only wording tells: neither lane keeps a speed.
+      givens, falseIds: ["vA", "vB"] })),
+    { name: "motorboat and man: the boat's speed as the man's", question: "A motorboat moves upstream at 10 m/s and a man on it walks towards the stern at 2 m/s. Find the man's velocity relative to the bank.",
+      givens: [q("vm", 10, "m/s", "A motorboat moves upstream at 10 m/s"), q("vb", 2, "m/s", "a man on it walks towards the stern at 2 m/s")], falseIds: ["vm", "vb"] },
+    { name: "swimmer and stream: the stream's speed as the swimmer's", question: "A swimmer swims at 2 m/s in still water and the stream flows at 1.5 m/s. Find the time to cross a 60 m wide river.",
+      givens: [q("vs", 1.5, "m/s", "the stream flows at 1.5 m/s"), q("vw", 2, "m/s", "A swimmer swims at 2 m/s")], falseIds: ["vs", "vw"] },
+    { name: "rain relative to the man 5 m/s with the man at 5 m/s", question: "A man walks east at 5 m/s, and the velocity of rain relative to the man is 5 m/s vertically downward. Find the actual velocity of the rain.",
+      givens: [q("vr", 5, "m/s", "the velocity of rain relative to the man is 5 m/s"), q("vm", 5, "m/s", "A man walks east at 5 m/s")], falseIds: ["vr"] },
+    { name: "rain relative to the man 5 m/s, stated alone", question: "The velocity of rain relative to a man walking east is 5 m/s, vertically downward. Find the actual velocity of the rain.",
+      givens: [q("vr", 5, "m/s", "The velocity of rain relative to a man walking east is 5 m/s")], falseIds: ["vr"] },
+    { name: "car B at 10 m/s relative to car A, beside car A", question: "Car A moves at 15 m/s. Car B moves at 10 m/s relative to car A. Find the ground velocity of B.",
+      givens: [q("vA", 15, "m/s", "Car A moves at 15 m/s"), q("vB", 10, "m/s", "Car B moves at 10 m/s relative to car A")], falseIds: ["vB"] },
+    { name: "car B at 10 m/s relative to car A, stated alone", question: "Car B moves at 10 m/s relative to car A, which is slowing down. Find the ground velocity of B.",
+      givens: [q("vB", 10, "m/s", "Car B moves at 10 m/s")], falseIds: ["vB"] },
+    { name: "boat at 4 m/s relative to the river as its ground speed", question: "A boat moves at 4 m/s relative to the river, which flows east. Find the boat's speed over the ground.",
+      givens: [q("vb", 4, "m/s", "A boat moves at 4 m/s")], falseIds: ["vb"] },
+    { name: "rain appears to him to fall at 6 m/s, beside the man's 8 m/s", question: "A man walks at 8 m/s. Rain appears to him to fall at 6 m/s. Find the actual speed of the rain.",
+      givens: [q("vr", 6, "m/s", "Rain appears to him to fall at 6 m/s"), q("vm", 8, "m/s", "A man walks at 8 m/s")], falseIds: ["vr"] },
+    { name: "rain appears to him to fall at 6 m/s, stated alone", question: "Rain appears to a running man to fall vertically at 6 m/s. Find the actual speed of the rain.",
+      givens: [q("vr", 6, "m/s", "fall vertically at 6 m/s")], falseIds: ["vr"] },
+    { name: "truck carrying sand: the truck's speed as the sand's", question: "A truck carrying sand moves at 10 m/s, and sand is thrown backwards from it at 4 m/s. Find the ground speed of the sand.",
+      givens: [q("vs", 10, "m/s", "A truck carrying sand moves at 10 m/s"), q("vt", 4, "m/s", "sand is thrown backwards from it at 4 m/s")], falseIds: ["vs", "vt"] },
+    { name: "rain falls at twice that speed", question: "A man walks at 4 m/s and rain falls at twice that speed. How should he hold his umbrella?",
+      givens: [q("vr", 4, "m/s", "rain falls at twice that speed")], falseIds: ["vr"] },
+    { name: "a man at point B walks at 8 m/s as boat B's speed", question: "Boat B is anchored in a river that flows at 6 m/s, and a man at point B walks at 8 m/s along the bank.",
+      givens: [q("vB", 8, "m/s", "a man at point B walks at 8 m/s"), q("vr", 6, "m/s", "a river that flows at 6 m/s")], falseIds: ["vB", "vr"] },
+  ];
+  // Every unit spelling the reviews used: the question states two speeds in it.
   for (const [spelled, unit] of [
-    ["km/hr", "km/h"], ["kmph", "km/h"], ["km h^-1", "km/h"], ["kilometres per hour", "km/h"],
-    ["metres per second", "m/s"], ["m s^-1", "m/s"], ["m/sec", "m/s"],
+    ["km/hr", "km/h"], ["kmph", "km/h"], ["km h^-1", "km/h"], ["kilometres per hour", "km/h"], ["kilometers per hour", "km/h"],
+    ["kmh", "km/h"], ["km hr-1", "km/h"], ["km/hrs", "km/h"],
+    ["metres per second", "m/s"], ["m s^-1", "m/s"], ["m/sec", "m/s"], ["mps", "m/s"],
   ] as const) {
     const spoken = `Rain falls at 6 ${spelled} and a man walks at 8 ${spelled}. How should he hold his umbrella?`;
-    assert.ok(questionStatesQuantity(spoken, 8, unit) && questionStatesQuantity(spoken, 6, unit), `${spelled}: the question states both speeds in ${unit}`);
-    const spokenIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(spoken, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: spoken, givens }, issues: claimIssue }])
-      ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
-    const asUnit = (given: Record<string, unknown>, sourceText?: string) => {
-      const { sourceText: _dropped, ...rest } = given;
-      return { ...rest, unit, ...(sourceText ? { sourceText } : {}) };
-    };
-    assert.equal(spokenIds([asUnit(vr(8)), asUnit(vm(6))]), null,
-      `${spelled}: one lane binding v_r = 8 and v_m = 6 with no sourceText keeps neither`);
-    assert.equal(spokenIds([{ ...asUnit(vr(8)), unit: spelled }, { ...asUnit(vm(6)), unit: spelled }]), null,
-      `${spelled}: the same swap in the question's own spelling keeps neither`);
-    assert.deepEqual(spokenIds([asUnit(vr(6), `Rain falls at 6 ${spelled}`), asUnit(vm(8), `a man walks at 8 ${spelled}`)]), ["vr=6", "vm=8"],
-      `${spelled}: owned givens are still kept`);
+    probes.push(
+      { name: `${spelled}: swapped in ${unit}`, question: spoken, givens: [q("vr", 8, unit), q("vm", 6, unit)], falseIds: ["vr", "vm"] },
+      { name: `${spelled}: swapped in the question's spelling`, question: spoken, givens: [q("vr", 8, spelled), q("vm", 6, spelled)], falseIds: ["vr", "vm"] },
+      { name: `${spelled}: swapped with owner spans`, question: spoken,
+        givens: [q("vr", 8, spelled, `a man walks at 8 ${spelled}`), q("vm", 6, spelled, `Rain falls at 6 ${spelled}`)], falseIds: ["vr", "vm"] },
+    );
   }
+  // A speed in a spelling only the given uses still counts against a speed in m/s.
+  probes.push({ name: "6 m/s beside 8 mps, lane binds the man to 6 m/s", question: "Rain falls at 6 m/s and a man walks at 8 mps. How should he hold his umbrella?",
+    givens: [q("vm", 6, "m/s", "6 m/s"), q("vr", 8, "mps")], falseIds: ["vm", "vr"] });
+  const falseKeeps = probes.flatMap((probe) => {
+    const kept = salvageOf(probe.question, probe.givens)?.givens.map((given) => given.id) ?? [];
+    const leaked = probe.falseIds.filter((id) => kept.includes(id));
+    return leaked.length ? [`${probe.name}: kept ${leaked.join(", ")}`] : [];
+  });
+  assert.deepEqual(falseKeeps, [], `salvage kept a false given on ${falseKeeps.length} of ${probes.length} review probes:\n  ${falseKeeps.join("\n  ")}`);
 
-  // PR #249 second review: a one letter subscript matched any span word that
-  // starts with its letter ("rows" named r), and only the model's span was
-  // read. Evidence now comes from the question's clause around the span; a
-  // one letter token is named only by a capital label letter or by the
-  // clause's subject noun.
-  const river = "A river flows at 3 m/s and a man rows at 4 m/s. Find the time to cross.";
-  const riverIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(river, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: river, givens }, issues: claimIssue }])
-    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
-  assert.equal(riverIds([vr(4, "rows at 4 m/s"), vm(3)]), null, "the reviewer's repro: \"rows\" does not name the river, so v_r = 4 m/s is dropped");
-  assert.equal(riverIds([vr(4, "rows at 4 m/s"), vm(3, "flows at 3 m/s")]), null, "the swapped pair with verb spans keeps neither");
-  assert.deepEqual(riverIds([vr(3, "A river flows at 3 m/s"), vm(4, "a man rows at 4 m/s")]), ["vr=3", "vm=4"], "the clause subjects own the right values");
-  assert.deepEqual(riverIds([vr(3, "flows at 3 m/s"), vm(4, "rows at 4 m/s")]), ["vr=3", "vm=4"], "a verb span is read in its clause, whose subject owns it");
-  const runs = "Rain falls at 6 m/s and a man runs at 8 m/s. How should he hold his umbrella?";
-  const runIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(runs, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: runs, givens }, issues: claimIssue }])
-    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
-  assert.equal(runIds([vr(8, "runs at 8 m/s"), vm(6)]), null, "\"runs\" does not name the rain, so v_r = 8 m/s is dropped");
-  assert.equal(runIds([vr(8, "Running at 8 m/s")]), null, "a span the question never says is no evidence");
-  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8, "8 m/s")]), ["vr=6", "vm=8"],
-    "a bare span is read in its question clause (\"man walks at 8 m/s\"), whose subject owns it");
-  const walks = "Rain falls at 6 m/s and the man walks at 8 m/s. How should he hold his umbrella?";
-  assert.deepEqual(salvageRejectedTurnPlanV3(walks, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: walks, givens: [vm(8, "the man walks at 8 m/s")] }, issues: claimIssue }])
-    ?.givens.map((given) => `${given.id}=${given.value}`), ["vm=8"], "\"the man walks at 8 m/s\" owns v_m");
-  const boats = "Boat A moves at 3 m/s and boat B moves at 5 m/s. Find the velocity of B relative to A.";
-  const boat = (id: string, value: number, sourceText: string) => ({ id, symbol: `v_${id.slice(1)}`, value, unit: "m/s", sourceText, provenance: "given" });
-  assert.deepEqual(salvageRejectedTurnPlanV3(boats, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: boats,
-    givens: [boat("vA", 3, "Boat A moves at 3 m/s"), boat("vB", 5, "boat B moves at 5 m/s")] }, issues: claimIssue }])?.givens.map((given) => given.id), ["vA", "vB"],
-    "\"boat B moves at 5 m/s\" owns v_B");
-  // The recorded v3 p3c-t1 lane (fixtures/v3-planner-selection.json) keeps both givens.
+  // No identical value exception: two stated speeds are two numbers, even when equal.
+  assert.deepEqual(keptOf("Car A moves at 10 m/s and car B moves at 10 m/s in the same direction. Find their relative velocity.", [q("vA", 10, "m/s"), q("vB", 10, "m/s")]), [],
+    "two equal stated speeds are still two numbers of that dimension");
+
+  // Kept: a given that is unambiguous without reading wording. The lane's one
+  // speed and one angle, each the question's one number of its dimension.
+  const thrown = "A ball is thrown at 20 m/s at 30° above the horizontal. Find its range.";
+  const ballGivens = [q("u", 20, "m/s", "thrown at 20 m/s", "u"), q("theta", 30, "deg", "30° above the horizontal", "theta")];
+  const ballRest = { unknowns: [{ id: "R", symbol: "R", unit: "m" }], derived: [{ id: "R", symbol: "R", value: 35.3, unit: "m", sourceText: "u^2 sin(2 theta)/g", provenance: "derived" }] };
+  assert.deepEqual(keptOf(thrown, ballGivens, ballRest), ["u=20", "theta=30"], "a single unambiguous speed and angle are kept");
+  // Each condition on its own drops the given.
+  assert.deepEqual(keptOf(thrown, ballGivens, { ...ballRest, unknowns: [...ballRest.unknowns, { id: "vx", symbol: "v_x", unit: "m/s" }] }), ["theta=30"],
+    "(a) another quantity of its dimension in the lane, even an unknown, drops the speed");
+  assert.deepEqual(keptOf(thrown, ballGivens, { ...ballRest, derived: [...ballRest.derived, { id: "vy", symbol: "v_y", value: 10, unit: "km/h", provenance: "derived" }] }), ["theta=30"],
+    "(a) a derived quantity of its dimension in another unit drops the speed");
+  assert.deepEqual(keptOf(thrown, [...ballGivens, q("w", 3, "m/s")], ballRest), ["theta=30"],
+    "(a) an unstated given of its dimension still counts against the speed");
+  assert.deepEqual(keptOf(thrown, ballGivens, { ...ballRest, unknowns: [...ballRest.unknowns, { id: "k", symbol: "k", unit: "furlongs" }] }), [],
+    "(a) a lane quantity whose unit cannot be read is in doubt and drops every given");
+  assert.deepEqual(keptOf("A ball is thrown at 20 m/s at 30° above the horizontal from a cart moving at 5 m/s. Find its range.", ballGivens, ballRest), ["theta=30"],
+    "(b) a second stated speed drops the speed");
+  assert.deepEqual(keptOf("A ball is thrown at 20 m/s at 30° above the horizontal from a cart moving at six m/s. Find its range.", ballGivens, ballRest), ["theta=30"],
+    "(b) a speed written in words still counts");
+  assert.deepEqual(keptOf("A ball is thrown at 20 m/s at 30° above the horizontal. Find its range.", [q("u", 20, "km/h", "20 km/h", "u"), ballGivens[1]!], ballRest), ["theta=30"],
+    "(c) the question's one speed in another unit is not the given's value");
+  assert.deepEqual(keptOf("A ball is thrown at 20 m/s relative to a cart at 30° above the horizontal. Find its range.", ballGivens, ballRest), [],
+    "(d) a relative marker in the question drops every given");
+  for (const marker of ["with respect to a cart", "w.r.t. a cart", "as seen from a cart", "faster than a cart"]) {
+    assert.deepEqual(keptOf(`A ball is thrown at 20 m/s ${marker} at 30° above the horizontal. Find its range.`, ballGivens, ballRest), [], `(d) "${marker}" drops every given`);
+  }
+  assert.deepEqual(keptOf(thrown, [{ ...ballGivens[0]!, sourceText: "20 m/s relative to the cart" }, ballGivens[1]!], ballRest), ["theta=30"],
+    "(d) a relative marker in the given's own sourceText drops it");
+  // A unitless given is a bare number: kept alone, dropped beside another bare number.
+  assert.deepEqual(keptOf("A glass slab has refractive index 1.5. Find the speed of light in it.", [q("n", 1.5, undefined, "refractive index 1.5", "n")]), ["n=1.5"]);
+  assert.deepEqual(keptOf("A glass of refractive index 1.5 and 3 identical slabs are stacked.", [q("n", 1.5, undefined, "refractive index 1.5", "n")]), [],
+    "two bare numbers make a unitless given ambiguous");
+
+  // The recorded v3 salvage cases (fixtures/v3-planner-selection.json in apps/tutor;
+  // .context/youtube-full/v3/lessons has no other turn whose every lane was
+  // rejected). On 0180e8af4 the owner rule kept p3c-t1's v_r = 6 and v_m = 8
+  // and p3e1-t1's theta_app = 60 (3 givens); fail closed keeps none: both
+  // lanes carry a second quantity of each given's dimension, p3c-t1 states two
+  // speeds, and p3e1-t1's angle "appears".
   const p3c = "Explain rain and umbrella problems for JEE using this example: rain falls vertically at 6 m/s and a man walks east at 8 m/s. How does the rain look to him, and how should he hold his umbrella?";
-  assert.deepEqual(salvageRejectedTurnPlanV3(p3c, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: p3c,
-    givens: [{ ...vr(6, "rain falls vertically at 6 m/s"), sign: "-" }, { ...vm(8, "man walks east at 8 m/s"), sign: "+" }] }, issues: claimIssue }])
-    ?.givens.map((given) => `${given.id}=${given.value}`), ["vr=6", "vm=8"], "the recorded p3c-t1 givens are kept");
-  // Two speeds stated with one value: no swap can change a label, so both are kept without owner evidence.
-  const equal = "Car A moves at 10 m/s and car B moves at 10 m/s in the same direction. Find their relative velocity.";
-  const equalIds = (q: string, givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(q, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: q, givens }, issues: claimIssue }])
-    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
-  const bare = (id: string, value: number, unit: string) => ({ id, symbol: `v_${id.slice(1)}`, value, unit, provenance: "given" });
-  assert.deepEqual(equalIds(equal, [bare("vA", 10, "m/s"), bare("vB", 10, "m/s")]), ["vA=10", "vB=10"], "identical stated speeds are both kept");
-  const mixed = "Car A moves at 10 m/s and car B moves at 10 km/h. Find their relative velocity.";
-  assert.equal(equalIds(mixed, [bare("vA", 10, "m/s"), bare("vB", 10, "km/h")]), null, "one number in two units is not one value: the owner rule still applies");
-  // A clause that names a second owner of this kind is still no evidence.
-  const shared = "A man walks at 8 m/s in the rain, and rain falls at 6 m/s.";
-  assert.equal(salvageRejectedTurnPlanV3(shared, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: shared,
-    givens: [{ ...vm(8, "walks at 8 m/s"), id: "man_speed", symbol: "v" }, { ...vr(6, "rain falls at 6 m/s"), id: "rain_speed", symbol: "v" }] }, issues: claimIssue }])
-    ?.givens.map((given) => given.id).includes("man_speed"), false, "a clause naming the rain too does not own the man's speed");
+  const p3cKept = keptOf(p3c, [{ ...q("vr", 6, "m/s", "rain falls vertically at 6 m/s"), sign: "-" }, { ...q("vm", 8, "m/s", "man walks east at 8 m/s"), sign: "+" }], {
+    unknowns: [{ id: "vrel", symbol: "v_rm", unit: "m/s" }, { id: "theta", symbol: "theta", unit: "deg" }],
+    derived: [{ id: "vrel", symbol: "v_rm", value: 10, unit: "m/s", provenance: "derived" }, { id: "theta", symbol: "theta", value: 37, unit: "deg", provenance: "derived" }],
+  });
+  const p3e1 = "A girl cycling east at 5 km/h sees the rain falling vertically. At 20 km/h, the rain appears to fall at 60° to the vertical, hitting her from the front. Find the actual speed of the rain, the angle it makes with the vertical, and which side it is tilted toward.";
+  const p3e1Kept = keptOf(p3e1, [q("v1", 5, "km/h", "cycling east at 5 km/h", "v_g1"), q("v2", 20, "km/h", "At 20 km/h", "v_g2"), q("a2", 60, "deg", "appears to fall at 60° to the vertical", "theta_app")], {
+    unknowns: [{ id: "vr", symbol: "v_r", unit: "km/h" }, { id: "ang", symbol: "theta", unit: "deg" }, { id: "side", symbol: "tilt_side" }],
+    derived: [{ id: "vx", symbol: "v_rx", value: 5, unit: "km/h", provenance: "derived" }, { id: "ang", symbol: "theta", value: 30, unit: "deg", provenance: "derived" }],
+  });
+  assert.deepEqual([p3cKept, p3e1Kept], [[], []], "the recorded salvage cases keep no given they cannot prove unambiguous");
+  console.log(`  ${probes.length} review probes keep no false given; recorded v3 salvage keeps p3c-t1 2 -> ${p3cKept.length}, p3e1-t1 1 -> ${p3e1Kept.length} givens (0180e8af4 -> now; total 3 -> ${p3cKept.length + p3e1Kept.length})`);
 }
 
 console.log("verify-v3-planner-selection: exact-source ranking and grace, retry feedback and budget, and question-stated salvage hold");

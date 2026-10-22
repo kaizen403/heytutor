@@ -14,8 +14,11 @@
  *    winner shows fewer quantities or values than the loser.
  * 3. Salvage. v3 p3c-t1 and p3e1-t1: every turn plan lane was rejected and
  *    the empty fallback plan ran no scene planning (p3c-t1 drew the bare
- *    qualitative family instead). The salvaged plan keeps only the givens the
- *    question states, and for p3c-t1 the scene planner is then attempted.
+ *    qualitative family instead). Salvage fails closed: it keeps a given only
+ *    when no wording is needed to tell whose value it is, which neither
+ *    recorded lane allows (p3c-t1 states two speeds; each lane carries a
+ *    second quantity of every given's dimension), so both turns behave as on
+ *    main. A salvaged plan, when there is one, still requests ProblemIR.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -32,14 +35,12 @@ import {
 } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import {
-  deriveSceneGate,
   isLabelOwnerWarning,
   sceneCandidateQualityScore,
   sceneQuantityCoverage,
   selectProductionScene,
   validateProductionSceneCandidate,
 } from "../../features/tutor-session/lib/scene/productionSceneSelection";
-import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { turnPlanRequestsNumericAuthority } from "../../features/tutor-session/lib/scene/diagramGeneration";
 
 interface SelectionCase {
@@ -207,20 +208,12 @@ for (const entry of fixture.salvage) {
     assert.ok(trace.arithmetic && trace.issues?.length);
     rejections.push({ lane: "primary", requestKind: "initial", plan: trace.arithmetic.plan, issues: trace.issues });
   }
+  // Fail closed: on 0180e8af4 the owner rule kept p3c-t1's v_r = 6 and v_m = 8
+  // and p3e1-t1's theta_app = 60. Neither lane can show those givens are
+  // unambiguous without reading wording, so nothing is salvaged.
+  const before = entry.id === "v3/p3c-t1" ? 2 : 1;
   const salvaged = salvageRejectedTurnPlanV3(entry.question, rejections);
-  assert.ok(salvaged, `${entry.id}: question-stated givens are salvaged`);
-  assert.deepEqual(salvaged.derived, [], `${entry.id}: no derived value survives`);
-  assert.deepEqual(salvaged.qualitativeClaims, [], `${entry.id}: no claim survives`);
-  assert.deepEqual(salvaged.unknowns, []);
-  assert.ok(salvaged.lawIds.length > 0, `${entry.id}: law ids are kept`);
-  // p3e1-t1 states two speeds, and its clauses ("cycling east at 5 km/h",
-  // "At 20 km/h") name no owner of v_g1 or v_g2, so only the one stated angle
-  // survives: a swapped pair of salvaged speeds would otherwise reach a label
-  // that nothing rechecks (PR #249 review).
-  const expected = entry.id === "v3/p3c-t1"
-    ? [["vr", 6, "m/s"], ["vm", 8, "m/s"]]
-    : [["a2", 60, "deg"]];
-  assert.deepEqual(salvaged.givens.map((given) => [given.id, given.value, given.unit]), expected, `${entry.id}: salvaged givens`);
+  assert.equal(salvaged, null, `${entry.id}: no given is salvaged`);
 
   // Mutations on the recorded plans: a value the question does not state and
   // a derived value relabelled as given are both dropped.
@@ -239,21 +232,32 @@ for (const entry of fixture.salvage) {
     `${entry.id}: shifted values and derived values never become givens`);
 
   const fallback = createFallbackTurnPlanV3(entry.question);
-  const attempted = (plan: TurnPlanV3) => {
-    const gate = deriveSceneGate({ question: entry.question, turnPlan: plan, problemIR: null, visualNeedDecision: null });
-    // planningOverlap runs the scene planner only when no fast figure was selected.
-    const fast = selectFastVerifiedRepresentation({ question: entry.question, turnPlan: gate.turnPlan, problemIR: null, families: gate.families });
-    return gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && fast === null;
-  };
-  // A salvaged plan goes through ProblemIR like an accepted one (which corrects derived
-  // values only, never the salvaged givens); the empty fallback does not.
-  assert.equal(turnPlanRequestsNumericAuthority(entry.question, salvaged, "salvaged"), true, `${entry.id}: the salvaged plan requests ProblemIR`);
   assert.equal(turnPlanRequestsNumericAuthority(entry.question, fallback, "fallback"), false, `${entry.id}: the fallback plan requests no ProblemIR`);
-  if (entry.id === "v3/p3c-t1") {
-    assert.equal(attempted(fallback), false, "p3c-t1 as recorded: the empty fallback drew the bare family and never planned");
-    assert.equal(attempted(salvaged), true, "p3c-t1: with the salvaged givens the scene planner is attempted");
-  }
-  console.log(`  ${entry.id}: salvaged ${salvaged.givens.map((given) => `${given.symbol}=${given.value} ${given.unit}`).join(", ")}; planner attempted ${attempted(fallback)} -> ${attempted(salvaged)}`);
+  console.log(`  ${entry.id}: salvaged givens ${before} (0180e8af4) -> 0; the turn runs the fallback plan as on main`);
+}
+
+// A salvaged plan goes through ProblemIR like an accepted one (which corrects
+// derived values only, never the salvaged givens); the empty fallback does not.
+{
+  const thrown = "A ball is thrown at 20 m/s at 30° above the horizontal from a cliff 45 m high. Find its time of flight and range.";
+  const plan = {
+    schemaVersion: "turn-plan/v3", question: thrown,
+    givens: [
+      { id: "u", symbol: "u", value: 20, unit: "m/s", sourceText: "thrown at 20 m/s", provenance: "given" },
+      { id: "theta", symbol: "theta", value: 30, unit: "deg", sourceText: "30° above the horizontal", provenance: "given" },
+      { id: "h", symbol: "h", value: 45, unit: "m", sourceText: "a cliff 45 m high", provenance: "given" },
+    ],
+    unknowns: [{ id: "T", symbol: "T", unit: "s" }],
+    derived: [{ id: "T", symbol: "T", value: 4.3, unit: "s", sourceText: "solved", provenance: "derived", dependsOn: ["u", "theta", "h"] }],
+    qualitativeClaims: [{ id: "c1", claim: "The ball lands after 12 s.", expected: "12 s", relatedQuantityIds: ["T"] }],
+    lawIds: ["projectile_motion"], assumptions: [], visualRequirement: "required",
+  };
+  const salvaged = salvageRejectedTurnPlanV3(thrown, [{ lane: "primary", requestKind: "initial", plan,
+    issues: [{ code: "claim_quantity_mismatch", path: "qualitativeClaims[0].claim", message: "measured claim disagrees" }] }]);
+  assert.ok(salvaged, "a lane with unambiguous givens is salvaged");
+  assert.deepEqual(salvaged.givens.map((given) => given.id), ["u", "theta", "h"]);
+  assert.equal(turnPlanRequestsNumericAuthority(thrown, salvaged, "salvaged"), true, "the salvaged plan requests ProblemIR");
+  assert.equal(turnPlanRequestsNumericAuthority(thrown, createFallbackTurnPlanV3(thrown), "fallback"), false, "the fallback plan requests no ProblemIR");
 }
 
 // The live hook decides ProblemIR through that helper with the plan's origin.

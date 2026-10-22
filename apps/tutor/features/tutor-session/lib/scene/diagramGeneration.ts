@@ -51,11 +51,11 @@ export function turnPlanNeedsNumericAuthority(question: string, plan: TurnPlanV3
  * are solved from its givens like any other plan's. ProblemIR does not recheck
  * the salvaged givens themselves: reconcileTurnPlanWithSolver
  * (scene-engine solverAuthority.ts) corrects derived values only. The guard on
- * a salvaged given is salvageRejectedTurnPlanV3 in tutor-core: the question
- * must state its value and unit, and when it states more than one value of
- * that kind, the question clause around the given's sourceText must name its
- * owner (the owner rule). The empty fallback plan has nothing to bind and runs
- * no ProblemIR.
+ * a salvaged given is salvageRejectedTurnPlanV3 in tutor-core, which fails
+ * closed: it keeps a given only when it is the rejected lane's one quantity of
+ * its dimension, the question states exactly one number of that dimension and
+ * it is the given's value, and nothing marks a value as relative. The empty
+ * fallback plan has nothing to bind and runs no ProblemIR.
  */
 export function turnPlanRequestsNumericAuthority(
   question: string,
