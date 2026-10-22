@@ -10,6 +10,7 @@ import { wavesConstructionOutputLabels, validateEvaluatedWavesLabels } from "./w
 import { geometricOpticsOutputLabels, validateEvaluatedGeometricOpticsLabels } from "./geometricOpticsGeometry";
 import { thermodynamicsGeometryLabel, validateEvaluatedThermodynamicsLabels } from "./thermodynamicsGeometry";
 import { validateEvaluatedDerivedValueLabels } from "./derivedValueLabels";
+import { validateEvaluatedPvProcess } from "./pvProcessGeometry";
 
 import { complexGeometryLabel, validateEvaluatedComplexLabels } from "./complexGeometry";
 import { magneticConstructionOutputLabels, validateEvaluatedMagneticLabels } from "./magneticGeometry";
@@ -55,6 +56,10 @@ export function withEvaluatedOutputLabels(
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
+    case "pv_process":
+      validateEvaluatedPvProcess(construction, index, document, outputs, issues);
+      labels = [null];
+      break;
     case "permutation_cycles":
     case "subset_lattice":
       validateEvaluatedCombinatoricsLabels(construction, index, document, outputs, issues);
@@ -232,11 +237,14 @@ export function withEvaluatedOutputLabels(
   construction.outputs.forEach((id) => checkedOutputIds.add(id));
   if (labels.length !== construction.outputs.length) throw new Error("derived labels must match construction output arity");
   const byOutput = new Map(construction.outputs.map((id, outputIndex) => [id, labels[outputIndex]]));
+  // Verified-parts recovery may omit a generated label it could not attach.
+  const omitted = new Set(isVerifiedPartsEnabled(document) && Array.isArray(document.source.yieldUnlabelledPoints)
+    ? document.source.yieldUnlabelledPoints.filter((id): id is string => typeof id === "string") : []);
   return {
     ...document,
     entities: document.entities.map((entity) => {
       const label = byOutput.get(entity.id);
-      return label ? { ...entity, label } : entity;
+      return label && !omitted.has(entity.id) ? { ...entity, label } : entity;
     }),
   };
 }

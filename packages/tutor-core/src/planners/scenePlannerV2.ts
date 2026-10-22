@@ -1,3 +1,4 @@
+import { renderRepairErrors } from "./sceneRepairErrors";
 import { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
@@ -16,6 +17,8 @@ export interface SceneRepairError {
   message: string;
   severity: "fatal" | "warning";
   path?: string;
+  assertionId?: string;
+  constructionId?: string;
   entityIds?: string[];
   expected?: unknown;
   actual?: unknown;
@@ -188,7 +191,8 @@ PREVIOUS STRUCTURE
 ${JSON.stringify(previousStructure)}
 
 STRUCTURED VALIDATION ERRORS
-${JSON.stringify(errors)}
+Each line names the element by its id in the previous candidate, what the validator found, and what a valid version needs.
+${renderRepairErrors(candidate, errors)}
 
 Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
   const connectivityGuidance = errors.some((error) =>

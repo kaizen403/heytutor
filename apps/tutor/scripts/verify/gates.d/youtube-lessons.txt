@@ -1,0 +1,3 @@
+pnpm verify:youtube-lesson-qa
+tsx scripts/verify/verify-export-render-fingerprint.ts
+tsx scripts/verify/verify-export-cache-workflow.ts

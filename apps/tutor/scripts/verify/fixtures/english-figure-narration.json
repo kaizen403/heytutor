@@ -4,21 +4,21 @@
     {
       "id": "river",
       "intro": [
-        "Let’s begin with the physical setup: the bank, the boat B, and the current u.",
-        "Next comes the physical setup: the upstream boat heading v."
+        "Here is the setup: the bank, the boat B, and the current u.",
+        "Next, the setup continues: the upstream boat heading v."
       ],
       "reveals": [
-        "Let’s begin with the physical setup: the bank, the boat B, and the current u.",
-        "Next comes the physical setup: the upstream boat heading v."
+        "Here is the setup: the bank, the boat B, and the current u.",
+        "Next, the setup continues: the upstream boat heading v."
       ]
     },
     {
       "id": "mirror",
       "intro": [
-        "Let’s begin with the principal rays from the object to the image."
+        "Here is the setup: the principal rays, the object O, and the image I."
       ],
       "reveals": [
-        "Let’s begin with the principal rays from the object to the image."
+        "Here is the setup: the principal rays, the object O, and the image I."
       ]
     },
     {

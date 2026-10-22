@@ -37,9 +37,11 @@ async function main() {
   if (!requestedCase) {
     for (const name of cases) {
       const child = spawnSync(process.execPath, [...process.execArgv, script], {
-        env: { ...process.env, NATIVE_AUDIO_CASE: name }, encoding: "utf8", timeout: 15_000,
+        // Audio deadlines below use the controlled clock. Allow slower module
+        // loading/teardown on a busy host without relaxing those assertions.
+        env: { ...process.env, NATIVE_AUDIO_CASE: name }, encoding: "utf8", timeout: 45_000,
       });
-      assert.equal(child.status, 0, `${name}: ${child.stdout}${child.stderr}`);
+      assert.equal(child.status, 0, `${name}: ${child.error?.message ?? child.signal ?? ""}\n${child.stdout}${child.stderr}`);
       console.log(`native audio ${name}: PASS`);
     }
     console.log(`verify-native-audio-recovery: ${cases.length} actual consumer groups; no providers`);

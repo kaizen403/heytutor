@@ -5,6 +5,7 @@ import {
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
   chemistryTeachingFamilyId,
+  certifyVseprSourceDocument,
   validateProblemIR,
   validateSceneDocument,
   validateSceneQuantityAgreement,
@@ -315,16 +316,39 @@ export async function canonicalizeTurnSceneMetadata(
 
   // The same function runs live before a figure is drawn (useQuestionHandler),
   // so a scene this would refuse is never shown and then lost.
+  // A missing optional plan is safe for an exact native source graph; an
+  // explicitly invalid plan must not silently gain that legacy allowance.
+  if (!turnPlan && metadata.sceneArtifacts.turnPlan != null
+    && certifyVseprSourceDocument(document, question, null).status !== "not_applicable") {
+    return failure("scene_turn_plan_invalid", `native VSEPR scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
+  }
   const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
   if (admissionFailure) return failure("scene_admission_failed", admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return failure("scene_validation_report_invalid", "current scene engine did not produce a valid report");
   }
+  // The intro's ink is rebuilt here, and each part carries the word it is
+  // drawn under. Rebuilt in English under a Hinglish recording, those words
+  // were not in the stored sentence, so replay and export found no cue and
+  // drew every part at the top of it. The voice is read from the recording.
+  const narrationLanguage = metadata.segments.some((segment) =>
+    isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
+  ) ? "hinglish" as const : undefined;
   const expectedPresentation = buildVerifiedDiagramPresentation(
     document,
     renderScene,
-    isDsaSceneDocument(document) ? { layout: "code_lesson" } : {},
+    {
+      originalQuestion: question,
+      ...(turnPlan ? { turnPlan } : {}),
+      ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
+      ...(narrationLanguage ? { narrationLanguage } : {}),
+      // The live intro letters a source given ("x = -2") with the plan, and
+      // restore reads the same saved plan, so without it the saved intro
+      // dropped that label and replay never drew it. Only a plan validated
+      // against this question is passed; no plan keeps every value deferred.
+      ...(turnPlan ? { turnPlan } : {}),
+    },
   );
   // A turn that continues a page (a resume after Stop, or a doubt) teaches
   // under a figure an earlier turn on the page already drew. It keeps its

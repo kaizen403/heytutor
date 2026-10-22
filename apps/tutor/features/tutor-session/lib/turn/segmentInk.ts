@@ -32,6 +32,7 @@ import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { ExecuteCommandOptions } from "../../hooks/turn/types";
 import { orderCommandsBySpokenAnchor } from "./segmentPlanning";
+import { advanceExplanationTarget, pointThroughExplanation, type CompletedExplanationTarget } from "./explanationPointing";
 
 /**
  * How one sentence's ink is paced against its voice.
@@ -113,14 +114,24 @@ export type SegmentInkClock = {
   getAudioPositionMs: () => number;
   /** This live segment still owns provider playback; absent for recorded or wall clocks. */
   isAudioActive?: () => boolean;
+  /** Accepted owned voice, including browser recovery; explanation tails only. */
+  isSpeechActive?: () => boolean;
   /** Media ms per wall ms. */
   getPlaybackRate: () => number;
   /** Holds a word wait without spending its deadline while the lesson is paused. */
   isPaused?: () => boolean;
   nowMs?: () => number;
+  /** Recorded players advance a virtual media clock rather than wall timers. */
+  waitForAdvance?: () => Promise<void>;
   /** The voice has ended; a code block still typing finishes on the wall clock. */
   isSpeechComplete?: () => boolean;
   canAdvanceAfterSpeech?: () => boolean;
+  /**
+   * Waits until `getAudioPositionMs` reaches a media time. A recorded export
+   * clock only moves when its frames are pumped, so it waits on that pump
+   * rather than on wall-time polling. Absent, the wall-clock wait is used.
+   */
+  waitUntilMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
 };
 
 type TraceMetadata = Record<string, unknown>;
@@ -171,6 +182,10 @@ export async function drawSegmentInk(input: {
   beforeCommand?: () => void;
   /** Written rows before `plan.commands[0]` in this sentence (a replay resumed inside it). */
   initialTextCommandIndex?: number;
+  /** Full authored sentence when the plan resumes after completed commands. */
+  sentenceCommands?: readonly DrawCommand[];
+  /** Completed prefix count in sentenceCommands, before this plan's remainder. */
+  completedSentenceCommandCount?: number;
   /**
    * False when `plan.commands` is the tail of a sentence: its first command is
    * not the beat's opening stroke, and it keeps the stored order the resume
@@ -195,12 +210,35 @@ export async function drawSegmentInk(input: {
     cuedFloors,
     cuedCaps,
   } = plan;
+  // An authored gesture owns what this sentence explains. A fallback work
+  // tour must not pull the pen away from that target, even after its cue ends.
+  const canPointAtWork = !(input.sentenceCommands ?? segmentCommands).some(command => command.type === "FOCUS" || command.type === "POINT");
+  let completedTarget: CompletedExplanationTarget | null = null;
+  for (const command of input.sentenceCommands?.slice(0, input.completedSentenceCommandCount ?? 0) ?? []) {
+    completedTarget = advanceExplanationTarget(completedTarget, command, input.getDiagram());
+  }
+  const executeAuthored: typeof input.execute = async (command, options) => {
+    const diagram = input.getDiagram();
+    await input.execute(command, options);
+    completedTarget = advanceExplanationTarget(completedTarget, command, diagram === input.getDiagram() ? diagram : null);
+  };
   const narration = clock.narration;
   const hasNarration = narration.length > 0;
   const speechMsPerChar = clock.msPerChar;
   const totalSpeechMs = clock.totalSpeechMs;
   const opensSentence = input.opensSentence !== false;
   const index = input.segmentIndex;
+  // Runtime pointing carries the same seek/ownership options as the authored
+  // commands. In particular, instant reconstruction must never start a tour.
+  const executeExplanationPoint: typeof input.execute = async (command, options) => {
+    const ownerOptions = input.commandOptions(command);
+    await input.execute(command, {
+      ...ownerOptions,
+      ...options,
+      isPaused: options.isPaused ?? ownerOptions.isPaused,
+      isCancelled: () => isCancelled() || ownerOptions.isCancelled?.() === true || options.isCancelled?.() === true,
+    });
+  };
 
   let textCommandIndex = input.initialTextCommandIndex ?? 0;
   // Where the last cue word was found: matching walks forward through
@@ -445,7 +483,7 @@ export async function drawSegmentInk(input: {
       }
 
       let loggedChars = 0;
-      await input.execute(command, {
+      await executeAuthored(command, {
         segmentNarration: narration,
         writeSchedule: {
           charStartOffsetsMs: effectiveOffsets,
@@ -473,6 +511,7 @@ export async function drawSegmentInk(input: {
         },
         ...input.commandOptions(command),
         inkPace: pace,
+        ...(command.type === "WRITE" && !input.verifiedDiagramIntro && canPointAtWork ? { explanationClock: clock } : {}),
       });
       if (isTextCommand) {
         textCommandIndex++;
@@ -556,15 +595,25 @@ export async function drawSegmentInk(input: {
         : 0;
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
-      await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
-        shouldCancel: isCancelled,
-        getPlaybackRate: clock.getPlaybackRate,
-        ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
-        ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
-        ...(command.type === "TYPE" && cueStartMs === null
-          ? { getTargetMs: () => typeCommandStartMs(command, clock, textCommandIndex) }
-          : {}),
-      });
+      if (!input.verifiedDiagramIntro && canPointAtWork) {
+        await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
+        if (isCancelled()) return;
+      }
+      const getTargetMs = command.type === "TYPE" && cueStartMs === null
+        ? () => typeCommandStartMs(command, clock, textCommandIndex)
+        : undefined;
+      if (clock.waitUntilMs) {
+        await clock.waitUntilMs(cueStartMs ?? commandStartMs, getTargetMs);
+      } else {
+        await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
+          shouldCancel: isCancelled,
+          getPlaybackRate: clock.getPlaybackRate,
+          ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+          ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+          ...(clock.waitForAdvance ? { waitForAdvance: clock.waitForAdvance } : {}),
+          ...(getTargetMs ? { getTargetMs } : {}),
+        });
+      }
       if (isCancelled()) {
         return;
       }
@@ -618,7 +667,7 @@ export async function drawSegmentInk(input: {
     });
 
     const shareTimings = clock.getTimings();
-    await input.execute(command, {
+    await executeAuthored(command, {
       segmentNarration: narration,
       speechDurationMs: commandBudgetMs,
       // What this command may spend of the segment's spoken time.
@@ -660,6 +709,7 @@ export async function drawSegmentInk(input: {
         ? { getPointDeadlineMs: () => readWorkCue(clock.getTimings()) }
         : {}),
       ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+      ...(clock.waitUntilMs ? { waitUntilAudioMs: clock.waitUntilMs } : {}),
       getAudioPositionMs: clock.getAudioPositionMs,
       getPlaybackRate: clock.getPlaybackRate,
       // The sentence's own clock for the code lesson. TYPE, FRAME and
@@ -682,5 +732,9 @@ export async function drawSegmentInk(input: {
     if (isTextCommand) {
       textCommandIndex++;
     }
+  }
+  if (!input.verifiedDiagramIntro && (canPointAtWork || completedTarget)) {
+    await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled,
+      ...(completedTarget ? { completedTarget, getDiagram: input.getDiagram } : {}) });
   }
 }

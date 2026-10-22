@@ -1,0 +1,668 @@
+[
+  {
+    "id": "canonical-XI-012",
+    "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+    "originalAuthoredQuestion": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0\u00d710\u207b\u2075, 1.0\u00d710\u207b\u2074, 1.0\u00d710\u207b\u00b3, and 1.0\u00d710\u207b\u00b2 mol L\u207b\u00b9. Given K_sp = 1.80\u00d710\u207b\u00b9\u2070 (mol L\u207b\u00b9)\u00b2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_solutions",
+    "draw": true,
+    "operator": "positive_quadratic",
+    "points": [
+      [
+        0,
+        1.341640786499874e-05
+      ],
+      [
+        1e-05,
+        9.317821063276354e-06
+      ],
+      [
+        0.0001,
+        1.7687164221791383e-06
+      ],
+      [
+        0.001,
+        1.79967611658e-07
+      ],
+      [
+        0.01,
+        1.79999676001e-08
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "exam_stem",
+      "chapter": "Equilibrium",
+      "difficulty": "hard",
+      "expected_math_or_facts": [
+        "s = (\u221a(C\u00b2+4K_sp)\u2212C)/2, or the algebraically equivalent stable form 2K_sp/(\u221a(C\u00b2+4K_sp)+C).",
+        "At C = 0, s = \u221aK_sp \u2248 1.342\u00d710\u207b\u2075 mol L\u207b\u00b9.",
+        "For C \u226b s, s \u2248 K_sp/C.",
+        "The total equilibrium chloride concentration is C+s."
+      ],
+      "figure_kind": "Common-ion molar-solubility curve",
+      "figure_need": "required",
+      "figure_need_reason": "The curve displays the nonlinear suppression of dissolution by the common chloride ion and the transition to s \u2248 K_sp/C.",
+      "grade": 11,
+      "id": "CHEM-H80-XI-012",
+      "must_label": [
+        "Initial added NaCl concentration C / mol L\u207b\u00b9; AgCl molar solubility s / mol L\u207b\u00b9",
+        "(0, 1.342\u00d710\u207b\u2075); (1.0\u00d710\u207b\u2075, 9.318\u00d710\u207b\u2076); (1.0\u00d710\u207b\u2074, 1.769\u00d710\u207b\u2076); (1.0\u00d710\u207b\u00b3, 1.800\u00d710\u207b\u2077); (1.0\u00d710\u207b\u00b2, 1.800\u00d710\u207b\u2078), both coordinates in mol L\u207b\u00b9",
+        "AgCl(s) \u21cc Ag\u207a(aq) + Cl\u207b(aq); common-ion suppression"
+      ],
+      "must_not_show": [
+        "A curve rising with added chloride under these assumptions.",
+        "s = K_sp/C used at C = 0.",
+        "A negative physical solubility root.",
+        "Zero represented as a finite point on a logarithmic C axis.",
+        "Total [Cl\u207b] set equal to C even when C = 0."
+      ],
+      "must_show": [
+        "A monotonically falling positive solubility curve through the five specified concentration/solubility pairs.",
+        "A distinct C = 0 point rather than placing zero on a logarithmic axis.",
+        "At high C, the inverse relationship between C and s, whether shown directly or by a slope \u22121 segment on a log\u2013log plot."
+      ],
+      "notes": "CBSE 2026\u201327 Class 11; Equilibrium. The curve displays the nonlinear suppression of dissolution by the common chloride ion and the transition to s \u2248 K_sp/C.",
+      "prompt_kind": "exam_stem",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0\u00d710\u207b\u2075, 1.0\u00d710\u207b\u2074, 1.0\u00d710\u207b\u00b3, and 1.0\u00d710\u207b\u00b2 mol L\u207b\u00b9. Given K_sp = 1.80\u00d710\u207b\u00b9\u2070 (mol L\u207b\u00b9)\u00b2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "reference_sources": [
+        {
+          "locator": "Solubility equilibria of sparingly soluble salts; solubility product and common-ion effect",
+          "title": "NCERT Chemistry XI Part I, Unit 6: Equilibrium, Hindi companion, Reprint 2026\u201327",
+          "url": "https://ncert.nic.in/textbook/pdf/khch106.pdf"
+        },
+        {
+          "locator": "Class XI course structure, p. 2; Unit 6 scope, pp. 2\u20133",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, Curriculum 2026\u201327",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XI-012"
+      },
+      "subject": "chemistry",
+      "topic": "Common-ion solubility curve",
+      "topic_id": "chemistry|6|heldout-cbse-11-equilibrium-common-ion-solubility-curve",
+      "trap": null
+    }
+  },
+  {
+    "id": "canonical-XI-023",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+    "originalAuthoredQuestion": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00\u00d710\u00b9\u2075 Hz. Use K_max = h\u03bd\u2212\u03c6 and h = 4.136\u00d710\u207b\u00b9\u2075 eV s. Mark the threshold and the region with no photoelectron emission.",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_orbital",
+    "draw": true,
+    "operator": "threshold_affine",
+    "points": [
+      [
+        483558994197292.06,
+        0
+      ],
+      [
+        600000000000000.0,
+        0.4816
+      ],
+      [
+        800000000000000.0,
+        1.3088
+      ],
+      [
+        1000000000000000.0,
+        2.136
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "short_topic_ask",
+      "chapter": "Structure of Atom",
+      "difficulty": "medium",
+      "expected_math_or_facts": [
+        "\u03bd\u2080 = 2.000/(4.136\u00d710\u207b\u00b9\u2075) Hz \u2248 4.8356\u00d710\u00b9\u2074 Hz.",
+        "For \u03bd \u2265 \u03bd\u2080, K_max = (4.136\u00d710\u207b\u00b9\u2075)\u03bd\u22122.000 eV.",
+        "Higher light intensity alone cannot cause emission when frequency is below threshold in this model."
+      ],
+      "figure_kind": "Photoelectric kinetic-energy versus frequency graph",
+      "figure_need": "required",
+      "figure_need_reason": "The threshold separates no-emission frequencies from the linear kinetic-energy branch.",
+      "grade": 11,
+      "id": "CHEM-H80-XI-023",
+      "must_label": [
+        "Frequency \u03bd / Hz; maximum kinetic energy K_max / eV",
+        "\u03c6 = 2.000 eV; slope h = 4.136\u00d710\u207b\u00b9\u2075 eV s",
+        "Threshold \u03bd\u2080 = \u03c6/h \u2248 4.836\u00d710\u00b9\u2074 Hz",
+        "\u03bd < \u03bd\u2080: no photoelectrons"
+      ],
+      "must_not_show": [
+        "Negative kinetic energies assigned to emitted photoelectrons below threshold.",
+        "A zero-threshold line passing through the origin.",
+        "A horizontal energy line for all above-threshold frequencies.",
+        "The threshold labelled in wavelength units on the frequency axis."
+      ],
+      "must_show": [
+        "A graph with the emitting branch starting at \u03bd\u2080 \u2248 4.836\u00d710\u00b9\u2074 Hz and K_max = 0, then rising linearly.",
+        "A distinct no-emission region for \u03bd < \u03bd\u2080, rather than a physical negative-kinetic-energy branch.",
+        "The branch passing through (6.00\u00d710\u00b9\u2074 Hz,0.4816 eV), (8.00\u00d710\u00b9\u2074 Hz,1.3088 eV), and (1.00\u00d710\u00b9\u2075 Hz,2.136 eV)."
+      ],
+      "notes": "CBSE 2026\u201327 Class 11; Structure of Atom. The threshold separates no-emission frequencies from the linear kinetic-energy branch.",
+      "prompt_kind": "short_topic_ask",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00\u00d710\u00b9\u2075 Hz. Use K_max = h\u03bd\u2212\u03c6 and h = 4.136\u00d710\u207b\u00b9\u2075 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "reference_sources": [
+        {
+          "locator": "Developments leading to the Bohr model; particle nature of electromagnetic radiation and photoelectric effect",
+          "title": "NCERT Chemistry XI Part I, Unit 2: Structure of Atom, Hindi companion, Reprint 2026\u201327",
+          "url": "https://ncert.nic.in/textbook/pdf/khch102.pdf"
+        },
+        {
+          "locator": "Class XI course structure, p. 2; Unit 2 scope, pp. 2\u20133",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, Curriculum 2026\u201327",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XI-023"
+      },
+      "subject": "chemistry",
+      "topic": "Photoelectric threshold and kinetic-energy line",
+      "topic_id": "chemistry|2|heldout-cbse-11-structure-of-atom-photoelectric-threshold-and-kinetic-energy-line",
+      "trap": null
+    }
+  },
+  {
+    "id": "canonical-XI-032",
+    "question": "At 25 \u00b0C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+    "originalAuthoredQuestion": "At 25 \u00b0C, plot pH of ideal fully ionised aqueous HCl against log\u2081\u2080(C/(mol L\u207b\u00b9)) for C = 10\u207b\u00b9, 10\u207b\u00b2, 10\u207b\u00b3, 10\u207b\u2074, and 10\u207b\u2075 mol L\u207b\u00b9. Neglect water self-ionisation over this range and use pH = \u2212log\u2081\u2080([H\u207a]/(mol L\u207b\u00b9)).",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_solutions",
+    "draw": true,
+    "operator": "log_coordinate",
+    "points": [
+      [
+        -1,
+        1
+      ],
+      [
+        -2,
+        2
+      ],
+      [
+        -3,
+        3
+      ],
+      [
+        -4,
+        4
+      ],
+      [
+        -5,
+        5
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "short_topic_ask",
+      "chapter": "Equilibrium",
+      "difficulty": "easy",
+      "expected_math_or_facts": [
+        "For fully ionised HCl in this range, [H\u207a] \u2248 C.",
+        "If x = log\u2081\u2080(C/(mol L\u207b\u00b9)), pH = \u2212x.",
+        "The five expected pH values are 1, 2, 3, 4, 5 respectively."
+      ],
+      "figure_kind": "pH versus logarithmic acid-concentration graph",
+      "figure_need": "required",
+      "figure_need_reason": "The graph expresses the logarithmic concentration\u2013acidity relation rather than treating pH as linear in concentration.",
+      "grade": 11,
+      "id": "CHEM-H80-XI-032",
+      "must_label": [
+        "Horizontal: log\u2081\u2080(C/(mol L\u207b\u00b9)); vertical: pH, dimensionless",
+        "HCl: fully ionised; [H\u207a] = C under the approximation",
+        "Each specified concentration and pH pair",
+        "25 \u00b0C; water self-ionisation neglected only over the supplied range"
+      ],
+      "must_not_show": [
+        "A straight pH line drawn against a linear concentration axis while labelled as the requested graph.",
+        "pH decreasing on dilution.",
+        "pH = 10 for C = 10\u207b\u2075 mol L\u207b\u00b9.",
+        "The approximation extrapolated to arbitrarily dilute acid with pH greater than 7 without accounting for water."
+      ],
+      "must_show": [
+        "Five points at (\u22121,1), (\u22122,2), (\u22123,3), (\u22124,4), and (\u22125,5).",
+        "A straight line of slope \u22121 when the horizontal variable is the stipulated logarithmic concentration.",
+        "The trend that tenfold dilution raises pH by one unit over the given concentration range."
+      ],
+      "notes": "CBSE 2026\u201327 Class 11; Equilibrium. The graph expresses the logarithmic concentration\u2013acidity relation rather than treating pH as linear in concentration.",
+      "prompt_kind": "short_topic_ask",
+      "question": "At 25 \u00b0C, plot pH of ideal fully ionised aqueous HCl against log\u2081\u2080(C/(mol L\u207b\u00b9)) for C = 10\u207b\u00b9, 10\u207b\u00b2, 10\u207b\u00b3, 10\u207b\u2074, and 10\u207b\u2075 mol L\u207b\u00b9. Neglect water self-ionisation over this range and use pH = \u2212log\u2081\u2080([H\u207a]/(mol L\u207b\u00b9)).",
+      "reference_sources": [
+        {
+          "locator": "Ionisation of acids and bases; ionisation constant of water and the pH scale; strong-acid solutions",
+          "title": "NCERT Chemistry XI Part I, Unit 6: Equilibrium, Hindi companion, Reprint 2026\u201327",
+          "url": "https://ncert.nic.in/textbook/pdf/khch106.pdf"
+        },
+        {
+          "locator": "Class XI course structure, p. 2; Unit 6 scope, pp. 2\u20133",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, Curriculum 2026\u201327",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XI-032"
+      },
+      "subject": "chemistry",
+      "topic": "pH versus logarithmic strong-acid concentration",
+      "topic_id": "chemistry|6|heldout-cbse-11-equilibrium-ph-versus-logarithmic-strong-acid-concentration",
+      "trap": null
+    }
+  },
+  {
+    "id": "canonical-XI-033",
+    "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(pH-4.75). Mark where the curves cross.",
+    "originalAuthoredQuestion": "For an ideal HA/A\u207b system with pK_a = 4.75 and [HA]+[A\u207b] = 0.100 mol L\u207b\u00b9, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A\u207b]/[HA] = 10^(pH\u22124.75). Mark where the curves cross.",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_solutions",
+    "draw": true,
+    "operator": "ratio_complements",
+    "points": [
+      [
+        2.75,
+        0.009900990099
+      ],
+      [
+        4.75,
+        0.5
+      ],
+      [
+        6.75,
+        0.990099009901
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "short_topic_ask",
+      "chapter": "Equilibrium",
+      "difficulty": "medium",
+      "expected_math_or_facts": [
+        "With r = 10^(pH\u22124.75), f_A\u207b = r/(1+r) and f_HA = 1/(1+r).",
+        "At pH = pK_a, [A\u207b]/[HA] = 1.",
+        "At pH 3.75 the fractions are 0.09091 A\u207b and 0.90909 HA; at pH 5.75 they reverse.",
+        "The system is an acid/conjugate-base speciation model; externally fixing pH avoids an unstated proton-balance condition."
+      ],
+      "figure_kind": "Conjugate-acid/base species-fraction curves",
+      "figure_need": "required",
+      "figure_need_reason": "The opposing curves show how conjugate species share a fixed total concentration as pH changes.",
+      "grade": 11,
+      "id": "CHEM-H80-XI-033",
+      "must_label": [
+        "pH, dimensionless; species fraction, dimensionless",
+        "f_HA = [HA]/0.100; f_A\u207b = [A\u207b]/0.100",
+        "pH 2.75: f_HA \u2248 0.9901, f_A\u207b \u2248 0.0099",
+        "pH 4.75: each fraction 0.500 and each concentration 0.0500 mol L\u207b\u00b9",
+        "pH 6.75: f_HA \u2248 0.0099, f_A\u207b \u2248 0.9901"
+      ],
+      "must_not_show": [
+        "HA fraction increasing and A\u207b fraction decreasing with pH.",
+        "Both fractions equal to 1 at the crossing.",
+        "Curve crossing placed at pH 7 solely because the solution is aqueous.",
+        "The vertical axis labelled mol L\u207b\u00b9 while plotting unconverted fractions."
+      ],
+      "must_show": [
+        "A decreasing HA fraction curve and increasing A\u207b fraction curve, always summing to 1.",
+        "The curves crossing at pH = 4.75, with each fraction equal to 0.50.",
+        "Approach toward HA dominance at the low-pH end and A\u207b dominance at the high-pH end, without negative fractions or overshooting 1."
+      ],
+      "notes": "CBSE 2026\u201327 Class 11; Equilibrium. The opposing curves show how conjugate species share a fixed total concentration as pH changes.",
+      "prompt_kind": "short_topic_ask",
+      "question": "For an ideal HA/A\u207b system with pK_a = 4.75 and [HA]+[A\u207b] = 0.100 mol L\u207b\u00b9, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A\u207b]/[HA] = 10^(pH\u22124.75). Mark where the curves cross.",
+      "reference_sources": [
+        {
+          "locator": "Weak-acid ionisation; buffer solutions and Henderson\u2013Hasselbalch relation (\u00a76.12)",
+          "title": "NCERT Chemistry XI Part I, Unit 6: Equilibrium, Hindi companion, Reprint 2026\u201327",
+          "url": "https://ncert.nic.in/textbook/pdf/khch106.pdf"
+        },
+        {
+          "locator": "Class XI course structure, p. 2; Unit 6 scope, pp. 2\u20133",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, Curriculum 2026\u201327",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XI-033"
+      },
+      "subject": "chemistry",
+      "topic": "Weak-acid/conjugate-base speciation profile",
+      "topic_id": "chemistry|6|heldout-cbse-11-equilibrium-weak-acid-conjugate-base-speciation-profile",
+      "trap": null
+    }
+  },
+  {
+    "id": "canonical-XII-004",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+    "originalAuthoredQuestion": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00\u00d710\u2074 bar. Use 0\u2264x_G\u22644.00\u00d710\u207b\u2075 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_solutions",
+    "draw": true,
+    "operator": "affine",
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        1.5e-05,
+        0.9
+      ],
+      [
+        4e-05,
+        2.4
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "short_topic_ask",
+      "chapter": "Solutions",
+      "difficulty": "easy",
+      "expected_math_or_facts": [
+        "x_G=p_G/K_H=1.50\u00d710\u207b\u2075 at 0.900 bar.",
+        "The displayed p_G-versus-x_G slope is K_H, not 1/K_H."
+      ],
+      "figure_kind": "Henry-law pressure\u2013composition graph",
+      "figure_need": "required",
+      "figure_need_reason": "The line\u2019s slope, origin and pressure-to-composition mapping are the requested visual.",
+      "grade": 12,
+      "id": "CHEM-H80-XII-004",
+      "must_label": [
+        "x_G (dimensionless)",
+        "p_G / bar",
+        "298 K",
+        "Slope K_H=6.00\u00d710\u2074 bar",
+        "(1.50\u00d710\u207b\u2075, 0.900 bar)"
+      ],
+      "must_not_show": [
+        "A negative slope or a nonzero intercept.",
+        "x_G labelled with pressure units.",
+        "An endpoint at 24.0 bar for the stated x_G limit."
+      ],
+      "must_show": [
+        "A straight line through the origin with p_G=2.40 bar at x_G=4.00\u00d710\u207b\u2075.",
+        "A point at x_G=1.50\u00d710\u207b\u2075 and p_G=0.900 bar, connected to the axes or unambiguously annotated."
+      ],
+      "notes": "CBSE 2026\u201327 Class 12; Solutions. The line\u2019s slope, origin and pressure-to-composition mapping are the requested visual.",
+      "prompt_kind": "short_topic_ask",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00\u00d710\u2074 bar. Use 0\u2264x_G\u22644.00\u00d710\u207b\u2075 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "reference_sources": [
+        {
+          "locator": "Class XII, pp. 8\u20139, Solutions",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, 2026\u201327 syllabus",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        },
+        {
+          "locator": "\u00a71.3.2, Henry\u2019s law, equation (1.11)",
+          "title": "NCERT Chemistry, Class XII: Solutions",
+          "url": "https://ncert.nic.in/textbook/pdf/lech101.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XII-004"
+      },
+      "subject": "chemistry",
+      "topic": "Henry-law line and gas solubility",
+      "topic_id": "chemistry|5|heldout-cbse-12-solutions-henry-law-line-and-gas-solubility",
+      "trap": null
+    }
+  },
+  {
+    "id": "canonical-XII-008",
+    "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=2 and Ecell=E\u00b0cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope.",
+    "originalAuthoredQuestion": "For Zn(s)+Cu\u00b2\u207a(aq)\u2192Zn\u00b2\u207a(aq)+Cu(s), draw Ecell versus L=log\u2081\u2080Q from L=\u22122 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=2 and Ecell=E\u00b0cell\u2212(0.05916 V/n)log\u2081\u2080Q. Use Q=a(Zn\u00b2\u207a)/a(Cu\u00b2\u207a), approximate each activity by its concentration divided by 1 mol L\u207b\u00b9, and give pure solids activity 1. Mark L=\u22122, 0 and +2 and explain the slope.",
+    "inputKind": "explicit-canonical-transfer-retaining-authored-source",
+    "family": "chem_electrochem",
+    "draw": true,
+    "operator": "affine",
+    "points": [
+      [
+        -2,
+        1.15916
+      ],
+      [
+        0,
+        1.1
+      ],
+      [
+        2,
+        1.04084
+      ]
+    ],
+    "scientificGold": {
+      "ask_style": "exam_stem",
+      "chapter": "Electrochemistry",
+      "difficulty": "medium",
+      "expected_math_or_facts": [
+        "Ecell=1.100\u22120.02958L V.",
+        "Raising the Zn\u00b2\u207a/Cu\u00b2\u207a activity ratio increases Q and lowers the forward cell potential."
+      ],
+      "figure_kind": "Nernst potential\u2013log reaction quotient graph",
+      "figure_need": "required",
+      "figure_need_reason": "The falling line and its quantitative anchors encode how concentration ratio changes the cell voltage.",
+      "grade": 12,
+      "id": "CHEM-H80-XII-008",
+      "must_label": [
+        "L=log\u2081\u2080Q (dimensionless)",
+        "Ecell / V",
+        "298 K",
+        "E\u00b0cell=1.100 V",
+        "Slope \u22120.02958 V"
+      ],
+      "must_not_show": [
+        "A positive slope.",
+        "Q inverted while retaining the displayed line.",
+        "Logarithm of a quantity with concentration units.",
+        "Zero voltage at Q=1."
+      ],
+      "must_show": [
+        "A straight descending line on Ecell-versus-L axes with slope \u22120.02958 V per unit L.",
+        "Marked points (\u22122,1.15916 V), (0,1.100 V), (+2,1.04084 V), allowing consistent rounding."
+      ],
+      "notes": "CBSE 2026\u201327 Class 12; Electrochemistry. The falling line and its quantitative anchors encode how concentration ratio changes the cell voltage.",
+      "prompt_kind": "exam_stem",
+      "question": "For Zn(s)+Cu\u00b2\u207a(aq)\u2192Zn\u00b2\u207a(aq)+Cu(s), draw Ecell versus L=log\u2081\u2080Q from L=\u22122 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=2 and Ecell=E\u00b0cell\u2212(0.05916 V/n)log\u2081\u2080Q. Use Q=a(Zn\u00b2\u207a)/a(Cu\u00b2\u207a), approximate each activity by its concentration divided by 1 mol L\u207b\u00b9, and give pure solids activity 1. Mark L=\u22122, 0 and +2 and explain the slope.",
+      "reference_sources": [
+        {
+          "locator": "Class XII, pp. 8\u20139, Electrochemistry",
+          "title": "CBSE Chemistry (043), Classes XI\u2013XII, 2026\u201327 syllabus",
+          "url": "https://cbseacademic.nic.in/web_material/CurriculumMain27/SecPart2/Chemistry_SecP2_2026-27.pdf"
+        },
+        {
+          "locator": "\u00a72.3, Nernst equation",
+          "title": "NCERT Chemistry, Class XII: Electrochemistry (Hindi edition)",
+          "url": "https://ncert.nic.in/textbook/pdf/lhch102.pdf"
+        }
+      ],
+      "source": {
+        "kind": "authored",
+        "ref": "chemistry-required-80-v1:CHEM-H80-XII-008"
+      },
+      "subject": "chemistry",
+      "topic": "Nernst potential as a function of log reaction quotient",
+      "topic_id": "chemistry|7|heldout-cbse-12-electrochemistry-nernst-potential-as-a-function-of-log-reaction-quotient",
+      "trap": null
+    }
+  },
+  {
+    "id": "transfer-henry-renamed-constant",
+    "question": "Plot pressure p_B against dissolved mole fraction x_B for a hypothetical gas B obeying p_B = K_H x_B at 310 K, with K_H = 3.00*10^4 bar. Use 0<=x_B<=6.00*10^-5 and mark the point for p_B=1.200 bar; assume a dilute solution and ideal gas.",
+    "family": "chem_solutions",
+    "draw": true,
+    "operator": "affine",
+    "points": [
+      [
+        0,
+        0
+      ],
+      [
+        4e-05,
+        1.2
+      ],
+      [
+        6e-05,
+        1.8
+      ]
+    ]
+  },
+  {
+    "id": "transfer-photoelectric-new-surface",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 1.500 eV, over 0 to 8.00*10^14 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.000*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+    "family": "chem_orbital",
+    "draw": true,
+    "operator": "threshold_affine",
+    "points": [
+      [
+        375000000000000.0,
+        0
+      ],
+      [
+        500000000000000.0,
+        0.5
+      ],
+      [
+        800000000000000.0,
+        1.7
+      ]
+    ]
+  },
+  {
+    "id": "henry-negative",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = -6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-wrong-unit",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 K. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-missing-constant",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H unspecified. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-extra-unread-measurement",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. A separate supplied energy is 15 qux.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-extra-curve",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. Also draw the unknown second curve.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "photo-missing-action",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h is not supplied. Mark the threshold and the region with no photoelectron emission.",
+    "family": "chem_orbital",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "photo-wrong-action-dimension",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV. Mark the threshold and the region with no photoelectron emission.",
+    "family": "chem_orbital",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "ksp-negative",
+    "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = -1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "fractions-opposite-ratio",
+    "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(4.75-pH). Mark where the curves cross.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "nernst-zero-electrons",
+    "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=0 and Ecell=E\u00b0cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope.",
+    "family": "chem_electrochem",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-unowned-attached-number",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. X25 kJ/mol is supplied.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-surplus-known-unit",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. A separately supplied molar energy is 25 kJ/mol.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-surplus-temperature-role",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. Another object's temperature is 350 K.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-conflicting-environment-temperature",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. The solution is also at 350 K.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "henry-unowned-unit-attached-number",
+    "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. X25 qux is supplied.",
+    "family": "chem_solutions",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "nernst-inverted-quotient",
+    "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=2 and Ecell=E\u00b0cell-(0.05916 V/n)log10Q. Use Q=a(Cu^2+)/a(Zn^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope.",
+    "family": "chem_electrochem",
+    "draw": false,
+    "operator": null,
+    "points": []
+  },
+  {
+    "id": "nernst-inconsistent-charge-count",
+    "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E\u00b0cell=1.100 V, n=3 and Ecell=E\u00b0cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope.",
+    "family": "chem_electrochem",
+    "draw": false,
+    "operator": null,
+    "points": []
+  }
+]

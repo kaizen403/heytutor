@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type Konva from "konva";
 import { DrawTransactionRegistry } from "../../../../packages/whiteboard/src/drawTransactionRegistry";
 import { mountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
@@ -60,7 +61,10 @@ const intro = intros[0]!;
 const introCommandCount = intros.reduce((total, beat) => total + beat.commands!.length, 0);
 // The body centre is a hidden force anchor. P uses a nearby label without a
 // callout and waits until named; the mass label and all force ink remain.
-assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 8]);
+// Label owner placement (Oct 2026) gives "mg sinθ" a leader to its own arrow
+// instead of a free slot nearer the incline and the angle mark than its own
+// arrow, so the third beat has 9 commands.
+assert.deepEqual(intros.map((beat) => beat.commands!.length), [14, 7, 9]);
 const lesson: TutorSegment = { narration: "The net force equals mass times acceleration.", command: {
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };
@@ -165,7 +169,9 @@ async function scenario(selectedMode: Mode) {
     }
   }
   if (mode === "reject-pause") core.SpeechSynthesisTTSClient = LateRejectedBrowser;
-  const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
+  // A real event-loop turn drains the entire pending Promise queue before the
+  // virtual clock jumps. Fixed microtask counts can strand a beat mid-await.
+  const flush = () => yieldToEventLoop();
   const advance = async (target: number) => {
     await flush();
     while (true) {
@@ -261,6 +267,7 @@ async function scenario(selectedMode: Mode) {
       providerPaused = false;
     },
   };
+  let activeIntroTransaction: string | null = null;
   let committed = false;
   let aborted = false;
   const ink: Array<{ command: DrawCommand; atMs: number; audioPosition: number | null }> = [];
@@ -274,7 +281,7 @@ async function scenario(selectedMode: Mode) {
   }
   const registry = new DrawTransactionRegistry<InkNode>();
   const nodes: InkNode[] = [];
-  const visibleIntro = () => [...new Map(nodes.filter((node) => !node.destroyed && node.command.type !== "WRITE")
+  const visibleIntro = () => [...new Map(nodes.filter((node) => !node.destroyed && node.command.type !== "WRITE" && node.command.type !== "POINT")
     .map((node) => [node.command, node])).values()];
   const unrelated = new InkNode(lesson.command!);
   registry.track(unrelated); nodes.push(unrelated);
@@ -291,15 +298,20 @@ async function scenario(selectedMode: Mode) {
     boardPageRef: ref({ boardId: "offline-board", figureDrawn: false }),
     narrationDensityRef: ref(0), turnStatsRef: ref({ ttsChars: 0, drawMs: 0 }),
     turnTelemetryRef: ref({ mark: record, span: () => ({ end() {} }), meta() {}, durationMs: () => now, flush: async () => {} }),
-    whiteboardRef: ref({ beginDrawTransaction: () => registry.begin(),
+    whiteboardRef: ref({ beginDrawTransaction: () => {
+      const id = registry.begin(); activeIntroTransaction = id; return id;
+    },
     createDrawSavepoint: (id: string) => registry.savepoint(id),
     rollbackDrawSavepoint: (id: string, origin: string) => { registry.rollback(id, origin); record("beat-rolled-back"); },
     commitDrawTransaction: (id: string) => {
       if (mode !== "later-doubt") assert.equal(visibleIntro().length, introCommandCount,
         "commit requires every actual intro ink command, not draw-complete's planned count");
       if (mode !== "later-doubt") assertCapturedAtCommit();
-      registry.commit(id); committed = true; record("intro-committed");
-    }, abortDrawTransaction: (id: string) => { registry.abort(id); aborted = true; record("intro-aborted"); },
+      registry.commit(id); activeIntroTransaction = null; committed = true; record("intro-committed");
+    }, abortDrawTransaction: (id: string) => {
+      registry.abort(id); if (activeIntroTransaction === id) activeIntroTransaction = null;
+      aborted = true; record("intro-aborted");
+    },
     finishAbortedDrawTransaction(id: string) { registry.finishAborted(id); }, setPaused() {}, cancelAnimations() {}, clearSpotlight() {} }),
     stopTurnRef: ref(null), replayDrawClockRef: ref(null), replayAudioRef: ref(null), rewoundRef: ref(false),
     replayCueRef: ref(null), replayAudioPreloadRef: ref(new Map()), replayGenerationRef: ref(1),
@@ -311,8 +323,12 @@ async function scenario(selectedMode: Mode) {
       while (params.isPausedRef.current && !options.isCancelled?.()) await new Promise<void>((resolve) => setTimer(resolve, 25));
       if (options.isCancelled?.() || params.cancelRef.current) return;
       if (mode === "later-draw-failure" && options.segmentNarration === intros[failureBeat]!.narration) throw new Error("offline later-beat draw failure");
-      const node = new InkNode(command); registry.track(node); nodes.push(node);
-      ink.push({ command, atMs: now, audioPosition: samplePosition() });
+      assertPointOutsideIntro(command, options);
+      // POINT moves the cursor; it creates no visible ink or transaction node.
+      if (command.type !== "POINT") {
+        const node = new InkNode(command); registry.track(node); nodes.push(node);
+        ink.push({ command, atMs: now, audioPosition: samplePosition() });
+      }
       // The command can still own async ink when Pause cancels its voice.
       const duration = restartCase ? Math.max((options.speechDurationMs ?? 20) / (options.getPlaybackRate?.() ?? 1), 80) : 20;
       let elapsed = 0;
@@ -325,6 +341,12 @@ async function scenario(selectedMode: Mode) {
     setCurrentSegmentText() {}, setPhase() {}, setIsPaused() {}, setActiveVerifiedDiagram() {},
     setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
   };
+  function assertPointOutsideIntro(command: DrawCommand, options: ExecuteCommandOptions) {
+    if (command.type !== "POINT" || options.isCancelled?.() || params.cancelRef.current) return;
+    assert.equal(activeIntroTransaction, null, "runtime POINT must never execute inside an intro transaction");
+    assert.notEqual(options.trustedDiagramGeometry, true, "runtime POINT must never claim trusted intro ink");
+    record("runtime-point", { explanation: options.explanationPointing === true, verified: options.verifiedPointingOnly === true });
+  }
   const pathGate: { release: (() => void) | null } = { release: null };
   const metadataAtSavepoint = new Map<string, { layout: BoardLayoutState; rects: BoardLayoutState["rects"]; nextY: number }>();
   const unrelatedAnchor = { x: 80, y: 80, width: 120, height: 28, text: "F = ma" };
@@ -383,11 +405,15 @@ async function scenario(selectedMode: Mode) {
       await board.writeText("F = ma", 80, 80, 0);
       assert(nodes.length > 0, "the real canvas harness must start with actual unrelated work ink");
       const workNodes = [...nodes];
+      const begin = board.beginDrawTransaction;
+      board.beginDrawTransaction = () => {
+        const id = begin(); activeIntroTransaction = id; return id;
+      };
       const commit = board.commitDrawTransaction;
       board.commitDrawTransaction = (id) => {
         assert.equal(visibleIntro().length, introCommandCount, "real node tracking requires ink from every compiled command");
         assertCapturedAtCommit();
-        commit(id); committed = true; record("intro-committed");
+        commit(id); activeIntroTransaction = null; committed = true; record("intro-committed");
       };
       const rollback = board.rollbackDrawSavepoint;
       const checkpoint = board.createDrawSavepoint;
@@ -403,7 +429,10 @@ async function scenario(selectedMode: Mode) {
         rollback(id, origin); record("beat-rolled-back");
       };
       const abort = board.abortDrawTransaction;
-      board.abortDrawTransaction = (id) => { abort(id); aborted = true; record("intro-aborted"); };
+      board.abortDrawTransaction = (id) => {
+        abort(id); if (activeIntroTransaction === id) activeIntroTransaction = null;
+        aborted = true; record("intro-aborted");
+      };
       params.whiteboardRef.current = board as unknown as typeof params.whiteboardRef.current;
       const commandHook = loadHook(path.join(hookApp, "features/tutor-session/hooks/useCommandExecution.ts")).useCommandExecution as
         typeof import("../../features/tutor-session/hooks/useCommandExecution").useCommandExecution;
@@ -419,8 +448,9 @@ async function scenario(selectedMode: Mode) {
         forgetErasedTextRects() {}, resetBoardLayout() {}, resolveTextPlacement: placement.resolveTextPlacement,
       } as unknown as Parameters<typeof commandHook>[0]);
       params.executeCommandWithCancel = async (command, options) => {
+        assertPointOutsideIntro(command, options);
         drawingCommand = command;
-        ink.push({ command, atMs: now, audioPosition: samplePosition() });
+        if (command.type !== "POINT") ink.push({ command, atMs: now, audioPosition: samplePosition() });
         await execution.executeCommandWithCancel(command, options);
         record("command-settled", { beat: options.segmentNarration, cancelled: options.isCancelled?.() ?? false });
         assert(workNodes.every((node) => !node.destroyed), "restart must preserve all real work-row nodes");
@@ -468,13 +498,15 @@ async function scenario(selectedMode: Mode) {
         "canonical presentations keep semantic/deferred FOCUS outside the transactional intro");
       const originalDiagram = params.activeVerifiedDiagramRef.current;
       const originalDeferred = originalDiagram.deferredAnnotations;
-      const injected: TutorSegment = { ...intros[1]!, commands: [...intros[1]!.commands!, {
-        type: "FOCUS", params: [], text: "B", semanticRef: { entityId: "B" }, charPosition: 0, narrationBefore: "",
-      }] };
       try {
-        assert.throws(() => control.enqueueVerifiedIntro([intros[0]!, injected, intros[2]!], 1),
-          /verified intro contains non-transactional command FOCUS/,
-          "a FOCUS that may consume deferred annotations is rejected before any intro side effect");
+        for (const type of ["FOCUS", "POINT"] as const) {
+          const injected: TutorSegment = { ...intros[1]!, commands: [...intros[1]!.commands!, {
+            type, params: [], text: "B", semanticRef: { entityId: "B" }, charPosition: 0, narrationBefore: "",
+          }] };
+          assert.throws(() => control.enqueueVerifiedIntro([intros[0]!, injected, intros[2]!], 1),
+            new RegExp(`verified intro contains non-transactional command ${type}`),
+            `a ${type} is rejected before any intro side effect`);
+        }
       } finally {
         // A red run may have enqueued it: invalidate before restoring globals.
         params.cancelRef.current = true;
@@ -864,6 +896,10 @@ async function scenario(selectedMode: Mode) {
         assert.equal(successorLayout.nextY, 200 + TEXT_LAYOUT.lineHeight, "old rollback does not reset successor work placement");
       }
     }
+    if (!realCanvas && (successful || mode === "later-new-turn")) {
+      assert(events.some((event) => event.name === "runtime-point"), "the lesson must actually execute transient POINT after its intro transaction");
+    }
+    assert(ink.every((row) => row.command.type !== "POINT"), "cursor motion must never count as captured ink");
     record("scenario-complete");
     console.log(`verified diagram audio ${selectedMode}: ${ink.length} executed ink commands, ${params.recordedSegmentsRef.current.length} complete recorded rows`);
   } finally {

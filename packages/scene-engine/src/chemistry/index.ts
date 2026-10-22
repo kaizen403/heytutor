@@ -26,4 +26,8 @@ export { ELEMENTS, elementBySymbol, elementByName, elementByZ, resolveElement, v
 export { electronConfiguration, dElectronCount } from "./electronConfiguration";
 export { chemistryFamilyTeachingNotes, CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
 export { chemistryTeachingFamilyId } from "./teachingFamily";
+export { certifyVseprSourceDocument, type VseprSourceCertification } from "./sourceEvidence";
+export { verifiedVseprStructure } from "./vseprStructure";
+export { verifiedOrganicNeighbourhoodStructure } from "./organic/neighbourhoodStructure";
+export { vseprPlanConflict } from "./vsepr";
 export { readChemistryLiteral, convertChemistryValue, parseChemistryScalar, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, resolveChemistryGiven, convertChemistryReading, findChemistryQuantities, chemistryQuestionSpan, chemistryPlanBindingsValid, type ChemistrySpan, type ChemistryDimension, type ChemistryUnit, type ChemistryReading, type ChemistryQuantityInput, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemRead } from "./quantityReader";

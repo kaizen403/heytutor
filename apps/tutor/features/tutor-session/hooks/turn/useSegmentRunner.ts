@@ -474,10 +474,13 @@ export function useSegmentRunner({
               );
               // Voice never came: uncover the board so the lecture is not stuck
               // behind "preparing" for the rest of the turn.
-              applyTurnPhase("speaking");
+              if (hasCommand) applyTurnPhase("speaking");
               return;
             }
-            applyTurnPhase("drawing");
+            // Narration-only motion follows the voice's speaking phase. Its
+            // timing wait may settle after an opening's owner restored the
+            // planning/thinking wait, so it must not overwrite that phase.
+            if (hasCommand) applyTurnPhase("drawing");
             tutorDebug("draw", "initial timing wait", {
               index,
               release: initialTimingWait?.release ?? null,
@@ -503,6 +506,7 @@ export function useSegmentRunner({
               // stalls. Accepted onEnd and the bounded speech finally path
               // release it; browser recovery has only an estimated wall clock.
               isAudioActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null && !usingBrowserFallback,
+              isSpeechActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null,
               getPlaybackRate: segmentPlaybackRate,
               isSpeechComplete: () => speechComplete,
               canAdvanceAfterSpeech: () => !isPausedRef.current,
@@ -917,8 +921,8 @@ export function useSegmentRunner({
             }),
           ]));
         } catch (error) {
-          speechAborted = true;
           terminalSpeechFailure = !isCancelled();
+          speechAborted = true;
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -930,8 +934,9 @@ export function useSegmentRunner({
             error: error instanceof Error ? error.message : String(error),
             timed_out: timedOut,
           });
-          // Kill zombie WS/HTTP work so the next paragraph is not blocked.
-          tts.abandonSpeaking?.();
+          // The shared provider may already be playing a successor turn.
+          // Kill zombie work only while this segment still owns the turn.
+          if (terminalSpeechFailure) tts.abandonSpeaking?.();
           // Do not count a silent fallback as a successful lecture beat. Let
           // the queue stop after repeated failures and show its retry message.
           // Browser recovery only succeeds after its utterance actually ends.
@@ -964,18 +969,13 @@ export function useSegmentRunner({
       try {
         if (!(await waitWhilePaused())) return;
 
-        if (hasNarration && !hasCommand) {
-          tutorDebug("segment", "narration-only", { index });
-          await speakSegmentWithTimeout(narration, speakOptions);
-          if (isCancelled()) return;
-          tutorDebug("segment", "narration-only complete", { index });
-        } else if (!hasNarration && hasCommand) {
+        if (!hasNarration && hasCommand) {
           tutorDebug("segment", "draw-only", { index });
           applyTurnPhase("drawing");
           await runDraw(naturalDrawMs);
           if (isCancelled()) return;
           tutorDebug("segment", "draw-only complete", { index });
-        } else if (hasNarration && hasCommand) {
+        } else if (hasNarration) {
           tutorDebug("segment", "paired narration+draw", { index });
 
           // Finish prior ink first, then speak + draw this segment together so the
@@ -988,7 +988,9 @@ export function useSegmentRunner({
           // promises are independent: Promise.all rejects on the draw side
           // while the speech carries on narrating a board that has frozen.
           startOwnedDraw = () => {
-            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
+            const generation = drawGeneration;
+            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, generation), (error) => {
+              if (isCancelled() || generation !== drawGeneration) return;
               speechAborted = true;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
               tutorDebug("segment", "draw failed; silencing narration", {

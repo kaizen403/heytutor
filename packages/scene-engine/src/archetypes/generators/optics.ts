@@ -4,10 +4,15 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
+import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid, sourcePhotoelectricSurfaceScopeHolds } from "../../physics/photoelectricSurfaces";
+import { photonEnergyEvFromWavelengthMetres } from "../../physics/photonEnergy";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
+import { chemistryCanonicalValuesAgree } from "../../chemistry/quantityReader";
+import { readRadiationSource } from "../../physics/radiationSource";
+import { readApertureSource, readYoungRepresentationRequest } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
@@ -45,10 +50,10 @@ function sphericalMirror(context: GeneratorContext) {
   const R = 2 * fMag;
   const centreX = kind === "concave" ? -R : R;
   const focusX = centreX / 2;
-  const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "spherical_mirror");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula`, "spherical_mirror");
+  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
+  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -126,10 +131,10 @@ function thinLens(context: GeneratorContext) {
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
-  const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "thin_lens");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula`, "thin_lens");
+  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
+  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
   const imageHeight = m * h;
   const leftmost = Math.min(u, v, -2 * fMag) - 0.15 * uMag;
   const rightmost = Math.max(v, 2 * fMag) + 0.15 * uMag;
@@ -206,11 +211,11 @@ function planeRefraction(context: GeneratorContext) {
   const sinR = (n1 / n2) * Math.sin(i * DEG);
   if (sinR >= 1) return null;
   const r = Math.asin(sinR) / DEG;
-  const scene = new SceneBuilder(context.question, `refraction at a plane interface: i=${fmt(i)}°, n1=${fmt(n1)}, n2=${fmt(n2)}`, "plane_refraction");
-  scene.quantity("i", "i", i, "degree");
-  scene.quantity("n1", "n1", n1, "");
-  scene.quantity("n2", "n2", n2, "");
-  scene.quantity("r", "r", r, "degree");
+  const scene = new SceneBuilder(context.question, "refraction at a plane interface", "plane_refraction");
+  if (grounded(context, "i")) scene.quantity("i", "i", i, "degree");
+  if (grounded(context, "n1")) scene.quantity("n1", "n1", n1, "");
+  if (grounded(context, "n2")) scene.quantity("n2", "n2", n2, "");
+  if (["i", "n1", "n2"].every((key) => grounded(context, key))) scene.quantity("r", "r", r, "degree");
   scene.point("s_a", { x: -4, y: 0 }, "interface end");
   scene.point("s_b", { x: 4, y: 0 }, "interface end");
   scene.line("interface", "s_a", "s_b", "interface between the media");
@@ -224,10 +229,10 @@ function planeRefraction(context: GeneratorContext) {
     inputs: { point: "P", surface: "interface", incidentAngleDeg: i, n1, n2, span: 3.2 },
     outputs: ["incident", "normal", "refracted"],
   });
-  scene.point("medium1", { x: -3.2, y: 1.6 }, "upper medium label", n1 === 1 ? "air, n1=1" : `n1=${fmt(n1)}`);
-  scene.point("medium2", { x: -3.2, y: -1.6 }, "lower medium label", `n2=${fmt(n2)}`);
-  scene.angleMark("angle_i", "P", "incident", "normal", `i=${fmt(i)}°`, 1.1);
-  scene.angleMark("angle_r", "P", "refracted", "normal", `r=${fmt(r)}°`, 0.8);
+  scene.point("medium1", { x: -3.2, y: 1.6 }, "upper medium label", valueLabel(context, "n1", "n1"));
+  scene.point("medium2", { x: -3.2, y: -1.6 }, "lower medium label", valueLabel(context, "n2", "n2"));
+  scene.angleMark("angle_i", "P", "incident", "normal", angleLabel(context, "i", "i"), 1.1);
+  scene.angleMark("angle_r", "P", "refracted", "normal", derivedLabel(context, ["i", "n1", "n2"], `r=${fmt(r)}°`, "r"), 0.8);
   scene.assert("snell", "snells_law", ["incident", "normal", "refracted"], { n1, n2 });
   scene.assert("normal_perp", "perpendicular", ["normal", "interface"]);
   scene.assert("incidence_angle", "angle_between", ["incident", "normal"], { value: i, unit: "degree" });
@@ -257,15 +262,16 @@ function prism(context: GeneratorContext) {
 
   const base = 6;
   const apex: Vec2 = { x: base / 2, y: (base / 2) / Math.tan((A / 2) * DEG) };
-  const scene = new SceneBuilder(context.question, `ray through a prism of angle ${fmt(A)}°, n=${fmt(n)}, incidence ${fmt(i)}°${minimumDeviation ? " (minimum deviation)" : ""}`, "prism");
-  scene.quantity("A", "A", A, "degree");
-  scene.quantity("n", "n", n, "");
-  scene.quantity("i", "i", i, "degree");
-  if (deviation !== null) scene.quantity("delta", "delta", deviation, "degree");
+  const scene = new SceneBuilder(context.question, `ray through a prism${minimumDeviation ? " at minimum deviation" : ""}`, "prism");
+  if (grounded(context, "A")) scene.quantity("A", "A", A, "degree");
+  if (grounded(context, "n")) scene.quantity("n", "n", n, "");
+  if (grounded(context, "i")) scene.quantity("i", "i", i, "degree");
+  const derivedInputs = minimumDeviation ? ["A", "n"] : ["A", "n", "i"];
+  if (deviation !== null && derivedInputs.every((key) => grounded(context, key))) scene.quantity("delta", "delta", deviation, "degree");
   scene.point("B", { x: 0, y: 0 }, "base vertex", "B");
   scene.point("C", { x: base, y: 0 }, "base vertex", "C");
   scene.point("Apex", apex, "apex", "A");
-  scene.polygon("prism", ["B", "Apex", "C"], "prism section", `A=${fmt(A)}°`);
+  scene.polygon("prism", ["B", "Apex", "C"], "prism section", angleLabel(context, "A", "A"));
   scene.segment("face1", "B", "Apex", "first refracting face");
   scene.segment("face2", "Apex", "C", "second refracting face");
   const p1: Vec2 = { x: apex.x * 0.5, y: apex.y * 0.5 };
@@ -299,7 +305,7 @@ function prism(context: GeneratorContext) {
     scene.assert("snell2", "snells_law", ["internal", "normal2", "emergent"], { n1: n, n2: 1 });
     if (deviation !== null) {
       scene.assert("deviation", "angle_between", ["incident", "emergent"], { value: Number(deviation.toFixed(4)), unit: "degree" });
-      scene.point("delta_note", { x: base + 0.6, y: apex.y * 0.25 }, "deviation note", `δ=${fmt(deviation)}°`);
+      scene.point("delta_note", { x: base + 0.6, y: apex.y * 0.25 }, "deviation note", derivedLabel(context, derivedInputs, `δ=${fmt(deviation)}°`, "δ"));
     }
   } else {
     scene.entities.push({ id: "reflected", kind: "ray", role: "totally internally reflected ray", label: "TIR" });
@@ -310,7 +316,7 @@ function prism(context: GeneratorContext) {
       outputs: ["reflected"],
     });
   }
-  scene.angleMark("angle_i", "P1", "incident", "normal1", `i=${fmt(i)}°`, 0.9);
+  scene.angleMark("angle_i", "P1", "incident", "normal1", derivedLabel(context, minimumDeviation ? ["A", "n"] : ["i"], `i=${fmt(i)}°`, "i"), 0.9);
   scene.assert("snell1", "snells_law", ["incident", "normal1", "refracted"], { n1: 1, n2: n });
   scene.assert("incidence", "angle_between", ["incident", "normal1"], { value: Number(i.toFixed(4)), unit: "degree" });
   scene.assert("p1_on_face", "on", ["P1", "face1"]);
@@ -320,9 +326,14 @@ function prism(context: GeneratorContext) {
 }
 
 function doubleSlit(context: GeneratorContext) {
-  const d = maybeNum(context, "d");
-  const D = maybeNum(context, "D");
-  const lambda = maybeNum(context, "lambda");
+  const source = readApertureSource(context.question);
+  const requested = readYoungRepresentationRequest(context.question);
+  if (requested.status==="declined") return null;
+  const illustrative=requested.status==="illustration";
+  if ((!source || source.kind !== "double_slit")&&!illustrative) return null;
+  const d = illustrative?null:maybeNum(context, "d");
+  const D = illustrative?null:maybeNum(context, "D");
+  const lambda = illustrative?null:maybeNum(context, "lambda");
   const scene = new SceneBuilder(context.question, "Young's double slit: two slits, the screen and the fringe pattern", "double_slit");
   if (d !== null && grounded(context, "d")) scene.quantity("d", "d", d, "mm");
   if (D !== null && grounded(context, "D")) scene.quantity("D", "D", D, "m");
@@ -366,43 +377,146 @@ function doubleSlit(context: GeneratorContext) {
   scene.assert("axis_perp", "perpendicular", ["axis", "screen"]);
   scene.assert("o_on_screen", "on", ["O", "screen"]);
   scene.labelled("S1", "S2", "O");
-  return scene.build();
+  if(illustrative){
+    scene.labelAt("illustrative_scope_1",{x:2,y:4.4},"illustrative apparatus scope","Qualitative");
+    scene.labelAt("illustrative_scope_2",{x:2,y:3.8},"illustrative apparatus scope","Young setup");
+    if(requested.unmetVariants.length)scene.labelAt("illustrative_scope_3",{x:2,y:5},"partial apparatus scope","Setup only");
+  }
+  const document=scene.build();
+  if(illustrative)document.source.youngRepresentationRequest=requested;
+  return document;
+}
+
+/** Use the same SI conversion as the source-bound chemistry figure. */
+function photonFromLambda(lambdaNm: number): number {
+  return photonEnergyEvFromWavelengthMetres(lambdaNm * 1e-9);
 }
 
 function photoelectric(context: GeneratorContext) {
-  const phi = maybeNum(context, "workFunction");
-  const lambda = maybeNum(context, "lambda");
-  const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);
+  if (multiplePhotoelectricSurfaces(context.question)) return null;
+  const source = readRadiationSource(context.question);
+  if (source.status === "declined") return null;
+  if (source.status === "symbolic" && source.missing === "unused_planck_constant") {
+    // These coordinates are a symbolic partition, never physical energies.
+    // In particular no caller/planner slot may turn this into a numeric model.
+    const scene = new SceneBuilder(context.question, "symbolic photoelectric energy relation; not to scale", "photoelectric");
+    scene.point("axis_base", { x: -0.5, y: 0 }, "symbolic axis base");
+    scene.vector("energy_axis", "axis_base", { direction: { x: 0, y: 1 }, length: 3.2 }, "energy axis", "E");
+    scene.point("zero", { x: 0, y: 0 }, "symbolic energy origin");
+    scene.point("phi_top", { x: 0, y: 2 }, "symbolic work function", "φ");
+    scene.point("E_top", { x: 0, y: 3 }, "symbolic photon energy", "hν");
+    scene.point("phi_end", { x: 3, y: 2 }, "symbolic work level end");
+    scene.point("E_end", { x: 3, y: 3 }, "symbolic photon level end");
+    scene.segment("phi_level", "phi_top", "phi_end", "work-function level");
+    scene.segment("E_level", "E_top", "E_end", "photon-energy level");
+    scene.point("work_base", { x: 1, y: 0 }, "symbolic work base");
+    scene.point("work_tip", { x: 1, y: 2 }, "symbolic work tip");
+    scene.vector("work", "work_base", { end: "work_tip" }, "work function", "φ");
+    scene.point("k_base", { x: 2, y: 2 }, "symbolic kinetic base");
+    scene.point("k_tip", { x: 2, y: 3 }, "symbolic kinetic tip");
+    scene.vector("kinetic", "k_base", { end: "k_tip" }, "symbolic kinetic energy", "K");
+    scene.point("symbolic_qualification", { x: 1.5, y: 3.6 }, "conditional symbolic relation", "if hν > φ");
+    scene.point("symbolic_scale", { x: 1.5, y: 4 }, "symbolic display scale", "not to scale");
+    scene.assert("symbolic_levels_parallel", "parallel", ["phi_level", "E_level"]);
+    scene.group("symbolic_balance", scene.entities.map(entity => entity.id), "if hν > φ. not to scale. hν. φ. K.");
+    const document = scene.build(); document.source.nonMetric = true; return document;
+  }
+  const model = source.status === "source" && source.model.kind === "photoelectric" ? source.model : null;
+  if (model && model.question !== context.question) return null;
+  const symbolic = source.status === "symbolic" ? source : null;
+  const symbolicWork = symbolic?.missing === "work_function" ? symbolic : null;
+  const symbolicThreshold = source.status === "symbolic" && source.missing === "incident_photon" ? source : null;
+  const phi = model?.workFunctionEV ?? symbolicThreshold?.workFunctionEV ?? (symbolic ? null : maybeNum(context, "workFunction"));
+  const lambda = symbolic ? null : maybeNum(context, "lambda");
+  const photon = model?.photonEnergyEV ?? (symbolicWork ? symbolicWork.photonEnergyEV
+    : symbolic ? null : maybeNum(context, "photonEnergy") ?? (lambda !== null ? photonFromLambda(lambda) : null));
+  const givenKinetic = model?.givenKineticEV ?? symbolicWork?.givenKineticEV ?? null;
+  const stopping = model?.stoppingPotentialV ?? symbolicWork?.stoppingPotentialV ?? null;
+  if (model && !sourcePhotoelectricSurfaceScopeHolds(context.question, false)) {
+    // Newly restored sample scopes must keep caller slots on the same source.
+    const suppliedPhi = maybeNum(context, "workFunction");
+    const suppliedPhoton = maybeNum(context, "photonEnergy");
+    const incidentWavelength = model.bindings.find(binding => binding.role === "incident photon wavelength");
+    if (suppliedPhi !== null && !chemistryCanonicalValuesAgree(suppliedPhi, model.workFunctionEV)
+      || suppliedPhoton !== null && !chemistryCanonicalValuesAgree(suppliedPhoton, model.photonEnergyEV)
+      || lambda !== null && incidentWavelength && !chemistryCanonicalValuesAgree(lambda * 1e-9, incidentWavelength.reading.value)) return null;
+  }
+  if (!model && !symbolic && !restoredPhotoelectricInputsValid(context.question, phi, photon)) return null;
+
   const phiValue = phi ?? 2;
-  const photonValue = photon ?? Math.max(phiValue * 1.5, phiValue + 1);
-  if (photonValue <= phiValue) return null;
-  const kMax = photonValue - phiValue;
+  // #181 owns the shared photon conversion and surface guards above; this
+  // reader only decides which energies the question states.
+  const phiGiven = model !== null || symbolicThreshold !== null || !symbolic && phi !== null && grounded(context, "workFunction");
+  const directPhoton = symbolic ? null : maybeNum(context, "photonEnergy");
+  const lambdaPhoton = lambda !== null ? photonFromLambda(lambda) : null;
+  const conflictingPhoton = !model && !symbolic && (context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambdaPhoton !== null
+    && grounded(context, "photonEnergy") && grounded(context, "lambda")
+    && Math.abs(directPhoton - lambdaPhoton) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(lambdaPhoton)));
+  const photonGiven = symbolicWork?.photonEnergyEV !== null && symbolicWork?.photonEnergyEV !== undefined || !symbolic && (model !== null || !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda"))));
+  // Unknown work function is a schematic level below the incident energy,
+  // never an assumed physical threshold that can veto a sourced photon.
+  const phiLevel = phiGiven ? phiValue : photonGiven ? givenKinetic !== null ? photon! - givenKinetic : photon! * 2 / 3
+    : givenKinetic !== null ? Math.max(1, givenKinetic / 2) : phiValue;
+  const photonValue = photonGiven ? photon! : givenKinetic !== null ? phiLevel + givenKinetic : Math.max(phiLevel * 1.5, phiLevel + 1);
+  const emission = model ? model.kineticEV !== null : !(phiGiven && photonGiven && photonValue <= phiLevel);
+  if (!model && !emission) return null;
+  const kMax = photonValue - phiLevel;
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
-  if (phi !== null && grounded(context, "workFunction")) scene.quantity("phi", "phi", phi, "eV");
-  if (photon !== null) scene.quantity("E", "E", photonValue, "eV");
-  scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * photonValue, "energy axis", "E (eV)");
+  if (phi !== null && phiGiven) scene.quantity("phi", "phi", phi, "eV");
+  if (photonGiven) scene.quantity("E", "E", photonValue, "eV");
+  if (model?.photonEnergyBasis === "conservation_from_emitted_result") {
+    scene.quantities.find(quantity => quantity.id === "E")!.provenance = "derived";
+    scene.point("energy_basis", { x: 3.2, y: photonValue * 1.15 }, "photon energy derived by conservation", "Derived E=φ+K");
+  }
+  if (givenKinetic !== null) scene.quantity("K_given", "K", givenKinetic, "eV");
+  if (stopping !== null) {
+    scene.quantity("Vstop_given", "Vstop", stopping, "V");
+    scene.point("stopping_source", { x: 3.4, y: photonValue * 0.6 }, "stated stopping potential", `Vstop=${fmt(stopping)} V`);
+  }
+  scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * Math.max(photonValue, phiLevel), "energy axis", "E (eV)");
   scene.point("zero", { x: 0, y: 0 }, "zero of energy");
-  scene.point("phi_top", { x: 0, y: phiValue }, "work function mark", `φ=${fmt(phiValue)} eV`);
-  scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", `hν=${fmt(photonValue)} eV`);
-  scene.point("phi_bar_end", { x: 3, y: phiValue }, "work function line end");
+  scene.point("phi_top", { x: 0, y: phiLevel }, "work function mark", phiGiven ? `φ=${fmt(phiLevel)} eV` : "φ");
+  scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", photonGiven ? `hν=${fmt(photonValue)} eV` : "hν");
+  scene.point("phi_bar_end", { x: 3, y: phiLevel }, "work function line end");
   scene.segment("phi_level", "phi_top", "phi_bar_end", "work function line");
   scene.point("E_bar_end", { x: 3, y: photonValue }, "photon energy line end");
   scene.segment("E_level", "E_top", "E_bar_end", "photon energy line");
   scene.point("photon_base", { x: 1, y: 0 }, "photon arrow base");
   scene.point("photon_tip", { x: 1, y: photonValue }, "photon arrow tip");
   scene.vector("photon", "photon_base", { end: "photon_tip" }, "photon energy", "hν");
-  scene.point("k_base", { x: 2.2, y: phiValue }, "kinetic energy base");
-  scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
-  scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", `K=${fmt(kMax)} eV`);
+  if (emission && kMax > 0) {
+    scene.point("k_base", { x: 2.2, y: phiLevel }, "kinetic energy base");
+    scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
+    scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", givenKinetic !== null ? `K=${fmt(givenKinetic)} eV` : phiGiven && photonGiven ? `K=${fmt(kMax)} eV` : "K");
+  } else {
+    const anchor = scene.helper("emission_p", { x: 3, y: Math.max(photonValue, phiLevel) * 0.5 }, "emission statement anchor helper");
+    const text = emission ? "K=0 eV" : "no emission";
+    scene.entities.push({ id: "emission", kind: "label", role: "kinetic energy emission condition", label: text });
+    scene.constructions.push({ id: "make_emission", operator: "label", inputs: { target: anchor, text }, outputs: ["emission"] });
+  }
   scene.point("w_base", { x: 2.2, y: 0 }, "work function base");
-  scene.point("w_tip", { x: 2.2, y: phiValue }, "work function tip");
+  scene.point("w_tip", { x: 2.2, y: phiLevel }, "work function tip");
   scene.vector("work", "w_base", { end: "w_tip" }, "work function", "φ");
   scene.assert("levels_parallel", "parallel", ["phi_level", "E_level"]);
-  if (phi !== null && photon !== null && grounded(context, "workFunction")) {
-    scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiValue / photonValue).toFixed(6)));
+  if (phiGiven && photonGiven) {
+    scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiLevel / photonValue).toFixed(6)));
+  }
+  const threshold = model?.thresholdWavelengthM ?? symbolicThreshold?.thresholdWavelengthM ?? null;
+  if (threshold !== null) {
+    scene.quantity("lambda0", "lambda0", threshold * 1e9, "nm");
+    scene.point("threshold_source", { x: 3.4, y: phiLevel * 0.45 }, "stated threshold wavelength", `λ0=${fmt(threshold * 1e9)} nm`);
+    if (symbolicThreshold) scene.point("incident_missing", { x: 3.4, y: photonValue * 1.12 }, "incident photon not given", "hν not given");
+  }
+  if (symbolicWork) {
+    scene.point("emission_case", { x: 3.4, y: photonValue * 1.12 }, "conditional emitting case", "if hν > φ");
+    scene.point("phi_missing", { x: 3.4, y: photonValue * 0.25 }, "work function not given", "φ not given");
+    scene.group("conditional_energy", scene.entities.map(entity => entity.id), `φ not given. if hν > φ. hν. φ. ${givenKinetic !== null ? `K=${fmt(givenKinetic)} eV` : "K"}. ${stopping !== null ? `Vstop=${fmt(stopping)} V` : ""}`);
   }
   scene.labelled("phi_top", "E_top");
-  return scene.build();
+  const document = scene.build();
+  if (symbolic) document.source.nonMetric = true;
+  if (model?.photonEnergyBasis) document.source.photonEnergyBasis = model.photonEnergyBasis;
+  return document;
 }
 
 function lensMaker(context: GeneratorContext) {
@@ -449,13 +563,13 @@ function lensMaker(context: GeneratorContext) {
   }
   const scene = new SceneBuilder(
     context.question,
-    `${kind} lens from the lens-maker radii R1=${fmt(R1)}, R2=${fmt(R2)}`,
+    `${kind} lens and its radii of curvature`,
     "lens_maker",
   );
   if (grounded(context, "n")) scene.quantity("n", "n", n, "");
   if (grounded(context, "R1")) scene.quantity("R1", "R1", R1, "cm");
   if (grounded(context, "R2")) scene.quantity("R2", "R2", R2, "cm");
-  if (focal !== null && Number.isFinite(focal)) scene.quantity("f", "f", focal, "cm");
+  if (focal !== null && Number.isFinite(focal) && ["n", "n0", "R1", "R2"].every((key) => grounded(context, key))) scene.quantity("f", "f", focal, "cm");
   const left = Math.min(-Math.abs(dR1), -thickness) - 1.2;
   const right = Math.max(Math.abs(dR2) > 200 ? thickness + 1.2 : Math.abs(dR2), thickness) + 1.2;
   scene.point("axis_l", { x: left, y: 0 }, "principal axis end");

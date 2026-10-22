@@ -1,0 +1,373 @@
+{
+  "scope": "Required real Greptile source wordings plus independent transfers and strict whole-source negatives. Frozen before candidate source output. No compound registry additions. Aliases require independently proved element/count/charge identity, unknown/unaliased members decline.",
+  "rows": [
+    {
+      "id": "HCN_WHY",
+      "question": "Why is HCN linear?",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HCN_IS",
+      "question": "Is HCN linear?",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HCN_EXPLAIN",
+      "question": "Explain why HCN is linear.",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HCN_REASON",
+      "question": "Give the reason for HCN being linear.",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HCN_SUBJECT",
+      "question": "HCN has a linear molecular shape. Explain.",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HCN_POSTPOSED",
+      "question": "Why does the molecule HCN have a linear shape?",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "HOF_WHY",
+      "question": "Why is HOF bent?",
+      "expectedFormulas": [
+        "HOF"
+      ]
+    },
+    {
+      "id": "OCS_WHY",
+      "question": "Why is OCS linear?",
+      "expectedFormulas": [
+        "OCS"
+      ]
+    },
+    {
+      "id": "NF3_EXACT",
+      "question": "What is the molecular geometry of NF3 (nitrogen trifluoride)?",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "NF3_REVERSED",
+      "question": "What is the molecular geometry of nitrogen trifluoride (NF3)?",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "NF3_COMMA",
+      "question": "Show the molecular shape of NF3, nitrogen trifluoride.",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "PF3_ALIAS",
+      "question": "Show the molecular shape of PF3 (phosphorus trifluoride).",
+      "expectedFormulas": [
+        "PF3"
+      ]
+    },
+    {
+      "id": "SICL4_ALIAS",
+      "question": "What is the shape of SiCl4 (silicon tetrachloride)?",
+      "expectedFormulas": [
+        "SiCl4"
+      ]
+    },
+    {
+      "id": "SF4_ALIAS",
+      "question": "What is the shape of SF4 (sulfur tetrafluoride)?",
+      "expectedFormulas": [
+        "SF4"
+      ]
+    },
+    {
+      "id": "SF4_BRITISH",
+      "question": "What is the shape of SF4 (sulphur tetrafluoride)?",
+      "expectedFormulas": [
+        "SF4"
+      ]
+    },
+    {
+      "id": "OCL2_ALIAS",
+      "question": "What is the shape of OCl2 (oxygen dichloride)?",
+      "expectedFormulas": [
+        "OCl2"
+      ]
+    },
+    {
+      "id": "NH3_ALIAS",
+      "question": "What is the shape of NH3 (nitrogen trihydride)?",
+      "expectedFormulas": [
+        "NH3"
+      ]
+    },
+    {
+      "id": "KNOWN_WATER_ALIAS",
+      "question": "What is the shape of H2O (water)?",
+      "expectedFormulas": [
+        "H2O"
+      ]
+    },
+    {
+      "id": "KNOWN_REVERSE_ALIAS",
+      "question": "What is the shape of hydrogen cyanide (HCN)?",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "WRONG_PREFIX",
+      "question": "What is the molecular geometry of NF3 (nitrogen tetrafluoride)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "WRONG_AMMONIA",
+      "question": "What is the molecular geometry of NF3 (ammonia)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "WRONG_PEROXIDE",
+      "question": "What is the molecular geometry of H2O (hydrogen peroxide)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "WRONG_REVERSE",
+      "question": "What is the molecular geometry of nitrogen tetrafluoride (NF3)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "UNKNOWN_ALIAS",
+      "question": "What is the molecular geometry of NF3 (nitrogen globulide)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "UNKNOWN_EXTRA",
+      "question": "What is the molecular geometry of NF3 (nitrogen trifluoride) and an unknown molecule?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "UNKNOWN_XYZ",
+      "question": "Show the molecular shapes of NF3 (nitrogen trifluoride) and XYZ.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "UNALIASED_NAMED_MEMBER",
+      "question": "Show the molecular shapes of NF3 and phosphorus trifluoride.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "UNSUPPORTED_FORMULA_MEMBER",
+      "question": "Show the molecular shapes of NF3 (nitrogen trifluoride) and SiO2.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "SECOND_NAME_IN_ALIAS",
+      "question": "Show the molecular shape of NF3 (nitrogen trifluoride and ammonia).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "WRONG_FIRST_COUNT",
+      "question": "Show the molecular shape of NF3 (dinitrogen trifluoride).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "WRONG_ATOM",
+      "question": "What is the molecular shape of NF3 (phosphorus trifluoride)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "CHARGED_MISMATCH",
+      "question": "What is the molecular shape of NH4+ (nitrogen tetrahydride)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "SI_USING",
+      "question": "Using SI notation, show the molecular shape of HCN.",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "SI_IN_HEAD",
+      "question": "Draw a VSEPR model in SI notation for NH3.",
+      "expectedFormulas": [
+        "NH3"
+      ]
+    },
+    {
+      "id": "SI_POSTPOSED",
+      "question": "Draw a VSEPR diagram of H2O using SI notation.",
+      "expectedFormulas": [
+        "H2O"
+      ]
+    },
+    {
+      "id": "VSEPR_METHOD",
+      "question": "Use VSEPR theory to explain why HCN is linear.",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "SI_AS_MEMBER",
+      "question": "Show the molecular shape of SI.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "VSEPR_AS_MEMBER",
+      "question": "Draw a VSEPR model of NH3 and a model of molecule VSEPR.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "HCN_WITH_UNKNOWN",
+      "question": "Explain why HCN and XYZ have linear molecular shapes.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "HCN_UNALIASED_WATER",
+      "question": "Explain the molecular shapes of HCN and water.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "ALIAS_ODD_WORD_OFFSET",
+      "question": "Draw the shape of nitrogen trifluoride (NF3).",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "ALIAS_NAME_FIRST_SHORT",
+      "question": "Sketch nitrogen trifluoride (NF3) molecular geometry.",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "ALIAS_NAME_FIRST_LONG",
+      "question": "Please show the molecular shape of phosphorus trifluoride (PF3).",
+      "expectedFormulas": [
+        "PF3"
+      ]
+    },
+    {
+      "id": "FORMULA_FIRST_LOWER_CASE",
+      "question": "Show the molecular shape of NF3 (NITROGEN TRIFLUORIDE).",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "PREFIX_MISMATCH_SHORT",
+      "question": "Draw the shape of nitrogen tetrafluoride (NF3).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "NAME_UNALIASED_WITH_PREFIX",
+      "question": "Draw the molecular shapes of NF3 and dinitrogen trifluoride.",
+      "expectedFormulas": []
+    },
+    {
+      "id": "ALIAS_EXTRA_SUFFIX",
+      "question": "What is the molecular geometry of NF3 (nitrogen trifluoridewater)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "ALIAS_UNKNOWN_PREFIX",
+      "question": "What is the molecular geometry of NF3 (undecanitrogen trifluoride)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "ALIAS_PARTIAL_CATALOG",
+      "question": "What is the molecular geometry of H2O (waterfoo)?",
+      "expectedFormulas": []
+    },
+    {
+      "id": "ALIAS_GOOD_CONTROL",
+      "question": "What is the molecular geometry of NF3 (nitrogen trifluoride)?",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "HCN_GAS",
+      "question": "Show the molecular shape of HCN(g).",
+      "expectedFormulas": [
+        "HCN"
+      ]
+    },
+    {
+      "id": "NF3_GAS",
+      "question": "Show the molecular shape of NF3 (g).",
+      "expectedFormulas": [
+        "NF3"
+      ]
+    },
+    {
+      "id": "WATER_LIQUID",
+      "question": "Show the molecular shape of H2O(l).",
+      "expectedFormulas": [
+        "H2O"
+      ]
+    },
+    {
+      "id": "WATER_SOLID",
+      "question": "Show the molecular shape of H2O (s).",
+      "expectedFormulas": [
+        "H2O"
+      ]
+    },
+    {
+      "id": "AMMONIA_AQUEOUS",
+      "question": "Show the molecular shape of NH3(aq).",
+      "expectedFormulas": [
+        "NH3"
+      ]
+    },
+    {
+      "id": "AMMONIUM_GAS",
+      "question": "Show the molecular shape of NH4+(g).",
+      "expectedFormulas": [
+        "NH4+"
+      ]
+    },
+    {
+      "id": "UNKNOWN_PHASE",
+      "question": "Show the molecular shape of H2O(xyz).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "DAMAGED_PHASE",
+      "question": "Show the molecular shape of H2O(gg).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "PHASE_WRONG_ALIAS",
+      "question": "Show the molecular shape of H2O(l) (hydrogen peroxide).",
+      "expectedFormulas": []
+    },
+    {
+      "id": "PHASE_WRONG_COUNT",
+      "question": "Show the molecular shape of NF3(g) (nitrogen tetrafluoride).",
+      "expectedFormulas": []
+    }
+  ]
+}

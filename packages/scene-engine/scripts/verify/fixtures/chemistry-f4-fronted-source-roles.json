@@ -1,0 +1,202 @@
+[
+  {
+    "id": "fronted-positive-0",
+    "group": "fronted",
+    "question": "For the first-order decomposition of N2O5, the half-life is 20 min. Plot the fraction remaining and mark t = 60 min.",
+    "draw": true,
+    "halfLife": 20,
+    "requested": 60,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-positive-1",
+    "group": "fronted",
+    "question": "For the first-order decomposition of N2O5, the half-life is 15 min. Draw the fraction remaining after 45 min.",
+    "draw": true,
+    "halfLife": 15,
+    "requested": 45,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-positive-2",
+    "group": "fronted",
+    "question": "For the first-order decomposition of N2O4, the half-life is 12 min. Plot the fraction remaining after 36 min.",
+    "draw": true,
+    "halfLife": 12,
+    "requested": 36,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-positive-3",
+    "group": "fronted",
+    "question": "For the first-order decomposition of propan-1-ol, its half-life is 10 min. Plot the fraction remaining after 30 min.",
+    "draw": true,
+    "halfLife": 10,
+    "requested": 30,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-negative-0",
+    "group": "fronted",
+    "question": "For the first-order decomposition of N2O5.2, the half-life is 20 min. Plot the fraction remaining after 60 min.",
+    "draw": false,
+    "neutralDraw": true,
+    "halfLife": 20,
+    "requested": 60,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-negative-1",
+    "group": "fronted",
+    "question": "For the first-order decomposition of N2Q5, the half-life is 20 min. Plot the fraction remaining after 60 min.",
+    "draw": false,
+    "neutralDraw": true,
+    "halfLife": 20,
+    "requested": 60,
+    "fraction": 0.125
+  },
+  {
+    "id": "fronted-negative-2",
+    "group": "fronted",
+    "question": "No first-order decomposition of N2O5, its half-life is 20 min. Plot the fraction remaining after 60 min.",
+    "draw": false
+  },
+  {
+    "id": "fronted-negative-3",
+    "group": "fronted",
+    "question": "For an unrelated decomposition of N2O5, the half-life is 20 min. Plot the fraction remaining after 60 min.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-h-0",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of frequency 1e15 Hz falls on a metal of work function 2 eV. h = 6.6 J s.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-h-1",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of frequency 1e15 Hz falls on a metal of work function 2 eV. h = 6e- J s.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-h-2",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of frequency 1e15 Hz falls on a metal of work function 2 eV. h = 6.6e-34 J/kg.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-h-3",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of frequency 1e15 Hz falls on a metal of work function 2 eV. h = 6.62607015e-34 J s.",
+    "draw": true
+  },
+  {
+    "id": "atomic-fixed-hc-0",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of wavelength 500 nm falls on a metal of work function 2 eV. hc = 1000 eV nm.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-hc-1",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of wavelength 500 nm falls on a metal of work function 2 eV. hc = 1e- eV nm.",
+    "draw": false
+  },
+  {
+    "id": "atomic-fixed-hc-2",
+    "group": "facade",
+    "question": "In an atomic electron model, Light of wavelength 500 nm falls on a metal of work function 2 eV. hc = 1.9864458571489286e-25 J m.",
+    "draw": true
+  },
+  {
+    "id": "original-symbolic-phi-0",
+    "group": "symbolic_phi",
+    "question": "Calculate the work function when light of 5 eV ejects electrons with kinetic energy 2 eV.",
+    "draw": true
+  },
+  {
+    "id": "original-symbolic-phi-1",
+    "group": "symbolic_phi",
+    "question": "Find the work function if photons of 6 eV eject electrons with kinetic energy 2 eV.",
+    "draw": true
+  },
+  {
+    "id": "original-symbolic-phi-2",
+    "group": "symbolic_phi",
+    "question": "Find the work function; photon energy is 5 eV.",
+    "draw": true
+  },
+  {
+    "id": "original-symbolic-phi-3",
+    "group": "symbolic_phi",
+    "question": "Find the work function when the kinetic energy is 2 eV.",
+    "draw": true
+  },
+  {
+    "id": "original-symbolic-phi-4",
+    "group": "symbolic_phi",
+    "question": "Find the work function for a stopping potential of 2 V.",
+    "draw": true
+  },
+  {
+    "id": "review-separate-metal-excluded-photo",
+    "group": "excluded",
+    "question": "Young\u2019s double-slit experiment uses light of wavelength 500 nm, slit separation 0.50 mm and screen distance 1.0 m. A separate metal has work function unknown. Draw only the Young apparatus and find the fringe width; do not draw photoelectric energy levels.",
+    "draw": true,
+    "archetype": "double_slit"
+  },
+  {
+    "id": "excluded-source-circuit-transfer",
+    "group": "excluded",
+    "question": "Draw two resistors of 7 \u03a9 and 8 \u03a9 connected in series. A separate metal has work function unknown. Do not draw photoelectric energy levels.",
+    "draw": true,
+    "archetype": "resistor_network"
+  },
+  {
+    "id": "positive-photoelectric-resets-exclusion",
+    "group": "excluded",
+    "question": "A separate metal has work function unknown. Photons of energy 3 eV illuminate it. Do not draw decorative arrows and show the photoelectric energy balance.",
+    "draw": false
+  },
+  {
+    "id": "molar-specific-review",
+    "group": "capacity",
+    "question": "The molar specific heat capacity is 25 J/(mol K) and the amount is 2 mol. \u0394T=10 K. Find q.",
+    "draw": true,
+    "heatJ": 500
+  },
+  {
+    "id": "molar-specific-transfer",
+    "group": "capacity",
+    "question": "The molar specific heat capacity is 12 J/(mol K) and the amount is 3 mol. \u0394T=5 K. Find q.",
+    "draw": true,
+    "heatJ": 180
+  },
+  {
+    "id": "mass-specific-stays-outside",
+    "group": "capacity",
+    "question": "The specific heat capacity is 25 J/(kg K) and the mass is 2 kg. \u0394T=10 K. Find q.",
+    "draw": false
+  },
+  {
+    "id": "molar-word-mass-unit-refusal",
+    "group": "capacity",
+    "question": "The molar specific heat capacity is 25 J/(kg K) and the amount is 2 mol. \u0394T=10 K. Find q.",
+    "draw": false
+  },
+  {
+    "id": "generic-source-hc1240-preserved",
+    "group": "parameterized",
+    "question": "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1240 eV nm. Find the stopping potential in volts.",
+    "photonEnergyEV": 4.133333333333334,
+    "kineticEV": 2.1333333333333337
+  },
+  {
+    "id": "generic-source-hc1239-84-preserved",
+    "group": "parameterized",
+    "question": "For the photoelectric effect wavelength is 300 nm and work function is 2.128 eV. Take hc=1239.84 eV nm. Find kinetic energy.",
+    "photonEnergyEV": 4.1328,
+    "kineticEV": 2.0047999999999995
+  }
+]

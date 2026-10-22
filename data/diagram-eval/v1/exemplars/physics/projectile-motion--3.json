@@ -1,0 +1,411 @@
+{
+  "topic_id": "physics|2|projectile-motion",
+  "question": "A ball is kicked from level ground at 24.5 m/s at an angle θ above the horizontal, where sin θ = 0.8 and cos θ = 0.6. Take g = 9.8 m/s². Find its time of flight, the greatest height it reaches and its horizontal range.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ball projected at an angle from level ground"
+    },
+    "source": {
+      "question": "A ball is kicked from level ground at 24.5 m/s at an angle θ above the horizontal, where sin θ = 0.8 and cos θ = 0.6. Take g = 9.8 m/s². Find its time of flight, the greatest height it reaches and its horizontal range."
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 24.5,
+        "unit": "m/s"
+      },
+      {
+        "id": "g",
+        "symbol": "g",
+        "value": 9.8,
+        "unit": "m/s^2"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "level ground launch point",
+        "label": "O"
+      },
+      {
+        "id": "path",
+        "kind": "polyline",
+        "role": "trajectory"
+      },
+      {
+        "id": "u_vec",
+        "kind": "vector",
+        "role": "launch velocity"
+      },
+      {
+        "id": "Ut",
+        "kind": "point",
+        "role": "tip of the launch arrow",
+        "label": "u = 24.5 m/s"
+      },
+      {
+        "id": "G1",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "level ground",
+        "label": "ground"
+      },
+      {
+        "id": "theta",
+        "kind": "angle_mark",
+        "role": "launch angle",
+        "label": "θ"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "highest point",
+        "label": "P"
+      },
+      {
+        "id": "Pt",
+        "kind": "point",
+        "role": "tip of the velocity at P"
+      },
+      {
+        "id": "v_top",
+        "kind": "vector",
+        "role": "velocity at P, horizontal",
+        "label": "u cos θ"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "landing point",
+        "label": "B"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "foot below P"
+      },
+      {
+        "id": "dim_H",
+        "kind": "dimension",
+        "role": "maximum height",
+        "label": "H"
+      },
+      {
+        "id": "dim_R",
+        "kind": "dimension",
+        "role": "horizontal range",
+        "label": "R"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "c_path",
+        "operator": "projectile_trajectory",
+        "inputs": {
+          "speed": "u",
+          "launchAngleDeg": 53.130102,
+          "gravity": "g",
+          "inclineAngleDeg": 0,
+          "origin": "O",
+          "displayScale": 1
+        },
+        "outputs": [
+          "path",
+          "u_vec"
+        ]
+      },
+      {
+        "id": "c_Ut",
+        "operator": "point",
+        "inputs": {
+          "x": 14.7,
+          "y": 19.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Ut"
+        ]
+      },
+      {
+        "id": "c_G1",
+        "operator": "point",
+        "inputs": {
+          "x": 66,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G1"
+        ]
+      },
+      {
+        "id": "c_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "G1"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "c_theta",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "Ut",
+          "b": "G1"
+        },
+        "outputs": [
+          "theta"
+        ]
+      },
+      {
+        "id": "c_P",
+        "operator": "point",
+        "inputs": {
+          "x": 29.4,
+          "y": 19.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "c_Pt",
+        "operator": "point",
+        "inputs": {
+          "x": 36.75,
+          "y": 19.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Pt"
+        ]
+      },
+      {
+        "id": "c_v_top",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "end": "Pt"
+        },
+        "outputs": [
+          "v_top"
+        ]
+      },
+      {
+        "id": "c_B",
+        "operator": "point",
+        "inputs": {
+          "x": 58.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "c_F",
+        "operator": "point",
+        "inputs": {
+          "x": 29.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "c_dim_H",
+        "operator": "dimension",
+        "inputs": {
+          "start": "F",
+          "end": "P"
+        },
+        "outputs": [
+          "dim_H"
+        ]
+      },
+      {
+        "id": "c_dim_R",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "B"
+        },
+        "outputs": [
+          "dim_R"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "launch_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "u_vec",
+          "ground"
+        ],
+        "expected": {
+          "value": 53.130102,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "P_on_path",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_path",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_ground",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "top_horizontal",
+        "predicate": "parallel",
+        "entities": [
+          "v_top",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "path",
+      "u_vec",
+      "Ut",
+      "G1",
+      "ground",
+      "theta",
+      "P",
+      "Pt",
+      "v_top",
+      "B",
+      "F",
+      "dim_H",
+      "dim_R"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "G1",
+          "ground",
+          "u_vec",
+          "Ut",
+          "theta"
+        ],
+        "dependsOn": [],
+        "narrationCue": "level ground; u at θ above the horizontal"
+      },
+      {
+        "id": "flight",
+        "entityIds": [
+          "path",
+          "P",
+          "Pt",
+          "v_top",
+          "F",
+          "dim_H"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "up to P, where velocity is horizontal, at height H"
+      },
+      {
+        "id": "range",
+        "entityIds": [
+          "B",
+          "dim_R"
+        ],
+        "dependsOn": [
+          "flight"
+        ],
+        "narrationCue": "down to B, a range R from O"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "level ground; u at θ above the horizontal"
+      },
+      {
+        "id": "reveal_flight",
+        "action": "reveal",
+        "targetId": "flight",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "up to P, where velocity is horizontal, at height H"
+      },
+      {
+        "id": "reveal_range",
+        "action": "reveal",
+        "targetId": "range",
+        "dependsOn": [
+          "reveal_flight"
+        ],
+        "narrationIntent": "down to B, a range R from O"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}

@@ -444,7 +444,9 @@ function retainCompleteBoundaryProjections(
 }
 
 function normalizeUnit(value: string | undefined): string {
-  return String(value ?? "1").toLowerCase().replace(/µ|μ/g, "u").replace(/\s+/g, "");
+  // A blank unit and a missing unit both mean a dimensionless value.
+  const unit = value?.trim() ? value : "1";
+  return unit.toLowerCase().replace(/µ|μ/g, "u").replace(/\s+/g, "");
 }
 
 function hasFreeVariable(root: ProblemIR["expressions"][number]["root"]): boolean {

@@ -45,6 +45,8 @@ export interface BoardViewport {
   offsetY: number;
   /** False until the board container has a real size (fit mode). */
   measured: boolean;
+  /** The fitted sheet would make currently visible handwriting unreadable. */
+  scrollable?: boolean;
 }
 
 /** Base draw budget for geometric commands — the adaptive function scales these. */

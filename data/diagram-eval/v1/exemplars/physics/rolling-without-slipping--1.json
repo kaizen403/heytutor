@@ -1,0 +1,328 @@
+{
+  "topic_id": "physics|5|rolling-without-slipping",
+  "question": "A wheel of radius R rolls uniformly to the right without slipping on a horizontal surface. Draw the centre velocity v, clockwise rotation, and the instantaneous velocities of the top point (2v) and contact point (zero). Show weight and normal; no horizontal external force acts.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Uniform rolling wheel with top, centre and contact velocities, rotation and vertical forces"
+    },
+    "source": {
+      "question": "A wheel of radius R rolls uniformly to the right without slipping on a horizontal surface. Draw the centre velocity v, clockwise rotation, and the instantaneous velocities of the top point (2v) and contact point (zero). Show weight and normal; no horizontal external force acts."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "C",
+        "label": "C"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "P",
+        "label": "P"
+      },
+      {
+        "id": "T",
+        "kind": "point",
+        "role": "T",
+        "label": "T"
+      },
+      {
+        "id": "wheel",
+        "kind": "circle",
+        "role": "wheel"
+      },
+      {
+        "id": "radius",
+        "kind": "segment",
+        "role": "radius",
+        "label": "R"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground"
+      },
+      {
+        "id": "vc",
+        "kind": "vector",
+        "role": "vc",
+        "label": "v"
+      },
+      {
+        "id": "vt",
+        "kind": "vector",
+        "role": "vt",
+        "label": "2v"
+      },
+      {
+        "id": "zero",
+        "kind": "point",
+        "role": "zero",
+        "label": "v_P = 0"
+      },
+      {
+        "id": "spin",
+        "kind": "polyline",
+        "role": "spin"
+      },
+      {
+        "id": "spin_tip",
+        "kind": "vector",
+        "role": "spin tip",
+        "label": "ω"
+      },
+      {
+        "id": "W",
+        "kind": "vector",
+        "role": "W",
+        "label": "mg"
+      },
+      {
+        "id": "N",
+        "kind": "vector",
+        "role": "N",
+        "label": "N"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_T",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "make_wheel",
+        "operator": "circle",
+        "inputs": {
+          "center": "C",
+          "radius": 1.5
+        },
+        "outputs": [
+          "wheel"
+        ]
+      },
+      {
+        "id": "make_radius",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "P"
+        },
+        "outputs": [
+          "radius"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": [
+            -2.5,
+            0
+          ],
+          "end": [
+            4,
+            0
+          ]
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_vc",
+        "operator": "vector",
+        "inputs": {
+          "start": "C",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.5
+        },
+        "outputs": [
+          "vc"
+        ]
+      },
+      {
+        "id": "make_vt",
+        "operator": "vector",
+        "inputs": {
+          "start": "T",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 3
+        },
+        "outputs": [
+          "vt"
+        ]
+      },
+      {
+        "id": "make_zero",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": -0.65,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "zero"
+        ]
+      },
+      {
+        "id": "make_spin",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "1.9*cos(2.4-1.3*t)",
+          "yExpression": "1.5+1.9*sin(2.4-1.3*t)",
+          "tMin": 0,
+          "tMax": 1
+        },
+        "outputs": [
+          "spin"
+        ]
+      },
+      {
+        "id": "make_spin_tip",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            0.8618326307085968,
+            3.1932939841167274
+          ],
+          "direction": [
+            0.8912073600614354,
+            -0.4535961214255773
+          ],
+          "length": 0.4
+        },
+        "outputs": [
+          "spin_tip"
+        ]
+      },
+      {
+        "id": "make_W",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.3,
+            1.5
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.1
+        },
+        "outputs": [
+          "W"
+        ]
+      },
+      {
+        "id": "make_N",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            0.3,
+            0
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.1
+        },
+        "outputs": [
+          "N"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "C",
+      "P",
+      "T",
+      "wheel",
+      "radius",
+      "ground",
+      "vc",
+      "vt",
+      "zero",
+      "spin",
+      "spin_tip",
+      "W",
+      "N"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "C",
+          "P",
+          "T",
+          "wheel",
+          "radius",
+          "ground",
+          "vc",
+          "vt",
+          "zero",
+          "spin",
+          "spin_tip",
+          "W",
+          "N"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Uniform rolling wheel with top, centre and contact velocities, rotation and vertical forces"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Uniform rolling wheel with top, centre and contact velocities, rotation and vertical forces"
+      }
+    ]
+  }
+}

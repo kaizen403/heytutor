@@ -14,16 +14,21 @@
  */
 import {
   displayedSceneQuantityTexts,
+  certifyVseprSourceDocument,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
+  validatePvSourceBinding,
   validateLinearSourcePlan,
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
+  validateProjectileMeasurementPlan,
+  vseprPlanConflict,
   validateTurnPlanSceneProofs,
+  validateCircuitTerminalClosure,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -114,13 +119,23 @@ export function sceneSaveAdmissionFailure(input: {
   tier: SaveAdmissionTier;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
+  // Source geometry never becomes optional with the planner metadata. Legacy
+  // native figures without a retained plan still need the exact source graph.
+  const vsepr = certifyVseprSourceDocument(document, question, turnPlan);
+  if (vsepr.status === "rejected") {
+    return `scene source inputs are unsupported or disagree: ${formatIssues(vsepr.issues)}`;
+  }
   if (turnPlan) {
+    const molecularConflict = vseprPlanConflict(question, turnPlan);
+    if (molecularConflict) return molecularConflict;
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.
     const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
     let engine: EngineDerived | null = null;
-    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan);
+    const derivedByEngine = (): EngineDerived => engine ??= vsepr.status === "certified"
+      ? { quantities: new Map(), texts: new Set(vsepr.texts) }
+      : engineDerivedValues(question, turnPlan);
     const audited = document.quantities.filter((quantity) => {
       if (planIds.has(quantity.id)) return true;
       const fresh = derivedByEngine().quantities.get(quantity.id);
@@ -137,6 +152,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
     ...validateLinearSourcePlan(question, turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
@@ -144,6 +160,10 @@ export function sceneSaveAdmissionFailure(input: {
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),
+    ...validatePvSourceBinding(document, question, turnPlan),
+    // Qualitative scenes need the same declared terminal proof as exact ones.
+    // Reuse only closure here; unrelated exact-plan obligations stay tiered.
+    ...validateCircuitTerminalClosure(document, question, turnPlan),
   ];
   if (sourceInputIssues.some((issue) => issue.severity === "fatal")) {
     return `scene source inputs are unsupported or disagree: ${formatIssues(sourceInputIssues)}`;

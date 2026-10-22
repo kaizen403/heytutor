@@ -1,0 +1,201 @@
+{
+  "scope": "Exact locked source obligations and independently computed affine clipped sign-interval transfers. No point-only interval at a zero endpoint. Unsupported shading remains whole refusal.",
+  "rows": [
+    {
+      "id": "locked-gibbs-original",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          300,
+          "positive"
+        ],
+        [
+          300,
+          450,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "locked-gibbs-consistent-axes",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G. Put T on the horizontal axis and \u0394G on the vertical axis.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          300,
+          "positive"
+        ],
+        [
+          300,
+          450,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "opposite-slope",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = -48.0 kJ mol^-1 and \u0394S = -160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          300,
+          "negative"
+        ],
+        [
+          300,
+          450,
+          "positive"
+        ]
+      ]
+    },
+    {
+      "id": "positive-throughout",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +96.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "positive"
+        ]
+      ]
+    },
+    {
+      "id": "negative-throughout",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +16.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "positive-rising",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = -160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "positive"
+        ]
+      ]
+    },
+    {
+      "id": "negative-rising",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = -96.0 kJ mol^-1 and \u0394S = -160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "zero-at-left",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +32.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "zero-at-right",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +72.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          200,
+          450,
+          "positive"
+        ]
+      ]
+    },
+    {
+      "id": "narrow-clipped-range",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 250 to 350 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G.",
+      "draw": true,
+      "regions": [
+        [
+          250,
+          300,
+          "positive"
+        ],
+        [
+          300,
+          350,
+          "negative"
+        ]
+      ]
+    },
+    {
+      "id": "unsupported-shading",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G. Also shade the area under the curve.",
+      "draw": false,
+      "regions": []
+    },
+    {
+      "id": "reversed-axes",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G. Put \u0394G on the horizontal axis and T on the vertical axis.",
+      "draw": false,
+      "regions": []
+    },
+    {
+      "id": "opposed-source-enthalpy",
+      "question": "For a chemical-change model at constant pressure, plot \u0394G = \u0394H-T\u0394S from 200 to 450 K using temperature-independent \u0394H = +48.0 kJ mol^-1 and \u0394S = +160 J mol^-1 K^-1. Mark the zero crossing and regions of positive and negative \u0394G. Also use \u0394H = +60 kJ mol^-1.",
+      "draw": false,
+      "regions": []
+    }
+  ],
+  "mutations": [
+    {
+      "id": "raw-reversed-sign-label",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-missing-sign-label",
+      "expectedValid": false
+    },
+    {
+      "id": "raw-foreign-sign-annotation",
+      "expectedValid": false
+    },
+    {
+      "id": "model-forged-regions",
+      "expectedValid": false
+    },
+    {
+      "id": "model-forged-slope",
+      "expectedValid": false
+    },
+    {
+      "id": "paint-reversed-sign-label",
+      "expectedValid": false
+    },
+    {
+      "id": "paint-missing-sign-label",
+      "expectedValid": false
+    },
+    {
+      "id": "external-wrong-domain",
+      "expectedValid": false
+    }
+  ],
+  "positiveMutation": {
+    "id": "legitimate-json-reopen",
+    "expectedValid": true
+  }
+}

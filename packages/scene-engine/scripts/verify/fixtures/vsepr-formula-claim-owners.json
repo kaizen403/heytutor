@@ -1,0 +1,352 @@
+[
+  {
+    "id": "review-exact-review-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has one lone pair; XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-foreign-first-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 has two lone pairs; SF4 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-foreign-hybrid-only",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-both-hybrid-owners",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is sp3 hybridised; SF4 is sp3d hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-full-mixed-facts",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has one lone pair and a seesaw molecular shape. XeF4 has two lone pairs. CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-unicode-formula-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF\u2084 has one lone pair; XeF\u2084 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-foreign-and-target-shapes",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 is square planar; SF4 is seesaw.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-atom-name-owner-control",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur in SF4 has one lone pair; xenon in XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-target-two-lone-pairs",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-target-sp3",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-foreign-first-target-wrong-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 has two lone pairs; SF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-target-no-lone-pairs",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has no lone pairs; CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-target-wrong-shape",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is square planar; XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-mixed-correct-count-wrong-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has one lone pair; SF4 is sp3 hybridised; CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-unicode-target-wrong-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF\u2084 has two lone pairs; XeF\u2084 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-atom-name-wrong-target",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur in SF4 has two lone pairs; xenon in XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-xenon-target-foreign-sulfur",
+    "question": "Show the molecular shape of XeF4.",
+    "claim": "SF4 has one lone pair; XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-xenon-target-wrong",
+    "question": "Show the molecular shape of XeF4.",
+    "claim": "SF4 has one lone pair; XeF4 has one lone pair.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-methane-target-foreign-hybrid",
+    "question": "Show the molecular shape of CH4.",
+    "claim": "SF4 is sp3d hybridised; CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-methane-target-wrong-hybrid",
+    "question": "Show the molecular shape of CH4.",
+    "claim": "SF4 is sp3d hybridised; CH4 is sp3d hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-ammonia-target-foreign-count",
+    "question": "Show the molecular shape of NH3.",
+    "claim": "XeF4 has two lone pairs; NH3 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-ammonia-target-wrong-count",
+    "question": "Show the molecular shape of NH3.",
+    "claim": "XeF4 has two lone pairs; NH3 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "review-boron-target-foreign-hybrid",
+    "question": "Show the molecular shape of BF3.",
+    "claim": "SF4 is sp3d hybridised; BF3 is sp2 hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "review-boron-target-wrong-hybrid",
+    "question": "Show the molecular shape of BF3.",
+    "claim": "SF4 is sp3d hybridised; BF3 is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "same-central-foreign-formula",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF6 has no lone pairs; SF4 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "same-central-own-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF6 has no lone pairs; SF4 has no lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "same-clause-two-count-subjects",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has one lone pair and XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "same-clause-two-hybrid-subjects",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is sp3 hybridised and SF4 is sp3d hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "shared-formula-subject-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 and XeF4 have two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "shared-formula-subject-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 and SO2 have one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "postposed-foreign-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "There are two lone pairs on XeF4, whereas SF4 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "postposed-own-wrong-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "There are two lone pairs on SF4, whereas XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "postposed-foreign-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The central atom is sp3 hybridised in CH4; SF4 is sp3d hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "postposed-own-wrong-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The central atom is sp3 hybridised in SF4; CH4 is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "peripheral-atom-retained",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Fluorine in SF4 has three lone pairs; sulfur in SF4 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "peripheral-cannot-hide-own-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Fluorine in SF4 has three lone pairs; sulfur in SF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "negated-own-wrong-number",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 does not have two lone pairs; XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "negated-own-correct-number",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 does not have one lone pair; XeF4 has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "unpaired-foreign-count",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "XeF4 has no unpaired electrons; NO2 has one unpaired electron.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "unpaired-own-wrong-count",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "XeF4 has no unpaired electrons; NO2 has no unpaired electrons.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "charge-distinct-owners",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "NH4- has one lone pair; NH4+ has no lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "charge-own-wrong-count",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "NH4- has one lone pair; NH4+ has one lone pair.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "unicode-charge-owners",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "NH\u2084\u207a has no lone pairs; NH\u2083 has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "foreign-pronoun-inherits",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 has two lone pairs; it has two lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "own-pronoun-contradiction",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has one lone pair; it has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "same-atom-different-formula",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "Nitrogen in NH3 has one lone pair; nitrogen in NH4+ has no lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "foreign-first-attributed-own-wrong-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 with two lone pairs contrasts with SF4 with two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "foreign-first-attributed-own-correct-count",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "XeF4 with two lone pairs contrasts with SF4 with one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "foreign-first-possessive-own-wrong-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4's carbon is sp3 hybridised and SF4's sulfur is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "foreign-first-possessive-own-correct-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4's carbon is sp3 hybridised and SF4's sulfur is sp3d hybridised.",
+    "expected": true,
+    "draw": true
+  }
+]

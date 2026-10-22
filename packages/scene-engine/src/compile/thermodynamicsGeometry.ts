@@ -69,7 +69,11 @@ function checkedPoint(point: RenderPoint): RenderPoint { if (![point.x, point.y]
 function logRatio(end: number, start: number): number { const relative = (end - start) / start; return Number.isFinite(relative) && Math.abs(relative) < 0.5 ? Math.log1p(relative) : Math.log(end) - Math.log(start); }
 function pressureAt(model: ThermodynamicProcessDefinition, volume: number): number {
   if (model.kind === "isochoric") invalid("process", "isochoric pressure uses its explicit pressure parameter");
-  return checkedPhysical(model.pressureStart * Math.exp(-model.exponent! * logRatio(volume, model.volumeStart)), "pressure");
+  return polytropicPressureAt(model.pressureStart, model.volumeStart, model.exponent!, volume);
+}
+/** Unit-independent law math; this function creates no SI/work authority. */
+export function polytropicPressureAt(pressureStart: number, volumeStart: number, exponent: number, volume: number): number {
+  return checkedPhysical(pressureStart * Math.exp(-exponent * logRatio(volume, volumeStart)), "pressure");
 }
 function workIntegral(pressureSI: number, startSI: number, logR: number, exponent: number): number {
   const x = (1 - exponent) * logR;
@@ -271,10 +275,10 @@ function processReference(value: unknown, context: ThermodynamicsEvaluationConte
   for (const key of ["pressureStartSI", "pressureEndSI", "volumeStartSI", "volumeEndSI", "workJ"] as const) if (source[key] !== model[key]) invalid("process", "PV physical metadata contradicts its source model");
   return model;
 }
-const PRESSURE_FACTORS: Readonly<Record<PressureUnit, number>> = { Pa: 1, kPa: 1000, bar: 100000 };
-const VOLUME_FACTORS: Readonly<Record<VolumeUnit, number>> = { "m^3": 1, L: 0.001, "cm^3": 0.000001 };
-function pressureCanonical(unit: string): PressureUnit | undefined { const units: Readonly<Record<string, PressureUnit>> = { pa: "Pa", pascal: "Pa", pascals: "Pa", kpa: "kPa", kilopascal: "kPa", kilopascals: "kPa", bar: "bar", bars: "bar" }; return units[unit.trim().toLowerCase()]; }
-function volumeCanonical(unit: string): VolumeUnit | undefined { const units: Readonly<Record<string, VolumeUnit>> = { "m^3": "m^3", "m³": "m^3", l: "L", liter: "L", liters: "L", litre: "L", litres: "L", "cm^3": "cm^3", "cm³": "cm^3" }; return units[unit.trim().toLowerCase()]; }
+export const PRESSURE_FACTORS: Readonly<Record<PressureUnit, number>> = { Pa: 1, kPa: 1000, bar: 100000 };
+export const VOLUME_FACTORS: Readonly<Record<VolumeUnit, number>> = { "m^3": 1, L: 0.001, "cm^3": 0.000001 };
+export function pressureCanonical(unit: string): PressureUnit | undefined { const units: Readonly<Record<string, PressureUnit>> = { pa: "Pa", pascal: "Pa", pascals: "Pa", kpa: "kPa", kilopascal: "kPa", kilopascals: "kPa", bar: "bar", bars: "bar" }; return units[unit.trim().toLowerCase()]; }
+export function volumeCanonical(unit: string): VolumeUnit | undefined { const units: Readonly<Record<string, VolumeUnit>> = { "m^3": "m^3", "m³": "m^3", l: "L", liter: "L", liters: "L", litre: "L", litres: "L", "cm^3": "cm^3", "cm³": "cm^3" }; return units[unit.trim().toLowerCase()]; }
 function sourceUnits(value: unknown, document?: SceneDocument, seen = new Set<unknown>(), depth = 0): string[] {
   if (depth > 32 || seen.has(value)) return []; seen.add(value);
   const record = typeof value === "string" ? document?.quantities.find((quantity) => quantity.id === value) : isRecord(value) ? value : undefined;
