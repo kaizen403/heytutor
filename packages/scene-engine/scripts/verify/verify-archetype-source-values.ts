@@ -5,6 +5,7 @@ import "./verify-archetype-bridge-source";
 import assert from "node:assert/strict";
 import { detectArchetype } from "../../src/archetypes/detect";
 import { generatorFor } from "../../src/archetypes/generators";
+import { readRadiationSource } from "../../src/physics/radiationSource";
 import type { ArchetypeId, Slots } from "../../src/archetypes/catalog";
 import type { SlotSource } from "../../src/archetypes/slots";
 
@@ -161,13 +162,17 @@ for (const [leastCount, division] of [[0.05, 15], [0.05, 4], [0.1, 15], [0.1, -1
 console.log("archetype source-value gates passed");
 
 // Two independent photon inputs must describe the same incident energy.
-for (const energy of [5, 3.1]) {
+// Scientific erratum: 3.1 eV uses the unstated 1240 approximation and is also
+// a strict conflict at 400 nm. Preserve both original wordings; only exact
+// SI hc/lambda may authorize settled numeric E/K in this legacy slot path.
+const exactSi400nmEv = 3.0996049608300065;
+for (const energy of [5, 3.1, exactSi400nmEv]) {
   const match = detectArchetype(`Photoelectric emission: incident wavelength is 400 nm; photon energy is ${energy} eV; work function is 2 eV`, { plannerArchetype: "photoelectric" })!;
   const scene = generated("photoelectric", match.slots, match.sources)!;
-  assert.equal(scene.entities.find(e => e.id === "E_top")?.label, energy === 5 ? "hν" : "hν=3.1 eV", "conflicting photon inputs cannot authorize settled numeric ink");
-  assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, energy === 5 ? "K" : "K=1.1 eV");
+  assert.equal(scene.entities.find(e => e.id === "E_top")?.label, energy === exactSi400nmEv ? "hν=3.1 eV" : "hν", "conflicting photon inputs cannot authorize settled numeric ink");
+  assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, energy === exactSi400nmEv ? "K=1.1 eV" : "K");
   assert.equal(scene.entities.find(e => e.id === "phi_top")?.label, "φ=2 eV", "independent work-function value stays grounded");
-  assert.equal(scene.quantities.some(q => q.id === "E"), energy !== 5);
+  assert.equal(scene.quantities.some(q => q.id === "E"), energy === exactSi400nmEv);
 }
 
 // Repeated energy roles must agree after unit conversion; no first-match authority.
@@ -223,9 +228,13 @@ for (const [source, energy] of [
   assert.equal(scene.entities.find(entity => entity.id === "E_top")?.label, `hν=${energy} eV`);
   assert.equal(scene.entities.find(entity => entity.id === "phi_top")?.label, "φ");
   assert.equal(scene.entities.find(entity => entity.id === "kinetic")?.label, "K");
-  assert.deepEqual(scene.quantities.map(({ id, value }) => ({ id, value })), [{ id: "E", value: energy }]);
+  const sourceRead = readRadiationSource(question);
+  assert.ok(sourceRead.status === "symbolic" && sourceRead.missing === "work_function");
+  const physicalEnergy = source.startsWith("incident wavelength") ? 0.9998725680096795 : energy;
+  assert.ok(sourceRead.photonEnergyEV !== null && Math.abs(sourceRead.photonEnergyEV - physicalEnergy) < 1e-12);
+  assert.deepEqual(scene.quantities.map(({ id, value }) => ({ id, value })), [{ id: "E", value: Number(physicalEnergy.toFixed(6)) }]);
   const height = (id: string) => Number(scene.constructions.find(item => item.id === `make_${id}`)?.inputs.y);
-  assert.equal(height("E_top"), energy, "incident geometry preserves the given energy");
+  assert.equal(height("E_top"), Number(physicalEnergy.toFixed(4)), "incident geometry uses the builder's existing coordinate serialization");
   assert.ok(height("phi_top") > 0 && height("phi_top") < energy, "symbolic work function leaves a positive qualitative kinetic-energy arrow");
   assert.ok(height("k_tip") > height("k_base"), "kinetic-energy arrow points upward");
 }

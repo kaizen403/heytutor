@@ -1,0 +1,135 @@
+[
+  {
+    "id": "hc1240-point-zero-is-explicit-calculation-parameter",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": true,
+    "gold": {
+      "photonEV": 3.1,
+      "workEV": 2,
+      "kineticEV": 1.1,
+      "displayPhoton": "3.10 eV",
+      "displayKinetic": "1.10 eV"
+    }
+  },
+  {
+    "id": "use-owned-h-calculation",
+    "question": "For an atomic electron, work function is 2 eV; incident light frequency is 6e14 Hz. Use h = 6.60e-34 J s for the calculation. Draw the photoelectron energy balance.",
+    "draw": true,
+    "gold": {
+      "constantRole": "Planck constant",
+      "directive": "Use",
+      "statedH_JS": 6.6e-34,
+      "photonEV": 2.471637593486462,
+      "workEV": 2,
+      "kineticEV": 0.47163759348646206,
+      "displayPhoton": "2.47 eV",
+      "displayKinetic": "0.47 eV"
+    }
+  },
+  {
+    "id": "assume-owned-c-calculation",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Assume c = 2.990e8 m/s. Draw the photoelectron energy balance.",
+    "draw": true,
+    "gold": {
+      "constantRole": "speed of light",
+      "directive": "Assume",
+      "statedC_MS": 299000000.0,
+      "photonEV": 3.0914116034505845,
+      "workEV": 2,
+      "kineticEV": 1.0914116034505845,
+      "displayPhoton": "3.09 eV",
+      "displayKinetic": "1.09 eV"
+    }
+  },
+  {
+    "id": "let-owned-hc-calculation",
+    "question": "For an atomic electron, work function is 2 eV; incident photon wavelength is 400 nm. Let hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": true,
+    "gold": {
+      "constantRole": "photon wavelength constant",
+      "directive": "Let",
+      "statedHC_eVnm": 1240.0,
+      "photonEV": 3.1,
+      "workEV": 2,
+      "kineticEV": 1.1,
+      "displayPhoton": "3.10 eV",
+      "displayKinetic": "1.10 eV"
+    }
+  },
+  {
+    "id": "foreign-take-does-not-own-hc",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take the metal to be clean. The constant hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": false,
+    "gold": {
+      "reason": "Take owns the clean-metal stipulation only. The distinct declared hc remains a fixed-reference claim, whose explicit0.1 precision is inconsistent with SIhc1239.841984eVnm; no global directive bypass."
+    }
+  },
+  {
+    "id": "owned-hc-does-not-waive-foreign-h",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240 eV nm. Planck's constant is 6.6 J s. Draw the photoelectron energy balance.",
+    "draw": false,
+    "gold": {
+      "reason": "hc is explicitly parameterized, but the separate h declaration is not; h6.6Js is grossly incompatible with fixed reference. Every boundconstant retains its own authority and all source constants/products/units/inventory must be valid."
+    }
+  },
+  {
+    "id": "negated-directive",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Do not take hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "foreign-coordinated-directive",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take the metal to be clean and the constant hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "unread-directed-hc",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = unreadable eV nm. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "nonpositive-directed-hc",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = -1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "wrong-directed-unit",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-directed-product",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. Use h = 6.60e-34 J s. Assume c = 3e8 m/s. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "unowned-extra-energy",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. An unrelated amount is 7 eV. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "foreign-clause-before-head",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take the metal to be clean; hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "particle-directive-does-not-change-reference",
+    "question": "An electron has momentum 1e-24 kg m/s. Use h = 6.60e-34 J s for the calculation. Draw its de Broglie wavelength.",
+    "draw": false
+  },
+  {
+    "id": "owned-named-planck-head",
+    "question": "For an atomic electron, work function is 2 eV; incident light frequency is 6e14 Hz. Use the Planck constant = 6.60e-34 J s for the calculation. Draw the photoelectron energy balance.",
+    "draw": true,
+    "gold": {
+      "constantRole": "Planck constant",
+      "directive": "Use",
+      "statedH_JS": 6.6e-34,
+      "photonEV": 2.471637593486462,
+      "workEV": 2,
+      "kineticEV": 0.47163759348646206,
+      "displayPhoton": "2.47 eV",
+      "displayKinetic": "0.47 eV"
+    }
+  }
+]

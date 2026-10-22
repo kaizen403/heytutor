@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { buildUnitCellScene } from "../../src/chemistry/unitCell";
-import { buildElectrochemScene, parseCellNotation } from "../../src/chemistry/electrochemistry";
+import { buildElectrochemScene, cellEmf, parseCellNotation } from "../../src/chemistry/electrochemistry";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
@@ -563,7 +563,28 @@ const ROWS: readonly Row[] = [
   "questionSha256": "5c44bdceca1898aff9d0d396fd41f9b2ef4e03d805b0e723b4fc72224cc0824f",
   "kind": "electro-observed",
   "observed": 1.13
-}
+},
+  {
+    "id": "CONTROL-STANDARD-T298",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E\u00b0cell = 1.10 V. The temperature is 298 K.",
+    "questionSha256": "70f892cb60bfb70f7c63608da1a8e862b3801be3e59b658666db1110f280415c",
+    "kind": "electro-required",
+    "e0": 1.1
+  },
+  {
+    "id": "CONTROL-DEFAULT-T298",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. The temperature is 298 K.",
+    "questionSha256": "aa567053fb38a01e0bcfac895d4521375365aea52f72376b1392c23a8578a6fb",
+    "kind": "electro-required",
+    "e0": 1.1
+  },
+  {
+    "id": "CONTROL-ELECTRODE-T298",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E\u00b0(Zn2+/Zn) = -0.80 V and E\u00b0(Cu2+/Cu) = +0.40 V. The temperature is 298 K.",
+    "questionSha256": "d0d2186aa0ba03611c7f3213484db73fc2673c97766073489c4555f455328886",
+    "kind": "electro-required",
+    "e0": 1.2
+  },
 ];
 
 interface Evidence {
@@ -622,17 +643,30 @@ function verifyElectrochem(scene: SceneDocument, row: Row): void {
   const e0 = scene.quantities.find(q => q.id === "E0_cell");
   const e = scene.quantities.find(q => q.id === "E_cell");
   assert.equal(e0?.unit, "V");
-  assert.equal(e?.unit, "V");
-  // Independent source roles: Zn2+0.1/Cu2+0.01 gives Q=10 and n=2.
-  // Original default 298K convention is0.0591V, serialized E to four decimals.
-  const expectedE = Number((row.e0 - 0.0591 / 2 * Math.log10(0.1 / 0.01)).toFixed(4));
   near(e0?.value, row.e0);
-  near(e?.value, expectedE);
   near(scene.quantities.find(q => q.id === "n_electrons")?.value, 2);
+  assert.deepEqual(Object.values(spec.anode.concentrations), [0.1]);
+  assert.deepEqual(Object.values(spec.cathode.concentrations), [0.01]);
+  // The solver API keeps its documented reference-temperature calculation.
+  // The emitter needs an actual source T/factor before presenting that as E.
+  const reference = cellEmf(spec); assert.ok(reference);
+  near(reference.q, 10); near(reference.n, 2);
+  const expectedUnrounded = row.e0 - 0.0591 / 2 * Math.log10(0.1 / 0.01);
+  const expectedE = Number(expectedUnrounded.toFixed(4));
+  near(reference.e, expectedE);
   const labels = result.labels.map(compactText);
   assert.ok(labels.includes(`E°=${row.e0.toFixed(2)}V`), JSON.stringify(result.labels));
-  assert.ok(labels.includes(`E=${expectedE.toFixed(2)}V`), JSON.stringify(result.labels));
-  assert.ok(result.texts.some(text => /Nernst/.test(text)), "Nernst step missing");
+  if (spec.temperatureK === undefined && spec.nernstFactor === undefined) {
+    assert.equal(e, undefined, "no unproved nonstandard emf without source temperature/factor");
+    assert.ok(!labels.some(label => /^E=[+-]?\d/.test(label)), "no default-temperature E ink");
+    assert.ok(!result.texts.some(text => /Nernst[^;]*(?:0\.0?59|E\s*=\s*[+-]?\d)/i.test(text)),
+      "any retained Nernst relation must be general or conditional");
+  } else {
+    assert.equal(spec.temperatureK, 298);
+    assert.equal(e?.unit, "V"); near(e?.value, expectedE);
+    assert.ok(labels.includes(`E=${expectedE.toFixed(2)}V`), JSON.stringify(result.labels));
+    assert.ok(result.texts.some(text => /Nernst/.test(text)), "source-temperature Nernst step missing");
+  }
   assert.ok(result.texts.every(text => !/\bemf\s+[−–+]?\d+(?:\.\d+)?\s*V\s+as given/i.test(text)),
     "Standard/couple potential was presented as observed emf");
 }

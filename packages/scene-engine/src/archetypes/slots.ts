@@ -370,8 +370,10 @@ function readExpression(source: string, start = 0): string {
   return normalizeExpression(source.slice(start, index));
 }
 
-/** Make an exam-style expression safe for the engine's parser: explicit `*`, `^`, no unicode. */
-function normalizeExpression(raw: string): string {
+/** Exam-style notation on one complete clause: explicit `*`, `^`, no unicode.
+ * A dangling operator is preserved. Stripping it would turn an unfinished
+ * clause into the prefix recovered by the slot reader. */
+export function normalizeCompleteExpression(raw: string): string {
   let source = raw
     .replace(/[−–—]/g, "-")
     .replace(/²/g, "^2")
@@ -386,7 +388,12 @@ function normalizeExpression(raw: string): string {
   source = source.replace(/([xt])\(/g, "$1*(");
   source = source.replace(/\)([xt0-9(])/g, ")*$1");
   source = source.replace(/([xt])([xt])\b/g, "$1*$2");
-  return source.replace(/^\+/, "").replace(/[+\-*/^(.]+$/, "");
+  return source.replace(/^\+/, "");
+}
+
+/** Slot recovery may stop on an unsupported tail and drop its dangling operator. */
+function normalizeExpression(raw: string): string {
+  return normalizeCompleteExpression(raw).replace(/[+\-*/^(.]+$/, "");
 }
 
 function isSafeExpression(expression: string, variable: "x" | "t" = "x"): boolean {

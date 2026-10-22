@@ -1,0 +1,1 @@
+pnpm exec tsx scripts/verify/verify-chemistry-f4-atomic-source-display.ts

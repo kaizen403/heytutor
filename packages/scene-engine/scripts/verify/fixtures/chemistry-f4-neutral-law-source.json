@@ -1,0 +1,155 @@
+[
+  {
+    "id": "unvalidated-species-15",
+    "question": "The first order decomposition of N2O5x has half life 15 min. Draw the fraction remaining after 45 min.",
+    "draw": true,
+    "time": 45,
+    "unit": "min",
+    "fraction": 0.125
+  },
+  {
+    "id": "unvalidated-species-20",
+    "question": "The first order decomposition of N2O5x has half life 20 min. Draw the fraction remaining after 60 min.",
+    "draw": true,
+    "time": 60,
+    "unit": "min",
+    "fraction": 0.125
+  },
+  {
+    "id": "generic-process",
+    "question": "A first-order process has half-life 15 min. Plot the fraction remaining after 45 min.",
+    "draw": true,
+    "time": 45,
+    "unit": "min",
+    "fraction": 0.125
+  },
+  {
+    "id": "existing-equation",
+    "question": "A first order differential equation has half life 20 min. Plot fraction remaining after 60 min.",
+    "draw": true,
+    "time": 60,
+    "unit": "min",
+    "fraction": 0.125
+  },
+  {
+    "id": "mixed-time",
+    "question": "A first-order decay has half life 1200 s. Plot fraction remaining at t = 60 min.",
+    "draw": true,
+    "time": 3600,
+    "unit": "s",
+    "fraction": 0.125
+  },
+  {
+    "id": "explicit-mark",
+    "question": "A first-order process has half life 20 min. Draw fraction remaining and mark t = 60 min.",
+    "draw": true,
+    "time": 60,
+    "unit": "min",
+    "fraction": 0.125
+  },
+  {
+    "id": "negated-law",
+    "question": "This is not a first-order process. Its half life is 15 min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "negated-view",
+    "question": "A first-order process has half life 15 min. Do not plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "second-order",
+    "question": "A second-order process has half life 15 min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "missing-scale",
+    "question": "A first-order process is considered. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "invalid-elapsed-unit",
+    "question": "The first order decomposition of N2O5x has half life 15 min. Draw the fraction remaining after 45 kg.",
+    "draw": false
+  },
+  {
+    "id": "unknown-half-life",
+    "question": "A first-order process has half life unknown min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "malformed-half-life",
+    "question": "A first-order process has half life 1e- min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "unsupported-ode",
+    "question": "A first-order differential equation dy/dt = -2y + 1 has half life 15 min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "structure-not-droppable",
+    "question": "The first order decomposition of N2O5x has half life 15 min. Draw its molecular structure and the fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "structure-after-fraction",
+    "question": "The first order decomposition of N2O5x has half life 15 min. Draw fraction remaining after 45 min and its molecular structure.",
+    "draw": false
+  },
+  {
+    "id": "radioactive-not-math",
+    "question": "A radioactive sample has half-life 10 years. How much of an 80 g sample remains after 20 years?",
+    "draw": false
+  },
+  {
+    "id": "mass-not-normalized",
+    "question": "A first-order process has half life 15 min and initial mass 80 g. Draw the mass remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-first-order-postfix-negative",
+    "question": "The first-order law does not apply to this process. Its half life is 15 min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-first-order-non-use-negative",
+    "question": "Do not use a first-order model for this process. Its half life is 20 min. Plot fraction remaining after 60 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-fraction-plus-energy-request",
+    "question": "A first-order process has half life 15 min. Plot fraction remaining after 45 min and the energy diagram.",
+    "draw": false
+  },
+  {
+    "id": "independent-fraction-plus-rate-request",
+    "question": "A first-order process has half life 15 min. Plot fraction remaining after 45 min and the rate versus time.",
+    "draw": false
+  },
+  {
+    "id": "independent-law-not-followed",
+    "question": "The process does not follow a first-order law. Its half life is 15 min. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-law-not-obeyed",
+    "question": "The process does not obey first-order kinetics. Its half life is 20 min. Draw fraction remaining after 60 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-contradictory-law-clauses",
+    "question": "The process obeys a first-order law and has half life 15 min. The same process does not obey a first-order law. Plot fraction remaining after 45 min.",
+    "draw": false
+  },
+  {
+    "id": "independent-fraction-plus-phase-request",
+    "question": "A first-order process has half life 15 min. Plot fraction remaining after 45 min and the phase diagram.",
+    "draw": false
+  },
+  {
+    "id": "independent-fraction-plus-unspecified-view",
+    "question": "A first-order process has half life 15 min. Plot fraction remaining after 45 min and another view of the process.",
+    "draw": false
+  }
+]
