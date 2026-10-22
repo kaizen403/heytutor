@@ -1,0 +1,292 @@
+[
+  {
+    "id": "malformed-1",
+    "question": "The equilibrium constant K = 10⁻⁻¹⁵ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-2",
+    "question": "The equilibrium constant K = 10⁽²⁾⁺⁺³ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-3",
+    "question": "The equilibrium constant K = 10⁽²⁺³ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-4",
+    "question": "The equilibrium constant K = 10²⁾⁺³ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-5",
+    "question": "The equilibrium constant K = 10⁽⁾⁺³ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-6",
+    "question": "The equilibrium constant K = 10⁽²⁾⁺ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-7",
+    "question": "The equilibrium constant K = 10⁻¹⁵⁻ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-8",
+    "question": "The equilibrium constant K = 10ⁱ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-9",
+    "question": "The equilibrium constant K = 10ⁿ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-10",
+    "question": "The equilibrium constant K = 10 ⁻⁻¹⁵ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-11",
+    "question": "The equilibrium constant K = 10ᵉ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-12",
+    "question": "The equilibrium constant K = 10²ᵉ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-13",
+    "question": "The equilibrium constant K = 10½ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "malformed-14",
+    "question": "The equilibrium constant K = 10₃ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "solubility-product",
+    "question": "For AgCl the solubility product Ksp = 10⁻⁻¹⁵.",
+    "cue": "\\bKsp\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "rate-ratio",
+    "question": "For this reaction the rate ratio is 10⁽²⁾⁺⁺³.",
+    "cue": "rate ratio",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "concentration",
+    "question": "The concentration is 10⁻⁻¹⁵ mol/L.",
+    "cue": "concentration",
+    "dimension": "concentration",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "molar-energy",
+    "question": "The enthalpy is 10⁽²⁾⁺⁺³ kJ/mol.",
+    "cue": "enthalpy",
+    "dimension": "molar_energy",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "temperature",
+    "question": "The temperature is 10⁽²⁺³ K.",
+    "cue": "temperature",
+    "dimension": "temperature",
+    "raw": false,
+    "canonical": false,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "valid-ascii",
+    "question": "The equilibrium constant K = 10 at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": true,
+    "canonical": true,
+    "value": 10
+  },
+  {
+    "id": "valid-ascii-power",
+    "question": "The equilibrium constant K = 10^-15 at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": true,
+    "canonical": true,
+    "value": 1e-15
+  },
+  {
+    "id": "valid-unicode-power",
+    "question": "The equilibrium constant K = 10⁻¹⁵ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": true,
+    "value": 1e-15
+  },
+  {
+    "id": "valid-positive-unicode",
+    "question": "The equilibrium constant K = 10¹⁵ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": true,
+    "value": 1000000000000000.0
+  },
+  {
+    "id": "valid-expression-unsupported-scalar",
+    "question": "The equilibrium constant K = 10⁽²⁾⁺³ at 300 K.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "value": null
+  },
+  {
+    "id": "valid-charge-and-unit",
+    "question": "Mg²⁺ ions are present. The concentration is 0.250 mol L⁻¹.",
+    "cue": "concentration",
+    "dimension": "concentration",
+    "raw": true,
+    "canonical": true,
+    "value": 0.25,
+    "unit": "mol/L"
+  },
+  {
+    "id": "valid-molar-units",
+    "question": "The entropy is 10 J mol⁻¹ K⁻¹.",
+    "cue": "entropy",
+    "dimension": "molar_entropy",
+    "raw": true,
+    "canonical": true,
+    "value": 10,
+    "unit": "J/(mol K)"
+  },
+  {
+    "id": "thread-gibbs",
+    "question": "The equilibrium constant K = 10⁻⁻¹⁵ at 300 K. Draw the Gibbs energy and equilibrium constant diagram.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "figure": false,
+    "value": null,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "parenthesized-gibbs",
+    "question": "The equilibrium constant K = 10⁽²⁾⁺⁺³ at 300 K. Draw the Gibbs energy and equilibrium constant diagram.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": false,
+    "figure": false,
+    "value": null,
+    "prefixMustRefuse": true
+  },
+  {
+    "id": "valid-gibbs",
+    "question": "The equilibrium constant K = 10 at 300 K. Draw the Gibbs energy and equilibrium constant diagram.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": true,
+    "canonical": true,
+    "figure": true,
+    "value": 10,
+    "prefixMustRefuse": false
+  },
+  {
+    "id": "valid-normalized-gibbs",
+    "question": "The equilibrium constant K = 10⁻¹⁵ at 300 K. Draw the Gibbs energy and equilibrium constant diagram.",
+    "cue": "\\bK\\s*=",
+    "dimension": "dimensionless",
+    "raw": false,
+    "canonical": true,
+    "figure": true,
+    "value": 1e-15,
+    "prefixMustRefuse": false
+  },
+  {
+    "id": "valid-ascii-unit-with-unrelated-charge",
+    "question": "Mg²⁺ ions are present. The concentration is 0.250 mol/L.",
+    "cue": "concentration",
+    "dimension": "concentration",
+    "raw": true,
+    "canonical": true,
+    "value": 0.25,
+    "unit": "mol/L"
+  }
+]

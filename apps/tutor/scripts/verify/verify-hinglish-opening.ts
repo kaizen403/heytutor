@@ -4,7 +4,22 @@ import { buildDsaOpeningSegments, findSpokenToken, mathToSpeech } from "@heytuto
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { hinglishFigureNarration } from "../../features/tutor-session/lib/scene/figureNarrationLanguage";
 import englishFigureBaseline from "./fixtures/english-figure-narration.json";
+
+function assertNeutralHinglishIntro(presentation: ReturnType<typeof buildVerifiedDiagramPresentation>, cue: string) {
+  assert(presentation.introSegments.length > 0, "the neutral-intro fixture must still speak and reveal its figure");
+  for (const segment of presentation.introSegments) {
+    assert.match(segment.narration, /\p{Script=Devanagari}/u, "a neutral figure intro still follows the selected Hinglish voice");
+    assert(!segment.narration.includes(cue), `the non-code intro must not repeat planner cue prose: ${cue}`);
+    assert(!segment.narration.includes(hinglishFigureNarration(cue)), `the non-code intro must not translate planner cue prose into an answer tour: ${cue}`);
+    assert.doesNotMatch(segment.narration, /\d/, "these symbol-only figures must not speak values from their planner cues");
+    for (const command of segment.commands ?? []) {
+      assert(command.spokenCue?.token && findSpokenToken(mathToSpeech(segment.narration), mathToSpeech(command.spokenCue.token)) >= 0,
+        "neutral setup narration retains every schedulable ink cue");
+    }
+  }
+}
 
 // The captured river lesson opened in Hinglish, then its two verified figure
 // groups spoke English. Keep those groups independent of paid planner output.
@@ -46,8 +61,8 @@ for (const segment of hinglish.introSegments) {
 }
 assert.deepEqual(hinglish.diagram.commands, english.diagram.commands, "changing opening language preserves every verified diagram mark");
 
-// A complete explanation carries a relationship, not just the names of its
-// parts. This is the principal-ray cue emitted by the mirror scene family.
+// Even benign relationship prose belongs to teaching, after the neutral tour.
+// The grammar translator below still preserves it for the code-lesson path.
 const mirrorDocument: SceneDocument = {
   ...document, source: { question: "Show the principal rays from an object to its image in a mirror." },
   entities: [
@@ -66,8 +81,10 @@ const mirrorScene: RenderScene = {
   ],
 };
 const mirrorHinglish = buildVerifiedDiagramPresentation(mirrorDocument, mirrorScene, { narrationLanguage: "hinglish" });
-assert(mirrorHinglish.introSegments.some(segment => segment.narration.includes("principal rays को object से image तक follow करो.")),
-  "Hinglish must retain the complete instruction: follow the principal rays from the object to the image");
+assertNeutralHinglishIntro(mirrorHinglish, mirrorDocument.revealGroups[0]!.narrationCue!);
+assert.match(mirrorHinglish.introSegments[0]!.narration, /^पहले इस figure का setup देखते हैं\./, "a short figure starts with neutral Hinglish setup speech");
+assert.equal(hinglishFigureNarration(mirrorDocument.revealGroups[0]!.narrationCue!), "principal rays को object से image तक follow करो.",
+  "the translator preserves the complete principal-ray instruction when teaching uses it");
 const denseMirrorScene: RenderScene = {
   ...mirrorScene,
   primitives: [
@@ -79,8 +96,13 @@ const denseMirrorScene: RenderScene = {
   ],
 };
 const denseMirrorHinglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "hinglish" });
-assert(denseMirrorHinglish.introSegments.some(segment => segment.narration.includes("इतना setup तैयार है.")), "the dense fixture must actually exercise the spoken walkthrough used when ink outlasts its cue");
-assert(denseMirrorHinglish.introSegments.some(segment => segment.narration.includes("principal rays को object से image तक follow करो.")), "the ink-duration walkthrough must also preserve the complete explanatory instruction");
+const denseWalkthroughClosings = ["इतना setup तैयार है.", "अब पूरा setup तैयार है.", "अब पूरा setup board पर पूरी तरह तैयार है."];
+assert(denseMirrorHinglish.introSegments.some(segment =>
+  segment.narration.startsWith("ये setup है. पहले ")
+  && segment.narration.includes("और आखिर में ")
+  && denseWalkthroughClosings.some(closing => segment.narration.endsWith(closing))),
+"the dense fixture must actually exercise the spoken walkthrough used when ink outlasts its cue");
+assertNeutralHinglishIntro(denseMirrorHinglish, mirrorDocument.revealGroups[0]!.narrationCue!);
 const denseMirrorEnglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene);
 assert.deepEqual(buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "english" }), denseMirrorEnglish, "meaning preservation leaves the existing English presentation unchanged");
 assert.deepEqual(denseMirrorHinglish.diagram.commands, denseMirrorEnglish.diagram.commands, "preserving the explanation cannot alter any verified figure geometry or label");
@@ -94,7 +116,8 @@ const explainedMirrorDocument: SceneDocument = {
   ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: explanatoryCue }],
 };
 const explainedMirror = buildVerifiedDiagramPresentation(explainedMirrorDocument, { ...denseMirrorScene, revealGroups: explainedMirrorDocument.revealGroups }, { narrationLanguage: "hinglish" });
-assert(explainedMirror.introSegments.some(segment => segment.narration.includes("O mirror के सामने object है, और I image है.")), "the complete object/mirror/image relationship uses Hindi grammar, not a Hindi prefix on an English sentence");
+assertNeutralHinglishIntro(explainedMirror, explanatoryCue);
+assert.equal(hinglishFigureNarration(explanatoryCue), "O mirror के सामने object है, और I image है.", "the complete object/mirror/image relationship uses Hindi grammar when teaching uses it");
 for (const [cue, expected] of [
   ["At 5 km/h east, the girl observes vertical rain.", "5 km/h east पर girl के observation में vertical rain है."],
   ["At 20 km/h east, rain from the front appears 60° from vertical.", "20 km/h east पर front से rain का apparent view vertical से 60° पर है."],
@@ -119,7 +142,8 @@ for (const [cue, expected] of [
   const cueDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: cue }] };
   const cueScene = { ...denseMirrorScene, revealGroups: cueDocument.revealGroups };
   const translated = buildVerifiedDiagramPresentation(cueDocument, cueScene, { narrationLanguage: "hinglish" });
-  assert(translated.introSegments.some(segment => segment.narration.includes(expected)), `${cue}: preserve the complete explanation in Hinglish grammar`);
+  assert.equal(hinglishFigureNarration(cue), expected, `${cue}: preserve the complete explanation in Hinglish grammar`);
+  assertNeutralHinglishIntro(translated, cue);
   assert.deepEqual(buildVerifiedDiagramPresentation(cueDocument, cueScene, { narrationLanguage: "english" }), buildVerifiedDiagramPresentation(cueDocument, cueScene), "English output remains byte-identical");
   assert.deepEqual(translated.diagram.commands, buildVerifiedDiagramPresentation(cueDocument, cueScene).diagram.commands, "localizing prose preserves verified ink");
   for (const segment of translated.introSegments) for (const command of segment.commands ?? [])
@@ -146,18 +170,13 @@ for (const unknownCue of [
   "Trace the ray from O to I and then extend it backward.",
 ]) {
   const unknownDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: unknownCue }] };
-  // Grammar is checked on the dense figure, as the clauses above are: its ink
-  // fills the sentence, so pacing never shortens the beat.
-  const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...denseMirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
-  if (!unknownPresentation.introSegments.some(segment => segment.narration.includes(unknownCue))) lostUnknownCues.push(unknownCue);
-  // Over three strokes the same sentence may park the pen for longer than
-  // CUE_PEN_IDLE_MAX_MS; the beat then leaves the explanation to the
-  // teaching stream. It is dropped whole: never cut mid clause, and never
-  // a condition kept without its consequence.
-  const sparse = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
-  const sparseIntro = sparse.introSegments.map(segment => segment.narration).join(" ");
-  assert(sparseIntro.includes(unknownCue) || !/impedance|nonlinearly|spectral|necessarily|horizontally|backward|switch/i.test(sparseIntro),
-    `a paced beat keeps "${unknownCue}" whole or leaves it out whole: ${sparseIntro}`);
+  const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  if (!hinglishFigureNarration(unknownCue).includes(unknownCue)) lostUnknownCues.push(unknownCue);
+  assertNeutralHinglishIntro(unknownPresentation, unknownCue);
+  // Both sparse and dense tours leave explanations to teaching. Translator
+  // grammar is checked independently above, never by reading a solved cue.
+  const denseUnknown = buildVerifiedDiagramPresentation(unknownDocument, { ...denseMirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  assertNeutralHinglishIntro(denseUnknown, unknownCue);
 }
 assert.deepEqual(lostUnknownCues, [], "unsupported technical grammar preserves its entire condition, relationship and negation; it is not replaced by an entity list");
 
@@ -192,8 +211,9 @@ const chunkedCodeScene: RenderScene = { ...mirrorScene, primitives: [
 const chunkedCode = buildVerifiedDiagramPresentation(mirrorDocument, chunkedCodeScene, { layout: "code_lesson", narrationLanguage: "hinglish" });
 assert((chunkedCode.diagram.reveals?.length ?? 0) > 1, "the code fixture must actually reach the continuation template");
 assert(chunkedCode.diagram.reveals?.slice(1).every(reveal => reveal.narration === "अब setup का बाकी हिस्सा पूरा करते हैं."), "every code chunk continuation uses Hindi grammar");
-// Fixed narration captured through origin/main's presenter at sourceCommit in
-// the fixture. Comparing default with explicit English alone misses a shared
+// Fixed narration captured through the presenter. The river and mirror rows
+// use the neutral setup policy; all code rows retain the main sourceCommit
+// baseline. Comparing default with explicit English alone misses a shared
 // wrong-language branch, including the independent code-caption opening path.
 const unlabelledCodeDocument: SceneDocument = {
   ...mirrorDocument, entities: mirrorDocument.entities.map(entity => ({ ...entity, label: undefined })),

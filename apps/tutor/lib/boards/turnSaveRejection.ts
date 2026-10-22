@@ -30,14 +30,9 @@ export function rejectTurnSave(
   correlation: SaveCorrelation = {},
   responseFields: Record<string, unknown> = {},
 ) {
-  const safeId = (value: string | undefined) => value &&
-    /^(?:[0-9a-f]{16,32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(value)
-    ? value : undefined;
   console.warn("[turn-save-rejected]", {
     event: "turn_save_rejected", code, status,
     entryPoint: correlation.entryPoint ?? "legacy_post",
-    boardId: safeId(correlation.boardId), turnId: safeId(correlation.turnId),
-    traceId: safeId(correlation.traceId),
   });
   // Recovery fields (serverCount/turn receipt) remain response-only.
   return NextResponse.json({ ...responseFields, error, code }, { status });

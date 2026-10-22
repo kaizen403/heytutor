@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-chemistry-law-source-ownership.ts

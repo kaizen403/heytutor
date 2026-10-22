@@ -139,7 +139,13 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       }
     } catch (error) { captureTtsRelayFailure(error); close("speech_generation_failed", 1011); }
   });
-  vendor.on("error", error => { captureTtsRelayFailure(error); close("speech_generation_failed", 1011); });
+  vendor.on("error", error => {
+    // Stop/revocation terminates a CONNECTING socket, which ws reports as an error.
+    // Accounting and queued-admission failures still report through their own catches.
+    if (stopped) return;
+    captureTtsRelayFailure(error);
+    close("speech_generation_failed", 1011);
+  });
   vendor.on("close", () => close("speech_connection_closed", 1011));
   async function accept(message: SegmentMessage): Promise<void> {
     if (stopped || !ready || vendor.readyState !== WebSocket.OPEN) return;

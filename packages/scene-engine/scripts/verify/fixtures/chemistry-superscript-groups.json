@@ -1,0 +1,380 @@
+[
+  {
+    "id": "exact-review",
+    "input": "x⁽²⁾⁺³",
+    "expected": "x^((2)+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "right-parenthesized",
+    "input": "x²⁺⁽³⁾",
+    "expected": "x^(2+(3))",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "both-parenthesized",
+    "input": "x⁽²⁾⁺⁽³⁾",
+    "expected": "x^((2)+(3))",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "group-then-subtract",
+    "input": "x⁽²⁺³⁾⁻¹",
+    "expected": "x^((2+3)-1)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 16
+    }
+  },
+  {
+    "id": "nested-prefix-group",
+    "input": "x⁽⁽²⁾⁺³⁾⁻¹",
+    "expected": "x^(((2)+3)-1)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 16
+    }
+  },
+  {
+    "id": "leading-negative-group",
+    "input": "x⁻⁽²⁾⁺³",
+    "expected": "x^(-(2)+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 2
+    }
+  },
+  {
+    "id": "negative-in-group",
+    "input": "x⁽⁻²⁾⁺³",
+    "expected": "x^((-2)+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 2
+    }
+  },
+  {
+    "id": "leading-positive-group",
+    "input": "x⁺⁽²⁾⁺³",
+    "expected": "x^(+(2)+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "ordered-difference",
+    "input": "x⁽³⁾⁻²",
+    "expected": "x^((3)-2)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 2
+    }
+  },
+  {
+    "id": "several-terms",
+    "input": "x⁽²⁾⁺³⁻¹",
+    "expected": "x^((2)+3-1)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 16
+    }
+  },
+  {
+    "id": "closed-existing",
+    "input": "x⁽²⁺³⁾",
+    "expected": "x^(2+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "closed-single",
+    "input": "x⁽²⁾",
+    "expected": "x^(2)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 4
+    }
+  },
+  {
+    "id": "flat-existing",
+    "input": "x²⁺³",
+    "expected": "x^(2+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "caret-existing",
+    "input": "x^⁽²⁾⁺³",
+    "expected": "x^((2)+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "two-independent-powers",
+    "input": "x⁽²⁾⁺³ + x²",
+    "expected": "x^((2)+3) + x^2",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 36
+    }
+  },
+  {
+    "id": "decimal-base-chemistry",
+    "input": "10⁽⁻³⁾⁺¹",
+    "expected": "10^((-3)+1)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 0.01
+    }
+  },
+  {
+    "id": "negative-scientific-existing",
+    "input": "10⁻¹⁵",
+    "expected": "10^-15",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 1e-15
+    }
+  },
+  {
+    "id": "real-question",
+    "input": "Plot y = x⁽²⁾⁺³ for 0 <= x <= 2.",
+    "expected": "Plot y = x^((2)+3) for 0 <= x <= 2.",
+    "science": {
+      "kind": "equation",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "symbolic-group",
+    "input": "x⁽ⁿ⁾⁺¹",
+    "expected": "x^((n)+1)",
+    "science": {
+      "kind": "symbolic"
+    }
+  },
+  {
+    "id": "symbolic-nested",
+    "input": "x⁽ⁱ⁺¹⁾⁻ⁿ",
+    "expected": "x^((i+1)-n)",
+    "science": {
+      "kind": "symbolic"
+    }
+  },
+  {
+    "id": "magnesium",
+    "input": "Mg²⁺",
+    "expected": "Mg^2+",
+    "science": {
+      "kind": "formula",
+      "atoms": {
+        "Mg": 1
+      },
+      "charge": 2
+    }
+  },
+  {
+    "id": "chloride",
+    "input": "Cl⁻",
+    "expected": "Cl^-",
+    "science": {
+      "kind": "formula",
+      "atoms": {
+        "Cl": 1
+      },
+      "charge": -1
+    }
+  },
+  {
+    "id": "parenthesized-magnesium",
+    "input": "Mg⁽²⁺⁾",
+    "expected": "Mg^(2+)",
+    "science": {
+      "kind": "formula",
+      "atoms": {
+        "Mg": 1
+      },
+      "charge": 2
+    }
+  },
+  {
+    "id": "parenthesized-sulfate",
+    "input": "SO₄⁽²⁻⁾",
+    "expected": "SO₄^(2-)",
+    "science": {
+      "kind": "formula",
+      "atoms": {
+        "S": 1,
+        "O": 4
+      },
+      "charge": -2
+    }
+  },
+  {
+    "id": "source-unit-concentration",
+    "input": "concentration is 0.250 mol L⁻¹",
+    "expected": "concentration is 0.250 mol L^-1",
+    "science": {
+      "kind": "quantity",
+      "after": "concentration is",
+      "dimension": "concentration",
+      "unit": "mol/L",
+      "value": 0.25,
+      "literal": "0.250 mol L^-1"
+    }
+  },
+  {
+    "id": "source-unit-entropy",
+    "input": "entropy is 10 J mol⁻¹ K⁻¹",
+    "expected": "entropy is 10 J mol^-1 K^-1",
+    "science": {
+      "kind": "notation"
+    }
+  },
+  {
+    "id": "double-plus",
+    "input": "x⁽²⁾⁺⁺³",
+    "expected": "x⁽²⁾⁺⁺³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "double-minus",
+    "input": "x⁽²⁾⁻⁻³",
+    "expected": "x⁽²⁾⁻⁻³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "mixed-sign",
+    "input": "x⁽²⁾⁺⁻³",
+    "expected": "x⁽²⁾⁺⁻³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "doubled-leading-sign",
+    "input": "x⁻⁻²",
+    "expected": "x⁻⁻²",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "unclosed",
+    "input": "x⁽²⁺³",
+    "expected": "x⁽²⁺³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "unopened",
+    "input": "x²⁾⁺³",
+    "expected": "x²⁾⁺³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "empty-group",
+    "input": "x⁽⁾⁺³",
+    "expected": "x⁽⁾⁺³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "dangling-after-group",
+    "input": "x⁽²⁾⁺",
+    "expected": "x⁽²⁾⁺",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "internal-dangling",
+    "input": "x⁽²⁺⁾⁺³",
+    "expected": "x⁽²⁺⁾⁺³",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "implicit-product",
+    "input": "x²⁽³⁾",
+    "expected": "x²⁽³⁾",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "nested-damaged",
+    "input": "x⁽⁽²⁾⁺⁺³⁾",
+    "expected": "x⁽⁽²⁾⁺⁺³⁾",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "double-sign-scientific",
+    "input": "10⁻⁻¹⁵",
+    "expected": "10⁻⁻¹⁵",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "trailing-sign-scientific",
+    "input": "4.0×10⁻¹⁵⁻",
+    "expected": "4.0*10⁻¹⁵⁻",
+    "science": {
+      "kind": "invalid-math"
+    }
+  },
+  {
+    "id": "depth-budget",
+    "input": "x⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽²⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾",
+    "expected": "x⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽⁽²⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾⁾",
+    "science": {
+      "kind": "invalid-math"
+    }
+  }
+]

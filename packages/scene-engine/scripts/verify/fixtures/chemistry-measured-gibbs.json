@@ -1,0 +1,138 @@
+[
+  {
+    "id": "CHEM-H80-XI-029",
+    "question": "For a chemical-change model at constant pressure, plot ΔG = ΔH−TΔS from 200 to 450 K using temperature-independent ΔH = +48.0 kJ mol⁻¹ and ΔS = +160 J mol⁻¹ K⁻¹. Mark the zero crossing and regions of positive and negative ΔG.",
+    "draw": true,
+    "domain": [
+      200,
+      450
+    ],
+    "slope": -0.16,
+    "intercept": 48,
+    "crossing": 300
+  },
+  {
+    "id": "gibbs-transfer-positive-HS",
+    "question": "For a constant-pressure reaction, draw Delta G = Delta H - T Delta S from 250 to 400 K. Delta H = +60 kJ/mol and Delta S = +200 J/(mol K), independent of temperature. Mark Delta G = 0 and label the positive and negative regions.",
+    "draw": true,
+    "domain": [
+      250,
+      400
+    ],
+    "slope": -0.2,
+    "intercept": 60,
+    "crossing": 300
+  },
+  {
+    "id": "gibbs-transfer-negative-HS",
+    "question": "Using temperature-independent enthalpy change Delta H = -40 kJ/mol and entropy change Delta S = -100 J/(mol K), plot Gibbs energy change against temperature over 300-500 K. Show Delta G = Delta H - T Delta S and mark the zero crossing.",
+    "draw": true,
+    "domain": [
+      300,
+      500
+    ],
+    "slope": 0.1,
+    "intercept": -40,
+    "crossing": 400
+  },
+  {
+    "id": "gibbs-unread-repeat",
+    "question": "Draw Delta G = Delta H - T Delta S over 250-400 K. Delta H = 60 kJ/mol and Delta S = 200 J/(mol K). A second stated Delta H is unknown kJ/mol. Mark the zero crossing.",
+    "draw": false
+  },
+  {
+    "id": "other-molar",
+    "question": "Plot Delta G = Delta H - T Delta S from 100 to 300 K. Delta H = 20 kJ/mol and Delta S = 100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": true,
+    "domain": [
+      100,
+      300
+    ],
+    "slope": -0.1,
+    "intercept": 20,
+    "crossing": 200
+  },
+  {
+    "id": "other-extensive",
+    "question": "Plot Delta G = Delta H - T Delta S over 400-800 K. Delta H = -30 kJ and Delta S = -50 J/K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": true,
+    "domain": [
+      400,
+      800
+    ],
+    "slope": 0.05,
+    "intercept": -30,
+    "crossing": 600
+  },
+  {
+    "id": "converted-energy-units",
+    "question": "Plot Delta G = Delta H - T Delta S between 200 and 450 K. Delta H = 4.8e4 J/mol and Delta S = 0.160 kJ/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": true,
+    "domain": [
+      200,
+      450
+    ],
+    "slope": -0.16,
+    "intercept": 48,
+    "crossing": 300
+  },
+  {
+    "id": "mixed-temperature-units",
+    "question": "Plot Delta G = Delta H - T Delta S from -73.15 °C to 450 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": true,
+    "domain": [
+      200,
+      450
+    ],
+    "slope": -0.16,
+    "intercept": 48,
+    "crossing": 300
+  },
+  {
+    "id": "no-crossing-domain",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 500 K. Delta H = 40 kJ/mol and Delta S = -100 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": true,
+    "domain": [
+      200,
+      500
+    ],
+    "slope": 0.1,
+    "intercept": 40,
+    "crossing": null
+  },
+  {
+    "id": "extra-unread-temperature",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Temperature is unknown K.",
+    "draw": false
+  },
+  {
+    "id": "extra-conflicting-enthalpy",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Delta H = 50 kJ/mol.",
+    "draw": false
+  },
+  {
+    "id": "wrong-entropy-unit",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = 48 kJ/mol and Delta S = 160 K, independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": false
+  },
+  {
+    "id": "unknown-enthalpy",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = unknown kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": false
+  },
+  {
+    "id": "extra-requested-curve",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. Also draw the entropy change versus temperature.",
+    "draw": false
+  },
+  {
+    "id": "extra-unowned-energy",
+    "question": "Plot Delta G = Delta H - T Delta S from 200 to 450 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions. A further energy is 10 kJ/mol.",
+    "draw": false
+  },
+  {
+    "id": "reversed-temperature-domain",
+    "question": "Plot Delta G = Delta H - T Delta S from 450 to 200 K. Delta H = 48 kJ/mol and Delta S = 160 J/(mol K), independent of temperature. Mark the zero crossing and positive and negative Delta G regions.",
+    "draw": false
+  }
+]
