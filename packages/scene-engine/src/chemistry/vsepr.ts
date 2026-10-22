@@ -28,8 +28,10 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
-import { isMonovalent, valenceElectrons, type ElementRecord } from "./elements";
+import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
+import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
+import type { TurnPlanV3 } from "../contracts/contractsV3";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -85,7 +87,7 @@ export interface VseprResult {
   /** Valence electrons of the central atom (V). */
   readonly valence: number;
   readonly bondPairs: number;
-  /** Lone pairs on the central atom (E); a radical's odd electron counts as one domain. */
+  /** Nonbonding domains (E); includes a radical's single-electron domain. */
   readonly lonePairs: number;
   readonly unpairedElectron: boolean;
   readonly stericNumber: number;
@@ -360,9 +362,6 @@ const CUE = /hybridi[sz](?:ation|ed|es)|\bshapes?\b|\bgeometr(?:y|ies)\b|bond an
 /** Whole-stem vetoes: the figure asked for is not a VSEPR shape. */
 const HARD_VETO = /crystal field|\bcfse\b|\bvoids?\b|\blattice\b|unit cell|\b(?:ccp|hcp|fcc|bcc)\b|packing|\breact(?:s|ion|ions|ing|ed)?\b|\bproducts?\b|\bproduces?\b|\bobtained\b|carbocation|carbanion|free radical|\bisomer|molecular orbital|shown in the figure|given (?:in the )?figure|figure below|in the figure|as follows|structures? (?:given|shown|drawn)|shape of (?:the |an? )?(?:\d[spdf] )?orbital|boundary surface|wave function|quantum number/;
 
-/** Sentence-level vetoes: formulas in such a sentence are not shape candidates. */
-const SOFT_VETO = /bond order|bond length|\bcomplex(?:es)?\b|coordination|\bligands?\b|magnetic|paramagnetic|diamagnetic|\bspin\b|oxidation state|oxidi[sz]ing|reducing|ionic in nature/;
-
 const ORGANIC_VETO = /\b(?:alkane|alkene|alkyne|benzene|ethene|ethyne|ethane|propane|butane|ester|aldehyde|ketone|alcohol|amine|phenyl|methyl|ethyl|propyl|carbonyl|tollens|iodoform)\b/;
 
 /**
@@ -387,7 +386,9 @@ function uniqueSpecies(tokens: readonly string[]): VseprResult[] {
   const species: VseprResult[] = [];
   for (const token of tokens) {
     const result = vseprGeometry(token);
-    if (!result) continue;
+    // A list of requested molecules is atomic: a supported first formula
+    // cannot stand in for an unsupported second formula.
+    if (!result) return [];
     const key = compositionKey(parseFormula(token)!);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -424,9 +425,9 @@ const SHAPE_WORDS: ReadonlyArray<[RegExp, VseprShape]> = [
   [/\bt[ -]shaped/, "T-shaped"],
   [/square planar/, "square planar"],
   [/trigonal planar/, "trigonal planar"],
-  [/(?<!square |bi)pyramidal/, "trigonal pyramidal"],
+  [/\btrigonal pyramidal\b|(?<!square |bi|trigonal )\bpyramidal\b/, "trigonal pyramidal"],
   [/(?<!distorted )octahedral/, "octahedral"],
-  [/tetrahedral/, "tetrahedral"],
+  [/(?<!distorted )tetrahedral/, "tetrahedral"],
   [/\bbent\b|\bangular\b|\bv[ -]shaped/, "bent"],
   [/\blinear\b/, "linear"],
 ];
@@ -450,35 +451,285 @@ function stemProperty(stem: string): StemProperty {
   return { hybridisation: readHybridisation(stem), shape: readShape(stem), lonePairs: readLonePairs(stem) };
 }
 
+/** A radical's single-electron domain is not an electron pair. */
+function actualLonePairs(result: VseprResult): number {
+  return result.lonePairs - (result.unpairedElectron ? 1 : 0);
+}
+
+type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean; owners: readonly string[] | null };
+
+interface ShapeOwnerMention { start: number; end: number; key: string }
+
+/** Keep formula case and charge: a sibling molecule cannot describe this one. */
+function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
+  let from = 0;
+  return formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
+    const start = clause.indexOf(token, from);
+    const parsed = parseFormula(token);
+    if (start < 0 || !parsed) return [];
+    from = start + token.length;
+    return [{ start, end: from, key: compositionKey(parsed) }];
+  });
+}
+
+/** A postposed property owner or a local subject owns this fact, not its neighbour. */
+function localMoleculeOwners(
+  clause: string, start: number, end: number, nextStart: number,
+  mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
+): readonly string[] | null {
+  const tail = clause.slice(end, nextStart);
+  const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+|hybridi[sz](?:ed|ation)\s+)?(?:of|for|in|on|around)\s+(?:(?:the|molecule|ion|each)\s+)*(?:(?:central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+in\s+)?/i.exec(tail);
+  if (postposed) {
+    const owner = mentions.find(mention => mention.start === end + postposed[0].length);
+    if (owner) {
+      const owners = [owner.key];
+      let at = mentions.indexOf(owner);
+      while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
+        && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        owners.push(mentions[++at]!.key);
+      }
+      return owners;
+    }
+  }
+  const before = mentions.filter(mention => mention.end <= start);
+  const subject = [...before].reverse().find(mention => {
+    const predicate = clause.slice(mention.end, start);
+    if (/^\s*(?:(?:molecule|ion|species)\s+)?(?:is|are|has|have|does|do|did|with|having|containing|carries|carry|contains|contain|uses|use|adopts?|exhibits?|shows?)\b/i.test(predicate)) return true;
+    const possessive = /^['\u2019]s\s+(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+(?:is|are|has|have|does|do|did|carries|carry|contains|contain|uses|use)\b/i.exec(predicate);
+    return possessive !== null && (/^central\s+atom$/i.test(possessive[1]!) || resolveElement(possessive[1]!) !== null);
+  });
+  if (subject) {
+    const owners = [subject.key];
+    let at = before.indexOf(subject);
+    // A shared subject ("X and Y have ...") describes both, never just Y.
+    while (at > 0 && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(before[at - 1]!.end, before[at]!.start))) {
+      owners.push(before[--at]!.key);
+    }
+    return owners;
+  }
+  if (before.length) {
+    const keys = [...new Set(before.map(mention => mention.key))];
+    return keys.length === 1 ? keys : null;
+  }
+  return inherited;
+}
+
+/** Bind each geometry in its property clause, including compound claims. */
+function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
+  const claims: ShapeClaim[] = [];
+  let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+    const clause = rawClause.toLowerCase();
+    const mentions = shapeOwnerMentions(rawClause);
+    const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
+      .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
+      .sort((left, right) => left.start - right.start);
+    if (!shapes.length && mentions.length) {
+      const owners = [...new Set(mentions.map(mention => mention.key))];
+      inheritedOwners = owners.length === 1 ? owners : null;
+    }
+    const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
+    const patterns: [RegExp, "electron" | "molecular"][] = [
+      [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
+      [/\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b|\b(?:geometry|arrangement)\s+(?:of|for)\s+(?:(?:the|its)\s+)?electron(?:s|\s+(?:domains?|pairs?))?\b/g, "electron"],
+      [/\belectron(?:\s+(?:pair|domain))?s?\s+(?:is|are)\b/g, "electron"],
+      [/\belectron(?:\s+(?:pair|domain))?s?\b(?:(?!\bmolecular\b)[^.;:]){0,100}\b(?:geometry|arrangement|arranged)\b/g, "electron"],
+    ];
+    for (const [pattern, target] of patterns) for (const match of clause.matchAll(pattern)) {
+      roles.push({ start: match.index, end: match.index + match[0].length, target });
+    }
+    let previousShape: { end: number; negated: boolean } | undefined;
+    for (const [index, shape] of shapes.entries()) {
+      const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
+      const targets = new Set(roles.map((role) => role.target));
+      let target: ShapeClaim["target"] = "molecular";
+      if (targets.size === 1) target = [...targets][0]!;
+      else if (targets.size > 1 && shapes.length === 1) target = null;
+      else if (targets.size > 1) {
+        const distance = (role: typeof roles[number]) => Math.max(0, role.start - shape.end, shape.start - role.end);
+        const nearest = Math.min(...roles.map(distance));
+        const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
+        target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
+      }
+      const explicitNegative = /\b(?:not|no|neither)\s+(?:(?:have|has)\s+)?(?:an?\s+)?$/.test(clause.slice(0, shape.start));
+      // One negative can govern a comma/or/nor list. A new predicate or
+      // property clause ends that list; it must keep its own truth value.
+      const joinedNegative = previousShape?.negated === true
+        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
+      const negated = explicitNegative || joinedNegative;
+      claims.push({ shape: shape.shape, target, negated, owners });
+      inheritedOwners = owners;
+      previousShape = { end: shape.end, negated };
+    }
+  }
+  return claims;
+}
+
+type ElectronCountClaim = { count: number; kind: "lone-pair" | "unpaired"; negated: boolean; central: boolean };
+
+/** Counts and hybrids inherit the same typed molecule ownership as shapes. */
+function moleculePropertyOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  const target = compositionKey(parseFormula(result.formula)!);
+  let inherited: readonly string[] | null = [target];
+  let from = 0;
+  const boundaries = [...text.matchAll(/[;:]|\.(?=\s|$)|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/gi)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  boundaries.push({ start: text.length, end: text.length });
+  for (const boundary of boundaries) {
+    const clause = text.slice(from, boundary.start);
+    const mentions = shapeOwnerMentions(clause);
+    if (start >= from && end <= boundary.start) {
+      const owners = localMoleculeOwners(clause, start - from, end - from, clause.length, mentions, inherited);
+      return owners?.includes(target) ?? false;
+    }
+    if (mentions.length) inherited = localMoleculeOwners(clause, clause.length, clause.length, clause.length, mentions, inherited);
+    from = boundary.end;
+  }
+  return false;
+}
+
+/** Explicit counts on another atom do not describe the central atom. */
+function centralCountOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  if (!moleculePropertyOwner(text, start, end, result)) return false;
+  const owner = (token: string): boolean | null => {
+    if (/^central\s+atom$/i.test(token)) return true;
+    const element = resolveElement(token);
+    return element ? element.symbol === result.central.symbol : null;
+  };
+  const after = /^\s+(?:on|around)\s+(?:(?:the|each)\s+)?(?:central\s+)?(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\b/i.exec(text.slice(end));
+  const afterOwner = after ? owner(after[1]!) : null;
+  if (afterOwner !== null) return afterOwner;
+  const before = text.slice(0, start).split(/[.;:]/).at(-1)!;
+  const possessive = /\b([A-Za-z]+)['\u2019]s\s*$/.exec(before);
+  const possessiveOwner = possessive ? owner(possessive[1]!) : null;
+  if (possessiveOwner !== null) return possessiveOwner;
+  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?(?:\s+(?:each|all|both|individually))?\s+(?:has|have|carries|carry|contains|contain|is|are|uses|use)\b/gi)];
+  for (const subject of subjects.reverse()) {
+    const subjectOwner = owner(subject[1]!);
+    if (subjectOwner !== null) return subjectOwner;
+  }
+  // The existing unqualified molecular shorthand describes its center.
+  return true;
+}
+
+function electronCountClaims(text: string, result: VseprResult): ElectronCountClaim[] {
+  const words: Record<string, number> = { zero: 0, no: 0, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  const count = String.raw`-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten`;
+  const noun = String.raw`lone[ -]?pairs?|unpaired\s+electrons?`;
+  const candidates: Array<{ start: number; end: number; count: number; kind: ElectronCountClaim["kind"]; negative?: true }> = [];
+  const shared: Array<{ start: number; end: number }> = [];
+  // A shared final noun belongs to both explicitly negated alternatives.
+  for (const match of text.matchAll(new RegExp(`\\b(?:neither|not|never)\\s+(${count})\\s+(?:nor|or)\\s+(${count})\\s+(${noun})\\b`, "gdi"))) {
+    shared.push({ start: match.index, end: match.index + match[0].length });
+    for (const group of [1, 2]) candidates.push({ start: match.indices![group]![0], end: match.index + match[0].length,
+      count: words[match[group]!.toLowerCase()] ?? Number(match[group]), kind: /^lone/i.test(match[3]!) ? "lone-pair" : "unpaired", negative: true });
+  }
+  for (const match of text.matchAll(new RegExp(`(?<![\\w.])(${count})\\s+(${noun})\\b`, "gi"))) {
+    if (shared.some(span => span.start <= match.index && match.index < span.end)) continue;
+    candidates.push({ start: match.index, end: match.index + match[0].length, count: words[match[1]!.toLowerCase()] ?? Number(match[1]), kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired" });
+  }
+  let previous: { end: number; negated: boolean } | undefined;
+  return candidates.sort((a, b) => a.start - b.start).map(candidate => {
+    const explicit = /\b(?:not|never|neither)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, candidate.start));
+    const joined = previous?.negated === true && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)$/i.test(text.slice(previous.end, candidate.start));
+    const negated = candidate.negative === true || explicit || joined;
+    previous = { end: candidate.end, negated };
+    return { count: candidate.count, kind: candidate.kind, negated, central: centralCountOwner(text, candidate.start, candidate.end, result) };
+  });
+}
+
+/** Each local hybrid claim retains its owner and negation; siblings cannot erase it. */
+function hybridisationClaims(text: string, result: VseprResult): Array<{ value: Hybridisation; negated: boolean }> {
+  const claims: Array<{ value: Hybridisation; negated: boolean }> = [];
+  let previous: { end: number; negated: boolean } | undefined;
+  for (const match of text.matchAll(/(?<![\p{L}\p{N}_])sp(?:\s*[\^*'\u2019"`]?\s*[\d²³])?(?:\s*d(?:\s*[\^*'\u2019"`]?\s*[\d²³])?)?(?![\p{L}\p{N}_]|\s*[\^*'’"`])/giu)) {
+    const token = match[0].toLowerCase().replace(/²/g, "2").replace(/³/g, "3");
+    const value = readHybridisation(`${token} hybridised`);
+    if (!value || !centralCountOwner(text, match.index, match.index + match[0].length, result)) continue;
+    if (/^sp$/i.test(match[0]) && !/hybrid/i.test(text.slice(Math.max(0, match.index - 45), match.index + match[0].length + 20))) continue;
+    const explicit = /\b(?:not|never|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index));
+    const joined = previous?.negated === true && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/i.test(text.slice(previous.end, match.index));
+    const negated = explicit || joined;
+    claims.push({ value, negated });
+    previous = { end: match.index + match[0].length, negated };
+  }
+  return claims;
+}
+
+/** Position belongs to a lone-pair predicate, not an axial ligand nearby. */
+function centralLonePairPositions(text: string, result: VseprResult): Array<{ position: string; negated: boolean }> {
+  const claims: Array<{ position: string; negated: boolean }> = [];
+  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:one|either|any|each|both)\s+of\s+)?(?:(?:an?|the|its|one|two|1|2|first|second|both|either|any)\s+)*(axial|equatorial)\b/gi;
+  for (const match of text.matchAll(afterPair)) {
+    const pair = /^lone[ -]?pairs?/i.exec(match[0])!;
+    const end = match.index + pair[0].length;
+    if (centralCountOwner(text, match.index, end, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|never)\b/i.test(match[0].slice(pair[0].length)) });
+  }
+  for (const match of text.matchAll(/\b(axial|equatorial)\s+(lone[ -]?pairs?)\b/gi)) {
+    // An indefinite counterfactual ("an axial lone pair would ...") explains
+    // a rejected alternative; it does not locate the actual source pair.
+    if (/\ban?\s+$/i.test(text.slice(0, match.index))
+      && /^\s+(?:would|could)\b/i.test(text.slice(match.index + match[0].length))) continue;
+    const start = match.index + match[0].length - match[2]!.length;
+    if (centralCountOwner(text, start, start + match[2]!.length, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|no|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index)) });
+  }
+  return claims;
+}
+
+/** A correct source molecule must not accompany a contradictory lesson plan. */
+export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | null {
+  if (!isVseprStem(question)) return null;
+  const species = vseprSpecies(question);
+  // Multi-species comparisons need separately bound claims; do not guess
+  // which molecule a free-form claim describes.
+  if (species.length !== 1) return null;
+  const result = species[0]!;
+  for (const claim of plan.qualitativeClaims) {
+    const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+    const facts: Array<{ truth: boolean; property: string }> = [];
+    const moleculeKey = compositionKey(parseFormula(result.formula)!);
+    for (const described of shapeClaims(rawText, result)) {
+      if (!described.owners?.includes(moleculeKey)) continue;
+      const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
+        : [described.target === "electron" ? result.electronGeometry : result.shape];
+      const equal = sourceShapes.map(shape => shape === described.shape);
+      // A property that could refer to either different geometry stays undecided.
+      if (equal.some(Boolean) && !equal.every(Boolean)) continue;
+      facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
+    }
+    for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
+    for (const described of electronCountClaims(rawText, result)) {
+      if (!described.central) continue;
+      const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
+      facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
+    }
+    if (result.stericNumber === 5 && result.lonePairs > 0) {
+      for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
+    }
+    if (claim.expected === false && facts.length && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText))) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
+    const conflict = facts.find(fact => fact.truth !== (claim.expected !== false));
+    if (conflict) return `VSEPR plan claim ${claim.id} contradicts the source-derived ${conflict.property}`;
+  }
+  return null;
+}
+
 const MAX_SPECIES = 4;
 
 /**
- * The species the stem asks about: formulas in cue sentences first, else
- * every formula in the stem. Up to four are drawn as listed; a longer list
- * is narrowed to the species the stem's named property picks out, and
- * declined when even that leaves more than four.
+ * The complete formula set in the source. Up to four resolved species are
+ * drawn together; an unsupported member or an overfull set declines rather
+ * than silently drawing a recognized subset.
  */
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
   const lower = text.toLowerCase();
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower)) return [];
-  const sentences = sentencesOf(text);
-  const cued = sentences.filter((sentence) => CUE.test(sentence.toLowerCase()) && !SOFT_VETO.test(sentence.toLowerCase()));
-  let species = uniqueSpecies(cued.flatMap((sentence) => formulaTokens(sentence)));
-  if (species.length === 0) {
-    const clean = sentences.filter((sentence) => !SOFT_VETO.test(sentence.toLowerCase()));
-    species = uniqueSpecies(clean.flatMap((sentence) => formulaTokens(sentence)));
-  }
-  if (species.length === 0) return [];
-  if (species.length <= MAX_SPECIES) return species;
-  const property = stemProperty(lower);
-  let narrowed = species;
-  if (property.hybridisation) narrowed = narrowed.filter((result) => result.hybridisation === property.hybridisation);
-  if (property.shape) narrowed = narrowed.filter((result) => result.shape === property.shape);
-  if (property.lonePairs !== null) narrowed = narrowed.filter((result) => result.lonePairs === property.lonePairs);
-  if (narrowed.length === 0 || narrowed.length > MAX_SPECIES) return [];
-  if (!property.hybridisation && !property.shape && property.lonePairs === null) return [];
-  return narrowed;
+  // The whole source owns the requested set. Selecting only a cue sentence
+  // silently lost later "also draw" requests and unsupported list members.
+  const tokens = vseprFormulaArguments(text, formulaTokens(text));
+  const species = uniqueSpecies(tokens);
+  if (species.length === 0 || species.length > MAX_SPECIES) return [];
+  return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
 function dipoleInputs(question: string): DipoleInput[] {
@@ -499,8 +750,12 @@ export function isVseprStem(question: string): boolean {
   if (HARD_VETO.test(stem) || ORGANIC_VETO.test(stem)) return false;
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
   if (dipoleIsTheAsk(stem) && dipoleInputs(question).some((input) => dipoleAccount(input) !== null)) return true;
-  if (!CUE.test(stem)) return false;
-  return vseprSpecies(question).length > 0;
+  const species=vseprSpecies(question);
+  if (!CUE.test(stem)) {
+    const text=repairOcr(normalizeChemistryText(question));
+    if(!hasValidatedVseprNotation(sentencesOf(text),vseprFormulaArguments(text,formulaTokens(text)),species))return false;
+  }
+  return species.length > 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -720,7 +975,16 @@ function drawOrders(result: VseprResult): boolean {
   return true;
 }
 
-interface DrawnSpecies { readonly ids: string[]; readonly frameIds: string[]; readonly detailIds: string[] }
+interface DrawnSpecies {
+  readonly ids: string[];
+  readonly frameIds: string[];
+  readonly detailIds: string[];
+  readonly atomIds: string[];
+  readonly bondIds: string[];
+  readonly electronIds: string[];
+  readonly lonePairIds: Array<readonly [string, string]>;
+  readonly formulaId: string;
+}
 
 /** Reach of the panel beyond the molecule's furthest atom, so symbols and caption lines clear its border. */
 const PANEL_SIDE = 0.5;
@@ -750,6 +1014,9 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const orders = drawOrders(result);
   const frameIds: string[] = [];
   const detailIds: string[] = [];
+  const bondIds: string[] = [];
+  const electronIds: string[] = [];
+  const lonePairIds: Array<readonly [string, string]> = [];
   const centralId = c.atom(`${tag}_A`, result.central.symbol, origin, { role: `${result.central.symbol} central atom` });
   frameIds.push(centralId);
   let minY = origin.y;
@@ -766,7 +1033,9 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     ligandIds.push(id);
     frameIds.push(id);
     const order = orders && slot.style !== "wedge" ? ligand.bondOrder : 1;
-    frameIds.push(...c.bond(`${tag}_b${index + 1}`, centralId, id, { style: slot.style, order, role: `${result.central.symbol} to ${ligand.label} bond` }));
+    const strokes = c.bond(`${tag}_b${index + 1}`, centralId, id, { style: slot.style, order, role: `${result.central.symbol} to ${ligand.label} bond` });
+    frameIds.push(...strokes);
+    bondIds.push(...strokes);
   });
   layout.lonePairs.forEach((pair, index) => {
     const rad = (pair.deg * Math.PI) / 180;
@@ -778,11 +1047,15 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
       const dotId = c.scene.point(`${tag}_odd`, at, "unpaired electron");
       const entity = c.scene.entities.find((candidate) => candidate.id === dotId);
       if (entity) entity.provenance = { pointStyle: "filled" };
-      detailIds.push(dotId);
+      electronIds.push(dotId);
       return;
     }
-    detailIds.push(...c.lonePair(`${tag}_lp${index + 1}`, centralId, pair.deg, pair.dist));
+    const dots = c.lonePair(`${tag}_lp${index + 1}`, centralId, pair.deg, pair.dist);
+    electronIds.push(...dots);
+    lonePairIds.push([dots[0]!, dots[1]!]);
   });
+  // Nonbonding electrons belong to the structure, just like its bonds.
+  frameIds.push(...electronIds);
   if (withAngle && layout.angle && result.bondAngle) {
     const [a, b] = layout.angle;
     const radius = layout.angleRadius ?? 0.36;
@@ -797,7 +1070,7 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const hybridY = minY - CAPTION_GAP;
   const shapeY = hybridY - CAPTION_STEP;
   const domainY = shapeY - CAPTION_STEP;
-  const claim = result.bondAngle ? angleClaim(result.bondAngle) : null;
+  const claim = withAngle && layout.angle && result.bondAngle ? angleClaim(result.bondAngle) : null;
   const claimY = claim ? domainY - CAPTION_STEP : domainY;
   const titleId = c.text(`${tag}_title`, { x: origin.x, y: titleY }, result.label, "species formula");
   frameIds.push(titleId);
@@ -815,13 +1088,15 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const halfWidth = Math.max(reachX + PANEL_SIDE, 1.45);
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
   c.scene.labelled(centralId, titleId, hybridId, shapeId, domainId, ...(claimId ? [claimId] : []));
-  return { ids: [...frameIds, ...detailIds], frameIds, detailIds };
+  return { ids: [...frameIds, ...detailIds], frameIds, detailIds,
+    atomIds: [centralId, ...ligandIds], bondIds, electronIds, lonePairIds, formulaId: titleId };
 }
 
 function speciesCue(result: VseprResult): string {
+  const lonePairs = actualLonePairs(result);
   const pairs = result.unpairedElectron
-    ? `${result.lonePairs - 1} lone pair${result.lonePairs - 1 === 1 ? "" : "s"} and one unpaired electron`
-    : `${result.lonePairs} lone pair${result.lonePairs === 1 ? "" : "s"}`;
+    ? `${lonePairs} lone pair${lonePairs === 1 ? "" : "s"} and one unpaired electron`
+    : `${lonePairs} lone pair${lonePairs === 1 ? "" : "s"}`;
   return `${result.formula}: ${result.central.symbol} with ${result.bondPairs} bond pairs and ${pairs}, steric number ${result.stericNumber}, ${result.electronGeometry} electron geometry, ${result.shape} molecular shape, ${result.hybridisation}`;
 }
 
@@ -847,16 +1122,35 @@ const SPECIES_PITCH = 3.6;
  * row, each its own reveal group. Null when no species grounds it.
  */
 export function buildVseprScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  return buildVseprFigure(question, quantities, schematic)?.document ?? null;
+}
+
+/** A freshly recomputed molecule, not a caller-supplied membership claim. */
+export interface VseprStructure {
+  formulaId: string;
+  atomIds: readonly string[];
+  bondIds: readonly string[];
+  electronIds: readonly string[];
+  lonePairs: ReadonlyArray<{ entityIds: readonly [string, string]; equatorial: boolean }>;
+  bonds: ReadonlyArray<readonly [string, string]>;
+}
+
+export interface VseprFigure {
+  document: SceneDocument;
+  structures: VseprStructure[];
+}
+
+export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[], schematic: boolean): VseprFigure | null {
   void quantities;
   void schematic;
   const stem = chemStem(question);
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
     const fajan = buildFajanScene(question);
-    if (fajan) return fajan;
+    if (fajan) return { document: fajan, structures: [] };
   }
   if (dipoleIsTheAsk(stem)) {
     const dipole = buildDipoleScene(question, dipoleInputs(question));
-    if (dipole) return dipole;
+    if (dipole) return { document: dipole, structures: [] };
   }
   const species = vseprSpecies(question);
   if (species.length === 0) return null;
@@ -865,13 +1159,17 @@ export function buildVseprScene(question: string, quantities: ChemPlanQuantity[]
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
     : `shapes of ${species.map((result) => result.formula).join(", ")} by VSEPR`;
   const c = new ChemScene(question, reason, VSEPR_FAMILY);
+  // A shape/lone-pair request needs the complete molecule, not an extra
+  // measured angle. Requested/stated angles remain in the ordinary numeric
+  // admission path; suppressing them would turn that request into a fragment.
+  const withAngle = /\bangles?\b|°|\bdegrees?\b/i.test(stem);
   const drawn: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
   species.forEach((result, index) => {
     const origin = { x: index * SPECIES_PITCH, y: 0 };
-    const item = drawSpecies(c, result, origin, `m${index + 1}`, true);
+    const item = drawSpecies(c, result, origin, `m${index + 1}`, withAngle);
     if (item) drawn.push({ result, drawn: item });
   });
-  if (drawn.length === 0) return null;
+  if (drawn.length !== species.length) return null;
   if (single) {
     const only = drawn[0]!;
     c.scene.group("frame", only.drawn.frameIds, `${only.result.formula}: ${only.result.central.symbol} bonded to ${only.result.bondPairs} atoms`);
@@ -882,9 +1180,16 @@ export function buildVseprScene(question: string, quantities: ChemPlanQuantity[]
     });
   }
   const caption = single
-    ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${drawn[0]!.result.lonePairs} lone pair${drawn[0]!.result.lonePairs === 1 ? "" : "s"}`
+    ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${actualLonePairs(drawn[0]!.result)} lone pair${actualLonePairs(drawn[0]!.result) === 1 ? "" : "s"}${drawn[0]!.result.unpairedElectron ? ", 1 unpaired electron" : ""}`
     : `Shapes of ${drawn.map((item) => item.result.formula).join(", ")}`;
-  return c.build({ caption: caption.slice(0, 60) });
+  return {
+    document: c.build({ caption: caption.slice(0, 60) }),
+    structures: drawn.map(({ drawn: item, result }) => ({
+      formulaId: item.formulaId, atomIds: item.atomIds, bondIds: item.bondIds, electronIds: item.electronIds,
+      lonePairs: item.lonePairIds.map((entityIds) => ({ entityIds, equatorial: result.stericNumber === 5 })),
+      bonds: item.atomIds.slice(1).map((id) => [item.atomIds[0]!, id] as const),
+    })),
+  };
 }
 
 /* ------------------------------------------------------------------------- */
@@ -898,28 +1203,28 @@ export const VSEPR_PROBES: ReadonlyArray<{
   forbidLabels?: string[];
   note?: string;
 }> = [
-  { question: "The shape of SF4 molecule and the hybridisation of sulphur in it are:", expect: "draw", labels: ["SF_4", "sp^3d", "see-saw", "<120°"], note: "AX4E, one equatorial lone pair" },
-  { question: "The hybridisation of Xe in XeF4 and the shape of the molecule are:", expect: "draw", labels: ["XeF_4", "sp^3d^2", "sq. planar", "90°"], note: "AX4E2, lone pairs trans" },
-  { question: "The shape of BrF5 molecule is:", expect: "draw", labels: ["BrF_5", "sp^3d^2", "sq. pyramidal", "<90°"] },
-  { question: "The geometry of PCl5 and the hybridisation of P in it are:", expect: "draw", labels: ["PCl_5", "sp^3d", "TBP", "90°"] },
+  { question: "The shape of SF4 molecule and the hybridisation of sulphur in it are:", expect: "draw", labels: ["SF_4", "sp^3d", "see-saw"], note: "AX4E, one equatorial lone pair" },
+  { question: "The hybridisation of Xe in XeF4 and the shape of the molecule are:", expect: "draw", labels: ["XeF_4", "sp^3d^2", "sq. planar"], note: "AX4E2, lone pairs trans" },
+  { question: "The shape of BrF5 molecule is:", expect: "draw", labels: ["BrF_5", "sp^3d^2", "sq. pyramidal"] },
+  { question: "The geometry of PCl5 and the hybridisation of P in it are:", expect: "draw", labels: ["PCl_5", "sp^3d", "TBP"] },
   { question: "The shape of ClF3 and its bond angle are:", expect: "draw", labels: ["ClF_3", "sp^3d", "T-shaped", "87.5°"] },
   { question: "The number of lone pairs on Xe in XeF2 and the shape of the molecule are:", expect: "draw", labels: ["XeF_2", "sp^3d", "linear"], forbidLabels: ["180°"], note: "three equatorial lone pairs, no arc" },
   { question: "The shape of I3- ion is:", expect: "draw", labels: ["I_3^(-)", "sp^3d", "linear"] },
   { question: "The bond angle in NH3 and the shape of the molecule are:", expect: "draw", labels: ["NH_3", "sp^3", "trig. pyramidal", "107°"] },
   { question: "The bond angle of H2O and its geometry are:", expect: "draw", labels: ["H_2O", "sp^3", "bent", "104.5°"] },
-  { question: "The shape of CO2 molecule is:", expect: "draw", labels: ["CO_2", "sp", "linear", "180°"] },
-  { question: "The hybridisation of boron in BF3 and its shape are:", expect: "draw", labels: ["BF_3", "sp^2", "trig. planar", "120°"] },
-  { question: "The hybridisation of S in SO4^2- ion and the shape of the ion are:", expect: "draw", labels: ["SO_4^(2-)", "sp^3", "tetrahedral", "109.5°"] },
-  { question: "The shape of NO3- ion is:", expect: "draw", labels: ["NO_3^(-)", "sp^2", "trig. planar", "120°"] },
+  { question: "The shape of CO2 molecule is:", expect: "draw", labels: ["CO_2", "sp", "linear"] },
+  { question: "The hybridisation of boron in BF3 and its shape are:", expect: "draw", labels: ["BF_3", "sp^2", "trig. planar"] },
+  { question: "The hybridisation of S in SO4^2- ion and the shape of the ion are:", expect: "draw", labels: ["SO_4^(2-)", "sp^3", "tetrahedral"] },
+  { question: "The shape of NO3- ion is:", expect: "draw", labels: ["NO_3^(-)", "sp^2", "trig. planar"] },
   { question: "The shape of XeOF4 molecule is:", expect: "draw", labels: ["XeOF_4", "sp^3d^2", "sq. pyramidal", "O"], forbidLabels: ["<90°"], note: "O at the apex, trans to the lone pair" },
   { question: "The geometry of IF7 is:", expect: "draw", labels: ["IF_7", "sp^3d^3", "pent. bipyr."] },
-  { question: "The hybridisation of sulphur in SO2 and its shape are:", expect: "draw", labels: ["SO_2", "sp^2", "bent", "119.5°"] },
-  { question: "The shape of NH4+ ion is:", expect: "draw", labels: ["NH_4^(+)", "sp^3", "tetrahedral", "109.5°"] },
+  { question: "The hybridisation of sulphur in SO2 and its shape are:", expect: "draw", labels: ["SO_2", "sp^2", "bent"] },
+  { question: "The shape of NH4+ ion is:", expect: "draw", labels: ["NH_4^(+)", "sp^3", "tetrahedral"] },
   { question: "The shape of XeF6 molecule is:", expect: "draw", labels: ["XeF_6", "sp^3d^3", "dist. octahedral"] },
   { question: "The hybridisation and geometry of [Ni(CN)4]2- are:", expect: "decline", note: "coordination entity, another lane" },
   { question: "The shape of C2H4 molecule is:", expect: "decline", note: "no single central atom" },
-  { question: "The molecule/ion with square pyramidal shape is: PF5, BrF5, PCl5, [Ni(CN)4]2-", expect: "draw", labels: ["PF_5", "BrF_5", "PCl_5", "sq. pyramidal", "TBP"], note: "three species in a row, the complex skipped" },
-  { question: "Statement I: F2O < H2O < Cl2O is the correct trend in terms of bond angle. Statement II: SiF4, SnF4 and PbF4 are ionic in nature.", expect: "draw", labels: ["F_2O", "H_2O", "Cl_2O", "103°", "104.5°", "111°"], note: "the cue sentence picks the three bent oxides" },
+  { question: "The molecule/ion with square pyramidal shape is: PF5, BrF5, PCl5, [Ni(CN)4]2-", expect: "decline", note: "unsupported coordination member cannot disappear from the source set" },
+  { question: "Statement I: F2O < H2O < Cl2O is the correct trend in terms of bond angle. Statement II: SiF4, SnF4 and PbF4 are ionic in nature.", expect: "decline", note: "six-species source cannot be represented by a selected three-species fragment" },
   { question: "Identify the incorrect statement about the structure shown in the figure.", expect: "decline", note: "figure-absent stem" },
   { question: "The number of tetrahedral voids per atom in a ccp lattice is:", expect: "decline", note: "solid state, not a molecule" },
 ];

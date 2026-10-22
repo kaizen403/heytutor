@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-live-molecule-availability.ts
+tsx scripts/verify/verify-live-molecule-review-claims.ts

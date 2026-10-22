@@ -11,6 +11,8 @@
  * cycle closes from the stem's own steps.
  */
 import { fmt } from "../archetypes/document";
+import { buildMeasuredGibbsGraph, claimsMeasuredGibbsGraph } from "./gibbsLaw";
+import { numericalValuesRequested, requestedSourceRoleStarts } from "./sourceRoleRequests";
 import type { SceneDocument } from "../types";
 import { buildChemicalThermodynamicsScene, claimsChemicalThermodynamics } from "./chemicalThermodynamics";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
@@ -94,6 +96,7 @@ function classifyThermoStem(question: string): ThermoKind | null {
 
 /** True when this family should draw for the stem. Include vetoes. */
 export function isThermoGraphStem(question: string): boolean {
+  if (claimsMeasuredGibbsGraph(question)) return true;
   if (claimsChemicalThermodynamics(question)) return true;
   return classifyThermoStem(question) !== null;
 }
@@ -322,7 +325,7 @@ const PROFILE_THRESHOLD_CUE = /threshold\s+energy/;
 const PROFILE_REACTANT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/;
 const PROFILE_PRODUCT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/;
 const PROFILE_CATALYST_REDUCTION_CUE = /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/;
-const PROFILE_CATALYST_BARRIER_CUE = /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/;
+const PROFILE_CATALYST_BARRIER_CUE = /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|\bcatalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/;
 const PROFILE_CATALYST_ROLE_CUE = /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/;
 
 /** Only complete requested/qualitative roles omit a physical profile input. */
@@ -349,6 +352,9 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     {phrase:FORWARD_ACTIVATION,role:"forward",sign:0},
     {phrase:BACKWARD_ACTIVATION,role:"backward",sign:0},
     {phrase:GENERIC_ACTIVATION,role:"forward",sign:0},
+    {phrase:/(?:forward|uncatalys[ez]d)\s+activation\s+energies\b/,role:"forward",sign:0},
+    {phrase:/(?:backward|reverse)\s+activation\s+energies\b/,role:"backward",sign:0},
+    {phrase:/\bactivation\s+energies\b/,role:"forward",sign:0},
     {phrase:PROFILE_THRESHOLD_CUE,role:"threshold",sign:0},
     {phrase:PROFILE_REACTANT_CUE,role:"reactants",sign:0},
     {phrase:PROFILE_PRODUCT_CUE,role:"products",sign:0},
@@ -367,7 +373,9 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
   // A specific catalyst/forward/backward role owns any nested generic phrase.
   const owners = found.filter(owner => !found.some(other => other.start <= owner.start && other.end >= owner.end
     && (other.start < owner.start || other.end > owner.end))).sort((a,b)=>a.start-b.start);
+  const requestedRoles = requestedSourceRoleStarts(body, owners.map(owner=>({start:owner.start,end:owner.end})));
   const values = new Map<string,Energy>();
+  const consumed: ChemistryQuantityConsumption[] = [];
   const qualitativeSigns: number[] = [];
   for (const [index,owner] of owners.entries()) {
     const next = owners[index+1];
@@ -377,7 +385,7 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     const payload = body.slice(owner.end,end);
     // Adjacent aliases name one original value, which the next owner validates.
     if (next && owner.role === next.role && end === next.start && /^\s*[,:(]?\s*$/.test(payload)) continue;
-    if (profileEnergyReferenceOnly(body,owner.start,owner.end,end)) continue;
+    if (requestedRoles.has(owner.start) || profileEnergyReferenceOnly(body,owner.start,owner.end,end)) continue;
     if (owner.sign !== 0 && /^\s*(?:heat|energy)?\s*$/i.test(payload)) {
       qualitativeSigns.push(owner.sign);continue;
     }
@@ -385,7 +393,11 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     for (const [dimension,targetUnit] of [["molar_energy","kJ/mol"],["energy","kJ"]] as const) {
       const read = readChemistryQuantity({question:body,after:new RegExp(`^(?:${energyCueAfter(owner.phrase).source})`,"i"),
         within:{start:owner.start,end},dimension,targetUnit});
-      if (read.ok) {energy={value:read.reading.value,unit:targetUnit};break;}
+      if (read.ok) {
+        energy={value:read.reading.value,unit:targetUnit};
+        consumed.push({reading:read.reading,owner:owner.role});
+        break;
+      }
     }
     if (!energy) return null;
     const value = owner.sign === -1 ? -Math.abs(energy.value) : owner.sign === 1 ? Math.abs(energy.value) : energy.value;
@@ -393,6 +405,10 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
     if (previous && (previous.unit !== energy.unit || !chemistryCanonicalValuesAgree(previous.value,value))) return null;
     values.set(owner.role,{value,unit:energy.unit});
   }
+  // A closed label request consumes no literal. Every actual energy occurrence
+  // still needs its own source span and role before any qualitative derivation.
+  if (!(["energy","molar_energy"] as const).every(dimension=>chemistryQuantityInventoryOwned(question,dimension,
+    consumed.filter(item=>item.reading.dimension === dimension)))) return null;
   const enthalpy = values.get("dH");
   return enthalpy === undefined || qualitativeSigns.every(sign=>sign===Math.sign(enthalpy.value)) ? values : null;
 }
@@ -482,7 +498,7 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   if (ea !== null && dH !== null && eaBack !== null && !chemistryCanonicalValuesAgree(eaBack,ea-dH)) return null;
   if (ea !== null && threshold && energyR && !chemistryCanonicalValuesAgree(ea,threshold.value-energyR.value)) return null;
   if (ea !== null && dH !== null && threshold && energyP && !chemistryCanonicalValuesAgree(ea-dH,threshold.value-energyP.value)) return null;
-  if (/\bnumeric(?:al)?\b/.test(stem) && (ea === null || dH === null)) return null;
+  if (numericalValuesRequested(stem) && (ea === null || dH === null)) return null;
 
   const exothermic = EXOTHERMIC.test(stem);
   const endothermic = ENDOTHERMIC.test(stem);
@@ -1236,6 +1252,7 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  if (claimsMeasuredGibbsGraph(question)) return buildMeasuredGibbsGraph(question, quantities);
   // Neither the profile nor the qualitative Maxwell operator solves a
   // numeric molecular fraction. Do not substitute a two-temperature cartoon.
   const bodyStem = chemStem(question.slice(0, chemistryQuestionSpan(question).end));
