@@ -26,6 +26,7 @@ import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
 import { readOrganicReactionSource } from "./reactionSource";
 import { buildOrganicReactionFigure } from "./reactionFigure";
+import { buildCarbonHybridisationScene, carbonHybridisationRequest } from "./carbonHybridisation";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
@@ -309,6 +310,7 @@ export function mentionRole(lower: string, mention: Mention): "reagent" | "produ
 
 /** True when the stem names a compound the family can draw, or asks for isomers of a tabled formula. */
 export function isOrganicStem(question: string): boolean {
+  if (carbonHybridisationRequest(question) !== "skip") return true;
   const stem = chemStem(question);
   if (NOT_ORGANIC.test(stem) || requiresConformationProjection(question)) return false;
   const complexes = complexTokens(question);
@@ -365,6 +367,9 @@ function factsLine(stem: string, molecule: Molecule): string {
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   if (!isOrganicStem(question)) return null;
+  const hybridisation = carbonHybridisationRequest(question);
+  if (hybridisation === "decline") return null;
+  if (hybridisation === "draw") return buildCarbonHybridisationScene(question);
   // This operator owns every original source/request span and proves the
   // complete graph result. Do not let a narrower structural-label heuristic
   // reinterpret its carbon-count or named-product request as a site claim.
@@ -596,6 +601,11 @@ export const ORGANIC_PROBES: ReadonlyArray<{
   { question: "2-chloro-2-methylpropane on treatment with aqueous KOH gives 2-methylpropan-2-ol.", expect: "draw", labels: ["Cl", "OH", "aq. KOH"], note: "reactant, reagent arrow, product" },
   { question: "Propene reacts with HBr to give the major product", expect: "draw", labels: ["HBr", "?", "propene"], note: "no product named: ? box" },
   { question: "The number of sp2 hybridised carbon atoms in benzaldehyde is", expect: "draw", labels: ["O", "H", "benzaldehyde"], note: "caption carries sp2 = 7" },
+  { question: "State the hybridisation of each carbon atom in CH3-CH=CH-C≡N and in CH2=C=O, and give the percentage s character of each hybrid type.", expect: "draw", labels: ["CH_3", "sp^3", "sp^2", "sp", "N", "CH_2", "O", "sp 50% s", "sp^2 33.3% s", "sp^3 25% s"], note: "closed bond lines keep every carbon; s character only for types present" },
+  { question: "What is the hybridization of each carbon in CH2=C=O?", expect: "draw", labels: ["CH_2", "sp^2", "sp", "O"], forbidLabels: ["sp^3", "50% s", "sp 50% s"], note: "ketene carbons are sp2 and sp; no s-character legend unless asked" },
+  { question: "Assign hybridization at each carbon of CH2=CH-C≡N.", expect: "draw", labels: ["CH_2", "CH", "sp^2", "sp", "N"], forbidLabels: ["sp^3"] },
+  { question: "State the hybridisation of each carbon in CH3-CH=CH-C≡N and C=C.", expect: "decline", note: "a broken bond line is not dropped so the closed one can be drawn alone" },
+  { question: "What is the hybridisation and percentage s character of the sp3 carbon in CH2=C=O?", expect: "decline", note: "ketene has no sp3 carbon" },
   { question: "The number of chiral centres in 2-chlorobutane is", expect: "draw", labels: ["Cl", "2-chlorobutane"], note: "caption carries chiral centres 1" },
   { question: "The hybridisation of cobalt in [Co(NH3)6]3+ is", expect: "decline", note: "coordination complex, no organic name" },
   { question: "The major product of the following reaction is", expect: "decline", note: "figure absent, nothing named" },
