@@ -133,3 +133,71 @@ export function validatePointLabelPlacement(document: SceneDocument, primitives:
   }
   return issues;
 }
+
+/** A figure drawn smaller than this, edge to edge, cannot be read: its labels
+ * and marks overlap whatever they name. */
+const MIN_READABLE_FIGURE_PX = 100;
+
+export function validateFigureLegibility(primitives: RenderPrimitive[]): SceneIssue[] {
+  const xs: number[] = [], ys: number[] = [];
+  for (const p of primitives) {
+    if (p.kind === "label" || p.provenance?.labelLeader) continue;
+    for (const q of p.points) { xs.push(q.x); ys.push(q.y); }
+    if ((p.kind === "circle" || p.kind === "arc") && p.points[0]) {
+      const r = p.radius ?? 0; xs.push(p.points[0].x - r, p.points[0].x + r); ys.push(p.points[0].y - r, p.points[0].y + r);
+    }
+  }
+  if (xs.length < 2) return [];
+  const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  return extent < MIN_READABLE_FIGURE_PX ? [{ code: "figure_illegible", severity: "fatal", failureKind: "truth",
+    message: `The figure is drawn ${Math.round(extent)} px across; its labels cannot be read against what they name` }] : [];
+}
+
+/** A space frame names its axes x, y, z; each name must sit nearest its own axis line. */
+export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneIssue[] {
+  const issues: SceneIssue[] = [];
+  for (const label of primitives) {
+    const match = /^(.*)_label_([xyz])$/.exec(label.id);
+    if (label.kind !== "label" || !match || !label.points[0]) continue;
+    const lines = [0, 1, 2].map((index) => primitives.find((p) => p.id === `${match[1]}_${index}` && p.points.length >= 2));
+    if (lines.some((line) => !line)) continue;
+    const own = "xyz".indexOf(match[2]!);
+    const distanceTo = (line: RenderPrimitive) => Math.min(...segments(line).map(([s, t]) => segmentDistance(label.points[0]!, s, t)));
+    const ownDistance = distanceTo(lines[own]!);
+    if (lines.some((line, index) => index !== own && distanceTo(line!) + 4 < ownDistance)) {
+      issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [label.entityId],
+        message: `The ${match[2]} axis name sits nearer another axis than its own` });
+    }
+  }
+  return issues;
+}
+
+/** An angle mark's name must sit inside the wedge its arc spans from the vertex. */
+export function validateAngleLabelWedge(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+  const issues: SceneIssue[] = [];
+  const marks = document.entities.filter((entity) => entity.kind === "angle_mark");
+  for (const mark of marks) {
+    const construction = document.constructions.find((c) => c.outputs.includes(mark.id));
+    const vertexId = typeof construction?.inputs.vertex === "string" ? construction.inputs.vertex : undefined;
+    const vertex = vertexId ? primitives.find((p) => p.entityId === vertexId && p.kind === "point")?.points[0] : undefined;
+    const arc = primitives.find((p) => p.entityId === mark.id && p.kind === "polyline" && p.points.length >= 3);
+    const label = primitives.find((p) => p.entityId === mark.id && p.kind === "label" && !p.provenance?.usesLeader);
+    if (!vertex || !arc || !label?.points[0]) continue;
+    const angleOf = (p: Point) => Math.atan2(p.y - vertex.y, p.x - vertex.x);
+    const start = angleOf(arc.points[0]!), middle = angleOf(arc.points[Math.floor(arc.points.length / 2)]!), end = angleOf(arc.points.at(-1)!);
+    const norm = (a: number) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    // Sweep from start through the middle to the end, in whichever sense passes the middle.
+    const ccw = norm(middle - start) <= norm(end - start);
+    const span = ccw ? norm(end - start) : norm(start - end);
+    const offset = ccw ? norm(angleOf(label.points[0]) - start) : norm(start - angleOf(label.points[0]));
+    const margin = (15 * Math.PI) / 180;
+    const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
+    if (!inside) {
+      const index = document.entities.findIndex((entity) => entity.id === mark.id);
+      issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [mark.id],
+        ...(index >= 0 && document.entities[index]!.label ? { path: `entities[${index}].label` } : {}),
+        message: "An angle name sits outside the wedge its arc marks" });
+    }
+  }
+  return issues;
+}
