@@ -45,6 +45,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
+import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
@@ -285,7 +286,8 @@ function compileSceneDocumentOnce(document: SceneDocument, options: InternalComp
   if (circleSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...circleSourceIssues], 0) };
   if (document.visualDecision.mode === "text_only") return { ok: true, renderScene: emptyRenderScene(document), report: structural.report };
 
-  const issues = [...structural.report.issues];
+  const chemistryRepresentation = auditChemistryRepresentation(document, typeof document.source.question === "string" ? document.source.question : "");
+  const issues = [...structural.report.issues, ...chemistryRepresentation.issues];
   const geometry = new Map<string, Geometry>();
   const checkedClaimOutputIds = new Set<string>();
   // One view for every space frame, planned before the loop reassigns `document`.
@@ -1167,6 +1169,9 @@ function compileSceneDocumentOnce(document: SceneDocument, options: InternalComp
       labelPlacement: "absolute",
       provenance: {
         ...annotationLabels.get(placement.labelId)?.provenance,
+        ...(!annotationLabels.has(placement.labelId) && chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId))
+          ? { chemistryRepresentation: chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId)) }
+          : {}),
         labelBounds: placement.bounds,
         ...(placement.collisionBounds ? { labelCollisionBounds: placement.collisionBounds } : {}),
         usesLeader: placement.usesLeader,
@@ -1210,6 +1215,9 @@ function compileSceneDocumentOnce(document: SceneDocument, options: InternalComp
   if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
+  // Native bond truth is core geometry under both yield policies; labels or
+  // repair cannot turn overlapping double/triple strokes into valid ink.
+  issues.push(...chemistryNativeBondInkIssues(chemistryRepresentation, primitives));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
   const entityBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};

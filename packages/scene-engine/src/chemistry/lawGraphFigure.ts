@@ -21,6 +21,15 @@ export function sourceLawValue(relation: SourceLawRelation, x: number): number {
   }
   return relation.slope*x+relation.intercept;
 }
+/** Only finite affine operands can justify product/add cancellation roundoff. */
+function affineRoundoff(relation: SourceLawRelation, x: number): number | null {
+  if (relation.operator!=="affine" && relation.operator!=="threshold_affine" && relation.operator!=="log_coordinate") return 0;
+  const product=relation.slope*x;
+  if (!finite(product) || !finite(relation.intercept)) return null;
+  // Never scale this allowance by the axis range or a default unit.
+  const bound=4*Number.EPSILON*Math.max(Math.abs(product),Math.abs(relation.intercept));
+  return finite(bound)?bound:null;
+}
 /** For external typed adapters (e.g. ΔG=H−TS). Callers must independently
  * bind every source operand/domain and decline unsupported requested marks. */
 export function buildSourceLawGraphFigure(model: SourceLawGraph, originalQuestion?: string): SceneDocument | null {
@@ -34,7 +43,13 @@ export function buildSourceLawGraphFigure(model: SourceLawGraph, originalQuestio
   if (model.bindings.some(value=>!finite(value.value))) return null;
   for (const point of model.points) {
     const curve = model.curves.find(curve=>curve.id===point.curveId);
-    if (!curve || !finite(point.x) || !finite(point.y) || Math.abs(sourceLawValue(curve.relation,point.x)-point.y)>1e-9*Math.max(Math.abs(point.y),1e-30)) return null;
+    if (!curve || !finite(point.x) || !finite(point.y)) return null;
+    const actual=sourceLawValue(curve.relation,point.x);
+    if (!finite(actual)) return null;
+    const roundoff=affineRoundoff(curve.relation,point.x);
+    if (roundoff===null) return null;
+    const tolerance=Math.max(1e-9*Math.max(Math.abs(point.y),1e-30),roundoff);
+    if (!finite(tolerance) || Math.abs(actual-point.y)>tolerance) return null;
     if (point.detached ? !(point.x===0 && model.x.transform==="log10" && curve.relation.operator==="positive_quadratic") : point.x<curve.domain[0] || point.x>curve.domain[1]) return null;
   }
   const requiresContext=model.chemicalContext!==undefined || model.curves.some(curve=>curve.relation.operator==="positive_quadratic" || curve.relation.operator==="log_coordinate");
@@ -82,7 +97,12 @@ export function buildSourceLawGraphFigure(model: SourceLawGraph, originalQuestio
       const transformed = transform[0]!+(transform[1]!-transform[0]!)*fraction;
       const x = model.x.transform === "linear" ? transformed : 10**transformed;
       const y = sourceLawValue(curve.relation,x);
-      if (!finite(y) || y<model.y.domain[0]-Math.abs(model.y.domain[0])*1e-10 || y>model.y.domain[1]+Math.abs(model.y.domain[1])*1e-10) return null;
+      const roundoff=affineRoundoff(curve.relation,x);
+      if (!finite(y) || roundoff===null) return null;
+      const lowerTolerance=Math.max(Math.abs(model.y.domain[0])*1e-10,roundoff);
+      const upperTolerance=Math.max(Math.abs(model.y.domain[1])*1e-10,roundoff);
+      if (!finite(lowerTolerance) || !finite(upperTolerance)
+        || y<model.y.domain[0]-lowerTolerance || y>model.y.domain[1]+upperTolerance) return null;
       c.scene.assert(`${curve.id}_law_${index}`,"function_value",[curve.id],{x:display(model.x,x,X),y:display(model.y,y,Y)});
     }
   }

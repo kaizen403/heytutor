@@ -441,8 +441,10 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
   for (const which of ["a","b"] as const) {
     let pK: number | null = null; let k: number | null = null;
     for (const logarithmic of [true,false]) {
-      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*(?:\{\s*${which}\s*\}|${which})(?![a-z])`;
-      const word = !logarithmic ? String.raw`|\b${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation) constant\b` : "";
+      const subscript = which === "a" ? "ₐ|ᵃ" : "ᵦ|ᵇ";
+      const role = String.raw`(?:\{\s*${which}\s*\}|\(\s*${which}\s*\)|${which}|${subscript})`;
+      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!\\bp\\s*)"}k\s*_?\s*${role}(?![a-z])`;
+      const word = !logarithmic ? String.raw`|\b(?:${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation)|${which==="a"?"acidity":"basicity"}) constant\b` : "";
       const mention = new RegExp(`(?:${symbol}${word})`,"ig");
       const declarations = [...body.matchAll(mention)];
       if (declarations.length === 0) continue;
@@ -1033,20 +1035,25 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const countEnd = payload+head.index;
     if (!stem.slice(payload,countEnd).trim()) continue;
     const text = stem.slice(payload,countEnd);
+    // A single determiner qualifies the component roster, not its count.
+    // Keep the numeral's original span and leave all remaining modifiers
+    // subject to the same complete-count validation below.
+    const prefix = /^\s*(?:(?:the|these|those)\s+)?/iu.exec(text)![0];
+    const start = payload+prefix.length;
+    const valueText = stem.slice(start,countEnd);
     // Cardinal words describe the resolved component set only. Keep the
     // original source span; this grants no fractional/scalar authority.
-    const word = new RegExp(String.raw`^\s*(${cardinals.join("|")})(?![\p{L}\p{N}\p{M}_])`,"iu").exec(text);
-    const start = payload+text.length-text.trimStart().length;
+    const word = new RegExp(String.raw`^(${cardinals.join("|")})(?![\p{L}\p{N}\p{M}_])`,"iu").exec(valueText);
     const scalar = scalarTokens.find(token=>token.start === start && token.end <= countEnd);
     // Preserve successful original declaration syntax (including numeric
     // connectors); only unresolved modifier phrases use the leading token.
     const declared = readChemistryQuantityDeclaration({question:stem,after:/^/,
-      within:{start:payload,end:countEnd},dimension:"dimensionless",targetUnit:"1",owner:"solution component count"});
+      within:{start,end:countEnd},dimension:"dimensionless",targetUnit:"1",owner:"solution component count"});
     const read = scalar ? parseChemistryScalar(stem,scalar) : null;
     const count = declared.state === "valid" ? declared.reading.value
       : word ? cardinals.indexOf(word[1]!.toLowerCase()) : read?.ok ? read.reading : NaN;
     const span = declared.state === "valid" ? declared.reading.source.span
-      : word ? {start,end:payload+word[0].length} : scalar ?? {start:payload,end:countEnd};
+      : word ? {start,end:start+word[0].length} : scalar ?? {start,end:countEnd};
     const modifiers = stem.slice(span.end,countEnd);
     // Complete lexical noun modifiers may follow the count. They cannot
     // hide an attached unit, unread value, or another supplied numeral.

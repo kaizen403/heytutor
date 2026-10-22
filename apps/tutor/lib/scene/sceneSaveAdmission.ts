@@ -14,6 +14,7 @@
  */
 import {
   displayedSceneQuantityTexts,
+  certifyVseprSourceDocument,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -118,6 +119,12 @@ export function sceneSaveAdmissionFailure(input: {
   tier: SaveAdmissionTier;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
+  // Source geometry never becomes optional with the planner metadata. Legacy
+  // native figures without a retained plan still need the exact source graph.
+  const vsepr = certifyVseprSourceDocument(document, question, turnPlan);
+  if (vsepr.status === "rejected") {
+    return `scene source inputs are unsupported or disagree: ${formatIssues(vsepr.issues)}`;
+  }
   if (turnPlan) {
     const molecularConflict = vseprPlanConflict(question, turnPlan);
     if (molecularConflict) return molecularConflict;
@@ -126,7 +133,9 @@ export function sceneSaveAdmissionFailure(input: {
     // authoritative: a plan quantity is always checked against the plan.
     const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
     let engine: EngineDerived | null = null;
-    const derivedByEngine = (): EngineDerived => engine ??= engineDerivedValues(question, turnPlan);
+    const derivedByEngine = (): EngineDerived => engine ??= vsepr.status === "certified"
+      ? { quantities: new Map(), texts: new Set(vsepr.texts) }
+      : engineDerivedValues(question, turnPlan);
     const audited = document.quantities.filter((quantity) => {
       if (planIds.has(quantity.id)) return true;
       const fresh = derivedByEngine().quantities.get(quantity.id);

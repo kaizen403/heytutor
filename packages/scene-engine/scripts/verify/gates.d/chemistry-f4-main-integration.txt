@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-chemistry-no-steal-cues.ts
+tsx scripts/verify/verify-chemistry-f4-main-integration.ts

@@ -1,0 +1,477 @@
+{
+  "schemaVersion": "organic-opening-regression/v1",
+  "provenance": {
+    "scope": "Synthetic conservative plans/nullIR; original8source wordings, expected atoms/full names frozen from independently inspected correct completed figures before opening repair; no paid/live/coverage claim.",
+    "baselineEngineSha256": "92d0629ff32c3993304963bd70fb3a6a039e7775278636081a9bbe145c20bab7",
+    "original94GateSha256": "efab53d7b0f98497229f65aede3b917b5589d621a724c1c382f6484c5f9d82a3"
+  },
+  "cases": [
+    {
+      "id": "real-aryl",
+      "question": "Draw chlorobenzene, benzyl chloride and 1-chloro-1-phenylethane as three separate structural diagrams. Identify the carbon carrying Cl in each, label its hybridisation, and classify the C–Cl site as aryl, primary benzylic or secondary benzylic. Show enough carbon connectivity that the last two cannot be mistaken for ring-bound chloride.",
+      "expectedNames": [
+        "chlorobenzene",
+        "benzyl chloride",
+        "1-chloro-1-phenylethane"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a0",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a6",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a0",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a2",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a3",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "chlorobenzene",
+          "kind": "name"
+        },
+        {
+          "entityId": "m1_description0",
+          "text": "benzyl chloride",
+          "kind": "name"
+        },
+        {
+          "entityId": "m2_description0",
+          "text": "1-chloro-1-",
+          "kind": "name"
+        },
+        {
+          "entityId": "m2_description1",
+          "text": "phenylethane",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "real-alcohol",
+      "question": "Draw butan-1-ol, butan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon clearly identified. For each structure, show every carbon directly bonded to that carbon and classify the alcohol as primary, secondary or tertiary. Explain the classification from the drawn neighbourhood rather than from the compound’s total carbon count.",
+      "expectedNames": [
+        "butan-1-ol",
+        "butan-2-ol",
+        "2-methylpropan-2-ol"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a4",
+          "text": "OH",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a3",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a4",
+          "text": "OH",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a3",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m2_a4",
+          "text": "OH",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "butan-1-ol",
+          "kind": "name"
+        },
+        {
+          "entityId": "m1_description0",
+          "text": "butan-2-ol",
+          "kind": "name"
+        },
+        {
+          "entityId": "m2_description0",
+          "text": "2-methylpropan-",
+          "kind": "name"
+        },
+        {
+          "entityId": "m2_description1",
+          "text": "2-ol",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "allyl-chloride",
+      "question": "Draw allyl chloride with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation.",
+      "expectedNames": [
+        "allyl chloride"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "allyl chloride",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "systematic-allylic",
+      "question": "Draw 3-chloroprop-1-ene with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation.",
+      "expectedNames": [
+        "3-chloroprop-1-ene"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "3-chloroprop-1-",
+          "kind": "name"
+        },
+        {
+          "entityId": "m0_description1",
+          "text": "ene",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "acyl-vinylic",
+      "question": "Draw acetyl chloride and vinyl chloride with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation.",
+      "expectedNames": [
+        "acetyl chloride",
+        "vinyl chloride"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "O",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a2",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "acetyl chloride",
+          "kind": "name"
+        },
+        {
+          "entityId": "m1_description0",
+          "text": "vinyl chloride",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "complete-later-member",
+      "question": "Draw chloroethane. Also draw another structure, chloromethane. Classify each C-Cl site and label its hybridisation.",
+      "expectedNames": [
+        "chloroethane",
+        "chloromethane"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a1",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "chloroethane",
+          "kind": "name"
+        },
+        {
+          "entityId": "m1_description0",
+          "text": "chloromethane",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "named-no-as",
+      "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify propan-1-ol primary and propan-2-ol secondary alcohols.",
+      "expectedNames": [
+        "propan-1-ol",
+        "propan-2-ol"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "OH",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a2",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m1_a3",
+          "text": "OH",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "propan-1-ol",
+          "kind": "name"
+        },
+        {
+          "entityId": "m1_description0",
+          "text": "propan-2-ol",
+          "kind": "name"
+        }
+      ]
+    },
+    {
+      "id": "acyl-sp2",
+      "question": "Draw acetyl chloride with the carbon carrying Cl identified. Label its hybridisation as sp2 and classify the C-Cl site.",
+      "expectedNames": [
+        "acetyl chloride"
+      ],
+      "requiredOpeningLabels": [
+        {
+          "entityId": "m0_a0",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a1",
+          "text": "C",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a2",
+          "text": "O",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_a3",
+          "text": "Cl",
+          "kind": "atom"
+        },
+        {
+          "entityId": "m0_description0",
+          "text": "acetyl chloride",
+          "kind": "name"
+        }
+      ]
+    }
+  ],
+  "parityControls": [
+    {
+      "id": "vsepr-SF4",
+      "family": "chem_vsepr",
+      "question": "Show the molecular shape of SF4.",
+      "documentSha256": "207ba32d54e8dd4da2e7909159c1600ac7617bab947ea83e5b1fd1df81886e05",
+      "renderSha256": "6648a1f34b0c782054e99a5cd8d7e4c27127b2a6c2fa3c277a28712aeda25265",
+      "openingCommandsSha256": "c93786252d2269e824b3cc4948cc338a79718844f77b664078f73ab093a8072d",
+      "fullDiagramSha256": "2fb940324862c93fdcb9527fd6be04b7e77cb4b1ece36a1513016b1cef70eb9c"
+    },
+    {
+      "id": "vsepr-NH3",
+      "family": "chem_vsepr",
+      "question": "What is the shape of NH3?",
+      "documentSha256": "2423f4cf7feb929435268ed91ff6e889f8e14a1457199ffc9dd69aab2c68bb17",
+      "renderSha256": "efd64b89224d6602611aad9d93cf2b82f4d0c8704dd9af29244d399db516d4e6",
+      "openingCommandsSha256": "17516a6d72c0a470cc1394f5fd18a9fab75a8321472783f639dcc7171275bb6e",
+      "fullDiagramSha256": "ad8c453bd2d996a70c92db249c0ddfaef5d26dd241d170bb1d18a63bf189edff"
+    },
+    {
+      "id": "orbital-nitrogen",
+      "family": "chem_orbital",
+      "question": "Draw the orbital box diagram for nitrogen.",
+      "documentSha256": "89008e73e74fef2065b898ef16530a71cda893693dad5f8630ef72ae91ab79ef",
+      "renderSha256": "6e9d45b6e1484b67454edcd418e379130de1b7c7ff8d9bca2da527b18d8d412e",
+      "openingCommandsSha256": "017bf0d72de19b605aa7dbeba0ec7bca7d45d08f9eecca6828976b43fb452696",
+      "fullDiagramSha256": "3c5533d9f95e05992192c93e63644c30c64c16810a72e8bea0948b4f8b4000b7"
+    },
+    {
+      "id": "kinetics-ln",
+      "family": "chem_kinetics",
+      "question": "ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "documentSha256": "0c33441519690bb3ad8e9fe10d062a32285ab0d374ac7c98e009a515c4e08067",
+      "renderSha256": "387aea93308249097137afe6335344df15b67f4b5da7940642c520c87fba4e1d",
+      "openingCommandsSha256": "61899e1467b37c005aa0e1b096ebd4dfb21b2c27cda9e6a97546ed782711351f",
+      "fullDiagramSha256": "adbcba8fc4c4104b3704b5db861a6a5f496313ff924f04997a38239836fc91c1"
+    }
+  ]
+}

@@ -1,3 +1,6 @@
+import { prepareNeutralPanelPresentation } from "./neutralPanelPresentation";
+export { NeutralPanelPresentationDeclined } from "./neutralPanelPresentation";
+
 import {
   measureTextInkBounds,
   measureTextWidth,
@@ -22,6 +25,7 @@ import type {
 import {
   compileSceneDocument,
   verifiedVseprStructure,
+  verifiedOrganicNeighbourhoodStructure,
   describeSceneFamily,
   directedCurveInk,
   obstaclesFromPrimitives,
@@ -67,11 +71,38 @@ export function buildVerifiedDiagramPresentation(
   renderScene: RenderScene,
   options: VerifiedScenePresentationOptions = {},
 ): VerifiedDiagramPresentation {
+  return buildDiagramPresentation(document, renderScene, options, null);
+}
+
+/** Explicit source-checked entry; existing callers retain the legacy entry above. */
+export function buildSourceBoundChemistryPresentation(
+  document: SceneDocument,
+  renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions & { originalQuestion: string },
+): VerifiedDiagramPresentation {
+  const policy = prepareNeutralPanelPresentation(document, renderScene, options?.originalQuestion);
+  return buildDiagramPresentation(document, renderScene, options ?? {}, policy);
+}
+
+function buildDiagramPresentation(
+  document: SceneDocument,
+  renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions,
+  neutralPolicy: ReturnType<typeof prepareNeutralPanelPresentation>,
+): VerifiedDiagramPresentation {
   const molecule = verifiedVseprStructure(document, options.originalQuestion);
   const freshMolecule = molecule ? compileSceneDocument(molecule.document) : null;
   const structuralSymbolIds = freshMolecule?.ok && freshMolecule.renderScene &&
     JSON.stringify(freshMolecule.renderScene) === JSON.stringify(renderScene)
     ? new Set(molecule!.structures.flatMap((structure) => structure.atomIds)) : new Set<string>();
+  const organic = verifiedOrganicNeighbourhoodStructure(document, options.originalQuestion);
+  const freshOrganic = organic ? compileSceneDocument(organic.document) : null;
+  if (freshOrganic?.ok && freshOrganic.renderScene &&
+    JSON.stringify(freshOrganic.renderScene) === JSON.stringify(renderScene)) {
+    for (const structure of organic!.structures) {
+      for (const id of [...structure.atomIds, ...structure.nameLabelIds]) structuralSymbolIds.add(id);
+    }
+  }
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
@@ -126,7 +157,7 @@ export function buildVerifiedDiagramPresentation(
     groupId: string,
     phase: RevealPhase,
     command: VerifiedDiagramCommand,
-    options: { reveal?: boolean } = {},
+    options: { reveal?: boolean; structuralIdentity?: boolean } = {},
   ): number | null => {
     const key = [
       command.type,
@@ -138,7 +169,7 @@ export function buildVerifiedDiagramPresentation(
       command.visualStyle?.labelLeader ? "labelLeader" : "",
       command.visualStyle?.measurementRole ? command.semanticRef?.entityId ?? "" : "",
       command.semanticRef?.actionId ?? "",
-    ].join(":");
+    ].join(":") + (options.structuralIdentity ? `:${command.semanticRef?.entityId}:${command.semanticRef?.primitiveId}` : "");
     if (commandKeys.has(key)) return null;
     commandKeys.add(key);
     const index = commands.push(command) - 1;
@@ -185,16 +216,18 @@ export function buildVerifiedDiagramPresentation(
         continue;
       }
       const structuralSymbol = primitive.kind === "label" && command.type === "LABEL" && structuralSymbolIds.has(primitive.entityId);
-      const commandPhase = primitive.provenance?.matrixCell || structuralSymbol
+      const atomicNeutralLabel = neutralPolicy?.isAtomicLabel(primitive, styled) === true;
+      const structuralIdentity = structuralSymbol || atomicNeutralLabel;
+      const commandPhase = primitive.provenance?.matrixCell || structuralIdentity
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const answerLabel = !structuralSymbol && (command.type === "LABEL" || command.type === "DIMENSION") &&
+      const answerLabel = !structuralIdentity && (command.type === "LABEL" || command.type === "DIMENSION") &&
         (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId)));
       if (answerLabel) {
         answerTargets.add(primitive.entityId);
         answerGroupIds.add(primitive.groupId);
       }
-      const deferReason = (structuralSymbol ? null : answerLabel ? "answer" : deferralReason(
+      const deferReason = (structuralIdentity ? null : answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
@@ -205,7 +238,7 @@ export function buildVerifiedDiagramPresentation(
             && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"
               || primitive.provenance?.labelLeader === true)),
       )) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
-      const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
+      const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null, structuralIdentity });
       if (deferReason !== null && index !== null) {
         deferred.push({
           index,
@@ -430,7 +463,9 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
     ? { ...segment, sceneText: true }
     : segment));
 
-  return { diagram, introSegments: spokenIntro };
+  const presentation = { diagram, introSegments: spokenIntro };
+  neutralPolicy?.assertComplete(presentation);
+  return presentation;
 }
 
 const SCALE_DISCLAIMER = /Do not read scale from this figure\.?/gi;

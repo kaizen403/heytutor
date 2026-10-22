@@ -1,0 +1,368 @@
+{
+  "schema": "chemistry-independent-new-review4-golds/v1",
+  "frozenAtUtc": "2026-10-19T16:51:41.739609+00:00",
+  "beforeAnyCurrentReview4CandidateOutputs": true,
+  "remoteReview": "/Users/kaizen/conductor/workspaces/heytutor/honolulu/.context/chem/coverage95/overnight-19-oct-v1/pr138-computational-constant-v1/REMOTE-REVIEW-BEFORE-DIRECTIVE.json",
+  "remoteReviewSha256": "da2948cf5f29ad274d5025f2941c9630da68403ae66983f76604b5a402ecd792",
+  "rows": [
+    {
+      "finding": "first-order-scope",
+      "id": "ode-exp-exact",
+      "question": "A first-order ODE has solution y = exp(-x). Plot y = exp(-x).",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "function": "exp(-x)",
+        "sourceFunctionMustStayExact": true,
+        "requiredPoints": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.36787944117144233
+          ]
+        ],
+        "noChemicalRadioactiveIdentity": true
+      },
+      "exactReviewQuestion": true
+    },
+    {
+      "finding": "first-order-scope",
+      "id": "ode-scaled-exp-transfer",
+      "question": "A first-order differential equation has solution y = 2*exp(-3*x). Plot y = 2*exp(-3*x).",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "function": "2*exp(-3*x)",
+        "requiredPoints": [
+          [
+            0,
+            2
+          ],
+          [
+            1,
+            0.09957413673572789
+          ]
+        ],
+        "noChemicalRadioactiveIdentity": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "first-order-scope",
+      "id": "ode-other-exp-transfer",
+      "question": "For a first-order ODE, sketch y = exp(-2*x).",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "function": "exp(-2*x)",
+        "requiredPoints": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0.1353352832366127
+          ]
+        ],
+        "noChemicalRadioactiveIdentity": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "first-order-scope",
+      "id": "decay-unread-half-life",
+      "question": "A first-order decay process has half-life unreadable min. Plot the fraction remaining after 60 min.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "reason": "Actual requested decay law lacks a readable half-life. No default fraction/exponent, no unrelated explicit-function fallback."
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "series-parallel-twelve-exact",
+      "question": "Three 12 ohm resistors in series and in parallel. Using Kirchhoff's laws, find both equivalent resistances and draw each circuit.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "views": [
+          "series",
+          "parallel"
+        ],
+        "resistorsPerView": 3,
+        "eachResistanceOhm": 12,
+        "seriesEquivalentOhm": 36,
+        "parallelEquivalentOhm": 4,
+        "mustRepresentBothSourceTopologies": true,
+        "noIllustrativeExampleSubstitution": true
+      },
+      "exactReviewQuestion": true
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "series-parallel-eight-transfer",
+      "question": "Four 8 ohm resistors are connected in series and in parallel. Using Kirchhoff's laws, calculate both equivalent resistances and sketch both circuits.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "views": [
+          "series",
+          "parallel"
+        ],
+        "resistorsPerView": 4,
+        "eachResistanceOhm": 8,
+        "seriesEquivalentOhm": 32,
+        "parallelEquivalentOhm": 2,
+        "noIllustrativeExampleSubstitution": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "series-parallel-six-transfer",
+      "question": "Two 6 ohm resistors are connected in series and in parallel. Apply Kirchhoff's laws and draw both arrangements with their equivalent resistances.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "views": [
+          "series",
+          "parallel"
+        ],
+        "resistorsPerView": 2,
+        "eachResistanceOhm": 6,
+        "seriesEquivalentOhm": 12,
+        "parallelEquivalentOhm": 3,
+        "noIllustrativeExampleSubstitution": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "missing-two-circuits",
+      "question": "Using Kirchhoff's laws, calculate both equivalent resistances for the two circuits shown in the missing figure. Draw those circuits.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "reason": "No actual particular topology/components supplied. A law mention cannot license invented two-view series/parallel or an example."
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "emitted-particle-role",
+      "id": "postnoun-emitted-exact",
+      "question": "Photon energy is 5 eV and work function is 3 eV. The electrons emitted from the metal have kinetic energy 2 eV. Draw the photoelectric energy balance.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "photonEV": 5,
+        "workEV": 3,
+        "givenEmittedKineticEV": 2,
+        "derivedKineticEV": 2,
+        "allThreeEnergyLiteralsOwned": true
+      },
+      "exactReviewQuestion": true
+    },
+    {
+      "finding": "emitted-particle-role",
+      "id": "postnoun-released-transfer",
+      "question": "Photon energy is 4 eV; work function is 1.5 eV. The electrons released by the surface have kinetic energy 2.5 eV. Sketch the photoelectric energy balance.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": true,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "photonEV": 4,
+        "workEV": 1.5,
+        "givenEmittedKineticEV": 2.5,
+        "derivedKineticEV": 2.5,
+        "allThreeEnergyLiteralsOwned": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "emitted-particle-role",
+      "id": "postnoun-incident-negative",
+      "question": "Photon energy is 5 eV and work function is 3 eV. The electrons incident on the metal have kinetic energy 2 eV. Draw the photoelectric energy balance.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "reason": "Incoming electron kinetic energy cannot become emitted-photoelectron givenK even if its number coincides with E-phi. Whole source energy inventory remains unowned; decline."
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "emitted-particle-role",
+      "id": "postnoun-emitted-conflict",
+      "question": "Photon energy is 5 eV and work function is 3 eV. The electrons emitted from the metal have kinetic energy 3 eV. Draw the photoelectric energy balance.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "reason": "Source given emittedK3 disagrees with photonE5-work3=2. Whole figure must decline; no dropping or overwriting the literal."
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "threshold-with-emitted-result",
+      "id": "threshold-stopping-exact",
+      "question": "Photoelectric emission: work function is 2 eV; threshold wavelength is 620 nm; stopping potential is 2 V. Take hc = 1240 eV nm. Draw the energy balance.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": null,
+      "safeDeclineIsUnwaivedAvailabilityFailure": true,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "workEV": 2,
+        "thresholdNM": 620,
+        "hcEVNM": 1240,
+        "givenStoppingV": 2,
+        "kineticEV": 2,
+        "derivedIncidentEV": 4,
+        "thresholdIsNotIncidentWavelength": true,
+        "allSourceValuesMustRemainVisibleOrExplicitlyBoundWithCorrectRelation": true,
+        "ifDrawRequired": "No arbitrary kinetic gap. Preserve2V; one electron eV conversion yieldsK2eV and conservation yieldsE4eV, labelled as derived rather than a supplied photon measurement."
+      },
+      "exactReviewQuestion": true
+    },
+    {
+      "finding": "threshold-with-emitted-result",
+      "id": "threshold-stopping-one-transfer",
+      "question": "The work function is 2 eV and cutoff wavelength is 620 nm. The stopping potential is 1 V. Take hc = 1240 eV nm. Draw the photoelectric energy balance.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": null,
+      "safeDeclineIsUnwaivedAvailabilityFailure": true,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "workEV": 2,
+        "thresholdNM": 620,
+        "hcEVNM": 1240,
+        "givenStoppingV": 1,
+        "kineticEV": 1,
+        "derivedIncidentEV": 3,
+        "thresholdIsNotIncidentWavelength": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "threshold-with-emitted-result",
+      "id": "threshold-given-k-transfer",
+      "question": "Photoelectric emission: work function is 2 eV; threshold wavelength is 620 nm; maximum kinetic energy of the emitted electrons is 1.5 eV. Take hc = 1240 eV nm. Draw the energy balance.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": null,
+      "safeDeclineIsUnwaivedAvailabilityFailure": true,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "workEV": 2,
+        "thresholdNM": 620,
+        "hcEVNM": 1240,
+        "givenEmittedKineticEV": 1.5,
+        "derivedIncidentEV": 3.5,
+        "thresholdIsNotIncidentWavelength": true
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "threshold-with-emitted-result",
+      "id": "threshold-k-stopping-conflict",
+      "question": "Photoelectric emission: work function is 2 eV; threshold wavelength is 620 nm; maximum kinetic energy of the emitted electrons is 1 eV; stopping potential is 2 V. Take hc = 1240 eV nm. Draw the energy balance.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "safeDeclineIsUnwaivedAvailabilityFailure": false,
+      "mustNeverDrawPartialCandidate": true,
+      "scientificGold": {
+        "reason": "Given K1eV contradicts Vstop2V, which impliesK2eV. No symbolic missing-incident return may discard either result."
+      },
+      "exactReviewQuestion": false
+    },
+    {
+      "finding": "threshold-with-emitted-result",
+      "id": "zero-stopping-no-positive-emission-proof",
+      "question": "A metal has work function 2 eV and threshold wavelength 620 nm. Its stopping potential is 0 V. Take hc = 1240 eV nm. Draw the photoelectric energy balance.",
+      "expectedWholePublicDraw": false,
+      "scientificGold": {
+        "workEV": 2,
+        "thresholdNM": 620,
+        "givenStoppingV": 0,
+        "hcEVNM": 1240,
+        "incidentEnergyNotUniquelyDetermined": true,
+        "reason": "The threshold wavelength is a property of this metal, not a measured incident wavelength. A zero indicated stopping potential without established threshold emission does not establish a positive photoelectron-energy measurement; subthreshold light/no emission also gives no required retarding voltage. Do not invent incidentE=phi or a positive kinetic gap.",
+        "requiredOutcome": "Honest whole-turn decline for this incomplete source; do not discard0V into a symbolic arbitrarygap view."
+      },
+      "expectedScientificAvailability": false
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "uniform-roster-conflicting-member-declaration",
+      "question": "Three 12 ohm resistors R1, R2 and R3 are connected in series and in parallel. R1 = 15 ohm. Using Kirchhoff's laws, find both equivalent resistances and draw each circuit.",
+      "expectedScientificAvailability": false,
+      "expectedWholePublicDraw": false,
+      "scientificGold": {
+        "rosterCount": 3,
+        "uniformEachOhm": 12,
+        "namedMember": "R1",
+        "conflictingNamedOhm": 15,
+        "reason": "R1 is explicitly in the three-member uniform12ohm roster and independently declared15ohm. No single component assignment satisfies both statements. Wholefigure mustdecline, not drop nameddeclaration or treat it as a fourth/backgroundcomponent.",
+        "completeSourceInventoryRequired": true
+      }
+    },
+    {
+      "finding": "law-example-scope",
+      "id": "uniform-prefixed-kiloohm-roster",
+      "question": "Three 1 k\u03a9 resistors in series and in parallel. Using Kirchhoff's laws, find both equivalent resistances and draw each circuit.",
+      "expectedScientificAvailability": true,
+      "expectedWholePublicDraw": null,
+      "honestUnsupportedDeclineIsUnwaivedAvailabilityFailure": true,
+      "scientificGold": {
+        "views": [
+          "series",
+          "parallel"
+        ],
+        "resistorsPerView": 3,
+        "statedEach": "1 k\u03a9",
+        "eachResistanceOhm": 1000,
+        "seriesEquivalentOhm": 3000,
+        "parallelEquivalentOhm": 333.3333333333333,
+        "parallelEquivalentExact": "1000/3 ohm",
+        "requiredSourceScale": 1000,
+        "ifDrawn": "Both actual three-resistor source arrangements must carry correct1k\u03a9/1000\u03a9 component values and derived3000\u03a9/1000/3\u03a9 equivalents ifmarked. Never3\u03a9/1/3\u03a9.",
+        "sourceUnitAndScalarSpansMustBeComplete": true,
+        "noLegacyCountClamp": true
+      }
+    }
+  ],
+  "counts": {
+    "findings": 4,
+    "rows": 16,
+    "exact": 4,
+    "independentTransfers": 12,
+    "requiredPositiveAvailability": 11,
+    "requiredDeclines": 5
+  },
+  "scope": "Expected scientific source/public outcome. Honest decline on valid threshold+given-emitted-result rows remains an explicit availability failure, never RIGHT or successful coverage; a partial diagram is never accepted. No fabricated IR/givens/planner/captured-native or new capability assertion.",
+  "baseline": "Immutable authentic e1b and actualmain565; root captures genuine baseline before product changes. No QA runtime imports."
+}

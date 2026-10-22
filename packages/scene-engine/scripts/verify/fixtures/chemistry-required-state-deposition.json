@@ -1,0 +1,17 @@
+[
+  {"id":"hess-symbolic","kind":"hess","question":"Explain Hess's law using a symbolic enthalpy cycle.","draw":true},
+  {"id":"hess-paths","kind":"hess","question":"Illustrate Hess law: compare a direct path with an indirect path between the same states.","draw":true},
+  {"id":"hess-missing-step","kind":"hess","question":"Using Hess law, Step 1 has ΔH = unknown kJ. Draw the cycle.","draw":false},
+  {"id":"hess-absent-figure","kind":"hess","question":"Explain Hess law using the cycle shown below.","draw":false},
+  {"id":"deposition-copper","kind":"deposition","question":"A current of 1 A passes through aqueous CuSO4 for 20 minutes with inert electrodes. Find the mass of copper deposited at the cathode. Molar mass of Cu = 63.5 g/mol; F = 96500 C/mol.","draw":true,"ampere":1,"seconds":1200,"molarMass":63.5,"faraday":96500,"grams":0.39481865284974094},
+  {"id":"deposition-renamed-values","kind":"deposition","question":"Aqueous copper sulphate is electrolysed with inert electrodes using a current of 3 A for 10 min. Calculate the mass of copper deposited. Molar mass of Cu = 64 g/mol; F = 96500 C/mol.","draw":true,"ampere":3,"seconds":600,"molarMass":64,"faraday":96500,"grams":0.5968911917098446},
+  {"id":"deposition-unread-current","kind":"deposition","question":"A current of unknown A passes through aqueous CuSO4 for 20 minutes with inert electrodes. Find the mass of copper deposited at the cathode. Molar mass of Cu = 63.5 g/mol; F = 96500 C/mol.","draw":false},
+  {"id":"deposition-unread-time","kind":"deposition","question":"A current of 1 A passes through aqueous CuSO4 for unknown minutes with inert electrodes. Find the mass of copper deposited at the cathode. Molar mass of Cu = 63.5 g/mol; F = 96500 C/mol.","draw":false},
+  {"id":"deposition-conflicting-mass","kind":"deposition","question":"A current of 1 A passes through aqueous CuSO4 for 20 minutes with inert electrodes. Find the mass of copper deposited at the cathode. Molar mass of Cu = 63.5 g/mol; molar mass of Cu = 64 g/mol; F = 96500 C/mol.","draw":false},
+  {"id":"deposition-foreign-metal","kind":"deposition","question":"A current of 1 A passes through aqueous CuSO4 for 20 minutes with inert electrodes. Find the mass of silver deposited at the cathode. Molar mass of Ag = 108 g/mol; F = 96500 C/mol.","draw":false},
+  {"id":"deposition-invalid-faraday","kind":"deposition","question":"A current of 1 A passes through aqueous CuSO4 for 20 minutes with inert electrodes. Find the mass of copper deposited at the cathode. Molar mass of Cu = 63.5 g/mol; F = unknown C/mol.","draw":false},
+  {"id":"catalyst-request-list","kind":"catalyst","question":"Draw qualitative energy profiles for an exothermic reaction with and without a catalyst and mark Ea and ΔH. No numerical energies are supplied.","draw":true},
+  {"id":"catalyst-plural","kind":"catalyst","question":"Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier per path, and mark both forward activation energies and ΔH; no numerical energies are supplied.","draw":true},
+  {"id":"catalyst-unread-given","kind":"catalyst","question":"Draw an exothermic energy profile with and without a catalyst. Ea = unknown kJ/mol. Mark Ea and ΔH.","draw":false},
+  {"id":"catalyst-wrong-dimension","kind":"catalyst","question":"Draw an exothermic energy profile with and without a catalyst. Ea = 20 kg. Mark Ea and ΔH.","draw":false}
+]

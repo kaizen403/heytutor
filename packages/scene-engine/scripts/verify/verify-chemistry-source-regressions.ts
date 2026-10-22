@@ -304,7 +304,9 @@ check("Capitalized Volt produces finite stated emf",()=>{
 for(const tail of ["1e- Volt", "1.13 Voltsjunk", "Infinity Volt", "1.13 kg", "1e- V"])check("Present malformed emf cannot enter caption: "+tail,()=>assert.equal(buildElectrochemScene("The emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is "+tail+" at 298 K.",[],false),null));
 for(const constant of ["1 x 10-5", "1 × 10⁻⁵", "1e-", "2", "-1e-5", "1e-5; Ka=2e-5"])check("Present invalid Ka forbids species table and qualitative fallback: "+constant,()=>{
  const q="50 mL of 0.1 M CH3COOH (Ka = "+constant+") is titrated with 0.1 M NaOH.";
- assert.equal(buildSolutionsGraphScene(q,[],false),null);assert.equal(buildSolutionsGraphScene(q,[],true),null);
+ if(constant==="1 × 10⁻⁵") {
+  for(const schematic of [false,true]){const r=compiled(buildSolutionsGraphScene(q,[],schematic));assert.ok(r.document.annotations.some(a=>a.text?.includes("pKa = 5")));assert.ok(!JSON.stringify(r.document.annotations).includes("4.76"));}
+ } else {assert.equal(buildSolutionsGraphScene(q,[],false),null);assert.equal(buildSolutionsGraphScene(q,[],true),null);}
 });
 check("Valid supplied Ka overrides table pKa",()=>{
  const r=compiled(buildSolutionsGraphScene("50 mL of 0.1 M CH3COOH (Ka=1e-5) is titrated with 0.1 M NaOH.",[],false));
@@ -380,7 +382,9 @@ check("Raw kinetics chemical role is case independent",()=>{
 });
 check("Unsupported scalar OCR never falls back to default half life",()=>{
  for(const scalar of ["2.5 × 10⁻³","2.5 x 10-3"]){
-  assert.equal(buildKineticsScene(`A first order reaction has rate constant ${scalar} s^-1. Find the half life.`,[],false),null);
+  const q=`A first order reaction has rate constant ${scalar} s^-1. Find the half life.`;
+  if(scalar==="2.5 × 10⁻³") {const spec=kineticsFromStem(q);assert.ok(spec);near(spec.k,.0025);near(solveKinetics(spec).tHalf,277.25887222397813);compiled(buildKineticsScene(q,[],false));}
+  else assert.equal(buildKineticsScene(q,[],false),null);
  }
 });
 
@@ -605,9 +609,14 @@ function v9CellPositive(question:string):void {
  const spec=parseCellNotation(question);assert.ok(spec,"original complete ion notation must parse");
  assert.equal(spec.anode.couple,"Zn2+/Zn");assert.equal(spec.cathode.couple,"Cu2+/Cu");
  near(spec.anode.concentrations["Zn2+"],.1);near(spec.cathode.concentrations["Cu2+"],.01);near(cellEmf(spec)?.q,10);near(cellEmf(spec)?.e,1.0705);
- const direct=compiled(buildElectrochemScene(question,[],false));near(direct.document.quantities.find(q=>q.id==="E_cell")?.value,1.0705);
+ const direct=compiled(buildElectrochemScene(question,[],false));
  assert.ok(direct.labels.includes("Zn^(2+)") && direct.labels.includes("Cu^(2+)"));assert.ok(direct.labels.includes("0.1 M") && direct.labels.includes("0.01 M"));
- const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene,"ordinary family synthesis declined");assert.equal(ordinary.family,"chem_electrochem");near(ordinary.document.quantities.find(q=>q.id==="E_cell")?.value,1.0705);
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene,"ordinary family synthesis declined");assert.equal(ordinary.family,"chem_electrochem");
+ for(const document of [direct.document,ordinary.document]) {
+  if(spec.temperatureK===undefined && spec.nernstFactor===undefined)assert.equal(document.quantities.find(q=>q.id==="E_cell"),undefined,"no source temperature means no computed Nernst voltage");
+  else near(document.quantities.find(q=>q.id==="E_cell")?.value,1.0705);
+ }
+ if(spec.temperatureK===undefined && spec.nernstFactor===undefined)v9CellPositive(question+" The temperature is 298 K.");
 }
 for(const notation of [
  "Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu",
@@ -1402,9 +1411,14 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "F2-v14",
     "question": "Calculate the emf of a Daniell cell at 298 K where Zn2+ = 10⁻¹ M and Cu2+ = 10⁻² M.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "bf12e3df16e0c71038e4276883233c9a572a43de44d1379e0fa8228aca190f1c",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": { "Zn2+": 0.1, "Cu2+": 0.01 }
   },
   {
     "id": "F2-v15",
@@ -2604,9 +2618,14 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "G-16",
     "question": "Zn|Zn2+(10⁻¹ M)||Cu2+(10⁻² M)|Cu. Calculate the emf at 298 K.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "50508c5736495e2f8386c8a8637973bc158d34e2a34f16acdc576a745abf4fe1",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": { "Zn2+": 0.1, "Cu2+": 0.01 }
   },
   {
     "id": "G-17",
@@ -2738,17 +2757,27 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "S-1",
     "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(10⁻² M)|Cu at 298 K.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "68dd8c014d835080d16bc3f9afe1273f3b2c37b02f739d52e9739274c28875c3",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": { "Zn2+": 0.1, "Cu2+": 0.01 }
   },
   {
     "id": "S-2",
     "question": "Calculate the emf of the cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu at 298 K.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "25e0d70c7d4d12ac85c78c5b139aa2bcfbf91bbf38c1db182f622c641d237d98",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": { "Zn2+": 0.1, "Cu2+": 0.01 }
   },
   {
     "id": "S-3",
@@ -2778,9 +2807,14 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "S-5",
     "question": "Calculate the emf of a Daniell cell at 298 K when [Zn2+] = 10⁻¹ M and [Cu2+] = 0.01 M.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "a7c2807edafa0297a2619a160e2e9638757edebabe6f02259921a0986cb662d3",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": { "Zn2+": 0.1, "Cu2+": 0.01 }
   },
   {
     "id": "M13-1",
@@ -3006,10 +3040,12 @@ function expandedEcUnitCompile(row:ExpandedEcUnitRow):void {
    }
   }else if(row.kind==="cell") {
    near(document.quantities.find(q=>q.id==="E0_cell")?.value,row.e0!);
-   if(Object.keys(row.activities??{}).length) {
+   const source=parseCellNotation(row.question);assert.ok(source);
+   if(row.observedE!==undefined)near(document.quantities.find(q=>q.id==="E_cell")?.value,row.observedE);
+   else if(Object.keys(row.activities??{}).length && (source.temperatureK!==undefined || source.nernstFactor!==undefined)) {
     const expectedE=Number((row.e0!-.0591/row.n!*Math.log10(row.q!)).toFixed(4));
     near(document.quantities.find(q=>q.id==="E_cell")?.value,expectedE);
-   }else assert.equal(document.quantities.find(q=>q.id==="E_cell"),undefined,"standard-only source cannot invent nonstandard E: "+row.id);
+   }else assert.equal(document.quantities.find(q=>q.id==="E_cell"),undefined,"unstated Nernst temperature/factor cannot invent nonstandard E: "+row.id);
   }
  }
  if(row.kind==="cell") {
@@ -3023,6 +3059,8 @@ function expandedEcUnitCompile(row:ExpandedEcUnitRow):void {
    assert.ok(direct.document.annotations.some(a=>a.text?.includes("emf 1.13 V as given in the question")));
   }else assert.equal(spec.statedE,undefined,"electrode/standard E° cannot become observed emf: "+row.id);
   if(row.statedE0!==undefined)near(spec.statedE0,row.statedE0);
+  if(Object.keys(row.activities??{}).length && spec.temperatureK===undefined && spec.nernstFactor===undefined && row.observedE===undefined)
+   expandedEcUnitCompile({...row,id:row.id+"-explicit298-source-sibling",question:row.question+" The temperature is 298 K."});
  }
  if(row.expectedInk!==undefined)assert.ok((direct.labels.join(" ")+" "+direct.document.annotations.map(a=>a.text??"").join(" ")).includes(row.expectedInk));
 }
@@ -3059,8 +3097,16 @@ for(const tail of [
  "Zn2+ = 0.1 M and Zn2+ = 0.2 M and Cu2+ = 0.01 M",
  "Zn2+ = 0 M and Cu2+ = 0.01 M",
  "Zn2+ = unknown M and Cu2+ = 0.01 M",
-])check("Supplied activity cannot become one-molar default: "+tail,()=>expandedEcUnitRefusal({id:tail,question:"Calculate the emf of a Daniell cell at 298 K when "+tail+".",family:"chem_electrochem",mode:"decline"}));
-for(const phase of ["Zn2+(10⁻¹ M)","Zn2+(unknown)","Zn2+(1e-)","Zn2+(0.1 M)x"])check("Damaged original phase remains an atomic refusal: "+phase,()=>expandedEcUnitRefusal({id:phase,question:"Draw the galvanic cell Zn|"+phase+"||Cu2+(0.01 M)|Cu with its salt bridge.",family:"chem_electrochem",mode:"decline"}));
+])check("Supplied activity cannot become one-molar default: "+tail,()=>{
+ const question="Calculate the emf of a Daniell cell at 298 K when "+tail+".";
+ if(tail==="Zn2+ = 10⁻¹ M and Cu2+ = 0.01 M")expandedEcUnitCompile({id:tail,question,family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:{"Zn2+":.1,"Cu2+":.01}});
+ else expandedEcUnitRefusal({id:tail,question,family:"chem_electrochem",mode:"decline"});
+});
+for(const phase of ["Zn2+(10⁻¹ M)","Zn2+(unknown)","Zn2+(1e-)","Zn2+(0.1 M)x"])check("Damaged original phase remains an atomic refusal: "+phase,()=>{
+ const question="Draw the galvanic cell Zn|"+phase+"||Cu2+(0.01 M)|Cu with its salt bridge.";
+ if(phase==="Zn2+(10⁻¹ M)")expandedEcUnitCompile({id:phase,question,family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:{"Zn2+":.1,"Cu2+":.01}});
+ else expandedEcUnitRefusal({id:phase,question,family:"chem_electrochem",mode:"decline"});
+});
 check("Agreeing original concentration readings remain bound",()=>expandedEcUnitCompile({id:"own-ion-agreement",question:"Draw Zn | Zn2+(0.1 M), Zn^2+(1e-1 M) || Cu2+(0.01 M) | Cu at 298 K.",family:"chem_electrochem",mode:"compile",kind:"cell",activities:{"Zn2+":.1,"Cu2+":.01},e0:1.1,n:2,q:10}));
 
 for(const [id,question,e0,activities] of [
@@ -3166,7 +3212,7 @@ const expandedEcUnitChallenges: readonly ExpandedEcUnitRow[] = [
     "question": "Calculate the emf of Zn | Zn2+(10⁻¹ M) || Cu2+(0.01 M) | Cu at 298 K.",
     "sourceQuestionSha256": "b689f4f5e599b6357e0525f98b6165433b61e05c745a5392fe1ccc0d55478249",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "kind": "cell",
     "e0": 1.1,
     "n": 2,
