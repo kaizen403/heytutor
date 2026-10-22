@@ -1,0 +1,448 @@
+{
+  "topic_id": "physics|2|relative-velocity-in-a-plane",
+  "question": "Rain falls vertically downward at 12 m/s. A woman walks due east on a level road at 5 m/s. Find the velocity of the rain relative to the woman, and the angle from the vertical at which she should tilt her umbrella to keep the rain off.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "rain and a walking woman, umbrella tilt"
+    },
+    "source": {
+      "question": "Rain falls vertically downward at 12 m/s. A woman walks due east on a level road at 5 m/s. Find the velocity of the rain relative to the woman, and the angle from the vertical at which she should tilt her umbrella to keep the rain off."
+    },
+    "quantities": [
+      {
+        "id": "vR",
+        "symbol": "vR",
+        "value": 12,
+        "unit": "m/s"
+      },
+      {
+        "id": "vW",
+        "symbol": "vW",
+        "value": 5,
+        "unit": "m/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "W",
+        "kind": "point",
+        "role": "walking woman",
+        "label": "W"
+      },
+      {
+        "id": "v_rain",
+        "kind": "vector",
+        "role": "falling rain velocity (A)"
+      },
+      {
+        "id": "v_woman",
+        "kind": "vector",
+        "role": "woman walking east (B)"
+      },
+      {
+        "id": "v_rel",
+        "kind": "vector",
+        "role": "rain relative to the woman"
+      },
+      {
+        "id": "Rt",
+        "kind": "point",
+        "role": "tip of rain arrow",
+        "label": "rain 12 m/s"
+      },
+      {
+        "id": "Wt",
+        "kind": "point",
+        "role": "tip of woman arrow",
+        "label": "woman 5 m/s"
+      },
+      {
+        "id": "U",
+        "kind": "point",
+        "role": "top of umbrella handle"
+      },
+      {
+        "id": "handle",
+        "kind": "segment",
+        "role": "umbrella handle"
+      },
+      {
+        "id": "K0",
+        "kind": "point",
+        "role": "canopy rear"
+      },
+      {
+        "id": "K1",
+        "kind": "point",
+        "role": "canopy front"
+      },
+      {
+        "id": "canopy",
+        "kind": "segment",
+        "role": "umbrella canopy"
+      },
+      {
+        "id": "Z",
+        "kind": "point",
+        "role": "vertical above W"
+      },
+      {
+        "id": "vertical",
+        "kind": "segment",
+        "role": "vertical"
+      },
+      {
+        "id": "theta",
+        "kind": "angle_mark",
+        "role": "umbrella tilt from vertical",
+        "label": "θ"
+      },
+      {
+        "id": "R0",
+        "kind": "point",
+        "role": "road start"
+      },
+      {
+        "id": "R1",
+        "kind": "point",
+        "role": "road end"
+      },
+      {
+        "id": "road",
+        "kind": "segment",
+        "role": "level road",
+        "label": "road"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_W",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "W"
+        ]
+      },
+      {
+        "id": "c_rel",
+        "operator": "relative_velocity",
+        "inputs": {
+          "velocityA": [
+            0,
+            "-12"
+          ],
+          "velocityB": [
+            "vW",
+            0
+          ],
+          "units": {
+            "velocity": "m/s"
+          },
+          "origin": "W",
+          "displayScale": 13
+        },
+        "outputs": [
+          "v_rain",
+          "v_woman",
+          "v_rel"
+        ]
+      },
+      {
+        "id": "c_Rt",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Rt"
+        ]
+      },
+      {
+        "id": "c_Wt",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Wt"
+        ]
+      },
+      {
+        "id": "c_U",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "U"
+        ]
+      },
+      {
+        "id": "c_handle",
+        "operator": "segment",
+        "inputs": {
+          "start": "W",
+          "end": "U"
+        },
+        "outputs": [
+          "handle"
+        ]
+      },
+      {
+        "id": "c_K0",
+        "operator": "point",
+        "inputs": {
+          "x": 2.692308,
+          "y": 12.961538,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "K0"
+        ]
+      },
+      {
+        "id": "c_K1",
+        "operator": "point",
+        "inputs": {
+          "x": 7.307692,
+          "y": 11.038462,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "K1"
+        ]
+      },
+      {
+        "id": "c_canopy",
+        "operator": "segment",
+        "inputs": {
+          "start": "K0",
+          "end": "K1"
+        },
+        "outputs": [
+          "canopy"
+        ]
+      },
+      {
+        "id": "c_Z",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Z"
+        ]
+      },
+      {
+        "id": "c_vertical",
+        "operator": "segment",
+        "inputs": {
+          "start": "W",
+          "end": "Z"
+        },
+        "outputs": [
+          "vertical"
+        ]
+      },
+      {
+        "id": "c_theta",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "W",
+          "a": "U",
+          "b": "Z",
+          "radius": 4
+        },
+        "outputs": [
+          "theta"
+        ]
+      },
+      {
+        "id": "c_R0",
+        "operator": "point",
+        "inputs": {
+          "x": -7,
+          "y": -14,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "R0"
+        ]
+      },
+      {
+        "id": "c_R1",
+        "operator": "point",
+        "inputs": {
+          "x": 10,
+          "y": -14,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "R1"
+        ]
+      },
+      {
+        "id": "c_road",
+        "operator": "segment",
+        "inputs": {
+          "start": "R0",
+          "end": "R1"
+        },
+        "outputs": [
+          "road"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "handle_along_rel",
+        "predicate": "parallel",
+        "entities": [
+          "handle",
+          "v_rel"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "canopy_square",
+        "predicate": "perpendicular",
+        "entities": [
+          "canopy",
+          "handle"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "rain_vertical",
+        "predicate": "perpendicular",
+        "entities": [
+          "v_rain",
+          "road"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "walk_along_road",
+        "predicate": "parallel",
+        "entities": [
+          "v_woman",
+          "road"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "W",
+      "v_rain",
+      "v_woman",
+      "v_rel",
+      "Rt",
+      "Wt",
+      "U",
+      "handle",
+      "K0",
+      "K1",
+      "canopy",
+      "Z",
+      "vertical",
+      "theta",
+      "R0",
+      "R1",
+      "road"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "R0",
+          "R1",
+          "road",
+          "W",
+          "v_rain",
+          "Rt",
+          "v_woman",
+          "Wt"
+        ],
+        "dependsOn": [],
+        "narrationCue": "rain falls vertically; she walks east"
+      },
+      {
+        "id": "relative",
+        "entityIds": [
+          "v_rel"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "rain relative to her: vA minus vB"
+      },
+      {
+        "id": "umbrella",
+        "entityIds": [
+          "U",
+          "handle",
+          "K0",
+          "K1",
+          "canopy",
+          "Z",
+          "vertical",
+          "theta"
+        ],
+        "dependsOn": [
+          "relative"
+        ],
+        "narrationCue": "tilt the umbrella forward by θ, against the relative rain"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "rain falls vertically; she walks east"
+      },
+      {
+        "id": "reveal_relative",
+        "action": "reveal",
+        "targetId": "relative",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "rain relative to her: vA minus vB"
+      },
+      {
+        "id": "reveal_umbrella",
+        "action": "reveal",
+        "targetId": "umbrella",
+        "dependsOn": [
+          "reveal_relative"
+        ],
+        "narrationIntent": "tilt the umbrella forward by θ, against the relative rain"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}
