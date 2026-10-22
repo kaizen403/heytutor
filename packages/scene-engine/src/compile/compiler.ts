@@ -5425,6 +5425,9 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
  * of a ray's start); the caller still proves the two arms perpendicular.
  */
 function resolveRightAngleArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+  // The 2D guard is never a fallback condition: a world, page-normal or
+  // nonmetric owner refuses here, before the line through vertex reading.
+  if (typeof value === "string") assertPlanarGeometry(geometry.get(value));
   try {
     return resolveAngleArmPoint(value, vertex, geometry);
   } catch (error) {

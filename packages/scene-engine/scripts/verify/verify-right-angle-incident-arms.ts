@@ -21,10 +21,11 @@ function fixture(endpoint = false): SceneDocument {
     revealGroups: [{ id: "setup", entityIds: ["O", "A", "B", "C", "D", "horizontal", "vertical", "mark"], dependsOn: [], narrationCue: "Show the arms and their mark." }], teachingTimeline: [],
   };
 }
-interface Case { id: string; document: SceneDocument; draws: boolean }
-function vary(id: string, draws: boolean, edit: (doc: SceneDocument) => void, endpoint = false): Case {
-  const document = fixture(endpoint); edit(document); return { id, document, draws };
+interface Case { id: string; document: SceneDocument; draws: boolean; refusal?: string }
+function vary(id: string, draws: boolean, edit: (doc: SceneDocument) => void, endpoint = false, refusal?: string): Case {
+  const document = fixture(endpoint); edit(document); return { id, document, draws, ...(refusal ? { refusal } : {}) };
 }
+const WORLD_REFUSAL = "2D constructions cannot discard world metadata";
 const input = (doc: SceneDocument, id: string) => doc.constructions.find(candidate => candidate.outputs.includes(id))!.inputs;
 const cases: Case[] = [
   { id: "finite-interior-incidence", document: fixture(), draws: true },
@@ -78,6 +79,9 @@ const cases: Case[] = [
     doc.entities.find(e => e.id === "horizontal")!.kind = "line";
     doc.requiredEntityIds.push("space", "S"); doc.revealGroups[0]!.entityIds.push("space", "S");
   }),
+  // A space_line along world y through the frame origin projects to a page
+  // line through the 2D vertex, so the line through vertex reading would
+  // accept it; the 2D guard must refuse it first (PR #249 review).
   vary("unset-mode-world-space-owner-cannot-be-flattened", false, doc => {
     delete input(doc, "mark").incidentLineArms;
     doc.entities.push({ id: "space", kind: "polyline", role: "world frame" }, { id: "S", kind: "point", role: "world point" });
@@ -85,10 +89,10 @@ const cases: Case[] = [
       { id: "make_space", operator: "space_frame", inputs: { origin: "O" }, outputs: ["space"] },
       { id: "make_S", operator: "space_point", inputs: { frame: "space", x: 0, y: 0, z: 0 }, outputs: ["S"] });
     const construction = doc.constructions.find(c => c.outputs.includes("horizontal"))!;
-    construction.operator = "space_line"; construction.inputs = { frame: "space", point: "S", direction: [1, 0, 0], tMin: -2, tMax: 2 };
+    construction.operator = "space_line"; construction.inputs = { frame: "space", point: "S", direction: [0, 1, 0], tMin: -2, tMax: 2 };
     doc.entities.find(e => e.id === "horizontal")!.kind = "line";
     doc.requiredEntityIds.push("space", "S"); doc.revealGroups[0]!.entityIds.push("space", "S");
-  }),
+  }, false, WORLD_REFUSAL),
   vary("incident-mode-needs-stroke-ids-not-point-ids", false, doc => { input(doc, "mark").a = "B"; input(doc, "mark").b = "D"; }, true),
   ...["true", 1, null, undefined].map((value, index) => vary(`nonboolean-option-${index}`, false, doc => { input(doc, "mark").incidentLineArms = value; }, true)),
   vary("angle-mark-cannot-request-the-new-mode", false, doc => {
@@ -102,6 +106,7 @@ for (const test of cases) {
   try {
     assert.deepEqual(test.document, before, "the native constructor cannot mutate its caller's document");
     assert.equal(result.ok && result.renderScene !== null, test.draws, JSON.stringify(result.report.issues));
+    if (test.refusal) assert.ok(JSON.stringify(result.report.issues).includes(test.refusal), `refused for the wrong reason: ${JSON.stringify(result.report.issues)}`);
     if (test.draws) assert.ok(result.renderScene!.primitives.some(primitive => primitive.entityId === "mark" && primitive.kind !== "label"));
     console.log(`PASS ${test.id}`);
   } catch (error) { failed.push(test.id); console.error(`FAIL ${test.id}: ${error instanceof Error ? error.message : String(error)}`); }
