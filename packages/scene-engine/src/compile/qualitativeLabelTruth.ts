@@ -12,7 +12,7 @@ import { parseMathExpression2D } from "../math/expression";
 import type { SceneDocument, SceneIssue } from "../types";
 
 type Point = { x: number; y: number };
-type PathLike = { kind: string; points?: Point[] };
+type PathLike = { kind: string; points?: Point[]; sampledCurve?: unknown };
 
 const FUNCTIONS = new Set(["sin", "cos", "tan", "sec", "csc", "cot", "asin", "acos", "atan", "sinh", "cosh", "tanh", "sqrt", "abs", "exp", "log", "ln", "pi", "e"]);
 const CURVE_KINDS = new Set(["line", "segment", "ray", "polyline", "curve", "function_curve"]);
@@ -20,8 +20,9 @@ const CURVE_KINDS = new Set(["line", "segment", "ray", "polyline", "curve", "fun
 function equationOf(text: string): { lhs: string; rhs: string } | null {
   // Allow a leading element name ("L: y = 2x + 1", "L₁ : ...").
   const body = text.replace(/^\s*[A-Za-z][A-Za-z0-9₀-₉_′']{0,3}\s*:\s*/, "").replace(/−/g, "-").trim()
-    // Function notation names the ordinate: "f(x) = x²" is y = x².
-    .replace(/^[A-Za-z][A-Za-z0-9₀-₉_]{0,2}\s*\(\s*x\s*\)\s*=/, "y =");
+    // Function notation names the ordinate: "f(x) = x²" is y = x². A built-in
+    // function ("sin(x) = 2y") is an expression, not a name.
+    .replace(/^([A-Za-z][A-Za-z0-9₀-₉_]{0,2})\s*\(\s*x\s*\)\s*=/, (match, name: string) => FUNCTIONS.has(name.toLowerCase()) ? match : "y =");
   const sides = body.split("=");
   if (sides.length !== 2 || !sides[0]!.trim() || !sides[1]!.trim()) return null;
   if (!/(?<![A-Za-z])[xy](?![A-Za-z])/.test(body)) return null;
@@ -44,6 +45,9 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
   // Quantities with numeric values may appear by symbol or id in an equation.
   const bound = new Set(document.quantities.filter((quantity) => typeof quantity.value === "number")
     .flatMap((quantity) => [quantity.id, typeof quantity.symbol === "string" ? quantity.symbol : ""]).filter(Boolean));
+  const values: Array<[string, number]> = document.quantities.filter((quantity) => typeof quantity.value === "number")
+    .flatMap((quantity) => [quantity.id, typeof quantity.symbol === "string" ? quantity.symbol : ""].filter((name) => name && name !== "x" && name !== "y").map((name): [string, number] => [name, quantity.value as number]))
+    .sort((a, b) => b[0].length - a[0].length);
   const coordinateLabel = /^\s*\(\s*[+\-−]?\d+(?:\.\d+)?\s*,\s*[+\-−]?\d+(?:\.\d+)?\s*\)\s*$/;
   const pinnedPoints = (ownerId: string): number => {
     const value = geometry.get(ownerId) as PathLike | undefined;
@@ -53,7 +57,11 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
       const a = path[i]!; const dx = b.x - a.x, dy = b.y - a.y; const span = Math.hypot(dx, dy) || 1;
       return Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / span <= 1e-6 * Math.max(1, span);
     });
-    return document.entities.filter((entity) => entity.kind === "point" && typeof entity.label === "string" && coordinateLabel.test(entity.label))
+    // Coordinates may be shown by the point's own label or by a label annotation on it.
+    const shown = (entity: SceneDocument["entities"][number]) => (typeof entity.label === "string" && coordinateLabel.test(entity.label)) ||
+      document.annotations.some((annotation) => (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.length === 1
+        && annotation.targetIds[0] === entity.id && typeof annotation.text === "string" && coordinateLabel.test(annotation.text));
+    return document.entities.filter((entity) => entity.kind === "point" && shown(entity))
       .map((entity) => (geometry.get(entity.id) as { kind?: string; point?: Point } | undefined))
       .filter((value) => value?.kind === "point" && value.point && near(value.point)).length;
   };
@@ -75,14 +83,26 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
     let relation: ReturnType<typeof parseMathExpression2D>;
     try {
       // Written labels use implicit products ("2x", "3(x - 2)", "(x+1)(x-1)").
-      const product = (side: string) => side.replace(/(\d)\s*([A-Za-z(])/g, "$1*$2").replace(/\)\s*([A-Za-z0-9(])/g, ")*$1").replace(/([xy])\s*\(/g, "$1*(");
-      relation = parseMathExpression2D(`(${product(equation.lhs)})-(${product(equation.rhs)})`);
+      // Scientific notation ("1e-3") is a number, not a product with e.
+      const product = (side: string) => side.replace(/(\d)\s*(?![eE][+-]?\d)([A-Za-z(])/g, "$1*$2").replace(/\)\s*([A-Za-z0-9(])/g, ")*$1").replace(/([xy])\s*\(/g, "$1*(");
+      // Known quantities ("m = 2") are checked with their values, not skipped.
+      const known = (side: string) => values.reduce((text, [name, value]) => text.replace(new RegExp(`(?<![A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "g"), `(${value})`), side);
+      relation = parseMathExpression2D(`(${product(known(equation.lhs))})-(${product(known(equation.rhs))})`);
     } catch {
       return; // Notation the checker cannot read is not evidence of a false label.
     }
     const value = geometry.get(ownerId) as PathLike | undefined;
-    const points = value?.kind === "path" ? value.points ?? [] : [];
-    if (points.length < 2) return;
+    const vertices = value?.kind === "path" ? value.points ?? [] : [];
+    if (vertices.length < 2) return;
+    // A false equation can agree at the two ends of a straight piece ("y = x²"
+    // on the segment from (0, 0) to (1, 1)); test inside every piece too.
+    // A sampled curve's vertices are exact samples; only straight pieces are interpolated.
+    const sampled = (value as { sampledCurve?: unknown }).sampledCurve !== undefined;
+    const points = vertices.flatMap((point, index) => {
+      const next = vertices[index + 1];
+      if (!next || sampled) return [point];
+      return [0, 0.25, 0.5, 0.75].map((t) => ({ x: point.x + (next.x - point.x) * t, y: point.y + (next.y - point.y) * t }));
+    });
     const scale = Math.max(1, ...points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y))));
     const misses = points.some((point) => {
       try {

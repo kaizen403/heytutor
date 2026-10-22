@@ -41,6 +41,33 @@ assert(!codes(lineDocument("y - 3 = m(x - 2)", [undefined, undefined])).includes
 assert(compileSceneDocument(lineDocument("f(x)=4.5-0.75x")).ok, "function notation names the ordinate, not a free parameter");
 assert(codes(lineDocument("f(x) = 2x")).includes("equation_label_contradicts_geometry"), "a false function-notation label is still refused");
 
+// Greptile #235 threads: each case below failed before its fix.
+assert(!codes(lineDocument("y=4.5-7.5e-1x")).includes("equation_label_contradicts_geometry"), "scientific notation is a number, not a product with e");
+assert(codes(lineDocument("y=4.5-.75x+(x-2)(x-6)")).includes("equation_label_contradicts_geometry"), "a false equation that agrees only at both ends is refused");
+{
+  const annotated = lineDocument("y - 3 = m(x - 2)", [undefined, undefined]);
+  annotated.annotations.push({ id: "pc", kind: "label", targetIds: ["P"], text: "(2, 3)" }, { id: "ac", kind: "label", targetIds: ["A"], text: "(6, 0)" });
+  assert(codes(annotated).includes("equation_label_unbound_parameter"), "coordinates shown by label annotations also pin the member");
+}
+{
+  const withSlope = (value: number) => { const d = lineDocument("y - 3 = m(x - 2)"); d.quantities = [{ id: "m", symbol: "m", value }]; return d; };
+  assert(!codes(withSlope(-0.75)).some((code) => code.startsWith("equation_label")), "a known slope that matches passes");
+  assert(codes(withSlope(2)).includes("equation_label_contradicts_geometry"), "a known slope that does not match is refused");
+  const coordinateNamed = lineDocument("y=4.5-0.75*x"); coordinateNamed.quantities = [{ id: "dx", symbol: "x", value: -1 }, { id: "dy", symbol: "y", value: 5 }];
+  assert(!codes(coordinateNamed).some((code) => code.startsWith("equation_label")), "a quantity named x or y never replaces a coordinate");
+}
+{
+  const curve: SceneDocument = {
+    schemaVersion: "scene-document/v2", source: { question: "Sketch y = sin(x)/2." }, visualDecision: { mode: "scene", reason: "curve" }, quantities: [],
+    entities: [{ id: "ax", kind: "axes", role: "axes" }, { id: "c", kind: "polyline", role: "curve", label: "sin(x)=2y" }],
+    constructions: [{ id: "make_ax", operator: "axes", inputs: { xMin: -1, xMax: 7, yMin: -1, yMax: 1 }, outputs: ["ax"] },
+      { id: "make_c", operator: "function_curve", inputs: { expression: "sin(x)/2", xMin: 0, xMax: 6 }, outputs: ["c"] }],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ["ax", "c"],
+    revealGroups: [{ id: "all", entityIds: ["ax", "c"], dependsOn: [], narrationCue: "Curve." }], teachingTimeline: [],
+  };
+  assert(!codes(curve).some((code) => code.startsWith("equation_label")), "a built-in function on the left is not function notation");
+}
+
 // 2. A polarity badge named as a field (B on a rod reads as a field along the rod).
 function badgeDocument(label: string | undefined, role: string): SceneDocument {
   return {
