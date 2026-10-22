@@ -308,7 +308,7 @@ const rejectedPlan = {
 
   // Correctly owned salvaged givens are kept, alone or beside a dropped one.
   assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8, "man walks at 8 m/s")]), ["vr=6", "vm=8"], "owned givens are kept");
-  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8, "8 m/s")]), ["vr=6"], "only the owned given is kept");
+  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8)]), ["vr=6"], "only the owned given is kept");
   assert.deepEqual(ids([{ ...vr(6, "Rain falls at 6 m/s"), symbol: "v_{rain}", id: "rain_speed" }, { ...vm(8, "man walks at 8 m/s"), symbol: "v", id: "man_speed" }]),
     ["rain_speed=6", "man_speed=8"], "an owner word in the id or a braced subscript is evidence");
   assert.equal(ids([{ ...vr(8, "man walks at 8 m/s"), symbol: "v", id: "rain_speed" }]), null, "a generic id word (speed) is no owner");
@@ -346,6 +346,44 @@ const rejectedPlan = {
     assert.deepEqual(spokenIds([asUnit(vr(6), `Rain falls at 6 ${spelled}`), asUnit(vm(8), `a man walks at 8 ${spelled}`)]), ["vr=6", "vm=8"],
       `${spelled}: owned givens are still kept`);
   }
+
+  // PR #249 second review: a one letter subscript matched any span word that
+  // starts with its letter ("rows" named r), and only the model's span was
+  // read. Evidence now comes from the question's clause around the span; a
+  // one letter token is named only by a capital label letter or by the
+  // clause's subject noun.
+  const river = "A river flows at 3 m/s and a man rows at 4 m/s. Find the time to cross.";
+  const riverIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(river, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: river, givens }, issues: claimIssue }])
+    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
+  assert.equal(riverIds([vr(4, "rows at 4 m/s"), vm(3)]), null, "the reviewer's repro: \"rows\" does not name the river, so v_r = 4 m/s is dropped");
+  assert.equal(riverIds([vr(4, "rows at 4 m/s"), vm(3, "flows at 3 m/s")]), null, "the swapped pair with verb spans keeps neither");
+  assert.deepEqual(riverIds([vr(3, "A river flows at 3 m/s"), vm(4, "a man rows at 4 m/s")]), ["vr=3", "vm=4"], "the clause subjects own the right values");
+  assert.deepEqual(riverIds([vr(3, "flows at 3 m/s"), vm(4, "rows at 4 m/s")]), ["vr=3", "vm=4"], "a verb span is read in its clause, whose subject owns it");
+  const runs = "Rain falls at 6 m/s and a man runs at 8 m/s. How should he hold his umbrella?";
+  const runIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(runs, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: runs, givens }, issues: claimIssue }])
+    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
+  assert.equal(runIds([vr(8, "runs at 8 m/s"), vm(6)]), null, "\"runs\" does not name the rain, so v_r = 8 m/s is dropped");
+  assert.equal(runIds([vr(8, "Running at 8 m/s")]), null, "a span the question never says is no evidence");
+  assert.deepEqual(ids([vr(6, "Rain falls at 6 m/s"), vm(8, "8 m/s")]), ["vr=6", "vm=8"],
+    "a bare span is read in its question clause (\"man walks at 8 m/s\"), whose subject owns it");
+  const walks = "Rain falls at 6 m/s and the man walks at 8 m/s. How should he hold his umbrella?";
+  assert.deepEqual(salvageRejectedTurnPlanV3(walks, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: walks, givens: [vm(8, "the man walks at 8 m/s")] }, issues: claimIssue }])
+    ?.givens.map((given) => `${given.id}=${given.value}`), ["vm=8"], "\"the man walks at 8 m/s\" owns v_m");
+  const boats = "Boat A moves at 3 m/s and boat B moves at 5 m/s. Find the velocity of B relative to A.";
+  const boat = (id: string, value: number, sourceText: string) => ({ id, symbol: `v_${id.slice(1)}`, value, unit: "m/s", sourceText, provenance: "given" });
+  assert.deepEqual(salvageRejectedTurnPlanV3(boats, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: boats,
+    givens: [boat("vA", 3, "Boat A moves at 3 m/s"), boat("vB", 5, "boat B moves at 5 m/s")] }, issues: claimIssue }])?.givens.map((given) => given.id), ["vA", "vB"],
+    "\"boat B moves at 5 m/s\" owns v_B");
+  // The recorded v3 p3c-t1 lane (fixtures/v3-planner-selection.json) keeps both givens.
+  const p3c = "Explain rain and umbrella problems for JEE using this example: rain falls vertically at 6 m/s and a man walks east at 8 m/s. How does the rain look to him, and how should he hold his umbrella?";
+  assert.deepEqual(salvageRejectedTurnPlanV3(p3c, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: p3c,
+    givens: [{ ...vr(6, "rain falls vertically at 6 m/s"), sign: "-" }, { ...vm(8, "man walks east at 8 m/s"), sign: "+" }] }, issues: claimIssue }])
+    ?.givens.map((given) => `${given.id}=${given.value}`), ["vr=6", "vm=8"], "the recorded p3c-t1 givens are kept");
+  // A clause that names a second owner of this kind is still no evidence.
+  const shared = "A man walks at 8 m/s in the rain, and rain falls at 6 m/s.";
+  assert.equal(salvageRejectedTurnPlanV3(shared, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: shared,
+    givens: [{ ...vm(8, "walks at 8 m/s"), id: "man_speed", symbol: "v" }, { ...vr(6, "rain falls at 6 m/s"), id: "rain_speed", symbol: "v" }] }, issues: claimIssue }])
+    ?.givens.map((given) => given.id).includes("man_speed"), false, "a clause naming the rain too does not own the man's speed");
 }
 
 console.log("verify-v3-planner-selection: exact-source ranking and grace, retry feedback and budget, and question-stated salvage hold");

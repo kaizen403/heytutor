@@ -607,21 +607,83 @@ function givenOwnerTokens(id: string, symbol: string): string[] {
   ])].filter((token) => !GENERIC_OWNER_WORDS.has(token));
 }
 
-/** Whether a clause word names an owner token: a label letter exactly, else a word the token starts or abbreviates. */
-function clauseWordNamesToken(word: string, token: string): boolean {
-  if (word.length === 1) return /\p{Lu}/u.test(word) && token === word.toLowerCase();
+/** Where one clause of a question ends: sentence punctuation, a comma, or a joining word. */
+const CLAUSE_BOUNDARY = /[.;:!?](?=\s|$)|,(?!\d)|\s(?:and|but|while|whilst|whereas)\s/giu;
+/** Words before a clause's subject noun that are not it ("a", "the", "his"). */
+const SUBJECT_LEAD_WORDS = new Set([
+  "a", "an", "the", "this", "that", "these", "those", "his", "her", "its", "their", "our", "my", "your", "each", "every",
+  "another", "one", "some", "if", "when", "while", "now", "suppose", "then", "also", "and", "so",
+]);
+/** Words that stand for a subject without naming it. */
+const PRONOUNS = new Set(["he", "she", "it", "they", "we", "you", "i", "him", "them", "there", "here", "who", "which"]);
+
+/**
+ * The clauses of the question that contain this span, one per place the span
+ * occurs: the span widened to the clause boundaries around it (a span that
+ * crosses a boundary takes in both clauses). Empty when the question never
+ * says the span.
+ */
+function questionClausesAround(question: string, span: string): string[] {
+  const flat = (text: string) => text.normalize("NFC").replace(/[−–—]/g, "-").replace(/\s+/g, " ").trim();
+  const asked = flat(question);
+  const lowerAsked = asked.toLowerCase();
+  const source = flat(span).toLowerCase().replace(/[.,;:!?]+$/, "");
+  if (!source || lowerAsked.length !== asked.length) return [];
+  const boundaries = [...asked.matchAll(CLAUSE_BOUNDARY)].map((match) => [match.index ?? 0, (match.index ?? 0) + match[0].length] as const);
+  const clauses: string[] = [];
+  for (let at = lowerAsked.indexOf(source); at >= 0; at = lowerAsked.indexOf(source, at + 1)) {
+    const end = at + source.length;
+    const before = boundaries.filter(([, stop]) => stop <= at).at(-1);
+    const after = boundaries.find(([begin]) => begin >= end);
+    clauses.push(asked.slice(before?.[1] ?? 0, after?.[0] ?? asked.length));
+  }
+  return clauses;
+}
+
+/**
+ * The subject noun of a clause: its first word before the stated value, past
+ * articles and possessives, when another word follows it before the value
+ * ("rain" of "Rain falls at 6 m/s", "man" of "a man rows at 4 m/s"). None
+ * when that word is a pronoun, a joining word, a participle or adverb
+ * ("Running at 8 m/s") or has no verb after it ("falls at 6 m/s").
+ */
+function clauseSubjectNoun(clause: string): string | undefined {
+  const firstNumber = clause.search(/(?<![\w.^])-?(?:\d|\.\d)/u);
+  const lead = (firstNumber < 0 ? clause : clause.slice(0, firstNumber)).match(/\p{L}+/gu) ?? [];
+  const index = lead.findIndex((word) => !SUBJECT_LEAD_WORDS.has(word.toLowerCase()));
+  const word = lead[index]?.toLowerCase();
+  if (!word || word.length < 2 || PRONOUNS.has(word) || CLAUSE_STOPWORDS.has(word) || /(?:ing|ly)$/.test(word)) return undefined;
+  const next = lead[index + 1]?.toLowerCase();
+  return next && !CLAUSE_STOPWORDS.has(next) ? word : undefined;
+}
+
+/** A capital label letter ("B" of "boat B"); a clause opening "A man" uses "A" as an article. */
+const isLabelLetter = (word: string, wordIndex: number) => word.length === 1 && /\p{Lu}/u.test(word) && !(wordIndex === 0 && word === "A");
+
+/**
+ * Whether a clause word names an owner token. A one letter token ("r" of
+ * v_r) is named only by that capital label letter ("boat B", "Car A") or by
+ * the clause's subject noun ("rain" for r) when the clause has no label
+ * letter: "rows" or "runs" name no "r". A
+ * longer token is named by a word it starts or abbreviates.
+ */
+function clauseWordNamesToken(word: string, token: string, wordIndex: number, subject: string | undefined): boolean {
+  if (word.length === 1) return isLabelLetter(word, wordIndex) && token === word.toLowerCase();
   const lower = word.toLowerCase();
   if (CLAUSE_STOPWORDS.has(lower)) return false;
-  return token.length === 1 ? lower.startsWith(token) : lower.startsWith(token) || (lower.length >= 3 && token.startsWith(lower));
+  if (token.length === 1) return lower === subject && lower.startsWith(token);
+  return lower.startsWith(token) || (lower.length >= 3 && token.startsWith(lower));
 }
 
 /**
  * Source evidence that a salvaged given belongs to its own quantity when the
- * question states more than one value of its kind: its sourceText is a span
- * of the question that states exactly this value and no other of its kind,
- * a word of that span names the given's owner (its symbol subscript or id),
- * and no other given of the same kind in the lane is named by that span.
- * "v_r = 8 m/s" with source "man walks at 8 m/s" has no such evidence.
+ * question states more than one value of its kind: its sourceText states
+ * exactly this value and no other of its kind, the span is found in the
+ * question, the question's clause around it states no other value of its
+ * kind, a word of that clause names the given's owner (its symbol subscript
+ * or id), and no other given of the same kind in the lane is named by that
+ * clause. "v_r = 8 m/s" with source "man walks at 8 m/s", or "rows at 4 m/s"
+ * in "a man rows at 4 m/s", has no such evidence.
  */
 function sourceTextNamesOwner(
   question: string,
@@ -629,18 +691,22 @@ function sourceTextNamesOwner(
   laneGivens: ReadonlyArray<{ id: string; symbol: string; unit?: string }>,
 ): boolean {
   if (typeof given.sourceText !== "string" || !given.sourceText.trim()) return false;
-  const flat = (text: string) => text.normalize("NFC").replace(/[−–—]/g, "-").toLowerCase().replace(/\s+/g, " ").trim();
-  const source = flat(given.sourceText).replace(/[.,;:!?]+$/, "");
-  if (!source || !flat(question).includes(source)) return false;
   if (!questionStatesQuantity(given.sourceText, given.value, given.unit)) return false;
   if (competingStatedCount(given.sourceText, given.unit) !== 1) return false;
-  const words = statedNumbers(given.sourceText).words.match(/\p{L}+/gu) ?? [];
-  const names = (id: string, symbol: string) => givenOwnerTokens(id, symbol)
-    .some((token) => words.some((word) => clauseWordNamesToken(word, token)));
-  if (!names(given.id, given.symbol)) return false;
-  return !laneGivens.some((other) => other.id !== given.id &&
-    (given.unit ? other.unit !== undefined && sameMeasure(given.unit, other.unit) : other.unit === undefined) &&
-    names(other.id, other.symbol));
+  const clauses = questionClausesAround(question, given.sourceText);
+  return clauses.length > 0 && clauses.every((clause) => {
+    if (competingStatedCount(clause, given.unit) !== 1) return false;
+    const words = statedNumbers(clause).words.match(/\p{L}+/gu) ?? [];
+    // A clause with a label letter ("Boat A moves") is owned by the label, so its subject noun names no letter.
+    const labelled = words.some((word, index) => isLabelLetter(word, index));
+    const subject = labelled ? undefined : clauseSubjectNoun(clause);
+    const names = (id: string, symbol: string) => givenOwnerTokens(id, symbol)
+      .some((token) => words.some((word, index) => clauseWordNamesToken(word, token, index, subject)));
+    if (!names(given.id, given.symbol)) return false;
+    return !laneGivens.some((other) => other.id !== given.id &&
+      (given.unit ? other.unit !== undefined && sameMeasure(given.unit, other.unit) : other.unit === undefined) &&
+      names(other.id, other.symbol));
+  });
 }
 
 /** Indices of `givens` that a rejection's issue paths name ("givens[2].value"). */
@@ -661,7 +727,8 @@ function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number>
  * the rejected lanes bind to different symbols (swapped roles). When the
  * question states more than one value of a given's kind (6 m/s and 8 m/s),
  * nothing has checked which quantity owns which value, so the given is kept
- * only when its sourceText names its owner (`sourceTextNamesOwner`); one lane
+ * only when the question clause around its sourceText names its owner
+ * (`sourceTextNamesOwner`); one lane
  * binding v_r = 8 and v_m = 6 keeps neither. Every derived value, unknown and claim is withdrawn, so nothing the
  * validator refused can reach a label or the narration as authority. Returns
  * null when no given survives or the result fails validation.
