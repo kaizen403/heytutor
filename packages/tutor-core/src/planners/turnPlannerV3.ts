@@ -451,8 +451,8 @@ function describeIssuePath(plan: unknown, path: string): string {
 const UNIT_WORDS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
   [/^(?:deg|degs|degree|degrees|°)$/i, ["°", "degrees", "degree", "deg"]],
   [/^(?:rad|rads|radian|radians)$/i, ["radians", "radian", "rad"]],
-  [/^m\/s$/, ["m/s", "m s^-1", "m s⁻¹", "ms^-1", "ms⁻¹", "m s-1", "metres per second", "meters per second"]],
-  [/^km\/h$/i, ["km/h", "km/hr", "kmph", "km h^-1", "km h⁻¹", "kilometres per hour", "kilometers per hour"]],
+  [/^m\/s$/, ["m/s", "m s^-1", "m s⁻¹", "ms^-1", "ms⁻¹", "m s-1", "m/sec", "metres per second", "meters per second", "metre per second", "meter per second"]],
+  [/^km\/h$/i, ["km/h", "km/hr", "km/hour", "kmph", "km h^-1", "km h⁻¹", "km hr^-1", "km hr⁻¹", "km per hour", "kilometres per hour", "kilometers per hour", "kilometre per hour", "kilometer per hour"]],
   [/^m\/s(?:\^2|²)$/, ["m/s²", "m/s^2", "m s^-2", "m s⁻²", "ms^-2", "ms⁻²", "metres per second squared", "meters per second squared"]],
   [/^s$/, ["s", "sec", "secs", "second", "seconds"]],
   [/^m$/, ["m", "metre", "metres", "meter", "meters"]],
@@ -467,10 +467,16 @@ const UNIT_WORDS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
   [/^(?:ohm|ohms|Ω)$/i, ["Ω", "ohm", "ohms"]],
 ];
 
+/** The row of UNIT_WORDS a compact unit belongs to: its pattern or one of its spellings ("km/hr" is km/h). */
+function knownUnitRow(compact: string): readonly [RegExp, readonly string[]] | undefined {
+  return UNIT_WORDS.find(([pattern, spellings]) => pattern.test(compact) ||
+    spellings.some((spelling) => spelling.replace(/\s+/g, "") === compact));
+}
+
 function unitSpellings(unit: string): string[] {
   const trimmed = unit.trim();
   const compact = trimmed.replace(/\s+/g, "");
-  const known = UNIT_WORDS.find(([pattern]) => pattern.test(compact));
+  const known = knownUnitRow(compact);
   return [...new Set([trimmed, compact, compact.replace(/\^2/g, "²").replace(/\^3/g, "³"),
     compact.replace(/²/g, "^2").replace(/³/g, "^3"), ...(known?.[1] ?? [])])]
     .filter(Boolean)
@@ -483,6 +489,19 @@ function unitSpellings(unit: string): string[] {
  */
 const UNIT_CONTINUES = /^(?:[/^⁻·⋅\p{L}\p{N}]|\s+(?:per\b|[a-zA-Z]{1,3}\s*(?:\^|⁻)))/u;
 /** A unit word or symbol right after a number ("6 m/s", "60°", "4 kg", "3 seconds"). */
+/**
+ * The one unit reader for text after a number: the first of these spellings
+ * the text starts with whose unit ends there. "6 km/hr" reads "km/hr", not
+ * the "km" of it; "6 m/sec" reads "m/sec", not "m".
+ */
+function spellingAfterNumber(after: string, spellings: readonly string[]): string | undefined {
+  const rest = after.replace(/^\s+/, "");
+  return spellings.find((spelling) => rest.startsWith(spelling) && !UNIT_CONTINUES.test(rest.slice(spelling.length)));
+}
+/** Every spelling of UNIT_WORDS with the unit it writes, longest first. */
+const KNOWN_UNIT_SPELLINGS = new Map(UNIT_WORDS.flatMap(([, spellings]) => spellings.map((spelling) => [spelling, spellings[0]!] as const))
+  .sort((first, second) => second[0].length - first[0].length));
+const KNOWN_SPELLING_LIST = [...KNOWN_UNIT_SPELLINGS.keys()];
 const UNIT_AFTER_NUMBER = /^\s*(?:[°º%Ω]|(?:[kcmµμnMG]?(?:m|s|g|N|J|W|V|A|Pa|Hz|K|C|F|T|L|eV|mol|rad|h|min|hr)|kmph|deg|degrees?|radians?|met(?:re|er)s?|seconds?|secs?|hours?|minutes?|kilo(?:gram|metre|meter)s?|grams?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|kelvin|lit(?:re|er)s?)(?![a-zA-Z]))/u;
 
 /**
@@ -504,9 +523,7 @@ export function questionStatesQuantity(question: string, value: number, unit?: s
       if (!UNIT_AFTER_NUMBER.test(after)) return true;
       continue;
     }
-    const rest = after.replace(/^\s+/, "");
-    if (spellings.some((spelling) => rest.startsWith(spelling) &&
-      !UNIT_CONTINUES.test(rest.slice(spelling.length)))) return true;
+    if (spellingAfterNumber(after, spellings) !== undefined) return true;
   }
   return false;
 }
@@ -514,8 +531,7 @@ export function questionStatesQuantity(question: string, value: number, unit?: s
 const symbolKey = (symbol: string) => symbol.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 function quantityKey(value: number, unit: string | undefined): string {
   const compact = (unit ?? "").trim().replace(/\s+/g, "");
-  const known = UNIT_WORDS.find(([pattern]) => pattern.test(compact));
-  return `${value}|${known?.[1][0] ?? compact}`;
+  return `${value}|${knownUnitRow(compact)?.[1][0] ?? compact}`;
 }
 
 const STATED_NUMBER = /(?<![\w.^])-?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.]*\d)/g;
@@ -529,7 +545,10 @@ function sameMeasure(first: string, second: string): boolean {
 
 /**
  * The numbers a text states, each with the unit printed after it (if any),
- * and the text with every number and its unit blanked out.
+ * and the text with every number and its unit blanked out. A unit is read
+ * with the spellings questionStatesQuantity accepts first ("6 km/hr" is
+ * km/h, "8 metres per second" is m/s), so a value that states a given's kind
+ * is always counted as one.
  */
 function statedNumbers(text: string): { numbers: Array<{ value: number; unit?: string }>; words: string } {
   const normalized = text.normalize("NFC").replace(/[−–—]/g, "-");
@@ -540,12 +559,14 @@ function statedNumbers(text: string): { numbers: Array<{ value: number; unit?: s
     const start = match.index ?? 0;
     const end = start + match[0].length;
     const after = normalized.slice(end);
+    const spelled = spellingAfterNumber(after, KNOWN_SPELLING_LIST);
     const unitWord = after.match(UNIT_AFTER_NUMBER)?.[0];
     const printedUnit = printed.get(start + match[0].search(/[\d.]/));
-    const unit = printedUnit ?? unitWord?.trim();
+    const unit = (spelled && KNOWN_UNIT_SPELLINGS.get(spelled)) ?? printedUnit ?? unitWord?.trim();
     numbers.push({ value: Number(match[0]), ...(unit ? { unit } : {}) });
     const printedEnd = printedUnit && after.includes(printedUnit) ? after.indexOf(printedUnit) + printedUnit.length : 0;
-    const span = end - start + Math.max(unitWord?.length ?? 0, printedEnd);
+    const spelledEnd = spelled ? after.length - after.replace(/^\s+/, "").length + spelled.length : 0;
+    const span = end - start + Math.max(unitWord?.length ?? 0, printedEnd, spelledEnd);
     words = words.slice(0, start) + " ".repeat(span) + words.slice(start + span);
   }
   return { numbers, words };

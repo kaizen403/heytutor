@@ -323,6 +323,29 @@ const rejectedPlan = {
   const carIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(cars, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: cars, givens }, issues: claimIssue }])?.givens.map((given) => given.id) ?? null;
   assert.deepEqual(carIds([car("vA", 10, "Car A moves at 10 m/s"), car("vB", 15, "car B moves at 15 m/s")]), ["vA", "vB"], "a label letter owns its value");
   assert.equal(carIds([car("vA", 15, "car B moves at 15 m/s"), car("vB", 10, "Car A moves at 10 m/s")]), null, "swapped label letters are dropped");
+
+  // PR #249 second review: the competing value count read "km/hr" as km and
+  // "metres per second" as metres, so it counted no speed and skipped the
+  // owner rule, while questionStatesQuantity accepted both spellings.
+  for (const [spelled, unit] of [
+    ["km/hr", "km/h"], ["kmph", "km/h"], ["km h^-1", "km/h"], ["kilometres per hour", "km/h"],
+    ["metres per second", "m/s"], ["m s^-1", "m/s"], ["m/sec", "m/s"],
+  ] as const) {
+    const spoken = `Rain falls at 6 ${spelled} and a man walks at 8 ${spelled}. How should he hold his umbrella?`;
+    assert.ok(questionStatesQuantity(spoken, 8, unit) && questionStatesQuantity(spoken, 6, unit), `${spelled}: the question states both speeds in ${unit}`);
+    const spokenIds = (givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(spoken, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: spoken, givens }, issues: claimIssue }])
+      ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
+    const asUnit = (given: Record<string, unknown>, sourceText?: string) => {
+      const { sourceText: _dropped, ...rest } = given;
+      return { ...rest, unit, ...(sourceText ? { sourceText } : {}) };
+    };
+    assert.equal(spokenIds([asUnit(vr(8)), asUnit(vm(6))]), null,
+      `${spelled}: one lane binding v_r = 8 and v_m = 6 with no sourceText keeps neither`);
+    assert.equal(spokenIds([{ ...asUnit(vr(8)), unit: spelled }, { ...asUnit(vm(6)), unit: spelled }]), null,
+      `${spelled}: the same swap in the question's own spelling keeps neither`);
+    assert.deepEqual(spokenIds([asUnit(vr(6), `Rain falls at 6 ${spelled}`), asUnit(vm(8), `a man walks at 8 ${spelled}`)]), ["vr=6", "vm=8"],
+      `${spelled}: owned givens are still kept`);
+  }
 }
 
 console.log("verify-v3-planner-selection: exact-source ranking and grace, retry feedback and budget, and question-stated salvage hold");
