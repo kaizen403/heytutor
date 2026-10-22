@@ -1,0 +1,152 @@
+[
+  {
+    "id": "original-requested-WF-0",
+    "question": "Calculate the work function when light of 5 eV ejects electrons with kinetic energy 2 eV.",
+    "draw": true,
+    "E": 5,
+    "K": 2,
+    "Vstop": null,
+    "numericPhi": false
+  },
+  {
+    "id": "original-requested-WF-1",
+    "question": "Find the work function if photons of 6 eV eject electrons with kinetic energy 2 eV.",
+    "draw": true,
+    "E": 6,
+    "K": 2,
+    "Vstop": null,
+    "numericPhi": false
+  },
+  {
+    "id": "original-requested-WF-2",
+    "question": "Find the work function; photon energy is 5 eV.",
+    "draw": true,
+    "E": 5,
+    "K": null,
+    "Vstop": null,
+    "numericPhi": false
+  },
+  {
+    "id": "original-requested-WF-3",
+    "question": "Find the work function when the kinetic energy is 2 eV.",
+    "draw": true,
+    "E": null,
+    "K": 2,
+    "Vstop": null,
+    "numericPhi": false
+  },
+  {
+    "id": "original-requested-WF-4",
+    "question": "Find the work function for a stopping potential of 2 V.",
+    "draw": true,
+    "E": null,
+    "K": 2,
+    "Vstop": 2,
+    "numericPhi": false
+  },
+  {
+    "id": "given-E-K-V-agree",
+    "question": "Photoelectric emission: photon energy is 5 eV; work function is 3 eV; kinetic energy is 2 eV; stopping potential is 2 V. Draw the energy balance.",
+    "draw": true,
+    "E": 5,
+    "K": 2,
+    "Vstop": 2,
+    "numericPhi": true
+  },
+  {
+    "id": "stopping-gives-K",
+    "question": "Find the work function; photon energy is 5 eV and stopping potential is 2 V.",
+    "draw": true,
+    "E": 5,
+    "K": 2,
+    "Vstop": 2,
+    "numericPhi": false
+  },
+  {
+    "id": "owned-energy-negative-0",
+    "question": "Find the work function; photon energy is 5 eV; kinetic energy is 6 eV.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-1",
+    "question": "Find the work function; photon energy is 5 eV; kinetic energy is 2 eV; stopping potential is 3 V.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-2",
+    "question": "Find the work function; photon energy is 5 eV; work function is 2 eV; kinetic energy is 2 eV.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-3",
+    "question": "Find the work function; photon energy is 5 eV; kinetic energy is unknown eV.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-4",
+    "question": "Find the work function; photon energy is 5 eV; kinetic energy is 2e- eV.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-5",
+    "question": "Find the work function; photon energy is 5 eV; stopping potential is unknown V.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-6",
+    "question": "Find the work function; photon energy is 5 eV; stopping potential is 2e- V.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-7",
+    "question": "Find the work function; photon energy is 5 eV; stopping potential is 2 kg.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-8",
+    "question": "Find the work function; photon energy is 5 eV; kinetic energy is -2 eV.",
+    "draw": false
+  },
+  {
+    "id": "owned-energy-negative-9",
+    "question": "Find the work function; photon energy is 5 eV; another energy is 1 eV.",
+    "draw": false
+  },
+  {
+    "id": "K-only-schematic",
+    "question": "The kinetic energy is 2 eV. Draw a photoelectric energy schematic.",
+    "draw": true,
+    "E": null,
+    "K": 2,
+    "Vstop": null,
+    "numericPhi": false
+  },
+  {
+    "id": "stopping-only-schematic",
+    "question": "The stopping potential is 2 V. Draw a photoelectric energy schematic.",
+    "draw": true,
+    "E": null,
+    "K": 2,
+    "Vstop": 2,
+    "numericPhi": false
+  },
+  {
+    "id": "zero-K-symbolic-not-positive",
+    "question": "The kinetic energy is 0 eV. Draw a photoelectric energy schematic.",
+    "draw": false
+  },
+  {
+    "id": "foreign-incoming-kinetic",
+    "question": "Light of photon energy 5 eV is incident on a metal. An incoming electron has kinetic energy 2 eV. Find the work function and draw the photoelectric balance.",
+    "draw": false
+  },
+  {
+    "id": "requested-photoelectron-result-not-given",
+    "question": "The work function of a metal is 2.0 eV. Light has wavelength 300 nm. Using hc=1240 eV nm, calculate the photoelectron kinetic energy.",
+    "draw": true,
+    "E": 4.133333333333333,
+    "K": null,
+    "Vstop": null,
+    "numericPhi": true
+  }
+]

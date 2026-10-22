@@ -1,0 +1,56 @@
+[
+  {
+    "id": "kirchhoff-bilingual",
+    "questionSHA256": "d6df901a5b4f675ad20e2eab4b00af7d0712510322b8b4591fedab4fcda3b657",
+    "family": "circuit_network",
+    "archetype": "two_loop_network",
+    "operators": [
+      "symbol",
+      "connect",
+      "vector"
+    ],
+    "symbolCounts": {
+      "resistor": 3,
+      "battery": 2
+    },
+    "bodyCount": 0
+  },
+  {
+    "id": "collision",
+    "questionSHA256": "d774cdacb4be03d3864f1182f3e131b816eeca6e63371226c555d79f05090950",
+    "family": "contact_body",
+    "archetype": "collision_line",
+    "operators": [
+      "circle",
+      "vector"
+    ],
+    "symbolCounts": {},
+    "bodyCount": 2
+  },
+  {
+    "id": "photoelectric",
+    "questionSHA256": "ed5ee0cd993f50ed80cf449a8951125d638d2c6db6a597989dba0a9465bcad98",
+    "family": "energy_level",
+    "archetype": "photoelectric",
+    "operators": [
+      "axes",
+      "segment",
+      "vector"
+    ],
+    "symbolCounts": {},
+    "bodyCount": 0
+  },
+  {
+    "id": "modern-easy-photoelectric",
+    "questionSHA256": "796a05205ee17e7685893b24538b04433d118877da919de819faff943c12081f",
+    "family": "energy_level",
+    "archetype": "photoelectric",
+    "operators": [
+      "axes",
+      "segment",
+      "vector"
+    ],
+    "symbolCounts": {},
+    "bodyCount": 0
+  }
+]

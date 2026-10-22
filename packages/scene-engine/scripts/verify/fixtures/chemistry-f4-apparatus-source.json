@@ -1,0 +1,316 @@
+[
+  {
+    "id": "closed-crystal-q1",
+    "question": "In an electron-diffraction experiment, crystal-plane spacing is 0.10 nm and the first-order Bragg glancing angle is 30\u00b0. Using 2d sin\u03b8=\u03bb, find electron wavelength and accelerating voltage via \u03bb[nm]=1.227/\u221aV[V].",
+    "domain": "apparatus",
+    "expected": {
+      "noInventedSlitApparatus": true,
+      "acceptable": "Whole decline, or complete independently proved source crystal-reflection view; no new crystal capability mandated."
+    },
+    "scientificGold": {
+      "wavelengthNm": 0.1,
+      "voltageV": 150.5529
+    },
+    "provenance": "/Users/kaizen/conductor/workspaces/heytutor/honolulu/.context/chem/coverage95/overnight-19-oct-v1/qa138-main-integration-v1/NEW-WRONG3-RAW-TRACE/after-davisson-q1.json"
+  },
+  {
+    "id": "closed-crystal-q2",
+    "question": "In an ideal electron-diffraction experiment the relevant reflecting crystal planes have spacing 0.0910 nm. First-order Bragg reflection occurs at a glancing angle 65.0 degrees to the planes. Infer electron wavelength and accelerating voltage using lambda(nm)=1.227/sqrt(V). With the same wavelength and plane spacing, decide whether a second-order reflection is possible. Explain how this tests the matter-wave relation. Use 2d sin(theta)=m lambda and the nonrelativistic model.",
+    "domain": "apparatus",
+    "expected": {
+      "noInventedSlitApparatus": true,
+      "acceptable": "Whole decline, or complete independently proved source crystal-reflection view; no new crystal capability mandated."
+    },
+    "scientificGold": {
+      "lambdaNm": 0.1649480172406703,
+      "voltageV": 55.33436449400511,
+      "secondOrderPossible": false
+    },
+    "provenance": "/Users/kaizen/conductor/workspaces/heytutor/honolulu/.context/chem/coverage95/overnight-19-oct-v1/qa138-main-integration-v1/NEW-WRONG3-RAW-TRACE/after-davisson-q2.json"
+  },
+  {
+    "id": "closed-missing-topology-kirchhoff",
+    "question": "wlefeettiex ferandh Kirchhoff ke niyam likhiye an arent fara. Using Kirchhoff's rules calculate the current in each branch of the circuit and explain the figure. qwrt zxcv pqrs.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "No circuit figure, nodes, component roster or connections are supplied. A current-calculation request cannot license invented topology."
+    },
+    "provenance": "/Users/kaizen/conductor/workspaces/heytutor/honolulu/.context/chem/coverage95/overnight-19-oct-v1/pr138-availability-repair-v1/runtime-c6b3271c-v1/candidate/complete449/0439.json"
+  },
+  {
+    "id": "positive-single-aperture",
+    "question": "A single slit of width 0.20 mm is illuminated normally by light of wavelength 500 nm. A screen is 2.0 m beyond the slit. Draw the aperture and diffraction setup.",
+    "domain": "apparatus",
+    "expected": {
+      "sourceKind": "single_slit",
+      "slitCount": 1,
+      "noUnstatedSecondSlit": true
+    },
+    "scientificGold": {
+      "slitWidthM": 0.0002,
+      "wavelengthM": 5e-07,
+      "screenDistanceM": 2,
+      "firstMinimumYApproxM": 0.005
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "positive-double-aperture",
+    "question": "Two slits separated by 0.50 mm are illuminated normally by light of wavelength 500 nm. A screen is 1.0 m away. Draw the two-slit interference setup.",
+    "domain": "apparatus",
+    "expected": {
+      "sourceKind": "double_slit",
+      "slitCount": 2
+    },
+    "scientificGold": {
+      "slitSeparationM": 0.0005,
+      "wavelengthM": 5e-07,
+      "screenDistanceM": 1,
+      "fringeWidthM": 0.001
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "excluded-aperture-not-source",
+    "question": "This is not a single-slit or double-slit experiment. Electrons reflect from parallel crystal planes spaced 0.10 nm at a glancing angle of 30 degrees. Draw the reflecting planes and rays.",
+    "domain": "apparatus",
+    "expected": {
+      "noInventedSlitApparatus": true,
+      "acceptable": "Decline or correct crystal-plane view."
+    },
+    "scientificGold": {
+      "wavelengthNm": 0.1,
+      "apparatus": "Two reflecting crystal planes with incident/reflected rays; negated slit mentions are not apparatus authority."
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "symbolic-topology-is-legitimate",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R3. The left loop contains source E1 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the top. Do not calculate numerical currents.",
+    "domain": "circuit",
+    "expected": {
+      "draw": true,
+      "numericValuesRequired": false
+    },
+    "scientificGold": {
+      "resistorCount": 3,
+      "sourceCount": 2,
+      "sharedComponent": "R3",
+      "leftLoop": [
+        "E1",
+        "R1",
+        "R3"
+      ],
+      "rightLoop": [
+        "E2",
+        "R2",
+        "R3"
+      ],
+      "positiveTerminals": "top",
+      "noInventedNumericValues": true
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "numeric-topology-assigned",
+    "question": "The left loop consists of a 6 V ideal battery, resistor R1 = 2 ohm, and shared resistor R3 = 4 ohm. The right loop consists of a 3 V ideal battery, resistor R2 = 3 ohm, and the same shared R3. Both battery positive terminals are at the top. Draw the two-loop circuit and label the source values.",
+    "domain": "circuit",
+    "expected": {
+      "draw": true
+    },
+    "scientificGold": {
+      "resistorsOhm": {
+        "R1": 2,
+        "R2": 3,
+        "R3": 4
+      },
+      "sourcesV": {
+        "E1": 6,
+        "E2": 3
+      },
+      "leftLoop": [
+        "E1",
+        "R1",
+        "R3"
+      ],
+      "rightLoop": [
+        "E2",
+        "R2",
+        "R3"
+      ],
+      "noAdditionalComponents": true
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "numeric-roster-without-topology",
+    "question": "A circuit has resistors R1 = 2 ohm, R2 = 3 ohm and R3 = 4 ohm, and ideal batteries of 6 V and 3 V. Use Kirchhoff rules to calculate the current in each branch of the missing figure.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "A roster does not give connectivity or branch assignment; no source graph exists."
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "unsupported-three-slits",
+    "question": "Three slits are illuminated by light. Draw the three-slit interference setup.",
+    "domain": "apparatus",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Typed source operator transfer, without question-ID routing or numeric defaults."
+    }
+  },
+  {
+    "id": "contradictory-apertures",
+    "question": "A single slit is illuminated by light. Draw the double-slit setup.",
+    "domain": "apparatus",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Typed source operator transfer, without question-ID routing or numeric defaults."
+    }
+  },
+  {
+    "id": "topology-names-transfer",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R4. The left loop contains source E7 and resistor R5; the right loop contains source E8 and resistor R6. Both sources have their positive terminals at the top. Do not calculate numerical currents.",
+    "domain": "circuit",
+    "expected": {
+      "draw": true,
+      "numericValuesRequired": false
+    },
+    "scientificGold": {
+      "reason": "Typed source operator transfer, without question-ID routing or numeric defaults."
+    }
+  },
+  {
+    "id": "topology-bottom-polarity",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R3. The left loop contains source E1 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the bottom. Do not calculate numerical currents.",
+    "domain": "circuit",
+    "expected": {
+      "draw": true,
+      "numericValuesRequired": false
+    },
+    "scientificGold": {
+      "reason": "Typed source operator transfer, without question-ID routing or numeric defaults."
+    }
+  },
+  {
+    "id": "missing-shared-branch",
+    "question": "Draw a two-loop circuit. The left loop contains source E1 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the top.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Typed source operator transfer, without question-ID routing or numeric defaults."
+    }
+  },
+  {
+    "id": "young-mm-source-original",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "domain": "apparatus",
+    "expected": {
+      "slitCount": 2
+    },
+    "scientificGold": {
+      "reason": "Positive named Young apparatus plus complete original slit-separation binding."
+    }
+  },
+  {
+    "id": "young-mm-unknown",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation unknown mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "domain": "apparatus",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Every actual separation declaration must be consumed whole and agree."
+    }
+  },
+  {
+    "id": "young-mm-malformed",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50e- mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "domain": "apparatus",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Every actual separation declaration must be consumed whole and agree."
+    }
+  },
+  {
+    "id": "young-mm-conflicting",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm; slit separation is 0.60 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "domain": "apparatus",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Every actual separation declaration must be consumed whole and agree."
+    }
+  },
+  {
+    "id": "shared-r3-explicitly-not-present",
+    "question": "The left loop contains source E1 and resistor R1. The right loop contains source E2 and resistor R2. A shared middle resistor R3 is not present. Both sources have their positive terminals at the top. Draw the circuit.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Explicit source absence is not a shared-branch existence proof."
+    }
+  },
+  {
+    "id": "shared-r3-absent-transfer",
+    "question": "The left loop contains source E1 and resistor R1. The right loop contains source E2 and resistor R2. A shared middle resistor R3 is absent. Both sources have their positive terminals at the top. Draw the circuit.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Postfix absent belongs to the shared-component owner."
+    }
+  },
+  {
+    "id": "shared-r4-excluded-transfer",
+    "question": "The left loop contains source E1 and resistor R1. The right loop contains source E2 and resistor R2. A shared middle resistor R4 is excluded. Both sources have their positive terminals at the top. Draw the circuit.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Same declaration ownership for another component ID."
+    }
+  },
+  {
+    "id": "external-source-polarity-contradiction",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R3. The left loop contains source E1 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the top. Do not calculate numerical currents. E1 has its positive terminal at the bottom.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "An individual source declaration contradicts the supplied BOTH-top polarity; no component mention may be silently unconsumed."
+    }
+  },
+  {
+    "id": "external-source-polarity-id-transfer",
+    "question": "Draw a symbolic two-loop circuit with a shared middle resistor R3. The left loop contains source E7 and resistor R1; the right loop contains source E2 and resistor R2. Both sources have their positive terminals at the top. Do not calculate numerical currents. E7 has its positive terminal at the bottom.",
+    "domain": "circuit",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "An individual source declaration contradicts the supplied BOTH-top polarity; no component mention may be silently unconsumed."
+    }
+  }
+]

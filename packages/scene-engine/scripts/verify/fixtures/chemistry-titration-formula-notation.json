@@ -281,7 +281,9 @@
     {
       "id": "unicode-Ka-number",
       "question": "25 mL of 0.1 M CH₃COOH is titrated with 0.1 M NaOH; Ka of CH₃COOH = 1 × 10⁻⁵. Draw the titration curve.",
-      "expectedDraw": false
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
     },
     {
       "id": "symbolic-weak-acid",
@@ -1575,6 +1577,14 @@
       "expectedDraw": true,
       "equivalenceMl": 25,
       "pK": 5
+    },
+    {
+      "id": "unicode-Ka-number-ascii-equivalent",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH; Ka of CH3COOH = 1e-5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5,
+      "pairedWith": "unicode-Ka-number"
     }
   ]
 }

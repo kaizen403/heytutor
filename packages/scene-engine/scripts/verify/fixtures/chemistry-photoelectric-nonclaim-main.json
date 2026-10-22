@@ -1,0 +1,2446 @@
+[
+  {
+    "id": "C-CONCEPTUAL",
+    "question": "Explain why the work function is different for different metals.",
+    "outcome": {
+      "atomic": false,
+      "chemistry": false,
+      "families": [],
+      "direct": null,
+      "schematic": null,
+      "ordinary": {
+        "document": {
+          "schemaVersion": "scene-document/v2",
+          "visualDecision": {
+            "mode": "scene",
+            "reason": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+          },
+          "source": {
+            "question": "Explain why the work function is different for different metals.",
+            "synthesizedFamily": true,
+            "archetype": "photoelectric",
+            "slotSources": {},
+            "exactGrounding": null
+          },
+          "quantities": [],
+          "entities": [
+            {
+              "id": "axes",
+              "kind": "axes",
+              "role": "energy axis",
+              "label": "E (eV)"
+            },
+            {
+              "id": "zero",
+              "kind": "point",
+              "role": "zero of energy"
+            },
+            {
+              "id": "phi_top",
+              "kind": "point",
+              "role": "work function mark",
+              "label": "\u03c6=2 eV"
+            },
+            {
+              "id": "E_top",
+              "kind": "point",
+              "role": "photon energy mark",
+              "label": "h\u03bd=3 eV"
+            },
+            {
+              "id": "phi_bar_end",
+              "kind": "point",
+              "role": "work function line end"
+            },
+            {
+              "id": "phi_level",
+              "kind": "segment",
+              "role": "work function line"
+            },
+            {
+              "id": "E_bar_end",
+              "kind": "point",
+              "role": "photon energy line end"
+            },
+            {
+              "id": "E_level",
+              "kind": "segment",
+              "role": "photon energy line"
+            },
+            {
+              "id": "photon_base",
+              "kind": "point",
+              "role": "photon arrow base"
+            },
+            {
+              "id": "photon_tip",
+              "kind": "point",
+              "role": "photon arrow tip"
+            },
+            {
+              "id": "photon",
+              "kind": "vector",
+              "role": "photon energy",
+              "label": "h\u03bd"
+            },
+            {
+              "id": "k_base",
+              "kind": "point",
+              "role": "kinetic energy base"
+            },
+            {
+              "id": "k_tip",
+              "kind": "point",
+              "role": "kinetic energy tip"
+            },
+            {
+              "id": "kinetic",
+              "kind": "vector",
+              "role": "maximum kinetic energy",
+              "label": "K=1 eV"
+            },
+            {
+              "id": "w_base",
+              "kind": "point",
+              "role": "work function base"
+            },
+            {
+              "id": "w_tip",
+              "kind": "point",
+              "role": "work function tip"
+            },
+            {
+              "id": "work",
+              "kind": "vector",
+              "role": "work function",
+              "label": "\u03c6"
+            }
+          ],
+          "constructions": [
+            {
+              "id": "make_axes",
+              "operator": "axes",
+              "inputs": {
+                "xMin": -0.5,
+                "xMax": 4,
+                "yMin": -0.6,
+                "yMax": 3.75
+              },
+              "outputs": [
+                "axes"
+              ]
+            },
+            {
+              "id": "make_zero",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "zero"
+              ]
+            },
+            {
+              "id": "make_phi_top",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "phi_top"
+              ]
+            },
+            {
+              "id": "make_E_top",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "E_top"
+              ]
+            },
+            {
+              "id": "make_phi_bar_end",
+              "operator": "point",
+              "inputs": {
+                "x": 3,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "phi_bar_end"
+              ]
+            },
+            {
+              "id": "make_phi_level",
+              "operator": "segment",
+              "inputs": {
+                "start": "phi_top",
+                "end": "phi_bar_end"
+              },
+              "outputs": [
+                "phi_level"
+              ]
+            },
+            {
+              "id": "make_E_bar_end",
+              "operator": "point",
+              "inputs": {
+                "x": 3,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "E_bar_end"
+              ]
+            },
+            {
+              "id": "make_E_level",
+              "operator": "segment",
+              "inputs": {
+                "start": "E_top",
+                "end": "E_bar_end"
+              },
+              "outputs": [
+                "E_level"
+              ]
+            },
+            {
+              "id": "make_photon_base",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "photon_base"
+              ]
+            },
+            {
+              "id": "make_photon_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "photon_tip"
+              ]
+            },
+            {
+              "id": "make_photon",
+              "operator": "vector",
+              "inputs": {
+                "start": "photon_base",
+                "end": "photon_tip"
+              },
+              "outputs": [
+                "photon"
+              ]
+            },
+            {
+              "id": "make_k_base",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "k_base"
+              ]
+            },
+            {
+              "id": "make_k_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "k_tip"
+              ]
+            },
+            {
+              "id": "make_kinetic",
+              "operator": "vector",
+              "inputs": {
+                "start": "k_base",
+                "end": "k_tip"
+              },
+              "outputs": [
+                "kinetic"
+              ]
+            },
+            {
+              "id": "make_w_base",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "w_base"
+              ]
+            },
+            {
+              "id": "make_w_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "w_tip"
+              ]
+            },
+            {
+              "id": "make_work",
+              "operator": "vector",
+              "inputs": {
+                "start": "w_base",
+                "end": "w_tip"
+              },
+              "outputs": [
+                "work"
+              ]
+            }
+          ],
+          "relations": [],
+          "assertions": [
+            {
+              "id": "levels_parallel",
+              "predicate": "parallel",
+              "entities": [
+                "phi_level",
+                "E_level"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "label_phi_top",
+              "predicate": "label_attached",
+              "entities": [
+                "phi_top"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "label_E_top",
+              "predicate": "label_attached",
+              "entities": [
+                "E_top"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "assert_label_phi_top",
+              "predicate": "label_attached",
+              "entities": [
+                "phi_top"
+              ],
+              "expected": true,
+              "severity": "fatal",
+              "reason": "student-facing points must stay labeled"
+            },
+            {
+              "id": "assert_label_E_top",
+              "predicate": "label_attached",
+              "entities": [
+                "E_top"
+              ],
+              "expected": true,
+              "severity": "fatal",
+              "reason": "student-facing points must stay labeled"
+            }
+          ],
+          "annotations": [],
+          "requiredEntityIds": [
+            "axes",
+            "zero",
+            "phi_top",
+            "E_top",
+            "phi_bar_end",
+            "phi_level",
+            "E_bar_end",
+            "E_level",
+            "photon_base",
+            "photon_tip",
+            "photon",
+            "k_base",
+            "k_tip",
+            "kinetic",
+            "w_base",
+            "w_tip",
+            "work"
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "axes",
+                "zero",
+                "phi_top",
+                "E_top",
+                "phi_bar_end",
+                "phi_level",
+                "E_bar_end",
+                "E_level",
+                "photon_base",
+                "photon_tip",
+                "photon",
+                "k_base",
+                "k_tip",
+                "kinetic",
+                "w_base",
+                "w_tip",
+                "work"
+              ],
+              "dependsOn": [],
+              "narrationCue": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "teachingTimeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ]
+        },
+        "renderScene": {
+          "engineVersion": "scene-engine/2.0.0",
+          "primitives": [
+            {
+              "id": "primitive_axes",
+              "entityId": "axes",
+              "groupId": "setup",
+              "kind": "axes",
+              "points": [
+                {
+                  "x": 559.14,
+                  "y": 487.1
+                },
+                {
+                  "x": 1000.86,
+                  "y": 487.1
+                },
+                {
+                  "x": 608.22,
+                  "y": 546
+                },
+                {
+                  "x": 608.22,
+                  "y": 119
+                }
+              ]
+            },
+            {
+              "id": "primitive_zero",
+              "entityId": "zero",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 487.1
+                }
+              ]
+            },
+            {
+              "id": "primitive_phi_top",
+              "entityId": "phi_top",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_E_top",
+              "entityId": "E_top",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_phi_level",
+              "entityId": "phi_level",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 290.78
+                },
+                {
+                  "x": 902.7,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_E_level",
+              "entityId": "E_level",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 192.62
+                },
+                {
+                  "x": 902.7,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_photon",
+              "entityId": "photon",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 706.38,
+                  "y": 487.1
+                },
+                {
+                  "x": 706.38,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_kinetic",
+              "entityId": "kinetic",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 824.17,
+                  "y": 290.78
+                },
+                {
+                  "x": 824.17,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_work",
+              "entityId": "work",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 824.17,
+                  "y": 487.1
+                },
+                {
+                  "x": 824.17,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_axes_label",
+              "entityId": "axes",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 513.99,
+                  "y": 580
+                }
+              ],
+              "text": "E (eV)",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 486.84374561542893,
+                  "y": 564,
+                  "width": 54.296254384571064,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_phi_top_label",
+              "entityId": "phi_top",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 652.38,
+                  "y": 260.78
+                }
+              ],
+              "text": "\u03c6=2 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 622.22,
+                  "y": 244.77999999999997,
+                  "width": 60.31437673820576,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_E_top_label",
+              "entityId": "E_top",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 656.93,
+                  "y": 162.62
+                }
+              ],
+              "text": "h\u03bd=3 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 622.22,
+                  "y": 146.62,
+                  "width": 69.42352844128871,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_photon_label",
+              "entityId": "photon",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 742.57,
+                  "y": 339.86
+                }
+              ],
+              "text": "h\u03bd",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 728.38,
+                  "y": 323.86,
+                  "width": 28.381341874894456,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_kinetic_label",
+              "entityId": "kinetic",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 876.61,
+                  "y": 241.7
+                }
+              ],
+              "text": "K=1 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 846.17,
+                  "y": 225.7,
+                  "width": 60.881990523686504,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_work_label",
+              "entityId": "work",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 855.55,
+                  "y": 388.94
+                }
+              ],
+              "text": "\u03c6",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 846.17,
+                  "y": 372.94,
+                  "width": 18.76136,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            }
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "axes",
+                "zero",
+                "phi_top",
+                "E_top",
+                "phi_bar_end",
+                "phi_level",
+                "E_bar_end",
+                "E_level",
+                "photon_base",
+                "photon_tip",
+                "photon",
+                "k_base",
+                "k_tip",
+                "kinetic",
+                "w_base",
+                "w_tip",
+                "work"
+              ],
+              "dependsOn": [],
+              "narrationCue": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "timeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "entityBounds": {
+            "axes": {
+              "x": 513.99,
+              "y": 119,
+              "width": 486.87,
+              "height": 461
+            },
+            "zero": {
+              "x": 608.22,
+              "y": 487.1,
+              "width": 0,
+              "height": 0
+            },
+            "phi_top": {
+              "x": 608.22,
+              "y": 260.78,
+              "width": 44.15999999999997,
+              "height": 30
+            },
+            "E_top": {
+              "x": 608.22,
+              "y": 162.62,
+              "width": 48.70999999999992,
+              "height": 30
+            },
+            "phi_level": {
+              "x": 608.22,
+              "y": 290.78,
+              "width": 294.48,
+              "height": 0
+            },
+            "E_level": {
+              "x": 608.22,
+              "y": 192.62,
+              "width": 294.48,
+              "height": 0
+            },
+            "photon": {
+              "x": 706.38,
+              "y": 192.62,
+              "width": 36.190000000000055,
+              "height": 294.48
+            },
+            "kinetic": {
+              "x": 824.17,
+              "y": 192.62,
+              "width": 52.440000000000055,
+              "height": 98.15999999999997
+            },
+            "work": {
+              "x": 824.17,
+              "y": 290.78,
+              "width": 31.379999999999995,
+              "height": 196.32000000000005
+            }
+          }
+        },
+        "validationReport": {
+          "engineVersion": "scene-engine/2.0.0",
+          "valid": true,
+          "issues": [],
+          "stats": {
+            "entityCount": 17,
+            "constructionCount": 17,
+            "primitiveCount": 15,
+            "assertionCount": 5
+          }
+        },
+        "tier": "qualitative_verified",
+        "nonMetric": true,
+        "reason": "photoelectric drawn from the question; the archetype has no metric slots",
+        "family": "energy_level",
+        "labels": [
+          "E (eV)",
+          "\u03c6=2 eV",
+          "h\u03bd=3 eV",
+          "h\u03bd",
+          "K=1 eV",
+          "\u03c6"
+        ]
+      },
+      "lastResort": {
+        "document": {
+          "schemaVersion": "scene-document/v2",
+          "visualDecision": {
+            "mode": "scene",
+            "reason": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+          },
+          "source": {
+            "question": "Explain why the work function is different for different metals.",
+            "synthesizedFamily": true,
+            "archetype": "photoelectric",
+            "slotSources": {},
+            "exactGrounding": null
+          },
+          "quantities": [],
+          "entities": [
+            {
+              "id": "axes",
+              "kind": "axes",
+              "role": "energy axis",
+              "label": "E (eV)"
+            },
+            {
+              "id": "zero",
+              "kind": "point",
+              "role": "zero of energy"
+            },
+            {
+              "id": "phi_top",
+              "kind": "point",
+              "role": "work function mark",
+              "label": "\u03c6=2 eV"
+            },
+            {
+              "id": "E_top",
+              "kind": "point",
+              "role": "photon energy mark",
+              "label": "h\u03bd=3 eV"
+            },
+            {
+              "id": "phi_bar_end",
+              "kind": "point",
+              "role": "work function line end"
+            },
+            {
+              "id": "phi_level",
+              "kind": "segment",
+              "role": "work function line"
+            },
+            {
+              "id": "E_bar_end",
+              "kind": "point",
+              "role": "photon energy line end"
+            },
+            {
+              "id": "E_level",
+              "kind": "segment",
+              "role": "photon energy line"
+            },
+            {
+              "id": "photon_base",
+              "kind": "point",
+              "role": "photon arrow base"
+            },
+            {
+              "id": "photon_tip",
+              "kind": "point",
+              "role": "photon arrow tip"
+            },
+            {
+              "id": "photon",
+              "kind": "vector",
+              "role": "photon energy",
+              "label": "h\u03bd"
+            },
+            {
+              "id": "k_base",
+              "kind": "point",
+              "role": "kinetic energy base"
+            },
+            {
+              "id": "k_tip",
+              "kind": "point",
+              "role": "kinetic energy tip"
+            },
+            {
+              "id": "kinetic",
+              "kind": "vector",
+              "role": "maximum kinetic energy",
+              "label": "K=1 eV"
+            },
+            {
+              "id": "w_base",
+              "kind": "point",
+              "role": "work function base"
+            },
+            {
+              "id": "w_tip",
+              "kind": "point",
+              "role": "work function tip"
+            },
+            {
+              "id": "work",
+              "kind": "vector",
+              "role": "work function",
+              "label": "\u03c6"
+            }
+          ],
+          "constructions": [
+            {
+              "id": "make_axes",
+              "operator": "axes",
+              "inputs": {
+                "xMin": -0.5,
+                "xMax": 4,
+                "yMin": -0.6,
+                "yMax": 3.75
+              },
+              "outputs": [
+                "axes"
+              ]
+            },
+            {
+              "id": "make_zero",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "zero"
+              ]
+            },
+            {
+              "id": "make_phi_top",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "phi_top"
+              ]
+            },
+            {
+              "id": "make_E_top",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "E_top"
+              ]
+            },
+            {
+              "id": "make_phi_bar_end",
+              "operator": "point",
+              "inputs": {
+                "x": 3,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "phi_bar_end"
+              ]
+            },
+            {
+              "id": "make_phi_level",
+              "operator": "segment",
+              "inputs": {
+                "start": "phi_top",
+                "end": "phi_bar_end"
+              },
+              "outputs": [
+                "phi_level"
+              ]
+            },
+            {
+              "id": "make_E_bar_end",
+              "operator": "point",
+              "inputs": {
+                "x": 3,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "E_bar_end"
+              ]
+            },
+            {
+              "id": "make_E_level",
+              "operator": "segment",
+              "inputs": {
+                "start": "E_top",
+                "end": "E_bar_end"
+              },
+              "outputs": [
+                "E_level"
+              ]
+            },
+            {
+              "id": "make_photon_base",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "photon_base"
+              ]
+            },
+            {
+              "id": "make_photon_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "photon_tip"
+              ]
+            },
+            {
+              "id": "make_photon",
+              "operator": "vector",
+              "inputs": {
+                "start": "photon_base",
+                "end": "photon_tip"
+              },
+              "outputs": [
+                "photon"
+              ]
+            },
+            {
+              "id": "make_k_base",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "k_base"
+              ]
+            },
+            {
+              "id": "make_k_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 3,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "k_tip"
+              ]
+            },
+            {
+              "id": "make_kinetic",
+              "operator": "vector",
+              "inputs": {
+                "start": "k_base",
+                "end": "k_tip"
+              },
+              "outputs": [
+                "kinetic"
+              ]
+            },
+            {
+              "id": "make_w_base",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "w_base"
+              ]
+            },
+            {
+              "id": "make_w_tip",
+              "operator": "point",
+              "inputs": {
+                "x": 2.2,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "w_tip"
+              ]
+            },
+            {
+              "id": "make_work",
+              "operator": "vector",
+              "inputs": {
+                "start": "w_base",
+                "end": "w_tip"
+              },
+              "outputs": [
+                "work"
+              ]
+            }
+          ],
+          "relations": [],
+          "assertions": [
+            {
+              "id": "levels_parallel",
+              "predicate": "parallel",
+              "entities": [
+                "phi_level",
+                "E_level"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "label_phi_top",
+              "predicate": "label_attached",
+              "entities": [
+                "phi_top"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "label_E_top",
+              "predicate": "label_attached",
+              "entities": [
+                "E_top"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            },
+            {
+              "id": "assert_label_phi_top",
+              "predicate": "label_attached",
+              "entities": [
+                "phi_top"
+              ],
+              "expected": true,
+              "severity": "fatal",
+              "reason": "student-facing points must stay labeled"
+            },
+            {
+              "id": "assert_label_E_top",
+              "predicate": "label_attached",
+              "entities": [
+                "E_top"
+              ],
+              "expected": true,
+              "severity": "fatal",
+              "reason": "student-facing points must stay labeled"
+            }
+          ],
+          "annotations": [],
+          "requiredEntityIds": [
+            "axes",
+            "zero",
+            "phi_top",
+            "E_top",
+            "phi_bar_end",
+            "phi_level",
+            "E_bar_end",
+            "E_level",
+            "photon_base",
+            "photon_tip",
+            "photon",
+            "k_base",
+            "k_tip",
+            "kinetic",
+            "w_base",
+            "w_tip",
+            "work"
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "axes",
+                "zero",
+                "phi_top",
+                "E_top",
+                "phi_bar_end",
+                "phi_level",
+                "E_bar_end",
+                "E_level",
+                "photon_base",
+                "photon_tip",
+                "photon",
+                "k_base",
+                "k_tip",
+                "kinetic",
+                "w_base",
+                "w_tip",
+                "work"
+              ],
+              "dependsOn": [],
+              "narrationCue": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "teachingTimeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ]
+        },
+        "renderScene": {
+          "engineVersion": "scene-engine/2.0.0",
+          "primitives": [
+            {
+              "id": "primitive_axes",
+              "entityId": "axes",
+              "groupId": "setup",
+              "kind": "axes",
+              "points": [
+                {
+                  "x": 559.14,
+                  "y": 487.1
+                },
+                {
+                  "x": 1000.86,
+                  "y": 487.1
+                },
+                {
+                  "x": 608.22,
+                  "y": 546
+                },
+                {
+                  "x": 608.22,
+                  "y": 119
+                }
+              ]
+            },
+            {
+              "id": "primitive_zero",
+              "entityId": "zero",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 487.1
+                }
+              ]
+            },
+            {
+              "id": "primitive_phi_top",
+              "entityId": "phi_top",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_E_top",
+              "entityId": "E_top",
+              "groupId": "setup",
+              "kind": "point",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_phi_level",
+              "entityId": "phi_level",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 290.78
+                },
+                {
+                  "x": 902.7,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_E_level",
+              "entityId": "E_level",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 608.22,
+                  "y": 192.62
+                },
+                {
+                  "x": 902.7,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_photon",
+              "entityId": "photon",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 706.38,
+                  "y": 487.1
+                },
+                {
+                  "x": 706.38,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_kinetic",
+              "entityId": "kinetic",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 824.17,
+                  "y": 290.78
+                },
+                {
+                  "x": 824.17,
+                  "y": 192.62
+                }
+              ]
+            },
+            {
+              "id": "primitive_work",
+              "entityId": "work",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 824.17,
+                  "y": 487.1
+                },
+                {
+                  "x": 824.17,
+                  "y": 290.78
+                }
+              ]
+            },
+            {
+              "id": "primitive_axes_label",
+              "entityId": "axes",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 513.99,
+                  "y": 580
+                }
+              ],
+              "text": "E (eV)",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 486.84374561542893,
+                  "y": 564,
+                  "width": 54.296254384571064,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_phi_top_label",
+              "entityId": "phi_top",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 652.38,
+                  "y": 260.78
+                }
+              ],
+              "text": "\u03c6=2 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 622.22,
+                  "y": 244.77999999999997,
+                  "width": 60.31437673820576,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_E_top_label",
+              "entityId": "E_top",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 656.93,
+                  "y": 162.62
+                }
+              ],
+              "text": "h\u03bd=3 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 622.22,
+                  "y": 146.62,
+                  "width": 69.42352844128871,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_photon_label",
+              "entityId": "photon",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 742.57,
+                  "y": 339.86
+                }
+              ],
+              "text": "h\u03bd",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 728.38,
+                  "y": 323.86,
+                  "width": 28.381341874894456,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_kinetic_label",
+              "entityId": "kinetic",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 876.61,
+                  "y": 241.7
+                }
+              ],
+              "text": "K=1 eV",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 846.17,
+                  "y": 225.7,
+                  "width": 60.881990523686504,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_work_label",
+              "entityId": "work",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 855.55,
+                  "y": 388.94
+                }
+              ],
+              "text": "\u03c6",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 846.17,
+                  "y": 372.94,
+                  "width": 18.76136,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            }
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "axes",
+                "zero",
+                "phi_top",
+                "E_top",
+                "phi_bar_end",
+                "phi_level",
+                "E_bar_end",
+                "E_level",
+                "photon_base",
+                "photon_tip",
+                "photon",
+                "k_base",
+                "k_tip",
+                "kinetic",
+                "w_base",
+                "w_tip",
+                "work"
+              ],
+              "dependsOn": [],
+              "narrationCue": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "timeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "photoelectric energy balance: photon energy, work function and maximum kinetic energy"
+            }
+          ],
+          "entityBounds": {
+            "axes": {
+              "x": 513.99,
+              "y": 119,
+              "width": 486.87,
+              "height": 461
+            },
+            "zero": {
+              "x": 608.22,
+              "y": 487.1,
+              "width": 0,
+              "height": 0
+            },
+            "phi_top": {
+              "x": 608.22,
+              "y": 260.78,
+              "width": 44.15999999999997,
+              "height": 30
+            },
+            "E_top": {
+              "x": 608.22,
+              "y": 162.62,
+              "width": 48.70999999999992,
+              "height": 30
+            },
+            "phi_level": {
+              "x": 608.22,
+              "y": 290.78,
+              "width": 294.48,
+              "height": 0
+            },
+            "E_level": {
+              "x": 608.22,
+              "y": 192.62,
+              "width": 294.48,
+              "height": 0
+            },
+            "photon": {
+              "x": 706.38,
+              "y": 192.62,
+              "width": 36.190000000000055,
+              "height": 294.48
+            },
+            "kinetic": {
+              "x": 824.17,
+              "y": 192.62,
+              "width": 52.440000000000055,
+              "height": 98.15999999999997
+            },
+            "work": {
+              "x": 824.17,
+              "y": 290.78,
+              "width": 31.379999999999995,
+              "height": 196.32000000000005
+            }
+          }
+        },
+        "validationReport": {
+          "engineVersion": "scene-engine/2.0.0",
+          "valid": true,
+          "issues": [],
+          "stats": {
+            "entityCount": 17,
+            "constructionCount": 17,
+            "primitiveCount": 15,
+            "assertionCount": 5
+          }
+        },
+        "tier": "question_representation",
+        "nonMetric": true,
+        "reason": "photoelectric schematic requested after the exact program was unavailable",
+        "family": "energy_level",
+        "labels": [
+          "E (eV)",
+          "\u03c6=2 eV",
+          "h\u03bd=3 eV",
+          "h\u03bd",
+          "K=1 eV",
+          "\u03c6"
+        ]
+      }
+    }
+  },
+  {
+    "id": "C-SHARED-LEVEL",
+    "question": "A hydrogen atom emits a photon during the transition from n = 4 to n = 2. Draw the energy level diagram.",
+    "outcome": {
+      "atomic": false,
+      "chemistry": false,
+      "families": [],
+      "direct": null,
+      "schematic": null,
+      "ordinary": {
+        "document": {
+          "schemaVersion": "scene-document/v2",
+          "visualDecision": {
+            "mode": "scene",
+            "reason": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+          },
+          "source": {
+            "question": "A hydrogen atom emits a photon during the transition from n = 4 to n = 2. Draw the energy level diagram.",
+            "synthesizedFamily": true
+          },
+          "quantities": [],
+          "entities": [
+            {
+              "id": "level_2_a",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_2_b",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_2_center",
+              "kind": "point",
+              "role": "relation display anchor"
+            },
+            {
+              "id": "level_2",
+              "kind": "segment",
+              "role": "energy level",
+              "label": "n=2"
+            },
+            {
+              "id": "level_4_a",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_4_b",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_4_center",
+              "kind": "point",
+              "role": "relation display anchor"
+            },
+            {
+              "id": "level_4",
+              "kind": "segment",
+              "role": "energy level",
+              "label": "n=4"
+            },
+            {
+              "id": "level_relation",
+              "kind": "vector",
+              "role": "source-stated photon transition"
+            }
+          ],
+          "constructions": [
+            {
+              "id": "make_level_2_a",
+              "operator": "point",
+              "inputs": {
+                "x": -1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_a"
+              ]
+            },
+            {
+              "id": "make_level_2_b",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_b"
+              ]
+            },
+            {
+              "id": "make_level_2_center",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_center"
+              ]
+            },
+            {
+              "id": "make_level_2",
+              "operator": "segment",
+              "inputs": {
+                "start": "level_2_a",
+                "end": "level_2_b"
+              },
+              "outputs": [
+                "level_2"
+              ]
+            },
+            {
+              "id": "make_level_4_a",
+              "operator": "point",
+              "inputs": {
+                "x": -1,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_a"
+              ]
+            },
+            {
+              "id": "make_level_4_b",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_b"
+              ]
+            },
+            {
+              "id": "make_level_4_center",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_center"
+              ]
+            },
+            {
+              "id": "make_level_4",
+              "operator": "segment",
+              "inputs": {
+                "start": "level_4_a",
+                "end": "level_4_b"
+              },
+              "outputs": [
+                "level_4"
+              ]
+            },
+            {
+              "id": "make_level_relation",
+              "operator": "vector",
+              "inputs": {
+                "start": "level_4_center",
+                "end": "level_2_center"
+              },
+              "outputs": [
+                "level_relation"
+              ]
+            }
+          ],
+          "relations": [],
+          "assertions": [
+            {
+              "id": "source_levels_exist",
+              "predicate": "exists",
+              "entities": [
+                "level_2",
+                "level_4",
+                "level_relation"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            }
+          ],
+          "annotations": [
+            {
+              "id": "ordinal_level_caption",
+              "kind": "callout",
+              "targetIds": [],
+              "text": "Ordinal level relation; not to scale"
+            }
+          ],
+          "requiredEntityIds": [
+            "level_2_a",
+            "level_2_b",
+            "level_2_center",
+            "level_2",
+            "level_4_a",
+            "level_4_b",
+            "level_4_center",
+            "level_4",
+            "level_relation"
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "level_2_a",
+                "level_2_b",
+                "level_2_center",
+                "level_2",
+                "level_4_a",
+                "level_4_b",
+                "level_4_center",
+                "level_4",
+                "level_relation"
+              ],
+              "dependsOn": [],
+              "narrationCue": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "teachingTimeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ]
+        },
+        "renderScene": {
+          "engineVersion": "scene-engine/2.0.0",
+          "primitives": [
+            {
+              "id": "primitive_level_2",
+              "entityId": "level_2",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 566.5,
+                  "y": 546
+                },
+                {
+                  "x": 993.5,
+                  "y": 546
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_4",
+              "entityId": "level_4",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 566.5,
+                  "y": 119
+                },
+                {
+                  "x": 993.5,
+                  "y": 119
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_relation",
+              "entityId": "level_relation",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 119
+                },
+                {
+                  "x": 780,
+                  "y": 546
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_2_label",
+              "entityId": "level_2",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 584
+                }
+              ],
+              "text": "n=2",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 761.1452025414999,
+                  "y": 568,
+                  "width": 37.709594917000224,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_level_4_label",
+              "entityId": "level_4",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 85
+                }
+              ],
+              "text": "n=4",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 760.3761753186084,
+                  "y": 69,
+                  "width": 39.247649362783214,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            }
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "level_2_a",
+                "level_2_b",
+                "level_2_center",
+                "level_2",
+                "level_4_a",
+                "level_4_b",
+                "level_4_center",
+                "level_4",
+                "level_relation"
+              ],
+              "dependsOn": [],
+              "narrationCue": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "timeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "entityBounds": {
+            "level_2": {
+              "x": 566.5,
+              "y": 546,
+              "width": 427,
+              "height": 38
+            },
+            "level_4": {
+              "x": 566.5,
+              "y": 85,
+              "width": 427,
+              "height": 34
+            },
+            "level_relation": {
+              "x": 780,
+              "y": 119,
+              "width": 0,
+              "height": 427
+            }
+          },
+          "caption": "Ordinal level relation; not to scale"
+        },
+        "validationReport": {
+          "engineVersion": "scene-engine/2.0.0",
+          "valid": true,
+          "issues": [],
+          "stats": {
+            "entityCount": 9,
+            "constructionCount": 9,
+            "primitiveCount": 5,
+            "assertionCount": 1
+          }
+        },
+        "tier": "qualitative_verified",
+        "nonMetric": true,
+        "reason": "compiled energy_level grounded in the question wording; no plan-backed metric proof, so the geometry is qualitative",
+        "family": "energy_level",
+        "labels": [
+          "n=2",
+          "n=4"
+        ]
+      },
+      "lastResort": {
+        "document": {
+          "schemaVersion": "scene-document/v2",
+          "visualDecision": {
+            "mode": "scene",
+            "reason": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+          },
+          "source": {
+            "question": "A hydrogen atom emits a photon during the transition from n = 4 to n = 2. Draw the energy level diagram.",
+            "synthesizedFamily": true
+          },
+          "quantities": [],
+          "entities": [
+            {
+              "id": "level_2_a",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_2_b",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_2_center",
+              "kind": "point",
+              "role": "relation display anchor"
+            },
+            {
+              "id": "level_2",
+              "kind": "segment",
+              "role": "energy level",
+              "label": "n=2"
+            },
+            {
+              "id": "level_4_a",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_4_b",
+              "kind": "point",
+              "role": "level display anchor"
+            },
+            {
+              "id": "level_4_center",
+              "kind": "point",
+              "role": "relation display anchor"
+            },
+            {
+              "id": "level_4",
+              "kind": "segment",
+              "role": "energy level",
+              "label": "n=4"
+            },
+            {
+              "id": "level_relation",
+              "kind": "vector",
+              "role": "source-stated photon transition"
+            }
+          ],
+          "constructions": [
+            {
+              "id": "make_level_2_a",
+              "operator": "point",
+              "inputs": {
+                "x": -1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_a"
+              ]
+            },
+            {
+              "id": "make_level_2_b",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_b"
+              ]
+            },
+            {
+              "id": "make_level_2_center",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 0,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_2_center"
+              ]
+            },
+            {
+              "id": "make_level_2",
+              "operator": "segment",
+              "inputs": {
+                "start": "level_2_a",
+                "end": "level_2_b"
+              },
+              "outputs": [
+                "level_2"
+              ]
+            },
+            {
+              "id": "make_level_4_a",
+              "operator": "point",
+              "inputs": {
+                "x": -1,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_a"
+              ]
+            },
+            {
+              "id": "make_level_4_b",
+              "operator": "point",
+              "inputs": {
+                "x": 1,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_b"
+              ]
+            },
+            {
+              "id": "make_level_4_center",
+              "operator": "point",
+              "inputs": {
+                "x": 0,
+                "y": 2,
+                "coordinateSpace": "world"
+              },
+              "outputs": [
+                "level_4_center"
+              ]
+            },
+            {
+              "id": "make_level_4",
+              "operator": "segment",
+              "inputs": {
+                "start": "level_4_a",
+                "end": "level_4_b"
+              },
+              "outputs": [
+                "level_4"
+              ]
+            },
+            {
+              "id": "make_level_relation",
+              "operator": "vector",
+              "inputs": {
+                "start": "level_4_center",
+                "end": "level_2_center"
+              },
+              "outputs": [
+                "level_relation"
+              ]
+            }
+          ],
+          "relations": [],
+          "assertions": [
+            {
+              "id": "source_levels_exist",
+              "predicate": "exists",
+              "entities": [
+                "level_2",
+                "level_4",
+                "level_relation"
+              ],
+              "expected": true,
+              "severity": "fatal"
+            }
+          ],
+          "annotations": [
+            {
+              "id": "ordinal_level_caption",
+              "kind": "callout",
+              "targetIds": [],
+              "text": "Ordinal level relation; not to scale"
+            }
+          ],
+          "requiredEntityIds": [
+            "level_2_a",
+            "level_2_b",
+            "level_2_center",
+            "level_2",
+            "level_4_a",
+            "level_4_b",
+            "level_4_center",
+            "level_4",
+            "level_relation"
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "level_2_a",
+                "level_2_b",
+                "level_2_center",
+                "level_2",
+                "level_4_a",
+                "level_4_b",
+                "level_4_center",
+                "level_4",
+                "level_relation"
+              ],
+              "dependsOn": [],
+              "narrationCue": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "teachingTimeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ]
+        },
+        "renderScene": {
+          "engineVersion": "scene-engine/2.0.0",
+          "primitives": [
+            {
+              "id": "primitive_level_2",
+              "entityId": "level_2",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 566.5,
+                  "y": 546
+                },
+                {
+                  "x": 993.5,
+                  "y": 546
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_4",
+              "entityId": "level_4",
+              "groupId": "setup",
+              "kind": "line",
+              "points": [
+                {
+                  "x": 566.5,
+                  "y": 119
+                },
+                {
+                  "x": 993.5,
+                  "y": 119
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_relation",
+              "entityId": "level_relation",
+              "groupId": "setup",
+              "kind": "vector",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 119
+                },
+                {
+                  "x": 780,
+                  "y": 546
+                }
+              ]
+            },
+            {
+              "id": "primitive_level_2_label",
+              "entityId": "level_2",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 584
+                }
+              ],
+              "text": "n=2",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 761.1452025414999,
+                  "y": 568,
+                  "width": 37.709594917000224,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            },
+            {
+              "id": "primitive_level_4_label",
+              "entityId": "level_4",
+              "groupId": "setup",
+              "kind": "label",
+              "points": [
+                {
+                  "x": 780,
+                  "y": 85
+                }
+              ],
+              "text": "n=4",
+              "labelPlacement": "absolute",
+              "provenance": {
+                "labelBounds": {
+                  "x": 760.3761753186084,
+                  "y": 69,
+                  "width": 39.247649362783214,
+                  "height": 32
+                },
+                "usesLeader": false
+              }
+            }
+          ],
+          "revealGroups": [
+            {
+              "id": "setup",
+              "entityIds": [
+                "level_2_a",
+                "level_2_b",
+                "level_2_center",
+                "level_2",
+                "level_4_a",
+                "level_4_b",
+                "level_4_center",
+                "level_4",
+                "level_relation"
+              ],
+              "dependsOn": [],
+              "narrationCue": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "timeline": [
+            {
+              "id": "reveal_setup",
+              "action": "reveal",
+              "targetId": "setup",
+              "dependsOn": [],
+              "narrationIntent": "source-stated concrete or indexed level relationships; ordinal display only, not an energy-spacing scale"
+            }
+          ],
+          "entityBounds": {
+            "level_2": {
+              "x": 566.5,
+              "y": 546,
+              "width": 427,
+              "height": 38
+            },
+            "level_4": {
+              "x": 566.5,
+              "y": 85,
+              "width": 427,
+              "height": 34
+            },
+            "level_relation": {
+              "x": 780,
+              "y": 119,
+              "width": 0,
+              "height": 427
+            }
+          },
+          "caption": "Ordinal level relation; not to scale"
+        },
+        "validationReport": {
+          "engineVersion": "scene-engine/2.0.0",
+          "valid": true,
+          "issues": [],
+          "stats": {
+            "entityCount": 9,
+            "constructionCount": 9,
+            "primitiveCount": 5,
+            "assertionCount": 1
+          }
+        },
+        "tier": "question_representation",
+        "nonMetric": true,
+        "reason": "compiled a energy_level schematic after the exact operator program was unavailable",
+        "family": "energy_level",
+        "labels": [
+          "n=2",
+          "n=4"
+        ]
+      }
+    }
+  }
+]

@@ -1,0 +1,138 @@
+[
+  {
+    "id": "no-incident-unowned-electron-lambda",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "No incident radiation measurement. Newly derived E=phi+K may not silently discard the unsupported separately stated electron wavelength. Required whole decline retains existing protected oracle."
+    }
+  },
+  {
+    "id": "no-incident-decimal-electron-lambda",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy .5 eV and wavelength is 1.735 nm. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "Same source-bound dimension inventory applies with leading-decimal emitted kinetic energy."
+    }
+  },
+  {
+    "id": "no-incident-explicit-not-photon-lambda",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm, not incident light. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "An express non-incident electron wavelength cannot become photon energy or vanish when deriving E."
+    }
+  },
+  {
+    "id": "no-incident-unowned-frequency",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1 eV and frequency is 1e15 Hz. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "No supported complete owner closes the additional frequency declaration before new conservation derivation."
+    }
+  },
+  {
+    "id": "no-incident-extra-thickness",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1 eV. The metal thickness is 1 mm. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "The bounded energy-balance source model does not consume or represent this required dimensional source context. It may not drop its length on the new derived-incident branch."
+    }
+  },
+  {
+    "id": "no-incident-clean-conservation",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1 eV. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": true,
+    "expectedWholePublicDraw": true,
+    "scientificGold": {
+      "photonEV": 3,
+      "workEV": 2,
+      "kineticEV": 1,
+      "photonBasis": "derived E=phi+K, not source photon given",
+      "noNewIncidentQuantityMayBeManufactured": true
+    }
+  },
+  {
+    "id": "given-E-lambda-preserved",
+    "question": "In an atomic electron model, photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": true,
+    "expectedWholePublicDraw": true,
+    "scientificGold": {
+      "photonEV": 3,
+      "workEV": 2,
+      "kineticEV": 1,
+      "photonBasis": "stated incident energy",
+      "electronWavelengthMustNotSupplyPhotonEnergy": true,
+      "scope": "Existing source-positive preserved whole; new no-incident inventory guard must not be applied blanket to this branch."
+    }
+  },
+  {
+    "id": "given-E-reordered-lambda-preserved",
+    "question": "In an atomic electron model, emitted electron has kinetic energy 1.000 eV and wavelength is 1.227 nm; work function is 2 eV; photon energy is 3 eV. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": true,
+    "expectedWholePublicDraw": true,
+    "scientificGold": {
+      "photonEV": 3,
+      "workEV": 2,
+      "kineticEV": 1,
+      "photonBasis": "stated incident energy",
+      "electronWavelengthMustNotSupplyPhotonEnergy": true
+    }
+  },
+  {
+    "id": "given-E-phi-mismatch",
+    "question": "In an atomic electron model, photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 2 eV. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "Given emitted K2 conflicts with source E3-phi2=1."
+    }
+  },
+  {
+    "id": "threshold-positive-stopping-derived",
+    "question": "Photoelectric emission: work function is 2 eV; threshold wavelength is 620 nm; stopping potential is 2 V. Take hc = 1240.0 eV nm. Draw the energy balance.",
+    "expectedScientificAvailability": true,
+    "expectedWholePublicDraw": true,
+    "scientificGold": {
+      "photonEV": 4,
+      "workEV": 2,
+      "kineticEV": 2,
+      "stoppingV": 2,
+      "thresholdNM": 620,
+      "photonBasis": "derived from positive emitted stopping result; threshold wavelength is not incident wavelength",
+      "givenValuesMustSurvive": true
+    }
+  },
+  {
+    "id": "threshold-zero-stopping-incomplete",
+    "question": "Photoelectric emission: work function is 2 eV; threshold wavelength is 620 nm; stopping potential is 0 V. Take hc = 1240.0 eV nm. Draw the energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "Zero retarding voltage without established threshold emission does not fix incident energy; subthreshold/no-emission also possible. Do not invent E=phi."
+    }
+  },
+  {
+    "id": "incident-electron-does-not-derive-photon",
+    "question": "In an atomic electron model, work function is 2 eV. An electron incident on the surface has kinetic energy 1 eV. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "An incoming electron is not a supported emitted result, so E=phi+K conservation cannot be used for an incident photon."
+    }
+  },
+  {
+    "id": "no-incident-extra-supported-nm-thickness",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1 eV. The metal thickness is 1 nm. Draw the photoelectron energy balance.",
+    "expectedScientificAvailability": false,
+    "expectedWholePublicDraw": false,
+    "scientificGold": {
+      "reason": "A known-unit physical thickness is still not a source incident wavelength. Its independently unconsumed length span cannot disappear before the new conservation derivation."
+    }
+  }
+]

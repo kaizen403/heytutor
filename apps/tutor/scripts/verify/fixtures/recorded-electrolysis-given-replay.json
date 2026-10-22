@@ -1,0 +1,692 @@
+{
+  "schema": "recorded-electrolysis-given-replay/v1",
+  "provenance": {
+    "inputSource": "frozen actual recorded chemistry electrolysis selection input",
+    "frozenInputSha256": "a55c504e84dee420c832a71a9a08ad7b3e5a61f6324010b615633188fd1e12c0",
+    "retainedOriginalProblemIRAndSolverResult": true
+  },
+  "currentEntityId": "deposition_fact_0",
+  "currentText": "I=2 A",
+  "answerEntityId": "mass",
+  "input": {
+    "question": "A current of 2.0 A is passed through an aqueous solution of CuSO4 for 30 minutes using inert electrodes. What mass of copper is deposited at the cathode? (Molar mass of Cu = 63.5 g mol^-1, F = 96500 C mol^-1)",
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "subject": "chemistry",
+      "question": "A current of 2.0 A is passed through an aqueous solution of CuSO4 for 30 minutes using inert electrodes. What mass of copper is deposited at the cathode? (Molar mass of Cu = 63.5 g mol^-1, F = 96500 C mol^-1)",
+      "givens": [
+        {
+          "id": "I",
+          "symbol": "I",
+          "value": 2,
+          "unit": "A",
+          "sourceText": "current of 2.0 A",
+          "provenance": "given"
+        },
+        {
+          "id": "t",
+          "symbol": "t",
+          "value": 30,
+          "unit": "min",
+          "sourceText": "for 30 minutes",
+          "provenance": "given"
+        },
+        {
+          "id": "M",
+          "symbol": "M(Cu)",
+          "value": 63.5,
+          "unit": "g mol^-1",
+          "sourceText": "Molar mass of Cu = 63.5 g mol^-1",
+          "provenance": "given"
+        },
+        {
+          "id": "F",
+          "symbol": "F",
+          "value": 96500,
+          "unit": "C mol^-1",
+          "sourceText": "F = 96500 C mol^-1",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "m",
+          "symbol": "m(Cu)",
+          "unit": "g"
+        }
+      ],
+      "derived": [
+        {
+          "id": "m",
+          "symbol": "m(Cu)",
+          "value": 1.1844559585492227,
+          "unit": "g",
+          "sourceText": "m = n·M = 0.01865 mol × 63.5 g/mol = 1.18445595855 g",
+          "provenance": "derived",
+          "dependsOn": [
+            "n",
+            "M"
+          ]
+        },
+        {
+          "id": "ts",
+          "symbol": "t",
+          "value": 1800,
+          "unit": "s",
+          "sourceText": "30 min × 60 s/min = 1800 s",
+          "provenance": "derived",
+          "dependsOn": [
+            "t"
+          ]
+        },
+        {
+          "id": "Q",
+          "symbol": "Q",
+          "value": 3600,
+          "unit": "C",
+          "sourceText": "Q = I·t = 2.0 A × 1800 s = 3600 C",
+          "provenance": "derived",
+          "dependsOn": [
+            "I",
+            "ts"
+          ]
+        },
+        {
+          "id": "n",
+          "symbol": "n(Cu)",
+          "value": 0.01865284974093264,
+          "unit": "mol",
+          "sourceText": "n = Q/(2F) = 3600/(2×96500) = 0.0186528497409 mol",
+          "provenance": "derived",
+          "dependsOn": [
+            "Q",
+            "F"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Cu2+ is reduced at the cathode, requiring 2 electrons per Cu atom",
+          "expected": "Cu2+ + 2e- → Cu, so n(Cu) = Q/(2F)",
+          "relatedQuantityIds": [
+            "Q",
+            "F",
+            "n"
+          ]
+        },
+        {
+          "id": "c2",
+          "claim": "Mass deposited follows Faraday's law",
+          "expected": "m = M·I·t/(2F) = 63.5×2.0×1800/(2×96500) = 1.18 g",
+          "relatedQuantityIds": [
+            "m",
+            "M",
+            "I",
+            "ts",
+            "F"
+          ]
+        }
+      ],
+      "lawIds": [
+        "Faraday's first law of electrolysis",
+        "Q = I·t",
+        "Cu2+ + 2e- → Cu (2-electron reduction)"
+      ],
+      "assumptions": [
+        "100% current efficiency; all charge reduces Cu2+ at the cathode",
+        "Inert electrodes mean Cu2+ (not electrode material) is reduced",
+        "CuSO4 fully dissociates; Cu2+ preferentially reduced over water",
+        "A verified illustration is required by the question's spatial or explicit visual request."
+      ],
+      "visualRequirement": "required"
+    },
+    "problemIR": {
+      "facts": [
+        {
+          "id": "fCurrent",
+          "kind": "given",
+          "statement": "current of 2.0 A passed through solution",
+          "evidence": {
+            "source": "question",
+            "start": 2,
+            "end": 18,
+            "quote": "current of 2.0 A"
+          }
+        },
+        {
+          "id": "fTime",
+          "kind": "given",
+          "statement": "electrolysis lasts 30 minutes",
+          "evidence": {
+            "source": "question",
+            "start": 66,
+            "end": 80,
+            "quote": "for 30 minutes"
+          }
+        },
+        {
+          "id": "fMolarMass",
+          "kind": "given",
+          "statement": "molar mass of Cu is 63.5 g/mol",
+          "evidence": {
+            "source": "question",
+            "start": 155,
+            "end": 187,
+            "quote": "Molar mass of Cu = 63.5 g mol^-1"
+          }
+        },
+        {
+          "id": "fFaraday",
+          "kind": "given",
+          "statement": "Faraday constant is 96500 C/mol",
+          "evidence": {
+            "source": "question",
+            "start": 189,
+            "end": 207,
+            "quote": "F = 96500 C mol^-1"
+          }
+        },
+        {
+          "id": "fMass",
+          "kind": "requested",
+          "statement": "mass of copper deposited at cathode",
+          "evidence": {
+            "source": "question",
+            "start": 105,
+            "end": 153,
+            "quote": "What mass of copper is deposited at the cathode?"
+          }
+        },
+        {
+          "id": "fInert",
+          "kind": "assumption",
+          "statement": "inert electrodes used in electrolysis",
+          "evidence": {
+            "source": "question",
+            "start": 81,
+            "end": 103,
+            "quote": "using inert electrodes"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "cuSolution",
+          "kind": "other",
+          "label": "aqueous CuSO4 solution",
+          "evidenceFactIds": [
+            "fCurrent"
+          ]
+        },
+        {
+          "id": "cathode",
+          "kind": "component",
+          "label": "cathode",
+          "evidenceFactIds": [
+            "fMass",
+            "fInert"
+          ]
+        },
+        {
+          "id": "copper",
+          "kind": "body",
+          "label": "deposited copper",
+          "evidenceFactIds": [
+            "fMass",
+            "fMolarMass"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eMass",
+          "valueType": "scalar",
+          "evidenceFactIds": [
+            "fCurrent",
+            "fTime",
+            "fMolarMass",
+            "fFaraday"
+          ],
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 63.5
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 2
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 30
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 60
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 96500
+              }
+            }
+          }
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "iElectrolysis",
+          "kind": "apparatus",
+          "entityIds": [
+            "cuSolution",
+            "cathode",
+            "copper"
+          ],
+          "evidenceFactIds": [
+            "fCurrent",
+            "fInert",
+            "fMass"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sMass",
+          "kind": "evaluate",
+          "expressionId": "eMass",
+          "resultBinding": {
+            "turnPlanQuantityId": "m",
+            "symbol": "m(Cu)",
+            "unit": "g",
+            "evidenceFactIds": [
+              "fMass"
+            ]
+          }
+        }
+      ],
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "A current of 2.0 A is passed through an aqueous solution of CuSO4 for 30 minutes using inert electrodes. What mass of copper is deposited at the cathode? (Molar mass of Cu = 63.5 g mol^-1, F = 96500 C mol^-1)"
+    },
+    "sceneCapabilities": {
+      "visualRequired": true,
+      "families": [
+        "chem_solutions"
+      ],
+      "constructionOperators": [
+        "point",
+        "segment",
+        "line",
+        "polyline",
+        "vector",
+        "label",
+        "dimension",
+        "angle_mark",
+        "tick_mark",
+        "sign_badge",
+        "flux_process",
+        "induction_state",
+        "flux_sinusoid",
+        "sinusoid_state",
+        "symbol",
+        "connect",
+        "vector_components",
+        "arc",
+        "impedance",
+        "impedance_combine",
+        "phasor_response",
+        "kirchhoff_network",
+        "metre_bridge",
+        "potentiometer",
+        "galvanometer",
+        "elastic_profile",
+        "elastic_state",
+        "hydrostatic_profile",
+        "hydrostatic_state",
+        "buoyancy",
+        "solid_projection",
+        "solid_cross_section",
+        "solid_anchor",
+        "rectangle",
+        "polygon",
+        "circle",
+        "surface_contact",
+        "right_angle_mark",
+        "rotate",
+        "midpoint",
+        "rotational_motion",
+        "rotational_state",
+        "planar_torque",
+        "harmonic_motion",
+        "harmonic_state",
+        "gravitational_field",
+        "gravitational_force",
+        "constant_acceleration_trajectory",
+        "trajectory_state",
+        "vector_sum",
+        "vector_scale",
+        "vector_projection",
+        "free_body",
+        "coupled_bodies",
+        "vertical_circle",
+        "mechanical_energy_pair",
+        "work_interval",
+        "spring_energy",
+        "potential_curve",
+        "collision",
+        "incline_friction",
+        "uniform_circular_motion",
+        "projectile_trajectory",
+        "permutation_cycles",
+        "subset_lattice",
+        "set_partition",
+        "set_select",
+        "axes",
+        "histogram",
+        "frequency_polygon",
+        "cumulative_frequency",
+        "probability_tree",
+        "polytropic_process",
+        "isochoric_process",
+        "process_state",
+        "motion_graph",
+        "function_curve"
+      ],
+      "proofPredicates": [
+        "exists",
+        "label_attached",
+        "path",
+        "sameTerminalPair",
+        "pathCount",
+        "degree",
+        "connected",
+        "perpendicular",
+        "angle_between",
+        "parallel",
+        "distance_ratio",
+        "opposite_direction",
+        "on",
+        "equal_length",
+        "between",
+        "ordered_along",
+        "function_value"
+      ],
+      "planningGuidance": [
+        "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. A supplied multi-loop graph uses kirchhoff_network and must not be redrawn as a series chain. A metre bridge or potentiometer balance uses metre_bridge or potentiometer; do not place the jockey by eye. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
+        "Construct connected vessels or pipes with shared terminals. Use solid_projection and solid_anchor for cylindrical or spherical bodies: radii join centre to rim, diameters join opposite rim anchors on the same section. Supply dimension measurementKind for solid-anchor spans and keep each measurement attached to its own body. A fluid-level difference is measured between the actual levels, never as vessel height. Flow and force arrows attach to their bodies; do not draw disconnected tanks.",
+        "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
+        "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. For supplied grouped counts, use histogram (density for unequal widths), frequency_polygon, or cumulative_frequency. Use probability_tree for explicit conditional outcome branches and computed joint leaf probabilities. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
+        "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+      ]
+    },
+    "fastRepresentation": null,
+    "exactFigureSource": "planner",
+    "solverAuthorityBlocked": false,
+    "requiredRetryEnabled": true,
+    "completionEnabled": false,
+    "solverAuthority": {
+      "problemIR": {
+        "facts": [
+          {
+            "id": "fCurrent",
+            "kind": "given",
+            "statement": "current of 2.0 A passed through solution",
+            "evidence": {
+              "source": "question",
+              "start": 2,
+              "end": 18,
+              "quote": "current of 2.0 A"
+            }
+          },
+          {
+            "id": "fTime",
+            "kind": "given",
+            "statement": "electrolysis lasts 30 minutes",
+            "evidence": {
+              "source": "question",
+              "start": 66,
+              "end": 80,
+              "quote": "for 30 minutes"
+            }
+          },
+          {
+            "id": "fMolarMass",
+            "kind": "given",
+            "statement": "molar mass of Cu is 63.5 g/mol",
+            "evidence": {
+              "source": "question",
+              "start": 155,
+              "end": 187,
+              "quote": "Molar mass of Cu = 63.5 g mol^-1"
+            }
+          },
+          {
+            "id": "fFaraday",
+            "kind": "given",
+            "statement": "Faraday constant is 96500 C/mol",
+            "evidence": {
+              "source": "question",
+              "start": 189,
+              "end": 207,
+              "quote": "F = 96500 C mol^-1"
+            }
+          },
+          {
+            "id": "fMass",
+            "kind": "requested",
+            "statement": "mass of copper deposited at cathode",
+            "evidence": {
+              "source": "question",
+              "start": 105,
+              "end": 153,
+              "quote": "What mass of copper is deposited at the cathode?"
+            }
+          },
+          {
+            "id": "fInert",
+            "kind": "assumption",
+            "statement": "inert electrodes used in electrolysis",
+            "evidence": {
+              "source": "question",
+              "start": 81,
+              "end": 103,
+              "quote": "using inert electrodes"
+            }
+          }
+        ],
+        "entities": [
+          {
+            "id": "cuSolution",
+            "kind": "other",
+            "label": "aqueous CuSO4 solution",
+            "evidenceFactIds": [
+              "fCurrent"
+            ]
+          },
+          {
+            "id": "cathode",
+            "kind": "component",
+            "label": "cathode",
+            "evidenceFactIds": [
+              "fMass",
+              "fInert"
+            ]
+          },
+          {
+            "id": "copper",
+            "kind": "body",
+            "label": "deposited copper",
+            "evidenceFactIds": [
+              "fMass",
+              "fMolarMass"
+            ]
+          }
+        ],
+        "expressions": [
+          {
+            "id": "eMass",
+            "valueType": "scalar",
+            "evidenceFactIds": [
+              "fCurrent",
+              "fTime",
+              "fMolarMass",
+              "fFaraday"
+            ],
+            "root": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 63.5
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 30
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 60
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 96500
+                }
+              }
+            }
+          }
+        ],
+        "constraints": [],
+        "representationIntents": [
+          {
+            "id": "iElectrolysis",
+            "kind": "apparatus",
+            "entityIds": [
+              "cuSolution",
+              "cathode",
+              "copper"
+            ],
+            "evidenceFactIds": [
+              "fCurrent",
+              "fInert",
+              "fMass"
+            ]
+          }
+        ],
+        "solveRequests": [
+          {
+            "id": "sMass",
+            "kind": "evaluate",
+            "expressionId": "eMass",
+            "resultBinding": {
+              "turnPlanQuantityId": "m",
+              "symbol": "m(Cu)",
+              "unit": "g",
+              "evidenceFactIds": [
+                "fMass"
+              ]
+            }
+          }
+        ],
+        "schemaVersion": "problem-ir/v1",
+        "id": "problem",
+        "question": "A current of 2.0 A is passed through an aqueous solution of CuSO4 for 30 minutes using inert electrodes. What mass of copper is deposited at the cathode? (Molar mass of Cu = 63.5 g mol^-1, F = 96500 C mol^-1)"
+      },
+      "solverResult": {
+        "schemaVersion": "solver-result/v1",
+        "problemId": "problem",
+        "providerId": "local-deterministic/v1",
+        "status": "solved",
+        "values": [
+          {
+            "id": "value_sMass",
+            "requestId": "sMass",
+            "valueType": "scalar",
+            "exact": {
+              "kind": "rational",
+              "value": "1143/965"
+            },
+            "approximate": 1.1844559585492227,
+            "errorBound": 0
+          }
+        ],
+        "proofs": [
+          {
+            "id": "proof_sMass",
+            "requestId": "sMass",
+            "method": "exact_arithmetic",
+            "expressionIds": [
+              "eMass"
+            ],
+            "verified": true,
+            "residual": 0,
+            "tolerance": 1e-09,
+            "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+          }
+        ],
+        "issues": []
+      }
+    },
+    "policy": {
+      "preferPlanner": false,
+      "allowedFigureSources": [
+        "planner",
+        "fast_family",
+        "family",
+        "archetype",
+        "chemistry_family",
+        "matrix_source",
+        "linear_source",
+        "source_grounded",
+        "last_resort",
+        "text_only",
+        "dsa_trace",
+        "verified_recovery"
+      ]
+    }
+  }
+}

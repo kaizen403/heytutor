@@ -1,0 +1,171 @@
+[
+  {
+    "id": "radical-internal-branched",
+    "question": "3-Methylpent-2-ene reacts with HBr in the presence of peroxide to form product B. Draw the product and count its stereoisomers.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C6H13Br",
+    "centres": 2,
+    "count": 4
+  },
+  {
+    "id": "radical-terminal-branched",
+    "question": "Treat 2-methylbut-1-ene with HBr and peroxide. Show the addition product and identify its stereocentres and number of stereoisomers.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C5H11Br",
+    "centres": 1,
+    "count": 2
+  },
+  {
+    "id": "radical-no-centre",
+    "question": "Propene is treated with HBr in the presence of ROOR. Draw the product and state the number of stereoisomers.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "centres": 0,
+    "count": 1
+  },
+  {
+    "id": "radical-requested-name",
+    "question": "Propene reacts with HBr and peroxide. Draw and name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-only",
+    "question": "Propene reacts with HBr and peroxide. Name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-butene",
+    "question": "But-1-ene reacts with HBr and ROOR. Show and name the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C4H9Br",
+    "name": "1-bromobutane"
+  },
+  {
+    "id": "radical-name-major",
+    "question": "Propene is treated with HBr in the presence of peroxide. Draw and name the major product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C3H7Br",
+    "name": "1-bromopropane"
+  },
+  {
+    "id": "radical-name-branched-declined",
+    "question": "2-Methylbut-1-ene reacts with HBr and peroxide. Draw and name the product.",
+    "draw": false
+  },
+  {
+    "id": "hofmann-aryl",
+    "question": "Benzamide is treated with Br2 and aqueous NaOH. Show the amine product and compare its carbon count with the amide.",
+    "kind": "hofmann",
+    "draw": true,
+    "formula": "C6H7N",
+    "carbons": [
+      7,
+      6
+    ],
+    "name": "aniline"
+  },
+  {
+    "id": "hofmann-alkyl",
+    "question": "Propanamide reacts with Br2 and aqueous NaOH. Draw and name the product and show the carbon atom lost.",
+    "kind": "hofmann",
+    "draw": true,
+    "formula": "C2H7N",
+    "carbons": [
+      3,
+      2
+    ],
+    "name": "ethanamine"
+  },
+  {
+    "id": "hofmann-transformation-role",
+    "question": "Draw the transformation of butanamide into its product with Br2 and aqueous NaOH, identifying the carbon atom lost.",
+    "kind": "hofmann",
+    "draw": true,
+    "formula": "C3H9N",
+    "carbons": [
+      4,
+      3
+    ],
+    "name": "propan-1-amine"
+  },
+  {
+    "id": "peroxide-unread",
+    "question": "2-Methylbut-1-ene reacts with HBr under unknown peroxide conditions. Draw its addition product and count stereoisomers.",
+    "draw": false
+  },
+  {
+    "id": "regiochemistry-unresolved",
+    "question": "Pent-2-ene reacts with HBr in the presence of peroxide. Draw the unique major product and count stereoisomers.",
+    "draw": false
+  },
+  {
+    "id": "secondary-amide",
+    "question": "N-Methylbenzamide is treated with Br2 and aqueous NaOH. Draw its primary-amide degradation product.",
+    "draw": false
+  },
+  {
+    "id": "multiple-reactants",
+    "question": "Benzamide and propanamide are each treated with Br2 and aqueous NaOH. Draw both amine products.",
+    "draw": false
+  },
+  {
+    "id": "excluded-bromine",
+    "question": "Benzamide is treated with aqueous NaOH, but not with Br2. Draw the Hofmann amine product.",
+    "draw": false
+  },
+  {
+    "id": "foreign-hydrogen-halide",
+    "question": "Propene is treated with HCl in the presence of peroxide. Draw the HBr addition product.",
+    "draw": false
+  },
+  {
+    "id": "bound-addition-role-B",
+    "question": "3-Methylpent-2-ene reacts with HBr in the presence of peroxide to form an addition product B. What is the number of possible stereoisomers of B?",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C6H13Br",
+    "centres": 2,
+    "count": 4,
+    "productRole": "addition product B"
+  },
+  {
+    "id": "bound-addition-role-C",
+    "question": "3-Methylpent-2-ene reacts with HBr in the presence of peroxide to form an addition product C. What is the number of possible stereoisomers of C?",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C6H13Br",
+    "centres": 2,
+    "count": 4,
+    "productRole": "addition product C"
+  },
+  {
+    "id": "product-only-no-count-authority",
+    "question": "Treat 2-methylbut-1-ene with HBr and peroxide. Draw the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C5H11Br",
+    "centres": 1,
+    "countUnrequested": true
+  },
+  {
+    "id": "product-only-qualified-source-ir",
+    "question": "Treat 2-methylbut-1-ene with HBr and peroxide to form an addition product B. Draw the product.",
+    "kind": "radical_hbr",
+    "draw": true,
+    "formula": "C5H11Br",
+    "centres": 1,
+    "countUnrequested": true,
+    "productRole": "addition product B"
+  }
+]

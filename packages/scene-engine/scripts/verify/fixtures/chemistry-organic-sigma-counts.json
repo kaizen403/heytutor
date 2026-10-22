@@ -1,0 +1,46 @@
+{
+  "schema": "organic-source-sigma-independent-golds/v1",
+  "rule": "one sigma per heavy bond plus one per attached H; pi is heavy order minus one",
+  "rows": [
+    {
+      "name": "ethanol",
+      "sigma": 8,
+      "pi": 0
+    },
+    {
+      "name": "propan-1-ol",
+      "sigma": 11,
+      "pi": 0
+    },
+    {
+      "name": "methanal",
+      "sigma": 3,
+      "pi": 1
+    },
+    {
+      "name": "ethanal",
+      "sigma": 6,
+      "pi": 1
+    },
+    {
+      "name": "propanal",
+      "sigma": 9,
+      "pi": 1
+    },
+    {
+      "name": "butanal",
+      "sigma": 12,
+      "pi": 1
+    },
+    {
+      "name": "propanone",
+      "sigma": 9,
+      "pi": 1
+    },
+    {
+      "name": "butan-2-one",
+      "sigma": 12,
+      "pi": 1
+    }
+  ]
+}

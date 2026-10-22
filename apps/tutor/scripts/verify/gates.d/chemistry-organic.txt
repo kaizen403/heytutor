@@ -1,0 +1,2 @@
+# Organic structural reveal; the VSEPR base registers its own availability gates.
+tsx scripts/verify/verify-live-organic-structure-reveal.ts

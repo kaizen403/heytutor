@@ -1,0 +1,150 @@
+[
+  {
+    "id": "required-represent",
+    "question": "Represent a threshold energy graph for the reaction.",
+    "mode": "alternatives",
+    "required": true
+  },
+  {
+    "id": "required-show",
+    "question": "Show the threshold energy curve for a reaction.",
+    "mode": "alternatives",
+    "required": true
+  },
+  {
+    "id": "transfer-basic-profile",
+    "question": "Draw a reaction energy profile with reactants, transition state and products.",
+    "mode": "alternatives",
+    "required": true
+  },
+  {
+    "id": "transfer-activated-complex",
+    "question": "Show reactants, activated complex and products on a potential-energy graph for a reaction.",
+    "mode": "alternatives",
+    "required": true
+  },
+  {
+    "id": "transfer-progress",
+    "question": "Sketch the potential energy profile along the reaction coordinate.",
+    "mode": "alternatives",
+    "required": true
+  },
+  {
+    "id": "given-forward-barrier",
+    "question": "Show the reaction-coordinate profile. The activation energy is 60 kJ/mol.",
+    "mode": "alternatives",
+    "required": true,
+    "ea": 60
+  },
+  {
+    "id": "threshold-minus-reactants",
+    "question": "Draw the energy profile for a reaction. The threshold energy is 80 kJ/mol and the energy of reactants is 20 kJ/mol.",
+    "mode": "alternatives",
+    "required": true,
+    "ea": 60
+  },
+  {
+    "id": "negative-unread",
+    "question": "Represent a threshold energy graph for the reaction. The threshold energy is unreadable kJ.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-unit",
+    "question": "Represent a threshold energy graph for the reaction. The threshold energy is 20 kg.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-extra-literal",
+    "question": "Represent a threshold energy graph for the reaction. Another energy is 30 kJ/mol.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-backward-only",
+    "question": "Show a reaction-coordinate profile. The reverse activation energy is 30 kJ/mol.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-catalyst-extra",
+    "question": "Draw a reaction energy profile with a catalyst.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-collector",
+    "question": "A collector has threshold energy 2 eV. Draw its threshold-energy curve.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "known-exo",
+    "question": "Draw the threshold-energy profile of an exothermic reaction.",
+    "mode": "ordered",
+    "required": true
+  },
+  {
+    "id": "known-endo",
+    "question": "Draw the threshold-energy profile of an endothermic reaction.",
+    "mode": "ordered",
+    "required": true
+  },
+  {
+    "id": "known-exact",
+    "question": "Draw an energy profile: forward activation energy is 60 kJ/mol and ΔH = -20 kJ/mol.",
+    "mode": "ordered",
+    "required": true
+  },
+  {
+    "id": "qa-equal-desired-gap",
+    "question": "Reactants and products have equal potential energy. Show the reaction energy barrier.",
+    "mode": "ordered",
+    "required": false
+  },
+  {
+    "id": "qa-no-enthalpy-desired-gap",
+    "question": "Sketch the reaction-coordinate profile and mark the threshold energy; no enthalpy change is supplied.",
+    "mode": "alternatives",
+    "required": false
+  },
+  {
+    "id": "given-generic-species",
+    "question": "For the reaction A -> B, show the energy profile.",
+    "mode": "alternatives",
+    "required": true,
+    "reactants": "A",
+    "products": "B"
+  },
+  {
+    "id": "negative-both-signs",
+    "question": "Represent an energy profile for an exothermic and endothermic reaction.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-exo-positive-enthalpy",
+    "question": "Represent an exothermic reaction energy profile. Forward activation energy is 60 kJ/mol and ΔH = 20 kJ/mol.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-endo-negative-enthalpy",
+    "question": "Represent an endothermic reaction energy profile. Forward activation energy is 60 kJ/mol and ΔH = -20 kJ/mol.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-unknown-is-not-absence",
+    "question": "Represent a threshold energy graph for the reaction. ΔH is unknown.",
+    "mode": "decline",
+    "required": true
+  },
+  {
+    "id": "negative-unowned-adjacent-literal",
+    "question": "Represent a threshold energy graph for the reaction. X25 kJ/mol.",
+    "mode": "decline",
+    "required": true
+  }
+]
