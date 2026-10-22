@@ -28,4 +28,17 @@ assert.equal(validateAxisNamePlacement([...frame, prim("primitive_frame_label_y"
   assert.equal(validateAngleLabelWedge(doc, [vertex, arc, prim("lab", "t", "label", [[560, 380]], { text: "θ" })]).length, 0, "a name inside the 0 to 60 degree wedge passes");
   assert.equal(validateAngleLabelWedge(doc, [vertex, arc, prim("lab", "t", "label", [[510, 460]], { text: "θ" })]).length, 1, "a name in the wrong wedge is refused");
 }
+// Greptile #261: 2D angle marks render an arc; an annotation label is omitted, not fatal for the figure.
+{
+  const doc = { entities: [{ id: "V", kind: "point" }, { id: "a2", kind: "angle_mark", role: "angle at V" }],
+    constructions: [{ id: "make_a2", operator: "angle_mark", inputs: { vertex: "V" }, outputs: ["a2"] }],
+    annotations: [{ id: "name_a2", kind: "label", targetIds: ["a2"], text: "α" }] } as unknown as SceneDocument;
+  const arc2d = prim("arc2d", "a2", "arc", [[500, 400]], { radius: 40, startAngle: -Math.PI / 3, endAngle: 0 });
+  const inside = prim("lab", "name_a2", "label", [[560, 382]], { text: "α", provenance: { annotationId: "name_a2" } });
+  const outside = prim("lab", "name_a2", "label", [[470, 450]], { text: "α", provenance: { annotationId: "name_a2" } });
+  assert.equal(validateAngleLabelWedge(doc, [arc2d, inside]).length, 0, "a 2D arc's name inside its wedge passes");
+  const refused = validateAngleLabelWedge(doc, [arc2d, outside]);
+  assert.equal(refused.length, 1, "a 2D arc's name outside its wedge is refused");
+  assert.equal(refused[0]!.path, "annotations[0].text", "an annotation name points at its own text so it can be omitted");
+}
 console.log("yield legibility: tiny figures, 3D axis names, angle names in their wedge");

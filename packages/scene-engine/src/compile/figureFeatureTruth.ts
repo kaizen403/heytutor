@@ -179,9 +179,15 @@ export function validateAngleLabelWedge(document: SceneDocument, primitives: Ren
   for (const mark of marks) {
     const construction = document.constructions.find((c) => c.outputs.includes(mark.id));
     const vertexId = typeof construction?.inputs.vertex === "string" ? construction.inputs.vertex : undefined;
-    const vertex = vertexId ? primitives.find((p) => p.entityId === vertexId && p.kind === "point")?.points[0] : undefined;
-    const arc = primitives.find((p) => p.entityId === mark.id && p.kind === "polyline" && p.points.length >= 3);
-    const label = primitives.find((p) => p.entityId === mark.id && p.kind === "label" && !p.provenance?.usesLeader);
+    // A 2D angle mark renders an arc (screen angles from startAngle to endAngle);
+    // a 3D one renders a sampled polyline. Both reduce to points along the arc.
+    const arcPrimitive = primitives.find((p) => p.entityId === mark.id && p.kind === "arc" && p.points[0] && p.startAngle !== undefined && p.endAngle !== undefined);
+    const arc = arcPrimitive
+      ? { points: [arcPrimitive.startAngle!, (arcPrimitive.startAngle! + arcPrimitive.endAngle!) / 2, arcPrimitive.endAngle!].map((a) => ({ x: arcPrimitive.points[0]!.x + (arcPrimitive.radius ?? 0) * Math.cos(a), y: arcPrimitive.points[0]!.y + (arcPrimitive.radius ?? 0) * Math.sin(a) })) }
+      : primitives.find((p) => p.entityId === mark.id && p.kind === "polyline" && p.points.length >= 3);
+    const vertex = arcPrimitive?.points[0] ?? (vertexId ? primitives.find((p) => p.entityId === vertexId && p.kind === "point")?.points[0] : undefined);
+    const label = primitives.find((p) => p.kind === "label" && !p.provenance?.usesLeader && (p.entityId === mark.id ||
+      (document.annotations ?? []).some((annotation) => annotation.id === p.provenance?.annotationId && annotation.targetIds.length === 1 && annotation.targetIds[0] === mark.id)));
     if (!vertex || !arc || !label?.points[0]) continue;
     const angleOf = (p: Point) => Math.atan2(p.y - vertex.y, p.x - vertex.x);
     const start = angleOf(arc.points[0]!), middle = angleOf(arc.points[Math.floor(arc.points.length / 2)]!), end = angleOf(arc.points.at(-1)!);
@@ -193,10 +199,12 @@ export function validateAngleLabelWedge(document: SceneDocument, primitives: Ren
     const margin = (15 * Math.PI) / 180;
     const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
     if (!inside) {
+      // Point the omission at the text's own source: a label annotation or the entity label.
+      const annotationIndex = (document.annotations ?? []).findIndex((annotation) => annotation.id === label.provenance?.annotationId);
       const index = document.entities.findIndex((entity) => entity.id === mark.id);
+      const path = annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : index >= 0 && document.entities[index]!.label ? `entities[${index}].label` : undefined;
       issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [mark.id],
-        ...(index >= 0 && document.entities[index]!.label ? { path: `entities[${index}].label` } : {}),
-        message: "An angle name sits outside the wedge its arc marks" });
+        ...(path ? { path } : {}), expected: "angle_wedge", message: "An angle name sits outside the wedge its arc marks" });
     }
   }
   return issues;
