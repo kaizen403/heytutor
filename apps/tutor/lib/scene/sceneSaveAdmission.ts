@@ -18,11 +18,13 @@ import {
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
+  validatePvSourceBinding,
   validateLinearSourcePlan,
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
+  validateProjectileMeasurementPlan,
   vseprPlanConflict,
   validateTurnPlanSceneProofs,
   validateCircuitTerminalClosure,
@@ -141,6 +143,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
     ...validateLinearSourcePlan(question, turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
@@ -148,6 +151,7 @@ export function sceneSaveAdmissionFailure(input: {
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),
+    ...validatePvSourceBinding(document, question, turnPlan),
     // Qualitative scenes need the same declared terminal proof as exact ones.
     // Reuse only closure here; unrelated exact-plan obligations stay tiered.
     ...validateCircuitTerminalClosure(document, question, turnPlan),
