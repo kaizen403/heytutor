@@ -29,14 +29,29 @@ function equationOf(text: string): { lhs: string; rhs: string } | null {
   return { lhs: sides[0]!.trim(), rhs: sides[1]!.trim() };
 }
 
+/** Split an implicit product of known names ("mx" = m·x, "kxy") into its factors, or null. */
+function factorNames(name: string, bound: ReadonlySet<string>): string[] | null {
+  const known = [...bound, "x", "y"].filter(Boolean).sort((a, b) => b.length - a.length);
+  const walk = (rest: string): string[] | null => {
+    if (!rest) return [];
+    for (const factor of known) {
+      if (!rest.startsWith(factor)) continue;
+      const tail = walk(rest.slice(factor.length));
+      if (tail) return [factor, ...tail];
+    }
+    return null;
+  };
+  return walk(name);
+}
+
 function freeParameters(text: string, bound: ReadonlySet<string>): string[] {
   // Whole names, digits and subscripts included ("k1", "m₂"), so a bound quantity is recognised.
   const names = text.match(/[A-Za-zα-ωΑ-Ω][A-Za-z0-9_₀-₉α-ωΑ-Ω]*/g) ?? [];
   return [...new Set(names.filter((name) => {
     if (name === "x" || name === "y" || bound.has(name)) return false;
     if (FUNCTIONS.has(name.toLowerCase())) return false;
-    // Implicit products of x and y ("xy", "yx") are not new symbols.
-    return !/^[xy]+$/.test(name);
+    // Implicit products of known names and x, y ("xy", "mx") are not new symbols.
+    return factorNames(name, bound) === null;
   }))];
 }
 
@@ -89,30 +104,38 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
       // Scientific notation ("1e-3") is a number, not a product with e.
       const product = (side: string) => side.replace(/(\d)\s*(?![eE][+-]?\d)([A-Za-z(])/g, "$1*$2").replace(/\)\s*([A-Za-z0-9(])/g, ")*$1").replace(/([xy])\s*\(/g, "$1*(");
       // Known quantities ("m = 2") are checked with their values, not skipped.
+      // Spell implicit products of known names out ("mx" becomes "m*x") first.
+      const factored = (side: string) => side.replace(/[A-Za-zα-ωΑ-Ω][A-Za-z0-9_₀-₉α-ωΑ-Ω]*/g, (name) => {
+        if (FUNCTIONS.has(name.toLowerCase()) || bound.has(name)) return name;
+        return factorNames(name, bound)?.join("*") ?? name;
+      });
       const known = (side: string) => values.reduce((text, [name, value]) => text.replace(new RegExp(`(?<![A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "g"), `(${value})`), side);
-      relation = parseMathExpression2D(`(${product(known(equation.lhs))})-(${product(known(equation.rhs))})`);
+      relation = parseMathExpression2D(`(${product(known(factored(equation.lhs)))})-(${product(known(factored(equation.rhs)))})`);
     } catch {
       return; // Notation the checker cannot read is not evidence of a false label.
     }
     const value = geometry.get(ownerId) as PathLike | undefined;
-    const vertices = value?.kind === "path" ? value.points ?? [] : [];
+    // An implicit curve is drawn as several paths; every one must satisfy the label.
+    const paths = value?.kind === "path" ? [value.points ?? []] : value?.kind === "multi_path" ? ((value as { paths?: Point[][] }).paths ?? []) : [];
+    const vertices = paths.flat();
     if (vertices.length < 2) return;
     // A false equation can agree at the two ends of a straight piece ("y = x²"
     // on the segment from (0, 0) to (1, 1)); test inside every piece too.
     // A sampled curve's vertices are exact samples; only straight pieces are interpolated.
     const sampled = (value as { sampledCurve?: unknown }).sampledCurve !== undefined;
-    const points = vertices.flatMap((point, index) => {
-      const next = vertices[index + 1];
-      if (!next || sampled) return [point];
+    const points = paths.flatMap((piece) => piece.flatMap((point, index) => {
+      const next = piece[index + 1];
+      if (!next || sampled || value?.kind === "multi_path") return [point];
       return [0, 0.25, 0.5, 0.75].map((t) => ({ x: point.x + (next.x - point.x) * t, y: point.y + (next.y - point.y) * t }));
-    });
+    }));
     const scale = Math.max(1, ...points.map((point) => Math.max(Math.abs(point.x), Math.abs(point.y))));
     // An equation undefined at drawn points ("y = sqrt(x)" on x < 0) does not
     // describe them. One undefined boundary sample is tolerated.
     let undefinedAt = 0;
     const misses = points.some((point) => {
       try {
-        return Math.abs(relation.evaluate(point.x, point.y)) > 1e-4 * scale;
+        // Contour paths approximate an implicit curve; allow their grid error.
+        return Math.abs(relation.evaluate(point.x, point.y)) > (value?.kind === "multi_path" ? 0.05 : 1e-4) * scale;
       } catch {
         undefinedAt += 1;
         return false;

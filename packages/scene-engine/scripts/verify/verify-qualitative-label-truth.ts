@@ -78,6 +78,20 @@ assert(codes(lineDocument("y=4.5-.75x+(x-2)(x-6)")).includes("equation_label_con
   negative.constructions.find((c) => c.id === "make_A")!.inputs = { x: -1, y: 0, coordinateSpace: "world" };
   assert(codes(negative).includes("equation_label_contradicts_geometry"), "an equation undefined at the drawn points is refused");
 }
+// Greptile #235 round 3.
+{
+  const implicitProduct = lineDocument("y=4.5+mx"); implicitProduct.quantities = [{ id: "m", symbol: "m", value: -0.75 }];
+  assert(!codes(implicitProduct).some((code) => code.startsWith("equation_label")), "an implicit product with a known quantity is read");
+  const circle = (label: string): SceneDocument => ({
+    schemaVersion: "scene-document/v2", source: { question: "Plot x^2 + y^2 = 4." }, visualDecision: { mode: "scene", reason: "circle" }, quantities: [],
+    entities: [{ id: "ax", kind: "axes", role: "axes" }, { id: "c", kind: "polyline", role: "implicit curve", label }],
+    constructions: [{ id: "make_ax", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -3, yMax: 3 }, outputs: ["ax"] },
+      { id: "make_c", operator: "implicit_curve", inputs: { expression: "x^2+y^2-4", xMin: -3, xMax: 3, yMin: -3, yMax: 3, xSamples: 65, ySamples: 65 }, outputs: ["c"] }],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ["ax", "c"],
+    revealGroups: [{ id: "all", entityIds: ["ax", "c"], dependsOn: [], narrationCue: "Circle." }], teachingTimeline: [] });
+  assert(codes(circle("y=2*x")).includes("equation_label_contradicts_geometry"), "a false label on an implicit curve is refused");
+  assert(!codes(circle("x^2+y^2=4")).some((code) => code.startsWith("equation_label")), "the implicit curve's own equation passes");
+}
 // 2. A polarity badge named as a field (B on a rod reads as a field along the rod).
 function badgeDocument(label: string | undefined, role: string): SceneDocument {
   return {
