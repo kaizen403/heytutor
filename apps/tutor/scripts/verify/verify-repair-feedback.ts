@@ -53,10 +53,18 @@ async function main(): Promise<void> {
     const candidate = normalizeSceneDocumentModelOutput(parsed!, item.question);
     const before = JSON.stringify(candidate);
     const validation = validateProductionSceneCandidate({ candidate: candidate as never, question: item.question, turnPlan: item.turnPlan as never });
+    // Relations arriving without ids are normalized before the id stage
+    // (verify-v3-scene-validity), so a refusal recorded only for relation ids
+    // now reaches the later stages: it is accepted, or refused for what the
+    // id stage used to hide, and never again for a relation id.
+    const relationIdsOnly = item.codes.every((code) => code === "invalid_id") &&
+      ((candidate as { relations?: unknown[] }).relations ?? []).some((relation) => !(relation as { id?: unknown } | null)?.id);
+    if (relationIdsOnly && validation.valid) continue;
     check(!validation.valid, `${item.id}: still refused`);
     const errors = validation.errors as SceneRepairError[];
     const fatal = errors.filter((error) => error.severity === "fatal");
-    for (const code of item.codes) check(fatal.some((error) => error.code === code), `${item.id}: still refused with ${code}`);
+    if (relationIdsOnly) check(!fatal.some((error) => error.code === "invalid_id" && /^relations\[/.test(error.path ?? "")), `${item.id}: a relation id no longer refuses the candidate`);
+    else for (const code of item.codes) check(fatal.some((error) => error.code === code), `${item.id}: still refused with ${code}`);
     const text = renderRepairErrors(candidate, errors);
     rendered.set(item.id, text);
     check(text === renderRepairErrors(candidate, errors) && JSON.stringify(candidate) === before, `${item.id}: rendering is deterministic and leaves the candidate unchanged`);
