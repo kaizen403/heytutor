@@ -72,6 +72,23 @@ const EXACT: [string, string][] = [
   // A star with no operand after it, or on an antibonding orbital, is a mark.
   ["σ*2s", "σ*2s"],
   ["z* = 3", "z* = 3"],
+  // A conjugate star sits on its symbol: it is never a product after a letter
+  // or a closing bracket that a letter follows, nor before a minus.
+  ["ψ*ψ", "ψ*ψ"],
+  ["ψ*(x)", "ψ*(x)"],
+  ["z*z", "z*z"],
+  ["z* − z", "z* - z"],
+  ["ψ_1*ψ_2", "ψ_1*ψ_2"],
+  ["ψ(x)*ψ(x)", "ψ(x)*ψ(x)"],
+  ["2 * -3", "2 * -3"],
+  // A product: between numbers or brackets, a number before an operand, or
+  // spaced on both sides.
+  ["3*4", "3×4"],
+  ["2 * 5", "2 × 5"],
+  ["(a+b)*(c+d)", "(a+b)×(c+d)"],
+  ["(a+b)*2", "(a+b)×2"],
+  ["10*sin(30)", "10×sin(30)"],
+  ["d_A = v_A * t_b", "d_A = v_A × t_b"],
 ];
 for (const [row, expected] of EXACT) {
   assert.equal(normalizeBoardText(unwrapMathMarkup(row)), expected, `board text for ${row}`);

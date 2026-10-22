@@ -447,16 +447,27 @@ const INVERSE_TRIG: ReadonlyArray<readonly [RegExp, string]> = [
  * spelling of "square root of". `atan2(` is a two argument function with its
  * own meaning and keeps its name.
  *
- * A star is a product only between two operands. An antibonding orbital
- * (`σ*2s`, `π*`) and a conjugate or optimum (`z*`) are a superscript star.
+ * A star is a product only where it cannot be a superscript star. A
+ * conjugate or optimum sits on its symbol (`ψ*ψ`, `ψ*(x)`, `ψ(x)*ψ(x)`,
+ * `ψ_1*ψ_2`, `z* − z`), as does an antibonding orbital (`σ*2s`), so a star is
+ * `×` only:
+ * - after a standalone number (`3*4`, `10*sin(30)`, `5*√(3)`);
+ * - after a closing bracket that a number or an opening bracket follows
+ *   (`(a+b)*(c+d)`, `(a+b)*2`);
+ * - spaced on both sides between two operands (`v_A * t_b`, `2 * 5`).
+ * Never before a minus: `2 * -3` keeps its star.
  */
+const PRODUCT_STARS: readonly RegExp[] = [
+  /(?<=(?<![\p{L}\p{N}_.])\d+(?:\.\d+)?\s*)\*(?=\s*[\p{L}\p{N}(√])/gu,
+  /(?<=[)\]]\s*)\*(?=\s*[\p{N}(√])/gu,
+  /(?<=[\p{L}\p{N})\]′'²³]\s+)\*(?=\s+[\p{L}\p{N}(√])/gu,
+];
+
 function writeMathGlyphs(text: string): string {
   let out = text.replace(/(?<![A-Za-z0-9_.])sqrt\s*\(/g, '√(');
   for (const [pattern, glyph] of INVERSE_TRIG) out = out.replace(pattern, glyph);
-  return out.replace(
-    /(?<=[\p{L}\p{N})\]′'²³](?<![σπδφ])\s*)\*(?=\s*[\p{L}\p{N}(√−-])/gu,
-    '×',
-  );
+  for (const star of PRODUCT_STARS) out = out.replace(star, '×');
+  return out;
 }
 
 export function normalizeBoardText(text: string): string {
