@@ -212,6 +212,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "gaussian_image",
     "optical_focus",
     "polytropic_process",
+    "pv_process",
     "isochoric_process",
     "process_state",
     "permutation_cycles",
