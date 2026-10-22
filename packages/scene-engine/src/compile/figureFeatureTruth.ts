@@ -153,18 +153,60 @@ export function validateFigureLegibility(primitives: RenderPrimitive[]): SceneIs
     message: `The figure is drawn ${Math.round(extent)} px across; its labels cannot be read against what they name` }] : [];
 }
 
-/** A space frame names its axes x, y, z; each name must sit nearest its own axis line. */
+function numberedStroke(primitive: RenderPrimitive, prefix: string): number | null {
+  const marker = `${prefix}_`;
+  if (!primitive.id.startsWith(marker) || primitive.points.length < 2 || primitive.kind === "label") return null;
+  const rest = primitive.id.slice(marker.length);
+  return /^\d+$/.test(rest) ? Number(rest) : null;
+}
+
+/** Alignment of an extra stroke with the opposite of a positive half, or null if it is not that half. */
+function oppositeAlignment(extra: RenderPrimitive, positive: RenderPrimitive): number | null {
+  const origin = positive.points[0], tip = positive.points[1];
+  if (!origin || !tip) return null;
+  const plen = gap(tip, origin);
+  if (!(plen > 0)) return null;
+  const ends = [extra.points[0]!, extra.points.at(-1)!];
+  const near = gap(ends[0]!, origin) <= gap(ends[1]!, origin) ? ends[0]! : ends[1]!;
+  if (gap(near, origin) > 4) return null;
+  const far = near === ends[0] ? ends[1]! : ends[0]!;
+  const elen = gap(far, near);
+  if (!(elen > 0)) return null;
+  return ((tip.x - origin.x) / plen) * ((far.x - near.x) / elen) + ((tip.y - origin.y) / plen) * ((far.y - near.y) / elen);
+}
+
+/**
+ * A space frame names its axes x, y, z; each name must sit nearest its own
+ * axis. Positive halves are strokes 0–2. Negative halves are appended after
+ * them and still belong to the axis they run opposite.
+ */
 export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneIssue[] {
   const issues: SceneIssue[] = [];
   for (const label of primitives) {
     const match = /^(.*)_label_([xyz])$/.exec(label.id);
     if (label.kind !== "label" || !match || !label.points[0]) continue;
-    const lines = [0, 1, 2].map((index) => primitives.find((p) => p.id === `${match[1]}_${index}` && p.points.length >= 2));
-    if (lines.some((line) => !line)) continue;
+    const prefix = match[1]!;
+    const positive = [0, 1, 2].map((index) => primitives.find((p) => numberedStroke(p, prefix) === index));
+    if (positive.some((line) => !line)) continue;
+    const extras = primitives.filter((p) => (numberedStroke(p, prefix) ?? -1) >= 3);
+    const ownerOf = new Map(extras.map((extra) => {
+      let owner: number | null = null, best = -0.85;
+      positive.forEach((line, index) => {
+        const alignment = oppositeAlignment(extra, line!);
+        if (alignment !== null && alignment < best) { best = alignment; owner = index; }
+      });
+      return [extra, owner] as const;
+    }));
     const own = "xyz".indexOf(match[2]!);
     const distanceTo = (line: RenderPrimitive) => Math.min(...segments(line).map(([s, t]) => segmentDistance(label.points[0]!, s, t)));
-    const ownDistance = distanceTo(lines[own]!);
-    if (lines.some((line, index) => index !== own && distanceTo(line!) + 4 < ownDistance)) {
+    const nearest = (halves: RenderPrimitive[]) => halves.length ? Math.min(...halves.map(distanceTo)) : Infinity;
+    const halvesOf = (index: number) => [positive[index]!, ...extras.filter((extra) => ownerOf.get(extra) === index)];
+    const ownDistance = nearest(halvesOf(own));
+    const otherDistance = Math.min(
+      ...[0, 1, 2].filter((index) => index !== own).map((index) => nearest(halvesOf(index))),
+      nearest(extras.filter((extra) => ownerOf.get(extra) === null)),
+    );
+    if (otherDistance + 4 < ownDistance) {
       issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [label.entityId],
         message: `The ${match[2]} axis name sits nearer another axis than its own` });
     }

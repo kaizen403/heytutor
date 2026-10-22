@@ -18,6 +18,13 @@ const frame = [
 ];
 assert.equal(validateAxisNamePlacement([...frame, prim("primitive_frame_label_y", "frame", "label", [[640, 312]], { text: "y" })]).length, 1, "y beside the z axis is refused");
 assert.equal(validateAxisNamePlacement([...frame, prim("primitive_frame_label_y", "frame", "label", [[672, 345]], { text: "y" })]).length, 0, "y at its own tip passes");
+// Negative half-axes are strokes after 0–2. A name nearer another axis's negative half must still fail.
+const negativeX = prim("primitive_frame_3", "frame", "polyline", [[637, 385], [555, 376]]);
+const yOnNegativeX = prim("primitive_frame_label_y", "frame", "label", [[558, 378]], { text: "y" });
+assert.equal(validateAxisNamePlacement([...frame, negativeX, yOnNegativeX]).length, 1, "y beside another axis's negative half is refused");
+assert.equal(validateAxisNamePlacement([...frame, negativeX, prim("primitive_frame_label_y", "frame", "label", [[672, 345]], { text: "y" })]).length, 0, "y at its own tip still passes when a negative half is drawn");
+const negativeY = prim("primitive_frame_4", "frame", "polyline", [[637, 385], [615, 420]]);
+assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_frame_label_y", "frame", "label", [[612, 424]], { text: "y" })]).length, 0, "y beside its own negative half passes");
 
 // 3. An angle name sits inside the wedge its arc marks.
 {
