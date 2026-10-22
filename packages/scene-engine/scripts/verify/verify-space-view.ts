@@ -692,12 +692,35 @@ gate("G31 a computed vector tip is not drawn on an unrelated marked point", () =
   return gap < 12 ? `the cross product tip is drawn ${gap.toFixed(1)} px from Q` : null;
 });
 
-// One hash was re-pinned on purpose since the base commit, each after a
-// before and after render was compared:
+// Hashes re-pinned on purpose since the base commit, each after a before and
+// after render was compared:
 //   physics-probe:modern-easy-photoelectric (label owner placement, Oct 2026):
 //   "Ef" sat 17 px from the energy axis but 22 px from its own Fermi line,
 //   straight under the photon arrow's tip; it now sits under the Fermi line,
 //   off the arrow, nearer its line than the axis.
+// Eight from 32e3bafc0 (v3 directed lanes and point names, PR #249), against
+// main's render of the same document. Its five other re-pins
+// (mechanics-easy-incline-force, mechanics-hard-pulley-incline,
+// electrostatics-easy-null-point, emi-medium-moving-rod, ac-hard-series-lcr)
+// are back on main's hashes: 125c22b82 pinned vectors at junctions, so those
+// render byte identical to main again.
+//   fixtures/golden/optics-concave-mirror-u20-f15.json.sceneDocument: pole
+//   name "P" moves from the upper right to the upper left of its point (51 px).
+//   probe:coordinate-right-triangle: vertex name "A" moves from above to below
+//   its corner point (60 px).
+//   physics-probe:fluids-medium-venturi: the flow arrow lay on the pipe axis
+//   line; it runs in a 12 px lane beside it, and its "v" label follows.
+//   physics-probe:thermal-hard-pv-cycle: the cycle sense arrow lay on a cycle
+//   edge; it runs in a 12 px lane, and "A" moves to the side away from it.
+//   physics-probe:current-medium-series-parallel-source: the total current
+//   arrow lay on the source wire; it runs in a 30 px lane, "I" follows it.
+//   physics-probe:magnetism-easy-straight-wire: the current arrow lay on the
+//   wire and was not drawn at all; it is now drawn in a 12 px lane beside it.
+//   physics-probe:optics-easy-plane-mirror: the reflected ray lay on the
+//   incident ray; it runs in a 12 px lane, the helper dot that sat on its
+//   shaft is gone, and the object name "O" moves 65 px off the rays.
+//   physics-probe:optics-medium-concave-mirror: pole name "P", as the golden
+//   concave mirror above.
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
   const ids = Object.keys(fixture.hashes);
