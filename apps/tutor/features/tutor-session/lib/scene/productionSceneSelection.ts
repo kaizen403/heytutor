@@ -9,6 +9,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
+  validateProjectileMeasurementPlan,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -168,6 +169,7 @@ export function validateProductionSceneCandidate(input: {
     })),
     // A bare projectile speed or height is read as m/s or m; hold it to the plan (72 km/h is 20, never 72; 80 cm is 0.8).
     ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
+    ...validateProjectileMeasurementPlan(validated.document, authoritativePlan),
   ];
   const sourceIssues = [
     ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
