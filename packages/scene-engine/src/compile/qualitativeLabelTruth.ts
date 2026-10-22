@@ -50,7 +50,8 @@ function factorNames(name: string, bound: ReadonlySet<string>): string[] | null 
 
 function freeParameters(text: string, bound: ReadonlySet<string>): string[] {
   // Whole names, digits and subscripts included ("k1", "m₂"), so a bound quantity is recognised.
-  const names = text.match(/[A-Za-zα-ωΑ-Ω][A-Za-z0-9_₀-₉α-ωΑ-Ω]*/g) ?? [];
+  // Numbers, scientific notation included ("0.75e0", "1e-3"), are not names.
+  const names = text.replace(/(?<![A-Za-z_])(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g, " ").match(/[A-Za-zα-ωΑ-Ω][A-Za-z0-9_₀-₉α-ωΑ-Ω]*/g) ?? [];
   return [...new Set(names.filter((name) => {
     if (name === "x" || name === "y" || bound.has(name)) return false;
     if (FUNCTIONS.has(name.toLowerCase())) return false;
