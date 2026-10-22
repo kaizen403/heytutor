@@ -781,6 +781,31 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   strictAssert.equal(diagnosed?.stage, undefined);
   strictAssert.equal(diagnosed?.requestCount, 16);
   strictAssert.deepEqual(diagnosed?.issueCodes, ["scene_without_readable_label"], "unknown diagnostic strings cannot carry identity");
+  const quantityFailure = telemetry.buildFailedTurnSentryEvent({
+    ...failedTurn,
+    sceneArtifacts: {
+      turnPlan: { visualRequirement: "required" },
+      failureTelemetry: { subject: "chemistry", failed: true, stage: "validation", code: "candidate_invalid" },
+      degradation: {
+        reason: "candidate_invalid",
+        candidateCount: 3,
+        issueCodes: ["displayed_quantity_unverified", "scene_quantity_mismatch", "synthetic_private_issue"],
+      },
+    },
+  }, failureEnv);
+  assert(quantityFailure, "a quantity-agreement rejection still produces a failed-turn event");
+  strictAssert.equal(quantityFailure.tags.subject, "chemistry");
+  strictAssert.equal(quantityFailure.tags.stage, "validation");
+  strictAssert.equal(quantityFailure.tags.code, "candidate_invalid");
+  strictAssert.equal(quantityFailure.tags.figure_need, "required");
+  strictAssert.deepEqual(quantityFailure.extra.issue_codes, ["displayed_quantity_unverified", "scene_quantity_mismatch", "unknown_issue"]);
+  strictAssert.equal(quantityFailure.extra.unknown_issue_count, 1, "only the unrecognized issue code is counted as unknown");
+  strictAssert.equal(quantityFailure.extra.validation_issue_count, 3);
+  strictAssert.equal(quantityFailure.extra.candidate_count, 3);
+  const scrubbedQuantity = scrubSentryEvent(quantityFailure);
+  strictAssert.deepEqual(scrubbedQuantity.extra?.issue_codes, ["displayed_quantity_unverified", "scene_quantity_mismatch", "unknown_issue"],
+    "the privacy boundary keeps the same validation codes");
+  assert(!JSON.stringify(scrubbedQuantity).includes("synthetic_private_issue"), "an unrecognized issue code cannot pass the privacy boundary");
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "timeout", httpStatus: null }), { stage: "turn_plan", code: "planner_deadline" });
   strictAssert.deepEqual(telemetry.turnPlanFailureTelemetry({ code: "http_error", httpStatus: 429 }), { stage: "turn_plan", code: "rate_limit" });
   strictAssert.equal(telemetry.turnPlanFailureTelemetry({ code: "accepted", httpStatus: 200 }), undefined);
