@@ -128,6 +128,14 @@ for (const document of recorded) {
   compiledCount += 1;
   const audit = auditDirectedStrokes(result.document, result.primitives);
   check(audit.missing.length === 0, `${document.id}: required vectors not drawn: ${audit.missing.join(", ")}`);
+  // A named stroke is never trimmed: its name ("50 km", "w = 240 m") would
+  // sit on a stub that no longer spans what it names, beside the vector.
+  for (const primitive of result.primitives) {
+    if (primitive.provenance?.trimmedOffVector === undefined) continue;
+    const named = Boolean(result.document.entities.find((entity) => entity.id === primitive.entityId)?.label?.trim()) ||
+      result.document.annotations.some((annotation) => (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(primitive.entityId));
+    check(!named, `${document.id}: the named stroke ${primitive.entityId} is trimmed off ${primitive.provenance.trimmedOffVector}, so its name no longer owns the piece it names`);
+  }
   // A lane never detaches a vector from another vector it met (a tip to tail
   // sum, a triangle, components from one tail).
   const unlaned = replay(document, false);
@@ -305,6 +313,22 @@ for (const angle of [0, 90, 37]) {
     check(Math.abs(len(vector.points[0]!, vector.points[1]!) / refLength - 0.6) < 0.01, `synthetic ${angle}°: the vector keeps its full length`);
     const cross = (vector.points[1]!.x - vector.points[0]!.x) * (ref.points[1]!.y - ref.points[0]!.y) - (vector.points[1]!.y - vector.points[0]!.y) * (ref.points[1]!.x - ref.points[0]!.x);
     check(Math.abs(cross) / (refLength * len(vector.points[0]!, vector.points[1]!)) < 1e-3, `synthetic ${angle}°: the vector keeps its exact direction`);
+  }
+}
+// 3b'. A named reference under a pinned vector keeps its full length and its
+// name; the same reference unnamed is trimmed off the vector.
+for (const named of [true, false]) {
+  const result = compileDocument(withPoints([point("O", 0, 0, "O"), point("R", 10, 0), point("T", 6, 0), point("U", 6, 4)],
+    [{ id: "ref", kind: "segment", role: "reference line", ...(named ? { label: "road" } : {}) }, { id: "v", kind: "vector", role: "velocity", label: "v" }, { id: "w", kind: "vector", role: "velocity", label: "w" }],
+    [{ id: "make_ref", operator: "segment", inputs: { start: "O", end: "R" }, outputs: ["ref"] }, { id: "make_v", operator: "vector", inputs: { start: "O", end: "T" }, outputs: ["v"] },
+      { id: "make_w", operator: "vector", inputs: { start: "T", end: "U" }, outputs: ["w"] }]));
+  const ref = result.primitives.find((primitive) => primitive.entityId === "ref" && primitive.kind === "line");
+  const vector = stroke(result, "v");
+  check(result.stage === "ok" && ref && vector, `synthetic trim ${named ? "named" : "unnamed"}: compiles: ${fatal(result).join(" | ")}`);
+  if (ref && vector) {
+    const full = Math.abs(len(ref.points[0]!, ref.points[1]!) - len(vector.points[0]!, vector.points[1]!) / 0.6) < 1;
+    check(named ? full && ref.provenance?.trimmedOffVector === undefined : !full && ref.provenance?.trimmedOffVector === "v",
+      `synthetic trim: the ${named ? "named reference keeps its full length" : "unnamed reference is trimmed off v"}`);
   }
 }
 // 3c. B and -B on one segment are two marks.

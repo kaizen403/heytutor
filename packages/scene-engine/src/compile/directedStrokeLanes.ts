@@ -22,7 +22,9 @@ import type { RenderPoint, RenderPrimitive, SceneDocument } from "../types";
  * would detach it. The other directed stroke moves instead when it is free to.
  * An undirected finite stroke under it is trimmed off the vector's span when
  * one piece remains (a reference line running on past the head); otherwise
- * both stay where they are.
+ * both stay where they are. A named stroke (a label of its own, or a label
+ * or callout annotation) is never trimmed: "50 km" on the stub left of an
+ * A to B separation names a piece that no longer spans it, beside the vector.
  */
 export const DIRECTED_OVERLAP_PX = 12;
 export const DIRECTED_LANE_PX = 12;
@@ -134,6 +136,10 @@ export function separateDirectedStrokes(
   const units = directedUnits(document, primitives);
   if (units.length === 0) return 0;
   const kindOf = new Map(document.entities.map((entity) => [entity.id, entity.kind]));
+  const named = new Set([
+    ...document.entities.filter((entity) => entity.label?.trim()).map((entity) => entity.id),
+    ...document.annotations.filter((annotation) => annotation.kind === "label" || annotation.kind === "callout").flatMap((annotation) => annotation.targetIds),
+  ]);
   let trimmed = 0;
   const unitByPrimitive = new Map<RenderPrimitive, Unit>();
   for (const candidate of units) for (const primitive of candidate.primitives) unitByPrimitive.set(primitive, candidate);
@@ -170,7 +176,7 @@ export function separateDirectedStrokes(
         mover = subject.kind === "ray" || headMetByDirectedInk(subject, conflict.entityId, all, units, primitives) ? null : subject;
         if (mover && pinned.has(mover)) {
           const stroke = primitives[conflict.owner];
-          if (stroke && trimOffShaft(subject.shaft(), stroke, kindOf.get(stroke.entityId))) {
+          if (stroke && !named.has(stroke.entityId) && trimOffShaft(subject.shaft(), stroke, kindOf.get(stroke.entityId))) {
             stroke.provenance = { ...stroke.provenance, trimmedOffVector: subject.entityId };
             trimmed += 1;
             all = segments();
