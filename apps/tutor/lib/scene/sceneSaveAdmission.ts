@@ -23,6 +23,7 @@ import {
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
+  validateProjectileMeasurementPlan,
   vseprPlanConflict,
   validateTurnPlanSceneProofs,
   validateCircuitTerminalClosure,
@@ -141,6 +142,7 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
     ...validateLinearSourcePlan(question, turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
