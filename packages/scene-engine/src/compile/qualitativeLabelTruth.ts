@@ -142,8 +142,14 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
         // equation is judged like the plain one. Contours allow their grid error.
         const f = relation.evaluate(point.x, point.y);
         const h = 1e-6 * scale;
-        const gx = (relation.evaluate(point.x + h, point.y) - relation.evaluate(point.x - h, point.y)) / (2 * h);
-        const gy = (relation.evaluate(point.x, point.y + h) - relation.evaluate(point.x, point.y - h)) / (2 * h);
+        // Probes beside the point may leave the equation's domain (a semicircle's
+        // ends); use a one-sided difference there, and only the point itself can
+        // make the equation undefined.
+        const at = (x: number, y: number) => { try { return relation.evaluate(x, y); } catch { return undefined; } };
+        const slope = (plus: number | undefined, minus: number | undefined) =>
+          plus !== undefined && minus !== undefined ? (plus - minus) / (2 * h) : plus !== undefined ? (plus - f) / h : minus !== undefined ? (f - minus) / h : 0;
+        const gx = slope(at(point.x + h, point.y), at(point.x - h, point.y));
+        const gy = slope(at(point.x, point.y + h), at(point.x, point.y - h));
         const gradient = Math.hypot(gx, gy);
         const distance = gradient > 1e-12 ? Math.abs(f) / gradient : Math.abs(f) > 1e-9 ? Infinity : 0;
         return distance > (value?.kind === "multi_path" ? 0.05 : 1e-4) * scale;

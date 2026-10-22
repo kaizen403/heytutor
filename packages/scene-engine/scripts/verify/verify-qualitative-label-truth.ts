@@ -91,6 +91,14 @@ assert(codes(lineDocument("y=4.5-.75x+(x-2)(x-6)")).includes("equation_label_con
     revealGroups: [{ id: "all", entityIds: ["ax", "c"], dependsOn: [], narrationCue: "Circle." }], teachingTimeline: [] });
   assert(codes(circle("y=2*x")).includes("equation_label_contradicts_geometry"), "a false label on an implicit curve is refused");
   assert(!codes(circle("x^2+y^2=4")).some((code) => code.startsWith("equation_label")), "the implicit curve's own equation passes");
+  const semicircle: SceneDocument = {
+    schemaVersion: "scene-document/v2", source: { question: "Sketch the upper semicircle." }, visualDecision: { mode: "scene", reason: "semicircle" }, quantities: [],
+    entities: [{ id: "ax", kind: "axes", role: "axes" }, { id: "c", kind: "polyline", role: "curve", label: "y=sqrt(1-x^2)" }],
+    constructions: [{ id: "make_ax", operator: "axes", inputs: { xMin: -1.5, xMax: 1.5, yMin: -0.5, yMax: 1.5 }, outputs: ["ax"] },
+      { id: "make_c", operator: "function_curve", inputs: { expression: "sqrt(1-x^2)", xMin: -1, xMax: 1 }, outputs: ["c"] }],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ["ax", "c"],
+    revealGroups: [{ id: "all", entityIds: ["ax", "c"], dependsOn: [], narrationCue: "Semicircle." }], teachingTimeline: [] };
+  assert(!codes(semicircle).some((code) => code.startsWith("equation_label")), "a curve whose ends sit at its domain boundary passes");
   assert(!codes(circle("1000*(x^2+y^2-4)=0")).some((code) => code.startsWith("equation_label")), "a scaled equation of the same curve passes");
   const slow = lineDocument(`y=${"x".repeat(50)}z`); slow.quantities = [{ id: "xx", symbol: "xx", value: 1 }];
   const started = Date.now(); codes(slow);
