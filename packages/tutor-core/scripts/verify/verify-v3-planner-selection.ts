@@ -379,6 +379,14 @@ const rejectedPlan = {
   assert.deepEqual(salvageRejectedTurnPlanV3(p3c, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: p3c,
     givens: [{ ...vr(6, "rain falls vertically at 6 m/s"), sign: "-" }, { ...vm(8, "man walks east at 8 m/s"), sign: "+" }] }, issues: claimIssue }])
     ?.givens.map((given) => `${given.id}=${given.value}`), ["vr=6", "vm=8"], "the recorded p3c-t1 givens are kept");
+  // Two speeds stated with one value: no swap can change a label, so both are kept without owner evidence.
+  const equal = "Car A moves at 10 m/s and car B moves at 10 m/s in the same direction. Find their relative velocity.";
+  const equalIds = (q: string, givens: Array<Record<string, unknown>>) => salvageRejectedTurnPlanV3(q, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: q, givens }, issues: claimIssue }])
+    ?.givens.map((given) => `${given.id}=${given.value}`) ?? null;
+  const bare = (id: string, value: number, unit: string) => ({ id, symbol: `v_${id.slice(1)}`, value, unit, provenance: "given" });
+  assert.deepEqual(equalIds(equal, [bare("vA", 10, "m/s"), bare("vB", 10, "m/s")]), ["vA=10", "vB=10"], "identical stated speeds are both kept");
+  const mixed = "Car A moves at 10 m/s and car B moves at 10 km/h. Find their relative velocity.";
+  assert.equal(equalIds(mixed, [bare("vA", 10, "m/s"), bare("vB", 10, "km/h")]), null, "one number in two units is not one value: the owner rule still applies");
   // A clause that names a second owner of this kind is still no evidence.
   const shared = "A man walks at 8 m/s in the rain, and rain falls at 6 m/s.";
   assert.equal(salvageRejectedTurnPlanV3(shared, [{ lane: "primary", requestKind: "initial", plan: { ...rejectedPlan, question: shared,

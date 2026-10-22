@@ -572,10 +572,18 @@ function statedNumbers(text: string): { numbers: Array<{ value: number; unit?: s
   return { numbers, words };
 }
 
-/** How many numbers in the text measure what a given with this unit measures (bare numbers for a unitless given). */
-function competingStatedCount(text: string, unit: string | undefined): number {
+/** The numbers in the text that measure what a given with this unit measures (bare numbers for a unitless given). */
+function competingStatedNumbers(text: string, unit: string | undefined): Array<{ value: number; unit?: string }> {
   return statedNumbers(text).numbers.filter((number) =>
-    unit ? number.unit !== undefined && sameMeasure(unit, number.unit) : number.unit === undefined).length;
+    unit ? number.unit !== undefined && sameMeasure(unit, number.unit) : number.unit === undefined);
+}
+const competingStatedCount = (text: string, unit: string | undefined) => competingStatedNumbers(text, unit).length;
+
+/** Whether two units are one unit in two spellings ("km/h" and "km/hr"), not merely one dimension. */
+function sameUnit(first: string | undefined, second: string | undefined): boolean {
+  if (first === undefined || second === undefined) return first === second;
+  const other = new Set(unitSpellings(second).map((spelling) => spelling.toLowerCase()));
+  return unitSpellings(first).some((spelling) => other.has(spelling.toLowerCase()));
 }
 
 /** Quantity kinds and modifiers that never name whose quantity it is. */
@@ -728,7 +736,8 @@ function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number>
  * question states more than one value of a given's kind (6 m/s and 8 m/s),
  * nothing has checked which quantity owns which value, so the given is kept
  * only when the question clause around its sourceText names its owner
- * (`sourceTextNamesOwner`); one lane
+ * (`sourceTextNamesOwner`), unless every stated value of that kind is this
+ * same value in this unit; one lane
  * binding v_r = 8 and v_m = 6 keeps neither. Every derived value, unknown and claim is withdrawn, so nothing the
  * validator refused can reach a label or the narration as authority. Returns
  * null when no given survives or the result fails validation.
@@ -791,8 +800,10 @@ export function salvageRejectedTurnPlanV3(
       const unit = typeof given.unit === "string" && given.unit.trim() ? given.unit.trim() : undefined;
       if (!questionStatesQuantity(question, given.value, unit)) return [];
       if (swapped.has(quantityKey(given.value, unit))) return [];
-      // More than one stated value of this kind: keep it only with source evidence of its owner.
-      if (competingStatedCount(question, unit) > 1 &&
+      // More than one stated value of this kind: keep it only with source evidence of its owner,
+      // unless every one of them is this value in this unit, when no swap can change a label.
+      const competing = competingStatedNumbers(question, unit);
+      if (competing.length > 1 && !competing.every((number) => number.value === given.value && sameUnit(number.unit, unit)) &&
           !sourceTextNamesOwner(question, { id: given.id, symbol: given.symbol, value: given.value, unit, sourceText: given.sourceText }, laneGivens)) return [];
       seen.add(given.id);
       return [{
