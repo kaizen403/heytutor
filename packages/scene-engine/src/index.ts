@@ -32,6 +32,7 @@ export * from "./physics/elasticModulusAuthority";
 export * from "./physics/planarInterfaceAuthority";
 export * from "./physics/relativeMotionSource";
 export * from "./physics/motionPlanAgreement";
+export * from "./physics/projectileMeasurementPlan";
 export * from "./physics/riverCrossingSource";
 export * from "./physics/uniformCircularSource";
 export * from "./physics/uniformCircularSourceBinding";

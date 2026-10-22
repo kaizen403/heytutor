@@ -57,8 +57,17 @@ function projectile(context: GeneratorContext) {
   if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   if (height0 > 0 && grounded(context, "h0")) scene.quantity("h0", "h", height0, "m");
 
+  // These two points establish an analytic relation, not display formatting.
+  // Independent coordinate rounding rotates the launch vector away from its
+  // native curve tangent; keep that geometry exact without changing guards.
+  const analyticPoint = (id: string, at: Vec2, role: string, label?: string): void => {
+    scene.point(id, at, role, label);
+    const construction = scene.constructions.find(row => row.id === `make_${id}`)!;
+    construction.inputs.x = at.x;
+    construction.inputs.y = at.y;
+  };
   groundLine(scene, "ground", { x: -0.12 * range, y: 0 }, { x: 1.08 * range, y: 0 }, "level ground", "level ground");
-  scene.point("O", { x: 0, y: height0 }, "projectile point mass launch point origin", "projectile");
+  analyticPoint("O", { x: 0, y: height0 }, "projectile point mass launch point origin", "projectile");
   if (height0 > 0) {
     scene.point("foot", { x: 0, y: 0 }, "tower foot");
     scene.segment("tower", "foot", "O", "tower");
@@ -68,7 +77,7 @@ function projectile(context: GeneratorContext) {
   scene.point("apex", { x: apexX, y: apexY }, "highest point", "H");
   scene.point("landing", { x: range, y: 0 }, "landing point", "B");
   const arrow = Math.max(0.22 * range, 0.15 * apexY, 1);
-  scene.point("aim", add({ x: 0, y: height0 }, polar(arrow, theta)), "launch direction");
+  analyticPoint("aim", add({ x: 0, y: height0 }, polar(arrow, theta)), "launch direction");
   scene.vector("velocity", "O", { end: "aim" }, "launch velocity", valueLabel(context, "u", "u", "m/s"));
   if (theta > 0) {
     scene.point("aim_h", { x: arrow, y: height0 }, "horizontal reference end");
