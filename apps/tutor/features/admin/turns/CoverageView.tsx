@@ -11,7 +11,27 @@ import { useAdminQuery } from "../shared/hooks/useAdminQuery";
 import { CoverageTables } from "./CoverageTables";
 
 const DAY_MS = 86_400_000;
-const DATE_INPUT = "h-9 rounded-lg border border-stroke bg-ink-900 px-2.5 text-xs text-frost focus-visible:outline focus-visible:outline-sky-400";
+const DATE_INPUT = "h-9 rounded-lg border border-stroke bg-ink-900 px-2.5 text-xs text-frost focus-visible:outline focus-visible:outline-sky-400 disabled:opacity-60";
+
+export function CoverageWindowForm({ from, to, loading, validationError, onFrom, onTo, onSubmit }: {
+  from: string; to: string; loading: boolean; validationError: string | null;
+  onFrom: (value: string) => void; onTo: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="glass flex flex-wrap items-end gap-3 rounded-xl p-3" aria-label="Coverage UTC date window" aria-busy={loading}>
+      <label className="flex flex-col gap-1 text-xs text-soft" htmlFor="coverage-from">From (UTC, inclusive)
+        <input id="coverage-from" name="from" type="date" required value={from} onChange={event => onFrom(event.target.value)} className={DATE_INPUT} aria-describedby="coverage-window-hint" />
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-soft" htmlFor="coverage-to">To (UTC, exclusive)
+        <input id="coverage-to" name="to" type="date" required value={to} onChange={event => onTo(event.target.value)} className={DATE_INPUT} aria-describedby="coverage-window-hint" />
+      </label>
+      <SiteButton type="submit" variant="sky" size="sm" disabled={loading}>Apply window</SiteButton>
+      <p id="coverage-window-hint" className="type-accent-xs w-full text-faint">Maximum 366 days. Dates begin at 00:00 UTC; the end date is excluded. A larger saved-lesson set reports the newest lessons and marks the scan as partial.</p>
+      {validationError ? <p role="alert" className="text-xs text-danger">{validationError}</p> : null}
+    </form>
+  );
+}
 
 function defaultWindow(): CoverageWindow {
   const now = new Date();
@@ -26,20 +46,38 @@ interface CoverageContentProps {
   onRetry: () => void;
 }
 
+export function coverageRequestPending(loading: boolean, hasReport: boolean, error: string | null) {
+  return loading || (!hasReport && error == null);
+}
+
+function coverageErrorCopy(error: string) {
+  if (error === "unauthorized") return { title: "Admins only", description: "Sign in with an admin account to view saved lesson coverage." };
+  if (error === "busy") return { title: "Coverage report already running", description: "Wait for the current coverage query to finish, then try again." };
+  return { title: "Could not load coverage", description: "The coverage request failed. Check the UTC date window and try again." };
+}
+
 export function CoverageContent({ data, loading, error, onRetry }: CoverageContentProps) {
-  if (error) return (
-    <div role="alert"><EmptyState
-      title={error === "unauthorized" ? "Admins only" : "Could not load coverage"}
-      description={error === "unauthorized" ? "Sign in with an admin account to view saved lesson coverage." : "The coverage request failed. Check the UTC date window and try again."}
-      action={<SiteButton variant="ghost" size="sm" onClick={onRetry}>Try again</SiteButton>}
-    /></div>
-  );
+  if (error) {
+    const copy = coverageErrorCopy(error);
+    return (
+      <div role="alert"><EmptyState
+        title={copy.title}
+        description={copy.description}
+        action={<SiteButton variant="ghost" size="sm" onClick={onRetry} disabled={loading}>Try again</SiteButton>}
+      /></div>
+    );
+  }
   if (!data) return <div role="status" aria-busy={loading}><EmptyState title="Loading saved lesson coverage…" /></div>;
   return (
     <section className="space-y-4" aria-label="Saved lesson coverage" aria-busy={loading}>
       <p className="text-xs text-soft">
         UTC window: <time dateTime={data.window.from}>{data.window.from}</time> (inclusive) to {" "}
         <time dateTime={data.window.to}>{data.window.to}</time> (exclusive). Saved lesson turns only; complete and stopped lessons.
+      </p>
+      <p className="text-xs text-soft" role="status">
+        {data.scan.truncated
+          ? `Partial scan: the newest ${data.scan.scanned.toLocaleString("en-US")} saved lessons in this window. The scan budget is ${data.scan.budget.toLocaleString("en-US")}.`
+          : `Full window: ${data.scan.scanned.toLocaleString("en-US")} saved lessons.`}
       </p>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard label="Saved lessons" value={data.totals.savedLessons.toLocaleString("en-US")} />
@@ -62,9 +100,11 @@ export function CoverageView() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const url = `/api/admin/coverage?${new URLSearchParams({ from: window.from, to: window.to }).toString()}`;
   const { data, loading, error, refresh } = useAdminQuery<CoverageReport>(url);
+  const pending = coverageRequestPending(loading, data != null, error);
   const applyWindow = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const days = (Date.parse(to) - Date.parse(from)) / DAY_MS;
+    if (pending) return;
     if (!Number.isInteger(days) || days < 1 || days > 366) {
       setValidationError("Choose an end date after the start date, with a maximum span of 366 days.");
       return;
@@ -79,19 +119,10 @@ export function CoverageView() {
       <AdminPageHeader title="Coverage" description="Figure coverage and confirmed empty diagnostics from saved production lessons."
         icon={<ChartColumn className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={<><span role="status" className="type-accent-xs text-faint">{loading ? "Loading…" : data ? "Saved lesson counts" : ""}</span>
-          <SiteButton variant="ghost" size="sm" onClick={refresh} disabled={loading}><RefreshCw className="h-3.5 w-3.5" aria-hidden />Refresh</SiteButton></>}
+          <SiteButton variant="ghost" size="sm" onClick={refresh} disabled={pending || loading}><RefreshCw className="h-3.5 w-3.5" aria-hidden />Refresh</SiteButton></>}
       />
-      <form onSubmit={applyWindow} className="glass flex flex-wrap items-end gap-3 rounded-xl p-3" aria-label="Coverage UTC date window">
-        <label className="flex flex-col gap-1 text-xs text-soft" htmlFor="coverage-from">From (UTC, inclusive)
-          <input id="coverage-from" name="from" type="date" required value={from} onChange={event => setFrom(event.target.value)} className={DATE_INPUT} aria-describedby="coverage-window-hint" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-soft" htmlFor="coverage-to">To (UTC, exclusive)
-          <input id="coverage-to" name="to" type="date" required value={to} onChange={event => setTo(event.target.value)} className={DATE_INPUT} aria-describedby="coverage-window-hint" />
-        </label>
-        <SiteButton type="submit" variant="sky" size="sm">Apply window</SiteButton>
-        <p id="coverage-window-hint" className="type-accent-xs w-full text-faint">Maximum 366 days. Dates begin at 00:00 UTC; the end date is excluded.</p>
-        {validationError ? <p role="alert" className="text-xs text-danger">{validationError}</p> : null}
-      </form>
+      <CoverageWindowForm from={from} to={to} loading={pending} validationError={validationError}
+        onFrom={setFrom} onTo={setTo} onSubmit={applyWindow} />
       <CoverageContent data={data} loading={loading} error={error} onRetry={refresh} />
     </div>
   );
