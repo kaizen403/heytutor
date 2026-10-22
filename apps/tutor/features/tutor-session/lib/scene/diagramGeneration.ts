@@ -45,6 +45,20 @@ export function turnPlanNeedsNumericAuthority(question: string, plan: TurnPlanV3
       claim.relatedQuantityIds?.includes(unknown.id)));
 }
 
+/**
+ * Whether a turn's plan gets the ProblemIR/solver authority. An accepted plan
+ * does, and so does a plan salvaged from rejected lanes: its givens are values
+ * no validator accepted, so the solver rechecks them like any other plan. The
+ * empty fallback plan has nothing to bind and runs no ProblemIR.
+ */
+export function turnPlanRequestsNumericAuthority(
+  question: string,
+  plan: TurnPlanV3,
+  origin: "accepted" | "salvaged" | "fallback",
+): boolean {
+  return origin !== "fallback" && turnPlanNeedsNumericAuthority(question, plan);
+}
+
 export function diagramFailureVisualStatus(
   visualRequirement: VisualRequirement = "optional",
   requiredRetryEnabled = REQUIRED_DIAGRAM_RETRY_ENABLED,

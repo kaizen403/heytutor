@@ -1,4 +1,6 @@
 import {
+  displayedMeasurementUnits,
+  measuredUnitsShareDimension,
   reconcileTurnPlanV3ExplicitArithmetic,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
@@ -516,6 +518,110 @@ function quantityKey(value: number, unit: string | undefined): string {
   return `${value}|${known?.[1][0] ?? compact}`;
 }
 
+const STATED_NUMBER = /(?<![\w.^])-?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.]*\d)/g;
+
+/** Whether two units measure one thing: the same dimension ("m/s", "km/h") or a shared spelling. */
+function sameMeasure(first: string, second: string): boolean {
+  if (measuredUnitsShareDimension(first, second)) return true;
+  const other = new Set(unitSpellings(second).map((spelling) => spelling.toLowerCase()));
+  return unitSpellings(first).some((spelling) => other.has(spelling.toLowerCase()));
+}
+
+/**
+ * The numbers a text states, each with the unit printed after it (if any),
+ * and the text with every number and its unit blanked out.
+ */
+function statedNumbers(text: string): { numbers: Array<{ value: number; unit?: string }>; words: string } {
+  const normalized = text.normalize("NFC").replace(/[−–—]/g, "-");
+  const printed = displayedMeasurementUnits(normalized);
+  const numbers: Array<{ value: number; unit?: string }> = [];
+  let words = normalized;
+  for (const match of normalized.matchAll(STATED_NUMBER)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    const after = normalized.slice(end);
+    const unitWord = after.match(UNIT_AFTER_NUMBER)?.[0];
+    const printedUnit = printed.get(start + match[0].search(/[\d.]/));
+    const unit = printedUnit ?? unitWord?.trim();
+    numbers.push({ value: Number(match[0]), ...(unit ? { unit } : {}) });
+    const printedEnd = printedUnit && after.includes(printedUnit) ? after.indexOf(printedUnit) + printedUnit.length : 0;
+    const span = end - start + Math.max(unitWord?.length ?? 0, printedEnd);
+    words = words.slice(0, start) + " ".repeat(span) + words.slice(start + span);
+  }
+  return { numbers, words };
+}
+
+/** How many numbers in the text measure what a given with this unit measures (bare numbers for a unitless given). */
+function competingStatedCount(text: string, unit: string | undefined): number {
+  return statedNumbers(text).numbers.filter((number) =>
+    unit ? number.unit !== undefined && sameMeasure(unit, number.unit) : number.unit === undefined).length;
+}
+
+/** Quantity kinds and modifiers that never name whose quantity it is. */
+const GENERIC_OWNER_WORDS = new Set([
+  "speed", "velocity", "vel", "rate", "angle", "theta", "phi", "alpha", "beta", "distance", "dist", "displacement", "disp",
+  "time", "mass", "length", "len", "height", "width", "force", "acc", "accel", "acceleration", "initial", "init", "final",
+  "mag", "magnitude", "value", "val", "given", "relative", "rel", "component", "comp", "total", "net", "max", "min", "avg",
+  "average", "resultant", "actual", "apparent",
+]);
+/** Words of a source clause that name no object. */
+const CLAUSE_STOPWORDS = new Set([
+  "at", "an", "and", "as", "of", "the", "to", "in", "on", "is", "are", "was", "with", "while", "by", "from", "for", "its",
+  "it", "be", "has", "have", "per", "than", "then", "that", "this", "when",
+]);
+const splitOwnerWords = (text: string) => text.normalize("NFKC").replace(/(\p{Ll})(\p{Lu})/gu, "$1 $2").toLowerCase()
+  .split(/[^\p{L}]+/u).filter(Boolean);
+
+/**
+ * The words a given's id and symbol use for its owner: the symbol's subscript
+ * ("r" of v_r, "rain" of v_{rain}) and the id's words after a one letter
+ * quantity prefix ("rain" of rain_speed or v_rain), less quantity kinds.
+ */
+function givenOwnerTokens(id: string, symbol: string): string[] {
+  const subscript = symbol.normalize("NFKC").match(/_\{?([^}]*)\}?/)?.[1] ?? "";
+  const idWords = splitOwnerWords(id);
+  return [...new Set([
+    ...splitOwnerWords(subscript),
+    ...idWords.filter((word, index) => word.length > 1 || index > 0),
+  ])].filter((token) => !GENERIC_OWNER_WORDS.has(token));
+}
+
+/** Whether a clause word names an owner token: a label letter exactly, else a word the token starts or abbreviates. */
+function clauseWordNamesToken(word: string, token: string): boolean {
+  if (word.length === 1) return /\p{Lu}/u.test(word) && token === word.toLowerCase();
+  const lower = word.toLowerCase();
+  if (CLAUSE_STOPWORDS.has(lower)) return false;
+  return token.length === 1 ? lower.startsWith(token) : lower.startsWith(token) || (lower.length >= 3 && token.startsWith(lower));
+}
+
+/**
+ * Source evidence that a salvaged given belongs to its own quantity when the
+ * question states more than one value of its kind: its sourceText is a span
+ * of the question that states exactly this value and no other of its kind,
+ * a word of that span names the given's owner (its symbol subscript or id),
+ * and no other given of the same kind in the lane is named by that span.
+ * "v_r = 8 m/s" with source "man walks at 8 m/s" has no such evidence.
+ */
+function sourceTextNamesOwner(
+  question: string,
+  given: { id: string; symbol: string; value: number; unit?: string; sourceText?: unknown },
+  laneGivens: ReadonlyArray<{ id: string; symbol: string; unit?: string }>,
+): boolean {
+  if (typeof given.sourceText !== "string" || !given.sourceText.trim()) return false;
+  const flat = (text: string) => text.normalize("NFC").replace(/[−–—]/g, "-").toLowerCase().replace(/\s+/g, " ").trim();
+  const source = flat(given.sourceText).replace(/[.,;:!?]+$/, "");
+  if (!source || !flat(question).includes(source)) return false;
+  if (!questionStatesQuantity(given.sourceText, given.value, given.unit)) return false;
+  if (competingStatedCount(given.sourceText, given.unit) !== 1) return false;
+  const words = statedNumbers(given.sourceText).words.match(/\p{L}+/gu) ?? [];
+  const names = (id: string, symbol: string) => givenOwnerTokens(id, symbol)
+    .some((token) => words.some((word) => clauseWordNamesToken(word, token)));
+  if (!names(given.id, given.symbol)) return false;
+  return !laneGivens.some((other) => other.id !== given.id &&
+    (given.unit ? other.unit !== undefined && sameMeasure(given.unit, other.unit) : other.unit === undefined) &&
+    names(other.id, other.symbol));
+}
+
 /** Indices of `givens` that a rejection's issue paths name ("givens[2].value"). */
 function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number> {
   const out = new Set<number>();
@@ -531,7 +637,11 @@ function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number>
  * scene planning), keep only what the question itself states: the best
  * rejected plan's givens whose value and unit appear in the question, and its
  * law ids. A given the rejection's issues name is dropped, and so is a value
- * the rejected lanes bind to different symbols (swapped roles). Every derived value, unknown and claim is withdrawn, so nothing the
+ * the rejected lanes bind to different symbols (swapped roles). When the
+ * question states more than one value of a given's kind (6 m/s and 8 m/s),
+ * nothing has checked which quantity owns which value, so the given is kept
+ * only when its sourceText names its owner (`sourceTextNamesOwner`); one lane
+ * binding v_r = 8 and v_m = 6 keeps neither. Every derived value, unknown and claim is withdrawn, so nothing the
  * validator refused can reach a label or the narration as authority. Returns
  * null when no given survives or the result fails validation.
  */
@@ -578,6 +688,12 @@ export function salvageRejectedTurnPlanV3(
     const seen = new Set<string>();
     // A given the validator named in its issues is not salvaged.
     const flagged = flaggedGivenIndices(rejection.issues);
+    const laneGivens = plan.givens.flatMap((raw) => {
+      const given = record(raw);
+      return given && typeof given.id === "string" && typeof given.symbol === "string"
+        ? [{ id: given.id, symbol: given.symbol, ...(typeof given.unit === "string" && given.unit.trim() ? { unit: given.unit.trim() } : {}) }]
+        : [];
+    });
     const givens = plan.givens.flatMap((raw, index) => {
       const given = record(raw);
       if (flagged.has(index)) return [];
@@ -587,6 +703,9 @@ export function salvageRejectedTurnPlanV3(
       const unit = typeof given.unit === "string" && given.unit.trim() ? given.unit.trim() : undefined;
       if (!questionStatesQuantity(question, given.value, unit)) return [];
       if (swapped.has(quantityKey(given.value, unit))) return [];
+      // More than one stated value of this kind: keep it only with source evidence of its owner.
+      if (competingStatedCount(question, unit) > 1 &&
+          !sourceTextNamesOwner(question, { id: given.id, symbol: given.symbol, value: given.value, unit, sourceText: given.sourceText }, laneGivens)) return [];
       seen.add(given.id);
       return [{
         id: given.id,

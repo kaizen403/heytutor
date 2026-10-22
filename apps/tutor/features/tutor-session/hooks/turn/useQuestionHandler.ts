@@ -157,7 +157,7 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
-  turnPlanNeedsNumericAuthority,
+  turnPlanRequestsNumericAuthority,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -1214,7 +1214,9 @@ export function useQuestionHandler(
             salvagedTurnPlan ?? createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
-          if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
+          // A salvaged plan goes through ProblemIR too: nothing accepted its givens.
+          const planOrigin = plannedTurn ? "accepted" : salvagedTurnPlan ? "salvaged" : "fallback";
+          if (turnPlanRequestsNumericAuthority(question, turnPlan, planOrigin)) {
             const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
             problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
               proxyUrl: plannerUrl,

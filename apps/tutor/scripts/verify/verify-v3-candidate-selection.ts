@@ -40,6 +40,7 @@ import {
   validateProductionSceneCandidate,
 } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
+import { turnPlanRequestsNumericAuthority } from "../../features/tutor-session/lib/scene/diagramGeneration";
 
 interface SelectionCase {
   id: string;
@@ -212,9 +213,13 @@ for (const entry of fixture.salvage) {
   assert.deepEqual(salvaged.qualitativeClaims, [], `${entry.id}: no claim survives`);
   assert.deepEqual(salvaged.unknowns, []);
   assert.ok(salvaged.lawIds.length > 0, `${entry.id}: law ids are kept`);
+  // p3e1-t1 states two speeds, and its clauses ("cycling east at 5 km/h",
+  // "At 20 km/h") name no owner of v_g1 or v_g2, so only the one stated angle
+  // survives: a swapped pair of salvaged speeds would otherwise reach a label
+  // that nothing rechecks (PR #249 review).
   const expected = entry.id === "v3/p3c-t1"
     ? [["vr", 6, "m/s"], ["vm", 8, "m/s"]]
-    : [["v1", 5, "km/h"], ["v2", 20, "km/h"], ["a2", 60, "deg"]];
+    : [["a2", 60, "deg"]];
   assert.deepEqual(salvaged.givens.map((given) => [given.id, given.value, given.unit]), expected, `${entry.id}: salvaged givens`);
 
   // Mutations on the recorded plans: a value the question does not state and
@@ -240,11 +245,21 @@ for (const entry of fixture.salvage) {
     const fast = selectFastVerifiedRepresentation({ question: entry.question, turnPlan: gate.turnPlan, problemIR: null, families: gate.families });
     return gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && fast === null;
   };
+  // A salvaged plan goes through ProblemIR like an accepted one; the empty fallback does not.
+  assert.equal(turnPlanRequestsNumericAuthority(entry.question, salvaged, "salvaged"), true, `${entry.id}: the salvaged plan requests ProblemIR`);
+  assert.equal(turnPlanRequestsNumericAuthority(entry.question, fallback, "fallback"), false, `${entry.id}: the fallback plan requests no ProblemIR`);
   if (entry.id === "v3/p3c-t1") {
     assert.equal(attempted(fallback), false, "p3c-t1 as recorded: the empty fallback drew the bare family and never planned");
     assert.equal(attempted(salvaged), true, "p3c-t1: with the salvaged givens the scene planner is attempted");
   }
   console.log(`  ${entry.id}: salvaged ${salvaged.givens.map((given) => `${given.symbol}=${given.value} ${given.unit}`).join(", ")}; planner attempted ${attempted(fallback)} -> ${attempted(salvaged)}`);
+}
+
+// The live hook decides ProblemIR through that helper with the plan's origin.
+{
+  const hook = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+  assert.match(hook, /const planOrigin = plannedTurn \? "accepted" : salvagedTurnPlan \? "salvaged" : "fallback";\s*if \(turnPlanRequestsNumericAuthority\(question, turnPlan, planOrigin\)\)/,
+    "the live hook sends a salvaged plan to ProblemIR");
 }
 
 console.log("verify-v3-candidate-selection: exact source first, coverage-first selection, and question-stated salvage hold on the recorded turns");
