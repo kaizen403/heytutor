@@ -1,0 +1,406 @@
+{
+  "topic_id": "physics|2|river-boat-problems",
+  "question": "A river 96 m wide flows at 1.2 m/s between straight parallel banks. A swimmer who swims at 1.6 m/s relative to the water heads straight across, at right angles to the banks. How long does she take to cross, what is her speed relative to the ground, and how far downstream of the starting point does she land?",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "swimmer crossing a flowing river"
+    },
+    "source": {
+      "question": "A river 96 m wide flows at 1.2 m/s between straight parallel banks. A swimmer who swims at 1.6 m/s relative to the water heads straight across, at right angles to the banks. How long does she take to cross, what is her speed relative to the ground, and how far downstream of the starting point does she land?",
+      "archetype": "river_boat"
+    },
+    "quantities": [
+      {
+        "id": "d",
+        "symbol": "d",
+        "value": 96,
+        "unit": "m"
+      },
+      {
+        "id": "vc",
+        "symbol": "vc",
+        "value": 1.2,
+        "unit": "m/s"
+      },
+      {
+        "id": "vb",
+        "symbol": "vb",
+        "value": 1.6,
+        "unit": "m/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "near",
+        "kind": "segment",
+        "role": "near bank",
+        "label": "bank"
+      },
+      {
+        "id": "far",
+        "kind": "segment",
+        "role": "far bank",
+        "label": "bank"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "middle of the river"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "start on the near bank",
+        "label": "S"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "point opposite S",
+        "label": "Q"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "landing point on the far bank",
+        "label": "L"
+      },
+      {
+        "id": "v_c",
+        "kind": "vector",
+        "role": "river current",
+        "label": "vc=1.2 m/s"
+      },
+      {
+        "id": "v_b",
+        "kind": "vector",
+        "role": "swimmer relative to water, straight across",
+        "label": "vb=1.6 m/s"
+      },
+      {
+        "id": "v_r",
+        "kind": "vector",
+        "role": "swimmer relative to ground",
+        "label": "vr"
+      },
+      {
+        "id": "track",
+        "kind": "segment",
+        "role": "actual path"
+      },
+      {
+        "id": "D0",
+        "kind": "point",
+        "role": "width mark foot"
+      },
+      {
+        "id": "D1",
+        "kind": "point",
+        "role": "width mark top"
+      },
+      {
+        "id": "dim_d",
+        "kind": "dimension",
+        "role": "river width",
+        "label": "d = 96 m"
+      },
+      {
+        "id": "dim_x",
+        "kind": "dimension",
+        "role": "drift downstream",
+        "label": "x"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_M",
+        "operator": "point",
+        "inputs": {
+          "x": 36,
+          "y": 48,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "c_banks",
+        "operator": "parallel_guides",
+        "inputs": {
+          "direction": [
+            1,
+            0
+          ],
+          "separation": 96,
+          "halfLength": 56,
+          "origin": "M"
+        },
+        "outputs": [
+          "near",
+          "far"
+        ]
+      },
+      {
+        "id": "c_S",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "c_Q",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "c_L",
+        "operator": "point",
+        "inputs": {
+          "x": 72,
+          "y": 96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "c_triangle",
+        "operator": "velocity_triangle",
+        "inputs": {
+          "frameVelocity": [
+            "vc",
+            0
+          ],
+          "bodyVelocity": [
+            0,
+            "vb"
+          ],
+          "units": {
+            "velocity": "m/s"
+          },
+          "origin": "S",
+          "displayScale": 20
+        },
+        "outputs": [
+          "v_c",
+          "v_b",
+          "v_r"
+        ]
+      },
+      {
+        "id": "c_track",
+        "operator": "segment",
+        "inputs": {
+          "start": "S",
+          "end": "L"
+        },
+        "outputs": [
+          "track"
+        ]
+      },
+      {
+        "id": "c_D0",
+        "operator": "point",
+        "inputs": {
+          "x": -8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D0"
+        ]
+      },
+      {
+        "id": "c_D1",
+        "operator": "point",
+        "inputs": {
+          "x": -8,
+          "y": 96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D1"
+        ]
+      },
+      {
+        "id": "c_dim_d",
+        "operator": "dimension",
+        "inputs": {
+          "start": "D0",
+          "end": "D1"
+        },
+        "outputs": [
+          "dim_d"
+        ]
+      },
+      {
+        "id": "c_dim_x",
+        "operator": "dimension",
+        "inputs": {
+          "start": "Q",
+          "end": "L"
+        },
+        "outputs": [
+          "dim_x"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "track_along_vr",
+        "predicate": "parallel",
+        "entities": [
+          "track",
+          "v_r"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "vb_across",
+        "predicate": "perpendicular",
+        "entities": [
+          "v_b",
+          "near"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "vc_along_bank",
+        "predicate": "parallel",
+        "entities": [
+          "v_c",
+          "near"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "L_on_far",
+        "predicate": "on",
+        "entities": [
+          "L",
+          "far"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "S_on_near",
+        "predicate": "on",
+        "entities": [
+          "S",
+          "near"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "near",
+      "far",
+      "M",
+      "S",
+      "Q",
+      "L",
+      "v_c",
+      "v_b",
+      "v_r",
+      "track",
+      "D0",
+      "D1",
+      "dim_d",
+      "dim_x"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "M",
+          "near",
+          "far",
+          "S",
+          "Q",
+          "D0",
+          "D1",
+          "dim_d"
+        ],
+        "dependsOn": [],
+        "narrationCue": "river of width d between parallel banks"
+      },
+      {
+        "id": "velocities",
+        "entityIds": [
+          "v_c",
+          "v_b",
+          "v_r"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "current vc, swimmer vb straight across, resultant vr"
+      },
+      {
+        "id": "path",
+        "entityIds": [
+          "track",
+          "L",
+          "dim_x"
+        ],
+        "dependsOn": [
+          "velocities"
+        ],
+        "narrationCue": "she moves along vr and lands at L, a drift x past Q"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "river of width d between parallel banks"
+      },
+      {
+        "id": "reveal_velocities",
+        "action": "reveal",
+        "targetId": "velocities",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "current vc, swimmer vb straight across, resultant vr"
+      },
+      {
+        "id": "reveal_path",
+        "action": "reveal",
+        "targetId": "path",
+        "dependsOn": [
+          "reveal_velocities"
+        ],
+        "narrationIntent": "she moves along vr and lands at L, a drift x past Q"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}
