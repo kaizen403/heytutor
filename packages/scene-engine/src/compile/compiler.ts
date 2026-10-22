@@ -1,4 +1,6 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
+import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
@@ -95,7 +97,7 @@ import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./r
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
 import { evaluateCurrentFieldConstruction, type CurrentFieldMark } from "./currentFieldGeometry";
-import { evaluateChapterRemainderConstruction, type RemainderMark } from "./chapterRemainderGeometry";
+import { evaluateChapterRemainderConstruction, validateProjectileMeasurementProjection, type RemainderMark } from "./chapterRemainderGeometry";
 import { evaluateChapterInstrumentConstruction, type InstrumentMark } from "./chapterInstrumentGeometry";
 import { evaluateFluidConstruction, type HydrostaticProfileDefinition, type HydrostaticStateDefinition, type BuoyancyDefinition } from "./fluidGeometry";
 import { withEvaluatedOutputLabels } from "./outputLabels";
@@ -110,6 +112,7 @@ import { evaluateAcConstruction, type AcImpedanceDefinition, type AcPhasorDefini
 import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefinition } from "./wavesGeometry";
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
 import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
+import { evaluatePvProcessConstruction, pvPlotBounds, pvPlotPrimitives, type PvPlotGeometry } from "./pvProcessGeometry";
 import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
 import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
@@ -219,9 +222,10 @@ type Geometry =
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
-  | { kind: "dimension"; a: Point; b: Point }
+  | ({ kind: "dimension"; a: Point; b: Point } & DerivedGeometryMetadata)
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry
+  | PvPlotGeometry
   | LinearRegionGeometry;
 
 const EPSILON = 1e-6;
@@ -416,6 +420,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   issues.push(...validateVelocityTriangleTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
+  issues.push(...validateLaunchVelocityTruth(document, geometry));
   if (verifiedPartsEnabled) {
     issues.push(...validateMarkedAngleTruth(document, geometry));
     issues.push(...validateGeometryClaimTruth(document, geometry));
@@ -529,12 +534,14 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         entity.provenance,
         directionOverlayIds.has(entity.id),
       )); } catch(error) {
-        if(value.kind!=="linear_region")throw error;
-        issues.push({code:"linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
+        if(value.kind!=="linear_region" && value.kind!=="pv_plot")throw error;
+        issues.push({code:value.kind === "pv_plot" ? "pv_display_unproved" : "linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
         return {ok:false,renderScene:null,report:report(document,issues,0)};
       }
     }
   }
+  const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
+  if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
   if (verifiedPartsEnabled) {
     // Text and its leaders cannot restore a region whose projected geometry
     // collapsed to a line. Prove that core shape before searching label slots.
@@ -904,6 +911,30 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
+  const pvLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.pvRole);
+  if (pvLabels.length) {
+    const owners: LabelOwner[] = pvLabels.map((primitive) => ({
+      labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
+      viewBounds: transformPlan.viewportFor(primitive.entityId), useOwnerBounds: false,
+      pinToAnchor: ["name_v", "name_p", "schematic"].includes(String(primitive.provenance?.pvRole)),
+      allowLeader: primitive.provenance?.pvRole === "process_name", requireLeader: primitive.provenance?.pvRole === "process_name", leaderGeometrySafe: true,
+      tetherPx: primitive.provenance?.pvRole === "state_name" ? pointLabelTether(primitive.text!) : undefined,
+    }));
+    const placed = placeLabels(owners, [...obstaclesFromPrimitives(primitives.filter((primitive) => !pvLabels.includes(primitive))), workColumnObstacle()],
+      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
+    for (const issue of placed.issues) issues.push({ code: issue.code, message: issue.message, severity: "fatal", entityIds: pvLabels.filter((primitive) => primitive.id === issue.entityId).map((primitive) => primitive.entityId) });
+    if (placed.ok) for (const placement of placed.placements) {
+      const primitive = pvLabels.find((candidate) => candidate.id === placement.labelId)!;
+      const labelAnchor = primitive.points[0]!;
+      primitive.points = [{ x: round(placement.bounds.x + placement.bounds.width / 2), y: round(placement.bounds.y + placement.bounds.height / 2) }];
+      primitive.labelPlacement = "absolute";
+      primitive.provenance = { ...primitive.provenance, fontPx: BOARD_TYPE_SCALE.annotation, labelPad: 0, labelAnchor, labelBounds: placement.bounds, labelCollisionBounds: placement.collisionBounds ?? placement.bounds };
+      if (placement.usesLeader && placement.leaderFrom && placement.leaderTo) primitives.push({
+        id: `${primitive.id}_leader`, entityId: primitive.entityId, groupId: primitive.groupId, kind: "line", points: placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo],
+        provenance: { pvRole: "label_leader", pvMode: primitive.provenance.pvMode, nonmetric: true, labelLeader: true, strokeRole: "construction", strokeWidth: 1 },
+      });
+    }
+  }
   const matrixCells = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.matrixNonmetric === true && primitive.provenance?.matrixCell);
   if (matrixCells.length > 0) {
     const cellOwners: LabelOwner[] = matrixCells.map((primitive) => ({
@@ -979,12 +1010,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     };
   };
   const axisLetterOwners = spaceAxisLetterOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan);
-  const placementOwners = [
+  const placementOwners = bindTrajectoryLabelPlacement(document, primitives, [
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
     ...axisLetterOwners,
-  ];
+  ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
@@ -1619,6 +1650,7 @@ function orderConstructionsByDependency(document: SceneDocument): Array<{
 /** Item/outcome names are local mathematical namespaces, not scene references. */
 function geometricDependencyInputs(construction: SceneDocument["constructions"][number]): unknown {
   switch (construction.operator) {
+    case "pv_process": return [];
     case "probability_tree":
     case "set_partition":
     case "permutation_cycles":
@@ -1805,6 +1837,7 @@ function evaluateConstruction(
     case "wave_sample": return evaluateWavesConstruction(operator, inputs, constructionContext);
     case "gaussian_image":
     case "optical_focus": return evaluateGeometricOpticsConstruction(operator, inputs, constructionContext);
+    case "pv_process": return evaluatePvProcessConstruction(inputs, document);
     case "polytropic_process":
     case "isochoric_process":
     case "process_state": return evaluateThermodynamicsConstruction(operator, inputs, constructionContext);
@@ -2823,6 +2856,7 @@ function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (poi
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if (value.kind === "pv_plot") return pvPlotPrimitives(value, entityId, groupId, transform);
   if (value.kind === "linear_region") {
     return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
@@ -5498,7 +5532,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -6031,6 +6065,7 @@ function signatureNumber(value: number): string {
 }
 
 function geometrySignature(value: Geometry): string {
+  if (value.kind === "pv_plot") return `pv:${JSON.stringify(value.pvPlot)}`;
   if (value.kind === "point") return `point:${pointKey(value.point)}`;
   if (value.kind === "path") {
     const forward = value.points.map(pointKey).join("|");

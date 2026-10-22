@@ -1,0 +1,1 @@
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-pv-process-contract.ts
