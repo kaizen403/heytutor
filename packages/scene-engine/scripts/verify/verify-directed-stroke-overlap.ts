@@ -92,13 +92,14 @@ const REFUSED_BADGE_VALUE = new Set(["v3/p1e2-t1#6"]);
  */
 const DISPLAY_SCALED = new Set([
   "v2/p3e2-t1#6:up_velocity", "v2/p3e2-t1#6:gravity", "v2/p3e2-t2#7:gravity", "v2/p5e2-t1#4:initial_velocity",
-  "v3/p1e1-t1#6:vA", "v3/p1e1-t1#6:vB",
 ]);
 /**
  * Short shafts kept at their true length, reported rather than hidden. Each is
  * in a unit group the display scale declines: a component that follows its
  * source vector, a velocity group with a trajectory_state velocity in it
- * (v2 p3e2-t2), and velocities drawn on axes (v3 p4c-t1).
+ * (v2 p3e2-t2), velocities drawn on axes (v3 p4c-t1), and velocities beside
+ * a vector whose unit cannot be read (v3 p1e1-t1: the "+x east" arrow could be
+ * a velocity for all the engine can tell, so nothing is enlarged).
  */
 const SHORT_TRUE_LENGTH = new Map([
   ["v1/p3c-t1#5:downhill", "a vector_components component follows its source vector"],
@@ -106,6 +107,7 @@ const SHORT_TRUE_LENGTH = new Map([
   ["v2/p3e2-t2#7:landing_velocity", "a trajectory_state velocity, not free"],
   ["v3/p4c-t1#6:vA", "the figure has axes"],
   ["v3/p4c-t1#6:vB", "the figure has axes"],
+  ["v3/p1e1-t1#6:vB", "the \"+x east\" vector has no readable unit, so no vector is rescaled"],
   ["yt/q14-t2#5:west", "a direction reference with no unit, drawn at its true 1 m in a 75 m frame"],
 ]);
 const scaledSeen = new Set<string>();
@@ -409,6 +411,28 @@ function frame(length: number, unit: string, extra: Partial<{ usedElsewhere: boo
   } else check(false, `synthetic spellings compiles: ${fatal(result).join(" | ")}`);
   for (const spelling of ["m/s", "ms⁻¹", "m s^-1", "m·s⁻¹", "m s⁻¹", "m/sec"]) check(canonicalVectorUnit(spelling) === "m/s", `canonicalVectorUnit(${spelling}) is m/s, got ${canonicalVectorUnit(spelling)}`);
   for (const spelling of ["m/s²", "m s⁻²", "ms^-2"]) check(canonicalVectorUnit(spelling) === "m/s²", `canonicalVectorUnit(${spelling}) is m/s², got ${canonicalVectorUnit(spelling)}`);
+}
+{
+  // A vector whose unit cannot be read may share the other's unit, so the
+  // group scales whole or not at all: v_A = 4 m/s beside 3 m/s or a bare v_B
+  // stays 4:3 (it was drawn 2.248:1 when only v_A was enlarged).
+  const pair = (vBLabel: string) => compileDocument(withPoints([point("A", 0, 0, "A"), point("B", 0, 60, "B"), point("F", 60, 0)],
+    [{ id: "sep", kind: "segment", role: "separation" }, { id: "ground", kind: "segment", role: "ground" }, { id: "vA", kind: "vector", role: "velocity" }, { id: "vB", kind: "vector", role: "velocity" }],
+    [{ id: "make_sep", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["sep"] }, { id: "make_ground", operator: "segment", inputs: { start: "A", end: "F" }, outputs: ["ground"] },
+      { id: "make_vA", operator: "vector", inputs: { start: "A", direction: [1, 0], length: 4 }, outputs: ["vA"] },
+      { id: "make_vB", operator: "vector", inputs: { start: "B", direction: [1, 0], length: 3 }, outputs: ["vB"] }],
+    { annotations: [{ id: "vA_label", kind: "label", targetIds: ["vA"], text: "v_A = 4 m/s" }, { id: "vB_label", kind: "label", targetIds: ["vB"], text: vBLabel }] }));
+  for (const [vBLabel, scaled] of [["3 m/s", true], ["v_B", false]] as const) {
+    const result = pair(vBLabel);
+    const [vA, vB] = ["vA", "vB"].map((id) => stroke(result, id));
+    if (result.stage === "ok" && vA && vB) {
+      const ratio = len(vA.points[0]!, vA.points[1]!) / len(vB.points[0]!, vB.points[1]!);
+      check(Math.abs(ratio - 4 / 3) < 0.02, `synthetic unreadable unit: v_A = 4 m/s beside "${vBLabel}" stays 4:3, got ${ratio.toFixed(3)}`);
+      const both = vA.provenance?.displayLengthScale !== undefined && vB.provenance?.displayLengthScale !== undefined;
+      const neither = vA.provenance?.displayLengthScale === undefined && vB.provenance?.displayLengthScale === undefined;
+      check(scaled ? both : neither, `synthetic unreadable unit: beside "${vBLabel}" ${scaled ? "both velocities share one display factor" : "neither velocity is rescaled"}`);
+    } else check(false, `synthetic unreadable unit "${vBLabel}" compiles: ${fatal(result).join(" | ")}`);
+  }
 }
 {
   // Axes give vectors a scale of their own: no display factor.

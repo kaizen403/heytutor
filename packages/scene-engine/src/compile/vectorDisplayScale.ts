@@ -19,7 +19,9 @@ import type { SceneDocument } from "../types";
  * rescaled.
  *
  * A unit group (spellings normalized, so "m/s", "ms⁻¹" and "m s^-1" are one
- * group) is scaled whole or not at all. It is left at its true length when
+ * group) is scaled whole or not at all. Nothing is scaled when any required
+ * vector's unit cannot be read (a bare `v_B` beside `v_A = 4 m/s` may be a
+ * velocity too, and enlarging only `v_A` would break their proportion). It is left at its true length when
  * any vector of that unit is not free (a scaled one would no longer be in
  * proportion to it), when any other ink starts or ends on a free vector's tip
  * (a tip to tail sum, a resultant to that tip, a parallelogram side), or when
@@ -61,10 +63,17 @@ export function canonicalVectorUnit(unit: string): string {
   return text;
 }
 
+const VALUE_WITH_UNIT = String.raw`[+−-]?\s*\d[\d.,]*(?:\s*[×x]\s*10\^?[−-]?\d+)?\s*([^\s\d=][^=]*)$`;
+/** A bare value's unit is read only when it is plainly a unit (a rate, a force or a length), so `2v` is not a unit "v". */
+const BARE_UNIT = /^(?:[a-zA-Zµμ]+\/[a-zA-Z]+[²³]?|[kmM]?N)$/;
+/** The unit of a value label: `v_A = 4 m/s`, or a bare value such as `3 m/s`. */
 function unitFromText(text: string | undefined): string | null {
-  const match = text?.trim().match(/=\s*[+−-]?\s*\d[\d.,]*(?:\s*[×x]\s*10\^?[−-]?\d+)?\s*([^\s\d=][^=]*)$/u);
-  const unit = match?.[1]?.trim();
-  return unit ? canonicalVectorUnit(unit) : null;
+  const trimmed = text?.trim();
+  const named = trimmed?.match(new RegExp(String.raw`=\s*${VALUE_WITH_UNIT}`, "u"))?.[1]?.trim();
+  if (named) return canonicalVectorUnit(named);
+  const bare = trimmed?.match(new RegExp(`^${VALUE_WITH_UNIT}`, "u"))?.[1]?.trim();
+  const unit = bare ? canonicalVectorUnit(bare) : null;
+  return unit && (BARE_UNIT.test(unit) || LENGTH_UNIT.test(unit)) ? unit : null;
 }
 
 function isPath(value: AnyGeometry | undefined): value is PathGeometry & AnyGeometry {
@@ -127,7 +136,10 @@ export function freeLengthVectors(document: SceneDocument, geometry: Map<string,
     const construction = producers.get(entity.id);
     const quantityId = typeof construction?.inputs.length === "string" ? construction.inputs.length : undefined;
     const unit = unitOf(entity.id, quantityId);
-    if (!unit || LENGTH_UNIT.test(unit)) continue;
+    // A vector whose unit cannot be read may share a free vector's unit;
+    // scaling the others would draw it out of proportion, so none is scaled.
+    if (!unit) return [];
+    if (LENGTH_UNIT.test(unit)) continue;
     const tip = freeTip(entity.id);
     candidates.push({ id: entity.id, unit, free: tip.free, ...(tip.free && tip.tipPointId ? { tipPointId: tip.tipPointId } : {}) });
   }
