@@ -4793,6 +4793,23 @@ function measuredValuePattern(): RegExp {
   return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
+/** The physical unit printed after each number of a displayed text, keyed by the offset of its first digit. */
+export function displayedMeasurementUnits(text: string): Map<number, string> {
+  const units = new Map<number, string>();
+  for (const match of text.matchAll(measuredValuePattern())) {
+    const unit = match[2]?.trim();
+    if (!unit) continue;
+    units.set(match.index! + match[1]!.search(/[\d.]/), unit);
+  }
+  return units;
+}
+
+/** Whether two printed units measure the same dimension ("m/s" and "km/h" do; "m/s" and "s" do not). */
+export function measuredUnitsShareDimension(first: unknown, second: unknown): boolean {
+  const a = canonicalMeasurement(1, first), b = canonicalMeasurement(1, second);
+  return a !== null && b !== null && a.dimension === b.dimension;
+}
+
 function sourceContainsMatchingMeasuredValue(
   sourceText: string,
   expectedValue: number,

@@ -6,7 +6,7 @@ import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
-  pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
+  pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts, displayedMeasurementUnits, measuredUnitsShareDimension,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   validateProjectileMeasurementPlan,
@@ -121,21 +121,74 @@ function coverageSymbolKey(value: string): string {
   return value.normalize("NFKC").replace(/[\s_{}\\$]/g, "");
 }
 
-/** Numbers a label displays, with the tolerance its printed precision implies. */
-function displayedNumbers(text: string): Array<{ value: number; tolerance: number }> {
-  const normalized = text.normalize("NFKC").replace(/[−–—]/g, "-");
-  return [...normalized.matchAll(/(?<![A-Za-z_^\d.])-?(?:\d+(?:\.(\d+))?|\.(\d+))(?:e([+-]?\d+))?/gi)].flatMap((match) => {
+/** Numbers a label displays, with the tolerance its printed precision implies and the offset of the first digit. */
+function displayedNumbers(text: string): Array<{ value: number; tolerance: number; index: number }> {
+  return [...text.matchAll(/(?<![A-Za-z_^\d.])-?(?:\d+(?:\.(\d+))?|\.(\d+))(?:e([+-]?\d+))?/gi)].flatMap((match) => {
     const value = Number(match[0]);
     if (!Number.isFinite(value)) return [];
     const decimals = (match[1] ?? match[2] ?? "").length;
-    return [{ value, tolerance: 0.5 * 10 ** (Number(match[3] ?? 0) - decimals) }];
+    return [{ value, tolerance: 0.5 * 10 ** (Number(match[3] ?? 0) - decimals), index: match.index! + (match[0].startsWith("-") ? 1 : 0) }];
   });
+}
+
+/** A symbol key opens this text: "v = 5 m/s" names v; "vA = 20" does not name v. */
+function namesSymbol(key: string, symbol: string): boolean {
+  return symbol.length > 0 && (key === symbol || (key.startsWith(symbol) && !/[\p{L}\p{N}]/u.test(key.charAt(symbol.length))));
+}
+
+type CoverageQuantity = { id: string; symbol: string; value?: number; unit?: string };
+
+/**
+ * The quantities one displayed number shows. A matching value alone is not
+ * evidence: v = 5 m/s and t = 5 s share the number 5, so a label "5 m/s"
+ * shows the speed and not the time. Evidence, strongest first: the label is
+ * bound to the quantity; its own clause names the quantity's symbol; its
+ * owner (the mark the label belongs to, as label owner truth reads it) is the
+ * mark a bound label of the quantity names; its printed unit leaves one
+ * candidate; or, with no unit printed, only one quantity has that value.
+ * A printed unit of another dimension never shows the quantity.
+ */
+function quantitiesShownByNumber(input: {
+  shown: { value: number; tolerance: number; index: number };
+  text: string;
+  unit: string | undefined;
+  boundQuantityId: string | undefined;
+  ownerEntityId: string;
+  ownersOf: ReadonlyMap<string, ReadonlySet<string>>;
+  quantities: readonly CoverageQuantity[];
+}): CoverageQuantity[] {
+  const { shown, unit } = input;
+  const matching = input.quantities.filter((quantity) => {
+    const value = quantity.value;
+    if (typeof value !== "number" || !Number.isFinite(value)) return false;
+    if (Math.min(Math.abs(shown.value - value), Math.abs(Math.abs(shown.value) - Math.abs(value))) >
+      shown.tolerance + Math.max(1, Math.abs(value)) * 1e-9) return false;
+    return unit === undefined || quantity.unit === undefined || quantity.unit.trim() === "" ||
+      measuredUnitsShareDimension(unit, quantity.unit);
+  });
+  if (matching.length === 0) return [];
+  const bound = matching.filter((quantity) => quantity.id === input.boundQuantityId);
+  if (bound.length) return bound;
+  // The clause holding the number: "v = 5 m/s, t = 5 s" gives each value its own symbol.
+  const clauseStart = Math.max(...[",", ";", "\n"].map((mark) => input.text.lastIndexOf(mark, shown.index - 1))) + 1;
+  const clause = coverageSymbolKey(input.text.slice(clauseStart, shown.index));
+  const named = matching.filter((quantity) => namesSymbol(clause, coverageSymbolKey(quantity.symbol)));
+  if (named.length) return named;
+  const owned = matching.filter((quantity) => input.ownersOf.get(quantity.id)?.has(input.ownerEntityId) === true);
+  if (owned.length) return owned;
+  if (unit !== undefined) {
+    const measured = matching.filter((quantity) => quantity.unit !== undefined && quantity.unit.trim() !== "");
+    return measured.length === 1 ? measured : matching.length === 1 ? matching : [];
+  }
+  return matching.length === 1 ? matching : [];
 }
 
 /**
  * Coverage of the authoritative plan by readable ink. Only rendered label and
  * dimension text counts, and each plan quantity counts once, so repeating a
- * label or adding unlabelled marks never raises it.
+ * label or adding unlabelled marks never raises it. A shown number counts for
+ * a quantity only with evidence it is that quantity's value (see
+ * quantitiesShownByNumber), never for every quantity that shares the number.
  */
 export function sceneQuantityCoverage(
   document: Pick<SceneDocument, "annotations">,
@@ -145,33 +198,48 @@ export function sceneQuantityCoverage(
   const texts = (renderScene?.primitives ?? []).flatMap((primitive) =>
     (primitive.kind === "label" || primitive.kind === "dimension") &&
     typeof primitive.text === "string" && primitive.text.trim()
-      ? [{ id: primitive.id, text: primitive.text.trim() }]
+      ? [{ id: primitive.id, entityId: primitive.entityId, text: primitive.text.trim().normalize("NFKC").replace(/[−–—]/g, "-") }]
       : []);
-  const numbers = texts.flatMap((entry) => displayedNumbers(entry.text));
   const keys = texts.map((entry) => coverageSymbolKey(entry.text));
   const renderedIds = new Set(texts.map((entry) => entry.id));
   const boundIds = new Set(document.annotations.flatMap((annotation) =>
     annotation.quantityId !== undefined && renderedIds.has(annotation.id) ? [annotation.quantityId] : []));
+  const boundByLabel = new Map(document.annotations.flatMap((annotation) =>
+    annotation.quantityId !== undefined ? [[annotation.id, annotation.quantityId] as const] : []));
+  // The marks each quantity's bound labels belong to.
+  const ownersOf = new Map<string, Set<string>>();
+  for (const annotation of document.annotations) {
+    if (annotation.quantityId === undefined) continue;
+    const owners = ownersOf.get(annotation.quantityId) ?? new Set<string>();
+    for (const target of annotation.targetIds ?? []) owners.add(target);
+    ownersOf.set(annotation.quantityId, owners);
+  }
   const unknownKeys = new Set(plan.unknowns.flatMap((unknown) => [unknown.id, unknown.symbol]));
   // A concept lesson asks for no unknown; its derived values are its results.
   const answers = plan.unknowns.length === 0
     ? plan.derived
     : plan.derived.filter((quantity) => unknownKeys.has(quantity.id) || unknownKeys.has(quantity.symbol));
   const answered = new Set(answers.flatMap((quantity) => [quantity.id, quantity.symbol]));
-  const quantities: Array<{ id: string; symbol: string; value?: number }> = [
+  const quantities: CoverageQuantity[] = [
     ...plan.givens,
     ...answers,
     ...plan.unknowns.filter((unknown) => !answered.has(unknown.id) && !answered.has(unknown.symbol)),
   ].slice(0, COVERAGE_CAP);
+  const valuedIds = new Set<string>();
+  for (const entry of texts) {
+    const units = displayedMeasurementUnits(entry.text);
+    for (const shown of displayedNumbers(entry.text)) {
+      for (const quantity of quantitiesShownByNumber({
+        shown, text: entry.text, unit: units.get(shown.index), boundQuantityId: boundByLabel.get(entry.id),
+        ownerEntityId: entry.entityId, ownersOf, quantities,
+      })) valuedIds.add(quantity.id);
+    }
+  }
   let covered = 0, valued = 0, bound = 0;
   for (const quantity of quantities) {
-    const value = quantity.value;
-    const showsValue = typeof value === "number" && Number.isFinite(value) && numbers.some((shown) =>
-      Math.min(Math.abs(shown.value - value), Math.abs(Math.abs(shown.value) - Math.abs(value))) <=
-        shown.tolerance + Math.max(1, Math.abs(value)) * 1e-9);
+    const showsValue = valuedIds.has(quantity.id);
     const symbol = coverageSymbolKey(quantity.symbol);
-    const showsSymbol = symbol.length > 0 && keys.some((key) =>
-      key === symbol || (key.startsWith(symbol) && !/[\p{L}\p{N}]/u.test(key.charAt(symbol.length))));
+    const showsSymbol = keys.some((key) => namesSymbol(key, symbol));
     const isBound = boundIds.has(quantity.id);
     if (showsValue) valued += 1;
     if (isBound) bound += 1;

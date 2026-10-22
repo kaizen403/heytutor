@@ -120,6 +120,45 @@ assert.ok(changedFromSparser >= 3, "the richer figure now wins where the old sco
     "the scene engine's label owner finding is the one ranked");
 }
 
+// A shown number counts for a quantity only with evidence it is that
+// quantity's value (PR #249 review): v = 5 m/s and t = 5 s share the number
+// 5, so "5 m/s" alone shows the speed, never the time too.
+{
+  type Label = { id: string; text: string; entityId?: string };
+  const plan = (quantities: Array<[string, number, string?]>) => ({
+    givens: quantities.map(([symbol, value, unit]) => ({ id: symbol, symbol, value, ...(unit ? { unit } : {}), provenance: "given" as const })),
+    derived: [], unknowns: [],
+  });
+  const coverage = (labels: Label[], quantities: Array<[string, number, string?]>,
+    annotations: Array<{ id: string; quantityId: string; targetIds: string[] }> = []) => sceneQuantityCoverage(
+    { annotations: annotations.map((annotation) => ({ kind: "label", ...annotation })) },
+    { primitives: labels.map((label) => ({ id: label.id, kind: "label", text: label.text, entityId: label.entityId ?? "mark", points: [] }) as never) },
+    plan(quantities));
+  const speedAndTime: Array<[string, number, string?]> = [["v", 5, "m/s"], ["t", 5, "s"]];
+  const speedOnly = coverage([{ id: "l1", text: "5 m/s" }], speedAndTime);
+  const both = coverage([{ id: "l1", text: "5 m/s" }, { id: "l2", text: "5 s" }], speedAndTime);
+  assert.deepEqual([speedOnly.covered, speedOnly.valued], [1, 1], "a speed label shows the speed only, not the time that shares its number");
+  assert.deepEqual([both.covered, both.valued], [2, 2], "each unit shows its own quantity");
+  const rank = (shown: typeof both, structuralCost: number) => sceneCandidateQualityScore({
+    textOnly: false, visualRequirement: "required", warningCount: 0, omittedLabelCount: 0, coverage: shown, structuralCost,
+  });
+  assert.ok(rank(both, 30) < rank(speedOnly, 10), "the figure showing both quantities beats a smaller one showing the speed");
+  assert.equal(coverage([{ id: "l1", text: "5" }], speedAndTime).valued, 0, "a bare number two quantities share shows neither");
+  assert.equal(coverage([{ id: "l1", text: "5" }], [["v", 5, "m/s"]]).valued, 1, "a bare number one quantity holds shows it");
+  assert.equal(coverage([{ id: "l1", text: "5 s" }], [["v", 5, "m/s"]]).valued, 0, "a value printed in another dimension never shows the quantity");
+  assert.deepEqual(coverage([{ id: "l1", text: "v = 5 m/s, t = 5 s" }], speedAndTime).valued, 2, "each clause's symbol owns its value");
+  const boundTime = coverage([{ id: "l1", text: "5" }], speedAndTime, [{ id: "l1", quantityId: "t", targetIds: ["clock"] }]);
+  assert.deepEqual([boundTime.valued, boundTime.bound], [1, 1], "a label bound to the time shows the time only");
+  const owned = coverage([{ id: "l1", text: "v", entityId: "arrow" }, { id: "l2", text: "5", entityId: "arrow" }], speedAndTime,
+    [{ id: "l1", quantityId: "v", targetIds: ["arrow"] }]);
+  assert.deepEqual([owned.covered, owned.valued], [1, 1], "a value on the mark the speed's bound label names shows the speed");
+  // Recorded v3 p1e1-t1 #6: "v_B = 10 m/s" also counted the 10 s crossing time.
+  const entry = fixture.selection.find((item) => item.id === "v3/p1e1-t1")!;
+  const recorded = validateCase(entry).find((item) => item.candidate.chatIndex === 6)!.coverage;
+  assert.deepEqual([recorded.covered, recorded.valued], [4, 3], `v_B = 10 m/s shows v_B only, not t_a = 10 s: ${JSON.stringify(recorded)}`);
+  console.log("  equal values: a shown number counts only for the quantity it belongs to");
+}
+
 // --- 1. exact source first, end to end through the planner search ------------
 {
   const entry = fixture.selection.find((item) => item.id === "v3/p1e1-t1")!;
