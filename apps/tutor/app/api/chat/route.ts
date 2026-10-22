@@ -63,6 +63,7 @@ import {
 } from "@/lib/scene/diagramExampleLibrary.server";
 import {
   fetchPlannerCompletion,
+  PlannerReservationDenied,
   resolvePlannerMaxTokens,
   resolvePlannerModels,
 } from "@/lib/llm/plannerTransport";
@@ -684,13 +685,27 @@ async function handlePlannerRequest({
     parsed.response_format = { type: "json_object" };
     const body = providerChatBody(applyPlannerSpeedSettings(parsed, { provider: llm.provider }), llm);
     const requestedPriority = body.service_tier === "priority";
-
-    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) * (requestedPriority ? 2 : 1) });
+    const priorityFactor = requestedPriority ? 2 : 1;
+    const plannerAttemptUsd = (model: string) =>
+      maximumLlmCost(body.messages, completionTokenCap(body), [model], 1) * priorityFactor;
+    // Hold the first attempt only. A balance that can pay for one scene plan
+    // must not be refused because a later retry might also be needed.
+    const openingUsd = plannerModels.reduce((max, model) => Math.max(max, plannerAttemptUsd(model)), 0);
+    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: openingUsd });
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
+    const plannerReservation = reserved;
+    let fundedUsd = openingUsd;
     const upstreamStartedAt = Date.now();
     let finalAttemptStartedAt = upstreamStartedAt;
     const transport = await fetchPlannerCompletion({
+      beforeAttempt: async ({ attempt, model }) => {
+        if (attempt <= 1) return;
+        const totalUsd = fundedUsd + plannerAttemptUsd(model);
+        const denied = await plannerReservation.ensureReserved(totalUsd);
+        if (denied) throw new PlannerReservationDenied(denied);
+        fundedUsd = totalUsd;
+      },
       url: llm.url,
       apiKey,
       // Azure scenes are non-streaming. Keep their initial 30s candidate
@@ -851,6 +866,16 @@ async function handlePlannerRequest({
       },
     });
   } catch (error: unknown) {
+    if (error instanceof PlannerReservationDenied) {
+      endLlmGeneration(turnTrace, {
+        output: "planner retry reservation denied",
+        metadata: { error: true, planner: true, reason: "retry_reservation_denied", status: error.response.status },
+        updateTrace: false,
+        level: "WARNING",
+      });
+      flushInBackground();
+      return error.response;
+    }
     const message = error instanceof Error ? error.message : "planner proxy error";
     const aborted =
       (error instanceof DOMException && error.name === "AbortError") ||

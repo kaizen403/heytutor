@@ -6,6 +6,7 @@ import {
 } from "../../lib/llm/fireworksModels";
 import {
   fetchPlannerCompletion,
+  PlannerReservationDenied,
   resolvePlannerMaxTokens,
   resolvePlannerModels,
 } from "../../lib/llm/plannerTransport";
@@ -381,6 +382,54 @@ async function main(): Promise<void> {
     timeoutRejected = true;
   }
   assert(timeoutSignalObserved && timeoutRejected, "a stalled planner fetch must abort at its per-attempt deadline");
+
+  const fundedAttempts: number[] = [];
+  let fundedFetches = 0;
+  const funded = await fetchPlannerCompletion({
+    apiKey: "test-key",
+    body: {},
+    models: ["primary"],
+    maxAttemptsPerModel: 2,
+    beforeAttempt: async ({ attempt }) => {
+      fundedAttempts.push(attempt);
+    },
+    fetchImpl: async () => {
+      fundedFetches += 1;
+      return new Response(fundedFetches === 1 ? "busy" : "ok", {
+        status: fundedFetches === 1 ? 503 : 200,
+        headers: fundedFetches === 1 ? { "retry-after": "0" } : undefined,
+      });
+    },
+    sleep: async () => undefined,
+    url: "https://planner.test",
+  });
+  assert(funded.response.status === 200, "a funded retry still reaches the next attempt");
+  assert(fundedAttempts.join(",") === "1,2", "each planner attempt asks for funding before dispatch");
+  assert(fundedFetches === 2, "both funded attempts dispatch");
+
+  let unfundedFetches = 0;
+  let denied: unknown = null;
+  try {
+    await fetchPlannerCompletion({
+      apiKey: "test-key",
+      body: {},
+      models: ["primary", "fallback"],
+      maxAttemptsPerModel: 2,
+      beforeAttempt: async ({ attempt }) => {
+        if (attempt === 2) throw new PlannerReservationDenied(new Response("denied", { status: 402 }));
+      },
+      fetchImpl: async () => {
+        unfundedFetches += 1;
+        return new Response("busy", { status: 503, headers: { "retry-after": "0" } });
+      },
+      sleep: async () => undefined,
+      url: "https://planner.test",
+    });
+  } catch (error) {
+    denied = error;
+  }
+  assert(denied instanceof PlannerReservationDenied && denied.response.status === 402, "a funding refusal escapes the transport");
+  assert(unfundedFetches === 1, "a refused planner attempt is not dispatched and is not retried on another model");
 
   console.log("planner transport verification passed");
 }

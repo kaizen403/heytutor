@@ -45,10 +45,22 @@ mock.module(resolve(billingPath, "ledger.ts"), {
   namedExports: {
     loadPeriodBalance: async () => ({ remainingMillicents, remainingPct: remainingMillicents > 0 ? 100 : 0, planId: "free" }),
     cacheUsageOnUser: async () => undefined,
-    reservePeriodUsage: async (input: { traceId?: string; kind: string; millicents: number }) => {
+    reservePeriodUsage: async (input: {
+      traceId?: string; kind: string; millicents: number; reservationId?: string;
+      onDenied?: (reason: string) => void;
+    }) => {
       if (!allowPaidFixtures) throw new Error("invalid or unauthorized request cannot reserve paid vendor work");
+      if (input.reservationId) {
+        const existing = reservations.find((row) => row.id === input.reservationId);
+        if (!existing || existing.millicents + input.millicents > remainingMillicents) {
+          input.onDenied?.("insufficient_balance");
+          return null;
+        }
+        existing.millicents += input.millicents;
+        return { id: existing.id, amountMillicents: existing.millicents, remainingMillicents, planId: "free" };
+      }
       const id = `receipt-${reservations.length + 1}`;
-      reservations.push({ id, ...input });
+      reservations.push({ id, traceId: input.traceId, kind: input.kind, millicents: input.millicents });
       return { id, amountMillicents: input.millicents, remainingMillicents, planId: "free" };
     },
     settlePeriodUsage: async (input: { reservationId: string; actualMillicents?: number }) => {
@@ -111,11 +123,12 @@ async function verifyChatPlannerPriority(): Promise<number> {
     const post = async (options: {
       flag?: string; returnedTier?: "priority" | "default"; missingUsage?: boolean; retry?: boolean;
       teaching?: boolean; plannerHeaders?: Record<string, string>; reserve: number; settle?: number;
+      balance?: number; expectStatus?: number;
     }) => {
       if (options.flag === undefined) delete process.env.DIAGRAM_PLANNER_PRIORITY;
       else process.env.DIAGRAM_PLANNER_PRIORITY = options.flag;
       resetTurnGrantsForTests();
-      remainingMillicents = 3_500;
+      remainingMillicents = options.balance ?? 3_500;
       const grant = createLessonGrant({ userId: actor.userId, traceId: "original", usdMillicents: remainingMillicents });
       assert(grant.ok, "chat fixture has an owned funded grant");
       reservations.length = 0; settlements.length = 0;
@@ -143,8 +156,18 @@ async function verifyChatPlannerPriority(): Promise<number> {
             : { "x-planner": "1", "x-scene-planner-version": "2", ...options.plannerHeaders }) },
         body: JSON.stringify(body),
       }));
-      assert(response.status === 200, "the real chat POST returns the successful provider fixture");
-      await response.text();
+      const expectStatus = options.expectStatus ?? 200;
+      assert(response.status === expectStatus, `the real chat POST returns ${expectStatus}, got ${response.status}`);
+      const responseText = await response.text();
+      if (expectStatus !== 200) {
+        const denied = JSON.parse(responseText) as { code?: string };
+        assert(denied.code === "retry_budget", "an unfunded planner retry is a retry budget denial");
+        assert(dispatched.length === 1, "an unfunded planner retry is not dispatched");
+        assert(reservations.length === 1 && reservations[0]?.millicents === options.reserve, "the funded attempt stays reserved when the retry is refused");
+        assert(settlements.length === 1 && settlements[0]?.reservationId === reservations[0]?.id, "the funded attempt still settles");
+        scenarios++;
+        return { dispatched, response };
+      }
       assert(dispatched.length === (options.retry ? 2 : 1), "planner retry count stays inside the reserved attempt ceiling");
       assert(reservations[0]?.kind === (options.teaching ? "teaching" : "planner"), "chat reserves the admitted paid lane");
       assert(reservations[0]?.millicents === options.reserve, `chat reserves ${options.reserve} millicents, got ${reservations[0]?.millicents}`);
@@ -159,24 +182,26 @@ async function verifyChatPlannerPriority(): Promise<number> {
       return { dispatched, response };
     };
     // 47 ASCII prompt bytes + 2048 protocol allowance; 6848 completion tokens.
-    // Two attempts cost $0.145340 standard / $0.290680 priority, rounded once
-    // by the actual ledger seam to 146 / 291 millicents. Cached usage costs
-    // $0.009620 standard / $0.019240 priority, rounded to 10 / 20 millicents.
-    const priority = await post({ flag: "1", returnedTier: "priority", reserve: 291, settle: 20 });
+    // The first attempt costs $0.072670 standard / $0.145340 priority, rounded
+    // up to 73 / 146 millicents. A funded retry extends that same receipt to
+    // the combined ceiling, 146 / 291. Cached usage costs $0.009620 standard /
+    // $0.019240 priority, rounded to 10 / 20 millicents.
+    const priority = await post({ flag: "1", returnedTier: "priority", reserve: 146, settle: 20 });
     assert(priority.dispatched[0]!.service_tier === "priority", "exact flag 1 selects Azure planner priority");
     assert(priority.dispatched[0]!.reasoning_effort === "low" && priority.dispatched[0]!.max_completion_tokens === 6848,
       "priority preserves the scene planner's low effort and content/reasoning cap");
     assert(priority.response.headers.get("x-heytutor-service-tier") === "priority", "actual priority tier is returned in diagnostics");
-    const fallback = await post({ flag: "1", returnedTier: "default", reserve: 291, settle: 10 });
+    const fallback = await post({ flag: "1", returnedTier: "default", reserve: 146, settle: 10 });
     assert(fallback.dispatched[0]!.service_tier === "priority" && fallback.response.headers.get("x-heytutor-service-tier") === "default",
       "requested priority and actual standard fallback remain distinct");
-    await post({ flag: "1", reserve: 291, settle: 20 });
-    await post({ flag: "1", missingUsage: true, reserve: 291 });
+    await post({ flag: "1", reserve: 146, settle: 20 });
+    await post({ flag: "1", missingUsage: true, reserve: 146 });
     const retry = await post({ flag: "1", returnedTier: "default", retry: true, reserve: 291 });
+    await post({ flag: "1", retry: true, reserve: 146, balance: 146, expectStatus: 402 });
     assert(retry.dispatched.every(sent => sent.service_tier === "priority"), "priority remains selected on both reserved attempts");
     assert(retry.response.headers.get("x-heytutor-upstream-attempts") === "2", "a real retry exposes both attempts without refunding unknown earlier usage");
     for (const flag of [undefined, "0", "true", " 1 "]) {
-      const standard = await post({ flag, returnedTier: "default", reserve: 146, settle: 10 });
+      const standard = await post({ flag, returnedTier: "default", reserve: 73, settle: 10 });
       assert(JSON.stringify(standard.dispatched[0]) === JSON.stringify({ messages, n: 1, stream: false,
         response_format: { type: "json_object" }, reasoning_effort: "low", max_completion_tokens: 6848, model: "gpt-6.1-sol" }),
         "omitted or invalid priority flags preserve the complete legacy Azure planner wire body");
@@ -184,22 +209,22 @@ async function verifyChatPlannerPriority(): Promise<number> {
       assert(standard.dispatched[0]!.reasoning_effort === "low" && standard.dispatched[0]!.max_completion_tokens === 6848,
         "client vendor knobs cannot expand standard planner reasoning or output");
     }
-    const autoPriority = await post({ returnedTier: "priority", reserve: 146, settle: 20 });
+    const autoPriority = await post({ returnedTier: "priority", reserve: 73, settle: 20 });
     assert(autoPriority.dispatched[0]!.service_tier === undefined && autoPriority.response.headers.get("x-heytutor-service-tier") === "priority",
       "an off-path deployment-returned priority tier still settles at 2x");
     for (const [plannerHeaders, cap, reserve] of [
-      [{ "x-turn-planner-version": "3" }, 4848, 211],
-      [{ "x-problem-ir-version": "1" }, 5648, 243],
-      [{ "x-code-lesson-version": "1" }, 6248, 267],
+      [{ "x-turn-planner-version": "3" }, 4848, 106],
+      [{ "x-problem-ir-version": "1" }, 5648, 122],
+      [{ "x-code-lesson-version": "1" }, 6248, 134],
     ] as const) {
       const planner = await post({ flag: "1", returnedTier: "priority", plannerHeaders, reserve, settle: 20 });
       assert(planner.dispatched[0]!.service_tier === "priority" && planner.dispatched[0]!.max_completion_tokens === cap,
         "each Azure planner lane keeps its existing cap while opting into priority");
     }
     process.env.LLM_PROVIDER = "fireworks";
-    const fireworks = await post({ flag: "1", reserve: 157, settle: 15 });
+    const fireworks = await post({ flag: "1", reserve: 79, settle: 15 });
     for (const flag of [undefined, "0", "true"]) {
-      const unchanged = await post({ flag, reserve: 157, settle: 15 });
+      const unchanged = await post({ flag, reserve: 79, settle: 15 });
       assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(fireworks.dispatched[0]), "every priority flag value preserves the Fireworks wire body and accounting");
     }
     assert(fireworks.dispatched[0]!.service_tier === undefined && fireworks.dispatched[0]!.reasoning_effort === undefined,
