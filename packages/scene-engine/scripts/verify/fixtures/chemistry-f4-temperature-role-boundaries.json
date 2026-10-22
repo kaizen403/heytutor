@@ -1,0 +1,20 @@
+[
+  {
+    "id": "at-cathode-other-value",
+    "question": "Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. Observe it at the cathode with a current of 2 A."
+  },
+  {
+    "id": "at-equilibrium-other-value",
+    "question": "Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at equilibrium under 1 atm."
+  },
+  {
+    "id": "at-unknown-K-conjunction",
+    "question": "Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at unknown K and mark the anode.",
+    "valid": false
+  },
+  {
+    "id": "at-unreadable-K-with",
+    "question": "Draw the galvanic cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at unreadable K with its salt bridge.",
+    "valid": false
+  }
+]

@@ -1,0 +1,338 @@
+/** Finite next-PR source gates: stated potentials, dissociation aliases and display precision. */
+import assert from "node:assert/strict";
+import { parseCellNotation, cellEmf, buildElectrochemScene } from "../../src/chemistry/electrochemistry";
+import { buildSolutionsGraphScene } from "../../src/chemistry/solutionsGraphs";
+import { buildSolutionLessonScene } from "../../src/chemistry/solutionProperties";
+import { compileSceneDocument } from "../../src/compile/compiler";
+import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
+import type { SceneDocument } from "../../src/types";
+let passed = 0; const failed: string[] = [];
+function check(name: string, run: () => void): void {
+  try { run(); passed++; console.log(`PASS ${name}`); }
+  catch (error) { failed.push(name); console.error(`FAIL ${name}: ${error}`); }
+}
+function near(actual: unknown, expected: number): void {
+  assert.ok(typeof actual === "number" && Number.isFinite(actual));
+  assert.ok(Math.abs(actual - expected) < Math.max(1e-12, Math.abs(expected) * 1e-10), `${actual} != ${expected}`);
+}
+function compiled(document: SceneDocument | null, family: string) {
+  assert.ok(document, "family declined"); assert.equal(document.source?.chemistryFamily, family);
+  const valid = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
+  assert.ok(valid.document, JSON.stringify(valid.report.issues));
+  const result = compileSceneDocument(valid.document);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  const labels = result.renderScene.primitives.flatMap(p => p.kind === "label" && p.text ? [p.text] : []);
+  return { labels, text: [...labels, ...document.annotations.map(a => a.text ?? "")].join("\n"), document };
+}
+const cell = "Calculate the emf and draw the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. ";
+const electrodeWordings = [
+  "The standard electrode potential of zinc is −0.80 V and that of copper is +0.40 V.",
+  "Reduction potential of Zn2+/Zn is -0.80 V and that of Cu2+/Cu is 0.40 V.",
+  "E° values: Zn2+/Zn, −0.80 V; Cu2+/Cu, +0.40 V.",
+  "E°Zn = −0.80 V and E°Cu = +0.40 V.",
+  "The electrode potentials are −0.80 V for zinc and +0.40 V for copper.",
+  "The standard reduction potentials are Zn = -0.80 V, Cu = +0.40 V.",
+  "E°(zinc) was measured as −0.80 V; E°(copper) was measured as +0.40 V.",
+  "The Cu2+/Cu standard potential comes to +0.40 V and the Zn2+/Zn standard potential comes to -0.80 V.",
+  "For copper the reduction potential is +0.40 V; for zinc it is -0.80 V.",
+  "The oxidation potential of zinc is +0.80 V; the reduction potential of copper is +0.40 V.",
+  "The standard reduction potential for Cu²⁺/Cu equals +0.40 V while that for Zn²⁺/Zn equals -0.80 V.",
+  "Electrode potentials: -0.80 V (Zn2+/Zn); +0.40 V (Cu2+/Cu).",
+];
+for (const [index, wording] of electrodeWordings.entries()) check(`electrode-owned-${index}`, () => {
+  const question = cell + wording; const spec = parseCellNotation(question); assert.ok(spec, "owned source values must be supported");
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode potential is not observed emf");
+  near(cellEmf(spec)?.e0, 1.2);
+  const computedEmf = cellEmf(spec)?.e;
+  assert.ok(typeof computedEmf === "number" && Number.isFinite(computedEmf), "finite computed emf required");
+  assert.ok(Math.abs(computedEmf - 1.17045) <= .000051, "existing four-decimal emf precision");
+  for (const half of [spec.anode, spec.cathode]) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+    assert.match(half.potentialSourceText!, /V$/);
+  }
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
+  assert.ok(!result.text.includes("0.34 − (−0.76)"), "table values cannot replace source potentials");
+});
+for (const [index, wording] of [
+  "Standard electrode potentials: Zn2+/Zn = unknown; Cu2+/Cu = +0.40 V.",
+  "Standard electrode potentials: zinc = -0.80 V; copper = 1e- V.",
+  "Standard electrode potentials: zinc = -800 mV; copper = +400 mV.",
+  "Standard electrode potentials: -0.80 V and +0.40 V.",
+  "Standard electrode potentials: Zn2+/Zn = -0.80 V; Cu2+/Cu = +0.40 V; Zn2+/Zn = -0.90 V.",
+  "Standard electrode potentials: zinc and copper = -0.80 V.",
+  "Standard electrode potential of zinc is –0.80 V and that of copper is +0.40 V.",
+].entries()) check(`electrode-unread-or-ambiguous-${index}`, () => {
+  assert.equal(parseCellNotation(cell + wording), null); assert.equal(buildElectrochemScene(cell + wording, [], false), null);
+});
+// Frozen source-review counterexample and generic same-element role controls.
+for (const [index, question] of [
+  "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. The standard electrode potential of iron is −0.80 V.",
+  "Draw the cell Pt|Fe2+,Fe3+||Fe2+|Fe. E°Fe = -0.80 V.",
+  "Draw the cell Cu|Cu+||Cu2+|Cu. The standard electrode potential of copper is +0.40 V.",
+  "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe3+/Fe2+) = -0.80 V; the standard electrode potential of iron is -0.80 V.",
+].entries()) check(`named-element-distinct-couples-${index}`, () => {
+  assert.equal(parseCellNotation(question), null, "one named literal cannot specify two distinct redox couples");
+  assert.equal(buildElectrochemScene(question, [], false), null);
+  assert.equal(buildElectrochemScene(question, [], true), null);
+});
+check("same-element-explicit-couple-roles", () => {
+  const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe2+/Fe) = -0.80 V; E°(Fe3+/Fe2+) = +0.40 V.";
+  const spec = parseCellNotation(question); assert.ok(spec);
+  assert.notEqual(spec.anode.couple, spec.cathode.couple);
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.notDeepEqual(spec.anode.potentialSourceSpan, spec.cathode.potentialSourceSpan);
+  near(cellEmf(spec)?.e0, 1.2);
+  compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
+// The existing quantity inventory declines caret charge scalars; keep that refusal.
+for (const [index, declaration] of [
+  "E°(Fe^2+/Fe) = -0.80 V; E°(Fe^3+/Fe^2+) = +0.40 V.",
+  "E°(Fe^(2+)/Fe) = -0.80 V; E°(Fe^(3+)/Fe^(2+)) = +0.40 V.",
+].entries()) check(`unsupported-caret-charge-inventory-declines-${index}`, () => {
+  const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. " + declaration;
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+});
+check("unsupported-noncaret-charge-parentheses-decline", () => {
+  const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe(2+)/Fe) = -0.80 V; E°(Fe(3+)/Fe(2+)) = +0.40 V.";
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+});
+check("broken-charge-parenthesis-declines", () => {
+  const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe^(2+/Fe) = -0.80 V; E°(Fe3+/Fe2+) = +0.40 V.";
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+});
+check("same-couple-reuses-one-named-standard-role", () => {
+  // Standard-potential ownership only: no concentration-cell emf is certified.
+  const question = "Draw a concentration cell Fe|Fe2+||Fe2+|Fe. The standard electrode potential of iron is -0.80 V.";
+  const spec = parseCellNotation(question); assert.ok(spec);
+  assert.equal(spec.anode.couple, spec.cathode.couple);
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, -.8); near(cellEmf(spec)?.e0, 0);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.deepEqual(spec.anode.potentialSourceSpan, spec.cathode.potentialSourceSpan);
+});
+check("electrode-stock-control", () => {
+  const stock = parseCellNotation(cell); assert.ok(stock); near(cellEmf(stock)?.e0, 1.1);
+});
+check("electrode-observed-control", () => {
+  const sourced = parseCellNotation(cell + "E°(Zn2+/Zn) = -0.8 V; E°(Cu2+/Cu) = 0.4 V; measured cell emf is 1.15 V.");
+  assert.ok(sourced); near(sourced.statedE, 1.15); near(cellEmf(sourced)?.e0, 1.2);
+});
+check("electrode-standard-cell-control", () => {
+  const question = cell + "E_cell^0 = 1.20 V.";
+  const standard = parseCellNotation(question);
+  if (!standard) assert.equal(buildElectrochemScene(question, [], false), null);
+  else { near(cellEmf(standard)?.e0, 1.2); assert.equal(standard.statedE, undefined); }
+});
+const acid = "50 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. ";
+const base = "50 mL of 0.1 M NH3 is titrated with 0.1 M HCl. ";
+for (const [index, declaration] of [
+  "Kₐ = 1 × 10^-5", "K(a) = 1e-5", "pKₐ = 5.0", "pK(a) is 5", "Kᵃ = 1e-5",
+  "The acidity constant of acetic acid is 1 × 10^-5", "Acid ionization constant for CH3COOH = 1e-5",
+].entries()) check(`acid-alias-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(acid + declaration + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("pH = pK_a = 5"), JSON.stringify(result.labels)); assert.ok(!result.text.includes("pK_a = 4.76"));
+});
+for (const [index, declaration] of [
+  "Kᵦ = 1 × 10^-5", "K(b) = 1e-5", "pKᵦ = 5.0", "pK(b) = 5", "Kᵇ = 1e-5", "The basicity constant of ammonia is 1e-5", "Base dissociation constant for NH3 = 1e-5",
+].entries()) check(`base-alias-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(base + declaration + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.match(result.text, /pOH = pKb = 5, pH 9/); assert.ok(!result.text.includes("pKb = 4.75"));
+});
+for (const [index, declaration] of [
+  "Kₐ = unknown", "K(a) = 1e-", "pKₐ = 5 M", "Kₐ(HF) = 1e-5", "Kᵦ = 1e-5", "Kₐ = 1e-5; pK(a) = 6", "Kₐ = unknown; Ka = 1e-5", "The acidity constant of formic acid is 1e-5",
+].entries()) check(`acid-alias-unread-or-wrong-owner-${index}`, () => {
+  assert.equal(buildSolutionsGraphScene(acid + declaration + ". Draw the pH curve.", [], false), null);
+});
+for (const [index, constant, pressure, concentration] of [
+  [0, "3.4 × 10^-3", "2.5", "0.0085"], [1, "1.3 × 10^-3", "0.21", "2.73e-4"], [2, "1.3 × 10^-3", "4.6", "0.00598"], [3, "4.5e-3", "1", "0.0045"],
+  [4, "9.9e-3", "1", "0.0099"], [5, "0.00101", "1", "0.00101"], [6, "0.000999", "1", "9.99e-4"], [7, "2.7e-3", "3", "0.0081"],
+] as const) check(`henry-small-significant-${index}`, () => {
+  const result = compiled(buildSolutionLessonScene(`Using c = kH p with kH = ${constant} mol/(L atm) for CO2 in water, find its dissolved concentration at partial pressure ${pressure} atm.`, [], false), "chem_solutions");
+  assert.ok(result.labels.includes(`c=${concentration} mol/L`), JSON.stringify(result.labels));
+  const expectedConstant = ["0.0034", "0.0013", "0.0013", "0.0045", "0.0099", "0.00101", "9.99e-4", "0.0027"][index];
+  assert.ok(result.text.includes(`c = ${expectedConstant} × ${pressure} = ${concentration}`), result.text);
+});
+for (const [index, fraction, pressure] of [[0, ".0045", "0.81"], [1, ".0013", "0.234"], [2, ".0099", "1.782"], [3, ".00045", "0.081"], [4, ".00598", "1.076"]] as const) check(`henry-mole-fraction-${index}`, () => {
+  const result = compiled(buildSolutionLessonScene(`Show Henry's law p = kH x for kH = 180 atm and x = ${fraction}.`, [], false), "chem_solutions");
+  const fractionDisplay = index === 3 ? "4.5e-4" : String(Number(fraction));
+  assert.ok(result.labels.includes(`x=${fractionDisplay}`), JSON.stringify(result.labels)); assert.ok(result.labels.includes(`p=${pressure} atm`), JSON.stringify(result.labels));
+});
+check("component-mole-fraction-caption", () => {
+  const result = compiled(buildSolutionLessonScene("Find the mole fractions in a mixture of 0.0045 mol of A and 0.9955 mol of B.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("xA=0.0045")); assert.ok(result.text.includes("= 0.0045 and"));
+});
+// Source917 regressions and fresh controls: Kelvin units cannot own potential literals.
+for (const [index, question, expectedEmf, observed] of [
+  [0, "Calculate the emf of the following cell at 298 K: Zn|Zn2+(0.001 M)||Cu2+(0.1 M)|Cu, E°cell = 1.10 V.", 1.1591, undefined],
+  [1, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [2, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°(cell) is 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [3, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E₀cell = 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [4, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V. E°cell = 1.10 V at 298 K. The observed emf is 1.13 V. Draw the cell.", 1.0705, 1.13],
+  [5, "At 298 K: draw the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu with E°cell = 1.10 V.", 1.0705, undefined],
+  [6, "Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°cell = 1.10 V at 298 K; the measured cell emf is 1.13 V.", 1.0705, 1.13],
+  [7, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu the standard cell potential is 1.10 V at 298 K. Draw the galvanic cell.", 1.0705, undefined],
+  [8, "At temperature T = 298 K, calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°cell = 1.10 V.", 1.0705, undefined],
+  [9, "Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V at 298 K and temperature T = 298 K. The observed voltage is 1.13 V.", 1.0705, 1.13],
+] as const) check(`temperature-unit-not-electrode-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(cellEmf(spec)?.e0, 1.1); near(spec.temperatureK, 298);
+  assert.equal(spec.statedE, observed); near(spec.statedE0, 1.1);
+  const computed = cellEmf(spec)?.e;
+  assert.ok(typeof computed === "number" && Number.isFinite(computed));
+  assert.ok(Math.abs(computed - expectedEmf) <= .000051);
+  compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
+check("actual-potassium-electrode-retains-source-owner", () => {
+  const question = "Draw K|K+(1 M)||Cu2+(1 M)|Cu at 298 K. The standard electrode potential of potassium is -2.90 V and that of copper is +0.40 V.";
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.anode.e0, -2.9); near(spec.cathode.e0, .4); near(cellEmf(spec)?.e0, 3.3);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
+// PR166 review: whole-cell declarations cannot become electrode assignments.
+for (const [index, question, expectedObserved] of [
+  [0, "E°(Zn2+/Zn) = -0.76 V, E°(Cu2+/Cu) = 0.34 V; the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.", 1.13],
+  [1, "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the voltage of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.15 V.", 1.15],
+  [2, "The standard reduction potentials are zinc = -0.76 V and copper = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.", 1.13],
+  [3, "E°Zn = -0.76 V, E°Cu = 0.34 V; the measured cell potential of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.15 V.", 1.15],
+  [4, "For Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu the emf is 1.13 V; E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V.", 1.13],
+  [5, "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; THE EMF OF Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu IS 1.13 V.", 1.13],
+] as const) check(`whole-cell-voltage-local-owner-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.statedE, expectedObserved); near(cellEmf(spec)?.e0, 1.1);
+  near(spec.anode.e0, -.76); near(spec.cathode.e0, .34);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  assert.ok(result.text.includes(`emf ${expectedObserved.toFixed(2)} V as given`), result.text);
+});
+for (const [index, question] of [
+  "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is unknown V.",
+  "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1e- V.",
+  "Standard electrode potentials: Zn2+/Zn = -0.76 V; Cu2+/Cu = unknown; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.",
+].entries()) check(`whole-cell-exemption-cannot-hide-unread-${index}`, () => {
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+});
+for (const [index, logarithm] of [
+  "p Kₐ = 5", "p K(a) = 5", "p K_{a} = 5", "p\tKᵃ = 5", "P  K_a = 5", "p Kₐ = 5",
+].entries()) check(`spaced-acid-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(acid + logarithm + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("pH = pK_a = 5"), JSON.stringify(result.labels));
+  assert.ok(!result.text.includes("pK_a = 4.76"));
+});
+for (const [index, logarithm] of ["p Kᵦ = 5", "p K(b) = 5", "P K_b = 5", "p\tKᵇ = 5"].entries()) check(`spaced-base-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(base + logarithm + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.match(result.text, /pOH = pKb = 5, pH 9/);
+});
+for (const [index, statement] of ["For this setup Kₐ = 1e-5", "In this step K(a) = 1e-5"].entries()) check(`word-ending-p-does-not-create-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(acid + statement + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("pH = pK_a = 5"));
+});
+for (const [index, declaration] of ["p Kₐ = 5 M", "p K(a) = unknown", "p Kₐ = 5; Ka = 1e-6", "p Kᵦ = 5"].entries()) check(`spaced-logarithm-invalid-or-wrong-owner-${index}`, () => {
+  assert.equal(buildSolutionsGraphScene(acid + declaration + ". Draw the pH curve.", [], false), null);
+});
+// PR166 oxidation review: E° is a standard mark, not a new direction owner.
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The standard oxidation potential E°Zn is +0.80 V; the standard reduction potential E°Cu is +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Oxidation potential E°Zn: +0.80 V, while reduction potential E°Cu: +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential of zinc E°Zn = +0.80 V and the reduction potential of copper E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. OXIDATION POTENTIAL E°Zn = +0.80 V; REDUCTION POTENTIAL E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Use the oxidation potential E°Zn = +0.80 V.\nFor copper use the reduction potential E°Cu = +0.40 V.",
+].entries()) check(`oxidation-word-and-standard-symbol-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "source-owned oxidation declaration must remain supported");
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode potential is not an observed cell emf");
+  near(cellEmf(spec)?.e0, 1.2); near(cellEmf(spec)?.e, 1.2);
+  for (const half of [spec.anode, spec.cathode]) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+  }
+  assert.match(spec.anode.potentialSourceText!, /\+0\.80\s*V$/);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = unknown V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80e- V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; the reduction potential E°Zn = -0.70 V; the reduction potential E°Cu = +0.40 V.",
+].entries()) check(`oxidation-symbol-unread-or-conflict-${index}`, () => {
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+  assert.equal(buildElectrochemScene(question, [], true), null);
+});
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The reduction potential E°Zn = -0.80 V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. E°Zn = -0.80 V; E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; E°Cu = +0.40 V.",
+].entries()) check(`standard-symbol-reduction-and-local-direction-control-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4); near(cellEmf(spec)?.e0, 1.2);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
+// PR166 shared directions: a plural header owns each member of its list.
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials Zn = +0.80 V and Cu = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials Zn = +0.80 V, Cu = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Oxidation potentials E°(Zn2+/Zn) = +0.80 V and E°(Cu2+/Cu) = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; E°Cu = +0.40 V.",
+].entries()) check(`shared-oxidation-header-and-statement-boundary-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "complete source-owned list/control must draw");
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode directions do not declare cell emf");
+  near(cellEmf(spec)?.e0, 1.2); near(cellEmf(spec)?.e, 1.2);
+  for (const half of [spec.anode, spec.cathode]) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+  }
+  assert.match(spec.anode.potentialSourceText!, /\+0\.80\s*V$/);
+  assert.match(spec.cathode.potentialSourceText!, index === 3 ? /\+0\.40\s*V$/ : /-0\.40\s*V$/);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
+// PR166 semicolon review: plural list ownership survives separators, not new declarations.
+for (const [name, question, anode, cathode, emf, anodeLiteral, cathodeLiteral] of [
+  ["reported-direct", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V; E°(Cu2+/Cu) = -0.40 V.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-direct-standard-values", "Calculate the standard emf and draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu using standard oxidation potentials E°(Zn2+/Zn) = +0.76 V; E°(Cu2+/Cu) = -0.34 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["fresh-named-members", "Draw the galvanic cell Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Given standard oxidation potentials: zinc = +0.80 V; copper = -0.40 V.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-symbol-members", "Calculate the emf of Zn|Zn2+(1 M)||Cu2+(1 M)|Cu and draw the cell. Standard oxidation potentials: Zn = +0.76 V; Cu = -0.34 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["fresh-standard-symbols", "For Zn|Zn2+(1 M)||Cu2+(1 M)|Cu, use oxidation potentials E°Zn = +0.80 V; E°Cu = -0.40 V. Calculate the emf and draw the cell.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-reversed-mixed-members", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu and calculate its emf. Use standard oxidation potentials: E°(Cu2+/Cu) = -0.34 V; zinc = +0.76 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["local-reduction-override", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V; the reduction potential E°(Cu2+/Cu) = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["complete-electrode-header-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: zinc = +0.80 V; standard electrode potentials: copper = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["singular-semicolon-independent", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°(Zn2+/Zn) = +0.76 V; E°(Cu2+/Cu) = +0.34 V.", -.76, .34, 1.1, "+0.76 V", "+0.34 V"],
+  ["sentence-boundary-independent", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V. E°(Cu2+/Cu) = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["sentence-boundary-reduction-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: zinc = +0.76 V. The standard reduction potential of copper is +0.34 V.", -.76, .34, 1.1, "+0.76 V", "+0.34 V"],
+  ["complete-reduction-header-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°Zn = +0.80 V; standard reduction potentials: E°Cu = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+] as const) check(`semicolon-oxidation-role-${name}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "complete source-owned list/control must draw");
+  near(spec.anode.e0, anode); near(spec.cathode.e0, cathode);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode directions do not declare cell emf");
+  near(cellEmf(spec)?.e0, emf); near(cellEmf(spec)?.e, emf);
+  for (const [half, literal] of [[spec.anode, anodeLiteral], [spec.cathode, cathodeLiteral]] as const) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+    assert.ok(half.potentialSourceText!.endsWith(literal), half.potentialSourceText);
+  }
+  assert.notDeepEqual(spec.anode.potentialSourceSpan, spec.cathode.potentialSourceSpan);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, emf);
+  assert.ok(result.labels.includes(`E° = ${emf.toFixed(2)} V`), JSON.stringify(result.labels));
+});
+console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
+process.exitCode = failed.length ? 1 : 0;

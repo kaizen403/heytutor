@@ -322,6 +322,7 @@ export async function canonicalizeTurnSceneMetadata(
     renderScene,
     {
       originalQuestion: question,
+      ...(turnPlan ? { turnPlan } : {}),
       ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
       ...(narrationLanguage ? { narrationLanguage } : {}),
       // The live intro letters a source given ("x = -2") with the plan, and

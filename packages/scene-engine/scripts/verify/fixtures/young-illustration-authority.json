@@ -1,0 +1,272 @@
+[
+  {
+    "id": "physics|16|coherent-sources-and-sustained-interference|easy",
+    "question": "Draw a labelled diagram for Coherent sources and sustained interference of light. Show the named slits or wavefronts and the screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "physics|16|coherent-sources-and-sustained-interference|medium",
+    "question": "Draw the standard setup for Coherent sources and sustained interference of light and label the named quantities. Show the named slits or wavefronts and the screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "physics|16|coherent-sources-and-sustained-interference|hard",
+    "question": "Draw Coherent sources and sustained interference of light and mark any named directions, levels, or components on the figure. Show the named slits or wavefronts and the screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "physics|16|ydse-path-difference-and-glass-slab|easy",
+    "question": "Draw a labelled diagram for YDSE with a path difference or a thin glass slab.",
+    "expected": "illustration",
+    "partial": true
+  },
+  {
+    "id": "physics|16|ydse-path-difference-and-glass-slab|medium",
+    "question": "Draw the standard setup for YDSE with a path difference or a thin glass slab and label the named quantities.",
+    "expected": "illustration",
+    "partial": true
+  },
+  {
+    "id": "physics|16|ydse-path-difference-and-glass-slab|hard",
+    "question": "Draw YDSE with a path difference or a thin glass slab and mark any named directions, levels, or components on the figure.",
+    "expected": "illustration",
+    "partial": true
+  },
+  {
+    "id": "young-symbolic",
+    "question": "Sketch the Young apparatus and label the slits and screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "ydse-symbolic",
+    "question": "Draw the YDSE setup.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "coherent-pair-example",
+    "question": "Sketch a coherent-source interference setup with slits and a screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "young-separate-label-request",
+    "question": "Draw Young's interference experiment. Show the screen and label d and D.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "reverse-alternatives",
+    "question": "Draw a YDSE setup with a thin glass slab or a path difference.",
+    "expected": "illustration",
+    "partial": true
+  },
+  {
+    "id": "slab-only",
+    "question": "Draw YDSE through a thin glass slab.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "conjoined-variants",
+    "question": "Draw YDSE with a path difference and a thin glass slab.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "unknown-separation",
+    "question": "Draw the Young setup with slit separation unknown mm.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "unowned-d",
+    "question": "Draw the Young setup. d = 0.1 mm.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "three-slits",
+    "question": "Draw the Young setup with three slits and a screen.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "unbound-wavelength",
+    "question": "Draw the Young setup with wavelength 500 nm.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "actual-slab-index",
+    "question": "Draw a YDSE setup with a thin glass slab or a path difference. The slab refractive index is 1.5.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "negated-screen",
+    "question": "Draw the Young setup but do not show the screen.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "additional-lens",
+    "question": "Draw the Young setup with a required lens.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "no-slits",
+    "question": "Draw a Young setup without slits.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "two-screens",
+    "question": "Draw the Young setup and show two screens.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "mandatory-wavefronts",
+    "question": "Draw coherent sources and interference of light. Show the slits and wavefronts and the screen.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "young-modulus",
+    "question": "Draw the stress-strain graph for Young's modulus.",
+    "expected": "not-young",
+    "partial": false
+  },
+  {
+    "id": "background-young",
+    "question": "A Young setup is unrelated background. Draw refraction at a plane surface.",
+    "expected": "not-young",
+    "partial": false
+  },
+  {
+    "id": "negated-young",
+    "question": "Do not draw the Young setup. Draw a plane wavefront.",
+    "expected": "not-young",
+    "partial": false
+  },
+  {
+    "id": "factual-young-preserved",
+    "question": "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Draw only the Young apparatus and not photoelectric energy levels.",
+    "expected": "factual",
+    "partial": false
+  },
+  {
+    "id": "relation-source-on-screen",
+    "question": "Draw a labelled Young setup with the source on the screen.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "relation-screen-on-slits",
+    "question": "Draw a labelled Young setup with the screen on the slits.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "relation-slits-on-source",
+    "question": "Draw the Young setup with the slits on the source.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "relation-screen-through-slits",
+    "question": "Draw the Young setup with the screen through the slits.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "relation-source-through-screen",
+    "question": "Draw the Young setup with the source through the screen.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "extra-lens",
+    "question": "Draw the Young setup with a screen and a lens.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "extra-polarizer",
+    "question": "Draw the Young setup with the slits and a polarizer.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "factual-unread-D",
+    "question": "Draw the Young double-slit setup with screen distance unknown m.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "factual-unread-lambda",
+    "question": "Draw the Young double-slit setup with wavelength unknown nm.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "illustrative-coherent-mark",
+    "question": "Draw an illustrative Young setup with coherent sources and a screen.",
+    "expected": "illustration",
+    "partial": false
+  },
+  {
+    "id": "upper-nominal-symbol-agree",
+    "question": "A Young double-slit experiment uses wavelength 500 nm, Slit separation 0.50 mm and Screen distance 1.0 m. d = 0.50 mm; D = 1.0 m. Draw the Young apparatus.",
+    "expected": "factual",
+    "partial": false
+  },
+  {
+    "id": "upper-unknown-D",
+    "question": "Draw the Young double-slit setup with Screen distance unknown m.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "upper-unknown-d",
+    "question": "Draw the Young double-slit setup with Slit separation unknown mm.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "upper-nominal-symbol-conflict",
+    "question": "A Young double-slit experiment uses wavelength 500 nm, Slit separation 0.50 mm and Screen distance 1.0 m. d = 0.60 mm. Draw the Young apparatus.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "greek-lambda-unknown",
+    "question": "A Young double-slit experiment uses wavelength 500 nm, Slit separation 0.50 mm and Screen distance 1.0 m. \u03bb = unknown nm. Draw the Young apparatus.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "greek-lambda-agree",
+    "question": "A Young double-slit experiment uses wavelength 500 nm, Slit separation 0.50 mm and Screen distance 1.0 m. \u03bb = 500 nm. Draw the Young apparatus.",
+    "expected": "factual",
+    "partial": false
+  },
+  {
+    "id": "greek-lambda-conflict",
+    "question": "A Young double-slit experiment uses wavelength 500 nm, Slit separation 0.50 mm and Screen distance 1.0 m. \u03bb = 400 nm. Draw the Young apparatus.",
+    "expected": "declined",
+    "partial": false
+  },
+  {
+    "id": "bare-name-extra-clause",
+    "question": "Draw the Young setup. Draw Young.",
+    "expected": "declined",
+    "partial": false
+  }
+]
