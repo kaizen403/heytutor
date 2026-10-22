@@ -53,8 +53,11 @@ export function appendCompiledAnnotations(
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
     // Text is not an endpoint reference. Never turn "+ toward B" into "+ "
-    // and silently put the positive terminal on the opposite end.
-    if (verifiedPartsEnabled && annotation.kind === "polarity" && annotation.text !== undefined &&
+    // and silently put the positive terminal on the opposite end. This is a
+    // truth rule, so it holds in both yield modes: with the policy off the
+    // marks were the prose's first two characters ("Positive ..." drew "P"
+    // and "o"), and the plate order was never checked against the question.
+    if (annotation.kind === "polarity" && annotation.text !== undefined &&
         !/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) {
       issues.push({ code: "polarity_binding_ambiguous", severity: "fatal", failureKind: "truth",
         entityIds: [annotation.id, ...annotation.targetIds],
@@ -394,9 +397,10 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], ve
       const start = path?.start ?? points[0];
       const end = path?.end ?? points.at(-1);
       if (!start || !end) return [];
-      const marks = verifiedPartsEnabled
-        ? annotation.text?.trim().replace(/−/g, "-") ?? "+-"
-        : (annotation.text && annotation.text.length >= 2 ? annotation.text : "+-").slice(0, 2);
+      // Only an ordered sign pair (or no text) reaches here: prose is refused
+      // in appendCompiledAnnotations, never sliced into terminal marks.
+      const pair = annotation.text?.trim() ?? "+-";
+      const marks = verifiedPartsEnabled ? pair.replace(/−/g, "-") : pair;
       return [
         { kind: "label" as const, points: [start], text: marks[0]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },
         { kind: "label" as const, points: [end], text: marks[1]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },

@@ -118,6 +118,7 @@ export async function cacheUsageOnUser(input: {
 }
 
 type UsageAllocation = { period: string; millicents: number } | { purchaseId: string; millicents: number };
+export type UsageReservationDenial = "concurrent_limit" | "call_limit" | "insufficient_balance" | "reservation_closed" | "request_limit";
 
 /** A receipt and the spend it represents commit together before any vendor call.
  * The user row lock also serializes account erasure and concurrent admission. */
@@ -128,6 +129,9 @@ export async function reservePeriodUsage(input: {
   kind: string;
   millicents: number;
   maxCalls: number;
+  /** A server-owned receipt may grow without counting another logical call. */
+  reservationId?: string;
+  onDenied?: (reason: UsageReservationDenial) => void;
 }): Promise<{ id: string; amountMillicents: number; remainingMillicents: number; planId: string } | null> {
   if (!Number.isSafeInteger(input.millicents) || input.millicents <= 0) return null;
   return prisma.$transaction(async tx => {
@@ -136,22 +140,40 @@ export async function reservePeriodUsage(input: {
     if (usesRazorpay()) await lockRazorpayUser(tx, input.userId);
     const users = await tx.$queryRaw<{ id: string; planId: string }[]>`SELECT id, plan_id AS "planId" FROM users WHERE id = ${input.userId} FOR UPDATE`;
     if (!users.length) return null;
-    const recentPending = await tx.paidUsageReservation.count({ where: {
-      userId: input.userId, settledMillicents: null,
-      kind: input.kind === "tts" ? "tts" : { not: "tts" },
-      createdAt: { gt: new Date(Date.now() - 5 * 60_000) },
-    } });
-    if (recentPending >= (input.kind === "tts" ? 24 : 4)) return null;
-    if (input.traceId && await tx.paidUsageReservation.count({ where: {
-      userId: input.userId, traceId: input.traceId, kind: input.kind,
-    } }) >= input.maxCalls) return null;
+    const existing = input.reservationId ? await tx.paidUsageReservation.findFirst({
+      where: { id: input.reservationId, userId: input.userId },
+    }) : null;
+    if (input.reservationId && (!existing || existing.settledMillicents !== null ||
+      existing.traceId !== input.traceId || existing.kind !== input.kind)) {
+      input.onDenied?.("reservation_closed"); return null;
+    }
+    if (existing && existing.amountMillicents + input.millicents > 100_000) {
+      input.onDenied?.("request_limit"); return null;
+    }
+    if (!existing) {
+      const recentPending = await tx.paidUsageReservation.count({ where: {
+        userId: input.userId, settledMillicents: null,
+        kind: input.kind === "tts" ? "tts" : { not: "tts" },
+        createdAt: { gt: new Date(Date.now() - 5 * 60_000) },
+      } });
+      if (recentPending >= (input.kind === "tts" ? 24 : 4)) {
+        input.onDenied?.("concurrent_limit"); return null;
+      }
+      if (input.traceId && await tx.paidUsageReservation.count({ where: {
+        userId: input.userId, traceId: input.traceId, kind: input.kind,
+      } }) >= input.maxCalls) {
+        input.onDenied?.("call_limit"); return null;
+      }
+    }
 
     const period = billingPeriodKey();
     const row = !usesRazorpay() ? await tx.billingPeriodSpend.findUnique({ where: { userId_period: { userId: input.userId, period } } }) : null;
     const balance = usesRazorpay()
       ? await loadRazorpayBalance(input.userId, tx)
       : balanceFromRow({ planId: isKnownPlanId(users[0]?.planId) ? users[0].planId : BILLING_PLANS.free, period, spentMillicents: row?.spentMillicents ?? 0, bonusMillicents: row?.bonusMillicents ?? 0 });
-    if (balance.remainingMillicents < input.millicents) return null;
+    if (balance.remainingMillicents < input.millicents) {
+      input.onDenied?.("insufficient_balance"); return null;
+    }
 
     const allocations: UsageAllocation[] = [];
     let remaining = input.millicents;
@@ -178,11 +200,17 @@ export async function reservePeriodUsage(input: {
       const key = { userId: input.userId, period: allocation.period };
       await tx.billingPeriodSpend.upsert({ where: { userId_period: key }, create: { ...key, spentMillicents: allocation.millicents }, update: { spentMillicents: { increment: allocation.millicents } } });
     }
-    const receipt = await tx.paidUsageReservation.create({ data: {
+    const receipt = existing ? await tx.paidUsageReservation.update({
+      where: { id: existing.id },
+      data: {
+        amountMillicents: { increment: input.millicents },
+        allocations: [...existing.allocations as UsageAllocation[], ...allocations],
+      },
+    }) : await tx.paidUsageReservation.create({ data: {
       id: randomUUID(), userId: input.userId, traceId: input.traceId, kind: input.kind,
       period: balance.period, planId: balance.planId, amountMillicents: input.millicents, allocations,
     } });
-    return { id: receipt.id, amountMillicents: input.millicents, remainingMillicents: balance.remainingMillicents - input.millicents, planId: balance.planId };
+    return { id: receipt.id, amountMillicents: receipt.amountMillicents, remainingMillicents: balance.remainingMillicents - input.millicents, planId: balance.planId };
   });
 }
 

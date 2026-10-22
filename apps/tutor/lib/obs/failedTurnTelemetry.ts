@@ -1,6 +1,9 @@
 import { effectiveTurnStatus, hasMeaningfulTurnSegments } from "../boards/turnStatus";
 import { classifyTurnFailure } from "./turnFailureClassification";
 import { failedTurnRuntimeEnvironment } from "./failedTurnRuntime";
+import { BILLING_ERROR_CODES, billingStatus, isBillingErrorCode, type BillingErrorCode } from "../billing/errors";
+
+export const FAILED_TURN_BILLING_CODES = BILLING_ERROR_CODES;
 
 /** Content-free vocabulary shared by the outbox and Sentry's final privacy boundary. */
 export const FAILED_TURN_STAGES = [
@@ -41,9 +44,18 @@ export interface FailedTurnTelemetry {
   stage?: FailureStage;
   code?: FailureCode;
   failed?: boolean;
+  billingCode?: BillingErrorCode;
   requestCount?: number;
   issueCodes?: string[];
   unknownIssueCount?: number;
+}
+
+/** Keep the bounded denial reason; an admission outage is not an exhausted balance. */
+export function billingFailureTelemetry(failure: { status: number; code: unknown }): Pick<FailedTurnTelemetry, "stage" | "code" | "billingCode"> {
+  const billingCode = isBillingErrorCode(failure.code) ? failure.code : undefined;
+  const status = billingCode ? billingStatus(billingCode) : failure.status;
+  return { stage: "teaching", code: status === 429 ? "rate_limit" : status === 402 ? "budget_limit" : "provider_error",
+    ...(billingCode ? { billingCode } : {}) };
 }
 
 export function turnPlanFailureTelemetry(outcome: { code: string; httpStatus: number | null }): Pick<FailedTurnTelemetry, "stage" | "code"> | undefined {
@@ -76,6 +88,7 @@ export function readFailedTurnTelemetry(raw: unknown): FailedTurnTelemetry | und
     ...(typeof value.stage === "string" && FAILED_TURN_STAGES.includes(value.stage as FailureStage) ? { stage: value.stage as FailureStage } : {}),
     ...(typeof value.code === "string" && FAILED_TURN_CODES.includes(value.code as FailureCode) ? { code: value.code as FailureCode } : {}),
     ...(value.failed === true ? { failed: true } : {}),
+    ...(isBillingErrorCode(value.billingCode) ? { billingCode: value.billingCode } : {}),
     requestCount: count(value.requestCount, 16),
     issueCodes: Array.isArray(value.issueCodes) ? [...new Set(value.issueCodes.filter((code): code is string => typeof code === "string" && codes.has(code)))].slice(0, 32) : [],
     unknownIssueCount: count(value.unknownIssueCount),
@@ -167,6 +180,7 @@ export function buildFailedTurnSentryEvent(
     fingerprint: ["turn-failure", stage, code, subject],
     tags: {
       area: "turn-failure", subject, stage, code, figure_need: figureNeed,
+      billing_code: telemetry.billingCode ?? "none",
       reporting_origin: options.historical ? "backfill" : "live",
       strict_subjects: options.historical ? "unknown" : [...new Set(strictSubjects)].sort().join(",") || "none",
       provider, deployment, release, environment,

@@ -16,6 +16,7 @@ import {
   CODE_LESSON_SYSTEM_PROMPT,
   DSA_EXPLANATION_SYSTEM_PROMPT,
   CONCEPT_LESSON_RUNTIME_ADDON,
+  DERIVATION_ORDER_POLICY,
   FAMILIARITY_ADDONS,
   FAST_MODE_TEACHING_ADDON,
   TUTOR_CONTINUATION_PROMPT,
@@ -497,9 +498,12 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     givenSegments: [],
     lessonBudget: DOUBT_LESSON_BUDGET,
     systemPrompt: `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
+    // The doubt's own instruction comes first: a cut off doubt continues the
+    // doubt, not the lesson. Only the derivation order rule is carried over;
+    // the lesson continuation would tell it to finish the whole derivation.
     continuationPrompt: [
-      codeBoard ? "" : TUTOR_CONTINUATION_PROMPT,
       DOUBT_CONTINUATION_PROMPT,
+      codeBoard ? "" : DERIVATION_ORDER_POLICY,
       codeBoard ? "" : TEACHING_STATEMENT_TRUTH_ADDON,
       `--- this lesson ---\n${runtimeAddon}`,
     ].filter(Boolean).join("\n\n"),

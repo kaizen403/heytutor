@@ -954,6 +954,7 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
   const ownedEqualities = new Set<number>();
   const ownedExpressionEnds = new Set<number>();
   const declaredNames = new Set<string>();
+  const equationSpans: Array<readonly [number, number]> = [];
   let previousEquationEnd = -1;
   const equations = nativeInventory ? /(?<![\p{L}\p{N}_])(?:y|([\p{L}][\p{L}\p{N}_]*)\s*\(\s*x\s*\))\s*=\s*/giu : /\by\s*=\s*/gi;
   for (const match of normalized.matchAll(equations)) {
@@ -965,6 +966,7 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     const start = lhs + match[0].length;
     const read = readCompleteSupportedExpression(normalized.slice(start), boundary, nativeInventory);
     if (!read) return [];
+    equationSpans.push([lhs, start + read.end]);
     // A scalar condition on an already declared curve is not another curve.
     // "draw y=0" still declares a full horizontal line; "where y=0" asks
     // about the existing curve. Neither condition nor its answer adds ink.
@@ -990,7 +992,14 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
   const parameters = nativeInventory
     ? nativeFunctionParameterEqualities(normalized, unquotedPositions, ownedExpressionEnds)
     : new Set<number>();
-  for (const index of sourceFunctionSettingEqualities(normalized, unquotedPositions, ownedExpressionEnds, nativeDocument)) parameters.add(index);
+  // The source-grounded producer draws every curve over its own default
+  // window and ignores intervals. With two or more curves an interval cannot
+  // be told apart from a piecewise definition ("y = x^2 for x = -2 to 2,
+  // otherwise y = 4"), so only a native program or a single curve may own a
+  // scalar setting; otherwise the unowned equality declines the figure.
+  if (nativeInventory || facts.length === 1) {
+    for (const index of sourceFunctionSettingEqualities(normalized, unquotedPositions, ownedExpressionEnds, nativeDocument)) parameters.add(index);
+  }
   for (const match of normalized.matchAll(/=/g)) {
     const index = match.index!;
     if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
@@ -1007,7 +1016,68 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds) &&
         !(nativeInventory && isNativeScalarFunctionEquation(normalized, index, declaredNames))) return [];
   }
+  if (!nativeInventory && facts.length > 1) {
+    const stem = normalized.split("").map((ch, i) => unquotedPositions[i] ? ch : " ").join("");
+    if (/[<>≤≥]/u.test(stem) || /\[\s*-?[\d.]+\s*,\s*-?[\d.]+\s*[\])]/u.test(stem) || /\b(?:on|in|over)\s+\(\s*-?[\d.]+\s*,/iu.test(stem) ||
+        /\b(?:otherwise|elsewhere|outside|beyond|afterwards?|after\s+that|greater\s+than|less\s+than|more\s+than|piecewise|(?:negative|positive)\s+x|x\s+is\s+(?:negative|positive))\b/iu.test(stem)) return [];
+    // Structural rule, not a marker list: the producer draws whole curves
+    // over one shared window, so with two or more curves the question may
+    // say nothing about x beyond the curve equations themselves.
+    const rest = textOutsideEquations(normalized, unquotedPositions, equationSpans);
+    if (speaksAboutIndependentVariable(rest)) return [];
+    // Positive evidence: the refusals above cannot list every way to write a
+    // domain ("for inputs below two", "from zero to pi"). Draw only when the
+    // rest of the stem asks for nothing beyond plotting the curves together.
+    if (!isNeutralPlottingRequest(rest)) return [];
+  }
   return facts;
+}
+
+/** The stem with its quoted text and every accepted equation span blanked. */
+function textOutsideEquations(source: string, unquoted: Uint8Array, equationSpans: ReadonlyArray<readonly [number, number]>): string {
+  const characters = source.split("").map((character, index) => unquoted[index] ? character : " ");
+  for (const [start, end] of equationSpans) for (let index = start; index < end && index < characters.length; index++) characters[index] = " ";
+  return characters.join("");
+}
+
+// The whole of what a multi-curve stem may say outside its equations: plot
+// the curves together, optionally to find where they meet. Built from the
+// recorded wordings this producer draws right plus the retained plural and
+// Hinglish plotting forms; any other word declines.
+const NEUTRAL_PLOTTING_PHRASES = new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:` + [
+  String.raw`(?:solve|represent)\s+graphically`,
+  String.raw`(?:(?:and|then|to)\s+)?find\s+(?:where\s+they\s+(?:meet|intersect)|(?:the\s+)?points?\s+of\s+intersection)`,
+  String.raw`find\s+where\s+meets\s+the\s+curve`,
+  String.raw`(?:on|in|using)\s+(?:the\s+same|one)(?:\s+set\s+of)?\s+(?:axes|graph|grid|figure)`,
+  String.raw`using\s+a\s+(?:table\s+of\s+values|normal\s+scale)`,
+  String.raw`the\s+graphs?\s+of`,
+  String.raw`(?:the|both|these)\s+(?:curves|functions|equations)`,
+  String.raw`(?:ko\s+)?ek\s+hi\s+graph\s+(?:par|pe)\s+draw\s+karo`,
+  String.raw`ka\s+graph\s+banao`,
+  String.raw`draw|sketch|plot|graph|show|and|aur`,
+].join("|") + String.raw`)(?![\p{L}\p{N}_])`, "giu");
+
+/** True only when the text outside the curve equations consists of plotting
+ * verbs, "and", a same-axes phrase, a table of values, a request to find where
+ * the curves meet, plain punctuation and the empty brackets an equation
+ * wrapper leaves behind. It only declines; it never admits, routes or builds
+ * geometry. */
+function isNeutralPlottingRequest(rest: string): boolean {
+  return /^[\s,.;:!?()]*$/u.test(rest.replace(NEUTRAL_PLOTTING_PHRASES, " "));
+}
+
+/** Report whether the text outside the equations still speaks about the
+ * independent variable: the token x
+ * (the only variable the non-native reader accepts), any numeral (a bound, a
+ * setting or a value of x), interval, set or inequality notation, or a
+ * comparison, sign or side relation. A domain, piecewise piece, interval or
+ * evaluation needs one of these, and the whole-curve producer can honour none
+ * of them. It only declines; it never admits, routes or builds geometry. */
+function speaksAboutIndependentVariable(rest: string): boolean {
+  return /(?<![\p{L}\p{N}_])x(?![\p{L}\p{N}_])/iu.test(rest) ||
+    /\p{N}/u.test(rest) ||
+    /[<>≤≥≠⩽⩾∈∉=|[\]]/u.test(rest) ||
+    /(?<![\p{L}\p{N}_])(?:(?:greater|less|more|fewer|smaller|larger|bigger|higher|lower)\s+than|at\s+(?:least|most)|exceed\w*|(?:non-?)?(?:negative|positive)|left|right|quadrants?|domain|intervals?|remaining|rest\s+of|before|until|till|up\s+to|onwards?)(?![\p{L}\p{N}_])/iu.test(rest);
 }
 
 /** Prove each parameter clause against the engine's existing stem-owned
