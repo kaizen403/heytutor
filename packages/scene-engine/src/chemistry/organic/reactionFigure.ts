@@ -76,13 +76,22 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
     answerIds.push(c.text("carbon_count_change", { x: middle, y: answerY }, `C atoms: ${carbonCounts[0]}->${carbonCounts[1]}`, "derived carbon count"));
     answerIds.push(c.text("carbonyl_carbon_lost", { x: middle, y: answerY - 0.5 }, "Carbonyl C lost", "removed source carbonyl carbon"));
   }
+  if (model.stereo && model.requestedCarbonCount) {
+    const countY = model.requestedStereoCount ? answerY - 1.5 : answerY;
+    answerIds.push(c.text("carbon_count_change", { x: middle, y: countY }, `C atoms: ${carbonCounts[0]}->${carbonCounts[1]}`, "derived carbon count"));
+  }
   if (model.gabrielExcluded) {
     answerIds.push(c.text("gabriel_scope", { x: (initial.bounds.minX + initial.bounds.maxX) / 2, y: answerY }, "Gabriel: aryl", "excluded Gabriel target"));
     answerIds.push(c.text("gabriel_limitation", { x: (initial.bounds.minX + initial.bounds.maxX) / 2, y: answerY - 0.5 }, "sp^2: no SN2", "aryl substitution limitation"));
   }
   if (answerIds.length) {
     c.scene.labelled(...answerIds);
-    c.scene.group("reaction_answer", answerIds, model.stereo ? `Complete unequal branches, no centre exchange; N=${model.stereo.count}.` : `One carbonyl carbon is removed; ${model.product.name}.`, ["computed_product"]);
+    const answerCue = [
+      model.requestedStereoCount && model.stereo ? `Complete unequal branches, no centre exchange; N=${model.stereo.count}.` : "",
+      model.requestedCarbonCount ? `Carbon atoms ${carbonCounts[0]} to ${carbonCounts[1]}.` : "",
+      !model.stereo && !model.requestedCarbonCount ? `One carbonyl carbon is removed; ${model.product.name}.` : "",
+    ].filter(Boolean).join(" ");
+    c.scene.group("reaction_answer", answerIds, answerCue, ["computed_product"]);
   }
   const document = c.build({ caption: model.kind === "radical_hbr"
     ? "HBr radical addition: Br at the less substituted alkene carbon. Stars identify stereocentres, not assigned configurations. Complete acyclic branches and absence of centre exchange determine the count."

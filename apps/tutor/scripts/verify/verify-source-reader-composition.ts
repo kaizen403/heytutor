@@ -12,9 +12,9 @@ import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersiste
 import fixture from "./fixtures/source-reader-composition.json";
 
 type Row = { id: string; question: string } & (
-  | { kind: "function"; draw: boolean; expression?: string; fraction?: number }
+  | { kind: "function"; draw: boolean; expression?: string; fraction?: number; domain?: [number, number] }
   | { kind: "vsepr"; claim: string; admit: boolean }
-  | { kind: "reaction"; draw: boolean; product?: string; smiles?: string; productRole?: string; stereoCount?: number; checkUnprovedStereoBoundary?: boolean }
+  | { kind: "reaction"; draw: boolean; product?: string; smiles?: string; productRole?: string; stereoCount?: number; carbonCount?: [number, number]; checkUnprovedStereoBoundary?: boolean }
 );
 const rows = fixture as Row[];
 const results: Array<{ id: string; route: string; passed: boolean; error?: string }> = [];
@@ -52,6 +52,10 @@ async function main(): Promise<void> {
           const plotted = engine.parseMathExpression(String(curves[0]!.inputs.expression));
           const source = engine.parseMathExpression(row.expression);
           for (const x of [0, 0.5, 1, 2]) close(plotted.evaluate(x), scale.y * source.evaluate(x));
+          if (row.domain) {
+            assert.equal(Number(curves[0]!.inputs.xMin), row.domain[0], "the stated interval remains the curve domain");
+            assert.equal(Number(curves[0]!.inputs.xMax), row.domain[1], "the stated interval remains the curve domain");
+          }
           assert.ok(!texts.some(text => /radioactiv|nuclei|half.life/i.test(text)), "a mathematical function does not invent a physical decay law");
         } else {
           assert.equal(actual.document.source.sourceModel, "mathematical_fraction_decay");
@@ -73,6 +77,7 @@ async function main(): Promise<void> {
         assert.ok(expected && sameMolecularGraph(model.product, expected), "the named product must equal an independently authored connected graph");
         assert.equal(model.productRole, row.productRole ?? row.product);
         assert.ok(texts.includes(row.product!), "the proved source name is attached to visible product geometry");
+        if (row.carbonCount) assert.ok(texts.includes(`C atoms: ${row.carbonCount[0]}->${row.carbonCount[1]}`), "the requested carbon count is visible");
         if (!row.productRole) assert.ok(model.bindings.some(binding => binding.role === "formed product name"));
         for (const binding of model.bindings) assert.equal(row.question.slice(binding.start, binding.end), binding.text, "every binding owns its original exact span");
         assert.ok(actual.document.constructions.some(step => step.id === "make_product_b0"), "the name never substitutes for the computed bonds");

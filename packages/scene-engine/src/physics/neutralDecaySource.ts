@@ -2,7 +2,7 @@
  * solver. A claimed unsupported decay source is terminal before catalog
  * defaults; it is never silently described as radioactive nuclei. */
 import { SceneBuilder } from "../archetypes/document";
-import { explicitFunctions, normalizeCompleteExpression } from "../archetypes/slots";
+import { explicitFunctions, normalizeCompleteExpression, xInterval } from "../archetypes/slots";
 import { kineticsFromStem, solveKinetics } from "../chemistry/kinetics";
 import { chemicalKineticsContext } from "../chemistry/semanticCues";
 import { chemStem } from "../chemistry/sceneKit";
@@ -20,6 +20,24 @@ type DecayOutcome = { status: "not_applicable"; explicitFunctionContext?: string
 function negativeArgument(question: string, start: number): boolean {
   const prefix = question.slice(0, start).split(/[;!?]|\.(?!\d)|\b(?:and|but|or|however)\b/i).at(-1) ?? "";
   return /\b(?:no|not|never|without|excluding|unrelated|irrelevant|background)(?:\s+(?:use|follow|obey|apply|assume|a|an|the|assumed))*\s*$/i.test(prefix);
+}
+
+const DOMAIN_PATTERNS = [
+  /x\s*=\s*-?\d+(?:\.\d+)?\s*(?:m\b)?\s*(?:to|and|,)\s*x\s*=\s*-?\d+(?:\.\d+)?/i,
+  /-?\d+(?:\.\d+)?\s*(?:≤|<=|<)\s*x\s*(?:≤|<=|<)\s*-?\d+(?:\.\d+)?/i,
+  /\[\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\]/,
+];
+
+/** A trailing interval stays in the question for the graph reader. Any other tail stays part of the expression. */
+function expressionBeforeSupportedDomain(rawRhs: string): string {
+  const split = /^(.*\S)\s+(?:for|on|over|from|where)\s+(\S[\s\S]*)$/i.exec(rawRhs);
+  if (!split) return rawRhs;
+  const domain = split[2]!.trim().replace(/[.!?]+$/, "").trim();
+  const complete = DOMAIN_PATTERNS.some((pattern) => {
+    const found = pattern.exec(domain);
+    return found !== null && domain.slice(0, found.index).trim() === "" && domain.slice(found.index + found[0].length).trim() === "";
+  });
+  return complete && xInterval(domain) ? split[1]!.trim() : rawRhs;
 }
 
 /** Unlike explicitFunctions' recovering extractor, this owns the whole RHS. */
@@ -59,7 +77,7 @@ function completeRequestedFunction(question: string): string[] | null {
     // Normalize the complete clause, including ordinary juxtaposition such as
     // exp(-2x). Do not drop an unread tail first: only this whole identity
     // may match the recovering slot reader.
-    try { whole = parseMathExpression(normalizeCompleteExpression(rawRhs)).source.replace(/\s+/g, "").replace(/^\+/, ""); } catch { return null; }
+    try { whole = parseMathExpression(normalizeCompleteExpression(expressionBeforeSupportedDomain(rawRhs))).source.replace(/\s+/g, "").replace(/^\+/, ""); } catch { return null; }
     if (!checked.includes(whole)) checked.push(whole);
     if (boundary) clauseStart = start + boundary.index + boundary[0].length;
   }
