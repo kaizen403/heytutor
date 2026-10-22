@@ -733,7 +733,11 @@ export async function drawSegmentInk(input: {
       textCommandIndex++;
     }
   }
-  if (!input.verifiedDiagramIntro && (canPointAtWork || completedTarget)) {
+  // An authored FOCUS keeps the pen on that target for the rest of the sentence.
+  // A sentence that also writes the work has already moved; another POINT would
+  // land after the gesture.
+  const wroteWork = segmentCommands.some((command) => command.type === "WRITE");
+  if (!input.verifiedDiagramIntro && (canPointAtWork || (completedTarget && !wroteWork))) {
     await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled,
       ...(completedTarget ? { completedTarget, getDiagram: input.getDiagram } : {}) });
   }

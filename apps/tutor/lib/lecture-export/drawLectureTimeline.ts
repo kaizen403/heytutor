@@ -65,18 +65,20 @@ export async function drawLectureTimeline(options: {
     options.setAnimationSpeed?.(1);
 
     const getDiagram = options.getDiagram ?? (() => null);
-    // Only beats that actually type code keep the code export scheduler.
-    // A code-lesson layout can still explain a work row, and that row has to point.
-    const codeLesson = cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
+    // A physics explanation can use a code-lesson layout and still has to point.
+    // The opening figure of a real code walk is trusted geometry on that layout;
+    // replay draws one cue at a time, so the TYPE/FRAME beats are not in this list.
+    const cueTypesCode = cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
     const hasFocus = cue.commands.some((command) => command.type === "FOCUS");
     const hasWrite = cue.commands.some((command) => command.type === "WRITE");
     const trustedFigure = cue.commands.length > 0 &&
       (cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command));
+    const codeWalkFigure = getDiagram()?.layout === "code_lesson" && trustedFigure;
     // Untimed export cues and trusted figures share the live ink clock, so a
     // focus waits for its word. A timed work explanation keeps its pointing tour.
     const spokenFigure = cue.commands.length > 0 &&
       (!cue.segment.timings || trustedFigure || (hasFocus && hasWrite));
-    if (codeLesson && cue.commands.length > 0) {
+    if ((cueTypesCode || codeWalkFigure) && cue.commands.length > 0) {
       await drawCodeLessonExportCue({
         cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram,
       });
@@ -84,7 +86,7 @@ export async function drawLectureTimeline(options: {
       await drawExportCue({
         cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram,
       });
-    } else if (!codeLesson) {
+    } else if (!cueTypesCode) {
       // Work rows and narration-only explanations keep the pen moving.
       // A trusted figure uses the shared ink clock above instead.
       await drawWorkExportCue({
