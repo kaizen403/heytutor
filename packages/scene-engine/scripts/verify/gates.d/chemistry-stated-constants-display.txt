@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-chemistry-stated-constants-display.ts

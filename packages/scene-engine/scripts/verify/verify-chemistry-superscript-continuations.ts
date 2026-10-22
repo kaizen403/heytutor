@@ -33,6 +33,10 @@ for (const row of fixtures as Gold[]) {
       assert.equal(read.ok, row[arm]);
       if (read.ok && row.value !== null && row.value !== undefined) near(read.reading.value, row.value);
       if (read.ok) assert.equal(question.slice(read.reading.source.span.start, read.reading.source.span.end), read.reading.source.text);
+      // Three former raw-parser limitations are complete Unicode powers,
+      // independently audited numeric gains, never borrowed numeric prefixes.
+      const approvedRawPower = new Map([["valid-unicode-power","10⁻¹⁵"],["valid-positive-unicode","10¹⁵"],["valid-normalized-gibbs","10⁻¹⁵"]]).get(row.id);
+      if(arm==="raw"&&approvedRawPower){assert.ok(read.ok);assert.deepEqual(read.reading.source.span,{start:question.indexOf(approvedRawPower),end:question.indexOf(approvedRawPower)+approvedRawPower.length});assert.equal(read.reading.source.text,approvedRawPower);}
     });
     check("supplied declaration", () => assert.equal(declaration.state, row[arm] ? "valid" : "invalid"));
     let prefix: unknown = null;

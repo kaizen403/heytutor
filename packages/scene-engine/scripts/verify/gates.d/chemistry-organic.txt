@@ -1,0 +1,3 @@
+# Complete organic structures and requested properties.
+tsx scripts/verify/verify-organic-neighbourhood-panels.ts
+tsx scripts/verify/verify-organic-property-owner-scope.ts

@@ -24,7 +24,10 @@ const ELECTRON_MASS = 9.109e-31;
 function labelsOf(question: string): string[] | null {
   const scene = synthesizeFamilyScene({ question });
   if (!scene) return null;
-  check(scene.document.source.chemistryFamily === "chem_orbital", `${question} did not stay on chem_orbital`);
+  const neutral = scene.document.source.chemistryFamily === undefined && scene.family === "energy_level"
+    && (scene.document.source.archetype === "photoelectric" || scene.document.source.sourceModel === "particle_radiation");
+  check(scene.document.source.chemistryFamily === "chem_orbital" || neutral, `${question} has no honest chemistry/physics producer`);
+  check(scene.document.source.question === question, "producer retains the exact original question");
   check(scene.tier === "qualitative_verified", `${question} tier ${scene.tier}`);
   const compiled = compileSceneDocument(scene.document);
   check(compiled.ok && compiled.renderScene !== null, `${question} did not compile`);
@@ -36,7 +39,16 @@ function labelsOf(question: string): string[] | null {
 }
 
 function has(labels: string[] | null, text: string, message: string): void {
-  check(labels !== null && labels.some((label) => label.includes(text)), message);
+  const expected = /^(E|K)=([+-]?[0-9]+\.[0-9]+) eV$/.exec(text);
+  const visible = labels !== null && labels.some(label => {
+    if (label.includes(text)) return true;
+    if (!expected) return false;
+    const actual = /^(E|hν|hv|K)\s*=\s*([+-]?[0-9]+(?:\.[0-9]+)?)\s+eV$/.exec(label);
+    if (!actual || (expected[1] === "K" ? actual[1] !== "K" : actual[1] === "K")) return false;
+    const decimals = expected[2]!.split(".")[1]!.length;
+    return Math.abs(Number(actual[2]) - Number(expected[2])) <= 0.5 * 10 ** -decimals + Math.abs(Number(expected[2])) * 1e-12;
+  });
+  check(visible, message);
 }
 
 function declined(question: string, message: string): void {

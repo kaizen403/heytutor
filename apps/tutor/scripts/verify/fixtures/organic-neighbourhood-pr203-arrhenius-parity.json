@@ -1,0 +1,22 @@
+{
+  "schema": "organic-neighbourhood-parity-pr203-arrhenius/v1",
+  "provenance": {
+    "implementationPr": 203,
+    "implementationCommit": "8624214be8",
+    "independentScienceReviewSHA256": "1305857b12de03942a7f256728719c181d4e2e33bc07d47ea8b4f583632cda1b",
+    "originalWholeSnapshotRetainedIn": "organic-neighbourhood-openings.json",
+    "originalUpdatedBaseSnapshotRetainedIn": "organic-neighbourhood-current-base-parity.json",
+    "scope": "One exact source-affine Arrhenius composition, replacing the older generic plot snapshot; all other parity controls unchanged."
+  },
+  "cases": [
+    {
+      "id": "kinetics-ln",
+      "family": "chem_kinetics",
+      "question": "ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "documentSha256": "cda34fefb03bf28aac4e0b126ca4668c71db4fbe13ddfcd5dbff36ae30e2c509",
+      "renderSha256": "1ae7c8a7389a8b0359bca7de8629880c23f3df81937992f29840e48130bc948d",
+      "openingCommandsSha256": "d5dc3264dae13ecf253e37e6d6fe34474547ef4c40d0ffac664612c503a2a36c",
+      "fullDiagramSha256": "edd53ec422a96aa495aea1d06b8c8b2a45eb326c0957bb144da1df510357f683"
+    }
+  ]
+}

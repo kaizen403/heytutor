@@ -1,0 +1,248 @@
+{
+  "schema": "pr203-symbolic-whole-source-and-affine-plot-golds/v1",
+  "frozenBeforeTargetOutputs": true,
+  "sourceSpanContract": "Symbolic identity supplies no numeric authority. Full original declaration must close; numeric siblings, all quantities and contradictions remain required. Source log relation ordinate/intercept/slope must be preserved by actual mapped line/ticks and fatal function-value checks; no fabricated measured values.",
+  "rows": [
+    {
+      "id": "symbolic-rate-declaration-v1/exact-review-symbolic-e",
+      "question": "k = A e^(-Ea/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-exp",
+      "question": "k = A exp(-Ea/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-subscript-grouped-denominator",
+      "question": "k = A e^(-E_a/(R T)). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-spaced-exp-grouping",
+      "question": "k = A exp( - E_a / (R T) ). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-unicode-minus",
+      "question": "k = A e^(\u2212E_a/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-after-numeric-relation",
+      "question": "ln k = 5 - 2000/T. k = A e^(-Ea/(RT)). Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/conflicting-numeric-exponential",
+      "question": "k = A e^(-3000/T). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/damaged-numeric-exponential",
+      "question": "k = A e^(-2000e/T). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/partly-symbolic-energy-coefficient",
+      "question": "k = A e^(-2Ea/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/unclosed-symbolic-group",
+      "question": "k = A e^(-Ea/RT. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-plus-extra-numeric-term",
+      "question": "k = A e^(-Ea/RT) + 2. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-unconsumed-tail",
+      "question": "k = A e^(-Ea/RT) times x. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/damaged-ln-numeric-coefficient",
+      "question": "k = A exp(-Ea/RT). ln k = 5 - 2000e/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-plus-damaged-rate",
+      "question": "k = A exp(-Ea/RT). k = 3/ s^-1. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-factor-contradiction",
+      "question": "k = A exp(-Ea/RT). k becomes 3 times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/symbolic-activation-energy-contradiction",
+      "question": "k = A exp(-Ea/RT). The activation energy is 20 kJ/mol. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/uppercase-LN-valid-control",
+      "question": "LN k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/common-log-valid-control",
+      "question": "log k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/uppercase-K-kelvin-control",
+      "question": "The temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-rate-declaration-v1/uppercase-equilibrium-K-not-rate",
+      "question": "LN K = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/symbolic-e-common-log",
+      "question": "k = A e^(-Ea/RT). log k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/symbolic-exp-common-log-control",
+      "question": "k = A exp(-Ea/RT). log k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 2000,
+      "intercept": 5
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/common-LOG-first-symbolic-e-grouped",
+      "question": "LOG k = 4 - 1500/T. k = A e^(-E_a/(R T)). Sketch the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 1500,
+      "intercept": 4
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/mixed-Log-symbolic-exp-grouped-control",
+      "question": "k = A exp(-Ea/(RT)). Log k = 4 - 1500/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 1500,
+      "intercept": 4
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/symbolic-e-damaged-LOG-coefficient",
+      "question": "k = A e^(-Ea/RT). LOG k = 5 - 2000e/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-common-log-heldout-v1/symbolic-e-common-log-factor-conflict",
+      "question": "k = A e^(-Ea/RT). k becomes 3 times its original value when temperature rises from 300 K to 310 K. log k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "fresh-zero-intercept",
+      "question": "k = A e^(-Ea/RT). ln k = 0 - 800/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 800,
+      "intercept": 0
+    },
+    {
+      "id": "fresh-negative-intercept",
+      "question": "k = A exp(-Ea/(RT)). LOG k = -2 - 900/T. Sketch the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": false,
+      "b": 900,
+      "intercept": -2
+    },
+    {
+      "id": "fresh-lowercase-temperature",
+      "question": "\ud83e\uddea k = A e^( - E_a / (R T) ). Ln k = 3 - 1200/t. Sketch the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 1200,
+      "intercept": 3
+    },
+    {
+      "id": "extra-numeric-zero",
+      "question": "k = A e^(-Ea/RT) + 0. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-division-tail",
+      "question": "k = A e^(-Ea/RT) / 2. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "equilibrium-owner-symbolic",
+      "question": "K = A e^(-Ea/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "acid-owner-symbolic",
+      "question": "Ka = A e^(-Ea/RT). ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "extra-symbolic-tail",
+      "question": "k = A exp(-Ea/RT) + x. log k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "restored-symbolic-measured-conflict",
+      "question": "k = A e^(-Ea/RT). The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. LN k = 5 - 6446.2687792074785/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "exp-symbolic-measured-conflict",
+      "question": "k = A exp(-Ea/RT). The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. LN k = 5 - 6446.2687792074785/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    },
+    {
+      "id": "restored-symbolic-measured-coherent",
+      "question": "k = A e^(-Ea/RT). The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. LN k = 18.268686772490064 - 6446.2687792074785/T. Draw the Arrhenius plot.",
+      "expectedDraw": true,
+      "natural": true,
+      "b": 6446.2687792074785,
+      "intercept": 18.268686772490064
+    },
+    {
+      "id": "symbolic-numeric-A-conflict",
+      "question": "k = A e^(-Ea/RT). The frequency factor is 20 s^-1. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+      "expectedDraw": false
+    }
+  ]
+}

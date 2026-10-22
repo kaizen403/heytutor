@@ -13,6 +13,8 @@ import { molecularFormula, neighbours } from "./smiles";
 export interface RenderedMolecule {
   /** Every entity id drawn for this molecule (for a reveal group). */
   readonly ids: string[];
+  /** Actual atom entities emitted, including explicit terminal H. */
+  readonly atomIds: string[];
   /** Ids of labelled atoms, for label_attached assertions. */
   readonly labelledAtomIds: string[];
   readonly bounds: { minX: number; maxX: number; minY: number; maxY: number };
@@ -70,12 +72,15 @@ export function structureCaption(laid: LaidOutMolecule): string {
  * Draw one molecule with its atoms offset by `origin`. Ids are prefixed so
  * several molecules share a scene. Returns the ids drawn and the bounds.
  */
-export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: string, origin: Vec2, caption: string | null, pxPerUnit = 100): RenderedMolecule {
+export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: string, origin: Vec2, caption: string | null, pxPerUnit = 100, options: { atomLabels?: ReadonlyMap<number, string>; scale?: number } = {}): RenderedMolecule {
+  const scale = options.scale ?? 1;
+  const labelOf = (index: number): string | null => options.atomLabels?.get(index) ?? atomLabel(laid, index);
   const molecule = laid.molecule;
   const ids: string[] = [];
+  const atomIds: string[] = [];
   const labelledAtomIds: string[] = [];
   const labels: string[] = [];
-  const at = (index: number): Vec2 => ({ x: laid.positions[index]!.x + origin.x, y: laid.positions[index]!.y + origin.y });
+  const at = (index: number): Vec2 => ({ x: laid.positions[index]!.x * scale + origin.x, y: laid.positions[index]!.y * scale + origin.y });
   const atomId = (index: number): string => `${prefix}_a${index}`;
   const aromaticEdges = new Set<string>();
   for (const ring of laid.aromaticSixRings) {
@@ -86,9 +91,10 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
   }
   for (const atom of molecule.atoms) {
     if (laid.hidden.has(atom.index)) continue;
-    const text = atomLabel(laid, atom.index);
+    const text = labelOf(atom.index);
     const id = c.atom(atomId(atom.index), atom.element, at(atom.index), { text, role: `${atom.element} atom` });
     ids.push(id);
+    atomIds.push(id);
     if (text) { labelledAtomIds.push(id); labels.push(text); }
   }
   for (const bond of molecule.bonds) {
@@ -98,24 +104,25 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
     const drawn = c.bond(`${prefix}_b${bond.index}`, atomId(bond.a), atomId(bond.b), {
       order,
       spacing: 0.13,
-      trimStart: labelTrim(atomLabel(laid, bond.a), pxPerUnit),
-      trimEnd: labelTrim(atomLabel(laid, bond.b), pxPerUnit),
+      trimStart: labelTrim(labelOf(bond.a), pxPerUnit),
+      trimEnd: labelTrim(labelOf(bond.b), pxPerUnit),
     });
     ids.push(...drawn);
   }
   laid.aromaticSixRings.forEach((ring, index) => {
     const centre = ring.reduce((acc, atom) => ({ x: acc.x + at(atom).x / ring.length, y: acc.y + at(atom).y / ring.length }), { x: 0, y: 0 });
     const helper = c.scene.helper(`${prefix}_ar${index}_c`, centre, "aromatic ring centre helper");
-    ids.push(c.scene.circle(`${prefix}_ar${index}`, helper, 0.52, "aromatic ring"));
+    ids.push(c.scene.circle(`${prefix}_ar${index}`, helper, 0.52 * scale, "aromatic ring"));
   });
   laid.extraLabels.forEach((extra, index) => {
-    const id = c.atom(`${prefix}_h${index}`, "H", { x: extra.at.x + origin.x, y: extra.at.y + origin.y }, { text: extra.text, role: "H atom" });
+    const id = c.atom(`${prefix}_h${index}`, "H", { x: extra.at.x * scale + origin.x, y: extra.at.y * scale + origin.y }, { text: extra.text, role: "H atom" });
     ids.push(id);
+    atomIds.push(id);
     ids.push(...c.bond(`${prefix}_hb${index}`, atomId(extra.atom), id));
     labels.push(extra.text);
   });
   const bounds = layoutBounds(laid);
-  const shifted = { minX: bounds.minX + origin.x, maxX: bounds.maxX + origin.x, minY: bounds.minY + origin.y, maxY: bounds.maxY + origin.y };
+  const shifted = { minX: bounds.minX * scale + origin.x, maxX: bounds.maxX * scale + origin.x, minY: bounds.minY * scale + origin.y, maxY: bounds.maxY * scale + origin.y };
   if (caption) {
     const id = c.text(`${prefix}_name`, { x: (shifted.minX + shifted.maxX) / 2, y: shifted.minY - 0.3 }, caption, "compound name");
     ids.push(id);
@@ -132,6 +139,6 @@ export function renderMolecule(c: ChemScene, laid: LaidOutMolecule, prefix: stri
   const entity = c.scene.entities.find((candidate) => candidate.id === panelId);
   if (entity) entity.provenance = { dashed: true, strokeRole: "construction" };
   ids.push(panelId);
-  return { ids, labelledAtomIds, bounds: { minX: centre.x - width / 2, maxX: centre.x + width / 2, minY: centre.y - height / 2, maxY: centre.y + height / 2 }, labels };
+  return { ids, atomIds, labelledAtomIds, bounds: { minX: centre.x - width / 2, maxX: centre.x + width / 2, minY: centre.y - height / 2, maxY: centre.y + height / 2 }, labels };
 }
 

@@ -33,6 +33,7 @@ import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } fr
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
+import type { VseprBondInkPlan } from "./representation/bondInk";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -519,7 +520,9 @@ function localMoleculeOwners(
 function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
   let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
-  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+  // A colon connects a typed property to its value (electron geometry:
+  // tetrahedral); it must not turn that value into a free molecular claim.
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
     const clause = rawClause.toLowerCase();
     const mentions = shapeOwnerMentions(rawClause);
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
@@ -983,6 +986,15 @@ function drawOrders(result: VseprResult): boolean {
     if (pairs > 4) return false;
   }
   return true;
+}
+
+/** Same source-derived layout/seating policy consumed by production and audit. */
+export function vseprBondInkPlan(result: VseprResult): VseprBondInkPlan[] | null {
+  const layout = layoutFor(result);
+  const seated = layout ? seatLigands(result, layout) : null;
+  if (!seated) return null;
+  return seated.map(({ slot, ligand }) => ({ ligandLabel: ligand.label, style: slot.style,
+    strokeCount: drawOrders(result) && slot.style !== "wedge" ? ligand.bondOrder : 1 }));
 }
 
 interface DrawnSpecies {

@@ -39,6 +39,9 @@ import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import type { SceneDocument, SceneIssue } from "../types";
 import { verifiedVseprStructure } from "../chemistry/vseprStructure";
 import type { VseprFigure } from "../chemistry/vsepr";
+import { parseFormula } from "../chemistry/formula";
+import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
+import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -251,7 +254,7 @@ export function checkVisualObligations(
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
   const molecule = verifiedVseprStructure(document, originalQuestion);
-  const mapping = mapProblemEntities(set, document, molecule);
+  const mapping = mapProblemEntities(set, document, molecule, originalQuestion);
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
@@ -437,6 +440,7 @@ function mapProblemEntities(
   set: VisualObligationSet,
   document: SceneDocument,
   molecule: VseprFigure | null,
+  originalQuestion?: string,
 ): Map<string, string> {
   const mapping = new Map<string, string>();
   const consumed = new Set<string>();
@@ -445,7 +449,9 @@ function mapProblemEntities(
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
     problemLabel === null ||
     (typeof entity.label === "string" &&
-      sameObligationLabel(entity.label, problemLabel));
+      (sameObligationLabel(entity.label, problemLabel)
+        || originalQuestion !== undefined && (sourceAdditionProductEntityHolds(originalQuestion, document, entity, problemLabel)
+          || sourceDepositedMetalEntityHolds(originalQuestion, document, entity, problemLabel))));
   // Text is not a physical body. Structural kinds constrain identity even
   // when the label is exact: a trajectory's name on a point cannot name a curve.
   const kindHolds = (entity: SceneDocument["entities"][number], obligation: NamedBodyObligation): boolean => {
@@ -492,7 +498,7 @@ function mapProblemEntities(
         !consumed.has(entity.id) &&
         kindHolds(entity, obligation) &&
         typeof entity.label === "string" &&
-        sameObligationLabel(entity.label, wanted),
+        labelHolds(entity, wanted),
     );
     if (labelled) {
       mapping.set(obligation.problemEntityId, labelled.id);
@@ -630,9 +636,24 @@ function normalizeObligationLabel(value: string): string {
  */
 function sameObligationLabel(sceneLabel: string, problemLabel: string): boolean {
   if (normalizeObligationLabel(sceneLabel) === normalizeObligationLabel(problemLabel)) return true;
+  const sceneAqueous = aqueousFormulaIdentity(sceneLabel);
+  const problemAqueous = aqueousFormulaIdentity(problemLabel);
+  if (sceneAqueous !== null && problemAqueous !== null) return sceneAqueous === problemAqueous;
   const sceneKey = formulaIdentity(sceneLabel);
   const problemKey = formulaIdentity(problemLabel);
   return sceneKey !== null && sceneKey === problemKey;
+}
+
+/** Closed equivalent spellings of one aqueous species. Formula grouping and
+ * charge are retained; concentrations, other phases and prose are not aliases. */
+function aqueousFormulaIdentity(label: string): string | null {
+  const text = label.trim();
+  const wrapped = /^aqueous\s+(\S+)\s+solution$/i.exec(text) ?? /^(\S+)\(aq\)$/.exec(text);
+  if (!wrapped) return null;
+  const formula = parseFormula(wrapped[1]!.replace(/_(\d+)/g, "$1"));
+  if (!formula) return null;
+  const exact = formula.text.replace(/\^\(?(\d*)([+-])\)?$/, (_, magnitude: string, sign: string) => `^(${magnitude || "1"}${sign})`);
+  return JSON.stringify(["aq", exact, formula.charge]);
 }
 
 function formulaIdentity(value: string): string | null {

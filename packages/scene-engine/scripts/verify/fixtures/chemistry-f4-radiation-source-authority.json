@@ -1,0 +1,172 @@
+[
+  {
+    "id": "original422-row26-background-hydrogen",
+    "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on it, and a hydrogen discharge in the same practical emits at 656 nm. Take hc = 1240 eV nm. Find the maximum kinetic energy of the photoelectrons from the sodium, in eV.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2.3,
+      "kineticEV": 0.8,
+      "foreignLineNotIncident": true
+    },
+    "scope": "Exact original422 preexisting regression, root authentic unsupported-atomic-reference trace retained."
+  },
+  {
+    "id": "background-helium-transfer",
+    "question": "The work function of the metal is 2 eV. Incident light has wavelength 400 nm. A separate helium discharge emits a spectral line at 588 nm. Take hc = 1240 eV nm. Draw the photoelectric energy balance for the metal.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1,
+      "foreignLineNotIncident": true
+    }
+  },
+  {
+    "id": "background-first-source-owner-transfer",
+    "question": "A hydrogen discharge in a separate tube emits a line at 656 nm. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2.3,
+      "kineticEV": 0.8,
+      "foreignLineNotIncident": true
+    }
+  },
+  {
+    "id": "preserved-active-bound-source",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.0996049608300065,
+      "workFunctionEV": 2,
+      "kineticEV": 1.0996049608300065
+    },
+    "scope": "Exact unchanged original independent source36 positive."
+  },
+  {
+    "id": "active-atomic-stated-product-remains-fixed",
+    "question": "For an atomic electron, work function is 2 eV; incident photon wavelength is 400 nm. Take hc = 1240 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1,
+      "givenConstantsUsedInArithmetic": true,
+      "SIReferenceRetainedForCompatibilityOnly": true
+    },
+    "reason": "Original complete source gives a conventional rounded physical constant compatible with SI at its written last decimal place; source arithmetic must use that stated constant, never silently replace it. A fixed-reference exact-equality refusal was an unsupported availability restriction."
+  },
+  {
+    "id": "active-bound-stated-h-remains-fixed",
+    "question": "For a bound electron, work function is 2 eV; incident light frequency is 6e14 Hz. Planck's constant is 6.6e-34 J s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 2.471637593486462,
+      "workFunctionEV": 2,
+      "kineticEV": 0.471637593486462,
+      "givenConstantsUsedInArithmetic": true,
+      "SIReferenceRetainedForCompatibilityOnly": true
+    },
+    "reason": "Original complete source gives a conventional rounded physical constant compatible with SI at its written last decimal place; source arithmetic must use that stated constant, never silently replace it. A fixed-reference exact-equality refusal was an unsupported availability restriction."
+  },
+  {
+    "id": "hc-one-decimal-compatible",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1239.8 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.0995,
+      "workFunctionEV": 2,
+      "kineticEV": 1.0995
+    },
+    "sourcePrecision": {
+      "role": "hc",
+      "raw": "1239.8",
+      "unit": "eV nm",
+      "value": 1239.8,
+      "lastPlaceQuantum": 0.1
+    }
+  },
+  {
+    "id": "hc-explicit-trailing-decimal-inconsistent",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1
+    },
+    "sourcePrecision": {
+      "role": "hc",
+      "raw": "1240.0",
+      "unit": "eV nm",
+      "value": 1240,
+      "lastPlaceQuantum": 0.1
+    },
+    "reason": "SIhc\u22481239.8419843320025 does not round to1240.0 at0.1eVnm resolution; cannot erase the explicit decimal precision.",
+    "scientificCorrection": {
+      "contract": "qa138-main-integration-v1/atomic-computational-directive-v1/SCIENTIFIC-CONTRACT-REVIEW-CLOSED.json",
+      "goldSHA256": "cc3b52d78b48441fcf79db4c095c7968a94c445f7d914550287ad729ed2db210",
+      "originalFalseGoldPreserved": "pr138-computational-constant-v1/ORIGINAL-radiation-source-authority11.json",
+      "reason": "Explicit Take owns hc as a computational coefficient. Use its source value; fixed-reference precision remains required for every non-directed constant."
+    }
+  },
+  {
+    "id": "h-explicit-three-digit-inconsistent",
+    "question": "For an atomic electron, work function is 2 eV; incident light frequency is 6e14 Hz. Planck's constant is 6.60e-34 J s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "sourcePrecision": {
+      "role": "h",
+      "raw": "6.60e-34",
+      "unit": "J s",
+      "value": 6.6e-34,
+      "lastPlaceQuantum": 1e-36
+    },
+    "reason": "ExactSIh rounds to6.63e-34 at0.01e-34 resolution, not6.60e-34."
+  },
+  {
+    "id": "c-four-digit-compatible",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. The speed of light is 2.998e8 m/s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.099682938844432,
+      "workFunctionEV": 2,
+      "kineticEV": 1.099682938844432
+    },
+    "sourcePrecision": {
+      "role": "c",
+      "raw": "2.998e8",
+      "unit": "m/s",
+      "value": 299800000.0,
+      "lastPlaceQuantum": 100000.0
+    }
+  },
+  {
+    "id": "c-four-digit-inconsistent",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. The speed of light is 2.990e8 m/s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "sourcePrecision": {
+      "role": "c",
+      "raw": "2.990e8",
+      "unit": "m/s",
+      "value": 299000000.0,
+      "lastPlaceQuantum": 100000.0
+    },
+    "reason": "ExactSIc299792458 does not lie in2.990e8\u00b10.5e5m/s."
+  }
+]

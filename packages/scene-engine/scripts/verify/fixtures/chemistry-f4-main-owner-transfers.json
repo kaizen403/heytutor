@@ -1,0 +1,32 @@
+[
+  {
+    "id": "original-source916",
+    "question": "For an atomic electron, work function is 2 eV and frequency is 9.65×10^14 Hz. Draw the photoelectric energy balance.",
+    "draw": true
+  },
+  {
+    "id": "plural-context",
+    "question": "For an atomic electrons, work function is 2 eV and frequency is 9.65×10^14 Hz. Draw the photoelectric energy balance.",
+    "draw": true
+  },
+  {
+    "id": "bound-context",
+    "question": "For an bound electron, work function is 2 eV and frequency is 9.65×10^14 Hz. Draw the photoelectric energy balance.",
+    "draw": true
+  },
+  {
+    "id": "context-plus-genuine-electron-wave",
+    "question": "For an atomic electron, work function is 2 eV and photon energy is 3 eV; emitted electron has kinetic energy 1.0 eV, wavelength is 1.227 nm. Draw the photoelectric energy balance.",
+    "draw": true
+  },
+  {
+    "id": "context-cannot-own-emitted-frequency",
+    "question": "For an atomic electron, work function is 2 eV; emitted electron frequency is 9.65×10^14 Hz. Draw the photoelectric energy balance.",
+    "draw": false
+  },
+  {
+    "id": "context-cannot-own-emitted-wavelength",
+    "question": "For an atomic electron, work function is 2 eV; emitted electron has kinetic energy 1.0 eV, wavelength is 1.227 nm. Draw the photoelectric energy balance.",
+    "draw": false
+  }
+]
