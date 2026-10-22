@@ -151,7 +151,9 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
         const gx = slope(at(point.x + h, point.y), at(point.x - h, point.y));
         const gy = slope(at(point.x, point.y + h), at(point.x, point.y - h));
         const gradient = Math.hypot(gx, gy);
-        const distance = gradient > 1e-12 ? Math.abs(f) / gradient : Math.abs(f) > 1e-9 ? Infinity : 0;
+        // Any non-zero gradient gives a scale-free distance; only an exactly flat
+        // point falls back to the raw value.
+        const distance = gradient > 0 ? Math.abs(f) / gradient : f === 0 ? 0 : Infinity;
         return distance > (value?.kind === "multi_path" ? 0.05 : 1e-4) * scale;
       } catch {
         undefinedAt += 1;
