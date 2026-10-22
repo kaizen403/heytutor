@@ -29,9 +29,9 @@ const sourceFile = (path: string) => ts.createSourceFile(path, readFileSync(join
 const declares = (node: ts.Node, name: string) => ts.isVariableStatement(node) && node.declarationList.declarations.some(
   (declaration) => ts.isIdentifier(declaration.name) && declaration.name.text === name);
 const generation = sourceFile("features/tutor-session/lib/scene/diagramGeneration.ts");
-const selectionNames = new Set(["selectBestAvailableTurnPlan", "requestedUnknownCoverage", "normalizeQuantityKey", "requestedResultFingerprint", "turnPlanNeedsNumericAuthority"]);
+const selectionNames = new Set(["selectBestAvailableTurnPlan", "requestedUnknownCoverage", "normalizeQuantityKey", "requestedResultFingerprint", "turnPlanNeedsNumericAuthority", "turnPlanRequestsNumericAuthority"]);
 const selection = generation.statements.filter((node) => ts.isFunctionDeclaration(node) && node.name && selectionNames.has(node.name.text));
-assert.equal(selection.length, 5, "execute the real plan selector and numeric-authority decision");
+assert.equal(selection.length, 6, "execute the real plan selector and numeric-authority decision");
 const deadline = generation.statements.find((node) => declares(node, "TURN_PLAN_DEADLINE_MS"));
 assert.ok(deadline);
 const deadlineText = deadline.getText(generation);
