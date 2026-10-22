@@ -5,7 +5,8 @@ export interface CoverageWindow { from: string; to: string }
 export interface CoverageFact {
   subject: unknown; chapterId: unknown; requirement: unknown; visualStatus: unknown; status: unknown;
   hasTrustedInk: boolean; degradationReason: unknown; issueCodes: unknown;
-  failureCode: unknown; failureIssueCodes: unknown; recordedUnknownIssueCount?: unknown; strategy: unknown; count: bigint | number;
+  failureCode: unknown; failureIssueCodes: unknown; recordedUnknownIssueCount?: unknown; strategy: unknown;
+  windowMatches?: unknown; count: bigint | number;
 }
 export interface CoverageCounts {
   savedLessons: number; needed: number; drawn: number; neededDrawn: number; neededEmpty: number;
@@ -18,10 +19,13 @@ export interface CoverageEmptyReason {
   strategy: string; fallbackSuppressed: "yes" | "unrecorded";
   evidence: "text_only" | "retry_required" | "validated_without_saved_ink"; lessons: number;
 }
+export interface CoverageScan { budget: number; scanned: number; truncated: boolean }
 export interface CoverageReport {
   window: CoverageWindow; totals: CoverageCounts; subjects: CoverageGroup[]; chapters: CoverageGroup[];
-  emptyReasons: CoverageEmptyReason[];
+  emptyReasons: CoverageEmptyReason[]; scan: CoverageScan;
 }
+/** Newest saved lessons read for one report. One extra row is the truncation witness. */
+export const COVERAGE_SCAN_BUDGET = 5_000;
 const DAY = 86_400_000;
 const SUBJECTS = ["maths", "physics", "chemistry", "other", "unknown"];
 const ISSUES = new Set<string>(FAILED_TURN_ISSUE_CODES);
@@ -65,6 +69,37 @@ function add(target: CoverageCounts, row: CoverageCounts) {
       if (!Number.isSafeInteger(target[key])) throw new Error("coverage_count_overflow");
     }
   }
+}
+
+function countedLessons(facts: readonly CoverageFact[]) {
+  let counted = 0;
+  for (const fact of facts) {
+    const count = Number(fact.count);
+    if (!Number.isSafeInteger(count) || count < 1) throw new Error("invalid_coverage_count");
+    counted += count;
+    if (!Number.isSafeInteger(counted)) throw new Error("coverage_count_overflow");
+  }
+  return counted;
+}
+
+/**
+ * The SQL reads at most one witness past the budget. Counts must describe that
+ * scanned set exactly: a partial report never claims to be the whole window.
+ * In-memory facts with no witness are already the complete set.
+ */
+export function coverageScan(facts: readonly CoverageFact[]): CoverageScan {
+  const counted = countedLessons(facts);
+  if (facts.length === 0 || facts.every(fact => fact.windowMatches == null)) {
+    return { budget: COVERAGE_SCAN_BUDGET, scanned: counted, truncated: false };
+  }
+  const matches = Number(facts[0]?.windowMatches);
+  if (!Number.isSafeInteger(matches) || matches < counted || facts.some(fact => Number(fact.windowMatches) !== matches)) {
+    throw new Error("coverage_scan_mismatch");
+  }
+  const truncated = matches > COVERAGE_SCAN_BUDGET;
+  const scanned = truncated ? COVERAGE_SCAN_BUDGET : matches;
+  if (counted !== scanned) throw new Error("coverage_scan_mismatch");
+  return { budget: COVERAGE_SCAN_BUDGET, scanned, truncated };
 }
 
 /** Fold only content-free SQL projections; missing evidence stays explicit. */
@@ -117,5 +152,6 @@ export function aggregateCoverage(facts: readonly CoverageFact[], window: Covera
   }
   const order = (a: CoverageGroup, b: CoverageGroup) => a.subject.localeCompare(b.subject) || a.chapter.localeCompare(b.chapter);
   return { window, totals, subjects: [...subjects.values()].sort(order), chapters: [...chapters.values()].sort(order),
-    emptyReasons: [...emptyReasons.values()].sort((a, b) => b.lessons - a.lessons || JSON.stringify(a).localeCompare(JSON.stringify(b))) };
+    emptyReasons: [...emptyReasons.values()].sort((a, b) => b.lessons - a.lessons || JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    scan: coverageScan(facts) };
 }

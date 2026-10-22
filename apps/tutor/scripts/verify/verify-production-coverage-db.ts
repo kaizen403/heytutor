@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
 import { loadProductionCoverage } from "../../lib/admin/coverageQueries";
-import { parseCoverageWindow } from "../../lib/admin/coverage";
+import { COVERAGE_SCAN_BUDGET, parseCoverageWindow } from "../../lib/admin/coverage";
 
 async function main() {
   const raw = process.env.COVERAGE_TEST_DATABASE_URL;
@@ -60,8 +60,33 @@ async function main() {
     assert.equal(report.emptyReasons.reduce((sum, row) => sum + row.lessons, 0), 7);
     assert(report.emptyReasons.some(row => row.fallbackSuppressed === "yes"));
     assert(report.emptyReasons.some(row => row.status === "stopped"));
+    assert.equal(report.scan.truncated, false);
+    assert.equal(report.scan.scanned, 9);
+    assert.equal(report.scan.budget, 5_000);
     assert(!JSON.stringify(report).includes("PRIVATE_STUDENT_CANARY"));
-    console.log("verify-production-coverage-db: real PostgreSQL READ ONLY snapshot, synthetic saved lessons, trusted non-trace ink, scope/window/privacy verified");
+    assert(!JSON.stringify(report).includes("windowMatches"));
+    const extra = COVERAGE_SCAN_BUDGET + 1 - report.totals.savedLessons;
+    const bulk = JSON.stringify({ failureTelemetry: { subject: "physics" },
+      turnPlan: { visualRequirement: "required" },
+      degradation: { reason: "candidate_invalid", issueCodes: ["exact_assertion_unproven"] },
+      diagramStrategy: "strict" });
+    await db.$executeRaw`INSERT INTO turns
+      SELECT 'bulk-' || g::text, 'lesson', 'complete',
+        timestamptz '2026-10-01 00:00:00+00' + (g::text || ' seconds')::interval,
+        'text_only', ${bulk}::jsonb
+      FROM generate_series(1, ${extra}) AS g`;
+    const capped = await loadProductionCoverage(db, parseCoverageWindow(new URLSearchParams("from=2026-10-01&to=2026-10-08")));
+    assert.equal(capped.scan.truncated, true);
+    assert.equal(capped.scan.scanned, COVERAGE_SCAN_BUDGET);
+    assert.equal(capped.totals.savedLessons, COVERAGE_SCAN_BUDGET);
+    assert.equal(capped.totals.needed, 7 + (COVERAGE_SCAN_BUDGET - 9));
+    assert.equal(capped.totals.drawn, 1);
+    assert.equal(capped.totals.neededDrawn, 1);
+    assert.equal(capped.totals.neededEmpty, 6 + (COVERAGE_SCAN_BUDGET - 9));
+    assert.equal(capped.totals.unrecordedNeed, 1);
+    assert.equal(capped.totals.unrecordedOutcome, 1);
+    assert.equal(capped.totals.needed, capped.totals.neededDrawn + capped.totals.neededEmpty + capped.totals.neededUnknown);
+    console.log("verify-production-coverage-db: real PostgreSQL READ ONLY snapshot, synthetic saved lessons, trusted non-trace ink, scope/window/privacy and scan cap verified");
   } finally { await db.$disconnect(); }
 }
 
