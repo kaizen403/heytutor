@@ -178,6 +178,8 @@ jobs:
         run: |
           pnpm --filter @heytutor/tutor verify:phone-board-readability
           pnpm --filter @heytutor/tutor verify:explanation-pointing
+      - name: Installed rendering dependency metadata regressions (bounded fixtures)
+        run: node --test apps/tutor/scripts/verify/verify-installed-render-fingerprint.mjs apps/tutor/scripts/verify/verify-installed-render-fingerprint-contract.mjs
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

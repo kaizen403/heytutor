@@ -1,8 +1,90 @@
 /** Node-only: source content, never Git refs, mtimes, checkout paths or PR numbers. */
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync, lstatSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync, lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import ts from "typescript";
+import { isBuiltin } from 'node:module';
+
+// Resolve, never execute, installed runtime packages. Only metadata versions are
+// hashed: same-version patched package contents require a version bump to invalidate.
+function installedRenderVersions(root, files) {
+  // Deterministic traversal IDs retain ownership and cycles without hashing paths.
+  // Manifest paths are lookup keys only, never serialized cache identity.
+  const visited = new Map();
+  const nodes = [];
+  const roots = [];
+  const visit = (id, importer, optional = false) => {
+    if (isBuiltin(id)) return;
+    // Metadata ownership is independent of import/require/browser export conditions.
+    // Canonical importers preserve pnpm ownership; never consult global lookup paths.
+    const name = id.startsWith('@') ? id.split('/').slice(0, 2).join('/') : id.split('/')[0];
+    const start = path.dirname(realpathSync(importer));
+    let manifest;
+    let directory = start;
+    for (;;) {
+      const scope = path.join(directory, 'package.json');
+      if (existsSync(scope)) {
+        if (JSON.parse(readFileSync(scope, 'utf8')).name === name) manifest = scope;
+        break; // Only the nearest package scope can own a self-reference.
+      }
+      const parent = path.dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+    directory = start;
+    while (!manifest) {
+      if (path.basename(directory) !== 'node_modules') {
+        const candidate = path.join(directory, 'node_modules', name);
+        let present = false;
+        try { lstatSync(candidate); present = true; }
+        catch (error) { if (error.code !== 'ENOENT') throw error; }
+        if (present) { manifest = path.join(candidate, 'package.json'); break; }
+      }
+      const parent = path.dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+    if (!manifest) {
+      if (optional) return;
+      throw new Error(`Cannot resolve rendering dependency ${id} from ${importer}`);
+    }
+    manifest = realpathSync(manifest);
+    const metadata = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (metadata.name !== name || typeof metadata.version !== 'string' || !metadata.version) {
+      throw new Error(`Invalid rendering dependency metadata: ${manifest}`);
+    }
+    if (visited.has(manifest)) return visited.get(manifest);
+    const index = nodes.length;
+    const edges = [];
+    visited.set(manifest, index);
+    nodes.push([metadata.name, metadata.version, edges]);
+    const optionalDependencies = metadata.optionalDependencies ?? {};
+    const dependencies = { ...metadata.dependencies, ...metadata.peerDependencies, ...optionalDependencies };
+    for (const dependency of Object.keys(dependencies).sort()) {
+      const optional = Object.hasOwn(optionalDependencies, dependency) ||
+        (!Object.hasOwn(metadata.dependencies ?? {}, dependency) && metadata.peerDependenciesMeta?.[dependency]?.optional === true);
+      edges.push([dependency, visit(dependency, manifest, optional) ?? null]);
+    }
+    return index;
+  };
+  for (const file of files) {
+    if (!/\.[cm]?[jt]sx?$/.test(file)) continue;
+    const importer = path.resolve(root, file);
+    const syntax = ts.createSourceFile(file, readFileSync(importer, 'utf8'), ts.ScriptTarget.Latest, false);
+    for (const statement of syntax.statements) {
+      if (!(ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) || !statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+      if (statement.isTypeOnly || statement.importClause?.isTypeOnly) continue;
+      const bindings = statement.importClause?.namedBindings;
+      if (!statement.importClause?.name && bindings && ts.isNamedImports(bindings) && bindings.elements.every(entry => entry.isTypeOnly)) continue;
+      if (statement.exportClause && ts.isNamedExports(statement.exportClause) && statement.exportClause.elements.every(entry => entry.isTypeOnly)) continue;
+      const id = statement.moduleSpecifier.text;
+      if (id.startsWith('.') || id.startsWith('/') || id.startsWith('@/') || id.startsWith('@heytutor/')) continue;
+      roots.push([file, id, visit(id, importer) ?? null]);
+    }
+  }
+  return [JSON.stringify({ roots, nodes })];
+}
+
 
 export const RENDER_SOURCE_ROOTS = Object.freeze([
   'apps/tutor/lib/lecture-export',
@@ -156,5 +238,6 @@ export function renderFingerprint(root, roots = RENDER_SOURCE_ROOTS) {
     const content = readFileSync(path.join(root, file));
     hash.update(`${file.length}:${file}:${content.length}:`).update(content);
   }
+  for (const version of installedRenderVersions(root, files)) hash.update(`dependency:${version.length}:${version}`);
   return hash.digest('hex');
 }
