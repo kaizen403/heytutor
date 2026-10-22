@@ -150,6 +150,7 @@ export async function canonicalizeTurnSceneMetadata(
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const figureSource = validatedFigureSource(metadata.sceneArtifacts);
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
+    const completion = validatedCompletion(metadata.sceneArtifacts);
     const failureTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
@@ -157,13 +158,14 @@ export async function canonicalizeTurnSceneMetadata(
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
     // A validated plan is kept on its own too: a text-only lesson stopped and
     // reopened needs it for Continue and for a doubt on that page.
-    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || failureTelemetry
+    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || completion || failureTelemetry
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
           degradation,
           figureSource,
           diagramStrategy,
+          completion,
         )
       : null;
     return {
@@ -301,10 +303,26 @@ export async function canonicalizeTurnSceneMetadata(
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return failure("scene_validation_report_invalid", "current scene engine did not produce a valid report");
   }
+  // The intro's ink is rebuilt here, and each part carries the word it is
+  // drawn under. Rebuilt in English under a Hinglish recording, those words
+  // were not in the stored sentence, so replay and export found no cue and
+  // drew every part at the top of it. The voice is read from the recording.
+  const narrationLanguage = metadata.segments.some((segment) =>
+    isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
+  ) ? "hinglish" as const : undefined;
   const expectedPresentation = buildVerifiedDiagramPresentation(
     document,
     renderScene,
-    isDsaSceneDocument(document) ? { layout: "code_lesson" } : {},
+    {
+      originalQuestion: question,
+      ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
+      ...(narrationLanguage ? { narrationLanguage } : {}),
+      // The live intro letters a source given ("x = -2") with the plan, and
+      // restore reads the same saved plan, so without it the saved intro
+      // dropped that label and replay never drew it. Only a plan validated
+      // against this question is passed; no plan keeps every value deferred.
+      ...(turnPlan ? { turnPlan } : {}),
+    },
   );
   // A turn that continues a page (a resume after Stop, or a doubt) teaches
   // under a figure an earlier turn on the page already drew. It keeps its
@@ -392,6 +410,7 @@ export async function canonicalizeTurnSceneMetadata(
     selectedCandidateId: candidateId,
     selectionReason: "revalidated against the current server engine before persistence",
     degradation: validatedDegradation(metadata.sceneArtifacts),
+    completion: validatedCompletion(metadata.sceneArtifacts),
     proofObligations: document.assertions.map((assertion) => ({
       id: assertion.id,
       predicate: assertion.predicate,
@@ -550,6 +569,7 @@ function minimalFailureArtifacts(
   degradation?: SceneArtifactsV3["degradation"],
   figureSource?: FigureSource,
   diagramStrategy?: DiagramStrategy,
+  completion?: SceneArtifactsV3["completion"],
 ): PersistedSceneArtifacts {
   return {
     schemaVersion: SCENE_ARTIFACTS_V3_VERSION,
@@ -563,10 +583,41 @@ function minimalFailureArtifacts(
     selectedCandidateId: null,
     selectionReason: "partial and unverified scene data was removed before persistence",
     degradation,
+    completion,
     proofObligations: [],
     visualReview: null,
     diagramResultStatus: status,
   };
+}
+
+function validatedCompletion(artifacts: unknown): SceneArtifactsV3["completion"] | undefined {
+  if (!isRecord(artifacts) || !isRecord(artifacts.completion)) return undefined;
+  const value = artifacts.completion;
+  if (typeof value.adopted !== "boolean" || !Array.isArray(value.additions) || value.additions.length > 32 ||
+      !Array.isArray(value.skipped) || value.skipped.length > 256 ||
+      (value.rejection !== undefined && typeof value.rejection !== "string")) return undefined;
+  const strings = (candidate: unknown): candidate is string[] =>
+    Array.isArray(candidate) && candidate.length <= 256 && candidate.every(item => typeof item === "string");
+  const additions: NonNullable<SceneArtifactsV3["completion"]>["additions"] = [];
+  for (const addition of value.additions) {
+    if (!isRecord(addition) || typeof addition.id !== "string" ||
+        (addition.kind !== "given_label" && addition.kind !== "given_angle" && addition.kind !== "unknown_label" && addition.kind !== "right_angle") ||
+        !strings(addition.quantityIds) || !strings(addition.targetIds) ||
+        (addition.text !== undefined && typeof addition.text !== "string")) return undefined;
+    additions.push({ id: addition.id, kind: addition.kind, quantityIds: [...addition.quantityIds], targetIds: [...addition.targetIds],
+      ...(addition.text !== undefined ? { text: addition.text } : {}) });
+  }
+  const skipped: NonNullable<SceneArtifactsV3["completion"]>["skipped"] = [];
+  for (const skip of value.skipped) {
+    if (!isRecord(skip) || typeof skip.code !== "string" ||
+        (skip.quantityId !== undefined && typeof skip.quantityId !== "string") ||
+        (skip.entityIds !== undefined && !strings(skip.entityIds))) return undefined;
+    skipped.push({ code: skip.code, ...(skip.quantityId !== undefined ? { quantityId: skip.quantityId } : {}),
+      ...(skip.entityIds !== undefined ? { entityIds: [...skip.entityIds] } : {}) });
+  }
+  // Retain the record, but never use its claimed adoption or proposed marks to
+  // establish trust. Geometry trust is re-established separately by this boundary.
+  return { adopted: value.adopted, additions, skipped, ...(value.rejection !== undefined ? { rejection: value.rejection } : {}) };
 }
 
 function validatedDiagramStrategy(artifacts: unknown): DiagramStrategy | undefined {

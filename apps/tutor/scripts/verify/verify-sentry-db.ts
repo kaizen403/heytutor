@@ -132,6 +132,7 @@ async function main(): Promise<void> {
     const privacy = await import("../../lib/obs/sentryPrivacy");
     const telemetry = await import("../../lib/obs/failedTurnTelemetry");
     const runtime = await import("../../lib/obs/failedTurnRuntime");
+    const workerFailureLog = await import("../../lib/obs/workerFailureLog");
     const turnStatus = await import("../../lib/boards/turnStatus");
     const turnFilters = await import("../../lib/admin/turnFilters");
     const source = readFileSync(resolve(app, "lib/obs/failedTurnSentry.ts"), "utf8");
@@ -143,6 +144,7 @@ async function main(): Promise<void> {
         "node:crypto": { randomUUID }, "@prisma/client": { Prisma }, "@sentry/nextjs": Sentry,
         "../db/prisma": { prisma: db }, "./sentryPrivacy": privacy, "./failedTurnTelemetry": telemetry,
         "./failedTurnRuntime": runtime,
+        "./workerFailureLog": workerFailureLog,
         "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
       };
       const compiledModule: { exports: Partial<typeof reporter> } = { exports: {} };

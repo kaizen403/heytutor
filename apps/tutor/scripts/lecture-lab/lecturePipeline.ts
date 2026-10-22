@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -44,6 +45,7 @@ import {
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
+  type SceneCompletionDiagnosticsV3,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
@@ -73,7 +75,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
 import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
-import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
+import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, retainValidationIssue, type PlannerEvidence, type RetainedValidationIssue } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -95,6 +97,7 @@ import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
+import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
 
 export interface LectureStep {
   index: number;
@@ -138,6 +141,13 @@ export interface LectureRun {
   familiarity: SubjectFamiliarity;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  /** Full accepted inputs for offline selection replay; absent on historical runs. */
+  figureReplayInputs?: {
+    schemaVersion: "lecture-figure-replay-inputs/v1";
+    selection: Parameters<typeof selectProductionScene>[0];
+    authority: Pick<ProblemAuthorityV1Response, "solverResult" | "audit" | "projection"> | null;
+    authorityAttempted: boolean;
+  } | null;
   startedAt: string;
   timings: {
     planMs: number;
@@ -165,6 +175,8 @@ export interface LectureRun {
     issueCodes: string[];
     hasProjection: boolean;
     projection: unknown;
+    /** Missing on historical captures; bounded full numeric-authority evidence. */
+    evidence?: SolverEvidence;
   } | null;
   planner?: PlannerUsageSummary;
   /** Observed TurnPlan completions only; absent on historical runs, bounded to three attempts. */
@@ -213,12 +225,15 @@ export interface LectureRun {
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
-    validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
+    /** Final attempted representation only; full planner refusals live in candidateRejections. */
+    validationIssues?: RetainedValidationIssue[];
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
     /** A candidate that passed validation as a scene but was not the figure drawn. */
     droppedCandidate?: DroppedSceneCandidate | null;
+    /** Full proposal outcome; absent when additive completion did not run. */
+    completion?: SceneCompletionDiagnosticsV3;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -355,6 +370,7 @@ export async function runLecture(
     familiarity,
     arm: options.arm ?? "current",
     figureOnly: options.figureOnly ?? false,
+    figureReplayInputs: null,
     startedAt: new Date(startedAt).toISOString(),
     timings: {
       planMs: 0,
@@ -534,7 +550,7 @@ export async function runLecture(
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -632,6 +648,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            preserveRequiredGeometry: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) === "verified_parts",
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
@@ -721,17 +738,33 @@ export async function runLecture(
           : "candidate_invalid";
     }
 
-    const sceneSelection = selectProductionScene({
+    const sceneSelectionInput: Parameters<typeof selectProductionScene>[0] = {
       question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+      completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+      solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
+    };
+    run.figureReplayInputs = structuredClone({
+      schemaVersion: "lecture-figure-replay-inputs/v1",
+      selection: sceneSelectionInput,
+      authority: problemAuthority ? {
+        solverResult: problemAuthority.solverResult,
+        audit: problemAuthority.audit,
+        projection: problemAuthority.projection,
+      } : null,
+      authorityAttempted: problemAuthorityPromise !== null,
     });
+    const sceneSelection = selectProductionScene(sceneSelectionInput);
     const selected = sceneSelection.representation;
+    // completion-diagnostics:begin
+    run.diagram.completion = sceneSelection.completion;
+    // completion-diagnostics:end
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;
@@ -743,9 +776,7 @@ export async function runLecture(
     run.diagram.figureSource = selected?.figureSource ?? "text_only";
     run.diagram.reason = sceneSelection.reason;
     run.diagram.family = figureFamily;
-    run.diagram.validationIssues = attempted?.validationReport.issues.map((issue) => ({
-      code: issue.code, severity: issue.severity, message: issue.message,
-    })) ?? [];
+    run.diagram.validationIssues = attempted?.validationReport.issues.map(retainValidationIssue) ?? [];
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
@@ -777,12 +808,7 @@ export async function runLecture(
       assumptions: turnPlan.assumptions,
     };
     run.solver = problemAuthority
-      ? {
-          status: problemAuthority.audit.status,
-          issueCodes: problemAuthority.audit.issues.map((issue) => issue.code),
-          hasProjection: Boolean(problemAuthority.projection),
-          projection: problemAuthority.projection ?? null,
-        }
+      ? retainSolverEvidence(problemAuthority, question, turnPlan)
       : null;
 
     let diagramPromptAddon: string | null = null;
@@ -791,7 +817,7 @@ export async function runLecture(
       ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          { narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
+          { originalQuestion: question, turnPlan, narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
         )
       : null;
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {

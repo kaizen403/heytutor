@@ -1,0 +1,2 @@
+# Planner transport for the engine load-count interface.
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-parallel-load-count-contract.ts

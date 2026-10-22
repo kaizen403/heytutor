@@ -14,6 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
+import type { SceneCompletionResult } from "../completion/completeSceneDocument";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -2364,6 +2365,13 @@ function unitScale(unit: unknown): UnitScale | null {
   return { factor, signature };
 }
 
+/** Existing recognized-unit algebra for conservative property classification.
+ * This exposes no converted value or geometric/numeric proof authority. */
+export function sceneUnitSignature(unit: unknown): string | null {
+  const resolved = unitScale(unit);
+  return resolved && Number.isFinite(resolved.factor) && resolved.factor > 0 ? resolved.signature : null;
+}
+
 function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
   const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
     symbol.replace(/Ω/g, "Ω");
@@ -2375,7 +2383,7 @@ function resolveUnitSymbol(symbol: string): { base: string; factor: number } | n
 }
 
 /** Convert between units only when they provably measure the same thing. */
-function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
+export function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
   const from = unitScale(fromUnit);
   const to = unitScale(toUnit);
   if (from && to) {
@@ -2558,15 +2566,20 @@ export function validateSceneQuantityAgreement(
       planned.value,
       planned.unit,
     );
+    const written = `${JSON.stringify(quantity.value ?? null)}${quantity.unit ? ` ${quantity.unit}` : ""}`;
     if (!equivalent) {
-      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`, message: `${quantity.id} disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_quantity_mismatch", path: `quantities[${index}].value`,
+        message: `Quantity ${quantity.id} (symbol ${quantity.symbol ?? "none"}) is written as ${written}, which is not the value TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when its value and unit are copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}, or the quantity is left out.` });
     }
     if (
       planned.unit !== undefined &&
       normalizeUnit(quantity.unit) !== normalizeUnit(planned.unit) &&
       !equivalent
     ) {
-      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`, message: `${quantity.id} unit disagrees with TurnPlanV3` });
+      issues.push({ code: "scene_unit_mismatch", path: `quantities[${index}].unit`,
+        message: `Quantity ${quantity.id} has unit ${JSON.stringify(quantity.unit ?? null)}, not the unit TurnPlanV3 holds for ${quantity.id}. ` +
+          `Valid when the unit is copied exactly from the AUTHORITATIVE TURN PLAN V3 entry ${quantity.id}.` });
     }
   });
 
@@ -2603,6 +2616,7 @@ export function pruneUnverifiedSceneAnnotations(
 ): SceneDocument {
   let changed = false;
   const removedIds = new Set<string>();
+  const removedLabelIds = new Set<string>();
   const annotations = document.annotations.filter((annotation) => {
     if (!annotation.text) return true;
     const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text])
@@ -2615,10 +2629,11 @@ export function pruneUnverifiedSceneAnnotations(
   });
   const entities = document.entities.map((entity) => {
     if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
-    const label = pruneUnsupportedMeasuredFragments(entity.label, plan);
+    const label = pruneUnsupportedMeasuredLabel(entity.label, plan);
     if (label === entity.label) return entity;
     changed = true;
     if (label) return { ...entity, label };
+    removedLabelIds.add(entity.id);
     const withoutLabel = { ...entity };
     delete withoutLabel.label;
     return withoutLabel;
@@ -2628,6 +2643,11 @@ export function pruneUnverifiedSceneAnnotations(
     ...document,
     entities,
     annotations,
+    // Named-point normalization added this obligation while the label was
+    // still present. Removing optional display text removes that proof only.
+    assertions: document.assertions.filter((assertion) =>
+      assertion.predicate !== "label_attached" ||
+      !assertion.entities.some((id) => removedLabelIds.has(id))),
     teachingTimeline: document.teachingTimeline.filter((action) => !removedIds.has(action.targetId)),
   };
 }
@@ -2657,10 +2677,7 @@ export function validateTurnPlanSceneProofs(
   ].join(" ").toLowerCase();
   issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
-  issues.push(...validatePoweredCircuitClosure(
-    document,
-    [plan.question, evidenceText, ...plan.assumptions].join(" ").toLowerCase(),
-  ));
+  issues.push(...validateCircuitTerminalClosure(document, plan.question, plan));
   const resistorIds = document.constructions.flatMap((construction) =>
     construction.operator === "symbol" &&
     typeof construction.inputs.symbol === "string" &&
@@ -2727,17 +2744,25 @@ export function validateTurnPlanSceneProofs(
     }
 
     const proofIssues: SceneIssue[] = [];
-    evaluateTopologyAssertion({
+    const membersProve = evaluateTopologyAssertion({
       id: `turnplan_${concept}_proof`,
       predicate,
       entities: members,
       expected: true,
       severity: "fatal",
       reason: `The ${concept} view does not prove the ${concept} topology required by TurnPlanV3`,
-    }, document, proofIssues);
+    }, document, proofIssues) === true;
+    // When the resistors do form the arrangement, what is missing is the view
+    // itself: say so, rather than send a repair after correct wiring.
+    const groupNames = document.revealGroups.map((candidate) => candidate.id).join(", ") || "none";
+    const missingView = membersProve
+      ? `TurnPlanV3 asks for the ${concept} view. ${members.join(", ")} do form the ${concept} arrangement, but no reveal group is identified as that view ` +
+        `(a reveal group whose id or narration cue says "${concept}"; reveal groups now: ${groupNames}). ` +
+        `Valid when one reveal group's id or narration cue says "${concept}" and it lists ${members.join(", ")}; keep the wiring.`
+      : `The ${concept} view failed its required topology proof`;
     issues.push({
       ...(proofIssues[0] ?? {
-        message: `The ${concept} view failed its required topology proof`,
+        message: missingView,
         severity: "fatal" as const,
         entityIds: members,
       }),
@@ -2752,7 +2777,7 @@ export function validateTurnPlanSceneProofs(
 
 const CLOSED_ROUTE_EDGE_OPERATORS = new Set(["segment", "connect", "symbol"]);
 const CLOSED_ROUTE_TOPOLOGY_PREDICATES = new Set([
-  "connected", "path", "pathCount", "sameTerminalPair", "degree", "on",
+  "connected", "path", "pathCount", "loadBranchCount", "sameTerminalPair", "degree", "on",
 ]);
 const CLOSED_ROUTE_SYMBOLS = new Set([
   "resistor", "battery", "cell", "capacitor", "inductor", "lamp",
@@ -3645,10 +3670,31 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
-function validatePoweredCircuitClosure(
+/** The nodes a closure search reached, named for repair feedback (at most twelve). */
+function reachedNodes(visited: ReadonlySet<string>, start: string): string {
+  const others = [...visited].filter((node) => node !== start);
+  if (others.length === 0) return "no other node";
+  return others.length > 12 ? `${others.slice(0, 12).join(", ")} and ${others.length - 12} more` : others.join(", ");
+}
+
+/**
+ * Prove only the declared electrical source terminals have a component path.
+ * Shared by plan admission and every save tier; no coordinates or full-plan
+ * obligations are inferred. The actual question, not submitted source/plan
+ * question metadata, supplies wording; validated plan facts retain open states.
+ */
+export function validateCircuitTerminalClosure(
   document: SceneDocument,
-  evidenceText: string,
+  question: string,
+  plan: Pick<TurnPlanV3, "lawIds" | "qualitativeClaims" | "assumptions"> | null = null,
 ): SceneIssue[] {
+  if (document.visualDecision.mode !== "scene") return [];
+  const evidenceText = [
+    question,
+    ...(plan?.lawIds ?? []),
+    ...(plan?.qualitativeClaims ?? []).flatMap((claim) => [claim.id, claim.claim]),
+    ...(plan?.assumptions ?? []),
+  ].join(" ").toLowerCase();
   if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
     return [];
   }
@@ -3668,6 +3714,10 @@ function validatePoweredCircuitClosure(
       .test(semantic);
   });
   const issues: SceneIssue[] = [];
+  // This selects repair wording only; it never creates a component or join.
+  const capacitorRepair = evidenceText.includes("capacitor") || document.constructions.some((construction) =>
+    construction.operator === "symbol" && construction.inputs.symbol === "capacitor") ||
+    document.entities.some((entity) => entity.role?.toLowerCase().includes("capacitor"));
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();
     for (const edge of edges) {
@@ -3686,9 +3736,16 @@ function validatePoweredCircuitClosure(
       }
     }
     if (!visited.has(source.end)) {
+      const componentContract = capacitorRepair
+        ? 'If the required component is a capacitor, use symbol {symbol:"capacitor",start:point_id,end:point_id} with one component output. '
+        : "Use symbol {symbol:component_kind,start:point_id,end:point_id} with one component output for each required component. ";
       issues.push({
         code: "source_loop_not_closed",
-        message: `Source ${source.id} is not part of a closed component path`,
+        message: `Source ${source.id} terminals ${source.start} and ${source.end} have no closed component path. ` +
+          `Without passing through ${source.id}, ${source.start} reaches only ${reachedNodes(visited, source.start)}, and no component or wire joins those to ${source.end}. ` +
+          componentContract +
+          "Attach connect wires to the declared outer terminal point IDs and their intended circuit nodes; never bypass a component to fake closure. " +
+          "Free plate segments and coincident coordinates do not establish a component edge. Preserve declared terminal IDs; do not invent a wire to close the path.",
         severity: "fatal",
         entityIds: [source.id],
       });
@@ -3778,7 +3835,9 @@ function validateSemanticVectorGeometry(
       if (residual > 0.04) {
         issues.push({
           code: "physical_direction_relation_failed",
-          message: `${entity.id} must be ${predicate} to ${surface.id}`,
+          message: `${entity.id} must be ${predicate} to ${surface.id}: the angle between their directions is ` +
+            `${Math.round(Math.acos(Math.min(1, Math.abs(first.x * second.x + first.y * second.y) / (firstLength * secondLength))) * 1800 / Math.PI) / 10} degrees, ` +
+            `and ${predicate === "parallel" ? "0" : "90"} is needed. Valid when ${entity.id} is constructed along ${predicate === "parallel" ? `${surface.id}'s own direction` : `the normal of ${surface.id}`}.`,
           severity: "fatal",
           entityIds: [entity.id, surface.id],
           residual,
@@ -4051,21 +4110,14 @@ function pointForEntity(
     : { x: construction.inputs.x, y: construction.inputs.y };
 }
 
-function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const supported = supportedSceneDisplayMeasurements(plan);
-  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
-    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
-    const value = Number(_number.replace(/−/g, "-"));
-    const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
-    return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
-      quantity.value, quantity.unit, value, unit, tolerance,
-    )) ? measurement : "";
-  });
-  return pruned
-    .replace(/\s*=\s*$/g, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+/** Publish label text atomically; never leave a piece of a rejected formula. */
+function pruneUnsupportedMeasuredLabel(text: string, plan: TurnPlanV3): string {
+  const unsupported = validateSceneQuantityAgreement([], plan, [text])
+    .some((issue) => issue.code === "displayed_quantity_unverified");
+  if (!unsupported) return text;
+  // A complete assigned identifier is still useful without its unverified
+  // value. Bare values and compound left-hand expressions have no safe label.
+  return /^\s*([\p{L}_][\p{L}\p{N}\p{M}_]*)\s*(?:=|≈|≃|≅)/u.exec(text)?.[1] ?? "";
 }
 
 function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
@@ -4818,6 +4870,17 @@ function claimEquivalentMeasuredQuantity(
     canonicalMeasurementValuesAgree(first.value, second.value, tolerance.value);
 }
 
+/** Compare a computed result with a plan result's last represented digit.
+ * Numeric plans cannot retain trailing zeroes. Never infer precision from a
+ * different quantity or use this relaxation for authoritative source givens. */
+export function equivalentRoundedMeasuredQuantity(
+  computedValue: number, computedUnit: unknown, plannedValue: number, plannedUnit: unknown,
+): boolean {
+  return numericSign(computedValue) === numericSign(plannedValue) && equivalentDisplayedMeasuredQuantity(
+    computedValue, computedUnit, plannedValue, plannedUnit, displayedNumberTolerance(String(plannedValue)),
+  );
+}
+
 function equivalentDisplayedMeasuredQuantity(
   firstValue: number,
   firstUnit: unknown,
@@ -4880,6 +4943,7 @@ export interface ProofObligation {
 export const TOPOLOGY_ASSERTION_PREDICATES = [
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
   "connected",
@@ -4941,6 +5005,7 @@ export const FIGURE_SOURCES = [
   "archetype",
   "chemistry_family",
   "matrix_source",
+  "linear_source",
   "source_grounded",
   "last_resort",
   "text_only",
@@ -4951,6 +5016,14 @@ export const FIGURE_SOURCES = [
 ] as const;
 
 export type FigureSource = (typeof FIGURE_SOURCES)[number];
+
+/** Historical proposal diagnostics only; never authority for accepted geometry. */
+export interface SceneCompletionDiagnosticsV3 {
+  adopted: boolean;
+  additions: SceneCompletionResult["additions"];
+  skipped: SceneCompletionResult["skipped"];
+  rejection?: string;
+}
 
 export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
@@ -4967,6 +5040,8 @@ export interface SceneArtifactsV3 {
   candidates: SceneCandidateArtifactV3[];
   selectedCandidateId?: string | null;
   selectionReason?: string;
+  /** Absent when completion did not run; retains unchanged, skipped and rejected outcomes. */
+  completion?: SceneCompletionDiagnosticsV3;
   /** Bounded telemetry for an exact scene that was attempted but not committed. */
   degradation?: {
     attemptedTier: "exact_verified";

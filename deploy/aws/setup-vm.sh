@@ -75,6 +75,7 @@ require_database_url
 SENTRY_RELEASE="$(sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" rev-parse HEAD)"
 export SENTRY_RELEASE
 export SENTRY_ENVIRONMENT=production
+export NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
 
 if ! id heytutor >/dev/null 2>&1; then
   useradd --system --home-dir /var/lib/heytutor --create-home --shell /usr/sbin/nologin heytutor

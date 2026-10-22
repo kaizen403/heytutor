@@ -1,0 +1,139 @@
+[
+  {
+    "id": "catalyst-review-coordinated",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark Ea and ΔH. No numerical energies are supplied.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-label-word-roles",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and label the activation energies and the enthalpy change. No numerical energies are supplied.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-reversed-role-list",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark ΔH and Ea. No numerical energies are supplied.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-comma-list",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and show Ea, ΔH. No numerical energies are supplied.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-draw-role-names",
+    "question": "For an exothermic reaction, sketch catalysed and uncatalysed reaction-energy profiles and label forward activation energy and reaction enthalpy. The two paths have the same endpoints; energies are qualitative.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-separate-request-clauses",
+    "question": "Sketch potential-energy profiles for one exothermic reaction with and without a catalyst. Mark Ea. Show ΔH. Supply no numerical energy values.",
+    "expectedDraw": true,
+    "oracle": "Two profiles, same endpoints, lower catalysed barrier; both activation energies and ΔH symbolic only.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-supplied-wrong-dimension",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark Ea = 60 kg and ΔH = -20 kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Whole refusal; an energy role carries a mass literal.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-supplied-unreadable",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark Ea and ΔH. Ea = unknown kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Whole refusal; supplied unknown energy never becomes qualitative default.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-supplied-malformed",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark Ea = 2e kJ/mol and ΔH = -20 kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Whole refusal; malformed exponent never becomes scalar2.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "catalyst-extra-unconsumed-energy",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Keep the reactant and product energy levels identical, use one barrier for each path, and mark Ea and ΔH. Ea = 60 kJ/mol or 40 kJ/mol. ΔH = -20 kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Whole refusal; conflicting/unconsumed dimension-bearing energy remains invalid.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "CHEM-H80-XII-014",
+    "question": "Draw qualitative potential-energy profiles for the same exothermic reaction with and without a catalyst. Use a single barrier for each simplified path, keep their reactant and product energy levels identical, and mark both forward activation energies and ΔH; no numerical energies are supplied.",
+    "expectedDraw": true,
+    "oracle": [
+      "Two profiles share a reactant level and a lower product level.",
+      "The simplified catalysed path has a lower maximum than the uncatalysed path.",
+      "Each forward activation-energy span runs from the common reactant level to its respective peak; ΔH runs from reactant to product levels."
+    ],
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "endothermic-symbol-list",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and label Ea and ΔH. No numerical energy values are supplied.",
+    "expectedDraw": true,
+    "oracle": "Both profiles have identical endpoints, products higher than reactants, lower catalysed barrier, both forward Ea and ΔH symbolic.",
+    "expectedEnergySign": 1
+  },
+  {
+    "id": "endothermic-reversed-list",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and show the enthalpy change and both forward activation energies; use no numerical values.",
+    "expectedDraw": true,
+    "oracle": "Two endothermic profiles, same endpoints, lower catalytic barrier and complete symbolic Ea/ΔH.",
+    "expectedEnergySign": 1
+  },
+  {
+    "id": "symbolic-ampersand-transfer",
+    "question": "Sketch the catalysed and uncatalysed potential-energy profiles of one exothermic reaction. Keep both endpoints the same and label Ea & ΔH. Use qualitative energy heights without numerical values.",
+    "expectedDraw": true,
+    "oracle": "Two exothermic profiles, identical endpoints, lower catalytic barrier; both Ea and ΔH.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "single-role-clauses-transfer",
+    "question": "Draw potential-energy profiles with and without a catalyst for one exothermic reaction. Show the activation energy. Label the enthalpy change. No numerical energies are provided.",
+    "expectedDraw": true,
+    "oracle": "Two exothermic profiles, correct common endpoints, catalyst lower; both forward Ea and ΔH symbolic.",
+    "expectedEnergySign": -1
+  },
+  {
+    "id": "unread-request-tail",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and label Ea and ΔH = unknown kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Unread supplied ΔH is not a symbolic label request.",
+    "expectedEnergySign": 1
+  },
+  {
+    "id": "unowned-extra-energy",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and label Ea and ΔH. A further stated energy is 25 kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Every energy literal needs an actual owner and source consumption; no qualitative bypass.",
+    "expectedEnergySign": 1
+  },
+  {
+    "id": "malformed-request-tail",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and label Ea and ΔH = 3e kJ/mol.",
+    "expectedDraw": false,
+    "oracle": "Malformed energy exponent must decline.",
+    "expectedEnergySign": 1
+  },
+  {
+    "id": "wrong-unit-coordinated-list",
+    "question": "Draw qualitative potential-energy profiles for the same endothermic reaction with and without a catalyst. Keep reactants and products identical on both paths, use one barrier per path, and label Ea = 2 mol/L and ΔH. No numerical energies are supplied.",
+    "expectedDraw": false,
+    "oracle": "Explicit Ea with concentration dimension must decline despite qualitative display statement.",
+    "expectedEnergySign": 1
+  }
+]

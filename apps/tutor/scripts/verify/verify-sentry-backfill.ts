@@ -5,9 +5,11 @@ import vm from "node:vm";
 import ts from "typescript";
 import * as telemetry from "../../lib/obs/failedTurnTelemetry";
 import * as runtime from "../../lib/obs/failedTurnRuntime";
+import * as workerFailureLog from "../../lib/obs/workerFailureLog";
 import * as privacy from "../../lib/obs/sentryPrivacy";
 import * as turnStatus from "../../lib/boards/turnStatus";
 import * as classification from "../../lib/obs/turnFailureClassification";
+import * as billingErrors from "../../lib/billing/errors";
 import type { queueFailedTurnSentry } from "../../lib/obs/failedTurnSentry";
 
 function load<T>(file: string, dependencies: Record<string, unknown>, override?: string): T {
@@ -29,6 +31,7 @@ const builder = process.env.SENTRY_BACKFILL_TEST_TELEMETRY_SOURCE ? load<typeof 
   "lib/obs/failedTurnTelemetry.ts", {
     "../boards/turnStatus": turnStatus, "./turnFailureClassification": classification,
     "./failedTurnRuntime": runtime,
+    "../billing/errors": billingErrors,
   }, process.env.SENTRY_BACKFILL_TEST_TELEMETRY_SOURCE,
 ) : telemetry;
 const finalPrivacy = process.env.SENTRY_BACKFILL_TEST_PRIVACY_SOURCE ? load<typeof privacy>(
@@ -67,6 +70,7 @@ const reporter = load<{ queueFailedTurnSentry: typeof queueFailedTurnSentry }>("
   "node:crypto": {}, "@prisma/client": { Prisma: { DbNull: null } }, "@sentry/nextjs": {},
   "../db/prisma": {}, "./sentryPrivacy": privacy, "./failedTurnTelemetry": builder,
   "../boards/turnStatus": turnStatus, "../admin/turnFilters": {}, "./failedTurnRuntime": runtime,
+  "./workerFailureLog": workerFailureLog,
 }, process.env.SENTRY_BACKFILL_TEST_REPORTER_SOURCE);
 const queue = (historical?: boolean) => reporter.queueFailedTurnSentry(
   tx as unknown as Parameters<typeof queueFailedTurnSentry>[0], { ...row },

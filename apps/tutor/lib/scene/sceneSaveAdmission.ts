@@ -18,11 +18,15 @@ import {
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
+  validateLinearSourcePlan,
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
+  validateProjectileMeasurementPlan,
+  vseprPlanConflict,
   validateTurnPlanSceneProofs,
+  validateCircuitTerminalClosure,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -114,6 +118,8 @@ export function sceneSaveAdmissionFailure(input: {
 }): string | null {
   const { document, question, turnPlan, tier } = input;
   if (turnPlan) {
+    const molecularConflict = vseprPlanConflict(question, turnPlan);
+    if (molecularConflict) return molecularConflict;
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.
@@ -136,12 +142,17 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...(turnPlan ? validateProjectileMeasurementPlan(document, turnPlan) : []),
+    ...validateLinearSourcePlan(question, turnPlan),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),
+    // Qualitative scenes need the same declared terminal proof as exact ones.
+    // Reuse only closure here; unrelated exact-plan obligations stay tiered.
+    ...validateCircuitTerminalClosure(document, question, turnPlan),
   ];
   if (sourceInputIssues.some((issue) => issue.severity === "fatal")) {
     return `scene source inputs are unsupported or disagree: ${formatIssues(sourceInputIssues)}`;

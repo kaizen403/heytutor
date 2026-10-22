@@ -54,6 +54,7 @@ import {
 } from "./visualObligations";
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
+import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
@@ -200,7 +201,7 @@ function synthesizeFromFamilies(
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
-      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+      || (obligations && visualObligationRejection(obligations, compiled.document, question))) return null;
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
   }
@@ -212,7 +213,7 @@ function synthesizeFromFamilies(
   if (sectionDocument) {
     const compiled = tryCompile(sectionDocument);
     if (compiled && !demandRejection(compiled.document, demand)
-      && !(obligations && visualObligationRejection(obligations, compiled.document))) {
+      && !(obligations && visualObligationRejection(obligations, compiled.document, question))) {
       const metricProof = hasPlanMetricProof(compiled.document);
       return { ...compiled, tier: metricProof ? "exact_verified" : "qualitative_verified", nonMetric: !metricProof,
         reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
@@ -229,7 +230,7 @@ function synthesizeFromFamilies(
     if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
     const compiled = tryCompile(relativeMotionDocument(question, relativeMotion.source));
     if (!compiled || demandRejection(compiled.document, demand)) return null;
-    if (obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    if (obligations && visualObligationRejection(obligations, compiled.document, question)) return null;
     const metricProof = !schematic && hasPlanMetricProof(compiled.document);
     return {
       ...compiled,
@@ -256,7 +257,7 @@ function synthesizeFromFamilies(
   const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
-  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
+  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document, question))) {
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
@@ -271,9 +272,10 @@ function synthesizeFromFamilies(
   // the legacy partial launch family. The computed projectile owns its angle.
   if (projectileSource) return null;
   for (const family of families) {
-    const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
+    const chemistryBuilder = chemistryFamilyBuilder(family);
+    const builder = FAMILY_BUILDERS[family] ?? chemistryBuilder;
     if (!builder) continue;
-    const document = builder(question, quantities, schematic);
+    const document = builder(chemistryBuilder ? input.question : question, chemistryBuilder ? collectChemistryPlanQuantities(input.turnPlan) : quantities, schematic);
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     // Compiling proves the geometry is valid, not that it is this question's
@@ -283,7 +285,7 @@ function synthesizeFromFamilies(
     // A candidate that compiles yet drops a named body, a connection, a given
     // dimension, or a proved relation is a partial scene: reject it the same
     // way, so only whole figures reach the board.
-    if (obligations && visualObligationRejection(obligations, compiled.document)) continue;
+    if (obligations && visualObligationRejection(obligations, compiled.document, question)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -315,7 +317,7 @@ function synthesizeFromFamilies(
   if (
     conceptCompiled
     && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document))
+    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, question))
   ) {
     return {
       ...conceptCompiled,
@@ -4549,6 +4551,26 @@ function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
       unit: typeof row.unit === "string" ? row.unit : undefined,
       sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
     }];
+  });
+}
+
+/** Chemistry alone retains given/derived origin; the nonchem collector above is unchanged. */
+export function collectChemistryPlanQuantities(turnPlan: unknown): ChemPlanQuantity[] {
+  if (!isRecord(turnPlan)) return [];
+  return (["given", "derived"] as const).flatMap(origin => {
+    const rows = origin === "given" ? turnPlan.givens : turnPlan.derived;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row, index) => {
+      if (!isRecord(row) || typeof row.value !== "number") return [];
+      const id = typeof row.id === "string" && row.id.trim() ? row.id : `${origin}${index + 1}`;
+      const symbol = typeof row.symbol === "string" && row.symbol.trim() ? row.symbol : id;
+      const span = isRecord(row.sourceSpan) && typeof row.sourceSpan.start === "number" && typeof row.sourceSpan.end === "number"
+        ? { start: row.sourceSpan.start, end: row.sourceSpan.end } : undefined;
+      return [{ id, symbol, value: row.value, origin,
+        unit: typeof row.unit === "string" ? row.unit : undefined,
+        sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
+        sourceSpan: span }];
+    });
   });
 }
 

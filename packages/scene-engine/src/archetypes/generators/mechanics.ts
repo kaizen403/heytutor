@@ -57,8 +57,17 @@ function projectile(context: GeneratorContext) {
   if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   if (height0 > 0 && grounded(context, "h0")) scene.quantity("h0", "h", height0, "m");
 
+  // These two points establish an analytic relation, not display formatting.
+  // Independent coordinate rounding rotates the launch vector away from its
+  // native curve tangent; keep that geometry exact without changing guards.
+  const analyticPoint = (id: string, at: Vec2, role: string, label?: string): void => {
+    scene.point(id, at, role, label);
+    const construction = scene.constructions.find(row => row.id === `make_${id}`)!;
+    construction.inputs.x = at.x;
+    construction.inputs.y = at.y;
+  };
   groundLine(scene, "ground", { x: -0.12 * range, y: 0 }, { x: 1.08 * range, y: 0 }, "level ground", "level ground");
-  scene.point("O", { x: 0, y: height0 }, "projectile point mass launch point origin", "projectile");
+  analyticPoint("O", { x: 0, y: height0 }, "projectile point mass launch point origin", "projectile");
   if (height0 > 0) {
     scene.point("foot", { x: 0, y: 0 }, "tower foot");
     scene.segment("tower", "foot", "O", "tower");
@@ -68,7 +77,7 @@ function projectile(context: GeneratorContext) {
   scene.point("apex", { x: apexX, y: apexY }, "highest point", "H");
   scene.point("landing", { x: range, y: 0 }, "landing point", "B");
   const arrow = Math.max(0.22 * range, 0.15 * apexY, 1);
-  scene.point("aim", add({ x: 0, y: height0 }, polar(arrow, theta)), "launch direction");
+  analyticPoint("aim", add({ x: 0, y: height0 }, polar(arrow, theta)), "launch direction");
   scene.vector("velocity", "O", { end: "aim" }, "launch velocity", valueLabel(context, "u", "u", "m/s"));
   if (theta > 0) {
     scene.point("aim_h", { x: arrow, y: height0 }, "horizontal reference end");
@@ -109,7 +118,7 @@ function freeFall(context: GeneratorContext) {
     scene.vector("velocity", "body", { direction: { x: 0, y: 1 }, length: arrowLength }, "initial velocity", valueLabel(context, "u", "u", "m/s"));
   } else {
     scene.point("u_anchor", { x: -0.12 * h, y: h }, "initial velocity anchor");
-    scene.vector("velocity", "u_anchor", { direction: { x: 0, y: -1 }, length: arrowLength * 0.5 }, "initial velocity", maybeNum(context, "u") !== null ? valueLabel(context, "u", "u", "m/s") : "u=0");
+    scene.vector("velocity", "u_anchor", { direction: { x: 0, y: -1 }, length: arrowLength * 0.5 }, "initial velocity", valueLabel(context, "u", "u", "m/s"));
   }
   scene.vector("weight", "body", { direction: { x: 0, y: -1 }, length: arrowLength * 0.9 }, "weight", "mg");
   scene.point("g_anchor", { x: 0.28 * h, y: 0.75 * h }, "gravity anchor");
@@ -133,8 +142,8 @@ function inclineBody(context: GeneratorContext) {
   const along: Vec2 = { x: Math.cos(theta * DEG), y: Math.sin(theta * DEG) };
   const normal: Vec2 = { x: -Math.sin(theta * DEG), y: Math.cos(theta * DEG) };
   const top = scale(along, L);
-  const scene = new SceneBuilder(context.question, `${rolling ? "rolling body" : "block"} on a ${fmt(theta)}° incline with its forces`, "incline_body");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, `${rolling ? "rolling body" : "block"} on an incline with its forces`, "incline_body");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   if (mu !== null) scene.quantity("mu", "mu", mu, "");
   scene.point("B", { x: 0, y: 0 }, "incline foot", "B");
   scene.point("T", top, "incline top");
@@ -239,7 +248,7 @@ function pulleyIncline(context: GeneratorContext) {
   const top = scale(along, L);
   const radius = 0.45;
   const scene = new SceneBuilder(context.question, "block on an incline tied over a pulley to a hanging mass", "pulley_incline");
-  scene.quantity("theta", "theta", theta, "degree");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   scene.point("B", { x: 0, y: 0 }, "incline foot", "B");
   scene.point("T", top, "incline top");
   scene.point("F", { x: top.x, y: 0 }, "incline base corner");
@@ -407,7 +416,7 @@ function simplePendulum(context: GeneratorContext) {
   const theta = Math.min(Math.max(num(context, "theta", 25), 5), 80);
   const L = 3;
   const bob = { x: L * Math.sin(theta * DEG), y: -L * Math.cos(theta * DEG) };
-  const scene = new SceneBuilder(context.question, `pendulum displaced ${fmt(theta)}° from the vertical`, "simple_pendulum");
+  const scene = new SceneBuilder(context.question, "pendulum displaced from the vertical", "simple_pendulum");
   scene.point("O", { x: 0, y: 0 }, "pivot", "O");
   scene.point("sup_l", { x: -1, y: 0 }, "support end");
   scene.point("sup_r", { x: 1, y: 0 }, "support end");
@@ -435,7 +444,7 @@ function conicalPendulum(context: GeneratorContext) {
   const L = 3;
   const radius = L * Math.sin(theta * DEG);
   const centreY = 3 - L * Math.cos(theta * DEG);
-  const scene = new SceneBuilder(context.question, `conical pendulum with the string at ${fmt(theta)}° to the vertical`, "conical_pendulum");
+  const scene = new SceneBuilder(context.question, "conical pendulum with the string inclined to the vertical", "conical_pendulum");
   scene.point("O", { x: 0, y: 3 }, "pivot", "O");
   scene.point("C", { x: 0, y: centreY }, "circle centre", "C");
   scene.point("low", { x: 0, y: 3 - L }, "lowest point of the string");
@@ -545,8 +554,8 @@ function bankedRoad(context: GeneratorContext) {
   const L = 5;
   const along: Vec2 = { x: Math.cos(theta * DEG), y: Math.sin(theta * DEG) };
   const normal: Vec2 = { x: -Math.sin(theta * DEG), y: Math.cos(theta * DEG) };
-  const scene = new SceneBuilder(context.question, `vehicle on a road banked at ${fmt(theta)}°`, "banked_road");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "vehicle on a banked road", "banked_road");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   scene.point("B", { x: 0, y: 0 }, "inner edge", "B");
   scene.point("T", scale(along, L), "outer edge");
   scene.point("F", { x: L * along.x, y: 0 }, "base corner");
@@ -605,8 +614,8 @@ function ladderWall(context: GeneratorContext) {
   const L = 4;
   const foot = { x: L * Math.cos(theta * DEG), y: 0 };
   const top = { x: 0, y: L * Math.sin(theta * DEG) };
-  const scene = new SceneBuilder(context.question, `ladder leaning on a wall at ${fmt(theta)}° to the floor`, "ladder_wall");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "ladder leaning on a wall", "ladder_wall");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   scene.point("corner", { x: 0, y: 0 }, "wall foot");
   scene.point("floor_end", { x: foot.x + 1.2, y: 0 }, "floor end");
   scene.point("wall_top", { x: 0, y: top.y + 1 }, "wall top");
@@ -642,8 +651,8 @@ function relativeMotionLine(context: GeneratorContext) {
   const lenB = 0.5 + 1.6 * Math.abs(vB) / fastest;
   const gap = 4;
   const scene = new SceneBuilder(context.question, "two bodies on one straight line with velocities in the stated ratio", "relative_motion_line");
-  scene.quantity("q_vA", "v_A", vA, "m/s");
-  scene.quantity("q_vB", "v_B", vB, "m/s");
+  if (grounded(context, "vA")) scene.quantity("q_vA", "v_A", vA, "m/s");
+  if (grounded(context, "vB")) scene.quantity("q_vB", "v_B", vB, "m/s");
   groundLine(scene, "line", { x: -2, y: 0 }, { x: gap + lenB + 2.5, y: 0 }, "line of motion");
   const bodyRole = /\bcars?\b/i.test(context.question) ? "car" : /\btrains?\b/i.test(context.question) ? "train" : "body";
   scene.point("GA", { x: 0, y: 0.45 }, `${bodyRole} centre`);
@@ -689,7 +698,7 @@ function collisionLine(context: GeneratorContext) {
     scene.vector("u2", "u2_start", { end: "u2_end" }, "velocity of body 2", valueLabel(context, "u2", "u2", "m/s"));
     scene.assert("speed_ratio", "distance_ratio", ["u1_start", "u1_end", "u2_start", "u2_end"], Number((len1 / len2).toFixed(6)));
   } else {
-    scene.point("rest_mark", { x: 4.5, y: 1.2 }, "at rest marker", "u2=0");
+    scene.point("rest_mark", { x: 4.5, y: 1.2 }, "velocity of body 2", valueLabel(context, "u2", "u2", "m/s"));
   }
   scene.assert("bodies_on_line", "on", ["line_a", "line"]);
   scene.labelled("body1", "body2");
@@ -710,10 +719,10 @@ function vectorsResultant(context: GeneratorContext) {
   const bEnd = polar(b * unit, theta);
   const rEnd = add(aEnd, bEnd);
   const magnitude = Math.sqrt(a * a + b * b + 2 * a * b * Math.cos(theta * DEG));
-  const scene = new SceneBuilder(context.question, `two vectors at ${fmt(theta)}° from one origin with their resultant`, "vectors_resultant");
-  scene.quantity("a", "A", a, "");
-  scene.quantity("b", "B", b, "");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "two vectors from one origin with their resultant", "vectors_resultant");
+  if (grounded(context, "a")) scene.quantity("a", "A", a, "");
+  if (grounded(context, "b")) scene.quantity("b", "B", b, "");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   scene.point("O", { x: 0, y: 0 }, "origin", "O");
   scene.point("A_end", aEnd, "vector tip");
   scene.point("B_end", bEnd, "vector tip");

@@ -57,3 +57,8 @@ export function angleLabel(context: GeneratorContext, key: string, symbol = "θ"
 export function angleExpected(degrees: number): { value: number; unit: "degree" } {
   return { value: Number(degrees.toFixed(4)), unit: "degree" };
 }
+
+/** A computed label inherits every input's source, never the display defaults. */
+export function derivedLabel(context: GeneratorContext, dependencies: readonly string[], numeric: string, symbolic: string): string {
+  return dependencies.every((key) => grounded(context, key)) ? numeric : symbolic;
+}

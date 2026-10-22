@@ -1,0 +1,640 @@
+{
+  "wordings": [
+    {
+      "id": "review25-0",
+      "question": "Explain the shape of SF4.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-1",
+      "question": "Why is the H2O molecule bent?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-2",
+      "question": "What is the molecular geometry of SF4 according to VSEPR theory?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-3",
+      "question": "Describe the shape of XeF4 using VSEPR.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-4",
+      "question": "Draw the structure of PCl5.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": false,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "declined",
+      "baselineMainFamily": null
+    },
+    {
+      "id": "review25-5",
+      "question": "Sketch the shape of NH3 and mark the bond angle.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-6",
+      "question": "Can you show me the shape of ClF3?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-7",
+      "question": "What does the shape of SF4 look like?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-8",
+      "question": "Explain the VSEPR shape of SF4.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-9",
+      "question": "Draw ammonia, NH3, and show its shape.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-10",
+      "question": "What is the shape of XeF2 and why is it linear?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-11",
+      "question": "Use VSEPR theory to work out the shape of BrF5.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-12",
+      "question": "Explain why SF4 has a see-saw shape.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-13",
+      "question": "What is the shape of the SF4 molecule? Explain with a diagram.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-14",
+      "question": "State the shape of PCl5 and explain why it is trigonal bipyramidal.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-15",
+      "question": "Give the shape of CH4.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-16",
+      "question": "Describe the shape of CO2 and explain why it is non-polar.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-17",
+      "question": "Using VSEPR theory, predict the shape of SF6.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-18",
+      "question": "What is the shape of ClF3 according to VSEPR?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-19",
+      "question": "Deduce the shape of the NH4+ ion.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-20",
+      "question": "Draw and name the shape of BF3.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-21",
+      "question": "What is the shape of the SF4 molecule and where does the lone pair sit?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-22",
+      "question": "Explain the shape of a water molecule, H2O.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "review25-23",
+      "question": "Show the arrangement of electron pairs around the central atom in XeF4.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": false,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "declined",
+      "baselineMainFamily": null
+    },
+    {
+      "id": "review25-24",
+      "question": "Predict the shape of SO2 and state its bond angle.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1,
+      "baselineMainStatus": "drawn",
+      "baselineMainFamily": "chem_vsepr"
+    },
+    {
+      "id": "SF4-theory",
+      "question": "Draw the shape of SF4 using VSEPR theory and show the lone pairs on the central atom.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1
+    },
+    {
+      "id": "NH3-theory",
+      "question": "Draw the shape of NH3 using VSEPR theory and show the lone pairs on the central atom.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1
+    },
+    {
+      "id": "PCl5-theory",
+      "question": "Draw the shape of PCl5 using VSEPR theory and show the lone pairs on the central atom.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 1
+    },
+    {
+      "id": "exact-new-thread",
+      "question": "Using VSEPR theory, predict the shape and the approximate bond angles of SF4, ClF3 and XeF2.",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 3
+    },
+    {
+      "id": "eval-hybridisation",
+      "question": "Give the hybridisation and shape of CH4, BF3 and gaseous BeCl2. Which of them have an empty p orbital on the central atom?",
+      "expectedFamily": "chem_vsepr",
+      "requiredRestoration": true,
+      "expectedSpecies": 3
+    },
+    {
+      "id": "prose-kindly",
+      "question": "Could you kindly help me visualise the molecular shape of SF4?",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "no2-unpaired",
+      "question": "Draw the shape of NO2 using VSEPR theory and mark its unpaired electron.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "alias-forward",
+      "question": "Draw ammonia (NH3) and name its shape.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "alias-reverse",
+      "question": "Draw the shape of NH3 (ammonia).",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "alias-two",
+      "question": "Compare the shapes of ammonia, NH3, and water, H2O.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 2
+    },
+    {
+      "id": "jee-vbt",
+      "question": "For a JEE lesson, use VBT to explain the shape of SF4.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "si-notation",
+      "question": "Using SI notation, draw the shape of NH3.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "co-target",
+      "question": "Using SI notation, draw the shape of CO.",
+      "requiredRestoration": false,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1,
+      "desiredDraw": true,
+      "deferredReason": "Novel diagnostic: unchanged VSEPR solver supports >=3 atoms only; CO safely declines on both clean baseline and candidate. Original expected-positive artifact retained unchanged."
+    },
+    {
+      "id": "bare-chemical-hcn",
+      "question": "Using SI notation, draw the shape of HCN.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    },
+    {
+      "id": "method-of-vbt",
+      "question": "Use the method of VBT to explain the shape of SF4.",
+      "requiredRestoration": true,
+      "expectedFamily": "chem_vsepr",
+      "expectedSpecies": 1
+    }
+  ],
+  "claims": [
+    {
+      "id": "new-negated-trigonal-0",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not trigonal pyramidal.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "new-negated-trigonal-1",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "The molecular shape of SF4 is not trigonal pyramidal.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "new-negated-trigonal-2",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 does not have a trigonal pyramidal molecular shape.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "new-negated-trigonal-3",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "The molecular geometry of SF4 is not trigonal-pyramidal.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "new-negated-trigonal-4",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur tetrafluoride is not trigonal pyramidal.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "new-negated-trigonal-5",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 has a seesaw shape, not a trigonal pyramidal shape.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "polarity-6",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is trigonal pyramidal.",
+      "expected": true,
+      "draw": false
+    },
+    {
+      "id": "polarity-7",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is trigonal pyramidal.",
+      "expected": false,
+      "draw": true
+    },
+    {
+      "id": "polarity-8",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not trigonal pyramidal.",
+      "expected": false,
+      "draw": false
+    },
+    {
+      "id": "polarity-9",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is seesaw.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "polarity-10",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not seesaw.",
+      "expected": true,
+      "draw": false
+    },
+    {
+      "id": "polarity-11",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not seesaw.",
+      "expected": false,
+      "draw": true
+    },
+    {
+      "id": "review-alias-12",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Molecular shape",
+      "expected": "see-saw (distorted tetrahedral)",
+      "draw": true
+    },
+    {
+      "id": "review-alias-13",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "shape",
+      "expected": "seesaw, derived from a trigonal bipyramidal electron arrangement",
+      "draw": true
+    },
+    {
+      "id": "review-alias-14",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "lone pair position",
+      "expected": "equatorial, because an axial lone pair would have three 90 degree repulsions",
+      "draw": true
+    },
+    {
+      "id": "review-alias-15",
+      "question": "Show the molecular shape of NH3.",
+      "claim": "shape",
+      "expected": "trigonal pyramidal; the electron pairs are tetrahedral",
+      "draw": true
+    },
+    {
+      "id": "review-alias-16",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is tetrahedral",
+      "expected": false,
+      "draw": true
+    },
+    {
+      "id": "review-alias-17",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "Sulfur is not sp3 hybridised",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "wrong-derived-electron",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 has seesaw molecular shape, derived from a tetrahedral electron arrangement.",
+      "expected": true,
+      "draw": false
+    },
+    {
+      "id": "wrong-after-alias",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is seesaw (distorted tetrahedral), but its molecular geometry is square planar.",
+      "expected": true,
+      "draw": false
+    },
+    {
+      "id": "wrong-actual-axial",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "The lone pair is axial, because it avoids repulsions.",
+      "expected": true,
+      "draw": false
+    },
+    {
+      "id": "correct-derived",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 has seesaw molecular shape, derived from a trigonal bipyramidal electron arrangement.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "negated-full-joined",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not trigonal pyramidal or tetrahedral, but it is seesaw.",
+      "expected": true,
+      "draw": true
+    },
+    {
+      "id": "wrong-electron-sibling",
+      "question": "Show the molecular shape of SF4.",
+      "claim": "SF4 is not trigonal pyramidal; its electron pairs are tetrahedral.",
+      "expected": true,
+      "draw": false
+    }
+  ],
+  "unresolved": [
+    {
+      "id": "unknown-formula",
+      "question": "Draw the shapes of SF4 and XxF4.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unsupported-formula",
+      "question": "Draw the shapes of SF4 and H2O2.",
+      "expectedDraw": false
+    },
+    {
+      "id": "named-benzene",
+      "question": "Draw the shapes of SF4 and benzene.",
+      "expectedDraw": false
+    },
+    {
+      "id": "named-ethanol",
+      "question": "Draw the shape of SF4 and the structure of ethanol.",
+      "expectedDraw": false
+    },
+    {
+      "id": "later-ammonia",
+      "question": "Show the shape of SF4. Include ammonia.",
+      "expectedDraw": false
+    },
+    {
+      "id": "later-water",
+      "question": "Show the shape of SF4. Include water.",
+      "expectedDraw": false
+    },
+    {
+      "id": "named-salt",
+      "question": "Draw the shapes of SF4 and sodium chloride.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unknown-placeholder",
+      "question": "Show the shape of SF4. Include molecule Q.",
+      "expectedDraw": false
+    },
+    {
+      "id": "badformula-before",
+      "question": "Show the shapes of XeQ and SF4.",
+      "expectedDraw": false
+    },
+    {
+      "id": "badformula-after",
+      "question": "Show the shapes of SF4 and QF.",
+      "expectedDraw": false
+    },
+    {
+      "id": "alias-wrong",
+      "question": "Show the shapes of SF4 and water, NH3.",
+      "expectedDraw": false
+    },
+    {
+      "id": "alias-nonlocal",
+      "question": "Draw the shape of SF4 and water. Explain H2O.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unknown-owned",
+      "question": "Show the shapes of SF4 and a molecule whose identity is unknown.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unknown-same-sentence",
+      "question": "Show the shape of SF4 and another molecule.",
+      "expectedDraw": false
+    },
+    {
+      "id": "organic-different",
+      "question": "Show the shape of SF4 and draw propan-1-ol.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unparsable-number",
+      "question": "Draw the shapes of SF4 and XxF4.",
+      "expectedDraw": false
+    },
+    {
+      "id": "possessive-shape-ethanol",
+      "question": "Show SF4's shape and draw ethanol.",
+      "expectedDraw": false
+    },
+    {
+      "id": "reversed-geometry-ethanol",
+      "question": "Show SF4 geometry and draw ethanol.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-xyz",
+      "question": "Show the shapes of SF4 and molecule XYZ.",
+      "expectedDraw": false
+    },
+    {
+      "id": "list-xyz",
+      "question": "Show the shapes of SF4 and XYZ.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unknown-digit",
+      "question": "Draw the shapes of SF4 and XxF4.",
+      "expectedDraw": false
+    },
+    {
+      "id": "co-unknown",
+      "question": "Draw the shapes of CO and XYZ.",
+      "expectedDraw": false
+    }
+  ],
+  "equatorial": [
+    {
+      "species": "SF4",
+      "equatorial": true
+    },
+    {
+      "species": "ClF3",
+      "equatorial": true
+    },
+    {
+      "species": "XeF2",
+      "equatorial": true
+    },
+    {
+      "species": "NH3",
+      "equatorial": false
+    },
+    {
+      "species": "H2O",
+      "equatorial": false
+    }
+  ]
+}

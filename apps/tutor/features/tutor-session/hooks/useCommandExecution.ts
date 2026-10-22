@@ -244,6 +244,8 @@ export function useCommandExecution({
         getAudioPositionMs?: () => number;
         /** Media ms per wall ms; default 1. Only the waits need it. */
         getPlaybackRate?: () => number;
+        /** Waits for the audio clock on a pumped export clock instead of wall-time polling. */
+        waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
         /** A following work cue bounds transient POINT motion. */
         getPointDeadlineMs?: () => number | null;
         /**
@@ -310,6 +312,9 @@ export function useCommandExecution({
           return Promise.resolve();
         }
         if (rawCommand.visualStyle?.fillRole === "region") {
+          if (rawCommand.visualStyle.strokeWidth === 0) return wb.drawAnnotation("highlight", path, duration, {
+            inkSettings, fillColor: "#9CCBFF", fillOpacity: 0.18, shouldCancel: commandCancelled,
+          });
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
               inkSettings,
@@ -343,6 +348,7 @@ export function useCommandExecution({
           dashed: shapeOptions?.dashed
             ?? rawCommand.visualStyle?.dashed
             ?? rawCommand.visualStyle?.correspondingFamily === 3,
+          pointStyle: shapeOptions?.pointStyle ?? rawCommand.visualStyle?.pointStyle,
           shouldCancel: commandCancelled,
         });
       };
@@ -1196,7 +1202,10 @@ export function useCommandExecution({
                   const timing = options.getFocusTiming!();
                   return { targets: timing.schedule.targets, deadlineMs: timing.deadlineMs };
                 } : undefined,
+                // A recorded export clock moves only when its frames are
+                // pumped; its own wait follows that pump.
                 waitUntilAudioMs: async (targetMs, getTargetMs) => {
+                  if (options.waitUntilAudioMs) return options.waitUntilAudioMs(targetMs, getTargetMs);
                   let nextTarget = targetMs;
                   while (!commandCancelled()) {
                     const waitingFor = nextTarget;

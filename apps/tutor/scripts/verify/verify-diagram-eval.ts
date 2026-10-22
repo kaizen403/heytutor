@@ -748,9 +748,21 @@ const curatedPhysicsQuestions = readdirSync(resolve(exemplarRoot, "physics"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "physics", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedPhysicsQuestions.length, 36);
+assert.equal(curatedPhysicsQuestions.length, 49);
 for (const question of curatedPhysicsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
+}
+// An edited example can keep the same question. Membership alone would silently
+// accept the old figure; require the runtime document to match the reviewed source.
+for (const file of readdirSync(resolve(exemplarRoot, "physics")).filter((name) => name.endsWith(".json"))) {
+  const source = JSON.parse(readFileSync(resolve(exemplarRoot, "physics", file), "utf8")) as { sceneDocument: unknown };
+  const stored = builtLibrary.find((entry) => entry.id === `curated:physics/${file.replace(/\.json$/, "")}`);
+  const expected = validateSceneDocument(source.sceneDocument).document!;
+  assert.deepEqual(validateSceneDocument(stored?.document).document, {
+    ...expected,
+    source: Object.fromEntries(Object.entries(expected.source ?? {}).filter(([key]) => key !== "question")),
+  },
+    `runtime library must match physics exemplar ${file}; rebuild after editing a figure`);
 }
 // Every synthesized physics and maths entry needs a kept audit verdict, so neither a rebuild
 // without the review file nor a library conflict resolution can bring audited-out figures back.
