@@ -360,9 +360,12 @@ async function main() {
         assert(rows.every(row => !row.audioBytes), "intentional cancellation cannot publish failed-playback audio");
         assert.equal(NativeAudio.instances.length, 1, "cancel/stale cannot create late recovery output");
       } else if (selected === "runner-intro") {
-        assert(outcome instanceof Error, "failed intro reports terminal voice failure");
+        // The intro beat is taught silently with its ink; the figure transaction
+        // still decides whether it commits, so nothing is published before that.
+        assert.equal(outcome, null, "a voice failure in an intro beat is taught silently");
+        assert.deepEqual(drawn, ["F = ma"], "the intro beat's ink is drawn");
         assert.equal(rows.length, 0, "uncommitted figure intro cannot publish speculative bytes or ink");
-        assert.equal(params.recordedSegmentsRef.current.length, 0);
+        assert.equal(params.recordedSegmentsRef.current.length, 1, "the beat completed and waits for its figure to commit");
       } else {
         assert.equal(rows.length, 1, "one claimed narration row retained");
         const row = rows[0]!;
@@ -375,12 +378,15 @@ async function main() {
           assert.equal(params.recordedSegmentsRef.current.length, 1);
           assert.equal(NativeAudio.instances.length, 1);
         } else {
-          assert(outcome instanceof Error, "unrecovered native output remains a failed spoken beat");
-          assert.equal(params.recordedSegmentsRef.current.length, 0, "retained bytes never claim speech success");
-          assert.equal(NativeAudio.instances.length, selected === "runner-error" ? 1 : 2, "terminal errors fail; only stalled clocks get one retry");
+          // Unrecovered native output is a voice failure, not a dead board:
+          // the beat is taught silently and saved with its complete clip.
+          assert.equal(outcome, null, "unrecovered native output is taught silently, never a failed beat the queue counts");
+          assert.equal(params.recordedSegmentsRef.current.length, 1, "the silently taught beat is recorded");
+          assert.equal(NativeAudio.instances.length, selected === "runner-error" ? 1 : 2, "terminal errors stop the voice; only stalled clocks get one retry");
         }
-        if (["runner-zero", "runner-error"].includes(selected)) { assert.equal(row.command, null, "unheard/unshown output cannot invent ink"); assert.equal(drawn.length, 0); }
-        else assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "already shown work survives with its retained clip");
+        // Silent teaching draws the sentence's ink on the estimated schedule, heard or not.
+        assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "the sentence's work is drawn and saved with its retained clip");
+        assert.deepEqual(drawn, ["F = ma"], "the ink reached the board once");
       }
       console.log(`native audio ${selected}: GREEN, no providers`);
       return;

@@ -784,10 +784,12 @@ export function useSegmentRunner({
           if (playbackWatchId !== null) window.clearTimeout(playbackWatchId);
           timeoutId = null;
           playbackWatchId = null;
-          // Nothing was heard in full, so the row keeps no audio or alignment.
-          capturedAudio = null;
-          capturedTimings = null;
-          capturedDurationMs = null;
+          // A clip that arrived in full but could not play (a hidden tab, a
+          // refused AudioContext) is still this sentence's audio: the saved
+          // row keeps it for replay. Partial or browser audio is dropped.
+          capturedAudio = generatedAudio?.audioBytes ?? null;
+          capturedTimings = generatedAudio?.timings ?? null;
+          capturedDurationMs = generatedAudio?.durationMs ?? null;
           if (audioStartedAtMs === null) {
             audioStartedAtMs = performance.now();
             audioStartedAtActiveMs = clock.elapsedMs();
@@ -996,7 +998,7 @@ export function useSegmentRunner({
               // the transaction instead of skipping narration and committing ink.
               throw new Error("Provider voice recovery failed", { cause: error });
             }
-            // The draw failed with it: the queue counts this beat.
+            // A failed draw, or a code beat that owes TYPE: the queue counts this beat.
             throw error;
           }
           if (voiceDegraded) await teachSentenceSilently(error);

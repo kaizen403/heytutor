@@ -23,7 +23,8 @@ const narration = "Force equals mass times acceleration.";
 const segment: TutorSegment = { narration, command: {
   type: "WRITE", text: "F = ma", params: [90, 142], charPosition: 0, narrationBefore: narration,
 } };
-type Outcome = "stall" | "reject" | "success" | "pending";
+// inkfail: the voice speaks but the beat's draw throws, a real board failure the queue counts.
+type Outcome = "stall" | "reject" | "success" | "pending" | "inkfail";
 type Job = { options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; outcome: Outcome };
 
 /** Controlled render/clock/media ports; real runner, ink planner, queue and save registry. */
@@ -80,7 +81,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
           else setTimer(finish, 100);
         };
         setTimer(finish, 100);
-      } else if (outcome === "success") setTimer(() => { options.onEnd?.(); resolve(); }, 1_000);
+      } else if (outcome === "success" || outcome === "inkfail") setTimer(() => { options.onEnd?.(); resolve(); }, 1_000);
       else if (outcome === "reject") setTimer(() => reject(new Error("offline primary failed after start")), 200);
     }),
     getPlaybackPositionMs: () => playback && jobs[0]?.outcome === "success" ? sampleMedia() : position, getPlaybackRate: () => rate,
@@ -143,6 +144,11 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
       if (options.isCancelled?.()) return;
       drawn.push(command.text ?? command.type); options.onInkStarted?.();
+      if (jobs.at(-1)?.outcome === "inkfail") {
+        // Fails part way through its stroke, after the beat has started.
+        await new Promise<void>(resolve => setTimer(resolve, 500));
+        throw new Error("offline ink failed");
+      }
       if (deferFirstDraw && drawn.length === 1) await new Promise<void>((_resolve, reject) => { rejectOldDraw = reject; });
     },
   };
@@ -174,17 +180,18 @@ async function runnerFailure(position: number | null, outcome: Outcome) {
     const promise = h.runner.runSegment(segment, 0, [segment], 1).then(() => null, error => error as unknown);
     await h.advance(h.now() + 9_000);
     const result = await promise;
-    assert(result instanceof Error, "an onStart accepted primary failure must reach the actual caller, even with positive/zero/missing media clock");
-    assert.match(result.message, outcome === "reject" ? /offline primary failed/ : /playback stalled/);
-    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "a failed speech beat never becomes a completed captured row");
+    // A started voice that fails is taught silently: the caller never sees a failure to count.
+    assert.equal(result, null, "an onStart accepted primary failure is taught silently, even with positive/zero/missing media clock");
+    const degraded = h.telemetry.find(event => event.name === "tts-voice-degraded");
+    assert(degraded, "the silent beat is reported");
+    assert.match(String(degraded.error), outcome === "reject" ? /offline primary failed/ : /playback stalled/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1, "the silently taught beat is recorded");
     assert.equal(h.browserAttempts(), 0, "no new recovery policy after primary speech started");
-    if (position && position > 0) {
-      assert.deepEqual(h.drawn, ["F = ma"], "the student already saw the accepted work");
-      const shown = h.handle.submittedRows().find(row => parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"));
-      assert(shown, "real preparedSave.interrupt preserves accepted shown work after the opening CLEAR epoch");
-      assert.equal(shown.audioBytes, null, "interrupted work cannot invent complete audio");
-    }
-    console.log(`started speech ${outcome}/${String(position)}: rejects, shown work retained`);
+    assert.deepEqual(h.drawn, ["F = ma"], "the beat's work is drawn whatever the media clock said");
+    const shown = h.handle.submittedRows().find(row => parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"));
+    assert(shown, "the taught row is saved after the opening CLEAR epoch");
+    assert.equal(shown.audioBytes, null, "a failed voice cannot invent complete audio");
+    console.log(`started speech ${outcome}/${String(position)}: taught silently, work saved`);
   } finally { h.close(); }
 }
 
@@ -193,13 +200,20 @@ async function queueFailures(outcomes: Outcome[]) {
   try {
     for (let index = 0; index < outcomes.length; index++) h.control.enqueueSegment(segment, 1);
     await h.advance(h.now() + 35_000); await h.params.segmentChainRef.current;
-    const consecutive = outcomes[0] === "stall" && outcomes[1] === "stall";
-    assert.equal(h.params.cancelRef.current, consecutive, "two consecutive actual started-speech stalls cancel; a success resets failure history");
+    // Voice stalls never count; two consecutive failed draws still stop the lesson.
+    const consecutive = outcomes[0] === "inkfail" && outcomes[1] === "inkfail";
+    assert.equal(h.params.cancelRef.current, consecutive, "two consecutive failed draws cancel; voice stalls never do; a success resets failure history");
     assert.equal(h.errors.length, consecutive ? 1 : 0, "real queue exposes exactly the existing retryable student error after repeated speech failures");
     if (consecutive) {
       assert.deepEqual(h.errors[0], { message: "The lesson could not continue playing. Please try again.", question: "Explain force." });
       assert.equal(h.telemetry.filter(x => x.name === "student-error").length, 1);
       assert.equal(h.jobs.length, 2, "queued later paragraph cannot start after the repeated-failure stop");
+    } else {
+      assert.equal(h.jobs.length, outcomes.length, "every sentence is taught");
+      const stalls = outcomes.filter(outcome => outcome === "stall").length;
+      assert.equal(h.telemetry.filter(x => x.name === "tts-voice-degraded").length, stalls, "each stalled sentence is taught silently");
+      assert.equal(h.params.recordedSegmentsRef.current.length, outcomes.filter(outcome => outcome !== "inkfail").length,
+        "every taught sentence is recorded; a failed draw is not");
     }
     assert.equal(h.params.pendingSegmentCountRef.current, 0, "actual queue drains its pending count");
     console.log(`started speech queue ${outcomes.join("/")}: student retry and recovery semantics`);
@@ -226,7 +240,7 @@ async function staleFailure(cancelled: boolean) {
 }
 
 async function lateOldCompletion(outcome: "resolve" | "reject") {
-  const h = mount(120, ["pending", "stall", "stall"]);
+  const h = mount(120, ["pending", "inkfail", "inkfail"]);
   try {
     h.control.enqueueSegment({ narration, command: null }, 1); await h.flush();
     assert.equal(h.jobs.length, 1, "obsolete narration is still awaiting its transport");
@@ -265,7 +279,7 @@ async function cancelledRunnerRejection(stale: boolean) {
 }
 
 async function lateOldDrawFailure() {
-  const h = mount(120, ["success", "stall", "stall"], true);
+  const h = mount(120, ["success", "inkfail", "inkfail"], true);
   try {
     h.control.enqueueSegment(segment, 1); await h.advance(h.now() + 1_500);
     assert.deepEqual(h.drawn, ["F = ma"]);
@@ -286,7 +300,7 @@ async function lateOldDrawFailure() {
 }
 
 async function newGenerationStartsFresh() {
-  const h = mount(120, ["stall", "stall", "stall"]);
+  const h = mount(120, ["inkfail", "inkfail", "inkfail"]);
   try {
     h.control.enqueueSegment(segment, 1);
     await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
@@ -361,11 +375,11 @@ async function mathsDeadClock() {
     assert.equal(settled, false, "maths speech keeps its spoken-character allowance even without final alignment");
     await h.advance(h.now() + 50_000);
     assert.equal(settled, true, "nonadvancing maths audio still fails within the bounded slow-speed deadline");
-    const error = await result;
-    assert(error instanceof Error); assert.match(error.message, /tts segment timeout/);
-    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "a bounded real stall never gains a successful recorded beat");
+    assert.equal(await result, null, "the bounded stall is taught silently, not counted");
+    assert.match(String(h.telemetry.find(event => event.name === "tts-voice-degraded")?.error), /tts segment timeout/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1, "the silently taught beat is recorded");
     assert.equal(h.browserAttempts(), 0);
-    console.log("started speech maths dense zero clock/no alignment: bounded terminal timeout, no success claim");
+    console.log("started speech maths dense zero clock/no alignment: bounded timeout, taught silently");
   } finally { h.close(); }
 }
 
@@ -382,9 +396,9 @@ async function slowDeadClock(cancelled: boolean, stale = false, rate = .5) {
     await h.advance(h.now() + 80_000);
     assert.equal(settled, true, "missing alignment still has a finite slow-speed watchdog");
     const error = await result;
-    if (cancelled) assert.equal(error, null, "slow timeout after Stop/successor stays quiet");
-    else { assert(error instanceof Error); assert.match(error.message, /tts segment timeout/); }
-    assert.equal(h.params.recordedSegmentsRef.current.length, 0);
+    assert.equal(error, null, cancelled ? "slow timeout after Stop/successor stays quiet" : "a bounded slow timeout is taught silently");
+    if (!cancelled) assert.match(String(h.telemetry.find(event => event.name === "tts-voice-degraded")?.error), /tts segment timeout/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, cancelled ? 0 : 1);
     assert.equal(h.browserAttempts(), 0);
     console.log(`started speech slow no-alignment ${cancelled ? stale ? "stale" : "cancel" : "timeout"}: bounded owned release`);
   } finally { h.close(); }
@@ -397,10 +411,10 @@ async function slowAlignmentDeadClock() {
   try {
     const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => null, error => error as unknown);
     await h.advance(h.now() + 70_000);
-    const error = await result;
-    assert(error instanceof Error); assert.match(error.message, /playback stalled/);
-    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "scaled alignment budget remains a watchdog, not a completion claim");
-    console.log("started speech slow aligned zero clock: finite playback-stalled failure");
+    assert.equal(await result, null, "a finite playback stall is taught silently");
+    assert.match(String(h.telemetry.find(event => event.name === "tts-voice-degraded")?.error), /playback stalled/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1, "the watchdog still fires; the beat is then taught without a voice");
+    console.log("started speech slow aligned zero clock: finite playback stall, taught silently");
   } finally { h.close(); }
 }
 
@@ -469,6 +483,9 @@ async function main() {
     { name: "missing-stall", run: () => runnerFailure(null, "stall") },
     { name: "started-reject", run: () => runnerFailure(120, "reject") },
     { name: "queue-repeated", run: () => queueFailures(["stall", "stall", "success"]) },
+    { name: "queue-repeated-stalls", run: () => queueFailures(["stall", "stall", "stall", "stall"]) },
+    { name: "queue-repeated-ink", run: () => queueFailures(["inkfail", "inkfail", "success"]) },
+    { name: "queue-ink-recovery", run: () => queueFailures(["inkfail", "success", "inkfail", "success"]) },
     { name: "queue-recovery", run: () => queueFailures(["stall", "success", "stall", "success"]) },
     { name: "cancel", run: () => staleFailure(true) },
     { name: "stale-successor", run: () => staleFailure(false) },

@@ -141,14 +141,16 @@ export function voiceFailureDisposition(input: {
 /**
  * How much longer a silently taught sentence holds the board: the estimated
  * spoken length at the live rate, less the time already spent on it since its
- * silent clock started. Never negative.
+ * silent clock started. Never negative. The rate is held to the lecture's
+ * range (0.5x to 4x) so a malformed rate cannot hold the board for ever.
  */
 export function silentSentenceRemainingMs(input: {
   estimateSpeechMs: number;
   playbackRate: number;
   elapsedMs: number;
 }): number {
-  const rate = Number.isFinite(input.playbackRate) && input.playbackRate > 0 ? input.playbackRate : 1;
+  const rate = Number.isFinite(input.playbackRate) && input.playbackRate > 0
+    ? Math.min(Math.max(input.playbackRate, 0.5), 4) : 1;
   const total = Number.isFinite(input.estimateSpeechMs) ? Math.max(input.estimateSpeechMs, 0) / rate : 0;
   const elapsed = Number.isFinite(input.elapsedMs) ? Math.max(input.elapsedMs, 0) : 0;
   return Math.max(total - elapsed, 0);

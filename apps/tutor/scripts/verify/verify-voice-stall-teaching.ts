@@ -158,6 +158,7 @@ check("policy: a voice failure is taught silently, a draw failure still fails, a
   assert.equal(silentSentenceRemainingMs({ estimateSpeechMs: 4_000, playbackRate: 2, elapsedMs: 500 }), 1_500);
   assert.equal(silentSentenceRemainingMs({ estimateSpeechMs: 4_000, playbackRate: 1, elapsedMs: 9_000 }), 0);
   assert.equal(silentSentenceRemainingMs({ estimateSpeechMs: Number.NaN, playbackRate: 0, elapsedMs: -5 }), 0);
+  assert.equal(silentSentenceRemainingMs({ estimateSpeechMs: 4_000, playbackRate: 1e-9, elapsedMs: 0 }), 8_000, "a malformed tiny rate cannot hold the board for ever");
 });
 
 check("two stalled sentences in a row are both taught: ink drawn, rows saved, nothing thrown", async () => {

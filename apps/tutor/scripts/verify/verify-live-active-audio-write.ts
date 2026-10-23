@@ -164,16 +164,22 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
       voice.resolve();
     }
     await until(() => seenClock?.isAudioActive?.() === false, `${mode}: the actual speech finally path releases positive-clock authority`);
+    const voiceFailed = mode === "failure" || mode === "intro-failure";
     if (intro) {
+      if (voiceFailed) await until(() => seenClock?.isSpeechComplete?.() === true, "the silent sentence ends");
       assert.equal(seenClock?.isSpeechComplete?.(), true, "failure finally releases the speech wait");
-      assert.equal(executed[0]?.isCancelled?.(), true, "actual speechAborted/Stop ownership cancels the retained figure draw");
+      // A voice failure is taught silently: the figure's ink keeps drawing. Stop still cancels it.
+      assert.equal(executed[0]?.isCancelled?.(), !voiceFailed, "Stop cancels the retained figure draw; a voice failure does not");
     }
     draw.resolve();
     const outcome = await joined;
-    if (mode === "failure" || mode === "intro-failure") assert(outcome instanceof Error && outcome.message === "offline provider failed after starting", "failed started speech rejects to its queue/transaction owner, never silently succeeds");
-    else assert.equal(outcome, undefined, `${mode}: the actual consumer settles after its owned speech outcome`);
+    // A started voice that fails is taught silently and resolves; the queue never counts it.
+    assert.equal(outcome, undefined, `${mode}: the actual consumer settles after its owned speech outcome`);
     assert.equal(seenClock?.isAudioActive?.(), false, "a retained schedule never follows a later segment's speech state");
-    if (board && transaction) {
+    if (mode === "intro-failure") {
+      assert.equal(params.recordedSegmentsRef.current.length, 1, "the silently taught intro beat completes and waits for its figure");
+      if (board && transaction) { board.abortDrawTransaction(transaction); board.finishAbortedDrawTransaction(transaction); }
+    } else if (board && transaction) {
       assert.equal(executed.length, 1, "failure/Stop cannot execute or fast-forward the remaining verified mark");
       assert(executed.every(options => options.finishVerifiedDiagramIntro !== true), "failed intro speech cannot authorize catch-up");
       assert.equal(params.recordedSegmentsRef.current.length, 0, "failed intro has no successful persistence row");
