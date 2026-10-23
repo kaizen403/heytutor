@@ -36,6 +36,7 @@ export interface UseBoardLayoutParams {
   /** Question whose ink is on the board — tags each captured notes page. */
   liveQuestionRef: RefObject<string>;
   viewportMode?: BoardViewportMode;
+  minimumVisibleFontSize?: number | null;
 }
 
 /**
@@ -83,9 +84,10 @@ export function useBoardLayout({
   fbdPhaseStartedRef,
   liveQuestionRef,
   viewportMode = "fit",
+  minimumVisibleFontSize,
 }: UseBoardLayoutParams) {
   const boardContainerRef = useRef<HTMLDivElement>(null);
-  const boardViewport = useBoardViewport(boardContainerRef, viewportMode);
+  const boardViewport = useBoardViewport(boardContainerRef, viewportMode, minimumVisibleFontSize);
   const notesEpochsRef = useRef<NotesEpoch[]>([]);
   const narrationSinceEpochRef = useRef("");
   const boardLayoutRef = useRef<BoardLayoutState>({

@@ -16,6 +16,7 @@ import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind, PausedLessonReason, PausedLessonRequest } from "../../lib/turn/doubtTurn";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import type { IntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
+import type { SegmentInkClock } from "../../lib/turn/segmentInk";
 
 /** A question opens a fresh page unless it carries a doubt or resumes this one. */
 export type HandleQuestionOptions = {
@@ -89,6 +90,12 @@ export type ExecuteCommandOptions = {
   waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
   /** A following work cue bounds transient POINT motion; final timing may arrive late. */
   getPointDeadlineMs?: () => number | null;
+  /** Runtime-only explanation motion; resolves already-written work, never figure anchors. */
+  explanationPointing?: boolean;
+  /** Runtime continuation: verified targets only, never an unresolved work-row fallback. */
+  verifiedPointingOnly?: boolean;
+  /** Existing WRITE scheduling clock; gaps run only after row/page placement. */
+  explanationClock?: SegmentInkClock;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */
   spokenClock?: SpokenSegmentClock;
   /** Placed on its spoken cue and given that window; keeps it instead of the scene ceiling. */

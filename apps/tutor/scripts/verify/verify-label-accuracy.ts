@@ -60,6 +60,7 @@ const primitives: RenderPrimitive[] = [
 const document: SceneDocument = {
   schemaVersion: "scene-document/v2",
   id: "label_accuracy",
+  source: { question: "Show the labels on a crowded triangle, circle and crossing rays." },
   entities: [
     { id: "tri", kind: "polygon", role: "shape" },
     { id: "circ", kind: "circle", role: "shape" },
@@ -72,6 +73,7 @@ const document: SceneDocument = {
   constructions: [],
   relations: [],
   assertions: [],
+  annotations: [],
   quantities: [],
   revealGroups: [{
     id: "g",
