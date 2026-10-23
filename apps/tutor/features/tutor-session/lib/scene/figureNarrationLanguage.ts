@@ -13,7 +13,14 @@ export function hinglishFigureNarration(source: string): string {
     const previous = parts.at(-1);
     // These periods belong to a reagent/modifier/reference, not a sentence.
     // Joining first also protects several abbreviations in the same clause.
-    if (previous && /\b(?:dil|conc|aq|approx|e\.g|i\.e|vs|fig|etc)\.$/i.test(previous)) {
+    const modifier = previous && /\b(?:dil|conc|aq|approx|e\.g|i\.e|vs|fig)\.$/i.test(previous);
+    // "etc." can also finish a sentence. A following complete clause belongs
+    // to the next sentence; fragments such as "Before heating" still belong
+    // to the list/modifier and must remain whole. Sentence-start grammar is
+    // independent of whether the translator supports the sentence's meaning.
+    const continuedList = previous && /\betc\.$/i.test(previous)
+      && !startsSentenceAfterEtc(part.replace(/[.!?]+$/, ""));
+    if (modifier || continuedList) {
       parts[parts.length - 1] = `${previous} ${part}`;
     } else {
       parts.push(part);
@@ -24,6 +31,13 @@ export function hinglishFigureNarration(source: string): string {
     const localized = localizeClause(clause);
     return localized ? sentence(localized) : `ध्यान दो: ${sentence(part)}`;
   }).join(" ");
+}
+
+function startsSentenceAfterEtc(text: string): boolean {
+  return localizeClause(text) !== null
+    || /^(?:the|this|that|these|those|it|they|we|you|he|she|an?)\s+/i.test(text)
+    || /^(?:if|unless|when)\s+.+,\s*\S/i.test(text)
+    || /\S\s+(?:is|are|was|were|has|have|had|does|do|did|will|would|can|could|must|should)\s+\S/i.test(text);
 }
 
 function sentence(text: string): string {
