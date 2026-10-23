@@ -663,7 +663,12 @@ async function applyCheckpoint(
 
   // --- What the turn becomes -------------------------------------------------
   const ownsMetadata = !before || input.seq > before.checkpointSeq;
-  const question = ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
+  // A close carries a question only to create a turn that never checkpointed.
+  // Its body may cut a long question to fit the keepalive budget, so it never
+  // rewrites the question of a turn that already exists.
+  const closeOfExistingTurn = Boolean(before) && input.tolerateOverlap;
+  const question = closeOfExistingTurn ? before!.question
+    : ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
   if (!question.trim()) return reject("turn_fields_invalid", "question is required", 400);
   const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
   const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
