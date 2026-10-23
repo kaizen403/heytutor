@@ -29,6 +29,7 @@ export * from "./tts/playbackSchedule";
 export * from "./tts/playbackRate";
 export * from "./tts/voiceLanguage";
 export * from "./tts/voiceSettings";
+export * from "./tts/groupedQuantityNarration";
 export * from "./llm/fastMode";
 export * from "./llm/traceHeaders";
 export * from "./llm/llmAPI";

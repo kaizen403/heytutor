@@ -317,10 +317,27 @@ export function waitUntilDrawClock(
     isPaused?: () => boolean;
     getPlaybackRate?: () => number;
     nowMs?: () => number;
+    /** Recorded players/exporters wake waits by pumping their media clock. */
+    waitForAdvance?: () => Promise<void>;
     /** Re-read a cue whose final speech alignment may arrive during the wait. */
     getTargetMs?: () => number;
   } = {},
 ): Promise<void> {
+  const readTargetMs = () => {
+    const updatedTarget = options.getTargetMs?.();
+    return updatedTarget !== undefined && Number.isFinite(updatedTarget)
+      ? Math.max(updatedTarget, 0)
+      : targetMs;
+  };
+  const waitForAdvance = options.waitForAdvance;
+  if (waitForAdvance) {
+    return (async () => {
+      while (!options.shouldCancel?.()) {
+        if (!options.isPaused?.() && getPositionMs() + 10 >= readTargetMs()) return;
+        await waitForAdvance();
+      }
+    })();
+  }
   return new Promise((resolve) => {
     let done = false;
     const nowMs = options.nowMs ?? (() => performance.now());
@@ -352,10 +369,7 @@ export function waitUntilDrawClock(
       activeWallMs += now - lastWall;
       lastWall = now;
       const rate = Math.max(options.getPlaybackRate?.() ?? 1, 0.1);
-      const updatedTarget = options.getTargetMs?.();
-      const target = updatedTarget !== undefined && Number.isFinite(updatedTarget)
-        ? Math.max(updatedTarget, 0)
-        : targetMs;
+      const target = readTargetMs();
       if (getPositionMs() + 10 >= target) {
         finish();
         return;

@@ -187,6 +187,22 @@ const POWER_WORDS: Record<string, string> = {
   "³": "cubed",
 };
 
+/** Parentheses distinguish a squared speed from meters per second squared. */
+function expandGroupedPowers(text: string): string {
+  const functions = text.replace(/\b(sqrt|sin|cos|tan|csc|sec|cot|ln|log|exp)\s+\(/g, "$1(")
+    .replace(/√\s+\(/g, "√(");
+  return functions.replace(/([\p{L}_][\p{L}\p{N}_]*|√|(?<![\p{L}\p{N}_])[\p{L}_]\s+)?(\([^()]+\))\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}]))/gu,
+    (match, functionName: string | undefined, argument: string, power: string) => {
+      // `sqrt(2)^2` squares the whole root. Removing only its argument's
+      // parentheses would also prevent the later root reader recognizing it.
+      // Other adjacent identifiers may be multiplication, e.g. x(a+b)^2:
+      // retain their complete original notation rather than guessing scope.
+      if (functionName && !/^(?:sqrt|√|sin|cos|tan|csc|sec|cot|ln|log|exp)$/i.test(functionName)) return match;
+      const quantity = functionName ? `${functionName}${argument}` : argument.slice(1, -1);
+      return ` the quantity ${quantity} all ${POWER_WORDS[power.replace("^", "")]} `;
+    });
+}
+
 /**
  * `200 N/m` and `9.8 m/s^2`. Heard raw as "200 Nmm" and "9.8 mice squared".
  *
@@ -220,10 +236,34 @@ function expandUnitRatios(text: string): string {
   const say = sayUnitRatio;
 
   return text
+    // This compound unit is unambiguous without a preceding digit too: the
+    // Hinglish narrator writes "ten km/h", and the captured lessons also
+    // write km/hr, km/hour and kmph. Lowercase h is an hour here; uppercase
+    // H remains the existing electrical unit (henry). A following power
+    // stays in place so `km/h²` is still "per hour squared".
+    .replace(/\bkm(?:\s*\/\s*(?:hour|hr|h)|ph)\b/g, (_unit, offset: number, whole: string) => {
+      // The client runs before Sarvam's unit reader. Preserve its standalone
+      // one rule here, before the raw symbol becomes an already-spoken unit.
+      const before = whole.slice(0, offset);
+      const quantity = /(?<![\p{L}\p{N}_.])([+-]?(?:\d[\d,]*(?:\.\d+)?|\.\d+)|one)\s*$/u.exec(before);
+      const singular = quantity?.[1] === "one"
+        ? !/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|lakh|crore|point|and)[\s-]*$/i.test(before.slice(0, quantity.index))
+        : quantity ? Number(quantity[1]!.replace(/,/g, "")) === 1 : false;
+      return `${singular ? "kilometer" : "kilometers"} per hour`;
+    })
     .replace(
       new RegExp(`(\\d(?:[\\d.,]*\\d)?)(\\s*)${ratio}`, "gu"),
-      (match, value: string, gap: string, top: string, bottom: string, power?: string) =>
-        say(top, bottom, power) === null ? match : `${value}${gap || " "}${say(top, bottom, power)}`,
+      (match, value: string, gap: string, top: string, bottom: string, power?: string) => {
+        const spoken = say(top, bottom, power);
+        if (spoken === null) return match;
+        // `1km/hr` has no word boundary before km, so the spaced hourly rule
+        // above never sees it. A quantity of one is still singular.
+        const hourly = top === "km" && (bottom === "h" || bottom === "hr" || bottom === "hour");
+        const words = hourly && Number(value.replace(/,/g, "")) === 1
+          ? spoken.replace(/^kilometers/, "kilometer")
+          : spoken;
+        return `${value}${gap || " "}${words}`;
+      },
     )
     .replace(
       new RegExp(`\\b(in|per)\\s+${ratio}`, "gu"),
@@ -668,6 +708,7 @@ const SPEECH_STAGES: ((text: string) => string)[] = [
   expandUnicodeSubscripts,
   expandUnicodePrimes,
   expandWrittenModifiers,
+  expandGroupedPowers,
   // Before the unit ratios and the chemistry state symbols: `t (s)` is time
   // in seconds, and `(4, 20)` is a point before it is two numbers.
   expandBracketedUnits,

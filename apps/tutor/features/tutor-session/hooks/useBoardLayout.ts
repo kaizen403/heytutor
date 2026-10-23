@@ -26,6 +26,7 @@ import {
   overlapsWorkArea,
   recordedWorkWriteNeedsPageTurn,
   workColumnMaxWidth,
+  workColumnRoom,
 } from "../lib/board/boardLayout";
 
 export interface UseBoardLayoutParams {
@@ -332,6 +333,27 @@ export function useBoardLayout({
       const { fontSize, lines } = wrapWorkRow(command.text, columnWidth);
       if (lines.length === 0) return [];
 
+      // Reserve one authored equation together. Reserving its head at the
+      // bottom and erasing while reserving its tail split the equation across
+      // saved pages before the pen had drawn either part. A row larger than a
+      // fresh page still uses ordinary bounded paging below.
+      const layout = boardLayoutRef.current;
+      const diagramActive = fbdPhaseStartedRef.current;
+      if (lines.length > 1 && lines.length > workColumnRoom(layout, diagramActive).rowsLeft) {
+        const headingRects = layout.rects.filter((rect) => rect.y < TEXT_LAYOUT.headingBottomY);
+        const freshPage: BoardLayoutState = {
+          rects: [
+            ...headingRects,
+            ...layout.rects.filter((rect) => diagramActive && rect.x >= DIAGRAM_ZONE.x &&
+              rect.y >= TEXT_LAYOUT.headingBottomY),
+          ],
+          nextY: headingRects.length > 0 ? TEXT_LAYOUT.workTopY : TEXT_LAYOUT.topY,
+        };
+        if (lines.length <= workColumnRoom(freshPage, diagramActive).rowsLeft) {
+          await eraseWorkColumnForNewPage(command.text);
+        }
+      }
+
       const placed: DrawCommand[] = [];
       for (const [index, line] of lines.entries()) {
         const indent = index === 0 ? 0 : WORK_CONTINUATION_INDENT;
@@ -348,7 +370,7 @@ export function useBoardLayout({
       }
       return placed;
     },
-    [boardLayoutRef, fbdPhaseStartedRef, resolveTextPlacement],
+    [boardLayoutRef, eraseWorkColumnForNewPage, fbdPhaseStartedRef, resolveTextPlacement],
   );
 
   return {

@@ -44,7 +44,7 @@ export function prepareVerifiedParts(
     const preciseFailureIds = new Set(compiled.report.issues
       .filter((issue) => issue.code === "invalid_derived_value_label" && issue.failureKind === "proof")
       .flatMap((issue) => issue.entityIds ?? []));
-    const proof = compiled.report.issues.filter((issue) =>
+    let proof = compiled.report.issues.filter((issue) =>
       issue.code !== "invalid_display_derived_claim" ||
       !issue.entityIds?.some((id) => preciseFailureIds.has(id)),
     ).filter(
@@ -58,6 +58,11 @@ export function prepareVerifiedParts(
         issue.code === "equation_label_unbound_parameter" ||
         layoutProofCodes.has(issue.code),
     );
+    // An angle name may be pushed out of its wedge by a crowding label that is
+    // itself being omitted; judge it again after the relayout.
+    if (proof.some((issue) => issue.expected === "angle_wedge") && proof.some((issue) => issue.expected !== "angle_wedge")) {
+      proof = proof.filter((issue) => issue.expected !== "angle_wedge");
+    }
     if (!proof.length) break;
     // Removing a claim from an unproved named point can leave a false apex,
     // landing point or other positional answer on the board. Keep it blocked.

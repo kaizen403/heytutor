@@ -242,6 +242,8 @@ export function useCommandExecution({
         isPaused?: () => boolean;
         /** The segment's audio clock, media ms from its start. */
         getAudioPositionMs?: () => number;
+        /** Recorded playback/export pumps this media clock between frames. */
+        waitForAdvance?: () => Promise<void>;
         /** Media ms per wall ms; default 1. Only the waits need it. */
         getPlaybackRate?: () => number;
         /** Waits for the audio clock on a pumped export clock instead of wall-time polling. */
@@ -1213,6 +1215,7 @@ export function useCommandExecution({
                       shouldCancel: () => commandCancelled() || Boolean(getTargetMs && getTargetMs() !== waitingFor),
                       getPlaybackRate: options.getPlaybackRate,
                       isPaused: options.isPaused,
+                      waitForAdvance: options.waitForAdvance,
                     });
                     const freshTarget = getTargetMs?.() ?? waitingFor;
                     // An unchanged clock wait keeps its existing stall bound.

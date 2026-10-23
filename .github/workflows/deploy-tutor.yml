@@ -51,6 +51,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 2
+      - name: Fetch main for cache-order comparison
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
@@ -81,6 +85,7 @@ jobs:
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-switch-blockers.ts
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-pr246-review-blockers.ts
           pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-repair-measured-precision.ts
+          pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-yield-legibility.ts
       - name: Symbolic planner regressions
         run: |
           pnpm --filter @heytutor/scene-engine verify:symbolic-planner
@@ -157,6 +162,11 @@ jobs:
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
           pnpm --filter @heytutor/tutor verify:lesson-qa-3
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
+          pnpm --filter @heytutor/tutor verify:youtube-lesson-qa
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-workflow.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-render-fingerprint.ts
+      - name: Installed rendering dependency metadata regressions (bounded fixtures)
+        run: node --test apps/tutor/scripts/verify/verify-installed-render-fingerprint.mjs apps/tutor/scripts/verify/verify-installed-render-fingerprint-contract.mjs
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

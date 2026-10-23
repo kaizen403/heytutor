@@ -133,3 +133,132 @@ export function validatePointLabelPlacement(document: SceneDocument, primitives:
   }
   return issues;
 }
+
+/** A figure drawn smaller than this, edge to edge, cannot be read: its labels
+ * and marks overlap whatever they name. */
+const MIN_READABLE_FIGURE_PX = 100;
+
+export function validateFigureLegibility(primitives: RenderPrimitive[]): SceneIssue[] {
+  const xs: number[] = [], ys: number[] = [];
+  for (const p of primitives) {
+    if (p.kind === "label" || p.provenance?.labelLeader) continue;
+    for (const q of p.points) { xs.push(q.x); ys.push(q.y); }
+    if ((p.kind === "circle" || p.kind === "arc") && p.points[0]) {
+      const r = p.radius ?? 0; xs.push(p.points[0].x - r, p.points[0].x + r); ys.push(p.points[0].y - r, p.points[0].y + r);
+    }
+  }
+  if (xs.length < 2) return [];
+  const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  return extent < MIN_READABLE_FIGURE_PX ? [{ code: "figure_illegible", severity: "fatal", failureKind: "truth",
+    message: `The figure is drawn ${Math.round(extent)} px across; its labels cannot be read against what they name` }] : [];
+}
+
+function numberedStroke(primitive: RenderPrimitive, prefix: string): number | null {
+  const marker = `${prefix}_`;
+  if (!primitive.id.startsWith(marker) || primitive.points.length < 2 || primitive.kind === "label") return null;
+  const rest = primitive.id.slice(marker.length);
+  return /^\d+$/.test(rest) ? Number(rest) : null;
+}
+
+/** Alignment of an extra stroke with the opposite of a positive half, or null if it is not that half. */
+function oppositeAlignment(extra: RenderPrimitive, positive: RenderPrimitive): number | null {
+  const origin = positive.points[0], tip = positive.points[1];
+  if (!origin || !tip) return null;
+  const plen = gap(tip, origin);
+  if (!(plen > 0)) return null;
+  const ends = [extra.points[0]!, extra.points.at(-1)!];
+  const near = gap(ends[0]!, origin) <= gap(ends[1]!, origin) ? ends[0]! : ends[1]!;
+  if (gap(near, origin) > 4) return null;
+  const far = near === ends[0] ? ends[1]! : ends[0]!;
+  const elen = gap(far, near);
+  if (!(elen > 0)) return null;
+  return ((tip.x - origin.x) / plen) * ((far.x - near.x) / elen) + ((tip.y - origin.y) / plen) * ((far.y - near.y) / elen);
+}
+
+/**
+ * A space frame names its axes x, y, z; each name must sit nearest its own
+ * axis. Positive halves are strokes 0–2. Negative halves are appended after
+ * them and still belong to the axis they run opposite.
+ */
+export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneIssue[] {
+  const issues: SceneIssue[] = [];
+  for (const label of primitives) {
+    const match = /^(.*)_label_([xyz])$/.exec(label.id);
+    if (label.kind !== "label" || !match || !label.points[0]) continue;
+    const prefix = match[1]!;
+    const positive = [0, 1, 2].map((index) => primitives.find((p) => numberedStroke(p, prefix) === index));
+    if (positive.some((line) => !line)) continue;
+    const extras = primitives.filter((p) => (numberedStroke(p, prefix) ?? -1) >= 3);
+    const ownerOf = new Map<RenderPrimitive, number | null>();
+    for (const extra of extras) {
+      let owner: number | null = null, best = -0.85;
+      positive.forEach((line, index) => {
+        const alignment = oppositeAlignment(extra, line!);
+        if (alignment !== null && alignment < best) { best = alignment; owner = index; }
+      });
+      ownerOf.set(extra, owner);
+    }
+    const own = "xyz".indexOf(match[2]!);
+    const distanceTo = (line: RenderPrimitive) => Math.min(...segments(line).map(([s, t]) => segmentDistance(label.points[0]!, s, t)));
+    const nearest = (halves: RenderPrimitive[]) => halves.length ? Math.min(...halves.map(distanceTo)) : Infinity;
+    const halvesOf = (index: number) => [positive[index]!, ...extras.filter((extra) => ownerOf.get(extra) === index)];
+    const ownDistance = nearest(halvesOf(own));
+    const otherDistance = Math.min(
+      ...[0, 1, 2].filter((index) => index !== own).map((index) => nearest(halvesOf(index))),
+      nearest(extras.filter((extra) => ownerOf.get(extra) === null)),
+    );
+    if (otherDistance + 4 < ownDistance) {
+      issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [label.entityId],
+        message: `The ${match[2]} axis name sits nearer another axis than its own` });
+    }
+  }
+  return issues;
+}
+
+/** An angle mark's name must sit inside the wedge its arc spans from the vertex. */
+export function validateAngleLabelWedge(
+  document: SceneDocument,
+  primitives: RenderPrimitive[],
+  pointAliases: ReadonlyMap<string, string> = new Map(),
+): SceneIssue[] {
+  const issues: SceneIssue[] = [];
+  const marks = document.entities.filter((entity) => entity.kind === "angle_mark");
+  const renderedPoint = (id: string | undefined): Point | undefined => {
+    if (!id) return undefined;
+    const direct = primitives.find((p) => p.entityId === id && p.kind === "point")?.points[0];
+    if (direct) return direct;
+    const renderedId = pointAliases.get(id);
+    return renderedId ? primitives.find((p) => p.entityId === renderedId && p.kind === "point")?.points[0] : undefined;
+  };
+  for (const mark of marks) {
+    const construction = document.constructions.find((c) => c.outputs.includes(mark.id));
+    const vertexId = typeof construction?.inputs.vertex === "string" ? construction.inputs.vertex : undefined;
+    // A 2D angle mark renders an arc (screen angles from startAngle to endAngle);
+    // a 3D one renders a sampled polyline. Both reduce to points along the arc.
+    const arcPrimitive = primitives.find((p) => p.entityId === mark.id && p.kind === "arc" && p.points[0] && p.startAngle !== undefined && p.endAngle !== undefined);
+    const arc = arcPrimitive
+      ? { points: [arcPrimitive.startAngle!, (arcPrimitive.startAngle! + arcPrimitive.endAngle!) / 2, arcPrimitive.endAngle!].map((a) => ({ x: arcPrimitive.points[0]!.x + (arcPrimitive.radius ?? 0) * Math.cos(a), y: arcPrimitive.points[0]!.y + (arcPrimitive.radius ?? 0) * Math.sin(a) })) }
+      : primitives.find((p) => p.entityId === mark.id && p.kind === "polyline" && p.points.length >= 3);
+    const vertex = arcPrimitive?.points[0] ?? renderedPoint(vertexId);
+    const labels = primitives.filter((p) => p.kind === "label" && !p.provenance?.usesLeader && p.points[0] && (p.entityId === mark.id ||
+      (document.annotations ?? []).some((annotation) => annotation.id === p.provenance?.annotationId && annotation.targetIds.length === 1 && annotation.targetIds[0] === mark.id)));
+    if (!vertex || !arc || labels.length === 0) continue;
+    const angleOf = (p: Point) => Math.atan2(p.y - vertex.y, p.x - vertex.x);
+    const start = angleOf(arc.points[0]!), middle = angleOf(arc.points[Math.floor(arc.points.length / 2)]!), end = angleOf(arc.points.at(-1)!);
+    const norm = (a: number) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const ccw = norm(middle - start) <= norm(end - start);
+    const span = ccw ? norm(end - start) : norm(start - end);
+    const margin = (15 * Math.PI) / 180;
+    for (const label of labels) {
+      const offset = ccw ? norm(angleOf(label.points[0]!) - start) : norm(start - angleOf(label.points[0]!));
+      const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
+      if (inside) continue;
+      const annotationIndex = (document.annotations ?? []).findIndex((annotation) => annotation.id === label.provenance?.annotationId);
+      const index = document.entities.findIndex((entity) => entity.id === mark.id);
+      const path = annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : index >= 0 && document.entities[index]!.label ? `entities[${index}].label` : undefined;
+      issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [mark.id],
+        ...(path ? { path } : {}), expected: "angle_wedge", message: "An angle name sits outside the wedge its arc marks" });
+    }
+  }
+  return issues;
+}
