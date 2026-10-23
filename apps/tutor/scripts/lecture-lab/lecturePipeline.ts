@@ -65,6 +65,7 @@ import {
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
+  waitForRequiredScenePeers,
 } from "@/features/tutor-session/lib/scene/diagramGeneration";
 import {
   runScenePlanningOverlap,
@@ -652,6 +653,7 @@ export async function runLecture(
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
+            waitForRequiredScenePeers: waitForRequiredScenePeers(planningTurnPlan.visualRequirement),
             fastMode,
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
