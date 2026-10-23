@@ -72,6 +72,9 @@ function canonicalStatement(value: string): string {
     .replace(/degrees?|deg/g, "°")
     .replace(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/gi, number => String(Number(number)));
 }
+function canonicalBareValue(value: string): string {
+  return canonicalStatement(boardUnit(value).replace(/[·⋅]/gu, "*"));
+}
 function nativeLabelTarget(construction: SceneConstruction): unknown {
   if (construction.operator !== "label") return undefined;
   for (const key of ["target", "at", "point"]) {
@@ -90,6 +93,7 @@ class CompletionContext {
   readonly skipped: SceneCompletionSkip[] = [];
   readonly additions: SceneCompletionAddition[] = [];
   readonly typedOwners = new Map<string, Set<string>>();
+  readonly typedOwnerComponentCounts = new Map<string, number>();
   private next: SceneDocument | null = null;
 
   constructor(readonly document: SceneDocument, readonly input: SceneCompletionInput) {
@@ -174,12 +178,59 @@ class CompletionContext {
     return group < 0 ? null : group;
   }
   own(givens: Given[], target: string): void {
+    this.typedOwnerComponentCounts.set(target, Math.max(givens.length, this.typedOwnerComponentCounts.get(target) ?? 0));
     for (const given of givens) {
       const owners = this.typedOwners.get(given.id) ?? new Set<string>();
       owners.add(target); this.typedOwners.set(given.id, owners);
     }
   }
+  /** Abstention only: the given/reference proof already owns the proposal.
+   * Native ink can cover it only on that exact owner and reveal scope. */
+  bareValueOnOwner(given: Given, target: string, group: number): boolean {
+    const owners = new Set([target, ...this.document.constructions.filter(construction =>
+      nativeLabelTarget(construction) === target).flatMap(construction => construction.outputs)]);
+    const expected = canonicalBareValue(`${boardNumber(given.value)}${given.unit === undefined ? "" : ` ${given.unit}`}`);
+    return this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && owners.has(primitive.entityId) &&
+      primitive.groupId === this.document.revealGroups[group]?.id && this.ownerGroup(primitive.entityId) === group &&
+      typeof primitive.text === "string" && canonicalBareValue(primitive.text) === expected);
+  }
+  /** A positive world coordinate may share its value with an explicit native
+   * dimension from the zero origin along its sole varying coordinate. No
+   * nearby label, equal-valued sibling or projected displacement is an owner. */
+  bareValueOnPointDimension(given: Given, target: string, group: number): boolean {
+    if (!(given.value > 0) || this.document.source.nonMetric === true || this.document.source.representationTier === "question_representation") return false;
+    const point = this.producers.get(target);
+    const worldPoint = (construction: SceneConstruction | undefined): construction is SceneConstruction =>
+      construction?.operator === "point" && (construction.inputs.coordinateSpace === undefined || construction.inputs.coordinateSpace === "world");
+    if (!worldPoint(point)) return false;
+    const axes = ["x", "y"] as const;
+    const varying = axes.filter(axis => this.given(point.inputs[axis])?.id === given.id);
+    if (varying.length !== 1 || axes.some(axis => axis !== varying[0] && this.number(point.inputs[axis]) !== 0)) return false;
+    const dimensions = this.document.constructions.filter(construction => {
+      if (construction.operator !== "dimension" || construction.outputs.length !== 1) return false;
+      const start = construction.inputs.start ?? construction.inputs.from ?? construction.inputs.a;
+      const end = construction.inputs.end ?? construction.inputs.to ?? construction.inputs.b;
+      const origin = start === target ? end : end === target ? start : undefined;
+      const producer = typeof origin === "string" ? this.producers.get(origin) : undefined;
+      return worldPoint(producer) && axes.every(axis => this.number(producer.inputs[axis]) === 0);
+    });
+    if (dimensions.length !== 1) return false;
+    const dimension = dimensions[0]!.outputs[0]!;
+    return this.rendered(dimension) && this.ownerGroup(dimension) === group && this.bareValueOnOwner(given, dimension, group);
+  }
+  existingBareValues(quantityIds: string[], target: string): boolean {
+    const group = this.ownerGroup(target);
+    // Only an existing constructor/reference owns a scalar's bare spelling.
+    // A geometric measure plus a callout still needs its source symbol. Count
+    // components before ID deduplication: one given may occur on two axes.
+    return group !== null && quantityIds.length === 1 && this.typedOwnerComponentCounts.get(target) === 1 && quantityIds.every(id => {
+      const given = this.given(id);
+      return given !== null && this.typedOwners.get(id)?.has(target) === true &&
+        (this.bareValueOnOwner(given, target, group) || this.bareValueOnPointDimension(given, target, group));
+    });
+  }
   existingQuantityStatement(quantityIds: string[], target: string): string | null {
+    if (this.existingBareValues(quantityIds, target)) return "existing_quantity_native_value";
     const symbols = new Set(quantityIds.map(id => this.quantities.get(id)?.symbol).filter((symbol): symbol is string => typeof symbol === "string"));
     const nativeOwners = new Set([target, ...this.document.constructions.filter(construction =>
       nativeLabelTarget(construction) === target).flatMap(construction => construction.outputs)]);
