@@ -71,3 +71,4 @@ tsx scripts/verify/verify-mechanics-state-consistency.ts
 tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
 tsx scripts/verify/verify-projectile-units.ts
+tsx scripts/verify/verify-figure-consistency.ts
