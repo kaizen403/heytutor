@@ -26,7 +26,8 @@ export { ELEMENTS, elementBySymbol, elementByName, elementByZ, resolveElement, v
 export { electronConfiguration, dElectronCount } from "./electronConfiguration";
 export { chemistryFamilyTeachingNotes, CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
 export { chemistryTeachingFamilyId } from "./teachingFamily";
-export { certifyVseprSourceDocument, type VseprSourceCertification } from "./sourceEvidence";
+export { certifyChemistrySourceDocument, certifyVseprSourceDocument, type VseprSourceCertification } from "./sourceEvidence";
+export type { ChemistrySourceCertification } from "./sourceEvidenceShared";
 export { verifiedVseprStructure } from "./vseprStructure";
 export { verifiedOrganicNeighbourhoodStructure } from "./organic/neighbourhoodStructure";
 export { vseprPlanConflict } from "./vsepr";

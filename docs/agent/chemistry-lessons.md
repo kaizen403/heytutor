@@ -80,7 +80,20 @@ the complete source graph and checks planner scalars by species and role;
 only matching graph-bound labels gain numeric authority. Stripping family
 metadata cannot skip this check. Unknown or ambiguous derived roles decline,
 and projected angles or inequality bounds do not prove an exact measurement.
-The common plan audit still checks all other values. A closed carbon bond
+The common plan audit still checks all other values.
+`certifyChemistrySourceDocument` extends the same certificate to the plain
+single-species Lewis graph (`lewisSourceEvidence.ts`: valence of an atom,
+total valence electrons, bonding and lone pairs or electrons per atom or in
+total, sigma and pi totals, formal charge, atom count, plus lone-pair,
+valence and formal-charge claims) and to the periodic trend graph
+(`periodicSourceEvidence.ts`: every plotted value must be the element table's,
+and plan scalars or claims pairing an element with a value or ranking
+elements with ">" or "<" are checked against that table at their written
+precision, 1% when marked approximate). Save admission then treats the
+graph's own quantities as certified. A contradicting value rejects; a
+property the table lacks (metallic or van der Waals radius, second
+ionisation energy) or an unknown derived role declines. Gate:
+`scripts/verify/verify-chemistry-plan-scalar-certification.ts`. A closed carbon bond
 line, such as CH2=C=O or CH3-CH=CH-C≡N, is declined: the formula reader
 must not split it into a fragment molecule or invent a charge on the bond
 hyphen. Separate formulas, including CH3- next to CH2, stay eligible. Run

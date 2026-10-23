@@ -41,7 +41,7 @@ export const PERIODIC_FAMILY = "chem_periodic" as const;
 /* Data                                                                      */
 /* ------------------------------------------------------------------------- */
 
-type PeriodicProperty = "ie1" | "electronegativity" | "radius" | "egh";
+export type PeriodicProperty = "ie1" | "electronegativity" | "radius" | "egh";
 
 /** Electron gain enthalpy, kJ/mol (NCERT Table 3.7 and the standard main group values). */
 const ELECTRON_GAIN_ENTHALPY: Readonly<Record<string, number>> = {
@@ -94,7 +94,7 @@ function ionicRadiusPm(symbol: string, charge: number): number | null {
 }
 
 /** The table value of a property for an element, or null when undefined. */
-function propertyValue(property: PeriodicProperty, element: ElementRecord): number | null {
+export function propertyValue(property: PeriodicProperty, element: ElementRecord): number | null {
   switch (property) {
     case "ie1": return element.ie1;
     case "electronegativity": return element.electronegativity;

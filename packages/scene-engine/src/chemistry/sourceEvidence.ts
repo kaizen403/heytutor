@@ -8,41 +8,47 @@
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { displayedSceneQuantityTexts } from "../contracts/contractsV3";
 import { compileSceneDocument } from "../compile/compiler";
-import { deferVerifiedAnswerLabels } from "../compile/answerLabels";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import type { SceneDocument, SceneIssue } from "../types";
-import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
-import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
+import { parseFormula } from "./formula";
+import { ELEMENTS, elementBySymbol, valenceElectrons } from "./elements";
 import { buildVseprScene, isVseprStem, VSEPR_FAMILY, vseprSpecies, type VseprResult } from "./vsepr";
+import {
+  countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, graphMatches, mentionedElements,
+  type ChemistrySourceCertification,
+} from "./sourceEvidenceShared";
+import { certifyLewisSourceDocument } from "./lewisSourceEvidence";
+import { certifyPeriodicSourceDocument } from "./periodicSourceEvidence";
 
 export type VseprSourceCertification =
   | { status: "not_applicable" }
   | { status: "rejected"; issues: SceneIssue[] }
   | { status: "certified"; texts: readonly string[] };
 
-type Role = "valence" | "steric" | "lone_pairs" | "bond_pairs" | "angle";
+type Role = "total_valence" | "valence" | "steric" | "lone_pairs" | "bond_pairs" | "bonded_atoms" | "angle";
 const ROLES: ReadonlyArray<[Role, RegExp]> = [
+  ["total_valence", /\btotal\s+(?:number\s+of\s+)?valence\b|\bvalence\s+electrons?\s+(?:in\s+)?total\b/i],
   ["valence", /\bvalence(?:\s+electrons?)?\b|\bouter[- ]shell\s+electrons?\b/i],
   ["steric", /\bsteric(?:\s+number)?\b|\belectron\s+domains?\b/i],
   ["lone_pairs", /\blone[- ]pairs?\b|\bnon[- ]bonding\s+pairs?\b/i],
-  ["bond_pairs", /\bbond[- ]pairs?\b|\bbonded\s+atoms?\b/i],
+  ["bond_pairs", /\bbond(?:ing)?[- ]pairs?\b/i],
+  // "H atoms bonded", "bonded atoms": the atoms sigma-bonded to the centre.
+  ["bonded_atoms", /\batoms?\b|\bligands?\b/i],
   ["angle", /\bbond\s+angle\b|\bangle\b|[θϑ]/i],
 ];
 
-function declarationText(text: string): string {
-  return normalizeChemistryText(text)
-    // Split named scalar roles, not chemical tokens: a generic camel-case
-    // splitter would corrupt ClF3 into Cl F3 and lose the target molecule.
-    .replace(/\b(valence|steric|lone|bond)(?=Electrons?|Number|Pairs?|Angle)/g, "$1 ")
-    .replace(/\b(valence|steric|electrons?|number|pairs?|angle)(?=[A-Z])/gi, "$1 ")
-    .replace(/_/g, " ");
+/** Context words never compete with a named count: "lone pairs on the N atom"
+ * is a lone-pair count, and a total is not also a per-atom valence. */
+function rolesIn(text: string): Role[] {
+  const roles = ROLES.filter(([, expression]) => expression.test(text)).map(([role]) => role);
+  const named = roles.length > 1 ? roles.filter((role) => role !== "bonded_atoms") : roles;
+  return named.includes("total_valence") ? named.filter((role) => role !== "valence") : named;
 }
 
 /** A symbol names the claimed role; explanatory arithmetic may mention other
  * roles on the RHS. Without such a name, only one declared role is accepted.
  */
 function declaredRole(quantity: TurnPlanQuantityV3): Role | null {
-  const rolesIn = (text: string) => ROLES.filter(([, expression]) => expression.test(text)).map(([role]) => role);
   const symbolRoles = rolesIn(declarationText(quantity.symbol));
   const sourceText = declarationText(quantity.sourceText ?? "");
   const sourceRoles = rolesIn(sourceText);
@@ -56,39 +62,44 @@ function declaredRole(quantity: TurnPlanQuantityV3): Role | null {
   return sourceRoles.length === 1 ? sourceRoles[0]! : null;
 }
 
-function formulaKey(formula: string): string | null {
-  const parsed = parseFormula(formula);
-  return parsed ? `${parsed.charge}:${parsed.atoms.map(({ symbol, count }) => `${symbol}:${count}`).sort().join(",")}` : null;
-}
-
-function declaredFormulas(text: string): Set<string | null> {
-  return new Set(formulaTokens(declarationText(text)).map(formulaKey));
-}
-
-function mentionedElements(text: string, elements: readonly ElementRecord[]): ElementRecord[] {
-  const declaration = declarationText(text);
-  return elements.filter((element) => {
-    const symbol = new RegExp(`(?<![A-Za-z0-9])${element.symbol}(?![A-Za-z0-9])`);
-    const names = [element.name, ...(element.symbol === "S" ? ["Sulfur"] : [])];
-    return symbol.test(declaration) || names.some((name) => new RegExp(`\\b${name}\\b`, "i").test(declaration));
-  });
-}
-
 function compatibleUnit(quantity: TurnPlanQuantityV3, role: Role): boolean {
   const unit = (quantity.unit ?? "").trim().toLowerCase();
   if (role === "angle") return ["°", "deg", "degree", "degrees"].includes(unit);
-  if (["", "1", "dimensionless", "count"].includes(unit)) return true;
-  if (role === "valence") return ["electron", "electrons"].includes(unit);
-  if (role === "steric") return ["domain", "domains"].includes(unit);
-  return ["pair", "pairs"].includes(unit);
+  if (role === "valence" || role === "total_valence") return countUnit(quantity, ["electron", "electrons"]);
+  if (role === "steric") return countUnit(quantity, ["domain", "domains"]);
+  if (role === "bonded_atoms") return countUnit(quantity, ["atom", "atoms", "ligand", "ligands"]);
+  return countUnit(quantity, ["pair", "pairs"]);
 }
 
-function equalScalar(actual: number, expected: number): boolean {
-  return Number.isFinite(actual) && Math.abs(actual - expected) <= 1e-8 * Math.max(1, Math.abs(expected));
+/** Valence electrons the whole species holds: atoms' valence shells less the charge. */
+function totalValence(result: VseprResult): number | null {
+  const parsed = parseFormula(result.formula);
+  return parsed ? parsed.atoms.reduce((sum, atom) => sum + atom.count * valenceElectrons(atom.element), 0) - parsed.charge : null;
+}
+
+/** Atoms bonded to the centre. A named terminal element counts only its own
+ * ligands; without the word "bond" the count must also be that element's
+ * formula count, so "3 I atoms" in I3- (two bonded) is not read as either.
+ */
+function bondedAtomsMatch(quantity: TurnPlanQuantityV3, result: VseprResult, declarations: readonly string[]): boolean {
+  const atoms = parseFormula(result.formula)?.atoms ?? [];
+  const mentioned = [...new Set(declarations.flatMap((text) => mentionedElements(text, ELEMENTS)))];
+  if (mentioned.some((element) => !atoms.some((atom) => atom.element === element))) return false;
+  if (result.ligands.some((ligand) => elementBySymbol(ligand.symbol) === null)) return false;
+  const bonded = declarations.some((text) => /\bbond/i.test(declarationText(text)));
+  const terminal = mentioned.filter((element) => element !== result.central);
+  if (terminal.length > 1) return false;
+  if (terminal.length === 0) return bonded && equalScalar(quantity.value, result.bondPairs);
+  const element = terminal[0]!;
+  const ligandCount = result.ligands.filter((ligand) => ligand.symbol === element.symbol).reduce((sum, ligand) => sum + ligand.count, 0);
+  const formulaCount = atoms.find((atom) => atom.element === element)?.count ?? 0;
+  if (!bonded && ligandCount !== formulaCount) return false;
+  return ligandCount > 0 && equalScalar(quantity.value, ligandCount);
 }
 
 /** Each declaration must identify its target independently. A sourceText that
  * names another molecule/atom cannot borrow the symbol's otherwise valid ID.
+ * A declaration naming no species binds only when the source has one.
  */
 function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: readonly VseprResult[]): boolean {
   if (!compatibleUnit(quantity, role)) return false;
@@ -100,6 +111,17 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
   if (formulaTargets.some((targets) => targets.length > 1)) return false;
   const formulaTarget = formulaTargets.flat()[0];
   if (formulaTarget && formulaTargets.flat().some((result) => result !== formulaTarget)) return false;
+  const sole = species.length === 1 ? species[0]! : undefined;
+  if (role === "bonded_atoms" || role === "total_valence") {
+    const result = formulaTarget ?? sole;
+    if (!result) return false;
+    if (role === "bonded_atoms") return bondedAtomsMatch(quantity, result, declarations);
+    const mentioned = declarations.flatMap((text) => mentionedElements(text, ELEMENTS));
+    const atoms = parseFormula(result.formula)?.atoms ?? [];
+    if (mentioned.some((element) => !atoms.some((atom) => atom.element === element))) return false;
+    const total = totalValence(result);
+    return total !== null && equalScalar(quantity.value, total);
+  }
   const elements = [...new Map(species.flatMap((result) => parseFormula(result.formula)?.atoms ?? [])
     .map(({ element }) => [element.symbol, element])).values()];
   const atomTargets = declarations.map((text) => mentionedElements(text, ELEMENTS));
@@ -115,7 +137,7 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
     return equalScalar(quantity.value, valenceElectrons(atom));
   }
   const targets = formulaTarget ? [formulaTarget] : atomTarget
-    ? species.filter((result) => result.central.symbol === atomTarget.symbol) : [];
+    ? species.filter((result) => result.central.symbol === atomTarget.symbol) : sole ? [sole] : [];
   if (targets.length !== 1) return false;
   const result = targets[0]!;
   if (atomTarget && atomTarget.symbol !== result.central.symbol) return false;
@@ -136,57 +158,13 @@ function planIssues(plan: TurnPlanV3, species: readonly VseprResult[]): SceneIss
       // numeric claims fail closed: they could be stale chemistry narration.
       const namesRole = ROLES.some(([, expression]) => expression.test(declarationText(quantity.symbol))
         || expression.test(declarationText(quantity.sourceText ?? "")));
-      if (!role && !namesRole && kind === "givens" && !/^(?:°|deg|degrees?|electrons?|pairs?|domains?)$/i.test(quantity.unit ?? "")) return;
+      if (!role && !namesRole && kind === "givens" && !/^(?:°|deg|degrees?|electrons?|pairs?|domains?|atoms?)$/i.test(quantity.unit ?? "")) return;
       if (role && quantityMatches(quantity, role, species)) return;
       issues.push({ code: "vsepr_plan_fact_unverified", severity: "fatal", path: `turnPlan.${kind}[${index}]`,
         message: "VSEPR plan scalar lacks an unambiguous, matching species-and-role source fact" });
     });
   }
   return issues;
-}
-
-function stable(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
-  if (value !== null && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record).filter((key) => record[key] !== undefined).sort()
-      .map((key) => `${JSON.stringify(key)}:${stable(record[key])}`).join(",")}}`;
-  }
-  return JSON.stringify(value) ?? "undefined";
-}
-
-function graphMatches(document: SceneDocument, fresh: SceneDocument, plan: TurnPlanV3 | null): boolean {
-  const expected = structuredClone(fresh);
-  const source = document.source;
-  // These are the only presentation additions; each value is constrained or
-  // regenerated. Geometry, labels, owners, quantities and source facts remain
-  // in the exact comparison, including all plan IDs and reveal membership.
-  if (source.representationTier !== undefined) {
-    if (typeof source.representationTier !== "string" || !["qualitative_verified", "question_representation"].includes(source.representationTier)) return false;
-    expected.source.representationTier = source.representationTier;
-  }
-  if (source.nonMetric !== undefined) {
-    if (source.nonMetric !== true) return false;
-    expected.source.nonMetric = true;
-  }
-  if (source.diagramYieldPolicy !== undefined) {
-    if (source.diagramYieldPolicy !== "verified_parts") return false;
-    expected.source.diagramYieldPolicy = "verified_parts";
-  }
-  if (source.answerLabelEntityIds !== undefined || source.answerLabelAnnotationIds !== undefined) {
-    const compiled = compileSceneDocument(expected);
-    if (!compiled.ok || !compiled.renderScene) return false;
-    // Without retained planner claims there are no planner-derived answers to
-    // stage. Only empty staging arrays can accompany the exact native graph.
-    const staged = plan ? deferVerifiedAnswerLabels(expected, plan, compiled.renderScene) : expected;
-    for (const key of ["answerLabelEntityIds", "answerLabelAnnotationIds"] as const) {
-      if (source[key] !== undefined) {
-        if (stable(source[key]) !== stable(staged.source[key] ?? [])) return false;
-        expected.source[key] = source[key];
-      }
-    }
-  }
-  return stable(document) === stable(expected);
 }
 
 /** Certify only the existing native molecular-shape graph. Dipole/Fajan
@@ -215,4 +193,19 @@ export function certifyVseprSourceDocument(document: SceneDocument, question: st
   const compiled = compileSceneDocument(fresh);
   if (!compiled.ok || !compiled.renderScene) return reject("regenerated VSEPR graph does not compile cleanly");
   return { status: "certified", texts: displayedSceneQuantityTexts(fresh) };
+}
+
+/** Every native chemistry source certificate, in one place for save admission:
+ * the VSEPR shape graph, the single-species Lewis graph, and the periodic
+ * trend graph read from the element table. A certificate regenerates the
+ * whole figure from the question and checks every role-bearing plan scalar
+ * against that source; a contradiction rejects the figure.
+ */
+export function certifyChemistrySourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): ChemistrySourceCertification {
+  const vsepr = certifyVseprSourceDocument(document, question, plan);
+  if (vsepr.status === "rejected") return vsepr;
+  if (vsepr.status === "certified") return { status: "certified", texts: vsepr.texts, quantities: [] };
+  const lewis = certifyLewisSourceDocument(document, question, plan);
+  if (lewis.status !== "not_applicable") return lewis;
+  return certifyPeriodicSourceDocument(document, question, plan);
 }

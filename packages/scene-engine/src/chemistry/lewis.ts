@@ -1014,7 +1014,7 @@ function speciesKey(result: LewisResult): string {
 }
 
 /** Every Lewis-solvable species the stem names, formulas first, then names, without repeats. */
-function stemSpecies(question: string): LewisResult[] {
+export function stemSpecies(question: string): LewisResult[] {
   const stem = chemStem(question);
   const out: LewisResult[] = [];
   const seen = new Set<string>();

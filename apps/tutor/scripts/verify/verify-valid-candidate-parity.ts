@@ -268,7 +268,9 @@ const fixtures: DeclineFixture[] = [
   { name: "no figure asked", code: "no_figure_asked", preferred: true, drawn: null, saved: true,
     input: { question: noFigureQuestion, turnPlan: { ...planFor(noFigureQuestion, []), visualRequirement: "none" },
       output: segmentOutput(noFigureQuestion, "newton"), policy: currentPolicy } },
-  { name: "exact scene not admitted (chemistry lane)", code: "exact_scene_not_admitted", preferred: false, drawn: null, saved: true,
+  // The native Lewis graph of H2O certifies its own counts (sigma 2, pi 0,
+  // two lone pairs) from the regenerated structure, so it is drawn instead.
+  { name: "exact scene not admitted (chemistry lane)", code: "exact_scene_not_admitted", preferred: false, drawn: "chemistry_family", saved: true,
     input: { question: chemistryQuestion, turnPlan: planFor(chemistryQuestion, []), output: segmentOutput(chemistryQuestion, "H2O"), policy: currentPolicy } },
 ];
 

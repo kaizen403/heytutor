@@ -14,7 +14,7 @@
  */
 import {
   displayedSceneQuantityTexts,
-  certifyVseprSourceDocument,
+  certifyChemistrySourceDocument,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -121,9 +121,12 @@ export function sceneSaveAdmissionFailure(input: {
   const { document, question, turnPlan, tier } = input;
   // Source geometry never becomes optional with the planner metadata. Legacy
   // native figures without a retained plan still need the exact source graph.
-  const vsepr = certifyVseprSourceDocument(document, question, turnPlan);
-  if (vsepr.status === "rejected") {
-    return `scene source inputs are unsupported or disagree: ${formatIssues(vsepr.issues)}`;
+  // A native chemistry graph (VSEPR shape, single-species Lewis structure,
+  // periodic trend) regenerated from the question certifies its own counts
+  // and table values once every role-bearing plan scalar agrees with it.
+  const chemistry = certifyChemistrySourceDocument(document, question, turnPlan);
+  if (chemistry.status === "rejected") {
+    return `scene source inputs are unsupported or disagree: ${formatIssues(chemistry.issues)}`;
   }
   if (turnPlan) {
     const molecularConflict = vseprPlanConflict(question, turnPlan);
@@ -133,8 +136,11 @@ export function sceneSaveAdmissionFailure(input: {
     // authoritative: a plan quantity is always checked against the plan.
     const planIds = new Set([...turnPlan.givens, ...turnPlan.derived].map((quantity) => quantity.id));
     let engine: EngineDerived | null = null;
-    const derivedByEngine = (): EngineDerived => engine ??= vsepr.status === "certified"
-      ? { quantities: new Map(), texts: new Set(vsepr.texts) }
+    const derivedByEngine = (): EngineDerived => engine ??= chemistry.status === "certified"
+      ? {
+        quantities: new Map(chemistry.quantities.map((quantity) => [quantity.id, { value: quantity.value, unit: quantity.unit }])),
+        texts: new Set(chemistry.texts),
+      }
       : engineDerivedValues(question, turnPlan);
     const audited = document.quantities.filter((quantity) => {
       if (planIds.has(quantity.id)) return true;
