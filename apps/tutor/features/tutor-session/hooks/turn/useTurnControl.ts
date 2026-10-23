@@ -18,7 +18,8 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { IncompleteCodeBeatError, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { IncompleteCodeBeatError, shouldAbandonTurn, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
+import { withTeachingVoiceDegraded } from "@/lib/obs/failedTurnTelemetry";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { workColumnRows } from "../../lib/board/boardLayout";
 import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
@@ -84,6 +85,21 @@ interface IntroProgress {
   beatLayout: { rollback: () => void } | null;
   /** The missing beats of a figure an earlier Stop cut off: drawn, never saved. */
   remainder: boolean;
+}
+
+/**
+ * A beat taught without its voice (provider and browser both failed) marks the
+ * lesson as voice degraded for telemetry. It is not a failure: the lesson
+ * taught, so `failed`, `stage` and `code` stay as they were.
+ */
+function noteVoiceDegradedBeat(
+  outcome: SegmentRunOutcome | undefined,
+  page: BoardPageRecord | null,
+  current: BoardPageRecord | null,
+  sessionId: string | null | undefined,
+): void {
+  if (!outcome?.voiceDegraded || !page || page !== current || page.boardId !== sessionId) return;
+  page.failureTelemetry = withTeachingVoiceDegraded(page.failureTelemetry);
 }
 
 export function useTurnControl(
@@ -294,13 +310,18 @@ export function useTurnControl(
         }
 
         try {
-          await runSegment(
+          const outcome = await runSegment(
             segmentToRun,
             index,
             collectedSegmentsRef.current,
             turnGeneration,
           );
-          if (counted()) consecutiveSegmentFailuresRef.current = 0;
+          if (counted()) {
+            // A beat taught without its voice still taught: it resets the
+            // watchdog like any other, and only marks the lesson.
+            consecutiveSegmentFailuresRef.current = 0;
+            noteVoiceDegradedBeat(outcome, segmentPage, boardPageRef.current, sessionId);
+          }
         } catch (error) {
           // Old async speech/draw cleanup cannot change a successor's failure
           // history or publish an error against the replacement turn.
@@ -495,7 +516,7 @@ export function useTurnControl(
             progress.savepointId = savepointId;
             progress.beatLayout = beatLayout;
             progress.inBeat = true;
-            await runSegment(
+            const beatOutcome = await runSegment(
               segment,
               startIndex + offset,
               collectedSegmentsRef.current,
@@ -513,6 +534,7 @@ export function useTurnControl(
                 narrationAfterIntro = narrationSinceEpochRef.current;
               },
             );
+            if (counted()) noteVoiceDegradedBeat(beatOutcome, introPage, boardPageRef.current, sessionId);
             progress.inBeat = false;
             progress.completed = offset + 1;
           }

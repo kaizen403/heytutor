@@ -26,7 +26,7 @@ import {
   SpeechSynthesisTTSClient,
 } from "@heytutor/tutor-core";
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
-import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets } from "../../lib/turn/turnFailurePolicy";
+import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets, silentSentenceRemainingMs, voiceFailureDisposition, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
@@ -121,7 +121,7 @@ export function useSegmentRunner({
       rollbackIntroInk?: () => void,
       introLayoutCheckpoint?: IntroLayoutCheckpoint,
       onRecorded?: (row: RecordedSegmentPayload) => void,
-    ): Promise<void> => {
+    ): Promise<SegmentRunOutcome | undefined> => {
       const isStale = () => turnGeneration !== turnGenerationRef.current;
       const isCancelled = () => cancelRef.current || isStale();
       if (isCancelled()) return;
@@ -241,6 +241,11 @@ export function useSegmentRunner({
       let audioStartedAtActiveMs: number | null = null;
       let usingBrowserFallback = false;
       let speechAborted = false;
+      // Both voices failed and the sentence is taught silently: the ink keeps
+      // drawing on the estimated schedule although speech is aborted.
+      let voiceDegraded = false;
+      // The paired draw failed. Its voice failure is a failed beat, never silent teaching.
+      let drawFailed = false;
       const segmentFallbackOwner = Symbol("browser fallback");
       let speechComplete = false;
       let drawGeneration = 0;
@@ -313,7 +318,7 @@ export function useSegmentRunner({
               ? Math.round(capturedTimings.totalDuration * 1000)
               : null),
           estimateSpeechMs,
-          playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
+          playbackPositionMs: usingBrowserFallback || voiceDegraded ? null : tts.getPlaybackPositionMs(),
           audioStartedAtMs: clock && audioStartedAtActiveMs !== null ? audioStartedAtActiveMs : audioStartedAtMs,
           nowMs: clock ? clock.elapsedMs() : performance.now(),
           maxAudioPositionMs,
@@ -350,7 +355,7 @@ export function useSegmentRunner({
               nowMs,
               speechComplete,
               cancelled: drawCancelled(),
-              playbackPositionMs: usingBrowserFallback ? null : tts.getPlaybackPositionMs(),
+              playbackPositionMs: usingBrowserFallback || voiceDegraded ? null : tts.getPlaybackPositionMs(),
               // Provider recovery resets its active clock. Reuse that origin
               // instead of spending the retry's budget on the abandoned voice.
               waitedMs: speechClock?.elapsedMs() ?? waitClock.elapsedMs(),
@@ -400,7 +405,8 @@ export function useSegmentRunner({
         audioTimings?: AudioTimings | null,
         generation = drawGeneration,
       ): Promise<void> => {
-        const isCancelled = () => cancelRef.current || isStale() || speechAborted || generation !== drawGeneration;
+        // A silently taught sentence keeps its ink; any other speech abort stops it.
+        const isCancelled = () => cancelRef.current || isStale() || (speechAborted && !voiceDegraded) || generation !== drawGeneration;
         const waitWhilePaused = async () => {
           while (isPausedRef.current && !isCancelled()) await cancellableDelay(16);
           return !isCancelled();
@@ -461,7 +467,7 @@ export function useSegmentRunner({
               !shouldInkSpokenSegment({
                 hasNarration: true,
                 audioStarted: audioStartedAtMs !== null,
-                speechFailed: speechAborted,
+                speechFailed: speechAborted && !voiceDegraded,
                 browserFallback: usingBrowserFallback,
               })
             ) {
@@ -767,6 +773,48 @@ export function useSegmentRunner({
           else tts.stop();
         };
 
+        /**
+         * Both voices failed. The sentence is still taught: its ink plays on
+         * the estimated schedule from now, for the time the sentence would
+         * have taken to say, and the lesson moves on. The next sentence asks
+         * the voice again, so a voice that recovers speaks.
+         */
+        const teachSentenceSilently = async (error: unknown) => {
+          if (timeoutId !== null) window.clearTimeout(timeoutId);
+          if (playbackWatchId !== null) window.clearTimeout(playbackWatchId);
+          timeoutId = null;
+          playbackWatchId = null;
+          // Nothing was heard in full, so the row keeps no audio or alignment.
+          capturedAudio = null;
+          capturedTimings = null;
+          capturedDurationMs = null;
+          if (audioStartedAtMs === null) {
+            audioStartedAtMs = performance.now();
+            audioStartedAtActiveMs = clock.elapsedMs();
+          }
+          const silentFromMs = audioStartedAtActiveMs ?? clock.elapsedMs();
+          if (hasNarration) speakingNarrationRef.current = narration;
+          if (!hasCommand) applyTurnPhase("speaking");
+          tel?.mark("tts-voice-degraded", {
+            segment_index: index,
+            turn_generation: turnGeneration,
+            error: error instanceof Error ? error.message : String(error),
+            estimated_ms: Math.round(estimateSpeechMs),
+          });
+          notifyTimingWaiters();
+          // The pause aware clock stops while paused, so Pause holds the
+          // silent sentence too. Stop and a failed draw end it at once.
+          while (!isCancelled() && !drawFailed) {
+            const remainingMs = silentSentenceRemainingMs({
+              estimateSpeechMs,
+              playbackRate: segmentPlaybackRate(),
+              elapsedMs: clock.elapsedMs() - silentFromMs,
+            });
+            if (remainingMs <= 0 && !isPausedRef.current) break;
+            await cancellableDelay(Math.min(Math.max(remainingMs, 16), 100));
+          }
+        };
+
         try {
           const spoken = requireSpeechStart(speakWithStartupRecovery({
             primary: speakPrimary,
@@ -917,7 +965,15 @@ export function useSegmentRunner({
             }),
           ]));
         } catch (error) {
-          terminalSpeechFailure = !isCancelled();
+          const disposition = voiceFailureDisposition({
+            cancelled: isCancelled(),
+            drawFailed,
+            providerRecoveryAttempted,
+            codeBeatOwed: codeBeatTargets.length > 0,
+          });
+          terminalSpeechFailure = disposition !== "quiet";
+          // Set in the same tick as speechAborted: the ink reads both.
+          voiceDegraded = disposition === "teach_silently";
           speechAborted = true;
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
@@ -933,20 +989,17 @@ export function useSegmentRunner({
           // The shared provider may already be playing a successor turn.
           // Kill zombie work only while this segment still owns the turn.
           if (terminalSpeechFailure) tts.abandonSpeaking?.();
-          // Do not count a silent fallback as a successful lecture beat. Let
-          // the queue stop after repeated failures and show its retry message.
-          // Browser recovery only succeeds after its utterance actually ends.
-          // A partial onStart before a synthesis error is still a failed beat.
-          if (providerRecoveryAttempted && !isCancelled()) {
-            // A retry timeout is NOT the intro's tolerable first-voice miss.
-            // Keep this out of isVoiceStartupFailure so failed recovery aborts
-            // the transaction instead of skipping narration and committing ink.
-            throw new Error("Provider voice recovery failed", { cause: error });
+          if (disposition === "fail") {
+            if (providerRecoveryAttempted) {
+              // A retry timeout is NOT the intro's tolerable first-voice miss.
+              // Keep this out of isVoiceStartupFailure so failed recovery aborts
+              // the transaction instead of skipping narration and committing ink.
+              throw new Error("Provider voice recovery failed", { cause: error });
+            }
+            // The draw failed with it: the queue counts this beat.
+            throw error;
           }
-          // A started provider can still fail or stall. Every terminal speech
-          // failure reaches the queue, which stops repeated failures and shows
-          // the student its retry message; cancelled/superseded turns stay quiet.
-          if (!isCancelled()) throw error;
+          if (voiceDegraded) await teachSentenceSilently(error);
         } finally {
           ownsPrimary = false;
           clearStartupStatus();
@@ -992,6 +1045,7 @@ export function useSegmentRunner({
             const generation = drawGeneration;
             ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, generation), (error) => {
               if (isCancelled() || generation !== drawGeneration) return;
+              drawFailed = true;
               speechAborted = true;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
               tutorDebug("segment", "draw failed; silencing narration", {
@@ -1109,6 +1163,8 @@ export function useSegmentRunner({
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);
       }
+      // A beat taught without a voice is a success the queue reports, not a failure it counts.
+      return voiceDegraded && segmentCompleted ? { voiceDegraded: true } : undefined;
     },
     [
       sessionId,

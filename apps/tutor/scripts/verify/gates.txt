@@ -76,6 +76,8 @@ tsx scripts/verify/verify-code-lesson-conductor.ts
 tsx scripts/verify/verify-code-lesson-pace.ts
 tsx scripts/verify/verify-board-row-actions.ts
 tsx scripts/verify/verify-turn-failure-policy.ts
+tsx scripts/verify/verify-voice-stall-teaching.ts
+tsx scripts/verify/verify-segment-speech-ownership.ts
 tsx scripts/verify/verify-spotlight-lifecycle.ts
 tsx scripts/verify/verify-marker-tour.ts
 tsx scripts/verify/verify-marker-visibility.ts
