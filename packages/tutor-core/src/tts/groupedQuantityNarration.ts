@@ -12,23 +12,31 @@ const NUMBER_PREFIX = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|te
  * value/unit, or an already bracketed spoken expression is left alone.
  *
  * The rewrite also needs positive evidence that the spoken phrase reads the
- * grouped term: the group must open the right side of `lhs =` in its row, and
- * the narration must say that left side and "equals" right before the phrase.
+ * grouped term: the group must open the right side of `lhs =` in its row, the
+ * narration must say that left side and "equals" right before the phrase, and
+ * the row must end there or continue with `+`/`−` spoken as "plus"/"minus".
  * "Take g as ten meters per second squared" beside `v² = (10 m/s)² − 2gh` is
  * an acceleration and keeps the model's words.
  */
 export function clarifyGroupedQuantityNarration(narration: string, writtenRows: readonly string[]): string {
   const written = writtenRows.join(" ");
   const groups = [...written.matchAll(GROUPED_RATIO_SQUARE)];
-  const leadReadings = new Map<string, Set<string>>();
+  // Spoken evidence for each grouped term: the row's left side read aloud
+  // before it, and what the row says right after it. A term followed by
+  // `/`, `×`, `=` or a letter gives no evidence: "a equals ten meters per
+  // second squared" may then be the row's stated acceleration.
+  const evidence = new Map<string, { lead: string; trail: string }[]>();
   for (const row of writtenRows) {
     for (const match of row.matchAll(GROUPED_RATIO_SQUARE)) {
       const lead = /^([^=]*\S[^=]*)=\s*$/u.exec(row.slice(0, match.index));
       if (!lead) continue;
+      const leadKey = spokenKey(mathToSpeech(`${lead[1]!.trim()} =`).replace(/\d+(?:\.\d+)?/g, numberToSpokenWords));
+      if (!/\S\s+equals$/u.test(leadKey)) continue;
+      const rest = row.slice(match.index + match[0].length).trim();
+      const trail = rest === "" ? "" : /^\+/u.test(rest) ? "plus" : /^[-−]/u.test(rest) ? "minus" : null;
+      if (trail === null) continue;
       const key = `${Number(match[1])}@${match[2]!.replace(/\s/g, "")}`;
-      const readings = leadReadings.get(key) ?? new Set<string>();
-      readings.add(spokenKey(mathToSpeech(`${lead[1]!.trim()} =`).replace(/\d+(?:\.\d+)?/g, numberToSpokenWords)));
-      leadReadings.set(key, readings);
+      evidence.set(key, [...evidence.get(key) ?? [], { lead: leadKey, trail }]);
     }
   }
   // A following exponent may apply to sqrt(...), sin(...), f(...), or an
@@ -42,8 +50,8 @@ export function clarifyGroupedQuantityNarration(narration: string, writtenRows: 
   for (const [, value, rawUnit] of groups) {
     const unit = rawUnit!.replace(/\s/g, "");
     if (functionArguments.has(`${Number(value)}@${unit}`)) continue;
-    const leads = leadReadings.get(`${Number(value)}@${unit}`);
-    if (!leads) continue;
+    const spoken = evidence.get(`${Number(value)}@${unit}`);
+    if (!spoken) continue;
     const [numerator, denominator] = unit.split("/");
     // If the same-looking ungrouped unit square is also written, the spoken
     // phrase is ambiguous. Do not turn a valid acceleration into a speed.
@@ -62,7 +70,9 @@ export function clarifyGroupedQuantityNarration(narration: string, writtenRows: 
     if (occurrences.length !== 1) continue;
     const occurrence = occurrences[0]!;
     const before = ` ${spokenKey(clarified.slice(0, occurrence.index))}`;
-    if (![...leads].some((lead) => before.endsWith(` ${lead}`))) continue;
+    const after = `${spokenKey(clarified.slice(occurrence.index + occurrence[0].length))} `;
+    if (!spoken.some(({ lead, trail }) =>
+      before.endsWith(` ${lead}`) && (trail === "" || after.startsWith(`${trail} `)))) continue;
     clarified = `${clarified.slice(0, occurrence.index)}the quantity ${words} all squared${clarified.slice(occurrence.index + occurrence[0].length)}`;
   }
   return clarified;

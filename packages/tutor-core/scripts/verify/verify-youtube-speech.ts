@@ -59,12 +59,27 @@ for (const [narration, rows] of [
   ["अब g ten meters per second squared लो, और u ten meters per second है.", ["v² = (10 m/s)² − 2 × 10 × 5"]],
   ["Here v squared equals twenty meters per second squared.", ["u² = (20 m/s)²"]],
   ["So v squared equals twenty meters per second squared.", ["v² = u² + (20 m/s)²"]],
+  // The row's left side is itself an acceleration and the narration states it.
+  ["So the acceleration a equals ten meters per second squared.", ["a = (10 m/s)²/(10 m) = 10 m s⁻²"]],
+  ["So a equals ten meters per second squared.", ["a = (10 m/s)²/(10 m)", "a = 10 m s⁻²"]],
+  ["So a equals ten meters per second squared.", ["a = (10 m/s)²/(10 m)"]],
+  ["g equals ten meters per second squared.", ["g = (10 m/s)² / (10 m)"]],
+  ["a equals ten meters per second squared", ["v² = (10 m/s)² − 2gh", "a = (10 m/s)²/(10 m)"]],
+  ["So a equals ten meters per second squared.", ["a = (10 m/s)^2/(10 m) = 10 m s^(-2)"]],
+  // A punctuation-only left side speaks as a bare "equals".
+  ["g equals ten meters per second squared", ["• = (10 m/s)²"]],
+  ["g equals ten meters per second squared", ["... = (10 m/s)²"]],
+  ["g equals ten meters per second squared", ["( ) = (10 m/s)²"]],
+  // A plus in the row needs "plus" right after the phrase.
+  ["v squared equals ten meters per second squared times two.", ["v² = (10 m/s)² + 2as"]],
 ] as const) {
   assert.equal(clarifyGroupedQuantityNarration(narration, rows), narration,
     `a phrase without the row's spoken left side keeps the model's words: ${narration} | ${rows.join(" ; ")}`);
 }
 assert.equal(clarifyGroupedQuantityNarration("So v squared equals twenty meters per second squared.", ["v² = (20 m/s)²"]),
   "So v squared equals the quantity twenty meters per second all squared.", "the spoken left side licenses the grouped reading");
+assert.equal(clarifyGroupedQuantityNarration("v squared equals ten meters per second squared minus two g h.", ["v² = (10 m/s)² − 2gh"]),
+  "v squared equals the quantity ten meters per second all squared minus two g h.", "a spoken minus matches the row's minus");
 assert.equal(clarifyGroupedQuantityNarration("अब v squared equals twenty meters per second squared लो.", ["v^2 = (20 m/s)^2"]),
   "अब v squared equals the quantity twenty meters per second all squared लो.", "Hinglish prose around the spoken row keeps the grouped reading");
 console.log("youtube speech: the real captured 003 prose is clarified only with its exact paired scalar and unit");
