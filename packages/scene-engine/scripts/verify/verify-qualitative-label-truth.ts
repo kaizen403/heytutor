@@ -31,9 +31,18 @@ const codes = (document: SceneDocument) => compileSceneDocument(document).report
 assert(codes(lineDocument("y - 3 = m(x - 2)")).includes("equation_label_unbound_parameter"), "the family equation cannot label one member");
 assert(!compileSceneDocument(lineDocument("y - 3 = m(x - 2)")).ok, "flag off refuses the false figure");
 {
+  // Verified parts never omits a family label to draw the member without it:
+  // the omission could also hide another fatal on the same text.
   const prepared = prepareVerifiedParts(lineDocument("y - 3 = m(x - 2)"), { enabled: true });
-  assert(prepared.compiledScene?.ok, JSON.stringify(prepared.compiledScene?.report.issues));
-  assert(!prepared.compiledScene!.renderScene!.primitives.some((p) => p.text?.includes("m(")), "flag on keeps the line and omits the family label");
+  assert(!prepared.compiledScene?.ok, "flag on also refuses the family figure rather than drawing it without its label");
+  // The line through (5, 0) and (0, 5) with two identical family callouts:
+  // main refuses it (label_duplicate), and so must verified parts.
+  const duplicate = lineDocument("AB", ["(5,0)", "(0,5)"]);
+  duplicate.constructions.find(({ id }) => id === "make_P")!.inputs = { x: 5, y: 0, coordinateSpace: "world" };
+  duplicate.constructions.find(({ id }) => id === "make_A")!.inputs = { x: 0, y: 5, coordinateSpace: "world" };
+  duplicate.annotations.push({ id: "z1", kind: "callout", targetIds: ["L"], text: "Z = 2x + 2y" }, { id: "z2", kind: "callout", targetIds: ["L"], text: "Z = 2x + 2y" });
+  assert(!compileSceneDocument(structuredClone(duplicate)).ok, "flag off refuses the duplicate family callout figure");
+  assert(!prepareVerifiedParts(duplicate, { enabled: true }).compiledScene?.ok, "flag on cannot draw a duplicate family callout figure main refuses");
 }
 assert(compileSceneDocument(lineDocument("4y = 18 - 3x")).ok, "the member's own equation passes");
 assert(codes(lineDocument("y = 2*x")).includes("equation_label_contradicts_geometry"), "an equation the drawn line does not satisfy is refused");
@@ -206,7 +215,11 @@ for (const expression of ["1/(2*x)", "x/2"]) {
 assert(fatal(curveDocument("y = 1/(2x)", "x/2", 0.5, 6, { xMin: 0, xMax: 7, yMin: 0, yMax: 4 })).includes("equation_label_contradicts_geometry"), "a bracketed reciprocal is read and checked");
 // Fix 3: a display scaled curve carries its true equation; a false one is still refused.
 {
-  const scaled = (label: string) => curveDocument(label, "(0.25)*(x^3-2*x+1)", -1, 3, { xMin: -2, xMax: 4, yMin: -2, yMax: 6 });
+  const archetype = (document: SceneDocument): SceneDocument => ({ ...document, source: { ...document.source, synthesizedFamily: true, archetype: "cubic-shape" } });
+  const scaled = (label: string) => archetype(curveDocument(label, "(0.25)*(x^3-2*x+1)", -1, 3, { xMin: -2, xMax: 4, yMin: -2, yMax: 6 }));
+  // Only an engine built archetype is read with its display factor divided out.
+  assert(fatal(curveDocument("y=x", "(2)*(x)", -1, 2, { xMin: -2, xMax: 3, yMin: -3, yMax: 5 })).includes("equation_label_contradicts_geometry"), "a planner curve (2)*(x) labelled y = x is refused");
+  assert(fatal(curveDocument("y=x^2", "(0.5)*(x^2)", -1, 2, { xMin: -2, xMax: 3, yMin: -3, yMax: 5 })).includes("equation_label_contradicts_geometry"), "a planner curve (0.5)*(x^2) labelled y = x^2 is refused");
   assert(!fatal(scaled("y=x^3-2x+1")).some((code) => code.startsWith("equation_label")), "the true equation of a display scaled curve passes");
   assert(fatal(scaled("y=x^2")).includes("equation_label_contradicts_geometry"), "a false label on a display scaled curve is refused");
 }

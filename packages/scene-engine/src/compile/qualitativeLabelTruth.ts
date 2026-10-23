@@ -273,11 +273,13 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
         }
       }) || undefinedAt > 1;
     };
-    // A display scaled curve ("(0.25)*(x^2)", drawn a quarter of its true
-    // height) is labelled with its true equation: read it with the factor
-    // divided out. Its drawn equation is accepted too, as before.
+    // An engine built archetype draws a display scaled curve ("(0.25)*(x^2)",
+    // a quarter of its true height) labelled with its true equation: read it
+    // with the factor divided out. A planner curve gets no such reading, so a
+    // planner's "(2)*(x)" labelled y = x stays refused.
+    const engineArchetype = document.source.synthesizedFamily === true && typeof document.source.archetype === "string";
     const construction = document.constructions.find((candidate) => candidate.outputs.includes(ownerId));
-    const factor = construction?.operator === "function_curve" && typeof construction.inputs.expression === "string"
+    const factor = engineArchetype && construction?.operator === "function_curve" && typeof construction.inputs.expression === "string"
       ? Number(DISPLAY_SCALED.exec(construction.inputs.expression)?.[1]) : NaN;
     const misses = missesAt(points) && !(Number.isFinite(factor) && factor !== 0 && !missesAt(points.map((point) => ({ x: point.x, y: point.y / factor }))));
     if (misses) {

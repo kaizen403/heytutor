@@ -55,7 +55,6 @@ export function prepareVerifiedParts(
         ].includes(issue.code) &&
           issue.failureKind === "proof") ||
         issue.code === "annotation_geometry_unresolved" ||
-        issue.code === "equation_label_unbound_parameter" ||
         layoutProofCodes.has(issue.code),
     );
     // An angle name may be pushed out of its wedge by a crowding label that is
