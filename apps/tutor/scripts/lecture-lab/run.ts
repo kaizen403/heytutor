@@ -34,7 +34,7 @@ import {
   evaluationRunFastMode,
   estimateEvaluationCostUsd,
   evaluationUsesExamples,
-  evaluationUsesStandardModelHeader,
+  labUsesStandardModelHeader,
   estimateLabCallWorstCaseUsd,
   parseDiagramEvalJsonl,
   PlannerUsageTracker,
@@ -334,9 +334,6 @@ export function parseOptions(argv: string[]): Options {
   if (model !== "configured" && model !== "standard" && model !== "fast") {
     throw new Error(`--model must be configured, standard or fast, received ${model}`);
   }
-  if (evalFiles.length > 0 && model === "fast") {
-    throw new Error("evaluation rounds require the configured provider (--model configured)");
-  }
   const scenePlannerLimitRaw = flags.get("scene-planner-limit-ms");
   if (scenePlannerLimitRaw !== undefined && evalFiles.length === 0) {
     throw new Error("--scene-planner-limit-ms is evaluation-only");
@@ -515,6 +512,8 @@ export interface LabBudgetServerConfig {
   provider: string;
   deployment: string | null;
   modelProfile: LabModelProfile;
+  /** Production Fireworks Fast routing; null on Azure or an unsupported Fast identity. */
+  fastModelProfile?: LabModelProfile | null;
   inputBounds: Record<"picker" | "scene", LabInputBound>;
   plannerOutputCap: number;
   teachingOutputCap: number;
@@ -523,8 +522,10 @@ export interface LabBudgetServerConfig {
 
 /** Fail before dispatch if the authenticated server's models, prices or bounds drift. */
 export function assertLabBudgetPreflight(profile: LabModelProfile, serverConfig: LabBudgetServerConfig): void {
+  // A Fast lab compares against the server's advertised Fast routing, standard against standard.
+  const serverProfile = profile.fastMode === true ? serverConfig.fastModelProfile : serverConfig.modelProfile;
   if (!serverConfig.configured || serverConfig.provider !== profile.provider || serverConfig.deployment !== profile.deployment ||
-    !labModelProfilesMatch(profile, serverConfig.modelProfile) ||
+    !labModelProfilesMatch(profile, serverProfile) ||
     !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
     !Number.isSafeInteger(serverConfig.teachingOutputCap) || serverConfig.teachingOutputCap <= 0) {
     throw new Error("server provider/models/prices do not match the configured lab");
@@ -815,13 +816,14 @@ export function summarizeEvaluation(runs: readonly LectureRun[]) {
 async function main(): Promise<void> {
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
   const endpoint = resolveLlmEndpoint();
-  const modelProfile = buildLabModelProfile({ endpoint, env: process.env });
+  const options = parseOptions(process.argv.slice(2));
+  if (options.model === "fast" && endpoint.provider !== "fireworks") {
+    throw new Error("--model fast is the Fireworks production routing; Azure has one deployment");
+  }
+  // Fast is production's Fireworks routing; standard (the default) pins K3.
+  const modelProfile = buildLabModelProfile({ endpoint, env: process.env, fastMode: options.model === "fast" });
   const providerConfig = { provider: endpoint.provider, deployment: endpoint.deployment,
     model: modelProfile.models.planner, modelProfile };
-  const options = parseOptions(process.argv.slice(2));
-  if (endpoint.provider === "fireworks" && options.model === "fast") {
-    throw new Error("paid Fireworks lab runs require the standard configured model, not Fast");
-  }
   const repoRoot = resolve(process.cwd(), "../..");
   if (options.evalFiles.length > 0 && options.ask) throw new Error("--eval and --ask cannot be combined");
   const evaluationRows = options.evalFiles.length > 0
@@ -870,7 +872,7 @@ async function main(): Promise<void> {
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
-    modelProfile: serverConfig.modelProfile, inputBounds: serverConfig.inputBounds,
+    modelProfile: modelProfile.fastMode ? serverConfig.fastModelProfile : serverConfig.modelProfile, inputBounds: serverConfig.inputBounds,
     plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
     planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
@@ -1015,15 +1017,13 @@ async function main(): Promise<void> {
     if (url.startsWith(options.origin)) {
       headers.set("cookie", cookie);
       applyLectureLabHeaders(headers);
-      if (evaluationRows) {
-        headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
-        if (evaluationUsesStandardModelHeader(true, options.model)) {
-          headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
-        }
-      }
-      // The advertised Fireworks lab profile is standard in every lane;
+      if (evaluationRows) headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
+      // The standard Fireworks lab profile is standard in every lane, so
       // authenticated lab probes/asks must not fall through to Fast IR either.
-      if (endpoint.provider === "fireworks") headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
+      // `--model fast` omits the header and runs production's Fast routing.
+      if (labUsesStandardModelHeader(endpoint.provider, Boolean(evaluationRows), options.model)) {
+        headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
+      }
     }
     const traceId = headers.get("x-heytutor-trace-id");
     if (url === `${options.origin}/api/visual-need`) {

@@ -14,11 +14,12 @@ const endpoint: LlmEndpoint = { provider: "fireworks", deployment: null, apiKey:
 const ratesForModel: typeof resolveLlmRates = (model) => {
   const lane: LlmRateLane = model === "synthetic-azure-deployment" ? "gpt-6.1-sol"
     : model === DEFAULT_FIREWORKS_MODEL ? "kimi-k3"
+    : model === DEFAULT_FIREWORKS_FAST_MODEL ? "kimi-k3-fast"
     : model === DEFAULT_CHEAP_FIREWORKS_MODEL ? "deepseek-flash" : "unknown";
   return { lane, ...LLM_RATE_DEFAULTS[lane === "unknown" ? "kimi-k3-fast" : lane] };
 };
-const build = (env: Record<string, string | undefined> = {}, selectedEndpoint = endpoint) =>
-  buildLabModelProfile({ endpoint: selectedEndpoint, env, ratesForModel });
+const build = (env: Record<string, string | undefined> = {}, selectedEndpoint = endpoint, fastMode?: boolean) =>
+  buildLabModelProfile({ endpoint: selectedEndpoint, env, ratesForModel, fastMode });
 
 const fireworks = build();
 assert.deepEqual(fireworks.models, { planner: DEFAULT_FIREWORKS_MODEL, problemIR: DEFAULT_FIREWORKS_MODEL,
@@ -80,7 +81,7 @@ assert(labModelProfilesMatch(currentRates, structuredClone(currentRates)), "exac
 assert(!labModelProfilesMatch(fireworks, currentRates), "price changes reject the server/local match");
 assert(!labModelProfilesMatch(fireworks, overridden), "picker override changes reject the server/local match");
 assert(!labModelProfilesMatch(azure, { ...azure, deployment: "other-deployment" }));
-for (const malformed of [null, {}, { ...fireworks, fastMode: true }, { ...fireworks, models: {} },
+for (const malformed of [null, {}, { ...fireworks, fastMode: "false" }, { ...fireworks, models: {} },
   { ...fireworks, rates: { ...fireworks.rates, picker: { ...fireworks.rates.picker, lane: "unknown" } } },
   { ...fireworks, rates: { ...fireworks.rates, planner: { ...fireworks.rates.planner, cachedInputUsdPer1M: Infinity } } },
 ]) {
@@ -88,4 +89,40 @@ for (const malformed of [null, {}, { ...fireworks, fastMode: true }, { ...firewo
   assert(!labModelProfilesMatch(fireworks, malformed), "malformed server config fails closed before dispatch");
 }
 assert.doesNotThrow(() => assertLabModelProfile(fireworks));
-console.log("lab model profile GREEN: standard Fireworks/Azure identities, per-request models, effective rates and fail-closed preflight; no network or environment changes");
+assert.equal(build({}, endpoint, false).fastMode, false, "standard stays the default identity");
+
+// Fast: production's Fireworks routing (Kimi K3 Fast router in planner, ProblemIR and teaching).
+const fast = build({}, endpoint, true);
+assert.equal(fast.fastMode, true);
+assert.deepEqual(fast.models, { planner: DEFAULT_FIREWORKS_FAST_MODEL, problemIR: DEFAULT_FIREWORKS_FAST_MODEL,
+  teaching: DEFAULT_FIREWORKS_FAST_MODEL, picker: DEFAULT_CHEAP_FIREWORKS_MODEL });
+for (const lane of ["planner", "problemIR", "teaching"] as const) {
+  assert.deepEqual(fast.rates[lane], { lane: "kimi-k3-fast", ...LLM_RATE_DEFAULTS["kimi-k3-fast"] }, `${lane} uses Fast rates`);
+}
+assert.equal(fast.rates.planner.inputUsdPer1M, 4.5);
+assert.equal(fast.rates.planner.outputUsdPer1M, 22.5);
+assert.equal(fast.rates.planner.cachedInputUsdPer1M, 0.45);
+assert.equal(fast.rates.picker.lane, "deepseek-flash");
+assert(labModelProfilesMatch(fast, structuredClone(fast)), "exact Fast profile matches itself");
+assert(!labModelProfilesMatch(fast, fireworks) && !labModelProfilesMatch(fireworks, fast), "Fast and standard never match");
+assert.equal(expectedLabRequestModel(fast, new Headers({ "x-planner": "1", "x-problem-ir-version": "1" })), DEFAULT_FIREWORKS_FAST_MODEL);
+assert.equal(expectedLabRequestModel(fast, new Headers({ "x-planner": "1", "x-diagram-example-picker": "1" })), DEFAULT_CHEAP_FIREWORKS_MODEL);
+assert.equal(expectedLabRequestModel(fast, new Headers()), DEFAULT_FIREWORKS_FAST_MODEL);
+assert.throws(() => build({}, azureEndpoint, true), /Fast mode requires the Fireworks provider/);
+for (const env of [
+  { FIREWORKS_FAST_MODEL: DEFAULT_FIREWORKS_MODEL }, { FIREWORKS_TEACHING_FAST_MODEL: "configured-fast-teacher" },
+  { FIREWORKS_PROBLEM_IR_MODEL: DEFAULT_FIREWORKS_MODEL }, { FIREWORKS_PROBLEM_IR_MODEL: "unknown-model" },
+  { FIREWORKS_KIMI_FAST_INPUT_USD_PER_1M: "garbage" },
+]) assert.throws(() => build(env, endpoint, true), /model|rate|price|router|unknown/i, `Fast rejects an unsupported identity ${Object.keys(env)[0]}`);
+for (const malformed of [
+  { ...fast, models: { ...fast.models, planner: DEFAULT_FIREWORKS_MODEL } },
+  { ...fast, rates: { ...fast.rates, problemIR: fireworks.rates.problemIR } },
+  { ...fast, models: { ...fast.models, teaching: DEFAULT_FIREWORKS_MODEL }, rates: { ...fast.rates, teaching: fireworks.rates.teaching } },
+  { ...fast, provider: "azure", deployment: "synthetic-azure-deployment" },
+  { ...fast, fastMode: "true" },
+  { ...fireworks, fastMode: true },
+]) {
+  assert.throws(() => assertLabModelProfile(malformed), /profile|model|rate|price|fast/i);
+  assert(!labModelProfilesMatch(fast, malformed), "mixed Fast/standard identities fail closed");
+}
+console.log("lab model profile GREEN: standard Fireworks/Azure and Fireworks Fast identities, per-request models, effective rates and fail-closed preflight; no network or environment changes");
