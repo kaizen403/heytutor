@@ -48,9 +48,14 @@ export const CAPTURED_SPEED_SQUARE_STEP = "[STEP]अब substitute करें:
 const captured = buildLessonSegments(CAPTURED_SPEED_SQUARE_STEP)[0]!;
 const originalCommands = structuredClone(getSegmentCommands(captured));
 const normalized = normalizeSegmentForAlignment(captured);
-assert.match(normalized.narration, /the quantity twenty meters per second all squared/, "the actual enqueue normalization must clarify the captured sentence before prefetch and recording");
-assert.deepEqual(getSegmentCommands(normalized), originalCommands, "clarification cannot edit or discard the notebook calculation");
-console.log("youtube speech boundary: the live enqueue seam clarifies the captured squared speed and preserves every command");
+// The live seam speaks the model's words. A narration rewrite from the paired
+// WRITE could not tell a squared speed from a spoken acceleration (g r with
+// g = 10 m/s² and r = 10 m read as (10 m/s)² times ten meters), so it is off.
+assert.equal(normalized.narration, captured.narration, "the actual enqueue normalization keeps the model's narration");
+assert.deepEqual(getSegmentCommands(normalized), originalCommands, "normalization cannot edit or discard the notebook calculation");
+const gr = buildLessonSegments("[STEP]So v squared equals ten meters per second squared times ten meters.[WRITE:v² = gr,90,300][WRITE:v² = 10 × 10,90,340][WRITE:v² = (10 m/s)²,90,380][/STEP]")[0]!;
+assert.equal(normalizeSegmentForAlignment(gr).narration, gr.narration, "a spoken acceleration beside a grouped speed WRITE is never respoken as a squared speed");
+console.log("youtube speech boundary: the live enqueue seam keeps the model's narration and every command");
 
 async function verifyLiveQueue(): Promise<void> {
   const result = await scenario("hinglish-opening", false, false, {
@@ -63,7 +68,7 @@ async function verifyLiveQueue(): Promise<void> {
     },
     voiceKey: "hi-IN", teachingTail: CAPTURED_SPEED_SQUARE_STEP,
   });
-  const corrected = (text: string): boolean => text.includes("the quantity twenty meters per second all squared");
+  const corrected = (text: string): boolean => text.includes("twenty meters per second squared plus two times");
   assert("collected" in result && result.collected && "recorded" in result && result.recorded,
     "the frozen teaching replay must return its real queued and recorded rows");
   assert("prefetched" in result && Array.isArray(result.prefetched) && Array.isArray(result.playbacks),
@@ -71,12 +76,12 @@ async function verifyLiveQueue(): Promise<void> {
   const correctedEntry = (entry: unknown): boolean => typeof entry === "object" && entry !== null &&
     "text" in entry && typeof entry.text === "string" && corrected(entry.text);
   const queued = result.collected.find((segment) => corrected(segment.narration));
-  assert(queued, "the actual hook must collect the corrected captured sentence");
-  assert(result.prefetched.some(correctedEntry), "actual lookahead must receive the same corrected sentence");
-  assert(result.playbacks.some(correctedEntry), "the actual segment runner must speak the corrected sentence");
-  assert(result.recorded.some((entry) => corrected(entry.narration)), "the real recording path must save the corrected sentence for replay");
+  assert(queued, "the actual hook must collect the captured sentence as written");
+  assert(result.prefetched.some(correctedEntry), "actual lookahead must receive the same sentence");
+  assert(result.playbacks.some(correctedEntry), "the actual segment runner must speak the same sentence");
+  assert(result.recorded.some((entry) => corrected(entry.narration)), "the real recording path must save the same sentence for replay");
   assert.deepEqual(getSegmentCommands(queued).filter((command) => command.type === "WRITE").map((command) => command.text),
     ["v^2 = (20 m/s)^2 + 2(10 m/s^2)(40 m)"], "the real queue must preserve every numeric value, unit and grouping in the WRITE");
-  console.log("youtube speech boundary: early OFF real hook prefetch, playback, collected and recorded rows agree on the squared speed");
+  console.log("youtube speech boundary: early OFF real hook prefetch, playback, collected and recorded rows agree on the narration as written");
 }
 void verifyLiveQueue().catch((error) => { console.error(error); process.exitCode = 1; });
