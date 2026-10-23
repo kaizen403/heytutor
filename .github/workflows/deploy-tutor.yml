@@ -165,6 +165,19 @@ jobs:
           pnpm --filter @heytutor/tutor verify:youtube-lesson-qa
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-workflow.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-render-fingerprint.ts
+      - name: Answer reveal and teaching conditions (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-label-accuracy.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-doubt-same-board.ts
+          pnpm --filter @heytutor/tutor verify:answer-label-completion
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-given-dimension-ownership.ts
+          pnpm --filter @heytutor/tutor verify:conductance-teaching
+          pnpm --filter @heytutor/tutor verify:figure-sentence-boundary
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-answer-export-cache.ts
+      - name: Phone readability and explanation pointing (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor verify:phone-board-readability
+          pnpm --filter @heytutor/tutor verify:explanation-pointing
       - name: Installed rendering dependency metadata regressions (bounded fixtures)
         run: node --test apps/tutor/scripts/verify/verify-installed-render-fingerprint.mjs apps/tutor/scripts/verify/verify-installed-render-fingerprint-contract.mjs
       - name: Live diagram picker regressions (no model calls)

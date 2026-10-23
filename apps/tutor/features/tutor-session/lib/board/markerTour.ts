@@ -85,7 +85,7 @@ function stopFor(target: TourRect, fraction: number): TourStop {
  * `rotation` starts the route at a different stop each time, so consecutive
  * steps about the same frame do not replay the same two moves.
  */
-export function markerTourStops(targets: readonly TourRect[], rotation = 0): TourStop[] {
+export function markerTourStops(targets: readonly TourRect[], rotation = 0, traceSmallWorkRow = false): TourStop[] {
   // Width and height are checked too: a stop is derived from them, and one
   // NaN would fly the pen to an undrawable point rather than fail loudly.
   const usable = targets.filter(
@@ -98,7 +98,7 @@ export function markerTourStops(targets: readonly TourRect[], rotation = 0): Tou
   if (usable.length === 0) return [];
   const stops: TourStop[] =
     usable.length === 1
-      ? usable[0]!.width >= TRACEABLE_WIDTH_PX
+      ? usable[0]!.width >= TRACEABLE_WIDTH_PX || (traceSmallWorkRow && usable[0]!.width > 0)
         ? [stopFor(usable[0]!, 0.15), stopFor(usable[0]!, 0.5), stopFor(usable[0]!, 0.85)]
         : [stopFor(usable[0]!, 0.5)]
       : usable.slice(0, 6).map((target) => stopFor(target, 0.5));

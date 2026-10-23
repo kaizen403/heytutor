@@ -23,6 +23,9 @@ function write(text: string, narration: string): DrawCommand {
 
 async function delivered(narration: string, command: DrawCommand, timings: AudioTimings | null) {
   const calls: ExecuteCommandOptions[] = [];
+  // Runtime explanation motion (#202) is not an authored row: keep it apart,
+  // and hold it to its own contract below.
+  const tails: Array<{ command: DrawCommand; options: ExecuteCommandOptions }> = [];
   await drawSegmentInk({
     plan: planSegmentInk({ commands: [command], verifiedDiagramIntro: false, hasNarration: true }),
     verifiedDiagramIntro: false,
@@ -34,8 +37,17 @@ async function delivered(narration: string, command: DrawCommand, timings: Audio
     },
     getDiagram: () => null, isCancelled: () => false,
     waitWhilePaused: async () => true, commandOptions: () => ({}),
-    execute: async (_command, options) => { calls.push(options); },
+    execute: async (command, options) => {
+      if (options.explanationPointing === true) tails.push({ command, options });
+      else calls.push(options);
+    },
   });
+  assert(tails.length <= 1, "runtime explanation pointing adds at most one transient call per sentence");
+  for (const tail of tails) {
+    assert.equal(tail.command.type, "POINT", "runtime explanation motion is only ever a POINT");
+    assert.equal(tail.options.writeSchedule, undefined, "runtime explanation motion never carries a write schedule");
+    assert.notEqual(tail.options.verifiedPointingOnly, true, "a work tail is never also a verified continuation");
+  }
   assert.equal(calls.length, 1, "the same spoken row reaches the real shared ink consumer once");
   assert(calls[0]!.writeSchedule, "speech receives an immediate write schedule");
   return calls[0]!.writeSchedule;
@@ -101,6 +113,7 @@ async function main() {
   };
   for (const timings of [null, timingsFor(focusNarration)]) {
     const calls: Array<{ command: DrawCommand; options: ExecuteCommandOptions }> = [];
+    const continuations: Array<{ command: DrawCommand; options: ExecuteCommandOptions }> = [];
     await drawSegmentInk({
       plan: planSegmentInk({ commands: getSegmentCommands(segments[0]!), verifiedDiagramIntro: false, hasNarration: true }),
       verifiedDiagramIntro: false,
@@ -109,8 +122,23 @@ async function main() {
         estimatedSpeechMs: timingsFor(focusNarration).totalDuration * 1000,
         getAudioPositionMs: () => 0, getPlaybackRate: () => 1 },
       getDiagram: () => diagram, isCancelled: () => false, waitWhilePaused: async () => true,
-      commandOptions: () => ({}), execute: async (command, options) => { calls.push({ command, options }); },
+      commandOptions: () => ({}), execute: async (command, options) => {
+        if (options.verifiedPointingOnly === true) continuations.push({ command, options });
+        else calls.push({ command, options });
+      },
     });
+    // A sentence with an authored FOCUS never starts a work tour; the only
+    // runtime motion allowed is the tail continuing the last completed target.
+    assert(calls.every((call) => call.options.explanationPointing !== true),
+      "an authored gesture sentence never adds a runtime work tour");
+    assert(continuations.length <= 1, "at most one verified continuation per sentence");
+    for (const continuation of continuations) {
+      assert.equal(continuation.command.type, "POINT", "a verified continuation is only ever a POINT");
+      assert.equal(continuation.options.focusSchedule, undefined, "a verified continuation never carries a focus schedule");
+      assert.notEqual(continuation.options.explanationPointing, true, "a verified continuation never comes from explanation pointing");
+    }
+    assert.deepEqual(continuations.map((call) => call.command.text), ["lower"],
+      "the continuation stays on the last completed verified target");
     assert.deepEqual(calls.map((call) => call.command.text), ["upper", "lower"], "only the authored verified targets are scheduled");
     for (const [index, label] of ["A", "B"].entries()) {
       const schedule = calls[index]!.options.focusSchedule;

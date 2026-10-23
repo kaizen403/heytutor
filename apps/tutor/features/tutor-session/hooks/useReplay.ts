@@ -23,6 +23,7 @@ import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
+  parseStoredSegmentCommands,
   lessonNarrationText,
   cancelFrame,
   scheduleFrame,
@@ -216,6 +217,8 @@ export function useReplay({
       initialTextCommandIndex = 0,
       startAtMs = 0,
       opensSentence = true,
+      fallbackSpeechComplete?: () => boolean,
+      completedSentenceCommandCount = 0,
     ): Promise<void> => {
       const isCurrentReplay = () =>
         isReplayGenerationCurrent({
@@ -224,7 +227,7 @@ export function useReplay({
           cancelled: cancelRef.current,
         });
 
-      if (segmentCommands.length === 0 || !isCurrentReplay()) {
+      if (!isCurrentReplay()) {
         return;
       }
 
@@ -270,6 +273,10 @@ export function useReplay({
       try {
         await drawSegmentInk({
           plan: inkPlan,
+          // A seek may have completed the gesture but still be inside its
+          // sentence. Its target ownership survives the remaining-command slice.
+          sentenceCommands: parseStoredSegmentCommands(segment.command),
+          completedSentenceCommandCount,
           verifiedDiagramIntro: trustedDiagramGeometry,
           clock: {
             narration,
@@ -283,11 +290,17 @@ export function useReplay({
               : undefined,
             getAudioPositionMs: getDrawClockMs,
             getPlaybackRate: getRate,
+            // Drawing starts only after accepted voice start (or voiceDone).
+            // A missing recording's owned TTS may outlast the stored duration.
+            isSpeechActive: () => audio && replayAudioRef.current === audio
+              ? !audio.ended : fallbackSpeechComplete ? !fallbackSpeechComplete() : false,
             isPaused,
             nowMs: wallClock.nowMs,
             // A recorded clip's position stops at its end; a code block still
             // typing then finishes on the wall clock, as it does live.
-            ...(audio ? { isSpeechComplete: () => audio.ended } : {}),
+            ...(audio ? { isSpeechComplete: () => replayAudioRef.current === audio
+              ? audio.ended : fallbackSpeechComplete?.() ?? audio.ended }
+              : fallbackSpeechComplete ? { isSpeechComplete: fallbackSpeechComplete } : {}),
             canAdvanceAfterSpeech: () => !isPausedRef.current,
           },
           getDiagram: () => activeVerifiedDiagramRef?.current ?? null,
@@ -471,9 +484,11 @@ export function useReplay({
         .length;
 
       const spokenText = (cue.segment.spokenText || cue.narration).trim();
+      let fallbackSpeechComplete = false;
       const speakLiveTts = async (onStart?: () => void, text = spokenText): Promise<void> => {
         const tts = ttsClientRef.current;
         if (!text || !tts || shouldCancel()) {
+          fallbackSpeechComplete = true;
           // Nothing to hear: a silent beat's ink starts now.
           onStart?.();
           if (remainingMs > 0) {
@@ -488,7 +503,14 @@ export function useReplay({
         tts.unlockAudio?.();
         tts.setMuted?.(false);
         tts.setPlaybackRate(getRate());
-        await tts.speakSegment(text, { onStart });
+        fallbackSpeechComplete = false;
+        try {
+          await tts.speakSegment(text, { onStart });
+        } finally {
+          // Runtime explanation pointing must stop with this voice, including
+          // a failure before onStart; authored ink retains its existing recovery.
+          fallbackSpeechComplete = true;
+        }
       };
 
       const drawRemaining = (audio?: HTMLAudioElement) =>
@@ -502,6 +524,8 @@ export function useReplay({
           initialTextCommandIndex,
           offsetMs,
           startIdx === 0,
+          () => fallbackSpeechComplete,
+          startIdx,
         );
 
       try {
@@ -581,7 +605,7 @@ export function useReplay({
             releaseDrawStart = resolve;
           });
           const voiceDone = speakLiveTts(releaseDrawStart).finally(releaseDrawStart);
-          if (!skipDraw && remainingCommands.length > 0) {
+          if (!skipDraw) {
             // As live: the pen waits for the voice it follows to be heard.
             await Promise.race([voiceStarted, voiceDone]);
             if (shouldCancel()) return;
@@ -605,7 +629,7 @@ export function useReplay({
           generation,
           activeGeneration: replayGenerationRef.current,
           cancelled: cancelRef.current,
-        }) && !skipDraw && remainingCommands.length > 0) {
+        }) && !skipDraw) {
           await runReplaySegmentDraw(
             cue.segment,
             remainingCommands,
@@ -616,6 +640,8 @@ export function useReplay({
             initialTextCommandIndex,
             offsetMs,
             startIdx === 0,
+            () => fallbackSpeechComplete,
+            startIdx,
           );
         }
       }
