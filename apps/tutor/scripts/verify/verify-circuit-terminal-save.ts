@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { pruneDeadSceneEntities, SCENE_ENGINE_VERSION, validateCircuitTerminalClosure, validateTurnPlanSceneProofs, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
-import { capacitorCircuit, capacitorPlan, capacitorQuestion, freeCapacitorPlates } from "../../../../packages/scene-engine/scripts/verify/fixtures/capacitor-circuit";
+import { capacitorCircuit, capacitorDrawnTwice, capacitorPlan, capacitorQuestion, freeCapacitorPlates } from "../../../../packages/scene-engine/scripts/verify/fixtures/capacitor-circuit";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { liveSceneSaveFailure, sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
 
@@ -60,6 +60,15 @@ async function main() {
     const input = { document: candidate("missing_return"), question: capacitorQuestion, turnPlan: capacitorPlan, tier };
     assert.match(sceneSaveAdmissionFailure(input) ?? "", /source_loop_not_closed/);
     assert.match(liveSceneSaveFailure(input) ?? "", /source_loop_not_closed/); checks += 2;
+  }
+  for (const kind of ["K", "N", "recorded"] as const) {
+    const result = await save(capacitorDrawnTwice(kind));
+    assert.equal(result.ok, false, `${kind}: a forged ready save cannot keep a capacitor drawn twice`); checks++;
+    for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+      const input = { document: capacitorDrawnTwice(kind), question: capacitorQuestion, turnPlan: capacitorPlan, tier };
+      assert.match(sceneSaveAdmissionFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: saved admission refuses the double draw`);
+      assert.match(liveSceneSaveFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: live save refuses the double draw`); checks += 2;
+    }
   }
   const withoutPlan = await save(candidate("missing_return"), capacitorQuestion, null);
   assert.equal(withoutPlan.ok, false, "a qualitative payload without a plan still needs declared source terminals to close"); checks++;

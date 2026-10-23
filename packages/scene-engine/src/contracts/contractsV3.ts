@@ -3695,8 +3695,12 @@ export function validateCircuitTerminalClosure(
     ...(plan?.qualitativeClaims ?? []).flatMap((claim) => [claim.id, claim.claim]),
     ...(plan?.assumptions ?? []),
   ].join(" ").toLowerCase();
+  // A capacitor symbol already draws both plates. Free segments wired to a
+  // circuit terminal beside it draw the capacitor a second time. This is not a
+  // closure question, so open switch wording never waives it.
+  const doubleDrawn = capacitorDepictedTwice(document);
   if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
-    return [];
+    return doubleDrawn ? [doubleDrawn] : [];
   }
   const entityById = new Map(document.entities.map((entity) => [entity.id, entity]));
   const edges = document.constructions.flatMap((construction) => {
@@ -3713,7 +3717,7 @@ export function validateCircuitTerminalClosure(
     return /\b(?:(?:ac|dc|voltage|current|power)[_ -]?source|battery|cell|supply|generator)\b/i
       .test(semantic);
   });
-  const issues: SceneIssue[] = [];
+  const issues: SceneIssue[] = doubleDrawn ? [doubleDrawn] : [];
   // This selects repair wording only; it never creates a component or join.
   const capacitorRepair = evidenceText.includes("capacitor") || document.constructions.some((construction) =>
     construction.operator === "symbol" && construction.inputs.symbol === "capacitor") ||
@@ -3745,13 +3749,42 @@ export function validateCircuitTerminalClosure(
           `Without passing through ${source.id}, ${source.start} reaches only ${reachedNodes(visited, source.start)}, and no component or wire joins those to ${source.end}. ` +
           componentContract +
           "Attach connect wires to the declared outer terminal point IDs and their intended circuit nodes; never bypass a component to fake closure. " +
-          "Free plate segments and coincident coordinates do not establish a component edge. Preserve declared terminal IDs; do not invent a wire to close the path.",
+          "Free plate segments and coincident coordinates do not establish a component edge. " +
+          `${CAPACITOR_PLATES_DELETED} Preserve declared terminal IDs; do not invent a wire to close the path.`,
         severity: "fatal",
         entityIds: [source.id],
       });
     }
   }
   return issues;
+}
+
+const CAPACITOR_PLATES_DELETED =
+  "When you use symbol capacitor, delete the free plate segments; the plates must be deleted, never draw both.";
+
+function capacitorDepictedTwice(document: SceneDocument): SceneIssue | null {
+  const hasCapacitorSymbol = document.constructions.some((construction) =>
+    construction.operator === "symbol" && construction.inputs.symbol === "capacitor");
+  if (!hasCapacitorSymbol) return null;
+  const terminals = new Set(document.constructions.flatMap((construction) => {
+    if (construction.operator !== "symbol" && construction.operator !== "connect") return [];
+    return [firstStringValue(construction.inputs, ["start", "from", "a"]), firstStringValue(construction.inputs, ["end", "to", "b"])]
+      .filter((id): id is string => id !== null);
+  }));
+  const segments = document.constructions.filter((construction) => {
+    if (construction.operator !== "segment") return false;
+    const ends = [firstStringValue(construction.inputs, ["start", "from", "a"]), firstStringValue(construction.inputs, ["end", "to", "b"])];
+    return ends.some((id) => id !== null && terminals.has(id));
+  });
+  if (segments.length === 0) return null;
+  return {
+    code: "capacitor_depicted_twice",
+    failureKind: "truth",
+    message: `Segments ${segments.map(({ id }) => id).join(", ")} start or end on a circuit terminal while symbol capacitor already draws the plates, so the capacitor is drawn twice. ` +
+      CAPACITOR_PLATES_DELETED,
+    severity: "fatal",
+    entityIds: segments.flatMap(({ outputs }) => outputs),
+  };
 }
 
 function firstStringValue(

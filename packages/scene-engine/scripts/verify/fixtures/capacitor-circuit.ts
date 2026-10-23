@@ -52,3 +52,59 @@ export function freeCapacitorPlates(): SceneDocument {
   document.revealGroups[0]!.entityIds = [...document.requiredEntityIds];
   return document;
 }
+
+/**
+ * A capacitor drawn twice: `symbol capacitor` already draws both plates, and
+ * free segments wired to circuit terminals draw them again.
+ * K: plates hang off the symbol's own terminals.
+ * N: the symbol spans the plate ends, so each plate starts on a terminal.
+ * recorded: the shape of a recorded repair response (plates top and bottom,
+ * symbol capacitor down the left side, battery wired to the plate corners).
+ */
+export function capacitorDrawnTwice(kind: "K" | "N" | "recorded"): SceneDocument {
+  const layouts = {
+    K: {
+      points: [["A", 0, 2], ["B", 0, 0], ["C", 4, 2], ["D", 4, 0], ["E", 6, 2], ["F", 6, 0]],
+      symbols: [["battery", "battery", "A", "B"], ["capacitor", "capacitor", "C", "D"]],
+      connects: [["top", "A", "C"], ["bottom", "B", "D"]],
+      segments: [["plate1", "C", "E"], ["plate2", "D", "F"]],
+    },
+    N: {
+      points: [["A", 0, 2], ["B", 0, 0], ["P1", 3, 1.2], ["P2", 5, 1.2], ["P3", 3, 0.8], ["P4", 5, 0.8]],
+      symbols: [["battery", "battery", "A", "B"], ["capacitor", "capacitor", "P1", "P3"]],
+      connects: [["top", "A", "P1"], ["bottom", "B", "P3"]],
+      segments: [["plate1", "P1", "P2"], ["plate2", "P3", "P4"]],
+    },
+    recorded: {
+      points: [["tl", 2, 2], ["tr", 6, 2], ["bl", 2, 0], ["br", 6, 0], ["bt", 0, 2], ["bb", 0, 0]],
+      symbols: [["capacitor", "capacitor", "tl", "bl"], ["battery", "battery", "bt", "bb"]],
+      connects: [["wire_top", "bt", "tl"], ["wire_bottom", "bb", "bl"]],
+      segments: [["top", "tl", "tr"], ["bottom", "bl", "br"]],
+    },
+  } as const;
+  const layout = layouts[kind];
+  const ids = [
+    ...layout.points.map(([id]) => id), ...layout.symbols.map(([id]) => id),
+    ...layout.connects.map(([id]) => id), ...layout.segments.map(([id]) => id),
+  ];
+  return {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "A synthetic capacitor loop with free plates beside the symbol" },
+    source: { question: capacitorQuestion, representationTier: "qualitative_verified", nonMetric: true },
+    quantities: [],
+    entities: [
+      ...layout.points.map(([id]) => ({ id, kind: "point" as const, role: "node" })),
+      ...layout.symbols.map(([id, symbol]) => ({ id, kind: "component" as const, role: symbol === "battery" ? "source" : "capacitor", label: symbol === "battery" ? "E" : "C" })),
+      ...layout.connects.map(([id]) => ({ id, kind: "connector" as const, role: "wire" })),
+      ...layout.segments.map(([id]) => ({ id, kind: "segment" as const, role: "capacitor plate" })),
+    ],
+    constructions: [
+      ...layout.points.map(([id, x, y]) => ({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] })),
+      ...layout.symbols.map(([id, symbol, start, end]) => ({ id: `make_${id}`, operator: "symbol", inputs: { symbol, start, end }, outputs: [id] })),
+      ...layout.connects.map(([id, start, end]) => ({ id: `make_${id}`, operator: "connect", inputs: { start, end }, outputs: [id] })),
+      ...layout.segments.map(([id, start, end]) => ({ id: `make_${id}`, operator: "segment", inputs: { start, end }, outputs: [id] })),
+    ],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ids,
+    revealGroups: [{ id: "circuit", entityIds: ids, dependsOn: [], narrationCue: "circuit" }], teachingTimeline: [],
+  };
+}
