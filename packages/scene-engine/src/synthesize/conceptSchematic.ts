@@ -161,25 +161,64 @@ function pushHint(into: SpatialHint[], value: SpatialHint | SpatialHint[] | null
   for (const item of items) into.push(item);
 }
 
+/**
+ * Each mark depicts a thermal relation: boxes joined by a segment are bodies
+ * in thermal contact, Q and W arrows are an energy balance, and stacked boxes
+ * are a heat engine between reservoirs. A word alone does not license any of
+ * them ("reproductive system", "navigation systems", "search engine"), so a
+ * hint counts only when its own claim states the relation the mark draws.
+ */
+const THERMAL_CONTACT_EVIDENCE = /\bthermal(?:ly)?\s+(?:equilibrium|contact)\b|\bzeroth\s+law\b|\bthermometers?\b|\b(?:same|equal)\s+temperatures?\b/i;
+const ENERGY_BALANCE_EVIDENCE = /\binternal\s+energy\b|Δ\s*U\b|\bdelta\s*u\b|\bfirst\s+law\b/i;
+const HEAT_TERM = /\bheat\b|\bq\b/i;
+const HEAT_ENGINE_EVIDENCE = /\bheat\s+engines?\b|\breservoirs?\b|\bcarnot\b|\brefrigerators?\b|\bheat\s+pumps?\b/i;
+
+interface ClaimLicence {
+  contact: boolean;
+  energyBalance: boolean;
+  heatEngine: boolean;
+}
+
+function claimLicence(text: string): ClaimLicence {
+  const heat = HEAT_TERM.test(text);
+  return {
+    contact: THERMAL_CONTACT_EVIDENCE.test(text),
+    energyBalance: heat && ENERGY_BALANCE_EVIDENCE.test(text),
+    heatEngine: heat && HEAT_ENGINE_EVIDENCE.test(text),
+  };
+}
+
+function licensed(hint: SpatialHint, licence: ClaimLicence): boolean {
+  if (hint.kind === "system" || hint.kind === "instrument") return licence.contact;
+  if (hint.kind === "flow") return licence.energyBalance;
+  return licence.heatEngine;
+}
+
+function pushLicensed(into: SpatialHint[], value: SpatialHint | SpatialHint[] | null, licence: ClaimLicence): void {
+  if (!value) return;
+  pushHint(into, (Array.isArray(value) ? value : [value]).filter((hint) => licensed(hint, licence)));
+}
+
 function collectHints(turnPlan: unknown): SpatialHint[] {
   if (!isRecord(turnPlan)) return [];
   const found: SpatialHint[] = [];
   const claims = Array.isArray(turnPlan.qualitativeClaims) ? turnPlan.qualitativeClaims : [];
-  const hintStrings: string[] = [];
-  const prose: string[] = [];
+  const readings: Array<{ licence: ClaimLicence; hints: string[]; prose: string[] }> = [];
   for (const claim of claims) {
     if (!isRecord(claim)) continue;
-    if (Array.isArray(claim.relatedEntityHints)) {
-      for (const hint of claim.relatedEntityHints) {
-        if (typeof hint === "string") hintStrings.push(hint);
-      }
-    }
-    if (typeof claim.claim === "string") prose.push(claim.claim);
-    if (typeof claim.expected === "string") prose.push(claim.expected);
+    const hints = Array.isArray(claim.relatedEntityHints)
+      ? claim.relatedEntityHints.filter((hint): hint is string => typeof hint === "string")
+      : [];
+    const prose = [claim.claim, claim.expected].filter((text): text is string => typeof text === "string");
+    readings.push({ licence: claimLicence([...prose, ...hints].join(" ")), hints, prose });
   }
-  for (const hint of hintStrings) pushHint(found, classifyHint(hint));
+  for (const reading of readings) {
+    for (const hint of reading.hints) pushLicensed(found, classifyHint(hint), reading.licence);
+  }
   if (found.length < 2) {
-    for (const text of prose) pushHint(found, classifyHint(text));
+    for (const reading of readings) {
+      for (const text of reading.prose) pushLicensed(found, classifyHint(text), reading.licence);
+    }
   }
   return uniquify(found);
 }
