@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateFigureConsistency } from "./figureConsistency";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
@@ -1147,6 +1148,14 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives),
     ...validateFigureLegibility(primitives), ...validateAxisNamePlacement(primitives), ...validateAngleLabelWedge(document, primitives, coincidentPointAliases));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
+  // Ink that contradicts a planner document (a reversed current, glyphs drawn on
+  // top of each other, hidden or unnamed arrows) is false under both yield policies.
+  if (options.figureConsistency) issues.push(...validateFigureConsistency(document, primitives, (entityId) => {
+    const value = geometry.get(entityId);
+    if (value?.kind !== "compound") return null;
+    const transform = transformPlan.transformFor(entityId);
+    return [transform(value.terminals[0]), transform(value.terminals[1])];
+  }));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   // Native bond truth is core geometry under both yield policies; labels or
   // repair cannot turn overlapping double/triple strokes into valid ink.
