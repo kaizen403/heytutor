@@ -1,5 +1,6 @@
 import type { RefObject } from "react";
-import { useEffect, useState } from "react";
+import { MIN_BOARD_FONT_SIZE } from "@heytutor/drawing";
+import { useEffect, useRef, useState } from "react";
 import {
   BOARD_FRAME_MOBILE_MQ,
   BOARD_FRAME_KEYBOARD_INSET_PX,
@@ -21,11 +22,15 @@ const FIXED_VIEWPORT: BoardViewport = {
 export function useBoardViewport(
   containerRef: RefObject<HTMLDivElement | null>,
   mode: BoardViewportMode = "fit",
+  minimumVisibleFontSize?: number | null,
 ): BoardViewport {
+  const fontSizeRef = useRef(minimumVisibleFontSize);
+  const refreshRef = useRef<(() => void) | null>(null);
+  const fontChangedRef = useRef(false);
   const [viewport, setViewport] = useState<BoardViewport>(
     mode === "fixed"
       ? FIXED_VIEWPORT
-      : { scale: 0.1, offsetX: 0, offsetY: 0, measured: false },
+      : { scale: 0.1, offsetX: 0, offsetY: 0, measured: false, scrollable: false },
   );
 
   useEffect(() => {
@@ -57,6 +62,7 @@ export function useBoardViewport(
      */
     const lastBox = { width: 0, height: 0 };
     let lastScale = 0;
+    let lastScrollable = false;
     let measured = false;
 
     const updateScale = () => {
@@ -87,6 +93,8 @@ export function useBoardViewport(
       const framePadding = boardFramePaddingPx(
         window.matchMedia(BOARD_FRAME_MOBILE_MQ).matches,
       );
+      const readabilityChanged = fontChangedRef.current;
+      fontChangedRef.current = false;
 
       const visual = window.visualViewport;
       const keyboardInset = visual
@@ -142,22 +150,47 @@ export function useBoardViewport(
         deck?.style.removeProperty("--board-panel-max-height");
         deck?.style.removeProperty("--board-panel-display");
       }
-      if (keyboardLocked) return;
+      const minimumFont = fontSizeRef.current;
+      // Undefined retains the explicit readable-scroll API's conservative
+      // default. The session supplies null for a blank page and the actual
+      // smallest visible glyph size once ink exists.
+      const minimumScale = mode === "readable-scroll"
+        ? minimumFont === null ? 0 : 16 / (minimumFont ?? MIN_BOARD_FONT_SIZE)
+        : 0;
+      if (keyboardLocked) {
+        // The lock can hold a scale larger than the remaining ink needs.
+        // Carry that invalidation through to keyboard-close, even when the
+        // restored box is byte-identical to the last accepted fit.
+        fontChangedRef.current = readabilityChanged;
+        const scale = Math.max(lastScale, minimumScale);
+        const scrollable = mode === "readable-scroll" && (
+          scale * BOARD_WIDTH > availWidth + 1 ||
+          scale * BOARD_HEIGHT > Math.max(height - deckHeight - framePadding, 1) + 1
+        );
+        if (scale !== lastScale || scrollable !== lastScrollable) {
+          lastScale = scale;
+          lastScrollable = scrollable;
+          setViewport({ scale, offsetX: 0, offsetY: 0, measured: true, scrollable });
+        }
+        return;
+      }
       height = Math.max(height - deckHeight, 1);
       const availHeight = Math.max(height - framePadding, 1);
 
       const widthScale = availWidth / BOARD_WIDTH;
       const heightScale = availHeight / BOARD_HEIGHT;
 
-      // Ordinary boards fit without cropping. The explicitly scrollable short
-      // viewport keeps 32px work text at least 16px; its region owns the pan,
-      // while transport stays outside that region at natural size.
+      // Keep the old full-sheet fit wherever the ink is already readable.
+      // Only visible text can require a larger sheet; a retired 19px label or
+      // the global type-scale minimum must not enlarge a blank/large-type page.
+      const fitScale = Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
       const nextScale =
         mode === "readable-scroll"
-          ? Math.max(widthScale, 0.5)
-          : Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
+          ? Math.max(fitScale, minimumScale)
+          : fitScale;
+      const scrollable = mode === "readable-scroll" && nextScale > fitScale + 0.001;
       // Avoid sub-pixel thrash from ResizeObserver feedback.
-      if (measured && Math.abs(lastScale - nextScale) < 0.001) {
+      if (measured && Math.abs(lastScale - nextScale) < 0.001 && lastScrollable === scrollable) {
         return;
       }
       // Keyboard and tiny height wobble must not rescale a live lecture.
@@ -165,6 +198,8 @@ export function useBoardViewport(
       // must refit, or the paper keeps the empty-landing size.
       if (
         measured &&
+        !readabilityChanged &&
+        lastScrollable === scrollable &&
         lastBox.width > 0 &&
         shouldLockBoardScale({
           widthDelta: width - lastBox.width,
@@ -178,10 +213,12 @@ export function useBoardViewport(
       lastBox.width = width;
       lastBox.height = height;
       lastScale = nextScale;
+      lastScrollable = scrollable;
       measured = true;
-      setViewport({ scale: nextScale, offsetX: 0, offsetY: 0, measured: true });
+      setViewport({ scale: nextScale, offsetX: 0, offsetY: 0, measured: true, scrollable });
     };
 
+    refreshRef.current = updateScale;
     updateScale();
     // Budget writes can resize the deck itself. Leave observer delivery
     // before applying them so the next fit cannot feed a same-frame loop.
@@ -200,12 +237,20 @@ export function useBoardViewport(
       cancelAnimationFrame(rafId);
       window.clearTimeout(timeoutId);
       observer.disconnect();
+      refreshRef.current = null;
       deck?.style.removeProperty("--board-panel-max-height");
       deck?.style.removeProperty("--board-panel-display");
       media.removeEventListener("change", updateScale);
       window.visualViewport?.removeEventListener("resize", updateScale);
     };
   }, [containerRef, mode]);
+
+  useEffect(() => {
+    if (fontSizeRef.current === minimumVisibleFontSize) return;
+    fontSizeRef.current = minimumVisibleFontSize;
+    fontChangedRef.current = true;
+    refreshRef.current?.();
+  }, [minimumVisibleFontSize]);
 
   return viewport;
 }

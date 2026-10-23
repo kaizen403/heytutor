@@ -150,13 +150,20 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
     }
     assert(settled, `${name}: actual consumers join within a bounded clock`); if (failure) throw failure;
     assert(!simultaneousPens, `${name}: FOCUS and WRITE never race one pen`);
-    const started = events.filter((e) => e.kind === "start");
+    // Runtime work tours and completed-target continuations are not authored
+    // commands. Keep their real execution, but count the original commands only.
+    const transient = events.filter((e) => e.kind === "start" && (e.options?.explanationPointing || e.options?.verifiedPointingOnly));
+    assert(transient.every((e) => e.type === "POINT" && !beat.commands.includes(e.command!)),
+      `${name}: only fresh runtime POINTs are excluded from authored command counts`);
+    const started = events.filter((e) => e.kind === "start" && !e.options?.explanationPointing && !e.options?.verifiedPointingOnly);
     if (control === "cancel") {
       assert(!started.some((e) => e.type === "WRITE"), "cancelled focus may not dispatch later work");
       assert(!annotations.some(annotation => annotation.turnCancelledAtDispatch), "turn cancellation cannot finish transient paths as deadline catch-up");
     } else {
       assert.equal(beforeCount, beat.commands.length, `${name}: original resume command counts stay intact`);
       assert.equal(started.length, beat.commands.length, `${name}: no command is split or dropped`);
+      for (const command of beat.commands) assert.equal(started.filter((e) => e.command === command).length,
+        beat.commands.filter((original) => original === command).length, `${name}: every original command executes unchanged exactly once per occurrence`);
       for (const entry of started.filter((e) => e.type === "WRITE" && beat.opensSentence !== false)) {
         const index = beat.commands.filter((c) => c.type === "WRITE").indexOf(entry.command!);
         const schedule = getBestWriteCharScheduleMs(beat.narration, entry.command!, beat.timings, beat.durationMs, index, 90)!;

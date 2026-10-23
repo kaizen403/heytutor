@@ -32,17 +32,22 @@ async function verifyForwarding() {
   const spoken = mathToSpeech(narration);
   const command: DrawCommand = { type: "WRITE", text: "t-1", params: [90, 208], charPosition: 0, narrationBefore: narration };
   let active = true;
+  let scheduledWrites = 0;
   const isAudioActive = () => active;
   const clock: SegmentInkClock & { isAudioActive?: () => boolean } = {
     narration, getTimings: () => ({ charStartTimes: [...spoken].map((_, i) => i * .6), charDurations: [...spoken].map(() => .6), totalDuration: spoken.length * .6 }),
     totalSpeechMs: spoken.length * 600, estimatedSpeechMs: spoken.length * 600,
     getAudioPositionMs: () => 3050, getPlaybackRate: () => 1.25, isAudioActive,
+    // Match the real live runner's completion owner: this stub ends speech
+    // inside its WRITE callback, so there is no spoken explanation tail.
+    isSpeechComplete: () => !active,
   };
   await ink.drawSegmentInk({
     plan: ink.planSegmentInk({ commands: [command], hasNarration: true, verifiedDiagramIntro: false }),
     verifiedDiagramIntro: false, clock, getDiagram: () => null,
     isCancelled: () => false, waitWhilePaused: async () => true,
     commandOptions: () => ({}), execute: async (_command, options: ExecuteCommandOptions) => {
+      scheduledWrites++;
       const schedule = options.writeSchedule as (ExecuteCommandOptions["writeSchedule"] & { isAudioActive?: () => boolean }) | undefined;
       assert(schedule, "the actual live consumer produces its schedule without waiting for future TTS");
       assert.equal(schedule.isAudioActive, isAudioActive, "live ink must forward its segment-owned callback to the real handwriting consumer");
@@ -51,6 +56,7 @@ async function verifyForwarding() {
       assert.equal(schedule.isAudioActive?.(), false, "speech completion must be read live, not frozen at schedule construction");
     },
   });
+  assert.equal(scheduledWrites, 1, "the original authored WRITE must reach its schedule consumer exactly once");
   console.log("verify-live-active-audio-write: dynamic segment playback ownership reaches scheduled ink");
 }
 

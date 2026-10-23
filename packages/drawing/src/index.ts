@@ -26,6 +26,8 @@ export {
   focusEmphasisOf,
   takeDeferredAnnotations,
   remainingDeferredAnnotations,
+  peekDeferredAnnotation,
+  acknowledgeDeferredAnnotation,
   hitTestVerifiedAnchor,
   type FocusEmphasis,
   type SemanticFocusSpec,

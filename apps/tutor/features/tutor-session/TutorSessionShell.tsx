@@ -97,6 +97,7 @@ import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import type { SpeechStartupStatus } from "./hooks/turn/types";
 import { useBoardLayout } from "./hooks/useBoardLayout";
+import { useBoardReading } from "./hooks/useBoardReading";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
 import { useNotesChat } from "./hooks/useNotesChat";
@@ -491,7 +492,11 @@ export function TutorSessionShell({
   // mounted in bounded overlays so drafts, save failures and actions survive.
   const compactBoardChrome =
     !isHeadless && can.appChrome && shortScreen && !boardFullscreen;
-  const scrollBoard = compactBoardChrome && veryShortScreen;
+  // Fit-to-sheet made 27px work about 8 CSS px on a portrait phone. Keep the
+  // canonical ink readable and let its bounded region own both pan axes.
+  const readableBoard = !isHeadless && (
+    isMobile || (coarsePointer && shortScreen) || (compactBoardChrome && veryShortScreen)
+  );
   const shortPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
@@ -764,6 +769,8 @@ export function TutorSessionShell({
   const pendingInk = getMarkerColorHex(settings.markerColor);
 
   const { cancellableDelay, raceWithCancel, clearCancelTimers } = useCancelControl(cancelRef);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
+  const [minimumVisibleFontSize, setMinimumVisibleFontSize] = useState<number | null>(null);
 
   const {
     boardContainerRef,
@@ -785,10 +792,12 @@ export function TutorSessionShell({
     liveQuestionRef,
     viewportMode: isHeadless
       ? "fixed"
-      : scrollBoard
+      : readableBoard
         ? "readable-scroll"
         : "fit",
+    minimumVisibleFontSize,
   });
+  const scrollBoard = readableBoard && boardViewport.scrollable !== false;
   useEffect(() => {
     // A Sheet owns focus while open; the header returns it on close.
     if (!compactBoardChrome || mobileNavOpen || settingsOpen) return;
@@ -1237,6 +1246,7 @@ export function TutorSessionShell({
   const {
     rewindBoardRef,
     rewindActive,
+    rewindPlaying,
     rewindSegmentText,
     rewindCursorState,
     goLive,
@@ -1342,6 +1352,19 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
+  const readingPlayer = lecturePlayer.active && lecturePlayer.revealed;
+  useBoardReading({
+    enabled: readableBoard,
+    follow: scrollBoard && (lecturePlayer.active
+      ? readingPlayer && lecturePlayer.playing
+      : rewindActive ? rewindPlaying : !isPaused && (phase === "drawing" || phase === "speaking")),
+    boardRef: readingPlayer ? lecturePlayer.playerBoardRef : rewindActive ? rewindBoardRef : whiteboardRef,
+    paneRef: boardScrollRef,
+    scale: boardViewport.scale,
+    scope: `${sessionId}:${liveQuestion}`,
+    diagram: activeVerifiedDiagram,
+    onMinimumFontSize: setMinimumVisibleFontSize,
+  });
   const dockCaption = isMobile || shortScreen || compactBoardChrome;
   const caption = sessionCaption({
     enabled: settings.subtitlesEnabled || codeLessonActive,
@@ -2123,6 +2146,7 @@ export function TutorSessionShell({
               }}
             >
               <div
+                ref={boardScrollRef}
                 data-board-scroll={scrollBoard ? "true" : undefined}
                 role={scrollBoard ? "region" : undefined}
                 aria-label={
@@ -2160,6 +2184,7 @@ export function TutorSessionShell({
                           });
                         else
                           pane.scrollTo({
+                            left: event.key === "Home" ? 0 : pane.scrollWidth,
                             top: event.key === "Home" ? 0 : pane.scrollHeight,
                           });
                       }
@@ -2171,6 +2196,7 @@ export function TutorSessionShell({
                         width: "100%",
                         minHeight: 0,
                         flex: "1 1 0",
+                        overflowX: "auto",
                         overflowY: "auto",
                         overscrollBehavior: "contain",
                         display: "flex",
@@ -2320,7 +2346,7 @@ export function TutorSessionShell({
               <div
                 className="wb-deck relative shrink-0"
                 data-board-deck
-                style={showDockedPlayer ? { width: "100%" } : undefined}
+                style={scrollBoard || showDockedPlayer ? { width: "100%" } : undefined}
               >
                 {/* Keep enabled captions' space throughout the session so
                     silent cues, Stop and End do not refit the paper. */}

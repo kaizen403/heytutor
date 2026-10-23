@@ -477,10 +477,13 @@ export function useSegmentRunner({
               );
               // Voice never came: uncover the board so the lecture is not stuck
               // behind "preparing" for the rest of the turn.
-              applyTurnPhase("speaking");
+              if (hasCommand) applyTurnPhase("speaking");
               return;
             }
-            applyTurnPhase("drawing");
+            // Narration-only motion follows the voice's speaking phase. Its
+            // timing wait may settle after an opening's owner restored the
+            // planning/thinking wait, so it must not overwrite that phase.
+            if (hasCommand) applyTurnPhase("drawing");
             tutorDebug("draw", "initial timing wait", {
               index,
               release: initialTimingWait?.release ?? null,
@@ -506,6 +509,7 @@ export function useSegmentRunner({
               // stalls. Accepted onEnd and the bounded speech finally path
               // release it; browser recovery has only an estimated wall clock.
               isAudioActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null && !usingBrowserFallback,
+              isSpeechActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null,
               getPlaybackRate: segmentPlaybackRate,
               isSpeechComplete: () => speechComplete,
               canAdvanceAfterSpeech: () => !isPausedRef.current,
@@ -1007,23 +1011,21 @@ export function useSegmentRunner({
       try {
         if (!(await waitWhilePaused())) return;
 
-        if (hasNarration && !hasCommand) {
-          tutorDebug("segment", "narration-only", { index });
-          await speakSegmentWithTimeout(narration, speakOptions);
-          if (isCancelled()) return;
-          tutorDebug("segment", "narration-only complete", { index });
-        } else if (!hasNarration && hasCommand) {
+        if (!hasNarration && hasCommand) {
           tutorDebug("segment", "draw-only", { index });
           applyTurnPhase("drawing");
           await runDraw(naturalDrawMs);
           if (isCancelled()) return;
           tutorDebug("segment", "draw-only complete", { index });
-        } else if (hasNarration && hasCommand) {
+        } else if (hasNarration) {
           tutorDebug("segment", "paired narration+draw", { index });
 
-          // Finish prior ink first, then speak + draw this segment together so the
-          // marker stays with the words (do not let speech race ahead on drawChain).
-          await drawChainRef.current.catch(() => undefined);
+          // Finish same-generation ink first so speech does not race that draw.
+          // A newer turn must not wait on the previous generation's draw.
+          const priorDraw = drawChainRef.current as Promise<void> & { turnGeneration?: number };
+          if (priorDraw.turnGeneration === undefined || priorDraw.turnGeneration === turnGeneration) {
+            await priorDraw.catch(() => undefined);
+          }
           if (isCancelled()) return;
           if (!(await waitWhilePaused())) return;
 
@@ -1047,7 +1049,9 @@ export function useSegmentRunner({
               tts.abandonSpeaking?.();
             });
             // Observe immediately, but retain the rejection for the paired join.
-            drawChainRef.current = ownedDraw.catch(() => undefined);
+            const queuedDraw = ownedDraw.catch(() => undefined) as Promise<void> & { turnGeneration?: number };
+            queuedDraw.turnGeneration = turnGeneration;
+            drawChainRef.current = queuedDraw;
           };
           if (rollbackIntroInk) introDrawOwnerRef.current = { owner: segmentFallbackOwner, freeze: freezeIntroDraw };
           startOwnedDraw();
