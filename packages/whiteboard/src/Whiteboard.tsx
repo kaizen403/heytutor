@@ -535,6 +535,12 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const idlePauseRef = useRef(0);
     const [nib] = useState(() => new NibTracker(width / 2, height / 2, HANDWRITING_ROTATION));
     const cursorGroupRef = useRef<Konva.Group>(null);
+    const cursorActivityRef = useRef(0);
+    // View-only intent: a zero-distance POINT is active even when its nib
+    // coordinate does not change. Idle choreography does not advance it.
+    const markCursorActivity = useCallback(() => {
+      cursorGroupRef.current?.setAttr("htCursorActivity", ++cursorActivityRef.current);
+    }, []);
     const poseNodesRef = useRef<PoseNodes>({ group: null, lift: null, spin: null, ghosts: [] });
     const dusterRef = useRef<Konva.Rect>(null);
     const instrumentRef = useRef<InstrumentKind>("pen");
@@ -974,6 +980,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       ): Promise<void> => {
         const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
         if (isCancelled()) return;
+        markCursorActivity();
         const start = { x: cursorViewRef.current.x, y: cursorViewRef.current.y };
         const startRotation = cursorViewRef.current.rotation;
         const end = { x, y };
@@ -1008,7 +1015,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
         if (!isCancelled()) settleNib(x, y, fixedRotation);
       },
-      [animateOver, setCursorViewSafely, settleNib],
+      [animateOver, markCursorActivity, setCursorViewSafely, settleNib],
     );
 
     /**
@@ -1215,7 +1222,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         if (!drawLayer || !animLayer || isCancelled()) {
           return;
         }
-
         // The figure and the scaffolding it hangs off are both pencil. The twirl
         // only plays on an actual change, and the compiler emits construction
         // ink after the structure it hangs off, so a scene picks the pencil up
@@ -1945,6 +1951,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           return;
         }
 
+        markCursorActivity();
         const inkKind = boardInkKindAt(x);
         if (duration <= 0 && !schedule && inkKind === "work") {
           applyInstrument("pen");
@@ -2063,6 +2070,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 const pathNode = new Konva.Path(
                   inkPathConfig(stroke.pathData, stroke.width, inkStyle),
                 );
+                pathNode.setAttr("fontSize", resolvedFontSize);
                 tagBoardInk(pathNode, inkKind);
                 drawLayer.add(pathNode);
                 ownNode(pathNode, completedNodesRef.current);
@@ -2316,6 +2324,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
               const pathNode = new Konva.Path(
                 inkPathConfig(stroke.pathData, stroke.width, inkStyle),
               );
+              pathNode.setAttr("fontSize", resolvedFontSize);
               tagBoardInk(pathNode, inkKind);
               // Length and samples were measured once for this path data:
               // the length when the row was planned, the samples the first
@@ -2501,6 +2510,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         hopNib,
         hoverNib,
         jumpNib,
+        markCursorActivity,
         moveNib,
         nowMs,
         styleForCommand,

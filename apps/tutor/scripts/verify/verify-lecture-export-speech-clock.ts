@@ -42,6 +42,7 @@ async function main() {
     const work = drawLectureTimeline({ cues: timeline.cues, getClockMs: clock.now,
       waitForAdvance: clock.waitForAdvance, shouldCancel: () => false,
       executeCommand: async (command, options) => {
+        if (options?.explanationPointing) return; // Transient pointer motion is not narrated WRITE ink.
         const schedule = options?.writeSchedule;
         assert.ok(schedule, "estimated speech still supplies a schedule");
         schedules.push({ text: command.text, finalMs: schedule.charStartOffsetsMs.at(-1)! });

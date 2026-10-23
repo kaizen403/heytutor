@@ -234,6 +234,7 @@ export async function verifyAdminLivePlayback(): Promise<void> {
     const replayGenerationRef = { current: 1 };
     const replayAudioRef: { current: HTMLAudioElement | null } = { current: null };
     let drawPosition: (() => number) | undefined;
+    let runtimePointCalls = 0;
     let nowMs = 0;
     Object.defineProperty(globalThis, "performance", {
       value: { now: () => nowMs }, configurable: true,
@@ -265,8 +266,10 @@ export async function verifyAdminLivePlayback(): Promise<void> {
       setCurrentSegmentText: () => {},
       setReplayProgressMs: () => {},
       raceWithCancel: async <T,>(promise: Promise<T>) => promise,
-      executeCommandWithCancel: (async (_command, options) => {
-        drawPosition = options?.writeSchedule?.getAudioPositionMs;
+      executeCommandWithCancel: (async (command, options) => {
+        // Runtime cursor motion follows WRITE and owns no handwriting clock.
+        if (command.type === "WRITE") drawPosition = options?.writeSchedule?.getAudioPositionMs;
+        if (command.type === "POINT") runtimePointCalls++;
       }) satisfies UseReplayParams["executeCommandWithCancel"],
     } as unknown as UseReplayParams;
     renderToStaticMarkup(React.createElement(() => {
@@ -331,6 +334,7 @@ export async function verifyAdminLivePlayback(): Promise<void> {
     replayAudioRef.current = writingAudio as unknown as HTMLAudioElement;
     await replay.runReplaySegmentDraw(partialCue.segment, [write],
       partialCue.narration, 1, writingAudio as unknown as HTMLAudioElement, 4_000);
+    assert(runtimePointCalls > 0, "the actual replay tail must exercise transient POINT without replacing the WRITE clock");
     assert.ok(drawPosition, "aligned replay WRITE should receive a voice clock");
     assert.equal(drawPosition(), 1_400);
     replayAudioRef.current = null;

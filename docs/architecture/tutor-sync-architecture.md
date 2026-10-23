@@ -32,6 +32,21 @@ The flag does not enter planner requests or selection inputs. Run
 `pnpm --filter @heytutor/tutor verify:early-opening` for actual-hook OFF/ON figure
 parity, and measure useful teaching separately from acknowledgement readiness.
 
+### Verified answer labels
+
+Setup labels and givens retain their named reveals. A label bound to a derived
+quantity, or an unambiguous assigned derived symbol, waits until teaching
+finishes; bare symbols and declared-unit unknown placeholders stay setup.
+The exact compiled label, its leader, and an answer dimension's bar/witnesses
+share this completion policy without moving geometry. FOCUS and ANNOTATE do
+not release it. Live completion waits for speech and drawing; replay/export
+wait for the turn's last completed cue. Completion peeks one mark and
+acknowledges it only after accepted ink finishes while the owner is current.
+Cancellation or rejection preserves the in-flight mark and undrawn suffix for
+the same board's resumed completion. Historical trusted intro commands receive the same
+projection without changing stored narration, audio, WRITE offsets, or records.
+DSA frame/cell reveal ownership is unchanged.
+
 ### Optional preparation of the unchanged opening
 
 `NEXT_PUBLIC_LESSON_OPENING_PREFETCH=1` is build-time and default off. On fresh
@@ -154,6 +169,28 @@ Key functions/sections:
 - `liveAudioPositionMs()` is the clock passed into `Whiteboard.writeText()`.
 - `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`. It is now only the fallback for a lecture with a segment missing its recording, and the engine behind live rewind.
 - Persistence keeps every row where it was spoken. The server replaces figure-intro ink with its own compile but leaves the row, its audio part, alignment and duration in place (`mergeServerDiagramIntro` in `lib/scene/turnScenePersistence.ts`); the upload route reads each row's audio by `sourceOrderIndex`. Moving the intro ahead of the opening once paired every early row with its neighbour's recording.
+
+### Pointing during explanations
+
+`pointThroughExplanation` fills spoken gaps of at least 2.4 wall seconds with
+transient pen motion over the latest already-written work row. Live, fallback
+replay and finished playback/export use it. A leading WRITE gap runs only after
+normal layout and page clearing; pending rows cannot become targets. It yields
+before the original character cue and passes every existing schedule offset
+unchanged, including estimated schedules. Spoken waits and explanation tails
+use the owning audio clock, respect pause and Stop, and skip instant seek/restore.
+Finished playback/export animate on their existing media-backed virtual board
+clock, so pausing audio freezes the pen too. With no visible work row there is
+no inferred target or motion: committed but unrevealed diagram anchors are never
+fallback targets. Sentences with authored POINT/FOCUS retain their own targets for the whole
+sentence and do not use work-row fallback tours, including a replay seek past
+the gesture into that sentence’s remaining commands. After the authored commands
+finish, a transient POINT can continue their latest completed, visible canonical
+anchor IDs. It releases no withheld marks and stops if its diagram/anchors are
+replaced or a later FRAME/CLEAR/ERASE retires that target. Only this tail follows
+accepted provider/browser/replacement voice completion beyond a duration estimate;
+the original WRITE schedules stay unchanged. Code beats keep their owners. These transient POINTs are not saved as lesson commands and add no ink,
+labels or geometry. Cached video files use a new revision for the motion.
 
 ### Finished-lecture playback bar
 
