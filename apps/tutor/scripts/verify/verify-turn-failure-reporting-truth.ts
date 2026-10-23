@@ -184,4 +184,18 @@ expect(
   true,
 );
 
-console.log("turn failure reporting truth: 12 classification cases pass; no DB/network calls");
+// The stop drops only its transport error; confirmed figure failures beside it still report.
+expect(
+  "stop with a transport error and an invalid candidate",
+  turn({ status: "stopped", segments: clearOnly, code: "transport_error", stage: "turn_plan", reason: "candidate_invalid" }),
+  "failed",
+  true,
+);
+expect(
+  "stop with a transport error and a required figure that failed",
+  { ...turn({ status: "stopped", segments: [], code: "transport_error", stage: "scene_planner", need: "required" }), visualStatus: "retry_required" },
+  "failed",
+  true,
+);
+
+console.log("turn failure reporting truth: 14 classification cases pass; no DB/network calls");

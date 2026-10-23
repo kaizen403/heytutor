@@ -67,12 +67,17 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
       return verdict("healthy");
     }
     // A student who stops before any teaching cuts off the requests in
-    // flight, and the page teardown reports them as transport errors. That
-    // is a stop, not a failure; a turn that kept going still reports it.
-    if (code === "transport_error" && telemetry.failed !== true && input.status === "stopped" && taught === false) {
-      return verdict("unverified");
-    }
-    if (code) return verdict("failed", code);
+    // flight, and the page teardown reports them as transport errors. Only
+    // that transport error is dropped: a confirmed degradation reason, or a
+    // retry_required figure below, still reports, and a turn that kept going
+    // still reports the transport error itself.
+    const degradationCode = confirmedCode(record(artifacts.degradation).reason);
+    const stoppedBeforeTeaching = code === "transport_error" && telemetry.failed !== true &&
+      input.status === "stopped" && taught === false;
+    const effective = stoppedBeforeTeaching
+      ? (degradationCode !== "transport_error" ? degradationCode : null)
+      : code;
+    if (effective) return verdict("failed", effective);
   }
   if (input.visualStatus === "retry_required") return verdict("failed", "required_visual_unavailable");
   if (input.status === "complete" && taught === false) return verdict("unverified");
