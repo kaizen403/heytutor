@@ -4,7 +4,7 @@ import {
   type DrawCommand,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { clarifyGroupedQuantityNarration, tutorDebug } from "@heytutor/tutor-core";
+import { tutorDebug } from "@heytutor/tutor-core";
 import type { SegmentPlanStats } from "../../types";
 
 export function createEmptySegmentPlanStats(): SegmentPlanStats {
@@ -184,10 +184,6 @@ export function normalizeSegmentForAlignment(segment: TutorSegment): TutorSegmen
   if (commands.length === 0) {
     return segment;
   }
-
-  const narration = clarifyGroupedQuantityNarration(segment.narration,
-    commands.filter((command) => command.type === "WRITE").map((command) => command.text ?? ""));
-  if (narration !== segment.narration) segment = { ...segment, narration };
 
   const alignedCommands = commands.filter((command) => {
     const alignment = checkSegmentAlignment({ ...segment, command });
