@@ -43,6 +43,12 @@ class HookMount {
   dirty = true;
   effects: Array<() => void> = [];
   react = {
+    useRef: <T,>(initial: T) => {
+      const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
+      this.cursor++;
+      if (!("value" in slot)) slot.value = { current: initial };
+      return slot.value as { current: T };
+    },
     useState: <T,>(initial: T) => {
       const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
       this.cursor++;
@@ -73,7 +79,7 @@ class HookMount {
   unmount() { for (const slot of this.slots) slot.cleanup?.(); }
 }
 
-function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" | "readable-scroll" = "fit", panelHeight = 0) {
+export function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" | "readable-scroll" = "fit", panelHeight = 0, minimumVisibleFontSize?: number | null) {
   const mount = new HookMount();
   const box = { width, height, deckHeight, keyboardInset: 0, panelShown: panelHeight > 0 };
   const panelStyle = new Map<string, string>();
@@ -139,9 +145,9 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
     Object.defineProperty(globalThis, key, { value, configurable: true });
   }
   const hook = load(viewportFile, process.env.CAPTION_VIEWPORT_SOURCE ?? viewportFile, mount.react).useBoardViewport as
-    (ref: { current: unknown }, mode: "fit" | "fixed" | "readable-scroll") => BoardViewport;
+    (ref: { current: unknown }, mode: "fit" | "fixed" | "readable-scroll", minimumVisibleFontSize?: number | null) => BoardViewport;
   const ref = { current: container };
-  const read = () => mount.render(() => hook(ref, mode));
+  const read = () => mount.render(() => hook(ref, mode, minimumVisibleFontSize));
   const resize = (patch: Partial<typeof box>, target: "container" | "deck" = "container") => {
     Object.assign(box, patch);
     if (observed.has(target === "deck" ? deck : container)) observerCallback();
@@ -158,6 +164,7 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
   };
   return {
     box, deck, panel, panelStyle, container, observed, read, resize, visualResize,
+    fontSize(size: number | null) { minimumVisibleFontSize = size; return read(); },
     get disconnected() { return disconnected; },
     get mediaListenerCount() { return mediaListeners.size; },
     get visualResizeListenerCount() { return visualListeners.get("resize")?.size ?? 0; },
@@ -180,6 +187,7 @@ const failures: string[] = [];
 let groups = 0;
 function check(name: string, run: () => void) {
   if (process.env.CAPTION_DOCK_CASE && name !== process.env.CAPTION_DOCK_CASE) return;
+  if (process.env.PHONE_BOARD_READABILITY_ONLY && !name.startsWith("phone-readability-")) return;
   groups++;
   try { run(); console.log(`PASS ${name}`); }
   catch (error) { failures.push(name); console.error(`FAIL ${name}:`, error instanceof Error ? error.message : error); }
@@ -190,6 +198,11 @@ const liveCaption = "we want the largest sum from one continuous stretch of thes
 const rewindCaption = "Earlier: the running sum was negative, so restart this continuous stretch at four.";
 const recordedCaption = "Recorded: compare the middle value with the target, then discard the impossible half.";
 let lastShellTree: React.ReactElement | null = null;
+let lastShellViewportMode: string | undefined;
+export const phoneViewportScales: number[] = [];
+export let phoneShellReading: import("../../features/tutor-session/hooks/useBoardReading").BoardReadingInput | undefined;
+export let phoneShellMinimum: number | null | undefined;
+export function phoneShellTree() { return lastShellTree; }
 class ShellMount {
   slots: unknown[] = []; cursor = 0;
   constructor(private subtitles: boolean) {}
@@ -248,10 +261,11 @@ function captionLocation(html: string, text: string) {
   }
   return null;
 }
-function shellMarkup(options: {
+export function shellMarkup(options: {
   mobile: boolean; coarse?: boolean; width?: number; height?: number; phase?: "idle" | "planning" | "thinking" | "speaking" | "drawing"; paused?: boolean; subtitles?: boolean; recorded?: boolean; playerActive?: boolean; playerPlaying?: boolean; playerRevealed?: boolean;
-  fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean;
+  fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean; variant?: TutorSessionShellProps["variant"]; viewportScale?: number;
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean; text?: string; playerText?: string;
+  scrollable?: boolean; minimumVisibleFontSize?: number | null; rewindPlaying?: boolean;
 }) {
   const mount = new ShellMount(options.subtitles ?? true);
   const setters: { text?: (value: string) => void; phase?: (value: string) => void; paused?: (value: boolean) => void } = {};
@@ -277,16 +291,17 @@ function shellMarkup(options: {
     "@/features/tutor-session/components/SettingsDrawer": { ...requireApp(path.join(appRoot, "features/tutor-session/components/SettingsDrawer.tsx")), SettingsDrawer: leaf },
     "./lib/code-lesson/codeLessonController": { CodeLessonController: class { getActivePlan() { return options.codeOnly ? {} : null; } } },
     "./hooks/useCancelControl": { useCancelControl: () => ({}) },
-    "./hooks/useBoardLayout": { useBoardLayout: () => ({ boardContainerRef: { current: null }, boardViewport: { scale: 0.2, offsetX: 0, offsetY: 0, measured: true }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }) },
+    "./hooks/useBoardLayout": { useBoardLayout: (input: { viewportMode?: string; minimumVisibleFontSize?: number | null }) => { lastShellViewportMode = input.viewportMode; phoneShellMinimum = input.minimumVisibleFontSize; return ({ boardContainerRef: { current: null }, boardViewport: { scale: options.viewportScale ?? 0.2, offsetX: 0, offsetY: 0, measured: true, scrollable: options.scrollable }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }); } },
+    "./hooks/useBoardReading": { useBoardReading: (input: import("../../features/tutor-session/hooks/useBoardReading").BoardReadingInput) => { phoneShellReading = input; if (Object.hasOwn(options, "minimumVisibleFontSize")) input.onMinimumFontSize(options.minimumVisibleFontSize ?? null); } },
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": { useBoardSession: (input: { setCurrentSegmentText: (value: string) => void }) => { setters.text = input.setCurrentSegmentText; return ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: noop, hasLiveTurn: false }); } },
     "./hooks/useTurnLifecycle": { useTurnLifecycle: (input: { setPhase: (value: string) => void; setIsPaused: (value: boolean) => void }) => { setters.phase = input.setPhase; setters.paused = input.setIsPaused; return { pausedLessonOffer: options.pausedOffer === true }; } },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
-    "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
+    "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindPlaying: options.rewindPlaying === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
     "./hooks/useLectureExport": { useLectureExport: () => ({ downloadState: options.downloadError ? { kind: "error", file: "video", message: "Try the download again" } : { kind: "idle" }, lectureFileType: "mp4" }) },
-    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
+    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, revealed: options.playerRevealed !== false, playerBoardRef: { current: null }, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },
@@ -312,7 +327,7 @@ function shellMarkup(options: {
   }) };
   overrides["./components/SessionInputChrome"] = { SessionInputChrome: () => createElement("textarea", { defaultValue: "Retained composer" }) };
   const shell = load(shellFile, process.env.CAPTION_SHELL_SOURCE ?? shellFile, mount.react, overrides).TutorSessionShell as ComponentType<TutorSessionShellProps>;
-  const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId: "recorded-board" }); };
+  const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId: "recorded-board", variant: options.variant }); };
   render();
   setters.text?.(options.text ?? liveCaption); setters.phase?.(options.phase ?? "speaking"); setters.paused?.(options.paused === true);
   lastShellTree = render();
@@ -388,7 +403,7 @@ check("actual-viewport-budget", () => {
     const rotate = f.resize({ width: 844, height: 300 });
     near(rotate.scale, (300 - 80 - 32) / 700);
   });
-  withViewport(390, 206, 124, f => { near(f.read().scale, .5); assert.ok(f.read().scale * 700 > 206 - 124, "tiny paper remains readable and scrollable above caption/control deck"); }, "readable-scroll");
+  withViewport(390, 206, 124, f => { near(f.read().scale, 16 / 19); assert.ok(f.read().scale * 700 > 206 - 124, "tiny paper remains readable and scrollable above caption/control deck"); }, "readable-scroll");
 });
 
 check("focused-caption-keys", () => {
@@ -486,7 +501,62 @@ check("session-caption-reservation", () => {
     "desktop caption remains its existing overlay");
 });
 
-const required = ["session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys"];
+
+// Actual source consumers; only DOM measurements and unrelated services are controlled.
+check("phone-readability-role-floor", () => {
+  for (const [width, height] of [[320, 568], [390, 600], [667, 300], [844, 390]]) {
+    const f = viewportFixture(width!, height!, 80, "readable-scroll", 180);
+    try {
+      const initial = f.read(); near(initial.scale, 16 / 19);
+      phoneViewportScales.push(initial.scale);
+      for (const font of [46, 32, 27, 24, 19]) assert.ok(font * initial.scale >= 16 - 1e-8, `${font}px role at${width}x${height}`);
+      near(f.resize({ height: height! - 160, keyboardInset: 160 }).scale, initial.scale);
+      near(f.resize({ deckHeight: 124 }, "deck").scale, initial.scale);
+      near(f.visualResize({ height: height!, keyboardInset: 0 }).scale, initial.scale);
+      near(f.resize({ width: 844, height: 390 }).scale, 16 / 19);
+    } finally { f.close(); }
+  }
+  withViewport(1440, 900, 0, f => near(f.read().scale, 1408 / 1200), "readable-scroll");
+  withViewport(390, 600, 124, f => near(f.read().scale, 1), "fixed");
+});
+
+check("phone-readability-shell-pan", () => {
+  const find = (node: React.ReactNode, predicate: (props: Record<string, unknown>) => boolean): React.ReactElement<Record<string, unknown>> | null => {
+    if (Array.isArray(node)) { for (const child of node) { const found = find(child, predicate); if (found) return found; } return null; }
+    if (!React.isValidElement<Record<string, unknown>>(node)) return null;
+    return predicate(node.props) ? node : find(node.props.children as React.ReactNode, predicate);
+  };
+  for (const [width, height] of [[320, 568], [390, 844], [667, 300], [844, 390]]) for (const fullscreen of [false, true]) {
+    const fixture = viewportFixture(width!, height!, 80, "readable-scroll");
+    let actualScale: number;
+    try { actualScale = fixture.read().scale; } finally { fixture.close(); }
+    const html = shellMarkup({ mobile: width! < 768, width, height, coarse: true, fullscreen, recorded: false, viewportScale: actualScale });
+    assert.ok(html.includes(`transform:scale(${actualScale})`), "actual canvas applies the measured viewport outside canonical ink");
+    assert.ok(html.includes("width:1200px;height:700px"), "actual canvas retains1200x700 geometry");
+    assert.equal(lastShellViewportMode, "readable-scroll", `${width}x${height},fullscreen=${fullscreen}: real shell enables readable paper`);
+    const region = find(lastShellTree, props => props["data-board-scroll"] === "true");
+    assert.ok(region); assert.equal(region.props.role, "region"); assert.equal(region.props.tabIndex, 0);
+    const style = region.props.style as React.CSSProperties;
+    assert.equal(style.overflowX, "auto"); assert.equal(style.overflowY, "auto");
+    assert.ok(!find(region.props.children as React.ReactNode, props => Object.hasOwn(props, "data-board-deck")), "deck stays outside pan");
+    assert.match(html, /data-board-deck[^>]*width:100%/, "transport stays at viewport width");
+    const keyDown = region.props.onKeyDown as (event: Record<string, unknown>) => void;
+    for (const [key, left, top] of [["ArrowRight", 40, 0], ["ArrowLeft", -40, 0], ["ArrowDown", 0, 40], ["ArrowUp", 0, -40]] as const) {
+      let movement: unknown, stopped = 0, prevented = 0;
+      const pane = { clientHeight: 200, scrollHeight: 600, scrollBy: (value: unknown) => { movement = value; } };
+      keyDown({ key, target: pane, currentTarget: pane, stopPropagation: () => { stopped++; }, preventDefault: () => { prevented++; } });
+      assert.deepEqual(movement, { left, top }); assert.equal(stopped, 1); assert.equal(prevented, 1);
+    }
+  }
+  for (const [width, height] of [[768, 1024], [1024, 768], [1440, 900]]) {
+    shellMarkup({ mobile: false, width, height, coarse: width === 768, recorded: false });
+    assert.equal(lastShellViewportMode, "fit", `${width}x${height}: tablet/desktop fit unchanged`);
+  }
+  shellMarkup({ mobile: true, width: 390, height: 844, coarse: true, variant: "headless", recorded: false });
+  assert.equal(lastShellViewportMode, "fixed", "captures retain canonical1200x700 scale");
+});
+
+const required = ["phone-readability-role-floor", "phone-readability-shell-pan", "session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys"];
 assert.ok(!process.env.CAPTION_DOCK_CASE || required.includes(process.env.CAPTION_DOCK_CASE), "unknown caption gate case");
 assert.ok(groups > 0, "at least one caption group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} caption groups failed: ${failures.join(", ")}`);

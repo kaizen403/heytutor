@@ -632,7 +632,9 @@ function doubtInput(overrides: Partial<DoubtTeachingPromptInput> = {}): DoubtTea
 // ── The wiring that keeps the page ──────────────────────────────────────────
 const root = resolve(import.meta.dirname, "../..");
 function read(relative: string): string {
-  return readFileSync(resolve(root, relative), "utf8");
+  return readFileSync(relative === "features/tutor-session/hooks/turn/useTurnControl.ts"
+    ? process.env.DOUBT_TURN_CONTROL_TEST_SOURCE ?? resolve(root, relative)
+    : resolve(root, relative), "utf8");
 }
 /** Both anchors are checked: a missing end anchor would silently slice to the file's end. */
 function between(source: string, file: string, start: string, end: string): string {
@@ -788,10 +790,18 @@ function between(source: string, file: string, start: string, end: string): stri
     "a stopped intro unwinding late tears down only its own turn, never the doubt",
   );
   const respond = between(source, file, "const processResponseText", "const stopTurn = useCallback(");
-  assert(
-    (respond.match(/for \(const command of leftover\) \{\s*(?:\/\/[^\n]*\s*)*if \(turnGeneration !== turnGenerationRef\.current\)/g) ?? []).length === 2,
-    "both withheld label loops stop the moment their turn is replaced",
-  );
+  const withheldLoops = respond.split("while (activeDiagram && revealDeferredAnnotations) {").slice(1);
+  assert(withheldLoops.length === 2, "both teaching paths retain their withheld-label completion loop");
+  const cancellationReturn = /if \(cancelRef\.current \|\| turnGeneration !== turnGenerationRef\.current\)\s*(?:\{\s*return;\s*\}|return;)/;
+  for (const loop of withheldLoops) {
+    const peek = loop.indexOf("const command = peekDeferredAnnotation(activeDiagram);");
+    const draw = loop.indexOf("await executeCommandWithCancel(");
+    const acknowledge = loop.indexOf("acknowledgeDeferredAnnotation(activeDiagram, command)");
+    assert(peek >= 0 && draw > peek && acknowledge > draw,
+      "both withheld-label loops peek, await drawing, then acknowledge in order");
+    assert(cancellationReturn.test(loop.slice(0, peek)) && cancellationReturn.test(loop.slice(draw, acknowledge)),
+      "both withheld label loops stop on cancellation or replacement before peek and after drawing, before acknowledgement");
+  }
   assert(
     respond.includes("options?.errorQuestion ??"),
     "an empty reply names the turn it answered, so a retried doubt stays a doubt",

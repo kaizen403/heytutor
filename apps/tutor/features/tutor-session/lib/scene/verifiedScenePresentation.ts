@@ -27,6 +27,8 @@ import {
   verifiedVseprStructure,
   verifiedOrganicNeighbourhoodStructure,
   describeSceneFamily,
+  chemistryFamilyTeachingNotes,
+  chemistryTeachingFamilyId,
   directedCurveInk,
   obstaclesFromPrimitives,
   placeLabels,
@@ -37,6 +39,7 @@ import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { hinglishFigureNarration } from "./figureNarrationLanguage";
 import { isDsaConstructionGuide } from "./diagramInk";
+import { answerLabelPrimitiveIds, isAnswerLabel } from "./answerLabelReveal";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
@@ -105,8 +108,12 @@ function buildDiagramPresentation(
   }
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
-  const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
-  const answerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds) ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
+  const answerEntityIds = new Set(document.entities.filter((entity) => isAnswerLabel(document, {
+    id: `primitive_${entity.id}_label`, entityId: entity.id, text: entity.label,
+  })).map((entity) => entity.id));
+  const answerAnnotationIds = new Set(document.annotations.filter((annotation) => isAnswerLabel(document, {
+    id: annotation.id, annotationId: annotation.id, text: annotation.text, entityId: annotation.targetIds[0],
+  })).map((annotation) => annotation.id));
   const answerTargets = new Set<string>();
   // A caption or targetless callout carrying a staged answer ("R=80 m") would
   // be drawn and spoken before teaching. Withhold that caption entirely.
@@ -118,6 +125,7 @@ function buildDiagramPresentation(
     caption && answerTexts.some((text) => caption.includes(text)) ? undefined : caption;
   const answerGroupIds = new Set<string>();
   const nonMetric = source?.nonMetric === true;
+  const answerIds = options.layout === "code_lesson" ? new Set<string>() : answerLabelPrimitiveIds(document, renderScene.primitives);
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
     : "exact_verified";
@@ -148,9 +156,35 @@ function buildDiagramPresentation(
   const introGroupId = holdLaterDsaFrames ? orderedGroupIds[0]! : null;
   // A measurement is one atom: its source-given label, bar and witnesses.
   // Textless companions cannot establish identity from a number of their own.
-  const sourceGivenMeasurementIds = new Set(renderScene.primitives
+  // Geometry on the same part is what makes its given label part of the
+  // opening drawing; a label of a part not drawn yet waits to be named.
+  const drawnEntityIds = new Set(renderScene.primitives
+    .filter((primitive) => primitive.kind !== "label" && primitive.provenance?.labelLeader !== true)
+    .map((primitive) => primitive.entityId));
+  // A label only entity ("I=2 A") is its own ink: when its displayed text is a
+  // source given it opens with the setup, as on main. An explicit answer
+  // staging hint on it keeps it out of the opening.
+  const stagedAnswerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds)
+    ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
+  const stagedAnswerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds)
+    ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
+  const labelOnlyGiven = (primitive: RenderPrimitive): boolean =>
+    primitive.kind === "label"
+    && primitive.id === `primitive_${primitive.entityId}_label`
+    && document.entities.find((entity) => entity.id === primitive.entityId)?.kind === "label"
+    && !stagedAnswerEntityIds.has(primitive.entityId)
+    && !stagedAnswerAnnotationIds.has(String(primitive.provenance?.annotationId));
+  // An answer label is never a given, whatever its text says.
+  const sourceGivenLabelIds = new Set(renderScene.primitives
     .filter((primitive) => (primitive.kind === "label" || primitive.kind === "dimension")
+      && !answerIds.has(primitive.id)
+      && (drawnEntityIds.has(primitive.entityId) || labelOnlyGiven(primitive))
       && isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan))
+    .map((primitive) => primitive.id));
+  // Textless companions (bars, witnesses, entity wide leaders) cannot prove
+  // identity from a number of their own: only drawn parts lend them one.
+  const sourceGivenMeasurementIds = new Set(renderScene.primitives
+    .filter((primitive) => sourceGivenLabelIds.has(primitive.id) && drawnEntityIds.has(primitive.entityId))
     .map((primitive) => primitive.entityId));
 
   const add = (
@@ -221,22 +255,31 @@ function buildDiagramPresentation(
       const commandPhase = primitive.provenance?.matrixCell || structuralIdentity
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const answerLabel = !structuralIdentity && (command.type === "LABEL" || command.type === "DIMENSION") &&
-        (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId)));
+      const answerLabel = answerIds.has(primitive.id);
       if (answerLabel) {
         answerTargets.add(primitive.entityId);
         answerGroupIds.add(primitive.groupId);
       }
+      const labelsOnEntity = renderScene.primitives.filter((entry) =>
+        entry.entityId === primitive.entityId && entry.kind === "label").length;
+      const givenLeader = primitive.provenance?.labelLeader === true
+        && !answerIds.has(primitive.id)
+        && ([...sourceGivenLabelIds].some((id) => primitive.id === `${id}_leader`)
+          || (labelsOnEntity === 1 && sourceGivenMeasurementIds.has(primitive.entityId)));
+      const givenMeasurement = sourceGivenLabelIds.has(primitive.id)
+        || (!command.text && (givenLeader
+          || (sourceGivenMeasurementIds.has(primitive.entityId)
+            && primitive.provenance?.labelLeader !== true
+            && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"))));
+      // Answer before given: a primitive classified both ways stays held.
+      // A given still passes main's annotation and trace checks.
       const deferReason = (structuralIdentity ? null : answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
-        ((command.type === "LABEL" || command.type === "DIMENSION")
-          && isSourceGivenMeasurement(primitive, command.text, document, options.turnPlan))
-          || (!command.text && sourceGivenMeasurementIds.has(primitive.entityId)
-            && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"
-              || primitive.provenance?.labelLeader === true)),
+        false,
+        givenMeasurement,
       )) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null, structuralIdentity });
       if (deferReason !== null && index !== null) {
@@ -245,7 +288,7 @@ function buildDiagramPresentation(
           entityId: deferredAnnotationKey(primitive, annotationTargetsById),
           groupId: primitive.groupId,
           pullable: deferReason === "named",
-          answer: deferReason === "answer",
+          ...(deferReason === "answer" ? { revealAfter: "teaching_complete" as const } : {}),
         });
       }
     }
@@ -266,8 +309,15 @@ function buildDiagramPresentation(
       .filter((entry) => entry.action === "reveal" && memberIds.has(entry.targetId))
       .map((entry) => entry.narrationIntent?.trim())
       .filter((cue): cue is string => Boolean(cue && isSpokenProse(cue))))];
+    // An answer-bearing group still names its visible setup labels, so a
+    // given measurement can reveal without speaking the computed sibling.
+    const setupNames = [...memberIds].flatMap((id) => {
+      const label = entitiesById.get(id)?.label?.trim();
+      return label ? [label] : [];
+    });
+    const setupCue = setupNames.length ? `Here is the setup with ${setupNames.join(", ")}.` : "Here is the setup.";
     // Prefer planner prose when present; short group cues still drive the fallback templates.
-    const cue = answerGroupIds.has(groupId) || [...memberIds].some(id => answerTargets.has(id)) ? "Here is the setup." : (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
+    const cue = answerGroupIds.has(groupId) || [...memberIds].some(id => answerTargets.has(id)) ? setupCue : (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
       || (group?.narrationCue && isSpokenProse(group.narrationCue) ? group.narrationCue : null)
       || memberCues.join(" ")
       || group?.narrationCue
@@ -369,7 +419,7 @@ function buildDiagramPresentation(
   const drawnTextByEntity = new Map<string, string>();
   for (const primitive of renderScene.primitives) {
     if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
-    if (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId))) continue;
+    if (answerIds.has(primitive.id)) continue;
     const text = primitive.text?.trim();
     if (!text) continue;
     // Composite entities carry content glyphs as well as their own name.
@@ -393,21 +443,23 @@ function buildDiagramPresentation(
     return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
   }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
-  // An answer annotation ("R=80 m") and the ordinary symbol ("R") can share
-  // one entity. They stay in separate entries so only the answer waits for
-  // the end of the lesson; the symbol is still released when it is named.
-  const deferredByEntity = new Map<string, { entityId: string; answer: boolean; commands: VerifiedDiagramCommand[] }>();
+  const deferredByEntity = new Map<string, { entityId: string; revealAfter?: "teaching_complete"; commands: VerifiedDiagramCommand[] }>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
-    const key = `${entry.answer ? "answer" : "ordinary"}:${entry.entityId}`;
-    const existing = deferredByEntity.get(key) ?? { entityId: entry.entityId, answer: entry.answer, commands: [] };
+    const key = `${entry.entityId}:${entry.revealAfter ?? "named"}`;
+    const existing = deferredByEntity.get(key) ?? { entityId: entry.entityId, ...(entry.revealAfter ? { revealAfter: entry.revealAfter } : {}), commands: [] };
     existing.commands.push(commands[entry.index]!);
     deferredByEntity.set(key, existing);
   }
   // A shading key also lists the entities it shades; ANNOTATE names its own id.
   // An answer annotation waits for the end of the lesson and is not offered.
-  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.answer).map((entry) => entry.entityId.split(",")[0]!))].join(", ");
+  const hasCompletionOnlyAnswers = [...deferredByEntity.values()].some((entry) => entry.revealAfter);
+  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.revealAfter).map((entry) => entry.entityId.split(",")[0]!))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
+  const teachingNotes = chemistryFamilyTeachingNotes(chemistryTeachingFamilyId(document));
+  const familyTeachingContext = teachingNotes.length > 0
+    ? `\nFamily teaching context for this compiled figure:\n${teachingNotes.map((note) => `- ${note}`).join("\n")}\nExplain the law’s conditions before applying it, and define quantities and units before examples. This teaching context supplies no new numeric givens or diagram authority.\n`
+    : "";
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
     name: nonMetric ? "source-grounded conceptual representation" : "validated semantic scene",
@@ -421,10 +473,9 @@ function buildDiagramPresentation(
     // reading scale, so the student does not need that line on the board.
     caption: hasDrawableInk ? answerFreeCaption(visibleFigureCaption(renderScene.caption)) : undefined,
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
-    deferredAnnotations: [...deferredByEntity.values()].map(({ entityId, answer, commands: deferredCommands }) => ({
-      entityId,
-      ...(answer ? { revealAfterLesson: true } : {}),
-      commands: deferredCommands,
+    deferredAnnotations: [...deferredByEntity.values()].map((entry) => ({
+      ...entry,
+      ...(entry.revealAfter ? { revealAfterLesson: true } : {}),
     })),
     // Symbols on the figure stay short; the expansion and solved value travel
     // alongside so the board can answer "what is R_1?" without re-deriving it.
@@ -440,7 +491,7 @@ Verified meaning of each focus target: ${targetMeanings || "none"}. A target den
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
-When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. ${answerTargets.size ? "FOCUS may reveal ordinary withheld labels; computed answer labels wait for completion." : "FOCUS also reveals that entity's withheld label."}
+When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. ${hasCompletionOnlyAnswers ? "FOCUS reveals setup labels, but FOCUS and ANNOTATE cannot reveal computed answers. Derive them in the work column; the runtime adds the verified answer labels after teaching finishes." : "FOCUS also reveals that entity's withheld label."}
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
@@ -452,7 +503,7 @@ ${options.layout === "code_lesson"
 This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. No frame is on the board to begin with: the first [FOCUS] draws the first frame. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
 Always write it as [FOCUS:frame_id|spotlight], at most one per step. Never a bare [FOCUS:id], never |pulse, and never traces, underlines, or circles.`
   : "WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked."}
-The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
+The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.${familyTeachingContext}`,
   };
 
   const spokenIntro = collapseIntroSpeech(introSegments, {
@@ -618,8 +669,7 @@ interface DeferredCommand {
   groupId: string;
   /** A label or dimension waiting for its name, which the intro may speak. */
   pullable: boolean;
-  /** A computed answer label, held until the lesson ends. */
-  answer: boolean;
+  revealAfter?: "teaching_complete";
 }
 
 /**
@@ -635,8 +685,9 @@ function deferralReason(
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
   codeLesson = false,
+  answer = false,
   sourceGiven = false,
-): "annotation" | "named" | null {
+): "annotation" | "named" | "answer" | null {
   // DSA figures are a worked example, not a physics apparatus. Values and
   // indices belong on the boxes as they appear — holding them for FOCUS
   // made later rows look empty while FOCUS traces struck through the first.
@@ -646,6 +697,7 @@ function deferralReason(
       ? "annotation"
       : null;
   }
+  if (answer) return "answer";
   if (primitive.provenance?.matrixCell || primitive.provenance?.linearSolution) return null;
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId
@@ -671,7 +723,10 @@ function isSourceGivenMeasurement(
   document: SceneDocument,
   turnPlan: VerifiedScenePresentationOptions["turnPlan"],
 ): boolean {
+  // Only the accepted turn plan proves a given (#183); planner scene
+  // quantities never promote a label into the opening.
   if (!turnPlan || !labelText) return false;
+  const { givens, derived } = turnPlan;
   // Compatibility folding would turn 10³ into 103 and change value identity.
   const compact = (text: string): string => text.normalize("NFC")
     .replace(/\\(?:mathrm|text)\{([^}]*)\}/g, "$1")
@@ -685,15 +740,19 @@ function isSourceGivenMeasurement(
   const binding = annotation?.quantityId ?? primitive.entityId;
   // Even an answer with the same value/unit, or a misleading given-like text,
   // stays deferred when its explicit identity is a derived result.
-  if (turnPlan.derived.some((quantity) => quantity.id === binding || quantity.symbol === binding)) return false;
-  const text = compact(labelText);
-  return turnPlan.givens.some((given) => {
+  if (derived.some((quantity) => quantity.id === binding || quantity.symbol === binding)) return false;
+  // A consumed given can sit inside a longer designator ("I 6 V"); the
+  // annotation text is the given the compiler selected.
+  const texts = [labelText, annotation?.text].filter((text): text is string => Boolean(text?.trim())).map(compact);
+  if (texts.length === 0) return false;
+  return givens.some((given) => {
     if (given.provenance !== "given" || !Number.isFinite(given.value)) return false;
     const value = compact(`${given.value}${given.unit ?? ""}`);
     const named = compact(`${given.symbol}=${given.value}${given.unit ?? ""}`);
-    if (text === named) return true;
+    const designator = compact(`${given.symbol ?? ""}${given.value}${given.unit ?? ""}`);
+    if (texts.some((text) => text === designator || text === named)) return true;
     const bound = given.id === binding || given.symbol === binding;
-    return bound && text === value;
+    return bound && texts.some((text) => text === value);
   });
 }
 
@@ -1303,7 +1362,10 @@ function cueRevealBeat(input: {
     .map(([entityId]) => entityId));
   const introDeferred = input.deferred.filter((entry) => {
     const text = commands[entry.index]?.text?.trim();
-    return text ? SPEAKABLE_LABEL.test(text) : symbolicEntityIds.has(entry.entityId);
+    if (!text) return symbolicEntityIds.has(entry.entityId);
+    // A declared-unit unknown ("I = ? A") stays with setup. A computed
+    // number beside its bare symbol stays with teaching.
+    return SPEAKABLE_LABEL.test(text) || text.includes("?");
   });
   // A measurement has no ink of its own in the beat, only its withheld
   // dimension and label; it is still matched so "and range" can pull R in.

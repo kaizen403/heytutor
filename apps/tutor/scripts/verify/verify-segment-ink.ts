@@ -144,8 +144,8 @@ async function main(): Promise<void> {
     getDiagram: () => presentation.diagram,
     isCancelled: () => false,
     waitWhilePaused: async () => true,
-    execute: async (_command, options) => {
-      focusOptions = options;
+    execute: async (command, options) => {
+      if (command.type === "FOCUS") focusOptions = options;
     },
     commandOptions: () => ({ applyLayout: false }),
   });
