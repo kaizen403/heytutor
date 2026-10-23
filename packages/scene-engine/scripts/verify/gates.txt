@@ -23,8 +23,7 @@ tsx scripts/verify/verify-remote-solver.ts
 tsx scripts/verify/verify-syllabus-corpus.ts
 tsx scripts/verify/verify-bank-family-compile.ts
 tsx scripts/verify/verify-family-synthesis.ts
-tsx scripts/verify/verify-concept-schematic.ts
-tsx scripts/verify/verify-concept-schematic-evidence.ts
+tsx scripts/verify/verify-no-concept-schematic.ts
 tsx scripts/verify/verify-archetype-pictures.ts
 tsx scripts/verify/verify-discrete-structures.ts
 tsx scripts/verify/verify-dsa-trace.ts

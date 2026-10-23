@@ -57,7 +57,6 @@ import {
   visualObligationRejection,
   type VisualObligationSet,
 } from "./visualObligations";
-import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
@@ -413,27 +412,6 @@ function synthesizeFromFamilies(
           ? `compiled ${family} from the turn plan and reusable operators`
           : `compiled ${family} grounded in the question wording; no plan-backed metric proof, so the geometry is qualitative`,
       family,
-    };
-  }
-  // Explain/concept plans name the objects to teach (systems, flows,
-  // reservoirs) even when the stem names no apparatus. Compile those as a
-  // qualitative schematic after every metric family declined, never as a
-  // canned P–V rectangle.
-  const conceptDocument = buildConceptSchematic(question, input.turnPlan);
-  const conceptCompiled = conceptDocument ? tryCompile(conceptDocument) : null;
-  if (
-    conceptCompiled
-    && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, question))
-  ) {
-    return {
-      ...conceptCompiled,
-      tier: schematic ? "question_representation" : "qualitative_verified",
-      nonMetric: true,
-      reason: schematic
-        ? "compiled a teaching schematic from the turn plan after the exact operator program was unavailable"
-        : "compiled a teaching schematic from the turn plan's named systems and flows; geometry is qualitative",
-      family: CONCEPT_SCHEMATIC_FAMILY,
     };
   }
   return null;
