@@ -1,4 +1,4 @@
-import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
+import { parseDiagramFloorFigure, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 import { createHash } from "node:crypto";
 import { parseDiagramStrictSubjects } from "@heytutor/tutor-core";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -52,4 +52,9 @@ export function resolveDiagramStrategyAssignment(
 
 export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY) {
   return parseDiagramYieldPolicy(raw);
+}
+
+/** DIAGRAM_FLOOR_FIGURE=on lets a required figure fall back to the engine's stated-setup floor figure. Default off. */
+export function resolveDiagramFloorFigure(raw = process.env.DIAGRAM_FLOOR_FIGURE) {
+  return parseDiagramFloorFigure(raw);
 }

@@ -1,0 +1,3 @@
+# DIAGRAM_FLOOR_FIGURE: binding audit, ProblemIR-only kinds, exact node loops, and the adversarial set.
+tsx scripts/verify/verify-floor-figure.ts
+tsx scripts/verify/verify-floor-adversarial.ts

@@ -25,6 +25,8 @@ export interface BeginTurnOk {
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
   diagramYieldPolicy?: DiagramYieldPolicy;
+  /** DIAGRAM_FLOOR_FIGURE=on on the server. */
+  diagramFloorFigure?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -226,6 +228,7 @@ async function beginTurnOnce(input: {
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
+    diagramFloorFigure: payload.diagramFloorFigure === true,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

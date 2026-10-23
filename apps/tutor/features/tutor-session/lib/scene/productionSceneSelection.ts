@@ -4,7 +4,7 @@
  */
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
-  ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
+  ARCHETYPES, buildFloorFigure, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
@@ -241,6 +241,12 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   requiredRetryEnabled?: boolean;
   /** Additive completion is an explicit final-selection experiment, off by default. */
   completionEnabled?: boolean;
+  /**
+   * DIAGRAM_FLOOR_FIGURE=on: after every planner candidate and every allowed
+   * fallback failed, a required figure may be the engine's stated-setup floor
+   * figure. Off by default; the caller reads the flag, this module never does.
+   */
+  floorFigureEnabled?: boolean;
   /** Constructor-law marks are a separate default-off rollout; explicit input wins over the environment. */
   constructorLawsEnabled?: boolean;
   solverAuthority?: unknown;
@@ -254,8 +260,17 @@ export interface SceneCompletionAdmission {
   rejection?: string;
 }
 
+export interface FloorSceneAdmission {
+  attempted: true;
+  drawn: boolean;
+  kind: string | null;
+  reason: string;
+}
+
 export interface ProductionSceneSelection {
   gate: ProductionSceneGate;
+  /** Present only when the floor figure was considered for this turn. */
+  floor?: FloorSceneAdmission;
   representation: SelectedRepresentation | null;
   /** Diagnostics only: a rejected attempt must never be presented or saved. */
   attemptedRepresentation: SelectedRepresentation | null;
@@ -636,6 +651,64 @@ export function settleSelectionDegradation<Earlier extends { reason: string }>(i
     : { degradation: null, reportedDrop: null };
 }
 
+/** The drawability test below, for deciding whether the floor may be tried and whether its figure stands. */
+function representationIsDrawable(representation: SelectedRepresentation, input: ProductionSceneSelectionInput, turnPlan: TurnPlanV3): boolean {
+  const hasInk = representation.renderScene.primitives.some((primitive) =>
+    (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string" && primitive.text.trim().length > 0);
+  const sourceAllowed = input.policy?.allowedFigureSources === undefined || input.policy.allowedFigureSources.includes(representation.figureSource);
+  return !input.solverAuthorityBlocked && hasInk && sourceAllowed && representation.sceneDocument.visualDecision.mode === "scene" &&
+    !liveSceneSaveFailure({ document: representation.sceneDocument, question: input.question, turnPlan, tier: representation.tier });
+}
+
+/**
+ * The floor figure faces every check a planner candidate faces (validation,
+ * quantity agreement, source binding, plan proofs, compile, readable ink)
+ * under both yield policies, and must pass the truth checks unchanged: a floor
+ * figure the verified-parts policy would trim is refused, never trimmed.
+ */
+function admitFloorScene(
+  input: ProductionSceneSelectionInput,
+  turnPlan: TurnPlanV3,
+  families: readonly string[],
+): { selected: SelectedRepresentation | null; admission: FloorSceneAdmission } {
+  const refused = (reason: string, kind: string | null = null) => ({
+    selected: null, admission: { attempted: true as const, drawn: false, kind, reason },
+  });
+  const built = buildFloorFigure({ question: input.question, turnPlan, problemIR: input.problemIR, families });
+  const figure = built.figure;
+  if (!figure) {
+    return refused(built.attempts.length
+      ? `floor declined: ${built.attempts.map((attempt) => `${attempt.kind} ${attempt.outcome} (${attempt.reason})`).join("; ")}`
+      : "floor declined: no stated setup");
+  }
+  let admitted: ValidatedSceneCandidate | null = null;
+  for (const yieldPolicy of ["off", "verified_parts"] as const) {
+    const validation = validateProductionSceneCandidate({
+      candidate: structuredClone(figure.document) as unknown as Record<string, unknown>, question: input.question, turnPlan, yieldPolicy,
+    });
+    if (!validation.valid || !validation.value) {
+      return refused(`floor ${figure.kind} refused (${yieldPolicy}): ${validation.errors.map((issue) => issue.code).join(", ")}`, figure.kind);
+    }
+    if (validation.value.document.source.yieldDemotions !== undefined) {
+      return refused(`floor ${figure.kind} refused: the truth checks would trim it`, figure.kind);
+    }
+    admitted ??= validation.value;
+  }
+  return {
+    selected: {
+      tier: "question_representation",
+      nonMetric: true,
+      sceneDocument: admitted!.document,
+      renderScene: admitted!.renderScene,
+      validationReport: admitted!.report,
+      figureSource: "floor",
+      reason: `floor figure (${figure.kind}): ${figure.reason}`,
+      family: `floor_${figure.kind}`,
+    },
+    admission: { attempted: true, drawn: true, kind: figure.kind, reason: figure.reason },
+  };
+}
+
 /**
  * One live/lab final decision: effective visual need → validated exact/fallback
  * selection → readable ink → source policy → exact obligations/save admission
@@ -683,6 +756,19 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       exactFigureSource: input.exactFigureSource ?? "planner",
     });
     let selected = input.fastRepresentation ?? explained!.selected;
+    // Floor figure: only for a figure the turn requires, only after every
+    // planner candidate and allowed fallback failed, never over a solver
+    // contradiction or a source that refused every figure.
+    let floor: FloorSceneAdmission | undefined;
+    if (input.floorFigureEnabled === true && !input.solverAuthorityBlocked && !explained?.veto &&
+        (turnPlan.visualRequirement === "required" || questionRequiresVisual(question)) &&
+        !representationIsDrawable(selected, input, turnPlan)) {
+      const floorFamilies = fallbackCapabilities.families.length > 0 ? fallbackCapabilities.families : gate.families;
+      const admitted = admitFloorScene(input, turnPlan, floorFamilies);
+      floor = admitted.admission;
+      if (admitted.selected && representationIsDrawable(admitted.selected, input, turnPlan)) selected = admitted.selected;
+      else if (admitted.selected) floor = { ...floor, drawn: false, reason: "floor refused at save or source admission" };
+    }
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
@@ -693,7 +779,8 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&
       selected.sceneDocument.visualDecision.mode === "scene";
     let completion: SceneCompletionAdmission | undefined;
-    if (selectedIsDrawable && input.completionEnabled === true) {
+    // A floor figure is complete as stated; completion never adds to it.
+    if (selectedIsDrawable && input.completionEnabled === true && selected.figureSource !== "floor") {
       const completed = completeSelectedScene(selected, input, turnPlan);
       selected = completed.selected;
       completion = completed.completion;
@@ -724,6 +811,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       reason, selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
       droppedCandidate: decline ? { ...decline, replacedBy } : null,
       ...(completion ? { completion } : {}),
+      ...(floor ? { floor } : {}),
     };
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.

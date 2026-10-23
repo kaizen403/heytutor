@@ -4785,6 +4785,43 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
     typeof quantity.value === "number" && quantity.value >= 0;
 }
 
+/** A number with its unit, spelled exactly as the source text wrote it. */
+export interface StatedMeasurement {
+  /** The matched source text, number and unit, inner whitespace kept. */
+  text: string;
+  numberText: string;
+  unitText: string;
+  value: number;
+  index: number;
+}
+
+/**
+ * Every number-with-unit a text states, in source order, read with the same
+ * pattern the displayed-value audit uses. A floor figure copies these
+ * spellings verbatim, so a label can only say what the question said.
+ */
+export function statedMeasurements(text: string): StatedMeasurement[] {
+  const found: StatedMeasurement[] = [];
+  for (const match of text.matchAll(measuredValuePattern())) {
+    const numberText = match[1] ?? "";
+    const value = Number(numberText.replace(/−/g, "-"));
+    const unitText = (match[2] ?? "").trim();
+    if (!Number.isFinite(value) || !unitText) continue;
+    found.push({ text: match[0].trim(), numberText, unitText, value, index: match.index ?? 0 });
+  }
+  return found;
+}
+
+/** Two measured values name the same physical amount (unit scale aware, never a different dimension). */
+export function sameMeasuredQuantity(
+  firstValue: number,
+  firstUnit: unknown,
+  secondValue: number,
+  secondUnit: unknown,
+): boolean {
+  return equivalentMeasuredQuantity(firstValue, firstUnit, secondValue, secondUnit);
+}
+
 function measuredValuePattern(): RegExp {
   // Match the whole physical unit, including powers and compound units.
   // Reading only "m" silently missed speed/acceleration labels at the slash.
@@ -5008,6 +5045,8 @@ export const FIGURE_SOURCES = [
   "linear_source",
   "source_grounded",
   "last_resort",
+  // DIAGRAM_FLOOR_FIGURE: the engine's stated-setup figure after every other path failed.
+  "floor",
   "text_only",
   // These lanes bypass the normal planner/family selector and need their own
   // provenance rather than being folded into a misleading family bucket.

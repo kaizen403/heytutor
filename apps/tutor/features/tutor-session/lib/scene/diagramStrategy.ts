@@ -65,7 +65,12 @@ export function evaluationDiagramStrategyDecision(
   };
 }
 
-/** Independently compiled complete linear source programs and verified recovery remain available in strict. */
+/**
+ * Independently compiled complete linear source programs and verified recovery
+ * remain available in strict. The floor figure is admitted by its own flag
+ * (DIAGRAM_FLOOR_FIGURE) and only after every planner candidate failed, so the
+ * source policy never has to tell it apart.
+ */
 export function diagramStrategyAllowsFigureSource(
   decision: DiagramStrategyDecision,
   source: FigureSource,
@@ -74,5 +79,6 @@ export function diagramStrategyAllowsFigureSource(
     source === "planner" ||
     source === "verified_recovery" ||
     source === "linear_source" ||
+    source === "floor" ||
     source === "text_only";
 }
