@@ -715,7 +715,11 @@ const CUE_SETS: readonly CueSet[] = [
     // "Elastic" alone is a material property (elastic potential energy,
     // stress and strain); it supports a collision only beside another cue.
     cues: [[/\bcollid|\bcollisions?\b/i, 3], [/\b(?:head[- ]on|sticks? to|embed|coalesce|restitution)\b/i, 2], [/\b(?:elastic|inelastic)\b/i, 1], [/\b(?:two|balls?|bodies|blocks|particles)\b/i, 1]],
-    vetoes: [/\bpendulum\b/i, /\b(?:two|2|three|3)[- ]?(?:dimension|d\b)|\boblique\b|\bglancing\b/i],
+    // The figure is two bodies on one line. Any direction off that line, and
+    // collisions that are not between two bodies, decline it.
+    vetoes: [/\bpendulum\b/i, /\b(?:two|2|three|3)[- ]?(?:dimension|d\b)|\boblique\b|\bglancing\b/i,
+      /\d\s*(?:°|degrees?)|\b(?:north|south)(?:[- ]?(?:east|west))?\b|\b(?:east|west)ward|\bperpendicular|\bright[- ]angled?\b|\bx[- ]?(?:and|&) ?y\b|\bx- and y-/i,
+      /\bmolecul|\bgas\b|\bgases\b|\breaction|\breactant|\bhash|\bkinetic theory|\bscatter|\bmean free path|\bairbags?\b/i],
     extract: (stem, plan, bag) => {
       const masses = massesOf(stem);
       const speeds = speedsOf(stem);
@@ -963,10 +967,13 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "spherical_mirror",
-    cues: [[/\b(?:concave|convex) mirrors?\b/i, 5], [/\bmirrors?\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
+    // A plural cues only when the stem names curved mirrors; "mirrors" alone
+    // is a periscope, a kaleidoscope or a laser cavity as often as not.
+    cues: [[/\b(?:concave|convex|spherical) mirrors?\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
-    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
+    vetoes: [/\bplane mirrors?\b/i, /\blens\b/i, /\b(?:periscope|kaleidoscope|laser|lateral inversion|mirror symmetry|enantiomer|chiral|optical isomer)/i,
+      MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
@@ -997,11 +1004,13 @@ const CUE_SETS: readonly CueSet[] = [
       [/\blens[- ]?maker/i, 5],
       [/\b(?:biconvex|biconcave|plano[- ]convex|plano[- ]concave)\b/i, 3],
       [/\bradii\b/i, 3],
-      [/\bmeniscus\b/i, 3],
+      [/\bmeniscus lens\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
     // "R1" in a circuit names a resistance, not a lens face.
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i],
+    // A liquid's meniscus (capillary rise, surface tension) is not a lens.
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i,
+      /\b(?:capillar|surface tension|angle of contact|measuring cylinder|mercury)/i],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")
