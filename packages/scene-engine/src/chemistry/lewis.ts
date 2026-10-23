@@ -18,6 +18,7 @@
 import { molecularOverlapRequested } from "./semanticCues";
 import type { SceneDocument } from "../types";
 import { NAMED_SPECIES } from "./namedSpecies";
+import { recordChemistryFigureIdentity } from "./figureIdentity";
 import { molecularShapeRequested } from "./foundation/molecularShapeRequest";
 import { type ElementRecord, isMetal, valenceElectrons } from "./elements";
 import { complexTokens, formulaTokens, parseFormula, type ParsedFormula } from "./formula";
@@ -1107,7 +1108,19 @@ export function buildLewisScene(question: string, quantities: ChemPlanQuantity[]
   c.scene.quantity("sigma_bonds", "σ", single.sigmaBonds);
   c.scene.quantity("pi_bonds", "π", single.piBonds);
   c.scene.quantity("lone_pairs", "n_lp", single.lonePairs);
-  return c.build({ caption: toDraw.map(captionFor).join("; ") });
+  return recordChemistryFigureIdentity(c.build({ caption: toDraw.map(captionFor).join("; ") }), {
+    species: toDraw.map((result, index) => {
+      const prefix = `s${index + 1}_`;
+      return {
+        formula: result.text,
+        entityId: `${prefix}name`,
+        atoms: result.atoms.map((atom) => ({ entityId: `${prefix}${atom.id}`, symbol: atom.symbol, central: atom.id === result.centralAtom })),
+        bonds: result.bonds.map((bond) => [`${prefix}${bond.a}`, `${prefix}${bond.b}`] as const),
+        knowsCentral: result.skeleton === "central" && result.centralAtom !== null,
+      };
+    }),
+    elementSets: [],
+  });
 }
 
 /* ------------------------------------------------------------------------- */

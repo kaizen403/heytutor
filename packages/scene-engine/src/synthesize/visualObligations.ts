@@ -42,6 +42,8 @@ import type { VseprFigure } from "../chemistry/vsepr";
 import { parseFormula } from "../chemistry/formula";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
+import { bindChemistryBody, certifiedAtomsBonded, certifiedChemistryFigureIdentity } from "../chemistry/obligationIdentity";
+import type { ChemistryFigureIdentity } from "../chemistry/figureIdentity";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -254,14 +256,19 @@ export function checkVisualObligations(
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
   const molecule = verifiedVseprStructure(document, originalQuestion);
-  const mapping = mapProblemEntities(set, document, molecule, originalQuestion);
+  // Only an engine chemistry figure recomputed whole from the original
+  // question has an identity; every other document keeps exact binding.
+  const chemistry = document.source.chemistryFamily !== undefined
+    ? certifiedChemistryFigureIdentity(document, originalQuestion)
+    : null;
+  const mapping = mapProblemEntities(set, document, molecule, chemistry, originalQuestion);
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
       unsupportedIds.push(obligation.id);
       continue;
     }
-    const miss = checkObligation(obligation, document, mapping, molecule);
+    const miss = checkObligation(obligation, document, mapping, molecule, chemistry);
     if (miss) missing.push(miss);
     else satisfiedIds.push(obligation.id);
   }
@@ -347,6 +354,7 @@ function checkObligation(
   document: SceneDocument,
   mapping: ReadonlyMap<string, string>,
   molecule: VseprFigure | null,
+  chemistry: ChemistryFigureIdentity | null,
 ): VisualObligationMiss | null {
   switch (obligation.kind) {
     case "named_body": {
@@ -372,7 +380,8 @@ function checkObligation(
           problemEntityIds: [...obligation.problemEntityIds],
         };
       }
-      return (molecularAtomsConnected(molecule, sceneIds) || sceneIdsConnected(document, sceneIds))
+      return (molecularAtomsConnected(molecule, sceneIds) || certifiedAtomsBonded(chemistry, sceneIds)
+        || sceneIdsConnected(document, sceneIds))
         ? null
         : {
             obligationId: obligation.id,
@@ -434,12 +443,16 @@ function describeBody(obligation: NamedBodyObligation): string {
  * search hint, and an id hit with a missing or conflicting label does not
  * match — a renamed body is a different body. An unnamed body matches by
  * stable id. Each scene entity is consumed once, so two obligations sharing
- * one label still report the second as missing.
+ * one label still report the second as missing. Only when no exact match
+ * exists may an engine chemistry figure, recomputed whole from the original
+ * question, bind a model-word name to its own parsed species, atom or
+ * plotted element set (`chemistry/obligationIdentity`).
  */
 function mapProblemEntities(
   set: VisualObligationSet,
   document: SceneDocument,
   molecule: VseprFigure | null,
+  chemistry: ChemistryFigureIdentity | null,
   originalQuestion?: string,
 ): Map<string, string> {
   const mapping = new Map<string, string>();
@@ -503,6 +516,15 @@ function mapProblemEntities(
     if (labelled) {
       mapping.set(obligation.problemEntityId, labelled.id);
       consumed.add(labelled.id);
+      continue;
+    }
+    // A chemistry body named in model words ("NH3 molecule", "central P
+    // atom", "Period 3 elements") binds only to the certified figure's own
+    // species, atom or plotted element set.
+    const bound = chemistry ? bindChemistryBody(chemistry, obligation.problemKind, wanted, consumed) : null;
+    if (bound) {
+      mapping.set(obligation.problemEntityId, bound.entityId);
+      for (const id of bound.consumes) consumed.add(id);
     }
   }
   return mapping;

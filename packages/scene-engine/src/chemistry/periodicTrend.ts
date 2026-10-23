@@ -22,6 +22,7 @@
  * electronegativity order depends on which table one reads.
  */
 import type { SceneDocument } from "../types";
+import { recordChemistryFigureIdentity } from "./figureIdentity";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { electronConfiguration } from "./electronConfiguration";
 import {
@@ -604,7 +605,13 @@ function trendGraph(question: string, request: TrendRequest): SceneDocument | nu
   });
   const chain = orderChain(points, spec.digits, request.direction);
   const caption = `${spec.name} ${request.lead}: ${chain}${request.note ? `; ${request.note}` : ""}${spec.property === "egh" ? mostNegativeNote(points) : ""}`;
-  return c.build({ caption });
+  // The plotted series is a set of neutral elements only when every point is
+  // an element itself; an ionic radius series plots ions, not elements.
+  const elements = spec.property !== "ionic" && points.every((point) => point.label === point.symbol);
+  return recordChemistryFigureIdentity(c.build({ caption }), {
+    species: [],
+    elementSets: elements ? [{ symbols: points.map((point) => point.symbol), entityId: "trend" }] : [],
+  });
 }
 
 function mostNegativeNote(points: readonly TrendPoint[]): string {

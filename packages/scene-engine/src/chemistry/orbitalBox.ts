@@ -12,6 +12,7 @@
  * declined rather than guessed.
  */
 import type { SceneDocument } from "../types";
+import { recordChemistryFigureIdentity } from "./figureIdentity";
 import { buildAtomicRadiationScene, isAtomicRadiationStem } from "./atomicRadiation";
 import { buildHydrogenicRadialScene, isHydrogenicRadialStem } from "./hydrogenicRadial";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
@@ -796,7 +797,17 @@ export function buildOrbitalScene(question: string, quantities: ChemPlanQuantity
     if (bare && REACTION_CUES.test(stem) && statedOxidationState(stem) === null) return null;
     const figures = species.map(figureFromSpecies);
     if (figures.some((figure) => figure === null)) return null;
-    return buildBoxDocument(question, figures as SpeciesFigure[], MOMENT_CUES.test(stem));
+    const document = buildBoxDocument(question, figures as SpeciesFigure[], MOMENT_CUES.test(stem));
+    // Each panel is the parsed species itself; a neutral one is that atom.
+    return document && recordChemistryFigureIdentity(document, {
+      species: species.map((entry, index) => ({
+        formula: speciesLabel(entry),
+        entityId: `sp${index}_title`,
+        atoms: entry.charge === 0 ? [{ entityId: `sp${index}_title`, symbol: entry.element.symbol, central: false }] : [],
+        bonds: [], knowsCentral: false,
+      })),
+      elementSets: [],
+    });
   }
 
   const written = readWrittenConfigurations(question);

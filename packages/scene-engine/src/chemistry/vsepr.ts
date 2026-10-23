@@ -34,6 +34,7 @@ import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { VseprBondInkPlan } from "./representation/bondInk";
+import { recordChemistryFigureIdentity } from "./figureIdentity";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -1006,6 +1007,8 @@ interface DrawnSpecies {
   readonly electronIds: string[];
   readonly lonePairIds: Array<readonly [string, string]>;
   readonly formulaId: string;
+  /** Element symbol of each entry of `atomIds`, from the parsed structure. */
+  readonly atomSymbols: string[];
 }
 
 /** Reach of the panel beyond the molecule's furthest atom, so symbols and caption lines clear its border. */
@@ -1111,7 +1114,8 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
   c.scene.labelled(centralId, titleId, hybridId, shapeId, domainId, ...(claimId ? [claimId] : []));
   return { ids: [...frameIds, ...detailIds], frameIds, detailIds,
-    atomIds: [centralId, ...ligandIds], bondIds, electronIds, lonePairIds, formulaId: titleId };
+    atomIds: [centralId, ...ligandIds], bondIds, electronIds, lonePairIds, formulaId: titleId,
+    atomSymbols: [result.central.symbol, ...seated.map(({ ligand }) => ligand.symbol)] };
 }
 
 function speciesCue(result: VseprResult): string {
@@ -1204,8 +1208,18 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   const caption = single
     ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${actualLonePairs(drawn[0]!.result)} lone pair${actualLonePairs(drawn[0]!.result) === 1 ? "" : "s"}${drawn[0]!.result.unpairedElectron ? ", 1 unpaired electron" : ""}`
     : `Shapes of ${drawn.map((item) => item.result.formula).join(", ")}`;
+  const document = recordChemistryFigureIdentity(c.build({ caption: caption.slice(0, 60) }), {
+    species: drawn.map(({ drawn: item, result }) => ({
+      formula: result.formula,
+      entityId: item.formulaId,
+      atoms: item.atomIds.map((entityId, index) => ({ entityId, symbol: item.atomSymbols[index]!, central: index === 0 })),
+      bonds: item.atomIds.slice(1).map((id) => [item.atomIds[0]!, id] as const),
+      knowsCentral: true,
+    })),
+    elementSets: [],
+  });
   return {
-    document: c.build({ caption: caption.slice(0, 60) }),
+    document,
     structures: drawn.map(({ drawn: item, result }) => ({
       formulaId: item.formulaId, atomIds: item.atomIds, bondIds: item.bondIds, electronIds: item.electronIds,
       lonePairs: item.lonePairIds.map((entityIds) => ({ entityIds, equatorial: result.stericNumber === 5 })),

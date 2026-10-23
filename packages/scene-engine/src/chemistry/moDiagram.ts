@@ -20,6 +20,7 @@ import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { complexTokens, normalizeChemistryText, ocrSuspectToken } from "./formula";
 import { elementBySymbol } from "./elements";
+import { recordChemistryFigureIdentity } from "./figureIdentity";
 
 import { requiresConformationProjection } from "./foundation/conformationRequest";
 
@@ -514,8 +515,17 @@ export function buildMoScene(question: string, quantities: ChemPlanQuantity[], s
   const results = tokens.map((token) => moConfiguration(token, options)).filter((result): result is MoResult => result !== null);
   if (results.length === 0 || results.length > 4) return null;
   if (results.length !== tokens.length) return null;
-  if (results.length === 1) return buildFullDiagram(question, results[0]!);
-  return buildCompareDiagram(question, results);
+  const document = results.length === 1 ? buildFullDiagram(question, results[0]!) : buildCompareDiagram(question, results);
+  // The diagram is built from these parsed species and nothing else. No
+  // atom is central in a diatomic ladder.
+  return recordChemistryFigureIdentity(document, {
+    species: results.map((result, index) => ({
+      formula: result.species,
+      entityId: results.length === 1 ? "species_heading" : `species_${index}`,
+      atoms: [], bonds: [], knowsCentral: false,
+    })),
+    elementSets: [],
+  });
 }
 
 /* ------------------------------------------------------------------------- */
