@@ -4,6 +4,7 @@ import {
   SCENE_ARTIFACTS_V3_VERSION,
   SCENE_ENGINE_VERSION,
   compileSceneDocument,
+  chemistryTeachingFamilyId,
   certifyVseprSourceDocument,
   validateProblemIR,
   validateSceneDocument,
@@ -105,6 +106,22 @@ export type TurnSceneRejectionCode =
 
 type TurnSceneFailure = { ok: false; error: string; code?: TurnSceneRejectionCode };
 
+/** Historical documents may carry planner-written prose; it is never authority. */
+function withoutLegacyTeachingNotes(input: unknown): unknown {
+  if (!isRecord(input) || !isRecord(input.source) || !Object.hasOwn(input.source, "teachingNotes")) return input;
+  const source = { ...input.source };
+  delete source.teachingNotes;
+  return { ...input, source };
+}
+
+function canonicalTeachingFamily(document: SceneDocument): SceneDocument {
+  const familyId = chemistryTeachingFamilyId(document);
+  const source = { ...document.source };
+  delete source.chemistryTeachingFamilyId;
+  if (familyId) source.chemistryTeachingFamilyId = familyId;
+  return { ...document, source };
+}
+
 export type TurnScenePersistenceResult =
   | { ok: true; value: CanonicalTurnSceneMetadata }
   | TurnSceneFailure;
@@ -125,6 +142,7 @@ export async function canonicalizeTurnSceneMetadata(
   }
   const metadata: SubmittedTurnSceneMetadata = {
     ...submittedMetadata,
+    sceneDocument: withoutLegacyTeachingNotes(submittedMetadata.sceneDocument),
     segments: submittedMetadata.segments.map((segment) => ({
       ...segment,
       sourceOrderIndex: segment.orderIndex,
@@ -241,7 +259,7 @@ export async function canonicalizeTurnSceneMetadata(
     if (!structural.document) {
       return failure("scene_document_invalid", `accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
-    document = structural.document;
+    document = canonicalTeachingFamily(structural.document);
     if (document.visualDecision.mode !== "scene") {
       return failure("scene_representation_not_scene", "accepted representation persisted as text-only");
     }
@@ -272,7 +290,7 @@ export async function canonicalizeTurnSceneMetadata(
     if (!structural.document) {
       return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
-    document = structural.document;
+    document = canonicalTeachingFamily(structural.document);
     if (!sourceQuestionMatches(document, question)) {
       return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
     }

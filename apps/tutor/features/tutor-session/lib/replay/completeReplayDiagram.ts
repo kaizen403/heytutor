@@ -1,5 +1,6 @@
 import {
-  remainingDeferredAnnotations,
+  peekDeferredAnnotation,
+  acknowledgeDeferredAnnotation,
   verifiedDiagramCommandToDrawCommand,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
@@ -60,8 +61,9 @@ export async function completeStoredTurnDiagram(options: {
 
   // FOCUS has already consumed the parts named during teaching. Only the
   // remaining engine-owned marks are released, in the same order as live.
-  for (const command of remainingDeferredAnnotations(diagram)) {
-    if (shouldCancel()) return;
+  while (!shouldCancel()) {
+    const command = peekDeferredAnnotation(diagram);
+    if (!command) break;
     await executeCommand(verifiedDiagramCommandToDrawCommand(command), {
       trustedDiagramGeometry: true,
       applyLayout: false,
@@ -69,6 +71,8 @@ export async function completeStoredTurnDiagram(options: {
       isCancelled: shouldCancel,
       durationScale: options.durationScale,
     });
+    if (shouldCancel()) return;
+    if (!acknowledgeDeferredAnnotation(diagram, command)) return;
   }
 }
 

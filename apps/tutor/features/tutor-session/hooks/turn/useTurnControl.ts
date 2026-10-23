@@ -10,7 +10,8 @@ import {
   buildLessonSegments,
   lessonNarrationText,
   prepareVerifiedLessonSegments,
-  remainingDeferredAnnotations,
+  peekDeferredAnnotation,
+  acknowledgeDeferredAnnotation,
 } from "@heytutor/drawing";
 import { compactConversationHistory, tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
 import {
@@ -723,15 +724,14 @@ export function useTurnControl(
         const drawQueue = drawChainRef.current;
         await drawQueue;
         if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
-        const leftover = activeDiagram && revealDeferredAnnotations
-        ? remainingDeferredAnnotations(activeDiagram)
-        : [];
-        for (const command of leftover) {
+        while (activeDiagram && revealDeferredAnnotations) {
           // A doubt can own the board by now: one starts the moment this turn
           // is stopped, and these labels must not draw onto its page.
-          if (turnGeneration !== turnGenerationRef.current) {
+          if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
             return;
           }
+          const command = peekDeferredAnnotation(activeDiagram);
+          if (!command) break;
           await executeCommandWithCancel({
             type: command.type,
             params: [...command.params],
@@ -741,6 +741,8 @@ export function useTurnControl(
             visualStyle: command.visualStyle,
             semanticRef: command.semanticRef,
           }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
+          if (cancelRef.current || turnGeneration !== turnGenerationRef.current) return;
+          if (!acknowledgeDeferredAnnotation(activeDiagram, command)) return;
         }
         setNarrationText(
           [
@@ -798,13 +800,12 @@ export function useTurnControl(
       const drawQueue = drawChainRef.current;
       await drawQueue;
       if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
-      const leftover = activeDiagram && revealDeferredAnnotations
-        ? remainingDeferredAnnotations(activeDiagram)
-        : [];
-      for (const command of leftover) {
-        if (turnGeneration !== turnGenerationRef.current) {
+      while (activeDiagram && revealDeferredAnnotations) {
+        if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
           return;
         }
+        const command = peekDeferredAnnotation(activeDiagram);
+        if (!command) break;
         await executeCommandWithCancel({
           type: command.type,
           params: [...command.params],
@@ -814,6 +815,8 @@ export function useTurnControl(
           visualStyle: command.visualStyle,
           semanticRef: command.semanticRef,
         }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
+        if (cancelRef.current || turnGeneration !== turnGenerationRef.current) return;
+        if (!acknowledgeDeferredAnnotation(activeDiagram, command)) return;
       }
       setNarrationText(
         [
@@ -841,6 +844,7 @@ export function useTurnControl(
       setLastError,
       setNarrationText,
       executeCommandWithCancel,
+      cancelRef,
     ],
   );
 
