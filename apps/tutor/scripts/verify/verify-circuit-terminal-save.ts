@@ -64,13 +64,19 @@ async function main() {
   for (const kind of ["K", "N", "recorded"] as const) {
     const result = await save(capacitorDrawnTwice(kind));
     assert.equal(result.ok, false, `${kind}: a forged ready save cannot keep a capacitor drawn twice`); checks++;
+    if (!result.ok) {
+      assert.equal(result.code, "scene_admission_failed", kind);
+      assert.match(result.error, /capacitor_depicted_twice/, `${kind}: the save is refused by the double draw check itself`); checks += 2;
+    }
     for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
       const input = { document: capacitorDrawnTwice(kind), question: capacitorQuestion, turnPlan: capacitorPlan, tier };
       assert.match(sceneSaveAdmissionFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: saved admission refuses the double draw`);
       assert.match(liveSceneSaveFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: live save refuses the double draw`); checks += 2;
     }
   }
-  assert.equal((await save(capacitorRectanglePlates())).ok, false, "a forged ready save cannot keep rectangle plates beside the capacitor symbol"); checks++;
+  const rectangleSave = await save(capacitorRectanglePlates());
+  assert.equal(rectangleSave.ok, false, "a forged ready save cannot keep rectangle plates beside the capacitor symbol"); checks++;
+  if (!rectangleSave.ok) { assert.match(rectangleSave.error, /capacitor_depicted_twice/, "the rectangle save is refused by the double draw check itself"); checks++; }
   for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
     assert.match(liveSceneSaveFailure({ document: capacitorRectanglePlates(), question: capacitorQuestion, turnPlan: capacitorPlan, tier }) ?? "", /capacitor_depicted_twice/); checks++;
   }

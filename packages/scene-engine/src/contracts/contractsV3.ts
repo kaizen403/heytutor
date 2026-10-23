@@ -3771,14 +3771,15 @@ function capacitorDepictedTwice(document: SceneDocument): SceneIssue | null {
     return [firstStringValue(construction.inputs, ["start", "from", "a"]), firstStringValue(construction.inputs, ["end", "to", "b"])]
       .filter((id): id is string => id !== null);
   }));
-  // Any other stroke anchored on a circuit terminal (a segment, or a plate
-  // rectangle centred there) draws the plates again. A dimension may measure
-  // the plate gap between terminals.
+  // A plate shaped stroke anchored on a circuit terminal (a segment, line,
+  // polyline or polygon, or a plate rectangle centred there) draws the plates
+  // again. Other marks (a terminal circle, a current vector, a gap dimension)
+  // are not plates and stay admitted.
   const pointIds = (inputs: Record<string, unknown>): string[] => Object.entries(inputs).flatMap(([key, value]) =>
     typeof value === "string" && ["start", "end", "from", "to", "a", "b", "center"].includes(key) ? [value]
       : Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
   const segments = document.constructions.filter((construction) =>
-    !["symbol", "connect", "point", "dimension"].includes(construction.operator) &&
+    ["segment", "line", "polyline", "polygon", "rectangle"].includes(construction.operator) &&
     pointIds(construction.inputs).some((id) => terminals.has(id)));
   if (segments.length === 0) return null;
   return {

@@ -69,10 +69,13 @@ export function capacitorRectanglePlates(withGapDimension = false): SceneDocumen
     { id: "make_plateT", operator: "rectangle", inputs: { center: "C", width: 3, height: 0.12 }, outputs: ["plateT"] },
     { id: "make_plateB", operator: "rectangle", inputs: { center: "D", width: 3, height: 0.12 }, outputs: ["plateB"] },
   );
+  document.requiredEntityIds.push("plateT", "plateB");
   if (withGapDimension) {
     document.entities.push({ id: "gap", kind: "dimension", role: "plate separation" });
     document.constructions.push({ id: "make_gap", operator: "dimension", inputs: { start: "C", end: "D" }, outputs: ["gap"] });
+    document.requiredEntityIds.push("gap");
   }
+  document.revealGroups[0]!.entityIds = [...document.requiredEntityIds];
   return document;
 }
 

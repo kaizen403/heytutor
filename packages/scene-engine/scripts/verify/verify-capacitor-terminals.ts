@@ -93,7 +93,16 @@ const gap = capacitorRectanglePlates(true);
 gap.constructions = gap.constructions.filter(({ id }) => !id.startsWith("make_plate"));
 gap.entities = gap.entities.filter(({ id }) => !id.startsWith("plate"));
 assert.equal(validateTurnPlanSceneProofs(gap, capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "a plate separation dimension between the terminals is not a second capacitor");
-checks += 2;
+assert.ok(validateSceneDocument(pruneDeadSceneEntities(structuredClone(capacitorRectanglePlates()))).document, "the rectangle fixture is a well formed document, so the refusal is the double draw check");
+// Terminal marks that are not plates stay admitted.
+const marked = capacitorCircuit();
+marked.entities.push({ id: "dot", kind: "circle", role: "terminal marker" }, { id: "I", kind: "vector", role: "reference current" });
+marked.constructions.push(
+  { id: "make_dot", operator: "circle", inputs: { center: "C", radius: 0.1 }, outputs: ["dot"] },
+  { id: "make_I", operator: "vector", inputs: { start: "A", end: "C" }, outputs: ["I"] },
+);
+assert.equal(validateTurnPlanSceneProofs(marked, capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "a terminal circle and a reference current vector are not a second capacitor");
+checks += 4;
 assert.match(validateTurnPlanSceneProofs(freeCapacitorPlates(), capacitorPlan).find(({ code }) => code === "source_loop_not_closed")!.message, /delete the free plate segments/, "the closure repair tells the planner to delete free plates");
 checks += 2;
 console.log(`Capacitor terminals: ${checks} checks passed`);
