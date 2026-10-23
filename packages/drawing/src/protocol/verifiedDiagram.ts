@@ -24,6 +24,8 @@ export interface VerifiedDeferredAnnotation {
   /** Computed answers remain hidden until the teaching sequence finishes. */
   revealAfterLesson?: boolean;
   entityId: string;
+  /** Solved answer ink cannot be released by a teaching gesture. */
+  revealAfter?: "teaching_complete";
   commands: VerifiedDiagramCommand[];
 }
 

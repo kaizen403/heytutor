@@ -28,6 +28,7 @@ import {
   type TourRect,
   type TourStop,
 } from "../../features/tutor-session/lib/board/markerTour";
+import { markerCursorState } from "../../features/tutor-session/lib/board/markerVisibility";
 import { CODE_FOCUS_SPOTLIGHT_MS } from "../../features/tutor-session/constants";
 import { resolveCommandInkBudgetMs } from "../../features/tutor-session/types";
 import type { DrawCommand } from "@heytutor/drawing";
@@ -318,10 +319,17 @@ async function main(): Promise<void> {
       new URL("../../features/tutor-session/TutorSessionShell.tsx", import.meta.url),
       "utf8",
     ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    const cursorBinding = /\bconst\s+cursorState(?:\s*:\s*CursorState)?\s*=\s*([^;]+);/.exec(shell)?.[1];
     assert(
-      !/phase === "drawing" \|\| phase === "speaking"/.test(shell),
-      "speaking must not force a still drawing cursor: that parks the pen for the close of a code lesson",
+      cursorBinding && /^markerCursorState\(\s*\{\s*phase,\s*isReplaying\s*\}\s*\)\s*$/.test(cursorBinding),
+      "the actual shell cursorState binding must use markerCursorState, never an inline still-drawing mapping",
     );
+    for (const phase of ["speaking", "drawing"] as const) {
+      assert(markerCursorState({ phase, isReplaying: false }) === "thinking",
+        `live ${phase} must leave the marker free to move imperatively`);
+      assert(markerCursorState({ phase, isReplaying: true }) === "drawing",
+        `recorded ${phase} keeps the replay drawing cursor`);
+    }
   }
 
   // --- A frame offers several places to stand, not one corner twice. ---
