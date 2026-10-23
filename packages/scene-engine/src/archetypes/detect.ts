@@ -712,8 +712,10 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "collision_line",
-    cues: [[/\bcollid|collision\b/i, 3], [/\b(?:head[- ]on|sticks? to|embed|coalesce|elastic|inelastic|restitution)\b/i, 2], [/\b(?:two|balls?|bodies|blocks|particles)\b/i, 1]],
-    vetoes: [/\bpendulum\b/i],
+    // "Elastic" alone is a material property (elastic potential energy,
+    // stress and strain); it supports a collision only beside another cue.
+    cues: [[/\bcollid|\bcollisions?\b/i, 3], [/\b(?:head[- ]on|sticks? to|embed|coalesce|restitution)\b/i, 2], [/\b(?:elastic|inelastic)\b/i, 1], [/\b(?:two|balls?|bodies|blocks|particles)\b/i, 1]],
+    vetoes: [/\bpendulum\b/i, /\b(?:two|2|three|3)[- ]?(?:dimension|d\b)|\boblique\b|\bglancing\b/i],
     extract: (stem, plan, bag) => {
       const masses = massesOf(stem);
       const speeds = speedsOf(stem);
@@ -961,7 +963,7 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "spherical_mirror",
-    cues: [[/\b(?:concave|convex) mirror\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
+    cues: [[/\b(?:concave|convex) mirrors?\b/i, 5], [/\bmirrors?\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
     vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
@@ -995,6 +997,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\blens[- ]?maker/i, 5],
       [/\b(?:biconvex|biconcave|plano[- ]convex|plano[- ]concave)\b/i, 3],
       [/\bradii\b/i, 3],
+      [/\bmeniscus\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
     // "R1" in a circuit names a resistance, not a lens face.
@@ -1642,6 +1645,10 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
     strongest = Math.max(strongest, weight);
     evidence.push(name ?? pattern.source.slice(0, 32));
   }
+  // Plan laws and IR intents strengthen a figure the stem names; alone they
+  // cue the wrong apparatus ("Kirchhoff" for a transistor, "Coulomb's law of
+  // friction" for two point charges), so a stem with no cue matches nothing.
+  if (strongest === 0) return null;
   const structural = bonus.get(set.id);
   if (structural) {
     score += structural.score;

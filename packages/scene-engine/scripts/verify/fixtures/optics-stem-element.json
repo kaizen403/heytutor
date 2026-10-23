@@ -755,7 +755,7 @@
     "lens_maker_equation",
     "sign_convention"
    ],
-   "hintedArchetype": "lens_maker"
+   "hintedArchetype": null
   },
   {
    "question": "Draw Focal length of a concave mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
@@ -818,7 +818,7 @@
     "magnification_definition",
     "power_definition"
    ],
-   "hintedArchetype": "lens_maker"
+   "hintedArchetype": "thin_lens"
   },
   {
    "question": "Draw Plotting the graph between distance and magnification for a convex lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
@@ -1402,7 +1402,7 @@
   {
    "question": "where images form in concave and convex mirrors",
    "source": "recorded run",
-   "archetype": null,
+   "archetype": "spherical_mirror",
    "lawIds": [
     "law-of-reflection",
     "principal-ray-rules-for-spherical-mirrors"
