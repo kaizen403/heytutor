@@ -416,23 +416,80 @@ function normalizeGreekBoardSymbols(text: string): string {
   return normalized;
 }
 
+/**
+ * A row that is source code rather than mathematics. In code, `*` and
+ * `sqrt(` are the program, so the board keeps them as typed. A code lesson
+ * never [WRITE]s (its code arrives by [TYPE]), and a DSA lesson without one
+ * is told to write no code, so this guards the rows that reach the work column
+ * anyway: an ordinary lesson about a language, or a phrase that slipped.
+ * Every signal here is code syntax that no maths or physics row uses.
+ */
+const CODE_ROW =
+  /\*\*|==|!=|&&|[+\-*/%]=(?!=)|\/\/|[A-Za-z_]\w*\.[A-Za-z_]\w*\s*\(|[A-Za-z_]\w*\[[^\]\n]*\]|\b(?:print|printf|len|range|append|input)\s*\(|^\s*(?:def|class|import|function|const|var|elif|#include)\b|[{;]\s*$|^\s*(?:int|float|double|bool|char|string|auto|void)\s+[A-Za-z_]/;
+
+export function isCodeBoardRow(text: string): boolean {
+  return CODE_ROW.test(text);
+}
+
+/** `atan(` and `arcsin(` written the way a student writes them. */
+const INVERSE_TRIG: ReadonlyArray<readonly [RegExp, string]> = [
+  [/\b(?:arc|a)sin\s*\(/g, 'sin⁻¹('],
+  [/\b(?:arc|a)cos\s*\(/g, 'cos⁻¹('],
+  [/\b(?:arc|a)tan\s*\(/g, 'tan⁻¹('],
+];
+
+/**
+ * ASCII math the teaching model types, said the way the board writes it:
+ * `sqrt(` is `√(`, a product star is `×`, and `atan(` is `tan⁻¹(`. Measured on
+ * 20 Oct 2026 in the recorded relative velocity lessons, `sqrt(` reached the
+ * board in 22 rows across 6 lessons, `*` in 14 rows across 5, and `atan` or
+ * `arcsin` in 3, and two of the `sqrt(` rows were this function's own
+ * spelling of "square root of". `atan2(` is a two argument function with its
+ * own meaning and keeps its name.
+ *
+ * A star is a product only where it cannot be a superscript star. A
+ * conjugate or optimum sits on its symbol (`ψ*ψ`, `ψ*(x)`, `ψ(x)*ψ(x)`,
+ * `ψ_1*ψ_2`, `z* − z`), as does an antibonding orbital (`σ*2s`), so a star is
+ * `×` only after a number: a standalone number before it (`3*4`,
+ * `10*sin(30)`, `5*√(3)`, `2 * 5`), or a closing bracket with a number after
+ * it (`(a+b)*2`). Never before a minus: `2 * -3` keeps its star.
+ *
+ * A star between two symbols or two brackets keeps its star (PR #249 review):
+ * between vectors `×` reads as a cross product, so `W = F * d` and
+ * `(A+B)*(A-B)` must not become one. For the same reason the spoken word
+ * "times" is still written `*`.
+ */
+const PRODUCT_STARS: readonly RegExp[] = [
+  /(?<=(?<![\p{L}\p{N}_.])\d+(?:\.\d+)?\s*)\*(?=\s*[\p{L}\p{N}(√])/gu,
+  /(?<=[)\]]\s*)\*(?=\s*\p{N})/gu,
+];
+
+function writeMathGlyphs(text: string): string {
+  let out = text.replace(/(?<![A-Za-z0-9_.])sqrt\s*\(/g, '√(');
+  for (const [pattern, glyph] of INVERSE_TRIG) out = out.replace(pattern, glyph);
+  for (const star of PRODUCT_STARS) out = out.replace(star, '×');
+  return out;
+}
+
 export function normalizeBoardText(text: string): string {
   // Normalize math before the pen sees it so WRITE schedules and ink share one form.
+  const code = isCodeBoardRow(text);
+  const words = normalizeGreekBoardSymbols(text)
+    .replace(/\bdistance\s+squared\b/gi, 'd^2')
+    .replace(/\bradius\s+squared\b/gi, 'r^2')
+    .replace(/\br\s+squared\b/gi, 'r^2')
+    .replace(/\bx\s+squared\b/gi, 'x^2')
+    .replace(/\by\s+squared\b/gi, 'y^2')
+    // In "5 squared units", squared describes the unit, not the number.
+    .replace(/\b([a-z0-9)])\s+squared\b(?!\s+units?\b)/gi, '$1^2')
+    .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, code ? 'sqrt($1)' : '√($1)')
+    .replace(/\bminus\b/gi, '-')
+    .replace(/\bplus\b/gi, '+')
+    .replace(/\bequals\b/gi, '=')
+    .replace(/\btimes\b/gi, '*');
   return normalizeStrokeText(
-    normalizeGreekBoardSymbols(text)
-      .replace(/\bdistance\s+squared\b/gi, 'd^2')
-      .replace(/\bradius\s+squared\b/gi, 'r^2')
-      .replace(/\br\s+squared\b/gi, 'r^2')
-      .replace(/\bx\s+squared\b/gi, 'x^2')
-      .replace(/\by\s+squared\b/gi, 'y^2')
-      // In "5 squared units", squared describes the unit, not the number.
-      .replace(/\b([a-z0-9)])\s+squared\b(?!\s+units?\b)/gi, '$1^2')
-      .replace(/\bsquare\s+root\s+of\s+([a-z0-9()+\-\s]+)\b/gi, 'sqrt($1)')
-      .replace(/\bminus\b/gi, '-')
-      .replace(/\bplus\b/gi, '+')
-      .replace(/\bequals\b/gi, '=')
-      .replace(/\btimes\b/gi, '*')
-      .replace(/\s+([=+\-*])\s+/g, ' $1 ')
+    (code ? words : writeMathGlyphs(words))
+      .replace(/\s+([=+\-*×])\s+/g, ' $1 ')
       .replace(/\s{2,}/g, ' ')
       .trim(),
   );

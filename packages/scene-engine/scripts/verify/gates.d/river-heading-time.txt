@@ -1,0 +1,2 @@
+# River crossing: a stated heading binds the least-time crossing; an unclear "to" heading withdraws t (PR #249 review).
+tsx scripts/verify/verify-river-heading-time.ts

@@ -74,10 +74,77 @@ function expandWrittenModifiers(text: string): string {
   });
 }
 
-/** Unicode numeric subscripts use the same established reading as `_0`. */
+/**
+ * Unicode letter subscripts. A board row writes `vₓ₀` and `vᵧ`, and the
+ * runtime reads that row back as speech: `vₓ₀` reached the voice as "vₓ_0"
+ * in three projectile lessons, because only the digits had a reading.
+ */
+const UNICODE_LETTER_SUBSCRIPTS: Readonly<Record<string, string>> = {
+  "ₐ": "a", "ₑ": "e", "ₒ": "o", "ₓ": "x", "ₕ": "h", "ₖ": "k", "ₗ": "l", "ₘ": "m",
+  "ₙ": "n", "ₚ": "p", "ₛ": "s", "ₜ": "t", "ᵢ": "i", "ᵣ": "r", "ᵤ": "u", "ᵥ": "v",
+  "ⱼ": "j", "ᵦ": "β", "ᵧ": "γ", "ᵨ": "ρ", "ᵩ": "φ", "ᵪ": "χ",
+};
+
+/**
+ * Unicode subscripts use the same established reading as `_0` and `_x`. A run
+ * that mixes letters and digits (`ₓ₀`) is said one character at a time.
+ */
 function expandUnicodeSubscripts(text: string): string {
-  return text.replace(/(?<=[\p{L}\p{M}])([₀-₉]+)/gu, (_match, digits: string) =>
-    `_${[...digits].map((digit) => String(digit.codePointAt(0)! - 0x2080)).join("")}`);
+  return text.replace(/(?<=[\p{L}\p{M}])([₀-₉ₐₑₒₓₕₖₗₘₙₚₛₜᵢᵣᵤᵥⱼᵦᵧᵨᵩᵪ]+)/gu, (_match, run: string) => {
+    const characters = [...run].map((character) =>
+      UNICODE_LETTER_SUBSCRIPTS[character] ?? String(character.codePointAt(0)! - 0x2080));
+    const mixed = characters.some((c) => /\d/.test(c)) && characters.some((c) => !/\d/.test(c));
+    return `_${characters.join(mixed ? " " : "")}`;
+  });
+}
+
+/**
+ * A subscript or superscript written as a group: `v_{AB}`, `v_{A/B}`, `v_(0)`,
+ * `y_(ground)`, `x^{2}`, and the given row's own `v {x 0}`.
+ *
+ * None of these had a rule, so the group reached the voice with its brackets:
+ * "v_{A over B}" in a relative velocity lesson and "v_(zero) equals" in a
+ * balloon lesson. A teacher reads a group the way the board writes the
+ * symbol inside it, so a simple group loses its brackets and joins the
+ * subscript rules below.
+ *
+ * Two readings are particular. A slash between two frame names is the frame
+ * relation, never a division: `v_{A/B}` is "v A relative to B". The givens
+ * row speaks the slash as "over" before this runs, so "over" between two
+ * names reads the same. And two or three capitals are two or three frames or
+ * points, said one letter at a time: `v_{BA}` is "v B A".
+ */
+const GROUP_NAME = "[A-Za-z\\u0370-\\u03ff][A-Za-z0-9\\u0370-\\u03ff]*";
+const FRAME_RELATION = new RegExp(`^\\s*(${GROUP_NAME})\\s*(?:\\/|\\bover\\b)\\s*(${GROUP_NAME})\\s*$`, "u");
+const SIMPLE_SCRIPT = /^[A-Za-z0-9Ͱ-Ͽ]+$/u;
+
+function sayScriptGroup(body: string): string {
+  const relation = FRAME_RELATION.exec(body);
+  if (relation) return `${relation[1]} relative to ${relation[2]}`;
+  return body.replace(/\s+/g, " ").trim();
+}
+
+function expandScriptGroups(text: string): string {
+  return text
+    // `x^{2}` is `x^2`, and `e^{-kt}` keeps its group for the power reader.
+    .replace(/\^\{([^{}]*)\}/g, (_match, body: string) => {
+      const trimmed = body.trim();
+      return /^(?:\d+|[A-Za-z])$/.test(trimmed) ? `^${trimmed}` : `^(${trimmed})`;
+    })
+    // A brace group after a symbol, with or without the underscore. `∫_{0}`
+    // keeps its own reading: only a letter takes a subscript here.
+    .replace(/(?<=[A-Za-zͰ-Ͽ])(?:_| )\{([^{}]*)\}/gu, (_match, body: string) => {
+      const trimmed = body.trim();
+      if (SIMPLE_SCRIPT.test(trimmed)) return `_${trimmed}`;
+      return ` ${sayScriptGroup(trimmed)}`;
+    })
+    // `v_(0)` and `y_(ground)`: the paren group the board calculus rule asks
+    // the model to write. A signed or compound limit (`_(-2)`) is left alone.
+    .replace(/(?<=[A-Za-zͰ-Ͽ])_\(([^()]*)\)/gu, (match, body: string) => {
+      const trimmed = body.trim();
+      if (SIMPLE_SCRIPT.test(trimmed)) return `_${trimmed}`;
+      return FRAME_RELATION.test(trimmed) ? ` ${sayScriptGroup(trimmed)}` : match;
+    });
 }
 
 /** Letter-attached Unicode primes; numeric angle minutes/seconds stay intact. */
@@ -269,6 +336,18 @@ function expandUnitRatios(text: string): string {
       new RegExp(`\\b(in|per)\\s+${ratio}`, "gu"),
       (match, lead: string, top: string, bottom: string, power?: string) =>
         say(top, bottom, power) === null ? match : `${lead} ${say(top, bottom, power)}`,
+    )
+    // The givens row speaks its own slash before this runs: "g = 10 m/s²" is
+    // handed over as "g equals 10 m over s²", which the voice said as "ten m
+    // over s squared". After a number, two unit symbols joined by "over" are
+    // the same ratio.
+    .replace(
+      new RegExp(`(\\d(?:[\\d.,]*\\d)?)([ \\t]+)(µ?[A-Za-zΩ]{1,3}) over (µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³]| squared\\b| cubed\\b)?(?![\\p{L}0-9_])`, "gu"),
+      (match, value: string, gap: string, top: string, bottom: string, power?: string) => {
+        const exponent = power?.trim() === "squared" ? "2" : power?.trim() === "cubed" ? "3" : power;
+        const words = say(top, bottom, exponent);
+        return words === null ? match : `${value}${gap}${words}`;
+      },
     );
 }
 
@@ -360,6 +439,19 @@ const SUBSCRIPT_WORDS: Record<string, string> = {
 };
 
 /**
+ * One subscript, said by its letters. Two or three capitals name two or three
+ * frames or points (`v_AB`, `V_CE`), so each is its own letter; a letter run
+ * glued to a digit (`v_x0`) is the letter, then the digit.
+ */
+function saySubscript(subscript: string, loneSymbol: boolean): string {
+  const word = SUBSCRIPT_WORDS[subscript.toLowerCase()];
+  if (word) return word;
+  // Only on a one letter symbol: `INT_MAX` in a code lesson is a name.
+  if (loneSymbol && /^[A-Z]{2,3}$/.test(subscript)) return subscript.split("").join(" ");
+  return subscript.replace(/(?<=[A-Za-zͰ-Ͽ])(?=\d)|(?<=\d)(?=[A-Za-zͰ-Ͽ])/gu, " ");
+}
+
+/**
  * `v_rms`, `k_e`, `F_up`, `T_A`, `mu_0`, `stack_out`.
  *
  * 1,986 of these reach the voice per corpus sweep and the underscore is read
@@ -375,8 +467,8 @@ function expandSubscripts(text: string): string {
   const numbered = new RegExp(`([a-z\\u0370-\\u03ff])_(\\d+)`, "g");
   const once = (input: string): string =>
     input
-      .replace(lettered, (_match, base: string, subscript: string) =>
-        `${base} ${SUBSCRIPT_WORDS[subscript.toLowerCase()] ?? subscript}`)
+      .replace(lettered, (_match, base: string, subscript: string, offset: number, whole: string) =>
+        `${base} ${saySubscript(subscript, !/[\p{L}\p{N}_]/u.test(whole[offset - 1] ?? ""))}`)
       .replace(numbered, "$1 $2");
   // `max_path_sum` holds two underscores whose matches overlap by one letter,
   // so a single pass left the second one in ("max path_sum"). Three passes
@@ -535,6 +627,9 @@ function expandDecimalFractions(text: string): string {
  */
 function tidySpokenSpacing(text: string): string {
   return text
+    // A brace is never spoken. Any group the script rule did not claim (a set,
+    // a nested group) loses its brackets rather than reaching the voice.
+    .replace(/[{}]/g, " ")
     // The narration often already says the word: "the magnitude |q|" expands
     // to "the magnitude the magnitude of q".
     .replace(/\b(?:the\s+)?magnitude\s+(?:of\s+)?(?=the magnitude of\b)/gi, "")
@@ -554,6 +649,10 @@ function tidySpokenSpacing(text: string): string {
  */
 function expandNotationSymbols(text: string): string {
   return text
+    // The board writes `tan⁻¹(` for `atan(` (stored as `tan^(-1)(`); a
+    // teacher says "tan inverse", never "tan to the power of minus 1".
+    .replace(/\b(sin|cos|tan)\s*(?:\^\(-1\)|\^-1|⁻¹)/g, "$1 inverse ")
+    .replace(/\b(?:arc|a)(sin|cos|tan)(?=\s*\()/g, "$1 inverse ")
     .replace(/([A-Z][a-z]?)_(\d+)/g, "$1 $2 ")
     .replace(/([A-Za-z0-9]+)\^(\d+)([-+])/g, (_m, formula: string, num: string, sign: string) =>
       `${formula} ${num} ${sign === "-" ? "minus" : "plus"} `)
@@ -708,6 +807,10 @@ const SPEECH_STAGES: ((text: string) => string)[] = [
   expandUnicodeSubscripts,
   expandUnicodePrimes,
   expandWrittenModifiers,
+  // After the Unicode subscripts and before the unit ratios and subscripts:
+  // `v_{A/B}` must be a frame relation before `/` can become "over". Before
+  // the grouped powers, so `(a+b)^{2}` reaches them as `(a+b)^2`.
+  expandScriptGroups,
   expandGroupedPowers,
   // Before the unit ratios and the chemistry state symbols: `t (s)` is time
   // in seconds, and `(4, 20)` is a point before it is two numbers.

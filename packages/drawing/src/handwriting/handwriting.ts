@@ -99,6 +99,8 @@ export function normalizeStrokeText(text: string): string {
     .replace(/\\infty(?![A-Za-z])/g, "∞")
     .replace(/\\partial(?![A-Za-z])/g, "∂")
     .replace(/\\sqrt(?![A-Za-z])/g, "√")
+    // Inverse trig is written with its index, as a student writes it.
+    .replace(/\\arc(sin|cos|tan)(?![A-Za-z])/g, "$1⁻¹")
     .replace(/\\pm(?![A-Za-z])/g, "±")
     .replace(/\\times(?![A-Za-z])/g, "×")
     .replace(/\\cdot(?![A-Za-z])/g, "·")

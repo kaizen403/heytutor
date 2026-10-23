@@ -87,7 +87,7 @@ const DIAGRAM_LEAD = /^\s*(?:draw|sketch|illustrate|show\s+me)\b\s*/i;
  * "explain diffraction with an example" is a lesson about diffraction.
  */
 const TOPIC_TAIL =
-  /\s*(?:,\s*)?\b(?:with\s+(?:an?\s+)?(?:examples?|diagrams?|figures?)|using\s+(?:an?\s+)?(?:examples?|diagrams?)|in\s+(?:simple|plain|easy)\s+(?:terms|words|english)|for\s+(?:a\s+)?beginners?|step\s+by\s+step|briefly|in\s+detail|please)\b.*$/i;
+  /\s*(?:,\s*)?\b(?:with\s+(?:an?\s+)?(?:(?:clear|simple|neat|labell?ed)\s+)?(?:examples?|diagrams?|figures?)|using\s+(?:an?\s+)?(?:examples?|diagrams?)|in\s+(?:simple|plain|easy)\s+(?:terms|words|english)|for\s+(?:a\s+)?beginners?|step\s+by\s+step|briefly|in\s+detail|please)\b.*$/i;
 
 /**
  * Conditions hanging off the ask. "find the distance travelled if the brakes
@@ -95,7 +95,18 @@ const TOPIC_TAIL =
  * belongs to the working, not to the sentence that introduces it.
  */
 const ASK_CONDITION =
-  /\s+\b(?:if|when|given|assuming|provided|where|after|before|using|taking)\b\s.*$/i;
+  /\s+\b(?:if|when|given|assuming|provided|where|after|before|using|taking)\b(?=\s)/gi;
+
+/**
+ * A head that cannot end an ask, because the condition word belongs to it: a
+ * conjunction or modifier waiting for its phrase ("apart and when it occurs",
+ * "its speed just before landing"), a duration ("how many minutes after
+ * noon"), or a noun that names a time or a place only through the clause after
+ * it ("the instants when it is at rest"). Cutting there left the ask hanging
+ * mid phrase, "its speed just.", in 5 of 48 recorded openings on 20 Oct 2026.
+ */
+const DANGLING_HEAD =
+  /\b(?:and|or|but|nor|just|right|immediately|shortly|soon|long|even|only|instants?|moments?|times?|points?|places?|positions?|seconds?|minutes?|hours?|days?|years?)$/i;
 
 /**
  * End of a sentence, which a decimal point is not.
@@ -288,7 +299,7 @@ function yesNoAskPhrase(question: string): string | null {
   if (!last) return null;
   const clause = last.replace(/\s+/g, " ").replace(/[\s?]+$/, "").trim();
   if (clause.length < 8 || clause.length > MAX_ASK_CHARS) return null;
-  return `asks, ${clause.toLowerCase()}`;
+  return `asks, ${speakableCase(clause)}`;
 }
 
 interface AskCandidate {
@@ -325,9 +336,8 @@ function allAsks(
 
 /** The wanted quantity, cut back to the clause that names it. */
 function askRemainder(rest: string): string | null {
-  const clause = (rest.split(SENTENCE_END)[0] ?? "")
-    .replace(ASK_CONDITION, "")
-    .replace(/^\s*(?:the\s+value\s+of|out)\s+/i, "")
+  const clause = cutAtCondition(rest.split(SENTENCE_END)[0] ?? "")
+    .replace(/^\s*(?:the\s+value\s+of|out|also)\s+/i, "")
     .replace(/\s+/g, " ")
     .replace(/^[\s,:]+/, "")
     .replace(/[\s,:]+$/, "")
@@ -336,10 +346,44 @@ function askRemainder(rest: string): string | null {
   // "Find N." is a real ask, and the shortest one there is. Rejecting it for
   // being under three characters sent the whole question back to the generic
   // opening, or worse, to an earlier "find" belonging to the setup.
-  if (BARE_SYMBOL.test(clause)) return `the value of ${clause.toLowerCase()}`;
+  if (BARE_SYMBOL.test(clause)) return `the value of ${clause}`;
   if (clause.length < 3) return null;
   if (!/[a-z]{3}/i.test(clause)) return null;
-  return clause.toLowerCase();
+  return speakableCase(clause);
+}
+
+/**
+ * The ask without the condition hanging off it, cut only where a condition
+ * clause starts: after a comma, or where the words before the condition word
+ * can stand alone. Anything else is part of the ask, and the ask is kept
+ * whole.
+ */
+function cutAtCondition(clause: string): string {
+  const matcher = new RegExp(ASK_CONDITION.source, ASK_CONDITION.flags);
+  for (let match = matcher.exec(clause); match; match = matcher.exec(clause)) {
+    const head = clause.slice(0, match.index);
+    if (/,\s*$/.test(head) || !DANGLING_HEAD.test(head.trimEnd())) return head;
+  }
+  return clause;
+}
+
+/**
+ * Lowercase the way the voice needs it, which is not everywhere. The opening
+ * used to lowercase the whole question, so "for JEE" was spoken as the word
+ * "jee" (27 recorded openings), "how far does A travel" as "how far does a
+ * travel", and "A + B" as "a + b". An acronym, a single letter symbol, and a
+ * mixed case unit (pH, kHz) keep their case; an ordinary capitalised word,
+ * which is only capitalised because it opened a sentence, does not. A capital
+ * A that opens the clause before a lowercase word is the article.
+ */
+function speakableCase(text: string): string {
+  return text.replace(/[\p{L}\p{N}]+/gu, (word: string, offset: number) => {
+    if (word.length === 1) {
+      return offset === 0 && word === "A" && /^\s+[a-z]{2,}/.test(text.slice(1)) ? "a" : word;
+    }
+    if (/\d/.test(word) || /^\p{Lu}{2,}$/u.test(word) || /^\p{Ll}+\p{Lu}/u.test(word)) return word;
+    return word.toLowerCase();
+  });
 }
 
 function normalizeVerb(verb: string): string {
@@ -379,7 +423,7 @@ function cleanTopic(raw: string): string | null {
     .trim();
   if (topic.length < 3 || topic.length > MAX_TOPIC_CHARS) return null;
   if (!/[a-z]{3}/i.test(topic)) return null;
-  return topic.toLowerCase();
+  return speakableCase(topic);
 }
 
 /** "why does ice float?" read back as a clause, with its question mark gone. */
@@ -390,5 +434,5 @@ function trimQuestion(question: string): string | null {
     .replace(/[\s,.:;?!]+$/, "")
     .trim();
   if (clause.length < 5 || clause.length > MAX_ASK_CHARS) return null;
-  return clause.toLowerCase();
+  return speakableCase(clause);
 }

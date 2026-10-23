@@ -95,20 +95,116 @@ export function riverCrossingSpeeds(question: string): RiverCrossingBinding {
   return { status: "bound", vb, vc, unit: units[0] as "km/h" | "m/s", widthM };
 }
 
-/** Shortest path: head upstream so the boat lands directly opposite. */
-const PATH_REQUEST = String.raw`\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b`;
-const TIME_REQUEST = String.raw`\b(?:(?:shortest|minimum|least|minimal)\s+(?:possible\s+)?(?:crossing\s+)?time|as\s+(?:quickly|soon|fast)\s+as\s+possible|quickest)\b`;
-export function riverShortestPathAsked(question: string): boolean {
-  return new RegExp(PATH_REQUEST, "i").test(question);
+/**
+ * A verb that sets the boat's heading (where it points, not where it goes).
+ * "heading" is a noun in "the heading to go straight across", so it counts
+ * only when the direction follows it at once. Rowing and swimming verbs name
+ * a heading with "perpendicular to the current", but "swim straight across"
+ * usually names the path, so they never read "straight across" as a heading.
+ * Bare "point" is left out: "the point directly across" is a place on the far
+ * bank (a path), and "points" is as often the noun.
+ */
+const POINTING_VERB = String.raw`(?:heads?|headed|heading|steers?|steered|steering|pointed|pointing|aims?|aimed|aiming|directed|oriented)`;
+const HEADING_VERB = String.raw`(?:${POINTING_VERB}|rows?|rowed|rowing|swims?|swam|swimming|paddles?|paddled|paddling)`;
+/** "heads straight across", "rows perpendicular to the current", "steers at right angles to the bank". */
+const HEADING_ACROSS = new RegExp(String.raw`\b(?:${POINTING_VERB}\s+(?:(?:the\s+)?boat\s+)?(?:straight|directly|perpendicularly|normally|squarely)\s+across\b|${HEADING_VERB}\s+(?:perpendicular|normal|at\s+right\s+angles?)\s+to\s+(?:the\s+)?(?:river\s*)?(?:banks?|current|stream|flow|river|water\s+flow)\b)`, "gi");
+/** A pure compass direction: never "north-east", "north of west" or "north at an angle". */
+const CARDINAL = String.raw`(north|south|east|west)(?:wards?)?\b(?!\s*-|\s+(?:of|by)\b|\s+at\s+(?:an?\s+)?angle\b|\s+at\s+\d[\d.]*\s*(?:°|deg))`;
+const FLOW_DIRECTION = new RegExp(String.raw`\b(?:flows?|flowing)\s+(?:(?:due|towards?|to\s+the)\s+)?${CARDINAL}`, "i");
+const CARDINAL_HEADING = new RegExp(String.raw`\b${HEADING_VERB}\s+(?:(?:due|towards?|to\s+the)\s+)?${CARDINAL}`, "gi");
+const NORMAL_TO: Record<string, readonly string[]> = {
+  north: ["east", "west"], south: ["east", "west"], east: ["north", "south"], west: ["north", "south"],
+};
+
+/**
+ * The stem sets the boat's heading along the bank normal: "heads straight
+ * across", "rows perpendicular to the current", or a compass heading at right
+ * angles to a stated compass flow ("flows east ... heads due north"). That
+ * crossing is the least-time case whatever else the question asks.
+ */
+/**
+ * The words before "to" that make the heading after it an intent: "wants to
+ * head straight across", "has to", "needs to", "in order to", and a sentence
+ * that opens with "To steer straight across, ...". There the heading is the
+ * place the boat should reach, not where it points.
+ */
+const INTENT_BEFORE_TO = /(?:\b(?:wants?|wanted|wanting|wish|wishes|wished|wishing|has|have|had|needs?|needed|must|order)\s+|^\s*|[.;:!?]\s*)to\s+$/i;
+
+type HeadingRead = "stated" | "intent" | "unclear";
+
+/**
+ * A heading phrase with no "to" before it is stated: the boat points that
+ * way. After an intent "to" it is an intent. After any other "to" ("is made
+ * to head", "is steered to head", "so as to head") it is unclear: the stem may
+ * state the heading or the goal, and the two crossings have different times
+ * (PR #249 review), so no crossing time is read from it.
+ */
+function headingRead(question: string, match: RegExpMatchArray): HeadingRead {
+  const before = question.slice(0, match.index ?? 0);
+  if (!/\bto\s+$/i.test(before)) return "stated";
+  return INTENT_BEFORE_TO.test(before) ? "intent" : "unclear";
 }
 
-/** Shortest time: head along the bank normal and drift downstream. */
+function headingsRead(question: string, pattern: RegExp, read: HeadingRead): RegExpMatchArray[] {
+  return [...question.matchAll(new RegExp(pattern.source, "gi"))].filter((match) => headingRead(question, match) === read);
+}
+
+function statedHeadings(question: string, pattern: RegExp): RegExpMatchArray[] {
+  return headingsRead(question, pattern, "stated");
+}
+
+function normalHeadingRead(question: string, read: HeadingRead): boolean {
+  if (headingsRead(question, HEADING_ACROSS, read).length > 0) return true;
+  const flow = question.match(FLOW_DIRECTION)?.[1]?.toLowerCase();
+  if (!flow) return false;
+  return headingsRead(question, CARDINAL_HEADING, read).some((match) => NORMAL_TO[match[1]!.toLowerCase()]!.includes(flow));
+}
+
+export function riverNormalHeadingStated(question: string): boolean {
+  return normalHeadingRead(question, "stated");
+}
+
+/**
+ * A heading along the bank normal after a "to" that is not an intent ("is
+ * made to head straight across"). The crossing time is then withheld: no
+ * time symbol is bound, and no plan time is allowed to stand.
+ */
+export function riverNormalHeadingUnclear(question: string): boolean {
+  return normalHeadingRead(question, "unclear");
+}
+
+const PATH_REQUEST = String.raw`\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b`;
+const TIME_REQUEST = String.raw`\b(?:(?:shortest|minimum|least|minimal)\s+(?:possible\s+)?(?:crossing\s+)?time|as\s+(?:quickly|soon|fast)\s+as\s+possible|quickest)\b`;
+
+/** The question with each stated heading blanked to spaces, so match offsets stay put. */
+function withoutStatedHeadings(question: string): string {
+  let withoutHeadings = question;
+  for (const match of statedHeadings(question, HEADING_ACROSS).reverse()) {
+    const start = match.index ?? 0;
+    withoutHeadings = `${withoutHeadings.slice(0, start)}${" ".repeat(match[0].length)}${withoutHeadings.slice(start + match[0].length)}`;
+  }
+  return withoutHeadings;
+}
+
+/**
+ * Shortest path: head upstream so the boat lands directly opposite. A stated
+ * heading "straight across" is where the boat points, the least-time case,
+ * so it is removed before the path cues are read. An intended heading ("to
+ * steer straight across") stays: it names where the boat must go. When both a
+ * stated heading and a path cue are read, both crossings stand and no single
+ * crossing time is bound.
+ */
+export function riverShortestPathAsked(question: string): boolean {
+  return new RegExp(PATH_REQUEST, "i").test(withoutStatedHeadings(question));
+}
+
+/** Shortest time: head along the bank normal and drift downstream, asked or stated as the heading. */
 export function riverShortestTimeAsked(question: string): boolean {
-  const paths = [...question.matchAll(new RegExp(PATH_REQUEST, "gi"))];
+  const paths = [...withoutStatedHeadings(question).matchAll(new RegExp(PATH_REQUEST, "gi"))];
   const times = question.matchAll(new RegExp(TIME_REQUEST, "gi"));
   const separate = (between: string) => /[.;:?!()[\]]/.test(between)
     || /\b(?:and|compar(?:e|ed|ing)|than|if|when|then|instead|versus|vs|or|but|while|also)\b/i.test(between);
-  return [...times].some((time) => {
+  return riverNormalHeadingStated(question) || [...times].some((time) => {
     const bridges = paths.map((path) => time.index! >= path.index!
       ? question.slice(path.index! + path[0].length, time.index)
       : question.slice(time.index! + time[0].length, path.index));
@@ -139,17 +235,22 @@ export function riverCrossingValues(speeds: RiverCrossingSpeeds, question = ""):
   const time: number[] = [];
   const w = speeds.widthM;
   const length: number[] = w === null ? [] : [w];
+  // An unclear heading has no crossing time the source can stand behind.
+  const timeWithheld = riverNormalHeadingUnclear(question);
   if (both || quick) {
     const drift = Math.atan2(vc, vb) * deg;
     velocity.push(Math.hypot(vb, vc));
     angle.push(drift, 90 - drift, 90 + drift);
-    if (w !== null) { time.push(w / vb); length.push((vc * w) / vb, Math.hypot(w, (vc * w) / vb)); }
+    if (w !== null) {
+      if (!timeWithheld) time.push(w / vb);
+      length.push((vc * w) / vb, Math.hypot(w, (vc * w) / vb));
+    }
   }
   if ((both || path) && vb > vc) {
     const heading = Math.asin(vc / vb) * deg;
     velocity.push(Math.sqrt(vb * vb - vc * vc));
     angle.push(heading, 90 - heading, 90 + heading);
-    if (w !== null) time.push(w / Math.sqrt(vb * vb - vc * vc));
+    if (w !== null && !timeWithheld) time.push(w / Math.sqrt(vb * vb - vc * vc));
   }
   return { velocity, angle, ...(w === null ? {} : { time, length }) };
 }
@@ -159,7 +260,7 @@ const RIVER_SYMBOLS = new Set(["vc", "vriver", "vcurrent", "riverspeed", "vstrea
 
 /** New comparison roles need two requested times, not merely two mode words. */
 function riverCrossingComparisonAsked(question: string): boolean {
-  const paths = [...question.matchAll(new RegExp(PATH_REQUEST, "gi"))];
+  const paths = [...withoutStatedHeadings(question).matchAll(new RegExp(PATH_REQUEST, "gi"))];
   const times = [...question.matchAll(new RegExp(TIME_REQUEST, "gi"))];
   const request = String.raw`\b(?:find|calculate|determine|compute|give|obtain)\s+(?:the\s+)?`;
   const timeObject = new RegExp(`${request}(?:(?:shortest|minimum|least|minimal)\\s+(?:possible\\s+)?(?:crossing\\s+)?)?time\\b`, "i");
@@ -208,6 +309,9 @@ function riverCrossingBindings(speeds: RiverCrossingSpeeds, question: string): M
     for (const name of ["vup", "vupstream"]) bound.set(name, { dimension: "velocity", si: vb - vc });
   }
   const path = riverShortestPathAsked(question); const quick = riverShortestTimeAsked(question);
+  // "is made to head straight across": no crossing time is bound, and the
+  // values above allow none, so a plan's t is withdrawn, never rewritten.
+  if (riverNormalHeadingUnclear(question)) return bound;
   if (speeds.widthM !== null && path !== quick && (quick || vb > vc)) {
     const time = quick ? speeds.widthM / vb : speeds.widthM / Math.sqrt(vb * vb - vc * vc);
     // A stated oblique heading is a separate crossing the source does not
