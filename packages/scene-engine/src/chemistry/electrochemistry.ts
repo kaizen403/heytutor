@@ -21,6 +21,7 @@ import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
+import { CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
 import { claimsElectrodeDepositionMass, readDepositionMassSource, type DepositionMassSource } from "./electrolysisSource";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
@@ -2183,7 +2184,15 @@ function buildConductancePlot(question: string): SceneDocument | null {
   c.text("x_label", { x: 1.15, y: -0.2 }, "√c", "x axis label");
   c.text("y_label", { x: -0.18, y: 1.1 }, "Λ_m", "y axis label");
   s.labelled("strong", "weak");
-  return c.build({ caption: "Λm vs √c: a strong electrolyte falls on a straight line, Λm = Λ°m − A√c (Kohlrausch); a weak electrolyte rises steeply as c → 0, so Λ°m cannot be read by extrapolation" });
+  // Domain facts travel with the family, rather than depending on a planner
+  // remembering the limitations of the schematic curve. References: NCERT
+  // Electrochemistry §2.4.2 and the Mainz physical chemistry lab's conductivity
+  // chapter (links in verify-conductance-teaching.ts).
+  const document = c.build({
+    caption: "Λm vs √c: for a dilute strong electrolyte at fixed solvent and temperature, Λm = Λ°m − A√c is a straight-line approximation; a weak electrolyte rises steeply as c → 0, so its Λ°m cannot be obtained by this straight-line extrapolation",
+  });
+  document.source.chemistryTeachingFamilyId = CONDUCTANCE_TEACHING_FAMILY;
+  return document;
 }
 
 /* ------------------------------------------------------------------------- */
