@@ -65,12 +65,25 @@ export function evaluationDiagramStrategyDecision(
   };
 }
 
+/**
+ * A lesson the plan does not place in maths, physics or the chemistry lane
+ * (electronics, biology, CS, medicine) has no deterministic figure tools of
+ * its own. Physics families, archetypes and the last resort drew for such
+ * lessons from shared words: two batteries for an emitter follower, a P-V
+ * rectangle for a Carnot explanation, two charges for a cubical Gaussian
+ * surface. Only figures the planner proves may draw for it, as in strict.
+ */
+export function plannerProvenFiguresOnly(decision: DiagramStrategyDecision): boolean {
+  return !decision.chemistryLane && !decision.codeLesson && !decision.dsa && !decision.doubt &&
+    (decision.subject === "other" || decision.subject === "chemistry");
+}
+
 /** Independently compiled complete linear source programs and verified recovery remain available in strict. */
 export function diagramStrategyAllowsFigureSource(
   decision: DiagramStrategyDecision,
   source: FigureSource,
 ): boolean {
-  return decision.strategy === "current" ||
+  return (decision.strategy === "current" && !plannerProvenFiguresOnly(decision)) ||
     source === "planner" ||
     source === "verified_recovery" ||
     source === "linear_source" ||
