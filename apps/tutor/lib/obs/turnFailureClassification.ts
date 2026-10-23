@@ -58,12 +58,19 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
   const uncommitted = input.visualStatus == null || (UNCOMMITTED_VISUAL_STATUSES as readonly string[]).includes(input.visualStatus);
   if (uncommitted) {
     const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
-    // The planner may skip a figure the plan did not require. That taught
-    // lesson is the text outcome, not a failed turn. A required figure stays
-    // a failure even when narration was saved.
-    if (code === "planner_declined" && taught === true &&
+    // The planner may skip a figure the plan did not require, or the engine
+    // may have no figure tools for the subject. That taught lesson is the
+    // text outcome, not a failed turn. A required figure stays a failure even
+    // when narration was saved.
+    if ((code === "planner_declined" || code === "missing_capability") && taught === true &&
       (plan.visualRequirement === "optional" || plan.visualRequirement === "none")) {
       return verdict("healthy");
+    }
+    // A student who stops before any teaching cuts off the requests in
+    // flight, and the page teardown reports them as transport errors. That
+    // is a stop, not a failure; a turn that kept going still reports it.
+    if (code === "transport_error" && telemetry.failed !== true && input.status === "stopped" && taught === false) {
+      return verdict("unverified");
     }
     if (code) return verdict("failed", code);
   }
