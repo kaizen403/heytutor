@@ -4,24 +4,13 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { mock } from "node:test";
 import { Prisma } from "@prisma/client";
-import {
-  FIGURE_SOURCES, LocalDeterministicSolverProvider, SCENE_ENGINE_VERSION, compileSceneDocument,
-  validateProblemIR, validateSolverResult, validateTurnPlanV3, verifyTurnPlanAgainstSolver,
-  type ProblemIR, type SceneDocument, type SolverAuthorityAudit, type SolverResult, type TurnPlanV3,
-} from "@heytutor/scene-engine";
-import {
-  focusEmphasisOf, getSegmentCommands, isStoredCommandTrustedGeometry, parseStoredSegmentCommands,
-  prepareVerifiedLessonSegments, resolveVerifiedDiagramFocusTargets, serializeSegmentCommands, type DrawCommand,
-} from "@heytutor/drawing";
+import { FIGURE_SOURCES, SCENE_ENGINE_VERSION, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { getSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { inferSceneCapabilities } from "@heytutor/tutor-core";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
-import { currentPausedLesson, pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
-import { resumeTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
-import { pageTurnsEndingAt, storedTurnContinuesBoard } from "../../lib/boards/boardContinuation";
-import type { RecordedSegmentPayload, StoredTurn, TurnCheckpointInput } from "../../lib/boards/boardsClient";
-import { MAX_TURN_AUDIO_BYTES, MAX_TURN_SEGMENTS } from "../../lib/scene/turnUploadLimits";
+import type { RecordedSegmentPayload, TurnCheckpointInput } from "../../lib/boards/boardsClient";
 
 // Only external identity, database, and object-storage boundaries are replaced.
 // Real quota, trace admission, upload, canonicalization, scene proof/source, and
@@ -33,10 +22,9 @@ const owner = "376c7567-0681-44d9-b8ec-ce78b8f14165";
 const boardId = "b9db230b-331f-4811-9767-fe2a1a1010df";
 const date = new Date("2026-10-10T00:00:00Z");
 const board = { id: boardId, userId: owner, title: "Save/reopen regression", preview: "", createdAt: date, updatedAt: date };
-let userId: string | null = owner;
+const userId: string | null = owner;
 let reservedBytes = 0n;
 let pendingTurns = 0;
-let uploads = 0;
 type Data = Record<string, unknown>;
 const turns: Data[] = [];
 const segments: Data[] = [];
@@ -135,7 +123,6 @@ mock.module(modulePath("lib/db/prisma.ts"), { namedExports: { prisma } });
 mock.module(modulePath("lib/obs/failedTurnSentry.ts"), { namedExports: { queueFailedTurnSentry: async () => null } });
 mock.module(modulePath("lib/object-store/s3.ts"), {
   namedExports: { uploadAudio: async (key: string) => {
-    uploads++;
     return `/api/media?key=${encodeURIComponent(key)}`;
   } },
 });
@@ -192,7 +179,6 @@ const planFor = (question: string): TurnPlanV3 => ({
   givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [],
 });
 const mathsQuestion = "Draw a labelled line segment AB.";
-const mathsPlan = planFor(mathsQuestion);
 const mathsDocument: SceneDocument = {
   schemaVersion: "scene-document/v2", source: { question: mathsQuestion },
   visualDecision: { mode: "scene", reason: "show the requested labelled segment" }, quantities: [],
