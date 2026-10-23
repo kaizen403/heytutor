@@ -24,7 +24,10 @@ const yOnNegativeX = prim("primitive_frame_label_y", "frame", "label", [[558, 37
 assert.equal(validateAxisNamePlacement([...frame, negativeX, yOnNegativeX]).length, 1, "y beside another axis's negative half is refused");
 assert.equal(validateAxisNamePlacement([...frame, negativeX, prim("primitive_frame_label_y", "frame", "label", [[672, 345]], { text: "y" })]).length, 0, "y at its own tip still passes when a negative half is drawn");
 const negativeY = prim("primitive_frame_4", "frame", "polyline", [[637, 385], [615, 420]]);
-assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_frame_label_y", "frame", "label", [[612, 424]], { text: "y" })]).length, 0, "y beside its own negative half passes");
+// A name on its own negative half reads as the axis pointing the wrong way.
+assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_frame_label_y", "frame", "label", [[612, 424]], { text: "y" })]).length, 1, "y at the end of its own negative half is refused");
+assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_frame_label_y", "frame", "label", [[660, 430]], { text: "y" })]).length, 1, "y below the origin, nearer the positive x axis than its own positive half, is refused");
+assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_frame_label_y", "frame", "label", [[672, 345]], { text: "y" })]).length, 0, "y at its own tip passes when its negative half is drawn");
 
 // 3. An angle name sits inside the wedge its arc marks.
 {
@@ -59,7 +62,13 @@ assert.equal(validateAxisNamePlacement([...frame, negativeY, prim("primitive_fra
   const arc = prim("arc", "t", "polyline", Array.from({ length: 9 }, (_, i) => [500 + 40 * Math.cos(-i / 8 * Math.PI / 3), 400 + 40 * Math.sin(-i / 8 * Math.PI / 3)] as [number, number]));
   const shared = prim("O2", "O2", "point", [[500, 400]]);
   const misplaced = prim("lab", "t", "label", [[510, 460]], { text: "θ" });
-  assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced]).length, 0, "without the alias the shared vertex skips the check");
+  const unresolved = validateAngleLabelWedge(doc, [shared, arc, misplaced]);
+  assert.equal(unresolved.length, 1, "a drawn arc and name whose vertex cannot be found are refused, not skipped");
+  assert.equal(unresolved[0]!.path, "entities[1].label", "the unprovable name points at its own text");
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, prim("lab", "t", "label", [[560, 380]], { text: "θ" })]).length, 1, "even a name that looks inside is refused when the vertex cannot be found");
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced], new Map([["O", "O1"], ["O1", "O2"]])).length, 1, "a two hop alias chain is followed to the drawn vertex");
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, prim("lab", "t", "label", [[560, 380]], { text: "θ" })], new Map([["O", "O1"], ["O1", "O2"]])).length, 0, "a name inside the wedge passes through a two hop alias");
+  assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced], new Map([["O", "O1"], ["O1", "O"]])).length, 1, "an alias cycle ends and the name is refused");
   assert.equal(validateAngleLabelWedge(doc, [shared, arc, misplaced], new Map([["O", "O2"]])).length, 1, "an aliased shared vertex still refuses a name outside the wedge");
 }
 console.log("yield legibility: tiny figures, 3D axis names, angle names in their wedge");
