@@ -237,6 +237,32 @@ for (const [label, role] of [["I", "induced current opposing the change in flux"
     assert(!fatal(along(label, role, targetRole)).includes("sign_badge_names_vector"), `a field badge on its own field path passes: ${targetRole}`);
   }
   assert(fatal(along("B", "direction", "rod sliding on the rails of the circuit loop")).includes("sign_badge_names_vector"), "a rod in a circuit loop is still a conductor");
+  // The compiler also accepts axis and path for the carrier (Greptile #235).
+  for (const key of ["axis", "path"] as const) {
+    const document = along("B", "B circulation along the Amperian loop", "side of the Amperian loop");
+    const badge = document.constructions.find(({ id }) => id === "make_badge")!;
+    badge.inputs = { [key]: "rod", sense: "positive", at: 0.5 };
+    assert(!fatal(document).includes("sign_badge_names_vector"), `a field badge whose carrier is given as ${key} keeps its field path exemption`);
+    const onRod = badgeDocument("B", "direction");
+    onRod.constructions.find(({ id }) => id === "make_badge")!.inputs = { [key]: "rod", sense: "positive", at: 0.5 };
+    assert(fatal(onRod).includes("sign_badge_names_vector"), `a field badge on a rod given as ${key} is still refused`);
+  }
+}
+// A circle through two points labelled with coordinates is a specific member:
+// the family equation x^2+y^2=r^2 cannot label it (Greptile #235).
+{
+  const pinnedCircle = (label: string): SceneDocument => ({
+    schemaVersion: "scene-document/v2", source: { question: "Plot the circle." }, visualDecision: { mode: "scene", reason: "circle" }, quantities: [],
+    entities: [{ id: "ax", kind: "axes", role: "axes" }, { id: "c", kind: "polyline", role: "implicit curve", label },
+      { id: "P", kind: "point", role: "point", label: "(2, 0)" }, { id: "Q", kind: "point", role: "point", label: "(0, 2)" }],
+    constructions: [{ id: "make_ax", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -3, yMax: 3 }, outputs: ["ax"] },
+      { id: "make_c", operator: "implicit_curve", inputs: { expression: "x^2+y^2-4", xMin: -3, xMax: 3, yMin: -3, yMax: 3, xSamples: 65, ySamples: 65 }, outputs: ["c"] },
+      { id: "make_P", operator: "point", inputs: { x: 2, y: 0, coordinateSpace: "world" }, outputs: ["P"] },
+      { id: "make_Q", operator: "point", inputs: { x: 0, y: 2, coordinateSpace: "world" }, outputs: ["Q"] }],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ["ax", "c", "P", "Q"],
+    revealGroups: [{ id: "all", entityIds: ["ax", "c", "P", "Q"], dependsOn: [], narrationCue: "Circle." }], teachingTimeline: [] });
+  assert(codes(pinnedCircle("x^2+y^2=r^2")).includes("equation_label_unbound_parameter"), "a pinned circle cannot carry its family equation");
+  assert(!codes(pinnedCircle("x^2+y^2=4")).some((code) => code.startsWith("equation_label")), "a pinned circle keeps its own equation");
 }
 // Recorded planner documents (Oct 2026 replay of 8,542 valid documents): figures main draws.
 {

@@ -119,13 +119,22 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
     .flatMap((quantity) => [quantity.id, quantity.symbol].filter(nameOf).filter((name) => name !== "x" && name !== "y").map((name): [string, number] => [name, quantity.value as number]))
     .sort((a, b) => b[0].length - a[0].length);
   const pinnedPoints = (ownerId: string): number => {
-    const value = geometry.get(ownerId) as PathLike | undefined;
-    const path = value?.kind === "path" ? value.points ?? [] : [];
-    if (path.length < 2) return 0;
-    const near = (p: Point) => path.slice(1).some((b, i) => {
+    const value = geometry.get(ownerId) as (PathLike & { paths?: Point[][] }) | undefined;
+    // A straight path is exact; a sampled curve (a circle from implicit_curve
+    // is a multi_path) passes near its labelled points within its sampling.
+    const pieces = (value?.kind === "path" ? [value.points ?? []] : value?.kind === "multi_path" ? value.paths ?? [] : []).filter((piece) => piece.length >= 2);
+    if (pieces.length === 0) return 0;
+    const all = pieces.flat();
+    const diagonal = Math.hypot(Math.max(...all.map((p) => p.x)) - Math.min(...all.map((p) => p.x)), Math.max(...all.map((p) => p.y)) - Math.min(...all.map((p) => p.y)));
+    const sampled = value?.kind === "multi_path";
+    const near = (p: Point) => pieces.some((path) => path.slice(1).some((b, i) => {
       const a = path[i]!; const dx = b.x - a.x, dy = b.y - a.y; const span = Math.hypot(dx, dy) || 1;
+      if (sampled) {
+        const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (span * span)));
+        return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy)) <= 0.03 * Math.max(diagonal, 1e-9);
+      }
       return Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / span <= 1e-6 * Math.max(1, span);
-    });
+    }));
     // Coordinates may be shown anywhere in the point's own label ("P(2, 3)",
     // "A = (6, 0)") or in any label or callout that points at it.
     const shown = (entity: SceneDocument["entities"][number]) => (typeof entity.label === "string" && COORDINATE_PAIR.test(entity.label)) ||
@@ -317,7 +326,9 @@ export function validateQualitativeLabelTruth(document: SceneDocument, geometry:
   };
   for (const construction of document.constructions) {
     if (construction.operator !== "sign_badge") continue;
-    const target = document.entities.find((candidate) => candidate.id === construction.inputs.target);
+    // The compiler resolves the badge's carrier from target, axis or path.
+    const targetId = ["target", "axis", "path"].map((key) => construction.inputs[key]).find((value) => typeof value === "string");
+    const target = document.entities.find((candidate) => candidate.id === targetId);
     if (fieldPath(target?.role ?? "")) continue;
     for (const id of construction.outputs) {
       const entity = document.entities.find((candidate) => candidate.id === id);
