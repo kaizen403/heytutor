@@ -604,6 +604,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
+  const consumedLabelAnnotationIds = new Map<string, string>();
   const summaryLabelIds = new Set<string>();
   const appendLabelIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const entity of document.entities) {
@@ -662,7 +663,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ? `${entity.label} ${supplementalText}`
       : entity.label;
     const useCombinedText = Boolean(supplementalText) && combinedText.length <= 16;
-    if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
+    if (valueAnnotation && useCombinedText) {
+      consumedAnnotationIds.add(valueAnnotation.id);
+      consumedLabelAnnotationIds.set(`primitive_${entity.id}_label`, valueAnnotation.id);
+    }
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
     const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
@@ -1108,6 +1112,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       labelPlacement: "absolute",
       provenance: {
         ...annotationLabels.get(placement.labelId)?.provenance,
+        ...(consumedLabelAnnotationIds.has(placement.labelId) ? { annotationId: consumedLabelAnnotationIds.get(placement.labelId)! } : {}),
         ...(!annotationLabels.has(placement.labelId) && chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId))
           ? { chemistryRepresentation: chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId)) }
           : {}),
@@ -1128,7 +1133,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           { x: round(placement.leaderFrom.x), y: round(placement.leaderFrom.y) },
           { x: round(placement.leaderTo.x), y: round(placement.leaderTo.y) },
         ]).map((point) => ({ x: round(point.x), y: round(point.y) })),
-        provenance: { annotation: "callout", dashed: true, strokeRole: "construction", labelLeader: true },
+        provenance: {
+          annotation: "callout", dashed: true, strokeRole: "construction", labelLeader: true,
+          ...(consumedLabelAnnotationIds.has(placement.labelId) ? { annotationId: consumedLabelAnnotationIds.get(placement.labelId)! } : {}),
+        },
       });
     }
   }
@@ -1280,11 +1288,18 @@ function componentValueUnitMatches(entityId: string, unit: unknown, document: Sc
   }
 }
 
-function matchingQuantityText(
+/**
+ * The quantities a component designator ("R", "R_1") resolves to, in the
+ * compiler's own priority: exact symbol, exact id alias, normalized alias,
+ * then a case folded alias. The label text the compiler prints comes from the
+ * first entry, and only when every candidate agrees. Exported so reveal timing
+ * reads the same binding instead of re deriving it.
+ */
+export function componentDesignatorQuantityCandidates(
   designator: string,
   quantities: SceneDocument["quantities"],
   exactId = false,
-): string | undefined {
+): SceneDocument["quantities"] {
   const key = normalizeIdentifier(designator);
   const symbolMatches = quantities.filter((candidate) =>
     typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key,
@@ -1298,11 +1313,19 @@ function matchingQuantityText(
   );
   const exactAliases = aliases.filter((candidate) => candidate.id === designator);
   const normalizedAliases = aliases.filter((candidate) => normalizeIdentifier(candidate.id) === key);
-  const candidates = exactId ? exactMatches
+  return exactId ? exactMatches
     : symbolMatches.length > 0 ? symbolMatches
     : exactAliases.length > 0 ? exactAliases
     : normalizedAliases.length > 0 ? normalizedAliases
     : aliases.filter((candidate) => normalizeIdentifier(candidate.id).toLowerCase() === key.toLowerCase());
+}
+
+function matchingQuantityText(
+  designator: string,
+  quantities: SceneDocument["quantities"],
+  exactId = false,
+): string | undefined {
+  const candidates = componentDesignatorQuantityCandidates(designator, quantities, exactId);
   // Conflicting aliases have no unique value. Do not make inventory order a
   // source of physical authority.
   const quantity = candidates[0];

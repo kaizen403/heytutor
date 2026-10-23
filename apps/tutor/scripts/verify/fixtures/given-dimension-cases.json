@@ -1,0 +1,3756 @@
+{
+  "provenance": "Reconstructed structural fixtures. Private source mapping and exact recorded replays are documented separately; no question prose or original identifiers are retained.",
+  "cases": [
+    {
+      "id": "case01",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 1."
+        },
+        "quantities": [
+          {
+            "value": 27,
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 13,
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 1.2,
+            "unit": "fm",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 13,
+            "provenance": "derived",
+            "id": "quantity4",
+            "symbol": "z4"
+          },
+          {
+            "value": 14,
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 3.6,
+            "unit": "fm",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g3"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "g3 = 1.2 fm"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "text": "z6 = 3.6 fm"
+          },
+          {
+            "id": "annotation3",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity6",
+            "text": "z6 = 3.6 fm"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 780,
+                "y": 556.5
+              },
+              {
+                "x": 977.5,
+                "y": 556.5
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 780,
+                "y": 332.5
+              },
+              "measuredEnd": {
+                "x": 977.5,
+                "y": 332.5
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 780,
+                "y": 332.5
+              },
+              {
+                "x": 780,
+                "y": 562.5
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 977.5,
+                "y": 332.5
+              },
+              {
+                "x": 977.5,
+                "y": 562.5
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 658,
+                "y": 71
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 609.2620965975005,
+                "y": 55,
+                "width": 97.47580680499883,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "g3 = 1.2 fm"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 878.75,
+                "y": 586.5
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 866.46286,
+                "y": 570.5,
+                "width": 24.57428,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g3"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 780,
+            "y": 332.5,
+            "width": 197.5,
+            "height": 254
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case02",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 2."
+        },
+        "quantities": [
+          {
+            "value": 10,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 5,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 2,
+            "unit": "kg",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 0,
+            "unit": "m/s",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 50,
+            "unit": "J",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 7.0710678118654755,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g2"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity5",
+            "text": "z5 = 50 J"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 490,
+                "y": 418.5
+              },
+              {
+                "x": 1070,
+                "y": 418.5
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 490,
+                "y": 390.5
+              },
+              "measuredEnd": {
+                "x": 1070,
+                "y": 390.5
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 490,
+                "y": 390.5
+              },
+              {
+                "x": 490,
+                "y": 424.5
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 1070,
+                "y": 390.5
+              },
+              {
+                "x": 1070,
+                "y": 424.5
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 780,
+                "y": 448.5
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 769.01474,
+                "y": 432.5,
+                "width": 21.97052,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 490,
+            "y": 390.5,
+            "width": 580,
+            "height": 58
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case03",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 3."
+        },
+        "quantities": [
+          {
+            "value": 2.45,
+            "unit": "g/m",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.9,
+            "unit": "kg",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 1.8,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 9.8,
+            "unit": "m/s²",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 8.82,
+            "unit": "N",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 60,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          },
+          {
+            "value": 0.03,
+            "unit": "s",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g3"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "g3 = 1.8 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity7",
+            "text": "z7 = 0.03 s"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 535.27,
+                "y": 171.52
+              },
+              {
+                "x": 987.95,
+                "y": 171.52
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 535.27,
+                "y": 199.52
+              },
+              "measuredEnd": {
+                "x": 987.95,
+                "y": 199.52
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 535.27,
+                "y": 199.52
+              },
+              {
+                "x": 535.27,
+                "y": 165.52
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 987.95,
+                "y": 199.52
+              },
+              {
+                "x": 987.95,
+                "y": 165.52
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 598,
+                "y": 131
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation2",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 536.2587536371659,
+                "y": 115,
+                "width": 123.48249272566818,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "z7 = 0.03 s"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 489.68,
+                "y": 127.02
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 451.08062963138974,
+                "y": 111.0224734008261,
+                "width": 77.19112431568553,
+                "height": 32
+              },
+              "usesLeader": true,
+              "summary": true
+            },
+            "text": "g3 = 1.8 m"
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 552.5,
+                "y": 101
+              },
+              {
+                "x": 533.27,
+                "y": 108.96
+              }
+            ],
+            "id": "annotation1_leader",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "dashed": true,
+              "strokeRole": "construction",
+              "labelLeader": true
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 761.61,
+                "y": 141.52
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 751.6061,
+                "y": 125.52000000000001,
+                "width": 20.007800000000003,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g3"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 533.27,
+            "y": 101,
+            "width": 454.68000000000006,
+            "height": 98.52000000000001
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case04",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 4."
+        },
+        "quantities": [
+          {
+            "value": 42.5,
+            "unit": "cm",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 340,
+            "unit": "m/s",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 3,
+            "unit": "Hz",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 200,
+            "unit": "Hz",
+            "provenance": "derived",
+            "id": "quantity4",
+            "symbol": "z4"
+          },
+          {
+            "value": 600,
+            "unit": "Hz",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 197,
+            "unit": "Hz",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g1"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity1",
+            "text": "42.5 cm"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "3 Hz"
+          },
+          {
+            "id": "annotation3",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity4",
+            "text": "z4 = 200 Hz"
+          },
+          {
+            "id": "annotation4",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "text": "z4"
+          },
+          {
+            "id": "annotation5",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity6",
+            "text": "z6 = 197 Hz"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 490,
+                "y": 360.5
+              },
+              {
+                "x": 1070,
+                "y": 360.5
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 490,
+                "y": 332.5
+              },
+              "measuredEnd": {
+                "x": 1070,
+                "y": 332.5
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 490,
+                "y": 332.5
+              },
+              {
+                "x": 490,
+                "y": 366.5
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 1070,
+                "y": 332.5
+              },
+              {
+                "x": 1070,
+                "y": 366.5
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 591.5,
+                "y": 71
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation5",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 534.3202981075415,
+                "y": 55,
+                "width": 114.35940378491702,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "z6 = 197 Hz"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 713.32,
+                "y": 162.23
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation3",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 660.139417083794,
+                "y": 146.22934917841437,
+                "width": 106.36261623602371,
+                "height": 32
+              },
+              "usesLeader": true,
+              "summary": true
+            },
+            "text": "z4 = 200 Hz"
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 565.5,
+                "y": 101
+              },
+              {
+                "x": 662.62,
+                "y": 141.23
+              }
+            ],
+            "id": "annotation3_leader",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "dashed": true,
+              "strokeRole": "construction",
+              "labelLeader": true
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 515.54,
+                "y": 116.31
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation2",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 475.0867102769669,
+                "y": 100.3073372946036,
+                "width": 80.91621684516318,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "3 Hz"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 490.31,
+                "y": 71
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 455.1143338438137,
+                "y": 55,
+                "width": 70.38566615618635,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "42.5 cm"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 780,
+                "y": 390.5
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 769.9961,
+                "y": 374.5,
+                "width": 20.007800000000003,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g1"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 490,
+            "y": 101,
+            "width": 580,
+            "height": 289.5
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case05",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 5."
+        },
+        "quantities": [
+          {
+            "value": -6,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.03,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": -0.02,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 200,
+            "unit": "N/m",
+            "provenance": "derived",
+            "id": "quantity4",
+            "symbol": "z4"
+          },
+          {
+            "value": 4,
+            "unit": "N",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g3"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "g3 = -0.02 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity5",
+            "text": "z5 = 4 N"
+          },
+          {
+            "id": "annotation3",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "text": "z4"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 795.18,
+                "y": 343.48
+              },
+              {
+                "x": 640.52,
+                "y": 366.68
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 799.33,
+                "y": 371.17
+              },
+              "measuredEnd": {
+                "x": 644.67,
+                "y": 394.37
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 799.33,
+                "y": 371.17
+              },
+              {
+                "x": 794.29,
+                "y": 337.55
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 644.67,
+                "y": 394.37
+              },
+              {
+                "x": 639.63,
+                "y": 360.75
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 547.82,
+                "y": 141
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 490.00000000000006,
+                "y": 125,
+                "width": 115.6441757550753,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "g3 = -0.02 m"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 717.85,
+                "y": 325.08
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 701.3876735999999,
+                "y": 309.08000000000004,
+                "width": 32.9246528,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g3"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g3 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 639.63,
+            "y": 325.08,
+            "width": 159.70000000000005,
+            "height": 69.29000000000002
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case06",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 6."
+        },
+        "quantities": [
+          {
+            "value": 3,
+            "unit": "Hz",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.4,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 1.2,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity3",
+            "symbol": "z3"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2",
+            "text": "g2 = 0.4 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "z3 = 1.2 m/s"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 582.5,
+                "y": 558
+              },
+              {
+                "x": 740.5,
+                "y": 558
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 582.5,
+                "y": 530
+              },
+              "measuredEnd": {
+                "x": 740.5,
+                "y": 530
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 582.5,
+                "y": 530
+              },
+              {
+                "x": 582.5,
+                "y": 564
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 740.5,
+                "y": 530
+              },
+              {
+                "x": 740.5,
+                "y": 564
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 661.5,
+                "y": 588
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 619.779243288549,
+                "y": 572,
+                "width": 83.44151342290206,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2 = 0.4 m"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 582.5,
+            "y": 530,
+            "width": 158,
+            "height": 58
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case07",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 7."
+        },
+        "quantities": [
+          {
+            "value": 2.45,
+            "unit": "g/m",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.9,
+            "unit": "kg",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 1.8,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 9.8,
+            "unit": "m/s^2",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 8.82,
+            "unit": "N",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 0.00245,
+            "unit": "kg/m",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          },
+          {
+            "value": 60,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          },
+          {
+            "value": 0.03,
+            "unit": "s",
+            "provenance": "derived",
+            "id": "quantity8",
+            "symbol": "z8"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "1.8 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity8",
+            "text": "z8 = 0.03 s"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 550.41,
+                "y": 107
+              },
+              {
+                "x": 905.91,
+                "y": 107
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 550.41,
+                "y": 135
+              },
+              "measuredEnd": {
+                "x": 905.91,
+                "y": 135
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 550.41,
+                "y": 135
+              },
+              {
+                "x": 550.41,
+                "y": 101
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 905.91,
+                "y": 135
+              },
+              {
+                "x": 905.91,
+                "y": 101
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 516.31,
+                "y": 169.89
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation2",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 476.1432228806183,
+                "y": 153.89070889443067,
+                "width": 80.32909038773212,
+                "height": 32
+              },
+              "usesLeader": true,
+              "summary": true
+            },
+            "text": "z8 = 0.03 s"
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 619.41,
+                "y": 101
+              },
+              {
+                "x": 547.74,
+                "y": 148.89
+              }
+            ],
+            "id": "annotation2_leader",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "dashed": true,
+              "strokeRole": "construction",
+              "labelLeader": true
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 728.16,
+                "y": 77
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 702.7349178421572,
+                "y": 61,
+                "width": 50.85016431568555,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "1.8 m"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 547.74,
+            "y": 77,
+            "width": 358.16999999999996,
+            "height": 71.88999999999999
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case08",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 8."
+        },
+        "quantities": [
+          {
+            "value": 2.5,
+            "unit": "Hz",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.18,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 0.36,
+            "unit": "m",
+            "provenance": "derived",
+            "id": "quantity3",
+            "symbol": "z3"
+          },
+          {
+            "value": 0.9,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity4",
+            "symbol": "z4"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2",
+            "text": "g2 = 0.18 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "z3 = 0.36 m"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 490,
+                "y": 389.5
+              },
+              {
+                "x": 876.67,
+                "y": 389.5
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 490,
+                "y": 361.5
+              },
+              "measuredEnd": {
+                "x": 876.67,
+                "y": 361.5
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 490,
+                "y": 361.5
+              },
+              {
+                "x": 490,
+                "y": 395.5
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 876.67,
+                "y": 361.5
+              },
+              {
+                "x": 876.67,
+                "y": 395.5
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 683.34,
+                "y": 419.5
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 639.3901278124474,
+                "y": 403.5,
+                "width": 87.88974437510518,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2 = 0.18 m"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 490,
+            "y": 361.5,
+            "width": 386.66999999999996,
+            "height": 58
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case09",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 9."
+        },
+        "quantities": [
+          {
+            "value": 2.5,
+            "unit": "Hz",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.18,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 0.36,
+            "unit": "m",
+            "provenance": "derived",
+            "id": "quantity3",
+            "symbol": "z3"
+          },
+          {
+            "value": 0.9,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity4",
+            "symbol": "z4"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2",
+            "text": "g2 = 0.18 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "z3 = 0.36 m"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 490,
+                "y": 433
+              },
+              {
+                "x": 780,
+                "y": 433
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 490,
+                "y": 405
+              },
+              "measuredEnd": {
+                "x": 780,
+                "y": 405
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 490,
+                "y": 405
+              },
+              {
+                "x": 490,
+                "y": 439
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 780,
+                "y": 405
+              },
+              {
+                "x": 780,
+                "y": 439
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 635,
+                "y": 463
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 591.0551278124474,
+                "y": 447,
+                "width": 87.88974437510518,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2 = 0.18 m"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 490,
+            "y": 405,
+            "width": 290,
+            "height": 58
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case10",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 10."
+        },
+        "quantities": [
+          {
+            "value": 2.45,
+            "unit": "g/m",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.9,
+            "unit": "kg",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 1.8,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 9.8,
+            "unit": "m/s²",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 8.82,
+            "unit": "N",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 60,
+            "unit": "m/s",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          },
+          {
+            "value": 0.03,
+            "unit": "s",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "g3 = 1.8 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity7",
+            "text": "z7 = 0.03 s"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 504.87,
+                "y": 111.68
+              },
+              {
+                "x": 980.77,
+                "y": 111.68
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 504.87,
+                "y": 195.68
+              },
+              "measuredEnd": {
+                "x": 980.77,
+                "y": 195.68
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 504.87,
+                "y": 195.68
+              },
+              {
+                "x": 504.87,
+                "y": 105.68
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 980.77,
+                "y": 195.68
+              },
+              {
+                "x": 980.77,
+                "y": 105.68
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 742.82,
+                "y": 81.68
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 704.2244378421572,
+                "y": 65.68,
+                "width": 77.19112431568553,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g3 = 1.8 m"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 504.87,
+            "y": 81.68,
+            "width": 475.9,
+            "height": 114
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case11",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 11."
+        },
+        "quantities": [
+          {
+            "value": 0.3,
+            "unit": "kg",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 4.9,
+            "unit": "cm",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 2,
+            "unit": "cm",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 9.8,
+            "unit": "m/s^2",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 60,
+            "unit": "N/m",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": 1.2,
+            "unit": "N",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "2 cm"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity6",
+            "text": "1.2 N"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 883.37,
+                "y": 500
+              },
+              {
+                "x": 883.37,
+                "y": 416.25
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 855.37,
+                "y": 500
+              },
+              "measuredEnd": {
+                "x": 855.37,
+                "y": 416.25
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 855.37,
+                "y": 500
+              },
+              {
+                "x": 889.37,
+                "y": 500
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 855.37,
+                "y": 416.25
+              },
+              {
+                "x": 889.37,
+                "y": 416.25
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 928.37,
+                "y": 458.13
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 897.37,
+                "y": 442.125,
+                "width": 62.003785619102,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "2 cm"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 855.37,
+            "y": 416.25,
+            "width": 73,
+            "height": 83.75
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case12",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 12."
+        },
+        "quantities": [
+          {
+            "value": 0.8,
+            "unit": "mm",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.4,
+            "unit": "mm",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 18,
+            "unit": "mm",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 0,
+            "unit": "°",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 1000,
+            "unit": "kg/m^3",
+            "provenance": "given",
+            "id": "quantity5",
+            "symbol": "g5"
+          },
+          {
+            "value": 10,
+            "unit": "m/s^2",
+            "provenance": "given",
+            "id": "quantity6",
+            "symbol": "g6"
+          },
+          {
+            "value": 0.072,
+            "unit": "N/m",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          },
+          {
+            "value": 36,
+            "unit": "mm",
+            "provenance": "derived",
+            "id": "quantity8",
+            "symbol": "z8"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "label",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity3",
+            "text": "g3 = 18 mm"
+          },
+          {
+            "id": "annotation2",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity7",
+            "text": "z7 = 0.072 N/m"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 741.27,
+                "y": 445.8
+              },
+              {
+                "x": 741.27,
+                "y": 338.46
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 769.27,
+                "y": 445.8
+              },
+              "measuredEnd": {
+                "x": 769.27,
+                "y": 338.46
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 769.27,
+                "y": 445.8
+              },
+              {
+                "x": 735.27,
+                "y": 445.8
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 769.27,
+                "y": 338.46
+              },
+              {
+                "x": 735.27,
+                "y": 338.46
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 672.13,
+                "y": 334.69
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 619.9925414149234,
+                "y": 318.69,
+                "width": 104.27745858507653,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g3 = 18 mm"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans measure1 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 672.13,
+            "y": 334.69,
+            "width": 97.13999999999999,
+            "height": 111.11000000000001
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1"
+      ]
+    },
+    {
+      "id": "case13",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 13."
+        },
+        "quantities": [
+          {
+            "value": 4,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.2,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 3,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 0.5,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 0.8,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": -1.5,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          },
+          {
+            "value": -0.7,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g2"
+          },
+          {
+            "id": "measure2",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g4"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2",
+            "text": "0.2 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure2"
+            ],
+            "quantityId": "quantity4",
+            "text": "0.5 m"
+          },
+          {
+            "id": "annotation3",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity5",
+            "text": "z5 = 0.8 N·m"
+          },
+          {
+            "id": "annotation4",
+            "kind": "narration",
+            "targetIds": [
+              "measure2"
+            ],
+            "quantityId": "quantity6",
+            "text": "z6 = -1.5 N·m"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1",
+          "measure2"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1",
+              "measure2"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2, g4 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 465
+              },
+              {
+                "x": 697.5,
+                "y": 465
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 642.5,
+                "y": 437
+              },
+              "measuredEnd": {
+                "x": 697.5,
+                "y": 437
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 437
+              },
+              {
+                "x": 642.5,
+                "y": 471
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 697.5,
+                "y": 437
+              },
+              {
+                "x": 697.5,
+                "y": 471
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 525
+              },
+              {
+                "x": 780,
+                "y": 525
+              }
+            ],
+            "id": "primitive_measure2",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 642.5,
+                "y": 437
+              },
+              "measuredEnd": {
+                "x": 780,
+                "y": 437
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 437
+              },
+              {
+                "x": 642.5,
+                "y": 531
+              }
+            ],
+            "id": "primitive_measure2_witness_0",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 780,
+                "y": 437
+              },
+              {
+                "x": 780,
+                "y": 531
+              }
+            ],
+            "id": "primitive_measure2_witness_1",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 672.57,
+                "y": 141
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation2",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 642.5,
+                "y": 125,
+                "width": 60.13893107667731,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "0.5 m"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 672.96,
+                "y": 101
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 642.5,
+                "y": 85,
+                "width": 60.923417582786236,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "0.2 m"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 670,
+                "y": 495
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 653.1294264,
+                "y": 479,
+                "width": 33.7411472,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 711.25,
+                "y": 555
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure2_label",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 694.2725136,
+                "y": 539,
+                "width": 33.9549728,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g4"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1",
+              "measure2"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2, g4 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 642.5,
+            "y": 437,
+            "width": 55,
+            "height": 58
+          },
+          "measure2": {
+            "x": 642.5,
+            "y": 437,
+            "width": 137.5,
+            "height": 118
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1",
+        "measure2"
+      ]
+    },
+    {
+      "id": "case14",
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "synthetic structural fixture"
+        },
+        "source": {
+          "question": "Synthetic measured-span fixture 14."
+        },
+        "quantities": [
+          {
+            "value": 4,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity1",
+            "symbol": "g1"
+          },
+          {
+            "value": 0.2,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity2",
+            "symbol": "g2"
+          },
+          {
+            "value": 3,
+            "unit": "N",
+            "provenance": "given",
+            "id": "quantity3",
+            "symbol": "g3"
+          },
+          {
+            "value": 0.5,
+            "unit": "m",
+            "provenance": "given",
+            "id": "quantity4",
+            "symbol": "g4"
+          },
+          {
+            "value": 0.8,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity5",
+            "symbol": "z5"
+          },
+          {
+            "value": -1.5,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity6",
+            "symbol": "z6"
+          },
+          {
+            "value": -0.7,
+            "unit": "N·m",
+            "provenance": "derived",
+            "id": "quantity7",
+            "symbol": "z7"
+          }
+        ],
+        "entities": [
+          {
+            "id": "measure1",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g2"
+          },
+          {
+            "id": "measure2",
+            "kind": "dimension",
+            "role": "measured span",
+            "label": "g4"
+          }
+        ],
+        "constructions": [],
+        "relations": [],
+        "assertions": [],
+        "annotations": [
+          {
+            "id": "annotation1",
+            "kind": "callout",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity2",
+            "text": "0.2 m"
+          },
+          {
+            "id": "annotation2",
+            "kind": "callout",
+            "targetIds": [
+              "measure2"
+            ],
+            "quantityId": "quantity4",
+            "text": "0.5 m"
+          },
+          {
+            "id": "annotation3",
+            "kind": "narration",
+            "targetIds": [
+              "measure1"
+            ],
+            "quantityId": "quantity5",
+            "text": "z5 = 0.8 N·m"
+          },
+          {
+            "id": "annotation4",
+            "kind": "narration",
+            "targetIds": [
+              "measure2"
+            ],
+            "quantityId": "quantity6",
+            "text": "z6 = -1.5 N·m"
+          }
+        ],
+        "requiredEntityIds": [
+          "measure1",
+          "measure2"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1",
+              "measure2"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2, g4 are given."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 454
+              },
+              {
+                "x": 697.5,
+                "y": 454
+              }
+            ],
+            "id": "primitive_measure1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 642.5,
+                "y": 426
+              },
+              "measuredEnd": {
+                "x": 697.5,
+                "y": 426
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 426
+              },
+              {
+                "x": 642.5,
+                "y": 460
+              }
+            ],
+            "id": "primitive_measure1_witness_0",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 697.5,
+                "y": 426
+              },
+              {
+                "x": 697.5,
+                "y": 460
+              }
+            ],
+            "id": "primitive_measure1_witness_1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "dimension",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 514
+              },
+              {
+                "x": 780,
+                "y": 514
+              }
+            ],
+            "id": "primitive_measure2",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "bar",
+              "measuredStart": {
+                "x": 642.5,
+                "y": 426
+              },
+              "measuredEnd": {
+                "x": 780,
+                "y": 426
+              }
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 642.5,
+                "y": 426
+              },
+              {
+                "x": 642.5,
+                "y": 520
+              }
+            ],
+            "id": "primitive_measure2_witness_0",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "line",
+            "points": [
+              {
+                "x": 780,
+                "y": 426
+              },
+              {
+                "x": 780,
+                "y": 520
+              }
+            ],
+            "id": "primitive_measure2_witness_1",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "measurementRole": "witness",
+              "dashed": true,
+              "strokeRole": "construction"
+            }
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 672.57,
+                "y": 141
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation2",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 642.5,
+                "y": 125,
+                "width": 60.13893107667731,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "0.5 m"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 672.96,
+                "y": 101
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "annotation1",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 642.5,
+                "y": 85,
+                "width": 60.923417582786236,
+                "height": 32
+              },
+              "usesLeader": false,
+              "summary": true
+            },
+            "text": "0.2 m"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 670,
+                "y": 484
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure1_label",
+            "entityId": "measure1",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 653.1294264,
+                "y": 468,
+                "width": 33.7411472,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g2"
+          },
+          {
+            "kind": "label",
+            "points": [
+              {
+                "x": 711.25,
+                "y": 544
+              }
+            ],
+            "labelPlacement": "absolute",
+            "id": "primitive_measure2_label",
+            "entityId": "measure2",
+            "groupId": "setup",
+            "provenance": {
+              "labelBounds": {
+                "x": 694.2725136,
+                "y": 528,
+                "width": 33.9549728,
+                "height": 32
+              },
+              "usesLeader": false
+            },
+            "text": "g4"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "measure1",
+              "measure2"
+            ],
+            "dependsOn": [],
+            "narrationCue": "The measured spans g2, g4 are given."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "measure1": {
+            "x": 642.5,
+            "y": 426,
+            "width": 55,
+            "height": 58
+          },
+          "measure2": {
+            "x": 642.5,
+            "y": 426,
+            "width": 137.5,
+            "height": 118
+          }
+        }
+      },
+      "givenEntities": [
+        "measure1",
+        "measure2"
+      ]
+    }
+  ]
+}

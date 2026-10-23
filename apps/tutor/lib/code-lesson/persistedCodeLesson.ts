@@ -3,7 +3,9 @@ import {
   validateCodeLessonPlan,
   type CodeLessonPlan,
 } from "@heytutor/tutor-core";
-import { parseStoredSegmentCommands, type DrawCommand } from "@heytutor/drawing";
+import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, type DrawCommand } from "@heytutor/drawing";
+import type { SceneDocument } from "@heytutor/scene-engine";
+import { withoutEarlyAnswerLabels } from "@/features/tutor-session/lib/scene/answerLabelReveal";
 import { storedTurnStatus, type StoredSegment, type StoredTurn } from "@/lib/boards/boardsClient";
 
 /**
@@ -60,12 +62,17 @@ export function storedCodeLessonPlan(sceneArtifacts: unknown): CodeLessonPlan | 
 
 /** Legacy unfinished untimed TYPE rows cannot prove the full queued source. */
 export function storedCodeLessonSegmentCommands(
-  turn: Pick<StoredTurn, "status" | "persistedStatus" | "updatedAt">,
+  turn: Pick<StoredTurn, "status" | "persistedStatus" | "updatedAt"> & Partial<Pick<StoredTurn, "sceneDocument">>,
   segment: Pick<StoredSegment, "command" | "durationMs">,
 ): DrawCommand[] {
   const completed = storedTurnStatus({ status: turn.persistedStatus ?? turn.status, updatedAt: turn.updatedAt }) === "complete" ||
     (segment.durationMs != null && segment.durationMs > 0);
-  return parseStoredSegmentCommands(segment.command).map((command) => {
+  const parsed = parseStoredSegmentCommands(segment.command);
+  const document = turn.sceneDocument as SceneDocument | null | undefined;
+  const commands = document?.schemaVersion === "scene-document/v2" && Array.isArray(document.annotations) && Array.isArray(document.quantities) && document.source?.synthesizedDsa !== true &&
+    isStoredCommandTrustedGeometry(segment.command)
+    ? withoutEarlyAnswerLabels(document, parsed) : parsed;
+  return commands.map((command) => {
     if (command.type !== "TYPE") return command;
     if (command.shownChars === undefined) return completed ? command : { ...command, shownChars: 0 };
     return { ...command, shownChars: Number.isSafeInteger(command.shownChars) ? Math.max(0, command.shownChars) : 0 };

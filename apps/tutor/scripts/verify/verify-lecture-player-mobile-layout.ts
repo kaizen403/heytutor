@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createElement, type ComponentType } from "react";
+import { Children, createElement, isValidElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { createLecturePlayerStore } from "../../lib/replay/lecturePlayer";
@@ -20,6 +20,7 @@ import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import type { CodeLessonPanelProps, CodeLessonPanelVariant } from "../../features/tutor-session/components/CodeLessonPanel";
+import type { BoardErrorBanner, SaveFailureBanner, SaveFailureBannerProps } from "../../features/tutor-session/components/BoardErrorBanner";
 
 const appRoot = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -47,6 +48,12 @@ class HookMount {
   dirty = true;
   effects: Array<() => void> = [];
   react = {
+    useRef: <T,>(initial: T) => {
+      const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
+      this.cursor++;
+      if (!("value" in slot)) slot.value = { current: initial };
+      return slot.value as { current: T };
+    },
     useState: <T,>(initial: T) => {
       const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
       this.cursor++;
@@ -248,6 +255,7 @@ function shellMarkup(options: {
   mobile: boolean; coarse?: boolean; recorded?: boolean; playerActive?: boolean;
   fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean;
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean;
+  retrySave?: () => void; captureSaveRetry?: (retry: () => void) => void;
 }) {
   const noop = () => {};
   const leaf = () => null;
@@ -273,7 +281,7 @@ function shellMarkup(options: {
     "./hooks/useBoardLayout": { useBoardLayout: () => ({ boardContainerRef: { current: null }, boardViewport: { scale: 0.2, offsetX: 0, offsetY: 0, measured: true }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }) },
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
-    "./hooks/useBoardSession": { useBoardSession: () => ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: noop, hasLiveTurn: false }) },
+    "./hooks/useBoardSession": { useBoardSession: () => ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: options.retrySave ?? noop, hasLiveTurn: false }) },
     "./hooks/useTurnLifecycle": { useTurnLifecycle: () => ({ pausedLessonOffer: options.pausedOffer === true }) },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
@@ -295,6 +303,25 @@ function shellMarkup(options: {
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     overrides[specifier] = Object.fromEntries(bindings.elements.filter((binding) => !binding.isTypeOnly).map((binding) => [binding.propertyName?.text ?? binding.name.text, leaf]));
   }
+  const bannerFile = path.join(appRoot, "features/tutor-session/components/BoardErrorBanner.tsx");
+  const banners = load(bannerFile, bannerFile);
+  const saveBanner = banners.SaveFailureBanner as typeof SaveFailureBanner;
+  const errorBanner = banners.BoardErrorBanner as typeof BoardErrorBanner;
+  overrides["./components/BoardErrorBanner"] = {
+    ...banners,
+    SaveFailureBanner: (props: SaveFailureBannerProps) => {
+      // Resolve the actual two banner components, retaining the real button
+      // tree and its handler rather than substituting a recovery marker.
+      const alert = errorBanner(saveBanner(props).props);
+      const retry = Children.toArray(alert.props.children).find((child) =>
+        isValidElement<{ children?: unknown; onClick?: () => void }>(child) &&
+        child.type === "button" && child.props.children === "Try again",
+      );
+      assert.ok(isValidElement<{ onClick: () => void }>(retry), "actual save banner renders its retry button");
+      options.captureSaveRetry?.(retry.props.onClick);
+      return alert;
+    },
+  };
   overrides["./components/LecturePlayerBar"] = { LecturePlayerBar: bar };
   overrides["./components/SessionBoardCanvas"] = { SessionBoardCanvas: ({ showPlayerBar, saveFailure }: { showPlayerBar: boolean; saveFailure?: { message: string; onRetrySave: () => void } | null }) => createElement("i", {
     "data-canvas-player-bar": String(showPlayerBar),
@@ -323,10 +350,11 @@ check("actual shell gives finished phone and coarse landscape transport the whol
     assert.match(html, /data-canvas-player-bar="false"/, "the paper cannot also render a duplicate transport");
   }
 });
-check("actual shell preserves desktop and code-only deck width without a finished dock", () => {
-  for (const options of [{ mobile: false }, { mobile: true, recorded: false }, { mobile: true, recorded: false, codeOnly: true }]) {
+check("actual shell preserves desktop width and gives phone decks their natural container width without a finished dock", () => {
+  for (const options of [{ mobile: false }, { mobile: false, recorded: false, codeOnly: true }, { mobile: true, recorded: false }, { mobile: true, recorded: false, codeOnly: true }]) {
     const html = shellMarkup(options);
-    assert.deepEqual(shellWidths(html), { fullStage: false, fullDeck: false });
+    assert.deepEqual(shellWidths(html), { fullStage: options.mobile, fullDeck: options.mobile });
+    assert.equal(html.includes('data-board-scroll="true"'), options.mobile, "phone ink pans independently of the natural-width deck; desktop keeps its fit");
     assert.ok(!html.includes('aria-label="Lecture player"'), "there is no docked transport in this state");
   }
 });
@@ -335,11 +363,19 @@ check("actual fullscreen shell leaves a save failure recoverable and keeps the c
   assert.match(finished, /data-header-inert="true"/);
   assert.match(finished, /<footer[^>]*inert=""[^>]*aria-hidden="true"/);
   assert.match(finished, /<textarea>Retained composer<\/textarea>/);
-  const failed = shellMarkup({ mobile: true, fullscreen: true, saveFailed: true });
+  let retries = 0;
+  let retrySave: (() => void) | undefined;
+  const failed = shellMarkup({ mobile: true, fullscreen: true, saveFailed: true,
+    retrySave: () => { retries++; }, captureSaveRetry: (retry) => { retrySave = retry; } });
   assert.match(failed, /data-header-inert="false"/);
   assert.match(failed, /data-header-hidden="false"/, "the student can see the failed-save header");
   assert.match(failed, /data-save-status="failed"[^>]*data-header-retry="true"/, "the header retains the save retry action");
-  assert.match(failed, /data-save-failure="Try again"[^>]*data-banner-retry="true"/, "the board retains its recovery banner and retry");
+  assert.match(failed, /role="alert"/, "the actual save recovery banner remains outside the scaled phone paper");
+  assert.match(failed, /<button[^>]*type="button"[^>]*>Try again<\/button>/);
+  assert.ok(!failed.includes('data-save-failure="Try again"'), "the scaled canvas does not own the phone recovery banner");
+  assert.ok(retrySave, "the actual save recovery button retains its handler");
+  retrySave();
+  assert.equal(retries, 1, "the actual button calls the session's save retry once");
   assert.match(failed, /<footer[^>]*data-hidden="true"[^>]*inert=""[^>]*aria-hidden="true"/, "save failure alone must not uncover the composer over the dock");
   assert.match(failed, /<textarea>Retained composer<\/textarea>/);
   for (const pin of [{ pausedOffer: true }, { downloadError: true }, { rewind: true }]) {

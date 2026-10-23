@@ -6,6 +6,7 @@ import path from "node:path";
 import ts from "typescript";
 import { compileSceneDocument, validateSceneDocument } from "@heytutor/scene-engine";
 import { serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
+import { mathToSpeech } from "@heytutor/tutor-core";
 import { createVirtualWhiteboardClock } from "@heytutor/whiteboard";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { drawReplayDiagramTimeline } from "../../features/tutor-session/lib/replay/completeReplayDiagram";
@@ -41,7 +42,14 @@ function hook(file: string): Record<string, unknown> {
 const layoutHook = hook(path.join(app, "features/tutor-session/hooks/useBoardLayout.ts")).useBoardLayout as typeof useBoardLayout;
 const executionHook = hook(path.join(app, "features/tutor-session/hooks/useCommandExecution.ts")).useCommandExecution as typeof useCommandExecution;
 
-async function run(cancelAtMs?: number) {
+/** A recorded alignment spread evenly across the clip, as a provider returns it. */
+function alignedTimings(narration: string, durationMs: number) {
+  const spoken = mathToSpeech(narration), step = durationMs / 1000 / spoken.length;
+  return { charStartTimes: Array.from(spoken, (_, index) => index * step),
+    charDurations: Array.from(spoken, () => step), totalDuration: durationMs / 1000 };
+}
+
+async function run(cancelAtMs?: number, timed = false) {
   const document = validateSceneDocument(retained.sceneDocument).document;
   assert(document);
   const question = document.source.question;
@@ -76,7 +84,8 @@ async function run(cancelAtMs?: number) {
     speedMultiplier: 1, traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null,
     visualStatus: "text_only", sceneArtifacts: null, segments: rows.map((row, orderIndex) => ({
       id: `row-${orderIndex}`, orderIndex, narration: row.narration, spokenText: row.narration,
-      command: serializeSegmentCommands(row.commands), audioUrl: null, durationMs: row.durationMs, timings: null,
+      command: serializeSegmentCommands(row.commands), audioUrl: null, durationMs: row.durationMs,
+      timings: timed ? alignedTimings(row.narration, row.durationMs) : null,
     })) };
   const timeline = buildReplayTimeline([turn]);
   const saved = new Map<string, PropertyDescriptor | undefined>(), hostTimers: Array<() => void> = [];
@@ -116,6 +125,12 @@ async function run(cancelAtMs?: number) {
       assert.equal(board.getDrawLayer()!.getChildren().length, 0);
     } else {
       assert.ok(traces.some((ms) => ms < 8_000), "real verified-geometry tracing starts inside its spoken cue");
+      if (timed) {
+        // Greptile P1: a timed FOCUS only cue keeps main's shared ink path, so
+        // its spoken word, not the cue start, releases the trace. The untimed
+        // run above traces on the same word ("branch", about 4 s in).
+        assert.ok(traces.length > 0 && traces[0]! >= 3_000, `a timed late spoken FOCUS traces at its word, not the cue start (${traces[0]} ms)`);
+      }
       assert.ok(started.some((entry) => entry.type === "WRITE" && entry.atMs < 10_000), "the following recorded work row is not stranded behind a host timer");
       assert.ok(board.getDrawLayer()!.getChildren().length > 0, "the actual following WRITE leaves committed ink");
     }
@@ -132,6 +147,7 @@ async function run(cancelAtMs?: number) {
 async function main() {
   await run();
   await run(2_000);
+  await run(undefined, true);
   const clock = createVirtualWhiteboardClock();
   let paused = true, target = 7_000, finished = false;
   const wait = waitUntilDrawClock(clock.now, target, { waitForAdvance: clock.waitForAdvance,
