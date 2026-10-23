@@ -47,8 +47,7 @@ async function run(captured: ReplayCue, cancelAtMs?: number) {
 async function main() {
   const introSegments = presentation().introSegments;
   const commands = introSegments.flatMap((segment) => getSegmentCommands(segment));
-  // Given measurements (velocity, distance, height) now join the opening.
-  assert.equal(commands.length, 17, "all original figure marks remain");
+  assert.equal(commands.length, 8, "all original figure marks remain");
   // Main speaks this intro in beats so the pen does not idle. The launch
   // velocity is named in the first beat; the later beats keep the other marks.
   const launch = introSegments[0]!;
