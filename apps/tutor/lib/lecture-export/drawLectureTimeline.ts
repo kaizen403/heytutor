@@ -14,7 +14,8 @@ import {
 } from "@heytutor/tutor-core";
 import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
 import type { ExecuteCommandOptions } from "@/features/tutor-session/hooks/turn/types";
-import { drawSegmentInk, planSegmentInk } from "@/features/tutor-session/lib/turn/segmentInk";
+import { drawSegmentInk, planSegmentInk, type SegmentInkClock } from "@/features/tutor-session/lib/turn/segmentInk";
+import { advanceExplanationTarget, pointThroughExplanation, type CompletedExplanationTarget } from "@/features/tutor-session/lib/turn/explanationPointing";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 
 export type ExportExecuteCommand = (
@@ -63,17 +64,33 @@ export async function drawLectureTimeline(options: {
     options.onCueStart?.(cue, index);
     options.setAnimationSpeed?.(1);
 
-    if (cue.commands.length > 0) {
-      const getDiagram = options.getDiagram ?? (() => null);
-      const codeLesson = getDiagram()?.layout === "code_lesson" ||
-        cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
-      await (codeLesson ? drawCodeLessonExportCue : drawExportCue)({
-        cue,
-        executeCommand,
-        getClockMs,
-        waitForAdvance,
-        shouldCancel,
-        getDiagram,
+    const getDiagram = options.getDiagram ?? (() => null);
+    // A physics explanation can use a code-lesson layout and still has to point.
+    // The opening figure of a real code walk is trusted geometry on that layout;
+    // replay draws one cue at a time, so the TYPE/FRAME beats are not in this list.
+    const cueTypesCode = cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
+    const hasFocus = cue.commands.some((command) => command.type === "FOCUS");
+    const trustedFigure = cue.commands.length > 0 &&
+      (cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command));
+    const codeWalkFigure = getDiagram()?.layout === "code_lesson" && trustedFigure;
+    // Untimed export cues, trusted figures and any cue with a FOCUS share the
+    // live ink clock, so a focus waits for its word (as on main). A timed work
+    // or narration cue without FOCUS keeps its pointing tour.
+    const spokenFigure = cue.commands.length > 0 &&
+      (!cue.segment.timings || trustedFigure || hasFocus);
+    if ((cueTypesCode || codeWalkFigure) && cue.commands.length > 0) {
+      await drawCodeLessonExportCue({
+        cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram,
+      });
+    } else if (spokenFigure) {
+      await drawExportCue({
+        cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram,
+      });
+    } else if (!cueTypesCode) {
+      // Work rows and narration-only explanations keep the pen moving.
+      // A trusted figure uses the shared ink clock above instead.
+      await drawWorkExportCue({
+        cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram: options.getDiagram,
       });
     }
 
@@ -291,5 +308,173 @@ async function drawCodeLessonExportCue(options: {
     if (isTextCommand) {
       textCommandIndex += 1;
     }
+  }
+}
+
+/** Work and narration-only cues: point through the explanation on the export clock. */
+async function drawWorkExportCue(options: {
+  cue: ReplayCue;
+  executeCommand: ExportExecuteCommand;
+  getClockMs: () => number;
+  waitForAdvance: () => Promise<void>;
+  shouldCancel: () => boolean;
+  getDiagram?: () => VerifiedDiagram | null;
+}): Promise<void> {
+  const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
+  const segmentCommands = cue.commands;
+  // Keep the authored gesture's target for its whole spoken sentence.
+  const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
+  let completedTarget: CompletedExplanationTarget | null = null;
+  const executeAuthored: ExportExecuteCommand = async (command, commandOptions) => {
+    const diagram = options.getDiagram?.() ?? null;
+    await executeCommand(command, commandOptions);
+    completedTarget = advanceExplanationTarget(completedTarget, command, diagram === options.getDiagram?.() ? diagram : null);
+  };
+  const narration = cue.narration;
+  const paceContext = inkPaceContextForSegment({
+    verifiedDiagramIntro: cue.trustedDiagramGeometry,
+    commandCount: segmentCommands.length,
+    hasNarration: narration.length > 0,
+  });
+  const commandPaces = segmentCommands.map((command) => selectInkPace(command, paceContext));
+  const pacedDurations = segmentCommands.map((command, index) =>
+    getCommandDrawDurationMs(command, commandPaces[index]),
+  );
+  const sceneBatch = commandPaces.filter((pace) => pace === "scene").length >= 4;
+  const sceneDurations = sceneBatch
+    ? capSceneBatchDurations(pacedDurations, undefined, { cued: isCuedSceneBatch(segmentCommands) })
+    : null;
+  const totalDrawWeight = pacedDurations.reduce((sum, ms) => sum + ms, 0);
+  const durationMs = cue.durationMs;
+  // The cue (recorded audio, or its replay estimate) owns speech time.
+  // Notation expands when spoken; a fixed per-character rate can place
+  // estimated WRITE targets after that cue and exhaust the bounded tail.
+  const spokenLength = mathToSpeech(narration.trim()).length;
+  const estimatedSpeechMsPerChar = spokenLength > 0 ? durationMs / spokenLength : undefined;
+  const trustedDiagramGeometry =
+    cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command);
+
+  const getDrawClockMs = createScheduledWriteClock({
+    getRawPositionMs: () => Math.max(0, getClockMs() - cue.startMs),
+    nowMs: getClockMs,
+  });
+
+  const speechClock: SegmentInkClock = {
+    narration, getTimings: () => cue.segment.timings,
+    totalSpeechMs: durationMs, estimatedSpeechMs: durationMs,
+    msPerChar: estimatedSpeechMsPerChar,
+    getAudioPositionMs: getDrawClockMs,
+    // The virtual board already advances in media time, including pause/rate.
+    getPlaybackRate: () => 1,
+    nowMs: getClockMs,
+    isSpeechComplete: () => getDrawClockMs() >= durationMs,
+  };
+  let textCommandIndex = 0;
+  for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
+    if (shouldCancel()) {
+      return;
+    }
+    const command = segmentCommands[commandIndex]!;
+    const pace = commandPaces[commandIndex]!;
+    const isTextCommand =
+      command.type === "WRITE" || command.type === "LABEL" || command.type === "TYPE";
+    const scheduleWorkWrite =
+      isTextCommand &&
+      command.type !== "TYPE" &&
+      Boolean(narration) &&
+      !(trustedDiagramGeometry && command.type === "LABEL");
+    const writePlan = scheduleWorkWrite
+      ? getBestWriteCharScheduleMs(
+          narration,
+          command,
+          cue.segment.timings,
+          durationMs,
+          textCommandIndex,
+          estimatedSpeechMsPerChar,
+        )
+      : null;
+
+    if (writePlan && writePlan.offsetsMs.length > 0) {
+      const audioPosAtScheduleMs = Math.round(getDrawClockMs());
+      const effectiveOffsets = catchUpWriteScheduleOffsets(
+        leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
+        audioPosAtScheduleMs,
+      );
+      await executeAuthored(command, {
+        applyLayout: false,
+        isCancelled: shouldCancel,
+        trustedDiagramGeometry,
+        inkPace: pace,
+        ...(command.type === "WRITE" && !trustedDiagramGeometry && canPointAtWork ? { explanationClock: speechClock } : {}),
+        writeSchedule: {
+          charStartOffsetsMs: effectiveOffsets,
+          charDurationsMs: writePlan.charDurationsMs,
+          getAudioPositionMs: getDrawClockMs,
+        },
+      });
+      if (isTextCommand) {
+        textCommandIndex += 1;
+      }
+      continue;
+    }
+
+    const speechWindow =
+      narration && cue.segment.timings
+        ? getCommandSpeechWindow(narration, command, cue.segment.timings, textCommandIndex)
+        : {
+            startMs: 0,
+            durationMs,
+            matched: false,
+          };
+
+    if (speechWindow.startMs > 0) {
+      if (!trustedDiagramGeometry && canPointAtWork) {
+        await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel, beforeWriteMs: speechWindow.startMs });
+        if (shouldCancel()) return;
+      }
+      await waitUntilExportClock(
+        getDrawClockMs,
+        speechWindow.startMs,
+        waitForAdvance,
+        shouldCancel,
+      );
+    }
+    if (shouldCancel()) {
+      return;
+    }
+
+    const commandWeight = pacedDurations[commandIndex] ?? getCommandDrawDurationMs(command, pace);
+    const commandBudgetMs = sceneDurations
+      ? sceneDurations[commandIndex] ?? commandWeight
+      : totalDrawWeight > 0
+        ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
+        : Math.max(Math.round(speechWindow.durationMs), 50);
+
+    await executeAuthored(command, {
+      applyLayout: false,
+      isCancelled: shouldCancel,
+      speechDurationMs: commandBudgetMs,
+      trustedDiagramGeometry,
+      inkPace: pace,
+      // A standalone authored POINT already identifies its verified target.
+      // Keep it there through its recording instead of falling back to work.
+      ...(command.type === "POINT" && commandIndex === segmentCommands.length - 1 ? {
+        segmentNarration: narration,
+        spokenClock: {
+          narration, getTimings: speechClock.getTimings,
+          estimatedTotalMs: durationMs, getAudioPositionMs: getDrawClockMs,
+          getPlaybackRate: speechClock.getPlaybackRate,
+          isSpeechComplete: speechClock.isSpeechComplete,
+          msPerChar: estimatedSpeechMsPerChar,
+        },
+      } : {}),
+    });
+    if (isTextCommand) {
+      textCommandIndex += 1;
+    }
+  }
+  if (!trustedDiagramGeometry && (canPointAtWork || completedTarget)) {
+    await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel,
+      ...(completedTarget ? { completedTarget, getDiagram: options.getDiagram } : {}) });
   }
 }

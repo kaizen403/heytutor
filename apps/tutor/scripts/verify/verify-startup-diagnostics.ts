@@ -73,15 +73,15 @@ const advance = async (target: number) => {
 type Event = { name: string; atMs: number; [key: string]: unknown };
 const events: Event[] = [];
 const record = (name: string, data: Record<string, unknown> = {}) => events.push({ name, atMs: now, ...data });
-type Job = { options: SpeakSegmentOptions; resolve: () => void; startedAt: number | null };
+type Job = { text: string; options: SpeakSegmentOptions; resolve: () => void; startedAt: number | null };
 const jobs: Job[] = [];
 let current: Job | null = null;
 let unlocks = 0;
 let resumes = 0;
 let abandonments = 0;
 const tts: TTSClient = {
-  speak: async () => {}, speakSegment: (_text, options = {}) => new Promise<void>((resolve) => {
-    current = { options, resolve, startedAt: null }; jobs.push(current);
+  speak: async () => {}, speakSegment: (text, options = {}) => new Promise<void>((resolve) => {
+    current = { text, options, resolve, startedAt: null }; jobs.push(current);
   }), prewarm: async () => {}, playAudio: async () => {},
   unlockAudio: () => { unlocks++; }, pause: () => {}, resume: () => { resumes++; }, stop: () => {},
   abandonSpeaking: () => { abandonments++; },
@@ -125,6 +125,20 @@ const blocked = { reason: "context-suspended", audioContextState: "suspended" } 
 const getStatus = () => status as SpeechStartupStatus | null;
 const start = (job: Job) => { job.startedAt = now; job.options.onStart?.(); };
 const finish = (job: Job) => { job.options.onEnd?.(); job.resolve(); };
+
+/** Join real cancellation/admission timers, never deliver a successor callback to an old job. */
+async function waitForSpeechAdmission(afterCount: number, expectedText: string): Promise<Job> {
+  const deadline = now + 1_000;
+  await flush();
+  while (jobs.length <= afterCount && now < deadline) {
+    const nextTimerAt = Math.min(...[...timers.values()].map(timer => timer.at));
+    await advance(Math.min(Math.max(nextTimerAt, now + 1), deadline));
+  }
+  assert(jobs.length > afterCount, `successor TTS must be admitted within 1 s: ${expectedText}`);
+  const admitted = jobs[afterCount]!;
+  assert.equal(admitted.text, expectedText, "the admitted transport belongs to the successor sentence");
+  return admitted;
+}
 
 async function main() {
 try {
@@ -176,11 +190,13 @@ try {
   oldJob.options.onPlaybackBlocked?.(blocked);
   const oldEnable = getStatus()!.enableAudio;
   params.turnGenerationRef.current = 2;
+  const beforeSuccessorAdmission = jobs.length;
   const successor = runner.runSegment({ narration: "New owner.", command: null }, 0, [], 2);
-  await flush();
-  const newJob = jobs.at(-1)!;
+  const newJob = await waitForSpeechAdmission(beforeSuccessorAdmission, "New owner.");
+  assert.notEqual(newJob, oldJob, "cancelled draw ownership must settle before successor TTS admits");
   newJob.options.onPlaybackBlocked?.(blocked);
   oldJob.options.onPlaybackBlocked?.(null); oldEnable();
+  start(oldJob); finish(oldJob); // Late transport completion must still belong to the stale owner.
   await advance(now + 50);
   await predecessor;
   assert.equal(getStatus()!.turnGeneration, 2, "stale callbacks and old cleanup cannot clear a successor's startup status");
