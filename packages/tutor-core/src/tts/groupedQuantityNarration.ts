@@ -10,10 +10,27 @@ const NUMBER_PREFIX = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|te
  * `(20 m/s)²`. Only that same scalar and unit in the paired WRITE licenses
  * saying "the quantity ... all squared". A genuine acceleration, another
  * value/unit, or an already bracketed spoken expression is left alone.
+ *
+ * The rewrite also needs positive evidence that the spoken phrase reads the
+ * grouped term: the group must open the right side of `lhs =` in its row, and
+ * the narration must say that left side and "equals" right before the phrase.
+ * "Take g as ten meters per second squared" beside `v² = (10 m/s)² − 2gh` is
+ * an acceleration and keeps the model's words.
  */
 export function clarifyGroupedQuantityNarration(narration: string, writtenRows: readonly string[]): string {
   const written = writtenRows.join(" ");
   const groups = [...written.matchAll(GROUPED_RATIO_SQUARE)];
+  const leadReadings = new Map<string, Set<string>>();
+  for (const row of writtenRows) {
+    for (const match of row.matchAll(GROUPED_RATIO_SQUARE)) {
+      const lead = /^([^=]*\S[^=]*)=\s*$/u.exec(row.slice(0, match.index));
+      if (!lead) continue;
+      const key = `${Number(match[1])}@${match[2]!.replace(/\s/g, "")}`;
+      const readings = leadReadings.get(key) ?? new Set<string>();
+      readings.add(spokenKey(mathToSpeech(`${lead[1]!.trim()} =`).replace(/\d+(?:\.\d+)?/g, numberToSpokenWords)));
+      leadReadings.set(key, readings);
+    }
+  }
   // A following exponent may apply to sqrt(...), sin(...), f(...), or an
   // ambiguous adjacent identifier. Their arguments do not prove a squared
   // speed. Numeric coefficients, e.g. 2(20 m/s)^2, keep the quantity's scope.
@@ -25,6 +42,8 @@ export function clarifyGroupedQuantityNarration(narration: string, writtenRows: 
   for (const [, value, rawUnit] of groups) {
     const unit = rawUnit!.replace(/\s/g, "");
     if (functionArguments.has(`${Number(value)}@${unit}`)) continue;
+    const leads = leadReadings.get(`${Number(value)}@${unit}`);
+    if (!leads) continue;
     const [numerator, denominator] = unit.split("/");
     // If the same-looking ungrouped unit square is also written, the spoken
     // phrase is ambiguous. Do not turn a valid acceleration into a speed.
@@ -41,8 +60,14 @@ export function clarifyGroupedQuantityNarration(narration: string, writtenRows: 
     const occurrences = [...clarified.matchAll(phrase)].filter((match) =>
       !NUMBER_PREFIX.test(clarified.slice(0, match.index)));
     if (occurrences.length !== 1) continue;
-    clarified = clarified.replace(phrase, (match: string, offset: number) =>
-      NUMBER_PREFIX.test(clarified.slice(0, offset)) ? match : `the quantity ${words} all squared`);
+    const occurrence = occurrences[0]!;
+    const before = ` ${spokenKey(clarified.slice(0, occurrence.index))}`;
+    if (![...leads].some((lead) => before.endsWith(` ${lead}`))) continue;
+    clarified = `${clarified.slice(0, occurrence.index)}the quantity ${words} all squared${clarified.slice(occurrence.index + occurrence[0].length)}`;
   }
   return clarified;
+}
+
+function spokenKey(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").trim();
 }

@@ -46,6 +46,27 @@ for (const narration of [
   assert.equal(clarifyGroupedQuantityNarration(narration, ["v² = (10 m/s)² + 2at"]), narration,
     "repeated spoken values stay unchanged when their quantity attribution is ambiguous");
 }
+// A single spoken acceleration beside a grouped speed WRITE. Only a phrase that
+// follows the spoken left side of its row ("v squared equals") reads the group.
+for (const [narration, rows] of [
+  ["The ball is thrown up at ten meters per second. Take g as ten meters per second squared.", ["v² = (10 m/s)² − 2 × 10 × 5"]],
+  ["The ball is thrown up at ten meters per second. Take g as ten meters per second squared.", ["v² = (10 m/s)² − 2gh"]],
+  ["u is ten meters per second and g is ten meters per second squared, so v squared equals u squared minus two g h.", ["v² = (10 m/s)² − 2(10 m s⁻²)(5 m)"]],
+  ["a equals twenty meters per second squared.", ["v² = (20 m/s)²", "a = 20 m s⁻²"]],
+  ["a equals twenty meters per second squared.", ["v² = (20 m/s)²", "a = 20 m·s⁻²"]],
+  ["a equals twenty meters per second squared.", ["v² = (20 m/s)²", "a = 20 m/sec²"]],
+  ["a equals twenty meters per second squared.", ["v² = (20 m/s)²", "a = 20 m/s/s"]],
+  ["अब g ten meters per second squared लो, और u ten meters per second है.", ["v² = (10 m/s)² − 2 × 10 × 5"]],
+  ["Here v squared equals twenty meters per second squared.", ["u² = (20 m/s)²"]],
+  ["So v squared equals twenty meters per second squared.", ["v² = u² + (20 m/s)²"]],
+] as const) {
+  assert.equal(clarifyGroupedQuantityNarration(narration, rows), narration,
+    `a phrase without the row's spoken left side keeps the model's words: ${narration} | ${rows.join(" ; ")}`);
+}
+assert.equal(clarifyGroupedQuantityNarration("So v squared equals twenty meters per second squared.", ["v² = (20 m/s)²"]),
+  "So v squared equals the quantity twenty meters per second all squared.", "the spoken left side licenses the grouped reading");
+assert.equal(clarifyGroupedQuantityNarration("अब v squared equals twenty meters per second squared लो.", ["v^2 = (20 m/s)^2"]),
+  "अब v squared equals the quantity twenty meters per second all squared लो.", "Hinglish prose around the spoken row keeps the grouped reading");
 console.log("youtube speech: the real captured 003 prose is clarified only with its exact paired scalar and unit");
 for (const expression of ["(20 m/s)^20", "(x)^23", "(20 m/s)²³"]) {
   assert(!mathToSpeech(expression).includes("all squared"), `only a complete square exponent can trigger grouping: ${expression}`);
@@ -80,8 +101,8 @@ for (const written of [
   assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, [written]), capturedSegment.narration,
     `a powered function argument or ambiguous adjacent identifier cannot prove the spoken quantity square: ${written}`);
 }
-assert.match(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = 2(20 m/s)^2"]), /the quantity twenty meters per second all squared/,
-  "a numeric factor leaves the parenthesized speed as a whole squared quantity");
+assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = 2(20 m/s)^2"]), capturedSegment.narration,
+  "a group that does not open the right side has no spoken lead to prove which phrase reads it");
 assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = (20 m/s)^2 + sqrt(20 m/s)^2"]), capturedSegment.narration,
   "an identically spoken function argument makes the quantity attribution ambiguous");
 assert.equal(mathToSpeech("sqrt (2)^2"), "the quantity square root of 2 all squared");
