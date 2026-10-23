@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument, validateTurnPlanSceneProofs } from "../../src/index";
 import { buildTopologyGraph } from "../../src/topology/topology";
-import { capacitorCircuit, capacitorDrawnTwice, capacitorPlan, freeCapacitorPlates } from "./fixtures/capacitor-circuit";
+import { capacitorCircuit, capacitorDrawnTwice, capacitorPlan, capacitorRectanglePlates, freeCapacitorPlates } from "./fixtures/capacitor-circuit";
 
 let checks = 0;
 let fixedProfile: number[] | undefined;
@@ -86,6 +86,14 @@ for (const kind of ["K", "N", "recorded"] as const) {
   }
 }
 assert.equal(validateTurnPlanSceneProofs(capacitorCircuit(), capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "the native symbol alone is one capacitor");
+// A recorded repair drew the plates as rectangles centred on the symbol's own terminals.
+const rectanglePlates = validateTurnPlanSceneProofs(capacitorRectanglePlates(), capacitorPlan).find(({ code }) => code === "capacitor_depicted_twice");
+assert.ok(rectanglePlates && rectanglePlates.failureKind === "truth", "plate rectangles centred on the symbol terminals draw the capacitor twice");
+const gap = capacitorRectanglePlates(true);
+gap.constructions = gap.constructions.filter(({ id }) => !id.startsWith("make_plate"));
+gap.entities = gap.entities.filter(({ id }) => !id.startsWith("plate"));
+assert.equal(validateTurnPlanSceneProofs(gap, capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "a plate separation dimension between the terminals is not a second capacitor");
+checks += 2;
 assert.match(validateTurnPlanSceneProofs(freeCapacitorPlates(), capacitorPlan).find(({ code }) => code === "source_loop_not_closed")!.message, /delete the free plate segments/, "the closure repair tells the planner to delete free plates");
 checks += 2;
 console.log(`Capacitor terminals: ${checks} checks passed`);

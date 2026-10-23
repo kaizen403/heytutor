@@ -61,6 +61,21 @@ export function freeCapacitorPlates(): SceneDocument {
  * recorded: the shape of a recorded repair response (plates top and bottom,
  * symbol capacitor down the left side, battery wired to the plate corners).
  */
+/** Plates drawn as rectangles centred on the capacitor symbol's terminals. */
+export function capacitorRectanglePlates(withGapDimension = false): SceneDocument {
+  const document = capacitorCircuit();
+  document.entities.push({ id: "plateT", kind: "rectangle", role: "capacitor plate" }, { id: "plateB", kind: "rectangle", role: "capacitor plate" });
+  document.constructions.push(
+    { id: "make_plateT", operator: "rectangle", inputs: { center: "C", width: 3, height: 0.12 }, outputs: ["plateT"] },
+    { id: "make_plateB", operator: "rectangle", inputs: { center: "D", width: 3, height: 0.12 }, outputs: ["plateB"] },
+  );
+  if (withGapDimension) {
+    document.entities.push({ id: "gap", kind: "dimension", role: "plate separation" });
+    document.constructions.push({ id: "make_gap", operator: "dimension", inputs: { start: "C", end: "D" }, outputs: ["gap"] });
+  }
+  return document;
+}
+
 export function capacitorDrawnTwice(kind: "K" | "N" | "recorded"): SceneDocument {
   const layouts = {
     K: {

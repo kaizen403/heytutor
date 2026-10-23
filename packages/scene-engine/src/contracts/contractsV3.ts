@@ -3771,16 +3771,20 @@ function capacitorDepictedTwice(document: SceneDocument): SceneIssue | null {
     return [firstStringValue(construction.inputs, ["start", "from", "a"]), firstStringValue(construction.inputs, ["end", "to", "b"])]
       .filter((id): id is string => id !== null);
   }));
-  const segments = document.constructions.filter((construction) => {
-    if (construction.operator !== "segment") return false;
-    const ends = [firstStringValue(construction.inputs, ["start", "from", "a"]), firstStringValue(construction.inputs, ["end", "to", "b"])];
-    return ends.some((id) => id !== null && terminals.has(id));
-  });
+  // Any other stroke anchored on a circuit terminal (a segment, or a plate
+  // rectangle centred there) draws the plates again. A dimension may measure
+  // the plate gap between terminals.
+  const pointIds = (inputs: Record<string, unknown>): string[] => Object.entries(inputs).flatMap(([key, value]) =>
+    typeof value === "string" && ["start", "end", "from", "to", "a", "b", "center"].includes(key) ? [value]
+      : Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+  const segments = document.constructions.filter((construction) =>
+    !["symbol", "connect", "point", "dimension"].includes(construction.operator) &&
+    pointIds(construction.inputs).some((id) => terminals.has(id)));
   if (segments.length === 0) return null;
   return {
     code: "capacitor_depicted_twice",
     failureKind: "truth",
-    message: `Segments ${segments.map(({ id }) => id).join(", ")} start or end on a circuit terminal while symbol capacitor already draws the plates, so the capacitor is drawn twice. ` +
+    message: `Constructions ${segments.map(({ id }) => id).join(", ")} are anchored on a circuit terminal while symbol capacitor already draws the plates, so the capacitor is drawn twice. ` +
       CAPACITOR_PLATES_DELETED,
     severity: "fatal",
     entityIds: segments.flatMap(({ outputs }) => outputs),
