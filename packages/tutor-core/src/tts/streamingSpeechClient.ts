@@ -977,26 +977,66 @@ export class StreamingSpeechClient implements TTSClient {
 
   /**
    * Abort stuck speech without closing the WebSocket permanently.
-   * Clears audio sources and rejects queued jobs so the segment runner can continue.
+   *
+   * Only the sentence being spoken is abandoned. Audio generated ahead for
+   * the next sentences (an unclaimed HTTP prefetch, an unclaimed socket
+   * lookahead job) is kept, finished or still arriving, so the next segment
+   * claims it with no new request. Throwing it away made every later
+   * sentence fetch again behind the same congested link, and one missed
+   * sentence became a lesson of them (production, 20 to 23 Oct 2026).
+   * `stop()` and a connection reset still clear everything.
    */
   abandonSpeaking(): void {
     this.playbackBlockedCallback?.(null);
     this.playbackBlockedCallback = undefined;
     this.speakGeneration += 1;
     this.clearTimers();
-    this.detachStreamHandler();
-    this.abortHttpStream("abandonSpeaking");
-    this.stopActiveAudio("abandonSpeaking");
+    const keepsLookahead = this.jobs.some((job) => !job.claimed && !job.settled);
+    // The handler routes the kept lookahead's audio; it is reattached on claim
+    // anyway, but chunks arriving in between would be lost without it.
+    if (!keepsLookahead) this.detachStreamHandler();
+    this.abortSpeakingHttp("abandonSpeaking");
+    this.stopActiveAudio("abandonSpeaking", { preserveHttp: true });
 
     const error = new Error("tts segment abandoned");
-    if (this.currentJob && !this.currentJob.settled) {
-      this.currentJob.settled = true;
-      this.currentJob.reject(error);
+    const abandoned = this.currentJob;
+    if (abandoned && !abandoned.settled) {
+      abandoned.settled = true;
+      abandoned.reject(error);
     }
-    this.rejectAllJobs(error);
+    if (abandoned) this.releaseJobContext(abandoned);
+    for (const job of this.jobs) {
+      if (job.settled || !job.claimed) continue;
+      job.settled = true;
+      job.reject(error);
+    }
+    for (const job of this.jobs) {
+      if (job.settled) this.releaseJobContext(job);
+    }
+    this.jobs = this.jobs.filter((job) => !job.settled);
     this.currentJob = null;
     this.chunkTargetJob = null;
-    tutorDebug("tts", "abandonSpeaking");
+    tutorDebug("tts", "abandonSpeaking", {
+      kept_ws_lookahead: this.jobs.length,
+      kept_http_prefetch: this.prefetches.size,
+    });
+  }
+
+  /**
+   * Abort the HTTP work of the sentence being spoken: its live stream and a
+   * prefetch it already claimed (claiming removes it from `prefetches`).
+   * Unclaimed prefetches belong to later sentences and keep running.
+   */
+  private abortSpeakingHttp(reason: string): void {
+    const lookahead = new Set<AbortController>();
+    for (const prefetch of this.prefetches.values()) lookahead.add(prefetch.controller);
+    for (const controller of [...this.httpControllers]) {
+      if (lookahead.has(controller)) continue;
+      controller.abort();
+      this.httpControllers.delete(controller);
+    }
+    this.httpStreamAbortController = null;
+    tutorDebug("tts", "abortSpeakingHttp", { reason, kept_prefetches: lookahead.size });
   }
 
   /** The socket's baked-in voice still matches what the student selected. */
