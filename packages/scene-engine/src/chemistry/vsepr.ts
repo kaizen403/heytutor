@@ -32,6 +32,7 @@ import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
+import { framedNamedSpecies } from "./vseprNamedSpecies";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { VseprBondInkPlan } from "./representation/bondInk";
 
@@ -739,10 +740,21 @@ export function vseprSpecies(question: string): VseprResult[] {
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
-  const tokens = vseprFormulaArguments(text, formulaTokens(text));
+  // A framed chemical name ("why is water bent") is a member in its own
+  // right when the request names its molecules only by name; its formula
+  // still has to resolve to one central atom below. A request that also
+  // writes formulas keeps the alias contract: every name there needs its own
+  // local formula, or the whole set declines.
+  const sentences = sentencesOf(text);
+  const formulas = vseprFormulaArguments(text, formulaTokens(text));
+  const framedNames = formulas.length === 0;
+  const named = framedNames
+    ? sentences.flatMap((sentence) => framedNamedSpecies(sentence).map((mention) => mention.formula))
+    : [];
+  const tokens = [...formulas, ...named];
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
+  return vseprSourceArgumentsComplete(sentences, tokens, species, { framedNames }) ? species : [];
 }
 
 function dipoleInputs(question: string): DipoleInput[] {

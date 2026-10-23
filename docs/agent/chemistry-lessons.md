@@ -30,7 +30,7 @@ subject, which does not reach that code.
 | Family | Module | Draws | Grounding |
 |---|---|---|---|
 | `chem_organic` | `organic/` | skeletal structures from IUPAC or common names, reaction schemes with the reagent on the arrow, constitutional isomers | a name the parser fully resolves; never a partial parse |
-| `chem_vsepr` | `vsepr.ts` | AXnEm shape with wedge and dash bonds, lone pairs, the characteristic angle, hybridisation and shape text | a parseable p-block formula with one central atom |
+| `chem_vsepr` | `vsepr.ts` | AXnEm shape with wedge and dash bonds, lone pairs, the characteristic angle, hybridisation and shape text | a parseable p-block formula with one central atom, or a name from `namedSpecies.ts` inside a shape frame ("why is water bent"); a multi-centre name declines |
 | `chem_lewis` | `lewis.ts` | Lewis structure with bond orders, lone pairs, formal charges, resonance forms side by side | a formula the octet method resolves |
 | `chem_mo` | `moDiagram.ts` | three-column MO diagram for period 2 diatomics and ions, CO, NO, CN-; compact ladders for comparisons | a diatomic species token |
 | `chem_orbital` | `orbitalBox.ts` | box diagrams from the electron configuration, orbital shapes with nodes, subshell ladders for a given n | an element or ion, an orbital name, or n |
