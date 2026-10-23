@@ -119,6 +119,11 @@ function mount(opts: { failDraw?: boolean } = {}) {
     reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
     executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: Parameters<UseSegmentRunnerParams["executeCommandWithCancel"]>[1]) => {
       if (options?.isCancelled?.()) return;
+      // Runtime explanation pointing (main #211) is motion over existing ink, not ink.
+      if (options?.explanationPointing === true) {
+        assert.equal(command.type, "POINT", "runtime explanation motion is only ever a POINT");
+        return;
+      }
       drawn.push(command.text ?? command.type); options?.onInkStarted?.();
       if (opts.failDraw) await new Promise<void>((_resolve, reject) => { rejectDraw = reject; });
     },

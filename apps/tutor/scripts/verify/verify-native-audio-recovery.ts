@@ -333,7 +333,10 @@ async function main() {
         raceWithCancel: async <T,>(promise: Promise<T>) => promise,
         reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
         executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
-          if (options.isCancelled?.()) return; drawn.push(command.text ?? command.type); options.onInkStarted?.();
+          if (options.isCancelled?.()) return;
+          // Runtime explanation pointing (main #211) is motion over existing ink, not ink.
+          if (options.explanationPointing === true) { assert.equal(command.type, "POINT", "runtime explanation motion is only ever a POINT"); return; }
+          drawn.push(command.text ?? command.type); options.onInkStarted?.();
         },
       };
       const handle = registry.begin({ owner: params.cancelRef, generation: 1, boardId: params.sessionId, traceId: null, kind: "lesson", question: "Explain force.", preview: "Explain force.", speedMultiplier: client.getPlaybackRate(), continuesBoard: false });
