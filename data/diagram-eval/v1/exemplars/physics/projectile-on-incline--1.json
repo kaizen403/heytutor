@@ -1,0 +1,380 @@
+{
+  "topic_id": "physics|2|projectile-on-incline",
+  "question": "A particle is projected up a long plane inclined at 25° to the horizontal, from a point on the plane, with a speed of 15 m/s at 40° to the inclined surface. Take g = 9.8 m/s². Find its time of flight and how far up the plane it lands.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "particle projected up an inclined plane"
+    },
+    "source": {
+      "question": "A particle is projected up a long plane inclined at 25° to the horizontal, from a point on the plane, with a speed of 15 m/s at 40° to the inclined surface. Take g = 9.8 m/s². Find its time of flight and how far up the plane it lands."
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 15,
+        "unit": "m/s"
+      },
+      {
+        "id": "g",
+        "symbol": "g",
+        "value": 9.8,
+        "unit": "m/s^2"
+      },
+      {
+        "id": "beta",
+        "symbol": "β",
+        "value": 25,
+        "unit": "degree"
+      },
+      {
+        "id": "alpha",
+        "symbol": "α",
+        "value": 40,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "base of the inclined plane",
+        "label": "O"
+      },
+      {
+        "id": "path",
+        "kind": "polyline",
+        "role": "trajectory"
+      },
+      {
+        "id": "u_vec",
+        "kind": "vector",
+        "role": "launch velocity"
+      },
+      {
+        "id": "Ut",
+        "kind": "point",
+        "role": "tip of the launch arrow",
+        "label": "u = 15 m/s"
+      },
+      {
+        "id": "E",
+        "kind": "point",
+        "role": "upper end of the incline"
+      },
+      {
+        "id": "plane",
+        "kind": "segment",
+        "role": "inclined plane",
+        "label": "incline"
+      },
+      {
+        "id": "Gx",
+        "kind": "point",
+        "role": "below the upper end"
+      },
+      {
+        "id": "base",
+        "kind": "segment",
+        "role": "horizontal ground"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "landing point on the incline",
+        "label": "B"
+      },
+      {
+        "id": "beta_mark",
+        "kind": "angle_mark",
+        "role": "incline angle",
+        "label": "β = 25°"
+      },
+      {
+        "id": "alpha_mark",
+        "kind": "angle_mark",
+        "role": "launch angle above the incline",
+        "label": "α = 40°"
+      },
+      {
+        "id": "dim_L",
+        "kind": "dimension",
+        "role": "distance along the incline",
+        "label": "L"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "c_path",
+        "operator": "projectile_trajectory",
+        "inputs": {
+          "speed": "u",
+          "launchAngleDeg": 65,
+          "gravity": "g",
+          "inclineAngleDeg": "beta",
+          "direction": "up",
+          "origin": "O",
+          "displayScale": 1
+        },
+        "outputs": [
+          "path",
+          "u_vec"
+        ]
+      },
+      {
+        "id": "c_Ut",
+        "operator": "point",
+        "inputs": {
+          "x": 6.339274,
+          "y": 13.594617,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Ut"
+        ]
+      },
+      {
+        "id": "c_E",
+        "operator": "point",
+        "inputs": {
+          "x": 21.751387,
+          "y": 10.142838,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "E"
+        ]
+      },
+      {
+        "id": "c_plane",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "E"
+        },
+        "outputs": [
+          "plane"
+        ]
+      },
+      {
+        "id": "c_Gx",
+        "operator": "point",
+        "inputs": {
+          "x": 21.751387,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Gx"
+        ]
+      },
+      {
+        "id": "c_base",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "Gx"
+        },
+        "outputs": [
+          "base"
+        ]
+      },
+      {
+        "id": "c_B",
+        "operator": "point",
+        "inputs": {
+          "x": 13.763424,
+          "y": 6.41799,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "c_beta_mark",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "E",
+          "b": "Gx",
+          "radius": 4
+        },
+        "outputs": [
+          "beta_mark"
+        ]
+      },
+      {
+        "id": "c_alpha_mark",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "Ut",
+          "b": "E",
+          "radius": 6
+        },
+        "outputs": [
+          "alpha_mark"
+        ]
+      },
+      {
+        "id": "c_dim_L",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "B"
+        },
+        "outputs": [
+          "dim_L"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "incline_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "plane",
+          "base"
+        ],
+        "expected": {
+          "value": 25,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "launch_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "u_vec",
+          "plane"
+        ],
+        "expected": {
+          "value": 40,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_path",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_plane",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "plane"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "path",
+      "u_vec",
+      "Ut",
+      "E",
+      "plane",
+      "Gx",
+      "base",
+      "B",
+      "beta_mark",
+      "alpha_mark",
+      "dim_L"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "Gx",
+          "base",
+          "E",
+          "plane",
+          "beta_mark"
+        ],
+        "dependsOn": [],
+        "narrationCue": "a plane inclined at β"
+      },
+      {
+        "id": "launch",
+        "entityIds": [
+          "u_vec",
+          "Ut",
+          "alpha_mark"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "u at α above the inclined surface"
+      },
+      {
+        "id": "flight",
+        "entityIds": [
+          "path",
+          "B",
+          "dim_L"
+        ],
+        "dependsOn": [
+          "launch"
+        ],
+        "narrationCue": "the path meets the plane at B, a distance L up the incline"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "a plane inclined at β"
+      },
+      {
+        "id": "reveal_launch",
+        "action": "reveal",
+        "targetId": "launch",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "u at α above the inclined surface"
+      },
+      {
+        "id": "reveal_flight",
+        "action": "reveal",
+        "targetId": "flight",
+        "dependsOn": [
+          "reveal_launch"
+        ],
+        "narrationIntent": "the path meets the plane at B, a distance L up the incline"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}

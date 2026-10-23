@@ -1,10 +1,22 @@
+import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
+import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
+import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
+import { validateSolidSourceTruth } from "./solidSourceTruth";
+import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
+import { validateGeometryClaimTruth } from "./geometryClaimTruth";
+import { validateVelocityTriangleTruth } from "./velocityTriangleTruth";
+import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
+import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
+import { validateSphericalCurvatureTruth } from "./curvatureTruth";
+import { validateMarkedAngleTruth } from "./angleTruth";
+import { isVerifiedPartsEnabled, withDiagramYieldPolicy } from "./yieldPolicy";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
   type CompileResult,
   type RenderPoint,
   type RenderPrimitive,
-  type SceneAnnotation,
   type SceneAssertion,
   type SceneConstruction,
   type SceneDocument,
@@ -13,9 +25,11 @@ import {
 } from "../types";
 import {
   createTextInkBoundsCache,
+  canPlaceSingleLabel,
   obstaclesFromPrimitives,
   placeLabels,
-  pointInAngleWedge,
+  labelStrokeOwnershipMargin,
+  LABEL_OWNERSHIP_CLEAR_MARGIN_PX,
   stackLabelRows,
   workColumnObstacle,
   POINT_LABEL_TETHER_PX,
@@ -27,13 +41,15 @@ import {
 } from "../labels/labelEngine";
 import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/opticsLabelSides";
 import { createStrokeAttachment, labelRespectsStrokeAttachment, type DirectedLabelStroke, type StrokeLabelPlacement } from "../labels/strokeAttachment";
+import { compareLabelOwnership, type LabelOwnershipDelta } from "../labels/labelOwnershipDelta";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
+import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
-import { compactCalloutLabel, composeCarrierLabel, isBareCarrierLabel, isPointIdentifierText, isViewSummaryAnnotation, isViewSummaryText, pointLabelTether } from "./pointLabelText";
+import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
@@ -87,7 +103,7 @@ import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./r
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
 import { evaluateCurrentFieldConstruction, type CurrentFieldMark } from "./currentFieldGeometry";
-import { evaluateChapterRemainderConstruction, type RemainderMark } from "./chapterRemainderGeometry";
+import { evaluateChapterRemainderConstruction, validateProjectileMeasurementProjection, type RemainderMark } from "./chapterRemainderGeometry";
 import { evaluateChapterInstrumentConstruction, type InstrumentMark } from "./chapterInstrumentGeometry";
 import { evaluateFluidConstruction, type HydrostaticProfileDefinition, type HydrostaticStateDefinition, type BuoyancyDefinition } from "./fluidGeometry";
 import { withEvaluatedOutputLabels } from "./outputLabels";
@@ -102,6 +118,7 @@ import { evaluateAcConstruction, type AcImpedanceDefinition, type AcPhasorDefini
 import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefinition } from "./wavesGeometry";
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
 import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
+import { evaluatePvProcessConstruction, pvPlotBounds, pvPlotPrimitives, type PvPlotGeometry } from "./pvProcessGeometry";
 import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
 import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
@@ -132,6 +149,7 @@ import {
 } from "./spaceDerivations";
 import { projectSolidPoint, solidAnchorPoint, solidSectionDimensions, type SolidProjection, type SolidProjectionKind } from "./solidAnchors";
 import { validateSolidMeasurements } from "./solidMeasurements";
+import { graphRegionBoundary, piecewiseLinearGraph, type GraphBoundary } from "./graphRegion";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -210,9 +228,10 @@ type Geometry =
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
-  | { kind: "dimension"; a: Point; b: Point }
+  | ({ kind: "dimension"; a: Point; b: Point } & DerivedGeometryMetadata)
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry
+  | PvPlotGeometry
   | LinearRegionGeometry;
 
 const EPSILON = 1e-6;
@@ -230,6 +249,8 @@ interface LabelAttemptWork {
   solverCalls: number;
   retryable: boolean;
   physicalInk: RenderPrimitive[];
+  /** Some owner carried an attached-policy relocation or stroke relation. */
+  modified: boolean;
 }
 interface LabelAttempt extends LabelAttemptWork {
   policy: LabelPolicy;
@@ -243,6 +264,8 @@ interface LabelTransactionDiagnostics {
   searchWork: number;
   solverCalls: number;
   physicalInkMatches: boolean | null;
+  /** Labels the attached policy placed differently from MAIN, and those that failed. */
+  ownershipDelta: LabelOwnershipDelta | null;
 }
 const labelTransactions = new WeakMap<CompileResult, LabelTransactionDiagnostics>();
 
@@ -252,41 +275,62 @@ export function getLabelTransactionDiagnostics(result: CompileResult): Readonly<
 }
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
   const started = performance.now();
   const attempts: LabelAttempt[] = [];
   const run = (policy: LabelPolicy): LabelAttempt => {
-    const work: LabelAttemptWork = { searchWork: 0, solverCalls: 0, retryable: false, physicalInk: [] };
+    const work: LabelAttemptWork = { searchWork: 0, solverCalls: 0, retryable: false, physicalInk: [], modified: false };
     const before = performance.now();
     const result = compileSceneDocumentAttempt(document, options, policy, work);
     const attempt = { policy, result, ...work, elapsedMs: performance.now() - before };
     attempts.push(attempt);
     return attempt;
   };
-  const attached = run("attached");
+  const finish = (selected: LabelAttempt, physicalInkMatches: boolean | null, ownershipDelta: LabelOwnershipDelta | null): CompileResult => {
+    const result = selected.result;
+    labelTransactions.set(result, {
+      selectedPolicy: result.ok ? selected.policy : null,
+      attempts,
+      elapsedMs: performance.now() - started,
+      searchWork: attempts.reduce((sum, attempt) => sum + attempt.searchWork, 0),
+      solverCalls: attempts.reduce((sum, attempt) => sum + attempt.solverCalls, 0),
+      physicalInkMatches,
+      ownershipDelta,
+    });
+    return result;
+  };
+  // Append proposals reserve the existing placements in their own first pass,
+  // and admission requires those placements unchanged. They therefore use the
+  // policy their document without the appended labels selects (MAIN's when
+  // that document has no figure), and a failure is never retried: it rejects
+  // the proposal and never resets that first pass.
+  const hasAppend = isRecord(document) && Array.isArray(document.annotations) && document.annotations.some(annotation =>
+    isRecord(annotation) && annotation.labelMode === "append");
+  const basePolicy = hasAppend ? getLabelTransactionDiagnostics(compileSceneDocument({ ...document,
+    annotations: document.annotations.filter(annotation => !(isRecord(annotation) && annotation.labelMode === "append")) }, options))?.selectedPolicy ?? "native" : "attached";
+  const attached = run(basePolicy);
   let selected = attached;
   let physicalInkMatches: boolean | null = null;
-  // Native append proposals reserve existing placements in their own first
-  // pass. A later failure must reject the whole proposal, never reset that
-  // first pass through this outer transaction (including on older documents).
-  if (!attached.result.ok && attached.retryable) {
-    const hasAppend = Array.isArray(document.annotations) && document.annotations.some(annotation =>
-      isRecord(annotation) && annotation.labelMode === "append");
-    if (!hasAppend) {
-      const native = run("native");
-      physicalInkMatches = JSON.stringify(attached.physicalInk) === JSON.stringify(native.physicalInk);
-      if (native.result.ok && native.result.renderScene && native.result.report.valid && physicalInkMatches) selected = native;
+  let ownershipDelta: LabelOwnershipDelta | null = null;
+  if (attached.policy === "attached" && attached.result.ok && attached.result.renderScene && attached.modified) {
+    // A moved label must not sit less clearly on its owner than MAIN put it,
+    // including a label that another moved label displaced. Otherwise the
+    // whole figure keeps MAIN's placement.
+    const native = run("native");
+    physicalInkMatches = JSON.stringify(attached.physicalInk) === JSON.stringify(native.physicalInk);
+    if (native.result.ok && native.result.renderScene) {
+      ownershipDelta = compareLabelOwnership(attached.result.renderScene.primitives, native.result.renderScene.primitives);
+      if (!ownershipDelta.ok || !physicalInkMatches) selected = native;
     }
+  } else if (!hasAppend && !attached.result.ok && attached.retryable) {
+    const native = run("native");
+    physicalInkMatches = JSON.stringify(attached.physicalInk) === JSON.stringify(native.physicalInk);
+    // Native is MAIN's placement. With the same physical ink its outcome,
+    // success or failure, is the answer: an attached failure never replaces
+    // MAIN's figure or MAIN's repair evidence.
+    if (physicalInkMatches) selected = native;
   }
-  const result = selected.result;
-  labelTransactions.set(result, {
-    selectedPolicy: result.ok ? selected.policy : null,
-    attempts,
-    elapsedMs: performance.now() - started,
-    searchWork: attempts.reduce((sum, attempt) => sum + attempt.searchWork, 0),
-    solverCalls: attempts.reduce((sum, attempt) => sum + attempt.solverCalls, 0),
-    physicalInkMatches,
-  });
-  return result;
+  return finish(selected, physicalInkMatches, ownershipDelta);
 }
 
 function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOptions, policy: LabelPolicy, attempt: LabelAttemptWork): CompileResult {
@@ -299,6 +343,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
+  const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const matrixSourceIssues = [
     ...validateMatrixSourceBinding(document),
     ...validateLinearSourceBinding(document),
@@ -312,7 +357,8 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
   if (circleSourceIssues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, [...structural.report.issues, ...circleSourceIssues], 0) };
   if (document.visualDecision.mode === "text_only") return { ok: true, renderScene: emptyRenderScene(document), report: structural.report };
 
-  const issues = [...structural.report.issues];
+  const chemistryRepresentation = auditChemistryRepresentation(document, typeof document.source.question === "string" ? document.source.question : "");
+  const issues = [...structural.report.issues, ...chemistryRepresentation.issues];
   const geometry = new Map<string, Geometry>();
   const checkedClaimOutputIds = new Set<string>();
   // One view for every space frame, planned before the loop reassigns `document`.
@@ -386,7 +432,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     const hasAnnotation = document.annotations.some((annotation) => annotation.targetIds.includes(entityId));
     const annotationPositionedLabel = entity?.kind === "label" && hasAnnotation;
     if (!geometry.has(entityId) && entity?.kind !== "group" && !annotationPositionedLabel) {
-      issues.push({ code: "unconstructed_required_entity", message: `Required entity ${entityId} has no deterministic construction`, severity: "fatal", entityIds: [entityId] });
+      issues.push({ code: "unconstructed_required_entity", message: `Required entity ${entityId} has no deterministic construction: no valid construction lists ${entityId} in its outputs. Valid when one construction that compiles outputs ${entityId}, or ${entityId} is removed from requiredEntityIds and every reveal group`, severity: "fatal", entityIds: [entityId] });
     }
   }
 
@@ -467,14 +513,25 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
         coincidentPathAliases.set(entityId, existing);
       }
       else if (overlayId) directionOverlayIds.add(overlayId);
-      else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}`, severity: "fatal", entityIds: [existing, entityId] });
+      else issues.push({ code: "duplicate_geometry", message: `${entityId} duplicates ${existing}: both constructions produce the same geometry. Valid when ${entityId} is built from its own inputs so it differs from ${existing}, or it is removed`, severity: "fatal", entityIds: [existing, entityId] });
     } else {
       geometrySignatures.set(signature, [...existingIds, entityId]);
     }
   }
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
+  issues.push(...validateVelocityTriangleTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
+  issues.push(...validateLaunchVelocityTruth(document, geometry));
+  if (verifiedPartsEnabled) {
+    issues.push(...validateMarkedAngleTruth(document, geometry));
+    issues.push(...validateGeometryClaimTruth(document, geometry));
+    issues.push(...validateDeclaredGeometryTruth(document, geometry));
+    validateSphericalCurvatureTruth(document, geometry, issues);
+    validateSolidSourceTruth(document, geometry, issues);
+    validateOpticalPathTruth(document, geometry, issues);
+    issues.push(...validateOpticalMediumTruth(document, geometry));
+  }
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   // Light stops at the optical elements it meets: cut outgoing rays at their
@@ -482,6 +539,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
   const drawnEntityIds = new Set(document.requiredEntityIds);
   const drawnInk = (id: string) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
     document.entities.some((entity) => entity.id === id && entity.kind !== "label");
+  if (verifiedPartsEnabled) clipDeclaredOpticalIncidentPaths(document, geometry, drawnInk);
   clipLightPathsAtElements({
     document,
     geometry,
@@ -529,7 +587,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     ) ||
     // Space frames letter their axes.
@@ -578,17 +636,29 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
         entity.provenance,
         directionOverlayIds.has(entity.id),
       )); } catch(error) {
-        if(value.kind!=="linear_region")throw error;
-        issues.push({code:"linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
+        if(value.kind!=="linear_region" && value.kind!=="pv_plot")throw error;
+        issues.push({code:value.kind === "pv_plot" ? "pv_display_unproved" : "linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
         return {ok:false,renderScene:null,report:report(document,issues,0)};
       }
     }
+  }
+  const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
+  if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
+  if (verifiedPartsEnabled) {
+    // Text and its leaders cannot restore a region whose projected geometry
+    // collapsed to a line. Prove that core shape before searching label slots.
+    const projectedIssues: SceneIssue[] = [];
+    pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, projectedIssues);
+    if (projectedIssues.length) return {
+      ok: false, renderScene: null,
+      report: report(document, [...issues, ...projectedIssues.map(issue => ({ ...issue, failureKind: "truth" as const }))], primitives.length),
+    };
   }
   appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
   // Moving one lane also moves its witnesses. Recheck earlier dimensions
   // against that final ink until the bounded lane search is stable.
   for (let pass = 0; pass <= dimensionLanes.size; pass++) {
-    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues, measureLabelInk, place);
+    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues, measureLabelInk);
     if (!changed || issues.some((issue) => issue.severity === "fatal")) break;
   }
   assertDimensionViewport(primitives, transformPlan, issues);
@@ -647,16 +717,14 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       (annotation.kind === "label" || annotation.kind === "callout") &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     )) continue;
-    const geometricCarrier = policy === "attached" && isFiniteValueCarrier(target, entity.kind);
-    const valueAnnotation = (entity.kind === "component" && isComponentDesignator(entity.label)) || (geometricCarrier && isBareCarrierLabel(entity.label))
+    const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
       ? document.annotations.find((annotation) =>
           annotation.labelMode !== "append" &&
-          (annotation.kind === "label" || (geometricCarrier && annotation.kind === "callout")) &&
-          (entity.kind === "component" || Boolean(annotation.quantityId)) &&
-          (policy === "native" ? annotation.targetIds.includes(entity.id) : annotation.targetIds[0] === entity.id) &&
+          annotation.kind === "label" &&
+          annotation.targetIds.includes(entity.id) &&
           Boolean(annotation.text) &&
           annotation.text !== entity.label,
         )
@@ -665,19 +733,33 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       !annotation.quantityId &&
-      // Moving an independent result beside a stroke does not rename it.
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     );
+    // A named annotation is an explicit binding, not permission to pick the
+    // first case-folded symbol in the inventory (R and r are different values).
+    const quantityBindings = document.annotations.filter((annotation) =>
+      annotation.kind === "label" && annotation.labelMode !== "append" &&
+      annotation.targetIds.length === 1 && annotation.targetIds[0] === entity.id &&
+      annotation.quantityId !== undefined && !annotation.text,
+    );
+    const boundQuantity = quantityBindings.length === 1
+      ? document.quantities.find((quantity) => quantity.id === quantityBindings[0]!.quantityId)
+      : undefined;
+    const bindingMatchesSymbol = boundQuantity && (boundQuantity.symbol === undefined
+      ? componentValueUnitMatches(entity.id, boundQuantity.unit, document)
+      : typeof boundQuantity.symbol === "string" && normalizeIdentifier(boundQuantity.symbol) === normalizeIdentifier(entity.label));
     const quantityText = entity.kind === "component" && isComponentDesignator(entity.label)
-      ? matchingQuantityText(entity.label, document.quantities)
+      ? bindingMatchesSymbol
+        ? matchingQuantityText(boundQuantity.id, document.quantities, true)
+        : matchingQuantityText(entity.label, document.quantities)
       : undefined;
     const supplementalText = valueAnnotation?.text ?? quantityText;
     const combinedText = supplementalText
-      ? policy === "attached" ? composeCarrierLabel(entity.label, supplementalText) : `${entity.label} ${supplementalText}`
+      ? `${entity.label} ${supplementalText}`
       : entity.label;
     const useCombinedText = Boolean(supplementalText) && combinedText.length <= 16;
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
@@ -685,7 +767,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     const transform = transformPlan.transformFor(entity.id);
     const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
     labelOwners.push({
-      labelId: geometricCarrier && valueAnnotation && useCombinedText ? valueAnnotation.id : `primitive_${entity.id}_label`,
+      labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
       anchor: screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
@@ -694,7 +776,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
       tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
       allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
-      requireLeader: entity.provenance?.requireLabelLeader === true,
+      requireLeader: entity.provenance?.requireLabelLeader === true || (verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(entity.id))),
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
       ...spaceElementPlacement,
@@ -709,12 +791,37 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     if (!targetId) continue;
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
+    // A bare number can masquerade as the first point's coordinate. Named
+    // quantities already identify the interval and keep their proven placement.
+    const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2 && /^[+−-]?\d/.test((annotation.text ?? "").trim())
+      ? annotation.targetIds.map(id => ({ id, value: geometry.get(id) })) : [];
+    if (intervalTargets.length === 2 && intervalTargets.every(t => t.value?.kind === "point")) {
+      const anchors = intervalTargets.map(t => transformPlan.transformFor(t.id)((t.value as Extract<Geometry, {kind:"point"}>).point));
+      const quantity = document.quantities.find(q => q.id === annotation.quantityId);
+      const rawText = annotation.text ?? "";
+      const text = quantity?.symbol && /^[+−-]?\d/.test(rawText.trim()) ? `${quantity.symbol}=${rawText}` : rawText;
+      if (text) labelOwners.push({ labelId: annotation.id, entityId: targetId,
+        anchor: { x: (anchors[0]!.x+anchors[1]!.x)/2, y: (anchors[0]!.y+anchors[1]!.y)/2 },
+        text, useOwnerBounds: false, allowLeader: true, requireLeader: true, leaderGeometrySafe: true,
+        viewBounds: transformPlan.viewportFor(targetId) });
+      continue;
+    }
+    const medium = verifiedPartsEnabled ? mediumBindings(document, geometry).find(binding => binding.annotationId === annotation.id) : undefined;
+    if (medium && annotation.text) {
+      const transform = transformPlan.transformFor(medium.surfaceId);
+      const contact = transform(medium.contact), far = transform(medium.far);
+      const anchor = { x: contact.x + (far.x-contact.x)*0.65, y: contact.y + (far.y-contact.y)*0.65 };
+      labelOwners.push({ labelId: annotation.id, entityId: targetId, anchor, text: annotation.text,
+        preferredSlot: far.y < contact.y ? "north" : "south", useOwnerBounds: false,
+        viewBounds: transformPlan.viewportFor(targetId), allowLeader: false });
+      continue;
+    }
     const groupId = entityToGroup.get(targetId);
-    const summaryText = (policy === "attached"
-      ? isLabelSummary(annotation, target, targetEntity?.label, targetEntity?.kind)
-      : (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
-        (Boolean(annotation.quantityId) && Boolean(targetEntity?.label)))
-      ? compactCalloutLabel(annotation.text)
+    const summaryText = (
+      (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
+      (Boolean(annotation.quantityId) && Boolean(targetEntity?.label))
+    )
+      ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
       : undefined;
     if (groupId && summaryText) {
       summaryLabelIds.add(annotation.id);
@@ -763,7 +870,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
           }
         : { x: groupViewport.x + groupViewport.width / 2, y: groupViewport.y + 10 };
       const text = annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text;
       if (text) labelOwners.push({
         labelId: annotation.id,
@@ -802,9 +909,19 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       continue;
     }
     const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
+    const endpointLabel = verifiedPartsEnabled && target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
+    const secantLabel = verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId));
+    if (verifiedPartsEnabled && target.kind === "axes" && (annotation.kind === "label" || annotation.kind === "callout")
+      && !/^(?:x|y|re|im|real|imaginary|horizontal|vertical)\b/i.test((annotation.text ?? "").trim())) {
+      // One label anchored at the origin cannot say which axis it names; "t (s)"
+      // beside the vertical axis reads as the wrong variable. The standard axis
+      // names keep their place; any other axis title is omitted and recompiled.
+      issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", failureKind: "proof", entityIds: [annotation.id], message: `Annotation ${annotation.id} names an axes object at its origin, not one axis` });
+      continue;
+    }
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
-      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
+      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText, isVerifiedPartsEnabled(document)) : rawText;
       if (text) labelOwners.push({
         labelId: annotation.id,
         entityId: targetId,
@@ -817,8 +934,9 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
           ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
           : undefined,
         tetherPx: target.kind === "point" && targetEntity?.kind === "point" ? pointLabelTether(text) : undefined,
-        leaderGeometrySafe: targetEntity?.kind === "point",
-        allowLeader: targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined,
+        ...(verifiedPartsEnabled ? { requireLeader: endpointLabel || secantLabel } : {}),
+        leaderGeometrySafe: targetEntity?.kind === "point" || secantLabel,
+        allowLeader: endpointLabel || (targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined),
         ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
       });
     }
@@ -895,6 +1013,30 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     }
   }
 
+  const pvLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.pvRole);
+  if (pvLabels.length) {
+    const owners: LabelOwner[] = pvLabels.map((primitive) => ({
+      labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
+      viewBounds: transformPlan.viewportFor(primitive.entityId), useOwnerBounds: false,
+      pinToAnchor: ["name_v", "name_p", "schematic"].includes(String(primitive.provenance?.pvRole)),
+      allowLeader: primitive.provenance?.pvRole === "process_name", requireLeader: primitive.provenance?.pvRole === "process_name", leaderGeometrySafe: true,
+      tetherPx: primitive.provenance?.pvRole === "state_name" ? pointLabelTether(primitive.text!) : undefined,
+    }));
+    const placed = placeLabels(owners, [...obstaclesFromPrimitives(primitives.filter((primitive) => !pvLabels.includes(primitive))), workColumnObstacle()],
+      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
+    for (const issue of placed.issues) issues.push({ code: issue.code, message: issue.message, severity: "fatal", entityIds: pvLabels.filter((primitive) => primitive.id === issue.entityId).map((primitive) => primitive.entityId) });
+    if (placed.ok) for (const placement of placed.placements) {
+      const primitive = pvLabels.find((candidate) => candidate.id === placement.labelId)!;
+      const labelAnchor = primitive.points[0]!;
+      primitive.points = [{ x: round(placement.bounds.x + placement.bounds.width / 2), y: round(placement.bounds.y + placement.bounds.height / 2) }];
+      primitive.labelPlacement = "absolute";
+      primitive.provenance = { ...primitive.provenance, fontPx: BOARD_TYPE_SCALE.annotation, labelPad: 0, labelAnchor, labelBounds: placement.bounds, labelCollisionBounds: placement.collisionBounds ?? placement.bounds };
+      if (placement.usesLeader && placement.leaderFrom && placement.leaderTo) primitives.push({
+        id: `${primitive.id}_leader`, entityId: primitive.entityId, groupId: primitive.groupId, kind: "line", points: placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo],
+        provenance: { pvRole: "label_leader", pvMode: primitive.provenance.pvMode, nonmetric: true, labelLeader: true, strokeRole: "construction", strokeWidth: 1 },
+      });
+    }
+  }
   const matrixCells = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.matrixNonmetric === true && primitive.provenance?.matrixCell);
   if (matrixCells.length > 0) {
     const cellOwners: LabelOwner[] = matrixCells.map((primitive) => ({
@@ -941,33 +1083,18 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       value?.kind === "path" && value.directed && !value.infinite && !value.closed && isOpenLabelPath(value)
       ? [{ entityId: primitive.entityId, points: primitive.points }] : [];
   });
-  const angleMarkIds = new Set(document.constructions.filter((construction) => construction.operator === "angle_mark").flatMap((construction) => construction.outputs));
   const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && (summaryLabelIds.has(owner.labelId) || appendLabelIds.has(owner.labelId))) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
-    return all.findIndex((candidate) => candidate.entityId === owner.entityId && (policy === "native" || candidate.text === owner.text) && !summaryLabelIds.has(candidate.labelId ?? "") && !appendLabelIds.has(candidate.labelId ?? "")) === index;
+    return all.findIndex((candidate) =>
+      candidate.entityId === owner.entityId &&
+      (!candidate.labelId || (!summaryLabelIds.has(candidate.labelId) && !appendLabelIds.has(candidate.labelId)))
+    ) === index;
   }), ...annotationLabelOwners].map((owner) => {
     if (policy === "native") return owner;
     const value = geometry.get(owner.entityId);
     if (summaryLabelIds.has(owner.labelId ?? "") || !value) return owner;
-    if (value.kind === "arc" && angleMarkIds.has(owner.entityId)) {
-      const transform = transformPlan.transformFor(owner.entityId);
-      const middle = (value.startAngle + value.endAngle) / 2;
-      const center = transform(value.center);
-      const anchor = transform({ x: value.center.x + value.radius * Math.cos(middle), y: value.center.y + value.radius * Math.sin(middle) });
-      const viewport = transformPlan.viewportFor(owner.entityId);
-      return {
-        ...owner,
-        anchor,
-        angleWedge: { center, startAngle: -value.endAngle, endAngle: -value.startAngle },
-        // Acute wedges need room for a full text run between their arms.
-        // Search nearby within the wedge, without a connector through them.
-        useOwnerBounds: false,
-        tetherPx: Math.hypot(viewport.width, viewport.height),
-        allowLeader: false,
-      };
-    }
     const annotation = document.annotations.find((candidate) => candidate.id === owner.labelId);
     // A line or ray supplies no bounded owner for an annotation-only scalar.
     // Keep its existing summary/medium placement; do not infer a region here.
@@ -976,20 +1103,21 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     // A component's path is its electrical/mechanical symbol, not a generic
     // value carrier. Preserve its native designator and summary placement.
     if (entity?.kind === "component") return owner;
-    const nativeName = owner.labelId === `primitive_${owner.entityId}_label` && owner.text === entity?.label;
-    const pathName = owner.labelId === `primitive_${owner.entityId}_label` || consumedAnnotationIds.has(owner.labelId ?? "") || Boolean(entity?.label && annotation);
+    const pathName = owner.labelId === `primitive_${owner.entityId}_label` || Boolean(entity?.label && annotation);
     const vectorValue = entity?.kind === "vector" && Boolean(annotation?.quantityId);
     const geometricCallout = annotation?.kind === "callout" && isViewSummaryText(annotation.text);
     if (!isOpenLabelPath(value) || (!pathName && !vectorValue && !geometricCallout)) return owner;
     const stroke = primitives.find((primitive) => primitive.entityId === owner.entityId && primitive.kind !== "label");
+    if (!stroke) return owner;
+    // The label engine applies this only where MAIN's stroke ownership guard
+    // judges the owner (straight open strokes with no side, box or pin rule),
+    // and every moved slot must then sit clearly nearer its own stroke.
     return {
       ...owner,
-      // Keep an already attached native name's legal bounds candidate. Values
-      // and coalesced annotations instead start from their exact stroke anchor.
-      useOwnerBounds: nativeName ? owner.useOwnerBounds : false,
-      tetherPx: pointLabelTether(owner.text),
-      leaderGeometrySafe: true,
-      alternateAnchors: stroke ? [0.25, 0.75, 0.1, 0.9, 0.02, 0.98].map((at) => pointAlongPolyline(stroke.points, at)) : undefined,
+      strokeRelocation: {
+        tetherPx: pointLabelTether(owner.text),
+        alternateAnchors: [0.25, 0.75, 0.1, 0.9, 0.02, 0.98].map((at) => pointAlongPolyline(stroke.points, at)),
+      },
     };
   // Compiler policies retry only as complete transactions. In particular,
   // no local native-name retry may discard a requested safe-leader constraint.
@@ -1025,12 +1153,12 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     };
   };
   const axisLetterOwners = spaceAxisLetterOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan);
-  const placementOwners = [
+  const placementOwners = bindTrajectoryLabelPlacement(document, primitives, [
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
     ...axisLetterOwners,
-  ];
+  ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
@@ -1107,6 +1235,7 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
   }
   // Comparison evidence only: geometry admission below uses MAIN's final ink.
   attempt.physicalInk = primitives.filter(primitive => primitive.kind !== "label");
+  attempt.modified = placementOwners.some(owner => Boolean(owner.strokeRelocation || owner.strokeAttachment));
   for (const placement of labels.placements) {
     const groupId = entityToGroup.get(placement.entityId);
     if (!groupId) continue;
@@ -1123,6 +1252,9 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
       labelPlacement: "absolute",
       provenance: {
         ...annotationLabels.get(placement.labelId)?.provenance,
+        ...(!annotationLabels.has(placement.labelId) && chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId))
+          ? { chemistryRepresentation: chemistryStructureSymbolProvenance(chemistryRepresentation, document.entities.find((entity) => entity.id === placement.entityId)) }
+          : {}),
         labelBounds: placement.bounds,
         ...(placement.collisionBounds ? { labelCollisionBounds: placement.collisionBounds } : {}),
         usesLeader: placement.usesLeader,
@@ -1155,12 +1287,23 @@ function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOp
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) {
-    const labelFailureCodes = new Set(["label_overlap_unresolved", "label_outside_view", "label_too_long", "label_duplicate", "label_unattached", "label_outside_angle_wedge"]);
+    const labelFailureCodes = new Set(["label_overlap_unresolved", "label_outside_view", "label_too_long", "label_duplicate", "label_unattached"]);
     attempt.retryable = issues.filter(issue => issue.severity === "fatal").every(issue => labelFailureCodes.has(issue.code));
     return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
   }
+  if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives),
+    ...validateFigureLegibility(primitives), ...validateAxisNamePlacement(primitives), ...validateAngleLabelWedge(document, primitives, coincidentPointAliases));
+  if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
-  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  // Native bond truth is core geometry under both yield policies; labels or
+  // repair cannot turn overlapping double/triple strokes into valid ink.
+  issues.push(...chemistryNativeBondInkIssues(chemistryRepresentation, primitives));
+  if (issues.some((issue) => issue.severity === "fatal")) {
+    // Label truth checks run after placement. MAIN's placement answers them.
+    attempt.retryable = true;
+    return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  }
 
   const entityBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};
   const addEntityBounds = (primitive: RenderPrimitive) => {
@@ -1257,19 +1400,76 @@ function isComponentDesignator(text: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(text.trim());
 }
 
+// SI prefix case is significant even though this check only proves dimension.
+const COMPONENT_VALUE_UNIT_PREFIX = "(?:da|[qryzafpnμumcdhkMGTPEZYRQ])?";
+const COMPONENT_VALUE_UNITS = {
+  resistance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}(?:Ω|[oO]hms?)$`),
+  voltage: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}V$`),
+  current: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}A$`),
+  capacitance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}F$`),
+  inductance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}H$`),
+};
+
+/** A quantity without a symbol needs a dimension tied to the executable glyph. */
+function componentValueUnitMatches(entityId: string, unit: unknown, document: SceneDocument): boolean {
+  if (typeof unit !== "string" || !unit.trim()) return false;
+  const construction = document.constructions.find((candidate) =>
+    candidate.operator === "symbol" && candidate.outputs.includes(entityId));
+  const symbol = construction?.inputs.symbol;
+  if (typeof symbol !== "string") return false;
+  const kind = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalizedUnit = unit.trim().normalize("NFKC");
+  const matches = (dimension: keyof typeof COMPONENT_VALUE_UNITS) => COMPONENT_VALUE_UNITS[dimension].test(normalizedUnit);
+  switch (kind) {
+    case "resistor": case "lamp": case "galvanometer": return matches("resistance");
+    case "battery": case "cell": case "ac_source": case "alternating_source":
+    case "diode": case "zener": return matches("voltage");
+    case "voltmeter": return matches("voltage") || matches("resistance");
+    case "ammeter": return matches("current") || matches("resistance");
+    case "capacitor": return matches("capacitance");
+    case "inductor": case "coil": return matches("inductance");
+    default: return false;
+  }
+}
+
 function matchingQuantityText(
   designator: string,
   quantities: SceneDocument["quantities"],
+  exactId = false,
 ): string | undefined {
   const key = normalizeIdentifier(designator);
-  const quantity = quantities.find((candidate) =>
-    normalizeIdentifier(candidate.id) === key ||
-    (typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key),
+  const symbolMatches = quantities.filter((candidate) =>
+    typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key,
   );
-  if (!quantity) return undefined;
-  if (typeof quantity.label === "string" && quantity.label.trim()) return quantity.label.trim();
+  const exactMatches = quantities.filter((candidate) => candidate.id === designator);
+  const aliases = quantities.filter((candidate) =>
+    // IDs are opaque aliases, but cannot turn a declared physical r into R.
+    !(typeof candidate.symbol === "string" &&
+      normalizeIdentifier(candidate.symbol).toLowerCase() === key.toLowerCase() &&
+      normalizeIdentifier(candidate.symbol) !== key),
+  );
+  const exactAliases = aliases.filter((candidate) => candidate.id === designator);
+  const normalizedAliases = aliases.filter((candidate) => normalizeIdentifier(candidate.id) === key);
+  const candidates = exactId ? exactMatches
+    : symbolMatches.length > 0 ? symbolMatches
+    : exactAliases.length > 0 ? exactAliases
+    : normalizedAliases.length > 0 ? normalizedAliases
+    : aliases.filter((candidate) => normalizeIdentifier(candidate.id).toLowerCase() === key.toLowerCase());
+  // Conflicting aliases have no unique value. Do not make inventory order a
+  // source of physical authority.
+  const quantity = candidates[0];
+  if (!quantity || candidates.some((candidate) =>
+    candidate.value !== quantity.value || candidate.unit !== quantity.unit || candidate.label !== quantity.label,
+  )) return undefined;
+  if (!exactId && typeof quantity.label === "string" && quantity.label.trim()) return quantity.label.trim();
   const value = quantity.value;
   if (typeof value !== "number" && typeof value !== "string") return undefined;
+  if (exactId) {
+    // This inferred label is new ink: use the stored scalar, never a stale
+    // display label, an unresolved reference, or an underflowed literal.
+    if (typeof value === "string" && !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return undefined;
+    try { resolveNumber(value, new Map()); } catch { return undefined; }
+  }
   const unit = typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim())
     ? ` ${quantity.unit.trim()}`
     : "";
@@ -1277,7 +1477,7 @@ function matchingQuantityText(
 }
 
 function normalizeIdentifier(value: string): string {
-  return value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) =>
+  return value.trim().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)),
   );
 }
@@ -1427,7 +1627,9 @@ function createEntityTransformPlan(
   // constructed independently. Separate transforms would break the proven
   // join and scale its measurements against different coordinate systems.
   const connectsComponents = document.assertions.some((assertion) =>
-    assertion.predicate === "connected" && assertion.expected !== false &&
+    // A common transform preserves every proved geometric relation, including
+    // incidence, midpoint and relative distance, not just circuit connections.
+    (isVerifiedPartsEnabled(document) || (assertion.predicate === "connected" && assertion.expected !== false)) &&
     new Set(assertion.entities.flatMap((id) => {
       const component = componentByEntity.get(id);
       return component === undefined ? [] : [component];
@@ -1437,6 +1639,9 @@ function createEntityTransformPlan(
   // into a 2-column grid shrinks each cell until the handwritten value
   // fills the box and sits on the stroke.
   const canPack = document.source.synthesizedDsa !== true &&
+    // Cartesian axes and all planar geometry share the document world frame.
+    // Reveal order cannot turn that frame into independently fitted panels.
+    (!isVerifiedPartsEnabled(document) || !renderGeometry.some(([, value]) => value.kind === "axes")) &&
     !connectsComponents &&
     components.length > 1 &&
     componentGroups.every((groups) => groups.length === 1) &&
@@ -1543,7 +1748,7 @@ function dimensionLabelText(document: SceneDocument, entityId: string): string |
     (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(entityId) && annotation.text &&
     !(annotation.quantityId && entityLabel) && !(annotation.kind === "callout" && isViewSummaryText(annotation.text)),
   );
-  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text)
+  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
     : annotation?.text ?? entityLabel;
 }
 
@@ -1605,6 +1810,7 @@ function orderConstructionsByDependency(document: SceneDocument): Array<{
 /** Item/outcome names are local mathematical namespaces, not scene references. */
 function geometricDependencyInputs(construction: SceneDocument["constructions"][number]): unknown {
   switch (construction.operator) {
+    case "pv_process": return [];
     case "probability_tree":
     case "set_partition":
     case "permutation_cycles":
@@ -1791,6 +1997,7 @@ function evaluateConstruction(
     case "wave_sample": return evaluateWavesConstruction(operator, inputs, constructionContext);
     case "gaussian_image":
     case "optical_focus": return evaluateGeometricOpticsConstruction(operator, inputs, constructionContext);
+    case "pv_process": return evaluatePvProcessConstruction(inputs, document);
     case "polytropic_process":
     case "isochoric_process":
     case "process_state": return evaluateThermodynamicsConstruction(operator, inputs, constructionContext);
@@ -1859,7 +2066,7 @@ function evaluateConstruction(
     case "polygon":
     case "polyline": return [{ kind: "path", closed: operator === "polygon", points: resolvePointArray(first(inputs, ["points", "vertices"]), geometry) }];
     case "axes": return [{ kind: "axes", xMin: number(["xMin", "x_min"]), xMax: number(["xMax", "x_max"]), yMin: number(["yMin", "y_min"]), yMax: number(["yMax", "y_max"]) }];
-    case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities) }];
+    case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities, document) }];
     case "constraint_region": return [{ kind: "path", closed: true, points: constraintRegionPoints(inputs, quantities) }];
     case "implicit_curve": return [implicitCurveGeometry(inputs, quantities)];
     case "parametric_curve": return [parametricCurveGeometry(inputs, quantities)];
@@ -1888,7 +2095,7 @@ function evaluateConstruction(
     case "screen_pattern": return [screenPatternGeometry(inputs, geometry, quantities)];
     case "transverse_field": return [transverseFieldGeometry(inputs, geometry, quantities)];
     case "polarizer": return [polarizerGeometry(inputs, geometry, quantities)];
-    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities);
+    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities, isVerifiedPartsEnabled(document));
     case "spherical_surface": return [sphericalSurfaceFromInputs(inputs, geometry, quantities)];
     case "lens_section": return [lensSectionFromInputs(inputs, geometry, quantities)];
     case "reflect_at": return surfaceRayBundleGeometry(inputs, geometry, quantities, "reflect");
@@ -1945,7 +2152,7 @@ function evaluateConstruction(
       const symbol = first(inputs, ["symbol"]);
       if (typeof symbol !== "string") throw new Error("symbol must be a string");
       const lane = typeof inputs.__parallelLane === "number" ? inputs.__parallelLane : 0;
-      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, inputs.state), terminals: [start, end] }];
+      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, isVerifiedPartsEnabled(document), inputs.state), terminals: [start, end] }];
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
@@ -1971,6 +2178,7 @@ function evaluateConstruction(
       return [{ kind: "path", infinite: true, points: [vertex, { x: vertex.x + u.x + v.x, y: vertex.y + u.y + v.y }] }];
     }
     case "angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms")) throw new Error("incidentLineArms is only supported by right_angle_mark");
       const vertex = point(["vertex"]);
       const aRef = first(inputs, ["a", "first"]);
       const bRef = first(inputs, ["b", "second"]);
@@ -2004,9 +2212,13 @@ function evaluateConstruction(
       }];
     }
     case "right_angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms") && typeof inputs.incidentLineArms !== "boolean") {
+        throw new Error("right_angle_mark incidentLineArms must be boolean");
+      }
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const arm = inputs.incidentLineArms === true ? resolveIncidentLineArmPoint : resolveAngleArmPoint;
+      const a = arm(first(inputs, ["a", "first"]), vertex, geometry);
+      const b = arm(first(inputs, ["b", "second"]), vertex, geometry);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
       // A square corner asserts perpendicularity. Normalize first so the
@@ -2127,6 +2339,9 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   }
   let passed = false;
   let residual: number | undefined;
+  /** What the engine measured, reported when the assertion fails. */
+  let measured: unknown;
+  const report = (value: unknown) => { measured = value; };
   try {
     switch (predicate) {
       case "exists": passed = assertion.entities.every((id) => geometry.has(id) || document.entities.some((entity) => entity.id === id)); break;
@@ -2199,6 +2414,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
         break;
@@ -2214,6 +2430,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           ? markedAngles[1]!
           : values.length === 4 ? spaceAcuteAngle(values[2], values[3]) ?? acuteAngleBetween(asLine(values[2]), asLine(values[3])) : NaN;
         if (!Number.isFinite(firstAngle) || !Number.isFinite(secondAngle)) break;
+        measured = { degrees: [roundMeasured(firstAngle * 180 / Math.PI), roundMeasured(secondAngle * 180 / Math.PI)] };
         residual = Math.abs(firstAngle - secondAngle);
         passed = residual < tolerance(assertion);
         break;
@@ -2222,13 +2439,33 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
         // A world angle mark carries the angle it draws, so it can be proved alone.
         const markedWorldAngle = values.length === 1 ? spaceMarkedAngle(values[0]) : null;
         if (markedWorldAngle !== null) {
+          measured = { degrees: roundMeasured(markedWorldAngle * 180 / Math.PI) };
           residual = Math.abs(markedWorldAngle - expectedAngleRadians(assertion.expected));
           passed = residual < angularTolerance(assertion);
           break;
         }
         if (values.length !== 2) break;
         const expectedAngle = expectedAngleRadians(assertion.expected);
-        residual = Math.abs((spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]))) - expectedAngle);
+        const acute = spaceAcuteAngle(values[0], values[1]) ?? acuteAngleBetween(asLine(values[0]), asLine(values[1]));
+        residual = Math.abs(acute - expectedAngle);
+        // The angle the comparison reads, reported when the assertion fails.
+        let reading = acute;
+        // With verified parts, the claim is checked against the angle the
+        // figure actually forms: two directed vectors form one angle in
+        // [0, 180]; two undirected lines form both an angle and its supplement.
+        if (isVerifiedPartsEnabled(document) && spaceAcuteAngle(values[0], values[1]) === null) {
+          const directed = (value: Geometry | undefined) => value?.kind === "path" && value.directed === true;
+          const alternative = directed(values[0]) && directed(values[1])
+            ? directedAngleBetween(asLine(values[0]), asLine(values[1]))
+            : !directed(values[0]) && !directed(values[1]) ? Math.PI - acute : acute;
+          if (Math.abs(alternative - expectedAngle) < residual) reading = alternative;
+          residual = Math.min(residual, Math.abs(alternative - expectedAngle));
+          if (directed(values[0]) && directed(values[1])) {
+            residual = Math.abs(alternative - expectedAngle);
+            reading = alternative;
+          }
+        }
+        measured = { degrees: roundMeasured(reading * 180 / Math.PI) };
         passed = residual < angularTolerance(assertion);
         break;
       }
@@ -2303,6 +2540,8 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           return;
         }
         const ratio = numerator / denominator;
+        // Three-decimal rounding hid a 1.0004 ratio that still fails the 0.0001 check.
+        report({ ratio: Number(ratio.toPrecision(8)) });
         residual = Math.abs(ratio - Number(assertion.expected));
         passed = residual < tolerance(assertion);
         break;
@@ -2403,11 +2642,23 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           throw new Error("function_value expected must be {x, y}");
         }
         const sampled = values[0]?.kind === "path" ? values[0].sampledCurve : undefined;
+        const graph = !sampled && values[0]?.kind === "path" && !values[0].closed
+          ? piecewiseLinearGraph(values[0].points)
+          : null;
         if (sampled) {
           residual = sampledCurveCartesianResidual(sampled, { x: expected.x, y: expected.y }, expected);
+          report({ distanceFromPoint: roundMeasured(residual) });
+        } else if (graph) {
+          // A piecewise linear graph is read at x by its own vertices; a
+          // value outside its time span is not on the graph.
+          const y = expected.x >= graph.min && expected.x <= graph.max ? graph.evaluate(expected.x) : Number.NaN;
+          report(Number.isFinite(y) ? { x: expected.x, y: roundMeasured(y) } : { x: expected.x, outsideGraph: [graph.min, graph.max] });
+          residual = Number.isFinite(y) ? Math.abs(y - expected.y) : Number.POSITIVE_INFINITY;
         } else {
           const expression = curveExpression(assertion.entities[0], document);
-          residual = Math.abs(expression.evaluate(expected.x) - expected.y);
+          const y = expression.evaluate(expected.x);
+          report({ x: expected.x, y: roundMeasured(y) });
+          residual = Math.abs(y - expected.y);
         }
         passed = residual < tolerance(assertion);
         break;
@@ -2419,6 +2670,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           : isRecord(expected) && typeof expected.x === "number" ? expected.x : null;
         if (x === null) throw new Error("root expected must be x or {x}");
         const expression = curveExpression(assertion.entities[0], document);
+        report({ x, y: roundMeasured(expression.evaluate(x)) });
         residual = Math.abs(expression.evaluate(x));
         passed = residual < tolerance(assertion);
         break;
@@ -2446,7 +2698,61 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
     return;
   }
   if (assertion.expected === false) passed = !passed;
-  if (!passed) issues.push({ code: "assertion_failed", message: assertion.reason ?? `Assertion ${assertion.id} failed`, severity, entityIds: assertion.entities, expected: assertion.expected, residual });
+  if (!passed) {
+    issues.push({
+      code: "assertion_failed",
+      message: assertionFinding(assertion, measured, residual),
+      severity, entityIds: assertion.entities, expected: assertion.expected, residual,
+      ...(measured !== undefined ? { actual: measured } : {}),
+    });
+  }
+}
+
+/** What each predicate checks, in the engine's own terms. */
+const ASSERTION_RULES: Partial<Record<string, string>> = {
+  angle_between: "between two line or vector operands it measures the acute angle (0 to 90 degrees); with verified parts two directed vectors are read from 0 to 180 degrees and two lines also match the supplement; a single world angle-mark operand is read at the angle it draws",
+  equal_angle: "it compares two marked angles, or the acute angles of two line pairs",
+  equal_length: "it compares the lengths of the listed segments or point pairs",
+  distance_ratio: "it compares |first pair| / |second pair| with the expected ratio",
+  function_value: "the curve must pass through the expected point {x, y}",
+  root: "the curve must be zero at the expected x",
+  parallel: "the two operand directions must be parallel",
+  perpendicular: "the two operand directions must be perpendicular",
+  collinear: "the listed points must lie on one line",
+  on: "the point must lie on the support it names",
+  incident: "the point must lie on the support it names",
+  between: "the middle point must lie between the other two",
+  inside: "the first entity must lie inside the second",
+  same_side: "the points must lie on the same side of the line",
+  opposite_direction: "the two directions must point opposite ways",
+  connected: "the listed entities must share endpoints",
+  exists: "every listed entity must be constructed",
+  label_attached: "the label must be attached to its entity",
+};
+
+function roundMeasured(value: number): number {
+  return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
+}
+
+/**
+ * The engine's finding for a failed assertion: which assertion, on which
+ * entities, the rule its predicate checks, what was measured and what was
+ * expected. A candidate-authored reason is quoted as the claim; it never
+ * replaces the finding.
+ */
+function assertionFinding(assertion: SceneAssertion, measured: unknown, residual: number | undefined): string {
+  const rule = ASSERTION_RULES[assertion.predicate] ?? `the ${assertion.predicate} relation must hold`;
+  const negated = assertion.expected === false;
+  const found = negated ? "the relation holds, but the assertion expects it not to"
+    : measured !== undefined ? `measured ${JSON.stringify(measured)}, expected ${JSON.stringify(assertion.expected)}`
+      : residual !== undefined && Number.isFinite(residual) ? `residual ${roundMeasured(residual)}, expected ${JSON.stringify(assertion.expected ?? true)}`
+        : `it does not hold for the constructed geometry`;
+  const limit = typeof assertion.tolerance === "number" ? assertion.tolerance : 1e-4;
+  const gap = residual !== undefined && Number.isFinite(residual)
+    ? ` Difference ${Number(residual.toPrecision(12))}; required under ${limit}.`
+    : "";
+  const claim = assertion.reason ? ` The candidate's claim: "${assertion.reason}".` : "";
+  return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${gap}${claim}`;
 }
 
 function isDerivedDirection(entityId: string | undefined, document: SceneDocument): boolean {
@@ -2710,6 +3016,7 @@ function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (poi
 }
 
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if (value.kind === "pv_plot") return pvPlotPrimitives(value, entityId, groupId, transform);
   if (value.kind === "linear_region") {
     return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
@@ -3003,7 +3310,6 @@ function relocateObstructedDimensions(
   dimensionLanes: Map<string, number>,
   issues: SceneIssue[],
   measureLabelInk: TextInkBoundsMeasure,
-  place: typeof placeLabels = placeLabels,
 ): boolean {
   let changed = false;
   const fontHeightPx = document.source.synthesizedDsa === true ? DSA_LABEL_FONT_PX : 24;
@@ -3039,8 +3345,8 @@ function relocateObstructedDimensions(
       };
       // Other endpoint witnesses are real ink too. A free bar alone is not
       // enough if its label would straddle another measurement's connection.
-      return place([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
-        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }).ok;
+      return canPlaceSingleLabel(owner, [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
+        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
     if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -3159,7 +3465,18 @@ function emptyRenderScene(document: SceneDocument) {
     caption: compileSceneCaption(document),
   };
 }
-function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport { return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } }; }
+function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport {
+  // Repair prompts serialize these issues verbatim. Keep the pre-rollout model
+  // input shape when off; proof classifications belong to the opt-in policy.
+  const reportedIssues = isVerifiedPartsEnabled(document) ? issues : issues.map(issue => {
+    if (issue.failureKind === undefined && issue.proofKind === undefined) return issue;
+    const legacyIssue = { ...issue };
+    delete legacyIssue.failureKind;
+    delete legacyIssue.proofKind;
+    return legacyIssue;
+  });
+  return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues: reportedIssues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } };
+}
 function first(inputs: Record<string, unknown>, names: string[]): unknown { for (const name of names) if (inputs[name] !== undefined) return inputs[name]; throw new Error(`missing input ${names.join("|")}`); }
 function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>, seen = new Set<unknown>(), depth = 0): number {
   if (depth > 32 || seen.has(value)) throw new Error("numeric reference is cyclic or exceeds depth 32");
@@ -4284,6 +4601,7 @@ function opticalTrainGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  verifiedPartsEnabled: boolean,
 ): Geometry[] {
   const axis = resolveLine(first(inputs, ["axis"]), geometry);
   const objective = resolveLine(first(inputs, ["objective"]), geometry);
@@ -4329,8 +4647,7 @@ function opticalTrainGeometry(
   });
   const objectiveUpper = offset(objectiveCenter, beamHalfHeight);
   const objectiveLower = offset(objectiveCenter, -beamHalfHeight);
-  const eyepieceUpper = offset(eyepieceCenter, beamHalfHeight);
-  const eyepieceLower = offset(eyepieceCenter, -beamHalfHeight);
+
   const objectRef = inputs.object;
   const finalRef = inputs.finalImage !== undefined ? inputs.finalImage : inputs.virtualImage;
   const object = objectRef === undefined ? null : resolvePoint(objectRef, geometry);
@@ -4341,6 +4658,19 @@ function opticalTrainGeometry(
       object, focus, finalImage, beamHalfHeight, raySpan,
     });
   }
+  // Axis-parallel incoming rays focus on the axis. Between optical elements
+  // they remain straight through that focus; the focus itself cannot bend light.
+  const focusAlong = (focus.x - objectiveCenter.x) * axisDirection.x + (focus.y - objectiveCenter.y) * axisDirection.y;
+  const focusAcross = (focus.x - objectiveCenter.x) * transverse.x + (focus.y - objectiveCenter.y) * transverse.y;
+  if (verifiedPartsEnabled && (!(focusAlong > EPSILON && focusAlong < elementSeparation - EPSILON) || Math.abs(focusAcross) > EPSILON)) {
+    throw new Error("optical_train axis-parallel beam requires an on-axis focus between the elements");
+  }
+  if (verifiedPartsEnabled && finalImage && Math.abs((finalImage.x - objectiveCenter.x) * transverse.x + (finalImage.y - objectiveCenter.y) * transverse.y) > EPSILON) {
+    throw new Error("optical_train axis-parallel beam cannot form an off-axis final image");
+  }
+  const eyepieceHeight = verifiedPartsEnabled ? beamHalfHeight * (1 - elementSeparation / focusAlong) : beamHalfHeight;
+  const eyepieceUpper = offset(eyepieceCenter, eyepieceHeight);
+  const eyepieceLower = offset(eyepieceCenter, -eyepieceHeight);
   const incomingUpperStart = advance(objectiveUpper, -raySpan);
   const incomingLowerStart = advance(objectiveLower, -raySpan);
   const outgoingDirection = (hit: Point): Point => {
@@ -4689,6 +5019,28 @@ function functionCurveReference(value: unknown, geometry: Map<string, Geometry>,
   return curve;
 }
 
+/**
+ * A graph y = f(x) a region or a value check can read: a function_curve, or an
+ * open polyline (a `polyline` or a `motion_graph`) whose vertices strictly
+ * increase in x. The polyline keeps its own vertices as breakpoints.
+ */
+function graphBoundaryReference(value: unknown, geometry: Map<string, Geometry>, name: string): GraphBoundary {
+  if (typeof value !== "string") throw new Error(`${name} must reference a constructed graph`);
+  const path = geometry.get(value);
+  if (path?.kind === "path" && path.sampledCurve) {
+    const curve = functionCurveReference(value, geometry, name);
+    return {
+      min: curve.parameterMin,
+      max: curve.parameterMax,
+      breakpoints: [],
+      evaluate: (x: number) => curve.evaluate(x).y,
+    };
+  }
+  const graph = path?.kind === "path" && !path.closed ? piecewiseLinearGraph(path.points) : null;
+  if (!graph) throw new Error(`${name} must reference a function_curve or a polyline graph with strictly increasing x`);
+  return graph;
+}
+
 function sampledCurveDerivative(curve: SampledCurve, at: number): Point {
   assertParameterInDomain(curve, at, "curve derivative", true);
   if (curve.derivative) {
@@ -4788,35 +5140,47 @@ function functionRegionPoints(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  document: SceneDocument,
 ): Point[] {
   const upperId = first(inputs, ["upper", "top", "above"]);
   const lowerId = first(inputs, ["lower", "bottom", "below"]);
   if (typeof upperId !== "string" || typeof lowerId !== "string") throw new Error("function_region requires upper and lower curve IDs");
-  const upper = functionCurveReference(upperId, geometry, "function_region upper");
-  const lower = functionCurveReference(lowerId, geometry, "function_region lower");
+  // A motion graph is drawn at origin + t * timeScale, while the other
+  // boundary and xMin/xMax are written in seconds. Only the identity
+  // placement keeps the two in the same units.
+  for (const id of [upperId, lowerId]) {
+    const producer = document.constructions.find((construction) => construction.outputs.includes(id));
+    if (producer?.operator !== "motion_graph") continue;
+    const timeScale = resolveNumber(producer.inputs.timeScale, quantities);
+    const origin = producer.inputs.origin === undefined ? { x: 0, y: 0 } : resolvePoint(producer.inputs.origin, geometry);
+    if (timeScale !== 1 || origin.x !== 0 || origin.y !== 0) {
+      throw new Error("function_region over a motion_graph requires timeScale 1 and its origin at (0, 0)");
+    }
+  }
+  const upper = graphBoundaryReference(upperId, geometry, "function_region upper");
+  const lower = graphBoundaryReference(lowerId, geometry, "function_region lower");
   const xMin = inputs.xMin === undefined
-    ? Math.max(upper.parameterMin, lower.parameterMin)
+    ? Math.max(upper.min, lower.min)
     : resolveNumber(inputs.xMin, quantities);
   const xMax = inputs.xMax === undefined
-    ? Math.min(upper.parameterMax, lower.parameterMax)
+    ? Math.min(upper.max, lower.max)
     : resolveNumber(inputs.xMax, quantities);
   if (!(xMin < xMax)) throw new Error("function_region requires a non-empty shared domain");
-  assertParameterInDomain(upper, xMin, "function_region upper boundary");
-  assertParameterInDomain(upper, xMax, "function_region upper boundary");
-  assertParameterInDomain(lower, xMin, "function_region lower boundary");
-  assertParameterInDomain(lower, xMax, "function_region lower boundary");
+  for (const [boundary, name] of [[upper, "upper"], [lower, "lower"]] as const) {
+    if (!(xMin >= boundary.min && xMax <= boundary.max)) {
+      throw new Error(`function_region ${name} boundary parameter must be within the curve domain`);
+    }
+  }
   const samples = inputs.samples === undefined ? 65 : resolveNumber(inputs.samples, quantities);
   if (!Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) throw new Error("function_region samples must be an odd integer from 17 to 161");
-  const lowerPoints = Array.from({ length: samples }, (_, index) =>
-    lower.evaluate(xMin + (xMax - xMin) * index / (samples - 1)),
-  );
-  const upperPoints = Array.from({ length: samples }, (_, index) =>
-    upper.evaluate(xMin + (xMax - xMin) * index / (samples - 1)),
-  );
-  if (upperPoints.some((point, index) => point.y + EPSILON < lowerPoints[index]!.y)) {
+  // The grid carries every corner of a piecewise linear boundary, so the
+  // region under a motion graph is the graph's own vertices, not a chord.
+  const boundary = graphRegionBoundary(upper, lower, xMin, xMax, samples);
+  const half = boundary.length / 2;
+  if (boundary.slice(0, half).some((point, index) => boundary[boundary.length - 1 - index]!.y + EPSILON < point.y)) {
     throw new Error("function_region upper curve falls below its lower curve inside the requested domain");
   }
-  return [...lowerPoints, ...upperPoints.reverse()];
+  return boundary;
 }
 
 /**
@@ -5099,7 +5463,16 @@ function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<
         document.annotations.some((annotation) => annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) ||
         (construction.operator === "label" && numericClaim(construction.inputs.text));
       if (claim && hasDisplayAncestor([id], geometry, document, hasIndependentDisplayMetric)) {
-        issues.push({code:"invalid_display_derived_claim",message:"A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner",severity:"fatal",entityIds:[id]});
+        if (!isVerifiedPartsEnabled(document)) {
+          issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal", entityIds: [id] });
+          continue;
+        }
+        const add = (path: string) => issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal" as const, failureKind: "proof" as const, entityIds: [id], path });
+        document.entities.forEach((entity, index) => { if (entity.id === id && numericClaim(entity.label)) add(`entities[${index}].label`); });
+        document.annotations.forEach((annotation, index) => {
+          if (annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) add(`annotations[${index}].text`);
+        });
+        if (construction.operator === "label" && numericClaim(construction.inputs.text)) add(`constructions[${document.constructions.indexOf(construction)}].inputs.text`);
       }
     }
   }
@@ -5145,6 +5518,26 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
 }
+/** Opt-in straight-owner incidence; default angle-arm endpoint semantics stay unchanged. */
+function resolveIncidentLineArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+  if (typeof value !== "string") throw new Error("incident angle arm must reference an existing straight path");
+  const resolved = geometry.get(value);
+  assertPlanarGeometry(resolved);
+  if (resolved?.kind !== "path" || resolved.closed || resolved.sampledCurve !== undefined || resolved.points.length !== 2) {
+    throw new Error("incident angle arm must reference an existing straight path");
+  }
+  const [a, b] = resolved.points as [Point, Point], span = distance(a, b);
+  if (!(span > EPSILON)) throw new Error("incident angle arm is degenerate");
+  if (pointGeometryResidual({ kind: "point", point: vertex }, resolved) > EPSILON) {
+    throw new Error("incident angle vertex is not on its straight arm");
+  }
+  if (!geometryCanReachTarget(resolved, vertex, EPSILON)) {
+    throw new Error("incident angle vertex is behind its ray origin");
+  }
+  if (distance(b, vertex) > EPSILON) return b;
+  if (distance(a, vertex) > EPSILON) return a;
+  throw new Error("incident angle arm has no noncoincident endpoint");
+}
 function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
 function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   if (typeof value === "string") {
@@ -5182,6 +5575,11 @@ function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(di
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
 function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function directedAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
+  const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
+  const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
+  return Math.acos(Math.max(-1, Math.min(1, firstDirection.x * secondDirection.x + firstDirection.y * secondDirection.y)));
+}
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });
@@ -5294,7 +5692,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -5449,17 +5847,6 @@ function isOpenLabelPath(value: Geometry | undefined): value is Extract<Geometry
     (value.points.length < 3 || distance(value.points[0]!, value.points.at(-1)!) > EPSILON);
 }
 
-function isFiniteValueCarrier(value: Geometry | undefined, entityKind?: string): boolean {
-  return entityKind !== "component" && (value?.kind === "arc" || value?.kind === "dimension" || (isOpenLabelPath(value) && !value.infinite));
-}
-
-function isLabelSummary(annotation: SceneAnnotation, value: Geometry | undefined, entityLabel?: string, entityKind?: string): boolean {
-  if (entityKind === "component") return (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
-    (Boolean(annotation.quantityId) && Boolean(entityLabel));
-  if (value?.kind === "path" && value.infinite && annotation.quantityId && entityLabel) return true;
-  return isViewSummaryAnnotation(annotation, value && isFiniteValueCarrier(value, entityKind) ? value.kind : undefined, entityLabel);
-}
-
 function assertScreenAttachedLabels(
   document: SceneDocument,
   geometry: Map<string, Geometry>,
@@ -5490,14 +5877,21 @@ function assertScreenAttachedLabels(
       severity: "fatal", entityIds: [owner.entityId, label.id],
     });
   }
-  // An angle's rendered label must keep the same wedge as its evaluated arc,
-  // regardless of which owner path (entity, annotation, or measure) made it.
-  const angleMarkIds = new Set(document.constructions.filter((construction) => construction.operator === "angle_mark").flatMap((construction) => construction.outputs));
-  for (const label of primitives.filter((primitive) => policy === "attached" && primitive.kind === "label" && angleMarkIds.has(primitive.entityId))) {
-    const arc = primitives.find((primitive) => primitive.entityId === label.entityId && primitive.kind === "arc");
-    if (!arc?.points[0] || arc.startAngle === undefined || arc.endAngle === undefined || !label.points[0]) continue;
-    if (!pointInAngleWedge(label.points[0], { center: arc.points[0], startAngle: arc.startAngle, endAngle: arc.endAngle })) {
-      issues.push({ code: "label_outside_angle_wedge", message: `Label ${label.id} left the angle wedge of ${arc.entityId}`, severity: "fatal", entityIds: [label.entityId, label.id] });
+  // A label the attached policy moved or restricted keeps MAIN's ownership
+  // guard on its final box, against every visible stroke, with a clear margin.
+  // Anything less is MAIN's placement instead (the transaction retries native).
+  if (policy === "attached") {
+    const strokeObstacles = obstaclesFromPrimitives(primitives.filter((primitive) => primitive.kind !== "label"));
+    for (const owner of owners) {
+      if (!owner.strokeRelocation && !owner.strokeAttachment) continue;
+      const label = primitives.find(primitive => primitive.id === (owner.labelId ?? `primitive_${owner.entityId}_label`) && primitive.kind === "label");
+      if (!label || label.provenance?.usesLeader === true) continue;
+      const box = (label.provenance?.labelCollisionBounds ?? label.provenance?.labelBounds) as StrokeLabelPlacement["bounds"] | undefined;
+      const margin = box ? labelStrokeOwnershipMargin(owner, strokeObstacles, box) : null;
+      if (margin !== null && !(margin >= LABEL_OWNERSHIP_CLEAR_MARGIN_PX)) issues.push({
+        code: "label_unattached", message: `Label ${label.id} is not clearly nearer its own stroke than another stroke`,
+        severity: "fatal", entityIds: [owner.entityId, label.id],
+      });
     }
   }
   for (const assertion of document.assertions) {
@@ -5552,7 +5946,7 @@ function compileSceneCaption(document: SceneDocument): string | undefined {
       parts.push(annotation.text);
       continue;
     }
-    if (!compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
+    if (!compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document)) && !isViewSummaryText(annotation.text)) {
       parts.push(annotation.text);
     }
   }
@@ -5580,7 +5974,7 @@ function attachAngleMeasureLabels(
     );
     if (annotation) consumedAnnotationIds.add(annotation.id);
     const quantityText = annotation?.quantityId
-      ? matchingQuantityText(annotation.quantityId, document.quantities)
+      ? matchingQuantityText(annotation.quantityId, document.quantities, true)
       : matchingQuantityText(entityId, document.quantities);
     const assertion = document.assertions.find((candidate) =>
       candidate.predicate === "angle_between" &&
@@ -5878,6 +6272,7 @@ function signatureNumber(value: number): string {
 }
 
 function geometrySignature(value: Geometry): string {
+  if (value.kind === "pv_plot") return `pv:${JSON.stringify(value.pvPlot)}`;
   if (value.kind === "point") return `point:${pointKey(value.point)}`;
   if (value.kind === "path") {
     const forward = value.points.map(pointKey).join("|");
@@ -6078,7 +6473,7 @@ function coincidentAxisRayAliases(
     (second.includes("axis") && first.includes("ray"));
 }
 
-function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown): Point[][] {
+function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
   const normalizedSymbol = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const normalizedState = typeof state === "string" ? state.trim().toLowerCase() : state;
   if (state !== undefined && (normalizedSymbol !== "switch" || (normalizedState !== "open" && normalizedState !== "closed"))) {
@@ -6165,7 +6560,7 @@ function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown):
       : [at(0.68, -0.17), at(0.68, 0.17)];
     return [
       [at(0), at(0.32)],
-      [at(0.32, -0.16), at(0.32, 0.16), at(0.64), at(0.32, -0.16)],
+      [at(0.32, -0.16), at(0.32, 0.16), at(verifiedPartsEnabled ? 0.68 : 0.64), at(0.32, -0.16)],
       cathode,
       [at(0.68), at(1)],
     ];
@@ -6191,8 +6586,8 @@ function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown):
   throw new Error(`unsupported symbol ${normalizedSymbol}`);
 }
 
-function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, state?: unknown): Point[][] {
-  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, state);
+function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
+  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, verifiedPartsEnabled, state);
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
   const offset = distance(start, end) * lane;
@@ -6200,7 +6595,7 @@ function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: numbe
   const shiftedEnd = { x: end.x + normal.x * offset, y: end.y + normal.y * offset };
   return [
     [start, shiftedStart],
-    ...symbolPaths(symbol, shiftedStart, shiftedEnd, state),
+    ...symbolPaths(symbol, shiftedStart, shiftedEnd, verifiedPartsEnabled, state),
     [shiftedEnd, end],
   ];
 }

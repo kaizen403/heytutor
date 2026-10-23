@@ -8,7 +8,7 @@
  * validation judges collapse and edge-on guards under the same projection.
  * A document without a space_frame has no plan, so nothing else changes.
  */
-import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, projectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
+import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, createProjectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
 import { planeFromCartesian, type SpaceProjection, type Vec3 } from "../math/space";
 import type { SceneConstruction, SceneDocument } from "../types";
 import { pointLabelText, type PointLabelText } from "./pointLabelText";
@@ -428,8 +428,6 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     frames.set(frame.id, { axisMin: { x: axisMin[0]!, y: axisMin[1]!, z: axisMin[2]! }, axisMax: { x: axisMax[0]!, y: axisMax[1]!, z: axisMax[2]! } });
   }
 
-  // pointLabelText uses the native policy here: enhanced attachment must not
-  // change projection, plane extents or physical framing between attempts.
   const named = world.points.flatMap((item) => {
     const label = item.id ? pointLabelText(document, item.id) : null;
     return label ? [{ ...item, label }] : [];
@@ -637,8 +635,9 @@ function withLabelRoom(choice: ProjectionChoice, world: World, named: NamedPoint
   const first = labelRoom(choice.projection, world, named, frames, lines, planes);
   if (enough(first)) return { choice, planes };
   let best = { choice, planes, room: first };
+  const metricsFor = createProjectionMetrics(constraints);
   const acceptable = SPACE_PROJECTION_CANDIDATES.flatMap((projection) => {
-    const metrics = projectionMetrics(projection, constraints);
+    const metrics = metricsFor(projection);
     return metrics.passesFloors && metrics.score >= 0.85 && projection !== choice.projection ? [{ projection, metrics }] : [];
   });
   const options: ProjectionChoice[] = [choice, ...acceptable.map(({ projection, metrics }): ProjectionChoice => ({

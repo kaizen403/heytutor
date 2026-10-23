@@ -1,0 +1,84 @@
+[
+  {
+    "id": "sample-original",
+    "kind": "thermal",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 K to 310 K with no phase change. Find q.",
+    "draw": true,
+    "heatJ": 200
+  },
+  {
+    "id": "sample-shared-source",
+    "kind": "thermal",
+    "question": "The heat capacity of a sample is 25 J K^-1. It is heated from 300 K to 310 K. Calculate the heat absorbed and draw the heat account.",
+    "draw": true,
+    "heatJ": 250
+  },
+  {
+    "id": "sample-value-transfer",
+    "kind": "thermal",
+    "question": "The heat capacity of a sample is 30 J/K. It is heated from 310 K to 330 K with no phase change. Find q.",
+    "draw": true,
+    "heatJ": 600
+  },
+  {
+    "id": "sample-damaged-capacity",
+    "kind": "thermal",
+    "question": "The heat capacity of a sample is 25 kg. It is heated from 300 K to 310 K. Calculate the heat absorbed and draw the heat account.",
+    "draw": false
+  },
+  {
+    "id": "sample-conflicting-range",
+    "kind": "thermal",
+    "question": "The heat capacity of a sample is 25 J K^-1. It is heated from 300 K to 310 K. The temperature rise is 20 K. Calculate the heat absorbed and draw the heat account.",
+    "draw": false
+  },
+  {
+    "id": "cu-ammonia-original",
+    "kind": "subject",
+    "question": "Explain complex formation between copper ions and ammonia.",
+    "chemistry": true
+  },
+  {
+    "id": "complex-ion-original",
+    "kind": "subject",
+    "question": "Name the complex ion formed when excess ammonia is added.",
+    "chemistry": true
+  },
+  {
+    "id": "capital-complex-labels-original",
+    "kind": "subject",
+    "question": "Which is more stable, complex Z or complex W?",
+    "chemistry": true
+  },
+  {
+    "id": "complex-number-original",
+    "kind": "subject",
+    "question": "For complex z, sketch |z \u2212 1| \u2264 2.",
+    "chemistry": false
+  },
+  {
+    "id": "kinetics-ncert-original",
+    "kind": "kinetics",
+    "question": "The rate of a chemical reaction doubles for an increase of 10K in absolute temperature from 298K. Calculate Ea.",
+    "draw": true,
+    "T1K": 298,
+    "T2K": 308,
+    "ratio": 2,
+    "activationEnergyJMol": 52893.51923585699
+  },
+  {
+    "id": "kinetics-ncert-transfer",
+    "kind": "kinetics",
+    "question": "The rate of a chemical reaction triples for an increase of 20 K in absolute temperature from 300 K. Calculate Ea.",
+    "draw": true,
+    "T1K": 300,
+    "T2K": 320,
+    "ratio": 3
+  },
+  {
+    "id": "mathematical-half-life",
+    "kind": "kinetics",
+    "question": "For a first order differential equation the half life is 20 min. Plot the fraction remaining after 60 min.",
+    "draw": false
+  }
+]

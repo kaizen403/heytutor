@@ -1,7 +1,9 @@
 /**
- * Final rendered labels retain their angle wedge and geometric carrier.
- * These small Euclidean fixtures are independently constructed; recorded
- * student questions stay in the private offline replay, outside this gate.
+ * Final rendered labels retain their geometric carrier, and values keep MAIN's
+ * summary stack: an "X = value" or quantity label is never moved onto a stroke
+ * (beside a segment it would read as that segment's measure), and one entity
+ * keeps MAIN's single label. These small Euclidean fixtures are independently
+ * constructed; recorded questions stay in verify-label-placement-review-rows.
  *
  * pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-geometric-label-attachment.ts
  */
@@ -44,69 +46,6 @@ function only(primitives: RenderPrimitive[], id: string): RenderPrimitive {
   assert.ok(primitive, `missing rendered primitive ${id}`);
   return primitive;
 }
-function normalize(angle: number): number { return Math.atan2(Math.sin(angle), Math.cos(angle)); }
-function assertWedge(primitives: RenderPrimitive[], entityId: string): void {
-  const arc = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "arc");
-  assert.ok(arc?.points[0] && arc.startAngle !== undefined && arc.endAngle !== undefined, `${entityId} retains its arc`);
-  const labels = primitives.filter((primitive) => primitive.entityId === entityId && primitive.kind === "label");
-  assert.ok(labels.length > 0, `${entityId} retains its label`);
-  const sweep = normalize(arc.endAngle - arc.startAngle);
-  for (const label of labels) {
-    const center = label.points[0]!;
-    const delta = normalize(Math.atan2(center.y - arc.points[0].y, center.x - arc.points[0].x) - arc.startAngle);
-    assert.ok(sweep >= 0 ? delta >= -1e-6 && delta <= sweep + 1e-6 : delta <= 1e-6 && delta >= sweep - 1e-6,
-      `${label.id} centre (${center.x}, ${center.y}) left its rendered arc wedge`);
-  }
-}
-
-// A 30° ray above an elevated horizontal, with a tangent parabola passing
-// nearby: the same geometry relationship as a launch-angle figure. Rotation,
-// reflection, translation and scale change only the Euclidean coordinates.
-function elevatedAngle(rotation: number, reflected = false, scale = 1): SceneDocument {
-  const document = scene();
-  const transform = (x: number, y: number): [number, number] => {
-    const dx = reflected ? -x : x;
-    return [11 + scale * (dx * Math.cos(rotation) - y * Math.sin(rotation)), -7 + scale * (dx * Math.sin(rotation) + y * Math.cos(rotation))];
-  };
-  for (const [id, x, y] of [
-    ["base", 0, 0], ["vertex", 0, 4], ["left", -1.2, 4], ["ground_end", 7.5, 0],
-    ["ray_end", Math.sqrt(3), 5], ["reference_end", 2, 4],
-  ] as const) point(document, id, ...transform(x, y));
-  path(document, "wall", "base", "vertex"); path(document, "roof", "left", "vertex");
-  path(document, "ground", "base", "ground_end"); path(document, "reference", "vertex", "reference_end");
-  path(document, "ray", "vertex", "ray_end", "vector", "u");
-  document.entities.push({ id: "trajectory", kind: "polyline", role: "tangent curve" }, { id: "angle", kind: "angle_mark", role: "angle", label: "α = 30°" });
-  document.constructions.push(
-    { id: "make_curve", operator: "polyline", inputs: { points: Array.from({ length: 65 }, (_, i) => {
-      const x = (4 * Math.sqrt(3) * i) / 64;
-      return transform(x, 4 + x / Math.sqrt(3) - x * x / 6);
-    }) }, outputs: ["trajectory"] },
-    { id: "make_angle", operator: "angle_mark", inputs: { vertex: "vertex", a: "reference", b: "ray", radius: 0.5 * scale }, outputs: ["angle"] },
-  );
-  document.quantities.push({ id: "alpha", symbol: "α", value: 30, unit: "degree", provenance: "given" });
-  document.assertions.push({ id: "given_angle", predicate: "angle_between", entities: ["reference", "ray"], expected: { value: 30, unit: "degree" }, severity: "fatal" });
-  return document;
-}
-for (const [name, rotation, reflected, scale] of [
-  ["elevated 30 degree angle", 0, false, 1], ["quarter turn", Math.PI / 2, false, 1],
-  ["reflected angle", 0, true, 1], ["angle crossing pi", 17 * Math.PI / 18, false, 1],
-  ["translated scaled angle", Math.PI / 3, false, 2],
-] as const) check(name, () => assertWedge(compiled(elevatedAngle(rotation, reflected, scale)), "angle"));
-
-check("nested angles retain their own wedge", () => {
-  const document = scene();
-  point(document, "origin", 0, 0); point(document, "end", 3.84, 0);
-  point(document, "lower_tip", 0.56, 0.42); point(document, "higher_tip", 0.6, 0.8);
-  path(document, "reference", "origin", "end");
-  for (const [name, radius] of [["lower", 0.3], ["higher", 0.5]] as const) {
-    path(document, `${name}_ray`, "origin", `${name}_tip`, "vector");
-    document.entities.push({ id: name, kind: "angle_mark", role: "angle", label: `α_${name}` });
-    document.constructions.push({ id: `make_${name}`, operator: "angle_mark", inputs: { vertex: "origin", a: "reference", b: `${name}_ray`, radius }, outputs: [name] });
-  }
-  const primitives = compiled(document);
-  assertWedge(primitives, "lower"); assertWedge(primitives, "higher");
-});
-
 function distanceToStroke(point: RenderPoint, carrier: RenderPrimitive): number {
   if (carrier.points.length === 1) return Math.hypot(point.x - carrier.points[0]!.x, point.y - carrier.points[0]!.y);
   return Math.min(...carrier.points.slice(1).map((end, index) => {
@@ -126,29 +65,46 @@ function assertAttached(primitives: RenderPrimitive[], label: RenderPrimitive, c
   if (leader) assert.ok(distanceToStroke(leader.points[0]!, carrier) <= 0.05, `${leader.id} starts on its exact carrier`);
 }
 
-check("quantity-bound vector value retains its carrier", () => {
+function assertSummary(value: RenderPrimitive, text: string): void {
+  assert.equal(value.text, text, "the complete authored value remains visible");
+  assert.equal(value.provenance?.summary, true, `${value.id} keeps MAIN's summary stack instead of moving onto a stroke`);
+  assert.notEqual(value.provenance?.usesLeader, true, "a summary does not gain a guessed connector");
+}
+
+check("quantity-bound vector value keeps the summary stack", () => {
   const document = scene(); point(document, "O", 0, 0); point(document, "U", -3, 4);
   path(document, "velocity", "O", "U", "vector", "v");
   document.quantities.push({ id: "speed", symbol: "v", value: 5, unit: "m/s", provenance: "given" });
   document.annotations.push({ id: "speed_value", kind: "label", targetIds: ["velocity"], quantityId: "speed", text: "5 m/s" });
-  const primitives = compiled(document), carrier = only(primitives, "primitive_velocity");
-  const label = primitives.find((primitive) => primitive.kind === "label" && primitive.text?.includes("5 m/s"));
-  assert.ok(label, "the scalar value remains visible"); assertAttached(primitives, label, carrier);
+  const primitives = compiled(document);
+  assertSummary(only(primitives, "speed_value"), "5 m/s");
+  assertAttached(primitives, only(primitives, "primitive_velocity_label"), only(primitives, "primitive_velocity"));
 });
 
-check("two scalar values on one carrier survive owner deduplication", () => {
+check("two scalar values on one body both keep the summary stack", () => {
   const document = scene(); point(document, "body", 0, 0);
   document.entities[0]!.label = "P";
   for (const [id, symbol, value, unit] of [["mass", "m", 2, "kg"], ["charge", "q", 3, "C"]] as const) {
     document.quantities.push({ id, symbol, value, unit, provenance: "given" });
     document.annotations.push({ id: `label_${id}`, kind: "label", targetIds: ["body"], quantityId: id, text: `${value} ${unit}` });
   }
-  const primitives = compiled(document), carrier = only(primitives, "primitive_body");
-  const labels = ["2 kg", "3 C"].map((text) => {
-    const label = primitives.find((primitive) => primitive.kind === "label" && primitive.text?.includes(text));
-    assert.ok(label, `${text} remains visible rather than being deduplicated`); return label;
-  });
-  for (const label of labels) assertAttached(primitives, label, carrier);
+  const primitives = compiled(document);
+  assertSummary(only(primitives, "label_mass"), "2 kg");
+  assertSummary(only(primitives, "label_charge"), "3 C");
+});
+
+// Row 653 of the frozen set: "air" and "glass" both aimed at one boundary.
+// MAIN draws the first label only; nothing proves the second one's side.
+check("a second label on one entity keeps MAIN's single label", () => {
+  const document = scene(); point(document, "A", 0, -2); point(document, "B", 0, 2);
+  path(document, "boundary", "A", "B");
+  document.annotations.push(
+    { id: "airLabel", kind: "label", targetIds: ["boundary"], text: "air", placementIntent: "left" },
+    { id: "glassLabel", kind: "label", targetIds: ["boundary"], text: "glass", placementIntent: "right" },
+  );
+  const primitives = compiled(document);
+  const labels = primitives.filter((primitive) => primitive.kind === "label" && primitive.entityId === "boundary");
+  assert.deepEqual(labels.map((label) => label.text), ["air"], "only the first label on the boundary is drawn");
 });
 
 check("diagonal vector name stays beside its actual stroke", () => {
@@ -172,14 +128,23 @@ for (const degrees of [270, 360]) check(`generic ${degrees} degree arc remains a
   assert.ok(primitives.some((primitive) => primitive.entityId === "curve" && primitive.kind === "label"), "generic arc keeps its label");
 });
 
-check("assignment callout remains on its unlabelled vector", () => {
+check("assignment callout on an unlabelled vector keeps the summary stack", () => {
   const document = scene(); point(document, "O", 0, 0); point(document, "A", -3, 4); point(document, "B", 0, 4);
   path(document, "diagonal", "O", "A", "vector");
   path(document, "horizontal", "A", "B", "vector"); path(document, "vertical", "O", "B", "vector");
   document.quantities.push({ id: "speed", symbol: "v", value: 5, unit: "m/s", provenance: "given" });
   document.annotations.push({ id: "value", kind: "callout", targetIds: ["diagonal"], text: "v = 5 m/s" });
-  const primitives = compiled(document);
-  assertAttached(primitives, only(primitives, "value"), only(primitives, "primitive_diagonal"));
+  assertSummary(only(compiled(document), "value"), "v = 5 m/s");
+});
+
+// Rows 518 and 590 of the frozen set: "r = 60 m" aimed at a banked road.
+// Beside the incline it would read as the road's length.
+check("assignment value aimed at a labelled segment keeps the summary stack", () => {
+  const document = scene(); point(document, "A", 0, 0); point(document, "B", 4, 1);
+  path(document, "road", "A", "B", "segment", "banked surface");
+  document.quantities.push({ id: "radius", symbol: "r", value: 60, unit: "m", provenance: "given" });
+  document.annotations.push({ id: "radiusGiven", kind: "callout", targetIds: ["road"], quantityId: "radius", text: "r = 60 m" });
+  assertSummary(only(compiled(document), "radiusGiven"), "r = 60 m");
 });
 
 for (const [name, text, value, unit] of [
@@ -207,16 +172,12 @@ for (const kind of ["line", "ray"]) for (const text of ["n = 2", "2"]) check(`${
   assert.notEqual(value.provenance?.usesLeader, true, "the scalar must not gain a guessed stroke connector");
 });
 
-for (const [text, summary] of [["3 kg", false], ["m=3kg", true]] as const) check(`body value ${text} retains ${summary ? "self-describing summary" : "point attachment"}`, () => {
+for (const text of ["3 kg", "m=3kg"] as const) check(`body value ${text} keeps the summary stack`, () => {
   const document = scene(); point(document, "body", 0, 0);
   document.entities[0]!.label = "m";
   document.quantities.push({ id: "mass", symbol: "m", value: 3, unit: "kg", provenance: "given" });
   document.annotations.push({ id: "body_mass", kind: "label", targetIds: ["body"], quantityId: "mass", text });
-  const primitives = compiled(document), value = only(primitives, "body_mass");
-  assert.equal(value.text, text, "the complete authored value remains visible");
-  assert.equal(value.provenance?.summary === true, summary, "only the self-describing assignment belongs in the summary stack");
-  if (summary) assert.notEqual(value.provenance?.usesLeader, true, "a summary does not gain a guessed connector");
-  else assertAttached(primitives, value, only(primitives, "primitive_body"));
+  assertSummary(only(compiled(document), "body_mass"), text);
 });
 
 for (const kind of ["segment", "vector"]) check(`a later ${kind} target cannot consume a body's quantity label`, () => {
@@ -227,8 +188,7 @@ for (const kind of ["segment", "vector"]) check(`a later ${kind} target cannot c
   document.annotations.push({ id: "mass_value", kind: "label", targetIds: ["body", "span"], quantityId: "mass", text: "2 kg" });
   const primitives = compiled(document), value = only(primitives, "mass_value");
   assert.equal(value.entityId, "body", "quantity annotation keeps its first-target owner");
-  assert.equal(value.text, "2 kg", "the original complete body value survives");
-  assertAttached(primitives, value, only(primitives, "primitive_body"));
+  assertSummary(value, "2 kg");
   assert.ok(primitives.some((primitive) => primitive.kind === "label" && primitive.entityId === "span" && primitive.text === "s"), "the separate carrier retains its own name");
 });
 

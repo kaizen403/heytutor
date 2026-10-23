@@ -68,7 +68,7 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   // Laws of motion
   { id: "incline-fbd", archetype: "incline_body", tier: "exact_verified", operators: ["normal_at", "vector_components"], annotations: ["hatch"], question: "A block of mass 5 kg rests on a rough inclined plane of inclination 37 degrees. The coefficient of friction is 0.4. Draw the free-body diagram and find the acceleration of the block." },
   { id: "incline-block-30", archetype: "incline_body", tier: "exact_verified", operators: ["normal_at"], annotations: ["hatch"], symbols: {}, question: "A block rests on a 30 degree incline. Draw the free-body diagram." },
-  { id: "kirchhoff-bilingual", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", question: "wlefeettiex ferandh Kirchhoff ke niyam likhiye an arent fara. Using Kirchhoff's rules calculate the current in each branch of the circuit and explain the figure. qwrt zxcv pqrs." },
+  { id: "kirchhoff-bilingual", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", declines: true, question: "wlefeettiex ferandh Kirchhoff ke niyam likhiye an arent fara. Using Kirchhoff's rules calculate the current in each branch of the circuit and explain the figure. qwrt zxcv pqrs." },
   { id: "atwood", archetype: "atwood", tier: "qualitative_verified", question: "Two masses 3 kg and 5 kg are connected by a light string passing over a frictionless pulley. Find the acceleration of the system and the tension in the string." },
   { id: "pulley-incline", archetype: "pulley_incline", tier: "exact_verified", question: "A 2 kg block on a 37° rough incline is connected by a light inextensible string over a smooth pulley to a hanging 3 kg block. Coefficient of friction 0.2. Find the acceleration." },
   { id: "lift", archetype: "lift_body", tier: "qualitative_verified", question: "A man of mass 70 kg stands in a lift accelerating upward at 2 m/s^2. Find the normal reaction from the floor." },
@@ -93,8 +93,8 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "satellite", archetype: "satellite_orbit", tier: "qualitative_verified", question: "A satellite orbits the Earth in a circular orbit of radius 7000 km. Find its orbital speed." },
   { id: "emf-rod", archetype: "motional_emf_rod", tier: "qualitative_verified", question: "A conducting rod of length 0.5 m moves at 4 m/s perpendicular to a magnetic field of 0.2 T. Find the motional emf induced." },
   // Circuits
-  { id: "kirchhoff", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", question: "In the circuit a 6 V battery and a 12 V battery are connected with resistors of 2 ohm, 4 ohm and 6 ohm forming two loops. Use Kirchhoff's laws to find the current in each branch." },
-  { id: "kirchhoff-state", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", question: "State Kirchhoff's rules of current distribution in an electrical network. Using these rules determine the value of the current in the electric circuit given below." },
+  { id: "kirchhoff", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", declines: true, question: "In the circuit a 6 V battery and a 12 V battery are connected with resistors of 2 ohm, 4 ohm and 6 ohm forming two loops. Use Kirchhoff's laws to find the current in each branch." },
+  { id: "kirchhoff-state", group: "kirchhoff", archetype: "two_loop_network", tier: "qualitative_verified", declines: true, question: "State Kirchhoff's rules of current distribution in an electrical network. Using these rules determine the value of the current in the electric circuit given below." },
   { id: "series-and-parallel-both", archetype: "resistor_network", declines: true, question: "Three 12 ohm resistors in series and in parallel. Find both equivalent resistances and draw each circuit." },
   { id: "parallel-no-source", archetype: "resistor_network", tier: "qualitative_verified", symbols: { resistor: 3, battery: 0, cell: 0 }, question: "Three resistors R1 = 12 ohm, R2 = 12 ohm, and R3 = 12 ohm are connected in parallel. Find the equivalent resistance." },
   { id: "series-with-source", archetype: "resistor_network", tier: "qualitative_verified", symbols: { resistor: 2, battery: 1 }, question: "Two resistors of 4 ohm and 6 ohm are connected in series across a 10 V battery. Find the current." },
@@ -104,7 +104,10 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "topic-shm", archetype: "spring_mass", question: "Draw a labelled diagram for Simple harmonic motion and its equation." },
   { id: "topic-shm-energy", archetype: "shm_energy", question: "Draw a labelled diagram for Kinetic and potential energies in simple harmonic motion." },
   { id: "topic-wave-types", archetype: "wave_types", question: "Draw a labelled diagram for Wave motion and longitudinal and transverse waves." },
-  { id: "topic-organ-pipes", archetype: "standing_wave", question: "Draw a labelled diagram for Standing waves in organ pipes." },
+  // Unspecified pipe ends cannot be represented as a fixed string.
+  { id: "topic-organ-pipes", archetype: "standing_wave", question: "Draw a labelled diagram for Standing waves in organ pipes.", declines: true },
+  { id: "open-pipe-third-harmonic", archetype: "standing_wave", question: "Draw the third-harmonic standing wave in an open organ pipe." },
+  { id: "closed-pipe-third-harmonic", archetype: "standing_wave", question: "Draw the third harmonic in a pipe closed at one end." },
   { id: "topic-force-conductor", archetype: "force_on_conductor", question: "Draw a labelled diagram for Force on a current-carrying conductor in a uniform magnetic field." },
   { id: "topic-parallel-conductors", archetype: "parallel_wires", question: "Draw a labelled diagram for Force between two parallel current-carrying conductors." },
   { id: "topic-loop-torque", archetype: "current_loop_torque", question: "Draw a labelled diagram for Torque experienced by a current loop in a uniform magnetic field." },

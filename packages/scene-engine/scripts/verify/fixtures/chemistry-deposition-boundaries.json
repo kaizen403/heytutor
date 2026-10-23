@@ -1,0 +1,217 @@
+{
+  "units": [
+    {
+      "id": "faraday-outer-parenthesis",
+      "question": "For the calculation (F = 96500 C mol^-1).",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": "96500 C mol^-1"
+    },
+    {
+      "id": "faraday-balanced-exponent",
+      "question": "For the calculation F = 96500 C mol^(-1).",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": "96500 C mol^(-1)"
+    },
+    {
+      "id": "faraday-denominator",
+      "question": "For the calculation (F = 96500 C/(mol)).",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": "96500 C/(mol)"
+    },
+    {
+      "id": "molar-mass-denominator",
+      "question": "For the calculation [M = 64 g/(mol)].",
+      "cue": "M\\s*=",
+      "dimension": "molar_mass",
+      "unit": "g/mol",
+      "text": "64 g/(mol)"
+    },
+    {
+      "id": "faraday-quoted-tail",
+      "question": "The quotation is F = 96500 C mol^-1\".",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": "96500 C mol^-1"
+    },
+    {
+      "id": "mass-bracket-tail",
+      "question": "The data are [M = 64 g mol^-1].",
+      "cue": "M\\s*=",
+      "dimension": "molar_mass",
+      "unit": "g/mol",
+      "text": "64 g mol^-1"
+    },
+    {
+      "id": "malformed-open-exponent",
+      "question": "F = 96500 C mol^(-1.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": null
+    },
+    {
+      "id": "malformed-open-denominator",
+      "question": "F = 96500 C/(mol.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": null
+    },
+    {
+      "id": "extra-unit-factor",
+      "question": "F = 96500 C mol^-1 s^-1.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": null
+    },
+    {
+      "id": "faraday-sentence-fullstop",
+      "question": "F = 96500 C mol^-1.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": "96500 C mol^-1"
+    },
+    {
+      "id": "mass-sentence-fullstop",
+      "question": "M = 64 g mol^-1.",
+      "cue": "M\\s*=",
+      "dimension": "molar_mass",
+      "unit": "g/mol",
+      "text": "64 g mol^-1"
+    },
+    {
+      "id": "faraday-fractional-exponent",
+      "question": "F = 96500 C mol^-1.3.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": null
+    },
+    {
+      "id": "faraday-unsupported-decimal-exponent",
+      "question": "F = 96500 C mol^-1.0.",
+      "cue": "F\\s*=",
+      "dimension": "faraday_constant",
+      "unit": "C/mol",
+      "text": null
+    }
+  ],
+  "phase": [
+    {
+      "id": "aq-simple",
+      "problemLabel": "aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4(aq)",
+      "expectedSamePhysicalIdentity": true
+    },
+    {
+      "id": "aq-grouped",
+      "problemLabel": "aqueous (NH4)2SO4 solution",
+      "sceneLabel": "(NH4)2SO4(aq)",
+      "expectedSamePhysicalIdentity": true
+    },
+    {
+      "id": "aq-charge-notation",
+      "problemLabel": "aqueous Cu^2+ solution",
+      "sceneLabel": "Cu^(2+)(aq)",
+      "expectedSamePhysicalIdentity": true
+    },
+    {
+      "id": "phase-solid",
+      "problemLabel": "aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4(s)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "phase-liquid",
+      "problemLabel": "aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4(l)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "different-anion",
+      "problemLabel": "aqueous CuSO4 solution",
+      "sceneLabel": "CuSO3(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "different-charge",
+      "problemLabel": "aqueous Cu^2+ solution",
+      "sceneLabel": "Cu^(+)(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "group-multiplicity",
+      "problemLabel": "aqueous (NH4)2SO4 solution",
+      "sceneLabel": "NH42SO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "hydrate-not-same-formula",
+      "problemLabel": "aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4.5H2O(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "unowned-prefix-concentration",
+      "problemLabel": "0.1 M aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "unowned-suffix-concentration",
+      "problemLabel": "aqueous CuSO4 solution at 0.1 M",
+      "sceneLabel": "CuSO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "foreign-solution-roster",
+      "problemLabel": "aqueous CuSO4 solution and NaCl solution",
+      "sceneLabel": "CuSO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "negated-aqueous",
+      "problemLabel": "not aqueous CuSO4 solution",
+      "sceneLabel": "CuSO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "unknown-element",
+      "problemLabel": "aqueous XxSO4 solution",
+      "sceneLabel": "XxSO4(aq)",
+      "expectedSamePhysicalIdentity": false
+    },
+    {
+      "id": "malformed-group",
+      "problemLabel": "aqueous (NH4)2SO4 solution",
+      "sceneLabel": "(NH4)2SO4)(aq)",
+      "expectedSamePhysicalIdentity": false
+    }
+  ],
+  "deposition": [
+    {
+      "id": "foreign-upper",
+      "question": "A current of 1 A passes through aqueous CuSO4 for 20 min using inert electrodes. Calculate the mass of copper deposited at the cathode. Molar mass of Ag = 108 g/mol; F = 96500 C/mol.",
+      "draw": false
+    },
+    {
+      "id": "foreign-lower",
+      "question": "A current of 1 A passes through aqueous CuSO4 for 20 min using inert electrodes. Calculate the mass of copper deposited at the cathode. molar mass of Ag = 108 g/mol; F = 96500 C/mol.",
+      "draw": false
+    },
+    {
+      "id": "nonideal-efficiency-unconsumed",
+      "question": "A current of 1 A passes through aqueous CuSO4 for 20 min using inert electrodes. Calculate the mass of copper deposited at the cathode with 80% current efficiency. Molar mass of Cu = 64 g/mol; F = 96500 C/mol.",
+      "draw": false
+    }
+  ]
+}

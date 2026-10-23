@@ -38,10 +38,29 @@ export interface PlannerRetryEvent {
   status?: number;
 }
 
+export interface PlannerAttemptNotice {
+  attempt: number;
+  model: string;
+  modelAttempt: number;
+}
+
+/** The route refused to fund this attempt. Transport must not dispatch it or try another. */
+export class PlannerReservationDenied extends Error {
+  readonly response: Response;
+
+  constructor(response: Response) {
+    super("planner retry reservation denied");
+    this.name = "PlannerReservationDenied";
+    this.response = response;
+  }
+}
+
 export interface PlannerTransportOptions {
   apiKey: string;
   /** Maximum time for one upstream model attempt to return response headers. */
   attemptTimeoutMs?: number;
+  /** Runs before each upstream dispatch, including the first. A throw aborts the transport. */
+  beforeAttempt?: (notice: PlannerAttemptNotice) => Promise<void>;
   body: Record<string, unknown>;
   fetchImpl?: typeof fetch;
   maxAttemptsPerModel?: number;
@@ -171,6 +190,9 @@ export async function fetchPlannerCompletion(
           : new DOMException("Planner request aborted", "AbortError");
       }
       attempt += 1;
+      // A funding refusal is not a transient provider error. Leave it uncaught
+      // so the route can return the billing response without dispatching.
+      await options.beforeAttempt?.({ attempt, model, modelAttempt });
       const attemptController = new AbortController();
       const timeoutId = setTimeout(
         () => attemptController.abort(new DOMException("Planner attempt timed out", "TimeoutError")),

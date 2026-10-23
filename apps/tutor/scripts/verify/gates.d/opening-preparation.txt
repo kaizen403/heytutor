@@ -1,0 +1,2 @@
+# Unchanged original opening: prepare earlier, release at the same live gate.
+pnpm verify:opening-preparation

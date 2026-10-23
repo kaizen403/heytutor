@@ -1,0 +1,2 @@
+# Board shading follows the compiled graph region and is released by FOCUS on the shaded entity.
+tsx scripts/verify/verify-graph-region-shading.ts

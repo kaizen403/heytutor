@@ -1,5 +1,6 @@
 import { countWrittenGlyphs, type DrawCommand, type ParsedResponse } from "@heytutor/drawing";
 import { mathToSpeech, type AudioTimings } from "../tts/elevenLabsClient";
+import { numberToSpokenWords } from "../tts/numberWords";
 import {
   type InkPace,
   applySceneDuration,
@@ -29,12 +30,11 @@ export const WRITE_INK_FLOOR_MS_PER_CHAR = 90;
 export const WRITE_INK_CEILING_MS_PER_CHAR = 350;
 
 /**
- * An estimated schedule is a guess at where the words fall; if it puts the
- * first cue past this share of the sentence the pen starts there instead,
- * so a wrong guess never leaves the row unwritten until the voice is done.
- * An exact schedule is the truth and is never shifted.
+ * A script-matched estimate may wait for the whole estimated sentence.
+ * An explanatory prefix is real speech, not permission to write its later
+ * formula early. Unusable schedules still take the bounded fallback below.
  */
-export const ESTIMATED_FIRST_CUE_MAX_FRACTION = 0.6;
+export const ESTIMATED_FIRST_CUE_MAX_FRACTION = 1;
 
 export interface SegmentTiming {
   narrationText: string;
@@ -161,64 +161,7 @@ export function buildSyncPlanFromTimings(
 /* Spoken forms                                                              */
 /* ------------------------------------------------------------------------ */
 
-const ONES_WORDS = [
-  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
-  "seventeen", "eighteen", "nineteen",
-];
-const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
-
-function integerToWords(n: number): string {
-  if (n < 20) {
-    return ONES_WORDS[n]!;
-  }
-  if (n < 100) {
-    const rest = n % 10;
-    return `${TENS_WORDS[Math.floor(n / 10)]}${rest ? ` ${ONES_WORDS[rest]}` : ""}`;
-  }
-  if (n < 1000) {
-    const rest = n % 100;
-    return `${ONES_WORDS[Math.floor(n / 100)]} hundred${rest ? ` ${integerToWords(rest)}` : ""}`;
-  }
-  if (n < 1_000_000) {
-    const rest = n % 1000;
-    return `${integerToWords(Math.floor(n / 1000))} thousand${rest ? ` ${integerToWords(rest)}` : ""}`;
-  }
-  if (n < 1_000_000_000) {
-    const rest = n % 1_000_000;
-    return `${integerToWords(Math.floor(n / 1_000_000))} million${rest ? ` ${integerToWords(rest)}` : ""}`;
-  }
-  return String(n)
-    .split("")
-    .map((digit) => ONES_WORDS[Number(digit)] ?? digit)
-    .join(" ");
-}
-
-/**
- * "0.43" -> "zero point four three", "1,000" -> "one thousand". Both the board
- * token and the narration go through this, so a digit string on the board
- * finds the same words whether the model wrote the number in digits or spelt
- * it out for the voice.
- */
-export function numberToSpokenWords(raw: string): string {
-  const cleaned = raw.replace(/,/g, "");
-  const [intPart = "", decimalPart] = cleaned.split(".");
-  const digitsOnly = intPart.replace(/\D/g, "");
-  const intWords =
-    digitsOnly.length === 0
-      ? ""
-      : digitsOnly.length > 9
-        ? digitsOnly.split("").map((digit) => ONES_WORDS[Number(digit)]).join(" ")
-        : integerToWords(Number(digitsOnly));
-  if (decimalPart === undefined || decimalPart.length === 0) {
-    return intWords;
-  }
-  const decimalWords = decimalPart
-    .split("")
-    .map((digit) => ONES_WORDS[Number(digit)] ?? digit)
-    .join(" ");
-  return `${intWords.length > 0 ? `${intWords} ` : ""}point ${decimalWords}`;
-}
+export { numberToSpokenWords } from "../tts/numberWords";
 
 const GREEK_SYMBOLS: Record<string, string> = {
   "θ": "theta",
@@ -650,7 +593,7 @@ function numberForms(raw: string, subscript: boolean): string[] {
   } else if (/\.\d\d$/.test(raw)) {
     // "8.57" is also said "eight point fifty seven".
     const [intPart, decimalPart] = raw.replace(/,/g, "").split(".");
-    forms.push(`${numberToSpokenWords(intPart!)} point ${integerToWords(Number(decimalPart))}`);
+    forms.push(`${numberToSpokenWords(intPart!)} point ${numberToSpokenWords(decimalPart!)}`);
   }
   if (/^(100|1000|1000000)$/.test(raw.replace(/,/g, ""))) {
     forms.push(words.replace(/^one /, "a "));
@@ -666,12 +609,12 @@ function letterForms(
   const lower = run.toLowerCase();
   const plain = letterRunWords(run).join(" ");
   const forms: string[] = [];
-  const unitForms = UNIT_SPOKEN_FORMS[lower];
+  const unitForms = Object.hasOwn(UNIT_SPOKEN_FORMS, lower) ? UNIT_SPOKEN_FORMS[lower] : undefined;
   const isUnit = unitForms && (options.numericContext || UNAMBIGUOUS_UNITS.has(lower));
   if (isUnit) {
     forms.push(...unitForms);
   }
-  const functionForms = FUNCTION_SPOKEN_FORMS[lower];
+  const functionForms = Object.hasOwn(FUNCTION_SPOKEN_FORMS, lower) ? FUNCTION_SPOKEN_FORMS[lower] : undefined;
   if (functionForms && !isUnit) {
     forms.push(...functionForms);
   }
@@ -758,8 +701,10 @@ function boardTokenUnits(token: string, previousToken: string | undefined): Toke
           standaloneOperand: pieces.length === 1 && previousToken !== undefined,
         }),
       });
-      if (next === "(" && !FUNCTION_SPOKEN_FORMS[piece.toLowerCase()]) {
-        units.push({ forms: ["", "times"] });
+      if (next === "(" && !Object.hasOwn(FUNCTION_SPOKEN_FORMS, piece.toLowerCase())) {
+        // A named application can be read "c of n"; adjacent multiplication
+        // can still be read "m times g" or omit the join altogether.
+        units.push({ forms: ["", "times", "of"] });
       }
       continue;
     }
@@ -1729,7 +1674,9 @@ export function getBestWriteCharScheduleMs(
  * may wait. Pass the schedule's own `maxInitialWaitMs`: an exact schedule
  * never moves (the alignment says when the word is spoken, and the pen goes
  * to the row and waits for it), an estimated one may wait for
- * ESTIMATED_FIRST_CUE_MAX_FRACTION of the sentence. The old 250 ms cap
+ * ESTIMATED_FIRST_CUE_MAX_FRACTION of the sentence. Both the old 250 ms and
+ * 60% caps wrote genuinely late formula words before they were spoken; the
+ * estimate now retains cues anywhere inside its own sentence. The old cap
  * dragged "v = ?" from 2055 ms to 250 ms and the row was done 5 s before the
  * voice reached it.
  */

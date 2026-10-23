@@ -1,0 +1,2570 @@
+{
+ "schema": "label-placement-review-rows/v1",
+ "note": "Selected scene documents of frozen probe rows named in the PR 221 review (offline replay, off arm). Probe stems, not student text.",
+ "records": [
+  {
+   "row": 298,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A generic nondegenerate line, an off-line point, and its perpendicular foot illustrate the symbolic proof."
+    },
+    "source": {
+     "question": "ax plus by plus c distance formula from a point proof",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "Q",
+      "kind": "point",
+      "role": "representative point on the line",
+      "label": "Q"
+     },
+     {
+      "id": "R",
+      "kind": "point",
+      "role": "second construction point on the line"
+     },
+     {
+      "id": "L",
+      "kind": "line",
+      "role": "line ax+by+c=0",
+      "label": "ax+by+c=0"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "point whose distance is sought",
+      "label": "P=(x₀,y₀)"
+     },
+     {
+      "id": "H",
+      "kind": "point",
+      "role": "perpendicular foot"
+     },
+     {
+      "id": "PH",
+      "kind": "segment",
+      "role": "perpendicular distance",
+      "label": "d"
+     },
+     {
+      "id": "rH",
+      "kind": "right_angle_mark",
+      "role": "perpendicular at the foot"
+     },
+     {
+      "id": "PQ",
+      "kind": "vector",
+      "role": "vector P−Q"
+     },
+     {
+      "id": "N",
+      "kind": "point",
+      "role": "endpoint of representative normal"
+     },
+     {
+      "id": "normal",
+      "kind": "vector",
+      "role": "normal to the line",
+      "label": "(a,b)"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "kQ",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "Q"
+      ]
+     },
+     {
+      "id": "kR",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "R"
+      ]
+     },
+     {
+      "id": "kL",
+      "operator": "line",
+      "inputs": {
+       "start": "Q",
+       "end": "R"
+      },
+      "outputs": [
+       "L"
+      ]
+     },
+     {
+      "id": "kP",
+      "operator": "point",
+      "inputs": {
+       "x": 3,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "kH",
+      "operator": "project",
+      "inputs": {
+       "point": "P",
+       "line": "L"
+      },
+      "outputs": [
+       "H"
+      ]
+     },
+     {
+      "id": "kPH",
+      "operator": "segment",
+      "inputs": {
+       "start": "P",
+       "end": "H"
+      },
+      "outputs": [
+       "PH"
+      ]
+     },
+     {
+      "id": "krH",
+      "operator": "right_angle_mark",
+      "inputs": {
+       "vertex": "H",
+       "a": "P",
+       "b": "Q"
+      },
+      "outputs": [
+       "rH"
+      ]
+     },
+     {
+      "id": "kPQ",
+      "operator": "vector",
+      "inputs": {
+       "start": "Q",
+       "end": "P"
+      },
+      "outputs": [
+       "PQ"
+      ]
+     },
+     {
+      "id": "kN",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "N"
+      ]
+     },
+     {
+      "id": "kNormal",
+      "operator": "vector",
+      "inputs": {
+       "start": "Q",
+       "end": "N",
+       "direction": [
+        1,
+        1
+       ]
+      },
+      "outputs": [
+       "normal"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "qOnLine",
+      "predicate": "on",
+      "entities": [
+       "Q",
+       "L"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "footOnLine",
+      "predicate": "on",
+      "entities": [
+       "H",
+       "L"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "distancePerpendicular",
+      "predicate": "perpendicular",
+      "entities": [
+       "PH",
+       "L"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "normalPerpendicular",
+      "predicate": "perpendicular",
+      "entities": [
+       "normal",
+       "L"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "assert_label_Q",
+      "predicate": "label_attached",
+      "entities": [
+       "Q"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "reason": "student-facing points must stay labeled"
+     },
+     {
+      "id": "assert_label_P",
+      "predicate": "label_attached",
+      "entities": [
+       "P"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "reason": "student-facing points must stay labeled"
+     }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+     "Q",
+     "L",
+     "P",
+     "H",
+     "PH",
+     "rH",
+     "PQ",
+     "normal",
+     "R",
+     "N"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "Q",
+       "R",
+       "L",
+       "P",
+       "H",
+       "PH",
+       "rH",
+       "PQ",
+       "N",
+       "normal"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Choose Q on the line and drop the perpendicular from P to H. The vector (a,b) is normal to the line."
+     }
+    ],
+    "teachingTimeline": []
+   }
+  },
+  {
+   "row": 790,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The stated plate separation and potentials determine parallel, equally spaced equipotential cross-sections."
+    },
+    "source": {
+     "question": "Two large parallel metal plates 3.6 cm apart are held at 0 V and 270 V. Describe the equipotential surfaces between them and find their spacing for steps of 54 V. Find the work done by the field when a +2.4 μC charge moves from the 54 V surface to the 216 V surface, and then along the 216 V surface.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [
+     {
+      "id": "d",
+      "symbol": "d",
+      "value": 3.6,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "v0",
+      "symbol": "V₀",
+      "value": 0,
+      "unit": "V",
+      "provenance": "given"
+     },
+     {
+      "id": "v1",
+      "symbol": "V₁",
+      "value": 270,
+      "unit": "V",
+      "provenance": "given"
+     },
+     {
+      "id": "dv",
+      "symbol": "ΔV",
+      "value": 54,
+      "unit": "V",
+      "provenance": "given"
+     },
+     {
+      "id": "q",
+      "symbol": "q",
+      "value": 2.4,
+      "unit": "μC",
+      "sign": "positive",
+      "provenance": "given"
+     },
+     {
+      "id": "va",
+      "symbol": "Vₐ",
+      "value": 54,
+      "unit": "V",
+      "provenance": "given"
+     },
+     {
+      "id": "vb",
+      "symbol": "Vᵦ",
+      "value": 216,
+      "unit": "V",
+      "provenance": "given"
+     },
+     {
+      "id": "s",
+      "symbol": "s",
+      "value": 0.72,
+      "unit": "cm",
+      "provenance": "derived",
+      "dependsOn": [
+       "d",
+       "dv",
+       "v0",
+       "v1"
+      ]
+     },
+     {
+      "id": "w1",
+      "symbol": "W₁",
+      "value": -388.8,
+      "unit": "μJ",
+      "sign": "negative",
+      "provenance": "derived",
+      "dependsOn": [
+       "q",
+       "va",
+       "vb"
+      ]
+     },
+     {
+      "id": "w2",
+      "symbol": "W₂",
+      "value": 0,
+      "unit": "μJ",
+      "provenance": "derived",
+      "dependsOn": [
+       "q",
+       "vb"
+      ]
+     }
+    ],
+    "entities": [
+     {
+      "id": "l0",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r0",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "l1",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r1",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "l2",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r2",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "l3",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r3",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "l4",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r4",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "l5",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "r5",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "plate0",
+      "kind": "segment",
+      "role": "0 V plate",
+      "label": "0 V"
+     },
+     {
+      "id": "surface54",
+      "kind": "segment",
+      "role": "54 V equipotential",
+      "label": "54 V"
+     },
+     {
+      "id": "surface108",
+      "kind": "segment",
+      "role": "108 V equipotential"
+     },
+     {
+      "id": "surface162",
+      "kind": "segment",
+      "role": "162 V equipotential"
+     },
+     {
+      "id": "surface216",
+      "kind": "segment",
+      "role": "216 V equipotential",
+      "label": "216 V"
+     },
+     {
+      "id": "plate270",
+      "kind": "segment",
+      "role": "270 V plate",
+      "label": "270 V"
+     },
+     {
+      "id": "separation",
+      "kind": "dimension",
+      "role": "plate separation",
+      "label": "d = 3.6 cm"
+     },
+     {
+      "id": "chargeA",
+      "kind": "point",
+      "role": "initial charge position",
+      "label": "+2.4 μC"
+     },
+     {
+      "id": "chargeB",
+      "kind": "point",
+      "role": "charge at 216 V"
+     },
+     {
+      "id": "chargeC",
+      "kind": "point",
+      "role": "charge after motion along 216 V"
+     },
+     {
+      "id": "moveAcross",
+      "kind": "vector",
+      "role": "motion from 54 V to 216 V"
+     },
+     {
+      "id": "moveAlong",
+      "kind": "vector",
+      "role": "motion along 216 V"
+     },
+     {
+      "id": "fieldStart",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "field",
+      "kind": "vector",
+      "role": "electric field",
+      "label": "E"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "p_l0",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l0"
+      ]
+     },
+     {
+      "id": "p_r0",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r0"
+      ]
+     },
+     {
+      "id": "p_l1",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0.72,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l1"
+      ]
+     },
+     {
+      "id": "p_r1",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0.72,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r1"
+      ]
+     },
+     {
+      "id": "p_l2",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 1.44,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l2"
+      ]
+     },
+     {
+      "id": "p_r2",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 1.44,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r2"
+      ]
+     },
+     {
+      "id": "p_l3",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 2.16,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l3"
+      ]
+     },
+     {
+      "id": "p_r3",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 2.16,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r3"
+      ]
+     },
+     {
+      "id": "p_l4",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 2.88,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l4"
+      ]
+     },
+     {
+      "id": "p_r4",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 2.88,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r4"
+      ]
+     },
+     {
+      "id": "p_l5",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 3.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "l5"
+      ]
+     },
+     {
+      "id": "p_r5",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 3.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "r5"
+      ]
+     },
+     {
+      "id": "make_plate0",
+      "operator": "segment",
+      "inputs": {
+       "start": "l0",
+       "end": "r0"
+      },
+      "outputs": [
+       "plate0"
+      ]
+     },
+     {
+      "id": "make_surface54",
+      "operator": "segment",
+      "inputs": {
+       "start": "l1",
+       "end": "r1"
+      },
+      "outputs": [
+       "surface54"
+      ]
+     },
+     {
+      "id": "make_surface108",
+      "operator": "segment",
+      "inputs": {
+       "start": "l2",
+       "end": "r2"
+      },
+      "outputs": [
+       "surface108"
+      ]
+     },
+     {
+      "id": "make_surface162",
+      "operator": "segment",
+      "inputs": {
+       "start": "l3",
+       "end": "r3"
+      },
+      "outputs": [
+       "surface162"
+      ]
+     },
+     {
+      "id": "make_surface216",
+      "operator": "segment",
+      "inputs": {
+       "start": "l4",
+       "end": "r4"
+      },
+      "outputs": [
+       "surface216"
+      ]
+     },
+     {
+      "id": "make_plate270",
+      "operator": "segment",
+      "inputs": {
+       "start": "l5",
+       "end": "r5"
+      },
+      "outputs": [
+       "plate270"
+      ]
+     },
+     {
+      "id": "make_separation",
+      "operator": "dimension",
+      "inputs": {
+       "start": "r0",
+       "end": "r5"
+      },
+      "outputs": [
+       "separation"
+      ]
+     },
+     {
+      "id": "p_chargeA",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0.72,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "chargeA"
+      ]
+     },
+     {
+      "id": "p_chargeB",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 2.88,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "chargeB"
+      ]
+     },
+     {
+      "id": "p_chargeC",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 2.88,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "chargeC"
+      ]
+     },
+     {
+      "id": "make_moveAcross",
+      "operator": "vector",
+      "inputs": {
+       "start": "chargeA",
+       "end": "chargeB"
+      },
+      "outputs": [
+       "moveAcross"
+      ]
+     },
+     {
+      "id": "make_moveAlong",
+      "operator": "vector",
+      "inputs": {
+       "start": "chargeB",
+       "end": "chargeC",
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "moveAlong"
+      ]
+     },
+     {
+      "id": "p_fieldStart",
+      "operator": "point",
+      "inputs": {
+       "x": -1.5,
+       "y": 2.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "fieldStart"
+      ]
+     },
+     {
+      "id": "make_field",
+      "operator": "vector",
+      "inputs": {
+       "start": "fieldStart",
+       "direction": [
+        0,
+        -1
+       ],
+       "length": 1.4
+      },
+      "outputs": [
+       "field"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "parallel_plates",
+      "predicate": "parallel",
+      "entities": [
+       "plate0",
+       "plate270"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "parallel_surfaces",
+      "predicate": "parallel",
+      "entities": [
+       "surface54",
+       "surface216"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "field_perpendicular",
+      "predicate": "perpendicular",
+      "entities": [
+       "field",
+       "plate270"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "initial_on_surface",
+      "predicate": "on",
+      "entities": [
+       "chargeA",
+       "surface54"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "final_on_surface",
+      "predicate": "on",
+      "entities": [
+       "chargeC",
+       "surface216"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "along_surface",
+      "predicate": "parallel",
+      "entities": [
+       "moveAlong",
+       "surface216"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "assert_label_chargeA",
+      "predicate": "label_attached",
+      "entities": [
+       "chargeA"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "reason": "student-facing points must stay labeled"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "spacing_result",
+      "kind": "callout",
+      "targetIds": [
+       "surface54",
+       "surface108"
+      ],
+      "text": "s = 0.72 cm",
+      "quantityId": "s"
+     },
+     {
+      "id": "across_result",
+      "kind": "callout",
+      "targetIds": [
+       "moveAcross"
+      ],
+      "text": "W₁ = −388.8 μJ",
+      "quantityId": "w1"
+     },
+     {
+      "id": "along_result",
+      "kind": "callout",
+      "targetIds": [
+       "moveAlong"
+      ],
+      "text": "W₂ = 0 μJ",
+      "quantityId": "w2"
+     }
+    ],
+    "requiredEntityIds": [
+     "l0",
+     "r0",
+     "l1",
+     "r1",
+     "l2",
+     "r2",
+     "l3",
+     "r3",
+     "l4",
+     "r4",
+     "l5",
+     "r5",
+     "plate0",
+     "surface54",
+     "surface108",
+     "surface162",
+     "surface216",
+     "plate270",
+     "separation",
+     "chargeA",
+     "chargeB",
+     "chargeC",
+     "moveAcross",
+     "moveAlong",
+     "fieldStart",
+     "field"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "l0",
+       "r0",
+       "l1",
+       "r1",
+       "l2",
+       "r2",
+       "l3",
+       "r3",
+       "l4",
+       "r4",
+       "l5",
+       "r5",
+       "plate0",
+       "surface54",
+       "surface108",
+       "surface162",
+       "surface216",
+       "plate270",
+       "separation",
+       "chargeA",
+       "chargeB",
+       "chargeC",
+       "moveAcross",
+       "moveAlong",
+       "fieldStart",
+       "field"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Parallel equipotential planes appear as equally spaced lines in cross-section; the field points from 270 V toward 0 V."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "show_setup",
+      "action": "reveal",
+      "targetIds": [
+       "setup"
+      ],
+      "targetId": "setup",
+      "dependsOn": [],
+      "narrationIntent": "reveal setup"
+     },
+     {
+      "id": "show_spacing",
+      "action": "reveal",
+      "targetIds": [
+       "spacing_result"
+      ],
+      "targetId": "spacing_result",
+      "dependsOn": [],
+      "narrationIntent": "reveal spacing_result"
+     },
+     {
+      "id": "show_across_work",
+      "action": "reveal",
+      "targetIds": [
+       "across_result"
+      ],
+      "targetId": "across_result",
+      "dependsOn": [],
+      "narrationIntent": "reveal across_result"
+     },
+     {
+      "id": "show_along_work",
+      "action": "reveal",
+      "targetIds": [
+       "along_result"
+      ],
+      "targetId": "along_result",
+      "dependsOn": [],
+      "narrationIntent": "reveal along_result"
+     }
+    ]
+   }
+  },
+  {
+   "row": 60,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A symbolic representative shows two intersecting lines and their acute- and obtuse-angle bisectors."
+    },
+    "source": {
+     "question": "acute angle bisectr between two lines confusing",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "intersection"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "point on the first line in the acute angle"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "point on the second line in the acute angle"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "point on the opposite side of the first line"
+     },
+     {
+      "id": "L1",
+      "kind": "line",
+      "role": "first line",
+      "label": "L₁"
+     },
+     {
+      "id": "L2",
+      "kind": "line",
+      "role": "second line",
+      "label": "L₂"
+     },
+     {
+      "id": "acute",
+      "kind": "angle_mark",
+      "role": "smaller angle"
+     },
+     {
+      "id": "acuteBisector",
+      "kind": "line",
+      "role": "acute-angle bisector",
+      "label": "acute bisector"
+     },
+     {
+      "id": "obtuseBisector",
+      "kind": "line",
+      "role": "obtuse-angle bisector",
+      "label": "obtuse bisector"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "makeA",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 0.7071067811865476,
+       "y": 0.7071067811865476,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makeC",
+      "operator": "point",
+      "inputs": {
+       "x": -1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "C"
+      ]
+     },
+     {
+      "id": "makeL1",
+      "operator": "line",
+      "inputs": {
+       "start": "O",
+       "end": "A"
+      },
+      "outputs": [
+       "L1"
+      ]
+     },
+     {
+      "id": "makeL2",
+      "operator": "line",
+      "inputs": {
+       "start": "O",
+       "end": "B"
+      },
+      "outputs": [
+       "L2"
+      ]
+     },
+     {
+      "id": "markAcute",
+      "operator": "angle_mark",
+      "inputs": {
+       "vertex": "O",
+       "a": "A",
+       "b": "B"
+      },
+      "outputs": [
+       "acute"
+      ]
+     },
+     {
+      "id": "bisectAcute",
+      "operator": "angle_bisector",
+      "inputs": {
+       "vertex": "O",
+       "a": "A",
+       "b": "B"
+      },
+      "outputs": [
+       "acuteBisector"
+      ]
+     },
+     {
+      "id": "bisectObtuse",
+      "operator": "angle_bisector",
+      "inputs": {
+       "vertex": "O",
+       "a": "C",
+       "b": "B"
+      },
+      "outputs": [
+       "obtuseBisector"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "firstLineMeets",
+      "predicate": "on",
+      "entities": [
+       "O",
+       "L1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "secondLineMeets",
+      "predicate": "on",
+      "entities": [
+       "O",
+       "L2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "bisectorsPerpendicular",
+      "predicate": "perpendicular",
+      "entities": [
+       "acuteBisector",
+       "obtuseBisector"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "acuteHalvesEqual",
+      "predicate": "equal_angle",
+      "entities": [
+       "L1",
+       "acuteBisector",
+       "acuteBisector",
+       "L2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+     "O",
+     "A",
+     "B",
+     "C",
+     "L1",
+     "L2",
+     "acute",
+     "acuteBisector",
+     "obtuseBisector"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "A",
+       "B",
+       "C",
+       "L1",
+       "L2",
+       "acute"
+      ],
+      "dependsOn": [],
+      "narrationCue": "The lines meet at O. The marked angle is the smaller, acute angle."
+     },
+     {
+      "id": "bisectors",
+      "entityIds": [
+       "acuteBisector",
+       "obtuseBisector"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "The acute bisector divides the marked angle equally. The other bisector passes through the obtuse angle, and the two bisectors are perpendicular. Unit directions u and v pointing into the acute angle satisfy u·v>0; u+v points along its bisector."
+     }
+    ],
+    "teachingTimeline": []
+   }
+  },
+  {
+   "row": 653,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A nonmetric representative shows the spherical air–glass boundary and the object; the image position remains unspecified."
+    },
+    "source": {
+     "question": "image formed by one curved boundary between air and glass",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "V",
+      "kind": "point",
+      "role": "vertex",
+      "label": "V"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "centre of curvature",
+      "label": "C"
+     },
+     {
+      "id": "boundary",
+      "kind": "arc",
+      "role": "spherical surface"
+     },
+     {
+      "id": "objectBase",
+      "kind": "point",
+      "role": "object foot"
+     },
+     {
+      "id": "object",
+      "kind": "vector",
+      "role": "object",
+      "label": "O"
+     },
+     {
+      "id": "imageUnknown",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "I?"
+     },
+     {
+      "id": "axisLeft",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "axisRight",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "objectTip",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeAxisLeft",
+      "operator": "point",
+      "inputs": {
+       "x": -4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisLeft"
+      ]
+     },
+     {
+      "id": "makeAxisRight",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisRight"
+      ]
+     },
+     {
+      "id": "makeAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "axisLeft",
+       "end": "axisRight"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "makeVertex",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "V"
+      ]
+     },
+     {
+      "id": "makeCentre",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "C"
+      ]
+     },
+     {
+      "id": "makeBoundary",
+      "operator": "spherical_surface",
+      "inputs": {
+       "vertex": "V",
+       "axis": "axis",
+       "halfHeight": 0.8
+      },
+      "outputs": [
+       "boundary"
+      ]
+     },
+     {
+      "id": "makeObjectBase",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectBase"
+      ]
+     },
+     {
+      "id": "makeObjectTip",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0.65,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectTip"
+      ]
+     },
+     {
+      "id": "makeObject",
+      "operator": "vector",
+      "inputs": {
+       "start": "objectBase",
+       "end": "objectTip"
+      },
+      "outputs": [
+       "object"
+      ]
+     },
+     {
+      "id": "markUnknownImage",
+      "operator": "label",
+      "inputs": {
+       "target": "axis",
+       "text": "I?"
+      },
+      "outputs": [
+       "imageUnknown"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "vertexOnAxis",
+      "predicate": "on",
+      "entities": [
+       "V",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "centreOnAxis",
+      "predicate": "on",
+      "entities": [
+       "C",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "objectOnAxis",
+      "predicate": "on",
+      "entities": [
+       "objectBase",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "assert_label_V",
+      "predicate": "label_attached",
+      "entities": [
+       "V"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "reason": "student-facing points must stay labeled"
+     },
+     {
+      "id": "assert_label_C",
+      "predicate": "label_attached",
+      "entities": [
+       "C"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "reason": "student-facing points must stay labeled"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "airLabel",
+      "kind": "label",
+      "targetIds": [
+       "boundary"
+      ],
+      "text": "air",
+      "placementIntent": "left"
+     },
+     {
+      "id": "glassLabel",
+      "kind": "label",
+      "targetIds": [
+       "boundary"
+      ],
+      "text": "glass",
+      "placementIntent": "right"
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "V",
+     "C",
+     "boundary",
+     "object",
+     "imageUnknown",
+     "objectBase"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axis",
+       "V",
+       "C",
+       "boundary",
+       "object",
+       "objectBase"
+      ],
+      "dependsOn": [],
+      "narrationCue": "reveal scene"
+     },
+     {
+      "id": "unknown",
+      "entityIds": [
+       "imageUnknown"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "reveal scene"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "targetIds": [
+       "setup"
+      ],
+      "action": "reveal",
+      "targetId": "setup",
+      "dependsOn": [],
+      "narrationIntent": "reveal setup"
+     },
+     {
+      "id": "showUnknown",
+      "targetIds": [
+       "unknown"
+      ],
+      "action": "reveal",
+      "targetId": "unknown",
+      "dependsOn": [],
+      "narrationIntent": "reveal unknown"
+     }
+    ]
+   }
+  },
+  {
+   "row": 518,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A banked road, car, and contact forces show the geometry needed for the speed and parked-car questions."
+    },
+    "source": {
+     "question": "A curve of radius 60 m is banked at 12°. The coefficient of static friction between tyres and road is 0.30. Take g = 9.8 m/s^2. Find the maximum speed at which a car can take the curve without skidding outward, the speed at which no friction is needed, and say whether a car parked on the curve would slide down.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [
+     {
+      "id": "r",
+      "symbol": "r",
+      "value": 60,
+      "unit": "m"
+     },
+     {
+      "id": "theta",
+      "symbol": "θ",
+      "value": 12,
+      "unit": "°"
+     },
+     {
+      "id": "mu",
+      "symbol": "μₛ",
+      "value": 0.3
+     },
+     {
+      "id": "g",
+      "symbol": "g",
+      "value": 9.8,
+      "unit": "m/s²"
+     },
+     {
+      "id": "vmax",
+      "symbol": "v_max",
+      "value": 17.94186489737362,
+      "unit": "m/s"
+     },
+     {
+      "id": "v0",
+      "symbol": "v₀",
+      "value": 11.179591149141949,
+      "unit": "m/s"
+     }
+    ],
+    "entities": [
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "inner road edge"
+     },
+     {
+      "id": "T",
+      "kind": "point",
+      "role": "outer road edge"
+     },
+     {
+      "id": "H",
+      "kind": "point",
+      "role": "horizontal reference endpoint"
+     },
+     {
+      "id": "road",
+      "kind": "segment",
+      "role": "banked surface"
+     },
+     {
+      "id": "horizontal",
+      "kind": "segment",
+      "role": "horizontal reference"
+     },
+     {
+      "id": "bankAngle",
+      "kind": "angle_mark",
+      "role": "bank angle",
+      "label": "θ = 12°"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "tyre-road contact"
+     },
+     {
+      "id": "car1",
+      "kind": "point",
+      "role": "car outline corner"
+     },
+     {
+      "id": "car2",
+      "kind": "point",
+      "role": "car outline corner"
+     },
+     {
+      "id": "car3",
+      "kind": "point",
+      "role": "car outline corner"
+     },
+     {
+      "id": "car",
+      "kind": "polygon",
+      "role": "body: vehicle",
+      "label": "car"
+     },
+     {
+      "id": "weight",
+      "kind": "vector",
+      "role": "weight",
+      "label": "mg"
+     },
+     {
+      "id": "normal",
+      "kind": "vector",
+      "role": "normal reaction",
+      "label": "N"
+     },
+     {
+      "id": "friction",
+      "kind": "vector",
+      "role": "limiting static friction down the bank at maximum speed",
+      "label": "fₛ"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makeT",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 2.125565616700224,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "T"
+      ]
+     },
+     {
+      "id": "makeH",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "H"
+      ]
+     },
+     {
+      "id": "makeRoad",
+      "operator": "segment",
+      "inputs": {
+       "start": "B",
+       "end": "T"
+      },
+      "outputs": [
+       "road"
+      ]
+     },
+     {
+      "id": "makeHorizontal",
+      "operator": "segment",
+      "inputs": {
+       "start": "B",
+       "end": "H"
+      },
+      "outputs": [
+       "horizontal"
+      ]
+     },
+     {
+      "id": "makeAngle",
+      "operator": "angle_mark",
+      "inputs": {
+       "vertex": "B",
+       "a": "road",
+       "b": "horizontal"
+      },
+      "outputs": [
+       "bankAngle"
+      ]
+     },
+     {
+      "id": "makeContact",
+      "operator": "midpoint",
+      "inputs": {
+       "a": "B",
+       "b": "T"
+      },
+      "outputs": [
+       "C"
+      ]
+     },
+     {
+      "id": "makeCar1",
+      "operator": "affine_point",
+      "inputs": {
+       "point": "C",
+       "matrix": [
+        [
+         1,
+         0
+        ],
+        [
+         0,
+         1
+        ]
+       ],
+       "translation": [
+        1.4672214011,
+        0.3118439935
+       ]
+      },
+      "outputs": [
+       "car1"
+      ]
+     },
+     {
+      "id": "makeCar2",
+      "operator": "affine_point",
+      "inputs": {
+       "point": "C",
+       "matrix": [
+        [
+         1,
+         0
+        ],
+        [
+         0,
+         1
+        ]
+       ],
+       "translation": [
+        1.2593097109,
+        1.2905408336
+       ]
+      },
+      "outputs": [
+       "car2"
+      ]
+     },
+     {
+      "id": "makeCar3",
+      "operator": "affine_point",
+      "inputs": {
+       "point": "C",
+       "matrix": [
+        [
+         1,
+         0
+        ],
+        [
+         0,
+         1
+        ]
+       ],
+       "translation": [
+        -0.2079116902,
+        0.9786968401
+       ]
+      },
+      "outputs": [
+       "car3"
+      ]
+     },
+     {
+      "id": "makeCar",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "C",
+        "car1",
+        "car2",
+        "car3"
+       ]
+      },
+      "outputs": [
+       "car"
+      ]
+     },
+     {
+      "id": "makeWeight",
+      "operator": "vector",
+      "inputs": {
+       "start": "C",
+       "end": "C",
+       "direction": [
+        0,
+        -1
+       ],
+       "length": 1.5
+      },
+      "outputs": [
+       "weight"
+      ]
+     },
+     {
+      "id": "makeNormal",
+      "operator": "vector",
+      "inputs": {
+       "start": "C",
+       "end": "C",
+       "direction": [
+        -0.20791169078418056,
+        0.9781476005758286
+       ],
+       "length": 1.8
+      },
+      "outputs": [
+       "normal"
+      ]
+     },
+     {
+      "id": "makeFriction",
+      "operator": "vector",
+      "inputs": {
+       "start": "C",
+       "end": "C",
+       "direction": [
+        -0.9781476005758286,
+        -0.20791169078418056
+       ],
+       "length": 0.85
+      },
+      "outputs": [
+       "friction"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "bankIs12",
+      "predicate": "angle_between",
+      "entities": [
+       "road",
+       "horizontal"
+      ],
+      "expected": {
+       "value": 12,
+       "unit": "degree"
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "contactOnRoad",
+      "predicate": "on",
+      "entities": [
+       "C",
+       "road"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "normalToRoad",
+      "predicate": "perpendicular",
+      "entities": [
+       "normal",
+       "road"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "frictionAlongRoad",
+      "predicate": "parallel",
+      "entities": [
+       "friction",
+       "road"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "weightVertical",
+      "predicate": "perpendicular",
+      "entities": [
+       "weight",
+       "horizontal"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "roadTexture",
+      "kind": "hatch",
+      "targetIds": [
+       "road"
+      ]
+     },
+     {
+      "id": "radiusGiven",
+      "kind": "callout",
+      "targetIds": [
+       "road"
+      ],
+      "text": "r = 60 m"
+     },
+     {
+      "id": "frictionGiven",
+      "kind": "callout",
+      "targetIds": [
+       "C"
+      ],
+      "text": "μₛ = 0.30"
+     },
+     {
+      "id": "gravityGiven",
+      "kind": "callout",
+      "targetIds": [
+       "weight"
+      ],
+      "text": "g = 9.8 m/s²"
+     },
+     {
+      "id": "maximumExplanation",
+      "kind": "narration",
+      "targetIds": [
+       "friction",
+       "normal"
+      ],
+      "text": "At the verge of outward skidding, static friction acts down the bank. v_max = 17.94 m/s."
+     },
+     {
+      "id": "noFrictionExplanation",
+      "kind": "narration",
+      "targetIds": [
+       "road",
+       "normal"
+      ],
+      "text": "With no friction needed, v₀ = 11.18 m/s."
+     },
+     {
+      "id": "parkedExplanation",
+      "kind": "narration",
+      "targetIds": [
+       "car",
+       "road"
+      ],
+      "text": "A parked car does not slide down: tan 12° ≈ 0.213 is less than μₛ = 0.30. Its static friction would act up the bank."
+     }
+    ],
+    "requiredEntityIds": [
+     "B",
+     "T",
+     "H",
+     "road",
+     "horizontal",
+     "bankAngle",
+     "C",
+     "car1",
+     "car2",
+     "car3",
+     "car",
+     "weight",
+     "normal",
+     "friction"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "B",
+       "T",
+       "H",
+       "road",
+       "horizontal",
+       "bankAngle",
+       "C",
+       "car1",
+       "car2",
+       "car3",
+       "car"
+      ],
+      "dependsOn": [],
+      "narrationCue": "The car sits on a road banked at 12°."
+     },
+     {
+      "id": "forces",
+      "entityIds": [
+       "weight",
+       "normal",
+       "friction"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "Show forces for the maximum-speed case; friction points down the bank."
+     }
+    ],
+    "teachingTimeline": []
+   }
+  },
+  {
+   "row": 590,
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A banked road, car, and contact forces show the stated spatial setup."
+    },
+    "source": {
+     "question": "A curve of radius 60 m is banked at 12°. The coefficient of static friction between tyres and road is 0.30. Take g = 9.8 m/s^2. Find the maximum speed at which a car can take the curve without skidding outward, the speed at which no friction is needed, and say whether a car parked on the curve would slide down.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [
+     {
+      "id": "r",
+      "symbol": "r",
+      "value": 60,
+      "unit": "m"
+     },
+     {
+      "id": "theta",
+      "symbol": "θ",
+      "value": 12,
+      "unit": "°"
+     },
+     {
+      "id": "mu",
+      "symbol": "μₛ",
+      "value": 0.3
+     },
+     {
+      "id": "g",
+      "symbol": "g",
+      "value": 9.8,
+      "unit": "m/s²"
+     }
+    ],
+    "entities": [
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "inner road edge"
+     },
+     {
+      "id": "T",
+      "kind": "point",
+      "role": "outer road edge"
+     },
+     {
+      "id": "F",
+      "kind": "point",
+      "role": "horizontal reference endpoint"
+     },
+     {
+      "id": "bank",
+      "kind": "segment",
+      "role": "banked surface"
+     },
+     {
+      "id": "horizontal",
+      "kind": "segment",
+      "role": "horizontal reference"
+     },
+     {
+      "id": "bankAngle",
+      "kind": "angle_mark",
+      "role": "bank angle",
+      "label": "θ=12°"
+     },
+     {
+      "id": "contact",
+      "kind": "point",
+      "role": "tyre-road contact"
+     },
+     {
+      "id": "corner1",
+      "kind": "point",
+      "role": "vehicle corner"
+     },
+     {
+      "id": "corner2",
+      "kind": "point",
+      "role": "vehicle corner"
+     },
+     {
+      "id": "corner3",
+      "kind": "point",
+      "role": "vehicle corner"
+     },
+     {
+      "id": "car",
+      "kind": "polygon",
+      "role": "body: car"
+     },
+     {
+      "id": "normal",
+      "kind": "vector",
+      "role": "normal reaction",
+      "label": "N"
+     },
+     {
+      "id": "friction",
+      "kind": "vector",
+      "role": "static friction at outward-skid threshold",
+      "label": "fₛ"
+     },
+     {
+      "id": "weight",
+      "kind": "vector",
+      "role": "weight",
+      "label": "mg"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makeT",
+      "operator": "point",
+      "inputs": {
+       "x": 5.8688856,
+       "y": 1.2474701,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "T"
+      ]
+     },
+     {
+      "id": "makeF",
+      "operator": "point",
+      "inputs": {
+       "x": 5.8688856,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F"
+      ]
+     },
+     {
+      "id": "makeBank",
+      "operator": "segment",
+      "inputs": {
+       "start": "B",
+       "end": "T"
+      },
+      "outputs": [
+       "bank"
+      ]
+     },
+     {
+      "id": "makeHorizontal",
+      "operator": "segment",
+      "inputs": {
+       "start": "B",
+       "end": "F"
+      },
+      "outputs": [
+       "horizontal"
+      ]
+     },
+     {
+      "id": "makeAngle",
+      "operator": "angle_mark",
+      "inputs": {
+       "vertex": "B",
+       "a": "bank",
+       "b": "horizontal"
+      },
+      "outputs": [
+       "bankAngle"
+      ]
+     },
+     {
+      "id": "makeContact",
+      "operator": "midpoint",
+      "inputs": {
+       "a": "B",
+       "b": "T"
+      },
+      "outputs": [
+       "contact"
+      ]
+     },
+     {
+      "id": "makeCorner1",
+      "operator": "point",
+      "inputs": {
+       "x": 3.7173456,
+       "y": 0.7908257,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "corner1"
+      ]
+     },
+     {
+      "id": "makeCorner2",
+      "operator": "point",
+      "inputs": {
+       "x": 3.4678516,
+       "y": 1.9646028,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "corner2"
+      ]
+     },
+     {
+      "id": "makeCorner3",
+      "operator": "point",
+      "inputs": {
+       "x": 2.489704,
+       "y": 1.7566911,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "corner3"
+      ]
+     },
+     {
+      "id": "makeCar",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "contact",
+        "corner1",
+        "corner2",
+        "corner3"
+       ]
+      },
+      "outputs": [
+       "car"
+      ]
+     },
+     {
+      "id": "makeNormal",
+      "operator": "vector",
+      "inputs": {
+       "start": "contact",
+       "direction": [
+        -0.20791168362151516,
+        0.9781476013557889
+       ],
+       "length": 1.4
+      },
+      "outputs": [
+       "normal"
+      ]
+     },
+     {
+      "id": "makeFriction",
+      "operator": "vector",
+      "inputs": {
+       "start": "contact",
+       "direction": [
+        -0.9781476013557889,
+        -0.20791168362151516
+       ],
+       "length": 0.8
+      },
+      "outputs": [
+       "friction"
+      ]
+     },
+     {
+      "id": "makeWeight",
+      "operator": "vector",
+      "inputs": {
+       "start": "contact",
+       "direction": [
+        0,
+        -1
+       ],
+       "length": 1.3
+      },
+      "outputs": [
+       "weight"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "bankAngleCheck",
+      "predicate": "angle_between",
+      "entities": [
+       "bank",
+       "horizontal"
+      ],
+      "expected": {
+       "value": 12,
+       "unit": "degree"
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "normalCheck",
+      "predicate": "perpendicular",
+      "entities": [
+       "normal",
+       "bank"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "frictionCheck",
+      "predicate": "parallel",
+      "entities": [
+       "friction",
+       "bank"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "weightCheck",
+      "predicate": "perpendicular",
+      "entities": [
+       "weight",
+       "horizontal"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "radiusGiven",
+      "kind": "callout",
+      "targetIds": [
+       "bank"
+      ],
+      "text": "r = 60 m",
+      "quantityId": "r"
+     },
+     {
+      "id": "frictionGiven",
+      "kind": "callout",
+      "targetIds": [
+       "contact"
+      ],
+      "text": "μₛ = 0.30",
+      "quantityId": "mu"
+     },
+     {
+      "id": "gravityGiven",
+      "kind": "callout",
+      "targetIds": [
+       "weight"
+      ],
+      "text": "g = 9.8 m/s²",
+      "quantityId": "g"
+     },
+     {
+      "id": "centreDirection",
+      "kind": "narration",
+      "targetIds": [
+       "B",
+       "T"
+      ],
+      "text": "The inner edge is toward the centre of the curve. At the outward-skid threshold, static friction acts down the bank."
+     }
+    ],
+    "requiredEntityIds": [
+     "B",
+     "T",
+     "F",
+     "bank",
+     "horizontal",
+     "bankAngle",
+     "contact",
+     "corner1",
+     "corner2",
+     "corner3",
+     "car",
+     "normal",
+     "friction",
+     "weight"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "B",
+       "T",
+       "F",
+       "bank",
+       "horizontal",
+       "bankAngle",
+       "contact",
+       "corner1",
+       "corner2",
+       "corner3",
+       "car",
+       "normal",
+       "friction",
+       "weight"
+      ],
+      "dependsOn": [],
+      "narrationCue": "The banked road and car, with the forces relevant at the threshold of skidding outward."
+     }
+    ],
+    "teachingTimeline": []
+   }
+  }
+ ]
+}

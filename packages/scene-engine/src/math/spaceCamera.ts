@@ -234,33 +234,33 @@ function measure(projection: SpaceProjection, prepared: Prepared): ProjectionMet
   let score = 1;
   let passesFloors = true;
   let worst = "none";
-  const take = (name: string, value: number, floor: number, target: number) => {
+  const take = (name: () => string, value: number, floor: number, target: number) => {
     if (!(value >= floor - FLOOR_SLACK)) passesFloors = false;
     const ratio = Math.min(1, value / target + FLOOR_SLACK);
-    if (ratio < score) { score = ratio; worst = name; }
+    if (ratio < score) { score = ratio; worst = name(); }
   };
   const area = cross(projection.right, projection.up);
   for (const line of [...prepared.axes, ...prepared.directions]) {
     const drawn = image(projection, line);
-    take(`length ${vectorName(line)}`, Math.hypot(drawn.x, drawn.y), FLOORS.length, TARGETS.length);
+    take(() => `length ${vectorName(line)}`, Math.hypot(drawn.x, drawn.y), FLOORS.length, TARGETS.length);
   }
   for (let i = 0; i < prepared.axes.length; i += 1) {
     for (let j = i + 1; j < prepared.axes.length; j += 1) {
       const a = prepared.axes[i]!;
       const b = prepared.axes[j]!;
-      take(`axes ${vectorName(a)} ${vectorName(b)}`, screenAngle(image(projection, a), image(projection, b)), FLOORS.axisPair, TARGETS.axisPair);
+      take(() => `axes ${vectorName(a)} ${vectorName(b)}`, screenAngle(image(projection, a), image(projection, b)), FLOORS.axisPair, TARGETS.axisPair);
     }
   }
   for (const [axis, direction] of prepared.axisFigure) {
-    take(`axis ${vectorName(axis)} vs ${vectorName(direction)}`, screenAngle(image(projection, axis), image(projection, direction)), FLOORS.axisFigure, TARGETS.axisFigure);
+    take(() => `axis ${vectorName(axis)} vs ${vectorName(direction)}`, screenAngle(image(projection, axis), image(projection, direction)), FLOORS.axisFigure, TARGETS.axisFigure);
   }
   for (const [a, b] of prepared.meetings) {
-    take(`meeting ${vectorName(a)} ${vectorName(b)}`, screenAngle(image(projection, a), image(projection, b)), FLOORS.meeting, TARGETS.meeting);
+    take(() => `meeting ${vectorName(a)} ${vectorName(b)}`, screenAngle(image(projection, a), image(projection, b)), FLOORS.meeting, TARGETS.meeting);
   }
-  for (const normal of prepared.faces) take(`face ${vectorName(normal)}`, Math.abs(dot(area, normal)), FLOORS.face, TARGETS.face);
+  for (const normal of prepared.faces) take(() => `face ${vectorName(normal)}`, Math.abs(dot(area, normal)), FLOORS.face, TARGETS.face);
   for (const delta of prepared.pointPairs) {
     const drawn = image(projection, delta);
-    take(`points ${vectorName(delta)}`, Math.hypot(drawn.x, drawn.y), FLOORS.pointPair, TARGETS.pointPair);
+    take(() => `points ${vectorName(delta)}`, Math.hypot(drawn.x, drawn.y), FLOORS.pointPair, TARGETS.pointPair);
   }
   return { score, passesFloors, worst };
 }
@@ -272,6 +272,13 @@ export function projectionName(projection: SpaceProjection): string {
 /** Score one projection against a figure: min over every measure of min(1, measure / target). */
 export function projectionMetrics(projection: SpaceProjection, constraints: SpaceViewConstraints): ProjectionMetrics {
   return measure(projection, prepare(constraints));
+}
+
+/** Score several views of one immutable constraint snapshot without repeating
+ * normalization, pair enumeration and duplicate elimination for every view. */
+export function createProjectionMetrics(constraints: SpaceViewConstraints): (projection: SpaceProjection) => ProjectionMetrics {
+  const prepared = prepare(constraints);
+  return projection => measure(projection, prepared);
 }
 
 /**

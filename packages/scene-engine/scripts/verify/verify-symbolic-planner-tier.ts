@@ -26,6 +26,14 @@ for (const label of regression.must_label) {
   assert.ok(document.entities.some((entity) => entity.label === label), `production symbol ${label} must be displayed`);
 }
 assert.deepEqual(validateSceneQuantityAgreement(document.quantities, plan, displayedSceneQuantityTexts(document)), []);
+// The oracle's aim keeps its authored x extent, but y = x * the curve's
+// analytic launch slope (tan(40 degrees)), not an independently rounded y.
+// These are drawing coordinates, not additional source measurements.
+const roundedAim = structuredClone(document);
+roundedAim.constructions.find((construction) => construction.id === "make_aim")!.inputs.y = 5.6843;
+assert.ok(compileSceneDocument(roundedAim).report.issues.some((issue) =>
+  issue.code === "launch_velocity_contradiction" && issue.severity === "fatal"),
+"independently rounded oracle coordinates must not weaken launch tangency");
 assert.ok(compileSceneDocument(document).ok, "symbol-only representative must compile");
 assert.equal(tierForForeignDocument(document).tier, "qualitative_verified", "normalized geometry proofs must not upgrade symbols to numeric authority");
 for (const text of ["u=20 m/s", "u=.7 m/s", "g=9.8 m/s^2", "θ=40°", "R=40 m"]) {

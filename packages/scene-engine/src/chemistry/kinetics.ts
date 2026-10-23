@@ -16,8 +16,12 @@
  * `scene.quantity`. Axis labels are pinned texts at the axis ends.
  */
 import type { SceneDocument } from "../types";
+import { chemicalKineticsContext } from "./semanticCues";
 import { fmt } from "../archetypes/document";
-import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity } from "./sceneKit";
+import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { findSymbolicArrheniusSources, readSymbolicArrheniusSource } from "./symbolicArrheniusSource";
+
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -212,79 +216,28 @@ export function solveKinetics(spec: KineticsSpec): KineticsSolution {
 /* ------------------------------------------------------------------------- */
 /* Stem reading                                                               */
 
-const NUMBER = String.raw`(\d+(?:\.\d+)?)(?:\s*(?:[x×*]\s*10\s*\^?\s*\(?\s*(-?\d+)\s*\)?|e(-?\d+)))?`;
-
+const NUMBER = CHEMISTRY_NUMBER_PATTERN;
+const SCALAR = CHEMISTRY_SCALAR_PATTERN;
 function numberFrom(match: RegExpExecArray, offset: number): number {
-  const mantissa = Number(match[offset]);
-  const exponent = match[offset + 1] !== undefined ? Number(match[offset + 1]) : match[offset + 2] !== undefined ? Number(match[offset + 2]) : 0;
-  return mantissa * Math.pow(10, exponent);
+  return matchedChemistryScalar(match.input, match, offset) ?? NaN;
 }
-
-/**
- * OCR turns "2 x 10^-6" into "2x10~°" and "5.5 x 10^-14" into "5.5 x 107!4".
- * A number whose power of ten did not parse cleanly, or whose exponent runs
- * into stray glyphs, is unreadable: better no figure than a wrong half life.
- */
-function damagedNumber(stem: string, match: RegExpExecArray, offset: number): boolean {
-  const mantissa = match[offset];
-  if (mantissa === undefined) return true;
-  const within = match[0].indexOf(mantissa);
-  if (within < 0) return true;
-  const start = match.index + within + mantissa.length;
-  const tail = stem.slice(start, start + 24);
-  const exponentParsed = match[offset + 1] !== undefined || match[offset + 2] !== undefined;
-  if (!exponentParsed) {
-    if (/^\s*[x×*]\s*10/.test(tail)) return true;
-    if (/^\s+10\s*[°~!^"]/.test(tail)) return true;
-    return false;
-  }
-  const exponentText = match[offset + 1] ?? match[offset + 2] ?? "";
-  const exponentAt = tail.indexOf(exponentText);
-  if (exponentAt < 0) return false;
-  const after = tail.slice(exponentAt + exponentText.length, exponentAt + exponentText.length + 2);
-  return /^[!~°"\d]/.test(after);
-}
-
-/** The stem before its answer options; numbers inside options are not givens. */
-function questionBody(stem: string): string {
-  const cut = /\boptions?\s*:|\b\d{8,}\b|\(a\)\s+[^()]{3,}\(b\)/.exec(stem);
-  return cut ? stem.slice(0, cut.index) : stem;
-}
-
-const TIME_UNIT = String.raw`(min(?:ute)?s?|sec(?:ond)?s?|s|h(?:ou)?rs?|days?|y(?:ea)?rs?)`;
-
-const SECONDS: Record<string, number> = { s: 1, min: 60, h: 3600, days: 86400, yr: 3.156e7 };
-
+function questionBody(question: string): string { return question.slice(0, chemistryQuestionSpan(question).end); }
+const TIME_UNIT = String.raw`(min(?:ute)?s?|sec(?:ond)?s?|s|h|h(?:ou)?rs?|hours?|days?|y(?:ea)?rs?)`;
 function canonicalTimeUnit(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const unit = raw.toLowerCase();
-  if (/^min/.test(unit)) return "min";
-  if (/^(?:s|sec)/.test(unit)) return "s";
-  if (/^h/.test(unit)) return "h";
-  if (/^d/.test(unit)) return "days";
-  if (/^y/.test(unit)) return "yr";
-  return null;
+  return raw ? chemistryUnitSymbol(raw, "time") : null;
 }
-
 function convertTime(value: number, from: string, to: string): number {
-  return (value * (SECONDS[from] ?? 1)) / (SECONDS[to] ?? 1);
+  const read = convertChemistryValue(value, from as ChemistryUnit, to as ChemistryUnit, "time");
+  return read.ok ? read.reading : NaN;
 }
-
-interface Reading { value: number; unit: string | null; index: number }
-
-/** The first number (with an optional time unit) after `phrase`. */
-function readAfter(stem: string, phrase: RegExp, strict = false): Reading | null {
-  const pattern = new RegExp(`${phrase.source}\\s*(=|is|was|of|:|are|be|equal to|equals)?\\s*(?:about|nearly|approximately)?\\s*${NUMBER}\\s*${TIME_UNIT}?\\b`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  const unit = canonicalTimeUnit(match[5]);
-  // "half life of reaction 1" must not read 1 as the half life.
-  if (strict && !unit && !match[1]) return null;
-  if (damagedNumber(stem, match, 2)) return null;
-  return { value: numberFrom(match, 2), unit, index: match.index };
+interface Reading { value: number; unit: string | null; index: number; source: ChemistryReading }
+function readAfter(stem: string, phrase: RegExp, _strict = false): Reading | null {
+  const read = readChemistryQuantity({question: stem, after: phrase, dimension: "time"});
+  if (!read.ok) return null;
+  const unit = canonicalTimeUnit(read.reading.rawUnit ?? undefined)!;
+  const converted = convertChemistryReading(read.reading, unit as ChemistryUnit);
+  return converted.ok ? {value: converted.reading.value, unit, index: read.reading.source.span.start, source: read.reading} : null;
 }
-
-const RATE_UNIT = /(s|sec|min|h|hr|hour|day|year)s?\s*(?:\^\s*\(?\s*-\s*1\s*\)?|-1\b|~!|⁻¹|\^-¹)/i;
 
 function readOrders(stem: string): ReactionOrder[] {
   const found: Array<{ order: ReactionOrder; index: number }> = [];
@@ -312,215 +265,842 @@ function readOrders(stem: string): ReactionOrder[] {
   return orders;
 }
 
+// The optional subject is bounded grammar, never an arbitrary clause leading
+// to a later "is". An asked half-life cannot consume a completion-time given.
+const HALF_LIFE_NAME = String.raw`(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)(?![A-Za-z0-9_])`;
+const HALF_LIFE_SUBJECT = String.raw`\s+(?:of|for)\s+(?:(?:the|this|an?)\s+)?(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction\b`;
+// Subject notation consumes whole bounded participants; coefficients are syntax,
+// not quantity evidence. Unsupported or incomplete source notation must refuse.
+const HALF_REACTION_TERM = String.raw`(?!(?:unknown|unreadable|is|was|when|with|find|calculate|time)\b)(?:[1-9][0-9]{0,2}\s+)?[A-Za-z][A-Za-z0-9_₀-₉]{0,23}(?:\s*\((?:aq|s|l|g)\))?`;
+const HALF_REACTION_SIDE = String.raw`${HALF_REACTION_TERM}(?:\s*\+\s*${HALF_REACTION_TERM}){0,5}`;
+const HALF_REACTION = String.raw`${HALF_REACTION_SIDE}\s*(?:->|→|⟶)\s*${HALF_REACTION_SIDE}`;
+const HALF_LIFE_CUE = new RegExp(String.raw`${HALF_LIFE_NAME}(?:${HALF_LIFE_SUBJECT}(?:\s+${HALF_REACTION})?(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?\s+is\b)?`);
+/** A second requested observable owns one complete, independently checked time. */
+function requestedKineticsContinuationValid(question: string, start: number, end: number): boolean {
+  const body = questionBody(question);
+  const tail = body.slice(start, end);
+  const target = /^\s*,?\s*and\s+(?:find|calculate|determine|compute|obtain|evaluate)\s+(?:(?:the|a)\s+)?(?:remaining fraction|fraction remaining|remaining concentration|concentration remaining)\s+(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*/i.exec(tail);
+  if (!target) return false;
+  const timeStart = start + target[0].length;
+  const time = readChemistryQuantity({question, after: /^/, within: {start:timeStart, end}, dimension:"time"});
+  if (!time.ok || !(time.reading.value > 0) || body.slice(time.reading.source.span.end, end).trim() !== "") return false;
+  const asked = readTimesAsked(tail, []);
+  return asked !== null && asked.length === 1 && convertTime(asked[0]!.value, asked[0]!.unit, "s") === time.reading.value;
+}
+/** A conditional input belongs to the requested half-life, not a later copula. */
+function requestedHalfLifeConditionValid(question: string, ownerStart: number, conditionStart: number, predicateRequest = false): boolean {
+  const body = questionBody(question);
+  const tail = body.slice(conditionStart);
+  const connector = /^\s*(?:if|when|whose|with|given|for which|from|using)\s+/i.exec(tail);
+  if (!connector) return false;
+  const inputStart = conditionStart + connector[0].length;
+  const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(inputStart));
+  const inputEnd = clause ? inputStart + clause.index : body.length;
+  const input = body.slice(inputStart, inputEnd);
+  let valueEnd: number | null = null;
+  const firstRateOwner = new RegExp(String.raw`^\s*(?:(?:${caseWord("the")}|${caseWord("a")})\s+)?${RATE_CUE.source}`, RATE_CUE.flags).exec(input);
+  if (firstRateOwner) {
+    const orders = readOrders(chemStem(body));
+    if (orders.length !== 1) return false;
+    const order = orders[0]!;
+    const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+    const valueStart = inputStart + firstRateOwner[0].length;
+    const read = readChemistryQuantity({question, after: /^/, within: {start:valueStart, end:inputEnd}, dimension});
+    if (!read.ok) return false;
+    valueEnd = read.reading.source.span.end;
+  } else if (/^\s*(?:(?:the|a)\s+)?time\b/.test(input.toLowerCase())
+    || new RegExp(String.raw`^\s*${SCALAR}\s*%`).test(input)) {
+    const given = readCompletionGiven(body);
+    const firstOwnerStart = inputStart + /^\s*(?:(?:the|a)\s+)?/i.exec(input)![0].length;
+    if (!given || given.span[0] !== firstOwnerStart || given.span[1] > inputEnd) return false;
+    valueEnd = given.span[1];
+  }
+  if (valueEnd === null) return false;
+  const remainder = body.slice(valueEnd, inputEnd).trim();
+  const passive = /^is\s+(?:to\s+be\s+(?:found|calculated|determined)|required|asked)$/i.test(remainder);
+  const target = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|a)\s+)?$/i.test(body.slice(0, ownerStart));
+  return passive || ((predicateRequest || target) && (remainder === "" || requestedKineticsContinuationValid(question, valueEnd, inputEnd)));
+}
+function halfLifeSourceOwnersValid(question: string): boolean {
+  const body = questionBody(question);
+  for (const owner of body.matchAll(new RegExp(HALF_LIFE_NAME + HALF_LIFE_SUBJECT, "ig"))) {
+    const subjectStart = owner.index! + owner[0].length;
+    const tail = body.slice(subjectStart);
+    const temperature = String.raw`(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?`;
+    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$|(?:if|when|whose|with|given|for which|from|using)\b))`;
+    const subject = new RegExp(String.raw`^${temperature}${boundary}`, "i").exec(tail)
+      ?? new RegExp(String.raw`^\s+${HALF_REACTION}${temperature}${boundary}`, "i").exec(tail);
+    if (!subject) return false;
+    const end = subjectStart + subject[0].length;
+    if (/^\s*(?:if|when|whose|with|given|for which|from|using)\b/i.test(body.slice(end))
+      && !requestedHalfLifeConditionValid(question, owner.index!, end)) return false;
+  }
+  const owners = [...body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))];
+  let suppliedOwners = 0;
+  for (const [index,owner] of owners.entries()) {
+    const end = owner.index! + owner[0].length;
+    const tail = body.slice(end);
+    const predicate = /^\s*(?:is\s+)?(?:to\s+be\s+(?:found|calculated|determined)|required|asked)\b/i.exec(tail);
+    if (predicate) {
+      const rest = tail.slice(predicate[0].length);
+      if (/^\s*(?:[.;?]|$)/.test(rest)
+        || requestedHalfLifeConditionValid(question, owner.index!, end + predicate[0].length, true)) continue;
+      return false;
+    }
+    if (/^\s*(?:if|when|whose|with|given|for which|from|using)\b/i.test(tail)) {
+      if (requestedHalfLifeConditionValid(question, owner.index!, end)) continue;
+      return false;
+    }
+    const read = readChemistryQuantityDeclaration({question,after:HALF_LIFE_CUE,
+      within:{start:owner.index!,end:owners[index+1]?.index ?? body.length},dimension:"time",owner:"reaction half-life"});
+    if (read.state === "invalid") return false;
+    if (read.state === "valid" && (!(read.reading.value > 0) || ++suppliedOwners > 1)) return false;
+  }
+  return true;
+}
+const ACTIVATION_CUE = /(?:activation energy|\be_?a\b)(?:\s+(?:of|for)\s+(?:the|this|a)\s+reaction)?/;
 function readHalfLife(stem: string): Reading | null {
-  return readAfter(stem, /(?:half[ -]?life(?:\s*period)?|t\s*1\s*\/\s*2|t½|t_?\(?1\/2\)?|t_half)\b(?:\s*\([^)]{0,12}\))?(?:\s*(?:of|for)\s+(?:the |a |an |this )?(?:[a-z0-9_[\]()+<=>-]+\s+){0,8}?)?/, true);
+  return readAfter(stem, HALF_LIFE_CUE, true);
 }
 
-function readRateConstant(stem: string): { value: number; unit: string | null } | null {
-  const pattern = new RegExp(String.raw`(?:rate constant|\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:for|of)?\s*(?:the |this |a )?(?:reaction|it)?\s*(?:=|is|:|equals|equal to)\s*${NUMBER}`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  if (damagedNumber(stem, match, 1)) return null;
-  const value = numberFrom(match, 1);
-  const tail = stem.slice(match.index + match[0].length, match.index + match[0].length + 24);
-  const unit = RATE_UNIT.exec(tail);
-  let timeUnit: string | null = null;
-  if (unit) timeUnit = canonicalTimeUnit(unit[1]);
-  else {
-    const per = /(?:per|\/)\s*(second|minute|hour|s|min|h)\b/i.exec(tail);
-    if (per) timeUnit = canonicalTimeUnit(per[1]);
+/** Words ignore case, but the rate symbol k differs from equilibrium K. */
+const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
+const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
+const ARRHENIUS_RATIO_CUE = new RegExp(String.raw`(?:\b${caseWord("ratio")}\b|k_?2\s*\/\s*k_?1)`, "g");
+/** Every supplied ratio owns its original scalar; a requested ratio is absent. */
+function readArrheniusRatio(stem: string, arrheniusContext = false): number | null | false {
+  const body = questionBody(stem);
+  const owners = [...body.matchAll(ARRHENIUS_RATIO_CUE)];
+  const concentrationRequests = concentrationRatioRequestSpans(stem);
+  let value: number | null = null;
+  for (const [index, owner] of owners.entries()) {
+    let start = owner.index! + owner[0].length;
+    const prefix = body.slice(0,owner.index);
+    const explicitRate = /^k/.test(owner[0]) || /\brate[ -]?constants?\s+$/i.test(prefix)
+      || /^\s+of\s+(?:the\s+)?rate[ -]?constants?\b/i.test(body.slice(start));
+    if (!explicitRate && concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
+    if (!explicitRate && !arrheniusContext) continue;
+    const role = /^\s+of\s+(?:the\s+)?rate[ -]?constants?\b/i.exec(body.slice(start));
+    if (role) start += role[0].length;
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start,end));
+    if (clause) end = start + clause.index;
+    const tail = body.slice(start,end);
+    // Adjacent named/symbolic aliases refer to the same original value.
+    // Its next alias is still audited, so an unread assignment cannot vanish.
+    if (next && end === next.index && /^\s*$/.test(tail)
+      && (/^k/.test(owner[0]) !== /^k/.test(next[0]))) continue;
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?(?:(?:rate[ -]?constants?|ratio|k_?2\s*\/\s*k_?1)\s+)?$/i.test(prefix);
+    if (requested && (tail.trim() === "" || /^\s+and\s+(?:calculate|find|determine)\s+(?:the\s+)?activation energy\s*$/i.test(tail))) continue;
+    const suppliedPrefix = /\b(?:given|supplied|provided|stated|measured|assumed|unknown|unreadable|unavailable)\s+(?:rate[ -]?constants?\s+)?$/i.test(prefix);
+    if (!suppliedPrefix && /^\s*is\s+(?:required|to\s+be\s+found)\s*$/i.test(tail)) continue;
+    if (/\buse\s+(?:(?:the|its|a)\s+)?(?:known\s+)?(?:ratio\s+)?$/i.test(prefix)
+      && /^\s*to\s+(?:draw|plot|sketch)\s+(?:the\s+)?Arrhenius\s+(?:plot|graph)\s*$/i.test(tail)) continue;
+    const readEnd = end + (body[end] === "." ? 1 : 0);
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:readEnd},dimension:"dimensionless"});
+    if (!read.ok || !(read.reading.value > 0) || body.slice(read.reading.source.span.end,end).trim() !== "") return false;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return false;
+    value ??= read.reading.value;
   }
-  // A second order constant carries a concentration unit too; keep the time part.
-  return { value, unit: timeUnit };
+  return value;
 }
-
-function readInitialConcentration(stem: string): { value: number; unit: string | null } | null {
-  const pattern = new RegExp(String.raw`(?:initial concentration(?:\s+of\s+(?:the\s+)?[a-z\[\]0-9_]+)?|\[a\]\s*_?\s*0|\[a\]_0|\ba_?0\b|starting concentration)\s*(?:of\s+[a-z\[\]0-9]+\s*)?(?:is|=|:|was|of|being)?\s*${NUMBER}\s*(mol\s*(?:l\^?\(?-1\)?|\/\s*l|dm\^?\(?-3\)?|per litre|l-1|l~!)?|m\b)`, "i");
-  const match = pattern.exec(stem);
-  if (!match || damagedNumber(stem, match, 1)) return null;
-  return { value: numberFrom(match, 1), unit: "M" };
+/** A plot target contains only diagram words or complete concentration math. */
+function pureKineticsPlotSubject(subject: string): boolean {
+  if (subject.trim() === "") return false;
+  const concentration = String.raw`(?:\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?|[A-Za-z]_?0|[A-Za-z])`;
+  let words = subject.replace(new RegExp(String.raw`\b(?:log|ln)\s*\(\s*${concentration}\s*\/\s*${concentration}\s*\)`, "g"), " ");
+  words = words.replace(/1\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\]/g, " ");
+  words = words.replace(/\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?(?:\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?)?/g, " ");
+  return /^\s*(?:(?:the|its|a|decay|curve|concentration|remaining|fraction|versus|against|vs|time|graph|plot|variation|of|log|ln|normalized|normalised|and|with|t)\b\s*)*$/i.test(words);
 }
-
-/** "50 % of A is decomposed in 120 min" and its relatives. */
-function readCompletionGiven(stem: string): { fraction: number; time: number; unit: string | null; span: [number, number] } | null {
-  const unitTail = String.raw`\s*${NUMBER}\s*${TIME_UNIT}\b`;
-  const patterns = [
-    new RegExp(String.raw`(\d+(?:\.\d+)?)\s*%\s*(?:of\s+(?:the\s+)?[a-z\[\]0-9_]+\s+)?(?:is|was|gets|has been|had been|are|were)?\s*(?:decomposed|completed?|consumed|converted|reacted|complete|over|finished|dissociated|used up)\s*(?:in|after|within|takes)${unitTail}`, "i"),
-    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(\d+(?:\.\d+)?)\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "i"),
-    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(\d+(?:\.\d+)?)\s*%`, "i"),
-    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:complete|completed|over|decomposed|consumed)`, "i"),
-  ];
-  for (const [index, pattern] of patterns.entries()) {
-    const match = pattern.exec(stem);
-    if (!match) continue;
-    const percentFirst = index === 0 || index === 1;
-    const percent = Number(percentFirst ? match[1] : match[5]);
-    const time = percentFirst ? numberFrom(match, 2) : numberFrom(match, 1);
-    const unit = canonicalTimeUnit(percentFirst ? match[5] : match[4]);
-    if (!(percent > 0 && percent < 100) || !(time > 0)) continue;
-    return { fraction: percent / 100, time, unit, span: [match.index, match.index + match[0].length] };
+/** A complete requested concentration ratio supplies no initial concentration. */
+function concentrationRatioRequestSpans(question: string): Array<{start:number;end:number}> {
+  const body = questionBody(question);
+  const spans: Array<{start:number;end:number}> = [];
+  for (const owner of body.matchAll(/\bratio\b/gi)) {
+    const prefix = body.slice(0,owner.index);
+    if (!/\b(?:find|calculate|determine|compute|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?(?:(?:remaining\s+)?concentration\s+)?$/i.test(prefix)) continue;
+    let start = owner.index! + owner[0].length;
+    const operand = /^\s*(?:of\s+)?(?:\[([A-Za-z][A-Za-z0-9]*)\]\s*(?:to|\/)\s*\[\1\]\s*_?\s*0|remaining concentration\s+to\s+initial concentration)\s*/i.exec(body.slice(start));
+    if (operand) start += operand[0].length;
+    else if (!/\bconcentration\s+$/i.test(prefix)) continue;
+    const after = /^\s*after\s+/i.exec(body.slice(start));
+    if (!after) continue;
+    start += after[0].length;
+    let end = body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start));
+    if (clause) end = start + clause.index;
+    const time = readChemistryQuantity({question,after:/^/,within:{start,end},dimension:"time"});
+    if (!time.ok || !(time.reading.value > 0)) continue;
+    const tail = body.slice(time.reading.source.span.end,end);
+    const draw = /^\s+and\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+    if (tail.trim() !== "" && !(draw && pureKineticsPlotSubject(tail.slice(draw[0].length).replace(/concentration-time/ig,"concentration time")))) continue;
+    spans.push({start:owner.index!,end});
   }
+  return spans;
+}
+function pureQuantityRequestTail(tail: string): boolean {
+  if (tail.trim() === "") return true;
+  const request = /^\s*and\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+  return request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
+}
+/** A use-reference carries no scalar, assignment or unread input material. */
+function quantityUseReferenceOnly(body: string, ownerStart: number, payloadStart: number, tail: string): boolean {
+  const request = /^\s*to\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+  const delimiter = /^\s/.test(tail) || /\s$/.test(body.slice(ownerStart, payloadStart));
+  return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
+    && delimiter && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
+}
+/** A relative rate change contains only its complete thermal payload. */
+function qualitativeRateChangeOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  const tail = question.slice(start, end);
+  // The Arrhenius reader below validates the original multiplier scalar and
+  // source span. This audit only keeps that relative input out of the
+  // absolute-k slot; it does not assign a physical rate constant.
+  const multiplier = String.raw`(?:(?:is|was|becomes?|increases?)\s+)?${SCALAR}(?:\s+times|\s*[-–]?\s*fold)(?:\s+(?:its|the)\s+(?:original\s+)?value)?`;
+  const qualitative = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  // "By N times" has an ambiguous final magnitude; "decreases N-fold"
+  // would require the reciprocal. Neither supplies this positive ratio.
+  const change = String.raw`(?:${qualitative}|${multiplier})`;
+  let payloadStart = start;
+  let payload = tail;
+  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between|at|with)\b[\s\S]*)?\s*$`, "i").test(tail)) {
+    // In the inverse wording, the complete thermal subject precedes its rate
+    // owner. An empty owner alone is not evidence for a qualitative input.
+    if (tail.trim() !== "") return false;
+    const prefix = question.slice(0, ownerStart);
+    const boundary = /[;?\n]|\.(?=\s|$)/g;
+    for (const match of prefix.matchAll(boundary)) payloadStart = match.index! + match[0].length;
+    if (payloadStart === start) payloadStart = 0;
+    payload = question.slice(payloadStart, ownerStart);
+    if (!new RegExp(String.raw`\b${change}\s+(?:(?:the|its|a)\s+)?$`, "i").test(payload)) return false;
+  }
+  const payloadEnd = payloadStart + payload.length;
+  const thermal = findChemistryQuantities({question, within:{start:payloadStart,end:payloadEnd}, dimension:"temperature"});
+  if (!thermal.ok) return false;
+  let words = payload;
+  for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+    words = words.slice(0, reading.source.span.start-payloadStart) + " " + words.slice(reading.source.span.end-payloadStart);
+  }
+  // The field index is syntax, while its physical scalar was read above.
+  words = words.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g, " ");
+  return new RegExp(String.raw`^\s*(?:(?:${change}|when|as|on|from|for|between|with|in|of|the|an?|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|changes|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)+$`, "i").test(words);
+}
+
+/** Original owner boundaries are shared by the rate audit and Arrhenius roles. */
+function rateOwnerPayloads(body: string) {
+  const owners = [...body.matchAll(new RegExp(RATE_CUE.source, RATE_CUE.flags + "g"))];
+  return owners.map((owner, index) => {
+    let start = owner.index! + owner[0].length;
+    const subject = /^\s*(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction\b/i.exec(body.slice(start));
+    if (subject) start += subject[0].length;
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
+    if (clause) end = start + clause.index;
+    return {owner, next, start, end};
+  });
+}
+
+/** A complete named temperature/rate pair is two measurements, not one k. */
+function readOwnedTemperatureRates(question: string, start: number, end: number): Array<{temperature:number;rate:number}> | null | false {
+  const tail = question.slice(start, end);
+  if (!/^\s*at\b/i.test(tail)) return null;
+  const fields = [...tail.matchAll(/(?:^\s*|\s+and\s+)at\s+/gi)];
+  if (fields.length !== 2 || fields[0]!.index !== 0) return false;
+  const values: Array<{temperature:number;rate:number}> = [];
+  for (const [index, field] of fields.entries()) {
+    const fieldStart = start + field.index! + field[0].length;
+    const fieldEnd = index === 0 ? start + fields[1]!.index! : end;
+    const assignment = /\s+(?:is|equals|equal to)\b\s*|\s*[=:]\s*/i.exec(question.slice(fieldStart, fieldEnd));
+    if (!assignment) return false;
+    const tempEnd = fieldStart + assignment.index;
+    const rateStart = tempEnd + assignment[0].length;
+    const temperature = readChemistryQuantity({question,after:/^/,within:{start:fieldStart,end:tempEnd},dimension:"temperature"});
+    const rate = readChemistryQuantity({question,after:/^/,within:{start:rateStart,end:fieldEnd},dimension:"rate_constant_first"});
+    if (!temperature.ok || !rate.ok || !(rate.reading.value > 0)
+      || question.slice(temperature.reading.source.span.end,tempEnd).trim() !== ""
+      || question.slice(rate.reading.source.span.end,fieldEnd).trim() !== "") return false;
+    values.push({temperature:temperature.reading.value,rate:rate.reading.value});
+  }
+  const temperatures = readTemperatureInputs(question);
+  if (!temperatures || temperatures.rise !== null || temperatures.absolute.length !== 2
+    || values.some((value,index)=>!chemistryCanonicalValuesAgree(value.temperature,temperatures.absolute[index]!))
+    || values[0]!.temperature === values[1]!.temperature) return false;
+  return values;
+}
+
+/** A complete symbolic Arrhenius identity supplies no physical rate scalar. */
+function symbolicArrheniusRateOwnerOnly(body: string, owner: RegExpMatchArray, start: number, end: number): boolean {
+  if (!/^k\b/.test(owner[0])) return false;
+  return start === owner.index! + owner[0].length && readSymbolicArrheniusSource(body, { start: owner.index!, end }) !== null;
+}
+/** Each supplied rate owns its original literal; absence and unread are distinct. */
+function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null; source: ChemistryReading } | null | false {
+  const body = questionBody(stem);
+  const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+  const equation = readChemistryArrheniusEquation(stem);
+  let reading: ChemistryReading | null = null;
+  let temperaturePair = false;
+  for (const {owner,next,start,end} of rateOwnerPayloads(body)) {
+    const tail = body.slice(start, end);
+    if (/rate constant/i.test(owner[0]) && /^\s*ratio\b/i.test(tail)) {
+      if (readArrheniusRatio(stem) === false) return false;
+      continue;
+    }
+    // "The rate constant ... is k = ..." names one value, not two givens.
+    if (next && end === next.index && /rate constant/i.test(owner[0])
+      && /^k\b/.test(next[0]) && !/^\s*\[/.test(body.slice(next.index! + next[0].length))
+      && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    // Only this owner may supply the already validated complete Arrhenius
+    // expression. Other unread k declarations remain independently audited.
+    if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
+      && /^\s*=\s*A\s*$/i.test(body.slice(start, equation.reading.source.span.start))
+      && equation.reading.source.span.end <= end && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
+    if (symbolicArrheniusRateOwnerOnly(body,owner,start,end)) continue;
+    const pair = readOwnedTemperatureRates(stem,start,end);
+    if (pair === false) return false;
+    if (pair) {temperaturePair = true;continue;}
+    if (qualitativeRateChangeOnly(stem, owner.index!, start, end) || quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
+    const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
+      || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
+    if (!supplied) {
+      // Only a proved request, mathematical coefficient or qualitative change
+      // omits a rate. Opaque declaration payloads are not absence.
+      const unread = /\b(?:unknown|unreadable|unavailable|not known|not given|not supplied)\b/i.test(tail);
+      const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
+      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?/.exec(tail);
+      const rest = coefficient ? tail.slice(coefficient[0].length) : "";
+      const plotted = /^\s*,?\s*(?:and\s+)?(?:draw|plot|sketch)\s+/i.exec(rest);
+      const pureCoefficient = coefficient !== null && (rest.trim() === "" || (plotted !== null && pureKineticsPlotSubject(rest.slice(plotted[0].length))));
+      if (!unread && ((requested && pureQuantityRequestTail(tail)) || pureCoefficient)) continue;
+      return false;
+    }
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
+    reading ??= read.reading;
+  }
+  if (temperaturePair && reading) return false;
+  if (!reading) return null;
+  const raw = reading.rawUnit ?? "";
+  const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
+  return {value: reading.value * convertTime(1, unit, "s"), unit, source: reading};
+}
+/** A complete requested fraction operand supplies no original molarity. */
+function initialFractionRequestOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  const prefix = question.slice(0,ownerStart);
+  const request = /\b(?:(?:what|which)\s+fraction|(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:the\s+)?fraction)\s+of\s+(?:the\s+)?$/i.test(prefix);
+  if (!request) return false;
+  const predicate = /^\s+(?:(?:that\s+)?remains?|remaining|left|is\s+(?:left|unreacted|remaining))\s+after\s+/i.exec(question.slice(start,end));
+  if (!predicate) return false;
+  const timeStart = start + predicate[0].length;
+  const time = readChemistryQuantity({question,after:/^/,within:{start:timeStart,end},dimension:"time"});
+  return time.ok && time.reading.value > 0 && question.slice(time.reading.source.span.end,end).trim() === "";
+}
+/** Preserve the same complete initial-concentration subject in admission and plotting. */
+function initialConcentrationSubjectEnd(question: string, start: number): number {
+  const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:(?:reactant|substrate|species)(?:\s+[A-Z]\b)?|[A-Z]\b|\[[A-Z]\](?![A-Za-z0-9_]))/i.exec(question.slice(start));
+  return start + (subject?.[0].length ?? 0);
+}
+/** A complete asked fraction is an operand; its predicate fixes which part it measures. */
+function concentrationFractionTargetRole(question: string, operand: FractionOperand, ownerStart: number, start: number, end: number): "remaining" | "completion" | null {
+  if (!(operand.fraction > 0 && operand.fraction < 1)
+    || !/^\s+of\s+(?:(?:the|its)\s+)?$/i.test(question.slice(operand.end,ownerStart))
+    || !/\b(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:when|the\s+time\s+(?:when|for|at\s+which))\s*$/i.test(question.slice(0,operand.start))) return null;
+  const predicate = question.slice(start,end);
+  if (/^\s+(?:remains?|is\s+(?:left|remaining|unreacted))\s*$/i.test(predicate)) return "remaining";
+  if (/^\s+(?:has\s+(?:decayed|decomposed|reacted|disappeared)|(?:is|has\s+been)\s+(?:consumed|decomposed|converted|reacted))\s*$/i.test(predicate)) return "completion";
   return null;
+}
+function initialConcentrationFractionTargetOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  return fractionOperands(question).some(operand => concentrationFractionTargetRole(question,operand,ownerStart,start,end) !== null);
+}
+function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
+  const body = questionBody(stem);
+  const concentrationRequests = concentrationRatioRequestSpans(stem);
+  // Inventory original owner starts, never a wildcard spanning a later owner.
+  const owners = [...body.matchAll(/initial concentration|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration/ig)];
+  let reading: ChemistryReading | null = null;
+  for (const [index, owner] of owners.entries()) {
+    if (concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
+    const start = initialConcentrationSubjectEnd(body,owner.index! + owner[0].length);
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
+    if (clause) end = start + clause.index;
+    const tail = body.slice(start, end);
+    if (initialFractionRequestOnly(stem,owner.index!,start,end)
+      || initialConcentrationFractionTargetOnly(stem,owner.index!,start,end)) continue;
+    // Complete numerator/denominator math references supply no initial value;
+    // an assignment or unread payload after that reference still must refuse.
+    const numerator = /^\s*\/\s*(?:\[a\]|a\b)/i.exec(tail);
+    const reference = /^(?:\[a\]|a_?0\b)/i.test(owner[0])
+      && (/\/\s*$/.test(body.slice(0, owner.index)) || numerator !== null);
+    const referenceTail = numerator ? tail.slice(numerator[0].length) : tail;
+    if (reference && !/^\s*\)?\s*,?\s*(?:[=:]|(?:is|was|unknown|unreadable|unavailable|given|supplied|provided|value)\b)/i.test(referenceTail)) continue;
+    if (next && end === next.index && /concentration/i.test(owner[0])
+      && /^(?:\[a\]|a_?0\b)/i.test(next[0]) && !/^\s*\//.test(body.slice(next.index! + next[0].length))
+      && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    if (quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
+    if (requested && pureQuantityRequestTail(tail)) continue;
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension:"concentration"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
+    reading ??= read.reading;
+  }
+  return reading ? {value: reading.value, unit:"M"} : null;
+}
+
+interface CompletionGiven {
+  fraction: number; time: number; unit: string; span: [number, number];
+  percentSpan: ChemistrySpan; timeSpan: ChemistrySpan;
+}
+const COMPLETION_PREDICATE = String.raw`(?:decompos(?:ed|es?)|complete[sd]?|consum(?:ed|es?)|convert(?:ed|s?)|react(?:ed|s?)|over|finish(?:ed|es?)|dissociat(?:ed|es?)|used up)`;
+/** Every supplied percent/time pair is readable, or the whole source refuses. */
+function readCompletionGivens(stem: string): CompletionGiven[] | false {
+  const unitTail = String.raw`\s*${NUMBER}\s*${TIME_UNIT}\b`;
+  const participant = String.raw`(?:of\s+(?:the\s+)?(?:(?:reactant|substrate|species)(?:\s+(?:[A-Z]|\[[A-Z]\]))?|[a-z\[\]0-9_]+)\s+)?`;
+  const predicate = String.raw`(?:is|was|gets|has been|had been|has|had|are|were)?\s*${COMPLETION_PREDICATE}`;
+  const patterns = [
+    new RegExp(String.raw`(${SCALAR})\s*%\s*${participant}${predicate}\s*(?:in|after|within|takes)${unitTail}`, "gid"),
+    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(${SCALAR})\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "gid"),
+    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(${SCALAR})\s*%`, "gid"),
+    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(${SCALAR})\s*%\s*${COMPLETION_PREDICATE}`, "gid"),
+  ];
+  const givens: CompletionGiven[] = [];
+  for (const [index, pattern] of patterns.entries()) for (const match of stem.matchAll(pattern)) {
+    const percentFirst = index === 0 || index === 1;
+    const percentIndices = match.indices![percentFirst ? 1 : 5]!;
+    const timeIndices = match.indices![percentFirst ? 2 : 1]!;
+    const percentSpan = {start:percentIndices[0],end:percentIndices[1]};
+    const timeSpan = {start:timeIndices[0],end:timeIndices[1]};
+    const percent = readChemistryLiteral({question:stem,scalarSpan:percentSpan,dimension:"dimensionless"});
+    const time = readChemistryLiteral({question:stem,scalarSpan:timeSpan,dimension:"time"});
+    const unit = canonicalTimeUnit(percentFirst ? match[5] : match[4]);
+    if (!percent.ok || percent.reading.rawUnit !== "%" || !(percent.reading.value > 0 && percent.reading.value < 1)
+      || !time.ok || !(time.reading.value > 0) || !unit) return false;
+    if (/^\s*(?:[+*/^=]|[-−](?=\s*(?:\d|\.\d))|(?:plus|minus|times|divided|multiplied)\b)/i.test(stem.slice(time.reading.source.span.end))) return false;
+    const converted = convertChemistryReading(time.reading,unit as ChemistryUnit);
+    if (!converted.ok) return false;
+    if (givens.some(given => given.percentSpan.start === percentSpan.start && given.timeSpan.start === timeSpan.start)) continue;
+    givens.push({fraction:percent.reading.value,time:converted.reading.value,unit,
+      span:[match.index!,match.index!+match[0].length],percentSpan,timeSpan});
+  }
+  // These semantic owners deliberately do not require readable numbers. A
+  // damaged sibling must not vanish behind another given or a symbolic plot.
+  for (const percent of stem.matchAll(/%/g)) {
+    const at = percent.index!;
+    if (givens.some(given => at >= given.span[0] && at < given.span[1])) continue;
+    const prefix = stem.slice(0,at);
+    const boundary = [...prefix.matchAll(/[;?\n]|\.(?=\s|$)/g)].at(-1);
+    const before = prefix.slice(boundary ? boundary.index!+boundary[0].length : 0);
+    const after = stem.slice(at+1);
+    const next = givens.find(given => given.percentSpan.start > at
+      && !/[;?\n]|\.(?=\s|$)/.test(stem.slice(at+1,given.percentSpan.start)));
+    // A shared predicate does not give an unread earlier percentage the later
+    // member's value. Unsupported coordinated owner lists refuse atomically.
+    if (next && new RegExp(String.raw`^\s*${participant}(?:${predicate})?\s*(?:,\s*(?:and|or)?|and|or)\s*$`, "i")
+      .test(stem.slice(at+1,next.percentSpan.start))) return false;
+    const leading = new RegExp(String.raw`^\s*${participant}${predicate}\s*(?:in|after|within|takes)\b`, "i").test(after);
+    const nominal = /^\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)/i.test(after)
+      && /\b(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\b[^%]*$/i.test(before);
+    const duration = /\b(takes|took|requires|required)\b([^%]*?)\b(?:for|to)\b[^%]*$/i.exec(before);
+    // Bare "time required for ..." is a requested noun phrase, not a duration.
+    const durationFirst = !!duration && (duration[1]!.toLowerCase() !== "required" || duration[2]!.trim() !== "");
+    const elapsedFirst = /\b(?:in|after|within)\b[^%]*$/i.test(before)
+      && new RegExp(String.raw`^\s*${COMPLETION_PREDICATE}\b`, "i").test(after);
+    const expression = /^\s*[+*/^=−-]/.test(after)
+      && new RegExp(String.raw`${predicate}\s*(?:in|after|within|takes)\b`, "i").test(after.split(/[;?\n]|\.(?=\s|$)/)[0]!);
+    if (leading || nominal || durationFirst || elapsedFirst || expression) return false;
+  }
+  return givens.sort((a,b)=>a.span[0]-b.span[0]);
+}
+function readCompletionGiven(stem: string): CompletionGiven | null | false {
+  const givens = readCompletionGivens(stem);
+  return givens === false ? false : givens[0] ?? null;
+}
+/** Rounding checks use only an already validated original scalar, never a new reading. */
+function completionSourceTolerance(question: string, start: number, value: number): number {
+  const token = new RegExp(`^${SCALAR}`).exec(question.slice(start))?.[0].replace(/\s/g, "").replace(/−/g,"-")
+    .replace(/^([+-]?[\d.]+)[x×*]10\^\(?([+-]?\d+)\)?$/i,"$1e$2");
+  const decimal = token && /^[+-]?(?:\d+(?:\.(\d*))?|\.(\d+))(?:e([+-]?\d+))?$/i.exec(token);
+  if (!decimal || !token) return 0; // Rational or bare power notation retains its exact strict value.
+  const places = (decimal[1] ?? decimal[2] ?? "").length;
+  return .5 * 10 ** (Number(decimal[3] ?? 0)-places) * Math.abs(value/Number(token));
+}
+/** The selected first-order rate must satisfy every given at its written precision. */
+function completionRatesAgree(question: string, givens: readonly CompletionGiven[], unit: string,
+  rate: {value:number; source:ChemistryReading} | null, halfLife: {value:number; source:ChemistryReading} | null): boolean {
+  const ranges: Array<[number,number]> = givens.map(given => {
+    const time = convertTime(given.time,given.unit,unit);
+    const dp = completionSourceTolerance(question,given.percentSpan.start,given.fraction);
+    const dt = completionSourceTolerance(question,given.timeSpan.start,time);
+    return [-Math.log(1-Math.max(0,given.fraction-dp))/(time+dt),
+      -Math.log(1-Math.min(1,given.fraction+dp))/(time-dt)];
+  });
+  if (rate) {
+    const delta = completionSourceTolerance(question,rate.source.source.span.start,rate.value);
+    ranges.push([rate.value-delta,rate.value+delta]);
+  }
+  if (halfLife) {
+    const delta = completionSourceTolerance(question,halfLife.source.source.span.start,halfLife.value);
+    ranges.push([Math.LN2/(halfLife.value+delta),Math.LN2/(halfLife.value-delta)]);
+  }
+  // Match the solver's actual authority order, not a hypothetical compatible rate.
+  const first = givens[0]!;
+  const selected = rate?.value ?? -Math.log(1-first.fraction)/convertTime(first.time,first.unit,unit);
+  // The supplied half-life is also drawn as a central reference/tick, even
+  // when the completion supplies k, so that plotted anchor must agree too.
+  const anchors = halfLife ? [selected,Math.LN2/halfLife.value] : [selected];
+  return anchors.every(anchor => Number.isFinite(anchor) && ranges.every(([low,high]) =>
+    (anchor >= low || chemistryCanonicalValuesAgree(anchor,low))
+    && (anchor <= high || chemistryCanonicalValuesAgree(anchor,high))));
 }
 
 const WORD_FRACTIONS: Array<[RegExp, number]> = [
-  [/\bone[ -]?fourth\b|\b1\s*\/\s*4\b|\bquarter\b/g, 1 / 4],
-  [/\bone[ -]?eighth\b|\b1\s*\/\s*8\b/g, 1 / 8],
-  [/\bone[ -]?tenth\b|\b1\s*\/\s*10\b/g, 1 / 10],
-  [/\bone[ -]?third\b|\b1\s*\/\s*3\b/g, 1 / 3],
-  [/\bone[ -]?sixteenth\b|\b1\s*\/\s*16\b/g, 1 / 16],
-  [/\bthree[ -]?fourths?\b|\b3\s*\/\s*4\b/g, 3 / 4],
-  [/\btwo[ -]?thirds?\b|\b2\s*\/\s*3\b/g, 2 / 3],
+  [/\bone[ -]?fourth\b|\bquarter\b/gi, 1 / 4],
+  [/\bone[ -]?eighth\b/gi, 1 / 8],
+  [/\bone[ -]?tenth\b/gi, 1 / 10],
+  [/\bone[ -]?third\b/gi, 1 / 3],
+  [/\bone[ -]?sixteenth\b/gi, 1 / 16],
+  [/\bthree[ -]?fourths?\b/gi, 3 / 4],
+  [/\btwo[ -]?thirds?\b/gi, 2 / 3],
 ];
 
+interface FractionOperand { start: number; end: number; fraction: number }
+/** Shared source spans and strict scalar policy for both target ownership and plotting. */
+function fractionOperands(question: string): FractionOperand[] {
+  const operands: FractionOperand[] = [];
+  for (const [pattern,fraction] of WORD_FRACTIONS) for (const match of question.matchAll(pattern)) {
+    operands.push({start:match.index!,end:match.index!+match[0].length,fraction});
+  }
+  for (const match of question.matchAll(new RegExp(`(${SCALAR})`, "gd"))) {
+    if (!match[1]!.includes("/")) continue;
+    const fraction = matchedChemistryScalar(question,match);
+    if (fraction !== null) operands.push({start:match.index!,end:match.index!+match[0].length,fraction});
+  }
+  return operands;
+}
+
 /** Completions asked for (as fractions complete) and remaining fractions asked for, excluding the given completion. */
-function readFractionsAsked(stem: string, givenSpan: [number, number] | null): { completion: number[]; remaining: number[] } {
+function readFractionsAsked(stem: string, givenSpans: readonly [number, number][]): { completion: number[]; remaining: number[] } {
   const completion: number[] = [];
   const remaining: number[] = [];
   const push = (list: number[], fraction: number) => {
     if (fraction > 0 && fraction < 1 && Math.abs(fraction - 0.5) > 1e-9 && !list.some((f) => Math.abs(f - fraction) < 1e-9)) list.push(fraction);
   };
-  for (const match of stem.matchAll(/(\d+(?:\.\d+)?)\s*%/g)) {
+  for (const match of stem.matchAll(new RegExp(`(${SCALAR})\\s*%`, "gd"))) {
     const index = match.index ?? 0;
-    if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
     const before = stem.slice(Math.max(0, index - 70), index);
     const after = stem.slice(index, index + 70);
-    const percent = Number(match[1]);
+    const percent = matchedChemistryScalar(stem, match) ?? NaN;
     if (!(percent > 0 && percent < 100)) continue;
     // A rise in temperature or a yield is not a completion.
-    if (/\b(?:temperature|yield|error|efficiency|purity|dissociat)\w*\s*$/.test(before) || /^\d+(?:\.\d+)?\s*%\s*(?:rise|increase|error)/.test(after)) continue;
-    const asksRemaining = /\b(?:remain|left|unreacted|falls? to|reduced? to|decreases? to|drops? to|decays? to|reach)/.test(before + after.slice(0, 40)) && !/\b(?:decompos|complet|consum|convert|react)/.test(after.slice(0, 30));
-    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react|disappear|over|conversion|dissociat|time)/.test(before + after);
+    if (/\b(?:temperature|yield|error|efficiency|purity|dissociat)\w*\s*$/i.test(before) || /^\d+(?:\.\d+)?\s*%\s*(?:rise|increase|error)/i.test(after)) continue;
+    const asksRemaining = /\b(?:remain|left|unreacted|falls? to|reduced? to|decreases? to|drops? to|decays? to|reach)/i.test(before + after.slice(0, 40)) && !/\b(?:decompos|complet|consum|convert|react)/i.test(after.slice(0, 30));
+    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react|disappear|over|conversion|dissociat|time)/i.test(before + after);
     if (!asksRemaining && !asksCompletion) continue;
     if (asksRemaining) push(remaining, percent / 100);
     else push(completion, percent / 100);
   }
-  for (const [pattern, fraction] of WORD_FRACTIONS) {
-    for (const match of stem.matchAll(pattern)) {
-      const index = match.index ?? 0;
-      const before = stem.slice(Math.max(0, index - 70), index);
-      const after = stem.slice(index, index + 60);
-      const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/.test(after.slice(match[0].length));
-      const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/.test(after) || /\b(?:for|of)\s*$/.test(before);
-      if (asksRemaining) push(remaining, fraction);
-      else if (asksCompletion) push(completion, fraction);
+  for (const operand of fractionOperands(stem)) {
+    const {start:index,end,fraction} = operand;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
+    const before = stem.slice(Math.max(0,index-70),index);
+    const after = stem.slice(index,index+60);
+    const owner = /^\s+of\s+(?:(?:the|its)\s+)?((?:initial|starting) concentration)\b/i.exec(stem.slice(end));
+    if (owner) {
+      const ownerStart = end + owner[0].length - owner[1]!.length;
+      const predicateStart = initialConcentrationSubjectEnd(stem,end + owner[0].length);
+      const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(predicateStart));
+      const predicateEnd = clause ? predicateStart+clause.index : stem.length;
+      const role = concentrationFractionTargetRole(stem,operand,ownerStart,predicateStart,predicateEnd);
+      if (role) { push(role === "remaining" ? remaining : completion,fraction); continue; }
     }
+    const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/i.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/i.test(after.slice(end-index));
+    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/i.test(after) || /\b(?:for|of)\s*$/i.test(before);
+    if (asksRemaining) push(remaining,fraction);
+    else if (asksCompletion) push(completion,fraction);
   }
   return { completion, remaining };
 }
 
 /** Instants asked for ("after 60 min", "at t = 40 s"), in their own units. */
-function readTimesAsked(stem: string, givenSpan: [number, number] | null): Array<{ value: number; unit: string }> {
+function readTimesAsked(stem: string, givenSpans: readonly [number, number][]): Array<{ value: number; unit: string }> | null {
   const out: Array<{ value: number; unit: string }> = [];
-  const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gi");
+  const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gid");
   for (const match of stem.matchAll(pattern)) {
     const index = match.index ?? 0;
-    if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
     const unit = canonicalTimeUnit(match[4]);
     if (!unit) continue;
     const value = numberFrom(match as RegExpExecArray, 1);
     if (value > 0 && !out.some((entry) => entry.value === value && entry.unit === unit)) out.push({ value, unit });
   }
+  // A requested mark owns its exact original operand, including an unread
+  // declaration. The shared scalar/unit reader decides validity; no prefix
+  // number or given half-life can substitute for a missing requested instant.
+  for (const mark of stem.matchAll(/\bmark\s+(?:t|time)\s*=/gi)) {
+    const start = mark.index;
+    if (givenSpans.some(span => start >= span[0] && start < span[1])) continue;
+    const prefix = stem.slice(0, start).split(/[;!?]|\.(?!\d)/).at(-1) ?? "";
+    if (/\b(?:not|never|without)\s*$/i.test(prefix)) continue;
+    const read = readChemistryQuantityDeclaration({ question: stem, after: /^/,
+      within: { start: start + mark[0].length, end: stem.length }, dimension: "time", owner: "requested time mark" });
+    if (read.state !== "valid" || !(read.reading.value > 0)) return null;
+    const unit = canonicalTimeUnit(read.reading.rawUnit ?? undefined);
+    if (!unit) return null;
+    const converted = convertChemistryReading(read.reading, unit as ChemistryUnit);
+    if (!converted.ok) return null;
+    const value = converted.reading.value;
+    if (!out.some(entry => entry.value === value && entry.unit === unit)) out.push({ value, unit });
+  }
   return out;
 }
 
-function readConcentrationsAsked(stem: string): number[] {
-  const match = new RegExp(String.raw`from\s*${NUMBER}\s*(?:mol[^ ]*\s*)?to\s*${NUMBER}\s*(?:mol|m\b)`, "i").exec(stem);
-  if (!match) return [];
-  return [numberFrom(match, 1), numberFrom(match, 4)];
-}
-
-function readTemperatures(stem: string): number[] {
-  const temps: Array<{ value: number; index: number }> = [];
-  for (const match of stem.matchAll(/(?:^|[^^\d.])(\d+(?:\.\d+)?)\s*k\b(?!\s*(?:=|\/|\[))/g)) {
-    const value = Number(match[1]);
-    if (value >= 100 && value <= 2000) temps.push({ value, index: match.index ?? 0 });
-  }
-  for (const match of stem.matchAll(/(\d+(?:\.\d+)?)\s*(?:°\s*c|deg(?:rees?)?\s*(?:c|celsius)|celsius)\b/g)) {
-    temps.push({ value: Number(match[1]) + 273, index: match.index ?? 0 });
-  }
-  temps.sort((a, b) => a.index - b.index);
-  return temps.map((entry) => entry.value);
-}
-
-function readArrhenius(stem: string, quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
-  const mentions = /\b(?:arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant)/.test(stem)
-    && /\b(?:temperature|arrhenius|activation energy|ln\s*k|log\s*k|\d\s*k\b|°\s*c)/.test(stem);
-  if (!mentions) return null;
-  let Ea: number | null = planQuantity(quantities, ["Ea", "E_a", "activation_energy", "activationEnergy"]);
-  const eaRead = new RegExp(String.raw`(?:activation energy|\be_?a\b)(?:\s*(?:of|for)\s+(?:the |a |this )?(?:[a-z]+\s+){0,4}?)?(?:\(?e_?a\)?)?\s*(?:is|=|:|was|of|equal to|found to be)?\s*(?:about|nearly)?\s*${NUMBER}\s*(k?j|k?cal)\b`, "i").exec(stem);
-  if (Ea === null && eaRead && !damagedNumber(stem, eaRead, 1)) {
-    const value = numberFrom(eaRead, 1);
-    const unit = eaRead[4]!.toLowerCase();
-    Ea = unit === "kj" ? value * 1000 : unit === "kcal" ? value * 4184 : unit === "cal" ? value * 4.184 : value;
-  }
-  let A: number | null = planQuantity(quantities, ["A", "frequency_factor", "pre_exponential"]);
-  const aRead = new RegExp(String.raw`(?:frequency factor|pre[ -]?exponential factor)\s*(?:\(?a\)?)?\s*(?:is|=|:|of)?\s*${NUMBER}`, "i").exec(stem);
-  if (A === null && aRead) A = numberFrom(aRead, 1);
-
-  const statedNatural = new RegExp(String.raw`ln\s*k\s*=\s*(-?\d+(?:\.\d+)?)\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\b`, "i").exec(stem);
-  const statedLog = new RegExp(String.raw`log\s*k\s*=\s*(-?\d+(?:\.\d+)?)\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\b`, "i").exec(stem);
-  const statedExp = new RegExp(String.raw`e\s*\^?\s*\(?\s*-\s*${NUMBER}\s*(?:k\s*)?\/\s*t\s*\)?`, "i").exec(stem);
-  let statedSlope: ArrheniusSpec["statedSlope"] = null;
-  if (statedNatural) statedSlope = { natural: true, b: numberFrom(statedNatural, 2) };
-  else if (statedLog) statedSlope = { natural: false, b: numberFrom(statedLog, 2) };
-  else if (statedExp) statedSlope = { natural: true, b: numberFrom(statedExp, 1) };
-
-  let T1: number | null = planQuantity(quantities, ["T1", "T_1"]);
-  let T2: number | null = planQuantity(quantities, ["T2", "T_2"]);
-  const temps = readTemperatures(stem);
-  const rise = /(?:rise|raised|increase[sd]?|increasing|rising|goes up|raising)\b[^.]{0,40}?\bby\s*(\d+(?:\.\d+)?)\s*(?:k\b|°\s*c|degrees?|deg)/.exec(stem)
-    ?? /(\d+(?:\.\d+)?)\s*(?:k|°\s*c|degrees?)\s*(?:rise|increase)\s+in\s+temperature/.exec(stem);
-  if (T1 === null || T2 === null) {
-    const pair = /(\d+(?:\.\d+)?)\s*(?:k|°\s*c)\s*(?:to|and|&)\s*(\d+(?:\.\d+)?)\s*(?:k|°\s*c)\b/.exec(stem);
-    if (pair) {
-      const celsius = /°\s*c/.test(pair[0]);
-      T1 = Number(pair[1]) + (celsius ? 273 : 0);
-      T2 = Number(pair[2]) + (celsius ? 273 : 0);
-    } else if (rise) {
-      const delta = Number(rise[1]);
-      const base = temps.find((value) => value !== delta) ?? null;
-      if (base !== null) { T1 = base; T2 = base + delta; }
-    } else if (temps.length >= 2) {
-      T1 = temps[0]!;
-      T2 = temps[1]!;
-    } else if (temps.length === 1) {
-      T1 = temps[0]!;
+function readConcentrationsAsked(stem: string): number[] | null {
+  let requested: number[] = [];
+  // This adapter owns the two operands; the shared reader owns every scalar
+  // and unit. Keep original spans, including a shared trailing unit.
+  const range = /\bfrom\s+([^;\n]*?)\s+to\s+/gid;
+  const scalar = new RegExp(`^(${SCALAR})`, "d");
+  for (const match of stem.matchAll(range)) {
+    const firstPart = match.indices?.[1];
+    if (!firstPart || match.index === undefined) continue;
+    const secondStart = match.index + match[0].length;
+    const firstToken = scalar.exec(stem.slice(firstPart[0], firstPart[1]));
+    const secondToken = scalar.exec(stem.slice(secondStart));
+    const firstSpan: ChemistrySpan | null = firstToken ? { start: firstPart[0], end: firstPart[0] + firstToken[0].length } : null;
+    const secondSpan: ChemistrySpan | null = secondToken ? { start: secondStart, end: secondStart + secondToken[0].length } : null;
+    const firstRead = firstSpan ? readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "concentration" }) : null;
+    const secondRead = secondSpan ? readChemistryLiteral({ question: stem, scalarSpan: secondSpan, dimension: "concentration" }) : null;
+    const precedingClause = stem.slice(0, match.index).split(/\.(?!\d)|[;\n]/).at(-1) ?? "";
+    const rangeSubject = [...precedingClause.matchAll(/\bconcentration\b|\[\s*A\s*\]|\btemperature\b/ig)].at(-1)?.[0];
+    if (/^temperature$/i.test(rangeSubject ?? "") && firstSpan && secondSpan) {
+      const firstTemperature = readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "temperature" });
+      const secondTemperature = readChemistryLiteral({ question: stem, scalarSpan: secondSpan, dimension: "temperature" });
+      if (firstTemperature.ok && secondTemperature.ok
+        && stem.slice(firstTemperature.reading.source.span.end, firstPart[1]).trim() === "") continue;
     }
+    const owned = /\bconcentration\b|\[\s*A\s*\]/i.test(precedingClause) || firstRead?.ok || secondRead?.ok;
+    // A temperature/time range is unrelated. An unread concentration request
+    // cannot vanish and leave a generic plot in its place.
+    if (!owned) continue;
+    if (!firstSpan || !secondRead?.ok) return null;
+    let first = firstRead;
+    if (!first?.ok && secondRead.reading.rawUnit) {
+      const unit = chemistryUnitSymbol(secondRead.reading.rawUnit, "concentration");
+      if (!unit) return null;
+      const sourceSpan = { start: secondRead.reading.source.span.end - secondRead.reading.rawUnit.length, end: secondRead.reading.source.span.end };
+      first = readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "concentration", unitConvention: { unit, sourceSpan } });
+    }
+    if (!first?.ok || stem.slice(first.reading.source.span.end, firstPart[1]).trim()
+      || !(first.reading.value > 0) || !(secondRead.reading.value > 0) || requested.length) return null;
+    requested = [first.reading.value, secondRead.reading.value];
   }
-
-  let ratio: number | null = planQuantity(quantities, ["ratio", "k2_k1", "k2/k1"]);
-  if (ratio === null) {
-    const near = /\b(?:rate constant|rate|k)\b[^.]{0,60}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved|(?:\d+(?:\.\d+)?|two|three|four|five|ten)\s*(?:-|\s)?(?:times|fold))/.exec(stem);
-    const sentence = near ? stem.slice(Math.max(0, stem.lastIndexOf(".", near.index)), stem.indexOf(".", near.index + near[0].length) === -1 ? undefined : stem.indexOf(".", near.index + near[0].length)) : "";
-    if (near && /\b(?:temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm)/.test(sentence)) {
-      const word = near[1]!;
-      if (/^doubl|^twice/.test(word)) ratio = 2;
-      else if (/^tripl/.test(word)) ratio = 3;
-      else if (/^quadrupl/.test(word)) ratio = 4;
-      else if (/^halved/.test(word)) ratio = 0.5;
-      else {
-        const named: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, ten: 10 };
-        const numeric = /^(\d+(?:\.\d+)?)/.exec(word);
-        ratio = numeric ? Number(numeric[1]) : named[word.split(/[\s-]/)[0]!] ?? null;
+  return requested;
+}
+// The cue assigns a source scalar the role of a delta. The shared reader
+// still owns its complete scalar, unit, source span and Celsius conversion.
+const TEMPERATURE_RISE_CUE = new RegExp(String.raw`(?:ris(?:e[sd]?|ing)|raised|increase[sd]?|increasing|raising)\b[^.;]{0,40}?\b(?:by|through)|(?:ris(?:e[sd]?|ing)|raised|raising|increase[sd]?|increasing)\s*(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:above|from)\b)|(?:go(?:es)?|went)\s+up(?:\s+by)?|(?:rise|increase|change)\s+(?:in\s+(?:absolute\s+)?temperature\s+)?(?:of|by)\b|\b(?:for|by|with|on)\s+(?:(?:an?|each|every)\s+)?(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b)|\b(?:an?|each|every)\s+(?=${CHEMISTRY_SCALAR_PATTERN}\s*(?:K|°\s*C|Celsius)\s+(?:rise|increase)\b)`, "i");
+interface TemperatureInputs { absolute: number[]; rise: number | null }
+function readTemperatureInputs(stem: string): TemperatureInputs | null {
+  const temps = findChemistryQuantities({question: stem, dimension: "temperature"});
+  if (!temps.ok) return null;
+  let rise = readChemistryQuantity({question:stem,after:TEMPERATURE_RISE_CUE,dimension:"temperature_delta"});
+  const localDeltas = temps.reading.filter(r =>
+    /^\s*(?:rise|increase|change)\b/i.test(stem.slice(r.source.span.end))
+    || /\b(?:ris(?:e[sd]?|ing)|increase[sd]?|increasing|change|raised|raising)(?:\s+(?:in|of)\s+(?:absolute\s+)?temperature)?(?:\s+(?:of|by|through))?\s*$/i.test(stem.slice(Math.max(0,r.source.span.start-80),r.source.span.start)));
+  const cueDelta = rise.ok ? rise.reading : null;
+  if (localDeltas.length > 1 || (cueDelta && localDeltas.some(r => r.source.span.start !== cueDelta.source.span.start))) return null;
+  if (!rise.ok && rise.code === "missing" && localDeltas.length === 1) {
+    rise = readChemistryQuantity({question:stem,after:/^/,within:localDeltas[0]!.source.span,dimension:"temperature_delta"});
+  }
+  if ((!rise.ok && rise.code !== "missing") || (TEMPERATURE_RISE_CUE.test(stem) && !rise.ok)) return null;
+  // "10 degree rise" has a stated delta but no supported unit. It must not
+  // leave the later absolute temperature as a replacement for that delta.
+  if (!rise.ok && /\d\s*(?:degree\w*|kelvin\w*)\s+(?:rise|increase|change)\b/i.test(stem)) return null;
+  const delta = rise.ok ? rise.reading : null;
+  const absoluteReadings = temps.reading.filter(r => !delta || r.source.span.start !== delta.source.span.start);
+  let absolute = absoluteReadings.map(r => r.value);
+  const indexed = ([1,2] as const).map(role => readChemistryQuantityDeclaration({question:stem,
+    after:new RegExp(`\\bT(?:_?${role}|${role === 1 ? "₁" : "₂"})(?![A-Za-z0-9_/])`),cueCaseSensitive:true,
+    dimension:"temperature",targetUnit:"K",owner:`temperature T${role}`,allowAgreeingRepeats:true}));
+  if (indexed.some(read => read.state === "invalid")) return null;
+  if (indexed.some(read => read.state === "valid")) {
+    if (indexed[0]!.state !== "valid") return null;
+    const ownedSpans = indexed.flatMap(read => read.state === "valid" ? read.occurrences.flatMap(occurrence => occurrence.read.ok ? [occurrence.read.reading.source.span] : []) : []);
+    if (absoluteReadings.some(read => !ownedSpans.some(span => span.start === read.source.span.start && span.end === read.source.span.end))) return null;
+    absolute = indexed.flatMap(read => read.state === "valid" ? [read.reading.value] : []);
+  }
+  // Preserve the adapter's ordinary-temperature safety boundary. A stated
+  // low absolute T is a refusal, not a value to silently filter away.
+  if (absolute.some(t => t < 100) || absolute.length > 2) return null;
+  if (rise.ok) {
+    if (!(rise.reading.value > 0) || absolute.length === 0) return null;
+    // A rise after an already stated pair may be a second heating step, not
+    // a restatement of that pair's difference. Equal numbers do not give the
+    // extra step the same source role as the first one.
+    const lastAbsolute = absoluteReadings[1];
+    if (lastAbsolute && delta && delta.source.span.start > lastAbsolute.source.span.end
+      && /\b(?:then|afterwards?|subsequently|further|additional(?:ly)?|another|more|followed)\b/i.test(stem.slice(lastAbsolute.source.span.end,delta.source.span.end+30))) return null;
+    if (absolute[1] !== undefined && absolute[1] !== absolute[0]! + rise.reading.value) return null;
+  }
+  return {absolute,rise:rise.ok?rise.reading.value:null};
+}
+function readTemperatures(stem: string): number[] {
+  return readTemperatureInputs(stem)?.absolute ?? [];
+}
+function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null | false {
+  const lower = chemStem(stem);
+  if (!/arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant/.test(lower)) return null;
+  const Ea = numberAfter(stem, ACTIVATION_CUE, "molar_energy", "J/mol");
+  const A = numberAfter(stem, /frequency factor|pre[ -]?exponential factor/, "rate_constant_first", "s^-1");
+  const equation = readChemistryArrheniusEquation(stem);
+  if (!equation.ok && equation.code !== "missing") return null;
+  const statedSlope = equation.ok ? {natural:equation.reading.natural,b:equation.reading.coefficient.value} : null;
+  const temperatures = readTemperatureInputs(stem);
+  if (!temperatures) return null;
+  const T1 = temperatures.absolute[0] ?? null;
+  const T2 = temperatures.absolute[1] ?? (T1 !== null && temperatures.rise !== null ? T1 + temperatures.rise : null);
+  const ratioContext = T1 !== null && T2 !== null || /arrhenius|activation energy|\be_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k/.test(lower);
+  let ratio = readArrheniusRatio(stem,ratioContext);
+  if (ratio === false) return false;
+  const changes = [...stem.matchAll(/\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/gi),
+    ...stem.matchAll(/\b(doubl\w*|tripl\w*|quadrupl\w*|halved)\s+(?:(?:the|its)\s+)?(?:rate constant|rate)\b/gi)];
+  for (const near of changes) if (/temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
+    const word = near[1]!.toLowerCase();
+    const change = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
+    if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
+    ratio = change;
+  }
+  // Inventory the original change owner before any successful scalar match.
+  // Unread or damaged times/fold material cannot disappear behind a pair.
+  const timesOwners = [...stem.matchAll(new RegExp(String.raw`\b(?:${caseWord("rate constant")}|${caseWord("rate")})\b|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b(?![₀-₉])`, "g"))];
+  let requiresMeasuredRatio = false;
+  for (const [index, owner] of timesOwners.entries()) {
+    const payloadStart = owner.index! + owner[0].length;
+    let ownerEnd = timesOwners[index + 1]?.index ?? stem.length;
+    const boundary = /[;?\n]/.exec(stem.slice(payloadStart, ownerEnd));
+    if (boundary) ownerEnd = payloadStart + boundary.index;
+    // The strict reader owns decimal punctuation, including a trailing dot.
+    // Any intervening sentence text remains in this payload and must refuse.
+    const marker = /\b(?:times|fold)\b/i.exec(stem.slice(payloadStart, ownerEnd));
+    if (!marker) continue;
+    if (marker.index > 80) return false;
+    const payload = [payloadStart, payloadStart + marker.index] as const;
+    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:is|was|becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    // Decreases need reciprocal/ascending-line support. Ambiguous change/by
+    // language is usable only when complete measured k,T pairs confirm it.
+    if (/\bdecreases?\b/i.test(prefix[0])) return false;
+    if (/\b(?:changes?|by)\b/i.test(prefix[0])) {
+      if (!/^fold$/i.test(marker[0])) return false;
+      requiresMeasuredRatio = true;
+    }
+    const start = payload[0] + prefix[0].length;
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    // Neutral final-value wording also describes cooling. An explicit
+    // increase still requires a multiplier above one; measured pairs and
+    // positive activation energy below independently bind the direction.
+    if (/\bincreases?\b/i.test(prefix[0]) && !(read.reading.value > 1)) return false;
+    const scalarTail = stem.slice(read.reading.source.span.end,payload[1]);
+    // A single original sentence dot may separate scalar2 from "times";
+    // the shared strict scalar proof remains unchanged and owns the value.
+    const foldSeparator = /^fold$/i.test(marker[0]) && /^\s*[-–]\s*$/.test(scalarTail);
+    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail) && !foldSeparator) return false;
+    const suffixStart = payload[1] + marker[0].length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
+    const suffixEnd = clause ? suffixStart + clause.index : stem.length;
+    let suffix = stem.slice(suffixStart,suffixEnd);
+    if (suffixStart < suffixEnd) {
+      const thermal = findChemistryQuantities({question:stem,within:{start:suffixStart,end:suffixEnd},dimension:"temperature"});
+      if (!thermal.ok) return false;
+      for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+        suffix = suffix.slice(0,reading.source.span.start-suffixStart) + " " + suffix.slice(reading.source.span.end-suffixStart);
       }
     }
+    suffix = suffix.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g," ");
+    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|changes?|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
+    const change = read.reading.value;
+    if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
+    ratio = change;
   }
-
-  let k1: number | null = planQuantity(quantities, ["k1", "k_1"]);
-  let k2: number | null = planQuantity(quantities, ["k2", "k_2"]);
-  if (k1 === null || k2 === null) {
-    const values: number[] = [];
-    const pattern = new RegExp(String.raw`(?:rate constant|\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)\s*${NUMBER}`, "gi");
-    for (const match of stem.matchAll(pattern)) {
-      if (damagedNumber(stem, match as RegExpExecArray, 1)) { values.length = 0; break; }
-      values.push(numberFrom(match as RegExpExecArray, 1));
+  const constants: number[] = [];
+  let temperatureRates: Array<{temperature:number;rate:number}> | null = null;
+  for (const {start,end} of rateOwnerPayloads(stem)) {
+    const pair = readOwnedTemperatureRates(stem,start,end);
+    if (pair === false) return null;
+    if (pair) {
+      if (temperatureRates && pair.some((value,index)=>!chemistryCanonicalValuesAgree(value.rate,temperatureRates![index]!.rate))) return null;
+      temperatureRates ??= pair;
     }
-    if (values.length >= 2) { k1 = values[0]!; k2 = values[1]!; }
-    else if (values.length === 1 && k1 === null) k1 = values[0]!;
   }
+  if (temperatureRates) constants.push(...temperatureRates.map(value=>value.rate));
+  const indexedRates = new Map<1 | 2, number>();
+  const indexedOwners = [...stem.matchAll(/\bk(_?[12]|₁|₂)(?![A-Za-z0-9_])/g)];
+  const ratioOperands = [...stem.matchAll(/\bk_?2\s*\/\s*k_?1\b/g)];
+  for (const [index, owner] of indexedOwners.entries()) {
+    // Only the complete original ratio expression owns these operands.
+    if (ratioOperands.some(r => owner.index! >= r.index! && owner.index! < r.index! + r[0].length)) continue;
+    const start = owner.index! + owner[0].length;
+    let end = indexedOwners[index + 1]?.index ?? stem.length;
+    const boundary = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(start,end));
+    if (boundary) end = start + boundary.index;
+    const tail = stem.slice(start,end);
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?$/i.test(stem.slice(0,owner.index));
+    if (requested && pureQuantityRequestTail(tail)) continue;
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end},dimension:"rate_constant_first"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    const role: 1 | 2 = /1|₁/.test(owner[1]!) ? 1 : 2;
+    const previous = indexedRates.get(role);
+    if (previous !== undefined && !chemistryCanonicalValuesAgree(previous,read.reading.value)) return false;
+    indexedRates.set(role,read.reading.value);
+  }
+  const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
+  for (const match of stem.matchAll(pattern)) {
+    // Numbered rates have already been read under their numbered owners;
+    // their encounter order is never an independent measurement sequence.
+    if (/\bk(?:_?[12]|₁|₂)/i.test(match[0])) continue;
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
+    // Repeated singular givens do not create a second Arrhenius measurement.
+    // Indexed owners or distinct temperatures retain separate measurement roles.
+    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2)
+      || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
+  }
+  for (const [role,value] of indexedRates) {
+    const measured = constants[role - 1];
+    if (measured !== undefined && !chemistryCanonicalValuesAgree(measured,value)) return false;
+  }
+  const k1 = indexedRates.get(1) ?? constants[0] ?? null; const k2 = indexedRates.get(2) ?? constants[1] ?? null;
+  // A non-flat positive ratio is meaningful in either temperature direction.
+  // Its derived activation energy below must still be positive and agree
+  // with every independently supplied Arrhenius source.
+  if (ratio !== null && (!(ratio > 0) || ratio === 1)) return false;
+  if (k1 !== null && k2 !== null && ratio !== null
+    && (!(k1 > 0 && k2 > 0 && ratio > 0) || !chemistryCanonicalValuesAgree(k2 / k1, ratio))) return false;
+  if (requiresMeasuredRatio && (k1 === null || k2 === null || T1 === null || T2 === null || T1 === T2)) return false;
+  // Every independent source must agree before one may drive the figure.
+  const energies: number[] = Ea === null ? [] : [Ea];
+  if (statedSlope) energies.push(statedSlope.b * GAS_CONSTANT * (statedSlope.natural ? 1 : Math.LN10));
+  const observedRatio = ratio ?? (k1 !== null && k2 !== null ? k2 / k1 : null);
+  if (observedRatio !== null && T1 !== null && T2 !== null) {
+    const measuredEnergy = activationEnergyFromRatio(observedRatio,T1,T2);
+    if (measuredEnergy === null || !Number.isFinite(measuredEnergy)) return false;
+    energies.push(measuredEnergy);
+  }
+  if (energies.some(energy => !(energy > 0) || !chemistryCanonicalValuesAgree(energy,energies[0]!))) return false;
+  // A restored symbolic context cannot lend an absolute log intercept to
+  // inconsistent measured rates. Historical measured-only plots retain their
+  // existing path; the source-equation path below proves its absolute values.
+  if (equation.ok && equation.reading.intercept && findSymbolicArrheniusSources(stem).length
+    && !absoluteArrheniusSourcesAgree(equation.reading, { A, k1, k2, T1, T2 })) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
-  return { T1, T2, k1, k2, ratio, Ea, A, statedSlope };
+  return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
 
 function readLinearPlot(stem: string, orders: ReactionOrder[]): LinearPlotKind | null {
@@ -541,7 +1121,24 @@ const EQUILIBRIUM_PLOT = /(?:variation (?:of|in) (?:the )?concentrations?[^.]{0,
 
 /** Everything the stem (and the plan) says about the kinetics, or null when nothing is readable. */
 export function kineticsFromStem(question: string, quantities: readonly ChemPlanQuantity[] = []): KineticsSpec | null {
-  const stem = questionBody(chemStem(question));
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // This family reader binds passive requests and supplied half-lives before
+  // any default; a bare aggregate cue would conflate their different roles.
+  if (!halfLifeSourceOwnersValid(question)) return null;
+  // This adapter does not yet bind plural constants to their corresponding
+  // temperatures. Refuse that scope rather than treating "two" as a ratio.
+  if (/rate constants\b[^.;]{0,100}\b(?:two|2) temperatures\b/i.test(question)) return null;
+  const equation = readChemistryArrheniusEquation(question);
+  if (!equation.ok && equation.code !== "missing") return null;
+  if (!readTemperatureInputs(question)) return null;
+  if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
+  if (!chemistryQuantityCuesValid(question, [
+    {after: ACTIVATION_CUE, dimensions: ["molar_energy"]},
+    {after: TEMPERATURE_RISE_CUE, dimensions: ["temperature_delta"]},
+    {after: /frequency factor|pre[ -]?exponential factor/, dimensions: ["rate_constant_first"],owner:"Arrhenius pre-exponential factor"},
+  ])) return null;
+  const body = questionBody(question);
+  const stem = chemStem(body);
   const ordersNamed = readOrders(stem);
   const order: ReactionOrder | null = ordersNamed.length === 1 ? ordersNamed[0]! : null;
   const reversible = /<=>|\breversible\b|\bequilibrium\b/.test(stem);
@@ -549,63 +1146,60 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   // Half life, in the stem's unit.
   let tHalf: number | null = null;
   let timeUnit: string | null = null;
-  const planHalf = planQuantity(quantities, ["t_half", "t12", "t1/2", "half_life", "halfLife", "t_1/2", "thalf"]);
-  const halfRead = readHalfLife(stem);
+  const halfRead = readHalfLife(body);
   if (halfRead) { tHalf = halfRead.value; timeUnit = halfRead.unit; }
-  if (planHalf !== null) {
-    tHalf = planHalf;
-    const planEntry = quantities.find((q) => ["t_half", "t12", "t1/2", "half_life", "halflife", "t_1/2", "thalf"].includes(q.id.toLowerCase().replace(/[^a-z0-9/]/g, "")));
-    timeUnit = canonicalTimeUnit(planEntry?.unit) ?? timeUnit;
-  }
-
-  // Rate constant, in 1 / its own unit.
-  let k: number | null = null;
-  let kUnit: string | null = null;
-  const planK = planQuantity(quantities, ["k", "rate_constant", "rateConstant"]);
-  const kRead = readRateConstant(stem);
+  let k: number | null = null; let kUnit: string | null = null;
+  const kRead = readRateConstant(body, order);
+  if (kRead === false) return null;
   if (kRead) { k = kRead.value; kUnit = kRead.unit; }
-  if (planK !== null) {
-    k = planK;
-    const planEntry = quantities.find((q) => ["k", "rateconstant", "rate_constant"].includes(q.id.toLowerCase().replace(/[^a-z0-9_]/g, "")));
-    const unitMatch = planEntry?.unit ? RATE_UNIT.exec(planEntry.unit) : null;
-    kUnit = unitMatch ? canonicalTimeUnit(unitMatch[1]) : kUnit;
+  const a0Read = readInitialConcentration(body);
+  if (a0Read === false) return null;
+  const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
+
+  const givens = readCompletionGivens(body);
+  if (givens === false) return null;
+  const given = givens[0] ?? null;
+  if (!halfRead && !kRead && !given && /half[ -]?life|t½|t_?\(?1\/2\)?/i.test(body)) {
+    const statedTimes = findChemistryQuantities({question:body,dimension:"time"});
+    // A supplied time that this adapter cannot assign is not an example
+    // half-life. Keep unsupported completion/remaining formulations text-only.
+    if (!statedTimes.ok || statedTimes.reading.length > 0) return null;
   }
-
-  const a0Read = readInitialConcentration(stem);
-  const planA0 = planQuantity(quantities, ["A0", "[A]0", "a_0", "initial_concentration", "c0"]);
-  const a0 = planA0 ?? a0Read?.value ?? null;
-  const concUnit = a0 !== null ? "M" : null;
-
-  const given = readCompletionGiven(stem);
-  const timesAskedRaw = readTimesAsked(stem, given?.span ?? null);
-  const asked = readFractionsAsked(stem, given?.span ?? null);
+  const timesAskedRaw = readTimesAsked(body, givens.map(entry=>entry.span));
+  if (timesAskedRaw === null) return null;
+  const asked = readFractionsAsked(body, givens.map(entry=>entry.span));
   const fractionsAsked = asked.completion;
   const remainingAsked = asked.remaining;
-  const concentrationsAsked = readConcentrationsAsked(stem);
+  const concentrationsAsked = readConcentrationsAsked(body);
+  if (concentrationsAsked === null) return null;
 
   // One unit for the plot: the half life's, else k's, else the given completion's, else the asked instant's.
   const unit = timeUnit ?? kUnit ?? given?.unit ?? timesAskedRaw[0]?.unit ?? "min";
-  if (k !== null && kUnit && kUnit !== unit) k = k / convertTime(1, unit, kUnit);
+  if (k !== null && kUnit && kUnit !== unit) k = k * convertTime(1, unit, kUnit);
   if (tHalf !== null && timeUnit && timeUnit !== unit) tHalf = convertTime(tHalf, timeUnit, unit);
-  const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit ?? unit, unit) } : null;
+  const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit, unit) } : null;
+  if (order === 1 && givens.length && !completionRatesAgree(body,givens,unit,
+    kRead && k !== null ? {value:k,source:kRead.source} : null,
+    halfRead && tHalf !== null ? {value:tHalf,source:halfRead.source} : null)) return null;
   const timesAsked = timesAskedRaw.map((entry) => convertTime(entry.value, entry.unit, unit));
 
-  const arrhenius = readArrhenius(stem, quantities);
+  const arrhenius = readArrhenius(body, quantities);
+  if (arrhenius === false) return null;
   const linear = readLinearPlot(stem, ordersNamed);
   const arrheniusPlot = /(?:ln|log)\s*k\b[^.]{0,20}(?:vs\.?|versus|against)\s*(?:1\s*\/\s*t|t\^?\(?-1\)?|reciprocal)|arrhenius plot|plot of (?:ln|log)\s*k\b/.test(stem);
 
   let plot: KineticsPlot | null = null;
   if (reversible && EQUILIBRIUM_PLOT.test(stem)) plot = "equilibrium";
   else if (arrheniusPlot || (arrhenius && (arrhenius.ratio !== null || arrhenius.k2 !== null || arrhenius.statedSlope !== null))) plot = "arrhenius";
-  else if (linear) plot = "linear";
+  else if (linear) plot = order === 1 && linear === "A_t" ? "concentration" : "linear";
   else if (order !== null && (k !== null || tHalf !== null || completion !== null)) plot = "concentration";
   else if (order !== null && /(?:concentration|\[a\])[^.]{0,40}(?:with|vs\.?|versus|against) time|(?<!pre[ -])exponential|decreases with time/.test(stem)) plot = "concentration";
   // With only percentages asked and no rate, the decay can still be drawn in half life units.
   else if (order === 1 && (fractionsAsked.length > 0 || remainingAsked.length > 0)) plot = "concentration";
 
   let equilibriumK: number | null = null;
-  const kc = new RegExp(String.raw`(?:equilibrium constant|k_?c|k_?p|\bk\b)\s*(?:=|is|:|of)\s*${NUMBER}`, "i").exec(stem);
-  if (reversible && kc) equilibriumK = numberFrom(kc, 1);
+  const kc = new RegExp(String.raw`(?:equilibrium constant|k_?c|k_?p|\bk\b)\s*(?:=|is|:|of)\s*${NUMBER}`, "id").exec(stem);
+  if (reversible && kc) equilibriumK = numberAfter(body, /(?:equilibrium constant|k_?c|k_?p|\bk\b)/);
 
   if (order === null && ordersNamed.length === 0 && k === null && tHalf === null && !arrhenius && !linear && plot === null) return null;
   return {
@@ -648,21 +1242,22 @@ function figureAbsent(stem: string): boolean {
 }
 
 function hasRateTemperatureNumbers(stem: string): boolean {
-  return readTemperatures(stem).length > 0 && /\b(?:rate constant|\bk\b|doubl|tripl|times|fold|kj|j mol|kcal)/.test(stem);
+  return readTemperatures(stem).length > 0 && /\b(?:rate constant|\bk\b|doubl|tripl|times|fold|kj|j mol|kcal)/i.test(stem);
 }
 
 /** True when the kinetics family should draw for this stem. */
 export function isKineticsStem(question: string): boolean {
   const stem = chemStem(question);
+  if (!chemicalKineticsContext(stem, question)) return false;
   if (HARD_VETO.test(stem)) return false;
-  if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(stem)) return false;
+  if (PROFILE_WORDS.test(stem) && !hasRateTemperatureNumbers(question)) return false;
   const orderWord = /\b(?:zero|zeroth|first|second|pseudo[ -]?first|1st|2nd|0th)[ -]?order\b/.test(stem);
   const plotCue = /\b(?:plot|graph|straight line|linear|slope|variation of|vs\.?|versus|against)\b/.test(stem);
   const halfLife = /half[ -]?li(?:fe|ves)\b|\bt\s*1\s*\/\s*2\b|t½|\bt_?\(?1\/2\)?/.test(stem);
   const rateConstant = /\brate constant\b/.test(stem);
   const rateLaw = /\brate law\b/.test(stem) && /\d/.test(stem);
   const arrhenius = /\barrhenius\b/.test(stem);
-  const activation = /\bactivation energy\b/.test(stem) && hasRateTemperatureNumbers(stem);
+  const activation = /\bactivation energy\b/.test(stem) && hasRateTemperatureNumbers(question);
   const lnk = /(?:ln|log)\s*k\b[^.]{0,20}(?:vs\.?|versus|against)\s*1\s*\/\s*t|plot of (?:ln|log)/.test(stem);
   const logRatio = /log\s*\(?\s*\[a\]\s*_?0\s*\/\s*\[a\]/.test(stem);
   const concTime = /concentration[^.]{0,30}(?:vs\.?|versus|against|with) time|attains? equilibrium/.test(stem);
@@ -683,7 +1278,7 @@ function fitLabel(prefix: string, value: string): string {
   if (tight.length <= 16) return tight;
   const tighter = `${prefix}=${value.replace(/\s+/g, "")}`;
   if (tighter.length <= 16) return tighter;
-  return tighter.slice(0, 16);
+  return tighter;
 }
 
 /** "1/8" for a remaining fraction that is a unit fraction, else the percent left. */
@@ -772,22 +1367,23 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   const k = relative ? Math.LN2 : solution.k;
   const tHalf = relative ? 1 : solution.tHalf;
   if (k === null || tHalf === null) return null;
-  const marks: Array<{ t: number; label: string; ytick: string | null }> = [];
+  const marks: Array<{ t: number; label: string; ytick: string | null; reference: boolean }> = [];
   const same = (a: number, b: number) => Math.abs(a - b) < 1e-6 * Math.max(1, a, b);
-  const place = (t: number, label: string, ytick: string | null, replace: boolean) => {
+  const place = (t: number, label: string, ytick: string | null, replace: boolean, reference = false) => {
     const existing = marks.find((m) => same(m.t, t));
     if (existing) {
       if (replace) existing.label = label;
       if (existing.ytick === null) existing.ytick = ytick;
+      if (!reference) existing.reference = false;
       return;
     }
-    marks.push({ t, label, ytick });
+    marks.push({ t, label, ytick, reference });
   };
   const multiple = (t: number) => fitLabel("", `${fmt(t, 3)} ${unit}`).replace(/^ ?= ?/, "");
   const at = (prefix: string, t: number) => relative ? fitLabel(prefix, `${fmt(t, 3)} ${unit}`) : timeLabel(prefix, t, unit);
   void multiple;
-  place(tHalf, relative ? "t_1/2" : timeLabel("t_1/2", tHalf, unit), "1/2", false);
-  place(2 * tHalf, relative ? "2t_1/2" : timeLabel("2t_1/2", 2 * tHalf, unit), "1/4", false);
+  place(tHalf, relative ? "t_1/2" : timeLabel("t_1/2", tHalf, unit), "1/2", false, true);
+  place(2 * tHalf, relative ? "2t_1/2" : timeLabel("2t_1/2", 2 * tHalf, unit), "1/4", false, true);
   const completions = relative
     ? spec.fractionsAsked.map((fraction) => ({ fraction, time: Math.log2(1 / (1 - fraction)) }))
     : solution.timesForFractions;
@@ -803,21 +1399,34 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   marks.sort((a, b) => a.t - b.t);
   const tMax = Math.max(3.4 * tHalf, 1.12 * marks[marks.length - 1]!.t);
   const sx = X_SPAN / tMax;
+  // Requested instants retain their exact source values. An illustrative
+  // half-life reference too close to one is omitted from the ink, rather
+  // than merging the distinct numbers or placing overlapping tick labels.
+  const visibleMarks = marks.filter(mark => !mark.reference || !marks.some(other => !other.reference && Math.abs(other.t-mark.t)*sx < 0.5));
   const K = Number((k / sx).toFixed(6));
   const curve = c.scene.curve("curve", `${Y_SPAN}*exp(-${K}*x)`, 0, X_SPAN, "[A]/[A]_0 against t", undefined, 97);
   panel.ids.push(curve);
-  panel.ids.push(c.text("one", { x: -0.35, y: Y_SPAN }, "1", "tick"));
+  // Keep every numeric tick at its proved Y level; close labels occupy
+  // separate horizontal lanes, including the initial normalized value1.
+  const tickLaneYs: number[] = [];
+  const tickLabel = (id: string, y: number, text: string): string => {
+    let lane = tickLaneYs.findIndex(previousY => Math.abs(previousY - y) >= Y_SPAN / 8);
+    if (lane < 0) lane = tickLaneYs.length;
+    tickLaneYs[lane] = y;
+    return c.text(id, { x: -0.35 - lane * X_SPAN / 3, y }, text, "tick");
+  };
+  panel.ids.push(tickLabel("one", Y_SPAN, "1"));
   const usedTicks = new Set<string>();
-  marks.forEach((mark, index) => {
+  visibleMarks.forEach((mark, index) => {
     const x = Number((mark.t * sx).toFixed(6));
     const y = Number((Y_SPAN * Math.exp(-K * x)).toFixed(6));
     const id = `m${index + 1}`;
-    panel.ids.push(dot(c, id, { x, y }, index === 0 ? "half life" : "marked instant", mark.label));
+    panel.ids.push(dot(c, id, { x, y }, same(mark.t,tHalf) ? "half life" : "marked instant", mark.label));
     c.scene.assert(`${id}_on_curve`, "function_value", [curve], { x, y });
     dropLinks(c, id, 0, x, y, panel, y > 0.35, true);
     if (mark.ytick && y > 0.35 && !usedTicks.has(mark.ytick)) {
       usedTicks.add(mark.ytick);
-      panel.ids.push(c.text(`${id}_tick`, { x: -0.35, y }, mark.ytick, "tick"));
+      panel.ids.push(tickLabel(`${id}_tick`, y, mark.ytick));
     }
     c.scene.labelled(id);
   });
@@ -930,7 +1539,7 @@ function buildLinearPlots(question: string, spec: KineticsSpec, solution: Kineti
     c.scene.assert("m_half_on_line", "function_value", [`${panelSpec.tag}_line`], { x, y });
     panel.ids.push(c.link("m_half_dx", { x, y: 0 }, { x, y }, "drop to the time axis"));
     c.scene.labelled("m_half");
-    c.scene.quantity("k", "k", solution.k, `1/${unit}`);
+    c.scene.quantity("k", "k", solution.k, order === 0 ? `M/${unit}` : order === 2 ? `1/(M ${unit})` : `1/${unit}`);
     c.scene.quantity("t_half", "t_1/2", solution.tHalf, unit);
   }
   const captions: Record<typeof kind, string> = {
@@ -959,8 +1568,10 @@ function buildZeroOrderNumeric(question: string, spec: KineticsSpec, solution: K
   panel.ids.push(curve);
   panel.ids.push(c.text("a0", { x: 1.7, y: Y_SPAN + 0.25 }, fitLabel("[A]_0", `${fmt(a0, 3)} M`), "intercept"));
   const marks: Array<{ t: number; label: string }> = [{ t: tHalf, label: timeLabel("t_1/2", tHalf, unit) }, { t: tEnd, label: timeLabel("t", tEnd, unit) }];
-  for (const entry of solution.timesForConcentrations) {
+  for (const [index, entry] of solution.timesForConcentrations.entries()) {
     marks.push({ t: entry.time, label: `${fmt(entry.concentration, 3)} M, ${fmt(entry.time, 3)} ${unit}`.length <= 16 ? `${fmt(entry.concentration, 3)} M, ${fmt(entry.time, 3)} ${unit}` : timeLabel(`${fmt(entry.concentration, 2)} M`, entry.time, unit) });
+    c.scene.quantity(`asked_concentration_${index + 1}`, `[A]_${index + 1}`, entry.concentration, "M");
+    c.scene.quantity(`asked_time_${index + 1}`, `t_${index + 1}`, entry.time, unit);
   }
   marks.forEach((mark, index) => {
     const x = Number(((mark.t / tEnd) * X_SPAN).toFixed(6));
@@ -978,7 +1589,12 @@ function buildZeroOrderNumeric(question: string, spec: KineticsSpec, solution: K
   const sentences = [`Zero order: [A] = [A]_0 - kt with k = [A]_0/(2 t_1/2) = ${fmt(k, 3)} M per ${unit}; the line reaches zero at t = ${fmt(tEnd, 3)} ${unit}.`];
   if (solution.timesForConcentrations.length === 2) {
     const [first, second] = solution.timesForConcentrations;
-    sentences.push(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(Math.abs(second!.time - first!.time), 3)} ${unit}.`);
+    const interval = Math.abs(second!.time - first!.time);
+    c.scene.quantity("asked_interval", "Δt", interval, unit);
+    panel.ids.push(c.text("asked_interval_label", { x: 6.3, y: 5.3 }, timeLabel("Δt", interval, unit), "requested time interval"));
+    // The compiled caption has a finite display budget. Lead with the
+    // requested answer so the general law cannot truncate its operands/unit.
+    sentences.unshift(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(interval, 3)} ${unit}.`);
   }
   return c.build({ caption: sentences.join(" ") });
 }
@@ -1010,8 +1626,67 @@ function buildSecondOrderNumeric(question: string, spec: KineticsSpec, solution:
 /* ------------------------------------------------------------------------- */
 /* Figure 3: Arrhenius                                                        */
 
+type ArrheniusEquation = Extract<ReturnType<typeof readChemistryArrheniusEquation>, { ok: true }>["reading"];
+function absoluteArrheniusSourcesAgree(equation: ArrheniusEquation, values: Pick<ArrheniusSpec, "A" | "k1" | "k2" | "T1" | "T2">): boolean {
+  if (!equation.intercept) return false;
+  const logarithm = equation.natural ? Math.log : Math.log10, C = equation.intercept.value, B = equation.coefficient.value;
+  if (values.A !== null && (!(values.A > 0) || !chemistryCanonicalValuesAgree(logarithm(values.A), C))) return false;
+  for (const [rate, temperature] of [[values.k1, values.T1], [values.k2, values.T2]]) {
+    if (rate !== null && (temperature === null || !(rate > 0 && temperature > 0)
+      || !chemistryCanonicalValuesAgree(logarithm(rate), C - B / temperature))) return false;
+  }
+  return true;
+}
+
+/** An explicit log equation supplies the entire affine relation, not merely Ea.
+ * The finite plotting window is a display choice within 1/T >= 0, never a
+ * fabricated measured temperature. Source-valued ticks expose both mappings. */
+function buildSourceArrhenius(question: string, equation: ArrheniusEquation, arr: ArrheniusSpec, solution: KineticsSolution): SceneDocument | null {
+  if (!equation.intercept || !absoluteArrheniusSourcesAgree(equation, arr)) return null;
+  const C = equation.intercept.value, B = equation.coefficient.value, ordinate = equation.natural ? "ln k" : "log k";
+  const temperatures = [arr.T1, solution.T2].filter((value): value is number => value !== null);
+  const inverseMax = Math.max(2 * Math.max(1, Math.abs(C)) / B, ...temperatures.map(value => 1.2 / value));
+  const endValue = C - B * inverseMax, yMin = endValue, yMax = Math.max(0, C);
+  const sx = X_SPAN / inverseMax, sy = Y_SPAN / (yMax - yMin), yZero = -yMin * sy;
+  if (![C, B, inverseMax, endValue, sx, sy, yZero].every(Number.isFinite) || !(B > 0 && inverseMax > 0 && sx > 0 && sy > 0)) return null;
+  const yOf = (value: number) => (value - yMin) * sy;
+  const c = new ChemScene(question, `${ordinate} = C - B/T: source affine relation`, KINETICS_FAMILY);
+  c.arrow("ar_xaxis", { x: -.4, y: yZero }, { x: X_SPAN + .6, y: yZero }, "inverse temperature axis");
+  c.arrow("ar_yaxis", { x: 0, y: -.4 }, { x: 0, y: Y_SPAN + .6 }, "log rate axis");
+  c.text("ar_xl", { x: X_SPAN + .6, y: yZero - 1.3 }, "1/T (K^-1)", "axis label");
+  c.text("ar_yl", { x: .15, y: Y_SPAN + 1 }, ordinate, "axis label");
+  c.link("ar_xtick_mark", { x: X_SPAN, y: yZero - .1 }, { x: X_SPAN, y: yZero + .1 }, "axis tick", false);
+  c.text("ar_xtick", { x: X_SPAN, y: yZero - .4 }, fmt(inverseMax, 8), "tick");
+  c.link("ar_ytick_mark", { x: -.1, y: yOf(endValue) }, { x: .1, y: yOf(endValue) }, "axis tick", false);
+  c.text("ar_ytick", { x: -.7, y: yOf(endValue) }, fmt(endValue, 8), "tick");
+  c.text("ar_zero", { x: -.4, y: yZero + .25 }, "0", "origin");
+  const intercept = yOf(C), gradient = -B * sy / sx;
+  const line = c.scene.curve("line", `${intercept} - ${Math.abs(gradient)}*x`, 0, X_SPAN, `${ordinate} against 1/T`, undefined, 33);
+  for (const [index, x] of [0, X_SPAN / 2, X_SPAN].entries()) c.scene.assert(`ar_source_${index}`, "function_value", [line], { x, y: yOf(C - B * x / sx) });
+  c.text("slope", { x: 6.8, y: Y_SPAN + 1 }, `m=${fmt(-B, 4)}K`, "slope label");
+  c.text("lnA", { x: 6.8, y: Y_SPAN + .35 }, `${equation.natural ? "lnA" : "logA"}=${fmt(C, 4)}`, "intercept");
+  for (const [index, temperature] of temperatures.entries()) {
+    const x = sx / temperature, y = yOf(C - B / temperature);
+    dot(c, `p${index + 1}`, { x, y }, "source temperature point", `T_${index + 1}=${fmt(temperature, 5)} K`);
+    c.scene.assert(`ar_temperature_${index}`, "function_value", [line], { x, y });
+    c.scene.quantities.push({ id: `T${index + 1}`, symbol: `T_${index + 1}`, value: temperature, unit: "K" });
+  }
+  // These are source/solver values, not world coordinates. The display
+  // builder's six-decimal rounding must not alter their numeric authority.
+  c.scene.quantities.push({ id: "arrhenius_B", symbol: "B", value: B, unit: "K" }, { id: "arrhenius_C", symbol: "C", value: C, unit: "1" });
+  if (solution.Ea !== null) c.scene.quantities.push({ id: "Ea", symbol: "E_a", value: solution.Ea, unit: "J/mol" });
+  if (solution.ratio !== null) c.scene.quantities.push({ id: "ratio", symbol: "k_2/k_1", value: solution.ratio, unit: "1" });
+  const visibleNames = c.scene.entities.flatMap(entity => entity.label ? [entity.label] : []);
+  c.scene.group("arrhenius_source", c.scene.entities.map(entity => entity.id), `${ordinate} = ${C} - ${B}/T. The plotted source labels are ${visibleNames.join(", ")}.`);
+  const eaText = solution.Ea === null ? "" : ` E_a = ${fmt(solution.Ea / 1000, 3)} kJ/mol.`;
+  return c.build({ caption: `${ordinate} = ${C} - ${B}/T (${equation.natural ? "natural logarithm" : "base 10"}). Slope = -${B} K; intercept = ${C}. Both axis scales are linear; 1/T = 0 is the infinite-temperature limit.${eaText}` });
+}
+
 function buildArrhenius(question: string, spec: KineticsSpec, solution: KineticsSolution, qualitative: boolean): SceneDocument | null {
   const arr = spec.arrhenius;
+  const equation = readChemistryArrheniusEquation(question);
+  const measuredPair = arr?.k1 !== null && arr?.k1 !== undefined && arr?.k2 !== null && arr?.k2 !== undefined;
+  if (arr && equation.ok && equation.reading.intercept && (!measuredPair || findSymbolicArrheniusSources(question).length)) return buildSourceArrhenius(question, equation.reading, arr, solution);
   const c = new ChemScene(question, "Arrhenius: ln k against 1/T is a straight line of slope -E_a/R", KINETICS_FAMILY);
   const panel: Panel = { x0: 0, y0: 0, ids: [] };
   axesWithLabels(c, "ar", 0, "1/T", "ln k", panel);
@@ -1048,8 +1723,8 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   void hot;
   const p1y = Number((m * x1 + b).toFixed(6));
   const p2y = Number((m * x2 + b).toFixed(6));
-  panel.ids.push(dot(c, "p1", { x: x1, y: p1y }, "measured point", fitLabel("T_1", `${fmt(T1!, 4)} K`)));
-  panel.ids.push(dot(c, "p2", { x: x2, y: p2y }, "measured point", fitLabel("T_2", `${fmt(T2!, 4)} K`)));
+  panel.ids.push(dot(c, "p1", { x: x1, y: p1y }, "measured point", fitLabel("T_1", `${Number(T1!.toFixed(2))} K`)));
+  panel.ids.push(dot(c, "p2", { x: x2, y: p2y }, "measured point", fitLabel("T_2", `${Number(T2!.toFixed(2))} K`)));
   c.scene.assert("p1_on_line", "function_value", [line], { x: x1, y: p1y });
   c.scene.assert("p2_on_line", "function_value", [line], { x: x2, y: p2y });
   panel.ids.push(c.link("p1_dx", { x: x1, y: 0 }, { x: x1, y: p1y }, "drop to the 1/T axis"));
@@ -1064,14 +1739,14 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   c.scene.quantity("T2", "T_2", T2!, "K");
   c.scene.quantity("ratio", "k_2/k_1", ratio!, "");
   const ratioText = arr?.ratio !== null && arr?.ratio !== undefined
-    ? `k rises ${fmt(ratio!, 3)} times from ${fmt(T1!, 4)} K to ${fmt(T2!, 4)} K`
+    ? `k ${ratio! > 1 ? "rises" : "falls to"} ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
     : arr?.k1 !== null && arr?.k2 !== null
-      ? `k goes from ${fmt(arr!.k1!, 3)} at ${fmt(T1!, 4)} K to ${fmt(arr!.k2!, 3)} at ${fmt(T2!, 4)} K`
-      : `between ${fmt(T1!, 4)} K and ${fmt(T2!, 4)} K, k changes by a factor ${fmt(ratio!, 3)}`;
+      ? `k goes from ${fmt(arr!.k1!, 3)} at ${Number(T1!.toFixed(2))} K to ${fmt(arr!.k2!, 3)} at ${Number(T2!.toFixed(2))} K`
+      : `between ${Number(T1!.toFixed(2))} K and ${Number(T2!.toFixed(2))} K, k changes by a factor ${fmt(ratio!, 3)}`;
   const derived = arr?.Ea === null && !arr?.statedSlope
     ? `so E_a = R ln(k_2/k_1)/(1/T_1 - 1/T_2) = ${fmt(Ea! / 1000, 3)} kJ/mol.`
     : arr?.T2 === null
-      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${fmt(T2!, 4)} K (${fmt(T2! - 273, 3)} °C).`
+      ? `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol, so T_2 = ${Number(T2!.toFixed(2))} K (${fmt(T2! - 273.15, 3)} °C).`
       : `with E_a = ${fmt(Ea! / 1000, 3)} kJ/mol.`;
   return c.build({ caption: `ln k against 1/T is a straight line of slope -E_a/R; ${ratioText}, ${derived}` });
 }
@@ -1109,6 +1784,9 @@ function buildEquilibriumPlot(question: string, spec: KineticsSpec): SceneDocume
 /** The kinetics figure, or null when the stem does not ground one. */
 export function buildKineticsScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   const stem = chemStem(question);
+  // Routing vocabulary may be narrower than the complete source parser. A
+  // directly requested chemical source still faces every parser/solver guard.
+  if (!chemicalKineticsContext(stem, question)) return null;
   if (HARD_VETO.test(stem)) return null;
   if (figureAbsent(stem)) return null;
   if (/half[ -]?lives\b/.test(stem) && /\brespectively\b|\band\b[^.]{0,20}\bmin\b|two (?:independent|different)/.test(stem)) return null;

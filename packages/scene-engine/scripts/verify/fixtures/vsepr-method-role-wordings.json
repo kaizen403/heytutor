@@ -1,0 +1,691 @@
+[
+  {
+    "id": 1,
+    "question": "Draw the VSEPR shapes of NH3 and H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": 2,
+    "question": "Sketch the VSEPR geometry of SF4.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": 3,
+    "question": "Draw the VSEPR model of NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": 4,
+    "question": "Draw a VSEPR diagram of H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": 5,
+    "question": "Draw NH3 and H2O using VSEPR.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": 6,
+    "question": "Draw the HCN molecular geometry.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "fresh-1",
+    "question": "Show a VSEPR model for ammonia, NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "fresh-2",
+    "question": "Illustrate the VSEPR geometry of ClF3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "fresh-3",
+    "question": "Draw VSEPR shapes for water, H2O, and ammonia, NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "fresh-4",
+    "question": "Depict the molecular VSEPR shape of XeF2.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "fresh-5",
+    "question": "Please show the VSEPR diagrams of NH3 and H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "unknown-1",
+    "question": "Draw the VSEPR shapes of NH3 and molecule XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-2",
+    "question": "Draw a VSEPR diagram of H2O and XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-3",
+    "question": "Sketch the VSEPR geometry of SF4 and NP3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-4",
+    "question": "Draw the XYZ shapes of NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-5",
+    "question": "Draw the HCN and XYZ molecular geometries.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-6",
+    "question": "Draw the shape of molecule VSEPR alongside NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "root-method-1",
+    "question": "Draw a JEE VSEPR diagram of NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "root-method-2",
+    "question": "Sketch a VSEPR drawing for SF4.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "root-method-3",
+    "question": "Show a VSEPR view of H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "root-method-4",
+    "question": "Draw VSEPR representations of NH3 and H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "root-method-5",
+    "question": "Draw VSEPR of NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "root-unknown-1",
+    "question": "Draw XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "root-unknown-2",
+    "question": "Draw XYZ and NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "root-unknown-3",
+    "question": "Draw molecule XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "root-unknown-4",
+    "question": "Draw NH3 and XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "bare-CO-deferred",
+    "question": "Draw the molecular geometry of CO.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1,
+    "deferred": true,
+    "reason": "Previously sealed desired-positive gap: VSEPR solver requires at least3atoms. Preserve positive oracle; no claimed restoration."
+  },
+  {
+    "id": "CO-mixed-atomic",
+    "question": "Draw the molecular geometries of CO and NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "coordinated-method-unknown",
+    "question": "Draw XYZ and a VSEPR diagram of NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "head-HCN-model",
+    "question": "Draw a VSEPR model of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "head-HCN-view",
+    "question": "Show a JEE VSEPR view of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "head-unknown-1",
+    "question": "Draw a VSEPR model of XYZ and NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "head-unknown-2",
+    "question": "Show the VSEPR representation of XYZ and water, H2O.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "head-unknown-3",
+    "question": "Draw XYZ using VSEPR shapes of NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "head-unknown-4",
+    "question": "Draw molecule XYZ using a VSEPR model of NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "coord-unknown-1",
+    "question": "Draw a VSEPR model of NH3 and a model of XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "coord-unknown-2",
+    "question": "Draw VSEPR representations of NH3 and a structure XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "coord-unknown-3",
+    "question": "Draw a VSEPR model of NH3 and another model of XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "coord-known-1",
+    "question": "Draw a VSEPR model of NH3 and a model of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "coord-known-2",
+    "question": "Draw VSEPR representations of NH3 and a structure H2O.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "coord-known-3",
+    "question": "Draw a VSEPR diagram of H2O using SI notation.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "coord-known-4",
+    "question": "Draw a VSEPR model of NH3 and another model of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "coord-known-5",
+    "question": "Draw a VSEPR model of NH3 and use SI notation.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "method-acronym-transfer",
+    "question": "Sketch an NCERT VSEPR representation for SF4.",
+    "members": [
+      "SF4"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "known-coordinated-view",
+    "question": "Draw a VSEPR model of HCN and another view of NH3.",
+    "members": [
+      "HCN",
+      "NH3"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "known-aliases-order",
+    "question": "Show the VSEPR models for water, H2O, and ammonia, NH3.",
+    "members": [
+      "H2O",
+      "NH3"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "unknown-coordinated-head",
+    "question": "Draw a VSEPR model of NH3 and a diagram for XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-second-sentence",
+    "question": "Draw a VSEPR model of NH3. Also show a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "unknown-second-semicolon",
+    "question": "Draw a VSEPR model of NH3; also draw a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "known-second-sentence",
+    "question": "Draw a VSEPR model of NH3. Also show a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "known-second-semicolon",
+    "question": "Draw a VSEPR model of NH3; also draw a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "CO-second-sentence-must-not-drop",
+    "question": "Draw a VSEPR model of NH3. Also show a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "SI-notation-modifier",
+    "question": "Draw a VSEPR model in SI notation for NH3.",
+    "members": [
+      "NH3"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 1
+  },
+  {
+    "id": "numeric-unknown-coordinated",
+    "question": "Draw a VSEPR model of NH3 and a diagram for NP3.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "explicit-placeholder-member",
+    "question": "Draw a VSEPR model of NH3 and a model of molecule VSEPR.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "known-coordinated-abbreviation",
+    "question": "Draw a VSEPR model of NH3 and an HCN model.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "unsupported-CO-coordinated",
+    "question": "Draw a VSEPR model of NH3 and a CO model.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-show-XYZ",
+    "question": "Draw a VSEPR model of NH3. Also show a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-show-HCN",
+    "question": "Draw a VSEPR model of NH3. Also show a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-period-show-CO",
+    "question": "Draw a VSEPR model of NH3. Also show a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-draw-XYZ",
+    "question": "Draw a VSEPR model of NH3. Also draw a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-draw-HCN",
+    "question": "Draw a VSEPR model of NH3. Also draw a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-period-draw-CO",
+    "question": "Draw a VSEPR model of NH3. Also draw a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-include-XYZ",
+    "question": "Draw a VSEPR model of NH3. Also include a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-include-HCN",
+    "question": "Draw a VSEPR model of NH3. Also include a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-period-include-CO",
+    "question": "Draw a VSEPR model of NH3. Also include a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-add-XYZ",
+    "question": "Draw a VSEPR model of NH3. Also add a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-period-add-HCN",
+    "question": "Draw a VSEPR model of NH3. Also add a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-period-add-CO",
+    "question": "Draw a VSEPR model of NH3. Also add a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-show-XYZ",
+    "question": "Draw a VSEPR model of NH3; Also show a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-show-HCN",
+    "question": "Draw a VSEPR model of NH3; Also show a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-semicolon-show-CO",
+    "question": "Draw a VSEPR model of NH3; Also show a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-draw-XYZ",
+    "question": "Draw a VSEPR model of NH3; Also draw a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-draw-HCN",
+    "question": "Draw a VSEPR model of NH3; Also draw a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-semicolon-draw-CO",
+    "question": "Draw a VSEPR model of NH3; Also draw a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-include-XYZ",
+    "question": "Draw a VSEPR model of NH3; Also include a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-include-HCN",
+    "question": "Draw a VSEPR model of NH3; Also include a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-semicolon-include-CO",
+    "question": "Draw a VSEPR model of NH3; Also include a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-add-XYZ",
+    "question": "Draw a VSEPR model of NH3; Also add a model of XYZ.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "tail-semicolon-add-HCN",
+    "question": "Draw a VSEPR model of NH3; Also add a model of HCN.",
+    "members": [
+      "NH3",
+      "HCN"
+    ],
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2
+  },
+  {
+    "id": "tail-semicolon-add-CO",
+    "question": "Draw a VSEPR model of NH3; Also add a model of CO.",
+    "members": null,
+    "expectedFamily": null,
+    "expectedSpecies": 0
+  },
+  {
+    "id": "descriptor183-root-ball-stick-unknown",
+    "question": "Draw a VSEPR model of NH3. Also show a ball and stick model of XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-root-ball-stick-HCN",
+    "question": "Draw a VSEPR model of NH3. Also show a ball and stick model of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2,
+    "members": [
+      "NH3",
+      "HCN"
+    ]
+  },
+  {
+    "id": "descriptor183-root-ball-stick-CO",
+    "question": "Draw a VSEPR model of NH3. Also show a ball and stick model of CO.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-root-XYZ-HCN-method-tail",
+    "question": "Draw XYZ and HCN using VSEPR theory.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-modifier-with-unknown",
+    "question": "Draw a VSEPR model of NH3; add a model with clear bonds for XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-modifier-with-HCN",
+    "question": "Draw a VSEPR model of NH3; add a model with clear bonds for HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2,
+    "members": [
+      "NH3",
+      "HCN"
+    ]
+  },
+  {
+    "id": "descriptor183-coordinated-head-control",
+    "question": "Draw a VSEPR model of NH3 and a ball and stick model of XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-reversed-unknown-control",
+    "question": "Draw HCN and XYZ using VSEPR theory.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-second-model-bare-unknown",
+    "question": "Draw a VSEPR model of NH3. Also show the model of NH3 and XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-hyphen-ball-stick-unknown",
+    "question": "Draw a VSEPR model of NH3. Also draw a ball-and-stick model of XYZ.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-hyphen-ball-stick-HCN",
+    "question": "Draw a VSEPR model of NH3. Also draw a ball-and-stick model of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2,
+    "members": [
+      "NH3",
+      "HCN"
+    ]
+  },
+  {
+    "id": "descriptor183-labelled-bonds-CO",
+    "question": "Draw a VSEPR model of NH3; add a model with labelled bonds of CO.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-labelled-bonds-HCN",
+    "question": "Draw a VSEPR model of NH3; add a model with labelled bonds of HCN.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2,
+    "members": [
+      "NH3",
+      "HCN"
+    ]
+  },
+  {
+    "id": "descriptor183-real-unknown-before-method",
+    "question": "Draw XYZ and a VSEPR model of NH3.",
+    "expectedFamily": null,
+    "expectedSpecies": 0,
+    "members": null
+  },
+  {
+    "id": "descriptor183-real-HCN-before-method",
+    "question": "Draw HCN and a VSEPR model of NH3.",
+    "expectedFamily": "chem_vsepr",
+    "expectedSpecies": 2,
+    "members": [
+      "HCN",
+      "NH3"
+    ]
+  }
+]

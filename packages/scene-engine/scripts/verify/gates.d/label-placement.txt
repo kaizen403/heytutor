@@ -4,3 +4,4 @@ tsx scripts/verify/verify-generic-arc-native.ts
 tsx scripts/verify/verify-label-placement-coverage-repairs.ts
 tsx scripts/verify/verify-label-placement-transactions.ts
 tsx scripts/verify/verify-label-own-arrow.ts
+tsx scripts/verify/verify-label-placement-review-rows.ts

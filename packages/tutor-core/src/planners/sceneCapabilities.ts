@@ -103,7 +103,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "impedance", "impedance_combine", "phasor_response", "kirchhoff_network",
     "metre_bridge", "potentiometer", "galvanometer",
   ],
-  state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "set_partition", "set_select", "harmonic_motion", "harmonic_state", "hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "polytropic_process", "isochoric_process", "process_state", "motion_graph", "potential_curve"],
+  state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "set_partition", "set_select", "harmonic_motion", "harmonic_state", "hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "pv_process", "polytropic_process", "isochoric_process", "process_state", "motion_graph", "potential_curve"],
   analytic_curve: ["elastic_profile", "elastic_state",
     "number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system",
     "axes", "function_curve", "parametric_curve", "polar_curve", "implicit_curve",
@@ -172,7 +172,7 @@ const FAMILY_PREDICATES: Record<SceneVisualFamily, readonly string[]> = {
   transverse_field: ["perpendicular", "parallel"],
   polarizer: ["angle_between", "perpendicular"],
   contact_body: ["perpendicular", "opposite_direction", "connected", "parallel", "angle_between", "on", "equal_length"],
-  circuit_network: ["path", "sameTerminalPair", "pathCount", "degree", "connected", "perpendicular", "angle_between"],
+  circuit_network: ["path", "sameTerminalPair", "pathCount", "loadBranchCount", "degree", "connected", "perpendicular", "angle_between"],
   state_plot: ["connected", "on", "between", "ordered_along", "perpendicular"],
   analytic_curve: ["on", "function_value", "root", "incident", "perpendicular"],
   bounded_region: ["function_value", "root", "between"],
@@ -212,7 +212,7 @@ const FAMILY_GUIDANCE: Record<SceneVisualFamily, string> = {
   polarizer: "Use polarizer for every transmission axis, derive stated relative angles, and keep labels attached to their own optical element.",
   contact_body: "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
   circuit_network: "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. A supplied multi-loop graph uses kirchhoff_network and must not be redrawn as a series chain. A metre bridge or potentiometer balance uses metre_bridge or potentiometer; do not place the jockey by eye. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
-  state_plot: "Plot named states as points on axes whose x and y spans are comparable layout numbers, not raw SI magnitudes. For supplied grouped counts, use histogram (density for unequal widths), frequency_polygon, or cumulative_frequency. Use probability_tree for explicit conditional outcome branches and computed joint leaf probabilities. A closed cycle is one polygon or polyline through shared point IDs. Independent axis scales are display-only; never place V=0.002 against P=1e5 in world coordinates.",
+  state_plot: "Use pv_process for named P-V laws: one shared plot, complete states; physical quantity refs or explicitly nonmetric conceptual ratios. Other plots use comparable axis layout spans, not raw SI magnitudes. Grouped counts: histogram (density for unequal widths), frequency_polygon, cumulative_frequency. Conditional outcome branches: probability_tree. Other closed cycles share point IDs. Independent axis scales are display-only.",
   analytic_curve: "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
   bounded_region: "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
   solid_figure: "Draw each source solid via solid_projection; retain body quantities and shared/internal joins. Dimensions declare measurementKind and use solid_anchor: radius centre to rim; diameter opposite rims (projection radius=D/2); sphere section at=0.5; cylinder height matching rims; cone/frustum height axis centres. Hollow cylinders retain innerRadius or coaxial inner/outer projections. Polyhedron spans use actual vertices. Preserve cavities and all composite parts; unsupported cuts use source-grounded representations.",
@@ -342,6 +342,7 @@ export function inferSceneCapabilities(
     }
   }
   applyStemFamilyOverrides(stem, families, {
+    originalQuestion: question,
     preserveFamilies: structureDecisive ? structureFamilies : [],
   });
   // "thermodynamic" in a law id is not a P–V cycle. Keep state_plot only when
@@ -371,7 +372,7 @@ export function inferSceneCapabilities(
   const circuitTopology = circuitTopologyFromProblemStructure(hints.problemIR);
   if (circuitTopology?.twoLoop) {
     planningGuidance.add(
-      `ProblemIR structure shows a multi-loop network (${circuitTopology.sources} source(s), ${circuitTopology.branches} branch component(s)): draw the two-loop network with both sources and the shared branch, never a single series resistor chain.`,
+      `The explicit ProblemIR branch graph contains multiple independent cycles (${circuitTopology.sources} declared source(s), ${circuitTopology.branches} declared branches). Preserve its nodes, branch endpoints and component states; do not collapse it to a single series chain or invent additional sources or a shared branch.`,
     );
   }
   const riverVariant = riverBoatVariantFromProblemStructure(hints.problemIR);

@@ -42,7 +42,10 @@ if (!process.argv.includes("--compile-only")) {
 function check(id: string, document: SceneDocument): void {
 const result = compileSceneDocument(document);
 assert.ok(result.ok && result.renderScene, `exact H4 must draw: ${JSON.stringify(result.report.issues)}`);
-assert.equal(getLabelTransactionDiagnostics(result)?.selectedPolicy, "attached", "own-arrow positive must use the enhanced verified transaction");
+// Either policy may draw it: the attached one only where every label it moves
+// repairs MAIN's placement, otherwise MAIN's own placement. Both must attach.
+const policy = getLabelTransactionDiagnostics(result)?.selectedPolicy;
+assert.ok(policy === "attached" || policy === "native", "a drawn figure records its selected label policy");
 const primitives = result.renderScene.primitives;
 const expected = oracle.cases.find((item) => item.id === id)!;
 assert.equal(JSON.stringify(primitives.filter((primitive) => primitive.kind !== "label" && primitive.provenance?.labelLeader !== true)), JSON.stringify(expected.physical),
@@ -73,7 +76,7 @@ assert.ok(leader
   ? project(leader.points[0]!, own.points).distance <= 0.02
   : ownDistance <= competingDistance + 0.02,
 `exact H4 resultant must attach to its own stroke: own=${ownDistance.toFixed(4)}, competitor=${competingDistance.toFixed(4)}`);
-console.log(`PASS ${id} own arrow: own=${ownDistance.toFixed(4)}, competitor=${competingDistance.toFixed(4)}, leader=${Boolean(leader)}`);
+console.log(`PASS ${id} own arrow (${policy}): own=${ownDistance.toFixed(4)}, competitor=${competingDistance.toFixed(4)}, leader=${Boolean(leader)}`);
 }
 
 function transformed(source: SceneDocument, degrees: number, scale: number, reflect: boolean): SceneDocument {
@@ -203,7 +206,9 @@ function checkNativeControls(): void {
       continue;
     }
     assert.ok(result.ok && result.renderScene, `${mode} must draw: ${JSON.stringify(result.report.issues)}`);
-    assert.equal(getLabelTransactionDiagnostics(result)?.selectedPolicy, "attached", `${mode} is not forced to native fallback by an impossible nearest-arrow constraint`);
+    const attempts = getLabelTransactionDiagnostics(result)?.attempts ?? [];
+    assert.equal(attempts[0]?.policy, "attached");
+    assert.ok(attempts[0]?.result.ok, `${mode} attached attempt is not failed by an impossible nearest-arrow constraint`);
     for (const entity of document.entities.filter((entity) => entity.kind === "vector")) {
       assert.ok(result.renderScene.primitives.some((primitive) => primitive.kind === "label" && primitive.entityId === entity.id &&
         primitive.text === entity.label && primitive.groupId === "native"), `${mode} retains complete name and native owner`);

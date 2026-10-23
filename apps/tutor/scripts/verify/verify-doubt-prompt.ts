@@ -105,7 +105,7 @@ const codeLessonAddon =
 /** The lesson flow the figure addon carries, which a doubt must not be given. */
 const LESSON_FLOW = [
   "is being explained as it is revealed",
-  "Read the figure to the student before you calculate with it",
+  "Read the figure's setup before using it:",
   "do not speak a step with the marker parked",
   "This figure is what it is",
   "[ANNOTATE:entity_id] with one of",
@@ -148,9 +148,10 @@ const variants = {
   codePanel: buildDoubtTeachingPrompt(
     input({ codePanelShowing: true, codeLessonBoard: true, codePanelText: CODE, diagramPromptAddon: codeLessonAddon }),
   ),
-  codeHidden: buildDoubtTeachingPrompt(input({ codeLessonBoard: true, codePanelShowing: false })),
+  codeHidden: buildDoubtTeachingPrompt(input({ codeLessonBoard: true, codePanelShowing: false, codeFigureVisible: true })),
+  codeHiddenNoFigure: buildDoubtTeachingPrompt(input({ codeLessonBoard: true, codePanelShowing: false, codeFigureVisible: false })),
 };
-const notebook = { figure: variants.figure, full: variants.full, noFigure: variants.noFigure, codeHidden: variants.codeHidden };
+const notebook = { figure: variants.figure, full: variants.full, noFigure: variants.noFigure, codeHidden: variants.codeHidden, codeHiddenNoFigure: variants.codeHiddenNoFigure };
 
 // 1. The first step points and writes nothing; row ids die with the page.
 for (const [label, prompt] of Object.entries(notebook)) {
@@ -228,6 +229,14 @@ for (const [label, prompt] of Object.entries(variants)) {
   assert(block.includes("Do not point at it with [FOCUS]"), "the worked example is named in words, not pointed at");
   assert(!block.includes("No figure is on this board"), "the worked example is on the board, so it is not declared absent");
   assert(!variants.codeHidden.runtimeAddon.includes("TURN PLAN V3"), "a code lesson's fallback plan is not printed");
+}
+{
+  const block = doubtBlockOf(variants.codeHiddenNoFigure, "codeHiddenNoFigure");
+  assert(block.includes("w2: 1/f = 1/v + 1/u"), "an absent code figure does not remove existing notebook rows");
+  assert(block.includes("No figure is on this board"), "a code board alone does not establish visible example ink");
+  assert(!block.includes("The worked example on the right stays"), "absent examples are not described as visible");
+  assert(variants.codeHiddenNoFigure.runtimeAddon.includes("BOARD STATE: NO VERIFIED FIGURE"), "the absent-figure override applies to hidden code boards");
+  assert(!variants.codeHiddenNoFigure.runtimeAddon.includes("TURN PLAN V3"), "an absent code figure does not grant the fallback plan authority");
 }
 
 // 7. The figure addon keeps the parts and loses the lesson flow.

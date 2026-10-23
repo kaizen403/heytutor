@@ -4,7 +4,12 @@
  * planner-authored pixels.
  */
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
+import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
+import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
+import { readSourceLawGraph } from "../chemistry/sourceLawGraph";
+import { readApertureSource, readYoungRepresentationRequest, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
+import { buildCircuitLawExample } from "../physics/circuitLawExample";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
@@ -54,6 +59,7 @@ import {
 } from "./visualObligations";
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
+import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
@@ -158,6 +164,17 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  const youngRequest=readYoungRepresentationRequest(question);
+  if(youngRequest.status==="declined")return null;
+  // A supplied but unread radiation state is terminal on both public routes;
+  // an archetype or last-resort schematic cannot substitute display defaults.
+  // A complete source-owned frequency law has its own operands and domain;
+  // it is not one incident-photon state. Retain the existing family/compiler
+  // path only when that whole law is independently proved.
+  if (readRadiationSource(question).status === "declined"
+    && readSourceLawGraph(question, "chem_orbital").state !== "valid") return null;
+  const neutralDecay = readNeutralDecaySource(question);
+  if (neutralDecay.status === "declined") return null;
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   // A section stem that cannot be read whole, whose stated point disagrees
@@ -179,7 +196,13 @@ function synthesizeFromFamilies(
   // Parameterized archetypes compute geometry from typed slots and have
   // already faced the same picture demand. Complete source-bound geometry
   // keeps the existing family selection's priority over generic lexical cues.
-  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
+  const resolvedFamilies = resolveRequestedFamilies(question, input.families, input.problemIR);
+  // Axes are a complete display only when the whole request asks for axes.
+  // An incidental "graph" must not turn that operator request into a missing
+  // analytic curve, while additional source requirements still decline.
+  const families = pureCoordinateAxesRequest(question)
+    ? ["coordinate_figure" as const, ...resolvedFamilies.filter(family => family !== "coordinate_figure")]
+    : resolvedFamilies;
   const sourceFamilies = familiesFromProblemStructure(sourceMensurationStructure(question));
   // A complete source-bound solid or region is stronger than a generic
   // archetype cue such as "height of". The existing family selection still
@@ -196,13 +219,72 @@ function synthesizeFromFamilies(
   const obligations: VisualObligationSet | null = isFullProblemIRStructure(input.problemIR)
     ? deriveVisualObligations(input.problemIR)
     : null;
+  if (neutralDecay.status === "source") {
+    const document = buildNeutralDecayScene(question);
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    return { ...compiled, family: "analytic_curve", tier: schematic ? "question_representation" : "qualitative_verified",
+      nonMetric: true, reason: "Computed first-order fraction at the source times; axis display scales are nonmetric." };
+  }
+  const particleSource = readRadiationSource(question);
+  if (particleSource.status === "source" && particleSource.model.kind !== "photoelectric" && !families.includes("chem_orbital")) {
+    const document = buildParticleRadiationScene(question);
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    const conditioned = particleSource.model.kind === "matter_wave" && particleSource.model.statedMomentum && particleSource.model.statedSpeedMS !== null;
+    return { ...compiled, family: "energy_level", tier: schematic || conditioned ? "question_representation" : "qualitative_verified",
+      nonMetric: true, reason: "Radiation values are computed from the original source; display geometry is qualitative." };
+  }
   const groundedCircuit = groundedOhmScene(question, input.problemIR);
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
     if (!compiled || demandRejection(compiled.document, demand)
-      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+      || (obligations && visualObligationRejection(obligations, compiled.document, question))) return null;
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
+  }
+  const twoLoopSource = readTwoLoopTopology(question);
+  if (twoLoopSource || twoLoopTopologyClaimed(question)) {
+    if (!twoLoopSource) return null;
+    const compiled = tryCompile(buildTwoLoopCircuit(question, twoLoopSource));
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+      reason: "Source-bound left, right and shared circuit branches; displayed layout is nonmetric." };
+  }
+  const circuitExample = readCircuitLawExample(question);
+  if (circuitExample.status !== "not_applicable") {
+    // A method mention is not a request to replace two complete supplied
+    // arrangements with an illustrative circuit. Reuse the ordinary graph
+    // lowering only after the entire source comparison is positively owned.
+    const comparison = readSeriesParallelSourceComparison(question);
+    if (comparison) {
+      const resistors = Array.from({ length: comparison.count }, (_, index) => ({
+        symbol: `R${index + 1}`, value: comparison.resistanceOhm, unit: "ohm",
+      }));
+      if (!Number.isFinite(comparison.resistanceOhm) || !(comparison.resistanceOhm > 0)) return null;
+      const document = buildSeparatedCircuitViews(question, resistors, comparison.count, true);
+      document.source.resistanceSource = comparison;
+      const compiled = tryCompile(document);
+      if (!compiled || demandRejection(compiled.document, demand)
+        || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+      return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+        reason: "Both source resistor arrangements and their deterministically computed equivalent resistances." };
+    }
+    if (circuitExample.status !== "example") {
+      // Kirchhoff beside a named bridge explains that apparatus. It is not a
+      // request to replace the bridge with a symbolic law example.
+      if (!/\b(?:wheatstone|met(?:er|re)\s*bridge|potentiometer)\b/i.test(question)) return null;
+    } else {
+      const document = buildCircuitLawExample(question);
+      const compiled = document ? tryCompile(document) : null;
+      if (!compiled || demandRejection(compiled.document, demand)
+        || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+      return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+        reason: "Explicitly illustrative symbolic law example; reference arrows are not solved currents or supplied topology." };
+    }
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
@@ -212,7 +294,7 @@ function synthesizeFromFamilies(
   if (sectionDocument) {
     const compiled = tryCompile(sectionDocument);
     if (compiled && !demandRejection(compiled.document, demand)
-      && !(obligations && visualObligationRejection(obligations, compiled.document))) {
+      && !(obligations && visualObligationRejection(obligations, compiled.document, question))) {
       const metricProof = hasPlanMetricProof(compiled.document);
       return { ...compiled, tier: metricProof ? "exact_verified" : "qualitative_verified", nonMetric: !metricProof,
         reason: "Compiled the stated endpoints and the section point from the question's coordinates and ratio.", family: "coordinate_figure" };
@@ -229,7 +311,7 @@ function synthesizeFromFamilies(
     if (relativeMotionPlanConflicts(relativeMotion.source, input.turnPlan, question).length > 0) return null;
     const compiled = tryCompile(relativeMotionDocument(question, relativeMotion.source));
     if (!compiled || demandRejection(compiled.document, demand)) return null;
-    if (obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    if (obligations && visualObligationRejection(obligations, compiled.document, question)) return null;
     const metricProof = !schematic && hasPlanMetricProof(compiled.document);
     return {
       ...compiled,
@@ -247,22 +329,42 @@ function synthesizeFromFamilies(
   const relativeOutOfModel = relativeMotion?.status === "rejected" && relativeMotion.kind === "out_of_model";
   const archetypeCandidate = preferSourceGeometry || circleSource ? null : synthesizeArchetypeScene({
     question,
-    turnPlan: input.turnPlan,
+    turnPlan: youngRequest.status==="illustration"?undefined:input.turnPlan,
     problemIR: input.problemIR ?? null,
-    schematic,
+    schematic:schematic||youngRequest.status==="illustration",
   });
+  if(youngRequest.status==="illustration"&&archetypeCandidate?.archetype!=="double_slit")return null;
   const statedVerticalThrow = archetypeCandidate?.archetype === "free_fall"
     && /\bthrown\s+vertically\s+(?:up(?:ward)?s?|down(?:ward)?s?)\b/i.test(question);
   const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
-  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
+  if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document, question))) {
+    const explicitFirstOrderFunction = neutralDecay.status === "not_applicable" && neutralDecay.explicitFunctionContext
+      && archetype.archetype === "function_graph";
+    if (explicitFirstOrderFunction) {
+      const sourceExpressions = neutralDecay.explicitFunctionContext!;
+      const curves = archetype.document.constructions.filter(step => step.operator === "function_curve");
+      if (curves.length !== sourceExpressions.length) return null;
+      const scales = curves.map((curve, index) => {
+        const expression = String(curve.inputs.expression), source = sourceExpressions[index]!;
+        if (expression === source) return 1;
+        const suffix = `*(${source})`, coefficient = expression.endsWith(suffix) ? expression.slice(0, -suffix.length) : "";
+        return /^\([\d.eE+-]+\)$/.test(coefficient) ? Number(coefficient.slice(1, -1)) : NaN;
+      });
+      if (scales.some(scale => !Number.isFinite(scale) || !(scale > 0) || scale !== scales[0])) return null;
+      // The existing function operator owns this one uniform display map.
+      // It is not a metric y-axis or a redefinition of the source function.
+      archetype.document.source.displayScale = { x: 1, y: scales[0] };
+      archetype.document.source.nonMetric = true;
+    }
+
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
       validationReport: archetype.validationReport,
-      tier: archetype.tier,
-      nonMetric: archetype.nonMetric,
+      tier: explicitFirstOrderFunction ? schematic ? "question_representation" : "qualitative_verified" : archetype.tier,
+      nonMetric: explicitFirstOrderFunction ? true : archetype.nonMetric,
       reason: archetype.reason,
       family: archetype.family,
     };
@@ -271,9 +373,16 @@ function synthesizeFromFamilies(
   // the legacy partial launch family. The computed projectile owns its angle.
   if (projectileSource) return null;
   for (const family of families) {
-    const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
+    const chemistryBuilder = chemistryFamilyBuilder(family);
+    const builder = FAMILY_BUILDERS[family] ?? chemistryBuilder;
     if (!builder) continue;
-    const document = builder(question, quantities, schematic);
+    const document = builder(chemistryBuilder ? input.question : question, chemistryBuilder ? collectChemistryPlanQuantities(input.turnPlan) : quantities, schematic);
+    // An unread curve cannot be represented by axes alone, or by a later
+    // unrelated family after those axes are declined. Refuse the whole turn.
+    // Explicit coordinate-axis requests keep their coordinate-figure path.
+    if (family === "analytic_curve" && document && document.entities.length > 0
+      && document.entities.every(entity => entity.kind === "axes")
+      && document.constructions.every(construction => construction.operator === "axes")) return null;
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     // Compiling proves the geometry is valid, not that it is this question's
@@ -283,7 +392,7 @@ function synthesizeFromFamilies(
     // A candidate that compiles yet drops a named body, a connection, a given
     // dimension, or a proved relation is a partial scene: reject it the same
     // way, so only whole figures reach the board.
-    if (obligations && visualObligationRejection(obligations, compiled.document)) continue;
+    if (obligations && visualObligationRejection(obligations, compiled.document, chemistryBuilder ? input.question : question)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
@@ -315,7 +424,7 @@ function synthesizeFromFamilies(
   if (
     conceptCompiled
     && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document))
+    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, question))
   ) {
     return {
       ...conceptCompiled,
@@ -397,7 +506,7 @@ function resolveRequestedFamilies(
     ...(requested ?? []).filter(isSceneVisualFamily),
     ...inferFamiliesFromQuestion(question),
   ]);
-  applyStemFamilyOverrides(stem, merged);
+  applyStemFamilyOverrides(stem, merged, { originalQuestion: question });
   // Structure is the live catalog when it exists: the English tables may add
   // coverage but may not revoke a solved family, and solved families keep the
   // leading positions. This mirrors inferSceneCapabilities so the planner and
@@ -1185,6 +1294,8 @@ function buildCircuit(
   ) {
     return null;
   }
+  const twoLoop = readTwoLoopTopology(question);
+  if (twoLoop) return buildTwoLoopCircuit(question, twoLoop);
   // Resistances the stem writes with their unit. Ω is not a word character,
   // so this reads to the next letter rather than a word boundary.
   const statedOhms = [...question.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|MΩ|Ω|k?\s*ohms?)(?![A-Za-z0-9])/g)]
@@ -1227,7 +1338,7 @@ function buildCircuit(
     return buildSeparatedCircuitViews(question, resistors, count);
   }
   if (isTwoLoopNetworkStem(question)) {
-    return buildTwoLoopCircuit(question, resistors, extractNamedVoltages(question, quantities));
+    return null;
   }
   const topology = wantsParallel || (!wantsSeries && schematic) ? "parallel" : "series";
   return buildSingleCircuitView(question, resistors, count, topology, 0, "");
@@ -1302,20 +1413,19 @@ function buildSingleCircuitView(
 
 function buildTwoLoopCircuit(
   question: string,
-  resistors: Array<{ symbol: string; value: number; unit?: string }>,
-  sources: Array<{ symbol: string; value: number; unit?: string }>,
+  source: TwoLoopSource,
 ): SceneDocument {
-  const r1 = resistors[0]?.symbol ?? "R1";
-  const r2 = resistors[1]?.symbol ?? "R2";
-  const r3 = resistors[2]?.symbol ?? "R3";
+  const resistors = [source.left, source.right, source.shared];
+  const sources = [source.leftSource, source.rightSource];
+  const label = (component: TwoLoopSource["left"], unit: string): string => component.value === null
+    ? component.symbol : `${component.symbol}=${component.value} ${unit}`;
+  const top = source.positiveTerminal === "top";
   return baseDocument({
     question,
     reason: "two-loop network from the question wording",
     quantities: [
-      ...resistors.slice(0, 3).map((resistor, index) =>
-        quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, resistor.unit ?? "ohm")),
-      ...sources.slice(0, 2).map((source, index) =>
-        quantityRecord(`V${index + 1}`, source.symbol, source.value, source.unit ?? "V")),
+      ...resistors.flatMap((resistor, index) => resistor.value === null ? [] : [quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, "ohm")]),
+      ...sources.flatMap((battery, index) => battery.value === null ? [] : [quantityRecord(`V${index + 1}`, battery.symbol, battery.value, "V")]),
     ],
     entities: [
       { id: "n_tl", kind: "point", role: "node" },
@@ -1324,11 +1434,11 @@ function buildTwoLoopCircuit(
       { id: "n_bl", kind: "point", role: "node" },
       { id: "n_bc", kind: "point", role: "node" },
       { id: "n_br", kind: "point", role: "node" },
-      { id: "r1", kind: "component", role: "resistor", label: compactLabel(r1) },
-      { id: "r2", kind: "component", role: "resistor", label: compactLabel(r2) },
-      { id: "r3", kind: "component", role: "resistor", label: compactLabel(r3) },
-      { id: "v1", kind: "component", role: "source", label: "V1" },
-      { id: "v2", kind: "component", role: "source", label: "V2" },
+      { id: "r1", kind: "component", role: "resistor", label: compactLabel(label(source.left, "ohm")) },
+      { id: "r2", kind: "component", role: "resistor", label: compactLabel(label(source.right, "ohm")) },
+      { id: "r3", kind: "component", role: "resistor", label: compactLabel(label(source.shared, "ohm")) },
+      { id: "v1", kind: "component", role: "source", label: compactLabel(label(source.leftSource, "V")) },
+      { id: "v2", kind: "component", role: "source", label: compactLabel(label(source.rightSource, "V")) },
       { id: "w_bl", kind: "connector", role: "return path" },
       { id: "w_br", kind: "connector", role: "return path" },
     ],
@@ -1342,8 +1452,8 @@ function buildTwoLoopCircuit(
       { id: "make_r1", operator: "symbol", inputs: { symbol: "resistor", start: "n_tl", end: "n_tc" }, outputs: ["r1"] },
       { id: "make_r2", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_tr" }, outputs: ["r2"] },
       { id: "make_r3", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_bc" }, outputs: ["r3"] },
-      { id: "make_v1", operator: "symbol", inputs: { symbol: "battery", start: "n_bl", end: "n_tl" }, outputs: ["v1"] },
-      { id: "make_v2", operator: "symbol", inputs: { symbol: "battery", start: "n_br", end: "n_tr" }, outputs: ["v2"] },
+      { id: "make_v1", operator: "symbol", inputs: { symbol: "battery", start: top ? "n_tl" : "n_bl", end: top ? "n_bl" : "n_tl" }, outputs: ["v1"] },
+      { id: "make_v2", operator: "symbol", inputs: { symbol: "battery", start: top ? "n_tr" : "n_br", end: top ? "n_br" : "n_tr" }, outputs: ["v2"] },
       { id: "make_w_bl", operator: "connect", inputs: { start: "n_bl", end: "n_bc" }, outputs: ["w_bl"] },
       { id: "make_w_br", operator: "connect", inputs: { start: "n_bc", end: "n_br" }, outputs: ["w_br"] },
     ],
@@ -1376,10 +1486,11 @@ function buildSeparatedCircuitViews(
   question: string,
   resistors: Array<{ symbol: string; value: number; unit?: string }>,
   count: number,
+  equivalentValues = false,
 ): SceneDocument {
   const series = buildSingleCircuitView(question, resistors, count, "series", 3, "series_");
   const parallel = buildSingleCircuitView(question, resistors, count, "parallel", -3, "parallel_");
-  return baseDocument({
+  const document = baseDocument({
     question,
     reason: "series and parallel resistor networks from the question wording",
     quantities: series.quantities,
@@ -1391,6 +1502,25 @@ function buildSeparatedCircuitViews(
       { id: "parallel_group", entityIds: parallel.entities.map((entity) => entity.id), dependsOn: [], narrationCue: "parallel circuit" },
     ],
   });
+  if (equivalentValues) {
+    const values = resistors.slice(0, count).map(item => item.value);
+    for (const topology of ["series", "parallel"]) for (const [index, resistor] of resistors.slice(0, count).entries()) {
+      document.entities.find(entity => entity.id === `${topology}_r${index + 1}`)!.label = `${resistor.symbol}=${resistor.value}Ω`;
+    }
+    const results = [{ id: "series", symbol: "Req(s)", y: 4.2, value: values.reduce((sum, value) => sum + value, 0) },
+      { id: "parallel", symbol: "Req(p)", y: -1.8, value: 1 / values.reduce((sum, value) => sum + 1 / value, 0) }];
+    for (const result of results) {
+      const id = `${result.id}_equivalent`, anchor = `${id}_anchor`;
+      const label = result.id === "series" || Number.isInteger(result.value) ? `${result.symbol}=${displayNumber(result.value)} ohm` : `${result.symbol}=${values[0]}/${count}Ω`;
+      document.quantities.push({ id: `q_${id}`, symbol: result.symbol, value: result.value, unit: "ohm", provenance: "derived" });
+      document.entities.push({ id: anchor, kind: "point", role: "equivalent resistance label anchor" },
+        { id, kind: "label", role: "derived equivalent resistance", label });
+      document.constructions.push(pointAt(anchor, 2, result.y),
+        { id: `make_${id}`, operator: "label", inputs: { target: anchor, text: label }, outputs: [id] });
+      document.revealGroups.find(group => group.id === `${result.id}_group`)!.entityIds.push(anchor, id);
+    }
+  }
+  return document;
 }
 
 
@@ -1627,8 +1757,8 @@ function buildAnalyticCurve(
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
     }
-    // Last-resort draws bare axes only when the stem actually asks for a graph;
-    // it never paints a canned curve the stem did not name.
+    // Keep the unread graph candidate explicit: the family selector refuses
+    // axes-only analytic candidates for the whole turn before compilation.
     if (schematic) {
       return /(?:graph|curve|plot|sketch|versus|against)/i.test(question)
         ? axesOnly(question, "analytic display axes")
@@ -3603,8 +3733,9 @@ function buildAperturePattern(
   _quantities: PlanQuantity[],
   _schematic: boolean,
 ): SceneDocument | null {
-  if (!/(?:slit|interference|diffraction|aperture|fringe|central maximum|resolving power|limit of resolution|rayleigh|phase difference)/i.test(question)) return null;
-  const slits = /single/i.test(question) ? 1 : 2;
+  const source = readApertureSource(question);
+  if (!source) return null;
+  const slits = source.slitCount;
   return baseDocument({
     question,
     reason: "aperture and screen pattern from the wave-optics family",
@@ -3636,7 +3767,7 @@ function buildAperturePattern(
       {
         id: "make_pattern",
         operator: "screen_pattern",
-        inputs: { start: "screen_a", end: "screen_b", pattern: "interference", count: 7, spacing: 0.45, centralWidth: 0.7 },
+        inputs: { start: "screen_a", end: "screen_b", pattern: slits === 1 ? "diffraction" : "interference", count: 7, spacing: 0.45, centralWidth: 0.7 },
         outputs: ["pattern"],
       },
     ],
@@ -3719,11 +3850,16 @@ function buildTransverseField(question: string, _quantities: PlanQuantity[], _sc
   });
 }
 
+function pureCoordinateAxesRequest(question: string): boolean {
+  return /^\s*(?:please\s+)?(?:draw|sketch|show|plot|represent|depict|illustrate)\s+(?:only\s+)?(?:the\s+)?(?:Cartesian(?:\s+coordinate)?|rectangular(?:\s+coordinate)?|(?:x\s+and\s+y\s+)?coordinate)\s+axes(?:\s+(?:on|in)\s+(?:a\s+|the\s+)?(?:graph(?:\s+paper)?|(?:Cartesian\s+|coordinate\s+)?plane))?\s*[.!?]?\s*$/i.test(question);
+}
+
 function buildCoordinateFigure(
   question: string,
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  if (pureCoordinateAxesRequest(question)) return axesOnly(question, "coordinate display axes");
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   if (circleSource) return coordinateCircleDocument(question, quantities, normalizeStem(question));
@@ -3751,7 +3887,7 @@ function buildCoordinateFigure(
   if (expressions.length > 0) {
     return plotExpressions(question, expressions, extractXInterval(question) ?? [-3, 3]);
   }
-  return axesOnly(question, "coordinate display axes");
+  return null;
 }
 
 function coordinateConicDocument(question: string, stem: string): SceneDocument {
@@ -4131,6 +4267,8 @@ function currentSegmentFieldDocument(question: string): SceneDocument {
 }
 
 function buildEnergyLevel(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  const particle = buildParticleRadiationScene(question);
+  if (particle) return particle;
   const stem = normalizeStem(question);
   if (isJunctionSpatialStem(stem) && !isSemiconductorBandStem(stem)) {
     return semiconductorJunctionDocument(question);
@@ -4552,6 +4690,26 @@ function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
   });
 }
 
+/** Chemistry alone retains given/derived origin; the nonchem collector above is unchanged. */
+export function collectChemistryPlanQuantities(turnPlan: unknown): ChemPlanQuantity[] {
+  if (!isRecord(turnPlan)) return [];
+  return (["given", "derived"] as const).flatMap(origin => {
+    const rows = origin === "given" ? turnPlan.givens : turnPlan.derived;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row, index) => {
+      if (!isRecord(row) || typeof row.value !== "number") return [];
+      const id = typeof row.id === "string" && row.id.trim() ? row.id : `${origin}${index + 1}`;
+      const symbol = typeof row.symbol === "string" && row.symbol.trim() ? row.symbol : id;
+      const span = isRecord(row.sourceSpan) && typeof row.sourceSpan.start === "number" && typeof row.sourceSpan.end === "number"
+        ? { start: row.sourceSpan.start, end: row.sourceSpan.end } : undefined;
+      return [{ id, symbol, value: row.value, origin,
+        unit: typeof row.unit === "string" ? row.unit : undefined,
+        sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
+        sourceSpan: span }];
+    });
+  });
+}
+
 function firstQuantity(quantities: PlanQuantity[], aliases: readonly string[]): number | null {
   const match = quantities.find((quantity) => aliases.some((alias) =>
     normalizeKey(quantity.id) === alias || normalizeKey(quantity.symbol) === alias));
@@ -4577,26 +4735,6 @@ function angleDegrees(quantities: PlanQuantity[], question: string): number | nu
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
-}
-
-function extractNamedVoltages(
-  question: string,
-  quantities: PlanQuantity[],
-): Array<{ symbol: string; value: number; unit?: string }> {
-  const fromQuestion: Array<{ symbol: string; value: number; unit?: string }> = [];
-  for (const match of question.matchAll(/\b(V[_-]?\d+)\s*=\s*(\d+(?:\.\d+)?)\s*(mV|kV|volts?|V)?/gi)) {
-    fromQuestion.push({
-      symbol: match[1]!.replace(/[_-]/g, ""),
-      value: Number(match[2]),
-      unit: "V",
-    });
-  }
-  if (fromQuestion.length > 0) return fromQuestion;
-  return quantities.filter((quantity) => /^v\d+$/i.test(quantity.symbol) || /^v\d+$/i.test(quantity.id)).map((quantity) => ({
-    symbol: quantity.symbol,
-    value: quantity.value,
-    unit: quantity.unit ?? "V",
-  }));
 }
 
 function extractResistors(

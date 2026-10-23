@@ -1,0 +1,139 @@
+[
+  {
+    "id": "mark-time-positive",
+    "group": "time",
+    "question": "For the first-order decomposition of N2O5, the half-life is 15 min. Draw the fraction remaining and mark time = 45 min.",
+    "draw": true,
+    "requested": 45,
+    "fraction": 0.125
+  },
+  {
+    "id": "mark-unknown",
+    "group": "time",
+    "question": "For the first-order decomposition of N2O5, the half-life is 20 min. Plot the fraction remaining and mark t = unknown min.",
+    "draw": false
+  },
+  {
+    "id": "mark-wrong-unit",
+    "group": "time",
+    "question": "For the first-order decomposition of N2O5, the half-life is 20 min. Plot the fraction remaining and mark t = 60 kg.",
+    "draw": false
+  },
+  {
+    "id": "negated-mark",
+    "group": "time",
+    "question": "For the first-order decomposition of N2O5, the half-life is 20 min. Plot the fraction remaining; do not mark t = 60 min.",
+    "draw": true,
+    "requested": null
+  },
+  {
+    "id": "coherent-threshold-0",
+    "group": "threshold",
+    "question": "The maximum wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-1",
+    "group": "threshold",
+    "question": "The longest wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-2",
+    "group": "threshold",
+    "question": "The maximum allowed wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-3",
+    "group": "threshold",
+    "question": "The longest permitted wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-4",
+    "group": "threshold",
+    "question": "The maximum physically possible wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-5",
+    "group": "threshold",
+    "question": "The threshold wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-threshold-6",
+    "group": "threshold",
+    "question": "The cutoff wavelength for photoemission is 620 nm and the work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": true,
+    "thresholdNm": 620
+  },
+  {
+    "id": "coherent-mixed-0",
+    "group": "threshold",
+    "question": "Photoelectric emission: maximum allowed wavelength is 620 nm; incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": false,
+    "thresholdNm": 620,
+    "photonEnergyEV": 3.1,
+    "kineticEV": 1.1
+  },
+  {
+    "id": "coherent-mixed-1",
+    "group": "threshold",
+    "question": "Photoelectric emission: longest permitted wavelength is 620 nm and incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": false,
+    "thresholdNm": 620,
+    "photonEnergyEV": 3.1,
+    "kineticEV": 1.1
+  },
+  {
+    "id": "coherent-mixed-2",
+    "group": "threshold",
+    "question": "Photoelectric emission: incident wavelength is 400 nm; maximum allowed wavelength is 620 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": true,
+    "symbolic": false,
+    "thresholdNm": 620,
+    "photonEnergyEV": 3.1,
+    "kineticEV": 1.1
+  },
+  {
+    "id": "threshold-invalid-0",
+    "group": "threshold",
+    "question": "Photoelectric emission: threshold wavelength is unknown nm; incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": false
+  },
+  {
+    "id": "threshold-invalid-1",
+    "group": "threshold",
+    "question": "Photoelectric emission: threshold wavelength is 620 kg; incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": false
+  },
+  {
+    "id": "threshold-invalid-2",
+    "group": "threshold",
+    "question": "Photoelectric emission: threshold wavelength is 6e- nm; incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": false
+  },
+  {
+    "id": "threshold-invalid-3",
+    "group": "threshold",
+    "question": "Photoelectric emission: threshold wavelength is 600 nm; incident wavelength is 400 nm; work function is 2 eV. Take hc = 1240 eV nm.",
+    "draw": false
+  }
+]

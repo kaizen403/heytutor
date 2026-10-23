@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -549,7 +550,7 @@ export async function runLecture(
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -647,6 +648,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            preserveRequiredGeometry: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) === "verified_parts",
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
@@ -815,7 +817,7 @@ export async function runLecture(
       ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          { narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
+          { originalQuestion: question, turnPlan, narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
         )
       : null;
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {

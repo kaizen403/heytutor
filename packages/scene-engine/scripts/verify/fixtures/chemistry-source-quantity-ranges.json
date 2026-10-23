@@ -1,0 +1,131 @@
+[
+  {
+    "id": "shared-kelvin",
+    "question": "Plot a quantity from 200 to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "valid",
+    "domain": [
+      200,
+      450
+    ]
+  },
+  {
+    "id": "explicit-units",
+    "question": "Plot a quantity from 200 K to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "valid",
+    "domain": [
+      200,
+      450
+    ]
+  },
+  {
+    "id": "shared-celsius",
+    "question": "Plot a quantity from 0 to 100 \u00b0C.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "valid",
+    "domain": [
+      273.15,
+      373.15
+    ]
+  },
+  {
+    "id": "mixed-temperature-units",
+    "question": "Plot a quantity from -73.15 \u00b0C to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "valid",
+    "domain": [
+      200,
+      450
+    ]
+  },
+  {
+    "id": "scientific-domain",
+    "question": "Plot a quantity between 2.00e2 and 4.50e2 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "valid",
+    "domain": [
+      200,
+      450
+    ]
+  },
+  {
+    "id": "concentration-range",
+    "question": "Plot a quantity from 0.2 to 0.4 mol/L.",
+    "dimension": "concentration",
+    "unit": "mol/L",
+    "state": "valid",
+    "domain": [
+      0.2,
+      0.4
+    ]
+  },
+  {
+    "id": "reversed",
+    "question": "Plot a quantity from 450 to 200 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "wrong-unit",
+    "question": "Plot a quantity from 200 to 450 qux.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "unknown-low",
+    "question": "Plot a quantity from unknown to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "wrong-low-unit",
+    "question": "Plot a quantity from 200 m to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "hidden-alternative",
+    "question": "Plot a quantity from 200 K or unknown to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "unknown-middle",
+    "question": "Plot a quantity from 200 K unknown to 450 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "extra-high-alternative",
+    "question": "Plot a quantity from 200 to 450 K or unknown K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "second-domain",
+    "question": "Plot a quantity from 200 to 450 K and from 600 to 700 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "invalid"
+  },
+  {
+    "id": "not-a-range",
+    "question": "Temperature is 300 K.",
+    "dimension": "temperature",
+    "unit": "K",
+    "state": "absent"
+  }
+]

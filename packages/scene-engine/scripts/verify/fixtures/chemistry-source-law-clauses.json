@@ -1,0 +1,903 @@
+{
+  "schema": "source-law-whole-clause-golds/v1",
+  "frozenBeforeAnyTargetOutput": true,
+  "scope": "Independent supplementary grammar/chemistry/context golds; original31 and independent74 untouched. No input ID is a runtime route.",
+  "rows": [
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "control-canonical-XI-012",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "passive-ink-canonical-XI-012",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately. The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "unread-context-canonical-XI-012",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately. An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "points": [
+        [
+          483558994197292.06,
+          0
+        ],
+        [
+          600000000000000.0,
+          0.4816
+        ],
+        [
+          800000000000000.0,
+          1.3088
+        ],
+        [
+          1000000000000000.0,
+          2.136
+        ]
+      ],
+      "id": "control-canonical-XI-023",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "draw": true
+    },
+    {
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "points": [
+        [
+          483558994197292.06,
+          0
+        ],
+        [
+          600000000000000.0,
+          0.4816
+        ],
+        [
+          800000000000000.0,
+          1.3088
+        ],
+        [
+          1000000000000000.0,
+          2.136
+        ]
+      ],
+      "id": "passive-ink-canonical-XI-023",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "points": [
+        [
+          483558994197292.06,
+          0
+        ],
+        [
+          600000000000000.0,
+          0.4816
+        ],
+        [
+          800000000000000.0,
+          1.3088
+        ],
+        [
+          1000000000000000.0,
+          2.136
+        ]
+      ],
+      "id": "unread-context-canonical-XI-023",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -1,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ]
+      ],
+      "id": "control-canonical-XI-032",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -1,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ]
+      ],
+      "id": "passive-ink-canonical-XI-032",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -1,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ]
+      ],
+      "id": "unread-context-canonical-XI-032",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "ratio_complements",
+      "points": [
+        [
+          2.75,
+          0.009900990099
+        ],
+        [
+          4.75,
+          0.5
+        ],
+        [
+          6.75,
+          0.990099009901
+        ]
+      ],
+      "id": "control-canonical-XI-033",
+      "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(pH-4.75). Mark where the curves cross.",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "ratio_complements",
+      "points": [
+        [
+          2.75,
+          0.009900990099
+        ],
+        [
+          4.75,
+          0.5
+        ],
+        [
+          6.75,
+          0.990099009901
+        ]
+      ],
+      "id": "passive-ink-canonical-XI-033",
+      "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(pH-4.75). Mark where the curves cross. The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "ratio_complements",
+      "points": [
+        [
+          2.75,
+          0.009900990099
+        ],
+        [
+          4.75,
+          0.5
+        ],
+        [
+          6.75,
+          0.990099009901
+        ]
+      ],
+      "id": "unread-context-canonical-XI-033",
+      "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(pH-4.75). Mark where the curves cross. An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "id": "control-canonical-XII-004",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas.",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "id": "passive-ink-canonical-XII-004",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "id": "unread-context-canonical-XII-004",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_electrochem",
+      "operator": "affine",
+      "points": [
+        [
+          -2,
+          1.15916
+        ],
+        [
+          0,
+          1.1
+        ],
+        [
+          2,
+          1.04084
+        ]
+      ],
+      "id": "control-canonical-XII-008",
+      "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E°cell=1.100 V, n=2 and Ecell=E°cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope.",
+      "draw": true
+    },
+    {
+      "family": "chem_electrochem",
+      "operator": "affine",
+      "points": [
+        [
+          -2,
+          1.15916
+        ],
+        [
+          0,
+          1.1
+        ],
+        [
+          2,
+          1.04084
+        ]
+      ],
+      "id": "passive-ink-canonical-XII-008",
+      "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E°cell=1.100 V, n=2 and Ecell=E°cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope. The area beneath the curve is shaded.",
+      "draw": false
+    },
+    {
+      "family": "chem_electrochem",
+      "operator": "affine",
+      "points": [
+        [
+          -2,
+          1.15916
+        ],
+        [
+          0,
+          1.1
+        ],
+        [
+          2,
+          1.04084
+        ]
+      ],
+      "id": "unread-context-canonical-XII-008",
+      "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E°cell=1.100 V, n=2 and Ecell=E°cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope. An additional independent boundary condition is unspecified.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "ksp-common-ion-donor-KCl",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial KCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "ksp-two-common-ions",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial AgCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "ksp-double-chloride-donor",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial MgCl2 concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "ksp-no-shared-component",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial KBr concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "positive_quadratic",
+      "points": [
+        [
+          0,
+          1.341640786499874e-05
+        ],
+        [
+          1e-05,
+          9.317821063276354e-06
+        ],
+        [
+          0.0001,
+          1.7687164221791383e-06
+        ],
+        [
+          0.001,
+          1.79967611658e-07
+        ],
+        [
+          0.01,
+          1.79999676001e-08
+        ]
+      ],
+      "id": "ksp-explicit-nondissociation",
+      "question": "Excess solid AgCl is equilibrated at 298 K with solutions containing an initial NaCl concentration C. Plot the molar solubility s of AgCl against C for C = 0, 1.0*10^-5, 1.0*10^-4, 1.0*10^-3, and 1.0*10^-2 mol L^-1. Given K_sp = 1.80*10^-10 (mol L^-1)^2 in the concentration convention, use s(C+s) = K_sp. Treat activities as concentrations, ignore complex formation and all other reactions, and keep solid AgCl present. Choose linear or logarithmic axes that display the trend; on logarithmic C axes show C = 0 separately. The solid does not dissociate into ions under this model.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -1,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ]
+      ],
+      "id": "pH-log-order-repeated",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). Use pH on the vertical axis and log10(C/(mol L^-1)) on the horizontal axis.",
+      "draw": true
+    },
+    {
+      "family": "chem_electrochem",
+      "operator": "affine",
+      "points": [
+        [
+          -2,
+          1.15916
+        ],
+        [
+          0,
+          1.1
+        ],
+        [
+          2,
+          1.04084
+        ]
+      ],
+      "id": "nernst-log-order-repeated",
+      "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E°cell=1.100 V, n=2 and Ecell=E°cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope. Use Ecell on the vertical axis and L=log10Q on the horizontal axis.",
+      "draw": true
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -1,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ]
+      ],
+      "id": "pH-repeat-different-base",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HCl against log10(C/(mol L^-1)) for C = 10^-1, 10^-2, 10^-3, 10^-4, and 10^-5 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)). Use ln(C/(mol L^-1)) on the horizontal axis and pH on the vertical axis.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "affine",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1.5e-05,
+          0.9
+        ],
+        [
+          4e-05,
+          2.4
+        ]
+      ],
+      "id": "henry-unowned-nongraph-fact",
+      "question": "Sketch p_G versus the dissolved mole fraction x_G for a hypothetical gas G obeying p_G = K_H x_G at 298 K, with K_H = 6.00*10^4 bar. Use 0<=x_G<=4.00*10^-5 and mark the point for p_G=0.900 bar; assume a dilute solution and ideal gas. The gas pressure is zero at every positive mole fraction.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "ratio_complements",
+      "points": [
+        [
+          2.75,
+          0.009900990099
+        ],
+        [
+          4.75,
+          0.5
+        ],
+        [
+          6.75,
+          0.990099009901
+        ]
+      ],
+      "id": "fractions-unowned-source-contradiction",
+      "question": "For an ideal HA/A- system with pK_a = 4.75 and [HA]+[A-] = 0.100 mol L^-1, plot the two equilibrium species fractions from pH 2.75 to 6.75. Treat pH as externally set and use [A-]/[HA] = 10^(pH-4.75). Mark where the curves cross. Both fractions equal one at the crossing.",
+      "draw": false
+    },
+    {
+      "family": "chem_electrochem",
+      "operator": "affine",
+      "points": [
+        [
+          -2,
+          1.15916
+        ],
+        [
+          0,
+          1.1
+        ],
+        [
+          2,
+          1.04084
+        ]
+      ],
+      "id": "nernst-unowned-activity-contradiction",
+      "question": "For Zn(s)+Cu^2+(aq)->Zn^2+(aq)+Cu(s), draw Ecell versus L=log10Q from L=-2 to +2 at 298 K. Take E°cell=1.100 V, n=2 and Ecell=E°cell-(0.05916 V/n)log10Q. Use Q=a(Zn^2+)/a(Cu^2+), approximate each activity by its concentration divided by 1 mol L^-1, and give pure solids activity 1. Mark L=-2, 0 and +2 and explain the slope. Activities must not be approximated by concentrations.",
+      "draw": false
+    },
+    {
+      "family": "chem_solutions",
+      "operator": "log_coordinate",
+      "points": [
+        [
+          -2,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -4,
+          4
+        ],
+        [
+          -5,
+          5
+        ],
+        [
+          -6,
+          6
+        ]
+      ],
+      "id": "corrected-independent-pH-variable-B",
+      "question": "At 25 °C, plot pH of ideal fully ionised aqueous HBr against log10(B/(mol L^-1)) for B = 10^-2, 10^-3, 10^-4, 10^-5, and 10^-6 mol L^-1. Neglect water self-ionisation over this range and use pH = -log10([H+]/(mol L^-1)).",
+      "draw": true,
+      "forbidNotes": [
+        "[H+] = C"
+      ]
+    },
+    {
+      "id": "review-threshold-equals-lower",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 6.40*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          640000000000000,
+          0
+        ],
+        [
+          1000000000000000,
+          1.125
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 640000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "transfer-threshold-equals-lower",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 1 eV, over 1.60*10^14 to 8.00*10^14 Hz. Use K_max = hν-φ and h = 6.25*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          160000000000000,
+          0
+        ],
+        [
+          800000000000000,
+          4
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 160000000000000,
+        "lowerHz": 160000000000000,
+        "upperHz": 800000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-strictly-inside-domain",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 5.00*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": true,
+      "points": [
+        [
+          640000000000000,
+          0
+        ],
+        [
+          1000000000000000,
+          1.125
+        ]
+      ],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 500000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": true
+      }
+    },
+    {
+      "id": "threshold-below-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 7.00*10^14 to 1.00*10^15 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 700000000000000,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-at-upper-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 0 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 0,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-zero-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 6.40*10^14 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 640000000000000,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-reversed-domain-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 8.00*10^14 to 6.40*10^14 Hz. Use K_max = hν-φ and h = 3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": 640000000000000,
+        "lowerHz": 800000000000000,
+        "upperHz": 640000000000000,
+        "noEmissionRegion": false
+      }
+    },
+    {
+      "id": "threshold-negative-action-declines",
+      "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2 eV, over 0 to 1.00*10^15 Hz. Use K_max = hν-φ and h = -3.125*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+      "family": "chem_orbital",
+      "operator": "threshold_affine",
+      "draw": false,
+      "points": [],
+      "thresholdBoundary": {
+        "thresholdHz": -640000000000000,
+        "lowerHz": 0,
+        "upperHz": 1000000000000000,
+        "noEmissionRegion": false
+      }
+    }
+  ]
+}

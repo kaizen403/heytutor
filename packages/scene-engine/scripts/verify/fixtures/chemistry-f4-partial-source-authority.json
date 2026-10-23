@@ -1,0 +1,96 @@
+[
+  {
+    "id": "absent-phi-0",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 1.5 eV.",
+    "draw": true,
+    "photonEnergyEV": 1.5
+  },
+  {
+    "id": "absent-phi-1",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 2 eV.",
+    "draw": true,
+    "photonEnergyEV": 2
+  },
+  {
+    "id": "absent-phi-2",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 0.5 eV.",
+    "draw": true,
+    "photonEnergyEV": 0.5
+  },
+  {
+    "id": "absent-phi-3",
+    "group": "photo",
+    "question": "Photoelectric emission: incident wavelength is 1240 nm.",
+    "draw": true,
+    "photonEnergyEV": 0.9998725680096795
+  },
+  {
+    "id": "photo-invalid-0",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 1.5 eV; work function is unknown eV.",
+    "draw": false
+  },
+  {
+    "id": "photo-invalid-1",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 1.5 eV; work function is 1e- eV.",
+    "draw": false
+  },
+  {
+    "id": "photo-invalid-2",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 1.5 eV; threshold wavelength is unknown nm.",
+    "draw": false
+  },
+  {
+    "id": "photo-invalid-3",
+    "group": "photo",
+    "question": "Photoelectric emission: photon energy is 1.5 eV; photon energy is 1e- eV.",
+    "draw": false
+  },
+  {
+    "id": "cell-source-fields-0",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge.",
+    "draw": true,
+    "expectedE": null
+  },
+  {
+    "id": "cell-source-fields-1",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge at 298 K.",
+    "draw": true,
+    "expectedE": 1.0705
+  },
+  {
+    "id": "cell-source-fields-2",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge at 350 K.",
+    "draw": true,
+    "expectedE": 1.0653
+  },
+  {
+    "id": "cell-source-fields-3",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge with 2.303RT/F = 0.06 V.",
+    "draw": true,
+    "expectedE": 1.07
+  },
+  {
+    "id": "cell-source-fields-4",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge The emf is 1.13 V.",
+    "draw": true,
+    "expectedE": 1.13
+  },
+  {
+    "id": "cell-source-fields-5",
+    "group": "cell",
+    "question": "Draw the galvanic cell Zn|Zn2+(10⁻¹ M)||Cu2+(0.01 M)|Cu with its salt bridge at unknown K.",
+    "draw": false,
+    "expectedE": null
+  }
+]

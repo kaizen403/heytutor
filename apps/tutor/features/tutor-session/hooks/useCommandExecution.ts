@@ -242,8 +242,12 @@ export function useCommandExecution({
         isPaused?: () => boolean;
         /** The segment's audio clock, media ms from its start. */
         getAudioPositionMs?: () => number;
+        /** Recorded playback/export pumps this media clock between frames. */
+        waitForAdvance?: () => Promise<void>;
         /** Media ms per wall ms; default 1. Only the waits need it. */
         getPlaybackRate?: () => number;
+        /** Waits for the audio clock on a pumped export clock instead of wall-time polling. */
+        waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
         /** A following work cue bounds transient POINT motion. */
         getPointDeadlineMs?: () => number | null;
         /**
@@ -1200,7 +1204,10 @@ export function useCommandExecution({
                   const timing = options.getFocusTiming!();
                   return { targets: timing.schedule.targets, deadlineMs: timing.deadlineMs };
                 } : undefined,
+                // A recorded export clock moves only when its frames are
+                // pumped; its own wait follows that pump.
                 waitUntilAudioMs: async (targetMs, getTargetMs) => {
+                  if (options.waitUntilAudioMs) return options.waitUntilAudioMs(targetMs, getTargetMs);
                   let nextTarget = targetMs;
                   while (!commandCancelled()) {
                     const waitingFor = nextTarget;
@@ -1208,6 +1215,7 @@ export function useCommandExecution({
                       shouldCancel: () => commandCancelled() || Boolean(getTargetMs && getTargetMs() !== waitingFor),
                       getPlaybackRate: options.getPlaybackRate,
                       isPaused: options.isPaused,
+                      waitForAdvance: options.waitForAdvance,
                     });
                     const freshTarget = getTargetMs?.() ?? waitingFor;
                     // An unchanged clock wait keeps its existing stall bound.

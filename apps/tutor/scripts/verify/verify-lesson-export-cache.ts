@@ -80,7 +80,7 @@ async function main() {
       "completed current tail permits complete filename/cache despite earlier cut",
     );
     const key = profile.lecturePageCacheKey(source.turns, "mp4");
-    const obsoleteKey = key.replace(/@video\d+$/, "@video4");
+    const obsoleteKey = key.replace(/@render-[a-f0-9]{64}$/, "@video4");
     cache.rememberLectureExport(obsoleteKey, {
       blob: new Blob(["old video with full queued TYPE revealed"], { type: "video/mp4" }),
       mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 1,

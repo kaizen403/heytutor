@@ -13,7 +13,7 @@ function check(name: string, body: () => void): void {
   try { body(); passed++; console.log(`PASS ${name}`); }
   catch (error) { failures.push(name); console.error(`FAIL ${name}: ${error instanceof Error ? error.message : String(error)}`); }
 }
-for (const id of ["crowded-dimension-callout", "crowded-path-callouts", "crowded-native-path-names", "fixed-font-narrow-wedge"]) check(`complete native transaction ${id}`, () => {
+for (const id of ["crowded-dimension-callout", "crowded-native-path-names"]) check(`complete native transaction ${id}`, () => {
   const document = documentFor(id);
   const before = JSON.stringify(document);
   const result = compileSceneDocument(document);
@@ -33,14 +33,21 @@ for (const id of ["crowded-dimension-callout", "crowded-path-callouts", "crowded
   assert.ok(diagnostics.elapsedMs >= diagnostics.attempts.reduce((sum, attempt) => sum + attempt.elapsedMs, 0));
   console.log(`MEASURE ${id} ${JSON.stringify({ elapsedMs: diagnostics.elapsedMs, searchWork: diagnostics.searchWork, solverCalls: diagnostics.solverCalls, attempts: diagnostics.attempts.map(attempt => ({ policy: attempt.policy, elapsedMs: attempt.elapsedMs, searchWork: attempt.searchWork, solverCalls: attempt.solverCalls })) })}`);
 });
-check("strict enhanced angle refusal remains visible", () => {
-  const result = compileSceneDocument(documentFor("fixed-font-narrow-wedge"));
-  const enhanced = getLabelTransactionDiagnostics(result)!.attempts[0]!;
-  assert.equal(enhanced.policy, "attached");
-  assert.equal(enhanced.result.ok, false);
-  assert.equal(enhanced.result.renderScene, null);
-  assert.ok(enhanced.result.report.issues.some(issue => issue.code === "label_overlap_unresolved" && issue.entityIds?.includes("refrMark")));
-  assert.equal(result.ok, true, "default independently verifies the complete native policy");
+// Angle wedge relocation and value callouts on strokes were cut from this
+// port. A relocating attempt is selected only when its ownership comparison
+// with MAIN's complete placement is clean; otherwise MAIN's placement stands.
+for (const id of ["crowded-path-callouts", "fixed-font-narrow-wedge"]) check(`attached placement needs a clean MAIN comparison ${id}`, () => {
+  const result = compileSceneDocument(documentFor(id));
+  assert.ok(result.ok && result.renderScene && result.report.valid, JSON.stringify(result.report.issues));
+  const diagnostics = getLabelTransactionDiagnostics(result)!;
+  const [attached, native] = diagnostics.attempts;
+  assert.equal(attached!.policy, "attached");
+  if (!attached!.modified) { assert.equal(diagnostics.attempts.length, 1); return; }
+  assert.equal(native!.policy, "native", "a relocating attempt is compared with MAIN's complete placement");
+  assert.ok(diagnostics.ownershipDelta, "the comparison is recorded");
+  assert.equal(diagnostics.selectedPolicy, diagnostics.ownershipDelta.ok && diagnostics.physicalInkMatches ? "attached" : "native");
+  assert.equal(result, diagnostics.selectedPolicy === "attached" ? attached!.result : native!.result);
+  console.log(`MEASURE ${id} ${JSON.stringify(diagnostics.ownershipDelta)}`);
 });
 check("native invalid companion stays atomic after enhanced label failure", () => {
   const document = documentFor("fixed-font-narrow-wedge");
@@ -66,10 +73,21 @@ check("authority rejection receives no label-policy retry", () => {
   assert.equal(result.renderScene, null);
   assert.equal(getLabelTransactionDiagnostics(result)!.attempts.length, 1);
 });
-check("explicit native append proposal cannot invoke outer retry", () => {
-  const document = documentFor("fixed-font-narrow-wedge");
-  // The independently integrated #187 API owns append. Its structural marker
-  // conservatively disables this outer retry on either side of integration.
+check("append proposal uses its base document's label policy", () => {
+  for (const id of ["fixed-font-narrow-wedge", "crowded-dimension-callout"]) {
+    const base = documentFor(id);
+    const basePolicy = getLabelTransactionDiagnostics(compileSceneDocument(structuredClone(base)))!.selectedPolicy;
+    assert.ok(basePolicy, `${id} base document draws`);
+    const document = structuredClone(base);
+    const target = document.entities.find(entity => entity.kind === "segment" || entity.kind === "line" || entity.kind === "vector")!;
+    document.annotations.push({ id: "appended_note", kind: "label", targetIds: [target.id], text: "note", labelMode: "append" });
+    const attempts = getLabelTransactionDiagnostics(compileSceneDocument(document))!.attempts;
+    assert.equal(attempts[0]!.policy, basePolicy, `${id}: existing placements keep the policy that drew them`);
+    if (!attempts[0]!.result.ok) assert.equal(attempts.length, 1, `${id}: a failed append proposal is never retried`);
+  }
+});
+check("structurally invalid append proposal cannot invoke outer retry", () => {
+  const document = documentFor("crowded-path-callouts");
   Object.assign(document.annotations[0]!, { labelMode: "append" });
   const result = compileSceneDocument(document);
   assert.equal(result.ok, false);
