@@ -2373,9 +2373,8 @@ function buildContactBody(
   if (isFallingStem(stem)) {
     return fallingBodyDocument(question);
   }
-  if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)
-    && !COLLISION_NOT_TWO_BODIES.test(stem)
-    && !(COLLISION_OFF_LINE.test(stem) && !GLANCING_COLLISION.test(stem))) {
+  if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)) {
+    if (COLLISION_NOT_TWO_BODIES.test(stem) || (COLLISION_OFF_LINE.test(stem) && !GLANCING_COLLISION.test(stem))) return null;
     return collisionDocument(question);
   }
   if (isHangingWiresLoadStem(stem)) {
@@ -3017,7 +3016,7 @@ function verticalCircleDocument(question: string, quantities: PlanQuantity[]): S
 /** Collisions that are not two bodies meeting: molecules, reactions, hashing, scattering, safety gear. */
 const COLLISION_NOT_TWO_BODIES = /\bmolecul|\bgas\b|\bgases\b|\breaction|\breactant|\bhash|\bkinetic theory|\bscatter|\bmean free path|\bairbags?\b/i;
 /** A direction off the line of impact: the one dimensional figure would be false. */
-const COLLISION_OFF_LINE = /\d\s*(?:°|degrees?)|\b(?:north|south)(?:[- ]?(?:east|west))?\b|\b(?:east|west)ward|\bright[- ]angled?\b|\bx[- ]?(?:and|&) ?y\b/i;
+const COLLISION_OFF_LINE = /\d\s*(?:°(?!\s*[CF]\b)|degrees?\b(?!\s+(?:celsius|centigrade|fahrenheit|C\b)))|\b(?:north|south)[- ]?(?:east|west)\b|^(?=[^]*\b(?:north|south)\w*\b)(?=[^]*\b(?:east|west)\w*\b)|\bright[- ]angled?\b|\bx[- ]?(?:and|&) ?y\b|\bx- and y-/i;
 const GLANCING_COLLISION = /(?:glancing|two dimensions|oblique|30° to its original|perpendicular)/i;
 
 function collisionDocument(question: string): SceneDocument {

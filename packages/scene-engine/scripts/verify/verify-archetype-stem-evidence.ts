@@ -61,7 +61,7 @@ check(detected("Explain oblique collisions of two balls") !== "collision_line", 
 check(detected("Explain elastic collisions in one dimension") === "collision_line", "plural collisions lost the line collision");
 check(detected("Two balls undergo a perfectly inelastic collision") === "collision_line", "an inelastic collision of two balls lost its figure");
 check(detected("Using Kirchhoff's laws, find the current in each branch of the two loop circuit", ["Kirchhoff voltage law"]) === "two_loop_network", "a Kirchhoff two loop stem lost its figure");
-check(detected("where images form in concave and convex mirrors") === "spherical_mirror", "plural mirrors lost the spherical mirror");
+check(detected("where images form in concave and convex mirrors") === null, "a stem naming both mirrors drew only one of them");
 check(detected("A thin meniscus lens of glass, n = 1.5, has surfaces of radius 10 cm and 30 cm. Find its focal length.", ["lensmaker equation"]) === "lens_maker", "a meniscus lens with the lensmaker law lost the lens maker figure");
 check(detected("A projectile is launched at 30 degrees with speed 20 m/s. Find its range.", ["projectile motion"]) === "projectile", "a projectile stem lost its figure");
 
@@ -99,5 +99,23 @@ for (const stem of [
   check(synthesizeFamilyScene({ question: stem })?.document.entities.every((entity) => !/^line of (?:impact|motion)$/.test(entity.role ?? "")) ?? true, `"${stem}" drew a collision line`);
 }
 check(synthesizeFamilyScene({ question: "A 2 kg ball moving at 3 m/s collides head-on with a 1 kg ball at rest and they stick together." })?.document.entities.some((entity) => /^line of (?:impact|motion)$/.test(entity.role ?? "")), "a head-on collision lost its collision line");
+
+// A vetoed collision is still a collision: no other figure takes it.
+for (const stem of [
+  "Two blocks collide in a lab kept at 25 degrees, then one moves off at 40 degrees. Find the speeds.",
+  "A cart moving north collides with a cart moving east.",
+  "Two gas cylinders collide on a loading dock.",
+]) {
+  check(detected(stem) === null, `"${stem}" fell through to ${detected(stem)}`);
+}
+// Real 1D collisions keep their figure despite temperatures and one direction.
+for (const stem of [
+  "In a lab at 25 degrees Celsius, a 2 kg cart moving at 3 m/s collides head-on with a 1 kg cart at rest and they stick together.",
+  "A 2 kg ball moving eastward at 4 m/s collides head-on with a 2 kg ball moving westward at 2 m/s.",
+]) check(detected(stem) === "collision_line", `"${stem}" lost the line collision`);
+// An RL circuit is not a resistor network.
+check(detected("Draw an RL circuit with a switch that first establishes current from a cell", ["Ohm's law"]) !== "resistor_network", "an RL circuit drew a resistor network");
+// Plural satellites still cue the orbit.
+check(detected("Explain polar satellites and their orbits") === "satellite_orbit", "polar satellites lost the orbit");
 
 console.log(`archetype stem evidence verification passed (${checks} checks)`);

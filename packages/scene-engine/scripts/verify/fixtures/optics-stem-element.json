@@ -1402,12 +1402,12 @@
   {
    "question": "where images form in concave and convex mirrors",
    "source": "recorded run",
-   "archetype": "spherical_mirror",
+   "archetype": null,
    "lawIds": [
     "law-of-reflection",
     "principal-ray-rules-for-spherical-mirrors"
    ],
-   "hintedArchetype": "spherical_mirror"
+   "hintedArchetype": null
   }
  ]
 }
