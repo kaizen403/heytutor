@@ -245,7 +245,13 @@ async function consumedAnnotationControl() {
   const compile = (document: SceneDocument) => {
     const compiled = compileSceneDocument(document);
     assert(compiled.ok && compiled.renderScene, `consumed annotation variant must compile honestly: ${JSON.stringify(compiled.report.issues)}`);
-    return { document, renderScene: compiled.renderScene, ...buildVerifiedDiagramPresentation(document, compiled.renderScene) };
+    // Live presentation always carries the accepted plan, and only the plan
+    // proves a given (#183). Mirror the document's own provenance here.
+    const turnPlan = {
+      givens: document.quantities.filter((quantity) => quantity.provenance === "given"),
+      derived: document.quantities.filter((quantity) => quantity.provenance === "derived"),
+    } as unknown as NonNullable<Parameters<typeof buildVerifiedDiagramPresentation>[2]>["turnPlan"];
+    return { document, renderScene: compiled.renderScene, ...buildVerifiedDiagramPresentation(document, compiled.renderScene, { turnPlan }) };
   };
   for (const leader of [false, true]) {
     const document = structuredClone(base.document);
@@ -436,7 +442,35 @@ async function interruptedCompletion() {
   }
 }
 
+/** Greptile P1: a component's computed value must not show at setup because of quantity order. */
+function componentQuantityOrderControls() {
+  const given = { id: "r", symbol: "r", value: 1, unit: "Ω", provenance: "given" };
+  const result = { id: "R", symbol: "R", value: 5, unit: "Ω", provenance: "derived" };
+  for (const hinted of [true, false]) for (const quantities of [[result, given], [given, result]]) {
+    const order = `${quantities[0]!.id} first${hinted ? ", hinted" : ""}`;
+    const document = {
+      schemaVersion: "scene-document/v2", source: { question: "Find R.", ...(hinted ? { answerLabelEntityIds: ["res", "cell"] } : {}) },
+      visualDecision: { mode: "scene", reason: "component order control" }, quantities,
+      entities: [{ id: "res", kind: "component", label: "R" }, { id: "cell", kind: "component", label: "r" }],
+      constructions: [], relations: [], assertions: [], annotations: [], requiredEntityIds: ["res", "cell"], revealGroups: [], teachingTimeline: [],
+    } as unknown as SceneDocument;
+    assert(isAnswerLabel(document, { id: "primitive_res_label", entityId: "res", text: "R 5 Ω" }),
+      `${order}: the derived R value is held whatever the quantity order`);
+    assert(!isAnswerLabel(document, { id: "primitive_res_label", entityId: "res", text: "R" }), `${order}: the bare designator R stays setup`);
+    assert(!isAnswerLabel(document, { id: "primitive_cell_label", entityId: "cell", text: "r 1 Ω" }),
+      `${order}: the given r value stays setup whatever the quantity order`);
+    // Two quantities that only differ by case leave a case folded alias, not
+    // a unique binding: the value is held rather than guessed.
+    const folded = { ...document, quantities: quantities.map((quantity) => ({ ...quantity, symbol: undefined })),
+      entities: [{ id: "res", kind: "component", label: "RR" }] } as unknown as SceneDocument;
+    folded.quantities = [{ id: "rr", value: 1, unit: "Ω", provenance: "given" }, { id: "Rr", value: 5, unit: "Ω", provenance: "given" }] as SceneDocument["quantities"];
+    assert(isAnswerLabel(folded, { id: "primitive_res_label", entityId: "res", text: "RR 1 Ω" }),
+      `${order}: more than one candidate holds the value as an answer`);
+  }
+}
+
 async function main() {
+  componentQuantityOrderControls();
   await displayedTextControls();
   labelAndLeaderOwnership();
   compiledOwnerControls();

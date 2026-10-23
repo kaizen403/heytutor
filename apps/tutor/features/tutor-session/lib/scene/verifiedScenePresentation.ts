@@ -156,19 +156,35 @@ function buildDiagramPresentation(
   const introGroupId = holdLaterDsaFrames ? orderedGroupIds[0]! : null;
   // A measurement is one atom: its source-given label, bar and witnesses.
   // Textless companions cannot establish identity from a number of their own.
-  // A label-only fixture has not been named yet, so it stays deferred until a
-  // gesture asks for it. Geometry on the same part is what makes the given
-  // part of the opening drawing.
+  // Geometry on the same part is what makes its given label part of the
+  // opening drawing; a label of a part not drawn yet waits to be named.
   const drawnEntityIds = new Set(renderScene.primitives
     .filter((primitive) => primitive.kind !== "label" && primitive.provenance?.labelLeader !== true)
     .map((primitive) => primitive.entityId));
+  // A label only entity ("I=2 A") is its own ink: when its displayed text is a
+  // source given it opens with the setup, as on main. An explicit answer
+  // staging hint on it keeps it out of the opening.
+  const stagedAnswerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds)
+    ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
+  const stagedAnswerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds)
+    ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
+  const labelOnlyGiven = (primitive: RenderPrimitive): boolean =>
+    primitive.kind === "label"
+    && primitive.id === `primitive_${primitive.entityId}_label`
+    && document.entities.find((entity) => entity.id === primitive.entityId)?.kind === "label"
+    && !stagedAnswerEntityIds.has(primitive.entityId)
+    && !stagedAnswerAnnotationIds.has(String(primitive.provenance?.annotationId));
+  // An answer label is never a given, whatever its text says.
   const sourceGivenLabelIds = new Set(renderScene.primitives
     .filter((primitive) => (primitive.kind === "label" || primitive.kind === "dimension")
-      && drawnEntityIds.has(primitive.entityId)
+      && !answerIds.has(primitive.id)
+      && (drawnEntityIds.has(primitive.entityId) || labelOnlyGiven(primitive))
       && isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan))
     .map((primitive) => primitive.id));
+  // Textless companions (bars, witnesses, entity wide leaders) cannot prove
+  // identity from a number of their own: only drawn parts lend them one.
   const sourceGivenMeasurementIds = new Set(renderScene.primitives
-    .filter((primitive) => sourceGivenLabelIds.has(primitive.id))
+    .filter((primitive) => sourceGivenLabelIds.has(primitive.id) && drawnEntityIds.has(primitive.entityId))
     .map((primitive) => primitive.entityId));
 
   const add = (
@@ -255,12 +271,14 @@ function buildDiagramPresentation(
           || (sourceGivenMeasurementIds.has(primitive.entityId)
             && primitive.provenance?.labelLeader !== true
             && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"))));
-      const deferReason = (structuralIdentity || givenMeasurement ? null : answerLabel ? "answer" : deferralReason(
+      // Answer before given: a primitive classified both ways stays held.
+      // A given still passes main's annotation and trace checks.
+      const deferReason = (structuralIdentity ? null : answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
-        answerIds.has(primitive.id),
+        false,
         givenMeasurement,
       )) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null, structuralIdentity });
@@ -705,9 +723,10 @@ function isSourceGivenMeasurement(
   document: SceneDocument,
   turnPlan: VerifiedScenePresentationOptions["turnPlan"],
 ): boolean {
-  const givens = turnPlan?.givens ?? document.quantities.filter((quantity) => quantity.provenance === "given");
-  const derived = turnPlan?.derived ?? document.quantities.filter((quantity) => quantity.provenance === "derived");
-  if (givens.length === 0) return false;
+  // Only the accepted turn plan proves a given (#183); planner scene
+  // quantities never promote a label into the opening.
+  if (!turnPlan || !labelText) return false;
+  const { givens, derived } = turnPlan;
   // Compatibility folding would turn 10³ into 103 and change value identity.
   const compact = (text: string): string => text.normalize("NFC")
     .replace(/\\(?:mathrm|text)\{([^}]*)\}/g, "$1")
@@ -1205,13 +1224,8 @@ function entityPhrase(entity: SceneEntity, namedInCue = false, language?: Narrat
   const words = roleWords(role);
   const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
   const headPhrase = cut > 0 && roleHeadWord(role) ? roleHeadText(role, words, cut) : role;
-  // A setup assignment or unknown ("D = 2 m", "Z = ? N m") is the part's
-  // name on the board. Solved values are removed before this phrase is built.
-  const writtenLabel = label && (SPEAKABLE_LABEL.test(label) || /[=?]/.test(label))
-    ? label
-    : null;
-  const spokenLabel = writtenLabel && !words.includes(writtenLabel.toLowerCase())
-    ? ` ${writtenLabel}`
+  const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
+    ? ` ${label}`
     : "";
   if (language === "hinglish") return `${headPhrase.replace(/^(?:the|a|an|its)\s/i, "")}${spokenLabel}`;
   const article = /^(?:the|a|an|its)\s/i.test(headPhrase) ? "" : "the ";
@@ -1545,19 +1559,13 @@ function cueRevealBeat(input: {
     }
     return { narration, placed };
   };
-  // Result prose stays out of the opening. A figure sentence that only names
-  // the setup can still be spoken in Hinglish, including an "etc." that ends
-  // one sentence before the next clause.
-  const statesResult = /\b(?:solved|answer|perpendicular|forty-five|thirty-seven|five|\d+)\b/i.test(input.cue);
-  const figureSentence = input.language === "hinglish" && !statesResult ? hinglishFigureNarration(input.cue) : "";
-  const neutralSetup = figureSentence
-    || (input.language === "hinglish"
-      ? input.groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं."
-      : input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.");
-  // A walk that replaces a long figure sentence has to keep that sentence.
-  // The pen's extra phrases are only there to fill drawing time.
+  // Keep main's ink/voice pacing, but planner prose is never an opening
+  // narration channel, even when dense ink could accommodate its explanation.
+  const neutralSetup = input.language === "hinglish"
+    ? input.groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं."
+    : input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.";
   const composeCue = (_cue: string, _explain: boolean, closingTiers = 1): ComposedBeat =>
-    compose(neutralSetup, figureSentence, closingTiers);
+    compose(neutralSetup, "", closingTiers);
 
   // The voice may not outrun the ink. A planner cue of four joined teaching
   // narrations (58 s against 6 s of ink), or a Hinglish walk with the whole
@@ -1569,9 +1577,7 @@ function cueRevealBeat(input: {
   const speechFits = (beat: ComposedBeat): boolean =>
     longestIdleMs(beat.narration, beat.placed.ordered) <= CUE_PEN_IDLE_MAX_MS;
   let beat = composeCue(input.cue, true, WALK_CLOSING_TIERS);
-  // A localized figure sentence is the opening the lesson asked for. Shortening
-  // it to keep the pen busy would drop the clause after "etc."
-  if (!figureSentence && !speechFits(beat)) {
+  if (!speechFits(beat)) {
     // A shorter beat may not leave the hand further behind the voice than
     // the full one did.
     const overrunLimitMs = Math.max(CUE_OVERRUN_TOLERANCE_MS, overrunMs(beat.narration, beat.placed.ordered));

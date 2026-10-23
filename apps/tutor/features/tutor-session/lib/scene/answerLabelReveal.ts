@@ -1,5 +1,5 @@
 import type { DrawCommand } from "@heytutor/drawing";
-import type { RenderPrimitive, SceneDocument } from "@heytutor/scene-engine";
+import { componentDesignatorQuantityCandidates, type RenderPrimitive, type SceneDocument } from "@heytutor/scene-engine";
 
 /** Compare symbol notation, preserving case: I and i may denote different things. */
 function symbolKey(value: string): string {
@@ -14,13 +14,21 @@ function symbolOf(quantity: Quantity): string {
   return typeof quantity.symbol === "string" ? quantity.symbol : quantity.id;
 }
 
-function componentQuantity(document: SceneDocument, entityId: string | undefined): Quantity | undefined {
+/**
+ * The quantity behind a component's combined label ("R 5 Ω"), read with the
+ * compiler's own priority. Any doubt holds the label: more than one candidate
+ * (a textless binding included), or any derived candidate.
+ */
+function componentQuantity(document: SceneDocument, entityId: string | undefined): { quantity?: Quantity; hold: boolean } {
   const entity = document.entities.find((candidate) => candidate.id === entityId);
-  if (entity?.kind !== "component" || !entity.label || !/^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(entity.label)) return undefined;
-  // Match the compiler's existing component-designator binding. This does not
-  // infer a quantity from a bare displayed number or change numeric authority.
-  const key = (value: string) => value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) => String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)));
-  return document.quantities.find((quantity) => key(quantity.id) === key(entity.label!) || key(symbolOf(quantity)) === key(entity.label!));
+  if (entity?.kind !== "component" || !entity.label || !/^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(entity.label)) return { hold: false };
+  const bound = document.annotations.flatMap((annotation) =>
+    annotation.kind === "label" && annotation.labelMode !== "append" && annotation.targetIds.length === 1 &&
+    annotation.targetIds[0] === entity.id && annotation.quantityId !== undefined && !annotation.text
+      ? document.quantities.filter((quantity) => quantity.id === annotation.quantityId)
+      : []);
+  const candidates = [...new Set([...componentDesignatorQuantityCandidates(entity.label, document.quantities), ...bound])];
+  return { quantity: candidates.length === 1 ? candidates[0] : undefined, hold: candidates.length > 1 || candidates.some(derived) };
 }
 /** Reconstruct only the exact component annotation consumed by the compiler.
  * Historical recordings predate annotationId provenance on combined labels.
@@ -77,8 +85,14 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
   if (annotation?.quantityId && (!quantity || !derived(quantity))) return false;
   if (!annotation && primitive.entityId && primitive.id === `primitive_${primitive.entityId}_label`) {
     const entity = document.entities.find((candidate) => candidate.id === primitive.entityId);
-    quantity = componentQuantity(document, primitive.entityId);
-    if (entity?.label && text.startsWith(`${entity.label} `)) text = text.slice(entity.label.length).trim();
+    const component = componentQuantity(document, primitive.entityId);
+    quantity = component.quantity;
+    if (entity?.label && text.startsWith(`${entity.label} `)) {
+      text = text.slice(entity.label.length).trim();
+      // The compiler appended a value to the designator. An ambiguous or
+      // derived binding is held as an answer rather than guessed as a given.
+      if (component.hold && text && !/^[?？…_]/u.test(text)) return true;
+    }
   }
   if (!text) return false;
   const assigned = /^\s*([^=≈:]{1,80})\s*[=≈:]\s*(.+)\s*$/u.exec(text);

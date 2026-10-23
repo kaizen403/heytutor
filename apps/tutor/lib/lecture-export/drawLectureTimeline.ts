@@ -70,14 +70,14 @@ export async function drawLectureTimeline(options: {
     // replay draws one cue at a time, so the TYPE/FRAME beats are not in this list.
     const cueTypesCode = cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
     const hasFocus = cue.commands.some((command) => command.type === "FOCUS");
-    const hasWrite = cue.commands.some((command) => command.type === "WRITE");
     const trustedFigure = cue.commands.length > 0 &&
       (cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command));
     const codeWalkFigure = getDiagram()?.layout === "code_lesson" && trustedFigure;
-    // Untimed export cues and trusted figures share the live ink clock, so a
-    // focus waits for its word. A timed work explanation keeps its pointing tour.
+    // Untimed export cues, trusted figures and any cue with a FOCUS share the
+    // live ink clock, so a focus waits for its word (as on main). A timed work
+    // or narration cue without FOCUS keeps its pointing tour.
     const spokenFigure = cue.commands.length > 0 &&
-      (!cue.segment.timings || trustedFigure || (hasFocus && hasWrite));
+      (!cue.segment.timings || trustedFigure || hasFocus);
     if ((cueTypesCode || codeWalkFigure) && cue.commands.length > 0) {
       await drawCodeLessonExportCue({
         cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram,

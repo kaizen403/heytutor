@@ -32,13 +32,20 @@ function dimensionDocument(kind: "narration" | "callout"): SceneDocument {
     teachingTimeline: [],
   };
 }
+/** Live presentation always carries the accepted plan; only the plan proves a given (#183). */
+function planOf(document: SceneDocument) {
+  return {
+    givens: document.quantities.filter(quantity => quantity.provenance === "given"),
+    derived: document.quantities.filter(quantity => quantity.provenance === "derived"),
+  } as unknown as NonNullable<Parameters<typeof buildVerifiedDiagramPresentation>[2]>["turnPlan"];
+}
 async function verifyDocument(input: SceneDocument, name: string, computedBar = false): Promise<void> {
   const document = validateSceneDocument(input).document;
   assert(document, `${name}: synthetic source must validate`);
   const compiled = compileSceneDocument(document);
   assert(compiled.ok && compiled.renderScene, `${name}: honest measured span must compile`);
   const before = structuredClone(compiled.renderScene);
-  const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene);
+  const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene, { turnPlan: planOf(document) });
   const held = presentation.diagram.deferredAnnotations?.filter(batch => batch.revealAfter).flatMap(batch => batch.commands) ?? [];
   const measurement = presentation.diagram.commands.filter(command => command.type === "DIMENSION" || command.visualStyle?.measurementRole === "witness");
   const key = (command: { type: string; semanticRef?: { primitiveId?: string } }) => `${command.type}:${command.semanticRef?.primitiveId}`;
@@ -116,17 +123,42 @@ function hintedDisplayedControls(): void {
         { id: "primitive_span_label", entityId: "span", groupId: "setup", kind: "label", points: [{ x: 700, y: 325 }], text, labelPlacement: "absolute" }],
       revealGroups: document.revealGroups, timeline: [], entityBounds: { span: { x: 500, y: 300, width: 400, height: 25 } },
     };
-    const presentation = buildVerifiedDiagramPresentation(document, render);
+    const presentation = buildVerifiedDiagramPresentation(document, render, { turnPlan: planOf(document) });
     const answers = presentation.diagram.deferredAnnotations?.filter(entry => entry.revealAfter || entry.revealAfterLesson).flatMap(entry => entry.commands) ?? [];
     assert.equal(answers.some(command => command.text === text), held, `staging hints cannot override displayed given/name/placeholder policy: ${text}`);
     assert.equal(presentation.diagram.caption === undefined, held, `caption follows actual computed text, not staging hints: ${text}`);
     assert.equal(presentation.diagram.promptAddon.includes(`"${text}" = [FOCUS:span]`), !held, `readable target follows actual displayed ink: ${text}`);
-    if (!held) assert(presentation.introSegments.some(segment => segment.narration.includes(text)), `ordinary hinted setup keeps its tour: ${text}`);
+    // The tour speaks a bare symbol only (main's SPEAKABLE_LABEL rule); an
+    // assignment's value is lettered in the opening, not spoken.
+    if (!held) assert(presentation.introSegments.flatMap(getSegmentCommands).some(command => command.type === "LABEL" && command.text === text),
+      `ordinary hinted setup keeps its tour: ${text}`);
     else assert(!presentation.introSegments.some(segment => segment.narration.includes(text)), "computed hinted text cannot leak through tour");
   }
 }
 
+/** Answer before given: a stale plan that calls the bound result a given cannot open it. */
+function answerOutranksPlanGiven(): void {
+  for (const kind of ["narration", "callout"] as const) {
+    const document = validateSceneDocument(dimensionDocument(kind)).document;
+    assert(document, `${kind}: synthetic source must validate`);
+    const compiled = compileSceneDocument(document);
+    assert(compiled.ok && compiled.renderScene, `${kind}: honest measured span must compile`);
+    const stale = { givens: document.quantities.map(quantity => ({ ...quantity, provenance: "given" })), derived: [] } as unknown as
+      NonNullable<Parameters<typeof buildVerifiedDiagramPresentation>[2]>["turnPlan"];
+    const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene, { turnPlan: stale });
+    const intro = presentation.introSegments.flatMap(getSegmentCommands);
+    const held = presentation.diagram.deferredAnnotations?.filter(batch => batch.revealAfter).flatMap(batch => batch.commands) ?? [];
+    const answers = presentation.diagram.commands.filter(command => command.text?.includes("Z = 3 N m"));
+    if (kind === "callout") assert(answers.length > 0, "the bound result callout is compiled ink");
+    for (const answer of answers) {
+      assert(!intro.some(command => command.semanticRef?.primitiveId === answer.semanticRef?.primitiveId), `${kind}: a plan given with the answer's text cannot open the bound result`);
+      assert(held.some(command => command.semanticRef?.primitiveId === answer.semanticRef?.primitiveId), `${kind}: the bound result still waits for completion`);
+    }
+  }
+}
+
 async function main(): Promise<void> {
+  answerOutranksPlanGiven();
   hintedDisplayedControls();
   recordedStructures();
   for (const kind of ["narration", "callout"] as const) await verifyDocument(dimensionDocument(kind), kind);

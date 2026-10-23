@@ -1288,11 +1288,18 @@ function componentValueUnitMatches(entityId: string, unit: unknown, document: Sc
   }
 }
 
-function matchingQuantityText(
+/**
+ * The quantities a component designator ("R", "R_1") resolves to, in the
+ * compiler's own priority: exact symbol, exact id alias, normalized alias,
+ * then a case folded alias. The label text the compiler prints comes from the
+ * first entry, and only when every candidate agrees. Exported so reveal timing
+ * reads the same binding instead of re deriving it.
+ */
+export function componentDesignatorQuantityCandidates(
   designator: string,
   quantities: SceneDocument["quantities"],
   exactId = false,
-): string | undefined {
+): SceneDocument["quantities"] {
   const key = normalizeIdentifier(designator);
   const symbolMatches = quantities.filter((candidate) =>
     typeof candidate.symbol === "string" && normalizeIdentifier(candidate.symbol) === key,
@@ -1306,11 +1313,19 @@ function matchingQuantityText(
   );
   const exactAliases = aliases.filter((candidate) => candidate.id === designator);
   const normalizedAliases = aliases.filter((candidate) => normalizeIdentifier(candidate.id) === key);
-  const candidates = exactId ? exactMatches
+  return exactId ? exactMatches
     : symbolMatches.length > 0 ? symbolMatches
     : exactAliases.length > 0 ? exactAliases
     : normalizedAliases.length > 0 ? normalizedAliases
     : aliases.filter((candidate) => normalizeIdentifier(candidate.id).toLowerCase() === key.toLowerCase());
+}
+
+function matchingQuantityText(
+  designator: string,
+  quantities: SceneDocument["quantities"],
+  exactId = false,
+): string | undefined {
+  const candidates = componentDesignatorQuantityCandidates(designator, quantities, exactId);
   // Conflicting aliases have no unique value. Do not make inventory order a
   // source of physical authority.
   const quantity = candidates[0];

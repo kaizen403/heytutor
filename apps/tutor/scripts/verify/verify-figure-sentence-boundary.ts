@@ -30,10 +30,16 @@ for (const [cue, expected] of cases) {
   };
   const english = buildVerifiedDiagramPresentation(document, scene);
   const hinglish = buildVerifiedDiagramPresentation(document, scene, { narrationLanguage: "hinglish" });
-  assert(hinglish.introSegments.some(segment => segment.narration.includes(expected)), `actual presenter: ${cue}`);
+  // Main's rule (#183): planner cue prose is never an opening narration
+  // channel, translated or not. The figure sentence above stays for captions
+  // and code lesson cues, which still translate through this function.
+  const spoken = hinglish.introSegments.map(segment => segment.narration).join(" ");
+  assert(!spoken.includes(hinglishFigureNarration(cue)), `presenter must not speak the translated planner cue: ${cue}`);
+  assert(!spoken.includes(cue), `presenter must not speak the planner cue: ${cue}`);
+  assert(!spoken.includes(expected), `presenter must not speak the translated clause: ${cue}`);
   assert.deepEqual(hinglish.diagram.commands, english.diagram.commands, "sentence handling preserves verified ink");
   for (const segment of hinglish.introSegments) for (const command of segment.commands ?? []) {
     assert(command.spokenCue?.token && findSpokenToken(mathToSpeech(segment.narration), mathToSpeech(command.spokenCue.token)) >= 0);
   }
 }
-console.log("verify-figure-sentence-boundary: etc-ending sentences localize independently; reagent/modifier abbreviations and real ink cues survive");
+console.log("verify-figure-sentence-boundary: etc-ending sentences localize independently; reagent/modifier abbreviations and real ink cues survive; openings never speak planner cue prose");
