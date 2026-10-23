@@ -789,12 +789,32 @@ const SCRIPT_GROUPS: [string, string][] = [
   ["vᵧ", "v gamma"],
   ["v {x 0} equals 24", "v x 0 equals 24"],
   ["{1, 2, 3}", "1, 2, 3"],
-  ["g equals 10 m over s²", "g equals 10 meters per second squared"],
   ["θ = tan^(-1)(8/6)", "theta equals tangent inverse (8 over 6)"],
-  ["θ = atan(3/4)", "theta equals tangent inverse (3 over 4)"],
+  ["θ = arctan(3/4)", "theta equals tangent inverse (3 over 4)"],
 ];
 for (const [written, spoken] of SCRIPT_GROUPS) {
   check(`${written} is spoken "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+// Read exactly as on main (PR #274 review). "over" between a number's letter
+// and another letter is a symbolic formula as often as a unit ratio: "2 s over
+// g" is twice a distance over g, never "2 seconds per gram". And only the arc
+// spelling is an inverse: `acos(ωt)` is the amplitude a times cos(ωt).
+const UNCHANGED_FROM_MAIN: [string, string][] = [
+  ["t equals root of 2 s over g", "t equals root of 2 s over g"],
+  ["2 m over g", "2 m over g"],
+  ["a equals 10 N over m", "a equals 10 N over m"],
+  ["4 m over L", "4 m over L"],
+  ["10 m over h", "10 m over h"],
+  ["g equals 10 m over s²", "g equals 10 m over s squared"],
+  ["x = acos(ωt)", "x equals acos(omega t)"],
+  ["y = asin(kx - ωt)", "y equals asin(k x minus omega t)"],
+  ["θ = atan(3/4)", "theta equals atan(3 over 4)"],
+];
+for (const [written, spoken] of UNCHANGED_FROM_MAIN) {
+  check(`${written} is spoken as on main, "${spoken}"`, () => {
     const out = mathToSpeech(written);
     assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
   });

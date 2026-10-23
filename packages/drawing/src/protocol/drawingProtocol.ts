@@ -431,16 +431,21 @@ export function isCodeBoardRow(text: string): boolean {
   return CODE_ROW.test(text);
 }
 
-/** `atan(` and `arcsin(` written the way a student writes them. */
+/**
+ * `arcsin(`, `arccos(` and `arctan(` written the way a student writes them.
+ * Only the arc spelling is an inverse: in SHM and waves `acos(ωt)` and
+ * `asin(kx - ωt)` are the amplitude a times a sine, so `asin(`, `acos(` and
+ * `atan(` stay as typed (PR #274 review).
+ */
 const INVERSE_TRIG: ReadonlyArray<readonly [RegExp, string]> = [
-  [/\b(?:arc|a)sin\s*\(/g, 'sin⁻¹('],
-  [/\b(?:arc|a)cos\s*\(/g, 'cos⁻¹('],
-  [/\b(?:arc|a)tan\s*\(/g, 'tan⁻¹('],
+  [/\barcsin\s*\(/g, 'sin⁻¹('],
+  [/\barccos\s*\(/g, 'cos⁻¹('],
+  [/\barctan\s*\(/g, 'tan⁻¹('],
 ];
 
 /**
  * ASCII math the teaching model types, said the way the board writes it:
- * `sqrt(` is `√(`, a product star is `×`, and `atan(` is `tan⁻¹(`. Measured on
+ * `sqrt(` is `√(`, a product star is `×`, and `arctan(` is `tan⁻¹(`. Measured on
  * 20 Oct 2026 in the recorded relative velocity lessons, `sqrt(` reached the
  * board in 22 rows across 6 lessons, `*` in 14 rows across 5, and `atan` or
  * `arcsin` in 3, and two of the `sqrt(` rows were this function's own

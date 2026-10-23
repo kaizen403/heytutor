@@ -9,17 +9,16 @@
  *   "v_{A over B}" and "v_(zero)"     a brace or bracket group was read out
  *   "vₓ_zero", "v {x zero}"           a letter subscript had no reading
  *   "for jee from the basics"         the opening lowercased an acronym
- *   "x equals forty m turnaround"     a bare m after a number stayed a letter
  *
  * Each line goes through `mathToSpeech` and then `sarvamSpeechText`, the order
  * the client and the Hinglish route apply them in, and must come out with no
- * brace, underscore or caret and no lowercase jee. A bare m is said as
- * meters only in a measured length (its quantity ends, a preposition or a
- * direction follows, or a length symbol is given it) and never in a clause
- * that names a mass (PR #249 review: "two blocks of masses 2 m and 3 m" was
- * spoken as meters). The bare m left in the recorded lines is listed exactly
- * below: unclear as a letter, never false. The opening is rebuilt from the recorded question, because the
- * recorded line is the old rule's output: it must keep acronyms and symbol
+ * brace, underscore or caret and no lowercase jee. A bare m keeps main's
+ * reading (PR #274 review): it is said as meters only where main's end of
+ * quantity list says its quantity ends, because a bare m is a mass as often
+ * as a meter ("Ab 3 m par lagne wale forces" was spoken "three meters par").
+ * The bare m left in the recorded lines is listed exactly below: unclear as a
+ * letter, never false. The opening is rebuilt from the recorded question,
+ * because the recorded line is the old rule's output: it must keep acronyms and symbol
  * case, and its ask must never stop mid phrase.
  */
 import assert from "node:assert/strict";
@@ -92,21 +91,36 @@ for (const lesson of lessons) {
 }
 assert.equal(failures.length, 0, `${failures.length} recorded lines still reach the voice wrong:\n${failures.join("\n")}`);
 
-// The bare m the fail closed rule leaves: no length cue it reads, so the
+// The bare m main's rule leaves: its quantity does not visibly end, so the
 // letter stays. Each is unclear, none is false. A new entry here is a length
 // the rule stopped reading; a missing one is a context it started reading.
 const LEFT_BARE_M = [
   "v2/p1c-t1: +ten m divided",
   "v2/p1c-t1: +ten m net",
+  "v2/p1c-t1: forty m turnaround",
   "v2/p1c-t1: seventy m divided",
   "v2/p1c-t1: seventy m पूरे",
+  "v2/p1c-t1: ten m final",
+  "v2/p1c-t1: zero m initial",
+  "v2/p1c-t5: ten m ;",
+  "v2/p1e2-t1: eighty m west",
+  "v2/p1e2-t1: forty m east",
+  "v2/p3e2-t1: five m above",
+  "v2/p3e2-t2: five m above",
+  "v2/p4c-t3: sixty m of",
+  "v2/p4e1-t1: seventy m ;",
   "v2/p5e2-t1: thirty m displacement.",
   "v2/p5e2-t2: thirty m point,",
+  "v2/p5e2-t2: thirty m आगे",
+  "youtube/q05-t3: fifteen m वाली",
   "youtube/q06-t1: eighty m tower",
+  "youtube/q06-t1: sixty m from",
   "youtube/q07-t1: forty m roof",
+  "youtube/q08-t1: three m on",
   "youtube/q08-t3: two m less",
   "youtube/q10-t1: y(twenty m )",
   "youtube/q17-t2: one m :",
+  "youtube/q19-t1: five m down",
 ];
 assert.deepEqual([...leftBareM].sort(), [...LEFT_BARE_M].sort(), "the bare m left in the recorded lines");
 
@@ -126,28 +140,43 @@ const EXACT: [string, string][] = [
   // Projectile q05: the board's own Unicode subscript, and the givens row.
   ["figure में vₓ₀ equals 24 m/s", "figure में v x zero equals twenty four meters per second"],
   ["Given... v {x 0} equals 24 m/s.", "Given... v x zero equals twenty four meters per second."],
-  ["Given... g equals 10 m over s².", "Given... g equals ten meters per second squared."],
-  // v2/p1c-t1: a figure label read aloud, then pointed at.
+  // "over" after a number keeps main's reading (PR #274 review): "2 s over
+  // g" is a formula, so no "over" pair is read as a unit ratio here.
+  ["Given... g equals 10 m over s².", "Given... g equals ten m over s squared."],
+  // A bare m keeps main's reading (PR #274 review): meters only where main's
+  // end of quantity list says the quantity ends, otherwise the letter.
   ["अब x equals 40 m turnaround position है, इसलिए x B equals forty meters.",
-    "अब x equals forty meters turnaround position है, इसलिए x B equals forty meters."],
-  ["The stone lands 160 m from the foot.", "The stone lands one hundred sixty meters from the foot."],
+    "अब x equals forty m turnaround position है, इसलिए x B equals forty meters."],
+  ["The stone lands 160 m from the foot.", "The stone lands one hundred sixty m from the foot."],
   ["the distance up the incline is 21 m: the landing point.", "the distance up the incline is twenty one m: the landing point."],
-  ["At release, the packet is 75 m above the ground.", "At release, the packet is seventy five meters above the ground."],
-  ["figure में 240 m east पहले walk की distance है", "figure में two hundred forty meters east पहले walk की distance है"],
-  ["अब 30 m आगे की position है", "अब thirty meters आगे की position है"],
-  ["देखो, h equals 40 m roof से ground तक", "देखो, h equals forty meters roof से ground तक"],
-  // A closing bracket or a colon is not on the end of quantity list: the
-  // letter stays (unclear, not false).
+  ["At release, the packet is 75 m above the ground.", "At release, the packet is seventy five m above the ground."],
+  ["figure में 240 m east पहले walk की distance है", "figure में two hundred forty m east पहले walk की distance है"],
+  ["अब 30 m आगे की position है", "अब thirty m आगे की position है"],
+  ["देखो, h equals 40 m roof से ground तक", "देखो, h equals forty m roof से ground तक"],
   ["y(20 m) equals 15 m.", "y(twenty m) equals fifteen meters."],
+  // A grouped number is one number, read by main's end of quantity rule.
   ["the track is 1,000 m.", "the track is one thousand meters."],
-  // A mass stays a letter, whatever follows it (PR #249 review): a clause
-  // that names a mass never says meters, as on main.
   ["block ka mass 2 m hai", "block ka mass two m hai"],
   ["Two blocks of masses 2 m and 3 m are joined", "Two blocks of masses two m and three m are joined"],
   ["Block A has mass 2 m and block B has mass m", "Block A has mass two m and block B has mass m"],
-  ["Take a mass of 3 m on the incline; it slides 5 m down.", "Take a mass of three m on the incline; it slides five meters down."],
-  ["A block of mass 2 m, then 3 m.", "A block of mass two m, then three m."],
+  ["Take a mass of 3 m on the incline; it slides 5 m down.", "Take a mass of three m on the incline; it slides five m down."],
 ];
 for (const [written, expected] of EXACT) assert.equal(hinglish(written), expected, `speech for: ${written}`);
+
+// A mass not named "mass" in its own clause (PR #274 review). The cut length
+// rule said "meters" in each; main's reading keeps the letter.
+const NO_METERS: [string, string][] = [
+  ["Ab 3 m par lagne wale forces dekhte hain.", "Ab three m par lagne wale forces dekhte hain."],
+  ["अब 3 m पर tension ऊपर की तरफ लगता है।", "अब three m पर tension ऊपर की तरफ लगता है."],
+  ["Now draw the forces on 3 m on the incline.", "Now draw the forces on three m on the incline."],
+  ["The tension acts on 2 m to the right.", "The tension acts on two m to the right."],
+  ["Two blocks of masses 2 m and 3 m are joined. Now the string pulls 3 m up the incline.",
+    "Two blocks of masses two m and three m are joined. Now the string pulls three m up the incline."],
+];
+for (const [written, expected] of NO_METERS) {
+  const spoken = hinglish(written);
+  assert.doesNotMatch(spoken, /\bmeters?\b/, `a mass was said as meters: ${written} -> ${spoken}`);
+  assert.equal(spoken, expected, `speech for: ${written}`);
+}
 
 console.log(`recorded speech sweep: ${lines} recorded lines and ${lessons.length * 2} rebuilt openings reach the voice clean`);

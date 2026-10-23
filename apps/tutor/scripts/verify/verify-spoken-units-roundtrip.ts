@@ -154,38 +154,38 @@ check("a spaced meter or second that ends its quantity is still a unit", () => {
   for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
 });
 
-check("a bare m is meters only in a measured length, never in a clause that names a mass", () => {
-  // Recorded 20 Oct 2026: a figure label read aloud then pointed at,
-  // "x=40 m [FOCUS:B] turnaround position", reaches speech without its tag,
-  // so the quantity is followed by a noun and was spoken "forty m". A length
-  // symbol given the quantity, a preposition and a direction measure a
-  // length; a grouped number is one number.
+check("a bare m keeps main's reading: meters only where its quantity visibly ends", () => {
+  // PR #274 review: a length context rule read a mass as meters ("Ab 3 m par
+  // lagne wale forces" became "three meters par"), so it was cut. A bare m is
+  // meters only on main's end of quantity list; anywhere else it stays the
+  // letter, unclear but never false. A grouped number is one number.
   const UNITS: [string, string][] = [
-    ["अब x equals 40 m turnaround position है", "अब x equals forty meters turnaround position है"],
-    ["figure में 240 m east पहले walk की distance है", "figure में two hundred forty meters east पहले walk की distance है"],
-    ["the packet is 75 m above the ground", "the packet is seventy five meters above the ground"],
-    ["delta x equals 50 m net", "delta x equals fifty meters net"],
     ["the track is 1,000 m.", "the track is one thousand meters."],
-    ["1 m away", "one meter away"],
+    ["it ran 1,000 s.", "it ran one thousand seconds."],
   ];
   for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
-  // Main's end of quantity list stands, and nothing else is read as a
-  // length (PR #249 review): an unclear letter, never a false meter.
   const LETTERS: [string, string][] = [
+    ["अब x equals 40 m turnaround position है", "अब x equals forty m turnaround position है"],
+    ["figure में 240 m east पहले walk की distance है", "figure में two hundred forty m east पहले walk की distance है"],
+    ["the packet is 75 m above the ground", "the packet is seventy five m above the ground"],
+    ["delta x equals 50 m net", "delta x equals fifty m net"],
+    ["1 m away", "one m away"],
     ["diagram का 70 m पूरे travelled path की length", "diagram का seventy m पूरे travelled path की length"],
     ["average speed is 70 m divided by Δt", "average speed is seventy m divided by delta t"],
     ["A ball leaves the 40 m roof", "A ball leaves the forty m roof"],
     ["the distance up the incline is 21 m: the landing point", "the distance up the incline is twenty one m: the landing point"],
   ];
   for (const [written, hindi] of LETTERS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
-  // A mass stays a letter whatever follows it, and a product still continues.
+  // A mass stays a letter, and a product still continues.
   const MASSES: [string, string][] = [
     ["block ka mass 2 m है", "block ka mass two m है"],
     ["the mass 2 m is at rest", "the mass two m is at rest"],
     ["Two blocks of masses 2 m and 3 m are joined", "Two blocks of masses two m and three m are joined"],
     ["Block A has mass 2 m and block B has mass m", "Block A has mass two m and block B has mass m"],
-    ["Take a mass of 3 m on the incline; it slides 5 m down.", "Take a mass of three m on the incline; it slides five meters down."],
+    ["Take a mass of 3 m on the incline; it slides 5 m down.", "Take a mass of three m on the incline; it slides five m down."],
     ["so 2 m g sinθ and 4 m squared", "so two m g sine theta and four m squared"],
+    ["Ab 3 m par lagne wale forces dekhte hain.", "Ab three m par lagne wale forces dekhte hain."],
+    ["The tension acts on 2 m to the right.", "The tension acts on two m to the right."],
   ];
   for (const [written, hindi] of MASSES) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
 });

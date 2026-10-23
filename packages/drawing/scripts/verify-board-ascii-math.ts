@@ -9,7 +9,7 @@
  * own spelling of "square root of", and its "times" became a star.
  *
  * Every recorded row in the fixture is pushed through both WRITE parsers and
- * must come out with `√(`, `×` and `tan⁻¹(`, and every character must be
+ * must come out with `√(`, `×` and `tan⁻¹(` for `arctan(`, and every character must be
  * inked by the handwriting engine (a character without a glyph is drawn as a
  * blank gap). A code row keeps its `*` and `sqrt(`, because there they are the
  * program.
@@ -32,7 +32,8 @@ const fixture = JSON.parse(
   readFileSync(resolve(here, "fixtures/recorded-write-rows-2026-10-20.json"), "utf8"),
 ) as { rows: { id: string; row: string }[] };
 
-const ASCII_MATH = /(?<![A-Za-z0-9_.])sqrt\s*\(|\b(?:a|arc)(?:sin|cos|tan)\s*\(|square root of|\btimes\b/;
+// `asin(`, `acos(` and `atan(` are not on this list: they stay as typed.
+const ASCII_MATH = /(?<![A-Za-z0-9_.])sqrt\s*\(|\barc(?:sin|cos|tan)\s*\(|square root of|\btimes\b/;
 /** A product star after a number: a standalone number before it, or a bracket with a number after it. */
 const PRODUCT_STAR = /(?<![\p{L}\p{N}_.])\d+(?:\.\d+)?\s*\*\s*[\p{L}\p{N}(√]|[)\]]\s*\*\s*\p{N}/u;
 
@@ -66,7 +67,13 @@ const EXACT: [string, string][] = [
   ["d = 2 * 60", "d = 2 × 60"],
   ["check: 2*60 = 120, 4*60 = 240", "check: 2×60 = 120, 4×60 = 240"],
   ["v_y = 5*sqrt(3) = 8.66 km/h", "v_y = 5×√(3) = 8.66 km/h"],
-  ["theta = atan(8/6) = 53.13°", "θ = tan^(-1)(8/6) = 53.13°"],
+  // Only the arc spelling is an inverse (PR #274 review). In SHM and waves
+  // `acos(ωt)` and `asin(kx - ωt)` are the amplitude a times a sine, so the
+  // short spellings stay as typed, as on main.
+  ["theta = atan(8/6) = 53.13°", "θ = atan(8/6) = 53.13°"],
+  ["x = acos(ωt)", "x = acos(ωt)"],
+  ["y = asin(kx - ωt)", "y = asin(kx - ωt)"],
+  ["θ = atan(3/4)", "θ = atan(3/4)"],
   ["θ = arcsin(1/2) = 30°", "θ = sin^(-1)(1/2) = 30°"],
   ["θ = arccos((A·B)/(|A||B|))", "θ = cos^(-1)((A·B)/(|A||B|))"],
   ["\\arctan(3/4)", "tan^(-1)(3/4)"],

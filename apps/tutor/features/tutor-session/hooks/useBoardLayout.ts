@@ -541,9 +541,15 @@ export function useBoardLayout({
       let slot = findSlot();
 
       if (slot === null) {
+        // Only the live reservation decides to carry boxed answers, and it
+        // turns the page itself before an equation that would not fit below
+        // them. Replay, the lecture player and export lay rows out again
+        // without that decision, so they carry nothing, as on main: a carry
+        // the live turn did not make would split an equation it kept whole.
         const turned = await eraseWorkColumnForNewPage(command.text, {
           hold: placement.holdPageTurn === true,
           isCancelled: placement.isCancelled,
+          carry: placement.holdPageTurn === true,
         });
         const fallback = {
           x: TEXT_LAYOUT.marginX,

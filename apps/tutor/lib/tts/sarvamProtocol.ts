@@ -46,8 +46,8 @@ export function sarvamSpeechText(text: string): string {
       if (/^\s+(?:[A-Za-z](?![\p{L}\p{N}_])|(?:times|squared|cubed|over|plus|minus|into|by|divided|per)\b)/u
         .test(rest)) return match;
       // A bare m is a mass as often as a meter ("block ka mass 2 m hai"), so
-      // it is a meter only where the words around it measure a length.
-      if (unit === "m" && !bareMeterContext(whole.slice(0, offset), rest)) return match;
+      // it is a meter only where the quantity visibly ends.
+      if (unit === "m" && !BARE_METER_END.test(rest)) return match;
       const words = SPACED_UNIT_WORDS[unit]!;
       return `${value} ${Number(value.replace(/,/g, "")) === 1 ? words[0] : words[1]}`;
     })
@@ -99,41 +99,6 @@ const SPACED_UNIT = new RegExp(
 );
 /** Where a bare m ends its quantity: a comma, a full stop (or ।), the end, or a postposition. */
 const BARE_METER_END = /^(?:[,.।]|\s*$|\s+(?:se|me|ka|ki|ko|से|में|का|की|को)(?![\p{L}\p{M}\p{N}_]))/u;
-/**
- * The word after a length: a preposition or a direction ("75 m above the
- * ground", "240 m east", "30 m आगे"). Measured on 20 Oct 2026 in the recorded
- * lessons, where these were spoken as "seventy five m".
- */
-const BARE_METER_LENGTH_NEXT =
-  /^\s+(?:above|below|beneath|under|from|to|of|in|on|at|onto|along|across|through|behind|beyond|ahead|apart|away|toward|towards|up|down|upward|upwards|downward|downwards|high|long|wide|deep|tall|east|west|north|south|left|right|forward|forwards|backward|backwards|par|tak|aage|peeche|upar|neeche|पर|तक|आगे|पीछे|ऊपर|नीचे)(?![\p{L}\p{M}\p{N}_])/u;
-/**
- * A length symbol given the quantity: "x equals 40 m", "delta x equals 50 m",
- * "h max equals 20 m". The teaching model reads a figure label aloud and
- * points at it, "x=40 m [FOCUS:B] turnaround position", so the quantity ends
- * at the pointing tag; speech never sees the tag, only "x equals 40 m
- * turnaround position". A position, height, distance, radius, length or
- * width named by its symbol is a length whatever follows it.
- */
-const BARE_METER_LENGTH_SYMBOL =
-  /(?:^|[^\p{L}\p{M}\p{N}_])(?:delta\s+)?[xyzhdsrlwLR](?:\s+(?:[A-Z]|max|min|zero|one|two|three|\d+))?\s+equals\s+[+-]?$/u;
-/**
- * A clause that names a mass: "two blocks of masses 2 m and 3 m", "has mass
- * 2 m", "a mass of 3 m". There m is the mass unit of the problem, never a
- * meter, whatever word follows ("a mass of 3 m on the incline").
- */
-const MASS_CLAUSE = /(?<![\p{L}\p{M}\p{N}_])(?:mass(?:es)?|द्रव्यमान)(?![\p{L}\p{M}\p{N}_])/iu;
-
-/**
- * A bare m after a number is spoken as meters only in a measured length:
- * where its quantity visibly ends, before a preposition or a direction, or
- * after a length symbol. Never in a clause that names a mass: that m is
- * unclear as a letter but false as a meter.
- */
-function bareMeterContext(before: string, rest: string): boolean {
-  const clause = before.split(/[.;:!?।](?=\s|$)/u).at(-1) ?? before;
-  if (MASS_CLAUSE.test(clause)) return false;
-  return BARE_METER_END.test(rest) || BARE_METER_LENGTH_NEXT.test(rest) || BARE_METER_LENGTH_SYMBOL.test(before);
-}
 const ORDINAL = /\b(\d+)(?:st|nd|rd|th)\b/gi;
 const CLOCK_TIME = /\b(\d{1,2}):([0-5]\d)\b/g;
 const NUMBER = /\.?\d[\d,]*(?:\.\d+)?/g;

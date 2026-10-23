@@ -9,8 +9,9 @@
  * This mounts the real `useBoardLayout` hook (figure on the right, so the
  * column is narrow) and checks, live and on both replay paths (stored rows,
  * and rows flowed again as the Replay button, lecture player and export do):
- * the box frames every row of the wrapped WRITE, a page turn carries the
- * whole answer in order inside one box, two separate WRITEs never merge, a
+ * the box frames every row of the wrapped WRITE, a live page turn carries the
+ * whole answer in order inside one box while a flowed replay carries none (it
+ * has no live carry decision), two separate WRITEs never merge, a
  * group taller than the carry cap is skipped rather than cut, and the
  * EMPHASIZE executor frames and marks the whole group. Persistence keeps no
  * group id, so replay rejoins the rows from the tag position and words every
@@ -139,7 +140,11 @@ async function replay(stored: Stored[], answerLines: string[], flow: boolean) {
       if (h.calls.filter(call => call.kind === "erase").length > erases) {
         turned = true;
         const after = workRows(h.board.boardLayoutRef.current).filter(rect => rect.boxed).map(rect => rect.text);
-        assert.deepEqual(after, [...answerLines, "R = √37"], `${label}: the page turn carries the whole wrapped answer`);
+        // Stored rows replay the recorded page, carried answers included. A
+        // flowed replay lays rows out again without the live turn's carry
+        // decision, so it carries nothing, as on main (PR #274 review).
+        if (flow) assert.deepEqual(after, [], `${label}: a flowed page turn carries no answer the recording did not decide`);
+        else assert.deepEqual(after, [...answerLines, "R = √37"], `${label}: the page turn carries the whole wrapped answer`);
       }
       if (row.boxAfter) {
         const framed = emphasize(h);
@@ -236,6 +241,87 @@ async function equationStaysWholeBesideCarriedAnswers(spare: number) {
   } finally { h.close(); }
 }
 
+/**
+ * Greptile P1 on PR #274: three boxed rows and a four row equation on a six
+ * row page (here the column beside the figure holds seven rows, so the
+ * equation is five). Live, the reservation turns the page before the equation
+ * without carrying the answers (three carried rows would leave one row too
+ * few). A flowed
+ * replay (the Replay button, the lecture player and export) places each row
+ * again; if its page turn carried the answers, the fourth row would turn the
+ * page a second time and wipe the equation's start before its last row. The
+ * flowed replay must turn once, carry nothing and keep the equation whole,
+ * on the rows the live lesson wrote it on.
+ */
+async function replayKeepsEquationWholeLikeLive() {
+  const live = mountBoardLayout({ diagramActive: true });
+  const stored: Stored[] = [];
+  let equation: DrawCommand[] = [];
+  let wanted = 0;
+  try {
+    const place = async (command: DrawCommand) => {
+      const placed = await live.settle(live.board.reserveTextCommandPlacements(command));
+      writeInk(live, placed);
+      for (const row of placed) stored.push({
+        text: row.text!, x: row.params[0]!, y: row.params[1]!, fontSize: row.params[2]!,
+        charPosition: row.charPosition, narrationBefore: row.narrationBefore, boxAfter: false,
+      });
+      return placed;
+    };
+    const answer = await place(write(ANSWER, ANSWER_TAG));
+    emphasize(live);
+    stored.at(-1)!.boxAfter = true;
+    await place(write("R = √37", { charPosition: 520, narrationBefore: "so the resultant is" }));
+    emphasize(live);
+    stored.at(-1)!.boxAfter = true;
+    const carriedRows = answer.length + 1;
+    const fresh = workColumnRoom({ rects: [], nextY: TEXT_LAYOUT.topY }, true).rowsLeft;
+    assert.equal(carriedRows, 3, "the fixture boxes three rows");
+    // One row more than the room below the carried answers: the Greptile
+    // case was a four row equation on a six row page; this column holds
+    // `fresh` rows, so the equation is `fresh - 2` rows.
+    wanted = fresh - carriedRows + 1;
+    assert(wanted >= 2, `the fixture equation wraps onto at least two rows (${wanted})`);
+    const width = workColumnMaxWidth(live.board.boardLayoutRef.current, true);
+    let text = "s = a";
+    for (let term = 1; live.hooks.wrapWorkRow(text, width).lines.length < wanted && term < 400; term++) text += ` + b_${term}`;
+    assert.equal(live.hooks.wrapWorkRow(text, width).lines.length, wanted, "the fixture equation wraps onto the wanted rows");
+    // Fill the page to its last row, so a flowed replay turns the page on the
+    // equation's first row, exactly where the live lesson turned it.
+    for (let index = 1; workColumnRoom(live.board.boardLayoutRef.current, true).rowsLeft > 0; index++) {
+      await place(write(`filler ${index}`, { charPosition: 600 + index * 20, narrationBefore: `step ${index}` }));
+    }
+    assert.equal(live.calls.filter(call => call.kind === "erase").length, 0, "the fixture fills the first page without turning it");
+    equation = await place(write(text, { charPosition: 900, narrationBefore: "so the whole sum is" }));
+    assert.equal(equation.length, wanted, "every row of the equation is reserved live");
+    assert.equal(live.calls.filter(call => call.kind === "erase").length, 1, "live: one page turn, before the equation");
+    assert.deepEqual(workRows(live.board.boardLayoutRef.current).filter(row => row.boxed).map(row => row.text), [],
+      "live: three carried rows would split the equation, so none is carried");
+  } finally { live.close(); }
+
+  const h = mountBoardLayout({ diagramActive: true });
+  try {
+    const placedAt: { text: string; y: number; erasesBefore: number }[] = [];
+    for (const row of stored) {
+      const command: DrawCommand = { type: "WRITE", text: row.text, params: [row.x, row.y, row.fontSize], charPosition: row.charPosition, narrationBefore: row.narrationBefore };
+      const at = await h.settle(h.board.resolveTextPlacement(command, row.x, row.y, true));
+      h.ink.push({ text: row.text, x: at.x, y: at.y });
+      for (const rect of h.board.boardLayoutRef.current.rects) rect.pendingInk = false;
+      placedAt.push({ text: row.text, y: at.y, erasesBefore: h.calls.filter(call => call.kind === "erase").length });
+      if (row.boxAfter) emphasize(h);
+    }
+    assert.equal(h.calls.filter(call => call.kind === "erase").length, 1, "flowed replay: one page turn, as live, never a second inside the equation");
+    const equationRows = placedAt.slice(-wanted);
+    assert(equationRows.every(row => row.erasesBefore === 1), "flowed replay: every equation row is written after the one page turn");
+    assert.deepEqual(equationRows.map(row => row.y), equation.map(row => row.params[1]), "flowed replay: the equation lands on the rows the live lesson wrote it on");
+    const after = workRows(h.board.boardLayoutRef.current);
+    assert.deepEqual(after.filter(row => row.boxed).map(row => row.text), [], "flowed replay: no answer is carried that the live turn did not carry");
+    assert.deepEqual(after.map(row => row.text), equation.map(row => row.text), "flowed replay: the new page holds the whole equation and nothing else");
+    assertNoOverlap(h.board.boardLayoutRef.current, "flowed replay beside three boxed rows");
+    console.log(`wrapped answers: a flowed replay keeps the ${wanted} row equation whole and carries nothing, as live`);
+  } finally { h.close(); }
+}
+
 async function main() {
   executorFramesGroups();
   const probe = mountBoardLayout();
@@ -245,6 +331,7 @@ async function main() {
   await replay(stored, answerLines, true);
   await equationStaysWholeBesideCarriedAnswers(0);
   await equationStaysWholeBesideCarriedAnswers(1);
+  await replayKeepsEquationWholeLikeLive();
   console.log("verify-wrapped-answer-groups: passed");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

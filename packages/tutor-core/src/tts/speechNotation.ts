@@ -336,18 +336,6 @@ function expandUnitRatios(text: string): string {
       new RegExp(`\\b(in|per)\\s+${ratio}`, "gu"),
       (match, lead: string, top: string, bottom: string, power?: string) =>
         say(top, bottom, power) === null ? match : `${lead} ${say(top, bottom, power)}`,
-    )
-    // The givens row speaks its own slash before this runs: "g = 10 m/s²" is
-    // handed over as "g equals 10 m over s²", which the voice said as "ten m
-    // over s squared". After a number, two unit symbols joined by "over" are
-    // the same ratio.
-    .replace(
-      new RegExp(`(\\d(?:[\\d.,]*\\d)?)([ \\t]+)(µ?[A-Za-zΩ]{1,3}) over (µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³]| squared\\b| cubed\\b)?(?![\\p{L}0-9_])`, "gu"),
-      (match, value: string, gap: string, top: string, bottom: string, power?: string) => {
-        const exponent = power?.trim() === "squared" ? "2" : power?.trim() === "cubed" ? "3" : power;
-        const words = say(top, bottom, exponent);
-        return words === null ? match : `${value}${gap}${words}`;
-      },
     );
 }
 
@@ -649,10 +637,12 @@ function tidySpokenSpacing(text: string): string {
  */
 function expandNotationSymbols(text: string): string {
   return text
-    // The board writes `tan⁻¹(` for `atan(` (stored as `tan^(-1)(`); a
-    // teacher says "tan inverse", never "tan to the power of minus 1".
+    // The board writes `tan⁻¹(` for `arctan(` (stored as `tan^(-1)(`); a
+    // teacher says "tan inverse", never "tan to the power of minus 1". Only
+    // the arc spelling is an inverse: `acos(ωt)` is the amplitude a times
+    // cos(ωt) in SHM and waves, so `asin(`, `acos(` and `atan(` stay as typed.
     .replace(/\b(sin|cos|tan)\s*(?:\^\(-1\)|\^-1|⁻¹)/g, "$1 inverse ")
-    .replace(/\b(?:arc|a)(sin|cos|tan)(?=\s*\()/g, "$1 inverse ")
+    .replace(/\barc(sin|cos|tan)(?=\s*\()/g, "$1 inverse ")
     .replace(/([A-Z][a-z]?)_(\d+)/g, "$1 $2 ")
     .replace(/([A-Za-z0-9]+)\^(\d+)([-+])/g, (_m, formula: string, num: string, sign: string) =>
       `${formula} ${num} ${sign === "-" ? "minus" : "plus"} `)
