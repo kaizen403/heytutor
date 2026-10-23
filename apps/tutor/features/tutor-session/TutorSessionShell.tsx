@@ -1720,6 +1720,9 @@ export function TutorSessionShell({
     isReplaying,
   });
   const showPendingOrRecovery = !rewindActive && (waitingToTeach || audioRecovery !== null);
+  // A phone board scrolls inside its pane. A held beat's recovery card must
+  // stay in the visible pane, not at the corner of the scrolled board.
+  const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
 
   if (isHeadless) {
     return (
@@ -2151,7 +2154,7 @@ export function TutorSessionShell({
 
             <div
               className={`wb-stage flex min-h-0 flex-col items-center ${scrollBoard ? "w-full min-w-0" : showDockedPlayer ? "w-full" : ""} ${
-                boardCovered ? "pointer-events-none invisible absolute" : ""
+                boardCovered ? "pointer-events-none invisible absolute" : recoveryOutsideBoard ? "relative" : ""
               }`}
               aria-hidden={boardCovered || undefined}
               style={{
@@ -2275,7 +2278,7 @@ export function TutorSessionShell({
 
                     {/* A rewound lecture is the past: don't cover the board they
                 are actually watching with the pending clicker. */}
-                    {showPendingOrRecovery && (
+                    {showPendingOrRecovery && !recoveryOutsideBoard && (
                       <ThinkingOverlay
                         ink={pendingInk}
                         paused={isPaused}
@@ -2355,6 +2358,19 @@ export function TutorSessionShell({
                   </div>
                 </div>
               </div>
+
+              {recoveryOutsideBoard && (
+                <ThinkingOverlay
+                  ink={pendingInk}
+                  paused={isPaused}
+                  onResume={resumeTurn}
+                  onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                  preserveBoard={!waitingToTeach}
+                  muted={mutePlayback || !settings.narrationEnabled}
+                  onBoardAt={null}
+                  scale={boardViewport.scale}
+                />
+              )}
 
               <div
                 className="wb-deck relative shrink-0"

@@ -376,6 +376,21 @@ function shellMarkup(options: {
   }).TutorSessionShell as ComponentType<TutorSessionShellProps>;
   return renderToStaticMarkup(createElement(shell, { sessionId: "recorded-board", ...(options.headless ? { variant: "headless" } : {}), muteAudio: options.muted }));
 }
+/** Whether `target` appears inside the div that carries `marker` (string level, div depth). */
+function insideDiv(html: string, marker: string, target: string): boolean {
+  const at = html.indexOf(marker);
+  const found = html.indexOf(target);
+  assert.ok(at >= 0 && found >= 0, `markup has both ${marker} and ${target}`);
+  const open = html.lastIndexOf("<div", at);
+  let depth = 0;
+  const tags = /<div\b|<\/div>/g;
+  tags.lastIndex = open;
+  for (let match = tags.exec(html); match; match = tags.exec(html)) {
+    depth += match[0] === "</div>" ? -1 : 1;
+    if (depth === 0) return found > open && found < match.index;
+  }
+  return found > open;
+}
 check("actual shell exposes audio recovery after the verified diagram", () => {
   for (const phase of ["speaking", "drawing"] as const) {
     let clicks = 0;
@@ -397,7 +412,14 @@ check("actual shell exposes audio recovery after the verified diagram", () => {
     assert.equal(clicks, 1, "click reaches the exact retained runner callback synchronously");
     assert.equal(overlay!.preserveBoard, true, "recovery never frosts or replaces the existing diagram");
     assert.doesNotMatch(html, /class="wb-pending /, "late recovery has no full-board frosted layer");
+    // A phone board scrolls inside its pane: the card must sit in the visible
+    // pane, never at the corner of the scrolled board where it can be off screen.
+    assert.match(html, /data-board-scroll="true"/, "the phone shell scrolls its board");
+    assert.equal(insideDiv(html, 'data-board-scroll="true"', 'data-speech-recovery="true"'), false, `${phase}: the phone recovery card is outside the board scroll pane`);
   }
+  const desktop = shellMarkup({ mobile: false, phase: "drawing", audioEnable: () => {} });
+  assert.doesNotMatch(desktop, /data-board-scroll="true"/, "the desktop board does not scroll");
+  assert.equal(insideDiv(desktop, 'class="wb-surface', 'data-speech-recovery="true"'), true, "a board that does not scroll keeps the card on the board surface");
 });
 check("audio recovery respects pause, replay, mute, generation and headless boundaries", () => {
   const enable = () => {};
@@ -413,6 +435,7 @@ check("audio recovery respects pause, replay, mute, generation and headless boun
   assert.doesNotMatch(paused, /Tap to enable audio/);
   assert.equal(pausedProps!.onResume, resume);
   assert.equal(pausedProps!.onEnableAudio, null, "paused recovery resumes the lesson before asking permission");
+  assert.equal(insideDiv(paused, 'data-board-scroll="true"', "Lecture paused"), false, "the phone paused card is outside the board scroll pane");
   const headless = shellMarkup({ mobile: false, phase: "drawing", headless: true, muted: false, audioEnable: enable });
   assert.match(headless, /Tap to enable audio/, "an audible headless/embed session also exposes permission recovery");
   assert.match(headless, /data-verified-board="retained"/, "the headless board stays mounted");
