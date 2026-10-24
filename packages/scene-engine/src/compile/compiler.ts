@@ -2660,15 +2660,27 @@ function roundedTypedPointHint(assertion: SceneAssertion, residual: number | und
   if (residual > geometryScale(geometry) * 0.005) return "";
   const typed = typedPointIdsBehind(assertion.entities, document);
   if (typed.length === 0) return "";
-  const ends = assertion.entities.map((id) => {
-    const construction = document.constructions.find((entry) => entry.outputs.includes(id));
-    return construction && (construction.operator === "segment" || construction.operator === "connect")
-      ? [construction.inputs.start, construction.inputs.end].filter((end): end is string => typeof end === "string")
-      : [];
-  });
-  const shared = ends.length >= 2 && ends.every((pair) => pair.length === 2) ? ends[0]!.find((end) => ends.every((pair) => pair.includes(end))) : undefined;
-  const circleCentre = document.constructions.find((construction) => construction.operator === "circle" && typeof construction.inputs.center === "string")?.inputs.center;
-  const pivot = shared ?? (typeof circleCentre === "string" ? circleCentre : "the centre point");
+  const producer = (id: string) => document.constructions.find((entry) => entry.outputs.includes(id));
+  // The pivot comes only from the failed check itself: the centre of the circle
+  // an `on` check names, or the endpoint every radius in an equal_length check
+  // shares. Lines, free segments and unnamed circles get no circle advice.
+  let pivot: string | undefined;
+  if (assertion.predicate === "on") {
+    const centres = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction?.operator === "circle" && typeof construction.inputs.center === "string" ? construction.inputs.center : undefined;
+    }).filter((centre): centre is string => centre !== undefined);
+    pivot = centres.length === 1 ? centres[0] : undefined;
+  } else {
+    const ends = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction && (construction.operator === "segment" || construction.operator === "connect")
+        ? [construction.inputs.start, construction.inputs.end].filter((end): end is string => typeof end === "string")
+        : [];
+    });
+    pivot = ends.length >= 2 && ends.every((pair) => pair.length === 2) ? ends[0]!.find((end) => ends.every((pair) => pair.includes(end))) : undefined;
+  }
+  if (!pivot) return "";
   const offCentre = typed.filter((id) => id !== pivot);
   const fractional = offCentre.filter((id) => {
     const inputs = document.constructions.find((entry) => entry.outputs.includes(id))?.inputs;
