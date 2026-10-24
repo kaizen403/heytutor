@@ -556,7 +556,17 @@ check("phone-readability-shell-pan", () => {
   assert.equal(lastShellViewportMode, "fixed", "captures retain canonical1200x700 scale");
 });
 
-const required = ["phone-readability-role-floor", "phone-readability-shell-pan", "session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys"];
+check("silent-caption-whole", () => {
+  // A silently taught sentence is read, not heard: the caption shows all of it.
+  const sentence = "When the voice is unavailable the student reads this whole sentence on the board, so the caption must carry every word through to its final word, including this ending marker zeta.";
+  assert.ok(sentence.length > 140, "the fixture sentence is longer than the live subtitle limit");
+  const silent = renderToStaticMarkup(createElement(bubble as ComponentType<{ text: string; visible: boolean; placement?: string; notice?: string | null }>, { text: sentence, visible: true, placement: "below", notice: "Voice unavailable, showing the words" }));
+  assert.match(silent, /ending marker zeta/, "the silent caption keeps the end of the sentence");
+  assert.doesNotMatch(silent, /…/, "the silent caption is never cut at an ellipsis");
+  const spoken = renderToStaticMarkup(createElement(bubble as ComponentType<{ text: string; visible: boolean; placement?: string }>, { text: sentence, visible: true, placement: "below" }));
+  assert.match(spoken, /…/, "a spoken caption keeps the live subtitle limit");
+});
+const required = ["phone-readability-role-floor", "phone-readability-shell-pan", "session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys", "silent-caption-whole"];
 assert.ok(!process.env.CAPTION_DOCK_CASE || required.includes(process.env.CAPTION_DOCK_CASE), "unknown caption gate case");
 assert.ok(groups > 0, "at least one caption group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} caption groups failed: ${failures.join(", ")}`);

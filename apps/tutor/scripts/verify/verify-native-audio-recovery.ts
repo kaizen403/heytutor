@@ -386,6 +386,7 @@ async function main() {
         assert.equal(voiceDegradedFlags.at(-1), true, "the student is told the voice failed and sees the words");
         if (selected === "runner-intro") {
           assert.deepEqual(drawn, ["F = ma"], "a verified figure intro has no pointing tour");
+          assert.deepEqual(executed.map(({ command }) => command.type), ["WRITE"], "a verified figure intro has no pointing tour, not even a transient pointer");
           // The figure transaction still decides whether it commits, so nothing is published before that.
           assert.equal(rows.length, 0, "uncommitted figure intro cannot publish speculative bytes or ink");
         } else {

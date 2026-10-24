@@ -35,7 +35,9 @@ export function ResponseBubble({ text, visible, placement = "overlay", notice = 
     return null;
   }
 
-  const displayText = truncateSubtitle(text);
+  // With the voice gone the caption is the only way to receive the sentence:
+  // show it whole (the phone dock scrolls), never cut at an ellipsis.
+  const displayText = notice ? formatLiveSubtitle(text) : truncateSubtitle(text);
 
   return (
     <div
