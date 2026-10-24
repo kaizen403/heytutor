@@ -7,7 +7,11 @@
  *   declines   multi-centre names (ethane, ethene, ethyne, acetylene,
  *              hydrazine, hydrogen peroxide) never become a one-centre shape
  *   controls   physics and maths stems that name water, methane or ammonia
- *              stay out of chemistry; organic and Lewis structure asks keep
+ *              stay out of chemistry, including a shape adjective on a
+ *              physics noun ("water linear speed") and an and/or list whose
+ *              next conjunct is not a species ("water and mercury menisci");
+ *              a neutral name followed by ion ("the ammonia ion") is never
+ *              framed and owns no plan claim; organic and Lewis structure asks keep
  *              their family; a request that also writes formulas keeps the
  *              alias contract
  *   plans      a plan claim binds to its named owner like a formula owner:
@@ -69,12 +73,38 @@ const NOT_CHEMISTRY = [
   "The density of water is 1000 kg/m3. Find the buoyant force on a 2 m3 block fully submerged.",
   "A water molecule has a dipole moment of 6.2 x 10^-30 C m. Find the maximum torque in a field of 10^5 N/C.",
   "what is the shape of a water droplet",
+  // A shape adjective on a physics noun is not a shape predicate.
+  "Water linear speed in the pipe is 2 m/s. Find the volume flow rate through a 5 cm diameter pipe.",
+  "Water angular velocity in the rotating tank is 3 rad/s. Find the height difference between rim and centre.",
+  "Explain why water has angular momentum when stirred in a cup.",
+  "Ammonia linear expansion coefficient is small. Find the change in length.",
+  // "and" after a governed name closes it only before another species.
+  "Find the shape of water and mercury menisci in a glass capillary.",
+  "Find the shape of the water and the oil in a rotating container.",
 ];
 
 /** Stems already chemistry on main for other reasons: still no VSEPR frame or figure. */
 const OTHER_CHEMISTRY_NO_FRAME = [
   "Methane is used as a fuel. If 1 kg of methane releases 55 MJ, how much energy do 3 kg release?",
   "Find the geometry of the region where water flows",
+  "Methane linear flow through the burner is 0.5 m/s.",
+];
+
+/**
+ * A neutral name followed by ion names an ion the table does not hold
+ * ("ammonia ion" is usually meant as ammonium): no frame, no figure.
+ */
+const NEUTRAL_NAME_IONS = [
+  "shape of the ammonia ion",
+  "shape of the nitrogen dioxide ion",
+  "hybridisation of nitrogen in the nitrogen dioxide ion",
+  "shape of the sulphur dioxide ion",
+  "shape of the sulphur trioxide ion",
+  "shape of the carbon dioxide ion",
+  "shape of the water ion",
+  "bond angle in the ammonia ion",
+  "geometry of the methane cation",
+  "shape of the ozone anion",
 ];
 
 /** Structure asks keep their family. */
@@ -86,7 +116,7 @@ const STRUCTURE_ASKS: ReadonlyArray<[string, string]> = [
 ];
 
 const FRAME_POSITIVES = POSITIVES.map((row) => row.question);
-const FRAME_CONTROLS = [...NOT_CHEMISTRY, ...OTHER_CHEMISTRY_NO_FRAME, ...STRUCTURE_ASKS.map(([question]) => question)];
+const FRAME_CONTROLS = [...NOT_CHEMISTRY, ...OTHER_CHEMISTRY_NO_FRAME, ...NEUTRAL_NAME_IONS, ...STRUCTURE_ASKS.map(([question]) => question)];
 
 interface Row { id: string; passed: boolean; error: string | null }
 
@@ -149,6 +179,13 @@ for (const question of OTHER_CHEMISTRY_NO_FRAME) {
     assert.ok(!inferChemistryFamilies(question).includes("chem_vsepr"));
   });
 }
+for (const question of NEUTRAL_NAME_IONS) {
+  check(`decline/neutral-name-ion/${question}`, () => {
+    assert.deepEqual(vseprSpecies(question), []);
+    assert.ok(!inferChemistryFamilies(question).includes("chem_vsepr"));
+    assert.notEqual(synthesizeFamilyScene({ question })?.family, "chem_vsepr");
+  });
+}
 for (const [question, family] of STRUCTURE_ASKS) {
   check(`control/structure/${question}`, () => {
     assert.ok(!inferChemistryFamilies(question).includes("chem_vsepr"));
@@ -174,6 +211,12 @@ const PLAN_CLAIMS: ReadonlyArray<{ question: string; claim: string; admit: boole
   { question: "why is water bent", claim: "Carbon dioxide and water differ. It is linear.", admit: false },
   { question: "why is water bent", claim: "Water, unlike carbon dioxide, is bent.", admit: true },
   { question: "why is water bent", claim: "Unlike carbon dioxide, which is linear, water is bent.", admit: true },
+  // A neutral name followed by ion owns nothing: the claim is the asked ion's.
+  { question: "shape of NH4+", claim: "The ammonia ion is square planar.", admit: false },
+  { question: "shape of SO3^2-", claim: "Sulphur trioxide ion is trigonal planar.", admit: false },
+  { question: "shape of NO2^-", claim: "Nitrogen dioxide anion is linear.", admit: false },
+  { question: "shape of H3O+", claim: "The water ion is bent.", admit: false },
+  { question: "shape of NH4+", claim: "The ammonia ion is tetrahedral.", admit: true },
 ];
 for (const row of PLAN_CLAIMS) {
   check(`plan/${row.admit ? "admit" : "refuse"}/${row.question}/${row.claim}`, () => {

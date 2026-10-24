@@ -1,0 +1,3 @@
+# v3 runtime review fixes: wrapped answers framed and carried whole, stopped page turns.
+tsx scripts/verify/verify-wrapped-answer-groups.ts
+tsx scripts/verify/verify-stopped-page-turn.ts

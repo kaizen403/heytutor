@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -96,6 +97,7 @@ import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import type { SpeechStartupStatus } from "./hooks/turn/types";
+import { speechRecoveryStatus } from "./lib/turn/speechRecoveryUi";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardReading } from "./hooks/useBoardReading";
 import { useBoardSession } from "./hooks/useBoardSession";
@@ -364,6 +366,8 @@ export function TutorSessionShell({
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
   const [speechStartupStatus, setSpeechStartupStatus] = useState<SpeechStartupStatus | null>(null);
+  // A sentence taught without its voice forces its caption and a notice.
+  const [voiceDegraded, setVoiceDegraded] = useState(false);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
   const [lastError, setLastError] = useState<TutorSessionError | null>(null);
@@ -966,6 +970,7 @@ export function TutorSessionShell({
     onComplete,
     onError,
     onSpeechStartupStatus: setSpeechStartupStatus,
+    onVoiceDegraded: setVoiceDegraded,
     phase,
     isReplaying,
     boardLoaded,
@@ -1373,8 +1378,23 @@ export function TutorSessionShell({
     rewindActive,
     rewindSegmentText,
     playerView: lecturePlayer.view,
+    voiceDegraded,
   });
   const captionShowing = caption.visible && caption.text.length > 0;
+  // Once a sentence has been taught silently, keep the docked caption space
+  // for the rest of this board: the voice coming back, going idle and the
+  // next turn must not refit the board, so a failure costs one refit at most.
+  // The shell is not remounted for a new board, so the reservation is keyed by
+  // board id and a new board starts unreserved.
+  const [silentCaptionBoard, setSilentCaptionBoard] = useState<string | null>(null);
+  if (caption.notice && silentCaptionBoard !== sessionId) setSilentCaptionBoard(sessionId);
+  const silentCaptionShown = silentCaptionBoard === sessionId;
+  // A new sentence opens at its first word, whatever the last one was scrolled to.
+  const captionRegionRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const region = captionRegionRef.current;
+    if (region) region.scrollTop = 0;
+  }, [caption.text]);
   const showDockedPlayer =
     (dockLecturePlayer ||
       compactBoardChrome ||
@@ -1709,6 +1729,20 @@ export function TutorSessionShell({
     return () => onExportApi?.(null);
   }, [onExportApi]);
 
+  const audioRecovery = speechRecoveryStatus(speechStartupStatus, {
+    phase,
+    // Phase/status state drive renders; this identity check only rejects a stale callback.
+    // eslint-disable-next-line react-hooks/refs
+    turnGeneration: turnGenerationRef.current,
+    muted: mutePlayback || !settings.narrationEnabled,
+    rewindActive,
+    isReplaying,
+  });
+  const showPendingOrRecovery = !rewindActive && (waitingToTeach || audioRecovery !== null);
+  // A phone board scrolls inside its pane. A held beat's recovery card must
+  // stay in the visible pane, not at the corner of the scrolled board.
+  const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
+
   if (isHeadless) {
     return (
       <div
@@ -1732,11 +1766,14 @@ export function TutorSessionShell({
           pencilThickness={settings.pencilThickness}
           markerStunts={settings.markerStunts}
         />
-        {waitingToTeach && (
+        {showPendingOrRecovery && (
           <ThinkingOverlay
             ink={pendingInk}
             paused={isPaused}
             onResume={resumeTurn}
+            onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+            preserveBoard={!waitingToTeach}
+            muted={mutePlayback || !settings.narrationEnabled}
             onBoardAt={
               liveTurnKind === "lesson"
                 ? null
@@ -2136,7 +2173,7 @@ export function TutorSessionShell({
 
             <div
               className={`wb-stage flex min-h-0 flex-col items-center ${scrollBoard ? "w-full min-w-0" : showDockedPlayer ? "w-full" : ""} ${
-                boardCovered ? "pointer-events-none invisible absolute" : ""
+                boardCovered ? "pointer-events-none invisible absolute" : recoveryOutsideBoard ? "relative" : ""
               }`}
               aria-hidden={boardCovered || undefined}
               style={{
@@ -2260,16 +2297,14 @@ export function TutorSessionShell({
 
                     {/* A rewound lecture is the past: don't cover the board they
                 are actually watching with the pending clicker. */}
-                    {waitingToTeach && !rewindActive && (
+                    {showPendingOrRecovery && !recoveryOutsideBoard && (
                       <ThinkingOverlay
                         ink={pendingInk}
                         paused={isPaused}
                         onResume={resumeTurn}
-                        onEnableAudio={
-                  !isPaused && !mutePlayback
-                    ? speechStartupStatus?.enableAudio
-                    : null
-                }
+                        onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                        preserveBoard={!waitingToTeach}
+                        muted={mutePlayback || !settings.narrationEnabled}
                         onBoardAt={
                           liveTurnKind === "lesson"
                             ? null
@@ -2286,6 +2321,7 @@ export function TutorSessionShell({
                       settings={settings}
                       phase={phase}
                       currentSegmentText={currentSegmentText}
+                      voiceDegraded={voiceDegraded}
                       lastError={scrollBoard ? null : lastError}
                       saveFailure={
                         can.appChrome &&
@@ -2343,6 +2379,19 @@ export function TutorSessionShell({
                 </div>
               </div>
 
+              {recoveryOutsideBoard && (
+                <ThinkingOverlay
+                  ink={pendingInk}
+                  paused={isPaused}
+                  onResume={resumeTurn}
+                  onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                  preserveBoard={!waitingToTeach}
+                  muted={mutePlayback || !settings.narrationEnabled}
+                  onBoardAt={null}
+                  scale={boardViewport.scale}
+                />
+              )}
+
               <div
                 className="wb-deck relative shrink-0"
                 data-board-deck
@@ -2350,8 +2399,9 @@ export function TutorSessionShell({
               >
                 {/* Keep enabled captions' space throughout the session so
                     silent cues, Stop and End do not refit the paper. */}
-                {dockCaption && (settings.subtitlesEnabled || codeLessonActive) ? (
+                {dockCaption && (settings.subtitlesEnabled || codeLessonActive || silentCaptionShown || caption.notice) ? (
                   <div
+                    ref={captionRegionRef}
                     role="region"
                     aria-label="Current narration"
                     aria-hidden={!captionShowing || undefined}
@@ -2367,7 +2417,7 @@ export function TutorSessionShell({
                     }}
                     className="h-20 w-full overflow-y-auto overscroll-contain"
                   >
-                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" />
+                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" notice={caption.notice} />
                   </div>
                 ) : null}
                 {showDockedPlayer ? (
