@@ -54,6 +54,8 @@ export interface SessionBoardCanvasProps {
   showPlayerBar?: boolean;
   /** A phone's caption is docked outside the paper by its shell. */
   showCaption?: boolean;
+  /** A sentence is being taught without its voice: its words show regardless of subtitles. */
+  voiceDegraded?: boolean;
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
@@ -103,6 +105,7 @@ export function SessionBoardCanvas({
   playerActivityRef,
   showPlayerBar = true,
   showCaption = true,
+  voiceDegraded = false,
   verifiedDiagram,
   codeLessonPanel,
   codeLessonController,
@@ -126,6 +129,7 @@ export function SessionBoardCanvas({
     rewindActive,
     rewindSegmentText,
     playerView,
+    voiceDegraded,
   });
   const idle = phase === "idle" && !isReplaying && !rewindActive && !playerActive;
   const markingArmed = Boolean(marking?.armed);
@@ -335,6 +339,7 @@ export function SessionBoardCanvas({
           <ResponseBubble
             text={caption.text}
             visible={caption.visible}
+            notice={caption.notice}
           />
         ))}
 
