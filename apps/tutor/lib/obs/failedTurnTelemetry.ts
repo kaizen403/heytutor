@@ -18,6 +18,10 @@ export const FAILED_TURN_CODES = [
 ] as const;
 export const FAILED_TURN_ISSUE_CODES = [
   ...FAILED_TURN_CODES,
+  // Not a failure: both voices failed and the lesson still taught every
+  // sentence with its ink. Kept out of FAILED_TURN_CODES and the confirmed
+  // failure list on purpose, so it never fails the turn or opens an issue.
+  "teaching_voice_degraded",
   // #172 drop codes, saved after valid_candidate_dropped.
   "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id", "duplicate_quantity_id",
@@ -90,6 +94,18 @@ export function sceneRequestFailureTelemetry(outcome: {
         : !outcome.bodyParsed && outcome.httpStatus === null && outcome.errorPresent ? "transport_error"
           : !outcome.bodyParsed ? "scene_planner_invalid" : undefined;
   return code ? { stage: "scene_planner", code } : undefined;
+}
+
+export const TEACHING_VOICE_DEGRADED = "teaching_voice_degraded" as const;
+
+/**
+ * Note a lesson that taught at least one sentence without its voice. It goes
+ * first in `issueCodes` so the 32 code cap cannot drop it, and it never
+ * touches `failed`, `stage` or `code`: a voice degraded lesson is taught.
+ */
+export function withTeachingVoiceDegraded(telemetry: FailedTurnTelemetry | undefined): FailedTurnTelemetry {
+  const issueCodes = (telemetry?.issueCodes ?? []).filter((code) => code !== TEACHING_VOICE_DEGRADED);
+  return { ...telemetry, subject: telemetry?.subject ?? "other", issueCodes: [TEACHING_VOICE_DEGRADED, ...issueCodes] };
 }
 
 /** Client diagnostics cross the persistence boundary through enums/counts only. */

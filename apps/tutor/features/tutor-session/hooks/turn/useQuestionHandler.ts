@@ -310,6 +310,7 @@ export function useQuestionHandler(
     onComplete,
     onError,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   } = params;
 
   const emitError = useCallback((error: { message: string; question: string; billing?: BillingFailure }) => {
@@ -434,6 +435,7 @@ export function useQuestionHandler(
       const terminal = turnTerminalRecordFor(saveExit);
       markTurnStarted(terminal, turnGeneration);
       onSpeechStartupStatus?.(null);
+      onVoiceDegraded?.(false);
       cancelRef.current = false;
       isPausedRef.current = false;
       setIsPaused(false);
@@ -2892,6 +2894,7 @@ export function useQuestionHandler(
       emitError,
       onComplete,
       onSpeechStartupStatus,
+      onVoiceDegraded,
       turnActiveRef,
       turnGenerationRef,
       turnAbortRef,
