@@ -20,6 +20,8 @@ export interface PreparedVerifiedSegments {
   segments: TutorSegment[];
   blockedCommandCount: number;
   droppedSegmentCount: number;
+  /** Write-less FOCUS segments folded into the run they continue. */
+  foldedFocusSegmentCount: number;
 }
 
 function cleanMarkerActionNarration(narration: string): string {
@@ -224,7 +226,138 @@ export function prepareVerifiedLessonSegments(
     });
   }
 
-  return { segments: prepared, blockedCommandCount, droppedSegmentCount };
+  const folded = foldWritelessFocusRuns(prepared, diagram);
+  return {
+    segments: folded.segments,
+    blockedCommandCount,
+    droppedSegmentCount,
+    foldedFocusSegmentCount: folded.foldedFocusSegmentCount,
+  };
+}
+
+/**
+ * A teaching segment that points at the figure and writes nothing. Openings,
+ * figure intros and scene text are runtime beats, never folded.
+ */
+function isWritelessFocusSegment(segment: TutorSegment): boolean {
+  if (segment.verifiedDiagramIntro || segment.sceneText || segment.delivery !== undefined) return false;
+  const commands = getSegmentCommands(segment);
+  return commands.some((command) => command.type === "FOCUS") &&
+    !commands.some((command) => command.type === "WRITE" || command.type === "TYPE");
+}
+
+function isNarrationOnlySegment(segment: TutorSegment): boolean {
+  return getSegmentCommands(segment).length === 0 && !segment.verifiedDiagramIntro &&
+    !segment.sceneText && segment.delivery === undefined;
+}
+
+/**
+ * Speak a run of write-less segments as one.
+ *
+ * Narrations join in spoken order. Commands keep their own `charPosition`
+ * (an index into the whole response, not into a segment) and their own
+ * `narrationBefore` (the words since the previous tag), so each cue still
+ * names the same words. A FOCUS repeated on one target is kept once, at its
+ * first mention: the schedule anchors a FOCUS on the earliest time its name
+ * is spoken, so a second copy would only trace the same words again.
+ */
+function mergeWritelessRun(run: readonly TutorSegment[]): TutorSegment {
+  const narration = run.map((segment) => segment.narration.trim()).filter(Boolean).join(" ");
+  const seenFocus = new Set<string>();
+  const commands = run.flatMap(getSegmentCommands).filter((command) => {
+    if (command.type !== "FOCUS") return true;
+    const key = (command.text ?? command.semanticRef?.entityId ?? "").trim().toLowerCase();
+    if (!key) return true;
+    if (seenFocus.has(key)) return false;
+    seenFocus.add(key);
+    return true;
+  });
+  return { ...run[0]!, narration, command: commands[0] ?? null, commands };
+}
+
+/**
+ * The most words one folded run speaks as a single request. A run is
+ * released as its own segment once the next step would cross it, and a new
+ * run starts with that step. The recorded runs it was built for are 247 to
+ * 398 characters (v1 to v3 lessons), so they still fold whole; a long run
+ * pays one voice start per cap instead of one per step, and no request
+ * nears a provider's text limit (Sarvam takes 2,500 characters) or waits on
+ * the whole response before it is spoken.
+ */
+export const MAX_FOLDED_RUN_CHARS = 600;
+
+/**
+ * Streaming form of `foldWritelessFocusRuns`: push prepared segments in
+ * order, emit what `push` returns, and `flush` once the response ends. A
+ * write-less FOCUS segment is held until the next segment shows whether a
+ * run follows, or until the run reaches `MAX_FOLDED_RUN_CHARS`.
+ */
+export function createWritelessFocusFolder(diagram: VerifiedDiagram | null): {
+  push: (segment: TutorSegment) => TutorSegment[];
+  flush: () => TutorSegment[];
+  foldedFocusSegmentCount: () => number;
+} {
+  // A code lesson's FOCUS advances its worked example; it is not a gesture.
+  const enabled = diagram?.layout !== "code_lesson";
+  let held: TutorSegment[] = [];
+  let heldFocus = 0;
+  let heldChars = 0;
+  let folded = 0;
+  const release = (): TutorSegment[] => {
+    const run = held;
+    const focusCount = heldFocus;
+    held = [];
+    heldFocus = 0;
+    heldChars = 0;
+    if (focusCount < 2) return run;
+    folded += focusCount - 1;
+    return [mergeWritelessRun(run)];
+  };
+  const hold = (segment: TutorSegment, focus: boolean): TutorSegment[] => {
+    const words = segment.narration.trim().length;
+    // Joined with one space, as `mergeWritelessRun` joins them.
+    const joined = heldChars === 0 ? words : heldChars + (words > 0 ? 1 + words : 0);
+    const out = held.length > 0 && joined > MAX_FOLDED_RUN_CHARS ? release() : [];
+    // A spoken tail cut off by the cap is spoken on its own, never opens a run.
+    if (!focus && held.length === 0) return [...out, segment];
+    held.push(segment);
+    if (focus) heldFocus += 1;
+    if (words > 0) heldChars = heldChars === 0 ? words : heldChars + 1 + words;
+    return out;
+  };
+  return {
+    push: (segment) => {
+      if (!enabled) return [segment];
+      if (isWritelessFocusSegment(segment)) return hold(segment, true);
+      // A sentence's spoken tail stays with the words before it.
+      if (isNarrationOnlySegment(segment) && held.length > 0) return hold(segment, false);
+      return [...release(), segment];
+    },
+    flush: release,
+    foldedFocusSegmentCount: () => folded,
+  };
+}
+
+/**
+ * The teaching prompt allows one write-less FOCUS step in a row; the model
+ * still sends runs of them (v3 p3e2-t1 had three, p2e1-t1 two), and each
+ * one is its own segment with its own voice start. A run is spoken as one
+ * segment: the marker still reaches every part on its own words, and the
+ * board never waits through a chain of separately started pointing beats.
+ *
+ * The run is not folded into the WRITE after it. A row's cue is matched
+ * from the start of its segment's words, and pointing steps name the very
+ * quantities the next row writes ("v_air ... v_wind ... v_ground", then
+ * v_ground = v_air + v_wind), so the row would start on the pointing words.
+ */
+export function foldWritelessFocusRuns(
+  segments: readonly TutorSegment[],
+  diagram: VerifiedDiagram | null,
+): { segments: TutorSegment[]; foldedFocusSegmentCount: number } {
+  const folder = createWritelessFocusFolder(diagram);
+  const out = segments.flatMap((segment) => folder.push(segment));
+  out.push(...folder.flush());
+  return { segments: out, foldedFocusSegmentCount: folder.foldedFocusSegmentCount() };
 }
 
 /**

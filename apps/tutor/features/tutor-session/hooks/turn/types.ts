@@ -235,7 +235,10 @@ export type UseTurnLifecycleParams = {
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   beginBoardEpoch: () => Promise<void>;
-  reserveTextCommandPlacements: (command: DrawCommand) => Promise<DrawCommand[]>;
+  reserveTextCommandPlacements: (
+    command: DrawCommand,
+    options?: { isCancelled?: () => boolean },
+  ) => Promise<DrawCommand[]>;
   persistTurnForReplay: (
     question: string,
     rawResponse: string,

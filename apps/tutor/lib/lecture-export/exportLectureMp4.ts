@@ -58,6 +58,25 @@ const LECTURE_EXPORT_WIDTH = 1200;
 const LECTURE_EXPORT_HEIGHT = 700;
 /** Main thread work between yields while a lesson is live on the main board. */
 const LECTURE_EXPORT_YIELD_MS = 12;
+/**
+ * The settled board stays on screen this long after the later of the last
+ * word and the last mark. v3 p1e2's file ended 3.5 s before its audio with
+ * the pen mid-glyph; a lecture should end on its finished page.
+ */
+export const LECTURE_EXPORT_END_HOLD_MS = 2_000;
+
+/**
+ * Frames in the finished file: every encoded frame, the whole audio, and
+ * the end hold after both.
+ */
+export function lectureExportEndFrames(
+  encodedFrames: number,
+  audioFileMs: number,
+  frameMs = LECTURE_EXPORT_FRAME_MS,
+): number {
+  const settledMs = Math.max(encodedFrames * frameMs, audioFileMs);
+  return Math.max(encodedFrames, Math.ceil((settledMs + LECTURE_EXPORT_END_HOLD_MS) / frameMs - 1e-9));
+}
 
 export type LectureExportProgress = {
   currentMs: number;
@@ -465,8 +484,11 @@ export async function exportLectureMp4(options: {
       if (options.shouldCancel()) await cancelEncode();
       if (await encodeFrame(encodedFrames, options.clock.now())) encodedFrames += 1;
     }
-    await flushHold(encodedFrames);
-    encodedFileMs = Math.max(fileTotalMs, encodedFrames * LECTURE_EXPORT_FRAME_MS);
+    // End on the finished page: hold it past the later of the last word and
+    // the last mark.
+    const endFrames = lectureExportEndFrames(encodedFrames, fileTotalMs);
+    await flushHold(endFrames);
+    encodedFileMs = Math.max(fileTotalMs, endFrames * LECTURE_EXPORT_FRAME_MS);
 
     options.onProgress?.({
       currentMs: encodedFileMs,
