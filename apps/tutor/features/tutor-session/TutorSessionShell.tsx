@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -365,6 +366,8 @@ export function TutorSessionShell({
   const [isPaused, setIsPaused] = useState(false);
   const isPausedRef = useRef(false);
   const [speechStartupStatus, setSpeechStartupStatus] = useState<SpeechStartupStatus | null>(null);
+  // A sentence taught without its voice forces its caption and a notice.
+  const [voiceDegraded, setVoiceDegraded] = useState(false);
   const [narrationText, setNarrationText] = useState("");
   const [currentSegmentText, setCurrentSegmentText] = useState("");
   const [lastError, setLastError] = useState<TutorSessionError | null>(null);
@@ -967,6 +970,7 @@ export function TutorSessionShell({
     onComplete,
     onError,
     onSpeechStartupStatus: setSpeechStartupStatus,
+    onVoiceDegraded: setVoiceDegraded,
     phase,
     isReplaying,
     boardLoaded,
@@ -1374,8 +1378,23 @@ export function TutorSessionShell({
     rewindActive,
     rewindSegmentText,
     playerView: lecturePlayer.view,
+    voiceDegraded,
   });
   const captionShowing = caption.visible && caption.text.length > 0;
+  // Once a sentence has been taught silently, keep the docked caption space
+  // for the rest of this board: the voice coming back, going idle and the
+  // next turn must not refit the board, so a failure costs one refit at most.
+  // The shell is not remounted for a new board, so the reservation is keyed by
+  // board id and a new board starts unreserved.
+  const [silentCaptionBoard, setSilentCaptionBoard] = useState<string | null>(null);
+  if (caption.notice && silentCaptionBoard !== sessionId) setSilentCaptionBoard(sessionId);
+  const silentCaptionShown = silentCaptionBoard === sessionId;
+  // A new sentence opens at its first word, whatever the last one was scrolled to.
+  const captionRegionRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const region = captionRegionRef.current;
+    if (region) region.scrollTop = 0;
+  }, [caption.text]);
   const showDockedPlayer =
     (dockLecturePlayer ||
       compactBoardChrome ||
@@ -2302,6 +2321,7 @@ export function TutorSessionShell({
                       settings={settings}
                       phase={phase}
                       currentSegmentText={currentSegmentText}
+                      voiceDegraded={voiceDegraded}
                       lastError={scrollBoard ? null : lastError}
                       saveFailure={
                         can.appChrome &&
@@ -2379,8 +2399,9 @@ export function TutorSessionShell({
               >
                 {/* Keep enabled captions' space throughout the session so
                     silent cues, Stop and End do not refit the paper. */}
-                {dockCaption && (settings.subtitlesEnabled || codeLessonActive) ? (
+                {dockCaption && (settings.subtitlesEnabled || codeLessonActive || silentCaptionShown || caption.notice) ? (
                   <div
+                    ref={captionRegionRef}
                     role="region"
                     aria-label="Current narration"
                     aria-hidden={!captionShowing || undefined}
@@ -2396,7 +2417,7 @@ export function TutorSessionShell({
                     }}
                     className="h-20 w-full overflow-y-auto overscroll-contain"
                   >
-                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" />
+                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" notice={caption.notice} />
                   </div>
                 ) : null}
                 {showDockedPlayer ? (
