@@ -14,6 +14,7 @@ import { elementBySymbol, isMetal, valenceElectrons, type ElementRecord } from "
 import { electronConfiguration } from "./electronConfiguration";
 import { parseFormula, formulaTokens } from "./formula";
 import { ChemScene, chemStem, type Vec2 } from "./sceneKit";
+import { stemChargesRead } from "./speciesChargeGuard";
 
 const VSEPR_FAMILY = "chem_vsepr";
 const LEWIS_FAMILY = "chem_lewis";
@@ -723,6 +724,8 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   }
   const heavy = /\bhf\b|hydrogen fluoride/.test(stem) ? "F" : /\bammonia\b|\bnh3\b/.test(stem) ? "N" : /\bwater\b|\bh2o\b/.test(stem) ? "O" : null;
   if (heavy && HBD_HEAVY.has(heavy)) {
+    // HF 2 -, NH4 +, "the ... ion": the neutral molecules drawn are not the ion asked.
+    if (!stemChargesRead(question, [heavy === "F" ? "HF" : heavy === "N" ? "NH3" : "H2O"])) return null;
     const ids: string[] = [];
     ids.push(c.atom("a_x", heavy, { x: 0, y: 0.2 }, { role: `${heavy} donor atom` }));
     ids.push(c.atom("a_h", "H", { x: 1.05, y: -0.25 }, { role: "donor hydrogen" }));

@@ -33,6 +33,7 @@ import {
   type ElementRecord,
 } from "./elements";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
+import { stemChargesRead } from "./speciesChargeGuard";
 
 export const PERIODIC_FAMILY = "chem_periodic" as const;
 
@@ -727,12 +728,16 @@ export function buildPeriodicTrendScene(
   try {
     if (POSITION_CUE.test(stem)) {
       const element = readPositionElement(question, stem);
-      if (element) return positionFigure(question, element);
+      // A charge the stem writes on the element (Na +) is not the neutral atom placed.
+      if (element) return stemChargesRead(question, [element.symbol]) ? positionFigure(question, element) : null;
       // A position stem with no element falls through to a trend only if one is asked.
     }
     if (!PROPERTY_CUE.test(stem)) return null;
     const request = readTrend(question, stem);
     if (!request) return null;
+    // Every charge the stem writes must be on a plotted point: "ionic radius
+    // of Na +, Mg 2+" read as atoms would plot atomic radii.
+    if (!stemChargesRead(question, request.points.map((point) => point.label))) return null;
     return trendGraph(question, request);
   } catch {
     return null;
