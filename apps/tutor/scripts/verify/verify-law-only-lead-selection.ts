@@ -7,7 +7,7 @@
  * Strict, which prefers the planner, keeps its behaviour. Synthetic text.
  */
 import assert from "node:assert/strict";
-import { FIGURE_SOURCES, lawOnlyArchetypeLead, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { lawOnlyArchetypeLead, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
 const question = "A small air bubble sits inside a glass sphere of radius 5 cm, 3 cm from its surface. Where does it appear when viewed from outside?";
@@ -31,8 +31,8 @@ const candidate: SceneDocument = {
   revealGroups: [{ id: "setup", entityIds: ["a", "b", "ab"], dependsOn: [], narrationCue: "Draw AB." }],
   teachingTimeline: [{ id: "reveal", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Draw AB." }],
 };
-const select = (preferPlanner: boolean) => selectProductionScene({
-  question, turnPlan, problemIR: null, candidate: candidate as unknown as Record<string, unknown>, requiredRetryEnabled: true,
+const select = (preferPlanner: boolean, requiredRetryEnabled = true) => selectProductionScene({
+  question, turnPlan, problemIR: null, candidate: candidate as unknown as Record<string, unknown>, requiredRetryEnabled,
   ...(preferPlanner ? { policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "linear_source", "text_only"] } } : {}),
 } as Parameters<typeof selectProductionScene>[0]);
 
@@ -41,7 +41,14 @@ assert.equal(current.representation, null, "the current lane draws nothing for a
 assert.equal(current.visualStatus, "retry_required", "a required figure that declines still reports as required");
 assert.equal(current.droppedCandidate?.code, "law_only_archetype_lead", "the dropped planner candidate names why");
 
+// The decline honours the retry flag the way the normal path does: with
+// required retry switched off it reports text only, not retry_required.
+const retryOff = select(false, false);
+assert.equal(retryOff.representation, null, "retry off still draws nothing for a law only lead");
+assert.equal(retryOff.droppedCandidate?.code, "law_only_archetype_lead", "retry off still names the drop");
+assert.equal(retryOff.visualStatus, "text_only", "with required retry disabled the decline reports text_only");
+
 const strict = select(true);
 assert.notEqual(strict.reason, current.reason, "strict does not take the current lane decline");
 
-console.log("law only lead selection: current lane draws nothing and names the drop; strict keeps its own path");
+console.log("law only lead selection: current lane draws nothing, names the drop and honours the retry flag; strict keeps its own path");

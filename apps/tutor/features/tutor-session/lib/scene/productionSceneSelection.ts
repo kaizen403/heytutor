@@ -676,8 +676,11 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     // Strict, which prefers the planner, is unchanged.
     if (!input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null })) {
       const reason = "the stem matched an archetype only through its plan's laws";
-      return empty(reason,
-        turnPlan.visualRequirement === "required" || questionRequiresVisual(question) ? "retry_required" : "text_only",
+      const leadStatus = resolveDiagramFailureStatus({
+        visualRequirement: questionRequiresVisual(question) ? "required" : turnPlan.visualRequirement,
+        requiredRetryEnabled: input.requiredRetryEnabled ?? true,
+      });
+      return empty(reason, leadStatus === "retry_required" ? "retry_required" : "text_only",
         validScene(candidateValidation) ? { code: "law_only_archetype_lead", reason, preferred: false, replacedBy: null } : null);
     }
     const value = validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
