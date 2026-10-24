@@ -4,7 +4,10 @@
  *
  *   table      the blind-judge rows (BF3 120°, PCl5 90°, CO2 180°, SF6 90°)
  *              and neighbours, on shape-only stems, carry the source angle
- *              and its claim kind; XeF2 (no in-plane pair) carries none
+ *              and its claim kind; XeF2 (no in-plane pair) carries none.
+ *              An honest arc carries the bare value; NH3 (plain to wedge,
+ *              sector holding the dashed H) and SF4 (wedge to dash) write it
+ *              as a caption naming the atoms instead (C5, 24 Oct)
  *   sweep      every drawn species in VSEPR_PROBES with a single true angle
  *              carries exactly that label, and no other degree label appears
  *   authority  the drawn angle is certified from the regenerated graph with
@@ -22,7 +25,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
 type Build = typeof buildVseprFigure;
-interface Row { id: string; question: string; angle: string | null; claim?: "ideal" | "quoted" | "inequality" }
+interface Row { id: string; question: string; angle: string | null; text?: string; claim?: "ideal" | "quoted" | "inequality" }
 
 const TABLE: Row[] = [
   { id: "bf3-hybridisation", question: "hybridisation of BF3", angle: "120°", claim: "ideal" },
@@ -30,9 +33,9 @@ const TABLE: Row[] = [
   { id: "co2-linear", question: "why is CO2 linear", angle: "180°", claim: "ideal" },
   { id: "sf6-shape", question: "shape of SF6", angle: "90°", claim: "ideal" },
   { id: "ch4-shape", question: "What is the shape of CH4?", angle: "109.5°", claim: "ideal" },
-  { id: "nh3-shape", question: "What is the shape of NH3?", angle: "107°", claim: "quoted" },
+  { id: "nh3-shape", question: "What is the shape of NH3?", angle: "107°", text: "H-N-H = 107°", claim: "quoted" },
   { id: "h2o-shape", question: "What is the shape of H2O?", angle: "104.5°", claim: "quoted" },
-  { id: "sf4-shape", question: "What is the shape of SF4?", angle: "<120°", claim: "inequality" },
+  { id: "sf4-shape", question: "What is the shape of SF4?", angle: "<120°", text: "eq. F-S-F <120°", claim: "inequality" },
   { id: "xef2-shape", question: "What is the shape of XeF2?", angle: null },
 ];
 
@@ -40,6 +43,9 @@ function labels(document: SceneDocument): string[] {
   return document.entities.flatMap((entity) => entity.label ? [entity.label] : []);
 }
 const degrees = (document: SceneDocument) => labels(document).filter((label) => /°/.test(label));
+/** The value a degree label shows: "107°" on an arc, the tail of "H-N-H = 107°". */
+const valueOf = (label: string) => /(?:^|\s)([<>]?\d+(?:\.\d+)?°)$/.exec(label)?.[1] ?? label;
+const shown = (row: Row) => row.text ?? row.angle!;
 
 function tableRed(build: Build): string[] {
   return TABLE.filter((row) => {
@@ -49,7 +55,7 @@ function tableRed(build: Build): string[] {
     const claims = labels(figure.document).filter((label) => /^(?:ideal|quoted|inequality)$/.test(label));
     return row.angle === null
       ? drawn.length > 0 || claims.length > 0
-      : drawn.length !== 1 || drawn[0] !== row.angle || claims.length !== 1 || claims[0] !== row.claim;
+      : drawn.length !== 1 || drawn[0] !== shown(row) || claims.length !== 1 || claims[0] !== row.claim;
   }).map((row) => `table/${row.id}`);
 }
 
@@ -58,7 +64,7 @@ function sweepRed(build: Build): string[] {
     const figure = build(probe.question, [], false);
     if (!figure) return false;
     const expected = vseprSpecies(probe.question).map(characteristicAngle).filter((angle): angle is string => angle !== null);
-    return JSON.stringify([...degrees(figure.document)].sort()) !== JSON.stringify([...expected].sort());
+    return JSON.stringify(degrees(figure.document).map(valueOf).sort()) !== JSON.stringify([...expected].sort());
   }).map((probe) => `sweep/${probe.question}`);
 }
 
@@ -86,10 +92,10 @@ for (const row of TABLE.filter((entry) => entry.angle !== null)) {
     // The document the family loop hands to selection, as the tutor gate does.
     const scene = synthesizeFamilyScene({ question: row.question, turnPlan: plan(row.question) });
     assert.equal(scene?.family, "chem_vsepr");
-    assert.ok(degrees(scene.document).includes(row.angle!), "the family scene keeps the angle");
+    assert.ok(degrees(scene.document).includes(shown(row)), "the family scene keeps the angle");
     const certificate = certifyVseprSourceDocument(scene.document, row.question, plan(row.question));
     assert.equal(certificate.status, "certified");
-    assert.ok(certificate.status === "certified" && certificate.texts.includes(row.angle!), "the drawn angle is a certified text");
+    assert.ok(certificate.status === "certified" && certificate.texts.includes(shown(row)), "the drawn angle is a certified text");
   });
 }
 await check("authority/plan-angle-checked", () => {
