@@ -96,7 +96,7 @@ const CHARGED_BEFORE = new RegExp(String.raw`(?i:\b(negative|positive)ly\s+charg
 
 /** with a negative charge, carrying a positive charge, with charge -1, has a charge of 2-, with a net charge of +1. */
 const CHARGE_PHRASE = new RegExp(
-  String.raw`\b(?:with|carrying|having|bearing|has|have)\s+(?:(?:an?|one|two|three|net|overall|total|single|double|unit)\s+)*`
+  String.raw`\b(?:with|carrying|having|bearing|has|have)\s+((?:(?:an?|one|two|three|four|net|overall|total|single|double|triple|unit)\s+)*)`
   + String.raw`(?:(negative|positive)\s+charges?\b|charges?\s+(?:of\s+)?\(?\s*(?:([+-])\s*(\d?)|(\d)\s*([+-]))(?![\d.]))`,
   "gi",
 );
@@ -154,15 +154,26 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
     const polarity = sign.toLowerCase() === "negative" ? -1 : 1;
     out.push({ formula: token, charge: null, polarity, text: whole });
   }
+  // A charge phrase belongs to the formula it is written with: the nearest
+  // one before it in the clause, else the first after. "MO diagram of N2-.
+  // Draw O2 with charge -1" asks for O2^-, which N2^- does not satisfy, and
+  // "O2- with a double negative charge" asks for O2^2-, not superoxide.
   for (const clause of clauses(text)) {
-    const hasSpecies = [...clause.text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}_])(${FORMULA_TOKEN})`, "gu"))].some((match) => isFormula(match[1]!));
-    if (!hasSpecies) continue;
+    const formulas = [...clause.text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}_\\])])(${FORMULA_TOKEN})`, "gu"))]
+      .filter((match) => isFormula(match[1]!))
+      .map((match) => ({ token: match[1]!, at: match.index ?? 0 }));
+    if (formulas.length === 0) continue;
     for (const match of clause.text.matchAll(CHARGE_PHRASE)) {
-      const [whole, word, leadSign, leadDigits, trailDigits, trailSign] = match as unknown as [string, string | undefined, string | undefined, string | undefined, string | undefined, string | undefined];
+      const [whole, modifiers, word, leadSign, leadDigits, trailDigits, trailSign] = match as unknown as [string, string, string | undefined, string | undefined, string | undefined, string | undefined, string | undefined];
+      const at = match.index ?? 0;
+      const owner = [...formulas].reverse().find((item) => item.at < at) ?? formulas.find((item) => item.at > at)!;
       const signText = word ? (word.toLowerCase() === "negative" ? "-" : "+") : (leadSign ?? trailSign)!;
       const polarity = signText === "-" ? -1 : 1;
+      const counted = modifiers.toLowerCase().split(/\s+/).map((item) => COUNT_WORDS[item] ?? (item === "unit" ? 1 : null)).find((item) => item != null) ?? null;
       const digits = leadDigits || trailDigits;
-      out.push({ formula: null, charge: digits ? polarity * Number(digits) : null, polarity, text: whole });
+      const magnitude = digits ? Number(digits) : counted;
+      // "with a charge of -2" and "two negative charges" give the size; "a negative charge" gives only the sign.
+      out.push({ formula: splitCharge(owner.token).body, charge: magnitude ? polarity * magnitude : null, polarity, text: whole });
     }
   }
   for (const match of text.matchAll(ROMAN_STATE)) {
@@ -184,25 +195,28 @@ function writtenChargeCarried(marker: WrittenCharge, species: readonly ReadCharg
   return key !== null && species.some((item) => item.key === key && Math.sign(item.charge) === marker.polarity && (marker.charge === null || item.charge === marker.charge));
 }
 
+/** A negator that governs a list of formulas: "No He+ or Li2+", "not NO2 -", "without Cu 2+ and Zn 2+". */
+const EXCLUDED_LIST = new RegExp(
+  String.raw`\b(?i:no|not|without|excluding|except|nor|neither)\s+(?:(?:the|any)\s+)?(?:(?:${FORMULA_TOKEN})[^\s,]*(?:\s+\d?[+-])?\s*(?:,|\bor\b|\band\b|\bnor\b)\s*)*$`,
+  "u",
+);
+
 /**
- * Which formula markers bear on the species read. A stem in one clause, or
- * one whose clauses never write a read species as a formula, is read whole:
- * every marker counts. Otherwise a formula marker counts only in a clause
- * that writes a read species ("No He+ or Li2+ participate; draw the Lewis
- * structure of H2O" draws H2O, while "shape of SO3? Compare SO3 2-" still
- * declines SO3). Word markers (ion, cation, anion) always count.
+ * Whether a formula marker bears on the species read. Only positive
+ * evidence that the stem excludes the charged formula sets it aside: a
+ * negator governing the list the marker stands in ("No He+ or Li2+
+ * participate; draw the Lewis structure of H2O" draws H2O, "the Lewis
+ * structure of NO2, not NO2 -" draws NO2). Every other marker counts,
+ * wherever it stands: a second clause that asks for or compares an ion
+ * ("2s orbital of He+. Compare with H.") still declines.
  */
-function relevantAt(folded: string, species: readonly ReadCharge[]): (marker: string, from: number) => { relevant: boolean; next: number } {
+function relevantAt(folded: string): (marker: string, from: number) => { relevant: boolean; next: number } {
   const parts = clauses(folded);
-  const readKeys = new Set(species.map((item) => item.key));
-  const writesRead = parts.map((part) => [...part.text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}_\\])])(${FORMULA_TOKEN})`, "gu"))]
-    .some((match) => { const read = speciesRead(match[1]!); return read !== null && readKeys.has(read.key); }));
-  const scoped = parts.length > 1 && writesRead.some(Boolean);
   return (marker, from) => {
     const at = folded.indexOf(marker, from);
-    if (!scoped || at < 0) return { relevant: true, next: at < 0 ? from : at + marker.length };
-    const index = parts.findIndex((part, i) => at >= part.at && (i === parts.length - 1 || at < parts[i + 1]!.at));
-    return { relevant: index < 0 || writesRead[index]!, next: at + marker.length };
+    if (at < 0) return { relevant: true, next: from };
+    const part = parts.find((item, i) => at >= item.at && (i === parts.length - 1 || at < parts[i + 1]!.at)) ?? { text: folded, at: 0 };
+    return { relevant: !EXCLUDED_LIST.test(folded.slice(part.at, at)), next: at + marker.length };
   };
 }
 
@@ -210,14 +224,14 @@ function relevantAt(folded: string, species: readonly ReadCharge[]): (marker: st
  * True when every charge the text writes (signs through the shared reader,
  * words and Roman numerals through readWrittenCharges) is carried by a
  * species the builder read. With no charge written this is true; with one
- * and no species it is false. See relevantAt for stems in several clauses.
+ * and no species it is false. See relevantAt for an excluded formula.
  */
 export function stemChargesRead(text: string, speciesFormulas: readonly string[]): boolean {
   const markers = readChargeMarkers(text);
   const written = readWrittenCharges(text);
   if (markers.length === 0 && written.length === 0) return true;
   const species = speciesFormulas.map(speciesRead).filter((item): item is ReadCharge => item !== null);
-  const relevant = relevantAt(fold(text), species);
+  const relevant = relevantAt(fold(text));
   let from = 0;
   const signsCarried = markers.every((marker) => {
     if (marker.formula === null) {

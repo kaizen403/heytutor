@@ -145,6 +145,10 @@ const DECLINE: readonly DeclineRow[] = [
   { id: "clauses-lewis-NO2-then-NO2-minus", question: "Draw the Lewis structure of NO2. Then draw it for NO2 -.", owners: ["chem_lewis"] },
   { id: "clauses-shape-SO3-compare-SO3-2minus", question: "What is the shape of SO3? Compare it with SO3 2-.", owners: ["chem_vsepr"] },
   { id: "clauses-mo-O2-compare-O2-minus", question: "MO diagram of O2; compare O2 minus", owners: ["chem_mo"], words: true },
+  // Review threads on #304: a phrase belongs to its own formula, a compared ion still counts, a counted phrase keeps its count.
+  { id: "thread-phrase-owner-O2-vs-N2-minus", question: "MO diagram of N2-. Draw O2 with charge -1.", owners: ["chem_mo"], words: true },
+  { id: "hydrogenic-thread-compared-He-plus", question: "Draw the radial probability distribution for the 2s orbital of He+. Compare with H.", owners: ["chem_orbital"] },
+  { id: "thread-double-negative-O2-minus", question: "MO diagram of O2- with a double negative charge", owners: ["chem_mo"], words: true },
   // Charges in words and Roman numerals (pr-284-delta, pr-286-delta): no sign for the shared reader.
   { id: "words-shape-SO3-two-minus", question: "shape of SO3 two minus", owners: ["chem_vsepr"], words: true },
   { id: "words-shape-SO3-minus-2", question: "shape of SO3 minus 2", owners: ["chem_vsepr"], words: true },
@@ -235,7 +239,14 @@ const ATTACHED: readonly AttachedRow[] = [
   { id: "roman-Cu-II-bracket", question: "electron configuration of Cu(II)", family: "chem_orbital", check: configurationCheck("Cu^(2+)", "Cu", 2, "[Ar] 3d^9") },
   { id: "roman-Fe-III-bracket", question: "electron configuration of Fe(III)", family: "chem_orbital", check: configurationCheck("Fe^(3+)", "Fe", 3, "[Ar] 3d^5") },
   { id: "roman-copper-II-name", question: "electron configuration of copper(II)", family: "chem_orbital", check: configurationCheck("Cu^(2+)", "Cu", 2, "[Ar] 3d^9") },
-  // A charge in a clause that names none of the read species does not bear on them.
+  // A negator governing the charged formula sets it aside; nothing else does.
+  {
+    id: "excluded-ion-not-NO2-minus", question: "Draw the Lewis structure of NO2, not NO2 -.", family: "chem_lewis", check: (shown) => {
+      assert.ok(shown.includes("NO_2: σ = 2, π = 1, lone pairs = 5"), "neutral NO2, the species asked");
+    },
+  },
+  { id: "phrase-carried-SO4", question: "shape of SO4^2- with a charge of 2-", family: "chem_vsepr", check: vseprCheck("SO4^2-", "S", { O: 4 }, -2, "tetrahedral") },
+  // An excluded ion in another clause does not bear on the species read.
   { id: "unrelated-clause-charge", question: "No He+ or Li2+ participate; draw the Lewis structure of H2O.", family: "chem_lewis", check: lewisCheck("H_2O", "H2O", 0) },
   {
     id: "periodic-ionic-radii", question: "Plot the ionic radii of Na+, Mg2+ and Al3+", family: "chem_periodic", check: (shown) => {
