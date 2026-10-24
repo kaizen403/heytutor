@@ -1074,7 +1074,9 @@ interface SpeciesInk {
 }
 type AngleMark =
   | { kind: "arc"; a: number; b: number; radius: number; value: Box; box: Box }
-  | { kind: "caption"; text: string };
+  | { kind: "caption"; text: string }
+  /** A row of species keeps main's mark: the layout's arc, its value placed by the label solver. */
+  | { kind: "row"; a: number; b: number; radius: number };
 
 const norm360 = (deg: number) => ((deg % 360) + 360) % 360;
 
@@ -1258,7 +1260,7 @@ function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[
   return text ? { kind: "caption", text } : null;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean): DrawnSpecies | null {
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean, row: boolean): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1327,8 +1329,21 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     symbols: [inkBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => inkBox(ligand.label, ligandAt[index]!, pxPerUnit))],
     symbolBoxes: [textBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => textBox(ligand.label, ligandAt[index]!, pxPerUnit))],
   };
-  const mark = characteristic ? angleMark(result, layout, seated, ink, characteristic, pxPerUnit) : null;
+  // Only a single molecule gets the arc and caption rules. A row of species
+  // keeps main's mark exactly, so a row main's label solver refuses is still
+  // refused, and no row draws where main would not.
+  const mark: AngleMark | null = !characteristic ? null
+    : row ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 }
+    : angleMark(result, layout, seated, ink, characteristic, pxPerUnit);
   const angleTextIds: string[] = [];
+  if (mark?.kind === "row") {
+    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[mark.a]!, ligandIds[mark.b]!, characteristic!, mark.radius));
+    // A linear molecule has no atom above its centre, but its semicircular
+    // angle mark occupies that space. Include the mark in the panel reach so
+    // the formula cannot be pinned on top of the angle's label anchor.
+    minY = Math.min(minY, origin.y - mark.radius);
+    maxY = Math.max(maxY, origin.y + mark.radius);
+  }
   if (mark?.kind === "arc") {
     detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[mark.a]!, ligandIds[mark.b]!, undefined, mark.radius));
     // The value is pinned where arcValueBox proved it clear, not left to the
@@ -1454,16 +1469,17 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     const scene = new ChemScene(question, reason, VSEPR_FAMILY);
     const items: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
     species.forEach((result, index) => {
-      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle);
+      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle, !single);
       if (item) items.push({ result, drawn: item });
     });
     return { scene, items };
   };
-  // The angle value is placed at the figure's own scale, which depends on the
-  // panels it sizes: draw, fit, and redraw until the fit stops shrinking.
+  // A single molecule's angle value is placed at the figure's own scale, which
+  // depends on the panels it sizes: draw, fit, and redraw until the fit stops
+  // shrinking. A row keeps main's mark, which needs no scale.
   let pxPerUnit = FIT_PX.height / 5;
   let pass = draw(pxPerUnit);
-  for (let round = 0; round < 3 && pass.items.length === species.length; round++) {
+  for (let round = 0; single && round < 3 && pass.items.length === species.length; round++) {
     const fitted = fitPxPerUnit(pass.items.map((item) => item.drawn.panel));
     if (fitted >= pxPerUnit * 0.99) break;
     pxPerUnit = fitted;

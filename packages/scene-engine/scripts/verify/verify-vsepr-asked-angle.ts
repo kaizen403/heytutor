@@ -7,20 +7,22 @@
  *              the #287 review stems that read a neutral formula for an ion:
  *              NO2 ⊖, SO3 in sulfites, the conjugate acid of NH3) draw their
  *              shape with no degree label and no claim kind, as on main
- *   asked      asked stems show main's value and claim kind per species, in
- *              the drawn form: a bare value at an honest arc, or a caption
- *              naming its atoms where no honest arc exists (NH3 plain to
- *              wedge: "H-N-H = 107°")
+ *   asked      asked stems show main's value and claim kind per species. A
+ *              single molecule draws it as a bare value at an honest arc, or
+ *              a caption naming its atoms where no honest arc exists (NH3
+ *              plain to wedge: "H-N-H = 107°"); a row of species keeps main's
+ *              mark (the arc carries the value), so a row main refuses stays
+ *              refused
  *   sweep      every VSEPR probe that draws shows exactly its species' source
  *              angles when its stem asks, and no degree label when it does not
  *   authority  an asked angle is certified from the regenerated graph with no
  *              planner scalar; a wrong planner angle still refuses
  *   pair       a steric number 5 or 6 caption names its pair (ax-eq, eq., cis);
  *              past the compact limit the atoms go and the pair words stay
- *              ("ax-eq 90°" for PCl5 in a four species row), so the asked
- *              value is never dropped; a bare value only sits at an arc that
- *              sweeps it
- *   mutation   an angle on every stem turns the unasked rows red; no angle
+ *              ("eq. <120°" for SCl4), so the asked value is never dropped; a
+ *              bare value only sits at an arc that sweeps it
+ *   mutation   rows drawn with the single molecule marks turn the row rows
+ *              red; an angle on every stem turns the unasked rows red; no angle
  *              turns the asked rows and the sweep red; a caption without its
  *              pair words turns the pair rows red; a long caption that drops
  *              its value turns the asked rows red; a build that draws nothing
@@ -64,14 +66,19 @@ const ASKED: Asked[] = [
   { question: "What is the bond angle in CH4?", species: [["109.5°", "ideal", "109.5°"]] },
   { question: "What is the bond angle in SF4?", species: [["<120°", "inequality", "eq. F-S-F <120°"]] },
   { question: "What is the bond angle in SCl4?", species: [["<120°", "inequality", "eq. <120°"]] },
+  { question: "What is the bond angle in SeCl4?", species: [["<120°", "inequality", "eq. <120°"]] },
+  { question: "What is the bond angle in TeCl4?", species: [["<120°", "inequality", "eq. <120°"]] },
   { question: "What is the bond angle in ClF3?", species: [["87.5°", "quoted", "87.5°"]] },
   { question: "What is the bond angle in BrF5?", species: [["<90°", "inequality", "<90°"]] },
   { question: "bond angle in NH4+ ion", species: [["109.5°", "ideal", "109.5°"]] },
-  { question: "Compare the bond angles of CH4, NH3 and H2O", species: [["109.5°", "ideal", "109.5°"], ["107°", "quoted", "H-N-H = 107°"], ["104.5°", "quoted", "H-O-H = 104.5°"]] },
-  { question: "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", species: [["90°", "ideal", "ax-eq 90°"], ["87.5°", "quoted", "ax-eq 87.5°"], ["<90°", "inequality", "cis F-Br-F <90°"], ["90°", "ideal", "cis F-Xe-F = 90°"]] },
-  { question: "Using VSEPR theory, predict the shape and the approximate bond angles of SF4, ClF3 and XeF2.", species: [["<120°", "inequality", "eq. F-S-F <120°"], ["87.5°", "quoted", "ax-eq 87.5°"]] },
-  { question: "bond angles in SCl4, SeCl4 and TeCl4", species: [["<120°", "inequality", "eq. <120°"], ["<120°", "inequality", "eq. <120°"], ["<120°", "inequality", "eq. <120°"]] },
+  // Rows keep main's mark: the arc entity carries the bare value.
+  { question: "Compare the bond angles of CH4, NH3 and H2O", species: [["109.5°", "ideal", "109.5°"], ["107°", "quoted", "107°"], ["104.5°", "quoted", "104.5°"]] },
+  { question: "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", species: [["90°", "ideal", "90°"], ["87.5°", "quoted", "87.5°"], ["<90°", "inequality", "<90°"], ["90°", "ideal", "90°"]] },
+  { question: "Using VSEPR theory, predict the shape and the approximate bond angles of SF4, ClF3 and XeF2.", species: [["<120°", "inequality", "<120°"], ["87.5°", "quoted", "87.5°"]] },
+  { question: "bond angles in SCl4, SeCl4 and TeCl4", species: [["<120°", "inequality", "<120°"], ["<120°", "inequality", "<120°"], ["<120°", "inequality", "<120°"]] },
 ];
+/** Rows main's label solver refuses: the family scene stays refused here too. */
+const ROWS_MAIN_REFUSES = ["Compare the bond angles of CH4, NH3 and H2O", "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4"];
 
 function labels(document: SceneDocument): string[] {
   return document.entities.flatMap((entity) => entity.label ? [entity.label] : []);
@@ -109,6 +116,16 @@ function askedRed(build: Build): string[] {
   }).map(({ question }) => `asked/${question}`);
 }
 
+/** Rows whose species do not all carry their value on the arc entity, as main does. */
+function rowsRed(build: Build): string[] {
+  return ASKED.filter((row) => row.species.length > 1).filter(({ question, species }) => {
+    const figure = build(question, [], false);
+    if (!figure) return true;
+    if (figure.document.entities.some((entity) => /_ang_(?:val|txt)$/.test(entity.id))) return true;
+    return species.some(([value], index) => figure.document.entities.find((entity) => entity.id === `m${index + 1}_ang`)?.label !== value);
+  }).map(({ question }) => `rows/${question}`);
+}
+
 function sweepRed(build: Build): string[] {
   return VSEPR_PROBES.filter((probe) => probe.expect === "draw").filter((probe) => {
     const figure = build(probe.question, [], false);
@@ -142,7 +159,7 @@ function plan(question: string, derived: TurnPlanQuantityV3[] = []): TurnPlanV3 
   return { schemaVersion: "turn-plan/v3", question, visualRequirement: "required", givens: [], derived, unknowns: [],
     qualitativeClaims: [], lawIds: ["VSEPR theory"], assumptions: [] };
 }
-for (const { question, species } of ASKED) {
+for (const { question, species } of ASKED.filter((row) => !ROWS_MAIN_REFUSES.includes(row.question))) {
   await check(`authority/${question}`, () => {
     // The document the family loop hands to selection, as the tutor gate does.
     const scene = synthesizeFamilyScene({ question, turnPlan: plan(question) });
@@ -154,6 +171,13 @@ for (const { question, species } of ASKED) {
     }
   });
 }
+await check("rows-main-refuses", () => {
+  for (const question of ROWS_MAIN_REFUSES) {
+    assert.ok(buildVseprFigure(question, [], false), `${question}: the builder draws`);
+    assert.equal(synthesizeFamilyScene({ question, turnPlan: plan(question) }), null, `${question}: no family scene, as on main`);
+  }
+});
+await check("rows-keep-main-mark", () => assert.deepEqual(rowsRed(buildVseprFigure), []));
 await check("authority/plan-angle-checked", () => {
   const question = "What is the bond angle in H2O?";
   const angle = (value: number): TurnPlanQuantityV3 => ({ id: "theta", symbol: "bond_angle_H2O", value, unit: "degree", sourceText: "bond angle in H2O", provenance: "derived" });
@@ -165,13 +189,9 @@ await check("authority/plan-angle-checked", () => {
   }
 });
 
-/** Asked stems holding steric number 5 and 6 shapes, single and in rows small enough that the value falls back to a caption. */
-const PAIR_STEMS = [
-  "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", "Compare the bond angles of PCl5 and SF4",
-  "Compare the bond angles of SF6, BrF5, XeF4 and PF5", "Compare the bond angles of ClF3, BrF3, SF4 and XeF2",
-  "Compare the bond angles of PCl5 and PF5", "bond angles in SCl4, SeCl4 and TeCl4",
-  ...["PCl5", "PF5", "SF4", "SCl4", "ClF3", "BrF3", "XeF2", "SF6", "BrF5", "IF5", "XeF4", "ICl4-"].map((formula) => `What is the bond angle in ${formula}?`),
-];
+/** Asked single molecule stems holding steric number 5 and 6 shapes (a row keeps main's arcs). */
+const PAIR_STEMS = ["PCl5", "PF5", "SF4", "SCl4", "SeCl4", "TeCl4", "ClF3", "BrF3", "XeF2", "SF6", "BrF5", "IF5", "XeF4", "XeOF4", "ICl4-"]
+  .flatMap((formula) => [`What is the bond angle in ${formula}?`, `bond angle of ${formula} and its shape`]);
 /** The words that name the marked pair, by steric number and lone pairs (an oracle apart from the layout's seats). */
 const PAIR_WORDS: Record<string, string> = { "5-0": "ax-eq ", "5-1": "eq. ", "5-2": "ax-eq ", "6-0": "cis ", "6-1": "cis ", "6-2": "cis " };
 
@@ -185,11 +205,11 @@ function pairRed(build: Build): string[] {
       .map((item) => [item.outputs[0]!, Number(item.inputs.endAngle) - Number(item.inputs.startAngle)] as const));
     for (const entity of figure.document.entities) {
       if (!entity.label || !/°/.test(entity.label)) continue;
-      const tag = /^(m\d+)_ang_(val|txt)$/.exec(entity.id);
+      const tag = /^(m\d+)_ang(?:_(val|txt))?$/.exec(entity.id);
       const result = tag ? species[Number(tag[1]!.slice(1)) - 1] : undefined;
       if (!tag || !result) { red.push(`pair/${question}: stray degree label ${entity.id} ${entity.label}`); continue; }
       if (result.stericNumber < 5) continue;
-      if (tag[2] === "val") {
+      if (tag[2] !== "txt") {
         // A bare value is honest only at an arc that sweeps it on the page.
         const sweep = arcs.get(`${tag[1]}_ang`);
         const value = Number(/\d+(?:\.\d+)?/.exec(entity.label)?.[0]);
@@ -204,7 +224,7 @@ function pairRed(build: Build): string[] {
 }
 await check("pair", () => assert.deepEqual(pairRed(buildVseprFigure), []));
 await check("pair/no-bare-pcl5-caption", () => {
-  const figure = buildVseprFigure(PAIR_STEMS[0]!, [], false);
+  const figure = buildVseprFigure("Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", [], false);
   assert.ok(figure);
   assert.ok(!labels(figure.document).some((label) => /^Cl-P-Cl\b/.test(label)), degrees(figure.document).join(", "));
 });
@@ -239,16 +259,21 @@ await check("mutation/no-angle", async () => {
 await check("mutation/caption-without-pair-words", async () => {
   const build = await mutant("pair", "  const prefix = anglePairQualifier(result.stericNumber, seated[a]!.slot.seat, seated[b]!.slot.seat);\n", "  const prefix = \"\";\n");
   const red = pairRed(build);
-  for (const question of [PAIR_STEMS[0]!, "What is the bond angle in SF4?", "bond angles in SCl4, SeCl4 and TeCl4"]) {
+  for (const question of ["What is the bond angle in SF4?", "What is the bond angle in SCl4?"]) {
     assert.ok(red.some((row) => row.startsWith(`pair/${question}:`)), `${question} goes red: ${red.join("; ")}`);
   }
 });
 await check("mutation/long-caption-drops-value", async () => {
   const build = await mutant("drop", "  return forms.find((form) => form.length <= 16) ?? `${prefix}${value}`;\n", "  return forms.find((form) => form.length <= 16) ?? null;\n");
   const red = askedRed(build);
-  for (const question of ["What is the bond angle in SCl4?", "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", "bond angles in SCl4, SeCl4 and TeCl4"]) {
+  for (const question of ["What is the bond angle in SCl4?", "What is the bond angle in SeCl4?", "What is the bond angle in TeCl4?"]) {
     assert.ok(red.includes(`asked/${question}`), `${question} goes red: ${red.join("; ")}`);
   }
+});
+await check("mutation/rows-take-single-marks", async () => {
+  // Rows drawn with the single molecule marks leave main's drawing: every row goes red.
+  const build = await mutant("rows", "`m${index + 1}`, pxPerUnit, withAngle, !single);", "`m${index + 1}`, pxPerUnit, withAngle, false);");
+  assert.deepEqual(rowsRed(build), ASKED.filter((row) => row.species.length > 1).map(({ question }) => `rows/${question}`));
 });
 // A build that draws nothing: a missing figure on a probe that expects a
 // drawing must turn every sweep row red, never pass it.

@@ -136,7 +136,7 @@ async function main(): Promise<void> {
   check(!admitted(exact.document, exact.question, staleAngles), "reassigned plan role cannot borrow another species' correct angle");
   const stripped = structuredClone(exact.document);
   delete stripped.source.chemistryFamily; delete stripped.source.archetype;
-  setLabel(stripped, "m1_ang_val", "90°"); setLabel(stripped, "m2_ang_val", "87.5°");
+  setLabel(stripped, "m1_ang", "90°"); setLabel(stripped, "m2_ang", "87.5°");
   check(!admitted(stripped, exact.question, exact.plan), "stripping both candidate tags cannot bypass species-bound angle ownership even with correct global plan scalars");
   const ordinaryPhysics = structuredClone(sample.document);
   const physicsQuestion = "Find the equivalent resistance of three 6 ohm resistors in parallel.";
@@ -158,8 +158,8 @@ async function main(): Promise<void> {
   check(!admitted(sameCentral.document, sameCentral.question, sameCentralStale), "reassigned same-central species target retains independent scalar checks");
 
   const graphMutations: Array<[string, (document: SceneDocument) => void]> = [
-    ["angle", (doc) => { setLabel(doc, "m1_ang_val", "88°"); }],
-    ["swapped angle owners", (doc) => { setLabel(doc, "m1_ang_val", "<90°"); setLabel(doc, "m2_ang_val", "87.5°"); }],
+    ["angle", (doc) => { setLabel(doc, "m1_ang", "88°"); }],
+    ["swapped angle owners", (doc) => { setLabel(doc, "m1_ang", "<90°"); setLabel(doc, "m2_ang", "87.5°"); }],
     ["species", (doc) => { setLabel(doc, "m1_title", "BrF_3"); }],
     ["source question", (doc) => { doc.source.question = "Compare the molecular shapes of BrF3 and BrF5."; }],
     ["central atom", (doc) => { setLabel(doc, "m1_A", "Br"); }],
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
   }
   for (let wrong = 80; wrong <= 95; wrong += 0.5) {
     if (wrong === 87.5) continue;
-    const altered = structuredClone(exact.document); setLabel(altered, "m1_ang_val", `${wrong}°`);
+    const altered = structuredClone(exact.document); setLabel(altered, "m1_ang", `${wrong}°`);
     check(!admitted(altered, exact.question, exact.plan), "altered angle labels never inherit a native source certificate");
   }
   check(!admitted(sample.document, "Compare the VSEPR shapes of BrF3 and BrF5.", facts), "a new actual question cannot inherit another source graph");
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
     const compiled = compileSceneDocument(prepared.document);
     check(compiled.ok && compiled.renderScene, "source diagram compiles before normal answer staging");
     const staged = deferVerifiedAnswerLabels(prepared.document, exact.plan, compiled.renderScene);
-    check(Array.isArray(staged.source.answerLabelEntityIds) && staged.source.answerLabelEntityIds.includes("m1_ang_val"), "engine's answer staging is actually exercised");
+    check(Array.isArray(staged.source.answerLabelEntityIds) && staged.source.answerLabelEntityIds.includes("m1_ang"), "engine's answer staging is actually exercised");
     check(admitted(staged, exact.question, exact.plan), "known, regenerated presentation annotations preserve source evidence");
     const result = await saved(exact.question, exact.plan, staged);
     check(result.ok, `staged/yield=${yieldEnabled} scene passes actual canonicalization: ${result.ok ? "" : result.error}`);
@@ -212,7 +212,7 @@ async function main(): Promise<void> {
       check(admitted(result.value.sceneDocument, exact.question, exact.plan), "staged canonical document can be reopened under the same admission guard");
     }
   }
-  const alteredForSave = structuredClone(sample.document); setLabel(alteredForSave, "m1_ang_val", "88°");
+  const alteredForSave = structuredClone(sample.document); setLabel(alteredForSave, "m1_ang", "88°");
   check(!(await saved(sample.question, facts, alteredForSave)).ok, "server cannot persist an altered label even when its geometry compiles");
   check((await saved(sample.question, null, sample.document)).ok, "a fresh native graph remains saveable without a retained optional plan");
   check((await saved(sample.question, null, sample.document, { omitPlan: true })).ok, "a fresh native graph remains saveable when the optional plan property is absent");
