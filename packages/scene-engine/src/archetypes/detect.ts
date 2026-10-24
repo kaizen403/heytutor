@@ -200,6 +200,12 @@ export interface DetectionHints {
   } | null;
   /** An archetype the planner named explicitly; wins when its required slots resolve. */
   plannerArchetype?: string | null;
+  /**
+   * Keep main's choice even for a law only lead. Only the planner request
+   * gate uses this, so the prompt and the decision to call the planner stay
+   * exactly as on main; the figure itself still declines downstream.
+   */
+  keepLawOnlyLead?: boolean;
 }
 
 export interface ArchetypeMatch {
@@ -1729,7 +1735,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   // A stem main matched only through its plan's laws matches nothing now,
   // so the refusal never hands the turn to the next archetype.
-  if (lawOnlyArchetypeLead(question, hints)) return null;
+  if (!hints?.keepLawOnlyLead && lawOnlyArchetypeLead(question, hints)) return null;
   const scored = CUE_SETS
     .map((set) => scoreCueSet(set, stem, bonus))
     .filter((item): item is Scored => item !== null)

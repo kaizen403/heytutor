@@ -71,7 +71,9 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
   const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question);
   const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
-  const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR });
+  // The planner request keeps main's archetype choice (prompt guidance and
+  // whether to call the planner), so strict is exactly main's request.
+  const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR, keepLawOnlyLead: true });
   const shouldAttemptLlmScene = shouldAttemptExactScene({
     visualRequirement: planningTurnPlan.visualRequirement,
     chemistryLane, familyCount: sceneCapabilities.families.length,
