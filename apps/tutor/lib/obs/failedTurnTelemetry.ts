@@ -19,7 +19,7 @@ export const FAILED_TURN_CODES = [
 export const FAILED_TURN_ISSUE_CODES = [
   ...FAILED_TURN_CODES,
   // #172 drop codes, saved after valid_candidate_dropped.
-  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "save_admission_refused", "selection_error", "source_policy_suppressed",
+  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id", "duplicate_quantity_id",
   "duplicate_unknown_id", "given_trig_stipulation_conflict", "invalid_assumption", "invalid_claim",
   "invalid_claim_entity_hints", "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
