@@ -13,7 +13,8 @@
  *   authority  the drawn angle is certified from the regenerated graph with
  *              no planner scalar; a wrong planner angle still refuses
  *   mutation   a drawSpecies that writes no angle turns the table and sweep
- *              red, so these rows depend on the drawing, not on the stem
+ *              red, so these rows depend on the drawing, not on the stem; a
+ *              build that draws nothing turns every sweep row red
  */
 import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -62,7 +63,8 @@ function tableRed(build: Build): string[] {
 function sweepRed(build: Build): string[] {
   return VSEPR_PROBES.filter((probe) => probe.expect === "draw").filter((probe) => {
     const figure = build(probe.question, [], false);
-    if (!figure) return false;
+    // A probe that expects a drawing and draws nothing is a failure.
+    if (!figure) return true;
     const expected = vseprSpecies(probe.question).map(characteristicAngle).filter((angle): angle is string => angle !== null);
     return JSON.stringify(degrees(figure.document).map(valueOf).sort()) !== JSON.stringify([...expected].sort());
   }).map((probe) => `sweep/${probe.question}`);
@@ -125,6 +127,14 @@ await check("mutation/no-angle", async () => {
   const table = tableRed(build);
   assert.deepEqual(table, TABLE.filter((row) => row.angle !== null).map((row) => `table/${row.id}`), "every angle row goes red, XeF2 stays green");
   assert.ok(sweepRed(build).length >= 5, "the sweep goes red");
+});
+
+// Mutant: a build that draws nothing. A missing figure on a probe that
+// expects a drawing must turn every sweep row red, never pass it.
+await check("mutation/no-figure", () => {
+  const draws = VSEPR_PROBES.filter((probe) => probe.expect === "draw");
+  assert.ok(draws.length >= 5, `draw probes: ${draws.length}`);
+  assert.deepEqual(sweepRed(() => null), draws.map((probe) => `sweep/${probe.question}`), "every draw probe goes red without its figure");
 });
 
 console.log(`verify-vsepr-characteristic-angle: ${passed} passed, ${failures.length} failed`);
