@@ -99,6 +99,25 @@ if (!process.argv.includes("--geometry-only")) {
   const { compileSceneDocument, isSupportedSceneOperator } = await import("../../src/index");
   for (const operator of ["gaussian_image", "optical_focus"]) check(isSupportedSceneOperator(operator), "optical operator must reach executable capability");
   for (const kind of ["lens", "mirror"] as const) { const s = scene(kind); const result = compileSceneDocument(s); check(result.ok && result.renderScene, `${kind} anchors failed compile: ${JSON.stringify(result.report.issues)}`); check(result.renderScene.primitives.every((p) => p.points.every((v) => Number.isFinite(v.x) && Number.isFinite(v.y))), "optics render coordinates must be finite"); const reversed = structuredClone(s); reversed.constructions.reverse(); check(compileSceneDocument(reversed).ok, "optical dependencies must compile in reverse order"); const falseProof = structuredClone(s); falseProof.assertions[0]!.expected = false; const rejection = compileSceneDocument(falseProof); check(!rejection.ok && rejection.renderScene === null, "false optical incidence must reject atomically"); }
+// One displayScale places every image anchor, so the drawn height ratio is the
+// physical |m| = 0.5 and the compiler measures it. A wrong ratio still fails,
+// and two images drawn at different scales cannot certify a ratio across them.
+for (const kind of ["lens", "mirror"] as const) {
+  const wrong = scene(kind); wrong.assertions.find((a) => a.id === "height-ratio")!.expected = 0.6;
+  check(!compileSceneDocument(wrong).ok, `${kind}: a false height ratio must fail measurement`);
+  const mixed = scene(kind);
+  mixed.quantities.push({ id: "scale2", value: 3, unit: "dimensionless" });
+  const image2 = structuredClone(mixed.constructions.find((c) => c.id === "image")!); image2.id = "image2"; image2.inputs.displayScale = "scale2"; image2.outputs = ["ob2", "ot2", "ib2", "it2"];
+  mixed.constructions.push(image2);
+  for (const id of image2.outputs) mixed.entities.push({ id, kind: "point", role: "Cartesian optical geometry" });
+  mixed.requiredEntityIds.push(...image2.outputs); mixed.revealGroups[0]!.entityIds.push(...image2.outputs);
+  mixed.assertions = mixed.assertions.filter((a) => a.id !== "height-ratio");
+  mixed.assertions.push({ id: "cross-scale-ratio", predicate: "distance_ratio", entities: ["ib2", "it2", "ob", "ot"], expected: 1.5, severity: "fatal" });
+  const crossed = compileSceneDocument(mixed);
+  check(!crossed.ok && crossed.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: a ratio across two display scales must stay refused`);
+  const same = structuredClone(mixed); same.assertions = same.assertions.filter((a) => a.id !== "cross-scale-ratio");
+  check(compileSceneDocument(same).ok, `${kind}: the two-image control document must compile`);
+}
   const correct = compileSceneDocument(resultQuantities); check(correct.ok, `correct source-bound annotations must compile: ${JSON.stringify(correct.report.issues)}`);
   for (const [kind, u, f, ratio] of [["lens", -5, 10, 2], ["lens", -30, -10, 0.25], ["mirror", -30, 10, 0.25], ["mirror", 30, -10, 0.25]] as const) {
     const s = scene(kind); s.quantities.find((q) => q.id === "u")!.value = u; s.quantities.find((q) => q.id === "f")!.value = f; s.assertions.find((a) => a.id === "height-ratio")!.expected = ratio;
