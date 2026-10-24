@@ -78,6 +78,14 @@ check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 is tetrahedral", true]] 
   "NEGATIVE: a real tetrahedral shape claim for NH3 still conflicts (only reference angles are exempt)");
 check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 has a tetrahedral molecular shape", "tetrahedral (109.5°)"]] })) !== null,
   "NEGATIVE: a tetrahedral shape claim followed by its angle still conflicts");
+check(vseprPlanConflict(nh3, plan(nh3, { claims: [["The H-N-H angle is smaller than the tetrahedral 109.5 degrees", true]] })) === null,
+  "NH3: a magnitude comparison with the tetrahedral angle is not a shape claim");
+check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 is trigonal planar rather than pyramidal", true]] })) !== null,
+  "NEGATIVE: a wrong shape before \"rather than\" still conflicts (the reference-angle skip covers magnitude comparisons only)");
+check(vseprPlanConflict("shape of H2O", plan("shape of H2O", { claims: [["H2O is linear rather than bent", true]] })) !== null,
+  "NEGATIVE: \"H2O is linear rather than bent\" still conflicts");
+check(vseprPlanConflict("shape of H2O", plan("shape of H2O", { claims: [["The shape of H2O is nothing other than linear", true]] })) !== null,
+  "NEGATIVE: a wrong shape right after a non-comparative \"than\" is not skipped as a reference angle");
 check(status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "5 + 3(1) = 8")] })) === "certified",
   "NH3: 8 total valence electrons certifies against the formula");
 check(status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 9, "electrons", "5 + 3 + 1")] })) === "rejected",

@@ -546,7 +546,9 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     let previousShape: { end: number; negated: boolean } | undefined;
     for (const [index, shape] of shapes.entries()) {
       // "less than the ideal tetrahedral 109.5°" or "the tetrahedral angle" is a reference angle, not this molecule's shape.
-      if (/^\s*(?:bond\s+)?angles?\b/.test(clause.slice(shape.end)) || /\b(?:ideal|than(?:\s+(?:the|an?))?)\s+$/.test(clause.slice(0, shape.start))) continue;
+      // Only a magnitude comparison qualifies: "planar rather than bent" is a shape claim and must stay readable.
+      if (/^\s*(?:bond\s+)?angles?\b/.test(clause.slice(shape.end))
+        || /\b(?:ideal|(?:less|more|greater|smaller|larger|lower|higher|wider|narrower|bigger)\s+than(?:\s+(?:the|an?))?)\s+$/.test(clause.slice(0, shape.start))) continue;
       const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
       const targets = new Set(roles.map((role) => role.target));
       let target: ShapeClaim["target"] = "molecular";
