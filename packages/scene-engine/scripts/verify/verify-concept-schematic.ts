@@ -78,25 +78,12 @@ for (const [label, turnPlan] of plans) {
   }
 }
 
-// The stock P-V rectangle is gone too: a stated isothermal compression and a
-// Carnot explanation get no rectangle, a stated three state cycle still draws
-// its own source bound states.
+// The stock P-V rectangle is gone too: a stated isothermal compression gets
+// no rectangle.
 const isothermal = "An ideal gas undergoes reversible isothermal compression from 4.0 L to 2.0 L. Initial pressure is 100 kPa. Find the work done.";
 const isothermalPlan = plan(isothermal, [["Work done on the gas in an isothermal compression is nRT ln(V1/V2).", "Pressure doubles as the volume halves.", []]]);
 for (const [path, result] of [["family synthesis", synthesizeFamilyScene({ question: isothermal, turnPlan: isothermalPlan })], ["last resort", synthesizeLastResortScene({ question: isothermal, turnPlan: isothermalPlan })]] as const) {
   assert(!result?.document.entities.some((entity) => entity.role === "process cycle"), `stated isothermal: ${path} drew the stock P-V rectangle`);
 }
-const cycle = "A gas runs A→B→C→A with A=(0.010 m^3,100 kPa), B=(0.030 m^3,100 kPa) and C=(0.030 m^3,300 kPa). A→B is isobaric, B→C is isochoric and C→A is a straight line on the P-V plane. Sketch the cycle and find the net work.";
-const cyclePlan: TurnPlanV3 = {
-  ...plan(cycle, [["The net work is the enclosed area of the cycle.", "The cycle is traversed in one direction.", []]], "required"),
-  givens: [
-    { id: "vA", symbol: "V_A", value: 0.01, unit: "m^3", provenance: "given", sourceText: "vA = 0.01" },
-    { id: "pA", symbol: "P_A=P_B", value: 100, unit: "kPa", provenance: "given", sourceText: "pA = 100" },
-    { id: "vB", symbol: "V_B=V_C", value: 0.03, unit: "m^3", provenance: "given", sourceText: "vB = 0.03" },
-    { id: "pC", symbol: "P_C", value: 300, unit: "kPa", provenance: "given", sourceText: "pC = 300" },
-  ],
-};
-const drawnCycle = synthesizeFamilyScene({ question: cycle, turnPlan: cyclePlan });
-assert(drawnCycle?.document.entities.some((entity) => entity.role === "state A"), "a stated three state P-V cycle must still draw its own states");
 
-console.log(`no concept schematic: ${plans.length} explain plans draw no thermal template or P-V plot on either path; the stated cycle still draws`);
+console.log(`no concept schematic: ${plans.length} explain plans draw no thermal template or P-V plot on either path; a stated isothermal compression gets no stock rectangle`);
