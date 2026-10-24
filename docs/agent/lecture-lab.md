@@ -181,7 +181,12 @@ Use `--model configured` (the default), the production 60,000 ms scene limit,
 and a positive `--max-usd` on every run. Azure lanes use the configured
 deployment; Azure fallback is rejected before dispatch. On Fireworks, the
 authenticated standard-evaluation header pins planner, ProblemIR and teaching
-to standard Kimi K3 (never Fast); the picker uses the configured cheap model.
+to standard Kimi K3 by default; the picker uses the configured cheap model.
+`--model fast` (Fireworks only) omits that header and runs production's routing:
+the Kimi K3 Fast router (`accounts/fireworks/routers/kimi-k3-fast`) in planner,
+ProblemIR and teaching at Fast rates ($4.5 input, $0.45 cached, $22.5 output per
+million). The server advertises a separate Fast lab profile and preflight
+compares it exactly; any Fast lane override fails before a paid call.
 The supported Fireworks picker identities are standard K3 and DeepSeek Flash.
 Authenticated preflight compares the effective lane models and prices between
 server and runner. Unknown model/price identities fail before paid dispatch.
