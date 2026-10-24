@@ -33,6 +33,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], errors: Array<{ message: string; question: string }> = [];
+  const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
   const telemetry: Array<{ name: string; [key: string]: unknown }> = [];
   let rejectOldDraw: ((error: Error) => void) | null = null;
   const original = new Map<string, PropertyDescriptor | undefined>();
@@ -145,7 +146,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
     executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
       if (options.isCancelled?.()) return;
-      drawn.push(command.text ?? command.type); options.onInkStarted?.();
+      drawn.push(command.text ?? command.type); executed.push({ command, options }); options.onInkStarted?.();
       if (deferFirstDraw && drawn.length === 1) await new Promise<void>((_resolve, reject) => { rejectOldDraw = reject; });
     },
   };
@@ -157,7 +158,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const controlHooks = load(controlPath) as unknown as typeof import("../../features/tutor-session/hooks/turn/useTurnControl");
   const runner = runnerHooks.useSegmentRunner({ ...params, applyTurnPhase: noop } as unknown as Parameters<typeof runnerHooks.useSegmentRunner>[0]);
   const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
-  return { params, control, runner, handle, begin, jobs, drawn, errors, telemetry, registry, flush, advance,
+  return { params, control, runner, handle, begin, jobs, drawn, executed, errors, telemetry, registry, flush, advance,
     now: () => now, browserAttempts: () => browserAttempts,
     setRate: (next: number) => { sampleMedia(); rate = next; },
     setPaused: (paused: boolean) => {
@@ -251,7 +252,21 @@ async function frozenPausedNoAlignment() {
     }
     assert.equal(h.params.cancelRef.current, false, "the turn is not cancelled");
     assert.equal(h.errors.length, 0);
-    assert.deepEqual(h.drawn, ["v_rm = v_r - v_m", "v_rm = v_r - v_m"], "both segments' ink completes");
+    const ink = h.executed.filter(entry => entry.command.type !== "POINT");
+    assert.deepEqual(ink.map(entry => [entry.command.type, entry.command.text]),
+      [["WRITE", "v_rm = v_r - v_m"], ["WRITE", "v_rm = v_r - v_m"]], "both segments' ink completes");
+    // The long sentence leaves time after its WRITE, so main's explanation
+    // pointing walks the pen over that row while the voice talks (#211). It is
+    // transient motion, never ink, and it must end with the frozen clip: the
+    // tour reads the segment's own speech clock, which the release completes.
+    assert.deepEqual(h.executed.map(entry => entry.command.type),
+      ["WRITE", "POINT", "WRITE", "POINT"], "at most one pointing tour after each segment's ink");
+    for (const point of h.executed.filter(entry => entry.command.type === "POINT")) {
+      assert.equal(point.command.text, "last", "the tour points at the row just written");
+      assert.equal(point.options.explanationPointing, true, "only the transient explanation tour, never an authored point");
+      assert.equal(point.options.spokenClock?.isSpeechComplete?.(), true,
+        "the released frozen clip completes the tour's speech clock, so the pen cannot keep touring");
+    }
     assert.equal(h.params.recordedSegmentsRef.current.length, 2, "both segments complete");
     assert.equal(h.params.pendingSegmentCountRef.current, 0);
     console.log("started speech frozen paused clip, no alignment: duration watch, segments complete, turn continues");
