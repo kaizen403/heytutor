@@ -16,6 +16,7 @@ import {
   evaluationRunFastMode,
   evaluationSelectionOrder,
   evaluationUsesStandardModelHeader,
+  labUsesStandardModelHeader,
   evaluationUsesExamples,
   estimateEvaluationCostUsd as estimateForProvider,
   formatDiagramFailureCounts,
@@ -117,12 +118,12 @@ assert.throws(
   () => parseLectureLabOptions(["--max-usd", "20", "--model", "turbo"]),
   /--model must be configured, standard or fast/,
 );
-assert.throws(
-  () => parseLectureLabOptions([
-    "--eval", "sample.jsonl", "--model", "fast", "--max-usd", "20",
-  ]),
-  /evaluation rounds require the configured provider/,
+assert.equal(
+  parseLectureLabOptions(["--eval", "sample.jsonl", "--model", "fast", "--max-usd", "20"]).model,
+  "fast",
+  "Fast evaluation rounds parse; the server profile preflight decides whether they may dispatch",
 );
+assert.equal(parseLectureLabOptions(["--eval", "sample.jsonl", "--max-usd", "20"]).model, "configured", "standard stays the default");
 assert.throws(
   () => parseLectureLabOptions([
     "--scene-planner-limit-ms", "120000", "--max-usd", "20",
@@ -252,15 +253,20 @@ assert.equal(
   "the approved 300-row three-arm round stays below the US$55 stop threshold",
 );
 assert.equal(evaluationRunFastMode(true), false, "evaluation requests must explicitly disable Fast mode");
-assert.throws(
-  () => evaluationRunFastMode(true, "fast"),
-  /configured provider/,
-  "Fast evaluation requests must be rejected",
-);
+assert.equal(evaluationRunFastMode(true, "configured"), false, "configured evaluations stay standard");
+assert.equal(evaluationRunFastMode(true, "fast"), true, "Fast evaluations ask for production's Fast routing");
+assert.equal(evaluationRunFastMode(false, "fast"), true);
 assert.equal(evaluationRunFastMode(false), undefined, "ordinary lecture-lab requests keep their current model default");
 assert(evaluationUsesStandardModelHeader(true, "standard"));
 assert(!evaluationUsesStandardModelHeader(true, "fast"));
 assert(!evaluationUsesStandardModelHeader(false, "standard"));
+for (const isEvaluation of [true, false]) {
+  assert(labUsesStandardModelHeader("fireworks", isEvaluation, "configured"), "standard Fireworks lab requests pin K3");
+  assert(labUsesStandardModelHeader("fireworks", isEvaluation, "standard"));
+  assert(!labUsesStandardModelHeader("fireworks", isEvaluation, "fast"), "Fast requests must not carry the standard pin");
+}
+assert(labUsesStandardModelHeader("azure", true, "configured"));
+assert(!labUsesStandardModelHeader("azure", false, "configured"), "Azure probes keep their existing headers");
 assert.equal(evaluationSelectionOrder("current"), "current");
 assert.equal(evaluationSelectionOrder("planner_first"), "planner_first");
 assert.equal(evaluationSelectionOrder("planner_examples"), "planner_first");
@@ -330,10 +336,16 @@ assert.equal(
   estimateEvaluationCostUsd(20, "planner_examples"),
   "strict uses the Part 11 standard-K3 planner+examples profile",
 );
+assert.equal(
+  estimateEvaluationCostUsd(20, "current", "fast"),
+  1.152,
+  "Fast preflight quotes the same token profile at Kimi K3 Fast rates",
+);
 assert.throws(
-  () => estimateEvaluationCostUsd(300, "current", "fast"),
-  /configured provider/,
-  "preflight must never quote a Fast evaluation round",
+  () => estimateEvaluationCostUsd(20, "current", "fast", { LLM_PROVIDER: "azure", AZURE_OPENAI_ENDPOINT: "https://synthetic.invalid",
+    AZURE_OPENAI_API_KEY: "synthetic-key", AZURE_OPENAI_DEPLOYMENT: "synthetic-azure-deployment" }),
+  /Fireworks/,
+  "Fast evaluation quotes are Fireworks only",
 );
 assert.doesNotThrow(() => assertEvaluationCostAllowed(4.99, false));
 assert.throws(
