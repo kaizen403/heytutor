@@ -339,7 +339,8 @@ check("the shell and board read the flag and show the notice", async () => {
   assert.equal((shell.match(/playerView: lecturePlayer\.view,\s*voiceDegraded,/g) ?? []).length, 1, "the shell caption reads the flag");
   assert(shell.includes("voiceDegraded={voiceDegraded}"), "the board canvas receives the flag");
   assert(/codeLessonActive \|\| silentCaptionShown \|\| caption\.notice\) \?/.test(shell), "the docked phone caption opens for a silent sentence and stays reserved after it");
-  assert(shell.includes("if (caption.notice && !silentCaptionShown) setSilentCaptionShown(true);"), "the first silent sentence reserves the docked caption for the session");
+  assert(shell.includes("if (caption.notice && silentCaptionBoard !== sessionId) setSilentCaptionBoard(sessionId);"), "the first silent sentence reserves the docked caption for this board");
+  assert(shell.includes("const silentCaptionShown = silentCaptionBoard === sessionId;"), "the docked caption reservation is scoped to the board, so a new board starts unreserved");
   assert(shell.includes('placement="below" notice={caption.notice}'), "the docked caption shows the notice");
   assert(/playerView,\s*voiceDegraded,\s*\}\);/.test(canvas), "the board caption reads the flag");
   assert(canvas.includes("notice={caption.notice}"), "the board caption shows the notice");

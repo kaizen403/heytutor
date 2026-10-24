@@ -276,7 +276,7 @@ type ShellOptions = {
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean; text?: string; playerText?: string;
   scrollable?: boolean; minimumVisibleFontSize?: number | null; rewindPlaying?: boolean;
 };
-type ShellStep = { text?: string; phase?: NonNullable<ShellOptions["phase"]>; paused?: boolean; voiceDegraded?: boolean };
+type ShellStep = { text?: string; phase?: NonNullable<ShellOptions["phase"]>; paused?: boolean; voiceDegraded?: boolean; sessionId?: string };
 export function shellMarkup(options: ShellOptions) {
   return shellSession(options).step({ text: options.text ?? liveCaption, phase: options.phase ?? "speaking", paused: options.paused === true });
 }
@@ -342,7 +342,10 @@ export function shellSession(options: ShellOptions) {
   }) };
   overrides["./components/SessionInputChrome"] = { SessionInputChrome: () => createElement("textarea", { defaultValue: "Retained composer" }) };
   const shell = load(shellFile, process.env.CAPTION_SHELL_SOURCE ?? shellFile, mount.react, overrides).TutorSessionShell as ComponentType<TutorSessionShellProps>;
-  const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId: "recorded-board", variant: options.variant }); };
+  // The page keeps one mounted shell and only changes its sessionId prop when
+  // the student opens another board, so a step may switch the board.
+  let sessionId = "recorded-board";
+  const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId, variant: options.variant }); };
   render();
   mount.runLayoutEffects();
   const step = (next: ShellStep) => {
@@ -350,11 +353,16 @@ export function shellSession(options: ShellOptions) {
     if (next.phase !== undefined) setters.phase?.(next.phase);
     if (next.paused !== undefined) setters.paused?.(next.paused);
     if (next.voiceDegraded !== undefined) setters.voiceDegraded?.(next.voiceDegraded);
+    if (next.sessionId !== undefined) sessionId = next.sessionId;
     // A state set during render (React's derived state pattern) renders again.
-    let previous: unknown[];
-    let renders = 0;
-    do { previous = [...mount.slots]; lastShellTree = render(); renders++; }
-    while (renders < 5 && (previous.length !== mount.slots.length || previous.some((value, index) => !Object.is(value, mount.slots[index]))));
+    // React throws "Too many re-renders" when that never settles; so does this.
+    let settled = false;
+    for (let renders = 0; renders < 25 && !settled; renders++) {
+      const previous = [...mount.slots];
+      lastShellTree = render();
+      settled = previous.length === mount.slots.length && previous.every((value, index) => Object.is(value, mount.slots[index]));
+    }
+    if (!settled) throw new Error("Too many re-renders: the shell sets state during every render and never settles");
     mount.runLayoutEffects();
     return renderToStaticMarkup(lastShellTree);
   };
@@ -457,6 +465,16 @@ check("actual-viewport-budget", () => {
       { label: "next turn speaking", step: { text: liveCaption, phase: "speaking" } },
     ];
     const heights = sequence.map(({ step }) => reservedHeight(session.step(step)));
+    // The page keeps the shell mounted across boards, so the reservation is
+    // scoped to the board: a new board that never had a silent sentence
+    // starts with nothing reserved.
+    const newBoard = [
+      { label: "new board", step: { sessionId: "a-new-board", text: "", phase: "idle" } },
+      { label: "new board spoken", step: { text: liveCaption, phase: "speaking" } },
+    ] satisfies Array<{ label: string; step: ShellStep }>;
+    const newBoardHeights = newBoard.map(({ step }) => reservedHeight(session.step(step)));
+    assert.deepEqual(newBoardHeights, [0, 0],
+      `${dimensions.width}x${dimensions.height}: subtitles off, a new board with no silent sentence reserves nothing`);
     withViewport(dimensions.width, dimensions.height, heights[1]!, f => {
       const initial = f.read();
       sequence.slice(1).forEach(({ label }, index) => {

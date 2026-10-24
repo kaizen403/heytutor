@@ -1382,10 +1382,13 @@ export function TutorSessionShell({
   });
   const captionShowing = caption.visible && caption.text.length > 0;
   // Once a sentence has been taught silently, keep the docked caption space
-  // for the rest of the session: the voice coming back, going idle and the
+  // for the rest of this board: the voice coming back, going idle and the
   // next turn must not refit the board, so a failure costs one refit at most.
-  const [silentCaptionShown, setSilentCaptionShown] = useState(false);
-  if (caption.notice && !silentCaptionShown) setSilentCaptionShown(true);
+  // The shell is not remounted for a new board, so the reservation is keyed by
+  // board id and a new board starts unreserved.
+  const [silentCaptionBoard, setSilentCaptionBoard] = useState<string | null>(null);
+  if (caption.notice && silentCaptionBoard !== sessionId) setSilentCaptionBoard(sessionId);
+  const silentCaptionShown = silentCaptionBoard === sessionId;
   // A new sentence opens at its first word, whatever the last one was scrolled to.
   const captionRegionRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
