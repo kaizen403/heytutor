@@ -517,6 +517,46 @@ function localMoleculeOwners(
   return inherited;
 }
 
+interface Span { start: number; end: number }
+interface ShapeRole extends Span { target: "electron" | "molecular" }
+
+/** The property a shape word describes: the only role named, else the nearest one. */
+function shapeRoleTarget(roles: readonly ShapeRole[], shapes: readonly Span[], shape: Span): ShapeClaim["target"] {
+  const targets = new Set(roles.map((role) => role.target));
+  if (targets.size === 0) return "molecular";
+  if (targets.size === 1) return [...targets][0]!;
+  if (shapes.length === 1) return null;
+  const distance = (role: ShapeRole) => Math.max(0, role.start - shape.end, shape.start - role.end);
+  const nearest = Math.min(...roles.map(distance));
+  const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
+  return nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
+}
+
+const CONTRAST_LEAD = /\b(?:rather\s+than|instead\s+of|unlike)\s+(?:(?:being|having|an?|the|its|ideal|perfect(?:ly)?|regular|purely|fully)\s+)*$/;
+const DENIED_AS_SUBJECT = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:(?:is|was|are)\s+not\b(?!\s+only)|(?:isn['\u2019]t|wasn['\u2019]t|aren['\u2019]t)\b)/;
+
+/**
+ * A contrasted shape is denied for its owner: "bent rather than tetrahedral",
+ * "instead of linear", "unlike a tetrahedral shape", "tetrahedral is not the
+ * shape". A contrast between two properties ("unlike the tetrahedral electron
+ * geometry, the molecular shape is bent") keeps each value positive for its
+ * own property, so the electron geometry is still checked as tetrahedral.
+ */
+function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: readonly Span[], index: number): boolean {
+  const shape = shapes[index]!;
+  if (DENIED_AS_SUBJECT.test(clause.slice(shape.end))) return true;
+  const lead = CONTRAST_LEAD.exec(clause.slice(0, shape.start));
+  if (!lead) return false;
+  const partner = /^unlike\b/.test(lead[0])
+    ? [shapes[index - 1], shapes[index + 1]].filter((other): other is Span => other !== undefined)
+      .sort((left, right) => Math.abs(left.start - shape.start) - Math.abs(right.start - shape.start))[0]
+    : shapes[index - 1] ?? shapes[index + 1];
+  if (!partner) return true;
+  const own = shapeRoleTarget(roles, shapes, shape);
+  const other = shapeRoleTarget(roles, shapes, partner);
+  return own === null || other === null || own === other;
+}
+
 /** Bind each geometry in its property clause, including compound claims. */
 function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
@@ -533,7 +573,7 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
       const owners = [...new Set(mentions.map(mention => mention.key))];
       inheritedOwners = owners.length === 1 ? owners : null;
     }
-    const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
+    const roles: ShapeRole[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
       [/\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b|\b(?:geometry|arrangement)\s+(?:of|for)\s+(?:(?:the|its)\s+)?electron(?:s|\s+(?:domains?|pairs?))?\b/g, "electron"],
@@ -546,22 +586,13 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     let previousShape: { end: number; negated: boolean } | undefined;
     for (const [index, shape] of shapes.entries()) {
       const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
-      const targets = new Set(roles.map((role) => role.target));
-      let target: ShapeClaim["target"] = "molecular";
-      if (targets.size === 1) target = [...targets][0]!;
-      else if (targets.size > 1 && shapes.length === 1) target = null;
-      else if (targets.size > 1) {
-        const distance = (role: typeof roles[number]) => Math.max(0, role.start - shape.end, shape.start - role.end);
-        const nearest = Math.min(...roles.map(distance));
-        const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
-        target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
-      }
+      const target = shapeRoleTarget(roles, shapes, shape);
       const explicitNegative = /\b(?:not|no|neither)\s+(?:(?:have|has)\s+)?(?:an?\s+)?$/.test(clause.slice(0, shape.start));
       // One negative can govern a comma/or/nor list. A new predicate or
       // property clause ends that list; it must keep its own truth value.
       const joinedNegative = previousShape?.negated === true
         && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
-      const negated = explicitNegative || joinedNegative;
+      const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index);
       claims.push({ shape: shape.shape, target, negated, owners });
       inheritedOwners = owners;
       previousShape = { end: shape.end, negated };
