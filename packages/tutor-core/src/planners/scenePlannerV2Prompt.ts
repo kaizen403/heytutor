@@ -187,7 +187,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - arc: {center: point_id, radius, startAngle, endAngle, angleUnit: "degrees"|"radians"}.
 - rectangle: {center: point_id, width, height}.
 - polygon/polyline: {points: [point_id,...]}.
-- axes: {xMin, xMax, yMin, yMax, xLabel?, yLabel?}. xLabel and yLabel are compact axis titles drawn at the arrow tips (P against V: xLabel:"V", yLabel:"P"). Never aim a label construction at axes.
+- axes: {xMin, xMax, yMin, yMax, xLabel?, yLabel?}. xLabel and yLabel hold only the plotted quantity's symbol (P against V: xLabel:"V", yLabel:"P"), never a value or unit; the engine decides whether a title is drawn at the arrow tip. Never aim a label construction at axes.
 - midpoint: {a: point_id, b: point_id}.
 - intersection: {first: line_or_segment_id, second: line_or_segment_id}.
 - surface_intersection: {origin,surface}. Full shape: {origin: point_id, surface: line_or_circle_or_arc_id, direction?:vector_id|[dx,dy], through?:point_id, parallelTo?:path_id, which?:"nearest_forward"|"farthest_forward"}. Supply exactly one of direction, through, or parallelTo; prefer through/parallelTo when the relationship is known.

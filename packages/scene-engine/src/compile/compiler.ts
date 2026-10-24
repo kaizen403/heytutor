@@ -1209,11 +1209,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 const MIN_LETTERED_AXIS_PX = 16;
 
 /**
- * Engine-owned letters x, y, z at the positive tips of every drawn space
- * frame with a planned view. The turntable view may draw x on the left, so a
- * frame's identity cannot rest on orientation alone.
- */
-/**
  * Axis titles named on the axes construction itself (xLabel, yLabel). Each
  * sits at its own axis's arrow tip, where a graph names the axis. A label
  * construction aimed at the axes entity has only the middle of the plot to
@@ -1241,7 +1236,11 @@ function axesTitleOwners(
     ] as const;
     for (const axis of axes) {
       const text = construction.inputs[axis.key];
-      if (typeof text !== "string" || !text.trim()) continue;
+      // Fail closed: only x on the horizontal and y on the vertical ever draw.
+      // Turn binding (all plan quantities x or y) lives in
+      // pruneUnverifiedSceneAnnotations; this rule also holds for a stored or
+      // replayed document that never passed that prune.
+      if (typeof text !== "string" || text.trim() !== (axis.key === "xLabel" ? "x" : "y")) continue;
       const origin = transform(axis.origin);
       const tip = transform(axis.tip);
       const length = Math.hypot(tip.x - origin.x, tip.y - origin.y);
@@ -1265,6 +1264,11 @@ function axesTitleOwners(
   return owners;
 }
 
+/**
+ * Engine-owned letters x, y, z at the positive tips of every drawn space
+ * frame with a planned view. The turntable view may draw x on the left, so a
+ * frame's identity cannot rest on orientation alone.
+ */
 function spaceAxisLetterOwners(
   document: SceneDocument,
   geometry: Map<string, Geometry>,

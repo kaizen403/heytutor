@@ -2521,12 +2521,11 @@ export function isMatrixExpressionLabel(document: Pick<SceneDocument, "entities"
   return sawName && /^[\s+\-*·()]*$/.test(rest);
 }
 
-/** Every label, annotation and axis title text a scene displays that may carry a measured value. */
-export function displayedSceneQuantityTexts(document: Pick<SceneDocument, "entities" | "annotations" | "constructions">): string[] {
+/** Every label and annotation text a scene displays that may carry a measured value. */
+export function displayedSceneQuantityTexts(document: Pick<SceneDocument, "entities" | "annotations">): string[] {
   return [
     ...document.entities.filter((entity) => !isMatrixExpressionLabel(document, entity)).map((entity) => entity.label),
     ...document.annotations.map((annotation) => annotation.text),
-    ...axesTitleTexts(document).map((title) => title.text),
   ].filter((value): value is string => typeof value === "string");
 }
 
@@ -2547,79 +2546,17 @@ export function axesTitleTexts(document: Pick<SceneDocument, "constructions">): 
 }
 
 /**
- * The symbol an axis title names: the text before an optional bracketed unit
- * and before any written value ("P (kPa)" and "P = 300 kPa" both name P).
+ * Whether an axis title may draw. Fail closed: nothing proves that a title
+ * names the quantity its axis plots, so only the bare coordinate names draw,
+ * each on its own axis (x on the horizontal, y on the vertical), and only in a
+ * turn whose plan quantities are all x or y (or that has none). A title with
+ * a unit, a value, or any other symbol is omitted; main drew no axis titles.
+ * The compiler applies the same text rule (axesTitleOwners), so a document
+ * that skipped this prune still draws nothing else.
  */
-function axisTitleSymbol(text: string): string {
-  const head = text.trim().split(/\s*(?:=|≈|≃|≅)\s*/u)[0] ?? "";
-  return head.replace(/\s*[([{][^()[\]{}]*[)\]}]\s*$/u, "").trim();
-}
-
-/** Whether the turn names an axis title: as written ("f(x)" declared whole), or its symbol before a unit. */
-function axisTitleBound(text: string, plan: TurnPlanV3): boolean {
-  return axisTitleSymbolBound(text.trim(), plan) || axisTitleSymbolBound(axisTitleSymbol(text), plan);
-}
-
-/** Whether the turn names an axis title's symbol, so the title is the turn's and not a copied example. */
-function axisTitleSymbolBound(symbol: string, plan: TurnPlanV3): boolean {
-  if (!symbol) return false;
-  if (symbol === "x" || symbol === "y") return true;
-  const symbols = [...plan.givens, ...plan.derived, ...plan.unknowns].map((quantity) => quantity.symbol);
-  if (symbols.includes(symbol)) return true;
-  const sources = [
-    plan.question,
-    ...plan.qualitativeClaims.flatMap((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""]),
-  ].filter((text): text is string => typeof text === "string" && text.length > 0);
-  // A whole token only, and never a unit written after a number ("a 12 V
-  // battery" does not name V). One letter symbols keep their case: p is not P.
-  const token = new RegExp(
-    `(?<![\\p{L}\\p{N}_])(?<!\\p{N}\\s?)${escapeRegExp(symbol)}(?![\\p{L}\\p{N}_])`,
-    [...symbol].length === 1 ? "u" : "iu",
-  );
-  return sources.some((text) => token.test(text));
-}
-
-/**
- * A number on an axis title is drawn only when the audit certifies it: a
- * measured value TurnPlanV3 supports, or digits inside a symbol the turn
- * itself names ("1/V"). Subscripts and unit powers are not numbers. A bare
- * value, a scale factor, or any digit with no plan to certify it is refused.
- */
-function axesTitleNumberCertified(text: string, plan: TurnPlanV3 | null | undefined): boolean {
-  if (!/[0-9]/.test(text)) return true;
-  if (!plan) return false;
-  const chars = text.split("");
-  const blank = (start: number, end: number) => { for (let index = start; index < end; index += 1) chars[index] = " "; };
-  const trimmedStart = text.length - text.trimStart().length;
-  const symbol = axisTitleSymbol(text);
-  if (/[0-9]/.test(symbol) && axisTitleSymbolBound(symbol, plan) && text.startsWith(symbol, trimmedStart)) {
-    blank(trimmedStart, trimmedStart + symbol.length);
-  }
-  // A trailing bracket the unit rules read whole ("m s-1", "kg m-3") holds
-  // unit powers, not values. A scale factor ("x10^3 m s-1") is no unit.
-  const unit = /[([{]([^()[\]{}]*)[)\]}]\s*$/u.exec(text);
-  if (unit && /[0-9]/.test(unit[1]!) && unitScale(unit[1]!) !== null) blank(unit.index, unit.index + unit[0].length);
-  const supported = supportedSceneDisplayMeasurements(plan);
-  for (const match of extractMeasuredValueSpans(text, plan)) {
-    if (supported.some((quantity) => equivalentDisplayedMeasuredQuantity(quantity.value, quantity.unit, match.value, match.unit, match.tolerance))) {
-      blank(match.index, match.index + match.length);
-    }
-  }
-  // A one digit subscript (V2) and a unit power (cm^3) are not values; "x10^5" is.
-  const rest = chars.join("").replace(/[\p{L}_]+(?:[0-9](?![0-9]))?/gu, " ").replace(/\^-?[0-9]+/g, " ");
-  return !/[0-9]/.test(rest);
-}
-
-/** Refuse an axis title whose number the audit does not certify. */
-function validateAxesTitleNumbers(document: SceneDocument, plan: TurnPlanV3 | null | undefined): SceneIssue[] {
-  return axesTitleTexts(document).filter((title) => !axesTitleNumberCertified(title.text, plan)).map((title) => ({
-    code: "axes_title_number_unverified",
-    message: `axes ${title.key} ${JSON.stringify(title.text)} carries a number TurnPlanV3 does not hold. ` +
-      `Valid when the title names only the axis symbol and its unit (for example "V (L)"), or the value is copied exactly from the AUTHORITATIVE TURN PLAN V3.`,
-    severity: "fatal" as const,
-    path: `constructions[${title.constructionIndex}].inputs.${title.key}`,
-    ...(title.axesId ? { entityIds: [title.axesId] } : {}),
-  }));
+function axisTitleBound(key: typeof AXES_TITLE_KEYS[number], text: string, plan: TurnPlanV3): boolean {
+  if (text.trim() !== (key === "xLabel" ? "x" : "y")) return false;
+  return [...plan.givens, ...plan.derived, ...plan.unknowns].every((quantity) => quantity.symbol === "x" || quantity.symbol === "y");
 }
 
 /** Verify that any shared numeric quantity keeps the plan's value and unit. */
@@ -2720,13 +2657,13 @@ export function pruneUnverifiedSceneAnnotations(
     }
     return !unsupported;
   });
-  // An axis title the turn never names (a copied "P against V" on a motion
-  // graph) is omitted, not drawn, and the omission is recorded. The figure
-  // still draws. A named title keeps any number for the audit to judge.
+  // An axis title the engine cannot prove (anything but x on the horizontal
+  // or y on the vertical of an x and y turn) is omitted, not drawn, and the
+  // omission is recorded. The figure still draws.
   const titleOmissions: SceneIssue[] = [];
   const constructions = document.constructions.map((construction, constructionIndex) => {
     const unbound = axesTitleTexts({ constructions: [construction] })
-      .filter((title) => !axisTitleBound(title.text, plan));
+      .filter((title) => !axisTitleBound(title.key, title.text, plan));
     if (unbound.length === 0) return construction;
     const inputs = { ...construction.inputs };
     for (const title of unbound) {
@@ -2737,7 +2674,7 @@ export function pruneUnverifiedSceneAnnotations(
         path: `constructions[${constructionIndex}].inputs.${title.key}`,
         ...(title.axesId ? { entityIds: [title.axesId] } : {}),
         expected: "axes_title_unbound",
-        message: `Omitted axis title ${JSON.stringify(title.text)}: its symbol is not a plan quantity, a whole token of the question or claims, or x or y.`,
+        message: `Omitted axis title ${JSON.stringify(title.text)}: only x on the horizontal axis or y on the vertical axis of a turn whose quantities are all x or y is drawn.`,
       });
     }
     changed = true;
@@ -2787,7 +2724,6 @@ export function validateTurnPlanSceneProofs(
     ...validateCoordinateDistanceSourceInputs(document, sourceQuestion),
     ...validatePointLineSourceInputs(document, sourceQuestion),
     ...validateSectionPointSourceInputs(document, sourceQuestion),
-    ...validateAxesTitleNumbers(document, plan),
   ];
   if (!plan) return issues;
 
@@ -4286,11 +4222,7 @@ function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: num
 }
 
 function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: number; unit: string; tolerance: number }> {
-  return extractMeasuredValueSpans(text, plan).map(({ value, unit, tolerance }) => ({ value, unit, tolerance }));
-}
-
-function extractMeasuredValueSpans(text: string, plan: TurnPlanV3): Array<{ value: number; unit: string; tolerance: number; index: number; length: number }> {
-  const values: Array<{ value: number; unit: string; tolerance: number; index: number; length: number }> = [];
+  const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
     const value = Number(match[1]?.replace(/−/g, "-"));
@@ -4298,7 +4230,7 @@ function extractMeasuredValueSpans(text: string, plan: TurnPlanV3): Array<{ valu
     if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
       text, { index: match.index!, length: match[0].length, unit }, plan,
     )) {
-      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")), index: match.index!, length: match[0].length });
+      values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
     }
   }
   return values;

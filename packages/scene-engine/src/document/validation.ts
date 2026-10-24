@@ -4451,20 +4451,6 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         });
       }
     }
-    if (construction.operator === "axes" && isRecord(construction.inputs)) {
-      for (const key of ["xLabel", "yLabel"] as const) {
-        const title = construction.inputs[key];
-        if (title === undefined) continue;
-        if (typeof title !== "string" || !isCompactDiagramLabel(title)) {
-          issues.push({
-            code: "invalid_axes_title",
-            message: `axes ${key} must be a compact axis title such as "V", "t (s)" or "P (kPa)"`,
-            severity: "fatal",
-            path: `constructions[${index}].inputs.${key}`,
-          });
-        }
-      }
-    }
     if (isRecord(construction.inputs)) {
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
       if (MAGNETIC_CONSTRUCTIONS.has(construction.operator)) validateMagneticConstruction(construction, index, document, constructionByOutput, issues);
