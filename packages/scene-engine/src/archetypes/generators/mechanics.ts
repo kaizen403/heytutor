@@ -8,6 +8,7 @@
  */
 import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked, riverShortestTimeAsked } from "../../physics/riverCrossingSource";
 import { projectileLaunchAngle } from "../../physics/projectileLaunchSource";
+import { recordArchetypeFigureIdentity } from "../figureIdentity";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
@@ -97,7 +98,16 @@ function projectile(context: GeneratorContext) {
   scene.labelled("O", "velocity");
   scene.group("setup", ["ground_a", "ground_b", "ground", "O", "aim", "velocity", ...(height0 > 0 ? ["foot", "tower", "dim_h0"] : []), ...(theta > 0 ? ["aim_h", "horizontal", "angle"] : [])], "the launch: speed, angle and the ground");
   scene.group("path", ["trajectory", "apex", "landing", ...(apexX > 0 ? ["apex_foot", "dim_H"] : []), "range_start", "dim_R"], "the parabolic path with its highest point and range", ["setup"]);
-  return scene.build();
+  // The bodies this generator constructed: the launched point mass, the
+  // parabola its speed and angle imply, and the level ground it lands on.
+  return recordArchetypeFigureIdentity(scene.build(), {
+    archetype: "projectile",
+    bodies: [
+      { role: "projectile", entityId: "O", consumes: ["O"], attributes: ["point", "mass"] },
+      { role: "trajectory", entityId: "trajectory", consumes: ["trajectory"], attributes: ["parabolic", "projectile"] },
+      { role: "ground", entityId: "ground", consumes: ["ground"], attributes: ["level", "horizontal"] },
+    ],
+  });
 }
 
 function freeFall(context: GeneratorContext) {
@@ -832,7 +842,17 @@ function riverBoat(context: GeneratorContext) {
       ? "head upstream at α so the resultant points straight across"
       : "shortest time: head perpendicular, the current carries the boat downstream");
   }
-  return scene.build();
+  // The river is the strip the two banks bound: it is named by the near bank
+  // and consumes neither bank, which stay free to be the banks themselves.
+  return recordArchetypeFigureIdentity(scene.build(), {
+    archetype: "river_boat",
+    bodies: [
+      { role: "river", entityId: "near_bank", consumes: [], attributes: [] },
+      { role: "bank", entityId: "near_bank", consumes: ["near_bank"], attributes: ["near", "river"] },
+      { role: "bank", entityId: "far_bank", consumes: ["far_bank"], attributes: ["far", "opposite", "river"] },
+      { role: "current", entityId: "flow", consumes: ["flow"], attributes: ["river", "water"] },
+    ],
+  });
 }
 
 export const MECHANICS_GENERATORS: GeneratorTable = {
