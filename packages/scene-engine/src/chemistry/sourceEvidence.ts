@@ -53,7 +53,11 @@ function declaredRole(quantity: TurnPlanQuantityV3): Role | null {
     return symbolRoles[0]!;
   }
   if (symbolRoles.length > 1) return null;
-  return sourceRoles.length === 1 ? sourceRoles[0]! : null;
+  if (sourceRoles.length === 1) return sourceRoles[0]!;
+  // A scalar in degrees can only be an angle: every other VSEPR role is a
+  // count. A planner given such as theta = 104.5 degrees names no role word,
+  // yet it is unambiguous. Its value is still checked against the source.
+  return sourceRoles.length === 0 && compatibleUnit(quantity, "angle") ? "angle" : null;
 }
 
 function formulaKey(formula: string): string | null {
@@ -114,8 +118,11 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
     if (formulaTargets.flat().some((result) => !parseFormula(result.formula)?.atoms.some((entry) => entry.symbol === atom.symbol))) return false;
     return equalScalar(quantity.value, valenceElectrons(atom));
   }
+  // With one species in the source, a scalar that names no species can only
+  // be about that species. Two or more species still need an explicit name.
   const targets = formulaTarget ? [formulaTarget] : atomTarget
-    ? species.filter((result) => result.central.symbol === atomTarget.symbol) : [];
+    ? species.filter((result) => result.central.symbol === atomTarget.symbol)
+    : species.length === 1 ? [species[0]!] : [];
   if (targets.length !== 1) return false;
   const result = targets[0]!;
   if (atomTarget && atomTarget.symbol !== result.central.symbol) return false;

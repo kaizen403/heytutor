@@ -153,18 +153,29 @@ async function main(): Promise<void> {
   await check("unsafe-physical-number-mixed-caption-still-refused", () => {
     const document = structuredClone(candidate.sceneDocument);
     document.annotations.push({ id: "unsafeForce", kind: "callout", targetIds: [], text: "SF4; F = 5 N" });
-    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: plan, tier: candidate.tier }) ?? "", /5 N|5 n/);
+    // Since #258 (548fa9521) a native VSEPR figure is regenerated from the
+    // formula before any other audit, so any added mark is refused as a graph
+    // mismatch first. Still refused; the reason is the earlier, stricter guard.
+    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: plan, tier: candidate.tier }) ?? "", /vsepr_source_graph_mismatch/);
   });
   await check("stale-shared-physical-quantity-still-refused", () => {
     const document = structuredClone(candidate.sceneDocument);
     document.quantities.push({ id: "external_force", symbol: "F", value: 6, unit: "N" });
     const stalePlan: TurnPlanV3 = { ...plan, givens: [{ id: "external_force", symbol: "F", value: 5, unit: "N", sourceText: "F=5 N", provenance: "given" }] };
-    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: stalePlan, tier: candidate.tier }) ?? "", /external_force disagrees/);
+    // Was /external_force disagrees/: #256 reworded the plan audit message,
+    // then #258 put the VSEPR graph check in front of it. Still refused.
+    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: stalePlan, tier: candidate.tier }) ?? "", /vsepr_source_graph_mismatch/);
   });
   await check("explicit-angle-without-authority-not-silently-dropped", () => {
+    // Since #258 the engine letters SF4's equatorial angle with the true bound
+    // <120°, so the obligation is met by a bound, never dropped and never
+    // turned into an exact number.
     const question = "Draw the shape of SF4 and label its bond angle.";
     const explicit = selectProductionScene({ question, turnPlan: planFor(question), problemIR: null });
-    assert.equal(explicit.representation, null, "an explicit angle obligation must not turn into a shape-only success");
+    assert(explicit.representation, explicit.reason);
+    const texts = explicit.representation.renderScene.primitives.map(primitive => primitive.text ?? "");
+    assert(texts.includes("<120°"), "the angle obligation is met by the source bound");
+    assert(!texts.some(text => /^\d+(?:\.\d+)?°$/.test(text)), "no exact SF4 angle is drawn");
   });
   for (const expected of [
     "SF4 has square planar molecular shape with two lone pairs on sulfur.",
@@ -190,6 +201,18 @@ async function main(): Promise<void> {
     const selected = selectProductionScene({ question, turnPlan: anglePlan, problemIR: null });
     assert(selected.representation, selected.reason);
     assert(selected.representation.renderScene.primitives.some(primitive => primitive.text === "104.5°"));
+  });
+  // The given above names neither role nor species; it is accepted because a
+  // degree scalar can only be an angle and the source has one species. Its
+  // value is still checked: a stale angle, or the same unnamed angle with two
+  // species in the source, is refused.
+  await check("unnamed-angle-given-still-value-checked", () => {
+    const question = "Show the shape of H2O with its stated bond angle of 104.5 degrees.";
+    const stale: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value: 109.5, unit: "degree", sourceText: "109.5 degrees", provenance: "given" }] };
+    assert.equal(selectProductionScene({ question, turnPlan: stale, problemIR: null }).representation, null, "a stale unnamed angle is refused");
+    const pair = "Show the shapes of H2O and NH3 with the bond angle of 104.5 degrees.";
+    const ambiguous: TurnPlanV3 = { ...planFor(pair), givens: [{ id: "angle", symbol: "theta", value: 104.5, unit: "degree", sourceText: "104.5 degrees", provenance: "given" }] };
+    assert.equal(selectProductionScene({ question: pair, turnPlan: ambiguous, problemIR: null }).representation, null, "an unnamed angle with two species is refused");
   });
   const load = createRequire(import.meta.url); const enginePath = realpathSync(load.resolve("@heytutor/scene-engine"));
   const output = process.argv.indexOf("--out");
