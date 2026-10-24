@@ -32,7 +32,7 @@ import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
-import { framedNamedSpecies } from "./vseprNamedSpecies";
+import { framedNamedSpecies, neutralNameOfIon } from "./vseprNamedSpecies";
 import { namedSpeciesMentions } from "./namedSpecies";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { VseprBondInkPlan } from "./representation/bondInk";
@@ -479,9 +479,11 @@ function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
     from = start + token.length;
     return [{ start, end: from, key: compositionKey(parsed) }];
   });
+  // "The ammonia ion" is not NH3: a neutral name followed by ion owns
+  // nothing, so its claim falls back to the asked species.
   const names = namedSpeciesMentions(clause).flatMap(name => {
     const parsed = parseFormula(name.formula);
-    if (!parsed || formulas.some(formula => formula.start < name.end && name.start < formula.end)) return [];
+    if (!parsed || neutralNameOfIon(clause, name) || formulas.some(formula => formula.start < name.end && name.start < formula.end)) return [];
     return [{ start: name.start, end: name.end, key: compositionKey(parsed) }];
   });
   return [...formulas, ...names].sort((left, right) => left.start - right.start);
