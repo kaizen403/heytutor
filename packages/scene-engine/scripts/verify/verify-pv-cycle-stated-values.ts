@@ -8,6 +8,10 @@
  * its kind, leaves a named leg or the closing leg out, or states a direction
  * the solved cycle contradicts. Kinds listed beside a chain of states, with
  * no leg named for each, decline too: pairing them by order is a guess.
+ * Every leg the stem writes must be claimed by a kind the parser reads; a
+ * leg written before its kind, or a kind written as an adverb ("expands
+ * isobarically") or as "constant pressure", declines rather than rotating
+ * labels or dropping the leg (#290 delta review).
  * Stems from the #290 review. The stems are written for this gate.
  */
 import { attemptArchetypeScene } from "../../src";
@@ -45,6 +49,10 @@ const declineStems = [
   "An ideal gas undergoes isobaric expansion from A to B at 76 cm of Hg, then isochoric cooling from B to C and isothermal compression from C to A. Draw the P-V diagram.",
   "A gas undergoes the cycle A→B→C→A. The processes are isobaric, isochoric and adiabatic. Draw the P-V diagram.",
   "An ideal gas goes round A→B→C→D→A. Its four processes are isothermal, adiabatic, isothermal and adiabatic. Draw the P-V diagram.",
+  "From A to B the process is isobaric, from B to C it is isochoric, and from C to A it is isothermal, so find the work in A to B. Draw the P-V diagram.",
+  "The gas expands isobarically from A to B, then isochoric cooling from B to C, then isothermal compression from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B followed by isochoric cooling from B to C and then returns to A isothermally. Draw the P-V diagram.",
+  "The gas is first compressed adiabatically from A to B and then undergoes isobaric expansion from B to C and isochoric cooling from C to A. Draw the P-V diagram.",
 ]
 for (const question of declineStems) check(pvCycle(question) === null, `pv_cycle drew a cycle that ignores the stem: "${question.slice(0, 70)}"`);
 

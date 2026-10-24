@@ -326,6 +326,32 @@ function intersect(kindA: ProcessKind, through: { V: number; P: number }, kindB:
   }
 }
 
+/**
+ * Positive evidence that every leg the stem writes is drawn under its own
+ * kind: each "X to Y" in the stem must end a "<kind> ... X to Y" phrase or sit
+ * inside the named state chain. A leg written before its kind ("from A to B
+ * the process is isobaric") or a leg whose kind the parser does not read
+ * ("expands isobarically from A to B") is left unclaimed, and drawing would
+ * rotate the labels or drop the leg.
+ */
+function everyLegClaimed(question: string): boolean {
+  const stem = prepareStem(question);
+  const claimed = new Set<number>();
+  const pattern = /\b(isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b([^.;]{0,80}?)(?:from\s+)?\b([A-D])\b\s*(?:to|→|->|—|-)\s*\b([A-D])\b/gi;
+  for (const match of stem.matchAll(pattern)) claimed.add(match.index! + match[0].length);
+  const chain = /\b([A-D])\s*(?:to|→|->)\s*([A-D])\s*(?:to|→|->)\s*([A-D])(?:\s*(?:to|→|->)\s*([A-D]))?(?:\s*(?:to|→|->)\s*([A-D]))?/i.exec(stem);
+  for (const leg of stem.matchAll(/(?=(\b[A-D]\s*(?:to|→|->|—|-)\s*[A-D]\b))/gi)) {
+    const start = leg.index!;
+    const end = start + leg[1]!.length;
+    if (chain && start >= chain.index && end <= chain.index + chain[0].length) continue;
+    if (!claimed.has(end)) return false;
+  }
+  return true;
+}
+
+/** Kinds written in a form the parser does not read: the leg they name would be dropped. */
+const PV_UNREAD_KIND = /\b(?:isobaric|isochoric|isovolumetric|isothermal|adiabatic)(?:al)?ly\b|\bisotherms?\b|\badiabats?\b|\bconstant\s+(?:pressure|volume|temperature)\b/i;
+
 /** Stated pressures, volumes or state coordinates: the display cycle would contradict them. */
 const PV_STATED_VALUES = /\b[A-D]\s*=\s*\(|\d[\d.,]*\s*(?:[kM]?Pa|atm|bar|mm\s*Hg|m\^?3|m³|cm\^?3|cm³|dm\^?3|L|litres?|liters?)\b/i;
 
@@ -336,10 +362,14 @@ function pvCycle(context: GeneratorContext) {
   // straight line), or names more process kinds than it uses gets no figure:
   // the drawing would ignore what the question says.
   if (PV_STATED_VALUES.test(stem) || /\bstraight[- ]?line\b|\blinear(?:ly)?\b/i.test(stem)) return null;
-  // REVIEW SKETCH: any number or ratio word, a state written A(...), or a leg written before its kind.
+  // Any number or ratio word, a state written A(...), or a leg written
+  // before its kind also declines.
   if (/\d|\b[A-D]\s*=?\s*\(|\b(?:double|doubles|doubled|twice|half|halved|halves|thrice|triple[sd]?|times)\b/i.test(stem)) return null;
   if (/\b[A-D]\s*(?:to|→|->|-)\s*[A-D]\b\s*(?:\(\s*|:\s*|\s+is\s+(?:an?\s+)?|\s+)(?:isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b/i.test(stem)) return null;
-  const processes = parseProcesses(text(context, "processes", context.question));
+  if (PV_UNREAD_KIND.test(stem)) return null;
+  const processText = text(context, "processes", context.question);
+  if (!everyLegClaimed(processText) || !everyLegClaimed(context.question)) return null;
+  const processes = parseProcesses(processText);
   if (processes.length < 2) return null;
   const chain = /\b([A-D])\s*(?:to|→|->)\s*([A-D])\s*(?:to|→|->)\s*([A-D])(?:\s*(?:to|→|->)\s*([A-D]))?(?:\s*(?:to|→|->)\s*([A-D]))?/i.exec(stem);
   if (chain) {
