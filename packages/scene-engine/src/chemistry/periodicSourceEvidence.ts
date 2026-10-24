@@ -117,8 +117,11 @@ function quantityAgrees(quantity: TurnPlanQuantityV3, plotted: Property, kind: "
   if (!property) return false;
   const symbolElements = mentionedElements(quantity.symbol, ELEMENTS);
   const sourceElements = mentionedElements(quantity.sourceText ?? "", ELEMENTS);
-  const elements = symbolElements.length > 0 ? symbolElements : sourceElements;
+  // The symbol and the source text must name the same element: "ionisation
+  // energy of Li" with a source naming Ne is two claims, not one.
+  const elements = [...new Set([...symbolElements, ...sourceElements])];
   if (elements.length !== 1) return false;
+  if (symbol.properties.length > 0 && source.properties.some((item) => !symbol.properties.includes(item))) return false;
   const table = tableValue(property, elements[0]!);
   const factor = unitFactor(property, quantity.unit);
   if (table === null || factor === null) return false;

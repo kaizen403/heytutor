@@ -368,6 +368,15 @@ const ROUND3: ReadonlyArray<readonly [string, () => string, string]> = [
   ["per atom owned total (NH3 shape)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("total valence electrons per atom", 8, "electrons", "5 + 3(1) = 8")] })), "rejected"],
   ["each atom owned total (NH3 shape)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "total valence electrons on each atom")] })), "rejected"],
   ["central atom owned total (Lewis CO2, 16 on the central atom)", () => status(co2Lewis, co2, plan(co2, { derived: [q("total valence electrons on the central atom", 16, "electrons", "4 + 2(6) = 16")] })), "rejected"],
+  // Greptile round 5: joined owners, a formal charge with no linking word,
+  // and a periodic symbol and source naming different elements.
+  ["joined owners (CO2, carbon and oxygen each two lone pairs)", () => status(co2Lewis, co2, plan(co2, { claims: [["Carbon and oxygen each have two lone pairs", true]] })), "rejected"],
+  ["joined owner symbols (CO2, C and O each two lone pairs)", () => status(co2Lewis, co2, plan(co2, { claims: [["C and O each have two lone pairs", true]] })), "rejected"],
+  ["joined postposed owners (CO2, two lone pairs on oxygen and carbon)", () => status(co2Lewis, co2, plan(co2, { claims: [["There are two lone pairs on each oxygen and carbon", true]] })), "rejected"],
+  ["formal charge with no linking word (CO2, carbon formal charge +1)", () => status(co2Lewis, co2, plan(co2, { claims: [["Carbon has formal charge +1", true]] })), "rejected"],
+  ["formal charge on an owner then a value (CO2, formal charge on C +1)", () => status(co2Lewis, co2, plan(co2, { claims: [["The formal charge on C +1", true]] })), "rejected"],
+  ["periodic symbol and source name different elements (Li symbol, Ne source)", () => status(ieGraph, ie, plan(ie, { derived: [q("ionisation energy of Li", 520, "kJ/mol", "First ionisation energy of Ne is 520 kJ/mol")] })), "rejected"],
+  ["periodic symbol and source name the same element still certify (Li 520)", () => status(ieGraph, ie, plan(ie, { derived: [q("ionisation energy of Li", 520, "kJ/mol", "First ionisation energy of Li is 520 kJ/mol")] })), "certified"],
   ["Lewis molecule total still certifies (CO2 total valence 16)", () => status(co2Lewis, co2, plan(co2, { derived: [q("Total valence electrons", 16, "electrons", "4 + 2(6) = 16")] })), "certified"],
 ];
 const round3Failures: string[] = [];

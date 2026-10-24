@@ -129,9 +129,14 @@ function mentions(list: readonly Token[]): Set<number> {
   });
   list.forEach((token, index) => {
     if (!isRoleNoun(list, index)) return;
+    // A value written right after the role ("formal charge +1", "lone pairs
+    // 2"), or anywhere in the clause after a formal charge, is a count too.
+    const formal = token.lower === "charge" || token.lower === "charges";
     for (let ahead = index + 1; ahead <= index + 6 && ahead < list.length; ahead++) {
       const word = list[ahead]!.lower;
       if ([".", ";", ","].includes(word)) break;
+      const direct = ahead === index + 1 || (ahead === index + 2 && ["+", "-", "\u2212"].includes(list[index + 1]!.text));
+      if ((direct || formal) && numberLike(list[ahead]) && !["a", "an"].includes(word)) { found.add(ahead); continue; }
       if (!["is", "are", "=", ":", "of", "equals", "equal"].includes(word)) continue;
       let at = ahead + 1;
       if (["+", "-", "−"].includes(list[at]?.text ?? "")) at++;
@@ -279,6 +284,23 @@ function parseItem(list: readonly Token[], at: number): Item | null {
 
 interface OwnerRead { owner: Owner | null; bondedTo: boolean; failed: boolean }
 
+const JOINERS = new Set(["and", "or", ",", "&", "/", "as", "well", "both", "plus", "nor", "either", "neither"]);
+const OWNER_FILLER = new Set(["the", "each", "atom", "atoms", "all", "central"]);
+
+/** True when another element or formula is joined to an owner ("carbon and
+ * oxygen", "O, C"), read from the owner outwards in one direction. */
+function joinedOwner(list: readonly Token[], from: number, step: 1 | -1): boolean {
+  let joined = false;
+  for (let index = from; index >= 0 && index < list.length; index += step) {
+    const token = list[index]!;
+    if (JOINERS.has(token.lower)) { joined = true; continue; }
+    if (OWNER_FILLER.has(token.lower)) continue;
+    if (!joined) return false;
+    return elementOf(token) !== null || (parseFormula(token.text) !== null && /[A-Z]/.test(token.text) && !token.text.includes("\u00b7"));
+  }
+  return false;
+}
+
 /** The atom, central atom, molecule or bond a list of counts describes. */
 function readOwner(list: readonly Token[], start: number, end: number, result: LewisResult): OwnerRead {
   const key = formulaKey(result.formula.text);
@@ -302,7 +324,7 @@ function readOwner(list: readonly Token[], start: number, end: number, result: L
       if (element) {
         const atoms = resolveAtom(element);
         post = atoms ? { kind: "atom", atoms } : null;
-        failed = !atoms;
+        failed = !atoms || joinedOwner(list, at + 1, 1);
       } else if (list[at] && parseFormula(list[at]!.text) && formulaKey(list[at]!.text) === key) post = { kind: "molecule" };
     }
   } else if (list[at]?.lower === "in") {
@@ -336,6 +358,9 @@ function readOwner(list: readonly Token[], start: number, end: number, result: L
       const centre = centralAtom(result);
       if (central && (!centre || centre.symbol !== element.symbol)) { failed = true; break; }
       subject = { kind: "atom", atoms };
+      // "Carbon and oxygen each have two lone pairs" names two owners; the
+      // reader checks one, so a joined owner is unread.
+      if (joinedOwner(list, back - 1, -1)) failed = true;
       break;
     }
     if (parseFormula(token.text) && /[A-Z]/.test(token.text) && !token.text.includes("·")) {
