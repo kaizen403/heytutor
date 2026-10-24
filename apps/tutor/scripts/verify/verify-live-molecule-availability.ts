@@ -195,34 +195,18 @@ async function main(): Promise<void> {
       const selected = selectProductionScene({ question: fixture.question, turnPlan: correctPlan, problemIR: null });
       assert(selected.representation, selected.reason);
     });
-  await check("explicit-source-backed-angle-remains-drawable", () => {
-    const question = "Show the shape of H2O with its stated bond angle of 104.5 degrees.";
-    const anglePlan: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value: 104.5, unit: "degree", sourceText: "104.5 degrees", provenance: "given" }] };
-    const selected = selectProductionScene({ question, turnPlan: anglePlan, problemIR: null });
-    assert(selected.representation, selected.reason);
-    assert(selected.representation.renderScene.primitives.some(primitive => primitive.text === "104.5°"));
-  });
-  // The given above names neither role nor species; it is accepted because a
-  // degree scalar can only be an angle and the source has one species. Its
-  // value is still checked: a stale angle, or the same unnamed angle with two
-  // species in the source, is refused.
-  await check("unnamed-angle-given-still-value-checked", () => {
-    const question = "Show the shape of H2O with its stated bond angle of 104.5 degrees.";
-    const stale: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value: 109.5, unit: "degree", sourceText: "109.5 degrees", provenance: "given" }] };
-    assert.equal(selectProductionScene({ question, turnPlan: stale, problemIR: null }).representation, null, "a stale unnamed angle is refused");
-    const pair = "Show the shapes of H2O and NH3 with the bond angle of 104.5 degrees.";
-    const ambiguous: TurnPlanV3 = { ...planFor(pair), givens: [{ id: "angle", symbol: "theta", value: 104.5, unit: "degree", sourceText: "104.5 degrees", provenance: "given" }] };
-    assert.equal(selectProductionScene({ question: pair, turnPlan: ambiguous, problemIR: null }).representation, null, "an unnamed angle with two species is refused");
-  });
-  // The unnamed binding above trusts that the one parsed species is the whole
-  // source. When the stem writes a charge the reader did not parse, that
-  // species is the neutral molecule, so an angle certified against it is a
-  // false figure (nitrite drawn at 134 degrees, sulfite drawn planar). Any
-  // charge-like token in the stem turns the binding off: refused as before.
+  // A stated angle given that names neither its role nor its species is not
+  // certified: the source certificate (#258) requires both in the given. On a
+  // charged stem the one parsed species can be the neutral molecule the reader
+  // fell back to (NO2 minus read as NO2), so certifying it would draw a false
+  // angle. These stay declined until a reader proves the stem is uncharged.
   const anglePlanFor = (question: string, value: number, kind: "givens" | "derived"): TurnPlanV3 => ({
     ...planFor(question), [kind]: [{ id: "angle", symbol: "theta", value, unit: "degree", sourceText: `${value} degrees`, provenance: kind === "givens" ? "given" : "derived" }],
   });
   for (const [question, value, kind] of [
+    ["Show the shape of H2O with its stated bond angle of 104.5 degrees.", 104.5, "givens"],
+    ["Show the shape of H2O with its stated bond angle of 104.5 degrees.", 109.5, "givens"],
+    ["Show the shapes of H2O and NH3 with the bond angle of 104.5 degrees.", 104.5, "givens"],
     ["Draw the shape of NO2 minus and label its bond angle.", 134, "derived"],
     ["Draw the shape of NO2 plus and label its bond angle.", 134, "derived"],
     ["Draw the shape of SO3 2- and label its bond angle.", 120, "derived"],
@@ -245,44 +229,9 @@ async function main(): Promise<void> {
     ["The NO2 minus ion: draw its shape with the bond angle 134 degrees.", 134, "givens"],
     ["Draw the shape of NO2 in nitrogen(III) form with bond angle 134 degrees.", 134, "givens"],
     ["Draw the shape of NO2 (N in +3 state) with bond angle 134 degrees.", 134, "givens"],
-  ] as const) await check(`charged-stem-unnamed-angle-refused/${kind}/${question}`, () => {
+  ] as const) await check(`unnamed-angle-declined/${kind}/${value}/${question}`, () => {
     const selected = selectProductionScene({ question, turnPlan: anglePlanFor(question, value, kind), problemIR: null });
-    assert.equal(selected.representation, null, "the neutral molecule must not certify an angle when the stem writes a charge");
-    assert.match(selected.reason, /vsepr_plan_fact_unverified/);
-  });
-  // A given that could be an angle is never skipped as unrelated, however its
-  // unit is spelled or when only its source text says degrees: on a charged
-  // stem it would otherwise escape every check and admit the neutral figure.
-  for (const [question, value, unit, sourceText] of [
-    ["Draw the shape of NO2 plus and label its bond angle.", 180, " degree ", "180 degrees"],
-    ["Draw the shape of NO2 plus and label its bond angle.", 180, "Degrees", "180 degrees"],
-    ["Draw the shape of NO2 plus and label its bond angle.", 180, "deg ", "180 deg"],
-    ["Draw the shape of NO2 plus and label its bond angle.", 180, " ° ", "180°"],
-    ["Draw the shape of NO2 plus and label its bond angle.", 180, "", "180 degrees"],
-    ["Draw the shape of NO2 minus with its bond angle of 134 degrees.", 134, " degree ", "134 degrees"],
-    ["Draw the shape of SO3 2- with its bond angle of 120 degrees.", 120, "DEGREE", "120 degrees"],
-  ] as const) await check(`charged-stem-angle-like-given-refused/${JSON.stringify(unit)}/${question}`, () => {
-    const plan: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value, unit, sourceText, provenance: "given" }] };
-    const selected = selectProductionScene({ question, turnPlan: plan, problemIR: null });
-    assert.equal(selected.representation, null, "an angle-like given on a charged stem is checked and refused");
-    assert.match(selected.reason, /vsepr_plan_fact_unverified/);
-  });
-  // Positive controls beside them: the same unnamed angle on a neutral stem
-  // still draws the formula angle, given or derived, and still checks value.
-  for (const [question, value, kind, label] of [
-    ["Draw the shape of NO2 with its bond angle of 134 degrees.", 134, "givens", "134°"],
-    ["Draw the shape of SO3 with its bond angle of 120 degrees.", 120, "givens", "120°"],
-    ["Show the shape of H2O with its stated bond angle of 104.5 degrees.", 104.5, "givens", "104.5°"],
-    ["Draw the shape of H2O and label its bond angle.", 104.5, "derived", "104.5°"],
-  ] as const) await check(`neutral-stem-unnamed-angle-drawn/${kind}/${question}`, () => {
-    const selected = selectProductionScene({ question, turnPlan: anglePlanFor(question, value, kind), problemIR: null });
-    assert(selected.representation, selected.reason);
-    assert(selected.representation.renderScene.primitives.some(primitive => primitive.text === label), `the formula angle ${label} is drawn`);
-  });
-  await check("neutral-stem-stale-unnamed-angle-refused", () => {
-    const question = "Show the shape of H2O with its stated bond angle of 109.5 degrees.";
-    const selected = selectProductionScene({ question, turnPlan: anglePlanFor(question, 109.5, "givens"), problemIR: null });
-    assert.equal(selected.representation, null, "a stale 109.5 for water is refused");
+    assert.equal(selected.representation, null, "an angle naming neither role nor species is not certified");
     assert.match(selected.reason, /vsepr_plan_fact_unverified/);
   });
   const load = createRequire(import.meta.url); const enginePath = realpathSync(load.resolve("@heytutor/scene-engine"));
