@@ -1,0 +1,612 @@
+{
+ "source": "Accelute YouTube lesson recordings v1, v2, v3 and the earlier projectile set, recorded on main 565cb1781 and before (Oct 2026). Each lesson keeps its question, the recorded opening line, every spoken line (the exact TTS request text) whose old speech carried a brace, an underscore, a caret, a lowercased jee or a bare m after a number, and every teaching narration line (tags removed) with the same hazard.",
+ "lessons": [
+  {
+   "id": "v1/p1c-envfail-t3",
+   "question": "Explain scalars, vectors and unit vectors for JEE from the basics. Cover: how a vector differs from a scalar; the unit vectors î, ĵ, k̂ along the x, y, z axes; writing A = Axî + Ayĵ + Azk̂ with magnitude √(Ax² + Ay² + Az²); the unit vector Â = A/|A|. Draw one simple diagram on xy axes: points P(1, 2) and Q(4, 6), their position vectors from the origin, and the displacement vector from P to Q, with short labels.",
+   "opening": "",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p1c-t1",
+   "question": "Explain scalars, vectors and unit vectors for JEE from the basics with a clear diagram. Cover: how a vector differs from a scalar; the unit vectors î, ĵ, k̂ along the x, y, z axes; writing A = Axî + Ayĵ + Azk̂ with magnitude √(Ax² + Ay² + Az²); the unit vector Â = A/|A|; position vectors of two points from the origin on xy axes and the displacement vector joining them. Use one small worked number example.",
+   "opening": "ठीक है... ये lesson scalars, vectors and unit vectors for jee from the basics with a clear diagram के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p1c-t2",
+   "question": "Explain scalars, vectors and unit vectors for JEE from the basics with a clear diagram. Cover: how a vector differs from a scalar; the unit vectors î, ĵ, k̂ along the x, y, z axes; writing A = Axî + Ayĵ + Azk̂ with magnitude √(Ax² + Ay² + Az²); the unit vector Â = A/|A|; position vectors of two points from the origin on xy axes and the displacement vector joining them. Use one small worked number example.",
+   "opening": "ठीक है... ये lesson scalars, vectors and unit vectors for jee from the basics with a clear diagram के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p1c-t3",
+   "question": "Explain scalars, vectors and unit vectors for JEE from the basics. Cover: how a vector differs from a scalar; the unit vectors î, ĵ, k̂ along the x, y, z axes; writing A = Axî + Ayĵ + Azk̂ with magnitude √(Ax² + Ay² + Az²); the unit vector Â = A/|A|. Draw one simple diagram on xy axes: points P(1, 2) and Q(4, 6), their position vectors from the origin, and the displacement vector from P to Q, with short labels.",
+   "opening": "तो... ये lesson scalars, vectors and unit vectors for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p2c-t1",
+   "question": "Explain vector addition and subtraction for JEE from the basics with a clear diagram. Cover: the triangle law with A and B head to tail, resultant R from tail of A to head of B; the parallelogram law with A and B tail to tail at angle θ; R² = A² + B² + 2AB cos θ; direction tan α = B sin θ/(A + B cos θ); subtraction as A + (−B). Use one small worked number example.",
+   "opening": "ठीक है... ये lesson vector addition and subtraction for jee from the basics with a clear diagram के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p2c-t2",
+   "question": "Explain vector addition and subtraction for JEE from the basics. Cover: the triangle law (head to tail); the parallelogram law with A and B tail to tail at angle θ; R² = A² + B² + 2AB cos θ; direction tan α = B sin θ/(A + B cos θ); subtraction as A + (−B). Draw one simple parallelogram diagram: A = 3 units along the x axis, B = 4 units at 90° to A, and the diagonal R, with short labels. Explain subtraction in equations only.",
+   "opening": "ठीक है... ये lesson vector addition and subtraction for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p2c-t3",
+   "question": "Explain vector addition and subtraction for JEE from the basics. Cover: the triangle law (head to tail); the parallelogram law with A and B tail to tail at angle θ; R² = A² + B² + 2AB cos θ; direction tan α = B sin θ/(A + B cos θ); subtraction as A + (−B). Draw one simple parallelogram diagram: A = 3 units along the x axis, B = 4 units at 90° to A, and the diagonal R, with short labels. Explain subtraction in equations only.",
+   "opening": "ठीक है... ये lesson vector addition and subtraction for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p2e2-t1",
+   "question": "Two vectors A and B each have magnitude 10 units. A points along the positive x axis and B points at 60° counterclockwise from A. Find the magnitudes of A + B and A − B, and the angle that A − B makes with A.",
+   "opening": "तो... ये question asks for the magnitudes of a + b and a minus b, and the angle that a minus b makes with a. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p3c-t1",
+   "question": "Explain resolution of a vector into components for JEE from the basics with a clear diagram. Cover: vector A at angle θ to the x axis, components Ax = A cos θ, Ay = A sin θ; A = √(Ax² + Ay²), tan θ = Ay/Ax; component signs per quadrant; weight mg on an incline of angle θ resolved into mg sin θ along the slope and mg cos θ normal to it. Use one small worked number example.",
+   "opening": "तो... इसे शुरू से समझते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p3c-t2",
+   "question": "Explain resolution of a vector into components for JEE from the basics. Cover: Ax = A cos θ, Ay = A sin θ; A = √(Ax² + Ay²), tan θ = Ay/Ax; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram: a vector A of 10 units at 37° to the x axis with its Ax and Ay component arrows on xy axes. Explain the incline case in equations only.",
+   "opening": "अच्छा... ये lesson resolution of a vector into components for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p3c-t3",
+   "question": "Explain resolution of a vector into components for JEE from the basics. Cover: Ax = A cos θ, Ay = A sin θ; A = √(Ax² + Ay²), tan θ = Ay/Ax; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram: a vector A of 10 units from the origin at 37° to the x axis, dashed lines from its tip to both axes, and the components drawn as arrows along the axes themselves: Ax along the x axis and Ay along the y axis. Explain the incline case in equations only.",
+   "opening": "ठीक है... ये lesson resolution of a vector into components for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p3c-t4",
+   "question": "Explain resolution of a vector into components for JEE from the basics. Cover: Fx = F cos θ, Fy = F sin θ; F = √(Fx² + Fy²), tan θ = Fy/Fx; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram on xy axes: a force F of 10 N from the origin at 37° to the x axis, with Fx drawn as an arrow along the x axis and Fy as an arrow along the y axis. Explain the incline case in equations only.",
+   "opening": "ठीक है... ये lesson resolution of a vector into components for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p3e1-t1",
+   "question": "A vector A lies in the xy plane and makes an angle of 30° with the positive x axis, measured counterclockwise. Its y component is 5 units. Find the magnitude of A and its x component.",
+   "opening": "तो... ये question asks for the magnitude of a and its x component. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p4c-t1",
+   "question": "Explain the dot (scalar) product for JEE from the basics with a clear diagram. Cover: A·B = AB cos θ with A and B drawn tail to tail and θ marked between them; A·B = AxBx + AyBy + AzBz using î·î = 1 and î·ĵ = 0; finding the angle between two vectors; the projection of A on B as A·B/|B|; the perpendicular condition A·B = 0; work W = F·d. Use one small worked number example.",
+   "opening": "अच्छा... ये lesson the dot (scalar) product for jee from the basics with a clear diagram के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p4e2-t1",
+   "question": "A constant force F = (3î + 4ĵ − 2k̂) N acts on a particle while it moves from point P (1 m, 2 m, 3 m) to point Q (5 m, 4 m, 3 m). Find the displacement vector and the work done by F. Then find the value of p for which F does no work along a displacement (pî − ĵ + 4k̂) m.",
+   "opening": "अच्छा... ये question asks for p for which f does no work along a displacement (pî - j hat + 4 k hat) m. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p4e2-t2",
+   "question": "A constant force F = (3î + 4ĵ − 2k̂) N acts on a particle while it moves from point P (1 m, 2 m, 3 m) to point Q (5 m, 4 m, 3 m). Find the displacement vector and the work done by F. Then find the number p (a pure number, no unit) for which F does no work along the displacement (pî − ĵ + 4k̂) m.",
+   "opening": "अच्छा... ये question asks for the displacement vector and the work done by f. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p5c-envfail-t2",
+   "question": "Explain the cross (vector) product for JEE from the basics. Cover: |A × B| = AB sin θ; direction by the right hand rule, perpendicular to the plane of A and B; A × B = −B × A; the determinant form with î, ĵ, k̂; parallelogram area |A × B| and triangle area half of it. Draw one simple diagram in the xy plane: A and B tail to tail with the angle θ marked and the parallelogram they form. Say the direction of A × B in words only.",
+   "opening": "",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p5c-t1",
+   "question": "Explain the cross (vector) product for JEE from the basics with a clear diagram. Cover: |A × B| = AB sin θ with A and B tail to tail; direction by the right hand rule, perpendicular to their plane; A × B = −B × A; the determinant form with î, ĵ, k̂; parallelogram area |A × B| and triangle area half of it; the unit vector perpendicular to both. Use one small worked number example.",
+   "opening": "ठीक है... ये lesson the cross (vector) product for jee from the basics with a clear diagram के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p5c-t2",
+   "question": "Explain the cross (vector) product for JEE from the basics. Cover: |A × B| = AB sin θ; direction by the right hand rule, perpendicular to the plane of A and B; A × B = −B × A; the determinant form with î, ĵ, k̂; parallelogram area |A × B| and triangle area half of it. Draw one simple diagram in the xy plane: A and B tail to tail with the angle θ marked and the parallelogram they form. Say the direction of A × B in words only.",
+   "opening": "ठीक है... ये lesson the cross (vector) product for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v1/p5c-t3",
+   "question": "Explain the cross (vector) product for JEE from the basics. Cover: |A × B| = AB sin θ; direction by the right hand rule, perpendicular to the plane of A and B; A × B = −B × A; the determinant form with î, ĵ, k̂; parallelogram area |A × B| and triangle area half of it; the unit vector perpendicular to both, n̂ = (A × B)/|A × B|. Draw one simple diagram in the xy plane: A and B tail to tail with the angle θ marked and the parallelogram they form. Say in words that for this figure A × B points out of the page.",
+   "opening": "अच्छा... ये lesson the cross (vector) product for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-azure401",
+   "question": "Explain distance, displacement, speed and velocity for JEE from the basics. Cover: frame of reference, origin and positive direction, why motion is relative; distance as path length versus displacement with a sign; average speed as total distance over time versus average velocity as displacement over time; instantaneous velocity dx/dt, speed as its magnitude. Draw one simple diagram: a straight track drawn as a number line with points A at 0 m, B at 40 m and C at 10 m; one arrow above the line from A to B, and a second arrow below the line from B back to C. Label only A, B, C and their positions; say the distance and displacement in words.",
+   "opening": "ठीक है... ये lesson distance, displacement, speed and velocity for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-t1",
+   "question": "Explain distance, displacement, speed and velocity for JEE from the basics. Cover: frame of reference, origin and positive direction, why motion is relative; distance as path length versus displacement with a sign; average speed as total distance over time versus average velocity as displacement over time; instantaneous velocity dx/dt, speed as its magnitude. Draw one simple diagram: a straight track with A at x = 0, B at x = 40 m, C at x = 10 m, the car going A to B then back to C.",
+   "opening": "ठीक है... ये lesson distance, displacement, speed and velocity for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [
+    "Choose A as the origin and the direction toward B as positive. Position and motion depend on the observer's frame of reference; different observers can assign different velocities to the same car. The car travels A to B, reverses, then stops at C. Distance adds both path lengths and never becomes negative. Displacement is final position minus initial position; the return leg is negative in this frame. For any positive total elapsed time delta t, average speed is 70 m divided by delta t, while average velocity is +10 m divided by delta t. No numerical rate is available without the time. Instantaneous velocity is the signed derivative d x by d t; instantaneous speed is its the magnitude of v. While moving on the return leg, the car's velocity is negative.",
+    "देखो x equals 0 m initial position और origin है, इसलिए x A equals zero meters.",
+    "अब x equals 40 m turnaround position है, इसलिए x B equals forty meters.",
+    "और x equals 10 m final position है, इसलिए x C equals ten meters.",
+    "diagram का 70 m पूरे travelled path की length दिखाता है: D equals magnitude of forty minus zero plus magnitude of ten minus forty.",
+    "diagram का +10 m net change दिखाता है: delta x equals ten minus zero equals plus ten meters, यानी positive direction में."
+   ],
+   "raw": [
+    "देखो x=0 m initial position और origin है, इसलिए x A equals zero meters.",
+    "अब x=40 m turnaround position है, इसलिए x B equals forty meters.",
+    "और x=10 m final position है, इसलिए x C equals ten meters.",
+    "diagram का 70 m पूरे travelled path की length दिखाता है: D equals magnitude of forty minus zero plus magnitude of ten minus forty.",
+    "diagram का +10 m net change दिखाता है: delta x equals ten minus zero equals plus ten meters, यानी positive direction में."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-t2",
+   "question": "Explain distance, displacement, speed and velocity for JEE from the basics. Cover: frame of reference, origin and positive direction, why motion is relative; distance as path length versus displacement with a sign; average speed as total distance over time versus average velocity as displacement over time; instantaneous velocity dx/dt, speed as its magnitude. Draw one simple diagram: a straight track with A at x = 0, B at x = 40 m, C at x = 10 m, the car's path drawn as an arrow from A to B and a second arrow back from B to C, with points A, B, C labelled.",
+   "opening": "तो... ये lesson distance, displacement, speed and velocity for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-t3",
+   "question": "Explain distance, displacement, speed and velocity for JEE from the basics. Cover: frame of reference, origin and positive direction, why motion is relative; distance as path length versus displacement with a sign; average speed as total distance over time versus average velocity as displacement over time; instantaneous velocity dx/dt, speed as its magnitude. Draw one simple diagram: a straight track with A at x = 0, B at x = 40 m, C at x = 10 m, the car's path drawn as an arrow from A to B and a second arrow back from B to C, with points A, B, C labelled.",
+   "opening": "तो... ये lesson distance, displacement, speed and velocity for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-t4",
+   "question": "Explain distance, displacement, speed and velocity for JEE from the basics. Cover: frame of reference, origin and positive direction, why motion is relative; distance as path length versus displacement with a sign; average speed as total distance over time versus average velocity as displacement over time; instantaneous velocity dx/dt, speed as its magnitude. Draw one simple diagram: a straight track drawn as a number line with points A at 0 m, B at 40 m and C at 10 m; one arrow above the line from A to B, and a second arrow below the line from B back to C. Label only A, B, C and their positions; say the distance and displacement in words.",
+   "opening": "ठीक है... ये lesson distance, displacement, speed and velocity for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1c-t5",
+   "question": "Explain distance, displacement, speed and velocity for JEE using this example: a car on a straight road goes from A at x = 0 to B at x = 40 m in 4 s, then back to C at x = 10 m in 2 s.",
+   "opening": "तो... इसे शुरू से समझते हैं.",
+   "lines": [
+    "ये setup है. पहले straight road x-axis, फिर car, फिर position A, फिर position B, फिर position C, फिर leg A to B, और आखिर में leg b. इतना setup तैयार है. ध्यान दो: Car on a straight road: A at x equals 0, B at x equals 40 m, C at x equals 10 m; first leg A to B, then back to C."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p1e2-t1",
+   "question": "A girl walks 240 m due east along a straight road at a steady 4 m/s. She then turns around and walks 80 m due west at a steady 2 m/s. Taking east as positive, find her total time, her average speed and her average velocity for the whole walk.",
+   "opening": "ठीक है... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "figure में 240 m east पहले walk की distance है, जो east की ओर है. उस हिस्से का time distance divided by speed होगा: t e equals d e over v e.",
+    "80 m west वापसी की distance है, जो west की ओर है. उसका time भी इसी rule से मिलता है: t w equals d w over v w."
+   ],
+   "raw": [
+    "figure में 240 m east पहले walk की distance है, जो east की ओर है. उस हिस्से का time distance divided by speed होगा: t e equals d e over v e.",
+    "80 m west वापसी की distance है, जो west की ओर है. उसका time भी इसी rule से मिलता है: t w equals d w over v w."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p2c-t1",
+   "question": "Explain uniformly accelerated motion for JEE from the basics. Cover: uniform acceleration and retardation; v = u + at, s = ut + ½at², v² = u² + 2as from the v against t graph; average velocity (u + v)/2; signs of u, a, s; nth second distance u + a(2n − 1)/2; constant acceleration only. Draw one simple diagram: a v against t line from 4 m/s at t = 0 to 16 m/s at t = 6 s, area under it shaded as 60 m.",
+   "opening": "अच्छा... ये lesson uniformly accelerated motion for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p2c-t2",
+   "question": "Explain uniformly accelerated motion for JEE from the basics. Cover: uniform acceleration and retardation; v = u + at, s = ut + ½at², v² = u² + 2as from the v against t graph; average velocity (u + v)/2; signs of u, a, s; nth second distance u + a(2n − 1)/2; constant acceleration only. Draw one simple diagram: a v against t line from 4 m/s at t = 0 to 16 m/s at t = 6 s, and the area under it shaded. Label only the given values (4 m/s, 16 m/s and 6 s); say the area (60 m) and the acceleration in words, not as labels.",
+   "opening": "अच्छा... ये lesson uniformly accelerated motion for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p3c-t1",
+   "question": "Explain motion under gravity for JEE from the basics, with g = 10 m/s². Cover: free fall with uniform acceleration g downward, no air resistance; up positive, a = −g; thrown up: time to top u/g, maximum height u²/2g, flight time 2u/g, equal speeds at one level; release from a rising balloon keeps its velocity; successive second distances 1 : 3 : 5. Draw one simple diagram: a ball thrown up from the ground at 20 m/s, and its highest point marked. Label only the given 20 m/s and g; say the 20 m height in words, not as a label.",
+   "opening": "अच्छा... ये lesson motion under gravity for jee from the basics, with g equals 10 meters per second squared के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p3e2-t1",
+   "question": "A balloon is rising vertically at a steady 10 m/s. When it is 75 m above the ground, a packet is released from it. Take g = 10 m/s², up as positive, and ignore air resistance. Find the time the packet takes to reach the ground, its speed just before landing, and its maximum height above the ground.",
+   "opening": "अच्छा... ये question asks for the time the packet takes to reach the ground, its speed just. पहले देखते हैं क्या दिया है.",
+   "lines": [
+    "At release, the packet is 75 m above the ground and moving upward with the balloon. Its acceleration is downward.",
+    "figure में v zero equals ten meters per second balloon की ऊपर जाती velocity दिखाता है. अब यह तय करना है कि release के तुरंत बाद packet की velocity क्या होगी: v_(0) equals?.",
+    "figure में y zero equals seventy-five meters ground से release height है. ground पर height zero चुनेंगे, तो y_(ground) equals 0."
+   ],
+   "raw": [
+    "figure में v zero equals ten meters per second balloon की ऊपर जाती velocity दिखाता है. अब यह तय करना है कि release के तुरंत बाद packet की velocity क्या होगी: v_(0) = ?.",
+    "figure में y zero equals seventy-five meters ground से release height है. ground पर height zero चुनेंगे, तो y_(ground) = 0."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p3e2-t2",
+   "question": "A balloon is rising vertically at a steady 10 m/s. When it is 75 m above the ground, a packet is released from it. Take g = 10 m/s², up as positive, and ignore air resistance. Find the time the packet takes to reach the ground, its speed just before landing, and its maximum height above the ground. Draw the vertical path: the packet rising a little above the release point to its highest point, then falling to the ground, with the release point, highest point and ground marked.",
+   "opening": "तो... ये question asks for the time the packet takes to reach the ground, its speed just. पहले देखते हैं क्या दिया है.",
+   "lines": [
+    "The packet is released 75 m above the ground while moving upward at 10 meters per second."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4c-azure401",
+   "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with labelled v and t axes and its corner points marked. Do not shade any region. Label only the given values (20 m/s, 4 s, 10 s); explain the 160 m area in words.",
+   "opening": "ठीक है... ये lesson motion graphs for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4c-t1",
+   "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with the area under it shaded. Label only the given values (20 m/s, 4 s, 10 s); say the 160 m area in words, not as a label.",
+   "opening": "अच्छा... ये lesson motion graphs for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4c-t2",
+   "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with the area under it shaded. Label only the given values (20 m/s, 4 s, 10 s); say the 160 m area in words, not as a label.",
+   "opening": "अच्छा... ये lesson motion graphs for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4c-t3",
+   "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with labelled v and t axes and its corner points marked. Do not shade any region. Label only the given values (20 m/s, 4 s, 10 s); explain the 160 m area in words.",
+   "opening": "ठीक है... ये lesson motion graphs for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [
+    "Time runs horizontally and velocity vertically. Velocity rises steadily from zero to the marked corner, then stays constant along the flat segment. The slope of a velocity–time graph is acceleration. On a position–time graph, tangent slope is instantaneous velocity: a horizontal line means rest, a straight line with nonzero slope means uniform velocity, and a parabola represents uniform acceleration. Signed area under a velocity–time graph is displacement; area below the time axis is negative. Total distance adds the magnitudes of the areas. Signed area under an acceleration–time graph gives the change in velocity. The rising phase contributes a triangular area and the constant-velocity phase contributes a rectangular area. Together they give 160 m of displacement. Velocity never goes below zero here, so the distance is also 160 m. A graph cannot give one object two positions or two velocities at the same instant. In ordinary continuous motion, a position jump would mean teleportation, while an instantaneous velocity jump would require unbounded acceleration."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4c-t4",
+   "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with labelled v and t axes and its corner points marked. Do not shade any region. Label only the given values (20 m/s, 4 s, 10 s); explain the 160 m area in words.",
+   "opening": "ठीक है... ये lesson motion graphs for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p4e1-t1",
+   "question": "A particle moves along the x axis. Its velocity against time graph is made of straight pieces joining these corner points in order: (0 s, 0 m/s), (2 s, 10 m/s), (6 s, 10 m/s) and (10 s, −10 m/s). Find the acceleration during the last piece, the displacement of the particle in 10 s and the distance it travels in 10 s.",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "Read the four stated corners in time order. The last piece has acceleration minus 5 meters per second squared, its change in velocity divided by its four-second duration. Signed area under the graph gives displacement delta x equals 50 m. Adding the absolute areas gives distance d equals 70 m; the last piece has equal positive and negative triangular areas."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5c-t1",
+   "question": "Explain non uniform acceleration using calculus for JEE from the basics. Cover: v = dx/dt and a = dv/dt for a given x(t); a = v dv/dx when acceleration depends on position or velocity; integrating a(t) with initial conditions; separating variables for a(v) such as a = −kv; rest instants and splitting distance at turning points. Draw one simple diagram: an x against t graph of x = t² from 0 to 4 s, and the tangent drawn at t = 2 s. Say the slope (4 m/s) in words, not as a label.",
+   "opening": "अच्छा... ये lesson non uniform acceleration using calculus for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5e1-t1",
+   "question": "The position of a particle moving along the x axis is x = 2t³ − 9t² + 12t + 5, with x in metres and t in seconds. Find its velocity and acceleration at t = 3 s, the instants when it is momentarily at rest, and the distance it travels from t = 0 to t = 3 s.",
+   "opening": "तो... ये question asks for its velocity and acceleration at t equals 3 s, the instants. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5e1-t2",
+   "question": "The position of a particle moving along the x axis is x = 2t³ − 9t² + 12t + 5, with x in metres and t in seconds. Find its velocity and acceleration at t = 3 s, the instants when it is momentarily at rest, and the distance it travels from t = 0 to t = 3 s. Draw the x against t graph with labelled t and x axes, and mark the points where the particle is at rest.",
+   "opening": "",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5e1-t3",
+   "question": "The position of a particle moving along the x axis is x = 2t³ − 9t² + 12t + 5, with x in metres and t in seconds. Find its velocity and acceleration at t = 3 s, the instants when it is momentarily at rest, and the distance it travels from t = 0 to t = 3 s. Draw the x against t graph with labelled t and x axes, and mark the points where the particle is at rest.",
+   "opening": "",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5e2-t1",
+   "question": "A motorboat moving in a straight line at 20 m/s on a still lake switches off its engine. After that, its acceleration is a = −kv, where v is its velocity and k = 0.5 s⁻¹. Find its speed after it has travelled 30 m from the point where the engine was switched off, and the maximum distance it can travel.",
+   "opening": "अच्छा... ये question asks for its speed. पहले देखते हैं क्या दिया है.",
+   "lines": [
+    "Show the stated initial speed, drag law, and 30 m displacement."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v2/p5e2-t2",
+   "question": "A motorboat moving in a straight line at 20 m/s on a still lake switches off its engine. After that, its acceleration is a = −kv, where v is its velocity and k = 0.5 s⁻¹. Find its speed after it has travelled 30 m from the point where the engine was switched off, and the maximum distance it can travel. Draw the boat's straight path with the switch off point, the 30 m point and the 40 m limit marked.",
+   "opening": "अच्छा... ये question asks for its speed. पहले देखते हैं क्या दिया है.",
+   "lines": [
+    "अब 30 m आगे की position है, और x switch off से वहाँ तक travelled distance है. इस point पर x equals thirty meters.",
+    "Check करो: thirty meters पर relation में five meters per second मिलता है, और forty meters पर zero. इसलिए 30 m point, x max से पहले है: five greater than zero, और thirty less than forty."
+   ],
+   "raw": [
+    "अब 30 m आगे की position है, और x switch off से वहाँ तक travelled distance है. इस point पर x equals thirty meters.",
+    "Check करो: thirty meters पर relation में five meters per second मिलता है, और forty meters पर zero. इसलिए 30 m point, x_max से पहले है: five greater than zero, और thirty less than forty."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p1c-t1",
+   "question": "Explain relative velocity in one dimension for JEE from the basics. Cover: the velocity of A relative to B, v_AB = v_A − v_B, with one positive direction; subtract speeds for the same direction and add them for opposite directions; v_BA = −v_AB; relative displacement and relative acceleration; solving a crossing or a chase in the frame of one body. Draw one simple diagram: a straight road with east as positive, car A moving east at 20 m/s and car B moving east at 15 m/s. Label only the given 20 m/s, 15 m/s and the east direction; say the relative velocity of 5 m/s in words, not as a label.",
+   "opening": "अच्छा... ये lesson relative velocity in one dimension for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p1c-t2",
+   "question": "Explain relative velocity in one dimension for JEE using this example: on a straight road, car A moves east at 20 m/s and car B moves east at 15 m/s. What is the velocity of A relative to B, and of B relative to A?",
+   "opening": "ठीक है... इसे शुरू से समझते हैं.",
+   "lines": [
+    "यहाँ v A car A की velocity है और v B car B की velocity है, और हमें निकालनी है v_{A over B} और v_{B over A}.",
+    "अब values डालो, v_{A over B} equals twenty minus fifteen meters per second.",
+    "तो under that assumption v_{A over B} equals plus five meters per second, यानी A, B से five meters per second east में आगे बढ़ता है.",
+    "values डालो, v_{B over A} equals fifteen minus twenty meters per second.",
+    "तो under that assumption v_{B over A} equals minus five meters per second, यानी A के frame से B five meters per second west में पीछे जाता हुआ दिखता है.",
+    "check करो, relative velocities antisymmetric होती हैं, तो v_{A over B} equals minus v_{B over A}, और plus five equals minus of minus five."
+   ],
+   "raw": [
+    "यहाँ v_A car A की velocity है और v_B car B की velocity है, और हमें निकालनी है v_{A/B} और v_{B/A}.",
+    "अब values डालो, v_{A/B} equals twenty minus fifteen meters per second.",
+    "तो under that assumption v_{A/B} equals plus five meters per second, यानी A, B से five meters per second east में आगे बढ़ता है.",
+    "values डालो, v_{B/A} equals fifteen minus twenty meters per second.",
+    "तो under that assumption v_{B/A} equals minus five meters per second, यानी A के frame से B five meters per second west में पीछे जाता हुआ दिखता है.",
+    "check करो, relative velocities antisymmetric होती हैं, तो v_{A/B} equals minus v_{B/A}, और plus five equals minus of minus five."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p1e1-t1",
+   "question": "Take east as the positive x direction. Train A is 120 m long and runs east at a steady 20 m/s. Train B is 180 m long and runs on a parallel track at a steady 10 m/s. (a) If B runs west, how long do the two trains take to cross each other completely, from the moment their front ends meet until their rear ends separate? (b) If instead B runs east ahead of A, how long does A take to overtake B completely, from the moment A's front end reaches B's rear end until A's rear end passes B's front end, and how far does A travel over the ground during this overtaking?",
+   "opening": "ठीक है... ये question asks, how far does a travel over the ground during this overtaking. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p2c-t1",
+   "question": "Explain river and boat problems for JEE from the basics. Cover: the boat's ground velocity is its velocity relative to the water plus the river velocity; the crossing time depends only on the component across the river, t = d/(v cos θ); least time by heading straight across, with drift u t; reaching the point directly opposite by heading upstream at sin θ = u/v, possible only when v > u. Draw one simple diagram: a river 100 m wide flowing east at 3 m/s, and a boat starting on the south bank heading due north at 4 m/s relative to the water. Label only the given 100 m, 3 m/s and 4 m/s; say the resultant speed and the drift in words, not as labels.",
+   "opening": "ठीक है... ये lesson river and boat problems for jee from the basics के बारे में है. इसे basics से build करते हैं.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p4e1-t1",
+   "question": "At noon, ship B is 50 km due north of ship A. A sails east at 30 km/h and B sails south at 40 km/h. Using the velocity of B relative to A, find the shortest distance between the ships and how many minutes after noon it occurs.",
+   "opening": "तो... ये question asks, how many minutes. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "question": "At noon, ship B is 50 km due north of ship A. A sails east at 30 km/h and B sails south at 40 km/h. Using the velocity of B relative to A, find the shortest distance between the ships and how many minutes after noon it occurs.",
+   "opening": "तो... ये question asks, how many minutes. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "v3/p4e2-t1",
+   "question": "Two roads cross at right angles at O. At t = 0, car P is 400 m west of O going east at 15 m/s, and car Q is 300 m south of O going north at 20 m/s. Using the velocity of Q relative to P, find their shortest distance apart and when it occurs.",
+   "opening": "अच्छा... ये question asks for their shortest distance apart and. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q04-t1",
+   "question": "At 12 noon, ship B is 50 km due north of ship A. Ship A sails due east at 30 km/h and ship B sails due south at 40 km/h, both at constant velocity. Find the shortest distance between the two ships during the motion that follows, and how many minutes after noon they are closest to each other.",
+   "opening": "तो... ये question asks, how many minutes. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q05-t1",
+   "question": "A ball is projected from level ground with velocity (24 î + 20 ĵ) m/s, where î points horizontally and ĵ points vertically upward. Take g = 10 m/s². Find the maximum height reached, the horizontal range, and the speed of the ball at the instants when it is 15 m above the ground.",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "Given... v {x 0} equals 24 meters per second. v {y 0} equals 20 meters per second. g equals 10 meters per second squared. And y equals 15 meters."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q05-t2",
+   "question": "A ball is projected from level ground with velocity (24 î + 20 ĵ) m/s, where î points horizontally and ĵ points vertically upward. Take g = 10 m/s². Find the maximum height reached, the horizontal range, and the speed of the ball at the instants when it is 15 m above the ground.",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "Given... vₓ_0 equals 24 meters per second. g equals 10 meters per second squared. And y equals 15 meters."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q05-t3",
+   "question": "A ball is projected from level ground with velocity (24 î + 20 ĵ) m/s, where î points horizontally and ĵ points vertically upward. Take g = 10 m/s². Find the maximum height reached, the horizontal range, and the speed of the ball at the instants when it is 15 m above the ground.",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "figure में vₓ_0 equals 24 meters per second"
+   ],
+   "raw": [
+    "figure में vₓ₀=24 m/s horizontal starting component दिखाता है, और g=10 m/s² नीचे की acceleration दिखाता है. Upward starting component v y zero है, इसलिए v x zero equals twenty four meters per second और v y zero equals twenty meters per second.",
+    "range के लिए R launch से landing तक का horizontal distance है. y=15 m वाली level को ball rising पर और falling पर cross करती है."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q06-t1",
+   "question": "A stone is thrown horizontally with a speed of 40 m/s from the top of a vertical tower 80 m high standing on level ground. Take g = 10 m/s². How far from the foot of the tower does the stone hit the ground, and with what speed and at what angle below the horizontal does it strike the ground?",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "A stone leaves an 80 m tower horizontally at 40 meters per second; g equals 10 meters per second squared.",
+    "The fall takes 4 s. The stone lands 160 m from the foot; its downward velocity component is 40 meters per second, so its impact speed is approximately 56 point 5 7 meters per second at 45 degrees below horizontal."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q07-t1",
+   "question": "A ball is thrown from the edge of the flat roof of a building 40 m high with a speed of 20 m/s at 30° above the horizontal, directed away from the building. Take g = 10 m/s². Find the time the ball takes to reach the level ground below, the horizontal distance from the base of the building where it lands, and its speed just before landing.",
+   "opening": "ठीक है... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "A ball leaves the 40 m roof at 20 meters per second, 30 degrees above the horizontal; gravity acts downward.",
+    "देखो, h equals 40 m roof से ground तक building की vertical height है. Roof की height h equals forty meters."
+   ],
+   "raw": [
+    "देखो, h = 40 m roof से ground तक building की vertical height है. Roof की height h equals forty meters."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q08-t1",
+   "question": "A football is kicked from level ground with a speed of 20 m/s and lands 20√3 m away on the same level. Take g = 10 m/s². Two different angles of projection give this range. Find both angles, and find the ratio of the maximum height on the lower path to the maximum height on the higher path.",
+   "opening": "अच्छा... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "A 20 meters per second kick travels 20square root of 3 m on level ground; g is 10 meters per second squared."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q08-t3",
+   "question": "A football is kicked from level ground with a speed of 20 m/s and lands 38.4 m away on the same level. Take g = 10 m/s², sin 37° = 0.6 and cos 37° = 0.8. Two different angles of projection give this range. Find both angles, and find the ratio of the maximum height on the lower path to the maximum height on the higher path.",
+   "opening": "ठीक है... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "Check करो: higher angle के लिए sine two theta equals two times zero point eight times zero point six, फिर zero point nine six ही आता है. इसलिए दोनों angles same range देते हैं, और lower path की height smaller है: sine(106 degrees ) equals 0 point 9 6; 7.2 m less than 12.8 m."
+   ],
+   "raw": [
+    "Check करो: higher angle के लिए sine two theta equals two times zero point eight times zero point six, फिर zero point nine six ही आता है. इसलिए दोनों angles same range देते हैं, और lower path की height smaller है: sin(106°)=0.96; 7.2 m < 12.8 m."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q10-t1",
+   "question": "A boy stands on level ground 20 m from the base of a thin vertical wall 15 m high. He throws a ball from ground level so that it just passes over the top edge of the wall. Take g = 10 m/s². Find the least possible speed of projection, and the tangent of the angle above the horizontal at which he must throw the ball with this least speed.",
+   "opening": "ठीक है... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "check करो: tangent theta two और speed twenty meters per second trajectory equation में डालने पर wall तक height fifteen meters आती है. यानी ball top edge से गुजरती है: y(20 m) equals 15 m."
+   ],
+   "raw": [
+    "check करो: tan theta two और speed twenty meters per second trajectory equation में डालने पर wall तक height fifteen meters आती है. यानी ball top edge से गुजरती है: y(20 m) = 15 m."
+   ],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q11-t1",
+   "question": "A particle is projected from level ground with a speed of 40 m/s at 53° above the horizontal. Take g = 10 m/s², sin 53° = 0.8 and cos 53° = 0.6. After how much time does its velocity become perpendicular to its initial velocity? Find also its speed and its height above the ground at that instant.",
+   "opening": "अच्छा... ये question asks for also its speed and its height above the ground at that instant. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q11-t2",
+   "question": "A particle is projected from level ground with a speed of 40 m/s at 53° above the horizontal. Take g = 10 m/s², sin 53° = 0.8 and cos 53° = 0.6. After how much time does its velocity become perpendicular to its initial velocity? Find also its speed and its height above the ground at that instant.",
+   "opening": "अच्छा... ये question asks for also its speed and its height above the ground at that instant. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q11-t3",
+   "question": "A particle is projected from level ground with a speed of 40 m/s at 53° above the horizontal. Take g = 10 m/s², sin 53° = 0.8 and cos 53° = 0.6. After how much time does its velocity become perpendicular to its initial velocity? Find also its speed and its height above the ground at that instant.",
+   "opening": "अच्छा... ये question asks for also its speed and its height above the ground at that instant. पहले देखते हैं क्या दिया है.",
+   "lines": [],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q17-t2",
+   "question": "A plane surface is inclined at 37° to the horizontal (take sin 37° = 0.6 and cos 37° = 0.8). A particle is projected from the bottom of the incline, up the slope, with a speed of 20 m/s at 37° above the inclined surface. Take g = 10 m/s². Find the time of flight and the distance up the incline at which the particle lands.",
+   "opening": "तो... ये question solve करते हैं. देखो question हमें क्या देता है.",
+   "lines": [
+    "Set normal displacement to zero for the nonzero flight time of 3 s; the distance up the incline is 21 m: the landing point."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  },
+  {
+   "id": "youtube/q19-t1",
+   "question": "A ball is thrown horizontally with a speed of 20 m/s from the top of a long slope that goes down at 37° below the horizontal, in the direction the slope descends. Take g = 10 m/s², sin 37° = 0.6 and cos 37° = 0.8. After how much time does the ball strike the slope, and how far down the slope from the point of projection does it land?",
+   "opening": "ठीक है... ये question asks, how far down the slope from the point of projection does it land. पहले देखते हैं क्या दिया है.",
+   "lines": [
+    "The ball strikes after 3 s, 75 m down the slope from O: the impact point B."
+   ],
+   "raw": [],
+   "language": "hinglish"
+  }
+ ]
+}
