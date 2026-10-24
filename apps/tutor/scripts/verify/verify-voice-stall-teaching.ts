@@ -28,24 +28,31 @@ import { FAILED_TURN_ISSUE_CODES, readFailedTurnTelemetry, TEACHING_VOICE_DEGRAD
 import {
   shouldAbandonTurn, silentSentenceRemainingMs, voiceFailureDisposition,
 } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
+import { sessionCaption, VOICE_UNAVAILABLE_NOTICE } from "../../features/tutor-session/lib/board/sessionCaption";
+import { DEFAULT_SETTINGS } from "../../lib/account/lessonSettings";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const controlPath = path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts");
+const shellPath = path.join(app, "features/tutor-session/TutorSessionShell.tsx");
+const canvasPath = path.join(app, "features/tutor-session/components/SessionBoardCanvas.tsx");
 const ref = <T,>(current: T) => ({ current });
 const noop = () => {};
 const segment = (narration: string, paired = true): TutorSegment => ({ narration, command: paired ? {
   type: "WRITE", text: "F = ma", params: [90, 142], charPosition: 0, narrationBefore: narration,
 } : null });
 type Job = { text: string; options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; abandoned: boolean };
-type ProviderMode = "silent" | "speaks";
+// "blocked-then-fails": the voice starts, the browser then blocks playback
+// (#278 permission wait, which pauses the speech clock), then the voice fails.
+type ProviderMode = "silent" | "speaks" | "blocked-then-fails";
 
 function mount(opts: { failDraw?: boolean } = {}) {
   let now = 1_000, sequence = 0;
   let providerMode: ProviderMode = "silent";
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], telemetry: string[] = [];
+  const degraded: boolean[] = [], startup: unknown[] = [];
   let browserAttempts = 0;
   const original = new Map<string, PropertyDescriptor | undefined>();
   const replace = (key: string, value: unknown) => {
@@ -75,6 +82,12 @@ function mount(opts: { failDraw?: boolean } = {}) {
       const job: Job = { text, options, resolve, reject, abandoned: false };
       jobs.push(job);
       if (providerMode === "silent") return; // No first byte: the production stall.
+      if (providerMode === "blocked-then-fails") {
+        options.onStart?.();
+        setTimer(() => options.onPlaybackBlocked?.({ reason: "not-allowed", audioContextState: "suspended" } as never), 300);
+        setTimer(() => reject(new Error("provider playback failed")), 600);
+        return;
+      }
       const spoken = core.mathToSpeech(text);
       options.onTimings?.({ totalDuration: 1, charStartTimes: [...spoken].map((_, i) => i / spoken.length),
         charDurations: [...spoken].map(() => 1 / spoken.length) });
@@ -114,6 +127,8 @@ function mount(opts: { failDraw?: boolean } = {}) {
     narrationSinceEpochRef: ref(""), currentTraceIdRef: ref(null), narrationDensityRef: ref(0),
     drawChainRef: ref(Promise.resolve()), ensureTTSClient: () => tts, applyTurnPhase: noop,
     setCurrentSegmentText: noop,
+    onVoiceDegraded: (value: boolean) => { degraded.push(value); },
+    onSpeechStartupStatus: (status: unknown) => { startup.push(status); },
     cancellableDelay: (ms: number) => new Promise<void>(resolve => setTimer(resolve, ms)),
     raceWithCancel: async <T,>(promise: Promise<T>) => promise,
     reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
@@ -139,7 +154,8 @@ function mount(opts: { failDraw?: boolean } = {}) {
     return { result: result as { value?: T; error?: unknown } | null, elapsedMs: now - start };
   };
   return {
-    runner, params, jobs, drawn, telemetry, settle, flush, advanceBy: (ms: number) => advance(now + ms),
+    runner, params, jobs, drawn, telemetry, degraded, settle,
+    startup: () => startup.at(-1) ?? null, startupShown: () => startup.some((status) => status !== null), flush, advanceBy: (ms: number) => advance(now + ms),
     browserAttempts: () => browserAttempts,
     setProvider: (mode: ProviderMode) => { providerMode = mode; },
     failDraw: (error: Error) => { assert(rejectDraw, "the draw must be in flight"); rejectDraw(error); },
@@ -268,6 +284,66 @@ check("a failed draw still rejects the beat and counts", async () => {
     assert.equal(outcome, failure);
     assert.equal(h.params.recordedSegmentsRef.current.length, 0);
   } finally { h.close(); }
+});
+
+check("a voice that fails during a permission wait still ends its silent sentence", async () => {
+  const h = mount();
+  h.setProvider("blocked-then-fails");
+  try {
+    const beat = segment("The normal force balances the weight of the block on the table.", false);
+    const { result, elapsedMs } = await h.settle(h.runner.runSegment(beat, 0, [beat], 1), 60_000);
+    assert(h.startupShown(), "the permission wait was shown, so the clock was paused by it");
+    assert(result, "the silent sentence settles instead of holding on the paused clock");
+    assert.equal(result.error, undefined);
+    assert.deepEqual(result.value, { voiceDegraded: true });
+    assert(elapsedMs < 20_000, `the silent sentence ends within its estimate, not ${elapsedMs} ms`);
+    assert.equal(h.startup(), null, "the Enable audio overlay is cleared");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1);
+  } finally { h.close(); }
+});
+
+check("a silent sentence shows its words with default settings, and a later spoken one clears them", async () => {
+  assert.equal(DEFAULT_SETTINGS.subtitlesEnabled, false, "the case under test is subtitles off by default");
+  const h = mount();
+  try {
+    const first = segment("The block starts from rest on a smooth table.", false);
+    const second = segment("A steady push makes it speed up.", false);
+    await h.settle(h.runner.runSegment(first, 0, [first, second], 1));
+    assert.equal(h.degraded.at(-1), true, "the silent sentence raises the voice degraded flag");
+    const silent = sessionCaption({
+      enabled: DEFAULT_SETTINGS.subtitlesEnabled, phase: "speaking", currentSegmentText: first.narration,
+      rewindActive: false, rewindSegmentText: "", voiceDegraded: h.degraded.at(-1),
+    });
+    assert.equal(silent.visible, true, "with subtitles off, the silent sentence still shows a caption");
+    assert.equal(silent.text, first.narration);
+    assert.equal(silent.notice, VOICE_UNAVAILABLE_NOTICE, "the student is told the voice is unavailable");
+    h.setProvider("speaks");
+    await h.settle(h.runner.runSegment(second, 1, [first, second], 1));
+    assert.equal(h.degraded.at(-1), false, "a sentence that speaks clears the flag");
+    const spoken = sessionCaption({
+      enabled: DEFAULT_SETTINGS.subtitlesEnabled, phase: "speaking", currentSegmentText: second.narration,
+      rewindActive: false, rewindSegmentText: "", voiceDegraded: h.degraded.at(-1),
+    });
+    assert.equal(spoken.visible, false, "a spoken sentence follows the subtitle setting again");
+    assert.equal(spoken.notice, null);
+    const idle = sessionCaption({ enabled: false, phase: "idle", currentSegmentText: first.narration,
+      rewindActive: false, rewindSegmentText: "", voiceDegraded: true });
+    assert.equal(idle.visible, false, "the forced caption never outlives the live lesson");
+  } finally { h.close(); }
+});
+
+check("the shell and board read the flag and show the notice", async () => {
+  const shell = readFileSync(shellPath, "utf8");
+  const canvas = readFileSync(canvasPath, "utf8");
+  assert(shell.includes("onVoiceDegraded: setVoiceDegraded,"), "the lesson hooks report into the shell");
+  assert.equal((shell.match(/playerView: lecturePlayer\.view,\s*voiceDegraded,/g) ?? []).length, 1, "the shell caption reads the flag");
+  assert(shell.includes("voiceDegraded={voiceDegraded}"), "the board canvas receives the flag");
+  assert(/codeLessonActive \|\| caption\.notice\) \?/.test(shell), "the docked phone caption opens for a silent sentence");
+  assert(shell.includes('placement="below" notice={caption.notice}'), "the docked caption shows the notice");
+  assert(/playerView,\s*voiceDegraded,\s*\}\);/.test(canvas), "the board caption reads the flag");
+  assert(canvas.includes("notice={caption.notice}"), "the board caption shows the notice");
+  const control = readFileSync(controlPath, "utf8");
+  assert.equal((control.match(/onSpeechStartupStatus\(null\);\n\s*onVoiceDegraded\?\.\(false\);/g) ?? []).length, 2, "finish and Stop clear the flag");
 });
 
 check("telemetry: voice degraded is saved, never a failure", async () => {

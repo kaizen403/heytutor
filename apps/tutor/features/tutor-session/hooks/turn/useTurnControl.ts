@@ -117,6 +117,7 @@ export function useTurnControl(
     enableKeyboardControls = true,
     onError,
     onSpeechStartupStatus,
+    onVoiceDegraded,
     phase,
     isReplaying,
     boardLoaded,
@@ -220,6 +221,7 @@ export function useTurnControl(
     }
     turnActiveRef.current = false;
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
+    onVoiceDegraded?.(false);
     isPausedRef.current = false;
     setIsPaused(false);
     whiteboardRef.current?.setPaused(false);
@@ -246,6 +248,7 @@ export function useTurnControl(
     setInputInteracted,
     phaseRef,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   ]);
 
   const applyTurnPhase = useCallback(
@@ -887,6 +890,7 @@ export function useTurnControl(
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
+    onVoiceDegraded?.(false);
     // A plain Stop of a lesson or a resume (not a doubt's interrupt, not a new
     // board, not a replay) leaves it to continue: it keeps its figure and words
     // like a doubt does, and is offered again below (decisions 3 and 4).
@@ -1117,6 +1121,7 @@ export function useTurnControl(
     setReplayProgressMs,
     setReplayTotalMs,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   ]);
 
   useEffect(() => {

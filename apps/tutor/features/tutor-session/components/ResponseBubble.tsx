@@ -26,9 +26,11 @@ export interface ResponseBubbleProps {
   text: string;
   visible: boolean;
   placement?: "overlay" | "below";
+  /** A short line above the words, such as the voice being unavailable. */
+  notice?: string | null;
 }
 
-export function ResponseBubble({ text, visible, placement = "overlay" }: ResponseBubbleProps) {
+export function ResponseBubble({ text, visible, placement = "overlay", notice = null }: ResponseBubbleProps) {
   if (!visible || !text) {
     return null;
   }
@@ -49,6 +51,11 @@ export function ResponseBubble({ text, visible, placement = "overlay" }: Respons
         backdropFilter: "blur(8px)",
       }}
     >
+      {notice ? (
+        <p role="status" className="mb-1 text-center text-xs font-medium" style={{ color: "var(--frost)", opacity: 0.7 }}>
+          {notice}
+        </p>
+      ) : null}
       <p
         className={placement === "below"
           ? "text-center text-sm font-medium leading-relaxed"

@@ -62,6 +62,7 @@ export function useSegmentRunner({
   drawChainRef,
   reserveTextCommandPlacements,
   onSpeechStartupStatus,
+  onVoiceDegraded,
 }: UseSegmentRunnerParams) {
   // The voice's measured pace, learned from every aligned sentence of the
   // session and used wherever a sentence has no alignment yet. The estimate
@@ -642,6 +643,8 @@ export function useSegmentRunner({
           paused: isPausedRef.current,
           audio_context_state: null,
         });
+        // A voice speaks again: the forced caption and its notice go.
+        onVoiceDegraded?.(false);
         if (hasNarration) speakingNarrationRef.current = narration;
         if (audioStartedAtMs === null) {
           audioStartedAtMs = performance.now();
@@ -806,6 +809,10 @@ export function useSegmentRunner({
          * the voice again, so a voice that recovers speaks.
          */
         const teachSentenceSilently = async (error: unknown) => {
+          // A voice that failed during a permission wait leaves the clock
+          // paused by that wait and the "Enable audio" overlay up. Release
+          // both first, or the silent hold below never ends.
+          clearStartupStatus();
           if (timeoutId !== null) window.clearTimeout(timeoutId);
           if (playbackWatchId !== null) window.clearTimeout(playbackWatchId);
           timeoutId = null;
@@ -823,6 +830,8 @@ export function useSegmentRunner({
           const silentFromMs = audioStartedAtActiveMs ?? clock.elapsedMs();
           if (hasNarration) speakingNarrationRef.current = narration;
           if (!hasCommand) applyTurnPhase("speaking");
+          // The student sees the words when the voice cannot say them.
+          if (!isCancelled()) onVoiceDegraded?.(true);
           tel?.mark("tts-voice-degraded", {
             segment_index: index,
             turn_generation: turnGeneration,
@@ -1219,6 +1228,7 @@ export function useSegmentRunner({
       reserveTextCommandPlacements,
       speakingNarrationRef,
       onSpeechStartupStatus,
+      onVoiceDegraded,
     ],
   );
 
