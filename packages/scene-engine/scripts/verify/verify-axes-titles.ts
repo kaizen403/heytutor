@@ -1,5 +1,10 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { compileSceneDocument } from "../../src/compile/compiler";
+import {
+  displayedSceneQuantityTexts, pruneUnverifiedSceneAnnotations, validateSceneQuantityAgreement, validateTurnPlanSceneProofs,
+  type TurnPlanV3,
+} from "../../src/contracts/contractsV3";
 import { validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
 
@@ -86,4 +91,84 @@ assert.equal(twinTitle("yLabel")?.text, "T (K)", "the y title draws");
 assert.ok(near(twinTitle("xLabel")!.points[0]!, xTip) < near(twinTitle("xLabel")!.points[0]!, yTip), "the x title sits at the x tip");
 assert.ok(near(twinTitle("yLabel")!.points[0]!, yTip) < near(twinTitle("yLabel")!.points[0]!, xTip), "the y title sits at the y tip");
 
-console.log("verify-axes-titles: labels aimed at axes refused with the remedy; xLabel and yLabel sit at their arrow tips");
+// Numeric authority and turn binding. A title is displayed text like any
+// label, so the TurnPlanV3 audit reads it, and a title that names nothing in
+// the turn is omitted (and recorded) rather than drawn.
+function plan(question: string, claims: Array<{ claim: string; expected: string }>, givens: TurnPlanV3["givens"] = []): TurnPlanV3 {
+  return {
+    schemaVersion: "turn-plan/v3", question, givens, unknowns: [], derived: [],
+    qualitativeClaims: claims.map((claim, index) => ({ id: `c${index + 1}`, ...claim })),
+    lawIds: [], assumptions: [], visualRequirement: "required",
+  } as TurnPlanV3;
+}
+// The recorded Boyle plan's own claim (short-asks-chem-main): no quantities.
+const boylePlan = plan("boyle's law graph", [
+  { claim: "A graph of pressure P (y-axis) against volume V (x-axis) is a rectangular hyperbola.", expected: "P versus V: hyperbola in the first quadrant" },
+  { claim: "A graph of pressure P against 1/V is a straight line through the origin.", expected: "P versus 1/V: straight line through origin" },
+]);
+const titleTexts = (document: SceneDocument) => {
+  const inputs = document.constructions.find((construction) => construction.operator === "axes")?.inputs ?? {};
+  return { x: inputs.xLabel, y: inputs.yLabel };
+};
+const omissions = (document: SceneDocument) => ((document.source as Record<string, unknown>).yieldDemotions as Array<{ code: string }> | undefined ?? [])
+  .filter((issue) => issue.code === "axes_title_omitted");
+const proofFatal = (document: SceneDocument, turnPlan: TurnPlanV3) => validateTurnPlanSceneProofs(document, turnPlan)
+  .filter((issue) => issue.severity === "fatal").map((issue) => issue.code);
+
+// 7. The audit reads axis titles. "P = 300 kPa" is refused as a title exactly
+// as it is refused as a label; the plan holds no such value.
+const valued = boyle({ xLabel: "V = 2 L", yLabel: "P = 300 kPa" });
+assert.ok(displayedSceneQuantityTexts(valued).includes("P = 300 kPa"), "the audit reads the y title");
+assert.ok(displayedSceneQuantityTexts(valued).includes("V = 2 L"), "the audit reads the x title");
+const valuedIssues = validateSceneQuantityAgreement([], boylePlan, displayedSceneQuantityTexts(valued)).map((issue) => issue.code);
+assert.equal(valuedIssues.filter((code) => code === "displayed_quantity_unverified").length, 2, `unverified title values refused: ${valuedIssues}`);
+// Control: the value the plan holds is certified on a title.
+const volumePlan = plan("a gas at 2 L is compressed", [{ claim: "pressure P against volume V", expected: "hyperbola" }],
+  [{ id: "V0", symbol: "V", value: 2, unit: "L", provenance: "given" } as TurnPlanV3["givens"][number]]);
+const certified = boyle({ xLabel: "V (L)", yLabel: "P" });
+assert.deepEqual(validateSceneQuantityAgreement([], volumePlan, displayedSceneQuantityTexts(boyle({ xLabel: "V = 2 L" }))), [], "a planned value on a title is certified");
+assert.deepEqual(proofFatal(boyle({ xLabel: "V = 2 L" }), volumePlan), [], "a certified title number is not refused");
+
+// 8. A title that carries a number the audit does not certify is refused,
+// even when no unit makes it a measured value.
+assert.ok(proofFatal(boyle({ xLabel: "V = 2" }), boylePlan).includes("axes_title_number_unverified"), "a bare number on a title is refused");
+assert.ok(proofFatal(boyle({ yLabel: "P (x10^5 Pa)" }), boylePlan).includes("axes_title_number_unverified"), "a scale factor the plan does not hold is refused");
+assert.ok(proofFatal(boyle({ yLabel: "P = 300 kPa" }), boylePlan).includes("axes_title_number_unverified"), "an unverified measured value on a title is refused");
+assert.ok(proofFatal(boyle({ yLabel: "P = 300 kPa" }), null).includes("axes_title_number_unverified"), "with no plan, nothing certifies a title number");
+// Controls: symbols and units with digits copied from the turn are not numbers.
+assert.deepEqual(proofFatal(boyle({ xLabel: "1/V", yLabel: "P (kPa)" }), boylePlan), [], "1/V named by the plan and a bare unit pass");
+assert.deepEqual(proofFatal(boyle({ xLabel: "V₂ (cm³)", yLabel: "P2" }), boylePlan).filter((code) => code === "axes_title_number_unverified"), [], "subscripts and unit powers are not numbers");
+
+// 9. A title is drawn only when the turn names its symbol: a plan symbol, a
+// whole token of the question or the claims, or x or y.
+const bound = pruneUnverifiedSceneAnnotations(boyle({ xLabel: "V", yLabel: "P (kPa)" }), boylePlan);
+assert.deepEqual(titleTexts(bound), { x: "V", y: "P (kPa)" }, "Boyle keeps its titles: claim c2 names P and V");
+assert.deepEqual(omissions(bound), [], "nothing is omitted on the Boyle turn");
+assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(certified, volumePlan)), { x: "V (L)", y: "P" }, "a plan quantity symbol binds");
+const motion = plan("distance time graph of a car moving at constant speed", [
+  { claim: "Distance d against time t is a straight line whose gradient is the speed.", expected: "straight line through the origin" },
+]);
+const strayed = pruneUnverifiedSceneAnnotations(boyle({ xLabel: "V", yLabel: "P" }), motion);
+assert.deepEqual(titleTexts(strayed), { x: undefined, y: undefined }, "titles the turn never names are omitted");
+assert.equal(omissions(strayed).length, 2, "each omitted title is recorded");
+const strayedCompiled = compileSceneDocument(strayed);
+assert.ok(strayedCompiled.ok && strayedCompiled.renderScene, "the figure still draws without the omitted titles");
+assert.equal(strayedCompiled.renderScene.primitives.some((primitive) => /^primitive_axes_[xy]Label$/.test(primitive.id)), false, "no omitted title is drawn");
+const motionTitled = pruneUnverifiedSceneAnnotations(boyle({ xLabel: "t (s)", yLabel: "d (m)" }), motion);
+assert.deepEqual(titleTexts(motionTitled), { x: "t (s)", y: "d (m)" }, "the motion turn keeps its own symbols");
+assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ xLabel: "x", yLabel: "y" }), motion)), { x: "x", y: "y" }, "x and y always bind");
+// A unit after a number is not the symbol: "a 12 V battery" does not name V.
+const battery = plan("current through a lamp on a 12 V battery", [{ claim: "current I against time t stays constant", expected: "horizontal line" }]);
+assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ xLabel: "V", yLabel: "I (A)" }), battery)), { x: undefined, y: "I (A)" }, "a unit token does not bind a title");
+// Case matters for one letter symbols: p (momentum) does not name P.
+const momentum = plan("momentum p of a ball against time", [{ claim: "p against t is a straight line", expected: "line" }]);
+assert.equal(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ yLabel: "P" }), momentum)).y, undefined, "p does not bind P");
+
+// 10. The prompt's own example cannot leak into an unrelated turn.
+const prompt = readFileSync(new URL("../../../tutor-core/src/planners/scenePlannerV2Prompt.ts", import.meta.url), "utf8");
+const example = /xLabel:"([^"]+)", yLabel:"([^"]+)"/.exec(prompt);
+assert.ok(example, "the axes contract line carries its example");
+const leaked = pruneUnverifiedSceneAnnotations(boyle({ xLabel: example[1], yLabel: example[2] }), motion);
+assert.deepEqual(titleTexts(leaked), { x: undefined, y: undefined }, `the prompt example (${example[1]}, ${example[2]}) is omitted on an unrelated turn`);
+
+console.log("verify-axes-titles: labels aimed at axes refused with the remedy; xLabel and yLabel sit at their arrow tips; titles pass the numeric audit and bind to the turn");
