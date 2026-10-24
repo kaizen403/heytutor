@@ -659,6 +659,10 @@ export class StreamingSpeechClient implements TTSClient {
     }
     if (this.currentHtmlAudio) {
       applyHtmlAudioMute(this.currentHtmlAudio, muted);
+      // Retry the retained clip after an external mute change. If the browser
+      // still requires a gesture, keep its recovery action; deliberate Pause
+      // and Stop still own whether output may run.
+      if (muted && !this.paused && !this.halted && this.currentHtmlAudio.paused) this.resume();
     }
   }
 
@@ -786,7 +790,7 @@ export class StreamingSpeechClient implements TTSClient {
       onAudioCaptured: (audio) => { if (this.speakGeneration === generation) callbacks.onAudioCaptured?.(audio); },
       onFirstAudioByte: (info) => { if (this.speakGeneration === generation) callbacks.onFirstAudioByte?.(info); },
       onPlaybackBlocked: callbacks.onPlaybackBlocked ? (blocked) => {
-        if (this.speakGeneration === generation && (!blocked || (!this.paused && !this.muted && !this.halted))) {
+        if (this.speakGeneration === generation && (!blocked || (!this.paused && !this.halted && (!this.muted || blocked.reason === "not-allowed")))) {
           callbacks.onPlaybackBlocked?.(blocked);
         }
       } : undefined,
@@ -2571,7 +2575,7 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private holdBlockedHtmlAudio(error: unknown, audio: HTMLAudioElement): boolean {
-    if (this.currentHtmlAudio !== audio || !this.playbackBlockedCallback || this.paused || this.muted || this.halted ||
+    if (this.currentHtmlAudio !== audio || !this.playbackBlockedCallback || this.paused || this.halted ||
       !(error instanceof Error) || error.name !== "NotAllowedError") return false;
     // Waiting on a gesture is not a stalled clock.
     this.blockedHtmlAudio = audio;
@@ -2580,7 +2584,7 @@ export class StreamingSpeechClient implements TTSClient {
   }
 
   private reportPlaybackBlocked(reason: "context-suspended" | "context-interrupted" | "not-allowed"): void {
-    if (this.paused || this.muted || this.halted) return;
+    if (this.paused || this.halted || (this.muted && reason !== "not-allowed")) return;
     if (reason !== "not-allowed" && typeof Audio === "function" && this.activeSources.length === 0) return;
     this.playbackBlockedCallback?.({ reason, audioContextState: this.getAudioContextState() });
   }

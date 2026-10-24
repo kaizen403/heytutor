@@ -23,14 +23,15 @@ const narration = "Force equals mass times acceleration.";
 const segment: TutorSegment = { narration, command: {
   type: "WRITE", text: "F = ma", params: [90, 142], charPosition: 0, narrationBefore: narration,
 } };
-type Outcome = "stall" | "reject" | "success" | "pending";
+type Outcome = "stall" | "reject" | "success" | "pending" | "blocked";
 type Job = { options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; outcome: Outcome };
 
 /** Controlled render/clock/media ports; real runner, ink planner, queue and save registry. */
 /** `timings: "duration"` is a voice with no alignment (Sarvam): only the WAV length is known. */
 type PlaybackFixture = { narration: string; rate: number; durationMs: number; timings?: boolean | "duration"; freezeAtMs?: number };
 function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw = false, playback?: PlaybackFixture) {
-  let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0;
+  let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0, abandonCalls = 0;
+  let startup: UseTurnLifecycleParams["onSpeechStartupStatus"] extends ((status: infer S) => void) | undefined ? S : never = null;
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], errors: Array<{ message: string; question: string }> = [];
   const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
@@ -77,7 +78,9 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       jobs.push({ options, resolve, reject, outcome });
       if (playback?.timings === "duration") options.onTimings?.({ totalDuration: durationSec, charStartTimes: [], charDurations: [] });
       else if (!playback || playback.timings !== false) options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings);
-      options.onStart?.();
+      // A browser autoplay refusal: the provider holds the clip and reports it.
+      if (outcome === "blocked") options.onPlaybackBlocked?.({ reason: "not-allowed", audioContextState: "running" });
+      else options.onStart?.();
       if (outcome === "success" && playback) {
         const finish = () => {
           if (sampleMedia() >= playback.durationMs) { options.onEnd?.(); resolve(); }
@@ -88,7 +91,14 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       else if (outcome === "reject") setTimer(() => reject(new Error("offline primary failed after start")), 200);
     }),
     getPlaybackPositionMs: () => playback && (jobs[0]?.outcome === "success" || playback.freezeAtMs !== undefined) ? sampleMedia() : position, getPlaybackRate: () => rate,
-    peekSegmentTimings: () => playback?.timings === false || playback?.timings === "duration" ? null : timings, prefetchSegment: noop, abandonSpeaking: noop, stop: noop,
+    peekSegmentTimings: () => playback?.timings === false || playback?.timings === "duration" ? null : timings, prefetchSegment: noop, abandonSpeaking: () => { abandonCalls++; }, stop: noop,
+    // The gesture plays the retained clip: start, clear the block, finish.
+    unlockAudio: noop, resume: () => {
+      const job = jobs.at(-1);
+      if (!job || job.outcome !== "blocked") return;
+      job.options.onStart?.(); job.options.onPlaybackBlocked?.(null);
+      setTimer(() => { job.options.onEnd?.(); job.resolve(); }, 1_000);
+    },
   } as unknown as TTSClient;
   const registry = new LiveTurnSaveRegistry({ transport: {
     checkpoint: async () => { throw new Error("gate forbids persistence transport"); },
@@ -135,7 +145,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     segmentPlanStatsRef: ref({}), stopTurnRef: ref(null), replayGenerationRef: ref(0), replayCueRef: ref(null),
     turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), narrationDensityRef: ref(0),
     turnTelemetryRef: ref({ mark: (name: string, data: Record<string, unknown>) => telemetry.push({ name, ...data }),
-      span: () => ({ end: noop }) }),
+      span: () => ({ end: noop }), meta: noop, durationMs: () => now, flush: async () => {} }),
+    onSpeechStartupStatus: (value: typeof startup) => { startup = value; },
     setPhase: noop, setIsPaused: noop, setNarrationText: noop, setCurrentSegmentText: noop, setInputInteracted: noop,
     setLastError: (error: { message: string; question: string }) => errors.push(error),
     onError: (error: { message: string; question: string }) => telemetry.push({ name: "student-error", ...error }),
@@ -160,6 +171,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
   return { params, control, runner, handle, begin, jobs, drawn, executed, errors, telemetry, registry, flush, advance,
     now: () => now, browserAttempts: () => browserAttempts,
+    startup: () => startup, abandonCalls: () => abandonCalls,
     setRate: (next: number) => { sampleMedia(); rate = next; },
     setPaused: (paused: boolean) => {
       sampleMedia(); mediaPaused = paused; params.isPausedRef.current = paused;
@@ -530,8 +542,51 @@ async function timeoutRateControls() {
   console.log("started speech timeout rates: finite slow budget; default/invalid/faster unchanged");
 }
 
+/**
+ * A browser autoplay refusal is a wait for the student's tap, not provider
+ * latency. The beat keeps its place past every normal startup and playback
+ * deadline, never races a gesture blocked browser voice, and the tap delivers
+ * the same beat before the next one.
+ */
+async function permissionRecovery(mode: "tap" | "cancel" | "pause") {
+  const h = mount(120, ["blocked", "success"]);
+  try {
+    h.control.enqueueSegment({ narration, command: null }, 1);
+    h.control.enqueueSegment({ narration, command: null }, 1);
+    const queue = h.params.segmentChainRef.current;
+    await h.advance(h.now() + 60_000);
+    assert.equal(h.browserAttempts(), 0, "permission denial retains provider bytes, never races a browser fallback");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0);
+    assert.equal(h.jobs.length, 1, "blocked beat retains its place");
+    assert.equal(h.errors.length, 0, "a permission wait is not a failed beat");
+    assert.equal(h.params.cancelRef.current, false);
+    assert(!h.telemetry.some(event => event.name === "tts-segment-failed"), "no watchdog expired while waiting for the tap");
+    const status = h.startup(); assert(status, "Enable audio action remains available after the normal startup deadline");
+    if (mode === "cancel") {
+      h.control.stopTurn(); await h.advance(h.now() + 60_000); await queue;
+      status.enableAudio(); // A stale retained UI closure cannot restart the stopped lesson.
+      await h.advance(h.now() + 5_000);
+      assert.equal(h.jobs.length, 1); assert.equal(h.errors.length, 0);
+      assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+      console.log("started speech permission cancel: stop releases the wait; stale tap is inert");
+      return;
+    }
+    if (mode === "pause") { h.setPaused(true); await h.advance(h.now() + 30_000); h.setPaused(false); await h.advance(h.now() + 30_000); }
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "resume from Pause alone does not restart the deadline of a blocked clip");
+    assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+    status.enableAudio(); await h.advance(h.now() + 5_000); await queue;
+    assert.equal(h.params.recordedSegmentsRef.current.length, 2, "the tap delivers the SAME beat, then the next");
+    assert.equal(h.errors.length, 0); assert.equal(h.abandonCalls(), 0);
+    assert.equal(h.startup(), null, "accepted playback clears the recovery action");
+    console.log(`started speech permission ${mode}: beat waits for the tap, then both beats deliver`);
+  } finally { h.close(); }
+}
+
 async function main() {
   const cases: Array<{ name: string; run: () => Promise<void> }> = [
+    { name: "permission-recovery", run: () => permissionRecovery("tap") },
+    { name: "permission-cancel", run: () => permissionRecovery("cancel") },
+    { name: "permission-pause", run: () => permissionRecovery("pause") },
     { name: "timeout-rate-controls", run: timeoutRateControls },
     { name: "maths-slow-half", run: () => slowMathPlayback(.5) },
     { name: "maths-slow-three-quarter", run: () => slowMathPlayback(.75) },
