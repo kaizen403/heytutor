@@ -16,15 +16,22 @@ import { deriveSceneGate, selectProductionScene } from "../../features/tutor-ses
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 
 type Subject = "maths" | "physics" | "chemistry" | "other";
-const decide = (subject: Subject | undefined, chemistryLane = false, extra: Partial<{ dsa: boolean; codeLesson: boolean; doubt: boolean }> = {}) =>
-  liveDiagramStrategyDecision({ assignedStrategy: "current", subject, strictSubjects: [], chemistryLane, codeLesson: false, dsa: false, doubt: false, ...extra });
+// Production classifies subjects (strict subjects maths,physics); strict
+// switched off for a subject keeps it on the current lane.
+const decide = (subject: Subject | undefined, chemistryLane = false, extra: Partial<{ dsa: boolean; codeLesson: boolean; doubt: boolean }> = {},
+  strictSubjects: Subject[] = ["maths"]) =>
+  liveDiagramStrategyDecision({ assignedStrategy: "current", subject, strictSubjects: strictSubjects as never, chemistryLane, codeLesson: false, dsa: false, doubt: false, ...extra });
 
 const deterministic: FigureSource[] = ["fast_family", "family", "archetype", "last_resort"];
 for (const source of deterministic) {
   assert.equal(diagramStrategyAllowsFigureSource(decide("other"), source), false, `other subject must not draw ${source}`);
   assert.equal(diagramStrategyAllowsFigureSource(decide("chemistry"), source), false, `chemistry outside its lane must not draw ${source}`);
-  assert.equal(diagramStrategyAllowsFigureSource(decide("physics"), source), true, `physics with strict switched off keeps ${source}`);
+  assert.equal(diagramStrategyAllowsFigureSource(decide("physics"), source), true, `physics with strict switched off for it keeps ${source}`);
   assert.equal(diagramStrategyAllowsFigureSource(decide(undefined), source), true, `a decision without a subject keeps ${source}`);
+}
+// With subject classification off every live turn reads "other": main's sources stay.
+for (const source of deterministic) {
+  assert.equal(diagramStrategyAllowsFigureSource(decide("other", false, {}, []), source), true, `other with classification off keeps ${source}`);
 }
 for (const source of ["planner", "verified_recovery", "linear_source", "text_only"] as FigureSource[]) {
   assert.equal(diagramStrategyAllowsFigureSource(decide("other"), source), true, `other subject keeps ${source}`);

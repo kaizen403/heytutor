@@ -74,7 +74,11 @@ export function evaluationDiagramStrategyDecision(
  * surface. Only figures the planner proves may draw for it, as in strict.
  */
 export function plannerProvenFiguresOnly(decision: DiagramStrategyDecision): boolean {
-  return !decision.chemistryLane && !decision.codeLesson && !decision.dsa && !decision.doubt &&
+  // Only when the planner was asked for a subject (the hook's classifySubject
+  // test); with classification off every turn reads "other", and main's
+  // sources stay exactly as they are.
+  return (decision.strictSubjects?.length ?? 0) > 0 &&
+    !decision.chemistryLane && !decision.codeLesson && !decision.dsa && !decision.doubt &&
     (decision.subject === "other" || decision.subject === "chemistry");
 }
 
