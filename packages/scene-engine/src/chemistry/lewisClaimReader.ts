@@ -73,6 +73,15 @@ function tokens(text: string): Token[] {
   return [...text.matchAll(/[A-Za-z0-9·]+(?:\.\d+)?|[^\sA-Za-z0-9·]/g)].map((match) => ({ text: match[0], lower: match[0].toLowerCase() }));
 }
 
+/** Any written number, read or not: digits with decimals, and number words
+ * past the small counts (thirteen, twenty, hundred, dozen, half). A mention
+ * written in a form `countOf` cannot read stays unread and declines. */
+const NUMBER_WORD = /^(?:zero|no|one|an?|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|dozen|half|single|double|triple)$/;
+
+function numberLike(token: Token | undefined): boolean {
+  return token !== undefined && (/^\d+(?:\.\d+)?$/.test(token.text) || NUMBER_WORD.test(token.lower));
+}
+
 function countOf(token: Token | undefined): number | null {
   if (!token) return null;
   if (/^\d+$/.test(token.text)) return Number(token.text);
@@ -109,7 +118,10 @@ function isRoleNoun(list: readonly Token[], index: number): boolean {
 function mentions(list: readonly Token[]): Set<number> {
   const found = new Set<number>();
   list.forEach((token, index) => {
-    if (countOf(token) === null) return;
+    if (!numberLike(token)) return;
+    // Order words and the article of "a formal charge of 0" are not counts.
+    if (["single", "double", "triple"].includes(token.lower)) return;
+    if (["a", "an"].includes(token.lower) && list[index + 1]?.lower === "formal") return;
     for (let ahead = index + 1; ahead <= index + 4 && ahead < list.length; ahead++) {
       if (STOP.has(list[ahead]!.lower)) break;
       if (isRoleNoun(list, ahead)) { found.add(index); return; }
@@ -123,7 +135,7 @@ function mentions(list: readonly Token[]): Set<number> {
       if (!["is", "are", "=", ":", "of", "equals", "equal"].includes(word)) continue;
       let at = ahead + 1;
       if (["+", "-", "−"].includes(list[at]?.text ?? "")) at++;
-      if (countOf(list[at]) !== null) found.add(at);
+      if (numberLike(list[at]) && !["a", "an"].includes(list[at]!.lower)) found.add(at);
     }
   });
   return found;

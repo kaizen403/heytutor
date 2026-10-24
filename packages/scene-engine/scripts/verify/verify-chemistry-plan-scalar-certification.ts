@@ -232,6 +232,16 @@ check(status(co2Lewis, co2, claimPlan(co2, [["Carbon forms four bonds", true]]))
 check(status(ieGraph, ie, plan(ie, { claims: [["There is a decrease from Be to B", "IE(B) > IE(Be)"]] })) === "rejected"
   && status(ieGraph, ie, plan(ie, { claims: [["There is a decrease from Be to B", "IE(Be) > IE(B)"]] })) === "certified",
   "periodic IE: a ranking in function notation is checked against the table");
+check(status(co2Lewis, co2, claimPlan(co2, [["CO2 has eighteen total valence electrons", true]])) === "rejected"
+  && status(co2Lewis, co2, claimPlan(co2, [["CO2 has 2.5 lone pairs on each oxygen", true]])) === "rejected",
+  "NEGATIVE: a count written in a form the reader cannot read (eighteen, 2.5) declines instead of passing as prose");
+check(status(co2Lewis, co2, claimPlan(co2, [["Carbon has a formal charge of 0", true]])) === "certified"
+  && status(co2Lewis, co2, claimPlan(co2, [["Carbon has a formal charge of +1", true]])) === "rejected",
+  "Lewis CO2: the article of \"a formal charge of 0\" is not a count");
+check(status(ieGraph, ie, plan(ie, { claims: [["First ionisation energy of Li is 520 kJ/mol. The covalent radius of Li is 520 pm.", true]] })) === "rejected",
+  "NEGATIVE: each value is read under its own clause's property (Li 520 pm is not Li's radius)");
+check(status(ieGraph, ie, plan(ie, { claims: [["The first ionisation energy of Li is 520 pm", true]] })) === "rejected",
+  "NEGATIVE: a unit the property is never written in declines the value");
 check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 has an ideal tetrahedral molecular shape", true]] })) !== null,
   "NEGATIVE: \"ideal\" before a named molecular shape is a shape claim, not a reference angle");
 check(vseprPlanConflict(nh3, plan(nh3, { claims: [["The angle is smaller than the ideal tetrahedral angle", true]] })) === null,

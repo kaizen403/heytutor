@@ -266,28 +266,37 @@ function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
     if (loose.length > 0) unread = true;
     const facts: boolean[] = [];
     if (valued.length > 0 || ranks.length > 0) {
-      const { properties, uncertifiable } = propertiesIn(text);
-      // A claim whose subject (its first-named property) is the plotted one
-      // states its values about the graph; a cause named later is context.
-      const property = uncertifiable ? null : properties.length === 1 ? properties[0]!
-        : properties.length === 0 || properties[0] === plotted ? plotted : null;
-      const factor = property ? claimUnit(text, property) : null;
-      if (!property || factor === null) unread = true;
-      else {
-        const approximate = APPROXIMATE.test(text);
-        for (const entry of valued) {
-          const table = tableValue(property, entry.element);
-          if (table === null) unread = true;
-          else facts.push(agreesWritten(entry.value, factor, table, approximate));
-        }
+      const clauses = clauseSpans(text);
+      const approximate = APPROXIMATE.test(text);
+      const claimProperty = subjectProperty(text, plotted);
+      // Each value is read under the property and unit of its own clause;
+      // a clause naming no property inherits the claim's subject.
+      const reading = (at: number): { property: Property; factor: number } | null => {
+        const [from, to] = clauses.find(([start, stop]) => at >= start && at < stop) ?? [0, text.length];
+        const clause = text.slice(from, to);
+        const own = propertiesIn(clause);
+        const property = own.uncertifiable ? null
+          : own.properties.length > 0 ? subjectProperty(clause, plotted) : claimProperty;
+        if (!property || foreignUnit(clause, property)) return null;
+        const factor = claimUnit(clause, property);
+        if (factor === null) return null;
+        // No unit word in the clause: the claim's own unit for this property.
+        return { property, factor: unitWritten(clause, property) ? factor : claimUnit(text, property) ?? NaN };
+      };
+      for (const entry of valued) {
+        const read = reading(entry.value.start);
+        const table = read ? tableValue(read.property, entry.element) : null;
+        if (!read || table === null || !Number.isFinite(read.factor)) unread = true;
+        else facts.push(agreesWritten(entry.value, read.factor, table, approximate));
+      }
+      for (const rank of ranks) {
+        const read = reading(rank.left.start);
         // A ranking of signed enthalpies is ambiguous (more negative or larger?).
-        if (ranks.length > 0 && (property === "egh" || property === "ea")) unread = true;
-        else for (const rank of ranks) {
-          const a = tableValue(property, rank.left.element);
-          const b = tableValue(property, rank.right.element);
-          if (a === null || b === null) unread = true;
-          else facts.push(rank.operator === ">" ? a > b : a < b);
-        }
+        if (!read || read.property === "egh" || read.property === "ea") { unread = true; continue; }
+        const a = tableValue(read.property, rank.left.element);
+        const b = tableValue(read.property, rank.right.element);
+        if (a === null || b === null) unread = true;
+        else facts.push(rank.operator === ">" ? a > b : a < b);
       }
     }
     const verdict = claimVerdict(claim, { facts, unread });
@@ -296,6 +305,32 @@ function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
       "periodic plan claim has a number, property, unit or expectation the element table reader cannot check");
   }
   return issues;
+}
+
+/** The property a text states its values about: the one it names, or the
+ * plotted one when it names none or names it first (a cause named later is
+ * context). Null when the text names an uncertifiable or competing property. */
+function subjectProperty(text: string, plotted: Property): Property | null {
+  const { properties, uncertifiable } = propertiesIn(text);
+  if (uncertifiable) return null;
+  if (properties.length === 1) return properties[0]!;
+  return properties.length === 0 || properties[0] === plotted ? plotted : null;
+}
+
+const UNIT_WORDS = /(?<![a-z])(?:pm|nm|å|angstroms?|kj\s*\/\s*mol|kj\s*mol|ev|pauling)(?![a-z])/gi;
+
+function unitWritten(text: string, property: Property): boolean {
+  return Object.keys(UNITS[property]).some((unit) => /[a-zå]/.test(unit)
+    && new RegExp(`(?<![a-z])${unit.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}(?![a-z])`).test(text.toLowerCase()));
+}
+
+/** A unit word in the clause that the property is never written in (pm on an
+ * ionisation energy): the value is not this property's. */
+function foreignUnit(text: string, property: Property): boolean {
+  return [...text.matchAll(UNIT_WORDS)].some((match) => {
+    const word = match[0].toLowerCase().replace(/\s+/g, " ").replace("kj / mol", "kj/mol").replace("kj mol", "kj mol-1");
+    return !Object.keys(UNITS[property]).some((unit) => unit === word || (word === "angstrom" && unit === "angstroms") || (word === "kj/mol" && unit === "kj/mol"));
+  });
 }
 
 /** Sentence and semicolon clauses; a decimal point does not end a clause. */
