@@ -330,6 +330,7 @@ async function main() {
       }, mod, mod.exports);
       const hooks = mod.exports as unknown as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
       const drawn: string[] = [];
+      const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
       const params = {
         sessionId: "offline-native-audio", ensureTTSClient: () => client, activeVerifiedDiagramRef: ref(null),
         cancelRef: ref(false), isPausedRef: ref(false), turnActiveRef: ref(true), turnGenerationRef: ref(1),
@@ -340,7 +341,7 @@ async function main() {
         raceWithCancel: async <T,>(promise: Promise<T>) => promise,
         reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
         executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
-          if (options.isCancelled?.()) return; drawn.push(command.text ?? command.type); options.onInkStarted?.();
+          if (options.isCancelled?.()) return; drawn.push(command.text ?? command.type); executed.push({ command, options }); options.onInkStarted?.();
         },
       };
       const handle = registry.begin({ owner: params.cancelRef, generation: 1, boardId: params.sessionId, traceId: null, kind: "lesson", question: "Explain force.", preview: "Explain force.", speedMultiplier: client.getPlaybackRate(), continuesBoard: false });
@@ -376,7 +377,18 @@ async function main() {
         const row = params.recordedSegmentsRef.current[0]!;
         assert.deepEqual(row.audioBytes, wav, "the recorded row keeps the exact generated clip for replay");
         assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "its ink completed");
-        assert.deepEqual(drawn, ["F = ma"]);
+        if (selected === "runner-intro") assert.deepEqual(drawn, ["F = ma"], "a verified figure intro has no pointing tour");
+        else {
+        // Main's explanation pointing (#211) adds one transient pointer after
+        // the write while speech remains; it is not ink and ends with the clip.
+        assert.deepEqual(executed.filter(({ command }) => command.type !== "POINT").map(({ command }) => [command.type, command.text]), [["WRITE", "F = ma"]], "the heard segment's only ink is its WRITE");
+        assert.deepEqual(executed.map(({ command }) => command.type), ["WRITE", "POINT"], "exactly one transient pointer follows the write");
+        const pointer = executed[1]!;
+        const pointerOptions = pointer.options as ExecuteCommandOptions & { explanationPointing?: boolean; spokenClock?: { isSpeechComplete?: () => boolean } };
+        assert.equal(pointer.command.text, "last", "the pointer traces the last written row");
+        assert.equal(pointerOptions.explanationPointing, true, "the pointer is main's explanation pointing");
+        assert.equal(pointerOptions.spokenClock?.isSpeechComplete?.(), true, "the pointer's speech clock is complete once the heard segment finishes");
+        }
       } else {
         assert.equal(rows.length, 1, "one claimed narration row retained");
         const row = rows[0]!;
