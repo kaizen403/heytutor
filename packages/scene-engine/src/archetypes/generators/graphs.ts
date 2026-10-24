@@ -1,7 +1,7 @@
 /**
  * Graph archetypes: motion graphs from the phases a stem names, F–x work
- * areas, waves from their equation, P–V cycles constructed from the named
- * processes, and explicit function graphs with tangents and regions.
+ * areas, waves from their equation, and explicit function graphs with
+ * tangents and regions. P–V cycles always decline (see pvCycle).
  *
  * Graphs are display-scaled on the vertical axis when the value range is far
  * from the domain range (a 4 s × 41 m plot would otherwise be a needle). The
@@ -279,116 +279,22 @@ function standingWave(context: GeneratorContext) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* P–V cycles from named processes                                            */
+/* P–V cycles: always declined                                                */
 /* ------------------------------------------------------------------------- */
 
-type ProcessKind = "isobaric" | "isochoric" | "isothermal" | "adiabatic";
-interface Process { kind: ProcessKind; from: string; to: string; grows: boolean | null }
-const GAMMA = 1.4;
-
-function parseProcesses(question: string): Process[] {
-  const stem = prepareStem(question);
-  const found: Process[] = [];
-  const pattern = /\b(isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b([^.;]{0,80}?)(?:from\s+)?\b([A-D])\b\s*(?:to|→|->|—|-)\s*\b([A-D])\b/gi;
-  for (const match of stem.matchAll(pattern)) {
-    const kindRaw = match[1]!.toLowerCase();
-    const kind: ProcessKind = kindRaw === "isovolumetric" ? "isochoric" : kindRaw as ProcessKind;
-    const words = match[2] ?? "";
-    const grows = /expan|heat|increas/i.test(words) ? true : /compress|cool|decreas/i.test(words) ? false : null;
-    found.push({ kind, from: match[3]!.toUpperCase(), to: match[4]!.toUpperCase(), grows });
-  }
-  if (found.length === 0) {
-    const cycle = /\b([A-D])\s*(?:to|→|->)\s*([A-D])\s*(?:to|→|->)\s*([A-D])(?:\s*(?:to|→|->)\s*([A-D]))?/i.exec(stem);
-    const kinds = [...stem.matchAll(/\b(isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b/gi)].map((match) => (match[1]!.toLowerCase() === "isovolumetric" ? "isochoric" : match[1]!.toLowerCase()) as ProcessKind);
-    if (cycle && kinds.length >= 2) {
-      const states = [cycle[1], cycle[2], cycle[3], cycle[4]].filter((state): state is string => Boolean(state)).map((state) => state.toUpperCase());
-      for (let index = 0; index < states.length - 1 && index < kinds.length; index += 1) {
-        found.push({ kind: kinds[index]!, from: states[index]!, to: states[index + 1]!, grows: null });
-      }
-    }
-  }
-  return found;
-}
-
-function intersect(kindA: ProcessKind, through: { V: number; P: number }, kindB: ProcessKind, anchor: { V: number; P: number }): { V: number; P: number } | null {
-  const constant = (kind: ProcessKind, state: { V: number; P: number }): number =>
-    kind === "isobaric" ? state.P : kind === "isochoric" ? state.V : kind === "isothermal" ? state.P * state.V : state.P * state.V ** GAMMA;
-  const a = constant(kindA, through);
-  const b = constant(kindB, anchor);
-  const pair = [kindA, kindB].sort().join("+");
-  switch (pair) {
-    case "isobaric+isochoric": return kindA === "isobaric" ? { V: b, P: a } : { V: a, P: b };
-    case "isobaric+isothermal": return kindA === "isobaric" ? { V: b / a, P: a } : { V: a / b, P: b };
-    case "isochoric+isothermal": return kindA === "isochoric" ? { V: a, P: b / a } : { V: b, P: a / b };
-    case "adiabatic+isobaric": return kindA === "isobaric" ? { V: (b / a) ** (1 / GAMMA), P: a } : { V: (a / b) ** (1 / GAMMA), P: b };
-    case "adiabatic+isochoric": return kindA === "isochoric" ? { V: a, P: b / a ** GAMMA } : { V: b, P: a / b ** GAMMA };
-    case "adiabatic+isothermal": {
-      const isoC = kindA === "isothermal" ? a : b;
-      const adiC = kindA === "adiabatic" ? a : b;
-      const V = (adiC / isoC) ** (1 / (GAMMA - 1));
-      return { V, P: isoC / V };
-    }
-    default: return null;
-  }
-}
-
-function pvCycle(context: GeneratorContext) {
-  const processes = parseProcesses(text(context, "processes", context.question));
-  if (processes.length < 2) return null;
-  const states = new Map<string, { V: number; P: number }>();
-  const first = processes[0]!;
-  states.set(first.from, { V: 2, P: 2 });
-  const closed = processes.at(-1)!.to === first.from;
-  const lastIndex = closed ? processes.length - 1 : processes.length;
-  for (let index = 0; index < lastIndex; index += 1) {
-    const process = processes[index]!;
-    const start = states.get(process.from);
-    if (!start) return null;
-    if (states.has(process.to)) continue;
-    const grows = process.grows ?? (index % 2 === 0);
-    const factor = grows ? 1.9 : 1 / 1.9;
-    const next = process.kind === "isobaric" ? { V: start.V * factor, P: start.P }
-      : process.kind === "isochoric" ? { V: start.V, P: start.P * factor }
-        : process.kind === "isothermal" ? { V: start.V * factor, P: start.P / factor }
-          : { V: start.V * factor, P: start.P / factor ** GAMMA };
-    if (closed && index === lastIndex - 1) {
-      const closing = processes[lastIndex]!;
-      const solved = intersect(process.kind, start, closing.kind, states.get(first.from)!);
-      if (!solved || solved.V <= 0 || solved.P <= 0) return null;
-      states.set(process.to, solved);
-    } else {
-      states.set(process.to, next);
-    }
-  }
-  const values = [...states.values()];
-  const vMax = Math.max(...values.map((state) => state.V));
-  const pMax = Math.max(...values.map((state) => state.P));
-  const scene = new SceneBuilder(context.question, `P–V diagram built from the ${processes.length} named processes`, "pv_cycle");
-  scene.axes("axes", 0, 1.25 * vMax, 0, 1.25 * pMax, "P-V axes", "P-V");
-  for (const [label, state] of states) scene.point(label, { x: state.V, y: state.P }, `state ${label}`, label);
-  processes.forEach((process, index) => {
-    const start = states.get(process.from);
-    const end = states.get(process.to);
-    if (!start || !end) return;
-    const id = `proc${index + 1}`;
-    if (process.kind === "isobaric" || process.kind === "isochoric") {
-      scene.segment(id, process.from, process.to, `process ${process.from}${process.to}: ${process.kind}`, process.kind);
-    } else {
-      const constant = process.kind === "isothermal" ? start.P * start.V : start.P * start.V ** GAMMA;
-      const expression = process.kind === "isothermal" ? `${constant}/x` : `${constant}/x^${GAMMA}`;
-      scene.curve(id, expression, Math.min(start.V, end.V), Math.max(start.V, end.V), `process ${process.from}${process.to}: ${process.kind}`, process.kind, 33);
-      const midV = (start.V + end.V) / 2;
-      scene.assert(`${id}_law`, "function_value", [id], { x: Number(midV.toFixed(6)), y: Number((process.kind === "isothermal" ? constant / midV : constant / midV ** GAMMA).toFixed(6)) });
-    }
-    scene.point(`${id}_dir`, { x: (start.V + end.V) / 2, y: (start.P + end.P) / 2 }, "process midpoint");
-    const dx = end.V - start.V;
-    const dy = end.P - start.P;
-    const norm = Math.hypot(dx, dy) || 1;
-    scene.vector(`${id}_arrow`, `${id}_dir`, { direction: { x: dx / norm, y: dy / norm }, length: 0.12 * Math.max(vMax, pMax) }, "direction of the process");
-  });
-  scene.assert("states_labelled", "label_attached", [first.from], true);
-  scene.labelled("axes");
-  return scene.build();
+/**
+ * pv_cycle draws nothing. It built a cycle at display values from the
+ * process kinds a stem names, and four review rounds of #290 kept finding
+ * ordinary wording it drew wrong: a direction read from the wrong quantity
+ * ("the pressure increases" drawn as an expansion with P falling), a
+ * direction word after the leg ignored ("an isobaric contraction" drawn as
+ * an expansion), and a return leg named without a kind word ("returns to A
+ * at constant T") silently dropped. Each was also drawn on main. Every
+ * heuristic round left another gap, so the archetype is matched but always
+ * declines; the lesson teaches without the figure.
+ */
+function pvCycle(_context: GeneratorContext): null {
+  return null;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -102,6 +102,13 @@ import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from ".
 import { prepareLessonOpening, shouldPrepareLessonOpening } from "../../lib/turn/lessonOpeningPreparation";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
+  markTurnCompleted,
+  markTurnExitReason,
+  markTurnStarted,
+  settleTurnTerminalRecord,
+  turnTerminalRecordFor,
+} from "../../lib/turn/turnTerminalEvent";
+import {
   FALLBACK_DSA_TEACHING_POLICY,
   fetchDsaTeachingPolicy,
 } from "../../lib/code-lesson/dsaTeachingPolicyClient";
@@ -119,6 +126,7 @@ import {
   resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
+import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
   selectFastVerifiedRepresentation,
@@ -148,6 +156,7 @@ import {
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
+  waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -420,6 +429,10 @@ export function useQuestionHandler(
         : null;
       const turnGeneration = turnGenerationRef.current + 1;
       turnGenerationRef.current = turnGeneration;
+      // From here every exit writes one terminal line: `turn complete` below,
+      // or `turn failed {reason}` from handleQuestion's finally.
+      const terminal = turnTerminalRecordFor(saveExit);
+      markTurnStarted(terminal, turnGeneration);
       onSpeechStartupStatus?.(null);
       cancelRef.current = false;
       isPausedRef.current = false;
@@ -1409,6 +1422,7 @@ export function useQuestionHandler(
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
+                waitForRequiredScenePeers: waitForRequiredScenePeers(planningTurnPlan.visualRequirement),
                 fastMode: fastModeRef.current,
                 onRequestOutcome: outcome => {
                   sceneRequestFailure = sceneRequestFailureTelemetry({
@@ -1845,6 +1859,7 @@ export function useQuestionHandler(
       });
 
       if (problemAuthority?.audit.status === "contradiction") {
+        markTurnExitReason(terminal, "solver_authority_contradiction");
         emitError({
           message: "The independent solution checks disagreed, so the tutor stopped before presenting an unverified answer. Retry the question.",
           question,
@@ -2187,29 +2202,31 @@ export function useQuestionHandler(
             })
           : null;
         let conductor = createTurnConductor();
+        // A run of write-less FOCUS steps is spoken as one segment, as the
+        // batch path does. Writing segments are never held, and nothing is
+        // held before the lesson has started.
+        let focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
 
-        const flushBufferedSegment = () => {
-          if (!bufferedSegment) return;
-          // A resumed lecture must not queue its opening figure until a
-          // spoken-and-written step passes the ink gate. Otherwise an intro
-          // can keep drawing after a no-ink resume reports failure.
-          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+        const queuePreparedSegments = (
+          preparedSegments: TutorSegment[],
+          prepared: { blockedCommandCount: number; droppedSegmentCount: number },
+        ) => {
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
           // and everything except FOCUS/PAUSE narration ink is dropped.
-          const resolved = conductor ? conductor.resolve(prepared.segments) : null;
+          const resolved = conductor ? conductor.resolve(preparedSegments) : null;
           // A doubt conducts no code lesson, and beside the code panel it has
           // no notebook: `doubtSegment` keeps its words and only the ink it can
           // put on this page.
           const outgoing = doubt
-            ? prepared.segments.flatMap((segment) => {
+            ? preparedSegments.flatMap((segment) => {
                 const kept = doubtSegment(segment, {
                   codePanelShowing,
                   boardRows: pagePromptInput.boardRows,
                 });
                 return kept ? [kept] : [];
               })
-            : (resolved?.segments ?? prepared.segments);
+            : (resolved?.segments ?? preparedSegments);
           const hasTeachingContent = outgoing.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration));
           if (!usableTeachingStepReceived && !hasTeachingContent) startupControlSegments.push(...outgoing);
           const queuedSegments = !usableTeachingStepReceived && !hasTeachingContent
@@ -2249,11 +2266,27 @@ export function useQuestionHandler(
               unknown_block_ids: resolved?.unknownBlockIds ?? [],
             });
           }
-          bufferedSegment = null;
           if (usableTeachingStepReceived && !teachingFirstStepMarked) {
             teachingFirstStepMarked = true;
             tel.mark("teaching-first-step", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
           }
+        };
+
+        const flushBufferedSegment = () => {
+          if (!bufferedSegment) return;
+          // A resumed lecture must not queue its opening figure until a
+          // spoken-and-written step passes the ink gate. Otherwise an intro
+          // can keep drawing after a no-ink resume reports failure.
+          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+          const ready = focusFold.take(prepared.segments, { lessonStarted: usableTeachingStepReceived });
+          queuePreparedSegments(ready, prepared);
+          bufferedSegment = null;
+        };
+
+        // The response has ended: queue the pointing run still held.
+        const flushFocusFold = () => {
+          const held = focusFold.finish();
+          if (held.length > 0) queuePreparedSegments(held, { blockedCommandCount: 0, droppedSegmentCount: 0 });
         };
 
         let markup = codeLesson ? null : new LectureMarkupBuffer();
@@ -2451,6 +2484,7 @@ export function useQuestionHandler(
               });
               resumeInkGate?.reset();
               conductor = createTurnConductor();
+              focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
             }
             continue;
           }
@@ -2570,6 +2604,7 @@ export function useQuestionHandler(
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        flushFocusFold();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
           page.failureTelemetry = {
@@ -2803,6 +2838,7 @@ export function useQuestionHandler(
           total_draw_ms: turnStatsRef.current.drawMs,
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
+        markTurnCompleted(terminal);
 
         // A finished DSA lesson keeps its panel up and unlocks type-along. A
         // doubt finishes nothing: the lesson it paused continues after this.
@@ -2941,17 +2977,40 @@ export function useQuestionHandler(
           return true;
         },
         run: async () => {
+          let threw = false;
+          let cancelled = false;
           try {
             return await teachQuestion(rawQuestion, admittedOptions, saveExit);
+          } catch (error) {
+            threw = true;
+            cancelled = isBenignTurnAbort(error);
+            const terminal = turnTerminalRecordFor(saveExit);
+            // An exception thrown while planning escaped the body's own catch.
+            // Release the turn it left in "thinking" instead of hanging there.
+            if (!cancelled && terminal.started && terminal.generation === turnGenerationRef.current) {
+              console.error("Tutor error:", error);
+              turnAbortRef.current?.abort();
+              turnAbortRef.current = null;
+              emitError({ message: "something went wrong. try asking again.", question: rawQuestion });
+              finishLectureUi(terminal.generation);
+            }
+            throw error;
           } finally {
             saveExit.handle?.close();
+            const terminal = turnTerminalRecordFor(saveExit);
+            // Early returns that cannot carry a reason of their own: a newer
+            // turn or Stop took over, or begin-turn refused before the save.
+            const inferredReason = terminal.generation !== turnGenerationRef.current ? "superseded"
+              : cancelRef.current ? "stopped" : saveExit.handle === null ? "begin_turn_refused" : null;
+            settleTurnTerminalRecord(terminal, { threw, cancelled, inferredReason },
+              (event, details) => tutorDebug("turn", event, details));
           }
         },
       });
       void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
       return receipt.finished;
     },
-    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef, emitError],
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, turnAbortRef, pendingSegmentCountRef, whiteboardRef, emitError, finishLectureUi],
   );
 
   useEffect(() => {

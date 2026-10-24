@@ -26,7 +26,7 @@ import {
   SpeechSynthesisTTSClient,
 } from "@heytutor/tutor-core";
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
-import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets } from "../../lib/turn/turnFailurePolicy";
+import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets, shouldFinishSegmentAfterHeardSpeechFailure } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
@@ -77,6 +77,9 @@ export function useSegmentRunner({
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
   const startupStatusOwnerRef = useRef<symbol | null>(null);
+  // Set while a provider clip waits on a browser autoplay gesture. Its clock
+  // stays paused so neither startup nor playback budgets can expire the beat.
+  const permissionWaitOwnerRef = useRef<symbol | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
@@ -90,12 +93,13 @@ export function useSegmentRunner({
     // Resume will repeat the browser sentence, not continue its old media cursor.
     // Invalidate the pen synchronously before the board's paused flag is lifted.
     if (introDrawOwnerRef.current?.owner === browserFallbackOwnerRef.current) introDrawOwnerRef.current?.freeze();
-    speechClockRef.current?.resume();
+    if (!permissionWaitOwnerRef.current) speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     if (browserFallbackOwnerRef.current) browserSpeechRef.current?.resume();
   };
   const stopFallbackSpeech = () => {
     // A cancelled turn must not leave its startup poll suspended forever.
+    permissionWaitOwnerRef.current = null;
     speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     fallbackPauseGenerationRef.current++;
@@ -184,9 +188,12 @@ export function useSegmentRunner({
       if (segment.verifiedDiagramIntro !== true) {
         const prepared: DrawCommand[] = [];
         for (const command of segmentCommands) {
+          // A stopped or replaced turn reserves nothing more: the board and
+          // its layout may already belong to the next turn.
+          if (isCancelled()) return;
           // One work row can come back as several: a line too long for the
           // column is wrapped there rather than shrunk to fit.
-          const resolved = await reserveTextCommandPlacements(command);
+          const resolved = await reserveTextCommandPlacements(command, { isCancelled });
           for (const row of resolved) {
             prepared.push(row);
             if (row !== command) reservedTextCommands.add(row);
@@ -689,10 +696,21 @@ export function useSegmentRunner({
         let ownsPrimary = true;
         let primaryGeneration = 0;
         let providerRecoveryAttempted = false;
+        /** Furthest provider media position the student actually heard. */
+        let heardPositionMs = 0;
+        const sampleHeardPosition = () => {
+          if (usingBrowserFallback || audioStartedAtMs === null) return;
+          const position = tts.getPlaybackPositionMs();
+          if (position !== null && Number.isFinite(position) && position > heardPositionMs) heardPositionMs = position;
+        };
         const startupOwner = Symbol();
         const clearStartupStatus = () => {
           if (startupStatusOwnerRef.current !== startupOwner) return;
           startupStatusOwnerRef.current = null;
+          if (permissionWaitOwnerRef.current === startupOwner) {
+            permissionWaitOwnerRef.current = null;
+            if (!isPausedRef.current) clock.resume();
+          }
           onSpeechStartupStatus?.(null);
         };
         const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
@@ -719,6 +737,14 @@ export function useSegmentRunner({
                 reason: blocked.reason,
                 audio_context_state: blocked.audioContextState,
               });
+              // Permission is a user action, not provider latency. Retain the
+              // current clip and beat and suspend both startup and playback
+              // budgets instead of replacing it with another gesture blocked
+              // transport. The recovery overlay owns the way out.
+              if (onSpeechStartupStatus) {
+                permissionWaitOwnerRef.current = startupOwner;
+                clock.pause();
+              }
               startupStatusOwnerRef.current = startupOwner;
               onSpeechStartupStatus?.({
                 turnGeneration,
@@ -732,6 +758,8 @@ export function useSegmentRunner({
                     turn_generation: turnGeneration,
                     audio_context_state: tts.getAudioContextState?.() ?? null,
                   });
+                  permissionWaitOwnerRef.current = null;
+                  clock.resume();
                   tts.unlockAudio?.();
                   tts.resume();
                 },
@@ -742,6 +770,10 @@ export function useSegmentRunner({
               onAudioReady();
             },
             onStart: () => {
+              if (canAcceptPrimary() && permissionWaitOwnerRef.current === startupOwner && !isPausedRef.current) {
+                permissionWaitOwnerRef.current = null;
+                clock.resume();
+              }
               const accepted = canAcceptPrimary() && !isPausedRef.current && onStart();
               if (!isStale()) tel?.mark("tts-startup-accepted", {
                 segment_index: index,
@@ -881,13 +913,19 @@ export function useSegmentRunner({
           const playbackWatch = new Promise<never>((_, reject) => {
             const check = () => {
               slowestPlaybackRate = Math.min(slowestPlaybackRate, segmentWatchdogPlaybackRate(segmentPlaybackRate()));
+              sampleHeardPosition();
               const timings = capturedTimings;
+              // A voice with no alignment (Sarvam) still reports its length
+              // from the WAV header. Without this the watch never armed for
+              // it and only the 25 s character timeout caught a frozen clip.
+              const audioDurationMs = timings && validateAudioTimingsForNarration(narration, timings).valid
+                ? timings.totalDuration * 1000
+                : !timings && capturedDurationMs !== null && capturedDurationMs > 0 ? capturedDurationMs : null;
               if (
-                !usingBrowserFallback && audioStartedAtMs !== null && timings &&
-                validateAudioTimingsForNarration(narration, timings).valid &&
+                !usingBrowserFallback && audioStartedAtMs !== null && audioDurationMs !== null &&
                 speechPlaybackOverdue({
                   elapsedMs: clock.elapsedMs() - (audioStartedAtActiveMs ?? 0),
-                  audioDurationMs: timings.totalDuration * 1000,
+                  audioDurationMs,
                   playbackRate: slowestPlaybackRate,
                   paused: isPausedRef.current,
                 })
@@ -921,6 +959,32 @@ export function useSegmentRunner({
             }),
           ]));
         } catch (error) {
+          sampleHeardPosition();
+          if (shouldFinishSegmentAfterHeardSpeechFailure({
+            error,
+            heardPositionMs,
+            browserFallback: usingBrowserFallback,
+            providerRecoveryAttempted,
+            speechAborted,
+            cancelled: isCancelled(),
+          })) {
+            // Heard, then the local clip froze. Silence the rest, keep the
+            // segment: its ink finishes against a completed voice clock, it
+            // is recorded with whatever clip was generated, and the queue
+            // never sees a failure to count toward abandoning the turn.
+            const message = error instanceof Error ? error.message : String(error);
+            tutorDebug("tts", "segment speech failed after it was heard; finishing the segment", {
+              index, error: message, timed_out: timedOut, heard_ms: Math.round(heardPositionMs),
+            });
+            tel?.mark("tts-segment-degraded", {
+              segment_index: index,
+              error: message,
+              timed_out: timedOut,
+              heard_ms: Math.round(heardPositionMs),
+            });
+            tts.abandonSpeaking?.();
+            return;
+          }
           terminalSpeechFailure = !isCancelled();
           speechAborted = true;
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();

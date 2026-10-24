@@ -10,6 +10,10 @@ interface ThinkingOverlayProps {
   paused?: boolean;
   onResume?: () => void;
   onEnableAudio?: (() => void) | null;
+  /** A later beat needs permission without frosting the already taught board. */
+  preserveBoard?: boolean;
+  /** The action starts retained playback without changing the mute preference. */
+  muted?: boolean;
   /** Marker colour the clicker writes in. */
   ink?: string;
   /**
@@ -33,22 +37,23 @@ interface ThinkingOverlayProps {
  * The board stays paper; the clicker is the wait. The short line under it
  * names that wait, so a long plan is not a dead board.
  */
-export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale, paused = false, onResume, onEnableAudio }: ThinkingOverlayProps) {
+export function ThinkingOverlay({ ink = "#1B2A4A", onBoardAt = null, scale, paused = false, onResume, onEnableAudio, preserveBoard = false, muted = false }: ThinkingOverlayProps) {
   if (paused || onEnableAudio) {
     return (
       <div
-        className={`${onBoardAt ? "" : "wb-pending "}pointer-events-none absolute inset-0 z-20 flex items-center justify-center`}
+        className={`${onBoardAt || preserveBoard ? "" : "wb-pending "}pointer-events-none absolute inset-0 z-20 flex ${preserveBoard ? "items-end justify-start p-3 sm:p-4" : "items-center justify-center"}`}
+        data-speech-recovery={onEnableAudio ? "true" : undefined}
       >
-        <div className="pointer-events-auto rounded-2xl border border-current/10 bg-[var(--wb-paper)] px-6 py-5 text-center shadow-sm" style={{ color: ink }}>
+        <div className={`pointer-events-auto max-w-full rounded-2xl border border-current/10 bg-[var(--wb-paper)] ${preserveBoard ? "px-4 py-3" : "px-6 py-5"} text-center shadow-sm`} style={{ color: ink }}>
           <p role="status" className="type-accent-s">
-            {paused ? "Lecture paused" : "Audio needs your permission"}
+            {paused ? "Lecture paused" : muted ? "Playback needs your permission" : "Audio needs your permission"}
           </p>
           <button
             type="button"
             className="mt-3 min-h-11 rounded-full border border-current/20 px-5 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
             onClick={paused ? onResume : onEnableAudio ?? undefined}
           >
-            {paused ? "Resume" : "Tap to enable audio"}
+            {paused ? "Resume" : muted ? "Tap to enable playback" : "Tap to enable audio"}
           </button>
         </div>
       </div>
