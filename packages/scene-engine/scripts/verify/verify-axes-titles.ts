@@ -76,4 +76,14 @@ const plain = compileSceneDocument(boyle({}));
 assert.ok(plain.ok && plain.renderScene);
 assert.equal(plain.renderScene.primitives.some((primitive) => /^primitive_axes_[xy]Label$/.test(primitive.id)), false, "untitled axes draw no titles");
 
+// 6. Equal titles on both axes ("T (K)" against "T (K)" for a before and after
+// plot) are two titles, not a duplicate: both draw, each at its own tip.
+const twin = compileSceneDocument(boyle({ xLabel: "T (K)", yLabel: "T (K)" }));
+assert.ok(twin.ok && twin.renderScene, `equal axis titles compile: ${JSON.stringify(twin.report.issues.filter((issue) => issue.severity === "fatal"))}`);
+const twinTitle = (key: string) => twin.renderScene!.primitives.find((primitive) => primitive.id === `primitive_axes_${key}`);
+assert.equal(twinTitle("xLabel")?.text, "T (K)", "the x title draws");
+assert.equal(twinTitle("yLabel")?.text, "T (K)", "the y title draws");
+assert.ok(near(twinTitle("xLabel")!.points[0]!, xTip) < near(twinTitle("xLabel")!.points[0]!, yTip), "the x title sits at the x tip");
+assert.ok(near(twinTitle("yLabel")!.points[0]!, yTip) < near(twinTitle("yLabel")!.points[0]!, xTip), "the y title sits at the y tip");
+
 console.log("verify-axes-titles: labels aimed at axes refused with the remedy; xLabel and yLabel sit at their arrow tips");

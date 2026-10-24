@@ -1249,6 +1249,8 @@ function axesTitleOwners(
       owners.push({
         labelId: `primitive_${entityId}_${axis.key}`,
         entityId,
+        // The x and y titles are two labels even when their text is equal.
+        duplicateKey: `${entityId}\u0000${axis.key}`,
         anchor: tip,
         text: text.trim(),
         viewBounds: transformPlan.viewportFor(entityId),
