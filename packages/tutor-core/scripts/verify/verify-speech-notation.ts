@@ -819,6 +819,36 @@ for (const [written, spoken] of UNCHANGED_FROM_MAIN) {
     assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
   });
 }
+// Only an exponent of exactly minus one is an inverse (PR #274 review): the
+// rule used to fire on the head of `^-10`, so `sin^-10(x)` was spoken "sine
+// inverse 0(x)", a wrong value with a stray digit.
+const POWERS_NOT_INVERSE: [string, string][] = [
+  ["sin^-10(x)", "sine to the power of minus 10(x)"],
+  ["sin^-1.5(x)", "sine to the power of minus 1.5(x)"],
+  ["cos^(-12)(x)", "cosine to the power of minus 12 (x)"],
+  ["sin^{-10}(x)", "sine to the power of minus 10 (x)"],
+];
+for (const [written, spoken] of POWERS_NOT_INVERSE) {
+  check(`${written} is a power, spoken "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+check("a superscript power of minus ten is never an inverse", () => {
+  assertNotContains(mathToSpeech("sin⁻¹⁰(x)"), "inverse", "sin⁻¹⁰(x)");
+});
+const EXACT_INVERSES: [string, string][] = [
+  ["tan^-1 x", "tangent inverse x"],
+  ["cos^-1(0.5)", "cosine inverse (0.5)"],
+  ["sin^{-1}(x)", "sine inverse (x)"],
+  ["sin⁻¹(x)", "sine inverse (x)"],
+];
+for (const [written, spoken] of EXACT_INVERSES) {
+  check(`${written} is still an inverse, "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
 check("a constant name in a code lesson is not spelled out", () => {
   assertContains(mathToSpeech("INT_MAX and MAX_INT"), "INT MAX and MAX INT", "INT_MAX and MAX_INT");
 });

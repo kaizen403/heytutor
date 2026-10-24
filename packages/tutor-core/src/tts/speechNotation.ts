@@ -641,7 +641,10 @@ function expandNotationSymbols(text: string): string {
     // teacher says "tan inverse", never "tan to the power of minus 1". Only
     // the arc spelling is an inverse: `acos(ωt)` is the amplitude a times
     // cos(ωt) in SHM and waves, so `asin(`, `acos(` and `atan(` stay as typed.
-    .replace(/\b(sin|cos|tan)\s*(?:\^\(-1\)|\^-1|⁻¹)/g, "$1 inverse ")
+    // The exponent must be exactly minus one: `sin^-10(x)`, `sin^-1.5(x)` and
+    // `sin⁻¹⁰(x)` are powers, and reading their head as "inverse" left a stray
+    // digit behind (PR #274 review). `^{-1}` is `^(-1)` by now.
+    .replace(/\b(sin|cos|tan)\s*(?:\^\(-1\)|(?:\^-1|⁻¹)(?![0-9⁰¹²³⁴⁵⁶⁷⁸⁹]|\.[0-9⁰¹²³⁴⁵⁶⁷⁸⁹]))/g, "$1 inverse ")
     .replace(/\barc(sin|cos|tan)(?=\s*\()/g, "$1 inverse ")
     .replace(/([A-Z][a-z]?)_(\d+)/g, "$1 $2 ")
     .replace(/([A-Za-z0-9]+)\^(\d+)([-+])/g, (_m, formula: string, num: string, sign: string) =>
