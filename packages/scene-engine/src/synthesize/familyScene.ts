@@ -2266,50 +2266,15 @@ function buildStatePlot(
   if (isNamedVariationPlotStem(normalizeStem(question))) {
     return variationLineDocument(question);
   }
-  const pressures = quantities.filter((quantity) => /^p\d*$/i.test(normalizeKey(quantity.symbol))
-    || /^p\d*$/i.test(normalizeKey(quantity.id)));
-  const volumes = quantities.filter((quantity) => /^v\d*$/i.test(normalizeKey(quantity.symbol))
-    || /^v\d*$/i.test(normalizeKey(quantity.id)));
-  const closed = /(?:cycle|clockwise|rectangular)/i.test(question);
-  if (!schematic && pressures.length < 2 && volumes.length < 2 && !closed) return null;
-  const namedCycle = closed
-    || /(?:cyclic|isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|pressure.{0,40}volume|volume.{0,40}pressure|thermodynamic cycle)/i.test(question);
-  if (schematic && pressures.length < 2 && volumes.length < 2 && !namedCycle) return null;
-  const axisLabel = /p\s*[-–]?\s*t\s*(?:diagram|graph)/i.test(question) ? "P-T" : "P-V";
-  const corners = [
-    { id: "A", x: -2, y: -1.5 },
-    { id: "B", x: 2, y: -1.5 },
-    { id: "C", x: 2, y: 1.5 },
-    { id: "D", x: -2, y: 1.5 },
-  ];
-  return baseDocument({
-    question,
-    reason: "display-scaled thermodynamic state plot",
-    quantities: [],
-    entities: [
-      { id: "axes", kind: "axes", role: "PV axes", label: axisLabel },
-      ...corners.map((corner) => ({ id: corner.id, kind: "point", role: "named state", label: corner.id })),
-      { id: "cycle", kind: "polygon", role: "process cycle" },
-    ],
-    constructions: [
-      { id: "make_axes", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -2.5, yMax: 2.5 }, outputs: ["axes"] },
-      ...corners.map((corner) => pointAt(corner.id, corner.x, corner.y)),
-      {
-        id: "make_cycle",
-        operator: "polygon",
-        inputs: { points: corners.map((corner) => corner.id) },
-        outputs: ["cycle"],
-      },
-    ],
-    annotations: [
-      { id: "cycle_fill", kind: "highlight", targetIds: ["cycle"], style: { transient: false } },
-      { id: "drop_A", kind: "drop", targetIds: ["A", "axes"] },
-    ],
-    assertions: [
-      { id: "A_exists", predicate: "exists", entities: ["A"], expected: true, severity: "fatal" },
-      { id: "cycle_exists", predicate: "exists", entities: ["cycle"], expected: true, severity: "fatal" },
-    ],
-  });
+  // The stock P-V figure here was one A, B, C, D rectangle on axes through the
+  // origin, drawn for any thermodynamic stem whatever its states or process:
+  // a straight line expansion, an isothermal compression, a Carnot cycle, an
+  // adiabatic explanation. It ignored the stated values, so it was never the
+  // question's figure. Stated P-V processes are drawn by the source bound
+  // P-V operators; everything else teaches in words.
+  void quantities;
+  void schematic;
+  return null;
 }
 
 function buildContactBody(
