@@ -13,8 +13,8 @@
  *   probes     every titration probe and short ask still draws, with the
  *              equivalence label present
  *   mutation   the same documents without the placement annotations (the
- *              old placement) and a label box moved onto the pH 7 height
- *              must both turn the geometry check red
+ *              old placement), a label box moved onto the pH 7 height, and
+ *              the pH 7 label removed must each turn the geometry check red
  */
 import assert from "node:assert/strict";
 import "../../src/chemistry/families";
@@ -62,13 +62,16 @@ export function equivalenceLabelGeometry(scene: RenderScene): { eqOwn: number; e
   // Strong against strong: the equivalence pH is 7, the guide lies on the
   // pH 7 line and one "pH 7" label truthfully names both.
   if (Math.abs(g0.y - n0.y) < 1 && Math.abs(g1.y - n1.y) < 1) return null;
+  // A separate pH 7 line must carry exactly one pH 7 label; a missing label
+  // is a failure, never a pass with no distance measured.
+  assert.equal(neutralLabels.length, 1, "exactly one pH 7 label on the pH 7 line");
   const eqBox = labelBox(eqLabels[0]!);
-  const neutralBox = neutralLabels[0] ? labelBox(neutralLabels[0]) : null;
+  const neutralBox = labelBox(neutralLabels[0]!);
   return {
     eqOwn: boxToPoint(eqBox, eqMark.points[0]!),
     eqNeutral: boxToSegment(eqBox, n0, n1),
-    neutralOwn: neutralBox ? boxToSegment(neutralBox, n0, n1) : 0,
-    neutralGuide: neutralBox ? boxToSegment(neutralBox, g0, g1) : Infinity,
+    neutralOwn: boxToSegment(neutralBox, n0, n1),
+    neutralGuide: boxToSegment(neutralBox, g0, g1),
   };
 }
 
@@ -110,23 +113,35 @@ for (const question of STEMS) {
 }
 check("coverage/neutral-line-figures", () => assert.ok(withNeutral >= 3, `only ${withNeutral} figures drew the pH 7 line`));
 
-// Mutation 1: the same documents placed by the solver alone, as before.
+// Mutation 1: the same documents placed by the solver alone, as before. The
+// old figure still drew one pH 7 label, so the pH 7 label stays and loses only
+// its placement intent; the equivalence value falls back to the point label.
+function solverPlacement(document: SceneDocument): SceneDocument {
+  return {
+    ...document,
+    annotations: document.annotations
+      .filter((a) => a.id !== "eq_ph_value")
+      .map((a) => (a.id === "neutral_value" ? { ...a, placementIntent: undefined } : a)),
+  };
+}
 let reverted = 0;
 for (const { question, document } of documents) {
-  const mutated: SceneDocument = { ...document, annotations: document.annotations.filter((a) => a.id !== "eq_ph_value" && a.id !== "neutral_value") };
+  const mutated = solverPlacement(document);
   if (mutated.annotations.length === document.annotations.length) continue;
   const compiled = compileSceneDocument(mutated);
   if (!compiled.ok || !compiled.renderScene) continue;
-  try { geometryHolds(compiled.renderScene); } catch { reverted += 1; continue; }
+  // Count only a measured distance failure; a label lost with its annotation
+  // is not the old placement.
+  try { geometryHolds(compiled.renderScene); } catch (error) { if (/px from/.test(String(error))) reverted += 1; continue; }
   void question;
 }
 check("mutation/solver-placement-goes-red", () => assert.ok(reverted >= 1, "dropping the placement annotations must fail the check on at least one figure"));
 check("mutation/weak-base-solver-placement-red", () => {
   const entry = documents.find((item) => item.question === "titration curve of weak base with strong acid");
   assert.ok(entry);
-  const compiled = compileSceneDocument({ ...entry.document, annotations: entry.document.annotations.filter((a) => a.id !== "eq_ph_value" && a.id !== "neutral_value") });
+  const compiled = compileSceneDocument(solverPlacement(entry.document));
   assert.ok(compiled.ok && compiled.renderScene);
-  assert.throws(() => geometryHolds(compiled.renderScene!), /pH 7/);
+  assert.throws(() => geometryHolds(compiled.renderScene!), /equivalence pH label is .* px from the pH 7 line/);
 });
 
 // Mutation 2: an equivalence label box moved onto the pH 7 height.
@@ -142,6 +157,21 @@ check("mutation/label-on-neutral-height-red", () => {
   });
   assert.equal(moved, 1, "the mutation moved the equivalence label");
   assert.throws(() => geometryHolds({ ...scene.renderScene, primitives }), /pH 7 line/);
+});
+
+// Mutation 3: the pH 7 label removed. A missing label must not pass the
+// distance check; every figure that draws a separate pH 7 line must turn red.
+check("mutation/missing-neutral-label-red", () => {
+  let dropped = 0;
+  for (const question of STEMS) {
+    const scene = synthesizeFamilyScene({ question });
+    if (!scene || !equivalenceLabelGeometry(scene.renderScene)) continue;
+    const primitives = scene.renderScene.primitives.filter((p) => !(p.kind === "label" && (p.entityId === "neutral" || p.entityId === "neutral_a")));
+    assert.ok(primitives.length < scene.renderScene.primitives.length, `${question}: the mutation removed the pH 7 label`);
+    assert.throws(() => geometryHolds({ ...scene.renderScene, primitives }), /pH 7 label/, `${question}: a missing pH 7 label must fail`);
+    dropped += 1;
+  }
+  assert.ok(dropped >= 3, `only ${dropped} figures were mutated`);
 });
 
 for (const row of rows) if (!row.passed) console.log(`FAIL ${row.id}: ${row.error}`);
