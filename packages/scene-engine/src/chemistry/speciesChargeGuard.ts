@@ -80,6 +80,8 @@ export interface WrittenCharge {
   readonly text: string;
   /** Where it starts in the folded text, so each occurrence is judged on its own. */
   readonly at: number;
+  /** Other bodies the same written owner reads as (O2- is O2^- or O^2-). */
+  readonly alternatives?: readonly string[];
 }
 
 /** Same formula token as the shared reader, behind a lookbehind that also refuses non ASCII letters (ΔH). */
@@ -165,9 +167,12 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
       .filter((match) => isFormula(match[1]!))
       .map((match) => {
         // The owner keeps its attached charge (Cu2+ is copper, not Cu2) before its body is taken.
+        // A digit then a bare sign reads both ways (O2- is O2^- or O^2-), so both bodies are kept.
         const end = (match.index ?? 0) + match[1]!.length;
         const suffix = /^\^?\(?\d*[+-]\)?/.exec(clause.text.slice(end))?.[0] ?? "";
-        return { body: splitCharge(`${match[1]!}${suffix}`).body, at: match.index ?? 0 };
+        const body = splitCharge(`${match[1]!}${suffix}`).body;
+        const alternatives = /^[+-]$/.test(suffix) && body !== match[1]! ? [match[1]!] : [];
+        return { body, alternatives, at: match.index ?? 0 };
       });
     if (formulas.length === 0) continue;
     for (const match of clause.text.matchAll(CHARGE_PHRASE)) {
@@ -180,7 +185,7 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
       const digits = leadDigits || trailDigits;
       const magnitude = digits ? Number(digits) : counted;
       // "with a charge of -2" and "two negative charges" give the size; "a negative charge" gives only the sign.
-      out.push({ formula: owner.body, charge: magnitude ? polarity * magnitude : null, polarity, text: whole, at: clause.at + at });
+      out.push({ formula: owner.body, alternatives: owner.alternatives, charge: magnitude ? polarity * magnitude : null, polarity, text: whole, at: clause.at + at });
     }
   }
   for (const match of text.matchAll(ROMAN_STATE)) {
@@ -198,8 +203,8 @@ function writtenChargeCarried(marker: WrittenCharge, species: readonly ReadCharg
   if (marker.formula === null) {
     return species.some((item) => Math.sign(item.charge) === marker.polarity && (marker.charge === null || item.charge === marker.charge));
   }
-  const key = compositionKey(marker.formula);
-  return key !== null && species.some((item) => item.key === key && Math.sign(item.charge) === marker.polarity && (marker.charge === null || item.charge === marker.charge));
+  const keys = [marker.formula, ...(marker.alternatives ?? [])].map(compositionKey).filter((key): key is string => key !== null);
+  return species.some((item) => keys.includes(item.key) && Math.sign(item.charge) === marker.polarity && (marker.charge === null || item.charge === marker.charge));
 }
 
 /** A negator that governs a list of formulas: "No He+ or Li2+", "not NO2 -", "without Cu 2+ and Zn 2+". */

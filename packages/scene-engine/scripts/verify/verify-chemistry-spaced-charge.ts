@@ -249,6 +249,9 @@ const ATTACHED: readonly AttachedRow[] = [
     },
   },
   { id: "thread-phrase-owner-keeps-charge-Cu", question: "electron configuration of Cu2+ with a charge of +2", family: "chem_orbital", check: configurationCheck("Cu^(2+)", "Cu", 2, "[Ar] 3d^9") },
+  // Round 3: an ambiguous attached owner keeps both readings (O2- is superoxide here, He2+ the molecule ion).
+  { id: "thread-phrase-owner-O2-minus-both-readings", question: "MO diagram of O2- with a charge of -1", family: "chem_mo", check: moCheck("O_2^(-)", "O2", -1) },
+  { id: "thread-phrase-owner-He2-plus-both-readings", question: "bond order of He2+ with a charge of +1", family: "chem_mo", check: moCheck("He_2^(+)", "He2", 1) },
   { id: "phrase-carried-SO4", question: "shape of SO4^2- with a charge of 2-", family: "chem_vsepr", check: vseprCheck("SO4^2-", "S", { O: 4 }, -2, "tetrahedral") },
   // An excluded ion in another clause does not bear on the species read.
   { id: "unrelated-clause-charge", question: "No He+ or Li2+ participate; draw the Lewis structure of H2O.", family: "chem_lewis", check: lewisCheck("H_2O", "H2O", 0) },
