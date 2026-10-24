@@ -173,8 +173,7 @@ function speciesKeyOfLabel(label: string): string | null {
   rest += ` ${label.slice(cursor)}`;
   for (const word of rest.split(" ").filter(Boolean)) {
     if (SPECIES_DESCRIPTORS.has(word.toLowerCase())) continue;
-    const parsed = parseFormula(word);
-    const key = parsed ? formulaKey(word) : null;
+    const key = formulaKey(word);
     if (!key) return null;
     keys.add(key);
   }
@@ -183,15 +182,18 @@ function speciesKeyOfLabel(label: string): string | null {
   return only || null;
 }
 
-/** Board and source spellings of one formula: NH_3, NH3; SO_4^(2-), SO4^2-. */
+/**
+ * One identity for the board and source spellings of a formula (NH_3, NH3;
+ * SO_4^(2-), SO4^2-): the parsed atoms with their counts in written order,
+ * and the net charge, kept apart. O_2^(-) (superoxide, O2 with charge -1)
+ * and O^(2-) (oxide, O with charge -2) never share a key, although both
+ * flatten to the same characters. Anything the formula reader cannot parse
+ * has no key.
+ */
 function formulaKey(value: string): string | null {
-  const key = value
-    .trim()
-    .replace(/\s+/g, "")
-    .replace(/_(\d+)/g, "$1")
-    .replace(/\^\(([^)]*)\)/g, "$1")
-    .replace(/[\^()[\]]/g, "");
-  return /^[A-Z][A-Za-z0-9+-]*$/.test(key) ? key : null;
+  const parsed = parseFormula(value.trim().replace(/\s+/g, "").replace(/_(\d+)/g, "$1"));
+  if (!parsed) return null;
+  return `${parsed.atoms.map((atom) => `${atom.symbol}${atom.count}`).join(" ")} | ${parsed.charge}`;
 }
 
 /* ------------------------------------------------------------------------- */
