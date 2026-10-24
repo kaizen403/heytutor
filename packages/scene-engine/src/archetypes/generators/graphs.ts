@@ -297,19 +297,10 @@ function parseProcesses(question: string): Process[] {
     const grows = /expan|heat|increas/i.test(words) ? true : /compress|cool|decreas/i.test(words) ? false : null;
     found.push({ kind, from: match[3]!.toUpperCase(), to: match[4]!.toUpperCase(), grows });
   }
-  if (found.length === 0) {
-    const cycle = /\b([A-D])\s*(?:to|→|->)\s*([A-D])\s*(?:to|→|->)\s*([A-D])(?:\s*(?:to|→|->)\s*([A-D]))?/i.exec(stem);
-    const kinds = [...stem.matchAll(/\b(isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b/gi)].map((match) => (match[1]!.toLowerCase() === "isovolumetric" ? "isochoric" : match[1]!.toLowerCase()) as ProcessKind);
-    if (cycle && kinds.length >= 2) {
-      const states = [cycle[1], cycle[2], cycle[3], cycle[4]].filter((state): state is string => Boolean(state)).map((state) => state.toUpperCase());
-      // Kinds are matched to legs by order only; a count mismatch would give
-      // some leg the wrong kind or drop it, so the figure declines.
-      if (kinds.length !== states.length - 1) return [];
-      for (let index = 0; index < states.length - 1 && index < kinds.length; index += 1) {
-        found.push({ kind: kinds[index]!, from: states[index]!, to: states[index + 1]!, grows: null });
-      }
-    }
-  }
+  // Every leg must be named with its kind. A list of kinds beside a chain
+  // of states ("A→B→C→A. The processes are isobaric, isochoric and
+  // adiabatic") pairs kinds with legs by order, which is a guess, so it
+  // gives no processes and the figure declines.
   return found;
 }
 
