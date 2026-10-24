@@ -1,7 +1,7 @@
 import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
-import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
+import { parseStoredSegmentCommands, type DrawCommand, type StoredCommandEnvelope } from "@heytutor/drawing";
 import type { BoardEntry } from "@/lib/boards/types";
 import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import { effectiveTurnStatus, type TurnKind, type TurnStatus } from "@/lib/boards/turnStatus";
@@ -567,6 +567,11 @@ export interface TurnCloseInput {
   orderAfterTurnId?: string;
 }
 
+/** A typed code row is accepted only beside its code lesson plan. */
+function rowsNeedCodePlan(rows: ReadonlyArray<{ command?: unknown }>): boolean {
+  return rows.some((row) => parseStoredSegmentCommands(row.command as never).some((command) => command.type === "TYPE"));
+}
+
 /** Keepalive bodies share a 64 KiB budget with telemetry; the close stays well under it. */
 export const KEEPALIVE_CLOSE_MAX_BYTES = 12_000;
 
@@ -590,12 +595,19 @@ export function buildTurnCloseBody(input: TurnCloseInput, maxBytes = KEEPALIVE_C
   const question = input.question?.slice(0, 2_000);
   const preview = input.preview?.slice(0, 200);
   const rows = input.segments && input.segments.length > 0 ? checkpointRows(input.baseCount, input.segments) : undefined;
+  // The scene artifacts ride only on a close that creates the turn. There a
+  // typed code row is refused without its code lesson plan, so no candidate
+  // may keep typed rows while dropping the artifacts; the close then falls
+  // back to the row-less body. An existing turn uses its stored plan.
+  const rowsWithoutArtifacts = !(rows && input.sceneArtifacts && rowsNeedCodePlan(rows));
   const candidates = [
     { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows,
       sceneArtifacts: input.sceneArtifacts ?? undefined, resumeState: input.resumeState },
-    { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows, resumeState: input.resumeState },
-    { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows },
-    ...(rows ? [
+    ...(rowsWithoutArtifacts ? [
+      { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows, resumeState: input.resumeState },
+      { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows },
+    ] : []),
+    ...(rows && rowsWithoutArtifacts ? [
       { ...base, baseCount: input.baseCount, question, preview, appendSegments: rows },
       { ...base, baseCount: input.baseCount, question: question?.slice(0, 300), appendSegments: rows },
     ] : []),

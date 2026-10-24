@@ -282,12 +282,40 @@ async function closeKeepsQuestion(name: string, questionLength: number, tail: nu
   assert.equal(JSON.stringify((after.sceneArtifacts as { turnPlan?: unknown }).turnPlan ?? null), planBefore, `${name}: the plan survives the close`);
 }
 
+
+/** #273 Greptile: a code lesson that never checkpointed, closing over the keepalive budget. */
+async function codeLessonCloseCreatesTurn(): Promise<void> {
+  const question = padded(1_348);
+  const turnId = crypto.randomUUID();
+  const traceId = crypto.randomUUID();
+  traces.set(traceId, { traceId, userId: owner, expiresAt: new Date(Date.now() + 60_000), savedTurnId: null });
+  const code = "for value in values:\n    total += value * weight\n";
+  const typed = Array.from({ length: 24 }, (_, k) => ({
+    orderIndex: k, narration: `Type line ${k} of the loop that adds each weighted value.`, spokenText: `Type line ${k} of the loop that adds each weighted value.`,
+    command: { type: "TYPE", text: code.repeat(2), params: [], charPosition: 0, narrationBefore: "" },
+    audioBytes: null, durationMs: 100, timings: null,
+  }) as unknown as RecordedSegmentPayload);
+  const closeInput = {
+    seq: 1, status: "stopped" as const, baseCount: 0, segments: typed, rawResponse: typed.map((row) => row.narration).join(" "),
+    question, preview: question, kind: "lesson" as const, traceId,
+    sceneArtifacts: { schemaVersion: "scene-artifacts/v3", codeLesson: { schemaVersion: "code-lesson/v1", question, title: "Weighted sum", language: "python", sections: [], diagramHint: null } },
+  };
+  const closed = await client.closeTurnKeepalive(boardId, turnId, closeInput);
+  assert(closed.ok, `code lesson: the close must create the turn: ${JSON.stringify(responses.at(-1))}`);
+  const body = JSON.parse(client.buildTurnCloseBody(closeInput)) as { appendSegments?: unknown[]; sceneArtifacts?: unknown };
+  assert(!(body.appendSegments?.length && !body.sceneArtifacts), "code lesson: the close never sends typed rows without their code plan");
+  const created = turns.find((row) => row.id === turnId);
+  assert(created, "code lesson: the turn exists after the close");
+  assert.equal(created.question, question, "code lesson: the created turn keeps its question");
+}
+
 async function main(): Promise<void> {
   await closeKeepsQuestion("validated figure, 1,348 character question", 1_348, 33, "figure");
   await closeKeepsQuestion("text only, 1,348 character question", 1_348, 33, "text");
   await closeKeepsQuestion("validated figure, 3,322 character question", 3_322, 1, "figure");
   await closeKeepsQuestion("text only, 3,322 character question", 3_322, 1, "text");
-  console.log("long question close: 4 cases keep the stored question, stop the turn, append every tail row and keep the plan");
+  await codeLessonCloseCreatesTurn();
+  console.log("long question close: 4 cases keep the stored question, stop the turn, append every tail row and keep the plan; a code lesson over the budget still creates its turn");
 }
 
 void main().catch((error) => { originalError(error); process.exitCode = 1; }).finally(() => {
