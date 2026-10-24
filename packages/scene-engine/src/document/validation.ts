@@ -189,6 +189,9 @@ export function isSupportedSceneOperator(
 }
 
 const SAMPLED_CURVE_OPERATORS = new Set(["function_curve", "parametric_curve", "polar_curve"]);
+/** Analytic curves whose tangent and normal lines tangent_line/normal_line also derive. */
+const ANALYTIC_TANGENT_CURVE_OPERATORS = new Set(["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process",
+  "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"]);
 /**
  * Open polylines that may be read as a graph y = f(x) when their vertices
  * strictly increase in x: a hand-placed piecewise linear graph or a
@@ -5284,7 +5287,7 @@ function validateCalculusConstruction(
   if (operator === "tangent_line" || operator === "normal_line") {
     const curveId = inputs.curve ?? inputs.target;
     const producer = producerFor(curveId);
-    if (producer && ["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process", "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"].includes(producer.operator)) {
+    if (producer && ANALYTIC_TANGENT_CURVE_OPERATORS.has(producer.operator)) {
       validateCurveAnalyticLineConstruction(construction, index, document, constructionByOutput, issues);
       return;
     }
@@ -7028,13 +7031,14 @@ function tangentOperatorForCurveKind(
   entity: SceneDocument["entities"][number],
 ): { expected: string; advice: string } {
   const circleAdvice = "circle_tangent_at (tangent to a circle)";
-  const curveAdvice = "tangent_line (tangent to a function_curve, parametric_curve, or polar_curve)";
+  const curveAdvice = "tangent_line (tangent to a function_curve, parametric_curve, polar_curve, or another analytic curve it supports)";
   const words = `${entity.id} ${entity.role} ${entity.label ?? ""}`.toLowerCase().replace(/[_-]+/g, " ");
   const namesCircle = /\b(?:circle|circular|circumference|radius|radii|chord)\b/.test(words);
   const namesCurve = /\b(?:curve|function|graph|parametric|polar)\b/.test(words);
   const hasCircle = document.entities.some((candidate) => candidate.kind === "circle")
     || document.constructions.some((construction) => construction.operator === "circle" || construction.operator === "circle_from_three_points");
-  const hasCurve = document.constructions.some((construction) => SAMPLED_CURVE_OPERATORS.has(construction.operator));
+  const hasCurve = document.constructions.some((construction) => SAMPLED_CURVE_OPERATORS.has(construction.operator)
+    || ANALYTIC_TANGENT_CURVE_OPERATORS.has(construction.operator));
   const circle = namesCircle !== namesCurve ? namesCircle : hasCircle !== hasCurve ? hasCircle : null;
   if (circle === true) return { expected: "circle_tangent_at", advice: circleAdvice };
   if (circle === false) return { expected: "tangent_line", advice: curveAdvice };

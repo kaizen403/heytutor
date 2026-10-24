@@ -181,6 +181,23 @@ for (const operator of ["segment", "line"] as const) {
   check(issue && /circle_tangent_at/.test(issue.message) && /\btangent_line\b/.test(issue.message), `ambiguous curve kind names both operators: ${issue?.message}`);
 }
 
+// 5b. Analytic curves that tangent_line also derives (harmonic motion, waves,
+// trajectories) count as curves, so a circle beside one keeps both operators open.
+{
+  const analytic = doc(
+    [...circleBase.entities, { id: "motion", kind: "polyline", role: "harmonic motion graph" } as Entity,
+      { id: "A", kind: "point", role: "end" } as Entity, { id: "B", kind: "point", role: "end" } as Entity, { id: "l", kind: "segment", role: "tangent line" } as Entity],
+    [...circleBase.constructions,
+      { id: "cm", operator: "harmonic_motion", inputs: {}, outputs: ["motion"] } as Construction,
+      { id: "cA", operator: "point", inputs: { x: 4.2, y: 0.6, coordinateSpace: "world" }, outputs: ["A"] } as Construction,
+      { id: "cB", operator: "point", inputs: { x: -0.6, y: 4.2, coordinateSpace: "world" }, outputs: ["B"] } as Construction,
+      { id: "cl", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["l"] } as Construction],
+  );
+  const issue = issueOf(analytic, "derived_role_operator_mismatch");
+  check(issue && /circle_tangent_at/.test(issue.message) && /\btangent_line\b/.test(issue.message),
+    `a circle beside a harmonic_motion curve names both operators: ${issue?.message}`);
+}
+
 // 6. Mutation control: without the circle_tangent_at acceptance the circle tangent goes red.
 {
   const here = dirname(fileURLToPath(import.meta.url));
