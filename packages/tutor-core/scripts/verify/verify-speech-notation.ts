@@ -770,6 +770,95 @@ check("ordinary accents, apostrophes, numeric angle marks and code punctuation s
 
 // The actual prefetch producer must send the same normalized text to HTTP.
 // The fake transport terminates before audio/credentials, with no network.
+console.log("\nScript groups and letter subscripts (recorded 20 Oct 2026)\n");
+
+// v3/p1c-t2 spoke "v_{A over B}" eight times, v2/p3e2-t1 "v_(zero)", and the
+// projectile lessons "vₓ_zero" and the givens row's "v {x 0}".
+const SCRIPT_GROUPS: [string, string][] = [
+  ["v_{A/B} = 5", "v A relative to B equals 5"],
+  ["v_{B/A} equals minus v_{A/B}", "v B relative to A equals minus v A relative to B"],
+  ["v_{A over B} equals 5", "v A relative to B equals 5"],
+  ["v_{AB} and v_{BA}", "v A B and v B A"],
+  ["v_AB equals minus v_BA", "v A B equals minus v B A"],
+  ["v_(0) equals?", "v 0 equals?"],
+  ["y_(ground) equals 0", "y ground equals 0"],
+  ["x^{2} and y^{2}", "x squared and y squared"],
+  ["e^{kt}", "e to the power of (kt)"],
+  ["v_{rms}", "v r m s"],
+  ["vₓ₀ = 24 m/s", "v x 0 equals 24 meters per second"],
+  ["vᵧ", "v gamma"],
+  ["v {x 0} equals 24", "v x 0 equals 24"],
+  ["{1, 2, 3}", "1, 2, 3"],
+  ["θ = tan^(-1)(8/6)", "theta equals tangent inverse (8 over 6)"],
+  ["θ = arctan(3/4)", "theta equals tangent inverse (3 over 4)"],
+];
+for (const [written, spoken] of SCRIPT_GROUPS) {
+  check(`${written} is spoken "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+// Read exactly as on main (PR #274 review). "over" between a number's letter
+// and another letter is a symbolic formula as often as a unit ratio: "2 s over
+// g" is twice a distance over g, never "2 seconds per gram". And only the arc
+// spelling is an inverse: `acos(ωt)` is the amplitude a times cos(ωt).
+const UNCHANGED_FROM_MAIN: [string, string][] = [
+  ["t equals root of 2 s over g", "t equals root of 2 s over g"],
+  ["2 m over g", "2 m over g"],
+  ["a equals 10 N over m", "a equals 10 N over m"],
+  ["4 m over L", "4 m over L"],
+  ["10 m over h", "10 m over h"],
+  ["g equals 10 m over s²", "g equals 10 m over s squared"],
+  ["x = acos(ωt)", "x equals acos(omega t)"],
+  ["y = asin(kx - ωt)", "y equals asin(k x minus omega t)"],
+  ["θ = atan(3/4)", "theta equals atan(3 over 4)"],
+];
+for (const [written, spoken] of UNCHANGED_FROM_MAIN) {
+  check(`${written} is spoken as on main, "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+// Only an exponent of exactly minus one is an inverse (PR #274 review): the
+// rule used to fire on the head of `^-10`, so `sin^-10(x)` was spoken "sine
+// inverse 0(x)", a wrong value with a stray digit.
+const POWERS_NOT_INVERSE: [string, string][] = [
+  ["sin^-10(x)", "sine to the power of minus 10(x)"],
+  ["sin^-1.5(x)", "sine to the power of minus 1.5(x)"],
+  ["cos^(-12)(x)", "cosine to the power of minus 12 (x)"],
+  ["sin^{-10}(x)", "sine to the power of minus 10 (x)"],
+];
+for (const [written, spoken] of POWERS_NOT_INVERSE) {
+  check(`${written} is a power, spoken "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+check("a superscript power of minus ten is never an inverse", () => {
+  assertNotContains(mathToSpeech("sin⁻¹⁰(x)"), "inverse", "sin⁻¹⁰(x)");
+});
+const EXACT_INVERSES: [string, string][] = [
+  ["tan^-1 x", "tangent inverse x"],
+  ["cos^-1(0.5)", "cosine inverse (0.5)"],
+  ["sin^{-1}(x)", "sine inverse (x)"],
+  ["sin⁻¹(x)", "sine inverse (x)"],
+];
+for (const [written, spoken] of EXACT_INVERSES) {
+  check(`${written} is still an inverse, "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+check("a constant name in a code lesson is not spelled out", () => {
+  assertContains(mathToSpeech("INT_MAX and MAX_INT"), "INT MAX and MAX INT", "INT_MAX and MAX_INT");
+});
+check("a chemistry subscript group keeps the chemistry reading", () => {
+  assertContains(mathToSpeech("H_{2}O"), "H 2 O", "H_{2}O");
+});
+check("an integral limit group is not a subscript", () => {
+  assertNotContains(mathToSpeech("∫_(-2)^(2) x dx"), "relative", "∫_(-2)^(2) x dx");
+});
+
 const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch");
 const socketDescriptor = Object.getOwnPropertyDescriptor(globalThis, "WebSocket");
 let receiveText!: (text: string) => void;

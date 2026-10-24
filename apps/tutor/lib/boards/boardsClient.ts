@@ -485,21 +485,26 @@ function checkpointRows(baseCount: number, segments: RecordedSegmentPayload[]) {
  * `PUT /api/boards/{boardId}/turns/{turnId}`. One attempt: the caller owns
  * retries and backoff (see `retryable`). Never throws.
  */
-export async function checkpointTurn(
-  boardId: string,
-  turnId: string,
-  input: TurnCheckpointInput,
-): Promise<TurnCheckpointResult> {
-  const formData = new FormData();
-  formData.append("metadata", JSON.stringify({
+
+/**
+ * The server keeps 60 characters of the preview and refuses one over 2,000,
+ * and refuses a question over 12,000. A lesson's preview is its question, so a
+ * long pasted question used to fail every checkpoint and the lesson was saved
+ * with no rows. Both are clamped here to what the server stores.
+ */
+export const CHECKPOINT_PREVIEW_MAX_CHARS = 200;
+export const CHECKPOINT_QUESTION_MAX_CHARS = 12_000;
+
+export function checkpointMetadata(input: TurnCheckpointInput): Record<string, unknown> {
+  return {
     seq: input.seq,
     orderBeforeTurnId: input.orderBeforeTurnId,
     orderAfterTurnId: input.orderAfterTurnId,
     status: input.status,
     kind: input.kind ?? "lesson",
     baseCount: input.baseCount,
-    question: input.question,
-    preview: input.preview,
+    question: input.question?.slice(0, CHECKPOINT_QUESTION_MAX_CHARS),
+    preview: input.preview?.slice(0, CHECKPOINT_PREVIEW_MAX_CHARS),
     rawResponse: input.rawResponse,
     speedMultiplier: input.speedMultiplier,
     traceId: input.traceId ?? undefined,
@@ -510,7 +515,15 @@ export async function checkpointTurn(
     sceneArtifacts: input.scene.sceneArtifacts ?? undefined,
     appendSegments: checkpointRows(input.baseCount, input.segments),
     ...(input.resumeState !== undefined ? { resumeState: input.resumeState } : {}),
-  }));
+  };
+}
+export async function checkpointTurn(
+  boardId: string,
+  turnId: string,
+  input: TurnCheckpointInput,
+): Promise<TurnCheckpointResult> {
+  const formData = new FormData();
+  formData.append("metadata", JSON.stringify(checkpointMetadata(input)));
   const appendAudio = (index: number, bytes: Uint8Array | null) => {
     if (!bytes || bytes.length === 0) return;
     formData.append(`audio-${index}`, new Blob([new Uint8Array(bytes)], { type: speechAudioMimeType(bytes) }));
@@ -554,13 +567,24 @@ export interface TurnCloseInput {
   orderAfterTurnId?: string;
 }
 
+/** A typed code row is accepted only beside its code lesson plan. */
+function rowsNeedCodePlan(rows: ReadonlyArray<{ command?: unknown }>): boolean {
+  // The stored shape: one command, or an envelope with a commands list.
+  const commandsOf = (stored: unknown): unknown[] => !stored || typeof stored !== "object" ? []
+    : Array.isArray((stored as { commands?: unknown }).commands) ? (stored as { commands: unknown[] }).commands : [stored];
+  return rows.some((row) => commandsOf(row.command).some((command) =>
+    Boolean(command) && typeof command === "object" && (command as { type?: unknown }).type === "TYPE"));
+}
+
 /** Keepalive bodies share a 64 KiB budget with telemetry; the close stays well under it. */
 export const KEEPALIVE_CLOSE_MAX_BYTES = 12_000;
 
 /**
  * The close body, shrunk to fit: the full tail first, then without the scene
- * artifacts and resume state, then status only (still with the question, so a
- * turn that never checkpointed is created), then the bare minimum.
+ * artifacts and resume state, then the taught rows without the raw response
+ * and with a shorter question, then status only (still with the question, so
+ * a turn that never checkpointed is created), then the bare minimum. Rows go
+ * last: a long question must never cost the lesson its taught rows.
  */
 export function buildTurnCloseBody(input: TurnCloseInput, maxBytes = KEEPALIVE_CLOSE_MAX_BYTES): string {
   const base = {
@@ -575,11 +599,22 @@ export function buildTurnCloseBody(input: TurnCloseInput, maxBytes = KEEPALIVE_C
   const question = input.question?.slice(0, 2_000);
   const preview = input.preview?.slice(0, 200);
   const rows = input.segments && input.segments.length > 0 ? checkpointRows(input.baseCount, input.segments) : undefined;
+  // The scene artifacts ride only on a close that creates the turn. There a
+  // typed code row is refused without its code lesson plan, so no candidate
+  // may keep typed rows while dropping the artifacts; the close then falls
+  // back to the row-less body. An existing turn uses its stored plan.
+  const rowsWithoutArtifacts = !(rows && input.sceneArtifacts && rowsNeedCodePlan(rows));
   const candidates = [
     { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows,
       sceneArtifacts: input.sceneArtifacts ?? undefined, resumeState: input.resumeState },
-    { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows, resumeState: input.resumeState },
-    { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows },
+    ...(rowsWithoutArtifacts ? [
+      { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows, resumeState: input.resumeState },
+      { ...base, baseCount: input.baseCount, question, preview, rawResponse: input.rawResponse, appendSegments: rows },
+    ] : []),
+    ...(rows && rowsWithoutArtifacts ? [
+      { ...base, baseCount: input.baseCount, question, preview, appendSegments: rows },
+      { ...base, baseCount: input.baseCount, question: question?.slice(0, 300), appendSegments: rows },
+    ] : []),
     { ...base, baseCount: input.baseCount, question, preview, resumeState: input.resumeState },
     { ...base, baseCount: input.baseCount, question, preview },
     { seq: input.seq, status: base.status, traceId: base.traceId, baseCount: input.baseCount, question: question?.slice(0, 300) },

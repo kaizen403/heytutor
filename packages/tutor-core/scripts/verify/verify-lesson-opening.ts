@@ -120,6 +120,59 @@ assert(!/label the named|sketch the wave/i.test(drawing), `instructions to the t
 const code = open("Given an array, return indices of two numbers adding to target.", "code");
 assert(code.includes("from the top"), `a code lesson opens on the problem, got: ${code}`);
 
+// ------------------------------------------- case and clause (20 Oct 2026)
+//
+// The opening lowercased the whole question: 27 recorded Hinglish openings
+// said "for jee", and "train A" became "how far does a travel". And the
+// condition cut stopped asks mid phrase in 5 of 48: "its speed just.",
+// "how many minutes.", "their shortest distance apart and.".
+
+const jee = lessonOpeningLine({
+  question: "Explain relative velocity in one dimension for JEE from the basics with a clear diagram.",
+  kind: "concept",
+  hasBoardOpening: false,
+  language: "hinglish",
+});
+assert(
+  jee.includes("ये lesson relative velocity in one dimension for JEE from the basics के बारे में है"),
+  `an acronym keeps its case and the diagram rider comes off, got: ${jee}`,
+);
+const trainA = open(
+  "Train A is 120 m long and runs east at a steady 20 m/s. Train B runs east ahead of it at 10 m/s. How far does A travel over the ground during this overtaking?",
+  "problem",
+);
+assert(trainA.includes("asks, how far does A travel over the ground"), `a symbol keeps its case, got: ${trainA}`);
+const vectors = open(
+  "Two vectors A and B each have magnitude 10 units. Find the magnitudes of A + B and A − B, and the angle that A − B makes with A.",
+  "problem",
+);
+assert(
+  vectors.includes("asks for the magnitudes of A + B and A − B, and the angle that A − B makes with A."),
+  `vector symbols keep their case, got: ${vectors}`,
+);
+const balloon = open(
+  "A balloon is rising at 10 m/s. Find the time the packet takes to reach the ground, its speed just before landing, and its maximum height above the ground.",
+  "problem",
+);
+assert(!/\bjust\./.test(balloon), `an ask must not stop on "just", got: ${balloon}`);
+const ships = open(
+  "Ship A sails due east at 30 km/h and ship B sails due south at 40 km/h. Find the shortest distance between the two ships and how many minutes after noon they are closest to each other.",
+  "problem",
+);
+assert(ships.includes("how many minutes after noon they are closest"), `a duration keeps its phrase, got: ${ships}`);
+const cars = open(
+  "Two roads cross at right angles at O. Using the velocity of Q relative to P, find their shortest distance apart and when it occurs.",
+  "problem",
+);
+assert(cars.includes("asks for their shortest distance apart and when it occurs."), `a conjunction keeps its clause, got: ${cars}`);
+const condition = open(
+  "A motorboat moves at 20 m/s. Find its speed after it has travelled 30 m from the point where the engine was switched off.",
+  "problem",
+);
+assert(condition.includes("asks for its speed."), `a real condition clause is still cut, got: ${condition}`);
+const also = open("Find also its speed and its height above the ground at that instant.", "problem");
+assert(also.includes("asks for its speed and its height"), `"find also" drops its also, got: ${also}`);
+
 // ------------------------------------------------------------- every line
 
 const shapes: Array<[string, LessonOpeningKind, boolean]> = [
