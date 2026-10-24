@@ -13,6 +13,7 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument, SceneIssue } from "../types";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
+import { stemHasChargeLikeToken } from "./chargeEvidence";
 import { buildVseprScene, isVseprStem, VSEPR_FAMILY, vseprSpecies, type VseprResult } from "./vsepr";
 
 export type VseprSourceCertification =
@@ -41,7 +42,7 @@ function declarationText(text: string): string {
 /** A symbol names the claimed role; explanatory arithmetic may mention other
  * roles on the RHS. Without such a name, only one declared role is accepted.
  */
-function declaredRole(quantity: TurnPlanQuantityV3): Role | null {
+function declaredRole(quantity: TurnPlanQuantityV3, inferUnnamed: boolean): Role | null {
   const rolesIn = (text: string) => ROLES.filter(([, expression]) => expression.test(text)).map(([role]) => role);
   const symbolRoles = rolesIn(declarationText(quantity.symbol));
   const sourceText = declarationText(quantity.sourceText ?? "");
@@ -57,7 +58,8 @@ function declaredRole(quantity: TurnPlanQuantityV3): Role | null {
   // A scalar in degrees can only be an angle: every other VSEPR role is a
   // count. A planner given such as theta = 104.5 degrees names no role word,
   // yet it is unambiguous. Its value is still checked against the source.
-  return sourceRoles.length === 0 && compatibleUnit(quantity, "angle") ? "angle" : null;
+  // Only when the stem writes no charge-like token (see quantityMatches).
+  return inferUnnamed && sourceRoles.length === 0 && compatibleUnit(quantity, "angle") ? "angle" : null;
 }
 
 function formulaKey(formula: string): string | null {
@@ -94,7 +96,7 @@ function equalScalar(actual: number, expected: number): boolean {
 /** Each declaration must identify its target independently. A sourceText that
  * names another molecule/atom cannot borrow the symbol's otherwise valid ID.
  */
-function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: readonly VseprResult[]): boolean {
+function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: readonly VseprResult[], inferUnnamed: boolean): boolean {
   if (!compatibleUnit(quantity, role)) return false;
   const declarations = [quantity.symbol, quantity.sourceText ?? ""];
   const knownKeys = new Set(species.map((result) => formulaKey(result.formula)));
@@ -120,9 +122,13 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
   }
   // With one species in the source, a scalar that names no species can only
   // be about that species. Two or more species still need an explicit name.
+  // When the stem writes anything that could be a charge (NO2 minus, SO3 2-,
+  // the nitronium ion), the one parsed species may be the neutral molecule
+  // the reader fell back to, so the binding is off and a declaration must
+  // name its species, as before #293.
   const targets = formulaTarget ? [formulaTarget] : atomTarget
     ? species.filter((result) => result.central.symbol === atomTarget.symbol)
-    : species.length === 1 ? [species[0]!] : [];
+    : inferUnnamed && species.length === 1 ? [species[0]!] : [];
   if (targets.length !== 1) return false;
   const result = targets[0]!;
   if (atomTarget && atomTarget.symbol !== result.central.symbol) return false;
@@ -134,17 +140,20 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
   return expected !== null && equalScalar(quantity.value, expected);
 }
 
-function planIssues(plan: TurnPlanV3, species: readonly VseprResult[]): SceneIssue[] {
+function planIssues(plan: TurnPlanV3, species: readonly VseprResult[], question: string): SceneIssue[] {
   const issues: SceneIssue[] = [];
+  // Unnamed role and species inference rests on the parsed species being the
+  // whole source. A charge-like token is positive evidence it may not be.
+  const inferUnnamed = !stemHasChargeLikeToken(question);
   for (const [kind, quantities] of [["givens", plan.givens], ["derived", plan.derived]] as const) {
     quantities.forEach((quantity, index) => {
-      const role = declaredRole(quantity);
+      const role = declaredRole(quantity, inferUnnamed);
       // Unused, unrelated givens retain the normal plan audit. Unknown derived
       // numeric claims fail closed: they could be stale chemistry narration.
       const namesRole = ROLES.some(([, expression]) => expression.test(declarationText(quantity.symbol))
         || expression.test(declarationText(quantity.sourceText ?? "")));
       if (!role && !namesRole && kind === "givens" && !/^(?:°|deg|degrees?|electrons?|pairs?|domains?)$/i.test(quantity.unit ?? "")) return;
-      if (role && quantityMatches(quantity, role, species)) return;
+      if (role && quantityMatches(quantity, role, species, inferUnnamed)) return;
       issues.push({ code: "vsepr_plan_fact_unverified", severity: "fatal", path: `turnPlan.${kind}[${index}]`,
         message: "VSEPR plan scalar lacks an unambiguous, matching species-and-role source fact" });
     });
@@ -214,7 +223,7 @@ export function certifyVseprSourceDocument(document: SceneDocument, question: st
     code: "vsepr_source_graph_mismatch", severity: "fatal", message,
   }] });
   if (!raw || !isShape(raw)) return reject("actual source does not regenerate this native VSEPR shape graph");
-  const issues = plan ? planIssues(plan, vseprSpecies(question)) : [];
+  const issues = plan ? planIssues(plan, vseprSpecies(question), question) : [];
   if (issues.length) return { status: "rejected", issues };
   const fresh = validateSceneDocument(pruneDeadSceneEntities(raw as unknown as Record<string, unknown>)).document;
   const submitted = validateSceneDocument(document).document;

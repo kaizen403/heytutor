@@ -72,7 +72,7 @@ export function normalizeChemistryText(text: string): string {
  * is a subscript with unit charge (NH4+, NO3-, I3-) and two digits split into
  * subscript then charge (SO42-, PO43-, Cr2O72-, Hg22+).
  */
-function splitCharge(formula: string): { body: string; charge: number } {
+export function splitCharge(formula: string): { body: string; charge: number } {
   const explicit = /\^\(?\s*(\d*)\s*([+-])\s*\)?$/.exec(formula);
   if (explicit) {
     const magnitude = Number(explicit[1] || "1") || 1;
