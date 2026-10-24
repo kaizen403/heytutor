@@ -10,6 +10,7 @@ import {
   speechPlaybackOverdue,
   waitForSpeechStartup,
 } from "../../features/tutor-session/lib/turn/speechStartup";
+import { shouldFinishSegmentAfterHeardSpeechFailure } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
 
 /** Exercise the runner's actual clock and browser onStart callback without mounting React. */
 function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
@@ -102,8 +103,10 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
   };
   visit(source);
   assert(failureBody, "execute the actual live speech consumer catch, not a copied policy");
-  const compiled = ts.transpileModule(`function fail(error: Error, state: { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean }, observe: (value: unknown) => void) {
+  const compiled = ts.transpileModule(`function fail(error: Error, state: { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; heardMs?: number }, observe: (value: unknown) => void) {
     let speechAborted = false, terminalSpeechFailure = false;
+    let heardPositionMs = state.heardMs ?? 0;
+    const sampleHeardPosition = () => {};
     let stopped = 0, abandoned = 0;
     const isCancelled = () => state.cancelled;
     const browserFallbackOwnerRef = { current: state.ownsFallback === false ? "successor" : "owner" }, segmentFallbackOwner = "owner";
@@ -119,8 +122,8 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
     }
     return { speechAborted, terminalSpeechFailure, stopped, abandoned };
   }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const fail = new Function(`${compiled}\nreturn fail;`)() as (error: Error, state: {
-    cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean;
+  const fail = new Function("shouldFinishSegmentAfterHeardSpeechFailure", `${compiled}\nreturn fail;`)(shouldFinishSegmentAfterHeardSpeechFailure) as (error: Error, state: {
+    cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; heardMs?: number;
   }, observe?: (value: { speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number }) => void) => {
     speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number;
   };
@@ -147,6 +150,22 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
           "a cancelled/superseded turn stays quiet and never stops a replacement browser voice");
       }
     }
+  }
+  // Heard provider speech that then fails finishes its segment: it silences
+  // the rest and never reaches the queue's abandon count. Browser recovery
+  // and a failed provider retry keep their terminal failure.
+  for (const ownsFallback of [true, false]) {
+    let observed: unknown;
+    const frozen = new Error("Native audio playback clock did not advance");
+    assert.doesNotThrow(() => fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }, value => { observed = value; }),
+      "a heard provider clip that freezes finishes its segment");
+    assert.deepEqual(observed, { speechAborted: false, terminalSpeechFailure: false, stopped: 0, abandoned: 1 },
+      "the rest of the frozen clip is abandoned, the ink is not");
+    assert.throws(() => fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630 }),
+      (actual) => actual === frozen, "browser recovery speech is not a heard provider clip");
+    const refused = new Error("tts skipped (tts_budget)");
+    assert.throws(() => fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }),
+      (actual) => actual === refused, "a provider refusal keeps its terminal path even after the voice was heard");
   }
   for (const ownsFallback of [true, false]) {
     let observed: unknown;

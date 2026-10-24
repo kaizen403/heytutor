@@ -144,8 +144,9 @@ async function main(): Promise<void> {
       assert.deepEqual(pcm.channels[index], sourceChannels[index], `${container}: natural-speed export preserves every input sample`);
     }
     assert.equal(pcm.channels[0]!.length / pcm.sampleRate * 1000, durationMs, `${container}: voice keeps its natural duration`);
-    assert(result.totalMs >= durationMs && result.totalMs <= durationMs + 2 * 1000 / 24,
-      `${container}: the file and its bounded final frame remain at natural speed`);
+    // The finished page is held 2 s after the last word (the export end hold).
+    assert(result.totalMs >= durationMs + 2_000 && result.totalMs <= durationMs + 2_000 + 2 * 1000 / 24,
+      `${container}: the file, its bounded final frame and the end hold remain at natural speed`);
     const mainFrames = encoded.filter(frame => frame.start < 1.5);
     assert(mainFrames.length > 10, "the actual frame producer is observed across the spoken timeline");
     for (const frame of mainFrames)
