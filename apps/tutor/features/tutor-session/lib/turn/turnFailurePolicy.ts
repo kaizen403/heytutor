@@ -31,6 +31,48 @@ export function shouldAbandonTurn(consecutiveFailures: number): boolean {
   return consecutiveFailures >= MAX_CONSECUTIVE_SEGMENT_FAILURES;
 }
 
+/**
+ * The local playback of a generated clip stopped: its clock froze, it ran
+ * past every deadline, or the media element failed. Not a provider refusal
+ * or a broken stream (a budget skip, a socket error), which keep their
+ * existing stop paths, including the code lesson's Continue offer.
+ */
+export function isLocalPlaybackFailure(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name === "AbortError") return false;
+  return (
+    error.message.startsWith("tts segment playback stalled") ||
+    error.message.startsWith("tts segment timeout") ||
+    error.message.startsWith("Native audio playback clock did not advance") ||
+    error.message.startsWith("HTML audio playback failed")
+  );
+}
+
+/**
+ * Local playback failed after the student already heard part of the sentence.
+ *
+ * A frozen clip (v3 p4e1-t2: a fully local Sarvam WAV stopped at 1.63 s of
+ * 8.7 s, then the next at 5.9 s of 9.9 s) used to fail its segment, and two
+ * in a row cancelled the whole lesson at 142 s. The sentence was generated
+ * and partly heard; its board work is still right. The segment finishes its
+ * ink and text, and the failure never counts toward `shouldAbandonTurn`.
+ *
+ * Not for a voice nobody heard (zero clock), a browser recovery voice, a
+ * failed provider retry, a draw failure that silenced the voice, a provider
+ * failure, or a cancelled turn: those keep their existing failure paths.
+ */
+export function shouldFinishSegmentAfterHeardSpeechFailure(input: {
+  error: unknown;
+  heardPositionMs: number;
+  browserFallback: boolean;
+  providerRecoveryAttempted: boolean;
+  speechAborted: boolean;
+  cancelled: boolean;
+}): boolean {
+  return isLocalPlaybackFailure(input.error) &&
+    Number.isFinite(input.heardPositionMs) && input.heardPositionMs > 0 &&
+    !input.browserFallback && !input.providerRecoveryAttempted && !input.speechAborted && !input.cancelled;
+}
+
 export const INCOMPLETE_CODE_BEAT_MESSAGE = "This code block did not finish. Continue the lesson to finish it.";
 
 /** The current admitted TYPE lost required characters, so later blocks cannot follow it. */

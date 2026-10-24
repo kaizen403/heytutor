@@ -10,7 +10,7 @@ import {
   speechPlaybackOverdue,
   waitForSpeechStartup,
 } from "../../features/tutor-session/lib/turn/speechStartup";
-import { voiceFailureDisposition } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
+import { shouldFinishSegmentAfterHeardSpeechFailure, voiceFailureDisposition } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
 
 /** Exercise the runner's actual clock and browser onStart callback without mounting React. */
 function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
@@ -108,10 +108,13 @@ async function verifyTerminalSpeechFailureDisposition(runner: string) {
   };
   visit(source);
   assert(failureBody, "execute the actual live speech consumer catch, not a copied policy");
-  type State = { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; drawFailed?: boolean; codeBeat?: boolean };
+  type State = { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; drawFailed?: boolean; codeBeat?: boolean; heardMs?: number };
   type Observed = { speechAborted: boolean; terminalSpeechFailure: boolean; voiceDegraded: boolean; silent: number; stopped: number; abandoned: number };
-  const compiled = ts.transpileModule(`async function fail(error: Error, state: State, observe: (value: unknown) => void, voiceFailureDisposition: (input: unknown) => string) {
+  const compiled = ts.transpileModule(`async function fail(error: Error, state: State, observe: (value: unknown) => void, voiceFailureDisposition: (input: unknown) => string, shouldFinishSegmentAfterHeardSpeechFailure: (input: unknown) => boolean) {
     let speechAborted = false, terminalSpeechFailure = false, voiceDegraded = false;
+    let heardPositionMs = state.heardMs ?? 0;
+    const sampleHeardPosition = () => {};
+    let ownsPrimary = true;
     let stopped = 0, abandoned = 0, silent = 0;
     const isCancelled = () => state.cancelled;
     const drawFailed = state.drawFailed === true;
@@ -131,8 +134,10 @@ async function verifyTerminalSpeechFailureDisposition(runner: string) {
     return { speechAborted, terminalSpeechFailure, voiceDegraded, silent, stopped, abandoned };
   }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
   const failWith = new Function(`${compiled}\nreturn fail;`)() as (error: Error, state: State,
-    observe: ((value: Observed) => void) | undefined, disposition: typeof voiceFailureDisposition) => Promise<Observed>;
-  const fail = (error: Error, state: State, observe?: (value: Observed) => void) => failWith(error, state, observe, voiceFailureDisposition);
+    observe: ((value: Observed) => void) | undefined, disposition: typeof voiceFailureDisposition,
+    finishHeard: typeof shouldFinishSegmentAfterHeardSpeechFailure) => Promise<Observed>;
+  const fail = (error: Error, state: State, observe?: (value: Observed) => void) =>
+    failWith(error, state, observe, voiceFailureDisposition, shouldFinishSegmentAfterHeardSpeechFailure);
   const error = new Error("partial playback stalled");
   for (const started of [false, true]) {
     for (const browser of [false, true]) {
@@ -158,6 +163,39 @@ async function verifyTerminalSpeechFailureDisposition(runner: string) {
           "a cancelled/superseded turn stays quiet and never stops a replacement browser voice");
       }
     }
+  }
+  // Heard provider speech that then fails finishes its segment: it silences
+  // the rest and never reaches the queue's abandon count. Browser recovery
+  // and a failed provider retry keep their terminal failure.
+  for (const ownsFallback of [true, false]) {
+    let observed: unknown;
+    const frozen = new Error("Native audio playback clock did not advance");
+    await assert.doesNotReject(fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }, value => { observed = value; }),
+      "a heard provider clip that freezes finishes its segment");
+    // #275: the unheard rest of the sentence is taught silently (its words
+    // shown), still without a speech abort, so the ink keeps drawing.
+    assert.deepEqual(observed, { speechAborted: false, terminalSpeechFailure: false, voiceDegraded: true, silent: 1, stopped: 0, abandoned: 1 },
+      "the rest of the frozen clip is abandoned, the ink is not");
+    // A local playback failure the student never heard keeps #275's silent teaching.
+    assert.deepEqual(await fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 0 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "an unheard frozen clip is taught silently, not finished as heard");
+    // Browser recovery speech is not a heard provider clip: it takes #275's
+    // disposition (taught silently), never the heard finish.
+    assert.deepEqual(await fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "browser recovery speech is not a heard provider clip");
+    await assert.rejects(fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630, drawFailed: true }),
+      (actual) => actual === frozen, "browser recovery speech beside a failed draw keeps its terminal failure");
+    const refused = new Error("tts skipped (tts_budget)");
+    await assert.rejects(fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630, codeBeat: true }),
+      (actual) => actual === refused, "a provider refusal keeps its terminal path even after the voice was heard");
+    assert.deepEqual(await fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "a provider refusal after the voice was heard is not the heard finish: it takes the silent path with a speech abort");
+    await assert.rejects(fail(frozen, { cancelled: false, started: true, browser: false, recovery: true, ownsFallback, heardMs: 1_630 }),
+      (actual) => actual instanceof Error && actual.message === "Provider voice recovery failed" && actual.cause === frozen,
+      "a heard clip on a failed provider retry keeps its terminal failure");
   }
   for (const ownsFallback of [true, false]) {
     let observed: unknown;
