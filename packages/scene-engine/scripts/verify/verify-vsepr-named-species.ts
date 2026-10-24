@@ -10,6 +10,10 @@
  *              stay out of chemistry; organic and Lewis structure asks keep
  *              their family; a request that also writes formulas keeps the
  *              alias contract
+ *   plans      a plan claim binds to its named owner like a formula owner:
+ *              a true comparison naming another molecule is admitted, and a
+ *              wrong shape for the asked molecule beside a formula sibling is
+ *              refused
  *   mutation   two mutant frame readers (every name, and no name) must turn
  *              the frame checks red, so the controls and positives are live
  */
@@ -18,7 +22,8 @@ import "../../src/chemistry/families";
 import { isChemistryStem } from "../../src/chemistry/classify";
 import { namedSpeciesMentions, type NamedSpeciesMention } from "../../src/chemistry/namedSpecies";
 import { inferChemistryFamilies, isChemistryQuestion } from "../../src/chemistry/router";
-import { vseprSpecies } from "../../src/chemistry/vsepr";
+import { vseprPlanConflict, vseprSpecies } from "../../src/chemistry/vsepr";
+import type { TurnPlanV3 } from "../../src/contracts/contractsV3";
 import { framedNamedSpecies } from "../../src/chemistry/vseprNamedSpecies";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 
@@ -36,6 +41,8 @@ const POSITIVES: ReadonlyArray<{ question: string; formulas: string[]; labels: s
   { question: "What is the bond angle in water?", formulas: ["H2O"], labels: ["H_2O", "104.5°"] },
   { question: "Compare the shapes of water and ammonia.", formulas: ["H2O", "NH3"], labels: ["H_2O", "NH_3"] },
   { question: "The shape of the water molecule", formulas: ["H2O"], labels: ["H_2O", "bent"] },
+  { question: "Why is phosphorus pentachloride trigonal bipyramidal?", formulas: ["PCl5"], labels: ["PCl_5"] },
+  { question: "Explain why sulphur hexafluoride is octahedral.", formulas: ["SF6"], labels: ["SF_6"] },
 ];
 
 /** Multi-centre or unsupported names: no single-centre VSEPR figure. */
@@ -146,6 +153,38 @@ for (const [question, family] of STRUCTURE_ASKS) {
   check(`control/structure/${question}`, () => {
     assert.ok(!inferChemistryFamilies(question).includes("chem_vsepr"));
     assert.equal(synthesizeFamilyScene({ question })?.family, family);
+  });
+}
+
+/** Named owners in plan claims bind like formula owners, both ways round. */
+const PLAN_CLAIMS: ReadonlyArray<{ question: string; claim: string; admit: boolean }> = [
+  { question: "why is water bent", claim: "Carbon dioxide is linear, whereas water is bent.", admit: true },
+  { question: "why is water bent", claim: "Water is bent, whereas carbon dioxide is linear.", admit: true },
+  { question: "why is water bent", claim: "Methane is tetrahedral but water is bent.", admit: true },
+  { question: "Explain why carbon dioxide is linear.", claim: "Water is bent, while carbon dioxide is linear.", admit: true },
+  { question: "why is water bent", claim: "Water is linear.", admit: false },
+  { question: "why is water bent", claim: "Like CO2, water is linear.", admit: false },
+  { question: "why is water bent", claim: "Unlike CO2, water is linear.", admit: false },
+  { question: "why is water bent", claim: "Carbon dioxide is bent, whereas water is linear.", admit: false },
+  { question: "Explain why carbon dioxide is linear.", claim: "Like H2O, carbon dioxide is bent.", admit: false },
+  { question: "Why is phosphorus pentachloride trigonal bipyramidal?", claim: "Phosphorus pentachloride is square pyramidal.", admit: false },
+  // No local subject: every earlier molecule is held to the claim.
+  { question: "why is water bent", claim: "Water, unlike carbon dioxide, is linear.", admit: false },
+  { question: "why is H2O bent", claim: "H2O, unlike CO2, is linear.", admit: false },
+  { question: "why is water bent", claim: "Carbon dioxide and water differ. It is linear.", admit: false },
+  { question: "why is water bent", claim: "Water, unlike carbon dioxide, is bent.", admit: true },
+  { question: "why is water bent", claim: "Unlike carbon dioxide, which is linear, water is bent.", admit: true },
+];
+for (const row of PLAN_CLAIMS) {
+  check(`plan/${row.admit ? "admit" : "refuse"}/${row.question}/${row.claim}`, () => {
+    assert.equal(vseprSpecies(row.question).length, 1, "the asked molecule is read");
+    const plan: TurnPlanV3 = {
+      schemaVersion: "turn-plan/v3", question: row.question, givens: [], unknowns: [], derived: [],
+      lawIds: [], assumptions: [], visualRequirement: "required",
+      qualitativeClaims: [{ id: "c1", claim: row.claim, expected: true }],
+    };
+    const conflict = vseprPlanConflict(row.question, plan);
+    assert.equal(conflict === null, row.admit, conflict ?? "a wrong shape for the asked molecule was admitted");
   });
 }
 
