@@ -30,7 +30,9 @@ const serverConfig = {
 const fastRates = { lane: "kimi-k3-fast" as const, inputUsdPer1M: 4.5, outputUsdPer1M: 22.5, cachedInputUsdPer1M: 0.45 };
 const fastProfile: LabModelProfile = { ...profile, fastMode: true,
   models: { planner: FAST, problemIR: FAST, teaching: FAST, picker: FLASH },
-  rates: { planner: fastRates, problemIR: fastRates, teaching: fastRates, picker: profile.rates.picker } };
+  rates: { planner: fastRates, problemIR: fastRates, teaching: fastRates, picker: profile.rates.picker },
+  // Production's teaching fallback after a 429, connect failures or a startup retry.
+  teachingAlternate: { model: K3, rates: profile.rates.teaching } };
 const fastServerConfig = { ...serverConfig, fastModelProfile: fastProfile };
 const origin = "http://offline.test";
 const endpoint = { provider: "fireworks" as const, deployment: null, url: "https://provider.invalid/chat" };

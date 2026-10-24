@@ -1,7 +1,7 @@
 import {
   DEFAULT_CHEAP_FIREWORKS_MODEL, DEFAULT_FIREWORKS_FAST_MODEL, DEFAULT_FIREWORKS_MODEL, DEFAULT_PROBLEM_IR_MODEL,
-  DEFAULT_TEACHING_FAST_MODEL, resolveCheapFireworksModel, resolveFireworksModel, resolveProblemIRFireworksModel,
-  resolveTeachingFireworksModel,
+  DEFAULT_TEACHING_FAST_MODEL, DEFAULT_TEACHING_RETRY_MODEL, resolveCheapFireworksModel, resolveFireworksModel,
+  resolveProblemIRFireworksModel, resolveTeachingAlternateFireworksModel, resolveTeachingFireworksModel,
 } from "./fireworksModels";
 import type { LlmEndpoint, LlmProviderName } from "./llmProvider";
 import { resolveLlmRates } from "../obs/usageCost";
@@ -24,6 +24,13 @@ export interface LabModelProfile {
   fastMode: boolean;
   models: Record<ModelLane, string>;
   rates: Record<ModelLane, Rates>;
+  /**
+   * Fast only: production's teaching fallback (standard K3), which serves a
+   * teaching stream after a 429, repeated connect failures, or a startup retry.
+   * Its rates never exceed the Fast teaching rates, so the Fast reservation
+   * covers it. Absent or null on standard and Azure profiles.
+   */
+  teachingAlternate?: { model: string; rates: Rates } | null;
 }
 
 const RATE_PREFIXES: Record<ProfileRateLane, string> = {
@@ -78,6 +85,22 @@ export function assertLabModelProfile(value: unknown): asserts value is LabModel
       && (field === "cachedInputUsdPer1M" ? rates[field] >= 0 : rates[field] > 0), `${lane} has an invalid rate`);
     requireProfile((rates.cachedInputUsdPer1M as number) <= (rates.inputUsdPer1M as number), `${lane} cached rate exceeds input rate`);
   }
+  const alternate = value.teachingAlternate ?? null;
+  if (!fast) {
+    requireProfile(alternate === null, "only a Fast profile has a teaching fallback");
+    return;
+  }
+  requireProfile(record(alternate), "a Fast profile records production's teaching fallback");
+  requireProfile(alternate.model === DEFAULT_TEACHING_RETRY_MODEL, "teaching fallback must be production's standard K3");
+  const alternateRates = alternate.rates;
+  const teachingRates = (value.rates as Record<string, Record<string, unknown>>).teaching!;
+  requireProfile(record(alternateRates) && alternateRates.lane === "kimi-k3", "teaching fallback must use the standard K3 price lane");
+  for (const [field] of RATE_FIELDS) {
+    requireProfile(typeof alternateRates[field] === "number" && Number.isFinite(alternateRates[field])
+      && (alternateRates[field] as number) >= 0, `teaching fallback has an invalid ${field}`);
+    // The Fast teaching reservation is the ceiling for either serving path.
+    requireProfile((alternateRates[field] as number) <= (teachingRates[field] as number), `teaching fallback ${field} exceeds the Fast teaching rate`);
+  }
 }
 
 /**
@@ -105,10 +128,12 @@ export function buildLabModelProfile(input: {
     : { planner: standard, problemIR: standard, teaching: standard,
         picker: endpoint.provider === "azure" ? standard : resolveCheapFireworksModel({ env }) };
   const rateResolver = input.ratesForModel ?? resolveLlmRates;
+  const alternateModel = fastMode ? resolveTeachingAlternateFireworksModel({ fastMode: true, env }) : null;
   const profile: LabModelProfile = { version: "lab-model-profile/v1", provider: endpoint.provider,
     deployment: endpoint.deployment, fastMode, models,
     rates: { planner: rateResolver(models.planner), problemIR: rateResolver(models.problemIR),
-      teaching: rateResolver(models.teaching), picker: rateResolver(models.picker) } };
+      teaching: rateResolver(models.teaching), picker: rateResolver(models.picker) },
+    teachingAlternate: alternateModel ? { model: alternateModel, rates: rateResolver(alternateModel) } : null };
   assertLabModelProfile(profile);
   // usageCost tolerates malformed overrides by falling back. A claimed hard
   // evaluation cap instead rejects them, without exposing their raw contents.
@@ -133,6 +158,19 @@ export function expectedLabRequestModel(profile: LabModelProfile, headers: Heade
   return headers.get("x-planner") === "1" ? profile.models.planner : profile.models.teaching;
 }
 
+/**
+ * Server models a successful response may name. Teaching on a Fast profile may
+ * be served by production's teaching fallback; every other request kind must
+ * name exactly the expected model.
+ */
+export function acceptedLabResponseModels(profile: LabModelProfile, headers: Headers): string[] {
+  const expected = expectedLabRequestModel(profile, headers);
+  const teaching = headers.get("x-diagram-example-picker") !== "1" && headers.get("x-problem-ir-version") !== "1"
+    && headers.get("x-planner") !== "1";
+  const alternate = profile.fastMode && teaching ? profile.teachingAlternate?.model ?? null : null;
+  return alternate && alternate !== expected ? [expected, alternate] : [expected];
+}
+
 /** Exact identities and effective prices bind CLI/server and resumed evidence. */
 export function labModelProfilesMatch(local: unknown, remote: unknown): boolean {
   try {
@@ -142,8 +180,15 @@ export function labModelProfilesMatch(local: unknown, remote: unknown): boolean 
       && local.deployment === remote.deployment && local.fastMode === remote.fastMode
       && MODEL_LANES.every((lane) => local.models[lane] === remote.models[lane]
         && local.rates[lane].lane === remote.rates[lane].lane
-        && RATE_FIELDS.every(([field]) => local.rates[lane][field] === remote.rates[lane][field]));
+        && RATE_FIELDS.every(([field]) => local.rates[lane][field] === remote.rates[lane][field]))
+      && sameAlternate(local.teachingAlternate ?? null, remote.teachingAlternate ?? null);
   } catch {
     return false;
   }
+}
+
+function sameAlternate(a: LabModelProfile["teachingAlternate"] | null, b: LabModelProfile["teachingAlternate"] | null): boolean {
+  if (a === null || a === undefined || b === null || b === undefined) return (a ?? null) === (b ?? null);
+  return a.model === b.model && a.rates.lane === b.rates.lane
+    && RATE_FIELDS.every(([field]) => a.rates[field] === b.rates[field]);
 }

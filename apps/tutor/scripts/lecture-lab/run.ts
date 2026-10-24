@@ -51,7 +51,7 @@ import {
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
-import { buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
+import { acceptedLabResponseModels, buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates, type LlmRate } from "../../lib/obs/usageCost";
@@ -1072,6 +1072,11 @@ async function main(): Promise<void> {
       const requestStartedAt = Date.now();
       try {
         const response = await nativeFetch(input, { ...init, headers });
+        // A Fast teaching stream may be served by production's teaching fallback.
+        // Usage is priced by the model the stream names (requestModel, the Fast
+        // ceiling, only when it names none).
+        const servedModel = response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model");
+        const acceptedModels = acceptedLabResponseModels(modelProfile, headers);
         if (plannerRequest && traceId) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
           ...requestProfile,
           elapsedMs: Date.now() - requestStartedAt,
@@ -1093,7 +1098,7 @@ async function main(): Promise<void> {
           }, { traceId, kind: "picker" });
         }
         accounted = true;
-        if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== requestModel) {
+        if (chatRequest && response.ok && !(servedModel !== null && acceptedModels.includes(servedModel))) {
           throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
         }
         return response;

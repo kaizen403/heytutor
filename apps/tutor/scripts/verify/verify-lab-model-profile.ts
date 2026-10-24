@@ -1,5 +1,7 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import {
+  acceptedLabResponseModels,
   assertLabModelProfile,
   buildLabModelProfile,
   expectedLabRequestModel,
@@ -124,5 +126,37 @@ for (const malformed of [
 ]) {
   assert.throws(() => assertLabModelProfile(malformed), /profile|model|rate|price|fast/i);
   assert(!labModelProfilesMatch(fast, malformed), "mixed Fast/standard identities fail closed");
+}
+// M13: production may serve a Fast teaching stream from its standard K3
+// fallback (429, connect failures, startup retry). The lab must accept that
+// successful lesson and price it by the model served, for teaching only.
+assert.equal(fast.teachingAlternate?.model, DEFAULT_FIREWORKS_MODEL, "M13: the Fast profile records production's teaching fallback");
+assert.equal(fast.teachingAlternate?.rates.lane, "kimi-k3", "M13: the fallback is priced as standard K3");
+assert.equal(fireworks.teachingAlternate ?? null, null, "M13: a standard profile has no teaching fallback");
+const teachingHeaders = new Headers({ "x-heytutor-trace-id": "t" });
+assert.deepEqual(acceptedLabResponseModels(fast, teachingHeaders), [fast.models.teaching, DEFAULT_FIREWORKS_MODEL],
+  "M13: a Fast teaching response may name the Fast router or the standard fallback");
+for (const lane of [{ "x-planner": "1" }, { "x-planner": "1", "x-problem-ir-version": "1" }, { "x-diagram-example-picker": "1" }] as Record<string, string>[]) {
+  assert.deepEqual(acceptedLabResponseModels(fast, new Headers(lane)), [expectedLabRequestModel(fast, new Headers(lane))],
+    "M13: planner, ProblemIR and picker responses must name exactly their expected model");
+}
+assert.deepEqual(acceptedLabResponseModels(fireworks, teachingHeaders), [DEFAULT_FIREWORKS_MODEL], "M13: standard teaching accepts only standard K3");
+for (const malformed of [
+  { ...fast, teachingAlternate: null },
+  { ...fast, teachingAlternate: { model: "configured-teacher", rates: fast.teachingAlternate!.rates } },
+  { ...fast, teachingAlternate: { ...fast.teachingAlternate!, rates: { ...fast.teachingAlternate!.rates, outputUsdPer1M: fast.rates.teaching.outputUsdPer1M + 1 } } },
+  { ...fireworks, teachingAlternate: fast.teachingAlternate },
+]) {
+  assert.throws(() => assertLabModelProfile(malformed), /fallback/i, "M13: a missing, overridden, overpriced or standard-profile fallback fails before dispatch");
+  assert(!labModelProfilesMatch(fast, malformed) || malformed === fast, "M13: a different fallback is a different identity");
+}
+assert(!labModelProfilesMatch(fast, { ...fast, teachingAlternate: { ...fast.teachingAlternate!, rates: { ...fast.teachingAlternate!.rates, inputUsdPer1M: 0.5 } } }),
+  "M13: CLI and server must agree on the fallback's price");
+{
+  // The runner's response check must use the accepted list, not one model.
+  const runner = readFileSync(new URL("../lecture-lab/run.ts", import.meta.url), "utf8");
+  assert(/acceptedLabResponseModels\(modelProfile, headers\)/.test(runner) && /!\(servedModel !== null && acceptedModels\.includes\(servedModel\)\)/.test(runner),
+    "M13: the runner checks the served model against acceptedLabResponseModels");
+  assert(!/"x-heytutor-model"\) !== requestModel\)/.test(runner), "M13: the old single-model response check is gone");
 }
 console.log("lab model profile GREEN: standard Fireworks/Azure and Fireworks Fast identities, per-request models, effective rates and fail-closed preflight; no network or environment changes");
