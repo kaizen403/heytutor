@@ -4670,7 +4670,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!required.has(entity.id)) {
       issues.push({
         code: "unrequired_entity",
-        message: `Entity ${entity.id} is not declared in requiredEntityIds`,
+        message: `Entity ${entity.id} is not declared in requiredEntityIds; add ${entity.id} to requiredEntityIds, since every declared or constructed entity is drawn`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],
@@ -4679,7 +4679,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!grouped.has(entity.id)) {
       issues.push({
         code: "ungrouped_entity",
-        message: `Entity ${entity.id} is not assigned to a reveal group`,
+        message: `Entity ${entity.id} is not assigned to a reveal group; add ${entity.id} to the entityIds of one reveal group`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],
@@ -4846,10 +4846,13 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
     }
     for (const construction of constructions) {
       if (!isRecord(construction) || !Array.isArray(construction.outputs)) continue;
-      for (const output of construction.outputs) {
+      for (const [outputIndex, output] of construction.outputs.entries()) {
         if (typeof output !== "string" || entityIds.has(output)) continue;
         const operator = String(construction.operator ?? "");
-        const kind = operator === "function_curve" || operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve" ? "polyline"
+        // A set partition writes its circles first, then count label anchors.
+        const setCircles = operator === "set_partition" && isRecord(construction.inputs) && Array.isArray(construction.inputs.sets) ? construction.inputs.sets.length : 0;
+        const kind = operator === "set_partition" ? (outputIndex < setCircles ? "circle" : "label")
+          : operator === "function_curve" || operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve" ? "polyline"
           : operator === "axes" ? "axes"
             : operator === "label" ? "label"
               : operator === "polygon" ? "polygon"
