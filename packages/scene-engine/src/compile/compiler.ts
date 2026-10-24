@@ -5740,7 +5740,11 @@ function assertScreenAttachedLabels(
     const attached = labels.some((label) => {
       const center = label.points[0];
       if (!center) return false;
-      return Math.hypot(center.x - screen.x, center.y - screen.y) <= pointLabelTether(label.text ?? "") + 0.02;
+      if (Math.hypot(center.x - screen.x, center.y - screen.y) <= pointLabelTether(label.text ?? "") + 0.02) return true;
+      // A label moved off a rival line keeps its point by a drawn leader
+      // that starts on the point itself.
+      const leaderStart = primitives.find((primitive) => primitive.id === `${label.id}_leader` && primitive.provenance?.labelLeader === true)?.points[0];
+      return label.provenance?.usesLeader === true && leaderStart !== undefined && Math.hypot(leaderStart.x - screen.x, leaderStart.y - screen.y) <= 1;
     });
     if (!attached) {
       issues.push({

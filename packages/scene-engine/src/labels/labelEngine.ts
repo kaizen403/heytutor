@@ -580,6 +580,8 @@ function placeLabelsInternal(
             obstacles.filter((obstacle) => obstacle.entityId === owner.entityId).map((obstacle) => obstacle.bounds),
           );
       const ownership = owner.useOwnerBounds === false ? null : strokeOwnership(owner, obstacles);
+      const pointForeign = ownership ? null : pointForeignStrokes(owner, obstacles);
+      const nearerForeignInk = (box: LabelBounds) => pointForeign !== null && pointLabelNearerForeign(box, owner.anchor, pointForeign);
       // Point labels can use a closer compass slot when the usual margin wastes
       // clear interior space. Every candidate still clears ink by minGapPx.
       const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
@@ -601,6 +603,7 @@ function placeLabelsInternal(
             .map((obstacle) => obstacle.id);
           const margin = ownership ? ownershipMargin(collisionBounds, ownership) : Infinity;
           if (overlaps.length === 0 && margin < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
+          if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
           const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
@@ -698,6 +701,7 @@ function placeLabelsInternal(
             // Without a drawn leader nothing ties the text to its owner but
             // proximity, so it must sit nearest its owner like a slot label.
             if (overlaps.length === 0 && !candidate.usesLeader && ownership && ownershipMargin(collisionBounds, ownership) < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
+            if (overlaps.length === 0 && !candidate.usesLeader && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
             // Routing cannot repair a glyph box that is already illegal. Keep
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
@@ -723,14 +727,58 @@ function placeLabelsInternal(
             if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
             if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
             if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+            if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
             return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
           })
         : [];
-      const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates, ...nearbyCandidates])
+      const tetheredCandidates = [...candidates, ...leaderCandidates, ...nearbyCandidates];
+      // A point letter whose every tethered spot was lost only to the
+      // nearer-foreign rule keeps its name with a drawn leader from a clear
+      // spot beyond the tether. Owners that fail for any other reason fail
+      // exactly as before.
+      const escapeCandidates = pointForeign && owner.tetherPx !== undefined && !owner.requireLeader &&
+          !tetheredCandidates.some((candidate) => candidate.overlaps.length === 0) &&
+          tetheredCandidates.some((candidate) => candidate.overlaps.length === 1 && candidate.overlaps[0] === LABEL_NEARER_FOREIGN)
+        ? leaderDistances(owner.viewBounds)
+            .filter((distance) => distance > owner.tetherPx! && distance <= POINT_ESCAPE_MAX_PX)
+            .flatMap((distance) => [...leaderDirections, ...boxClearanceDirections(owner.text, distance, options, minGapPx)].flatMap((direction): LabelPlacementCandidate[] => {
+              const center = { x: owner.anchor.x + direction.dx * distance, y: owner.anchor.y + direction.dy * distance };
+              const bounds = centeredTextBounds(owner.text, center, options);
+              const collisionBounds = candidateInkBounds(owner.text, bounds, options);
+              const leaderTo = leaderEndpoint(owner.anchor, center, collisionBounds);
+              if (!leaderTo) return [];
+              const overlaps = solverObstacles
+                .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
+                .map((obstacle) => obstacle.id);
+              if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
+              if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
+              const candidate: LabelPlacementCandidate = {
+                slot: "leader", bounds, collisionBounds, overlaps,
+                score: POINT_ESCAPE_SCORE + distance + direction.preference + overlaps.length * 10,
+                usesLeader: true, leaderFrom: owner.anchor, leaderTo,
+              };
+              if (overlaps.length > 0) return [candidate];
+              const routed = routeLeader(candidate, fixedLabelBounds, owner.viewBounds, minGapPx, leaderGeometry, [], geometryQuery ?? createLeaderGeometryQuery(leaderGeometry));
+              if (routed) return [routed];
+              overlaps.push("leader_geometry");
+              return [candidate];
+            }))
+        : [];
+      const allCandidates = deduplicateCandidates([...tetheredCandidates, ...escapeCandidates])
         .sort((a, b) => a.score - b.score);
-      const validCandidates = allCandidates
-        .filter((candidate) => candidate.overlaps.length === 0)
-        .slice(0, 160);
+      // In a dense ray web every spot may sit across some ray and no leader
+      // can get clear. The figure is not lost to this rule: the spots it
+      // removed come back last, tried only when nothing it allows fits.
+      const rivalSpots = pointForeign
+        ? allCandidates
+            .filter((candidate) => candidate.overlaps.length === 1 && candidate.overlaps[0] === LABEL_NEARER_FOREIGN)
+            .slice(0, POINT_RIVAL_SPOTS)
+            .map((candidate) => ({ ...candidate, overlaps: [], score: candidate.score + POINT_RIVAL_SCORE }))
+        : [];
+      const validCandidates = [
+        ...allCandidates.filter((candidate) => candidate.overlaps.length === 0).slice(0, 160 - rivalSpots.length),
+        ...rivalSpots,
+      ];
       // Failure diagnostics depend on the best invalid slot and all of its
       // overlaps. Preserve their exact original values when no slot survives.
       if (!feasibilityOnly && deferredInk && validCandidates.length === 0) return prepareOwner(true);
@@ -1686,6 +1734,63 @@ function strokeOwnership(owner: LabelOwner, obstacles: LabelObstacle[]): StrokeO
     .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== undefined && obstacle.entityId !== owner.entityId && obstacle.segments?.length)
     .map((obstacle) => obstacle.segments!);
   return { ink, stroke, foreign };
+}
+
+/**
+ * A point's label is read as naming the nearest mark. A box across another
+ * straight line from its point, and nearer that line than the point, names
+ * the line instead: V1 written past a directrix. Strokes through the point
+ * (the curve it lies on, the axis it sits on, a ray drawn through a focus)
+ * are its hosts, not rivals. Each axis of an axes pair is judged on its own,
+ * so a point on the x axis is still judged against the y axis.
+ *
+ * Curves and closed outlines are not rivals: the outline of a bob, a lens or
+ * an ellipse around an interior point always lies between that point and a
+ * label outside it, and there the outline is read as the body, not named.
+ */
+const POINT_HOST_PX = 6;
+/** A vertex mark (right-angle square, angle arc) lies within this of its point. */
+const POINT_MARK_RADIUS_PX = 48;
+/** Escape leaders run no further than this from the point. */
+const POINT_ESCAPE_MAX_PX = 160;
+/** An escape leader ranks behind every tethered slot. */
+const POINT_ESCAPE_SCORE = 300;
+/** Spots across a rival line rank behind every escape leader. */
+const POINT_RIVAL_SCORE = 1000;
+const POINT_RIVAL_SPOTS = 40;
+
+function pointForeignStrokes(owner: LabelOwner, obstacles: LabelObstacle[]): Array<Array<[RenderPoint, RenderPoint]>> | null {
+  if (owner.sideRegions?.length || owner.placementBounds || owner.pinToAnchor) return null;
+  const own = obstacles.filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId === owner.entityId);
+  if (own.length === 0 || !own.every((obstacle) => obstacle.primitiveKind === "point")) return null;
+  const strokes = obstacles
+    .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== undefined && obstacle.entityId !== owner.entityId && obstacle.segments?.length &&
+      (obstacle.primitiveKind === "axes" || isOpenStroke(obstacle)))
+    .flatMap((obstacle) => obstacle.primitiveKind === "axes" ? obstacle.segments!.map((segment) => [segment]) : [obstacle.segments!]);
+  const near = (point: RenderPoint, segments: Array<[RenderPoint, RenderPoint]>) =>
+    segments.some(([start, end]) => pointToSegmentDistance(point, start, end) <= POINT_HOST_PX);
+  const hosts = strokes.filter((segments) => near(owner.anchor, segments));
+  // A right-angle square or angle arc at the point runs from one host to
+  // another close around it. It marks the point's angle and names nothing.
+  const vertexMark = (segments: Array<[RenderPoint, RenderPoint]>) => {
+    const start = segments[0]![0];
+    const end = segments.at(-1)![1];
+    return segments.every(([a, b]) => Math.hypot(a.x - owner.anchor.x, a.y - owner.anchor.y) <= POINT_MARK_RADIUS_PX &&
+        Math.hypot(b.x - owner.anchor.x, b.y - owner.anchor.y) <= POINT_MARK_RADIUS_PX) &&
+      hosts.some((host) => near(start, host)) && hosts.some((host) => near(end, host));
+  };
+  const foreign = strokes.filter((segments) => !near(owner.anchor, segments) && !vertexMark(segments));
+  return foreign.length ? foreign : null;
+}
+
+function pointLabelNearerForeign(box: LabelBounds, anchor: RenderPoint, foreign: Array<Array<[RenderPoint, RenderPoint]>>): boolean {
+  const own = Math.hypot(
+    Math.max(box.x - anchor.x, 0, anchor.x - (box.x + box.width)),
+    Math.max(box.y - anchor.y, 0, anchor.y - (box.y + box.height)),
+  );
+  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  return foreign.some((segments) => segmentsToBoundsDistance(segments, box) < own - OWNERSHIP_TOLERANCE_PX &&
+    segments.some(([start, end]) => segmentsIntersect(anchor, center, start, end)));
 }
 
 function isOpenStroke(obstacle: LabelObstacle): boolean {
