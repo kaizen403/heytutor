@@ -12,6 +12,10 @@
  * leg written before its kind, or a kind written as an adverb ("expands
  * isobarically") or as "constant pressure", declines rather than rotating
  * labels or dropping the leg (#290 delta review).
+ * The next round still found wrong cycles (a direction read from the wrong
+ * quantity, a return leg named without a kind word), so pv_cycle now always
+ * declines and every stem here, including the named and Carnot cycles, must
+ * get no figure.
  * Stems from the #290 review. The stems are written for this gate.
  */
 import { attemptArchetypeScene } from "../../src";
@@ -53,12 +57,31 @@ const declineStems = [
   "The gas expands isobarically from A to B, then isochoric cooling from B to C, then isothermal compression from C to A. Draw the P-V diagram.",
   "An ideal gas undergoes isobaric expansion from A to B followed by isochoric cooling from B to C and then returns to A isothermally. Draw the P-V diagram.",
   "The gas is first compressed adiabatically from A to B and then undergoes isobaric expansion from B to C and isochoric cooling from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isothermal process in which the pressure increases from A to B, then an isobaric process from B to C, then an isochoric process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an adiabatic process in which the pressure increases from A to B, then an isochoric process from B to C, then an isobaric process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an adiabatic process in which the temperature increases from A to B, then an isobaric process from B to C, then an isochoric process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isochoric process in which heat is removed from A to B, then an isobaric process from B to C, then an isothermal process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric compression, rejecting heat, from A to B, then an isochoric process from B to C, then an isothermal process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes adiabatic compression with no heat exchange from A to B, then an isobaric process from B to C, then an isochoric process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isobaric contraction from A to B, then an isochoric process from B to C, then an isothermal process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isobaric process from A to B in which the gas is compressed, then an isochoric process from B to C, and an isothermal process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isothermal process in which the pressure decreases from A to B, then an isochoric process from B to C, then an isobaric process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B, then isochoric cooling from B to C, and is then compressed back to A, keeping its temperature constant. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B, then isochoric cooling from B to C, and then returns to A by a constant-temperature compression. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B, then isochoric cooling from B to C, and then returns to A at constant T. Draw the P-V diagram.",
+  "An ideal gas undergoes isochoric heating from A to B, then isothermal expansion from B to C, and then returns to A at fixed pressure. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B, isochoric cooling from B to C and a non-isothermal compression from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes an isochoric pressure drop from A to B, then an isobaric process from B to C, then an isothermal process from C to A. Draw the P-V diagram.",
+  "An ideal gas undergoes isobaric expansion from A to B, then isochoric cooling from B to C, and is then brought back to A with no heat exchange. Draw the P-V diagram.",
 ]
 for (const question of declineStems) check(pvCycle(question) === null, `pv_cycle drew a cycle that ignores the stem: "${question.slice(0, 70)}"`);
 
+// The stop rule (#290 delta 2): ordinary wording kept drawing wrong cycles
+// after every heuristic round, so pv_cycle always declines. The named cycle
+// and the Carnot cycle, which it used to draw correctly, decline too.
 const named = "An ideal gas is taken through a cycle: isobaric expansion from A to B, isochoric cooling B to C, and isothermal compression C to A. Draw the P-V diagram and find the work done in one cycle.";
-check(pvCycle(named) !== null, "a cycle named leg by leg with no stated values must still draw");
+check(pvCycle(named) === null, "pv_cycle always declines, even a cycle named leg by leg");
 const carnot = "A Carnot engine works between isothermal expansion A to B, adiabatic expansion B to C, isothermal compression C to D and adiabatic compression D to A. Draw the P-V diagram.";
-check(pvCycle(carnot) !== null, "the Carnot cycle named leg by leg must still draw");
+check(pvCycle(carnot) === null, "pv_cycle always declines, even the Carnot cycle");
 
-console.log(`pv cycle stated values: ${declineStems.length} stems decline; the named cycle and the Carnot cycle still draw`);
+console.log(`pv cycle stated values: pv_cycle always declines (${declineStems.length} stems, the named cycle and the Carnot cycle)`);
