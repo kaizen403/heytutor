@@ -10,7 +10,8 @@ import { elementByName } from "./elements";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { namedSpeciesMentions } from "./namedSpecies";
 import { isChemistryQuestion } from "./router";
-import { buildVseprFigure, compositionKey, isVseprStem, vseprClaimFacts, vseprPlanConflict, vseprSpecies } from "./vsepr";
+import { buildVseprFigure, compositionKey, isVseprStem, vseprClaimFacts, vseprSpecies } from "./vsepr";
+import type { ParsedFormula } from "./formula";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { SceneDocument } from "../types";
 
@@ -35,6 +36,19 @@ export function questionNamesSpecies(question: string): boolean {
   if (namedSpeciesMentions(text).length > 0) return true;
   if (formulaTokens(text).some((token) => parseFormula(token) !== null)) return true;
   return (text.toLowerCase().match(/[a-z]+/g) ?? []).some((word) => word.length > 2 && elementByName(word) !== null);
+}
+
+function claimNamesSpecies(text: string, species: ParsedFormula): boolean {
+  const key = compositionKey(species);
+  const normalized = normalizeChemistryText(text);
+  const formulas = [...formulaTokens(normalized), ...namedSpeciesMentions(normalized).map((mention) => mention.formula)];
+  const keys = new Set(formulas.flatMap((formula) => {
+    const parsed = parseFormula(formula);
+    return parsed ? [compositionKey(parsed)] : [];
+  }));
+  // A claim naming several species cannot be bound to one computed result,
+  // the same rule the VSEPR plan check applies to comparisons.
+  return keys.size === 1 && keys.has(key);
 }
 
 /** The plan's example, accepted only on a chemistry question that names no species. */
@@ -82,9 +96,17 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   if (checked.scopeError || checked.facts.length === 0) return { status: "declined", reason: "plan example claim states no checkable fact about the species" };
   const wrong = checked.facts.find((fact) => !fact.truth);
   if (wrong) return { status: "declined", reason: `plan example claim contradicts the computed ${wrong.property}` };
-  const plan = turnPlan as TurnPlanV3;
-  const conflict = Array.isArray(plan.qualitativeClaims) ? vseprPlanConflict(source.stem, plan) : null;
-  if (conflict) return { status: "declined", reason: conflict };
+  // Every other plan claim about this species alone must agree with it too.
+  // A claim about the idea in general ("lone pairs repel more strongly")
+  // describes no species and is the teaching's, not the figure's.
+  const claims = Array.isArray((turnPlan as TurnPlanV3).qualitativeClaims) ? (turnPlan as TurnPlanV3).qualitativeClaims : [];
+  for (const claim of claims) {
+    if (!claimNamesSpecies(`${claim.claim} ${typeof claim.expected === "string" ? claim.expected : ""}`, parsed)) continue;
+    const facts = vseprClaimFacts(claim, species[0]!);
+    if (facts.scopeError) return { status: "declined", reason: `plan claim ${claim.id} has unsupported compound boolean scope` };
+    const conflict = facts.facts.find((fact) => fact.truth !== (claim.expected !== false));
+    if (conflict) return { status: "declined", reason: `plan claim ${claim.id} contradicts the computed ${conflict.property}` };
+  }
   // The caption uses the family's own compact formula, as the title does.
   source.caption = `example: ${species[0]!.label}`;
   const figure = buildVseprFigure(source.stem, [], false, { exampleCaption: source.caption });

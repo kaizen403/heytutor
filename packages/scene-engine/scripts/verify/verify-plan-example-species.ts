@@ -78,6 +78,12 @@ const contradiction = plan("what is sp2 hybridisation", [{ formula: "BF3", claim
   { qualitativeClaims: [{ id: "c1", claim: "BF3 has one lone pair on B", expected: true }] });
 check(buildPlanExampleDocument("what is sp2 hybridisation", contradiction).status === "declined", "a plan claim contradicting the computed example declines");
 
+const general = plan("what is sp2 hybridisation", [{ formula: "BF3", claim: "BF3 is sp2 and trigonal planar" }],
+  { qualitativeClaims: [{ id: "c1", claim: "Molecules with lone pairs on the central atom are bent rather than linear", expected: true },
+    { id: "c2", claim: "sp2 bonds are shorter than sp3 bonds", expected: true },
+    { id: "c3", claim: "Lone pairs repel bonding pairs (e.g. bent water, trigonal pyramidal ammonia, planar BF3)", expected: true }] });
+check(buildPlanExampleDocument("what is sp2 hybridisation", general).status === "built", "a general topic claim, or one naming several species, does not decline the example");
+
 // No default species: without the plan's own entry nothing is read.
 check(readPlanExample("explain hybridisation", plan("explain hybridisation")).status === "none", "no plan example reads as none");
 check(!questionNamesSpecies("explain vsepr theory") && !questionNamesSpecies("what is pH") && !questionNamesSpecies("what is sp2 hybridisation"), "topic asks name no species");
