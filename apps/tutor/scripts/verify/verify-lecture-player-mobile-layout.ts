@@ -26,18 +26,37 @@ const appRoot = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
 const barFile = path.join(appRoot, "features/tutor-session/components/LecturePlayerBar.tsx");
 const viewportFile = path.join(appRoot, "features/tutor-session/hooks/useBoardViewport.ts");
-function load(file: string, source: string, react?: unknown, overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function load(file: string, source: string, react?: unknown, overrides: Record<string, unknown> = {}, initialState: Record<string, unknown> = {}): Record<string, unknown> {
   const compiled = ts.transpileModule(readFileSync(source, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+    // Seed only named React state inputs; render conditions/components remain
+    // the actual shell. No fake phase-to-overlay selector replaces production.
+    transformers: { before: [context => sourceFile => {
+      const visit: ts.Visitor = node => {
+        if (ts.isVariableDeclaration(node) && ts.isArrayBindingPattern(node.name) &&
+          node.initializer && ts.isCallExpression(node.initializer) &&
+          node.initializer.expression.getText(sourceFile) === "useState") {
+          const first = node.name.elements[0];
+          const name = first && ts.isBindingElement(first) ? first.name.getText(sourceFile) : undefined;
+          if (name && Object.hasOwn(initialState, name)) {
+            return context.factory.updateVariableDeclaration(node, node.name, node.exclamationToken, node.type,
+              context.factory.updateCallExpression(node.initializer, node.initializer.expression, node.initializer.typeArguments,
+                [context.factory.createElementAccessExpression(context.factory.createIdentifier("fixtureState"), context.factory.createStringLiteral(name))]));
+          }
+        }
+        return ts.visitEachChild(node, visit, context);
+      };
+      return ts.visitNode(sourceFile, visit) as ts.SourceFile;
+    }] },
   }).outputText;
   const mod = { exports: {} as Record<string, unknown> };
-  new Function("require", "module", "exports", compiled)((specifier: string) => {
+  new Function("require", "module", "exports", "fixtureState", compiled)((specifier: string) => {
     if (Object.hasOwn(overrides, specifier)) return overrides[specifier];
     if (specifier === "react" && react) return react;
     if (specifier.startsWith("@/")) return requireApp(path.join(appRoot, specifier.slice(2)));
     if (specifier.startsWith(".")) return requireApp(path.resolve(path.dirname(file), specifier));
     return requireApp(specifier);
-  }, mod, mod.exports);
+  }, mod, mod.exports, initialState);
   return mod.exports;
 }
 
@@ -255,6 +274,10 @@ function shellMarkup(options: {
   mobile: boolean; coarse?: boolean; recorded?: boolean; playerActive?: boolean;
   fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean;
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean;
+  phase?: "idle" | "planning" | "thinking" | "speaking" | "drawing";
+  audioEnable?: () => void; audioGeneration?: number; paused?: boolean;
+  headless?: boolean; muted?: boolean; replaying?: boolean; onResume?: () => void;
+  onOverlay?: (props: Record<string, unknown>) => void;
   retrySave?: () => void; captureSaveRetry?: (retry: () => void) => void;
 }) {
   const noop = () => {};
@@ -275,14 +298,14 @@ function shellMarkup(options: {
     "@/lib/client/useMediaQuery": { useIsMobile: () => options.mobile, useIsCompactNav: () => options.mobile, useMediaQuery: () => options.coarse === true },
     "@/lib/client/useVisualViewportInset": { useVisualViewportInset: () => 0 },
     "@/lib/client/useLockWindowScrollOnFocus": { useLockWindowScrollOnFocus: noop },
-    "./components/SettingsDrawer": { ...requireApp(path.join(appRoot, "lib/account/lessonSettings.ts")), SettingsDrawer: leaf },
+    "@/features/tutor-session/components/SettingsDrawer": { ...requireApp(path.join(appRoot, "lib/account/lessonSettings.ts")), SettingsDrawer: leaf },
     "./lib/code-lesson/codeLessonController": { CodeLessonController: class { getActivePlan() { return options.codeOnly ? {} : null; } } },
     "./hooks/useCancelControl": { useCancelControl: () => ({}) },
     "./hooks/useBoardLayout": { useBoardLayout: () => ({ boardContainerRef: { current: null }, boardViewport: { scale: 0.2, offsetX: 0, offsetY: 0, measured: true }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }) },
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": { useBoardSession: () => ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: options.retrySave ?? noop, hasLiveTurn: false }) },
-    "./hooks/useTurnLifecycle": { useTurnLifecycle: () => ({ pausedLessonOffer: options.pausedOffer === true }) },
+    "./hooks/useTurnLifecycle": { useTurnLifecycle: () => ({ pausedLessonOffer: options.pausedOffer === true, resumeTurn: options.onResume }) },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
     "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true }) },
@@ -333,9 +356,106 @@ function shellMarkup(options: {
     "data-save-status": saveStatus?.kind, "data-header-retry": String(typeof onRetrySave === "function"),
   }) };
   overrides["./components/SessionInputChrome"] = { SessionInputChrome: () => createElement("textarea", { defaultValue: "Retained composer" }) };
-  const shell = load(shellFile, process.env.LECTURE_PLAYER_SHELL_SOURCE ?? shellFile, undefined, overrides).TutorSessionShell as ComponentType<TutorSessionShellProps>;
-  return renderToStaticMarkup(createElement(shell, { sessionId: "recorded-board" }));
+  if (options.audioEnable) {
+    const overlayFile = path.join(appRoot, "features/tutor-session/components/ThinkingOverlay.tsx");
+    const Overlay = load(overlayFile, overlayFile).ThinkingOverlay as ComponentType<Record<string, unknown>>;
+    overrides["./components/ThinkingOverlay"] = { ThinkingOverlay: (props: Record<string, unknown>) => {
+      options.onOverlay?.(props);
+      return createElement(Overlay, props);
+    } };
+  }
+  overrides["./components/WhiteboardLoader"] = { Whiteboard: () => createElement("i", { "data-verified-board": "retained" }) };
+  const shell = load(shellFile, process.env.LECTURE_PLAYER_SHELL_SOURCE ?? shellFile, undefined, overrides, {
+    ...(options.phase ? { phase: options.phase } : {}),
+    ...(options.paused !== undefined ? { isPaused: options.paused } : {}),
+    ...(options.replaying !== undefined ? { isReplaying: options.replaying } : {}),
+    ...(options.audioEnable ? { speechStartupStatus: {
+      turnGeneration: options.audioGeneration ?? 0, segmentIndex: 1,
+      blocked: { reason: "not-allowed", audioContextState: "running" }, enableAudio: options.audioEnable,
+    } } : {}),
+  }).TutorSessionShell as ComponentType<TutorSessionShellProps>;
+  return renderToStaticMarkup(createElement(shell, { sessionId: "recorded-board", ...(options.headless ? { variant: "headless" } : {}), muteAudio: options.muted }));
 }
+/** Whether `target` appears inside the div that carries `marker` (string level, div depth). */
+function insideDiv(html: string, marker: string, target: string): boolean {
+  const at = html.indexOf(marker);
+  const found = html.indexOf(target);
+  assert.ok(at >= 0 && found >= 0, `markup has both ${marker} and ${target}`);
+  const open = html.lastIndexOf("<div", at);
+  let depth = 0;
+  const tags = /<div\b|<\/div>/g;
+  tags.lastIndex = open;
+  for (let match = tags.exec(html); match; match = tags.exec(html)) {
+    depth += match[0] === "</div>" ? -1 : 1;
+    if (depth === 0) return found > open && found < match.index;
+  }
+  return found > open;
+}
+check("actual shell exposes audio recovery after the verified diagram", () => {
+  for (const phase of ["speaking", "drawing"] as const) {
+    let clicks = 0;
+    let overlay: Record<string, unknown> | undefined;
+    const html = shellMarkup({ mobile: true, phase, audioEnable: () => { clicks++; }, onOverlay: props => { overlay = props; } });
+    assert.match(html, /Tap to enable audio/, `${phase}: blocked playback must have a visible recovery button after the figure`);
+    assert.match(html, /data-canvas-player-bar=/, "recovery retains the existing board canvas");
+    assert.equal(typeof overlay?.onEnableAudio, "function");
+    const overlayFile = path.join(appRoot, "features/tutor-session/components/ThinkingOverlay.tsx");
+    const Overlay = load(overlayFile, overlayFile).ThinkingOverlay as (props: Record<string, unknown>) => import("react").ReactNode;
+    function findButton(node: import("react").ReactNode): (() => void) | undefined {
+      if (Array.isArray(node)) return node.map(findButton).find(Boolean);
+      if (!isValidElement<{ children?: import("react").ReactNode; onClick?: () => void }>(node)) return undefined;
+      return node.type === "button" ? node.props.onClick : findButton(node.props.children);
+    }
+    const click = findButton(Overlay(overlay!));
+    assert.equal(click, overlay!.onEnableAudio, "actual button forwards the gesture directly without an async wrapper");
+    click!();
+    assert.equal(clicks, 1, "click reaches the exact retained runner callback synchronously");
+    assert.equal(overlay!.preserveBoard, true, "recovery never frosts or replaces the existing diagram");
+    assert.doesNotMatch(html, /class="wb-pending /, "late recovery has no full-board frosted layer");
+    // A phone board scrolls inside its pane: the card must sit in the visible
+    // pane, never at the corner of the scrolled board where it can be off screen.
+    assert.match(html, /data-board-scroll="true"/, "the phone shell scrolls its board");
+    assert.equal(insideDiv(html, 'data-board-scroll="true"', 'data-speech-recovery="true"'), false, `${phase}: the phone recovery card is outside the board scroll pane`);
+  }
+  const desktop = shellMarkup({ mobile: false, phase: "drawing", audioEnable: () => {} });
+  assert.doesNotMatch(desktop, /data-board-scroll="true"/, "the desktop board does not scroll");
+  assert.equal(insideDiv(desktop, 'class="wb-surface', 'data-speech-recovery="true"'), true, "a board that does not scroll keeps the card on the board surface");
+});
+check("audio recovery respects pause, replay, mute, generation and headless boundaries", () => {
+  const enable = () => {};
+  for (const options of [{ phase: "idle" as const }, { rewind: true }, { replaying: true }, { audioGeneration: 9 }]) {
+    const html = shellMarkup({ mobile: true, phase: "drawing", audioEnable: enable, ...options });
+    assert.doesNotMatch(html, /Tap to enable audio/, "inactive/stale/hidden playback cannot expose another turn's action");
+  }
+  let pausedProps: Record<string, unknown> | undefined;
+  const resume = () => {};
+  const paused = shellMarkup({ mobile: true, phase: "drawing", paused: true, audioEnable: enable, onResume: resume, onOverlay: props => { pausedProps = props; } });
+  assert.match(paused, /Lecture paused/);
+  assert.match(paused, />Resume<\/button>/);
+  assert.doesNotMatch(paused, /Tap to enable audio/);
+  assert.equal(pausedProps!.onResume, resume);
+  assert.equal(pausedProps!.onEnableAudio, null, "paused recovery resumes the lesson before asking permission");
+  assert.equal(insideDiv(paused, 'data-board-scroll="true"', "Lecture paused"), false, "the phone paused card is outside the board scroll pane");
+  const headless = shellMarkup({ mobile: false, phase: "drawing", headless: true, muted: false, audioEnable: enable });
+  assert.match(headless, /Tap to enable audio/, "an audible headless/embed session also exposes permission recovery");
+  assert.match(headless, /data-verified-board="retained"/, "the headless board stays mounted");
+});
+check("muted permission rejection stays actionable until playback actually resumes", () => {
+  for (const headless of [false, true]) {
+    let clicked = 0;
+    let overlay: Record<string, unknown> | undefined;
+    const enable = () => { clicked++; };
+    const html = shellMarkup({ mobile: true, phase: "drawing", headless, muted: true, audioEnable: enable, onOverlay: props => { overlay = props; } });
+    assert.match(html, /Tap to enable playback/, "muting cannot hide a still-blocked retained beat");
+    assert.doesNotMatch(html, /Tap to enable audio/, "the action does not imply unmuting");
+    assert.equal(overlay!.muted, true);
+    assert.equal(overlay!.onEnableAudio, enable);
+    (overlay!.onEnableAudio as () => void)();
+    assert.equal(clicked, 1, "muted recovery still forwards the retained callback synchronously");
+    const resumed = shellMarkup({ mobile: true, phase: "drawing", headless, muted: true });
+    assert.doesNotMatch(resumed, /Tap to enable (?:audio|playback)/, "accepted muted playback clears status and removes the recovery card");
+  }
+});
 function shellWidths(html: string) {
   const stage = html.match(/<div\b[^>]*class="[^"]*\bwb-stage\b[^>]*>/)?.[0];
   const deck = html.match(/<div\b[^>]*\bdata-board-deck(?:="[^"]*")?[^>]*>/)?.[0];
