@@ -152,6 +152,9 @@ const DECLINE: readonly DeclineRow[] = [
   // Round 2: each occurrence is judged where it stands, so an excluded mention cannot hide a later request.
   { id: "thread-later-request-NO2-minus", question: "Draw the Lewis structure of NO2, not NO2 minus. Then draw NO2 minus.", owners: ["chem_lewis"], words: true },
   { id: "later-request-NO2-sign", question: "Draw the Lewis structure of NO2, not NO2 -. Then draw NO2 -.", owners: ["chem_lewis"] },
+  // Round 4: a phrase binds to its own owner's reading; another occurrence cannot satisfy it.
+  { id: "thread-phrase-other-occurrence-O2-2minus", question: "MO diagram of O2- with a double negative charge. Compare with O2^2-.", owners: ["chem_mo"], words: true },
+  { id: "phrase-bare-owner-other-occurrence", question: "MO diagram of O2 with charge -1. Compare with O2-.", owners: ["chem_mo"], words: true },
   // Charges in words and Roman numerals (pr-284-delta, pr-286-delta): no sign for the shared reader.
   { id: "words-shape-SO3-two-minus", question: "shape of SO3 two minus", owners: ["chem_vsepr"], words: true },
   { id: "words-shape-SO3-minus-2", question: "shape of SO3 minus 2", owners: ["chem_vsepr"], words: true },
