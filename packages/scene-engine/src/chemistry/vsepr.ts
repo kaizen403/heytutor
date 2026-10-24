@@ -1028,7 +1028,20 @@ function panel(c: ChemScene, id: string, center: Vec2, width: number, height: nu
   return rectId;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean): DrawnSpecies | null {
+/**
+ * The one angle a shape figure writes, on every stem, not only when the stem
+ * says "angle": the source value (ideal, quoted, or a bound) where the layout
+ * draws both bonds in the page plane at that angle, else null. TBP marks the
+ * axial to equatorial 90°; its oblique equatorial 120° has no honest arc.
+ * The label is part of the regenerated source graph, so
+ * certifyVseprSourceDocument certifies it and still checks any plan angle
+ * scalar by species and role.
+ */
+export function characteristicAngle(result: VseprResult): string | null {
+  return result.bondAngle && layoutFor(result)?.angle ? result.bondAngle : null;
+}
+
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1078,10 +1091,11 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   // Nonbonding electrons belong to the structure, just like its bonds.
   frameIds.push(...electronIds);
-  if (withAngle && layout.angle && result.bondAngle) {
+  const characteristic = characteristicAngle(result);
+  if (characteristic && layout.angle) {
     const [a, b] = layout.angle;
     const radius = layout.angleRadius ?? 0.36;
-    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[a]!, ligandIds[b]!, result.bondAngle, radius));
+    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[a]!, ligandIds[b]!, characteristic, radius));
     // A linear molecule has no atom above its centre, but its semicircular
     // angle mark occupies that space. Include the mark in the panel reach so
     // the formula cannot be pinned on top of the angle's label anchor.
@@ -1092,7 +1106,7 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const hybridY = minY - CAPTION_GAP;
   const shapeY = hybridY - CAPTION_STEP;
   const domainY = shapeY - CAPTION_STEP;
-  const claim = withAngle && layout.angle && result.bondAngle ? angleClaim(result.bondAngle) : null;
+  const claim = characteristic ? angleClaim(characteristic) : null;
   const claimY = claim ? domainY - CAPTION_STEP : domainY;
   const titleId = c.text(`${tag}_title`, { x: origin.x, y: titleY }, result.label, "species formula");
   frameIds.push(titleId);
@@ -1181,14 +1195,10 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
     : `shapes of ${species.map((result) => result.formula).join(", ")} by VSEPR`;
   const c = new ChemScene(question, reason, VSEPR_FAMILY);
-  // A shape/lone-pair request needs the complete molecule, not an extra
-  // measured angle. Requested/stated angles remain in the ordinary numeric
-  // admission path; suppressing them would turn that request into a fragment.
-  const withAngle = /\bangles?\b|°|\bdegrees?\b/i.test(stem);
   const drawn: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
   species.forEach((result, index) => {
     const origin = { x: index * SPECIES_PITCH, y: 0 };
-    const item = drawSpecies(c, result, origin, `m${index + 1}`, withAngle);
+    const item = drawSpecies(c, result, origin, `m${index + 1}`);
     if (item) drawn.push({ result, drawn: item });
   });
   if (drawn.length !== species.length) return null;
