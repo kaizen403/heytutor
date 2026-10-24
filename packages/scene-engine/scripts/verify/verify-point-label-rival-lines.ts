@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
+import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { compileSceneDocument } from "../../src/compile/compiler";
+import { obstaclesFromPrimitives, placeLabels, POINT_LABEL_TETHER_PX } from "../../src/labels/labelEngine";
 import type { RenderPoint, RenderPrimitive, SceneDocument } from "../../src/types";
 
 // A point letter must never sit across another straight line from its own
@@ -134,4 +136,74 @@ v1.points = [{ x: oldX, y: oldY }];
 v1.provenance = { ...v1.provenance, usesLeader: false, labelBounds: { ...box, x: oldX - box.width / 2, y: oldY - box.height / 2 } };
 assert.deepEqual(violations(mutated), ["V1: across a rival line from its point"], "mutation: V1 across the directrix is caught");
 
-console.log(`verify-point-label-rival-lines: V1 and V2 leave the directrices by leaders; ${controls} control labels unmoved; mutation caught`);
+// 4. Escape leaders measure the full ink. A label whose ink overhangs its
+// layout box (a subscript, a handwritten tail) is held to the ink, not the em
+// box: here the ink of V1 and V2 grows 30 px past the box whenever they sit
+// beyond the tether, and the escape spot chosen must still clear every stroke.
+const pointAt = (primitives: RenderPrimitive[], id: string) => primitives.find((primitive) => primitive.kind === "point" && primitive.entityId === id)!.points[0]!;
+const anchors = ["V1", "V2"].map((id) => pointAt(ellipse, id));
+const overhang = 30;
+const overhangingInk = (text: string, x: number, y: number, fontPx: number) => {
+  const ink = measureTextInkBounds(text, x, y, fontPx);
+  if (!ink || !/^V/.test(text)) return ink;
+  const centre = { x: ink.x + ink.width / 2, y: ink.y + ink.height / 2 };
+  if (anchors.some((anchor) => Math.hypot(centre.x - anchor.x, centre.y - anchor.y) <= POINT_LABEL_TETHER_PX + 4)) return ink;
+  return { x: ink.x - overhang, y: ink.y, width: ink.width + 2 * overhang, height: ink.height + overhang };
+};
+const strokesOf = (primitive: RenderPrimitive): Segment[] => {
+  const p = primitive.points;
+  if (primitive.kind === "axes" && p.length === 4) return [[p[0]!, p[1]!], [p[2]!, p[3]!]];
+  return p.slice(1).map((point, index): Segment => [p[index]!, point]);
+};
+const overhung = compileSceneDocument(structuredClone(fixture.ellipse), { measureLabelInkBounds: overhangingInk });
+assert.ok(overhung.ok && overhung.renderScene, "ellipse with overhanging escape ink still compiles");
+let escapes = 0;
+for (const id of ["V1", "V2"]) {
+  const label = overhung.renderScene.primitives.find((primitive) => primitive.id === `primitive_${id}_label`)!;
+  if (label.provenance?.usesLeader !== true) continue;
+  escapes += 1;
+  const box = label.provenance!.labelBounds as Box;
+  const ink = overhangingInk(label.text!, box.x + 2, box.y + 2, Number(label.provenance?.fontPx ?? 24))!;
+  const hit = overhung.renderScene.primitives
+    .filter((primitive) => primitive.entityId !== id && primitive.kind !== "label" && primitive.kind !== "point" && !primitive.provenance?.labelLeader)
+    .filter((primitive) => strokesOf(primitive).some((segment) => boxToSegment(ink, segment) === 0))
+    .map((primitive) => primitive.id);
+  assert.deepEqual(hit, [], `${id}: escape label ink clears every stroke`);
+}
+assert.ok(escapes >= 1, "the overhang case exercises an escape leader");
+
+// 5. A short triangle side next to a vertex is a rival line, not an angle
+// mark. P at a right-angle vertex with legs of 25 px; the hypotenuse AB runs
+// 17.7 px from P. With the other sides of P blocked, the letter must not sit
+// beyond AB without a leader. A real right-angle square in the same place is
+// still read as P's own mark.
+const triangleCase = (mark: boolean) => {
+  const P = { x: 600, y: 400 }; const A = { x: 625, y: 400 }; const B = { x: 600, y: 375 };
+  const primitives = [
+    { id: "pt_P", kind: "point", entityId: "P", points: [P] },
+    { id: "PA", kind: "line", entityId: "PA", points: [P, A] },
+    { id: "PB", kind: "line", entityId: "PB", points: [P, B] },
+    mark
+      ? { id: "RA", kind: "polyline", entityId: "RA", points: [{ x: 608, y: 400 }, { x: 608, y: 392 }, { x: 600, y: 392 }] }
+      : { id: "AB", kind: "line", entityId: "AB", points: [A, B] },
+  ] as RenderPrimitive[];
+  const block = (id: string, x: number, y: number, width: number, height: number) => ({ id, kind: "protected" as const, bounds: { x, y, width, height } });
+  const result = placeLabels(
+    [{ entityId: "P", anchor: P, text: "P", tetherPx: POINT_LABEL_TETHER_PX, allowLeader: false, viewBounds: { x: 0, y: 0, width: 1200, height: 700 } }],
+    [...obstaclesFromPrimitives(primitives), block("left", P.x - 60, P.y - 60, 60, 120), block("below", P.x, P.y, 60, 60)],
+    { fontHeightPx: 24, paddingPx: 2, minGapPx: 3, measureTextPx: measureTextWidth, measureTextInkBounds },
+  );
+  assert.deepEqual(result.issues, [], `triangle case (${mark ? "mark" : "side"}) places P`);
+  return { P, A, B, placement: result.placements[0]! };
+};
+{
+  const { P, A, B, placement } = triangleCase(false);
+  const box = placement.bounds;
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const acrossSide = boxToSegment(box, [A, B]) < boxToPoint(box, P) - 1 && crosses(P, centre, [A, B]);
+  assert.ok(placement.usesLeader === true || !acrossSide, `P does not sit beyond the hypotenuse without a leader: ${JSON.stringify(placement)}`);
+  if (placement.usesLeader) assert.ok(placement.leaderFrom && Math.hypot(placement.leaderFrom.x - P.x, placement.leaderFrom.y - P.y) <= 1, "P's leader starts on P");
+}
+assert.equal(triangleCase(true).placement.usesLeader ?? false, false, "a right-angle square at P is P's own mark, not a rival line");
+
+console.log(`verify-point-label-rival-lines: V1 and V2 leave the directrices by leaders; ${controls} control labels unmoved; mutation caught; escape ink measured; a short triangle side is a rival`);

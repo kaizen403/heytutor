@@ -527,11 +527,13 @@ function placeLabelsInternal(
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     const prepareOwner = (exhaustive = false): PreparedLabelOwner => {
       let deferredInk = false;
-      const candidateInkBounds = (text: string, bounds: LabelBounds, settings: LabelEngineOptions): LabelBounds => {
+      const candidateInkBounds = (text: string, bounds: LabelBounds, settings: LabelEngineOptions, tethered = true): LabelBounds => {
         // The final collision box contains the complete layout box. Ink can
         // add collisions or leave the view, but cannot cure either failure.
+        // Escape leaders sit beyond the tether by design, so for them the
+        // tether is no reason to skip measuring the ink.
         if (!exhaustive && (outsideOwnerView(bounds, owner) ||
-            beyondTether(bounds, owner.anchor, owner.tetherPx) ||
+            (tethered && beyondTether(bounds, owner.anchor, owner.tetherPx)) ||
             solverObstacles.some(obstacle => labelOverlapsObstacle(bounds, obstacle, minGapPx)))) {
           deferredInk = true;
           return bounds;
@@ -744,7 +746,7 @@ function placeLabelsInternal(
             .flatMap((distance) => [...leaderDirections, ...boxClearanceDirections(owner.text, distance, options, minGapPx)].flatMap((direction): LabelPlacementCandidate[] => {
               const center = { x: owner.anchor.x + direction.dx * distance, y: owner.anchor.y + direction.dy * distance };
               const bounds = centeredTextBounds(owner.text, center, options);
-              const collisionBounds = candidateInkBounds(owner.text, bounds, options);
+              const collisionBounds = candidateInkBounds(owner.text, bounds, options, false);
               const leaderTo = leaderEndpoint(owner.anchor, center, collisionBounds);
               if (!leaderTo) return [];
               const overlaps = solverObstacles
@@ -1766,20 +1768,29 @@ function pointForeignStrokes(owner: LabelOwner, obstacles: LabelObstacle[]): Arr
   const strokes = obstacles
     .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== undefined && obstacle.entityId !== owner.entityId && obstacle.segments?.length &&
       (obstacle.primitiveKind === "axes" || isOpenStroke(obstacle)))
-    .flatMap((obstacle) => obstacle.primitiveKind === "axes" ? obstacle.segments!.map((segment) => [segment]) : [obstacle.segments!]);
+    .flatMap((obstacle) => obstacle.primitiveKind === "axes"
+      ? obstacle.segments!.map((segment) => ({ segments: [segment], kind: obstacle.primitiveKind }))
+      : [{ segments: obstacle.segments!, kind: obstacle.primitiveKind }]);
   const near = (point: RenderPoint, segments: Array<[RenderPoint, RenderPoint]>) =>
     segments.some(([start, end]) => pointToSegmentDistance(point, start, end) <= POINT_HOST_PX);
-  const hosts = strokes.filter((segments) => near(owner.anchor, segments));
-  // A right-angle square or angle arc at the point runs from one host to
-  // another close around it. It marks the point's angle and names nothing.
-  const vertexMark = (segments: Array<[RenderPoint, RenderPoint]>) => {
+  const hosts = strokes.filter((stroke) => near(owner.anchor, stroke.segments)).map((stroke) => stroke.segments);
+  // A right-angle square at the point is a two piece corner path whose ends
+  // sit on two different hosts at one distance from the point. It marks the
+  // point's angle and names nothing. A drawn line, ray or vector is never a
+  // mark, however short: a triangle side close to its vertex is a rival.
+  const vertexMark = (stroke: { segments: Array<[RenderPoint, RenderPoint]>; kind: RenderPrimitive["kind"] | undefined }) => {
+    const segments = stroke.segments;
+    if (stroke.kind !== "polyline" || segments.length !== 2) return false;
     const start = segments[0]![0];
     const end = segments.at(-1)![1];
-    return segments.every(([a, b]) => Math.hypot(a.x - owner.anchor.x, a.y - owner.anchor.y) <= POINT_MARK_RADIUS_PX &&
-        Math.hypot(b.x - owner.anchor.x, b.y - owner.anchor.y) <= POINT_MARK_RADIUS_PX) &&
-      hosts.some((host) => near(start, host)) && hosts.some((host) => near(end, host));
+    const reach = (point: RenderPoint) => Math.hypot(point.x - owner.anchor.x, point.y - owner.anchor.y);
+    if (Math.abs(reach(start) - reach(end)) > Math.max(1.5, 0.15 * Math.max(reach(start), reach(end)))) return false;
+    const startHost = hosts.findIndex((host) => near(start, host));
+    const endHost = hosts.findIndex((host, index) => index !== startHost && near(end, host));
+    return segments.every(([a, b]) => reach(a) <= POINT_MARK_RADIUS_PX && reach(b) <= POINT_MARK_RADIUS_PX) &&
+      startHost >= 0 && endHost >= 0;
   };
-  const foreign = strokes.filter((segments) => !near(owner.anchor, segments) && !vertexMark(segments));
+  const foreign = strokes.filter((stroke) => !near(owner.anchor, stroke.segments) && !vertexMark(stroke)).map((stroke) => stroke.segments);
   return foreign.length ? foreign : null;
 }
 
