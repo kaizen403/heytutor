@@ -160,7 +160,7 @@ const KNOWN_ANGLES: Record<string, string> = {
 /** Elements that can carry a hydrogen directly (H is never on a halogen or noble gas). */
 const HYDRIDE_CENTRES = new Set(["Be", "B", "Al", "C", "Si", "Ge", "Sn", "N", "P", "As", "Sb", "O", "S", "Se", "Te"]);
 
-function compositionKey(parsed: ParsedFormula): string {
+export function compositionKey(parsed: ParsedFormula): string {
   const parts = [...parsed.atoms]
     .sort((a, b) => a.symbol.localeCompare(b.symbol))
     .map((atom) => `${atom.symbol}${atom.count > 1 ? atom.count : ""}`);
@@ -689,32 +689,42 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
-    const facts: Array<{ truth: boolean; property: string }> = [];
-    const moleculeKey = compositionKey(parseFormula(result.formula)!);
-    for (const described of shapeClaims(rawText, result)) {
-      if (!described.owners?.includes(moleculeKey)) continue;
-      const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
-        : [described.target === "electron" ? result.electronGeometry : result.shape];
-      const equal = sourceShapes.map(shape => shape === described.shape);
-      // A property that could refer to either different geometry stays undecided.
-      if (equal.some(Boolean) && !equal.every(Boolean)) continue;
-      facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
-    }
-    for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
-    for (const described of electronCountClaims(rawText, result)) {
-      if (!described.central) continue;
-      const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
-      facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
-    }
-    if (result.stericNumber === 5 && result.lonePairs > 0) {
-      for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
-    }
-    if (claim.expected === false && facts.length && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText))) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
-    const conflict = facts.find(fact => fact.truth !== (claim.expected !== false));
+    const checked = vseprClaimFacts(claim, result);
+    if (checked.scopeError) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
+    const conflict = checked.facts.find(fact => fact.truth !== (claim.expected !== false));
     if (conflict) return `VSEPR plan claim ${claim.id} contradicts the source-derived ${conflict.property}`;
   }
   return null;
+}
+
+/** The source facts one claim states about one computed species, each with its truth. */
+export function vseprClaimFacts(
+  claim: { claim: string; expected: boolean | string | number },
+  result: VseprResult,
+): { facts: Array<{ truth: boolean; property: string }>; scopeError: boolean } {
+  const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+  const facts: Array<{ truth: boolean; property: string }> = [];
+  const moleculeKey = compositionKey(parseFormula(result.formula)!);
+  for (const described of shapeClaims(rawText, result)) {
+    if (!described.owners?.includes(moleculeKey)) continue;
+    const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
+      : [described.target === "electron" ? result.electronGeometry : result.shape];
+    const equal = sourceShapes.map(shape => shape === described.shape);
+    // A property that could refer to either different geometry stays undecided.
+    if (equal.some(Boolean) && !equal.every(Boolean)) continue;
+    facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
+  }
+  for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
+  for (const described of electronCountClaims(rawText, result)) {
+    if (!described.central) continue;
+    const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
+    facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
+  }
+  if (result.stericNumber === 5 && result.lonePairs > 0) {
+    for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
+  }
+  const scopeError = claim.expected === false && facts.length > 0 && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText));
+  return { facts, scopeError };
 }
 
 /** A closed carbon bond line is one molecule, not a list of VSEPR fragments.
@@ -1028,7 +1038,7 @@ function panel(c: ChemScene, id: string, center: Vec2, width: number, height: nu
   return rectId;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean): DrawnSpecies | null {
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean, exampleCaption?: string): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1105,7 +1115,11 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     claimId = c.text(`${tag}_claim`, { x: origin.x, y: claimY }, claim, "angle is ideal, an inequality, or a quoted value");
     detailIds.push(claimId);
   }
-  const top = titleY + PANEL_END;
+  // A plan example says so above its formula: the student asked about the
+  // idea, not about this species.
+  const exampleY = titleY + CAPTION_STEP;
+  if (exampleCaption) frameIds.push(c.text(`${tag}_example`, { x: origin.x, y: exampleY }, exampleCaption, "example caption"));
+  const top = (exampleCaption ? exampleY : titleY) + PANEL_END;
   const bottom = claimY - PANEL_END;
   const halfWidth = Math.max(reachX + PANEL_SIDE, 1.45);
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
@@ -1162,20 +1176,21 @@ export interface VseprFigure {
   structures: VseprStructure[];
 }
 
-export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[], schematic: boolean): VseprFigure | null {
+export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[], schematic: boolean, options: { exampleCaption?: string } = {}): VseprFigure | null {
   void quantities;
   void schematic;
   const stem = chemStem(question);
-  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
+  const example = options.exampleCaption;
+  if (!example && !shapeIsTheAsk(stem) && fajanAsked(stem)) {
     const fajan = buildFajanScene(question);
     if (fajan) return { document: fajan, structures: [] };
   }
-  if (dipoleIsTheAsk(stem)) {
+  if (!example && dipoleIsTheAsk(stem)) {
     const dipole = buildDipoleScene(question, dipoleInputs(question));
     if (dipole) return { document: dipole, structures: [] };
   }
   const species = vseprSpecies(question);
-  if (species.length === 0) return null;
+  if (species.length === 0 || (example && species.length !== 1)) return null;
   const single = species.length === 1;
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
@@ -1188,7 +1203,7 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   const drawn: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
   species.forEach((result, index) => {
     const origin = { x: index * SPECIES_PITCH, y: 0 };
-    const item = drawSpecies(c, result, origin, `m${index + 1}`, withAngle);
+    const item = drawSpecies(c, result, origin, `m${index + 1}`, withAngle, example);
     if (item) drawn.push({ result, drawn: item });
   });
   if (drawn.length !== species.length) return null;

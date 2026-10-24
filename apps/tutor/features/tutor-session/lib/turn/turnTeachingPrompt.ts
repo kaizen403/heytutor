@@ -43,7 +43,7 @@ import {
   type LessonBudget,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
-import { isChemistryQuestion, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { isChemistryQuestion, readPlanExample, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
 import type { PausedLessonReason } from "./doubtTurn";
@@ -750,6 +750,15 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   };
 }
 
+/** Empty unless the plan's example is accepted for this chemistry question. */
+export function planExampleTeachingAddon(question: string, turnPlan: TurnPlanV3 | null): string {
+  const reading = readPlanExample(question, turnPlan);
+  if (reading.status !== "accepted") return "";
+  const { formula } = reading.source;
+  return `EXAMPLE TO TEACH WITH
+The question names no species. Teach the idea with ${formula} as the one worked example, and say early that ${formula} is an example you chose. Any figure on the board is ${formula}. Do not switch to another species as the main example; a second species only as a brief contrast.`;
+}
+
 export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTeachingPrompt {
   const { question, codeLesson, turnPlan } = input;
   const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeLesson && input.codeLessonFrames?.length);
@@ -847,6 +856,9 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     // the engine computed from the formula. Keyed off the question, never the
     // account subject, which never reaches this code.
     !codeLesson && isChemistryQuestion(question) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
+    // The figure of a topic ask with no species is the plan's own example;
+    // the lesson teaches with that same species so voice and board agree.
+    !codeLesson && isChemistryQuestion(question) ? planExampleTeachingAddon(question, turnPlan) : "",
     !codeLesson && input.fastMode ? FAST_MODE_TEACHING_ADDON : "",
     !codeLesson ? (FAMILIARITY_ADDONS[input.familiarity] ?? "") : "",
     !hasFigure ? noFigurePromptAddon(Boolean(codeLesson)) : "",
