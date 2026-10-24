@@ -27,12 +27,14 @@ type Outcome = "stall" | "reject" | "success" | "pending" | "blocked";
 type Job = { options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; outcome: Outcome };
 
 /** Controlled render/clock/media ports; real runner, ink planner, queue and save registry. */
-type PlaybackFixture = { narration: string; rate: number; durationMs: number; timings?: boolean };
+/** `timings: "duration"` is a voice with no alignment (Sarvam): only the WAV length is known. */
+type PlaybackFixture = { narration: string; rate: number; durationMs: number; timings?: boolean | "duration"; freezeAtMs?: number };
 function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw = false, playback?: PlaybackFixture) {
   let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0, abandonCalls = 0;
   let startup: UseTurnLifecycleParams["onSpeechStartupStatus"] extends ((status: infer S) => void) | undefined ? S : never = null;
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], errors: Array<{ message: string; question: string }> = [];
+  const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
   const telemetry: Array<{ name: string; [key: string]: unknown }> = [];
   let rejectOldDraw: ((error: Error) => void) | null = null;
   const original = new Map<string, PropertyDescriptor | undefined>();
@@ -65,6 +67,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   let rate = playback?.rate ?? 1.25, mediaPosition = 0, mediaLastAt = now, mediaPaused = false;
   const sampleMedia = () => {
     if (!mediaPaused) mediaPosition += (now - mediaLastAt) * rate;
+    if (playback?.freezeAtMs !== undefined) mediaPosition = Math.min(mediaPosition, playback.freezeAtMs);
     mediaLastAt = now;
     return mediaPosition;
   };
@@ -73,7 +76,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       if (playback) { mediaPosition = 0; mediaLastAt = now; }
       const outcome = outcomes[jobs.length] ?? "pending";
       jobs.push({ options, resolve, reject, outcome });
-      if (!playback || playback.timings !== false) options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings);
+      if (playback?.timings === "duration") options.onTimings?.({ totalDuration: durationSec, charStartTimes: [], charDurations: [] });
+      else if (!playback || playback.timings !== false) options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings);
       // A browser autoplay refusal: the provider holds the clip and reports it.
       if (outcome === "blocked") options.onPlaybackBlocked?.({ reason: "not-allowed", audioContextState: "running" });
       else options.onStart?.();
@@ -86,8 +90,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       } else if (outcome === "success") setTimer(() => { options.onEnd?.(); resolve(); }, 1_000);
       else if (outcome === "reject") setTimer(() => reject(new Error("offline primary failed after start")), 200);
     }),
-    getPlaybackPositionMs: () => playback && jobs[0]?.outcome === "success" ? sampleMedia() : position, getPlaybackRate: () => rate,
-    peekSegmentTimings: () => playback?.timings === false ? null : timings, prefetchSegment: noop, abandonSpeaking: () => { abandonCalls++; }, stop: noop,
+    getPlaybackPositionMs: () => playback && (jobs[0]?.outcome === "success" || playback.freezeAtMs !== undefined) ? sampleMedia() : position, getPlaybackRate: () => rate,
+    peekSegmentTimings: () => playback?.timings === false || playback?.timings === "duration" ? null : timings, prefetchSegment: noop, abandonSpeaking: () => { abandonCalls++; }, stop: noop,
     // The gesture plays the retained clip: start, clear the block, finish.
     unlockAudio: noop, resume: () => {
       const job = jobs.at(-1);
@@ -153,7 +157,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
     executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
       if (options.isCancelled?.()) return;
-      drawn.push(command.text ?? command.type); options.onInkStarted?.();
+      drawn.push(command.text ?? command.type); executed.push({ command, options }); options.onInkStarted?.();
       if (deferFirstDraw && drawn.length === 1) await new Promise<void>((_resolve, reject) => { rejectOldDraw = reject; });
     },
   };
@@ -165,7 +169,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const controlHooks = load(controlPath) as unknown as typeof import("../../features/tutor-session/hooks/turn/useTurnControl");
   const runner = runnerHooks.useSegmentRunner({ ...params, applyTurnPhase: noop } as unknown as Parameters<typeof runnerHooks.useSegmentRunner>[0]);
   const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
-  return { params, control, runner, handle, begin, jobs, drawn, errors, telemetry, registry, flush, advance,
+  return { params, control, runner, handle, begin, jobs, drawn, executed, errors, telemetry, registry, flush, advance,
     now: () => now, browserAttempts: () => browserAttempts,
     startup: () => startup, abandonCalls: () => abandonCalls,
     setRate: (next: number) => { sampleMedia(); rate = next; },
@@ -186,22 +190,103 @@ async function runnerFailure(position: number | null, outcome: Outcome) {
     const promise = h.runner.runSegment(segment, 0, [segment], 1).then(() => null, error => error as unknown);
     await h.advance(h.now() + 9_000);
     const result = await promise;
-    assert(result instanceof Error, "an onStart accepted primary failure must reach the actual caller, even with positive/zero/missing media clock");
+    assert.equal(h.browserAttempts(), 0, "no new recovery policy after primary speech started");
+    if (position && position > 0 && outcome === "stall") {
+      // Heard, then the local clip froze: the segment finishes instead of failing.
+      assert.equal(result, null, "a frozen clip the student already heard finishes the segment rather than failing it");
+      assert.deepEqual(h.drawn, ["F = ma"], "the segment's ink completes");
+      assert.equal(h.params.recordedSegmentsRef.current.length, 1, "the heard segment is recorded once");
+      const degraded = h.telemetry.find(event => event.name === "tts-segment-degraded");
+      assert(degraded, "the degraded speech is still reported");
+      assert.match(String(degraded.error), /playback stalled/);
+      assert(!h.telemetry.some(event => event.name === "tts-segment-failed"), "not a terminal speech failure");
+      const shown = h.handle.submittedRows().find(row => parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"));
+      assert(shown, "the completed row is saved with its ink");
+      assert.equal(shown.audioBytes, null, "no clip was generated, so none is invented");
+      console.log(`started speech ${outcome}/${String(position)}: heard then frozen, segment finishes`);
+      return;
+    }
+    assert(result instanceof Error, "an unheard stall or a provider failure after onStart must reach the actual caller");
     assert.match(result.message, outcome === "reject" ? /offline primary failed/ : /playback stalled/);
     assert.equal(h.params.recordedSegmentsRef.current.length, 0, "a failed speech beat never becomes a completed captured row");
-    assert.equal(h.browserAttempts(), 0, "no new recovery policy after primary speech started");
     if (position && position > 0) {
       assert.deepEqual(h.drawn, ["F = ma"], "the student already saw the accepted work");
       const shown = h.handle.submittedRows().find(row => parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"));
       assert(shown, "real preparedSave.interrupt preserves accepted shown work after the opening CLEAR epoch");
       assert.equal(shown.audioBytes, null, "interrupted work cannot invent complete audio");
     }
-    console.log(`started speech ${outcome}/${String(position)}: rejects, shown work retained`);
+    console.log(`started speech ${outcome}/${String(position)}: rejects`);
+  } finally { h.close(); }
+}
+
+/** A heard clip that freezes never counts toward abandoning the turn. */
+async function heardFailuresKeepTurn(outcomes: Outcome[]) {
+  const h = mount(120, outcomes);
+  try {
+    for (let index = 0; index < outcomes.length; index++) h.control.enqueueSegment(segment, 1);
+    await h.advance(h.now() + 35_000); await h.params.segmentChainRef.current;
+    assert.equal(h.params.cancelRef.current, false, "two heard frozen clips in a row cannot cancel the lesson");
+    assert.equal(h.errors.length, 0, "no retry warning for a lesson that is still teaching");
+    assert.equal(h.jobs.length, outcomes.length, "every later segment still runs");
+    assert.equal(h.drawn.length, outcomes.length, "every segment's ink completes");
+    assert.equal(h.params.recordedSegmentsRef.current.length, outcomes.length);
+    assert(!h.telemetry.some(event => event.name === "segment-failed"));
+    console.log(`started speech heard queue ${outcomes.join("/")}: turn continues, every segment completes`);
+  } finally { h.close(); }
+}
+
+/**
+ * v3 p4e1-t2: a fully local Sarvam WAV froze, paused, at 1.63 s of 8.7 s, then
+ * the next at 5.9 s. Sarvam sends no character timings, only the WAV length.
+ * The watch must arm on that length alone, well before the character timeout,
+ * and the turn must not be cancelled.
+ */
+async function frozenPausedNoAlignment() {
+  const text = "The relative velocity of the rain with respect to the man is the velocity of the rain minus the velocity of the man, and we draw it as a triangle of vectors before we compute anything at all.";
+  const durationMs = 8_700;
+  const h = mount(0, ["pending", "pending"], false, { narration: text, rate: 1, durationMs, timings: "duration", freezeAtMs: 1_600 });
+  const beat: TutorSegment = { narration: text, command: { type: "WRITE", text: "v_rm = v_r - v_m", params: [90, 142], charPosition: 0, narrationBefore: "" } };
+  try {
+    const helper = await import("../../features/tutor-session/lib/turn/ttsSegmentTimeout");
+    const characterTimeoutMs = helper.speakSegmentTimeoutMs(core.mathToSpeech(text), 1);
+    const durationWatchMs = Math.max(8_000, durationMs * 1.35 + 3_000);
+    assert(characterTimeoutMs > durationWatchMs + 10_000, "the fixture separates the two watchdogs");
+    const startedAt = h.now();
+    h.control.enqueueSegment(beat, 1); h.control.enqueueSegment(beat, 1);
+    await h.advance(startedAt + durationWatchMs + 1_000);
+    assert.equal(h.jobs.length, 2, "the duration watch released the frozen first segment before the character timeout");
+    await h.advance(startedAt + 2 * (durationWatchMs + 1_000)); await h.params.segmentChainRef.current;
+    const degraded = h.telemetry.filter(event => event.name === "tts-segment-degraded");
+    assert.equal(degraded.length, 2, "both frozen clips are reported");
+    for (const event of degraded) {
+      assert.match(String(event.error), /playback stalled/, "caught by the duration watch, not the character timeout");
+      assert.equal(event.heard_ms, 1_600);
+    }
+    assert.equal(h.params.cancelRef.current, false, "the turn is not cancelled");
+    assert.equal(h.errors.length, 0);
+    const ink = h.executed.filter(entry => entry.command.type !== "POINT");
+    assert.deepEqual(ink.map(entry => [entry.command.type, entry.command.text]),
+      [["WRITE", "v_rm = v_r - v_m"], ["WRITE", "v_rm = v_r - v_m"]], "both segments' ink completes");
+    // The long sentence leaves time after its WRITE, so main's explanation
+    // pointing walks the pen over that row while the voice talks (#211). It is
+    // transient motion, never ink, and it must end with the frozen clip: the
+    // tour reads the segment's own speech clock, which the release completes.
+    assert.deepEqual(h.executed.map(entry => entry.command.type),
+      ["WRITE", "POINT", "WRITE", "POINT"], "at most one pointing tour after each segment's ink");
+    for (const point of h.executed.filter(entry => entry.command.type === "POINT")) {
+      assert.equal(point.command.text, "last", "the tour points at the row just written");
+      assert.equal(point.options.explanationPointing, true, "only the transient explanation tour, never an authored point");
+      assert.equal(point.options.spokenClock?.isSpeechComplete?.(), true,
+        "the released frozen clip completes the tour's speech clock, so the pen cannot keep touring");
+    }
+    assert.equal(h.params.recordedSegmentsRef.current.length, 2, "both segments complete");
+    assert.equal(h.params.pendingSegmentCountRef.current, 0);
+    console.log("started speech frozen paused clip, no alignment: duration watch, segments complete, turn continues");
   } finally { h.close(); }
 }
 
 async function queueFailures(outcomes: Outcome[]) {
-  const h = mount(120, outcomes);
+  const h = mount(0, outcomes);
   try {
     for (let index = 0; index < outcomes.length; index++) h.control.enqueueSegment(segment, 1);
     await h.advance(h.now() + 35_000); await h.params.segmentChainRef.current;
@@ -238,7 +323,7 @@ async function staleFailure(cancelled: boolean) {
 }
 
 async function lateOldCompletion(outcome: "resolve" | "reject") {
-  const h = mount(120, ["pending", "stall", "stall"]);
+  const h = mount(0, ["pending", "stall", "stall"]);
   try {
     h.control.enqueueSegment({ narration, command: null }, 1); await h.flush();
     assert.equal(h.jobs.length, 1, "obsolete narration is still awaiting its transport");
@@ -277,7 +362,7 @@ async function cancelledRunnerRejection(stale: boolean) {
 }
 
 async function lateOldDrawFailure() {
-  const h = mount(120, ["success", "stall", "stall"], true);
+  const h = mount(0, ["success", "stall", "stall"], true);
   try {
     h.control.enqueueSegment(segment, 1); await h.advance(h.now() + 1_500);
     assert.deepEqual(h.drawn, ["F = ma"]);
@@ -298,7 +383,7 @@ async function lateOldDrawFailure() {
 }
 
 async function newGenerationStartsFresh() {
-  const h = mount(120, ["stall", "stall", "stall"]);
+  const h = mount(0, ["stall", "stall", "stall"]);
   try {
     h.control.enqueueSegment(segment, 1);
     await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
@@ -525,6 +610,8 @@ async function main() {
     { name: "started-reject", run: () => runnerFailure(120, "reject") },
     { name: "queue-repeated", run: () => queueFailures(["stall", "stall", "success"]) },
     { name: "queue-recovery", run: () => queueFailures(["stall", "success", "stall", "success"]) },
+    { name: "heard-stalls-keep-turn", run: () => heardFailuresKeepTurn(["stall", "stall", "success"]) },
+    { name: "frozen-paused-no-alignment", run: frozenPausedNoAlignment },
     { name: "cancel", run: () => staleFailure(true) },
     { name: "stale-successor", run: () => staleFailure(false) },
     { name: "late-old-resolve", run: () => lateOldCompletion("resolve") },

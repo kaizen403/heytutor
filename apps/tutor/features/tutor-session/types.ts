@@ -32,6 +32,17 @@ export interface BoardTextRect {
   workId?: string;
   /** Space is reserved, but the pen has not finished this row yet. */
   pendingInk?: boolean;
+  /** The size the row was written at, so a page turn can carry it unchanged. */
+  fontSize?: number;
+  /** `[EMPHASIZE]` drew its box: an answer the next page carries to its top. */
+  boxed?: boolean;
+  /**
+   * The rows one authored WRITE became when it wrapped share this id. A box
+   * frames the whole group, and a page turn carries it whole or not at all.
+   */
+  rowGroup?: string;
+  /** The WRITE tag's position and preceding words, which every wrapped piece copies. */
+  authoredKey?: string;
 }
 
 export interface BoardLayoutState {
