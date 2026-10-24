@@ -786,6 +786,49 @@ check(
   "a stale planner scalar must never pair with a committed scene: synthesis must decline or carry the source value",
 );
 
+// A force arrow is not a material link. A pulley figure draws each tension
+// arrow from its block to the axle; cutting one string must still miss the
+// connection, even though that block's arrow reaches the axle.
+{
+  const pulleyProblem = {
+    entities: [
+      { id: "b1", kind: "body", label: "m1", evidenceFactIds: [] },
+      { id: "b2", kind: "body", label: "m2", evidenceFactIds: [] },
+    ],
+    facts: [],
+    constraints: [{ id: "c12", kind: "connected", entityIds: ["b1", "b2"], evidenceFactIds: [] }],
+    representationIntents: [{ id: "fb", kind: "free_body", entityIds: ["b1", "b2"], evidenceFactIds: [] }],
+  } as unknown as ProblemIR;
+  const pulleySet = deriveVisualObligations(pulleyProblem);
+  const pulley = (strings: readonly ("left" | "right")[]): SceneDocument => ({
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "pulley connection fixture" },
+    source: {},
+    quantities: [],
+    entities: [
+      { id: "axle", kind: "point" }, { id: "m1c", kind: "point" }, { id: "m2c", kind: "point" },
+      { id: "left_block", kind: "rectangle", label: "m1" }, { id: "right_block", kind: "rectangle", label: "m2" },
+      ...strings.map((side) => ({ id: `${side}_string`, kind: "segment" as const, role: "string" })),
+      { id: "left_tension", kind: "vector", label: "T" }, { id: "right_tension", kind: "vector", label: "T" },
+    ],
+    constructions: [
+      pointAt("axle", 0, 2), pointAt("m1c", -1, 0), pointAt("m2c", 1, 0),
+      { id: "make_left_block", operator: "rectangle", inputs: { center: "m1c", width: 0.8, height: 0.6 }, outputs: ["left_block"] },
+      { id: "make_right_block", operator: "rectangle", inputs: { center: "m2c", width: 0.8, height: 0.6 }, outputs: ["right_block"] },
+      ...strings.map((side) => ({ id: `make_${side}_string`, operator: "segment", inputs: { start: side === "left" ? "m1c" : "m2c", end: "axle" }, outputs: [`${side}_string`] })),
+      { id: "make_left_tension", operator: "vector", inputs: { start: "m1c", end: "axle" }, outputs: ["left_tension"] },
+      { id: "make_right_tension", operator: "vector", inputs: { start: "m2c", end: "axle" }, outputs: ["right_tension"] },
+    ],
+    relations: [], annotations: [], assertions: [],
+    requiredEntityIds: ["left_block", "right_block"],
+    revealGroups: [{ id: "setup", entityIds: ["left_block", "right_block"], dependsOn: [], narrationCue: "reveal the blocks" }],
+    teachingTimeline: [],
+  }) as unknown as SceneDocument;
+  check(checkVisualObligations(pulleySet, pulley(["left", "right"])).satisfied, "a pulley with both strings satisfies its connection");
+  check(missIds(pulleySet, pulley(["left"])).has("connection:c12"), "a cut string misses the connection even when its tension arrow reaches the axle");
+  check(missIds(pulleySet, pulley([])).has("connection:c12"), "tension arrows alone never connect two blocks");
+}
+
 console.log(`verify-visual-obligations: ok (${checks} checks)`);
 console.log(`  fixtures=3 (network 11, free-body 7+1 unsupported, region 4) + empty-structure vacuity`);
 console.log(`  mutations=12 partial + 4 wrong-family + 1 compile-valid-but-incomplete + 6 parameter sweeps`);
