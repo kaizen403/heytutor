@@ -121,6 +121,11 @@ export type UseTurnLifecycleParams = {
   onComplete?: () => void;
   onError?: (error: { message: string; question: string; billing?: BillingFailure }) => void;
   onSpeechStartupStatus?: (status: SpeechStartupStatus | null) => void;
+  /**
+   * True while a sentence is taught without its voice (both voices failed),
+   * false once a later sentence speaks or the turn ends. Forces the caption.
+   */
+  onVoiceDegraded?: (degraded: boolean) => void;
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;
@@ -278,6 +283,7 @@ export type UseSegmentRunnerParams = Pick<
   | "drawChainRef"
   | "reserveTextCommandPlacements"
   | "onSpeechStartupStatus"
+  | "onVoiceDegraded"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };

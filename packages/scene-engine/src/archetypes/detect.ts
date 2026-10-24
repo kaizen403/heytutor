@@ -200,6 +200,12 @@ export interface DetectionHints {
   } | null;
   /** An archetype the planner named explicitly; wins when its required slots resolve. */
   plannerArchetype?: string | null;
+  /**
+   * Keep main's choice even for a law only lead. Only the planner request
+   * gate uses this, so the prompt and the decision to call the planner stay
+   * exactly as on main; the figure itself still declines downstream.
+   */
+  keepLawOnlyLead?: boolean;
 }
 
 export interface ArchetypeMatch {
@@ -1663,6 +1669,34 @@ function requiredSlotsPresent(id: ArchetypeId, bag: SlotBag): boolean {
 }
 
 /**
+ * True when the archetype main's scoring would pick (law and intent bonuses
+ * counted alone) has no cue in the stem. Such a stem was matched only through
+ * its plan's laws; refusing that match must not hand the turn to the next
+ * archetype or to a family, which drew a spring for an air bubble and a bare
+ * sphere for glass sphere stems. The whole deterministic figure declines; the
+ * planner path is unaffected.
+ */
+export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): boolean {
+  const stem = prepareStem(question);
+  if (!stem) return false;
+  const plan = collectPlanQuantities(hints?.turnPlan);
+  const bonus = structureBonus(hints);
+  if (bonus.size === 0) return false;
+  const scored = CUE_SETS
+    .map((set) => scoreCueSet(set, stem, bonus))
+    .filter((item): item is Scored => item !== null)
+    .filter((item) => item.score >= (item.set.minScore ?? 2))
+    .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
+  for (const [index, candidate] of scored.entries()) {
+    if (!requiredSlotsPresent(candidate.set.id, fillSlots(candidate.set, stem, plan))) continue;
+    const next = scored[index + 1] ?? null;
+    if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) return false;
+    return candidate.strongest === 0;
+  }
+  return false;
+}
+
+/**
  * Decide the archetype for a question. Returns null when no figure clears the
  * evidence bar — callers then fall back or teach text-only, which is the
  * honest outcome for a stem the catalog does not describe.
@@ -1699,6 +1733,9 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     }
   }
 
+  // A stem main matched only through its plan's laws matches nothing now,
+  // so the refusal never hands the turn to the next archetype.
+  if (!hints?.keepLawOnlyLead && lawOnlyArchetypeLead(question, hints)) return null;
   const scored = CUE_SETS
     .map((set) => scoreCueSet(set, stem, bonus))
     .filter((item): item is Scored => item !== null)
