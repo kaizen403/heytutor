@@ -250,3 +250,15 @@ export function deepEqual(first: unknown, second: unknown): boolean {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+/**
+ * A required figure keeps every started planner lane until one returns a
+ * drawable scene or its own deadline passes: a fast text only decline from
+ * one lane no longer aborts a peer that is still building the scene. Optional
+ * figures keep the 750 ms grace after the first valid answer, so an easy
+ * decline still costs no wait. Live and the lab both read this.
+ */
+export function waitForRequiredScenePeers(visualRequirement: VisualRequirement): boolean {
+  return visualRequirement === "required";
+}
+

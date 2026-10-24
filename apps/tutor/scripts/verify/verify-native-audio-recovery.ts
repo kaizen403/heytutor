@@ -331,17 +331,22 @@ async function main() {
       const hooks = mod.exports as unknown as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
       const drawn: string[] = [];
       const executed: Array<{ command: NonNullable<TutorSegment["command"]>; options: ExecuteCommandOptions }> = [];
+      const voiceDegradedFlags: boolean[] = [];
       const params = {
         sessionId: "offline-native-audio", ensureTTSClient: () => client, activeVerifiedDiagramRef: ref(null),
         cancelRef: ref(false), isPausedRef: ref(false), turnActiveRef: ref(true), turnGenerationRef: ref(1),
         recordedSegmentsRef: ref<import("../../features/tutor-session/hooks/turn/types").UseTurnLifecycleParams["recordedSegmentsRef"]["current"]>([]),
         narrationSinceEpochRef: ref(""), currentTraceIdRef: ref(null), narrationDensityRef: ref(0), drawChainRef: ref(Promise.resolve()),
         turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), turnTelemetryRef: ref({ mark: noop, span: () => ({ end: noop }) }),
-        applyTurnPhase: noop, setCurrentSegmentText: noop, cancellableDelay: (ms: number) => new Promise<void>(resolve => schedule(resolve, ms)),
+        applyTurnPhase: noop, setCurrentSegmentText: noop, onVoiceDegraded: (degraded: boolean) => { voiceDegradedFlags.push(degraded); }, cancellableDelay: (ms: number) => new Promise<void>(resolve => schedule(resolve, ms)),
         raceWithCancel: async <T,>(promise: Promise<T>) => promise,
         reserveTextCommandPlacements: async (command: NonNullable<TutorSegment["command"]>) => [command],
         executeCommandWithCancel: async (command: NonNullable<TutorSegment["command"]>, options: ExecuteCommandOptions) => {
-          if (options.isCancelled?.()) return; drawn.push(command.text ?? command.type); executed.push({ command, options }); options.onInkStarted?.();
+          if (options.isCancelled?.()) return;
+          executed.push({ command, options });
+          // Runtime explanation pointing (main #211) is motion over existing ink, not ink.
+          if (options.explanationPointing === true) { assert.equal(command.type, "POINT", "runtime explanation motion is only ever a POINT"); return; }
+          drawn.push(command.text ?? command.type); options.onInkStarted?.();
         },
       };
       const handle = registry.begin({ owner: params.cancelRef, generation: 1, boardId: params.sessionId, traceId: null, kind: "lesson", question: "Explain force.", preview: "Explain force.", speedMultiplier: client.getPlaybackRate(), continuesBoard: false });
@@ -377,8 +382,14 @@ async function main() {
         const row = params.recordedSegmentsRef.current[0]!;
         assert.deepEqual(row.audioBytes, wav, "the recorded row keeps the exact generated clip for replay");
         assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "its ink completed");
-        if (selected === "runner-intro") assert.deepEqual(drawn, ["F = ma"], "a verified figure intro has no pointing tour");
-        else {
+        // #275: the unheard rest of the sentence is taught silently, its words shown.
+        assert.equal(voiceDegradedFlags.at(-1), true, "the student is told the voice failed and sees the words");
+        if (selected === "runner-intro") {
+          assert.deepEqual(drawn, ["F = ma"], "a verified figure intro has no pointing tour");
+          assert.deepEqual(executed.map(({ command }) => command.type), ["WRITE"], "a verified figure intro has no pointing tour, not even a transient pointer");
+          // The figure transaction still decides whether it commits, so nothing is published before that.
+          assert.equal(rows.length, 0, "uncommitted figure intro cannot publish speculative bytes or ink");
+        } else {
         // Main's explanation pointing (#211) adds one transient pointer after
         // the write while speech remains; it is not ink and ends with the clip.
         assert.deepEqual(executed.filter(({ command }) => command.type !== "POINT").map(({ command }) => [command.type, command.text]), [["WRITE", "F = ma"]], "the heard segment's only ink is its WRITE");
@@ -388,6 +399,14 @@ async function main() {
         assert.equal(pointer.command.text, "last", "the pointer traces the last written row");
         assert.equal(pointerOptions.explanationPointing, true, "the pointer is main's explanation pointing");
         assert.equal(pointerOptions.spokenClock?.isSpeechComplete?.(), true, "the pointer's speech clock is complete once the heard segment finishes");
+        // The saved row keeps the complete clip, as for any silently taught beat.
+        assert.equal(rows.length, 1, "one claimed narration row retained");
+        const saved = rows[0]!;
+        assert.deepEqual(saved.audioBytes, wav, "retained content is byte exact");
+        assert.equal(saved.durationMs, 4_240, "retained clip keeps natural duration independently of speed");
+        assert(saved.timings && saved.timings.totalDuration === durationSec, "alignment survives failure retention");
+        assert(parseStoredSegmentCommands(saved.command).some(command => command.text === "F = ma"), "the sentence's work is drawn and saved with its retained clip");
+        assert.deepEqual(drawn, ["F = ma"], "the ink reached the board once");
         }
       } else {
         assert.equal(rows.length, 1, "one claimed narration row retained");
@@ -401,12 +420,15 @@ async function main() {
           assert.equal(params.recordedSegmentsRef.current.length, 1);
           assert.equal(NativeAudio.instances.length, 1);
         } else {
-          assert(outcome instanceof Error, "unrecovered native output remains a failed spoken beat");
-          assert.equal(params.recordedSegmentsRef.current.length, 0, "retained bytes never claim speech success");
-          assert.equal(NativeAudio.instances.length, selected === "runner-error" ? 1 : 2, "terminal errors fail; only stalled clocks get one retry");
+          // Unrecovered native output is a voice failure, not a dead board:
+          // the beat is taught silently and saved with its complete clip.
+          assert.equal(outcome, null, "unrecovered native output is taught silently, never a failed beat the queue counts");
+          assert.equal(params.recordedSegmentsRef.current.length, 1, "the silently taught beat is recorded");
+          assert.equal(NativeAudio.instances.length, selected === "runner-error" ? 1 : 2, "terminal errors stop the voice; only stalled clocks get one retry");
         }
-        if (["runner-zero", "runner-error"].includes(selected)) { assert.equal(row.command, null, "unheard/unshown output cannot invent ink"); assert.equal(drawn.length, 0); }
-        else assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "already shown work survives with its retained clip");
+        // Silent teaching draws the sentence's ink on the estimated schedule, heard or not.
+        assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "the sentence's work is drawn and saved with its retained clip");
+        assert.deepEqual(drawn, ["F = ma"], "the ink reached the board once");
       }
       console.log(`native audio ${selected}: GREEN, no providers`);
       return;

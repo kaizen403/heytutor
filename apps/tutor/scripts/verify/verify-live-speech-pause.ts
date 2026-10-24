@@ -10,7 +10,7 @@ import {
   speechPlaybackOverdue,
   waitForSpeechStartup,
 } from "../../features/tutor-session/lib/turn/speechStartup";
-import { shouldFinishSegmentAfterHeardSpeechFailure } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
+import { shouldFinishSegmentAfterHeardSpeechFailure, voiceFailureDisposition } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
 
 /** Exercise the runner's actual clock and browser onStart callback without mounting React. */
 function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
@@ -91,8 +91,13 @@ function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
   assert.equal(liveAudioPositionMs(), 180, "draw clock must follow restarted speech, not the old 1.6s high water");
 }
 
-/** Run the live consumer's failure branch, including a failure after onStart. */
-function verifyTerminalSpeechFailureReachesQueue(runner: string) {
+/**
+ * Run the live consumer's failure branch, including a failure after onStart.
+ * A voice failure is taught silently (the queue never counts it); a failed
+ * draw and a failed provider retry still reach the queue; a cancelled or
+ * superseded turn stays quiet.
+ */
+async function verifyTerminalSpeechFailureDisposition(runner: string) {
   const source = ts.createSourceFile("useSegmentRunner.ts", runner, ts.ScriptTarget.Latest, true);
   let failureBody: ts.Block | undefined;
   const visit = (node: ts.Node) => {
@@ -103,14 +108,20 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
   };
   visit(source);
   assert(failureBody, "execute the actual live speech consumer catch, not a copied policy");
-  const compiled = ts.transpileModule(`function fail(error: Error, state: { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; heardMs?: number }, observe: (value: unknown) => void) {
-    let speechAborted = false, terminalSpeechFailure = false;
+  type State = { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; drawFailed?: boolean; codeBeat?: boolean; heardMs?: number };
+  type Observed = { speechAborted: boolean; terminalSpeechFailure: boolean; voiceDegraded: boolean; silent: number; stopped: number; abandoned: number };
+  const compiled = ts.transpileModule(`async function fail(error: Error, state: State, observe: (value: unknown) => void, voiceFailureDisposition: (input: unknown) => string, shouldFinishSegmentAfterHeardSpeechFailure: (input: unknown) => boolean) {
+    let speechAborted = false, terminalSpeechFailure = false, voiceDegraded = false;
     let heardPositionMs = state.heardMs ?? 0;
     const sampleHeardPosition = () => {};
-    let stopped = 0, abandoned = 0;
+    let ownsPrimary = true;
+    let stopped = 0, abandoned = 0, silent = 0;
     const isCancelled = () => state.cancelled;
+    const drawFailed = state.drawFailed === true;
+    const codeBeatTargets = state.codeBeat ? [{ blockId: "b1", intendedChars: 12 }] : [];
     const browserFallbackOwnerRef = { current: state.ownsFallback === false ? "successor" : "owner" }, segmentFallbackOwner = "owner";
     const stopFallbackSpeech = () => { stopped++; };
+    const teachSentenceSilently = async () => { silent++; };
     const tutorDebug = () => {}, tel = { mark() {} }, index = 0, timedOut = false;
     const tts = { abandonSpeaking: () => { abandoned++; } };
     const providerRecoveryAttempted = state.recovery;
@@ -118,35 +129,37 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
     try ${failureBody.getText(source)} finally {
       // Observe the actual consumer's state and media cleanup even when it
       // propagates the original error to the queue.
-      observe?.({ speechAborted, terminalSpeechFailure, stopped, abandoned });
+      observe?.({ speechAborted, terminalSpeechFailure, voiceDegraded, silent, stopped, abandoned });
     }
-    return { speechAborted, terminalSpeechFailure, stopped, abandoned };
+    return { speechAborted, terminalSpeechFailure, voiceDegraded, silent, stopped, abandoned };
   }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const fail = new Function("shouldFinishSegmentAfterHeardSpeechFailure", `${compiled}\nreturn fail;`)(shouldFinishSegmentAfterHeardSpeechFailure) as (error: Error, state: {
-    cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean; heardMs?: number;
-  }, observe?: (value: { speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number }) => void) => {
-    speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number;
-  };
+  const failWith = new Function(`${compiled}\nreturn fail;`)() as (error: Error, state: State,
+    observe: ((value: Observed) => void) | undefined, disposition: typeof voiceFailureDisposition,
+    finishHeard: typeof shouldFinishSegmentAfterHeardSpeechFailure) => Promise<Observed>;
+  const fail = (error: Error, state: State, observe?: (value: Observed) => void) =>
+    failWith(error, state, observe, voiceFailureDisposition, shouldFinishSegmentAfterHeardSpeechFailure);
   const error = new Error("partial playback stalled");
   for (const started of [false, true]) {
     for (const browser of [false, true]) {
       for (const ownsFallback of [true, false]) {
+        const taught = await fail(error, { cancelled: false, started, browser, recovery: false, ownsFallback });
+        assert.deepEqual(taught, { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+          "a voice failure, before or after audio started, is taught silently instead of reaching the queue");
         let observed: unknown;
-        assert.throws(() => fail(error, { cancelled: false, started, browser, recovery: false, ownsFallback }, value => { observed = value; }),
-          (actual) => actual === error,
-          "provider and browser failures must reach the queue even after audio started");
-        assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
-          "a terminal speech failure cleans its own fallback without stopping a replacement browser voice");
+        await assert.rejects(fail(error, { cancelled: false, started, browser, recovery: false, ownsFallback, drawFailed: true }, value => { observed = value; }),
+          (actual) => actual === error, "a voice failure beside a failed draw still reaches the queue");
+        await assert.rejects(fail(error, { cancelled: false, started, browser, recovery: false, ownsFallback, codeBeat: true }),
+          (actual) => actual === error, "an owed code beat keeps its Stop and Continue recovery");
+        assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: false, silent: 0, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+          "a failed beat cleans its own fallback without stopping a replacement browser voice");
       }
     }
   }
   for (const started of [false, true]) {
     for (const browser of [false, true]) {
       for (const ownsFallback of [true, false]) {
-        let cancelled: unknown;
-        assert.doesNotThrow(() => { cancelled = fail(error, { cancelled: true, started, browser, recovery: false, ownsFallback }); },
-          "cancelled/superseded speech failures do not reach the queue");
-        assert.deepEqual(cancelled, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 0 },
+        const cancelled = await fail(error, { cancelled: true, started, browser, recovery: false, ownsFallback });
+        assert.deepEqual(cancelled, { speechAborted: true, terminalSpeechFailure: false, voiceDegraded: false, silent: 0, stopped: ownsFallback ? 1 : 0, abandoned: 0 },
           "a cancelled/superseded turn stays quiet and never stops a replacement browser voice");
       }
     }
@@ -157,27 +170,42 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
   for (const ownsFallback of [true, false]) {
     let observed: unknown;
     const frozen = new Error("Native audio playback clock did not advance");
-    assert.doesNotThrow(() => fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }, value => { observed = value; }),
+    await assert.doesNotReject(fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }, value => { observed = value; }),
       "a heard provider clip that freezes finishes its segment");
-    assert.deepEqual(observed, { speechAborted: false, terminalSpeechFailure: false, stopped: 0, abandoned: 1 },
+    // #275: the unheard rest of the sentence is taught silently (its words
+    // shown), still without a speech abort, so the ink keeps drawing.
+    assert.deepEqual(observed, { speechAborted: false, terminalSpeechFailure: false, voiceDegraded: true, silent: 1, stopped: 0, abandoned: 1 },
       "the rest of the frozen clip is abandoned, the ink is not");
-    assert.throws(() => fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630 }),
-      (actual) => actual === frozen, "browser recovery speech is not a heard provider clip");
+    // A local playback failure the student never heard keeps #275's silent teaching.
+    assert.deepEqual(await fail(frozen, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 0 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "an unheard frozen clip is taught silently, not finished as heard");
+    // Browser recovery speech is not a heard provider clip: it takes #275's
+    // disposition (taught silently), never the heard finish.
+    assert.deepEqual(await fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "browser recovery speech is not a heard provider clip");
+    await assert.rejects(fail(frozen, { cancelled: false, started: true, browser: true, recovery: false, ownsFallback, heardMs: 1_630, drawFailed: true }),
+      (actual) => actual === frozen, "browser recovery speech beside a failed draw keeps its terminal failure");
     const refused = new Error("tts skipped (tts_budget)");
-    assert.throws(() => fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }),
+    await assert.rejects(fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630, codeBeat: true }),
       (actual) => actual === refused, "a provider refusal keeps its terminal path even after the voice was heard");
+    assert.deepEqual(await fail(refused, { cancelled: false, started: true, browser: false, recovery: false, ownsFallback, heardMs: 1_630 }),
+      { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: true, silent: 1, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "a provider refusal after the voice was heard is not the heard finish: it takes the silent path with a speech abort");
+    await assert.rejects(fail(frozen, { cancelled: false, started: true, browser: false, recovery: true, ownsFallback, heardMs: 1_630 }),
+      (actual) => actual instanceof Error && actual.message === "Provider voice recovery failed" && actual.cause === frozen,
+      "a heard clip on a failed provider retry keeps its terminal failure");
   }
   for (const ownsFallback of [true, false]) {
     let observed: unknown;
-    assert.throws(() => fail(error, { cancelled: false, started: true, browser: false, recovery: true, ownsFallback }, value => { observed = value; }),
+    await assert.rejects(fail(error, { cancelled: false, started: true, browser: false, recovery: true, ownsFallback }, value => { observed = value; }),
       (actual) => actual instanceof Error && actual.message === "Provider voice recovery failed" && actual.cause === error,
       "failed recovery is not tolerated as an intro startup miss");
-    assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+    assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, voiceDegraded: false, silent: 0, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
       "failed recovery retains terminal state and cleans only its owned fallback");
-    let cancelledRecovery: unknown;
-    assert.doesNotThrow(() => { cancelledRecovery = fail(error, { cancelled: true, started: true, browser: false, recovery: true, ownsFallback }); },
-      "cancelled recovery does not report a new terminal error");
-    assert.deepEqual(cancelledRecovery, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 0 },
+    const cancelledRecovery = await fail(error, { cancelled: true, started: true, browser: false, recovery: true, ownsFallback });
+    assert.deepEqual(cancelledRecovery, { speechAborted: true, terminalSpeechFailure: false, voiceDegraded: false, silent: 0, stopped: ownsFallback ? 1 : 0, abandoned: 0 },
       "cancelled recovery neither throws a terminal failure nor stops successor speech");
   }
 }
@@ -323,8 +351,8 @@ async function main() {
   assert.match(runner, /audioStartedAtMs = performance\.now\(\);\s*audioStartedAtActiveMs = clock\.elapsedMs\(\);/, "browser speech restarting after pause must reset its media clock");
   assert.match(runner, /playbackRate: segmentPlaybackRate\(\)/);
   assert.match(runner, /getPlaybackRate: segmentPlaybackRate/g);
-  verifyTerminalSpeechFailureReachesQueue(runner);
-  assert.match(runner, /if \(providerRecoveryAttempted && !isCancelled\(\)\)[\s\S]*?throw new Error\("Provider voice recovery failed"/, "failed provider recovery must not be swallowed as a tolerable intro startup miss");
+  await verifyTerminalSpeechFailureDisposition(runner);
+  assert.match(runner, /if \(disposition === "fail"\) \{\s*if \(providerRecoveryAttempted\) \{[\s\S]*?throw new Error\("Provider voice recovery failed"/, "failed provider recovery must not be swallowed as a tolerable intro startup miss");
 
   assert.match(control, /pauseFallbackSpeech\(\)/);
   assert.match(control, /resumeFallbackSpeech\(\)/);

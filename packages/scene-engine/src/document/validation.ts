@@ -189,6 +189,9 @@ export function isSupportedSceneOperator(
 }
 
 const SAMPLED_CURVE_OPERATORS = new Set(["function_curve", "parametric_curve", "polar_curve"]);
+/** Analytic curves whose tangent and normal lines tangent_line/normal_line also derive. */
+const ANALYTIC_TANGENT_CURVE_OPERATORS = new Set(["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process",
+  "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"]);
 /**
  * Open polylines that may be read as a graph y = f(x) when their vertices
  * strictly increase in x: a hand-placed piecewise linear graph or a
@@ -4385,20 +4388,29 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     const paraxialConstruction = (producer?.operator === "segment" || producer?.operator === "ray")
       && isRecord(producer.inputs)
       && producer.inputs.approximation === "paraxial";
+    // A tangent to a circle is derived by circle_tangent_at: its circle input
+    // must be a constructed circle and the compiler places the line through a
+    // point proven on it, perpendicular to the radius. tangent_line stays the
+    // derivation for a function, parametric or polar curve.
     const derivedOperatorAccepted = paraxialConstruction
       || (requiredOperator === "reflect_direction"
         ? actualOperator === "reflect_direction" || actualOperator === "reflect_at"
         : requiredOperator === "refract_direction"
           ? actualOperator === "refract_direction" || actualOperator === "refract_at"
-          : actualOperator === requiredOperator);
+          : requiredOperator === "tangent_line"
+            ? actualOperator === "tangent_line" || actualOperator === "circle_tangent_at"
+            : actualOperator === requiredOperator);
     if (requiredOperator && actualOperator && !derivedOperatorAccepted) {
+      const tangentFit = requiredOperator === "tangent_line" ? tangentOperatorForCurveKind(document, entity) : null;
       issues.push({
         code: "derived_role_operator_mismatch",
-        message: `${entity.role} must be derived with ${requiredOperator}, not guessed with ${actualOperator}`,
+        message: tangentFit
+          ? `${entity.role} must be derived with ${tangentFit.advice}, not guessed with ${actualOperator}`
+          : `${entity.role} must be derived with ${requiredOperator}, not guessed with ${actualOperator}`,
         severity: "fatal",
         path: `entities[${index}].role`,
         entityIds: [entity.id],
-        expected: requiredOperator,
+        expected: tangentFit?.expected ?? requiredOperator,
         actual: actualOperator,
       });
     }
@@ -5263,9 +5275,9 @@ function validateCalculusConstruction(
   }
 
   const producerFor = (value: unknown) => typeof value === "string" ? constructionByOutput.get(value) : undefined;
-  const addBadReference = (key: string, expected: string, value: unknown) => issues.push({
+  const addBadReference = (key: string, expected: string, value: unknown, hint = "") => issues.push({
     code: `invalid_${operator}_curve_reference`,
-    message: `${operator} ${key} must reference ${expected}`,
+    message: `${operator} ${key} must reference ${expected}${hint}`,
     severity: "fatal" as const,
     path: `constructions[${index}].inputs.${key}`,
     entityIds: typeof value === "string" ? [value] : undefined,
@@ -5275,12 +5287,17 @@ function validateCalculusConstruction(
   if (operator === "tangent_line" || operator === "normal_line") {
     const curveId = inputs.curve ?? inputs.target;
     const producer = producerFor(curveId);
-    if (producer && ["harmonic_wave", "wave_superposition", "polytropic_process", "isochoric_process", "constant_acceleration_trajectory", "hydrostatic_profile", "harmonic_motion", "flux_process", "elastic_profile"].includes(producer.operator)) {
+    if (producer && ANALYTIC_TANGENT_CURVE_OPERATORS.has(producer.operator)) {
       validateCurveAnalyticLineConstruction(construction, index, document, constructionByOutput, issues);
       return;
     }
     if (!producer || !SAMPLED_CURVE_OPERATORS.has(producer.operator)) {
-      addBadReference("curve", "a function_curve, parametric_curve, or polar_curve", curveId);
+      addBadReference(
+        "curve",
+        "a function_curve, parametric_curve, or polar_curve",
+        curveId,
+        operator === "tangent_line" ? "; for a tangent to a circle use circle_tangent_at with the circle, a point on it and a span" : "",
+      );
       return;
     }
     const domain = sampledCurveDomain(producer, document);
@@ -7001,6 +7018,31 @@ function isGenericHelperPointRole(role: string): boolean {
 function isCompactDiagramLabel(text: string): boolean {
   const normalized = text.trim().replace(/\s+/g, " ");
   return normalized.length > 0 && normalized.length <= 16;
+}
+
+/**
+ * The operator that derives a tangent depends on the curve it touches: a
+ * circle takes circle_tangent_at, a function, parametric or polar curve takes
+ * tangent_line. The guessed path names no curve, so the curve kind is read
+ * from the entity's own words first, then from the curves the document builds.
+ */
+function tangentOperatorForCurveKind(
+  document: SceneDocument,
+  entity: SceneDocument["entities"][number],
+): { expected: string; advice: string } {
+  const circleAdvice = "circle_tangent_at (tangent to a circle)";
+  const curveAdvice = "tangent_line (tangent to a function_curve, parametric_curve, polar_curve, or another analytic curve it supports)";
+  const words = `${entity.id} ${entity.role} ${entity.label ?? ""}`.toLowerCase().replace(/[_-]+/g, " ");
+  const namesCircle = /\b(?:circle|circular|circumference|radius|radii|chord)\b/.test(words);
+  const namesCurve = /\b(?:curve|function|graph|parametric|polar)\b/.test(words);
+  const hasCircle = document.entities.some((candidate) => candidate.kind === "circle")
+    || document.constructions.some((construction) => construction.operator === "circle" || construction.operator === "circle_from_three_points");
+  const hasCurve = document.constructions.some((construction) => SAMPLED_CURVE_OPERATORS.has(construction.operator)
+    || ANALYTIC_TANGENT_CURVE_OPERATORS.has(construction.operator));
+  const circle = namesCircle !== namesCurve ? namesCircle : hasCircle !== hasCurve ? hasCircle : null;
+  if (circle === true) return { expected: "circle_tangent_at", advice: circleAdvice };
+  if (circle === false) return { expected: "tangent_line", advice: curveAdvice };
+  return { expected: "tangent_line", advice: `${circleAdvice} or ${curveAdvice}` };
 }
 
 function requiredOperatorForDerivedRole(entity: SceneDocument["entities"][number]): string | null {
