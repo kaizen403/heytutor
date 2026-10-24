@@ -250,6 +250,23 @@ async function main(): Promise<void> {
     assert.equal(selected.representation, null, "the neutral molecule must not certify an angle when the stem writes a charge");
     assert.match(selected.reason, /vsepr_plan_fact_unverified/);
   });
+  // A given that could be an angle is never skipped as unrelated, however its
+  // unit is spelled or when only its source text says degrees: on a charged
+  // stem it would otherwise escape every check and admit the neutral figure.
+  for (const [question, value, unit, sourceText] of [
+    ["Draw the shape of NO2 plus and label its bond angle.", 180, " degree ", "180 degrees"],
+    ["Draw the shape of NO2 plus and label its bond angle.", 180, "Degrees", "180 degrees"],
+    ["Draw the shape of NO2 plus and label its bond angle.", 180, "deg ", "180 deg"],
+    ["Draw the shape of NO2 plus and label its bond angle.", 180, " ° ", "180°"],
+    ["Draw the shape of NO2 plus and label its bond angle.", 180, "", "180 degrees"],
+    ["Draw the shape of NO2 minus with its bond angle of 134 degrees.", 134, " degree ", "134 degrees"],
+    ["Draw the shape of SO3 2- with its bond angle of 120 degrees.", 120, "DEGREE", "120 degrees"],
+  ] as const) await check(`charged-stem-angle-like-given-refused/${JSON.stringify(unit)}/${question}`, () => {
+    const plan: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value, unit, sourceText, provenance: "given" }] };
+    const selected = selectProductionScene({ question, turnPlan: plan, problemIR: null });
+    assert.equal(selected.representation, null, "an angle-like given on a charged stem is checked and refused");
+    assert.match(selected.reason, /vsepr_plan_fact_unverified/);
+  });
   // Positive controls beside them: the same unnamed angle on a neutral stem
   // still draws the formula angle, given or derived, and still checks value.
   for (const [question, value, kind, label] of [

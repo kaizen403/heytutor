@@ -140,6 +140,15 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
   return expected !== null && equalScalar(quantity.value, expected);
 }
 
+/** A given that could carry a VSEPR role by its unit, however the unit is
+ * padded or cased, or whose source text writes an angle in degrees. Such a
+ * given is never skipped as unrelated: it is checked and, unproved, refused. */
+const ROLE_UNIT = /^(?:°|º|˚|deg\.?|degrees?|electrons?|pairs?|domains?)$/i;
+const DEGREE_TEXT = /\d\s*(?:°|º|˚)|\bdeg(?:rees?)?\b/i;
+function roleLikeGiven(quantity: TurnPlanQuantityV3): boolean {
+  return ROLE_UNIT.test((quantity.unit ?? "").trim()) || DEGREE_TEXT.test(quantity.sourceText ?? "");
+}
+
 function planIssues(plan: TurnPlanV3, species: readonly VseprResult[], question: string): SceneIssue[] {
   const issues: SceneIssue[] = [];
   // Unnamed role and species inference rests on the parsed species being the
@@ -152,7 +161,7 @@ function planIssues(plan: TurnPlanV3, species: readonly VseprResult[], question:
       // numeric claims fail closed: they could be stale chemistry narration.
       const namesRole = ROLES.some(([, expression]) => expression.test(declarationText(quantity.symbol))
         || expression.test(declarationText(quantity.sourceText ?? "")));
-      if (!role && !namesRole && kind === "givens" && !/^(?:°|deg|degrees?|electrons?|pairs?|domains?)$/i.test(quantity.unit ?? "")) return;
+      if (!role && !namesRole && kind === "givens" && !roleLikeGiven(quantity)) return;
       if (role && quantityMatches(quantity, role, species, inferUnnamed)) return;
       issues.push({ code: "vsepr_plan_fact_unverified", severity: "fatal", path: `turnPlan.${kind}[${index}]`,
         message: "VSEPR plan scalar lacks an unambiguous, matching species-and-role source fact" });
