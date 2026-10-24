@@ -35,7 +35,7 @@ const GAP_WORDS = new Set([
   "sp", "sp2", "sp3", "sp3d", "sp3d2", "sp^2", "sp^3", "vsepr",
 ]);
 
-const SHAPE_WORD = "(?:bent|linear|angular|v[- ]shaped|non[- ]?linear|pyramidal|trigonal (?:planar|pyramidal)|tetrahedral|planar|octahedral|see[- ]?saw|t[- ]shaped|square (?:planar|pyramidal)|sp\\^?\\d(?:d\\^?\\d?)?(?: hybridi[sz]ed)?)";
+const SHAPE_WORD = "(?:bent|linear|angular|v[- ]shaped|non[- ]?linear|pyramidal|trigonal (?:planar|pyramidal|bipyramidal)|pentagonal bipyramidal|tetrahedral|planar|octahedral|see[- ]?saw|t[- ]shaped|square (?:planar|pyramidal)|sp\\^?\\d(?:d\\^?\\d?)?(?: hybridi[sz]ed)?)";
 
 /** After a governed name: the clause ends or continues with a list, a verb or a method, never a noun the name modifies. */
 const CLOSED_AFTER = /^\s*(?:$|[,.;:?!]|(?:molecules?|ions?|species|and|or|is|are|has|have|vs\.?|versus|compared|than|using|by|according)\b)/;

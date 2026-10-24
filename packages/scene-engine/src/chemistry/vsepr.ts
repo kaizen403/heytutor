@@ -33,6 +33,7 @@ import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } fr
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
 import { framedNamedSpecies } from "./vseprNamedSpecies";
+import { namedSpeciesMentions } from "./namedSpecies";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { VseprBondInkPlan } from "./representation/bondInk";
 
@@ -463,16 +464,27 @@ type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; 
 
 interface ShapeOwnerMention { start: number; end: number; key: string }
 
-/** Keep formula case and charge: a sibling molecule cannot describe this one. */
+/**
+ * Keep formula case and charge: a sibling molecule cannot describe this one.
+ * A chemical name owns its claims exactly as its formula would, so "carbon
+ * dioxide is linear, whereas water is bent" binds linear to CO2 and "like CO2,
+ * water is linear" binds linear to water.
+ */
 function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
   let from = 0;
-  return formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
+  const formulas = formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
     const start = clause.indexOf(token, from);
     const parsed = parseFormula(token);
     if (start < 0 || !parsed) return [];
     from = start + token.length;
     return [{ start, end: from, key: compositionKey(parsed) }];
   });
+  const names = namedSpeciesMentions(clause).flatMap(name => {
+    const parsed = parseFormula(name.formula);
+    if (!parsed || formulas.some(formula => formula.start < name.end && name.start < formula.end)) return [];
+    return [{ start: name.start, end: name.end, key: compositionKey(parsed) }];
+  });
+  return [...formulas, ...names].sort((left, right) => left.start - right.start);
 }
 
 /** A postposed property owner or a local subject owns this fact, not its neighbour. */
@@ -510,10 +522,10 @@ function localMoleculeOwners(
     }
     return owners;
   }
-  if (before.length) {
-    const keys = [...new Set(before.map(mention => mention.key))];
-    return keys.length === 1 ? keys : null;
-  }
+  // With no local subject, every earlier molecule may own the fact ("H2O,
+  // unlike CO2, is linear"). Each candidate is held to it, so an ambiguous
+  // owner can refuse a true claim but never admit a wrong one.
+  if (before.length) return [...new Set(before.map(mention => mention.key))];
   return inherited;
 }
 
@@ -574,10 +586,8 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
       .sort((left, right) => left.start - right.start);
-    if (!shapes.length && mentions.length) {
-      const owners = [...new Set(mentions.map(mention => mention.key))];
-      inheritedOwners = owners.length === 1 ? owners : null;
-    }
+    // A later pronoun claim ("It is linear.") may describe any of them.
+    if (!shapes.length && mentions.length) inheritedOwners = [...new Set(mentions.map(mention => mention.key))];
     const roles: ShapeRole[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
