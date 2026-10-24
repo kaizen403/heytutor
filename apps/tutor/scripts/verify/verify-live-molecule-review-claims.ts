@@ -232,8 +232,25 @@ for (const question of [
   assert(labels.includes("SF_4") && labels.includes("H_2O"));
 });
 
+// Since #258 (548fa9521, certify native VSEPR source labels) the engine
+// letters SF4's equatorial angle with the true bound <120° (measured about
+// 102°), computed from the formula, so "label its bond angle" is served
+// honestly instead of refused. It must stay a bound: no exact SF4 angle.
+test("bound-angle/Show the shape of SF4 and label its bond angle.", () => {
+  const question = "Show the shape of SF4 and label its bond angle.";
+  const selected = selectProductionScene({ question, turnPlan: planFor(question), problemIR: null });
+  assert(selected.representation, selected.reason);
+  const document = selected.representation.sceneDocument;
+  const angles = document.entities.filter((entity) => entity.role === "bond angle");
+  assert.deepEqual(angles.map((entity) => entity.label), ["<120°"], "the only lettered SF4 angle is the equatorial bound");
+  const texts = selected.representation.renderScene.primitives.map((primitive) => primitive.text ?? "");
+  assert(!texts.some((text) => /^\d+(?:\.\d+)?°$/.test(text)), `no exact SF4 angle is drawn: ${texts.join(" | ")}`);
+  const arc = document.constructions.find((construction) => construction.outputs.includes(angles[0]!.id));
+  const span = Number(arc?.inputs.endAngle) - Number(arc?.inputs.startAngle);
+  assert(span > 90 && span < 120, `the bound sits on the equatorial pair, drawn span ${span}`);
+});
+
 for (const question of [
-  "Show the shape of SF4 and label its bond angle.",
   "Show the shape of SF4. Include water at 5 N.",
   "Show the shapes of SF4 and a molecule whose identity is unknown.",
 ]) test(`unsafe-or-unresolved/${question}`, () => {

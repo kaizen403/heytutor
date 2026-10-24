@@ -153,18 +153,29 @@ async function main(): Promise<void> {
   await check("unsafe-physical-number-mixed-caption-still-refused", () => {
     const document = structuredClone(candidate.sceneDocument);
     document.annotations.push({ id: "unsafeForce", kind: "callout", targetIds: [], text: "SF4; F = 5 N" });
-    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: plan, tier: candidate.tier }) ?? "", /5 N|5 n/);
+    // Since #258 (548fa9521) a native VSEPR figure is regenerated from the
+    // formula before any other audit, so any added mark is refused as a graph
+    // mismatch first. Still refused; the reason is the earlier, stricter guard.
+    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: plan, tier: candidate.tier }) ?? "", /vsepr_source_graph_mismatch/);
   });
   await check("stale-shared-physical-quantity-still-refused", () => {
     const document = structuredClone(candidate.sceneDocument);
     document.quantities.push({ id: "external_force", symbol: "F", value: 6, unit: "N" });
     const stalePlan: TurnPlanV3 = { ...plan, givens: [{ id: "external_force", symbol: "F", value: 5, unit: "N", sourceText: "F=5 N", provenance: "given" }] };
-    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: stalePlan, tier: candidate.tier }) ?? "", /external_force disagrees/);
+    // Was /external_force disagrees/: #256 reworded the plan audit message,
+    // then #258 put the VSEPR graph check in front of it. Still refused.
+    assert.match(sceneSaveAdmissionFailure({ document, question: fixture.question, turnPlan: stalePlan, tier: candidate.tier }) ?? "", /vsepr_source_graph_mismatch/);
   });
   await check("explicit-angle-without-authority-not-silently-dropped", () => {
+    // Since #258 the engine letters SF4's equatorial angle with the true bound
+    // <120°, so the obligation is met by a bound, never dropped and never
+    // turned into an exact number.
     const question = "Draw the shape of SF4 and label its bond angle.";
     const explicit = selectProductionScene({ question, turnPlan: planFor(question), problemIR: null });
-    assert.equal(explicit.representation, null, "an explicit angle obligation must not turn into a shape-only success");
+    assert(explicit.representation, explicit.reason);
+    const texts = explicit.representation.renderScene.primitives.map(primitive => primitive.text ?? "");
+    assert(texts.includes("<120°"), "the angle obligation is met by the source bound");
+    assert(!texts.some(text => /^\d+(?:\.\d+)?°$/.test(text)), "no exact SF4 angle is drawn");
   });
   for (const expected of [
     "SF4 has square planar molecular shape with two lone pairs on sulfur.",
@@ -184,12 +195,44 @@ async function main(): Promise<void> {
       const selected = selectProductionScene({ question: fixture.question, turnPlan: correctPlan, problemIR: null });
       assert(selected.representation, selected.reason);
     });
-  await check("explicit-source-backed-angle-remains-drawable", () => {
-    const question = "Show the shape of H2O with its stated bond angle of 104.5 degrees.";
-    const anglePlan: TurnPlanV3 = { ...planFor(question), givens: [{ id: "angle", symbol: "theta", value: 104.5, unit: "degree", sourceText: "104.5 degrees", provenance: "given" }] };
-    const selected = selectProductionScene({ question, turnPlan: anglePlan, problemIR: null });
-    assert(selected.representation, selected.reason);
-    assert(selected.representation.renderScene.primitives.some(primitive => primitive.text === "104.5°"));
+  // A stated angle given that names neither its role nor its species is not
+  // certified: the source certificate (#258) requires both in the given. On a
+  // charged stem the one parsed species can be the neutral molecule the reader
+  // fell back to (NO2 minus read as NO2), so certifying it would draw a false
+  // angle. These stay declined until a reader proves the stem is uncharged.
+  const anglePlanFor = (question: string, value: number, kind: "givens" | "derived"): TurnPlanV3 => ({
+    ...planFor(question), [kind]: [{ id: "angle", symbol: "theta", value, unit: "degree", sourceText: `${value} degrees`, provenance: kind === "givens" ? "given" : "derived" }],
+  });
+  for (const [question, value, kind] of [
+    ["Show the shape of H2O with its stated bond angle of 104.5 degrees.", 104.5, "givens"],
+    ["Show the shape of H2O with its stated bond angle of 104.5 degrees.", 109.5, "givens"],
+    ["Show the shapes of H2O and NH3 with the bond angle of 104.5 degrees.", 104.5, "givens"],
+    ["Draw the shape of NO2 minus and label its bond angle.", 134, "derived"],
+    ["Draw the shape of NO2 plus and label its bond angle.", 134, "derived"],
+    ["Draw the shape of SO3 2- and label its bond angle.", 120, "derived"],
+    ["Draw the shape of NO2 - with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 - with its bond angle.", 134, "givens"],
+    ["Draw the shape of NO2 minus with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of the NO2 negative ion with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of the NO2 anion with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 with a negative charge and its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 with a charge of -1 and its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 plus with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 + with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of the NO2 positive ion with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of the nitronium ion NO2 with its bond angle of 134 degrees.", 134, "givens"],
+    ["Draw the shape of SO3 2- with its bond angle of 120 degrees.", 120, "givens"],
+    ["Draw the shape of SO3 2 minus with its bond angle of 120 degrees.", 120, "givens"],
+    ["Draw the shape of SO3 with a 2- charge and its bond angle of 120 degrees.", 120, "givens"],
+    ["Draw the shape of the SO3 ion with its bond angle of 120 degrees.", 120, "givens"],
+    ["Draw the shape of the SO3 dianion with its bond angle of 120 degrees.", 120, "givens"],
+    ["The NO2 minus ion: draw its shape with the bond angle 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 in nitrogen(III) form with bond angle 134 degrees.", 134, "givens"],
+    ["Draw the shape of NO2 (N in +3 state) with bond angle 134 degrees.", 134, "givens"],
+  ] as const) await check(`unnamed-angle-declined/${kind}/${value}/${question}`, () => {
+    const selected = selectProductionScene({ question, turnPlan: anglePlanFor(question, value, kind), problemIR: null });
+    assert.equal(selected.representation, null, "an angle naming neither role nor species is not certified");
+    assert.match(selected.reason, /vsepr_plan_fact_unverified/);
   });
   const load = createRequire(import.meta.url); const enginePath = realpathSync(load.resolve("@heytutor/scene-engine"));
   const output = process.argv.indexOf("--out");
