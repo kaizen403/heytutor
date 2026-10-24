@@ -3,9 +3,8 @@
  *
  * circle_tangent_at takes a constructed circle and a point proven on it and
  * places the line perpendicular to the radius, so it derives a "tangent line"
- * on a circle. conic_tangent derives it on a conic from the typed conic
- * definition (the curve point at parameter at, along the analytic derivative).
- * tangent_line stays required for a function, parametric or polar curve. A guessed path (segment, line) is still refused, and every refusal
+ * on a circle. tangent_line stays required for a function, parametric or polar
+ * curve. A guessed path (segment, line) is still refused, and every refusal
  * names the operator that fits the curve kind, so repair feedback never points
  * at an operator that cannot draw the tangent.
  */
@@ -182,82 +181,26 @@ for (const operator of ["segment", "line"] as const) {
   check(issue && /circle_tangent_at/.test(issue.message) && /\btangent_line\b/.test(issue.message), `ambiguous curve kind names both operators: ${issue?.message}`);
 }
 
-// 7. A conic tangent drawn with conic_tangent is accepted; conic_tangent cannot take a circle or a
-//    function; a guessed tangent on a conic is refused naming conic_tangent.
-function conicDoc(kind: "ellipse" | "parabola" | "hyperbola", tangent: "conic_tangent" | "segment", role = "tangent line"): SceneDocument {
-  const conicInputs = kind === "parabola" ? { kind, vertex: "V", p: 1, tMin: -2, tMax: 2 }
-    : kind === "hyperbola" ? { kind, center: "V", a: 2, b: 1, tMin: -1.5, tMax: 1.5 } : { kind, center: "V", a: 3, b: 2 };
-  const guessed = tangent === "segment";
-  return doc(
-    [{ id: "V", kind: "point", role: "origin" } as Entity, { id: "c", kind: "polyline", role: kind } as Entity,
-      ...(guessed ? [{ id: "A", kind: "point", role: "end" } as Entity, { id: "B", kind: "point", role: "end" } as Entity] : []),
-      { id: "t", kind: guessed ? "segment" : "line", role } as Entity],
-    [{ id: "cV", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["V"] } as Construction,
-      { id: "cc", operator: "conic", inputs: conicInputs, outputs: ["c"] } as Construction,
-      ...(guessed ? [{ id: "cA", operator: "point", inputs: { x: 3, y: -1, coordinateSpace: "world" }, outputs: ["A"] } as Construction,
-        { id: "cB", operator: "point", inputs: { x: 3, y: 1, coordinateSpace: "world" }, outputs: ["B"] } as Construction] : []),
-      { id: "ct", operator: tangent, inputs: guessed ? { start: "A", end: "B" } : { conic: "c", at: 0.5, span: 4, ...(kind === "hyperbola" ? { branch: 1 } : {}) }, outputs: ["t"] } as Construction],
-  );
-}
-for (const kind of ["ellipse", "parabola", "hyperbola"] as const) {
-  const document = conicDoc(kind, "conic_tangent");
-  const issues = fatal(validateSceneDocument(document).report.issues);
-  check(issues.length === 0, `tangent line on a ${kind} via conic_tangent validates: ${JSON.stringify(issues)}`);
-  check(compileSceneDocument(document).ok, `tangent line on a ${kind} via conic_tangent compiles`);
-  const issue = issueOf(conicDoc(kind, "segment"), "derived_role_operator_mismatch");
-  check(issue, `a tangent line guessed with segment on a ${kind} is refused`);
-  check(issue.expected === "conic_tangent" && /conic_tangent/.test(issue.message) && !/circle_tangent_at|\btangent_line\b/.test(issue.message),
-    `guessed ${kind} tangent: message names only conic_tangent: ${issue.message}`);
-}
-{
-  const onCircle = doc(
-    [...circleBase.entities, { id: "l", kind: "line", role: "tangent line" } as Entity],
-    [...circleBase.constructions, { id: "cl", operator: "conic_tangent", inputs: { conic: "k", at: 0.5, span: 4 }, outputs: ["l"] } as Construction],
-  );
-  check(fatal(validateSceneDocument(onCircle).report.issues).some((issue) => issue.code.startsWith("invalid_conic_tangent")), "conic_tangent on a circle operator is refused at validation");
-  check(!compileSceneDocument(onCircle).ok, "conic_tangent on a circle operator does not compile");
-  const onFunction = doc(
-    [...functionBase.entities, { id: "t", kind: "line", role: "tangent line" } as Entity],
-    [...functionBase.constructions, { id: "ct", operator: "conic_tangent", inputs: { conic: "curve", at: 1, span: 3 }, outputs: ["t"] } as Construction],
-  );
-  check(fatal(validateSceneDocument(onFunction).report.issues).some((issue) => issue.code.startsWith("invalid_conic_tangent")), "conic_tangent on a function curve is refused at validation");
-  check(!compileSceneDocument(onFunction).ok, "conic_tangent on a function curve does not compile");
-  const lineOnConic = issueOf(doc(
-    [{ id: "V", kind: "point", role: "origin" } as Entity, { id: "c", kind: "polyline", role: "ellipse" } as Entity, { id: "t", kind: "line", role: "tangent line" } as Entity],
-    [{ id: "cV", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["V"] } as Construction,
-      { id: "cc", operator: "conic", inputs: { kind: "ellipse", center: "V", a: 3, b: 2 }, outputs: ["c"] } as Construction,
-      { id: "ct", operator: "tangent_line", inputs: { curve: "c", at: 0.5, span: 4 }, outputs: ["t"] } as Construction],
-  ), "invalid_tangent_line_curve_reference");
-  check(lineOnConic && /conic_tangent/.test(lineOnConic.message), `tangent_line on a conic is refused and names conic_tangent: ${lineOnConic?.message}`);
-}
-
 // 6. Mutation control: without the circle_tangent_at acceptance the circle tangent goes red.
 {
   const here = dirname(fileURLToPath(import.meta.url));
   const validationPath = join(here, "../../src/document/validation.ts");
   const source = readFileSync(validationPath, "utf8");
-  const anchor = 'actualOperator === "tangent_line" || actualOperator === "circle_tangent_at" || actualOperator === "conic_tangent"';
+  const anchor = 'actualOperator === "tangent_line" || actualOperator === "circle_tangent_at"';
   check(source.split(anchor).length === 2, "mutation anchor appears exactly once in validation.ts");
-  const mutants = [
-    { name: "without circle_tangent_at", text: 'actualOperator === "tangent_line" || actualOperator === "conic_tangent"', red: circleTangent(), green: conicDoc("ellipse", "conic_tangent") },
-    { name: "without conic_tangent", text: 'actualOperator === "tangent_line" || actualOperator === "circle_tangent_at"', red: conicDoc("ellipse", "conic_tangent"), green: circleTangent() },
-  ];
-  for (const [index, entry] of mutants.entries()) {
-    const mutated = source.replace(anchor, entry.text);
-    check(mutated !== source, `${entry.name}: the mutation changed the source`);
-    const scratch = mkdtempSync(join(dirname(validationPath), `.m1-mutant-${index}-`));
-    try {
-      const mutantPath = join(scratch, "validation.ts");
-      writeFileSync(mutantPath, mutated.replace(/from "\.\.\//g, 'from "../../').replace(/from "\.\//g, 'from "../'));
-      const mutant = await import(pathToFileURL(mutantPath).href) as typeof import("../../src/document/validation");
-      check(mutant.validateSceneDocument(entry.red).report.issues.some((issue) => issue.code === "derived_role_operator_mismatch"), `mutation control ${entry.name}: the tangent it no longer accepts is refused (red)`);
-      check(!mutant.validateSceneDocument(entry.green).report.issues.some((issue) => issue.code === "derived_role_operator_mismatch"), `mutation control ${entry.name}: the other tangent is still accepted`);
-    } finally {
-      rmSync(scratch, { recursive: true, force: true });
-    }
+  const mutated = source.replace(anchor, 'actualOperator === "tangent_line"');
+  check(mutated !== source, "the mutation changed the source");
+  const scratch = mkdtempSync(join(dirname(validationPath), ".m1-mutant-"));
+  try {
+    const mutantPath = join(scratch, "validation.ts");
+    writeFileSync(mutantPath, mutated.replace(/from "\.\.\//g, 'from "../../').replace(/from "\.\//g, 'from "../'));
+    const mutant = await import(pathToFileURL(mutantPath).href) as typeof import("../../src/document/validation");
+    const mutantIssues = mutant.validateSceneDocument(circleTangent()).report.issues;
+    check(mutantIssues.some((issue) => issue.code === "derived_role_operator_mismatch"), "mutation control: removing the acceptance refuses the circle tangent (red)");
+    check(fatal(validateSceneDocument(circleTangent()).report.issues).length === 0, "unmutated source still accepts the circle tangent");
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
-  check(fatal(validateSceneDocument(circleTangent()).report.issues).length === 0, "unmutated source still accepts the circle tangent");
-  check(fatal(validateSceneDocument(conicDoc("ellipse", "conic_tangent")).report.issues).length === 0, "unmutated source still accepts the conic tangent");
 }
 
 console.log(`circle tangent role verification passed (${checks} checks)`);

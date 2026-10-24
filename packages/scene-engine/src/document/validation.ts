@@ -4388,16 +4388,14 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     // A tangent to a circle is derived by circle_tangent_at: its circle input
     // must be a constructed circle and the compiler places the line through a
     // point proven on it, perpendicular to the radius. tangent_line stays the
-    // derivation for a function, parametric or polar curve. conic_tangent
-    // derives a conic's tangent from the typed conic definition: the line runs
-    // through the curve point at parameter at along the analytic derivative.
+    // derivation for a function, parametric or polar curve.
     const derivedOperatorAccepted = paraxialConstruction
       || (requiredOperator === "reflect_direction"
         ? actualOperator === "reflect_direction" || actualOperator === "reflect_at"
         : requiredOperator === "refract_direction"
           ? actualOperator === "refract_direction" || actualOperator === "refract_at"
           : requiredOperator === "tangent_line"
-            ? actualOperator === "tangent_line" || actualOperator === "circle_tangent_at" || actualOperator === "conic_tangent"
+            ? actualOperator === "tangent_line" || actualOperator === "circle_tangent_at"
             : actualOperator === requiredOperator);
     if (requiredOperator && actualOperator && !derivedOperatorAccepted) {
       const tangentFit = requiredOperator === "tangent_line" ? tangentOperatorForCurveKind(document, entity) : null;
@@ -5295,7 +5293,7 @@ function validateCalculusConstruction(
         "curve",
         "a function_curve, parametric_curve, or polar_curve",
         curveId,
-        operator === "tangent_line" ? "; for a tangent to a circle use circle_tangent_at with the circle, a point on it and a span; for a conic use conic_tangent with the conic, its parameter at and a span" : "",
+        operator === "tangent_line" ? "; for a tangent to a circle use circle_tangent_at with the circle, a point on it and a span" : "",
       );
       return;
     }
@@ -7021,33 +7019,26 @@ function isCompactDiagramLabel(text: string): boolean {
 
 /**
  * The operator that derives a tangent depends on the curve it touches: a
- * circle takes circle_tangent_at, a conic takes conic_tangent, and a function,
- * parametric or polar curve takes tangent_line. The guessed path names no
- * curve, so the kinds the document builds decide; the entity's own words only
- * narrow a document that builds several kinds (or none).
+ * circle takes circle_tangent_at, a function, parametric or polar curve takes
+ * tangent_line. The guessed path names no curve, so the curve kind is read
+ * from the entity's own words first, then from the curves the document builds.
  */
-const TANGENT_OPERATOR_BY_CURVE_KIND = [
-  { kind: "circle", expected: "circle_tangent_at", advice: "circle_tangent_at (tangent to a circle)", words: /\b(?:circle|circular|circumference|radius|radii|chord)\b/ },
-  { kind: "conic", expected: "conic_tangent", advice: "conic_tangent (tangent to a conic)", words: /\b(?:conic|ellipse|elliptic|hyperbola|hyperbolic|parabola|parabolic)\b/ },
-  { kind: "curve", expected: "tangent_line", advice: "tangent_line (tangent to a function_curve, parametric_curve, or polar_curve)", words: /\b(?:curve|function|graph|parametric|polar)\b/ },
-] as const;
 function tangentOperatorForCurveKind(
   document: SceneDocument,
   entity: SceneDocument["entities"][number],
 ): { expected: string; advice: string } {
+  const circleAdvice = "circle_tangent_at (tangent to a circle)";
+  const curveAdvice = "tangent_line (tangent to a function_curve, parametric_curve, or polar_curve)";
   const words = `${entity.id} ${entity.role} ${entity.label ?? ""}`.toLowerCase().replace(/[_-]+/g, " ");
-  const builds = {
-    circle: document.entities.some((candidate) => candidate.kind === "circle")
-      || document.constructions.some((construction) => construction.operator === "circle" || construction.operator === "circle_from_three_points"),
-    conic: document.constructions.some((construction) => construction.operator === "conic"),
-    curve: document.constructions.some((construction) => SAMPLED_CURVE_OPERATORS.has(construction.operator)),
-  };
-  const built = TANGENT_OPERATOR_BY_CURVE_KIND.filter((entry) => builds[entry.kind]);
-  const pool = built.length > 0 ? built : TANGENT_OPERATOR_BY_CURVE_KIND;
-  const named = pool.filter((entry) => entry.words.test(words));
-  const fits = pool.length === 1 ? pool : named.length === 1 ? named : named.length > 1 ? named : pool;
-  if (fits.length === 1) return { expected: fits[0]!.expected, advice: fits[0]!.advice };
-  return { expected: "tangent_line", advice: fits.map((entry) => entry.advice).join(" or ") };
+  const namesCircle = /\b(?:circle|circular|circumference|radius|radii|chord)\b/.test(words);
+  const namesCurve = /\b(?:curve|function|graph|parametric|polar)\b/.test(words);
+  const hasCircle = document.entities.some((candidate) => candidate.kind === "circle")
+    || document.constructions.some((construction) => construction.operator === "circle" || construction.operator === "circle_from_three_points");
+  const hasCurve = document.constructions.some((construction) => SAMPLED_CURVE_OPERATORS.has(construction.operator));
+  const circle = namesCircle !== namesCurve ? namesCircle : hasCircle !== hasCurve ? hasCircle : null;
+  if (circle === true) return { expected: "circle_tangent_at", advice: circleAdvice };
+  if (circle === false) return { expected: "tangent_line", advice: curveAdvice };
+  return { expected: "tangent_line", advice: `${circleAdvice} or ${curveAdvice}` };
 }
 
 function requiredOperatorForDerivedRole(entity: SceneDocument["entities"][number]): string | null {
