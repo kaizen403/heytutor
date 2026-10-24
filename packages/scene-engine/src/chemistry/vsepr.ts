@@ -733,26 +733,42 @@ const MAX_SPECIES = 4;
 /**
  * The complete formula set in the source. Up to four resolved species are
  * drawn together; an unsupported member or an overfull set declines rather
- * than silently drawing a recognized subset. A charge the source writes that
- * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral species)
- * declines too: the neutral shape and its angle are false for the ion asked.
+ * than silently drawing a recognized subset.
+ *
+ * This is the routing read: it decides whether the stem is a VSEPR stem and
+ * so whether it stays in the chemistry lane. It carries no charge guard, so a
+ * charge the figure cannot draw never sends the stem to another lane.
  */
-export function vseprSpecies(question: string): VseprResult[] {
+function vseprRoutingSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
   const lower = text.toLowerCase();
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
-  // A charge in words (NO2 minus, SO3 two minus, Cu II) is one the sign reader below does not see.
-  const species = speciesWithWrittenCharges(text, uniqueSpecies(tokens), (result) => result.formula);
+  const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
-function dipoleInputs(question: string): DipoleInput[] {
-  return vseprSpecies(question).map((result) => ({
+/**
+ * The figure read: the routing read, or none when the source writes a charge
+ * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral
+ * species). The neutral shape and its angle are false for the ion asked, so
+ * the figure declines; the stem still routes as the routing read says.
+ */
+export function vseprSpecies(question: string): VseprResult[] {
+  const species = vseprRoutingSpecies(question);
+  if (species.length === 0) return [];
+  const text = repairOcr(normalizeChemistryText(question));
+  // A charge in words (NO2 minus, SO3 two minus, Cu II) is one the sign reader below does not see.
+  if (speciesWithWrittenCharges(text, species, (result) => result.formula).length === 0) return [];
+  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
+  return species;
+}
+
+function dipoleInputs(species: readonly VseprResult[]): DipoleInput[] {
+  return species.map((result) => ({
     formula: result.formula,
     label: result.label,
     central: result.central.symbol,
@@ -768,8 +784,10 @@ export function isVseprStem(question: string): boolean {
   const stem = chemStem(question);
   if (HARD_VETO.test(stem) || ORGANIC_VETO.test(stem)) return false;
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
-  if (dipoleIsTheAsk(stem) && dipoleInputs(question).some((input) => dipoleAccount(input) !== null)) return true;
-  const species=vseprSpecies(question);
+  // Routing reads species without the charge guard: a charged shape stem stays
+  // in the chemistry lane and declines there, never reaching another lane.
+  const species=vseprRoutingSpecies(question);
+  if (dipoleIsTheAsk(stem) && dipoleInputs(species).some((input) => dipoleAccount(input) !== null)) return true;
   if (!CUE.test(stem)) {
     const text=repairOcr(normalizeChemistryText(question));
     if(!hasValidatedVseprNotation(sentencesOf(text),vseprFormulaArguments(text,formulaTokens(text)),species))return false;
@@ -1177,7 +1195,7 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     if (fajan) return { document: fajan, structures: [] };
   }
   if (dipoleIsTheAsk(stem)) {
-    const dipole = buildDipoleScene(question, dipoleInputs(question));
+    const dipole = buildDipoleScene(question, dipoleInputs(vseprSpecies(question)));
     if (dipole) return { document: dipole, structures: [] };
   }
   const species = vseprSpecies(question);

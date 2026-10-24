@@ -19,15 +19,27 @@
  *    lone pairs and configurations are recomputed here from the formula.
  *  - control: hyphens that are not charges (C-H bond, 2-methylpropane,
  *    sp3-hybridised, pH 3-4, O2 -> O3) carry no charge marker and draw.
+ *  - routing: a charged or dash punctuated shape stem stays in the chemistry
+ *    lane (isChemistryQuestion, the lane production's chemistryLane reads)
+ *    with origin/main's family inference, and draws nothing. The guard only
+ *    declines a figure; it never sends a stem to the physics families, the
+ *    archetypes or the planner.
+ *  - sweep: across every gate row, every syllabus probe, every
+ *    data/diagram-eval stem and (when built) every bank question, the
+ *    subject, chemistry question and family inference results equal those of
+ *    a copy of src with every charge guard switched off, which is origin/main
+ *    for routing.
  *  - mutants: the script reruns itself on a copy of src with the shared
  *    reader switched off, and with each builder's guard switched off one at
- *    a time; each mutant must turn that builder's decline rows red.
+ *    a time; each mutant must turn that builder's decline rows red. A copy
+ *    with the guard wired back into VSEPR routing must turn the routing rows
+ *    and the sweep red.
  *
  * Fixture values are oracles only; no builder reads them.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,9 +50,13 @@ const rootFlag = argv.indexOf("--root");
 const root = rootFlag >= 0 ? resolve(argv[rootFlag + 1]!) : packageRoot;
 const jsonOut = argv.includes("--json");
 const withMutants = !argv.includes("--no-mutants") && rootFlag < 0;
+// A child asked only for the routing of the sweep stems writes it to this file and stops.
+const routingFlag = argv.indexOf("--routing-only");
+const routingOut = routingFlag >= 0 ? resolve(argv[routingFlag + 1]!) : null;
 
 await import(`${root}/src/chemistry/families.ts`);
-const { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } = await import(`${root}/src/chemistry/index.ts`);
+const { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder, isChemistryQuestion, inferChemistryFamilies } = await import(`${root}/src/chemistry/index.ts`);
+const { isChemistryStem } = await import(`${root}/src/chemistry/classify.ts`);
 const { synthesizeFamilyScene } = await import(`${root}/src/synthesize/familyScene.ts`);
 // Both readers are absent on origin/main: the rows then fail on what the builders draw, not on an import.
 const markerModule = await import(`${root}/src/chemistry/chargeMarker.ts`).catch(() => null);
@@ -275,6 +291,97 @@ const CONTROL: readonly ControlRow[] = [
   { id: "O2-arrow-O3", question: "Draw the energy profile for the reaction 3 O2 -> 2 O3 with ΔH = +284 kJ/mol.", family: "chem_thermo", shows: ["3 O_2", "2 O_3"] },
 ];
 
+/**
+ * Routing rows: origin/main keeps each stem in the chemistry lane with these
+ * families (the review of #304, section 1). The guard read the dash, the
+ * "plus" or the atom's partial charge as a charge and emptied the routing
+ * species, so the stem left the lane and a dipole stem drew the physics
+ * point_field dipole in a field. Each stays here and draws nothing.
+ */
+interface RoutingRow { readonly question: string; readonly families: readonly string[] }
+
+const ROUTING: readonly RoutingRow[] = [
+  ...[
+    "Shape of H2O - show the net dipole moment",
+    "Draw the shape of H2O and show its dipole: O has a negative charge and each H has a positive charge.",
+    "Explain the dipole moment of H2O - draw its shape",
+    "Draw the shape of CO2 - why is its dipole moment zero?",
+    "Shape of NH3 plus direction of dipole moment",
+    "Draw the shape of H2O plus its dipole",
+    "Show the dipole moment of NH3 and its shape, N having a negative charge",
+    "Draw the shape of SO2 and its dipole, S has a positive charge",
+    "Dipole moment of CHCl3 with C having a positive charge; draw its shape",
+    "Shape of H2S - direction of dipole",
+    "Draw the shape of H2O in an electric field E, O with a negative charge",
+    "shape of CH4 negative or positive dipole?",
+    "shape of NO2 -",
+    "shape of SO3 2-",
+    "shape of the SO3 2- ion",
+    "shape of SeO3 2-",
+    "shape of SO3 -2",
+    "shape of SO3 2\u2212",
+    "shape of SO3 two minus",
+    "shape of SO3 minus 2",
+    "shape of NO2 minus",
+    "shape of NO2 negative",
+    "shape of NO2 with a negative charge",
+    "shape of NO2 with charge -1",
+    "What is the shape of CO2 - linear or bent?",
+    "Shape of H2O - why is it bent?",
+    "hybridisation of NO2 -",
+    "shape of SF4 plus its hybridisation",
+    "Match the following: A-3, B-1, C-4, D-2. Shapes of NH3, H2O, CH4, BF3.",
+  ].map((question) => ({ question, families: ["chem_vsepr"] })),
+  { question: "Lewis structure of CO2 - count lone pairs", families: ["chem_vsepr", "chem_lewis"] },
+];
+
+/* -------------------------------------------------------------------- sweep */
+
+const repoRoot = resolve(packageRoot, "../..");
+
+/** Every stem the routing sweep reads: gate rows, syllabus probes, eval sets and the built bank. */
+function sweepStems(): string[] {
+  const stems = [...DECLINE, ...ATTACHED, ...CONTROL, ...ROUTING].map((row) => row.question);
+  const probes = join(repoRoot, "data/syllabus-probes");
+  for (const name of readdirSync(probes).filter((file) => file.endsWith(".json")).sort()) {
+    const unit = JSON.parse(readFileSync(join(probes, name), "utf8")) as { questions?: Array<{ question?: string }> };
+    for (const row of unit.questions ?? []) if (row.question) stems.push(row.question);
+  }
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith(".jsonl")) {
+        for (const line of readFileSync(path, "utf8").split("\n")) {
+          if (!line.trim()) continue;
+          const row = JSON.parse(line) as { question?: unknown };
+          if (typeof row.question === "string") stems.push(row.question);
+        }
+      }
+    }
+  };
+  walk(join(repoRoot, "data/diagram-eval"));
+  const bank = join(repoRoot, "data/question-bank/build/questions.all.jsonl");
+  if (existsSync(bank)) {
+    for (const line of readFileSync(bank, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      const row = JSON.parse(line) as { text?: unknown };
+      if (typeof row.text === "string" && row.text.trim()) stems.push(row.text);
+    }
+  }
+  return stems;
+}
+
+/** Subject, chemistry question and family inference: what decides the lane and the families. */
+function routingOf(question: string): string {
+  return JSON.stringify([isChemistryStem(question), isChemistryQuestion(question), inferChemistryFamilies(question)]);
+}
+
+if (routingOut) {
+  writeFileSync(routingOut, JSON.stringify(sweepStems().map(routingOf)));
+  process.exit(0);
+}
+
 /* ------------------------------------------------------------------- checks */
 
 const results: Array<{ id: string; passed: boolean; error?: string }> = [];
@@ -287,6 +394,14 @@ for (const row of DECLINE) {
     if (row.words) { if (readWrittenCharges) assert.ok(readWrittenCharges(row.question).length > 0, "the stem writes a charge in words"); }
     else if (readChargeMarkers) assert.ok(readChargeMarkers(row.question).length > 0, "the stem writes a charge marker");
     assert.deepEqual(drawingBuilders(row.question), [], "no chemistry builder may draw the neutral species");
+    assert.equal(synthesizeFamilyScene({ question: row.question }), null, "the family path draws nothing");
+  });
+}
+for (const row of ROUTING) {
+  check(`routing/${row.question}`, () => {
+    assert.equal(isChemistryQuestion(row.question), true, "the stem stays in the chemistry lane");
+    assert.deepEqual(inferChemistryFamilies(row.question), row.families, "family inference is origin/main's");
+    assert.deepEqual(drawingBuilders(row.question), [], "no chemistry builder draws the neutral species");
     assert.equal(synthesizeFamilyScene({ question: row.question }), null, "the family path draws nothing");
   });
 }
@@ -336,7 +451,60 @@ function patchFile(path: string, from: string, to: string): void {
   writeFileSync(path, next);
 }
 
+/** The routing of every sweep stem on a copy of src with `patch` applied. */
+function routingOfCopy(name: string, patch: (src: string) => void): string[] {
+  const dir = mkdtempSync(join(packageRoot, `.spaced-charge-routing-${name}-`));
+  try {
+    cpSync(join(packageRoot, "src"), join(dir, "src"), { recursive: true });
+    patch(join(dir, "src"));
+    const out = join(dir, "routing.json");
+    const child = spawnSync(process.execPath, [...process.execArgv, fileURLToPath(import.meta.url), "--root", dir, "--routing-only", out], { encoding: "utf8", cwd: packageRoot });
+    assert.ok(existsSync(out), `routing copy ${name} produced no routing: ${child.stderr.slice(0, 300)}`);
+    return JSON.parse(readFileSync(out, "utf8")) as string[];
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** Every charge guard reads true: the builders and their routing as origin/main had them. */
+function guardsOff(src: string): void {
+  patchFile(join(src, "chemistry/speciesChargeGuard.ts"), "export function stemChargesRead(text: string, speciesFormulas: readonly string[]): boolean {\n", "export function stemChargesRead(text: string, speciesFormulas: readonly string[]): boolean {\n  return true;\n");
+  patchFile(join(src, "chemistry/chargeMarker.ts"), "export function chargeMarkersCarried(text: string, speciesFormulas: readonly string[]): boolean {\n", "export function chargeMarkersCarried(text: string, speciesFormulas: readonly string[]): boolean {\n  return true;\n");
+}
+
+/** VSEPR routing reading the guarded species again, as #304's first head did. */
+function routingGuarded(src: string): void {
+  patchFile(join(src, "chemistry/vsepr.ts"), "const species=vseprRoutingSpecies(question);", "const species=vseprSpecies(question);");
+}
+
+/** Stems whose routing differs between two sweeps, quoted for the failure message. */
+function routingDiffs(stems: readonly string[], left: readonly string[], right: readonly string[]): string[] {
+  assert.equal(left.length, stems.length, "sweep sizes agree");
+  assert.equal(right.length, stems.length, "sweep sizes agree");
+  return stems.flatMap((stem, i) => left[i] === right[i] ? [] : [`${JSON.stringify(stem.slice(0, 60))}: ${left[i]} vs ${right[i]}`]);
+}
+
+let unguardedRouting: string[] | null = null;
+if (rootFlag < 0) {
+  const stems = sweepStems();
+  check("sweep/routing-equals-unguarded", () => {
+    unguardedRouting = routingOfCopy("unguarded", guardsOff);
+    const diffs = routingDiffs(stems, stems.map(routingOf), unguardedRouting);
+    assert.deepEqual(diffs, [], `${diffs.length} of ${stems.length} stems route differently once the charge guards are off: ${diffs.slice(0, 5).join("; ")}`);
+  });
+}
+
 if (withMutants) {
+  check("mutant/routing-guarded", () => {
+    const failed = runMutant("routing", routingGuarded);
+    const lost = ROUTING.filter((row) => !failed.includes(`routing/${row.question}`)).map((row) => row.question);
+    assert.deepEqual(lost, [], "the guard in VSEPR routing must turn every routing row red");
+    assert.ok(failed.every((id) => id.startsWith("routing/")), `the guard in VSEPR routing touches only routing rows: ${failed.join(", ")}`);
+    assert.ok(unguardedRouting, "the unguarded sweep ran");
+    const stems = sweepStems();
+    const diffs = routingDiffs(stems, routingOfCopy("guarded", routingGuarded), unguardedRouting);
+    assert.ok(diffs.length >= ROUTING.length, `the sweep must see the guard in VSEPR routing: ${diffs.length} stems differ`);
+  });
   check("mutant/reader-off", () => {
     const failed = runMutant("reader", (src) => patchFile(join(src, "chemistry/chargeMarker.ts"), "const markers: ChargeMarker[] = [];\n  for (const match of folded.matchAll(SIGN_MARKER)) {", "const markers: ChargeMarker[] = [];\n  for (const match of ([] as RegExpMatchArray[])) {"));
     for (const row of DECLINE.filter((item) => !item.words && !item.id.startsWith("hbond-HF2") && !item.question.includes(" ion"))) {
@@ -348,8 +516,9 @@ if (withMutants) {
     for (const row of DECLINE.filter((item) => item.words)) {
       assert.ok(failed.includes(`decline/${row.id}`), `word reader off must turn decline/${row.id} red`);
     }
+    // Routing rows decline only through the guards, so with a reader off they may draw; their routing is checked by the sweep.
     const wordIds = new Set(DECLINE.filter((item) => item.words).map((item) => `decline/${item.id}`));
-    assert.ok(failed.every((id) => wordIds.has(id)), `word reader off touches only word rows: ${failed.join(", ")}`);
+    assert.ok(failed.every((id) => wordIds.has(id) || id.startsWith("routing/")), `word reader off touches only word and routing rows: ${failed.join(", ")}`);
   });
   for (const [name, guard] of Object.entries(GUARD_FILES)) {
     check(`mutant/${name}-guard-off`, () => {
@@ -360,7 +529,7 @@ if (withMutants) {
       const owned = DECLINE.filter(guard.rows);
       assert.ok(owned.length > 0, `${name} owns rows`);
       for (const row of owned) assert.ok(failed.includes(`decline/${row.id}`), `${name} guard off must turn decline/${row.id} red`);
-      assert.ok(!failed.some((id) => !id.startsWith("decline/")), `${name} guard off must not touch attached or control rows: ${failed.join(", ")}`);
+      assert.ok(!failed.some((id) => !id.startsWith("decline/") && !id.startsWith("routing/")), `${name} guard off must not touch attached or control rows: ${failed.join(", ")}`);
     });
   }
 }
