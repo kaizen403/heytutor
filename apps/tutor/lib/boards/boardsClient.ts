@@ -1,7 +1,7 @@
 import { sourceCheckedStoredTurn } from "@/lib/scene/storedSceneSource";
 import { speechAudioMimeType } from "@heytutor/tutor-core";
 import { resolveApiUrl, type AudioTimings } from "@heytutor/tutor-core";
-import { parseStoredSegmentCommands, type DrawCommand, type StoredCommandEnvelope } from "@heytutor/drawing";
+import type { DrawCommand, StoredCommandEnvelope } from "@heytutor/drawing";
 import type { BoardEntry } from "@/lib/boards/types";
 import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import { effectiveTurnStatus, type TurnKind, type TurnStatus } from "@/lib/boards/turnStatus";
@@ -569,7 +569,11 @@ export interface TurnCloseInput {
 
 /** A typed code row is accepted only beside its code lesson plan. */
 function rowsNeedCodePlan(rows: ReadonlyArray<{ command?: unknown }>): boolean {
-  return rows.some((row) => parseStoredSegmentCommands(row.command as never).some((command) => command.type === "TYPE"));
+  // The stored shape: one command, or an envelope with a commands list.
+  const commandsOf = (stored: unknown): unknown[] => !stored || typeof stored !== "object" ? []
+    : Array.isArray((stored as { commands?: unknown }).commands) ? (stored as { commands: unknown[] }).commands : [stored];
+  return rows.some((row) => commandsOf(row.command).some((command) =>
+    Boolean(command) && typeof command === "object" && (command as { type?: unknown }).type === "TYPE"));
 }
 
 /** Keepalive bodies share a 64 KiB budget with telemetry; the close stays well under it. */
