@@ -533,6 +533,7 @@ function shapeRoleTarget(roles: readonly ShapeRole[], shapes: readonly Span[], s
 }
 
 const CONTRAST_LEAD = /\b(?:rather\s+than|instead\s+of|unlike)\s+(?:(?:being|having|an?|the|its|ideal|perfect(?:ly)?|regular|purely|fully)\s+)*$/;
+const CONTRAST_LIST_JOIN = /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/;
 const DENIED_AS_SUBJECT = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:(?:is|was|are)\s+not\b(?!\s+only)|(?:isn['\u2019]t|wasn['\u2019]t|aren['\u2019]t)\b)/;
 
 /**
@@ -545,12 +546,16 @@ const DENIED_AS_SUBJECT = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)
 function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: readonly Span[], index: number): boolean {
   const shape = shapes[index]!;
   if (DENIED_AS_SUBJECT.test(clause.slice(shape.end))) return true;
-  const lead = CONTRAST_LEAD.exec(clause.slice(0, shape.start));
+  // "rather than linear or tetrahedral": the contrast governs the whole list,
+  // read from the text itself so a skipped list member cannot break it.
+  let first = index;
+  while (first > 0 && CONTRAST_LIST_JOIN.test(clause.slice(shapes[first - 1]!.end, shapes[first]!.start))) first--;
+  const lead = CONTRAST_LEAD.exec(clause.slice(0, shapes[first]!.start));
   if (!lead) return false;
   const partner = /^unlike\b/.test(lead[0])
-    ? [shapes[index - 1], shapes[index + 1]].filter((other): other is Span => other !== undefined)
+    ? [shapes[first - 1], shapes[index + 1]].filter((other): other is Span => other !== undefined)
       .sort((left, right) => Math.abs(left.start - shape.start) - Math.abs(right.start - shape.start))[0]
-    : shapes[index - 1] ?? shapes[index + 1];
+    : shapes[first - 1] ?? shapes[index + 1];
   if (!partner) return true;
   const own = shapeRoleTarget(roles, shapes, shape);
   const other = shapeRoleTarget(roles, shapes, partner);

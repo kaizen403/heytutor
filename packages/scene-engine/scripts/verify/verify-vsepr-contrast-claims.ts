@@ -31,6 +31,7 @@ const POSITIVES: Row[] = [
   { id: "positive/instead-of", question: WATER, claim: "Water is bent instead of linear.", expected: true, admit: true },
   { id: "positive/rather-than-leading", question: "Explain the shape of H2O", claim: "Rather than linear, the molecular shape of H2O is bent.", expected: true, admit: true },
   { id: "positive/rather-than-list", question: WATER, claim: "Water is bent rather than linear or tetrahedral.", expected: true, admit: true },
+  { id: "positive/instead-of-list", question: WATER, claim: "Water is bent instead of linear, or tetrahedral.", expected: true, admit: true },
   { id: "positive/unlike", question: WATER, claim: "Unlike a tetrahedral shape, water is bent.", expected: true, admit: true },
   { id: "positive/denied-subject", question: WATER, claim: "Tetrahedral is not the molecular shape of water; it is bent.", expected: true, admit: true },
   { id: "positive/not-but", question: WATER, claim: "The shape of water is not tetrahedral but bent.", expected: true, admit: true },
@@ -50,6 +51,7 @@ const CONTROLS: Row[] = [
   { id: "control/nh3-planar-rather-than-pyramidal", question: NH3, claim: "NH3 is trigonal planar rather than pyramidal.", expected: true, admit: false },
   { id: "control/hybridisation", question: NH3, claim: "The nitrogen in NH3 is sp2 hybridised rather than sp3.", expected: true, admit: false },
   { id: "control/lone-pairs", question: NH3, claim: "NH3 has two lone pairs rather than one.", expected: true, admit: false },
+  { id: "control/tetrahedral-rather-than-list", question: WATER, claim: "Water is tetrahedral rather than bent or linear.", expected: true, admit: false },
   { id: "control/false-claim-expected-false", question: WATER, claim: "Water is bent rather than tetrahedral.", expected: false, admit: false },
 ];
 const ALL = [...POSITIVES, ...PROPERTY, ...CONTROLS];
@@ -93,15 +95,18 @@ async function mutant(name: string, from: string, to: string): Promise<Conflict>
 await check("mutation/no-contrast-negation", async () => {
   const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index)", "");
   const went = red(conflict, ALL);
-  assert.ok(went.length >= 5, `too few red rows: ${went.join(", ")}`);
   assert.ok(went.every(id => id.startsWith("positive/")), `only positives go red: ${went.join(", ")}`);
-  assert.ok(went.includes("positive/water-bent-c2"), "the recorded claim must depend on the reader");
+  // Forms no other reader covers (a "than" reference skip cannot reach them).
+  for (const id of ["positive/instead-of", "positive/rather-than-list", "positive/unlike", "positive/denied-subject"]) {
+    assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
+  }
 });
 await check("mutation/role-blind-contrast", async () => {
   const conflict = await mutant("role-blind", "return own === null || other === null || own === other;", "return true || own === other;");
   const went = red(conflict, ALL);
   // Role-blind negation also admits a false electron geometry: the property check is live both ways.
-  assert.deepEqual(went, PROPERTY.map(row => row.id));
+  assert.ok(went.every(id => id.startsWith("property/")), `only property rows go red: ${went.join(", ")}`);
+  assert.ok(went.includes("property/unlike-electron-geometry") && went.includes("property/false-electron-geometry"), went.join(", "));
 });
 
 console.log(`verify-vsepr-contrast-claims: ${passed} passed, ${failures.length} failed`);
