@@ -9,7 +9,11 @@
  * - certification: the candidate must be exactly the figure its family
  *   builder recomputes from the original question, and the identity is the
  *   record that fresh build made of what it parsed and drew. A caption, title
- *   or label string is never the authority;
+ *   or label string is never the authority. A rebuild proves only that the
+ *   figure is the builder's own reading, so a question that writes a charge
+ *   no drawn species carries (SO3 2-, NO2 -, Cu 2+, the word ion over a
+ *   neutral figure) has no identity: the builder may have drawn the neutral
+ *   species, and only the exact label rule applies;
  * - species: a formula or a known name plus descriptor words binds only to a
  *   drawn species of that same formula identity;
  * - atom: an element name or symbol plus "atom(s)", "central", a count or an
@@ -28,6 +32,7 @@ import type { SceneDocument } from "../types";
 import { elementByName, elementBySymbol, type ElementRecord } from "./elements";
 import { builtChemistryFigureIdentity, type ChemistryFigureIdentity } from "./figureIdentity";
 import { normalizeChemistryText, parseFormula, splitCharge } from "./formula";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { buildLewisScene } from "./lewis";
 import { buildMoScene } from "./moDiagram";
 import { namedSpeciesMentions } from "./namedSpecies";
@@ -48,7 +53,9 @@ const IDENTITY_BUILDERS: Readonly<Record<string, ChemFamilyBuilder>> = {
 /**
  * The identity of a chemistry candidate, or null. The family builder is rerun
  * on the original question with no plan quantities, and the candidate's whole
- * ink, topology, quantities and reveal schedule must equal that fresh figure.
+ * ink, topology, quantities and reveal schedule must equal that fresh figure,
+ * and every charge marker in the question must be carried by a species that
+ * fresh figure drew.
  */
 export function certifiedChemistryFigureIdentity(document: SceneDocument, originalQuestion?: string): ChemistryFigureIdentity | null {
   if (!originalQuestion?.trim() || document.source.question !== originalQuestion.trim()) return null;
@@ -63,6 +70,8 @@ export function certifiedChemistryFigureIdentity(document: SceneDocument, origin
   }
   const identity = builtChemistryFigureIdentity(fresh);
   if (!fresh || !identity || fresh.source.chemistryFamily !== family) return null;
+  // Every charge the question writes must be on a drawn species.
+  if (!chargeMarkersCarried(originalQuestion, identity.species.map((species) => species.formula))) return null;
   return sameRecomputedFigure(document, fresh) ? identity : null;
 }
 

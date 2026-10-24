@@ -9,8 +9,16 @@
  * not draw, a wrong element or centre, a wrong period or group, a missing
  * isomer, an abstract body, a tampered figure, a nonchemistry document.
  *
+ * A rebuild proves only the builder's own reading of the stem. The charge
+ * rows write a charge some builders drop (SO3 2-, NO2 -, Cu 2+, O2+1): the
+ * builder draws the neutral species, so atom and species bodies must not
+ * bind and the family loop must decline, while charged species the builders
+ * read (NH4+, SO4^2-, Fe2+, O2^2-) still bind and hyphens (C-H, sp3-,
+ * pH 3-4, 2-methylpropane) are not charges.
+ *
  * The final checks copy the engine source and prove this gate goes red on
- * that copy: with the binder call removed; with the formula key flattening
+ * that copy: with the binder call removed; with the charge guard removed;
+ * with the formula key flattening
  * atom counts and charge into one string (so O^(2-) oxide would match an
  * O_2^(-) superoxide figure); and with the key merging repeated atoms (so
  * the isomer CH3OCHO would match a CH3COOH figure).
@@ -99,6 +107,22 @@ const POSITIVE: Row[] = [
   { name: "radius-period-3", question: "trend of atomic radius in period 3", family: "chem_periodic", bodies: [{ id: "p3", kind: "other", label: "Period 3 elements" }] },
   { name: "ie-period-2", question: "ionisation energy trend across period 2", family: "chem_periodic", bodies: [{ id: "p2", kind: "other", label: "Period 2 elements" }] },
   { name: "en-group-17", question: "electronegativity down group 17", family: "chem_periodic", bodies: [{ id: "g17", kind: "other", label: "Group 17 halogens" }] },
+  { name: "charged-nh4-ion", question: "shape of NH4+ ion", family: "chem_vsepr", bodies: [
+    { id: "nh4", kind: "other", label: "NH4+ ion" }, { id: "n", kind: "point", label: "central N atom" },
+  ] },
+  { name: "charged-sulfate-caret", question: "shape of SO4^2-", family: "chem_vsepr", bodies: [
+    { id: "s", kind: "point", label: "central S atom" }, { id: "o", kind: "point", label: "oxygen atoms" },
+  ] },
+  { name: "charged-sulfite-caret", question: "shape of SO3^2-", family: "chem_vsepr", bodies: [{ id: "s", kind: "point", label: "central S atom" }] },
+  { name: "charged-nitrite-caret", question: "shape of NO2^-", family: "chem_vsepr", bodies: [{ id: "n", kind: "point", label: "central N atom" }] },
+  { name: "charged-iron-two-plus", question: "electron configuration of Fe2+", family: "chem_orbital", bodies: [{ id: "fe", kind: "other", label: "Fe2+ ion" }] },
+  { name: "charged-copper-two-plus", question: "electron configuration of Cu2+", family: "chem_orbital", bodies: [{ id: "cu", kind: "other", label: "Cu2+ ion" }] },
+  { name: "charged-peroxide-caret", question: "MO diagram of O2^2-", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O2^(2-) ion" }] },
+  { name: "charged-ammonium-lewis", question: "lewis structure of NH4+", family: "chem_lewis", bodies: [
+    { id: "nh4", kind: "other", label: "NH4+ ion" }, { id: "n", kind: "point", label: "central N atom" },
+  ] },
+  { name: "hyphen-c-h-bond", question: "lewis structure of CH4 showing each C-H bond", family: "chem_lewis", bodies: [{ id: "ch4", kind: "other", label: "CH4 molecule" }] },
+  { name: "hyphen-sp3-hybridised", question: "shape of CH4 with sp3-hybridised carbon", family: "chem_vsepr", bodies: [{ id: "ch4", kind: "other", label: "CH4 molecule" }] },
   { name: "nh3-counted-hydrogens", question: "shape of NH3 molecule", family: "chem_vsepr", bodies: [
     { id: "nh3", kind: "other", label: "ammonia molecule" },
     { id: "n", kind: "point", label: "central nitrogen atom" },
@@ -155,6 +179,26 @@ const CONTROLS: Control[] = [
   ] },
   { name: "species name under a structural kind", question: "shape of NH3 molecule", family: "chem_vsepr", bodies: [{ id: "x", kind: "field", label: "NH3 molecule" }] },
   { name: "atom name under a line kind", question: "why is CO2 linear", family: "chem_vsepr", bodies: [{ id: "x", kind: "line", label: "central carbon atom" }] },
+  // A charge the builder drops: the neutral species is drawn, so nothing binds.
+  { name: "charge spaced sulfite drawn as SO3", question: "shape of SO3 2-", family: "chem_vsepr", bodies: [
+    { id: "s", kind: "point", label: "central S atom" }, { id: "o", kind: "point", label: "oxygen atoms" },
+  ] },
+  { name: "charge spaced nitrite drawn as NO2", question: "shape of NO2 -", family: "chem_vsepr", bodies: [
+    { id: "n", kind: "point", label: "central N atom" }, { id: "o", kind: "point", label: "oxygen atoms" },
+  ] },
+  { name: "charge spaced nitrite hybridisation", question: "hybridisation of NO2 -", family: "chem_vsepr", bodies: [{ id: "n", kind: "point", label: "central N atom" }] },
+  { name: "charge spaced copper ion drawn as Cu", question: "electron configuration of Cu 2+", family: "chem_orbital", bodies: [{ id: "cu", kind: "other", label: "copper atom" }] },
+  { name: "charge spaced sodium ion drawn as Na", question: "electron configuration of Na +", family: "chem_orbital", bodies: [{ id: "na", kind: "other", label: "sodium atom" }] },
+  { name: "charge sign first O2+1 drawn as O2", question: "MO diagram of O2+1", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O2 molecule" }] },
+  { name: "charge spaced superoxide drawn as O2", question: "MO diagram of O2 -", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O2 molecule" }] },
+  { name: "charge bracketed peroxide drawn as O2", question: "MO diagram of O2 (2-)", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "oxygen molecule" }] },
+  { name: "charge spaced peroxide bond order", question: "bond order of O2 2-", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O2 molecule" }] },
+  { name: "charge spaced N2 anion bond order", question: "bond order of N2 -", family: "chem_mo", bodies: [{ id: "n2", kind: "other", label: "N2 molecule" }] },
+  { name: "charge spaced nitrite Lewis atoms", question: "lewis structure of NO2 -", family: "chem_lewis", bodies: [
+    { id: "n", kind: "point", label: "central N atom" }, { id: "o", kind: "point", label: "oxygen atoms" },
+  ] },
+  { name: "charge spaced nitrite Lewis species", question: "draw the lewis structure of NO2 -", family: "chem_lewis", bodies: [{ id: "no2", kind: "other", label: "NO2 molecule" }] },
+  { name: "charge spaced peroxide Lewis", question: "lewis structure of O2 2-", family: "chem_lewis", bodies: [{ id: "o2", kind: "other", label: "O2 molecule" }] },
   { name: "unbonded atoms claimed connected", question: "lewis structure of CO2", family: "chem_lewis", bodies: CO2_BODIES.slice(1),
     connections: [["oxygen1", "oxygen2"]] },
 ];
@@ -200,6 +244,44 @@ test("control no original question means no identity", () => {
   assert.equal(checkVisualObligations(nh3Set, document).satisfied, false);
 });
 
+const charges = await import(pathToFileURL(join(engineRoot, "chemistry", "chargeMarker.ts")).href)
+  .catch(() => null) as typeof import("../../src/chemistry/chargeMarker") | null;
+
+const MARKED: ReadonlyArray<readonly [string, string, number]> = [
+  ["shape of SO3 2-", "SO3", -2], ["shape of NO2 -", "NO2", -1], ["electron configuration of Cu 2+", "Cu", 2],
+  ["electron configuration of Na +", "Na", 1], ["MO diagram of O2+1", "O2", 1], ["MO diagram of O2 (2-)", "O2", -2],
+  ["bond order of O2 2-", "O2", -2], ["O2 -2", "O2", -2], ["SO4^2-", "SO4", -2], ["SO4^(2-)", "SO4", -2], ["SO₄²⁻", "SO4", -2],
+  ["SO_4^{2-}", "SO4", -2], ["SO42-", "SO4", -2], ["NH4+", "NH4", 1], ["Fe3+", "Fe", 3], ["[Fe(CN)6]3-", "[Fe(CN)6]", -3],
+];
+const UNMARKED = [
+  "C-H bond", "sp3-hybridised carbon", "pH 3-4", "2-methylpropane", "CH3-CH3", "C - H bond", "BF3 + NH3",
+  "H2 + O2 -> H2O", "x = 3 - 2", "Group 1-2 trend", "ionisation energy trend across period 2", "ionic radius in period 3",
+];
+
+for (const [text, formula, charge] of MARKED) {
+  test(`charge reader: "${text}" writes ${formula} with charge ${charge}`, () => {
+    assert.ok(charges, "the charge marker reader must exist");
+    const markers = charges.readChargeMarkers(text).filter((marker) => marker.formula !== null);
+    assert.deepEqual(markers.map((marker) => [marker.formula, marker.charge]), [[formula, charge]]);
+  });
+}
+for (const text of UNMARKED) {
+  test(`charge reader: "${text}" writes no charge`, () => {
+    assert.ok(charges, "the charge marker reader must exist");
+    assert.deepEqual(charges.readChargeMarkers(text), []);
+  });
+}
+test("charge reader: the words ion, cation and anion need a charged species of that sign", () => {
+  assert.ok(charges, "the charge marker reader must exist");
+  assert.equal(charges.chargeMarkersCarried("shape of the nitrite ion", ["NO2"]), false);
+  assert.equal(charges.chargeMarkersCarried("shape of the nitrite ion", ["NO_2^(-)"]), true);
+  assert.equal(charges.chargeMarkersCarried("the ammonium cation", ["NO_2^(-)"]), false);
+  assert.equal(charges.chargeMarkersCarried("the ammonium cation", ["NH4^+"]), true);
+  assert.equal(charges.chargeMarkersCarried("an anion", ["NH4^+"]), false);
+  assert.equal(charges.chargeMarkersCarried("shape of NO2 -", ["NO2"]), false);
+  assert.equal(charges.chargeMarkersCarried("shape of NH3 molecule", ["NH3"]), true);
+});
+
 /** Run this gate on a copy of the engine with one exact source edit. */
 function runMutant(file: string, from: string, to: string): string {
   const scratch = join(packageRoot, "tmp", `chem-obligation-mutant-${process.pid}`);
@@ -237,6 +319,17 @@ if (!mutant) {
     for (const control of CONTROLS) assert.ok(output.includes(`PASS control ${control.name}:`), `${control.name} still declines on the mutant`);
   });
 
+  test("mutation: removing the charge guard binds atom bodies to a neutral SO3 drawn for SO3 2-", () => {
+    const output = runMutant(
+      join("chemistry", "obligationIdentity.ts"),
+      "  if (!chargeMarkersCarried(originalQuestion, identity.species.map((species) => species.formula))) return null;\n",
+      "",
+    );
+    assert.ok(output.includes("FAIL control charge spaced sulfite drawn as SO3:"), "the spaced sulfite control must go red without the guard");
+    assert.ok(output.includes("FAIL control charge spaced nitrite Lewis atoms:"), "the spaced nitrite Lewis control must go red without the guard");
+    for (const row of POSITIVE) assert.ok(output.includes(`PASS positive ${row.name}:`), `${row.name} still binds without the guard`);
+  });
+
   test("mutation: a formula key that flattens charge into the characters binds oxide to superoxide", () => {
     const output = runMutant(
       join("chemistry", "obligationIdentity.ts"),
@@ -260,4 +353,4 @@ if (failures.length > 0) {
   console.error(`\nchemistry obligation identity: ${failures.length} failed, ${passed} passed`);
   process.exit(1);
 }
-console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 3 mutations"})`);
+console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 4 mutations"})`);
