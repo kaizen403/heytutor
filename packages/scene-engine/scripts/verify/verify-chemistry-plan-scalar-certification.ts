@@ -224,6 +224,14 @@ const etheneLewis = figure(ethene, "chem_lewis");
 }
 check(status(nh3Lewis, ammonia, claimPlan(ammonia, [["Nitrogen is the central atom bonded to three hydrogen atoms", "Three N-H single bonds using 8 electrons"]])) === "rejected",
   "NEGATIVE: three N-H bonds using 8 electrons rejects the figure");
+check(status(co2Lewis, co2, claimPlan(co2, [["CO2 has 16 valence electrons", true]])) === "certified"
+  && status(co2Lewis, co2, claimPlan(co2, [["CO2 has 18 valence electrons", true]])) === "rejected",
+  "Lewis CO2: the molecule's valence electrons are its total (16)");
+check(status(co2Lewis, co2, claimPlan(co2, [["Carbon forms four bonds", true]])) === "rejected",
+  "NEGATIVE: a bond count over double bonds with no order word (bonds or bond pairs?) declines");
+check(status(ieGraph, ie, plan(ie, { claims: [["There is a decrease from Be to B", "IE(B) > IE(Be)"]] })) === "rejected"
+  && status(ieGraph, ie, plan(ie, { claims: [["There is a decrease from Be to B", "IE(Be) > IE(B)"]] })) === "certified",
+  "periodic IE: a ranking in function notation is checked against the table");
 check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 has an ideal tetrahedral molecular shape", true]] })) !== null,
   "NEGATIVE: \"ideal\" before a named molecular shape is a shape claim, not a reference angle");
 check(vseprPlanConflict(nh3, plan(nh3, { claims: [["The angle is smaller than the ideal tetrahedral angle", true]] })) === null,

@@ -160,6 +160,12 @@ function bondMatches(result: LewisResult, bond: LewisBond, order: number | null,
   return true;
 }
 
+/** "Four bonds" on carbon in CO2 could count bonds (2) or bond pairs (4):
+ * without an order word, a count over a multiple bond is not read. */
+function bondCount(bonds: readonly LewisBond[], order: number | null): number | null {
+  return order === null && bonds.some((bond) => bond.order > 1) ? null : bonds.length;
+}
+
 function incident(result: LewisResult, atom: LewisAtom): LewisBond[] {
   return result.bonds.filter((bond) => bond.a === atom.id || bond.b === atom.id);
 }
@@ -186,7 +192,7 @@ function sourceValue(item: Item, owner: Owner | null, result: LewisResult, partn
       case "sigma": return perAtom(atoms, (atom) => incident(result, atom).filter((bond) => bondMatches(result, bond, null, item.types, partner, atom)).length);
       case "pi": return perAtom(atoms, (atom) => incident(result, atom).filter((bond) => bondMatches(result, bond, null, item.types, partner, atom))
         .reduce((sum, bond) => sum + bond.order - 1, 0));
-      case "bonds": return perAtom(atoms, (atom) => incident(result, atom).filter((bond) => bondMatches(result, bond, item.order, item.types, partner, atom)).length);
+      case "bonds": return perAtom(atoms, (atom) => bondCount(incident(result, atom).filter((bond) => bondMatches(result, bond, item.order, item.types, partner, atom)), item.order));
       case "atoms": return bondedTo && item.element
         ? perAtom(atoms, (atom) => atom.neighbours.filter((id) => symbolOf(result, id) === item.element!.symbol).length) : null;
       default: return null;
@@ -202,10 +208,11 @@ function sourceValue(item: Item, owner: Owner | null, result: LewisResult, partn
     case "lpe": return 2 * result.lonePairs;
     case "bp": return shared;
     case "be": return 2 * shared;
-    case "tv": return result.totalValenceElectrons;
+    // The molecule's valence electrons are its total.
+    case "tv": case "v": return result.totalValenceElectrons;
     case "sigma": return typed.length;
     case "pi": return typed.reduce((sum, bond) => sum + bond.order - 1, 0);
-    case "bonds": return result.bonds.filter((bond) => bondMatches(result, bond, item.order, item.types, partner)).length;
+    case "bonds": return bondCount(result.bonds.filter((bond) => bondMatches(result, bond, item.order, item.types, partner)), item.order);
     case "atoms": return !bondedTo && item.element ? result.formula.atoms.find((atom) => atom.element === item.element)?.count ?? 0 : null;
     default: return null;
   }

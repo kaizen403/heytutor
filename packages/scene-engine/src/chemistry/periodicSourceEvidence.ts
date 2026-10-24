@@ -243,7 +243,8 @@ function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
     const elements = claimElements(text);
     const ranks = elements.slice(1).map((right, i) => {
       const left = elements[i]!;
-      const gap = /^\s*([<>])\s*$/.exec(text.slice(left.end, right.start));
+      // "Na > Mg", and the function notation "IE(Be) > IE(B)".
+      const gap = /^\s*\)?\s*([<>])\s*(?:[A-Za-zχ]{1,4}\d?\s*\(\s*)?$/.exec(text.slice(left.end, right.start));
       return gap ? { left, right, operator: gap[1]! } : null;
     }).filter((rank) => rank !== null);
     const labels = labelSpans(text);
