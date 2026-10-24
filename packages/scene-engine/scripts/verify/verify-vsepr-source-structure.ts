@@ -47,10 +47,7 @@ test("exact SF4 source has five atoms, four bonds and one electron pair", () => 
   assert.equal(labels(canonical).filter((label) => label === "F").length, 4);
   assert.ok(labels(canonical).includes("S"));
   assert.ok(labels(canonical).includes("SF_4"));
-  // The shape writes its characteristic angle on a shape-only stem too: the
-  // source bound <120° with its claim kind, and no other number. Wedge to
-  // dash has no honest arc, so it is a caption naming the equatorial pair.
-  assert.deepEqual(labels(canonical).filter((label) => /°|\b(?:ideal|quoted|inequality)\b/.test(label)), ["eq. F-S-F <120°", "inequality"]);
+  assert.ok(!labels(canonical).some((label) => /°|\b(?:ideal|quoted|inequality)\b/.test(label)));
   assert.ok(compileSceneDocument(canonical).ok);
 });
 

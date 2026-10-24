@@ -4,7 +4,8 @@
  * On 24 Oct a blind judge marked "shape of NH3" WRONG: the 107° arc between
  * the plain and the wedge H swept through the dashed middle bond, and the
  * value sat a bond length away behind a dashed leader, so the dashed bond
- * read as a bent L. This gate compiles every VSEPR probe, a shape and a bond
+ * read as a bent L. An angle is written only when the stem asks for one
+ * (main's rule), so this gate compiles every VSEPR probe, a shape and a bond
  * angle stem for each common species, and multi-species comparisons, and
  * measures the compiled ink (screen px):
  *
@@ -14,11 +15,11 @@
  *   value      the arc's value needs no leader and its glyph ink is nearer
  *              the arc than any other mark (bonds, wedges, dots, symbols,
  *              captions)
- *   written    each species with a characteristic angle shows that value
- *              exactly once, on its arc or as a caption naming the atoms
- *              (NH3 "H-N-H = 107°", SF4 "eq. F-S-F <120°"), unless a
- *              charge-like token withholds an unasked angle; every figure
- *              compiles, four species included
+ *   written    on an asked stem each species with a source angle shows that
+ *              value exactly once, on its arc or as a caption naming the
+ *              atoms (NH3 "H-N-H = 107°", SF4 "eq. F-S-F <120°"); a stem
+ *              that does not ask shows none; every figure compiles, four
+ *              species included
  *   scale      fitPxPerUnit (what the builder places the value with) matches
  *              the compiled fit within 3%
  *   mutation   restoring the old crossing arc turns NH3 red; handing the value
@@ -28,7 +29,8 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { measureTextInkBounds } from "@heytutor/drawing";
-import { buildVseprFigure, characteristicAngle, fitPxPerUnit, VSEPR_PROBES, vseprSpecies, writesCharacteristicAngle } from "../../src/chemistry/vsepr";
+import { chemStem } from "../../src/chemistry/sceneKit";
+import { askedAngle, buildVseprFigure, fitPxPerUnit, VSEPR_PROBES, vseprSpecies } from "../../src/chemistry/vsepr";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { RenderPrimitive, RenderScene, SceneDocument } from "../../src/types";
@@ -38,6 +40,9 @@ type P = { x: number; y: number };
 type Box = { x: number; y: number; width: number; height: number };
 const TAU = Math.PI * 2;
 const norm = (a: number) => ((a % TAU) + TAU) % TAU;
+
+/** Main's rule for writing an angle, kept apart from the builder as the oracle. */
+const asks = (question: string) => /\bangles?\b|°|\bdegrees?\b/i.test(chemStem(question));
 
 const SPECIES = ["NH3", "H2O", "CH4", "SF4", "ClF3", "XeF4", "BF3", "CO2", "SF6", "PCl5", "PCl3", "NF3", "PH3", "H2S", "SO2",
   "NH4+", "H3O+", "BrF5", "IF5", "XeF2", "XeOF4", "BeCl2", "SO3", "SiCl4", "SnCl2", "NO2", "ICl4-", "I3-", "BrF3", "SO4^2-"];
@@ -51,6 +56,11 @@ const STEMS = [
   "Compare the shapes of XeF2, XeF4 and XeF6",
   "Use VSEPR to compare the molecular shapes and bond angles of ClF3 and BrF5.",
   "Use VSEPR to compare the molecular shapes and bond angles of ClF3 and XeF4.",
+  "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4",
+  "Compare the bond angles of SF6, BrF5, XeF4 and PF5",
+  "Compare the bond angles of BF3, NH3, CH4 and SF6",
+  "Compare the bond angles of NH3, H2O and CH4",
+  "bond angles in SCl4, SeCl4 and TeCl4",
 ];
 
 /* Compiled-ink geometry ------------------------------------------------- */
@@ -177,8 +187,8 @@ function sweep(build: Build): Sweep {
     for (const problem of arcProblems(scene)) red.push(`${question}: ${problem}`);
     const texts = figure.document.entities.filter((entity) => entity.label && /°/.test(entity.label));
     vseprSpecies(question).forEach((result, index) => {
-      // A charge-like token withholds the angle the stem did not ask (T9).
-      const want = writesCharacteristicAngle(question) ? characteristicAngle(result) : null;
+      // An angle the stem did not ask is never written.
+      const want = asks(question) ? askedAngle(result) : null;
       const mine = texts.filter((entity) => entity.id.startsWith(`m${index + 1}_`));
       const shown = mine.map((entity) => VALUE.exec(entity.label!)?.[1] ?? entity.label!);
       arcs += mine.filter((entity) => entity.id.endsWith("_ang_val")).length;
@@ -217,7 +227,7 @@ await check("sweep", () => {
   assert.ok(live.arcs >= 30 && live.captions >= 10, `arcs ${live.arcs}, captions ${live.captions}`);
 });
 await check("nh3-and-sf4-captions", () => {
-  for (const [question, text] of [["What is the shape of NH3?", "H-N-H = 107°"], ["What is the shape of SF4?", "eq. F-S-F <120°"]] as const) {
+  for (const [question, text] of [["What is the bond angle in NH3?", "H-N-H = 107°"], ["What is the bond angle in SF4?", "eq. F-S-F <120°"]] as const) {
     const figure = buildVseprFigure(question, [], false)!;
     assert.ok(!figure.document.entities.some((entity) => entity.id === "m1_ang"), `${question}: no arc`);
     assert.equal(figure.document.entities.find((entity) => entity.id === "m1_ang_txt")?.label, text);
@@ -255,7 +265,7 @@ await check("mutation/crossing-arc", async () => {
   const red = sweep(build).red;
   console.log(`mutation/crossing-arc: ${red.length} red lines`);
   for (const problem of ["crosses m1_b3", "sector holds m1_b3", "value needs a leader"]) {
-    assert.ok(red.includes(`What is the shape of NH3?: m1_ang: ${problem}`), `NH3: ${problem}`);
+    assert.ok(red.includes(`What is the bond angle in NH3?: m1_ang: ${problem}`), `NH3: ${problem}`);
   }
 });
 await check("mutation/solver-placed-value", async () => {

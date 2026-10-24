@@ -30,8 +30,6 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
-import { chargeMarkersCarried } from "./chargeMarker";
-import { stemHasChargeLikeToken } from "./chargeEvidence";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
@@ -734,12 +732,7 @@ const MAX_SPECIES = 4;
 /**
  * The complete formula set in the source. Up to four resolved species are
  * drawn together; an unsupported member or an overfull set declines rather
- * than silently drawing a recognized subset. A charge the source writes that
- * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral species)
- * declines too: the neutral shape and its angle are false for the ion asked.
- * So does any charge-like token (NO2 minus, SO3 two minus, with charge -1,
- * Cu II, a stray sign) when no read species is charged: the reader cannot
- * prove the neutral formula is the species asked, so it draws none.
+ * than silently drawing a recognized subset.
  */
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
@@ -750,8 +743,6 @@ export function vseprSpecies(question: string): VseprResult[] {
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
-  if (stemHasChargeLikeToken(question) && !species.some((result) => result.charge !== 0)) return [];
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
@@ -1042,30 +1033,16 @@ function panel(c: ChemScene, id: string, center: Vec2, width: number, height: nu
 }
 
 /**
- * The one angle a shape figure writes, on every stem, not only when the stem
- * says "angle": the source value (ideal, quoted, or a bound) wherever the
- * layout names the pair of bonds it belongs to, else null. TBP names its
- * axial to equatorial 90°; its oblique equatorial 120° is never written.
- * angleMark() decides how the value is shown: an arc between two in-plane
- * bonds with the value beside it, or a caption naming the atoms. Both are
- * part of the regenerated source graph, so certifyVseprSourceDocument
- * certifies them and still checks any plan angle scalar by species and role.
+ * The angle a species writes when the stem asks for one (withAngle): the
+ * source value (ideal, quoted, or a bound) wherever the layout names the pair
+ * of bonds it belongs to, else null. angleMark() decides only how that value
+ * is shown: an arc between two in-plane bonds with the value beside it, or a
+ * caption naming the atoms. Both are part of the regenerated source graph,
+ * so certifyVseprSourceDocument certifies them and still checks any plan
+ * angle scalar by species and role.
  */
-export function characteristicAngle(result: VseprResult): string | null {
+export function askedAngle(result: VseprResult): string | null {
   return result.bondAngle && layoutFor(result)?.angle ? result.bondAngle : null;
-}
-
-/** The stem asks for an angle: main's rule for writing one before #287. */
-const ANGLE_ASKED = /\bangles?\b|°|\bdegrees?\b/i;
-
-/**
- * Whether a figure for this question writes characteristic angles. Only on
- * positive evidence of no charge: a stem with any charge-like token (NH4+
- * ion, NO2 minus, with charge -1) writes an angle only when it asks for one,
- * as main did, so a misread charge never gains an angle the stem did not ask.
- */
-export function writesCharacteristicAngle(question: string): boolean {
-  return !stemHasChargeLikeToken(question) || ANGLE_ASKED.test(chemStem(question));
 }
 
 /**
@@ -1252,9 +1229,10 @@ export function anglePairQualifier(stericNumber: number, seatA: SlotSeat, seatB:
 /**
  * The caption form, e.g. "H-N-H = 107°", "eq. F-S-F <120°", "cis F-S-F = 90°".
  * A caption names its pair in words, since no arc shows which bonds it
- * means; past the compact limit, or for a pair the words cannot name, it
- * is null and no angle is written (PCl5's "ax-eq Cl-P-Cl 90°" is too long:
- * a bare "Cl-P-Cl = 90°" reads as THE angle of a shape that has three).
+ * means. Past the compact limit the atoms go and the pair words stay
+ * ("ax-eq 90°" for PCl5, "eq. <120°" for SCl4): a bare "Cl-P-Cl = 90°"
+ * would read as THE angle of a shape that has three. The asked value is
+ * always written; only a pair the words cannot name gets none.
  */
 function angleCaption(result: VseprResult, layout: Layout, seated: readonly Seated[], value: string): string | null {
   const [a, b] = layout.angle!;
@@ -1263,7 +1241,7 @@ function angleCaption(result: VseprResult, layout: Layout, seated: readonly Seat
   if (prefix === null) return null;
   const bound = value.startsWith("<") || value.startsWith(">");
   const forms = [bound ? `${prefix}${atoms} ${value}` : `${prefix}${atoms} = ${value}`, `${prefix}${atoms} ${value}`];
-  return forms.find((form) => form.length <= 16) ?? null;
+  return forms.find((form) => form.length <= 16) ?? `${prefix}${value}`;
 }
 
 function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[], ink: SpeciesInk, value: string, pxPerUnit: number): AngleMark | null {
@@ -1337,7 +1315,7 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   // Nonbonding electrons belong to the structure, just like its bonds.
   frameIds.push(...electronIds);
-  const characteristic = withAngle ? characteristicAngle(result) : null;
+  const characteristic = withAngle ? askedAngle(result) : null;
   const ink: SpeciesInk = {
     origin, ligands: ligandAt, dots: pairDots,
     // sceneKit draws a wedge 0.09 wide at its base and multiple-bond strokes 0.1 apart.
@@ -1468,7 +1446,10 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
     : `shapes of ${species.map((result) => result.formula).join(", ")} by VSEPR`;
-  const withAngle = writesCharacteristicAngle(question);
+  // A shape/lone-pair request needs the complete molecule, not an extra
+  // measured angle. Requested/stated angles remain in the ordinary numeric
+  // admission path; suppressing them would turn that request into a fragment.
+  const withAngle = /\bangles?\b|°|\bdegrees?\b/i.test(stem);
   const draw = (pxPerUnit: number) => {
     const scene = new ChemScene(question, reason, VSEPR_FAMILY);
     const items: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
