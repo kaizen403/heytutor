@@ -10,9 +10,10 @@
  * isomer, an abstract body, a tampered figure, a nonchemistry document.
  *
  * The final checks copy the engine source and prove this gate goes red on
- * that copy: once with the binder call removed, and once with the formula
- * key flattening atom counts and charge into one string (so O^(2-) oxide
- * would match an O_2^(-) superoxide figure).
+ * that copy: with the binder call removed; with the formula key flattening
+ * atom counts and charge into one string (so O^(2-) oxide would match an
+ * O_2^(-) superoxide figure); and with the key merging repeated atoms (so
+ * the isomer CH3OCHO would match a CH3COOH figure).
  */
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
@@ -92,6 +93,7 @@ const POSITIVE: Row[] = [
   { name: "lewis-co2", question: "lewis structure of CO2", family: "chem_lewis", bodies: CO2_BODIES,
     connections: [["carbon", "oxygen1"], ["carbon", "oxygen2"]] },
   { name: "bond-order-n2", question: "bond order of N2", family: "chem_mo", bodies: [{ id: "n2", kind: "other", label: "N2 molecule" }] },
+  { name: "lewis-acetic-acid", question: "Lewis structure of CH3COOH", family: "chem_lewis", bodies: [{ id: "x", kind: "other", label: "CH_3COOH molecule" }] },
   { name: "mo-superoxide", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O_2^(-) ion" }] },
   { name: "config-iron", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "fe", kind: "other", label: "iron atom" }] },
   { name: "radius-period-3", question: "trend of atomic radius in period 3", family: "chem_periodic", bodies: [{ id: "p3", kind: "other", label: "Period 3 elements" }] },
@@ -126,6 +128,7 @@ const CONTROLS: Control[] = [
   { name: "oxide named on a superoxide MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O^(2-) ion" }] },
   { name: "neutral molecule named on an ion MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O2 molecule" }] },
   { name: "peroxide named on a superoxide MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O2^(2-) ion" }] },
+  { name: "isomer named on an acetic acid Lewis figure", question: "Lewis structure of CH3COOH", family: "chem_lewis", bodies: [{ id: "x", kind: "other", label: "CH3OCHO molecule" }] },
   { name: "central atom where the family places none", question: "bond order of N2", family: "chem_mo", bodies: [{ id: "x", kind: "point", label: "central nitrogen atom" }] },
   { name: "wrong element on an orbital box figure", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "x", kind: "other", label: "cobalt atom" }] },
   { name: "ion the orbital figure does not draw", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "x", kind: "other", label: "Fe3+ ion" }] },
@@ -237,10 +240,19 @@ if (!mutant) {
   test("mutation: a formula key that flattens charge into the characters binds oxide to superoxide", () => {
     const output = runMutant(
       join("chemistry", "obligationIdentity.ts"),
-      "  return `${parsed.atoms.map((atom) => `${atom.symbol}${atom.count}`).join(\" \")} | ${parsed.charge}`;",
+      "  return `${body} | ${charge}`;",
       "  return value.trim().replace(/\\s+/g, \"\").replace(/_(\\d+)/g, \"$1\").replace(/\\^\\(([^)]*)\\)/g, \"$1\").replace(/[\\^()[\\]]/g, \"\");",
     );
     assert.ok(output.includes("FAIL control oxide named on a superoxide MO diagram:"), "the oxide control must go red on the flattened key");
+  });
+
+  test("mutation: a formula key of merged atom counts binds an isomer", () => {
+    const output = runMutant(
+      join("chemistry", "obligationIdentity.ts"),
+      "  return `${body} | ${charge}`;",
+      "  const parsed = parseFormula(text)!;\n  return `${parsed.atoms.map((atom) => `${atom.symbol}${atom.count}`).join(\" \")} | ${charge}`;",
+    );
+    assert.ok(output.includes("FAIL control isomer named on an acetic acid Lewis figure:"), "the isomer control must go red on the merged key");
   });
 }
 
@@ -248,4 +260,4 @@ if (failures.length > 0) {
   console.error(`\nchemistry obligation identity: ${failures.length} failed, ${passed} passed`);
   process.exit(1);
 }
-console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 2 mutations"})`);
+console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 3 mutations"})`);
