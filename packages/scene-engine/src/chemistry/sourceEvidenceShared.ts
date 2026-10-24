@@ -145,8 +145,18 @@ export interface ClaimReading {
   readonly unread: boolean;
 }
 
-/** Words that negate a clause. "no" is a count (no lone pairs = 0), not a negation. */
-const NEGATION = /\b(?:not|never|cannot|neither|nor|without|lacks?|lacking)\b|n['’]t\b/i;
+/** Words that negate a clause or judge it untrue. "no" is a count (no lone
+ * pairs = 0), not a negation; "none of" is. */
+const NEGATION = /\b(?:not|never|cannot|neither|nor|none|without|lacks?|lacking|false|falsely|untrue|incorrect|incorrectly|wrong|wrongly|invalid|nothing|nobody|fails?|myth|misconception)\b|n['’]t\b/i;
+
+/** Words that own a total to one atom or to each atom: "on the central atom",
+ * "per atom", "each atom". A species total never has such an owner. */
+const ATOM_OWNER = /\b(?:atoms?|atomic|cent(?:re|er|ral)|each|every|per|terminal|ligands?|individual)\b/i;
+
+/** True when a declaration owns its total to an atom, not to the species. */
+export function atomOwnedTotal(text: string): boolean {
+  return ATOM_OWNER.test(text);
+}
 
 /**
  * One fail closed rule for every certificate. A claim with anything left

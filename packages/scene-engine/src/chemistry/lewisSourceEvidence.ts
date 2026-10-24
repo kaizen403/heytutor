@@ -19,10 +19,10 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument, SceneIssue } from "../types";
 import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
 import { buildLewisScene, isLewisStem, LEWIS_FAMILY, stemSpecies, type LewisAtom, type LewisResult } from "./lewis";
-import { chargeMarkersCarried } from "./chargeMarker";
+import { stemHasChargeLikeToken } from "./chargeEvidence";
 import { lewisClaimText, readLewisClaim } from "./lewisClaimReader";
 import {
-  claimVerdict, countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, planClaims,
+  atomOwnedTotal, claimVerdict, countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, planClaims,
   graphMatches, mentionedElements, planIssue, planQuantities, type ChemistrySourceCertification,
 } from "./sourceEvidenceShared";
 
@@ -141,7 +141,9 @@ function expectedValue(quantity: TurnPlanQuantityV3, role: Role, result: LewisRe
   switch (role) {
     case "total_valence":
       // A total is molecular; its arithmetic may name every element present.
-      return symbolAtoms.length === 0 && !central && types.length === 0 ? result.totalValenceElectrons : null;
+      // An owner word in the symbol ("on the central atom", "per atom") owns
+      // the total to an atom, whose valence differs.
+      return symbolAtoms.length === 0 && !central && types.length === 0 && !atomOwnedTotal(declarations[0]!) ? result.totalValenceElectrons : null;
     case "valence": {
       const atom = central?.element ?? (owners.length === 1 ? owners[0]! : null);
       return atom && owners.length <= 1 && types.length === 0 ? valenceElectrons(atom) : null;
@@ -215,8 +217,7 @@ function claimIssues(plan: TurnPlanV3, result: LewisResult): SceneIssue[] {
 
 /** Certify the plain single-species Lewis graph. Resonance, overlap, ionic,
  * hydrogen-bond, metallic, topology and multi-species scenes, and a stem
- * whose written charge the regenerated species lacks, keep the generic
- * audit (not_applicable). */
+ * with any charge-like token, keep the generic audit (not_applicable). */
 export function certifyLewisSourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): ChemistrySourceCertification {
   const claimsFamily = document.source.chemistryFamily === LEWIS_FAMILY || document.source.archetype === LEWIS_FAMILY;
   if (!claimsFamily || !isLewisStem(question)) return { status: "not_applicable" };
@@ -229,9 +230,9 @@ export function certifyLewisSourceDocument(document: SceneDocument, question: st
   const species = stemSpecies(question);
   if (!raw || species.length !== 1) return { status: "not_applicable" };
   const result = species[0]!;
-  // The builder reads NO2 - (spaced) as neutral NO2: a charge the question
-  // writes and the regenerated species lacks leaves the generic audit.
-  if (!chargeMarkersCarried(question, [result.text])) return { status: "not_applicable" };
+  // The builder reads NO2 - and NO2 minus as neutral NO2: a stem with any
+  // charge-like token leaves the generic audit, charged species included.
+  if (stemHasChargeLikeToken(question)) return { status: "not_applicable" };
   const computed: Record<string, number> = { sigma_bonds: result.sigmaBonds, pi_bonds: result.piBonds, lone_pairs: result.lonePairs };
   if (raw.quantities.map((quantity) => quantity.id).join(",") !== Object.keys(computed).join(",")
     || raw.quantities.some((quantity) => quantity.value !== computed[quantity.id])) return { status: "not_applicable" };

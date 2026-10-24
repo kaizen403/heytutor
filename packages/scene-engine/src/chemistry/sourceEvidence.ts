@@ -14,10 +14,10 @@ import { parseFormula } from "./formula";
 import { ELEMENTS, elementBySymbol, valenceElectrons } from "./elements";
 import { buildVseprScene, isVseprStem, VSEPR_FAMILY, vseprSpecies, type VseprResult } from "./vsepr";
 import {
-  countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, graphMatches, mentionedElements,
+  atomOwnedTotal, countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, graphMatches, mentionedElements,
   type ChemistrySourceCertification,
 } from "./sourceEvidenceShared";
-import { chargeMarkersCarried } from "./chargeMarker";
+import { stemHasChargeLikeToken } from "./chargeEvidence";
 import { certifyLewisSourceDocument } from "./lewisSourceEvidence";
 import { certifyPeriodicSourceDocument } from "./periodicSourceEvidence";
 
@@ -120,7 +120,7 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
     // A total belongs to the whole species. A declaration naming an atom
     // ("total valence electrons on N") may own the total to that atom, whose
     // valence differs, so any element named outside a formula declines.
-    if (declarations.some((text) => mentionedElements(text, ELEMENTS).length > 0)) return false;
+    if (declarations.some((text) => mentionedElements(text, ELEMENTS).length > 0 || atomOwnedTotal(text))) return false;
     const total = totalValence(result);
     return total !== null && equalScalar(quantity.value, total);
   }
@@ -201,24 +201,24 @@ export function certifyVseprSourceDocument(document: SceneDocument, question: st
  * the VSEPR shape graph, the single-species Lewis graph, and the periodic
  * trend graph read from the element table. A certificate regenerates the
  * whole figure from the question and checks every role-bearing plan scalar
- * against that source; a contradiction rejects the figure. A question that
- * writes a charge no regenerated species carries earns no certificate.
+ * against that source; a contradiction rejects the figure. A question with
+ * any charge-like token earns no certificate.
  */
 export function certifyChemistrySourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): ChemistrySourceCertification {
   // A regenerated figure is only the builder's own reading of the stem, and
-  // some builders read a spaced or sign first charge (SO3 2-, NO2 -, O2+1) as
-  // the neutral species. Every charge the question writes must be on a
-  // regenerated species, or the figure keeps the generic audit.
+  // builders draw the neutral species for many charge spellings (SO3 2-,
+  // NO2 minus, Cu II). Only a stem with no charge-like token anywhere
+  // (chargeEvidence.ts) earns a certificate; a contradiction still rejects.
+  const charged = stemHasChargeLikeToken(question);
   const vsepr = certifyVseprSourceDocument(document, question, plan);
   if (vsepr.status === "rejected") return vsepr;
   if (vsepr.status === "certified") {
-    if (!chargeMarkersCarried(question, vseprSpecies(question).map((species) => species.formula))) return { status: "not_applicable" };
+    if (charged) return { status: "not_applicable" };
     return { status: "certified", texts: vsepr.texts, quantities: [] };
   }
   const lewis = certifyLewisSourceDocument(document, question, plan);
   if (lewis.status !== "not_applicable") return lewis;
   const periodic = certifyPeriodicSourceDocument(document, question, plan);
-  // A periodic trend graph plots neutral elements only.
-  if (periodic.status === "certified" && !chargeMarkersCarried(question, [])) return { status: "not_applicable" };
+  if (periodic.status === "certified" && charged) return { status: "not_applicable" };
   return periodic;
 }

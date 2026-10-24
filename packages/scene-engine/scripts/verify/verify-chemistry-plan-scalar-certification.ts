@@ -12,12 +12,12 @@
  * false against the covalent table the graph plots.
  *
  * Charge rows: a regenerated figure is only the builder's reading of the
- * stem, and the Lewis and VSEPR builders read a spaced or sign first charge
- * (NO2 -, SO3 2-, O2 2-) as the neutral species. Those stems must earn no
- * certificate (not_applicable keeps the generic audit, which refuses them),
- * while charged species the builders read (NH4+, NO3^-, SO4^2-) and hyphens
- * (C-H, sp3-hybridised) still certify. A mutation removing the guards turns
- * the charge rows red.
+ * stem, and the builders draw the neutral species for many charge spellings
+ * (NO2 -, NO2 minus, SO3 two minus, with charge -1). So a stem with any
+ * charge-like token (chargeEvidence.ts) earns no certificate: not_applicable
+ * keeps the generic audit. Charged species the builders read (NH4+, SO4^2-),
+ * hyphens (C-H, sp3-) and periodic stems naming ions decline too. A
+ * mutation removing the rule turns every charge row the builder draws red.
  */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -292,9 +292,12 @@ tamperedTrend.quantities[0]!.value = 186;
 check(status(tamperedTrend, radius, plan(radius)) !== "certified", "a trend document with an edited table value earns no certificate");
 check(status(co2Lewis, "lewis structure of SO2", co2Plan) !== "certified", "a CO2 graph does not certify against another question");
 
-// Charge written, builder dropped it: the regenerated figure is the neutral
-// species, so it earns no certificate. Each row is checked and reported.
-const CHARGE_DROPPED: ReadonlyArray<readonly [string, string, Array<[string, string | boolean]>]> = [
+// Any charge-like token in the stem (chargeEvidence.ts): no certificate. The
+// builders draw the neutral species for many charge spellings (NO2 -, NO2
+// minus, SO3 two minus), so a charged species the builder reads right
+// (NH4+, SO4^2-) and a bond dash or hyphen (C-H, sp3-) earn none either.
+// not_applicable keeps the generic audit. Each row is checked and reported.
+const CHARGE_LIKE: ReadonlyArray<readonly [string, string, Array<[string, string | boolean]>]> = [
   ["lewis structure of NO2 -", "chem_lewis", [["The nitrite ion is bent", true]]],
   ["draw the lewis structure of NO2 -", "chem_lewis", [["Nitrite has resonance", true]]],
   ["lewis structure of NO2 -", "chem_lewis", []],
@@ -302,27 +305,44 @@ const CHARGE_DROPPED: ReadonlyArray<readonly [string, string, Array<[string, str
   ["shape of SO3 2-", "chem_vsepr", []],
   ["shape of NO2 -", "chem_vsepr", [["The nitrite ion is bent with a bond angle of about 115 degrees", true]]],
   ["hybridisation of NO2 -", "chem_vsepr", []],
+  // Review round 4: a charge written as a word or a Roman numeral.
+  ["lewis structure of NO2 minus", "chem_lewis", [["The nitrite ion is bent", true]]],
+  ["lewis structure of NO2 minus", "chem_lewis", [["Nitrite has resonance", true]]],
+  ["lewis structure of NO2 minus", "chem_lewis", []],
+  ["lewis structure of NO2 negative", "chem_lewis", []],
+  ["lewis structure of NO2 with a negative charge", "chem_lewis", []],
+  ["lewis structure of NO2 with charge -1", "chem_lewis", []],
+  ["shape of SO3 two minus", "chem_vsepr", []],
+  ["shape of SO3 minus 2", "chem_vsepr", []],
+  ["shape of NO2 minus", "chem_vsepr", [["The nitrite ion is bent", true]]],
+  ["hybridisation of NO2 minus", "chem_vsepr", []],
+  ["shape of NO2 negative", "chem_vsepr", []],
+  ["shape of NO2 with a negative charge", "chem_vsepr", []],
+  ["shape of NO2 with charge -1", "chem_vsepr", []],
+  ["shape of SO3 (2-)", "chem_vsepr", []],
+  ["shape of SF4 - see-saw?", "chem_vsepr", []],
+  ["draw NH3 - explain", "chem_vsepr", []],
+  // Charged species the builders read right, and hyphens.
+  ["lewis structure of NH4+", "chem_lewis", []], ["lewis structure of NO3^-", "chem_lewis", []], ["lewis structure of CN-", "chem_lewis", []],
+  ["lewis structure of NO2^-", "chem_lewis", []],
+  ["shape of NH4+ ion", "chem_vsepr", []], ["shape of SO4^2-", "chem_vsepr", []], ["shape of NO2^-", "chem_vsepr", []],
+  ["shape of SO\u2083\u00b2\u207b", "chem_vsepr", []],
+  ["lewis structure of CH4 showing each C-H bond", "chem_lewis", []], ["shape of CH4 with sp3-hybridised carbon", "chem_vsepr", []],
+  // A periodic trend graph plots neutral elements; a charge word declines it.
+  ["ionisation energy trend across period 2 for the ions", "chem_periodic", []],
+  ["electronegativity down group 17 halide ions", "chem_periodic", []],
 ];
-const CHARGE_READ: ReadonlyArray<readonly [string, string]> = [
-  ["lewis structure of NH4+", "chem_lewis"], ["lewis structure of NO3^-", "chem_lewis"], ["lewis structure of CN-", "chem_lewis"],
-  ["shape of NH4+ ion", "chem_vsepr"], ["shape of SO4^2-", "chem_vsepr"], ["shape of NO2^-", "chem_vsepr"],
-  ["lewis structure of CH4 showing each C-H bond", "chem_lewis"], ["shape of CH4 with sp3-hybridised carbon", "chem_vsepr"],
-];
+/** Charge rows whose figure earns no certificate even without the rule. */
+const CHARGE_DECLINED_ANYWAY = new Set<string>(["charge-like token (draw NH3 - explain): not_applicable"]);
+const chargeName = (question: string, claims: ReadonlyArray<[string, string | boolean]>) =>
+  `charge-like token (${question}${claims.length ? `, claim "${claims[0]![0]}"` : ""}): not_applicable`;
 const chargeFailures: string[] = [];
-for (const [question, family, claims] of CHARGE_DROPPED) {
-  const turnPlan = plan(question, { claims });
-  const got = status(figure(question, family), question, turnPlan);
-  const name = `charge dropped (${question}${claims.length ? `, claim "${claims[0]![0]}"` : ""}): not_applicable`;
+for (const [question, family, claims] of CHARGE_LIKE) {
+  const got = status(figure(question, family), question, plan(question, { claims }));
+  const name = chargeName(question, claims);
   console.log(`${got === "not_applicable" ? "PASS" : "FAIL"} ${name} (got ${got})`);
   if (got !== "not_applicable") chargeFailures.push(name);
 }
-for (const [question, family] of CHARGE_READ) {
-  const got = status(figure(question, family), question, plan(question));
-  const name = `charge read or hyphen (${question}): certified`;
-  console.log(`${got === "certified" ? "PASS" : "FAIL"} ${name} (got ${got})`);
-  if (got !== "certified") chargeFailures.push(name);
-}
-check(chargeFailures.length === 0, `charge rows failed: ${chargeFailures.join("; ")}`);
 
 // Review round 3: a negation, a unit before a comparison sign and an atom
 // owned total each certified a false explanation. Each must now decline,
@@ -337,6 +357,18 @@ const ROUND3: ReadonlyArray<readonly [string, () => string, string]> = [
   ["atom owned total (total valence electrons on N = 8 for NH3)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("total valence electrons on N", 8, "electrons", "5 + 3(1) = 8")] })), "rejected"],
   ["atom owned total in the source text (NH3)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "total valence electrons around nitrogen")] })), "rejected"],
   ["molecule total still certifies (NH3 total valence 8)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "5 + 3(1) = 8")] })), "certified"],
+  // Review round 4 residuals of the same three classes.
+  ["negation none of (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["None of the oxygens has two lone pairs", true]] })), "rejected"],
+  ["negation it is false that (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["It is false that each oxygen has two lone pairs", true]] })), "rejected"],
+  ["negation is incorrect (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["Each oxygen has two lone pairs is incorrect", true]] })), "rejected"],
+  ["negation is wrong (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["Saying each oxygen has two lone pairs is wrong", true]] })), "rejected"],
+  ["negation untrue (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["It is untrue that each oxygen has two lone pairs", true]] })), "rejected"],
+  ["true count still certifies (CO2 each oxygen two lone pairs)", () => status(co2Lewis, co2, plan(co2, { claims: [["Each oxygen has two lone pairs", true]] })), "certified"],
+  ["central atom owned total (NH3 shape, 8 on the central atom)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("total valence electrons on the central atom", 8, "electrons", "5 + 3(1) = 8")] })), "rejected"],
+  ["per atom owned total (NH3 shape)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("total valence electrons per atom", 8, "electrons", "5 + 3(1) = 8")] })), "rejected"],
+  ["each atom owned total (NH3 shape)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "total valence electrons on each atom")] })), "rejected"],
+  ["central atom owned total (Lewis CO2, 16 on the central atom)", () => status(co2Lewis, co2, plan(co2, { derived: [q("total valence electrons on the central atom", 16, "electrons", "4 + 2(6) = 16")] })), "rejected"],
+  ["Lewis molecule total still certifies (CO2 total valence 16)", () => status(co2Lewis, co2, plan(co2, { derived: [q("Total valence electrons", 16, "electrons", "4 + 2(6) = 16")] })), "certified"],
 ];
 const round3Failures: string[] = [];
 for (const [name, run, expected] of ROUND3) {
@@ -345,6 +377,9 @@ for (const [name, run, expected] of ROUND3) {
   if (got !== expected) round3Failures.push(name);
 }
 check(round3Failures.length === 0, `round 3 rows failed: ${round3Failures.join("; ")}`);
+
+// Checked after round 3, so a mutant run still reports every row.
+check(chargeFailures.length === 0, `charge rows failed: ${chargeFailures.join("; ")}`);
 
 /** Run this gate on a copy of the engine with exact source edits. */
 function runMutant(edits: ReadonlyArray<readonly [string, string, string]>): string {
@@ -375,16 +410,16 @@ function runMutant(edits: ReadonlyArray<readonly [string, string, string]>): str
 
 if (!mutant) {
   const output = runMutant([
-    [join("chemistry", "lewisSourceEvidence.ts"), "  if (!chargeMarkersCarried(question, [result.text])) return { status: \"not_applicable\" };\n", ""],
-    [join("chemistry", "sourceEvidence.ts"),
-      "    if (!chargeMarkersCarried(question, vseprSpecies(question).map((species) => species.formula))) return { status: \"not_applicable\" };\n", ""],
+    [join("chemistry", "lewisSourceEvidence.ts"), "  if (stemHasChargeLikeToken(question)) return { status: \"not_applicable\" };\n", ""],
+    [join("chemistry", "sourceEvidence.ts"), "  const charged = stemHasChargeLikeToken(question);\n", "  const charged = false;\n"],
   ]);
-  for (const [question, , claims] of CHARGE_DROPPED) {
-    check(output.includes(`FAIL charge dropped (${question}${claims.length ? `, claim "${claims[0]![0]}"` : ""})`),
-      `mutation control: without the charge guards, ${question} is certified again`);
+  for (const [question, , claims] of CHARGE_LIKE) {
+    const name = chargeName(question, claims);
+    const expected = CHARGE_DECLINED_ANYWAY.has(name) ? "PASS" : "FAIL";
+    check(output.includes(`${expected} ${name}`), `mutation control: without the charge-like token rule, ${name} is ${expected === "FAIL" ? "certified again" : "still declined"}`);
   }
-  for (const [question] of CHARGE_READ) {
-    check(output.includes(`PASS charge read or hyphen (${question})`), `mutation control: ${question} still certifies without the guards`);
+  for (const name of ["round 3: molecule total still certifies", "round 3: true count still certifies", "round 3: Lewis molecule total still certifies"]) {
+    check(output.includes(`PASS ${name}`), `mutation control: ${name} without the rule`);
   }
 }
 
