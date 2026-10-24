@@ -288,7 +288,7 @@ function parseRows(value: unknown, baseCount: number): Parsed<CheckpointRow[]> {
   return { ok: true, value: rows };
 }
 
-function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parsed<Omit<CheckpointInput, "scene" | "tolerateOverlap">> {
+export function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parsed<Omit<CheckpointInput, "scene" | "tolerateOverlap">> {
   const seq = raw.seq;
   if (!Number.isSafeInteger(seq) || (seq as number) < 1 || (seq as number) > 1_000_000) {
     return { ok: false, error: "seq must be a positive integer" };
@@ -307,7 +307,7 @@ function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parse
     return { ok: false, error: "baseCount must be a non-negative integer" };
   }
   if ((raw.question !== undefined && (typeof raw.question !== "string" || raw.question.length > 12_000)) ||
-    (raw.preview !== undefined && (typeof raw.preview !== "string" || raw.preview.length > 2_000)) ||
+    (raw.preview !== undefined && typeof raw.preview !== "string") ||
     (raw.rawResponse !== undefined && (typeof raw.rawResponse !== "string" || raw.rawResponse.length > 100_000)) ||
     (raw.traceId !== undefined && (typeof raw.traceId !== "string" || raw.traceId.length > 128)) ||
     (raw.speedMultiplier !== undefined && (typeof raw.speedMultiplier !== "number" ||
@@ -331,7 +331,9 @@ function parseCommon(raw: Record<string, unknown>, mode: "put" | "patch"): Parse
       kind: isTurnKind(raw.kind) ? raw.kind : "lesson",
       baseCount: baseCount as number,
       question: raw.question as string | undefined,
-      preview: raw.preview as string | undefined,
+      // Only 60 characters are stored. A lesson's preview is its question, so
+      // an oversized one is cut, never a reason to refuse the taught rows.
+      preview: (raw.preview as string | undefined)?.slice(0, 2_000),
       rawResponse: raw.rawResponse as string | undefined,
       speedMultiplier: raw.speedMultiplier as number | undefined,
       traceId: raw.traceId as string | undefined,
@@ -661,7 +663,12 @@ async function applyCheckpoint(
 
   // --- What the turn becomes -------------------------------------------------
   const ownsMetadata = !before || input.seq > before.checkpointSeq;
-  const question = ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
+  // A close carries a question only to create a turn that never checkpointed.
+  // Its body may cut a long question to fit the keepalive budget, so it never
+  // rewrites the question of a turn that already exists.
+  const closeOfExistingTurn = Boolean(before) && input.tolerateOverlap;
+  const question = closeOfExistingTurn ? before!.question
+    : ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
   if (!question.trim()) return reject("turn_fields_invalid", "question is required", 400);
   const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
   const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;

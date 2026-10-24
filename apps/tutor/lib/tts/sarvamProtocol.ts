@@ -49,7 +49,7 @@ export function sarvamSpeechText(text: string): string {
       // it is a meter only where the quantity visibly ends.
       if (unit === "m" && !BARE_METER_END.test(rest)) return match;
       const words = SPACED_UNIT_WORDS[unit]!;
-      return `${value} ${Number(value) === 1 ? words[0] : words[1]}`;
+      return `${value} ${Number(value.replace(/,/g, "")) === 1 ? words[0] : words[1]}`;
     })
     .replace(ORDINAL, (_match, digits: string) => ordinalWords(digits))
     .replace(CLOCK_TIME, (_match, hours: string, minutes: string) =>
@@ -92,7 +92,9 @@ const SPACED_UNIT_WORDS: Record<string, [string, string]> = {
   W: ["watt", "watts"], Hz: ["hertz", "hertz"], Pa: ["pascal", "pascals"],
 };
 const SPACED_UNIT = new RegExp(
-  `(?<![\\p{L}\\p{N}_.,])(\\d+(?:\\.\\d+)?)[ \\t]+(${Object.keys(SPACED_UNIT_WORDS).join("|")})(?![\\p{L}\\p{N}_/^²³'′])`,
+  // "1,000 m" is one number. Without the grouped form the lookbehind refused
+  // the "000" and the whole quantity kept its letter.
+  `(?<![\\p{L}\\p{N}_.,])(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)[ \\t]+(${Object.keys(SPACED_UNIT_WORDS).join("|")})(?![\\p{L}\\p{N}_/^²³'′])`,
   "gu",
 );
 /** Where a bare m ends its quantity: a comma, a full stop (or ।), the end, or a postposition. */

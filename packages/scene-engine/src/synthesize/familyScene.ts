@@ -57,14 +57,13 @@ import {
   visualObligationRejection,
   type VisualObligationSet,
 } from "./visualObligations";
-import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
 import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
-import { detectArchetype } from "../archetypes/detect";
+import { detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
@@ -164,6 +163,9 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // A stem main's archetype scoring matched only through its plan's laws gets
+  // no deterministic figure at all, not the next archetype or a family.
+  if (lawOnlyArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
   const youngRequest=readYoungRepresentationRequest(question);
   if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;
@@ -413,27 +415,6 @@ function synthesizeFromFamilies(
           ? `compiled ${family} from the turn plan and reusable operators`
           : `compiled ${family} grounded in the question wording; no plan-backed metric proof, so the geometry is qualitative`,
       family,
-    };
-  }
-  // Explain/concept plans name the objects to teach (systems, flows,
-  // reservoirs) even when the stem names no apparatus. Compile those as a
-  // qualitative schematic after every metric family declined, never as a
-  // canned P–V rectangle.
-  const conceptDocument = buildConceptSchematic(question, input.turnPlan);
-  const conceptCompiled = conceptDocument ? tryCompile(conceptDocument) : null;
-  if (
-    conceptCompiled
-    && !demandRejection(conceptCompiled.document, demand)
-    && !(obligations && visualObligationRejection(obligations, conceptCompiled.document, question))
-  ) {
-    return {
-      ...conceptCompiled,
-      tier: schematic ? "question_representation" : "qualitative_verified",
-      nonMetric: true,
-      reason: schematic
-        ? "compiled a teaching schematic from the turn plan after the exact operator program was unavailable"
-        : "compiled a teaching schematic from the turn plan's named systems and flows; geometry is qualitative",
-      family: CONCEPT_SCHEMATIC_FAMILY,
     };
   }
   return null;
@@ -2288,50 +2269,15 @@ function buildStatePlot(
   if (isNamedVariationPlotStem(normalizeStem(question))) {
     return variationLineDocument(question);
   }
-  const pressures = quantities.filter((quantity) => /^p\d*$/i.test(normalizeKey(quantity.symbol))
-    || /^p\d*$/i.test(normalizeKey(quantity.id)));
-  const volumes = quantities.filter((quantity) => /^v\d*$/i.test(normalizeKey(quantity.symbol))
-    || /^v\d*$/i.test(normalizeKey(quantity.id)));
-  const closed = /(?:cycle|clockwise|rectangular)/i.test(question);
-  if (!schematic && pressures.length < 2 && volumes.length < 2 && !closed) return null;
-  const namedCycle = closed
-    || /(?:cyclic|isothermal|adiabatic|isobaric|isochoric|carnot|indicator diagram|p\s*[-–]?\s*[vt]\s*(?:diagram|graph)|pressure.{0,40}volume|volume.{0,40}pressure|thermodynamic cycle)/i.test(question);
-  if (schematic && pressures.length < 2 && volumes.length < 2 && !namedCycle) return null;
-  const axisLabel = /p\s*[-–]?\s*t\s*(?:diagram|graph)/i.test(question) ? "P-T" : "P-V";
-  const corners = [
-    { id: "A", x: -2, y: -1.5 },
-    { id: "B", x: 2, y: -1.5 },
-    { id: "C", x: 2, y: 1.5 },
-    { id: "D", x: -2, y: 1.5 },
-  ];
-  return baseDocument({
-    question,
-    reason: "display-scaled thermodynamic state plot",
-    quantities: [],
-    entities: [
-      { id: "axes", kind: "axes", role: "PV axes", label: axisLabel },
-      ...corners.map((corner) => ({ id: corner.id, kind: "point", role: "named state", label: corner.id })),
-      { id: "cycle", kind: "polygon", role: "process cycle" },
-    ],
-    constructions: [
-      { id: "make_axes", operator: "axes", inputs: { xMin: -3, xMax: 3, yMin: -2.5, yMax: 2.5 }, outputs: ["axes"] },
-      ...corners.map((corner) => pointAt(corner.id, corner.x, corner.y)),
-      {
-        id: "make_cycle",
-        operator: "polygon",
-        inputs: { points: corners.map((corner) => corner.id) },
-        outputs: ["cycle"],
-      },
-    ],
-    annotations: [
-      { id: "cycle_fill", kind: "highlight", targetIds: ["cycle"], style: { transient: false } },
-      { id: "drop_A", kind: "drop", targetIds: ["A", "axes"] },
-    ],
-    assertions: [
-      { id: "A_exists", predicate: "exists", entities: ["A"], expected: true, severity: "fatal" },
-      { id: "cycle_exists", predicate: "exists", entities: ["cycle"], expected: true, severity: "fatal" },
-    ],
-  });
+  // The stock P-V figure here was one A, B, C, D rectangle on axes through the
+  // origin, drawn for any thermodynamic stem whatever its states or process:
+  // a straight line expansion, an isothermal compression, a Carnot cycle, an
+  // adiabatic explanation. It ignored the stated values, so it was never the
+  // question's figure. Stated P-V processes are drawn by the source bound
+  // P-V operators; everything else teaches in words.
+  void quantities;
+  void schematic;
+  return null;
 }
 
 function buildContactBody(

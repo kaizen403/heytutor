@@ -31,6 +31,48 @@ export function shouldAbandonTurn(consecutiveFailures: number): boolean {
   return consecutiveFailures >= MAX_CONSECUTIVE_SEGMENT_FAILURES;
 }
 
+/**
+ * The local playback of a generated clip stopped: its clock froze, it ran
+ * past every deadline, or the media element failed. Not a provider refusal
+ * or a broken stream (a budget skip, a socket error), which keep their
+ * existing stop paths, including the code lesson's Continue offer.
+ */
+export function isLocalPlaybackFailure(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name === "AbortError") return false;
+  return (
+    error.message.startsWith("tts segment playback stalled") ||
+    error.message.startsWith("tts segment timeout") ||
+    error.message.startsWith("Native audio playback clock did not advance") ||
+    error.message.startsWith("HTML audio playback failed")
+  );
+}
+
+/**
+ * Local playback failed after the student already heard part of the sentence.
+ *
+ * A frozen clip (v3 p4e1-t2: a fully local Sarvam WAV stopped at 1.63 s of
+ * 8.7 s, then the next at 5.9 s of 9.9 s) used to fail its segment, and two
+ * in a row cancelled the whole lesson at 142 s. The sentence was generated
+ * and partly heard; its board work is still right. The segment finishes its
+ * ink and text, and the failure never counts toward `shouldAbandonTurn`.
+ *
+ * Not for a voice nobody heard (zero clock), a browser recovery voice, a
+ * failed provider retry, a draw failure that silenced the voice, a provider
+ * failure, or a cancelled turn: those keep their existing failure paths.
+ */
+export function shouldFinishSegmentAfterHeardSpeechFailure(input: {
+  error: unknown;
+  heardPositionMs: number;
+  browserFallback: boolean;
+  providerRecoveryAttempted: boolean;
+  speechAborted: boolean;
+  cancelled: boolean;
+}): boolean {
+  return isLocalPlaybackFailure(input.error) &&
+    Number.isFinite(input.heardPositionMs) && input.heardPositionMs > 0 &&
+    !input.browserFallback && !input.providerRecoveryAttempted && !input.speechAborted && !input.cancelled;
+}
+
 export const INCOMPLETE_CODE_BEAT_MESSAGE = "This code block did not finish. Continue the lesson to finish it.";
 
 /** The current admitted TYPE lost required characters, so later blocks cannot follow it. */
@@ -98,6 +140,62 @@ export function isVoiceStartupFailure(error: unknown): boolean {
     error.message.startsWith("The voice could not start") ||
     error.message.startsWith("tts segment timeout")
   );
+}
+
+/**
+ * What a sentence does once its voice has failed for good (the provider gave
+ * no audio and browser speech failed too).
+ *
+ * A voice is not the board. Production lessons on 20 to 23 Oct 2026 ended with
+ * "The lesson could not continue playing" because two silent sentences in a
+ * row counted as two failed segments, while every draw was healthy. So the
+ * sentence is taught silently: its ink plays on the estimated schedule and the
+ * lesson moves on, and the next sentence asks the voice again.
+ *
+ * - `quiet`: the turn was stopped or replaced; nothing is reported.
+ * - `fail`: the draw itself failed, or the one bounded provider retry after a
+ *   browser restart failed. The beat fails and still counts toward
+ *   `shouldAbandonTurn`. A code beat that still owes TYPE characters also
+ *   fails, as before: its own recovery stops on the exact typed prefix and
+ *   offers Continue (`incompleteCodeBeatFailure`), not the dead end message.
+ * - `teach_silently`: every other voice failure.
+ */
+export type VoiceFailureDisposition = "quiet" | "fail" | "teach_silently";
+
+/** What a completed beat tells the queue. Absent for an ordinary spoken beat. */
+export interface SegmentRunOutcome {
+  /** Taught with its ink and no voice. Never counts toward `shouldAbandonTurn`. */
+  voiceDegraded: true;
+}
+
+export function voiceFailureDisposition(input: {
+  cancelled: boolean;
+  drawFailed: boolean;
+  providerRecoveryAttempted: boolean;
+  /** This beat types code the lesson plan requires. */
+  codeBeatOwed?: boolean;
+}): VoiceFailureDisposition {
+  if (input.cancelled) return "quiet";
+  if (input.drawFailed || input.providerRecoveryAttempted || input.codeBeatOwed) return "fail";
+  return "teach_silently";
+}
+
+/**
+ * How much longer a silently taught sentence holds the board: the estimated
+ * spoken length at the live rate, less the time already spent on it since its
+ * silent clock started. Never negative. The rate is held to the lecture's
+ * range (0.5x to 4x) so a malformed rate cannot hold the board for ever.
+ */
+export function silentSentenceRemainingMs(input: {
+  estimateSpeechMs: number;
+  playbackRate: number;
+  elapsedMs: number;
+}): number {
+  const rate = Number.isFinite(input.playbackRate) && input.playbackRate > 0
+    ? Math.min(Math.max(input.playbackRate, 0.5), 4) : 1;
+  const total = Number.isFinite(input.estimateSpeechMs) ? Math.max(input.estimateSpeechMs, 0) / rate : 0;
+  const elapsed = Number.isFinite(input.elapsedMs) ? Math.max(input.elapsedMs, 0) : 0;
+  return Math.max(total - elapsed, 0);
 }
 
 /**

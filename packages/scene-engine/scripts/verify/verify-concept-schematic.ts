@@ -1,148 +1,89 @@
 /**
- * Concept explain questions must compile a teaching schematic from the turn
- * plan, not a canned P–V rectangle and not an empty board.
+ * The concept schematic is gone from the board. It drew thermal relations
+ * (bodies in thermal contact, Q into and W out of a system, a heat engine
+ * between reservoirs) from words in the plan. In production it put "systems
+ * A, B, C in thermal contact" on a biology lesson and on an aviation lesson,
+ * and an independent review of a stricter version still found wrong figures:
+ * Q drawn in when heat is released, Q drawn for an adiabatic process, a
+ * refrigerator drawn as an engine, the zeroth law chained A to B to C. Its
+ * arrows and layout were fixed whatever the claim said, so no claim evidence
+ * can make it honest. Explain plans now teach in words unless a real family
+ * or the planner draws them.
+ *
+ * The plans below are written for this gate; none is a student question.
  */
-import {
-  buildConceptSchematic,
-  CONCEPT_SCHEMATIC_FAMILY,
-  synthesizeFamilyScene,
-  synthesizeLastResortScene,
-  type TurnPlanV3,
-} from "../../src";
+import { synthesizeFamilyScene, synthesizeLastResortScene, type TurnPlanV3 } from "../../src";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function plan(question: string, extras: Partial<TurnPlanV3> = {}): TurnPlanV3 {
+type Claim = TurnPlanV3["qualitativeClaims"][number];
+
+function plan(question: string, claims: Array<[string, string, string[]?]>, visualRequirement: TurnPlanV3["visualRequirement"] = "optional"): TurnPlanV3 {
   return {
     schemaVersion: "turn-plan/v3",
     question,
-    givens: extras.givens ?? [],
-    unknowns: extras.unknowns ?? [],
-    derived: extras.derived ?? [],
-    qualitativeClaims: extras.qualitativeClaims ?? [],
-    lawIds: extras.lawIds ?? [],
-    assumptions: extras.assumptions ?? [],
-    visualRequirement: extras.visualRequirement ?? "optional",
+    givens: [],
+    unknowns: [],
+    derived: [],
+    qualitativeClaims: claims.map(([claim, expected, hints], index): Claim => ({
+      id: `c${index}`,
+      claim,
+      expected,
+      ...(hints ? { relatedEntityHints: hints } : {}),
+    })),
+    lawIds: [],
+    assumptions: [],
+    visualRequirement,
   };
 }
 
-const thermoQuestion = "can u explain me laws of thermodynamics";
-const thermoPlan = plan(thermoQuestion, {
-  qualitativeClaims: [
-    {
-      id: "c0",
-      claim: "Zeroth Law: If two systems are each in thermal equilibrium with a third system, they are in thermal equilibrium with each other; this defines temperature.",
-      expected: "Zeroth law establishes thermal equilibrium and temperature as a measurable property.",
-      relatedEntityHints: ["system A", "system B", "system C (thermometer)"],
-    },
-    {
-      id: "c1",
-      claim: "First Law: Energy is conserved. The change in internal energy of a system equals heat added minus work done by the system: ΔU = Q − W.",
-      expected: "Energy can change form (heat, work, internal energy) but is never created or destroyed.",
-      relatedEntityHints: ["internal energy U", "heat Q", "work W"],
-    },
-    {
-      id: "c2",
-      claim: "Second Law: The entropy of an isolated system never decreases; heat flows spontaneously from hot to cold, and no heat engine can be 100% efficient.",
-      expected: "Processes have a natural direction; entropy of the universe increases.",
-      relatedEntityHints: ["entropy S", "heat engine", "hot reservoir", "cold reservoir"],
-    },
-  ],
-  lawIds: [
-    "zeroth-law-of-thermodynamics",
-    "first-law-of-thermodynamics",
-    "second-law-of-thermodynamics",
-  ],
-});
+const plans: Array<[string, TurnPlanV3]> = [
+  ["thermodynamics laws", plan("can u explain me laws of thermodynamics", [
+    ["If two systems are each in thermal equilibrium with a third system, they are in thermal equilibrium with each other.", "This defines temperature.", ["system A", "system B", "system C (thermometer)"]],
+    ["The change in internal energy of a system equals heat added minus work done by the system.", "ΔU = Q − W", ["internal energy U", "heat Q", "work W"]],
+    ["No heat engine working between a hot reservoir and a cold reservoir is 100% efficient.", "Heat flows from hot to cold.", ["heat engine", "hot reservoir", "cold reservoir"]],
+  ], "required")],
+  ["organ systems", plan("Teach me life processes", [
+    ["The digestive system breaks food into simple molecules.", "Digestion ends in the small intestine.", ["villi"]],
+    ["The circulatory system and the respiratory system work together.", "The heart pumps blood.", ["heart"]],
+  ], "required")],
+  ["navigation systems", plan("Explain metrology in aviation", [
+    ["Aircraft engines and navigation systems are calibrated against standards.", "Traceability links each instrument to a standard.", []],
+  ])],
+  ["respiration releases heat", plan("Why does respiration warm the body", [
+    ["Respiration in the cell releases heat; the internal energy of the body system rises unless heat is lost.", "Heat flows out through the skin.", ["system A", "heat Q"]],
+  ])],
+  ["refrigerator", plan("How does a refrigerator work", [
+    ["A refrigerator moves heat from a cold reservoir to a hot reservoir using work.", "COP = Qc / W", ["refrigerator", "cold reservoir", "hot reservoir"]],
+  ])],
+  ["adiabatic first law", plan("Explain an adiabatic expansion", [
+    ["In an adiabatic process Q = 0, so the change in internal energy equals minus the work done by the gas.", "ΔU = −W", ["heat Q", "work W"]],
+  ])],
+];
 
-const schematic = buildConceptSchematic(thermoQuestion, thermoPlan);
-assert(schematic, "thermo explain plan must compile a teaching schematic");
-assert(schematic.visualDecision.mode === "scene", "thermo schematic must be a scene");
-assert(schematic.source.conceptSchematic === true, "thermo schematic must be marked as a teaching schematic");
-const labels = schematic.entities.map((entity) => entity.label).filter(Boolean);
-assert(labels.includes("A") && labels.includes("B"), "zeroth law must label systems A and B");
-assert(labels.includes("Q") && labels.includes("W"), "first law must label heat Q and work W");
-assert(
-  labels.some((label) => /hot/i.test(label ?? ""))
-    && labels.some((label) => /cold/i.test(label ?? "")),
-  "second law must label the hot and cold reservoirs",
-);
-assert(
-  !schematic.entities.some((entity) => /P-V|axes/i.test(`${entity.role} ${entity.label ?? ""}`)),
-  "an explain-the-laws schematic must not stamp P–V axes",
-);
-assert(schematic.revealGroups.length >= 2, "the laws must reveal in stages, not as one dump");
+for (const [label, turnPlan] of plans) {
+  for (const [path, result] of [
+    ["family synthesis", synthesizeFamilyScene({ question: turnPlan.question, turnPlan })],
+    ["last resort", synthesizeLastResortScene({ question: turnPlan.question, turnPlan })],
+  ] as const) {
+    const roles = result?.document.entities.map((entity) => entity.role ?? "") ?? [];
+    assert(!roles.includes("thermal contact"), `${label}: ${path} drew bodies in thermal contact`);
+    assert(!(result?.document.source as { conceptSchematic?: boolean } | undefined)?.conceptSchematic, `${label}: ${path} drew a concept schematic`);
+    // Read what a P-V plot actually carries: its axes role and its label.
+    const pvMarks = result?.document.entities.filter((entity) =>
+      /\bP\s*-?\s*V\b|pressure|volume/i.test(`${entity.role ?? ""} ${entity.label ?? ""}`)) ?? [];
+    assert(pvMarks.length === 0, `${label}: ${path} drew a P-V plot on an explain plan (${pvMarks.map((entity) => entity.role).join(", ")})`);
+  }
+}
 
-const synthesized = synthesizeFamilyScene({
-  question: thermoQuestion,
-  turnPlan: thermoPlan,
-});
-assert(synthesized, "family synthesis must pick up the teaching schematic");
-assert(
-  synthesized.family === CONCEPT_SCHEMATIC_FAMILY,
-  `thermo explain synthesized ${synthesized.family}, not a teaching schematic`,
-);
-assert(synthesized.nonMetric, "the teaching schematic is qualitative");
-assert(
-  synthesized.renderScene.primitives.some((primitive) =>
-    primitive.kind === "label" && typeof primitive.text === "string" && primitive.text.trim().length > 0),
-  "the teaching schematic must carry readable labels",
-);
+// The stock P-V rectangle is gone too: a stated isothermal compression gets
+// no rectangle.
+const isothermal = "An ideal gas undergoes reversible isothermal compression from 4.0 L to 2.0 L. Initial pressure is 100 kPa. Find the work done.";
+const isothermalPlan = plan(isothermal, [["Work done on the gas in an isothermal compression is nRT ln(V1/V2).", "Pressure doubles as the volume halves.", []]]);
+for (const [path, result] of [["family synthesis", synthesizeFamilyScene({ question: isothermal, turnPlan: isothermalPlan })], ["last resort", synthesizeLastResortScene({ question: isothermal, turnPlan: isothermalPlan })]] as const) {
+  assert(!result?.document.entities.some((entity) => entity.role === "process cycle"), `stated isothermal: ${path} drew the stock P-V rectangle`);
+}
 
-const lastResort = synthesizeLastResortScene({
-  question: thermoQuestion,
-  turnPlan: thermoPlan,
-});
-assert(lastResort, "last-resort must still compile the teaching schematic");
-assert(
-  lastResort.family === CONCEPT_SCHEMATIC_FAMILY,
-  `last-resort drew ${lastResort.family} instead of the teaching schematic`,
-);
-
-const noPlan = synthesizeLastResortScene({ question: thermoQuestion });
-assert(!noPlan, "without a plan, last-resort must not invent a P–V rectangle for 'thermodynamics'");
-
-const nonePlan = plan(thermoQuestion, {
-  visualRequirement: "none",
-  qualitativeClaims: thermoPlan.qualitativeClaims,
-});
-assert(
-  !buildConceptSchematic(thermoQuestion, nonePlan),
-  "visualRequirement none must keep the board empty",
-);
-
-const proseOnly = plan(thermoQuestion, {
-  qualitativeClaims: [{
-    id: "c1",
-    claim: "Zeroth Law: If two systems are each in thermal equilibrium with a third system, they are in thermal equilibrium with each other. First law: ΔU = Q − W. Heat flows from hot to cold through a heat engine.",
-    expected: true,
-  }],
-});
-assert(
-  buildConceptSchematic(thermoQuestion, proseOnly),
-  "claim prose must still ground a schematic when relatedEntityHints are missing",
-);
-
-const numericPv = "An ideal gas is taken through a cyclic process ABCA on a P-V diagram. Find the work done.";
-const pvScene = synthesizeFamilyScene({
-  question: numericPv,
-  families: ["state_plot"],
-  turnPlan: plan(numericPv, {
-    visualRequirement: "required",
-    givens: [
-      { id: "p1", symbol: "P1", value: 1e5, unit: "Pa", provenance: "given" },
-      { id: "p2", symbol: "P2", value: 2e5, unit: "Pa", provenance: "given" },
-      { id: "v1", symbol: "V1", value: 0.002, unit: "m^3", provenance: "given" },
-      { id: "v2", symbol: "V2", value: 0.004, unit: "m^3", provenance: "given" },
-    ],
-  }),
-});
-assert(pvScene, "a named P–V cycle with pressures still compiles as a state plot");
-assert(
-  pvScene.family !== CONCEPT_SCHEMATIC_FAMILY,
-  "a numbered P–V process must not be replaced by the concept schematic",
-);
-
-console.log("concept schematic verification passed");
+console.log(`no concept schematic: ${plans.length} explain plans draw no thermal template or P-V plot on either path; a stated isothermal compression gets no stock rectangle`);

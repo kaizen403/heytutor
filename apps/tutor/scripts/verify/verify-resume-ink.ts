@@ -155,7 +155,13 @@ assert(prompt.runtimeAddon.includes("Why is arcsin acute?"), "resume must also s
 const source = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
 assert(source.includes("createResumeInkGate("), "the live resume path must use the ink gate");
 assert(/resumeInkGate\.offer\(normalizeSegmentForAlignment\(seg\)\)/.test(source), "filtered stream segments must pass through the gate");
-const flushBody = source.split("const flushBufferedSegment = () => {")[1]?.split("let markup =")[0] ?? "";
+// Streamed segments are prepared in flushBufferedSegment and queued by
+// queuePreparedSegments (the write-less FOCUS fold sits between them), so the
+// slice runs from the queue helper through the flush to the parser setup.
+assert(source.includes("const queuePreparedSegments = (") && source.includes("const flushBufferedSegment = () => {") &&
+  source.indexOf("const queuePreparedSegments = (") < source.indexOf("const flushBufferedSegment = () => {") &&
+  source.indexOf("const flushBufferedSegment = () => {") < source.indexOf("let markup ="), "streamed queue anchors");
+const flushBody = source.split("const queuePreparedSegments = (")[1]?.split("let markup =")[0] ?? "";
 assert(flushBody.includes("if (!resumeInkGate) {") &&
   flushBody.includes("if (!codeLesson) enqueueLessonOpening();") &&
   flushBody.includes("if (resumeInkGate && readySegments.length > 0) enqueueLessonOpening();"),
