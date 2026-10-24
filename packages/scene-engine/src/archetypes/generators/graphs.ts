@@ -345,8 +345,18 @@ function pvCycle(context: GeneratorContext) {
   // straight line), or names more process kinds than it uses gets no figure:
   // the drawing would ignore what the question says.
   if (PV_STATED_VALUES.test(stem) || /\bstraight[- ]?line\b|\blinear(?:ly)?\b/i.test(stem)) return null;
+  // REVIEW SKETCH: any number or ratio word, a state written A(...), or a leg written before its kind.
+  if (/\d|\b[A-D]\s*=?\s*\(|\b(?:double|doubles|doubled|twice|half|halved|halves|thrice|triple[sd]?|times)\b/i.test(stem)) return null;
+  if (/\b[A-D]\s*(?:to|→|->|-)\s*[A-D]\b\s*(?:\(\s*|:\s*|\s+is\s+(?:an?\s+)?|\s+)(?:isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b/i.test(stem)) return null;
   const processes = parseProcesses(text(context, "processes", context.question));
   if (processes.length < 2) return null;
+  const chain = /\b([A-D])\s*(?:to|→|->)\s*([A-D])\s*(?:to|→|->)\s*([A-D])(?:\s*(?:to|→|->)\s*([A-D]))?(?:\s*(?:to|→|->)\s*([A-D]))?/i.exec(stem);
+  if (chain) {
+    const named = chain.slice(1).filter((s): s is string => Boolean(s)).map((s) => s.toUpperCase());
+    if (named.length - 1 !== processes.length || processes.some((p, i) => p.from !== named[i] || p.to !== named[i + 1])) return null;
+  }
+  for (let i = 1; i < processes.length; i += 1) if (processes[i]!.from !== processes[i - 1]!.to) return null;
+  if (/\bcycl/i.test(stem) && processes.at(-1)!.to !== processes[0]!.from) return null;
   const kindsNamed = [...stem.matchAll(/\b(?:isobaric|isochoric|isovolumetric|isothermal|adiabatic)\b/gi)].length;
   if (kindsNamed > processes.length) return null;
   const states = new Map<string, { V: number; P: number }>();
@@ -373,6 +383,12 @@ function pvCycle(context: GeneratorContext) {
     } else {
       states.set(process.to, next);
     }
+  }
+  for (const process of processes) {
+    const a = states.get(process.from); const b = states.get(process.to);
+    if (!a || !b || process.grows === null) continue;
+    const delta = process.kind === "isochoric" ? b.P - a.P : b.V - a.V;
+    if ((delta > 0) !== process.grows) return null;
   }
   const values = [...states.values()];
   const vMax = Math.max(...values.map((state) => state.V));
