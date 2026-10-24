@@ -149,6 +149,9 @@ const DECLINE: readonly DeclineRow[] = [
   { id: "thread-phrase-owner-O2-vs-N2-minus", question: "MO diagram of N2-. Draw O2 with charge -1.", owners: ["chem_mo"], words: true },
   { id: "hydrogenic-thread-compared-He-plus", question: "Draw the radial probability distribution for the 2s orbital of He+. Compare with H.", owners: ["chem_orbital"] },
   { id: "thread-double-negative-O2-minus", question: "MO diagram of O2- with a double negative charge", owners: ["chem_mo"], words: true },
+  // Round 2: each occurrence is judged where it stands, so an excluded mention cannot hide a later request.
+  { id: "thread-later-request-NO2-minus", question: "Draw the Lewis structure of NO2, not NO2 minus. Then draw NO2 minus.", owners: ["chem_lewis"], words: true },
+  { id: "later-request-NO2-sign", question: "Draw the Lewis structure of NO2, not NO2 -. Then draw NO2 -.", owners: ["chem_lewis"] },
   // Charges in words and Roman numerals (pr-284-delta, pr-286-delta): no sign for the shared reader.
   { id: "words-shape-SO3-two-minus", question: "shape of SO3 two minus", owners: ["chem_vsepr"], words: true },
   { id: "words-shape-SO3-minus-2", question: "shape of SO3 minus 2", owners: ["chem_vsepr"], words: true },
@@ -245,6 +248,7 @@ const ATTACHED: readonly AttachedRow[] = [
       assert.ok(shown.includes("NO_2: σ = 2, π = 1, lone pairs = 5"), "neutral NO2, the species asked");
     },
   },
+  { id: "thread-phrase-owner-keeps-charge-Cu", question: "electron configuration of Cu2+ with a charge of +2", family: "chem_orbital", check: configurationCheck("Cu^(2+)", "Cu", 2, "[Ar] 3d^9") },
   { id: "phrase-carried-SO4", question: "shape of SO4^2- with a charge of 2-", family: "chem_vsepr", check: vseprCheck("SO4^2-", "S", { O: 4 }, -2, "tetrahedral") },
   // An excluded ion in another clause does not bear on the species read.
   { id: "unrelated-clause-charge", question: "No He+ or Li2+ participate; draw the Lewis structure of H2O.", family: "chem_lewis", check: lewisCheck("H_2O", "H2O", 0) },

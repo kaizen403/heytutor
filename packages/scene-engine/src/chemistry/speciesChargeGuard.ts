@@ -78,6 +78,8 @@ export interface WrittenCharge {
   readonly charge: number | null;
   readonly polarity: -1 | 1;
   readonly text: string;
+  /** Where it starts in the folded text, so each occurrence is judged on its own. */
+  readonly at: number;
 }
 
 /** Same formula token as the shared reader, behind a lookbehind that also refuses non ASCII letters (ΔH). */
@@ -146,13 +148,13 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
     if ((word === "plus" || word === "minus") && /^\s+(?:\d+\s+)?[A-Z[(]/.test(rest)) continue;
     const polarity = word === "minus" || word === "negative" ? -1 : 1;
     const magnitude = countOf(lead) ?? countOf(trail) ?? 1;
-    out.push({ formula: token, charge: polarity * magnitude, polarity, text: whole });
+    out.push({ formula: token, charge: polarity * magnitude, polarity, text: whole, at: match.index ?? 0 });
   }
   for (const match of text.matchAll(CHARGED_BEFORE)) {
     const [whole, sign, token] = match as unknown as [string, string, string];
     if (!isFormula(token)) continue;
     const polarity = sign.toLowerCase() === "negative" ? -1 : 1;
-    out.push({ formula: token, charge: null, polarity, text: whole });
+    out.push({ formula: token, charge: null, polarity, text: whole, at: match.index ?? 0 });
   }
   // A charge phrase belongs to the formula it is written with: the nearest
   // one before it in the clause, else the first after. "MO diagram of N2-.
@@ -161,7 +163,12 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
   for (const clause of clauses(text)) {
     const formulas = [...clause.text.matchAll(new RegExp(`(?<![\\p{L}\\p{N}_\\])])(${FORMULA_TOKEN})`, "gu"))]
       .filter((match) => isFormula(match[1]!))
-      .map((match) => ({ token: match[1]!, at: match.index ?? 0 }));
+      .map((match) => {
+        // The owner keeps its attached charge (Cu2+ is copper, not Cu2) before its body is taken.
+        const end = (match.index ?? 0) + match[1]!.length;
+        const suffix = /^\^?\(?\d*[+-]\)?/.exec(clause.text.slice(end))?.[0] ?? "";
+        return { body: splitCharge(`${match[1]!}${suffix}`).body, at: match.index ?? 0 };
+      });
     if (formulas.length === 0) continue;
     for (const match of clause.text.matchAll(CHARGE_PHRASE)) {
       const [whole, modifiers, word, leadSign, leadDigits, trailDigits, trailSign] = match as unknown as [string, string, string | undefined, string | undefined, string | undefined, string | undefined, string | undefined];
@@ -173,7 +180,7 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
       const digits = leadDigits || trailDigits;
       const magnitude = digits ? Number(digits) : counted;
       // "with a charge of -2" and "two negative charges" give the size; "a negative charge" gives only the sign.
-      out.push({ formula: splitCharge(owner.token).body, charge: magnitude ? polarity * magnitude : null, polarity, text: whole });
+      out.push({ formula: owner.body, charge: magnitude ? polarity * magnitude : null, polarity, text: whole, at: clause.at + at });
     }
   }
   for (const match of text.matchAll(ROMAN_STATE)) {
@@ -182,7 +189,7 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
     if (!symbol) continue;
     if (COMPOUND_AFTER.test(text.slice((match.index ?? 0) + whole.length))) continue;
     const charge = ROMAN[(bracketed ?? spaced)!]!;
-    out.push({ formula: symbol, charge, polarity: 1, text: whole });
+    out.push({ formula: symbol, charge, polarity: 1, text: whole, at: match.index ?? 0 });
   }
   return out;
 }
@@ -210,13 +217,11 @@ const EXCLUDED_LIST = new RegExp(
  * wherever it stands: a second clause that asks for or compares an ion
  * ("2s orbital of He+. Compare with H.") still declines.
  */
-function relevantAt(folded: string): (marker: string, from: number) => { relevant: boolean; next: number } {
+function excludedAt(folded: string): (at: number) => boolean {
   const parts = clauses(folded);
-  return (marker, from) => {
-    const at = folded.indexOf(marker, from);
-    if (at < 0) return { relevant: true, next: from };
+  return (at) => {
     const part = parts.find((item, i) => at >= item.at && (i === parts.length - 1 || at < parts[i + 1]!.at)) ?? { text: folded, at: 0 };
-    return { relevant: !EXCLUDED_LIST.test(folded.slice(part.at, at)), next: at + marker.length };
+    return EXCLUDED_LIST.test(folded.slice(part.at, at));
   };
 }
 
@@ -224,28 +229,29 @@ function relevantAt(folded: string): (marker: string, from: number) => { relevan
  * True when every charge the text writes (signs through the shared reader,
  * words and Roman numerals through readWrittenCharges) is carried by a
  * species the builder read. With no charge written this is true; with one
- * and no species it is false. See relevantAt for an excluded formula.
+ * and no species it is false. See excludedAt for an excluded formula.
  */
 export function stemChargesRead(text: string, speciesFormulas: readonly string[]): boolean {
   const markers = readChargeMarkers(text);
   const written = readWrittenCharges(text);
   if (markers.length === 0 && written.length === 0) return true;
   const species = speciesFormulas.map(speciesRead).filter((item): item is ReadCharge => item !== null);
-  const relevant = relevantAt(fold(text));
+  const folded = fold(text);
+  const excluded = excludedAt(folded);
   let from = 0;
   const signsCarried = markers.every((marker) => {
     if (marker.formula === null) {
       return species.some((item) => item.charge !== 0 && (marker.polarity === 0 || Math.sign(item.charge) === marker.polarity));
     }
-    const place = relevant(marker.text, from);
-    from = place.next;
-    if (!place.relevant) return true;
+    // The shared reader gives no positions; its markers come in text order, so each is found after the last.
+    const at = folded.indexOf(marker.text, from);
+    if (at >= 0) from = at + marker.text.length;
+    if (at >= 0 && excluded(at)) return true;
     const readings = markerReadings(marker);
     return species.some((item) => readings.some((reading) => reading.key === item.key && reading.charge === item.charge));
   });
-  // Written charges come from several readers, not in text order: each is placed from the start.
   return signsCarried && written.every((marker) => {
-    if (marker.formula !== null && !relevant(marker.text, 0).relevant) return true;
+    if (marker.formula !== null && excluded(marker.at)) return true;
     return writtenChargeCarried(marker, species);
   });
 }
