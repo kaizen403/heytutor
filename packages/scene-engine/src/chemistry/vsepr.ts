@@ -18,6 +18,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type BondStyle, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { speciesWithWrittenCharges } from "./speciesChargeGuard";
 import {
   buildDipoleScene,
   buildFajanScene,
@@ -29,6 +30,7 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
@@ -731,7 +733,9 @@ const MAX_SPECIES = 4;
 /**
  * The complete formula set in the source. Up to four resolved species are
  * drawn together; an unsupported member or an overfull set declines rather
- * than silently drawing a recognized subset.
+ * than silently drawing a recognized subset. A charge the source writes that
+ * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral species)
+ * declines too: the neutral shape and its angle are false for the ion asked.
  */
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
@@ -740,8 +744,10 @@ export function vseprSpecies(question: string): VseprResult[] {
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
-  const species = uniqueSpecies(tokens);
+  // A charge in words (NO2 minus, SO3 two minus, Cu II) is one the sign reader below does not see.
+  const species = speciesWithWrittenCharges(text, uniqueSpecies(tokens), (result) => result.formula);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
+  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
