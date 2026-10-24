@@ -20,7 +20,9 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument, SceneIssue } from "../types";
 import { ELEMENTS, elementBySymbol, type ElementRecord } from "./elements";
 import { buildPeriodicTrendScene, isPeriodicTrendStem, PERIODIC_FAMILY, propertyValue, type PeriodicProperty } from "./periodicTrend";
-import { claimTexts, declarationText, graphMatches, mentionedElements, planIssue, planQuantities, type ChemistrySourceCertification } from "./sourceEvidenceShared";
+import {
+  claimVerdict, declarationText, graphMatches, mentionedElements, planClaims, planIssue, planQuantities, type ChemistrySourceCertification,
+} from "./sourceEvidenceShared";
 
 /** "ea" is the electron affinity, the negative of the electron gain enthalpy. */
 type Property = PeriodicProperty | "ea";
@@ -139,80 +141,179 @@ function elementOf(token: string): ElementRecord | null {
 
 function claimUnit(text: string, property: Property): number | null {
   const lower = text.toLowerCase();
-  const written = Object.keys(UNITS[property]).filter((unit) => unit
+  // Only a written unit word counts; the dimensionless "1" is never read out
+  // of a value such as 3.16.
+  const written = Object.keys(UNITS[property]).filter((unit) => /[a-zå]/.test(unit)
     && new RegExp(`(?<![a-z])${unit.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&")}(?![a-z])`).test(lower));
   if (written.length > 1) return null;
   return written.length === 1 ? UNITS[property][written[0]!]! : 1;
 }
 
-interface ClaimElement { readonly element: ElementRecord; readonly token: string; readonly value: number | null; readonly end: number; readonly start: number }
+interface WrittenNumber { readonly start: number; readonly end: number; readonly value: number; readonly step: number }
+
+/**
+ * The whole number written at `at`: sign, digits, decimals and a scientific
+ * exponent (166e3, 5.20e2, 5.2 × 10^2). `step` is half a unit in the last
+ * written place of the mantissa, scaled by the exponent. A multiplier the
+ * reader cannot parse (× 10 with no exponent, a caret with nothing after it)
+ * leaves the number unread, so its prefix is never taken as the value.
+ */
+function writtenNumberAt(text: string, at: number): WrittenNumber | null {
+  const match = /^[-−]?\d+(?:\.\d+)?/.exec(text.slice(at));
+  if (!match) return null;
+  const mantissa = Number(match[0].replace("−", "-"));
+  const decimals = match[0].includes(".") ? match[0].split(".")[1]!.length : 0;
+  let end = at + match[0].length;
+  let exponent = 0;
+  const scientific = /^\s*(?:[eE]\s*([+\-−]?\d+)|[×x*·]\s*10\s*\^?\s*\(?\s*([+\-−]?\d+)\s*\)?)/.exec(text.slice(end));
+  if (scientific) {
+    exponent = Number((scientific[1] ?? scientific[2]!).replace("−", "-"));
+    end += scientific[0].length;
+  } else if (/^\s*(?:[eE](?![a-z])|[×*^]|x\s*10\b)/.test(text.slice(end))) {
+    return null;
+  }
+  const scale = 10 ** exponent;
+  return { start: at, end, value: mantissa * scale, step: 0.5 * 10 ** -decimals * scale };
+}
+
+/** Every number written in a claim, read whole. */
+function writtenNumbers(text: string): Array<WrittenNumber | { start: number; end: number; value: null }> {
+  const found: Array<WrittenNumber | { start: number; end: number; value: null }> = [];
+  for (const match of text.matchAll(/(?<![\d.])[-−]?\d+(?:\.\d+)?/g)) {
+    const at = match.index ?? 0;
+    if (found.some((entry) => at < entry.end)) continue;
+    found.push(writtenNumberAt(text, at) ?? { start: at, end: at + match[0].length, value: null });
+  }
+  return found;
+}
+
+/** Spans whose digits name no property value: Group 17, Period 2 to 3, a
+ * shell list (2,8,1), n = 3, an orbital or ordinal (2p, 1st), a symbol
+ * suffix (IE1, sp3) and the per-mole exponent of kJ mol-1. */
+function labelSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  const add = (expression: RegExp) => {
+    for (const match of text.matchAll(expression)) spans.push([match.index ?? 0, (match.index ?? 0) + match[0].length]);
+  };
+  add(/\b(?:groups?|periods?)\s+\d{1,2}(?:\s*(?:,|and|to|-|–|−)\s*\d{1,2})*\b/gi);
+  add(/\(\s*\d{1,2}(?:\s*,\s*\d{1,2})+\s*\)|(?<![\d.])\d{1,2}(?:,\d{1,2})+(?![\d.])/g);
+  add(/\bn\s*=\s*\d+/g);
+  add(/(?<![\d.])\d+(?:[spdf](?![a-z])|st\b|nd\b|rd\b|th\b)/gi);
+  add(/(?<=[A-Za-z^])[-−]?\d+/g);
+  return spans;
+}
+
+interface ClaimElement { readonly element: ElementRecord; readonly token: string; readonly value: WrittenNumber | null; readonly end: number; readonly start: number }
 
 /** Element tokens in a claim with the number written straight after each
- * ("Li 520", "Na (166 pm)", "F: 3.98"). A shell list such as "Na (2,8,1)"
- * or an ordinal is not a value. */
+ * ("Li 520", "Na (166 pm)", "F: 3.98", "Li 5.20e2"). A shell list such as
+ * "Na (2,8,1)" or an ordinal is not a value. */
 function claimElements(text: string): ClaimElement[] {
   ELEMENT_PATTERN ??= elementPattern();
-  return [...text.matchAll(ELEMENT_PATTERN)].flatMap((match) => {
+  return [...text.matchAll(ELEMENT_PATTERN)].flatMap((match): ClaimElement[] => {
     const element = elementOf(match[1]!);
     if (!element) return [];
     const start = match.index ?? 0;
-    const after = text.slice(start + match[0].length);
-    const number = /^\s*(?:\(|:|=|is)?\s*(-?\d+(?:\.\d+)?)(?!\s*,\s*\d)(?!\d|\s*(?:th|st|nd|rd)\b)(?:\s*(?:pm|nm|å|kj\/mol|kj mol-1|ev))?\s*\)?/i.exec(after);
-    const value = number ? Number(number[1]!) : null;
-    return [{ element, token: match[1]!, value, start, end: start + match[0].length + (number ? number[0].length : 0) }];
+    const tokenEnd = start + match[0].length;
+    const lead = /^\s*(?:\(|:|=|is)?\s*(?=[-−]?\d)/.exec(text.slice(tokenEnd));
+    const number = lead ? writtenNumberAt(text, tokenEnd + lead[0].length) : null;
+    const after = number ? text.slice(number.end) : "";
+    if (!number || /^\s*,\s*\d|^\d|^\s*(?:th|st|nd|rd)\b/.test(after)) {
+      return [{ element, token: match[1]!, value: null, start, end: tokenEnd }];
+    }
+    const tail = /^(?:\s*(?:pm|nm|å|kj\/mol|kj mol-1|ev))?\s*\)?/i.exec(after)!;
+    return [{ element, token: match[1]!, value: number, start, end: number.end + tail[0].length }];
   });
 }
 
 /** Claims the planner narrates beside the graph: "Na 186" style element
- * values and "Na > Mg > Al" rankings, under the one property the claim names
- * (or, naming none, the plotted one). A claim naming two properties beside
- * an element value is not bound to either and fails closed. */
+ * values, a clause naming one element and one value ("F has the highest
+ * electronegativity (Pauling value 3.98)") and "Na > Mg > Al" rankings,
+ * under the one property the claim names (or, naming none, the plotted
+ * one). Every number in the claim must be one of these values or a label
+ * (a group, period, shell list or orbital); any other number, a value
+ * under no single certifiable property, a mixed unit, or a ranking of
+ * signed enthalpies leaves the claim unread, and the figure declines. */
 function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
   const issues: SceneIssue[] = [];
-  const fail = (index: number, message: string) => issues.push({ code: "periodic_plan_claim_conflict", severity: "fatal",
+  const fail = (index: number, code: string, message: string) => issues.push({ code, severity: "fatal",
     path: `turnPlan.qualitativeClaims[${index}]`, message });
-  claimTexts(plan).forEach((raw, index) => {
-    const text = raw.normalize("NFKC");
+  for (const claim of planClaims(plan)) {
+    const text = claim.text.normalize("NFKC");
     const elements = claimElements(text);
     const ranks = elements.slice(1).map((right, i) => {
       const left = elements[i]!;
       const gap = /^\s*([<>])\s*$/.exec(text.slice(left.end, right.start));
       return gap ? { left, right, operator: gap[1]! } : null;
     }).filter((rank) => rank !== null);
-    const valued = elements.filter((entry) => entry.value !== null);
-    if (valued.length === 0 && ranks.length === 0) return;
-    const { properties, uncertifiable } = propertiesIn(text);
-    // A claim whose subject (its first-named property) is the plotted one
-    // states its values about the graph; a cause named later is context.
-    const property = uncertifiable ? null : properties.length === 1 ? properties[0]!
-      : properties.length === 0 || properties[0] === plotted ? plotted : null;
-    if (!property) {
-      fail(index, "periodic plan claim pairs elements with values under no single certifiable property");
-      return;
+    const labels = labelSpans(text);
+    const inside = (start: number, end: number, spans: ReadonlyArray<readonly [number, number]>) =>
+      spans.some(([from, to]) => start >= from && end <= to);
+    const valued: Array<{ token: string; element: ElementRecord; value: WrittenNumber }> = elements
+      .flatMap((entry) => entry.value ? [{ token: entry.token, element: entry.element, value: entry.value }] : []);
+    const consumed = valued.map((entry) => [entry.value.start, entry.value.end] as const);
+    let unread = false;
+    const loose = writtenNumbers(text).filter((entry) => !inside(entry.start, entry.end, consumed) && !inside(entry.start, entry.end, labels));
+    // A clause naming one element and one value pairs them.
+    for (const [from, to] of clauseSpans(text)) {
+      const own = loose.filter((entry) => entry.start >= from && entry.end <= to);
+      const named = [...new Set(elements.filter((entry) => entry.start >= from && entry.end <= to).map((entry) => entry.element))];
+      if (own.length !== 1 || named.length !== 1 || own[0]!.value === null) continue;
+      valued.push({ token: named[0]!.symbol, element: named[0]!, value: own[0] as WrittenNumber });
+      loose.splice(loose.indexOf(own[0]!), 1);
     }
-    const factor = claimUnit(text, property);
-    if (factor === null) {
-      fail(index, "periodic plan claim writes its values in more than one unit");
-      return;
-    }
-    const approximate = APPROXIMATE.test(text);
-    for (const entry of valued) {
-      const table = tableValue(property, entry.element);
-      if (table === null || !agrees(entry.value!, factor, table, approximate)) {
-        fail(index, `periodic plan claim value ${entry.token} ${entry.value} contradicts the element table`);
+    if (loose.length > 0) unread = true;
+    const facts: boolean[] = [];
+    if (valued.length > 0 || ranks.length > 0) {
+      const { properties, uncertifiable } = propertiesIn(text);
+      // A claim whose subject (its first-named property) is the plotted one
+      // states its values about the graph; a cause named later is context.
+      const property = uncertifiable ? null : properties.length === 1 ? properties[0]!
+        : properties.length === 0 || properties[0] === plotted ? plotted : null;
+      const factor = property ? claimUnit(text, property) : null;
+      if (!property || factor === null) unread = true;
+      else {
+        const approximate = APPROXIMATE.test(text);
+        for (const entry of valued) {
+          const table = tableValue(property, entry.element);
+          if (table === null) unread = true;
+          else facts.push(agreesWritten(entry.value, factor, table, approximate));
+        }
+        // A ranking of signed enthalpies is ambiguous (more negative or larger?).
+        if (ranks.length > 0 && (property === "egh" || property === "ea")) unread = true;
+        else for (const rank of ranks) {
+          const a = tableValue(property, rank.left.element);
+          const b = tableValue(property, rank.right.element);
+          if (a === null || b === null) unread = true;
+          else facts.push(rank.operator === ">" ? a > b : a < b);
+        }
       }
     }
-    // A ranking of signed enthalpies is ambiguous (more negative or larger?).
-    if (property === "egh" || property === "ea") return;
-    for (const rank of ranks) {
-      const a = tableValue(property, rank.left.element);
-      const b = tableValue(property, rank.right.element);
-      if (a === null || b === null || (rank.operator === ">" ? !(a > b) : !(a < b))) {
-        fail(index, `periodic plan claim ranks ${rank.left.token} ${rank.operator} ${rank.right.token} against the element table`);
-      }
-    }
-  });
+    const verdict = claimVerdict(claim, { facts, unread });
+    if (verdict === "conflict") fail(claim.index, "periodic_plan_claim_conflict", "periodic plan claim contradicts the element table");
+    if (verdict === "unread") fail(claim.index, "periodic_plan_claim_unverified",
+      "periodic plan claim has a number, property, unit or expectation the element table reader cannot check");
+  }
   return issues;
+}
+
+/** Sentence and semicolon clauses; a decimal point does not end a clause. */
+function clauseSpans(text: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  let from = 0;
+  for (const match of text.matchAll(/;|\.(?!\d)|\n/g)) {
+    spans.push([from, match.index ?? 0]);
+    from = (match.index ?? 0) + match[0].length;
+  }
+  spans.push([from, text.length]);
+  return spans;
+}
+
+/** A written value agrees with the table at its own written precision. */
+function agreesWritten(written: WrittenNumber, factor: number, table: number, approximate: boolean): boolean {
+  const value = written.value * factor;
+  const tolerance = Math.max(written.step * factor, approximate ? 0.01 * Math.abs(table) : 0, 1e-9 * Math.max(1, Math.abs(table)));
+  return Number.isFinite(value) && Math.abs(value - table) <= tolerance + 1e-9;
 }
 
 interface PlottedPoint { readonly property: Property; readonly element: ElementRecord }

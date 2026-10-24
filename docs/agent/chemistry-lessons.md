@@ -92,7 +92,13 @@ elements with ">" or "<" are checked against that table at their written
 precision, 1% when marked approximate). Save admission then treats the
 graph's own quantities as certified. A contradicting value rejects; a
 property the table lacks (metallic or van der Waals radius, second
-ionisation energy) or an unknown derived role declines. Gate:
+ionisation energy) or an unknown derived role declines. Claims follow one
+fail closed rule (`claimVerdict` in `sourceEvidenceShared.ts`): every count
+beside a Lewis role (`lewisClaimReader.ts`) or every number in a periodic
+claim, read whole with its exponent, must be read with its owner (atom,
+central atom, molecule or one bond; element) and checked, or the figure
+declines; a claim marked `expected: false` must be one fact and false
+against the source. Gate:
 `scripts/verify/verify-chemistry-plan-scalar-certification.ts`. A closed carbon bond
 line, such as CH2=C=O or CH3-CH=CH-C≡N, is declined: the formula reader
 must not split it into a fragment molecule or invent a charge on the bond

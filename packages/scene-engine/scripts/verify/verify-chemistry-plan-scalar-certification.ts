@@ -185,6 +185,69 @@ check(status(radiusGraph, radius, plan(radius, { claims: [["Atomic radius decrea
 check(status(radiusGraph, radius, plan(radius, { claims: [["Approximate atomic radii (pm): Na 186, Mg 160", true]] })) === "rejected",
   "NEGATIVE: the recorded metallic radii keep the radius graph refused");
 
+// Review threads on #286: one fail closed rule. A scalar or claim certifies
+// only when every count, unit, exponent, owner and expectation in it is read.
+const lewisQ = (symbol: string, value: number, unit: string, sourceText: string) => plan(co2, { derived: [q(symbol, value, unit, sourceText)] });
+check(status(co2Lewis, co2, lewisQ("lone pairs", 4, "pairs", "lone pairs on carbon")) === "rejected",
+  "NEGATIVE: a lone-pair scalar whose source text names carbon is carbon's count (0), not the molecule's 4");
+check(status(co2Lewis, co2, lewisQ("lone pairs", 4, "pairs", "lone pairs on the oxygen and carbon atoms")) === "rejected",
+  "NEGATIVE: a lone-pair scalar naming two owners declines");
+check(status(co2Lewis, co2, lewisQ("lone pairs", 4, "pairs", "total lone pairs in CO2")) === "certified",
+  "Lewis CO2: an ownerless lone-pair total is the molecule's 4");
+check(status(co2Lewis, co2, lewisQ("sigma bonds", 2, "bonds", "sigma bonds on carbon")) === "certified"
+  && status(co2Lewis, co2, lewisQ("pi bonds", 1, "bonds", "pi bonds on carbon")) === "rejected",
+  "Lewis CO2: a sigma or pi scalar owned by carbon is carbon's own count (2 sigma, 2 pi)");
+const claimPlan = (question: string, claims: Array<[string, string | boolean]>) => plan(question, { claims });
+check(status(co2Lewis, co2, claimPlan(co2, [["Carbon has two lone pairs", false]])) === "certified",
+  "Lewis CO2: a claim the plan marks false is checked as false (carbon has no lone pairs)");
+check(status(co2Lewis, co2, claimPlan(co2, [["Carbon has no lone pairs", false]])) === "rejected",
+  "NEGATIVE: a true claim the plan marks false rejects the figure");
+check(status(co2Lewis, co2, claimPlan(co2, [["CO2 has three sigma bonds", true]])) === "rejected",
+  "NEGATIVE: three sigma bonds in CO2 rejects the figure (it draws two)");
+check(status(co2Lewis, co2, claimPlan(co2, [["CO2 has two sigma bonds and two pi bonds", true]])) === "certified",
+  "Lewis CO2: two sigma and two pi bonds certify");
+check(status(co2Lewis, co2, claimPlan(co2, [["CO2 has 12 bonding electrons", true]])) === "rejected",
+  "NEGATIVE: a wrong bonding electron count rejects the figure");
+check(status(co2Lewis, co2, claimPlan(co2, [["Each C=O bond has a bond order of 3", true]])) === "rejected",
+  "NEGATIVE: a count the reader cannot place (a bond order) declines the figure");
+check(status(co2Lewis, co2, claimPlan(co2, [["All atoms achieve a complete octet", "C has 8 bonding electrons; each O has 4 bonding + 3 lone pair electrons"]])) === "rejected",
+  "NEGATIVE: one wrong count inside a shared-noun list rejects the figure");
+check(status(co2Lewis, co2, claimPlan(co2, [["All atoms achieve a complete octet", "C has 8 bonding electrons; each O has 4 bonding + 4 lone pair electrons"]])) === "certified",
+  "Lewis CO2: the recorded octet claim reads every count by atom");
+const ethene = "sigma and pi bonds in ethene";
+const etheneLewis = figure(ethene, "chem_lewis");
+{
+  check(status(etheneLewis, ethene, claimPlan(ethene, [["The C=C double bond consists of one sigma bond (end-on overlap) and one pi bond", "1 sigma + 1 pi in double bond"]])) === "certified",
+    "Lewis ethene: a double bond is one sigma and one pi bond");
+  check(status(etheneLewis, ethene, claimPlan(ethene, [["The C=C double bond consists of two sigma bonds", true]])) === "rejected",
+    "NEGATIVE: a double bond of two sigma bonds rejects the figure");
+}
+check(status(nh3Lewis, ammonia, claimPlan(ammonia, [["Nitrogen is the central atom bonded to three hydrogen atoms", "Three N-H single bonds using 8 electrons"]])) === "rejected",
+  "NEGATIVE: three N-H bonds using 8 electrons rejects the figure");
+check(vseprPlanConflict(nh3, plan(nh3, { claims: [["NH3 has an ideal tetrahedral molecular shape", true]] })) !== null,
+  "NEGATIVE: \"ideal\" before a named molecular shape is a shape claim, not a reference angle");
+check(vseprPlanConflict(nh3, plan(nh3, { claims: [["The angle is smaller than the ideal tetrahedral angle", true]] })) === null,
+  "NH3: \"ideal tetrahedral angle\" stays a reference angle");
+check(status(enGraph, en, plan(en, { claims: [["Pauling electronegativities: F 3.98, Cl 3.16", true]] })) === "certified",
+  "periodic EN: the 1 inside 3.16 is not a second unit");
+check(status(enGraph, en, plan(en, { claims: [["Fluorine is the most electronegative element in Group 17", "F has the highest electronegativity (Pauling value 3.98)"]] })) === "certified",
+  "periodic EN: a clause naming one element and one value pairs them");
+check(status(enGraph, en, plan(en, { claims: [["Fluorine is the most electronegative element in Group 17", "F has the highest electronegativity (Pauling value 4.5)"]] })) === "rejected",
+  "NEGATIVE: a lone value paired with its only element is checked (F 4.5 against 3.98)");
+check(status(enGraph, en, plan(en, { claims: [["Electronegativity falls by 0.8 from F to Cl", true]] })) === "rejected",
+  "NEGATIVE: a number the reader cannot pair with an element declines the graph");
+check(status(enGraph, en, plan(en, { claims: [["Electronegativity: F 2.50", false]] })) === "certified"
+  && status(enGraph, en, plan(en, { claims: [["Electronegativity: F 3.98", false]] })) === "rejected",
+  "periodic EN: a claim the plan marks false must be false against the table");
+check(status(radiusGraph, radius, plan(radius, { claims: [["Covalent radii (pm): Na 166e3", true]] })) === "rejected",
+  "NEGATIVE: an exponent is read with its mantissa (166e3 pm is not Na's 166 pm)");
+check(status(radiusGraph, radius, plan(radius, { claims: [["Covalent radii (pm): Na 1.66e2", true]] })) === "certified",
+  "periodic radius: 1.66e2 pm is Na's 166 pm");
+check(status(ieGraph, ie, plan(ie, { claims: [["First ionisation energy (kJ/mol): Li 5.20e2", true]] })) === "certified",
+  "periodic IE: Li 5.20e2 kJ/mol is the table's 520");
+check(status(radiusGraph, radius, plan(radius, { claims: [["Covalent radii (pm): Na 166 × 10", true]] })) === "rejected",
+  "NEGATIVE: a multiplier the reader cannot parse declines the graph");
+
 // Graph tampering: the certificate never certifies a document the question does not regenerate.
 const tamperedLewis = structuredClone(co2Lewis);
 tamperedLewis.quantities.find((entry) => entry.id === "lone_pairs")!.value = 2;

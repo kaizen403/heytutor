@@ -19,8 +19,9 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument, SceneIssue } from "../types";
 import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
 import { buildLewisScene, isLewisStem, LEWIS_FAMILY, stemSpecies, type LewisAtom, type LewisResult } from "./lewis";
+import { lewisClaimText, readLewisClaim } from "./lewisClaimReader";
 import {
-  claimTexts, COUNT_PATTERN, countUnit, countWord, declarationText, declaredFormulas, equalScalar, formulaKey,
+  claimVerdict, countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, planClaims,
   graphMatches, mentionedElements, planIssue, planQuantities, type ChemistrySourceCertification,
 } from "./sourceEvidenceShared";
 
@@ -97,54 +98,86 @@ function centralAtom(result: LewisResult): LewisAtom | null {
   return result.skeleton === "central" ? result.atoms.find((atom) => atom.id === result.centralAtom) ?? null : null;
 }
 
-/** The source value a declaration names, or null when its role or target is
- * not one value of the regenerated structure. */
+const CHAIN = /\b[A-Z][a-z]?(?:·[A-Z][a-z]?)+(?![A-Za-z0-9])/g;
+
+/** Bond types a declaration names in bond notation (N-H, C=O), as symbol pairs. */
+function bondTypes(text: string): Array<[string, string]> {
+  return [...text.matchAll(CHAIN)].flatMap((match) => {
+    const symbols = match[0].split("·");
+    return symbols.slice(1).map((symbol, index) => [symbols[index]!, symbol] as [string, string]);
+  });
+}
+
+/**
+ * The source value a declaration names, or null when its role or owner is
+ * not one value of the regenerated structure. Symbol and source text are
+ * read together: an atom named in either (the symbol "lone pairs" with the
+ * source "lone pairs on carbon") is the owner, two different owners decline,
+ * and a bond type (3 N-H bonds) names bonds, never an owner atom. A molecular
+ * total under a bond type is read only when every bond is of that type.
+ */
 function expectedValue(quantity: TurnPlanQuantityV3, role: Role, result: LewisResult): number | null {
-  const declarations = [quantity.symbol, quantity.sourceText ?? ""].map(lewisText);
+  const declarations = [quantity.symbol, quantity.sourceText ?? ""].map(lewisClaimText);
+  const types = declarations.flatMap(bondTypes);
+  const plain = declarations.map((text) => text.replace(CHAIN, " "));
   const key = formulaKey(result.formula.text);
-  if (declarations.some((text) => [...declaredFormulas(text)].some((formula) => formula !== key))) return null;
+  if (plain.some((text) => [...declaredFormulas(text)].some((formula) => formula !== key))) return null;
   const present = (element: ElementRecord) => result.formula.atoms.some((atom) => atom.element === element);
-  const mentioned = declarations.map((text) => mentionedElements(text, ELEMENTS));
+  if (types.flat().some((symbol) => !result.formula.atoms.some((atom) => atom.symbol === symbol))) return null;
+  const mentioned = plain.map((text) => mentionedElements(text, ELEMENTS));
   if (mentioned.flat().some((element) => !present(element))) return null;
-  // The symbol names the atom; arithmetic in the source text may mention others.
   const symbolAtoms = mentioned[0]!;
-  const sourceAtoms = mentioned[1]!;
-  const central = /\bcentral\b/i.test(declarations[0]!) ? centralAtom(result) : null;
-  if (/\bcentral\b/i.test(declarations[0]!) && !central) return null;
-  const named = symbolAtoms.length === 1 ? symbolAtoms[0]! : symbolAtoms.length === 0 && sourceAtoms.length === 1 ? sourceAtoms[0]! : null;
+  const owners = [...new Set(mentioned.flat())];
+  const centralNamed = plain.some((text) => /\bcentral\b/i.test(text));
+  const central = centralNamed ? centralAtom(result) : null;
+  if (centralNamed && (!central || owners.some((element) => element.symbol !== central.symbol))) return null;
+  const allOfType = types.length === 0 || result.bonds.every((bond) => {
+    const a = result.atoms.find((atom) => atom.id === bond.a)?.symbol;
+    const b = result.atoms.find((atom) => atom.id === bond.b)?.symbol;
+    return types.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
+  });
   const unpaired = result.unpairedElectrons > 0;
   switch (role) {
-    case "valence":
-      return named && symbolAtoms.length <= 1 ? valenceElectrons(named) : null;
-    case "atom_count": {
-      if (!named || symbolAtoms.length > 1) return null;
-      return result.formula.atoms.find((atom) => atom.element === named)?.count ?? null;
-    }
-    case "formal_charge": {
-      if (symbolAtoms.length > 1) return null;
-      const target = central ? [central] : symbolAtoms[0] ? atomsOf(result, symbolAtoms[0]) : result.atoms;
-      return perAtom(target, (atom) => atom.formalCharge);
-    }
     case "total_valence":
-      return result.totalValenceElectrons;
-    case "sigma": case "pi":
-      // A bond-type count (C-H sigma bonds) is not the molecular total.
-      if (symbolAtoms.length > 0) return null;
-      return role === "sigma" ? result.sigmaBonds : result.piBonds;
-    default: {
-      if (symbolAtoms.length > 1) return null;
-      const target = central ? [central] : symbolAtoms[0] ? atomsOf(result, symbolAtoms[0]) : null;
-      if (unpaired && (role === "lone_pairs" || role === "lone_pair_electrons")) return null;
-      const read = (atom: LewisAtom): number => role === "lone_pairs" ? atom.lonePairs
-        : role === "lone_pair_electrons" ? 2 * atom.lonePairs
-        : role === "bond_pairs" ? bondOrderAt(result, atom) : 2 * bondOrderAt(result, atom);
-      if (target) return perAtom(target, read);
-      const shared = result.bonds.reduce((sum, bond) => sum + bond.order, 0);
-      // Untargeted counts are the molecule's totals, as the figure writes them.
-      return role === "lone_pairs" ? result.lonePairs
-        : role === "lone_pair_electrons" ? 2 * result.lonePairs
-        : role === "bond_pairs" ? shared : 2 * shared;
+      // A total is molecular; its arithmetic may name every element present.
+      return symbolAtoms.length === 0 && !central && types.length === 0 ? result.totalValenceElectrons : null;
+    case "valence": {
+      const atom = central?.element ?? (owners.length === 1 ? owners[0]! : null);
+      return atom && owners.length <= 1 && types.length === 0 ? valenceElectrons(atom) : null;
     }
+    case "atom_count":
+      return owners.length === 1 && !central && types.length === 0 ? result.formula.atoms.find((atom) => atom.element === owners[0])?.count ?? null : null;
+    default:
+      break;
+  }
+  if (owners.length > 1) return null;
+  const target = central ? [central] : owners[0] ? atomsOf(result, owners[0]) : null;
+  if (role === "formal_charge") return types.length ? null : perAtom(target ?? result.atoms, (atom) => atom.formalCharge);
+  if (unpaired && (role === "lone_pairs" || role === "lone_pair_electrons")) return null;
+  if (types.length && (role === "lone_pairs" || role === "lone_pair_electrons" || (target && role !== "sigma" && role !== "pi"))) return null;
+  const incident = (atom: LewisAtom) => result.bonds.filter((bond) => bond.a === atom.id || bond.b === atom.id);
+  if (target) {
+    switch (role) {
+      case "lone_pairs": return perAtom(target, (atom) => atom.lonePairs);
+      case "lone_pair_electrons": return perAtom(target, (atom) => 2 * atom.lonePairs);
+      case "bond_pairs": return perAtom(target, (atom) => bondOrderAt(result, atom));
+      case "bonding_electrons": return perAtom(target, (atom) => 2 * bondOrderAt(result, atom));
+      // A typed count on an atom (C-H sigma bonds of carbon) is not read.
+      case "sigma": return types.length ? null : perAtom(target, (atom) => incident(atom).length);
+      case "pi": return types.length ? null : perAtom(target, (atom) => incident(atom).reduce((sum, bond) => sum + bond.order - 1, 0));
+      default: return null;
+    }
+  }
+  if (!allOfType) return null;
+  const shared = result.bonds.reduce((sum, bond) => sum + bond.order, 0);
+  switch (role) {
+    case "lone_pairs": return result.lonePairs;
+    case "lone_pair_electrons": return 2 * result.lonePairs;
+    case "bond_pairs": return shared;
+    case "bonding_electrons": return 2 * shared;
+    case "sigma": return result.sigmaBonds;
+    case "pi": return result.piBonds;
+    default: return null;
   }
 }
 
@@ -163,58 +196,19 @@ function planIssues(plan: TurnPlanV3, result: LewisResult): SceneIssue[] {
   return issues;
 }
 
-function elementIn(text: string): ElementRecord | null {
-  const found = mentionedElements(text, ELEMENTS);
-  return found.length === 1 ? found[0]! : null;
-}
-
-const ATOM = "([A-Z][a-z]?|[a-z]{3,12}|central atom)";
-
-/** Count claims the planner narrates: lone pairs on an atom, valence
- * electrons (an atom's or the total), formal charges. A claim that names a
- * count the structure contradicts rejects the figure; other prose is left
- * to the teaching text. */
+/** Count claims the planner narrates beside the structure. One fail closed
+ * rule (`claimVerdict`): every count next to a Lewis role must be read and
+ * checked by species, atom or bond, and a claim the plan marks false must be
+ * false against the structure. */
 function claimIssues(plan: TurnPlanV3, result: LewisResult): SceneIssue[] {
   const issues: SceneIssue[] = [];
-  const fail = (index: number, what: string) => issues.push({ code: "lewis_plan_claim_conflict", severity: "fatal",
-    path: `turnPlan.qualitativeClaims[${index}]`, message: `Lewis plan claim contradicts the source-derived ${what}` });
-  const resolve = (word: string): LewisAtom[] | null => {
-    if (/^central atom$/i.test(word)) { const atom = centralAtom(result); return atom ? [atom] : null; }
-    const element = elementIn(word);
-    return element && result.formula.atoms.some((atom) => atom.element === element) ? atomsOf(result, element) : null;
-  };
-  claimTexts(plan).forEach((raw, index) => {
-    const text = lewisText(raw);
-    const lonePairClaims = [
-      ...[...text.matchAll(new RegExp(`\\b${COUNT_PATTERN}\\s+lone[- ]pairs?\\s+(?:of\\s+electrons\\s+)?(?:on|around)\\s+(?:the\\s+|each\\s+)?${ATOM}`, "gi"))]
-        .map((match) => [match[1]!, match[2]!] as const),
-      ...[...text.matchAll(new RegExp(`\\b(?:each\\s+)?${ATOM}(?:\\s+atoms?)?\\s+has\\s+${COUNT_PATTERN}\\s+lone[- ]pairs?`, "gi"))]
-        .map((match) => [match[2]!, match[1]!] as const),
-    ];
-    for (const [count, atom] of lonePairClaims) {
-      const atoms = resolve(atom);
-      const value = countWord(count);
-      if (!atoms || value === null || result.unpairedElectrons > 0) continue;
-      const source = perAtom(atoms, (entry) => entry.lonePairs);
-      if (source !== null && source !== value) fail(index, "lone-pair count");
-    }
-    for (const match of text.matchAll(new RegExp(`\\b${ATOM}(?:\\s+atom)?\\s+has\\s+${COUNT_PATTERN}\\s+valence\\s+electrons?`, "gi"))) {
-      const element = elementIn(match[1]!);
-      const value = countWord(match[2]!);
-      if (element && value !== null && result.formula.atoms.some((atom) => atom.element === element) && value !== valenceElectrons(element)) fail(index, "valence electron count");
-    }
-    for (const match of text.matchAll(new RegExp(`\\b${COUNT_PATTERN}\\s+total\\s+valence\\s+electrons?|\\btotal\\s+(?:of\\s+)?${COUNT_PATTERN}\\s+valence\\s+electrons?`, "gi"))) {
-      const value = countWord(match[1] ?? match[2]!);
-      if (value !== null && value !== result.totalValenceElectrons) fail(index, "total valence electron count");
-    }
-    if (/\ball\s+(?:the\s+)?formal\s+charges\s+are\s+(?:zero|0)\b/i.test(text) && result.atoms.some((atom) => atom.formalCharge !== 0)) fail(index, "formal charges");
-    for (const match of text.matchAll(new RegExp(`\\bformal\\s+charge\\s+(?:on|of)?\\s*(?:the\\s+|each\\s+)?${ATOM}(?:\\s+atom)?\\s*(?:is|=|:)\\s*([+\\-−]?\\d|zero)\\b`, "gi"))) {
-      const atoms = resolve(match[1]!);
-      const value = /zero/i.test(match[2]!) ? 0 : Number(match[2]!.replace("−", "-"));
-      const source = atoms ? perAtom(atoms, (atom) => atom.formalCharge) : null;
-      if (source !== null && source !== value) fail(index, "formal charge");
-    }
-  });
+  for (const claim of planClaims(plan)) {
+    const verdict = claimVerdict(claim, readLewisClaim(claim.text, result));
+    if (verdict === "conflict") issues.push({ code: "lewis_plan_claim_conflict", severity: "fatal",
+      path: `turnPlan.qualitativeClaims[${claim.index}]`, message: "Lewis plan claim contradicts the source-derived structure" });
+    if (verdict === "unread") issues.push({ code: "lewis_plan_claim_unverified", severity: "fatal",
+      path: `turnPlan.qualitativeClaims[${claim.index}]`, message: "Lewis plan claim has a count, owner or expectation the structure reader cannot check" });
+  }
   return issues;
 }
 

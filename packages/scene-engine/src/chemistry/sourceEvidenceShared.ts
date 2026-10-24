@@ -120,20 +120,41 @@ export function graphMatches(document: SceneDocument, fresh: SceneDocument, plan
   return stable(document) === stable(expected);
 }
 
-const NUMBER_WORDS: Readonly<Record<string, number>> = {
-  no: 0, zero: 0, one: 1, a: 1, an: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12,
-};
-
-/** A small count written as digits or a word, or null. */
-export function countWord(text: string): number | null {
-  if (/^\d+$/.test(text)) return Number(text);
-  return NUMBER_WORDS[text.toLowerCase()] ?? null;
+/** One planner claim as the certificates read it. A string expectation is
+ * asserted beside the claim; a boolean expectation says whether the claim
+ * itself is true, so `expected: false` asserts that the claim is false. */
+export interface PlanClaimReading {
+  readonly index: number;
+  readonly text: string;
+  readonly asserted: boolean;
 }
 
-export const COUNT_PATTERN = "(\\d+|no|zero|one|an?|single|two|three|four|five|six|seven|eight|nine|ten|twelve)";
+export function planClaims(plan: TurnPlanV3): PlanClaimReading[] {
+  return plan.qualitativeClaims.map((claim, index) => ({
+    index,
+    text: `${claim.claim}${typeof claim.expected === "boolean" ? "" : `. ${claim.expected}`}`,
+    asserted: claim.expected !== false,
+  }));
+}
 
-/** Claim text a qualitative claim asserts: the claim and a non-boolean expectation. */
-export function claimTexts(plan: TurnPlanV3): string[] {
-  return plan.qualitativeClaims.map((claim) =>
-    `${claim.claim}${typeof claim.expected === "boolean" ? "" : `. ${claim.expected}`}`);
+/** What a certificate's reader made of one claim: each checked fact's truth
+ * against the source, and whether any number, role or owner in the claim was
+ * left unread. */
+export interface ClaimReading {
+  readonly facts: readonly boolean[];
+  readonly unread: boolean;
+}
+
+/**
+ * One fail closed rule for every certificate. A claim with anything left
+ * unread never certifies. An asserted claim must have every fact true. A
+ * claim the plan marks false must be exactly one fact, outside any compound
+ * sentence, and that fact must be false against the source.
+ */
+export function claimVerdict(claim: PlanClaimReading, reading: ClaimReading): "ok" | "conflict" | "unread" {
+  if (reading.unread) return "unread";
+  if (claim.asserted) return reading.facts.every(Boolean) ? "ok" : "conflict";
+  if (reading.facts.length === 0) return "ok";
+  if (reading.facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b|[,;+]/i.test(claim.text)) return "unread";
+  return reading.facts[0] ? "conflict" : "ok";
 }
