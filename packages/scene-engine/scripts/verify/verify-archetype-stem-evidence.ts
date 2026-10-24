@@ -139,4 +139,15 @@ const bubbleLaws = ["Laplace pressure", "spherical surface tension"];
 check(detected(bubble, bubbleLaws) === null, "a law only bubble stem detected an archetype");
 check(synthesizeFamilyScene({ question: bubble, turnPlan: plan(bubble, bubbleLaws) }) === null, "a law only bubble stem drew a family figure");
 
+// Two mirrors are never drawn as one spherical mirror (Greptile #271).
+for (const stem of [
+  "Two identical convex mirrors face each other with an object between them.",
+  "Two identical concave mirrors, each of focal length 10 cm, face each other 40 cm apart.",
+  "Two convex mirrors of focal length 20 cm face each other 60 cm apart.",
+]) {
+  for (const laws of [[], ["mirror_equation"]]) {
+    check(detected(stem, laws) !== "spherical_mirror", `two mirrors are not one spherical mirror: ${stem} (${laws.length ? "plan" : "bare"})`);
+  }
+}
+check(detected("A concave mirror of focal length 20 cm forms an image of an object placed 30 cm in front of it.", ["mirror_equation"]) === "spherical_mirror", "a single concave mirror still draws");
 console.log(`archetype stem evidence verification passed (${checks} checks)`);

@@ -982,7 +982,7 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\b(?:concave|convex|spherical) mirrors?\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
-    vetoes: [/\bplane mirrors?\b/i, /\blens(?:es)?\b/i, /\b(?:two|pair of|both)\s+(?:concave|convex|spherical|curved)\s+mirrors\b|\bfacing each other\b/i, /\b(?:periscope|kaleidoscope|laser|lateral inversion|mirror symmetry|enantiomer|chiral|optical isomer)/i,
+    vetoes: [/\bplane mirrors?\b/i, /\blens(?:es)?\b/i, /\b(?:two|2|pair of|both)\s+(?:[\w-]+,?\s+){0,3}mirrors\b|\bfac(?:e|es|ing)\s+each\s+other\b/i, /\b(?:periscope|kaleidoscope|laser|lateral inversion|mirror symmetry|enantiomer|chiral|optical isomer)/i,
       MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
     extract: (stem, plan, bag) => {
       // The kind is read only when the stem names exactly one; a stem naming
