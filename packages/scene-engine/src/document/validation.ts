@@ -4429,6 +4429,29 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
           entityIds: typeof output === "string" ? [output] : undefined,
         });
       }
+      if (typeof target === "string" && document.entities.find((candidate) => candidate.id === target)?.kind === "axes") {
+        issues.push({
+          code: "label_targets_axes",
+          message: `label ${String(output)} targets axes ${target}: an axes object has no point for a label, so the text would float in the middle of the plot and name neither axis. Remove this label construction and its label entity, and name the axes on the axes construction instead: inputs xLabel and yLabel (for example {"xLabel":"V","yLabel":"P"}) are drawn at the arrow tips.`,
+          severity: "fatal",
+          path: `constructions[${index}].inputs.target`,
+          entityIds: typeof output === "string" ? [output, target] : [target],
+        });
+      }
+    }
+    if (construction.operator === "axes" && isRecord(construction.inputs)) {
+      for (const key of ["xLabel", "yLabel"] as const) {
+        const title = construction.inputs[key];
+        if (title === undefined) continue;
+        if (typeof title !== "string" || !isCompactDiagramLabel(title)) {
+          issues.push({
+            code: "invalid_axes_title",
+            message: `axes ${key} must be a compact axis title such as "V", "t (s)" or "P (kPa)"`,
+            severity: "fatal",
+            path: `constructions[${index}].inputs.${key}`,
+          });
+        }
+      }
     }
     if (isRecord(construction.inputs)) {
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
