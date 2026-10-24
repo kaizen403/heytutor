@@ -62,7 +62,7 @@ check(detected("Explain elastic collisions in one dimension") === "collision_lin
 check(detected("Two balls undergo a perfectly inelastic collision") === "collision_line", "an inelastic collision of two balls lost its figure");
 check(detected("Using Kirchhoff's laws, find the current in each branch of the two loop circuit", ["Kirchhoff voltage law"]) === "two_loop_network", "a Kirchhoff two loop stem lost its figure");
 check(detected("where images form in concave and convex mirrors") === null, "a stem naming both mirrors drew only one of them");
-check(detected("A thin meniscus lens of glass, n = 1.5, has surfaces of radius 10 cm and 30 cm. Find its focal length.", ["lensmaker equation"]) === "lens_maker", "a meniscus lens with the lensmaker law lost the lens maker figure");
+
 check(detected("A projectile is launched at 30 degrees with speed 20 m/s. Find its range.", ["projectile motion"]) === "projectile", "a projectile stem lost its figure");
 
 // Plural mirrors cue only curved mirrors; flat mirror setups match nothing.
@@ -117,5 +117,26 @@ for (const stem of [
 check(detected("Draw an RL circuit with a switch that first establishes current from a cell", ["Ohm's law"]) !== "resistor_network", "an RL circuit drew a resistor network");
 // Plural satellites still cue the orbit.
 check(detected("Explain polar satellites and their orbits") === "satellite_orbit", "polar satellites lost the orbit");
+
+// A meniscus stem whose only lens cue came from its lensmaker law draws no
+// lens: the lens maker drew biconvex, and with that law match refused the
+// thin lens read "concave surface" as diverging.
+const lensRequired = (question: string, lawIds: string[]) => ({ ...plan(question, lawIds), visualRequirement: "required" as const });
+for (const stem of [
+  "Draw a converging meniscus-shaped lens with one concave surface and one convex surface.",
+  "Draw a converging meniscus lens with one concave surface and one convex surface.",
+  "Explain a diverging meniscus lens",
+  "A thin meniscus lens of glass, n = 1.5, has surfaces of radius 10 cm and 30 cm. Find its focal length.",
+]) {
+  check(!["thin_lens", "lens_maker"].includes(detected(stem, ["lensmaker equation"]) ?? ""), `"${stem}" detected a lens`);
+  const figure = synthesizeFamilyScene({ question: stem, turnPlan: lensRequired(stem, ["lensmaker equation"]) });
+  check(!figure?.document.entities.some((entity) => /\blens\b/i.test(entity.role ?? "")), `"${stem}" drew a lens`);
+}
+
+// A stem matched only through its plan's laws gets no deterministic figure at all.
+const bubble = "An air bubble of radius 0.10 mm is just below the surface of water of surface tension 0.072 N/m. Find the excess pressure inside it.";
+const bubbleLaws = ["Laplace pressure", "spherical surface tension"];
+check(detected(bubble, bubbleLaws) === null, "a law only bubble stem detected an archetype");
+check(synthesizeFamilyScene({ question: bubble, turnPlan: plan(bubble, bubbleLaws) }) === null, "a law only bubble stem drew a family figure");
 
 console.log(`archetype stem evidence verification passed (${checks} checks)`);

@@ -64,7 +64,7 @@ import { extractCircleSource, findStatedCurves, type StatedCurve } from "./state
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
-import { detectArchetype } from "../archetypes/detect";
+import { detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
@@ -164,6 +164,9 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // A stem main's archetype scoring matched only through its plan's laws gets
+  // no deterministic figure at all, not the next archetype or a family.
+  if (lawOnlyArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
   const youngRequest=readYoungRepresentationRequest(question);
   if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;

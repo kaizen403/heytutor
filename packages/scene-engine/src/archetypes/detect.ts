@@ -1019,7 +1019,6 @@ const CUE_SETS: readonly CueSet[] = [
       [/\blens[- ]?maker/i, 5],
       [/\b(?:biconvex|biconcave|plano[- ]convex|plano[- ]concave)\b/i, 3],
       [/\bradii\b/i, 3],
-      [/\bmeniscus lens\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
     // "R1" in a circuit names a resistance, not a lens face.
@@ -1657,7 +1656,7 @@ interface Scored {
   evidence: string[];
 }
 
-function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score: number; evidence: string }>): Scored | null {
+function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score: number; evidence: string }>, allowStructureOnly = false): Scored | null {
   if (set.vetoes?.some((veto) => veto.test(stem))) return null;
   if (set.requires?.some((requirement) => !requirement.test(stem))) return null;
   let score = 0;
@@ -1672,7 +1671,7 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
   // Plan laws and IR intents strengthen a figure the stem names; alone they
   // cue the wrong apparatus ("Kirchhoff" for a transistor, "Coulomb's law of
   // friction" for two point charges), so a stem with no cue matches nothing.
-  if (strongest === 0) return null;
+  if (strongest === 0 && !allowStructureOnly) return null;
   const structural = bonus.get(set.id);
   if (structural) {
     score += structural.score;
@@ -1698,6 +1697,34 @@ function requiredSlotsPresent(id: ArchetypeId, bag: SlotBag): boolean {
  * evidence bar — callers then fall back or teach text-only, which is the
  * honest outcome for a stem the catalog does not describe.
  */
+/**
+ * True when the archetype main's scoring would pick (law and intent bonuses
+ * counted alone) has no cue in the stem. Such a stem was matched only through
+ * its plan's laws; refusing that match must not hand the turn to the next
+ * archetype or to a family, which drew a spring for an air bubble and a bare
+ * sphere for glass sphere stems. The whole deterministic figure declines; the
+ * planner path is unaffected.
+ */
+export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): boolean {
+  const stem = prepareStem(question);
+  if (!stem) return false;
+  const plan = collectPlanQuantities(hints?.turnPlan);
+  const bonus = structureBonus(hints);
+  if (bonus.size === 0) return false;
+  const scored = CUE_SETS
+    .map((set) => scoreCueSet(set, stem, bonus, true))
+    .filter((item): item is Scored => item !== null)
+    .filter((item) => item.score >= (item.set.minScore ?? 2))
+    .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
+  for (const [index, candidate] of scored.entries()) {
+    if (!requiredSlotsPresent(candidate.set.id, fillSlots(candidate.set, stem, plan))) continue;
+    const next = scored[index + 1] ?? null;
+    if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) return false;
+    return candidate.strongest === 0;
+  }
+  return false;
+}
+
 export function detectArchetype(question: string, hints?: DetectionHints): ArchetypeMatch | null {
   const stem = prepareStem(question);
   if (!stem) return null;
@@ -1730,6 +1757,8 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     }
   }
 
+  // A stem main matched only through its plan's laws matches nothing now.
+  if (lawOnlyArchetypeLead(question, hints)) return null;
   // A clear collision stem that is off the line matches nothing else either.
   const collisionSet = CUE_SET_BY_ID.get("collision_line");
   if (collisionSet?.cues.some(([pattern, weight]) => weight >= 2 && pattern.test(stem))
