@@ -78,6 +78,11 @@ const OWNERS: Row[] = [
   { id: "owners/discourse-then-unlike", question: CO2, claim: "For example, unlike H2O, CO2 is linear.", expected: true, admit: true },
   { id: "owners/discourse-then-unlike-other", question: CO2, claim: "For example, unlike CO2, H2O is bent.", expected: true, admit: true },
   { id: "owners/false-discourse-then-like", question: "What is the shape of H2O", claim: "However, like CO2, H2O is linear.", expected: true, admit: false },
+  // "like" and "as with" share the property: the compared molecule is held to it too.
+  { id: "owners/false-like-shares", question: "What is the shape of H2O", claim: "Like H2O, CO2 is linear.", expected: true, admit: false },
+  { id: "owners/false-discourse-like-shares", question: "What is the shape of H2O", claim: "For example, like H2O, CO2 is linear.", expected: true, admit: false },
+  { id: "owners/false-similar-to-shares", question: "What is the shape of H2O", claim: "Similar to water, carbon dioxide is linear.", expected: true, admit: false },
+  { id: "owners/false-as-with-shares", question: "What is the shape of H2O", claim: "As with H2O, CO2 is linear.", expected: true, admit: false },
   { id: "owners/false-like-intro", question: "What is the shape of H2O", claim: "Like CO2, H2O is linear.", expected: true, admit: false },
   // A comma list with no introductory comparison is a shared subject.
   { id: "owners/false-comma-list", question: "What is the shape of H2O", claim: "H2O, NH3, CO2 are linear.", expected: true, admit: false },
