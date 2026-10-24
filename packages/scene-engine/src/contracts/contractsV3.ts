@@ -2555,6 +2555,11 @@ function axisTitleSymbol(text: string): string {
   return head.replace(/\s*[([{][^()[\]{}]*[)\]}]\s*$/u, "").trim();
 }
 
+/** Whether the turn names an axis title: as written ("f(x)" declared whole), or its symbol before a unit. */
+function axisTitleBound(text: string, plan: TurnPlanV3): boolean {
+  return axisTitleSymbolBound(text.trim(), plan) || axisTitleSymbolBound(axisTitleSymbol(text), plan);
+}
+
 /** Whether the turn names an axis title's symbol, so the title is the turn's and not a copied example. */
 function axisTitleSymbolBound(symbol: string, plan: TurnPlanV3): boolean {
   if (!symbol) return false;
@@ -2590,6 +2595,10 @@ function axesTitleNumberCertified(text: string, plan: TurnPlanV3 | null | undefi
   if (/[0-9]/.test(symbol) && axisTitleSymbolBound(symbol, plan) && text.startsWith(symbol, trimmedStart)) {
     blank(trimmedStart, trimmedStart + symbol.length);
   }
+  // A trailing bracket the unit rules read whole ("m s-1", "kg m-3") holds
+  // unit powers, not values. A scale factor ("x10^3 m s-1") is no unit.
+  const unit = /[([{]([^()[\]{}]*)[)\]}]\s*$/u.exec(text);
+  if (unit && /[0-9]/.test(unit[1]!) && unitScale(unit[1]!) !== null) blank(unit.index, unit.index + unit[0].length);
   const supported = supportedSceneDisplayMeasurements(plan);
   for (const match of extractMeasuredValueSpans(text, plan)) {
     if (supported.some((quantity) => equivalentDisplayedMeasuredQuantity(quantity.value, quantity.unit, match.value, match.unit, match.tolerance))) {
@@ -2717,7 +2726,7 @@ export function pruneUnverifiedSceneAnnotations(
   const titleOmissions: SceneIssue[] = [];
   const constructions = document.constructions.map((construction, constructionIndex) => {
     const unbound = axesTitleTexts({ constructions: [construction] })
-      .filter((title) => !axisTitleSymbolBound(axisTitleSymbol(title.text), plan));
+      .filter((title) => !axisTitleBound(title.text, plan));
     if (unbound.length === 0) return construction;
     const inputs = { ...construction.inputs };
     for (const title of unbound) {

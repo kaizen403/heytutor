@@ -138,6 +138,12 @@ assert.ok(proofFatal(boyle({ yLabel: "P = 300 kPa" }), null).includes("axes_titl
 // Controls: symbols and units with digits copied from the turn are not numbers.
 assert.deepEqual(proofFatal(boyle({ xLabel: "1/V", yLabel: "P (kPa)" }), boylePlan), [], "1/V named by the plan and a bare unit pass");
 assert.deepEqual(proofFatal(boyle({ xLabel: "V₂ (cm³)", yLabel: "P2" }), boylePlan).filter((code) => code === "axes_title_number_unverified"), [], "subscripts and unit powers are not numbers");
+// A unit power written without a caret ("m s-1") is a unit, read by the unit
+// rules; a scale factor in the same bracket is still a number.
+const speedPlan = plan("velocity time graph", [{ claim: "velocity v against time t", expected: "straight line" }]);
+assert.deepEqual(proofFatal(boyle({ xLabel: "t (s)", yLabel: "v (m s-1)" }), speedPlan), [], "v (m s-1) is a unit power, not a number");
+assert.deepEqual(proofFatal(boyle({ yLabel: "ρ (kg m-3)" }), plan("density ρ against depth", [{ claim: "ρ rises", expected: "up" }])), [], "kg m-3 is a unit power");
+assert.ok(proofFatal(boyle({ yLabel: "v (x10^3 m s-1)" }), speedPlan).includes("axes_title_number_unverified"), "a scale factor beside a unit power is still refused");
 
 // 9. A title is drawn only when the turn names its symbol: a plan symbol, a
 // whole token of the question or the claims, or x or y.
@@ -157,6 +163,12 @@ assert.equal(strayedCompiled.renderScene.primitives.some((primitive) => /^primit
 const motionTitled = pruneUnverifiedSceneAnnotations(boyle({ xLabel: "t (s)", yLabel: "d (m)" }), motion);
 assert.deepEqual(titleTexts(motionTitled), { x: "t (s)", y: "d (m)" }, "the motion turn keeps its own symbols");
 assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ xLabel: "x", yLabel: "y" }), motion)), { x: "x", y: "y" }, "x and y always bind");
+// A title the plan declares whole ("f(x)") binds as written, before any
+// bracket is read as a unit.
+const functionPlan = { ...plan("sketch the graph of the given function", [{ claim: "the curve rises", expected: "increasing" }]),
+  unknowns: [{ id: "fx", symbol: "f(x)" }] } as TurnPlanV3;
+assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ xLabel: "x", yLabel: "f(x)" }), functionPlan)), { x: "x", y: "f(x)" }, "a declared f(x) keeps its title");
+assert.equal(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ yLabel: "g(x)" }), functionPlan)).y, undefined, "an undeclared g(x) is still omitted");
 // A unit after a number is not the symbol: "a 12 V battery" does not name V.
 const battery = plan("current through a lamp on a 12 V battery", [{ claim: "current I against time t stays constant", expected: "horizontal line" }]);
 assert.deepEqual(titleTexts(pruneUnverifiedSceneAnnotations(boyle({ xLabel: "V", yLabel: "I (A)" }), battery)), { x: undefined, y: "I (A)" }, "a unit token does not bind a title");
