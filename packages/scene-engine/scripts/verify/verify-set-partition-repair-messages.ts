@@ -7,6 +7,8 @@
  */
 import assert from "node:assert/strict";
 import { validateSceneDocument } from "../../src/document/validation";
+import { validateSetConstruction } from "../../src/compile/setGeometry";
+import type { SceneDocument, SceneIssue } from "../../src/types";
 
 type Doc = Record<string, any>;
 const base = (): Doc => ({
@@ -85,6 +87,19 @@ assert.ok(originMessage, `origin finding expected; got ${JSON.stringify(fatal(do
 assert.doesNotMatch(originMessage!, /such as (circleA|anchorA)/, originMessage);
 assert.match(originMessage!, /none of its outputs has kind "point"; name an ordinary point entity, or give inline coordinates \[x, y\]/, originMessage);
 checks++;
+
+// A referenced construction whose outputs is one string, not an array, still
+// gets repair advice rather than a crash message. Document normalization
+// wraps such outputs, so call the set validator on the raw shape.
+{
+  const raw = base(); raw.constructions[1].inputs.partition = "cPartition"; raw.constructions[0].outputs = "circleA";
+  const issues: SceneIssue[] = [];
+  validateSetConstruction(raw.constructions[1], 1, raw as SceneDocument, new Map(), issues);
+  const message = issues.map((issue) => issue.message).find((entry) => entry.includes("cPartition is the id of construction"));
+  assert.ok(message && !/is not a function/.test(message), `string outputs get advice: ${JSON.stringify(issues.map((issue) => issue.message))}`);
+  assert.match(message!, /outputs must be an array of output entity ids/);
+  checks++;
+}
 
 // Undeclared anchors are inferred as labels, not segments; the finding says to require and group them.
 doc = base(); doc.entities = doc.entities.filter((entity: Doc) => !entity.id.startsWith("anchor"));

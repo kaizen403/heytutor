@@ -223,6 +223,9 @@ const kindList = (kinds: readonly string[]) => kinds.map((kind) => `"${kind}"`).
 function referenceFinding(value: string, entities: SceneDocument["entities"], producers: SceneConstruction[], document: SceneDocument, allowedKinds: readonly string[], key: string, role?: string): string {
   const what = `${key === "outputs" ? "output" : key} ${value}${role ? ` (${role})` : ""}`;
   const construction = document.constructions.find((entry) => entry.id === value);
+  if (construction && entities.length === 0 && !Array.isArray(construction.outputs)) {
+    return `${what} is the id of construction ${value}, not an entity, and that construction's outputs must be an array of output entity ids, such as ${typeof construction.outputs === "string" ? JSON.stringify([construction.outputs]) : '["<entity id>"]'}; write its outputs as an array, then name one of its entity ids here`;
+  }
   if (construction && entities.length === 0) {
     // Only suggest an output this reference may name: its declared kind, or the
     // kind a set partition writes at that position when it is undeclared.
