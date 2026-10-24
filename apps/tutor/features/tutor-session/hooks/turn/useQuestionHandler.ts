@@ -156,6 +156,7 @@ import {
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
+  waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -1421,6 +1422,7 @@ export function useQuestionHandler(
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
+                waitForRequiredScenePeers: waitForRequiredScenePeers(planningTurnPlan.visualRequirement),
                 fastMode: fastModeRef.current,
                 onRequestOutcome: outcome => {
                   sceneRequestFailure = sceneRequestFailureTelemetry({
