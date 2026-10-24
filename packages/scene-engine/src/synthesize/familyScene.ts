@@ -57,7 +57,7 @@ import {
   visualObligationRejection,
   type VisualObligationSet,
 } from "./visualObligations";
-import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
+import { CHEMISTRY_SCENE_FAMILIES, buildPlanExampleDocument, chemistryFamilyBuilder } from "../chemistry";
 import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
@@ -150,7 +150,21 @@ interface PlanQuantity {
 }
 
 export function synthesizeFamilyScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
-  return synthesizeFromFamilies(input, false);
+  return synthesizeFromFamilies(input, false) ?? synthesizePlanExampleScene(input);
+}
+
+/**
+ * A chemistry topic ask that names no species draws only the plan's own
+ * example, computed from its formula and captioned as an example. It never
+ * displaces a figure the question itself grounds.
+ */
+function synthesizePlanExampleScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
+  const built = buildPlanExampleDocument(input.question, input.turnPlan);
+  if (built.status !== "built") return null;
+  const compiled = tryCompile(built.document);
+  if (!compiled || demandRejection(compiled.document, sceneDemand(input.question, input.problemIR))) return null;
+  return { ...compiled, tier: "qualitative_verified", nonMetric: true, family: built.family,
+    reason: `computed the plan's example ${built.source.formula} from its formula; the question names no species` };
 }
 
 export function synthesizeLastResortScene(input: FamilySceneInput): SynthesizedFamilyScene | null {

@@ -33,6 +33,7 @@ tsx scripts/verify/verify-dsa-teaching.ts
 tsx scripts/verify/verify-dsa-stacked.ts
 tsx scripts/verify/verify-chemistry-subject.ts
 tsx scripts/verify/verify-chemistry-families.ts
+tsx scripts/verify/verify-plan-example-species.ts
 tsx scripts/verify/verify-chemistry-foundation-correctness.ts
 tsx scripts/verify/verify-incline-force-visibility.ts
 tsx scripts/verify/verify-summary-label-stack.ts

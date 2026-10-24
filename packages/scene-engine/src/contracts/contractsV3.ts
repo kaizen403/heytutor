@@ -59,6 +59,18 @@ export interface TurnPlanV3 {
   visualRequirement: VisualRequirement;
   /** Optional teaching sequence hints (entity/view ids resolved later). */
   teachingSequenceHints?: string[];
+  /**
+   * Chemistry only: the one example the lesson teaches with when the question
+   * names no species. The engine recomputes everything from the formula and
+   * checks the claim; nothing here is trusted geometry.
+   */
+  exampleSpecies?: TurnPlanExampleSpeciesV3[];
+}
+
+export interface TurnPlanExampleSpeciesV3 {
+  formula: string;
+  /** A checkable statement about the species, e.g. "BF3 is sp2 and trigonal planar". */
+  claim: string;
 }
 
 export interface TurnPlanValidationIssue {
@@ -593,6 +605,17 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       issues.push({ code: "invalid_assumption", path: `assumptions[${index}]`, message: "assumption must be a non-empty string" });
     }
   });
+  // Absent, null or empty means no example. Anything else must be one
+  // well-formed entry; a malformed example is refused, never repaired.
+  if (raw.exampleSpecies !== undefined && raw.exampleSpecies !== null) {
+    const entries = raw.exampleSpecies;
+    const wellFormed = Array.isArray(entries) && entries.length <= 1 && entries.every((entry) =>
+      isRecord(entry) && typeof entry.formula === "string" && entry.formula.trim() !== "" && entry.formula.length <= 40
+        && typeof entry.claim === "string" && entry.claim.trim() !== "" && entry.claim.length <= 240);
+    if (!wellFormed) {
+      issues.push({ code: "invalid_example_species", path: "exampleSpecies", message: "exampleSpecies must be at most one {formula, claim} with non-empty strings" });
+    }
+  }
 
   return {
     valid: issues.length === 0,

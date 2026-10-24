@@ -14,7 +14,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { auditTurnPlanV3, planTurnV3 } from "@heytutor/tutor-core";
+import { auditTurnPlanV3, planTurnV3, TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON } from "@heytutor/tutor-core";
+import { questionNamesSpecies } from "@heytutor/scene-engine";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -74,6 +75,23 @@ for (const entry of CASES) {
     planner: hash((await plannerBodies(entry.question, entry.plan)).join("\n\u0000\n")),
     teaching: hash(teachingPrompts(entry.question, entry.plan).join("\n\u0000\n")),
   };
+}
+
+// The other side of the identity: chemistry turns do get the addon, the
+// addon names no species, and the teaching is told the accepted example.
+const chemistryQuestion = "what is sp2 hybridisation";
+const chemistryPlan = plan(chemistryQuestion, { exampleSpecies: [{ formula: "BF3", claim: "BF3 is sp2 and trigonal planar" }] });
+const chemistryBodies = await plannerBodies(chemistryQuestion, chemistryPlan);
+const chemistryProblems = [
+  chemistryBodies.every((body) => body.includes(JSON.stringify(TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON).slice(1, -1))) ? "" : "a chemistry planner request lacks the example addon",
+  questionNamesSpecies(TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON) ? "the planner addon names a species" : "",
+  teachingPrompts(chemistryQuestion, chemistryPlan).every((prompt) => prompt.includes("EXAMPLE TO TEACH WITH") && prompt.includes("BF3")) ? "" : "the chemistry teaching prompt lacks the plan example",
+  teachingPrompts("why is water bent", plan("why is water bent", { exampleSpecies: [{ formula: "NH3", claim: "NH3 is sp3" }] }))
+    .some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a question naming its species was given a plan example" : "",
+].filter(Boolean);
+if (chemistryProblems.length) {
+  console.error(chemistryProblems.join("; "));
+  process.exit(1);
 }
 
 if (process.argv.includes("--write")) {
