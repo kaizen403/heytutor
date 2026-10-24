@@ -230,8 +230,10 @@ function referenceFinding(value: string, entities: SceneDocument["entities"], pr
     // Only suggest an output this reference may name: its declared kind, or the
     // kind a set partition writes at that position when it is undeclared.
     const circles = construction.operator === "set_partition" && record(construction.inputs) && Array.isArray(construction.inputs.sets) ? construction.inputs.sets.length : 0;
-    const outputKind = (id: string, index: number) => document.entities.find((entity) => entity.id === id)?.kind
-      ?? (construction.operator === "set_partition" ? (index < circles ? "circle" : "label") : undefined);
+    const outputKind = (id: string, index: number) => {
+      const entity = document.entities.find((entry) => entry.id === id);
+      return entity && !inferredSetOutput(entity) ? entity.kind : construction.operator === "set_partition" ? (index < circles ? "circle" : "label") : undefined;
+    };
     const example = construction.outputs.find((id, index) => typeof id === "string" && allowedKinds.includes(outputKind(id, index) ?? ""));
     if (example) return `${what} is the id of construction ${value}, not an entity; name one of its output entity ids of kind ${kindList(allowedKinds)}, such as ${example}`;
     const alternative = allowedKinds.includes("point") && key === "origin" ? "; name an ordinary point entity, or give inline coordinates [x, y]" : "";
@@ -242,6 +244,23 @@ function referenceFinding(value: string, entities: SceneDocument["entities"], pr
   if (!allowedKinds.includes(entities[0]!.kind)) return `${what} is declared with kind "${entities[0]!.kind}"; it needs kind ${kindList(allowedKinds)}`;
   if (producers.length === 0) return `${what} is not an output of any construction; list it in the outputs of the construction that computes it`;
   return `${what} is an output of ${producers.length} constructions (${producers.map((entry) => entry.id).join(", ")}); keep it in exactly one`;
+}
+/**
+ * An output the planner never declared. Document normalization reads it as a
+ * "set partition geometry" segment, which the set validator refuses: the
+ * engine does not guess which id is which circle or region.
+ */
+const inferredSetOutput = (entity: SceneDocument["entities"][number]) => entity.kind === "segment" && entity.role === "set partition geometry";
+/** Refuses undeclared set partition outputs, naming the declaration each one needs for its slot. */
+function undeclaredOutputs(construction: SceneConstruction, document: SceneDocument, circleCount: number, names: readonly string[]): void {
+  if (construction.operator !== "set_partition") return;
+  const missing = construction.outputs.flatMap((id, index) => {
+    const entities = document.entities.filter((entity) => entity.id === id);
+    return entities.length === 1 && inferredSetOutput(entities[0]!) ? [{ id, index }] : [];
+  });
+  if (!missing.length) return;
+  const declarations = missing.map(({ id, index }) => `{id:${JSON.stringify(id)},kind:"${index < circleCount ? "circle" : "label"}"} (${outputRole(construction.operator, index, circleCount, names)})`);
+  fail("outputs", `set_partition outputs must be declared entities: ${missing.map(({ id }) => id).join(", ")} ${missing.length === 1 ? "is" : "are"} not declared in entities; declare ${missing.length === 1 ? "it" : "each"} with the kind its output slot needs, ${declarations.join(", ")}, and list ${missing.length === 1 ? "it" : "each"} in requiredEntityIds and one reveal group. Output order is fixed: the circles in sets order, then one label anchor per region in mask order (${Array.from({ length: (1 << circleCount) - 1 }, (_, index) => atomName(index + 1, names)).join(", ")}), then the outside anchor when universeCount is supplied`);
 }
 function outputRole(operator: string, index: number, circleCount: number, names: readonly string[]): string {
   if (operator !== "set_partition") return "the aggregate count label anchor";
@@ -281,6 +300,7 @@ function constructionSchema(construction: SceneConstruction, document: SceneDocu
     placementSchema(inputs.at, document, byOutput, context);
   }
   if (!Array.isArray(construction.outputs) || construction.outputs.length !== arity || construction.outputs.some((id) => typeof id !== "string" || !id.trim()) || new Set(construction.outputs).size !== arity) fail("outputs", `${operator} requires exactly ${arity} distinct output ids${outputLayout(operator, circleCount, arity, construction.outputs)}`);
+  undeclaredOutputs(construction, document, circleCount, setNames);
   construction.outputs.forEach((id, outputIndex) => sourceProducer(id, document, byOutput, [outputIndex < circleCount ? "circle" : "label"], "outputs", outputRole(operator, outputIndex, circleCount, setNames)));
 }
 /** Unknown derived origins retain their references until the atomic compiler evaluates them. */

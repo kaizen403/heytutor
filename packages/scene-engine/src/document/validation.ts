@@ -4846,13 +4846,10 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
     }
     for (const construction of constructions) {
       if (!isRecord(construction) || !Array.isArray(construction.outputs)) continue;
-      for (const [outputIndex, output] of construction.outputs.entries()) {
+      for (const output of construction.outputs) {
         if (typeof output !== "string" || entityIds.has(output)) continue;
         const operator = String(construction.operator ?? "");
-        // A set partition writes its circles first, then count label anchors.
-        const setCircles = operator === "set_partition" && isRecord(construction.inputs) && Array.isArray(construction.inputs.sets) ? construction.inputs.sets.length : 0;
-        const kind = operator === "set_partition" ? (outputIndex < setCircles ? "circle" : "label")
-          : operator === "function_curve" || operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve" ? "polyline"
+        const kind = operator === "function_curve" || operator === "parametric_curve" || operator === "polar_curve" || operator === "implicit_curve" ? "polyline"
           : operator === "axes" ? "axes"
             : operator === "label" ? "label"
               : operator === "polygon" ? "polygon"

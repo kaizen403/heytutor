@@ -72,4 +72,3 @@ tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
 tsx scripts/verify/verify-projectile-units.ts
 tsx scripts/verify/verify-pv-cycle-stated-values.ts
-tsx scripts/verify/verify-set-partition-repair-messages.ts

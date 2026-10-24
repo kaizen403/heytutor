@@ -3,7 +3,7 @@
  * ones Kimi K3 wrote for "venn diagram of A union B" in the recorded maths
  * round: sets as bare names, the construction id used as the partition
  * reference, label anchors declared as points, a missing outside anchor, and
- * undeclared anchors the engine used to infer as segments.
+ * undeclared outputs, which are refused with the declaration each one needs.
  */
 import assert from "node:assert/strict";
 import { validateSceneDocument } from "../../src/document/validation";
@@ -101,13 +101,46 @@ checks++;
   checks++;
 }
 
-// Undeclared anchors are inferred as labels, not segments; the finding says to require and group them.
-doc = base(); doc.entities = doc.entities.filter((entity: Doc) => !entity.id.startsWith("anchor"));
-doc.requiredEntityIds = ["circleA", "circleB", "unionRegion"]; doc.revealGroups[0].entityIds = [...doc.requiredEntityIds];
-const codes = fatal(doc).map((issue) => issue.code);
-assert.ok(!codes.includes("invalid_set_partition_outputs"), `undeclared anchors infer kind label: ${codes.join(", ")}`);
+// An unrequired or ungrouped declared entity is told where to add its id.
+doc = base(); doc.requiredEntityIds = doc.requiredEntityIds.filter((id: string) => id !== "anchorA");
+doc.revealGroups[0].entityIds = doc.revealGroups[0].entityIds.filter((id: string) => id !== "anchorA");
 assert.match(find(doc, "unrequired_entity"), /Entity anchorA is not declared in requiredEntityIds; add anchorA to requiredEntityIds/);
 assert.match(find(doc, "ungrouped_entity"), /add anchorA to the entityIds of one reveal group/);
+checks++;
+
+// Undeclared set partition outputs are refused, as on main: the engine never
+// guesses which id is which circle or region. The finding names the
+// declaration each output needs for its slot. Both shapes below drew a wrong
+// label when kinds were inferred by position.
+const undeclared = (outputs: string[], annotations: Doc[]): Doc => {
+  const next = base();
+  next.entities = []; next.constructions = [{ ...next.constructions[0], inputs: { ...next.constructions[0].inputs, intersections: [{ sets: ["A", "B"], count: 2 }], sets: [{ name: "A", count: 5 }, { name: "B", count: 6 }] }, outputs }];
+  next.annotations = annotations; next.requiredEntityIds = [...outputs];
+  next.revealGroups = [{ id: "g1", entityIds: [...outputs], dependsOn: [], narrationCue: "sets" }];
+  return next;
+};
+const refusedUndeclared = (next: Doc, label: string) => {
+  const result = validateSceneDocument(next);
+  assert.equal(result.report.valid, false, `${label}: an undeclared set partition output is refused`);
+  return find(next, "invalid_set_partition_outputs");
+};
+// Region label on the wrong region: "both" sits in the B only slot.
+const regionMessage = refusedUndeclared(undeclared(["circleA", "circleB", "onlyA", "both", "onlyB"], [{ id: "a1", kind: "label", targetIds: ["both"], text: "A∩B" }]), "region probe");
+assert.match(regionMessage, /not declared in entities/, regionMessage);
+assert.match(regionMessage, /\{id:"circleA",kind:"circle"\} \(the circle for set A\)/, regionMessage);
+assert.match(regionMessage, /\{id:"both",kind:"label"\} \(the label anchor for region B\\A\)/, regionMessage);
+assert.doesNotMatch(regionMessage, /"segment"/, regionMessage);
+checks++;
+// Set label on the wrong circle: circleB is listed in set A's slot.
+const circleMessage = refusedUndeclared(undeclared(["circleB", "circleA", "onlyA", "onlyB", "both"], [{ id: "a1", kind: "label", targetIds: ["circleB"], text: "B" }, { id: "a2", kind: "label", targetIds: ["circleA"], text: "A" }]), "circle probe");
+assert.match(circleMessage, /\{id:"circleB",kind:"circle"\} \(the circle for set A\)/, circleMessage);
+assert.match(circleMessage, /\{id:"both",kind:"label"\} \(the label anchor for region A∩B\)/, circleMessage);
+checks++;
+// Undeclared anchors alongside declared circles: only the anchors are listed.
+doc = base(); doc.entities = doc.entities.filter((entity: Doc) => !entity.id.startsWith("anchor"));
+const anchorMessage = find(doc, "invalid_set_partition_outputs");
+assert.match(anchorMessage, /\{id:"anchorA",kind:"label"\} \(the label anchor for region A\\B\)/, anchorMessage);
+assert.doesNotMatch(anchorMessage, /id:"circleA"/, anchorMessage);
 checks++;
 
 console.log(`verify-set-partition-repair-messages: ${checks} checks passed`);
