@@ -348,18 +348,6 @@ function volts(stem: string): number[] {
 /* Cue sets                                                                   */
 /* ------------------------------------------------------------------------- */
 
-/**
- * A two body collision that is not on one line (an angle, both a north or
- * south and an east or west direction, x and y), or not between two bodies at
- * all. When one fires the stem is still a collision, so no other archetype may
- * take it: a vetoed 2D collision once drew an Atwood machine.
- */
-const COLLISION_OFF_LINE_VETOES: readonly RegExp[] = [
-  /\b(?:two|2|three|3)[- ]?(?:dimension|d\b)|\boblique\b|\bglancing\b/i,
-  /\d\s*(?:°(?!\s*[CF]\b)|degrees?\b(?!\s+(?:celsius|centigrade|fahrenheit|C\b)))|\b(?:north|south)[- ]?(?:east|west)\b|^(?=[^]*\b(?:north|south)\w*\b)(?=[^]*\b(?:east|west)\w*\b)|\bperpendicular|\bright[- ]angled?\b|\bx[- ]?(?:and|&) ?y\b|\bx- and y-/i,
-  /\bmolecul|\bgas\b|\bgases\b|\breaction|\breactant|\bhash|\bkinetic theory|\bscatter|\bmean free path|\bairbags?\b/i,
-];
-
 const CUE_SETS: readonly CueSet[] = [
   {
     id: "projectile",
@@ -724,12 +712,8 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "collision_line",
-    // "Elastic" alone is a material property (elastic potential energy,
-    // stress and strain); it supports a collision only beside another cue.
-    cues: [[/\bcollid|\bcollisions?\b/i, 3], [/\b(?:head[- ]on|sticks? to|embed|coalesce|restitution)\b/i, 2], [/\b(?:elastic|inelastic)\b/i, 1], [/\b(?:two|balls?|bodies|blocks|particles)\b/i, 1]],
-    // The figure is two bodies on one line. Any direction off that line, and
-    // collisions that are not between two bodies, decline it.
-    vetoes: [/\bpendulum\b/i, ...COLLISION_OFF_LINE_VETOES],
+    cues: [[/\bcollid|collision\b/i, 3], [/\b(?:head[- ]on|sticks? to|embed|coalesce|elastic|inelastic|restitution)\b/i, 2], [/\b(?:two|balls?|bodies|blocks|particles)\b/i, 1]],
+    vetoes: [/\bpendulum\b/i],
     extract: (stem, plan, bag) => {
       const masses = massesOf(stem);
       const speeds = speedsOf(stem);
@@ -852,8 +836,6 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "satellite_orbit",
     cues: [[/\bsatellite\b/i, 4], [/\b(?:orbit|orbital|revolves? around|geostationary)\b/i, 2], [/\b(?:earth|planet|moon)\b/i, 1]],
-    // The figure draws one satellite on one orbit: never for several bodies.
-    vetoes: [/\b(?:two|three|2|3|both|pair of|several)\s+(?:[\w-]+,?\s+){0,3}satellites\b/i],
     extract: (stem, _plan, bag) => {
       // A planet radius and an orbital radius have the same dimension, but
       // different roles. Require the orbit role and the stated length unit.
@@ -885,7 +867,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:battery|cell|emf|volt)\b/i, 1],
       [/\binternal resistance\b/i, 2],
     ],
-    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer|inductors?|inductance|RL|LR|LCR|RC)\b/i],
+    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i],
     extract: (fullStem, plan, bag) => {
       // "Find the potential difference across the 6 Ω resistor" names a
       // resistor already stated; it is not one more resistor.
@@ -979,20 +961,12 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "spherical_mirror",
-    // A plural cues only when the stem names curved mirrors; "mirrors" alone
-    // is a periscope, a kaleidoscope or a laser cavity as often as not.
-    cues: [[/\b(?:concave|convex|spherical) mirrors?\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
+    cues: [[/\b(?:concave|convex) mirror\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
-    vetoes: [/\bplane mirrors?\b/i, /\blens(?:es)?\b/i, /\b(?:two|2|pair of|both)\s+(?:[\w-]+,?\s+){0,3}mirrors\b|\bfac(?:e|es|ing)\s+each\s+other\b/i, /\b(?:periscope|kaleidoscope|laser|lateral inversion|mirror symmetry|enantiomer|chiral|optical isomer)/i,
-      MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
+    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
     extract: (stem, plan, bag) => {
-      // The kind is read only when the stem names exactly one; a stem naming
-      // both, or a plural "spherical mirrors", leaves it unset.
-      const concave = /\bconcave\b/i.test(stem);
-      const convex = /\bconvex\b/i.test(stem);
-      if (concave !== convex) setSlot(bag, "kind", convex ? "convex" : "concave", "stem");
-      else if (!concave && (/\bmirror\b/i.test(stem) || !/\bmirrors\b/i.test(stem))) setSlot(bag, "kind", "concave", "stem");
+      setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
       setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
       setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
@@ -1024,9 +998,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
     // "R1" in a circuit names a resistance, not a lens face.
-    // A liquid's meniscus (capillary rise, surface tension) is not a lens.
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i,
-      /\b(?:capillar|surface tension|angle of contact|measuring cylinder|mercury)/i],
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")
@@ -1658,7 +1630,7 @@ interface Scored {
   evidence: string[];
 }
 
-function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score: number; evidence: string }>, allowStructureOnly = false): Scored | null {
+function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score: number; evidence: string }>): Scored | null {
   if (set.vetoes?.some((veto) => veto.test(stem))) return null;
   if (set.requires?.some((requirement) => !requirement.test(stem))) return null;
   let score = 0;
@@ -1670,10 +1642,6 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
     strongest = Math.max(strongest, weight);
     evidence.push(name ?? pattern.source.slice(0, 32));
   }
-  // Plan laws and IR intents strengthen a figure the stem names; alone they
-  // cue the wrong apparatus ("Kirchhoff" for a transistor, "Coulomb's law of
-  // friction" for two point charges), so a stem with no cue matches nothing.
-  if (strongest === 0 && !allowStructureOnly) return null;
   const structural = bonus.get(set.id);
   if (structural) {
     score += structural.score;
@@ -1695,11 +1663,6 @@ function requiredSlotsPresent(id: ArchetypeId, bag: SlotBag): boolean {
 }
 
 /**
- * Decide the archetype for a question. Returns null when no figure clears the
- * evidence bar — callers then fall back or teach text-only, which is the
- * honest outcome for a stem the catalog does not describe.
- */
-/**
  * True when the archetype main's scoring would pick (law and intent bonuses
  * counted alone) has no cue in the stem. Such a stem was matched only through
  * its plan's laws; refusing that match must not hand the turn to the next
@@ -1714,7 +1677,7 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
   const bonus = structureBonus(hints);
   if (bonus.size === 0) return false;
   const scored = CUE_SETS
-    .map((set) => scoreCueSet(set, stem, bonus, true))
+    .map((set) => scoreCueSet(set, stem, bonus))
     .filter((item): item is Scored => item !== null)
     .filter((item) => item.score >= (item.set.minScore ?? 2))
     .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
@@ -1727,6 +1690,11 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
   return false;
 }
 
+/**
+ * Decide the archetype for a question. Returns null when no figure clears the
+ * evidence bar — callers then fall back or teach text-only, which is the
+ * honest outcome for a stem the catalog does not describe.
+ */
 export function detectArchetype(question: string, hints?: DetectionHints): ArchetypeMatch | null {
   const stem = prepareStem(question);
   if (!stem) return null;
@@ -1759,12 +1727,9 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     }
   }
 
-  // A stem main matched only through its plan's laws matches nothing now.
+  // A stem main matched only through its plan's laws matches nothing now,
+  // so the refusal never hands the turn to the next archetype.
   if (lawOnlyArchetypeLead(question, hints)) return null;
-  // A clear collision stem that is off the line matches nothing else either.
-  const collisionSet = CUE_SET_BY_ID.get("collision_line");
-  if (collisionSet?.cues.some(([pattern, weight]) => weight >= 2 && pattern.test(stem))
-    && COLLISION_OFF_LINE_VETOES.some((veto) => veto.test(stem))) return null;
   const scored = CUE_SETS
     .map((set) => scoreCueSet(set, stem, bonus))
     .filter((item): item is Scored => item !== null)
