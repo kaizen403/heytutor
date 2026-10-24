@@ -55,6 +55,11 @@ const PROJECTILE = "Derive the range of a projectile launched with speed u at an
 const RIVER = "A boat moves at 5 m/s in still water across a 100 m wide river flowing at 3 m/s. Find the time to cross.";
 const projectile = archetypeFigure(PROJECTILE, "projectile");
 const river = archetypeFigure(RIVER, "river_boat");
+// An edited copy keeps every label but draws a straight path: not the figure
+// the generator computed from this question.
+const edited = structuredClone(projectile);
+const path = edited.constructions.find((row) => row.outputs.includes("trajectory"))!;
+path.inputs.expression = "0+1*x";
 const hand = (question: string, kind: string, label: string) => ({ question, document: handFigure(question, [{ id: "body", kind, label }]) });
 
 const probes: Probe[] = [
@@ -69,6 +74,7 @@ const probes: Probe[] = [
   { name: "second projectile vs the one drawn projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "point", label: "second projectile" }], adversarial: true },
   { name: "horizontal trajectory vs the drawn parabola", question: PROJECTILE, document: projectile, bodies: [{ kind: "curve", label: "horizontal trajectory" }], adversarial: true },
   { name: "elliptical trajectory vs the drawn parabola", question: PROJECTILE, document: projectile, bodies: [{ kind: "curve", label: "elliptical trajectory" }], adversarial: true },
+  { name: "parabolic trajectory vs an edited copy that draws a straight path", question: PROJECTILE, document: edited, bodies: [{ kind: "curve", label: "parabolic trajectory" }], adversarial: true },
   { name: "swimmer vs the drawn boat", question: RIVER, document: river, bodies: [{ kind: "body", label: "swimmer" }], adversarial: true },
   { name: "wind current vs the drawn river current", question: RIVER, document: river, bodies: [{ kind: "field", label: "wind current" }], adversarial: true },
   // Controls: correct pairs a working binding must accept.
@@ -82,7 +88,9 @@ const probes: Probe[] = [
 
 /**
  * Pinned outcome of this branch's binding rule (Preview A, head-noun label
- * match): every adversarial pair whose label is the trailing word binds.
+ * match): the dropped words are never read, so every adversarial pair whose
+ * label is the trailing word binds. Only the swimmer (no shared word) refuses,
+ * and the unlabelled river region cannot bind.
  */
 const EXPECTED_WRONG: readonly string[] = probes
   .filter((probe) => probe.adversarial && probe.name !== "swimmer vs the drawn boat")
