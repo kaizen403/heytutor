@@ -162,7 +162,8 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "snell", archetype: "plane_refraction", tier: "exact_verified", question: "Light enters glass at 45 degrees from air with refractive index 1.5. Find the angle of refraction and draw both rays with the normal." },
   { id: "ydse", archetype: "double_slit", tier: "qualitative_verified", question: "In Young's double slit experiment the slit separation is 0.5 mm and the screen is 1 m away. For light of wavelength 600 nm find the fringe width." },
   { id: "photoelectric", archetype: "photoelectric", tier: "qualitative_verified", question: "The work function of a metal is 2.0 eV. Light of wavelength 400 nm falls on it. Find the maximum kinetic energy of the photoelectrons." },
-  { id: "pv-cycle", archetype: "pv_cycle", tier: "qualitative_verified", question: "An ideal gas is taken through a cycle: isobaric expansion from A to B, isochoric cooling B to C, and isothermal compression C to A. Draw the P-V diagram and find the work done in one cycle." },
+  // pv_cycle always declines (#290): detected, never drawn.
+  { id: "pv-cycle", archetype: "pv_cycle", declines: true, question: "An ideal gas is taken through a cycle: isobaric expansion from A to B, isochoric cooling B to C, and isothermal compression C to A. Draw the P-V diagram and find the work done in one cycle." },
   { id: "wave-equation", group: "wave", archetype: "wave_profile", tier: "qualitative_verified", question: "A transverse wave is described by y = 0.02 sin(4x - 100t) in SI units. Sketch the wave and find its wavelength and speed." },
   { id: "wave-stated", group: "wave", archetype: "wave_profile", tier: "exact_verified", question: "A progressive wave has amplitude 2 cm and wavelength 40 cm. Draw one wavelength of the wave and mark the amplitude." },
   // Mathematics
