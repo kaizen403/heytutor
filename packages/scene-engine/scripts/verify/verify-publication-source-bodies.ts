@@ -73,14 +73,20 @@ check("competing synthetic text leaves real body available", () => {
 });
 check("unattached or wrong-target callout cannot satisfy missing identity", () => {
   const changed = structuredClone(scene.document);
+  // The drawn "projectile" label now carries the body by itself; remove it so
+  // the callout is the only text naming the body.
+  delete changed.entities.find((row) => row.id === "O")!.label;
   changed.annotations.push({ id: "name", kind: "callout", targetIds: ["trajectory"], text: problemIR.entities.find((row) => row.id === "proj")!.label });
   assert.ok(missing(changed, "proj"));
 });
-// Actual captured names cannot be rendered under the unchanged 16-character
-// label contract. Full source completeness must decline, never erase the IR.
-check("captured full IR declines an incomplete compact figure", () => {
-  assert.equal(synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR }), null);
-  assert.deepEqual(checkVisualObligations(obligations, scene.document).missing.map(row => row.obligationId).sort(), ["body:proj", "body:traj"]);
+// The captured names carry descriptors the 16-character label contract cannot
+// render ("parabolic trajectory", "projectile (point mass)"). Their head nouns
+// are the drawn labels, so the complete figure now carries every body.
+check("captured full IR binds the compact figure by head noun", () => {
+  const full = synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR });
+  assert.ok(full);
+  assert.ok(checkVisualObligations(obligations, full.document).satisfied);
+  assert.deepEqual(checkVisualObligations(obligations, scene.document).missing, []);
 });
 // Authored renderable-name profile, not the actual captured IR or native evidence.
 // All source facts, entities, requests and intents remain; only names differ.
