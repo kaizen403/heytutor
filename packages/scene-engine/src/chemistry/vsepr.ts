@@ -32,8 +32,6 @@ import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
-import { framedNamedSpecies, neutralNameOfIon } from "./vseprNamedSpecies";
-import { namedSpeciesMentions } from "./namedSpecies";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { VseprBondInkPlan } from "./representation/bondInk";
 
@@ -464,29 +462,16 @@ type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; 
 
 interface ShapeOwnerMention { start: number; end: number; key: string }
 
-/**
- * Keep formula case and charge: a sibling molecule cannot describe this one.
- * A chemical name owns its claims exactly as its formula would, so "carbon
- * dioxide is linear, whereas water is bent" binds linear to CO2 and "like CO2,
- * water is linear" binds linear to water.
- */
+/** Keep formula case and charge: a sibling molecule cannot describe this one. */
 function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
   let from = 0;
-  const formulas = formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
+  return formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
     const start = clause.indexOf(token, from);
     const parsed = parseFormula(token);
     if (start < 0 || !parsed) return [];
     from = start + token.length;
     return [{ start, end: from, key: compositionKey(parsed) }];
   });
-  // "The ammonia ion" is not NH3: a neutral name followed by ion owns
-  // nothing, so its claim falls back to the asked species.
-  const names = namedSpeciesMentions(clause).flatMap(name => {
-    const parsed = parseFormula(name.formula);
-    if (!parsed || neutralNameOfIon(clause, name) || formulas.some(formula => formula.start < name.end && name.start < formula.end)) return [];
-    return [{ start: name.start, end: name.end, key: compositionKey(parsed) }];
-  });
-  return [...formulas, ...names].sort((left, right) => left.start - right.start);
 }
 
 const BARE_COMMA = /^\s*,\s*$/;
@@ -543,10 +528,10 @@ function localMoleculeOwners(
     }
     return owners;
   }
-  // With no local subject, every earlier molecule may own the fact ("H2O,
-  // unlike CO2, is linear"). Each candidate is held to it, so an ambiguous
-  // owner can refuse a true claim but never admit a wrong one.
-  if (before.length) return [...new Set(before.map(mention => mention.key))];
+  if (before.length) {
+    const keys = [...new Set(before.map(mention => mention.key))];
+    return keys.length === 1 ? keys : null;
+  }
   return inherited;
 }
 
@@ -625,7 +610,7 @@ function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: re
       .sort((left, right) => Math.abs(left.start - shape.start) - Math.abs(right.start - shape.start))[0]
     : shapes[first - 1] ?? shapes[index + 1];
   if (!partner) {
-    // One shape word: "unlike its tetrahedral electron geometry, water's
+    // One shape word: "unlike its tetrahedral electron geometry, H2O's
     // shape is ..." contrasts two properties, so the named property keeps
     // its value. Without a different property named outside the phrase the
     // shape itself is denied.
@@ -662,8 +647,10 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
       .sort((left, right) => left.start - right.start);
-    // A later pronoun claim ("It is linear.") may describe any of them.
-    if (!shapes.length && mentions.length) inheritedOwners = [...new Set(mentions.map(mention => mention.key))];
+    if (!shapes.length && mentions.length) {
+      const owners = [...new Set(mentions.map(mention => mention.key))];
+      inheritedOwners = owners.length === 1 ? owners : null;
+    }
     const roles: ShapeRole[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
@@ -871,21 +858,10 @@ export function vseprSpecies(question: string): VseprResult[] {
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
-  // A framed chemical name ("why is water bent") is a member in its own
-  // right when the request names its molecules only by name; its formula
-  // still has to resolve to one central atom below. A request that also
-  // writes formulas keeps the alias contract: every name there needs its own
-  // local formula, or the whole set declines.
-  const sentences = sentencesOf(text);
-  const formulas = vseprFormulaArguments(text, formulaTokens(text));
-  const framedNames = formulas.length === 0;
-  const named = framedNames
-    ? sentences.flatMap((sentence) => framedNamedSpecies(sentence).map((mention) => mention.formula))
-    : [];
-  const tokens = [...formulas, ...named];
+  const tokens = vseprFormulaArguments(text, formulaTokens(text));
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  return vseprSourceArgumentsComplete(sentences, tokens, species, { framedNames }) ? species : [];
+  return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
 function dipoleInputs(question: string): DipoleInput[] {

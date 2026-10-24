@@ -3,7 +3,6 @@ import { binaryCovalentNameMentions } from "./binaryCovalentName";
 import { parseFormula } from "./formula";
 import { molecularShapeMethodRequested } from "./foundation/molecularShapeRequest";
 import { namedSpeciesMentions } from "./namedSpecies";
-import { framedNamedSpecies } from "./vseprNamedSpecies";
 import { findMentions } from "./organic";
 
 type Span = { start: number; end: number };
@@ -176,7 +175,6 @@ export function vseprSourceArgumentsComplete(
   sentences: readonly string[],
   formulas: readonly string[],
   species: readonly VseprNotationSpecies[] = [],
-  options: { framedNames?: boolean } = {},
 ): boolean {
   const knownFormula = (token: string): boolean => {
     const key = composition(token);
@@ -188,14 +186,9 @@ export function vseprSourceArgumentsComplete(
       .sort((a, b) => b.end - b.start - (a.end - a.start))
       .filter((name, index, all) => !all.slice(0, index).some(other => name.start < other.end && name.end > other.start));
     if (!adjacentNamesComplete(sentence, formulas, names)) return false;
-    // A name inside a molecular shape frame owns its own identity; any other
-    // name still needs a local formula alias stating it.
-    const framed = options.framedNames ? framedNamedSpecies(sentence) : [];
     for (const name of names) {
       const aliases = formulas.filter(formula => composition(formula) === composition(name.formula));
-      const selfOwned = aliases.length > 0 && framed.some(item => item.start === name.start && item.end === name.end
-        && composition(item.formula) === composition(name.formula));
-      if (!selfOwned && !aliasFormula(sentence, name, aliases)) return false;
+      if (!aliasFormula(sentence, name, aliases)) return false;
     }
     const covered = (span: Span) => names.some(name => span.start >= name.start && span.end <= name.end);
     // Reuse the organic name reader as well: an ethanol/benzene member cannot
