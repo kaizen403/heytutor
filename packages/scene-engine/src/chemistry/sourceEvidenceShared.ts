@@ -145,14 +145,21 @@ export interface ClaimReading {
   readonly unread: boolean;
 }
 
+/** Words that negate a clause. "no" is a count (no lone pairs = 0), not a negation. */
+const NEGATION = /\b(?:not|never|cannot|neither|nor|without|lacks?|lacking)\b|n['’]t\b/i;
+
 /**
  * One fail closed rule for every certificate. A claim with anything left
- * unread never certifies. An asserted claim must have every fact true. A
+ * unread, or a negation beside a checked fact, never certifies. An asserted claim must have every fact true. A
  * claim the plan marks false must be exactly one fact, outside any compound
  * sentence, and that fact must be false against the source.
  */
 export function claimVerdict(claim: PlanClaimReading, reading: ClaimReading): "ok" | "conflict" | "unread" {
   if (reading.unread) return "unread";
+  // A negation flips what a read count asserts ("there are not two lone
+  // pairs on each O"); the readers check the count as written, so a claim
+  // with a checked fact and a negation is unread.
+  if (reading.facts.length > 0 && NEGATION.test(claim.text)) return "unread";
   if (claim.asserted) return reading.facts.every(Boolean) ? "ok" : "conflict";
   if (reading.facts.length === 0) return "ok";
   if (reading.facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b|[,;+]/i.test(claim.text)) return "unread";

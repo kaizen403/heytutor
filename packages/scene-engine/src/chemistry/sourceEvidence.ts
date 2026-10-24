@@ -117,9 +117,10 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
     const result = formulaTarget ?? sole;
     if (!result) return false;
     if (role === "bonded_atoms") return bondedAtomsMatch(quantity, result, declarations);
-    const mentioned = declarations.flatMap((text) => mentionedElements(text, ELEMENTS));
-    const atoms = parseFormula(result.formula)?.atoms ?? [];
-    if (mentioned.some((element) => !atoms.some((atom) => atom.element === element))) return false;
+    // A total belongs to the whole species. A declaration naming an atom
+    // ("total valence electrons on N") may own the total to that atom, whose
+    // valence differs, so any element named outside a formula declines.
+    if (declarations.some((text) => mentionedElements(text, ELEMENTS).length > 0)) return false;
     const total = totalValence(result);
     return total !== null && equalScalar(quantity.value, total);
   }

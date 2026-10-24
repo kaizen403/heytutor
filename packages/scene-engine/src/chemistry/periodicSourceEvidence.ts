@@ -221,7 +221,7 @@ function claimElements(text: string): ClaimElement[] {
     if (!number || /^\s*,\s*\d|^\d|^\s*(?:th|st|nd|rd)\b/.test(after)) {
       return [{ element, token: match[1]!, value: null, start, end: tokenEnd }];
     }
-    const tail = /^(?:\s*(?:pm|nm|å|kj\/mol|kj mol-1|ev))?\s*\)?/i.exec(after)!;
+    const tail = /^(?:\s*(?:pm|nm|å|kj\/mol|kj mol-1|ev|pauling(?: units?)?))?\s*\)?/i.exec(after)!;
     return [{ element, token: match[1]!, value: number, start, end: number.end + tail[0].length }];
   });
 }
@@ -247,6 +247,9 @@ function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
       const gap = /^\s*\)?\s*([<>])\s*(?:[A-Za-zχ]{1,4}\d?\s*\(\s*)?$/.exec(text.slice(left.end, right.start));
       return gap ? { left, right, operator: gap[1]! } : null;
     }).filter((rank) => rank !== null);
+    // Every comparison sign must be a ranking read between two elements;
+    // one left unread ("F 3.98 units < Cl") would hide a reversed order.
+    const comparisons = text.match(/[<>≤≥]/g)?.length ?? 0;
     const labels = labelSpans(text);
     const inside = (start: number, end: number, spans: ReadonlyArray<readonly [number, number]>) =>
       spans.some(([from, to]) => start >= from && end <= to);
@@ -263,7 +266,7 @@ function claimIssues(plan: TurnPlanV3, plotted: Property): SceneIssue[] {
       valued.push({ token: named[0]!.symbol, element: named[0]!, value: own[0] as WrittenNumber });
       loose.splice(loose.indexOf(own[0]!), 1);
     }
-    if (loose.length > 0) unread = true;
+    if (loose.length > 0 || comparisons !== ranks.length) unread = true;
     const facts: boolean[] = [];
     if (valued.length > 0 || ranks.length > 0) {
       const clauses = clauseSpans(text);

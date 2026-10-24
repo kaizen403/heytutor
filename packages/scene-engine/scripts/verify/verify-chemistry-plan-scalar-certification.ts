@@ -324,6 +324,28 @@ for (const [question, family] of CHARGE_READ) {
 }
 check(chargeFailures.length === 0, `charge rows failed: ${chargeFailures.join("; ")}`);
 
+// Review round 3: a negation, a unit before a comparison sign and an atom
+// owned total each certified a false explanation. Each must now decline,
+// and the true reading beside it must still certify.
+const ROUND3: ReadonlyArray<readonly [string, () => string, string]> = [
+  ["negated Lewis count (CO2, not two lone pairs on each O)", () => status(co2Lewis, co2, plan(co2, { claims: [["There are not two lone pairs on each oxygen", true]] })), "rejected"],
+  ["negated Lewis count with n't (CO2)", () => status(co2Lewis, co2, plan(co2, { claims: [["Each oxygen doesn't have two lone pairs", true]] })), "rejected"],
+  ["count word no is not a negation (CO2, no lone pairs on carbon)", () => status(co2Lewis, co2, plan(co2, { claims: [["Carbon has no lone pairs", true]] })), "certified"],
+  ["reversed ranking behind a Pauling unit (F 3.98 Pauling < Cl 3.16 Pauling)", () => status(enGraph, en, plan(en, { claims: [["Electronegativity: F 3.98 Pauling < Cl 3.16 Pauling", true]] })), "rejected"],
+  ["unread comparison sign (F 3.98 units < Cl)", () => status(enGraph, en, plan(en, { claims: [["F 3.98 on the scale < Cl", true]] })), "rejected"],
+  ["true ranking behind a Pauling unit (F 3.98 Pauling > Cl 3.16 Pauling)", () => status(enGraph, en, plan(en, { claims: [["Electronegativity: F 3.98 Pauling > Cl 3.16 Pauling", true]] })), "certified"],
+  ["atom owned total (total valence electrons on N = 8 for NH3)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("total valence electrons on N", 8, "electrons", "5 + 3(1) = 8")] })), "rejected"],
+  ["atom owned total in the source text (NH3)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "total valence electrons around nitrogen")] })), "rejected"],
+  ["molecule total still certifies (NH3 total valence 8)", () => status(nh3Shape, nh3, plan(nh3, { derived: [q("Total valence electrons", 8, "electrons", "5 + 3(1) = 8")] })), "certified"],
+];
+const round3Failures: string[] = [];
+for (const [name, run, expected] of ROUND3) {
+  const got = run();
+  console.log(`${got === expected ? "PASS" : "FAIL"} round 3: ${name}: ${expected} (got ${got})`);
+  if (got !== expected) round3Failures.push(name);
+}
+check(round3Failures.length === 0, `round 3 rows failed: ${round3Failures.join("; ")}`);
+
 /** Run this gate on a copy of the engine with exact source edits. */
 function runMutant(edits: ReadonlyArray<readonly [string, string, string]>): string {
   const scratch = join(packageRoot, "tmp", `chem-scalar-mutant-${process.pid}`);
