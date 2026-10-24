@@ -9,8 +9,10 @@
  * not draw, a wrong element or centre, a wrong period or group, a missing
  * isomer, an abstract body, a tampered figure, a nonchemistry document.
  *
- * The final check copies the engine source, removes the binder call, and
- * proves this gate goes red on that copy.
+ * The final checks copy the engine source and prove this gate goes red on
+ * that copy: once with the binder call removed, and once with the formula
+ * key flattening atom counts and charge into one string (so O^(2-) oxide
+ * would match an O_2^(-) superoxide figure).
  */
 import { strict as assert } from "node:assert";
 import { spawnSync } from "node:child_process";
@@ -90,6 +92,7 @@ const POSITIVE: Row[] = [
   { name: "lewis-co2", question: "lewis structure of CO2", family: "chem_lewis", bodies: CO2_BODIES,
     connections: [["carbon", "oxygen1"], ["carbon", "oxygen2"]] },
   { name: "bond-order-n2", question: "bond order of N2", family: "chem_mo", bodies: [{ id: "n2", kind: "other", label: "N2 molecule" }] },
+  { name: "mo-superoxide", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "o2", kind: "other", label: "O_2^(-) ion" }] },
   { name: "config-iron", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "fe", kind: "other", label: "iron atom" }] },
   { name: "radius-period-3", question: "trend of atomic radius in period 3", family: "chem_periodic", bodies: [{ id: "p3", kind: "other", label: "Period 3 elements" }] },
   { name: "ie-period-2", question: "ionisation energy trend across period 2", family: "chem_periodic", bodies: [{ id: "p2", kind: "other", label: "Period 2 elements" }] },
@@ -120,6 +123,9 @@ const CONTROLS: Control[] = [
     { id: "o1", kind: "point", label: "oxygen atom" }, { id: "o2", kind: "point", label: "oxygen atom" }, { id: "o3", kind: "point", label: "oxygen atom" },
   ] },
   { name: "wrong species on an MO diagram", question: "bond order of N2", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O2 molecule" }] },
+  { name: "oxide named on a superoxide MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O^(2-) ion" }] },
+  { name: "neutral molecule named on an ion MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O2 molecule" }] },
+  { name: "peroxide named on a superoxide MO diagram", question: "MO diagram of O2^-", family: "chem_mo", bodies: [{ id: "x", kind: "other", label: "O2^(2-) ion" }] },
   { name: "central atom where the family places none", question: "bond order of N2", family: "chem_mo", bodies: [{ id: "x", kind: "point", label: "central nitrogen atom" }] },
   { name: "wrong element on an orbital box figure", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "x", kind: "other", label: "cobalt atom" }] },
   { name: "ion the orbital figure does not draw", question: "electron configuration of iron", family: "chem_orbital", bodies: [{ id: "x", kind: "other", label: "Fe3+ ion" }] },
@@ -191,33 +197,50 @@ test("control no original question means no identity", () => {
   assert.equal(checkVisualObligations(nh3Set, document).satisfied, false);
 });
 
+/** Run this gate on a copy of the engine with one exact source edit. */
+function runMutant(file: string, from: string, to: string): string {
+  const scratch = join(packageRoot, "tmp", `chem-obligation-mutant-${process.pid}`);
+  rmSync(scratch, { recursive: true, force: true });
+  mkdirSync(scratch, { recursive: true });
+  try {
+    cpSync(join(packageRoot, "src"), join(scratch, "src"), { recursive: true });
+    const target = join(scratch, "src", file);
+    const source = readFileSync(target, "utf8");
+    assert.equal(source.split(from).length, 2, `the mutated text must appear exactly once in ${file}`);
+    const mutated = source.replace(from, to);
+    assert.notEqual(mutated, source, "the mutation must change the source");
+    writeFileSync(target, mutated);
+    const child = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), fileURLToPath(import.meta.url)], {
+      cwd: packageRoot,
+      env: { ...process.env, CHEM_OBLIGATION_ENGINE_ROOT: join(scratch, "src"), CHEM_OBLIGATION_MUTANT: "1" },
+      encoding: "utf8",
+      timeout: 300_000,
+    });
+    assert.notEqual(child.status, 0, "the gate must fail on the mutant");
+    return `${child.stdout}\n${child.stderr}`;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
 if (!mutant) {
   test("mutation: removing the binder call turns every positive row red", () => {
-    const scratch = join(packageRoot, "tmp", `chem-obligation-mutant-${process.pid}`);
-    rmSync(scratch, { recursive: true, force: true });
-    mkdirSync(scratch, { recursive: true });
-    try {
-      cpSync(join(packageRoot, "src"), join(scratch, "src"), { recursive: true });
-      const target = join(scratch, "src", "synthesize", "visualObligations.ts");
-      const source = readFileSync(target, "utf8");
-      const call = "const bound = chemistry ? bindChemistryBody(chemistry, obligation.problemKind, wanted, consumed) : null;";
-      assert.equal(source.split(call).length, 2, "the binder call must appear exactly once");
-      const mutated = source.replace(call, "const bound = null as ReturnType<typeof bindChemistryBody>;");
-      assert.notEqual(mutated, source, "the mutation must change the source");
-      writeFileSync(target, mutated);
-      const child = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), fileURLToPath(import.meta.url)], {
-        cwd: packageRoot,
-        env: { ...process.env, CHEM_OBLIGATION_ENGINE_ROOT: join(scratch, "src"), CHEM_OBLIGATION_MUTANT: "1" },
-        encoding: "utf8",
-        timeout: 300_000,
-      });
-      const output = `${child.stdout}\n${child.stderr}`;
-      assert.notEqual(child.status, 0, "the gate must fail on the mutant");
-      for (const row of POSITIVE) assert.ok(output.includes(`FAIL positive ${row.name}:`), `${row.name} must go red on the mutant`);
-      for (const control of CONTROLS) assert.ok(output.includes(`PASS control ${control.name}:`), `${control.name} still declines on the mutant`);
-    } finally {
-      rmSync(scratch, { recursive: true, force: true });
-    }
+    const output = runMutant(
+      join("synthesize", "visualObligations.ts"),
+      "const bound = chemistry ? bindChemistryBody(chemistry, obligation.problemKind, wanted, consumed) : null;",
+      "const bound = null as ReturnType<typeof bindChemistryBody>;",
+    );
+    for (const row of POSITIVE) assert.ok(output.includes(`FAIL positive ${row.name}:`), `${row.name} must go red on the mutant`);
+    for (const control of CONTROLS) assert.ok(output.includes(`PASS control ${control.name}:`), `${control.name} still declines on the mutant`);
+  });
+
+  test("mutation: a formula key that flattens charge into the characters binds oxide to superoxide", () => {
+    const output = runMutant(
+      join("chemistry", "obligationIdentity.ts"),
+      "  return `${parsed.atoms.map((atom) => `${atom.symbol}${atom.count}`).join(\" \")} | ${parsed.charge}`;",
+      "  return value.trim().replace(/\\s+/g, \"\").replace(/_(\\d+)/g, \"$1\").replace(/\\^\\(([^)]*)\\)/g, \"$1\").replace(/[\\^()[\\]]/g, \"\");",
+    );
+    assert.ok(output.includes("FAIL control oxide named on a superoxide MO diagram:"), "the oxide control must go red on the flattened key");
   });
 }
 
@@ -225,4 +248,4 @@ if (failures.length > 0) {
   console.error(`\nchemistry obligation identity: ${failures.length} failed, ${passed} passed`);
   process.exit(1);
 }
-console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 1 mutation"})`);
+console.log(`\nchemistry obligation identity: ${passed} passed (${POSITIVE.length} positive rows, ${CONTROLS.length} controls${mutant ? ", mutant run" : ", 2 mutations"})`);
