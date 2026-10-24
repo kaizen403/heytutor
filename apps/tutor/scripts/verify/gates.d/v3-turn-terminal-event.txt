@@ -1,0 +1,2 @@
+# Every turn exit writes one terminal line (turn complete or turn failed {reason}).
+tsx scripts/verify/verify-turn-terminal-event.ts

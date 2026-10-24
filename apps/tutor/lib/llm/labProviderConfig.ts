@@ -9,6 +9,14 @@ import { plannerSpeedSettings } from "./planningSpeed";
 import { buildLabModelProfile } from "./labModelProfile";
 import { liveDiagramPromptInputBounds } from "../scene/diagramExampleLibrary.server";
 
+function fastProfileOrNull(endpoint: ReturnType<typeof resolveLlmEndpoint>) {
+  try {
+    return buildLabModelProfile({ endpoint, env: process.env, fastMode: true });
+  } catch {
+    return null;
+  }
+}
+
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
   const endpoint = resolveLlmEndpoint();
@@ -34,6 +42,10 @@ export function labProviderConfig() {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured,
     modelProfile: configured ? buildLabModelProfile({ endpoint, env: process.env }) : null,
+    // Production routing for `--model fast` evals (no standard-evaluation header).
+    // An unsupported Fast identity advertises null, so `--model fast` fails closed
+    // while the standard profile stays available.
+    fastModelProfile: configured && endpoint.provider === "fireworks" ? fastProfileOrNull(endpoint) : null,
     inputBounds: liveDiagramPromptInputBounds(),
     // The first translated body is the primary scene request, including Azure's floor.
     planningSpeed: { sceneEffort: endpoint.provider === "azure" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",

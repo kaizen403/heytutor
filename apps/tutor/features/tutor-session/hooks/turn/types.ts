@@ -121,6 +121,11 @@ export type UseTurnLifecycleParams = {
   onComplete?: () => void;
   onError?: (error: { message: string; question: string; billing?: BillingFailure }) => void;
   onSpeechStartupStatus?: (status: SpeechStartupStatus | null) => void;
+  /**
+   * True while a sentence is taught without its voice (both voices failed),
+   * false once a later sentence speaks or the turn ends. Forces the caption.
+   */
+  onVoiceDegraded?: (degraded: boolean) => void;
   phase: TutorPhase;
   isReplaying: boolean;
   boardLoaded: boolean;
@@ -235,7 +240,10 @@ export type UseTurnLifecycleParams = {
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   beginBoardEpoch: () => Promise<void>;
-  reserveTextCommandPlacements: (command: DrawCommand) => Promise<DrawCommand[]>;
+  reserveTextCommandPlacements: (
+    command: DrawCommand,
+    options?: { isCancelled?: () => boolean },
+  ) => Promise<DrawCommand[]>;
   persistTurnForReplay: (
     question: string,
     rawResponse: string,
@@ -275,6 +283,7 @@ export type UseSegmentRunnerParams = Pick<
   | "drawChainRef"
   | "reserveTextCommandPlacements"
   | "onSpeechStartupStatus"
+  | "onVoiceDegraded"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
