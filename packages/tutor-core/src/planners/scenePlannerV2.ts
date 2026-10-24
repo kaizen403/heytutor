@@ -55,6 +55,8 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   signal?: AbortSignal;
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
+  /** Retain a valid text-only fallback while already-started required-scene peers finish. */
+  waitForRequiredScenePeers?: boolean;
   fastMode?: boolean;
   /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
   onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
@@ -335,8 +337,10 @@ function summarizeSceneCandidateForRepair(
  * - Candidates that have already arrived are evaluated before a seed is
  *   picked, so two answers that land together are still compared first.
  * - The first valid candidate anywhere (initial or repair) stops new repair
- *   batches, opens the 750ms grace window, and every request still pending
- *   when it closes is aborted.
+ *   batches and opens the 750ms grace window. With waitForRequiredScenePeers,
+ *   a valid text-only fallback stops dispatch but only a valid drawable scene
+ *   opens that window; existing peers keep their original deadlines. Every
+ *   request still pending when the window closes is aborted.
  * - Selection is compareValidations over every evaluated candidate.
  *
  * `holdValidationUntil` lets a speculative caller fetch initial candidates
@@ -397,6 +401,7 @@ export async function planSceneDocumentWithRepair<T>(
   const inFlight = new Map<number, InFlight>();
   const rounds: Round[] = [];
   let nextKey = 0;
+  let hasValidCandidate = false;
   let firstValidAt: number | null = null;
   let fallbackPlanLaunched = false;
   let released = holdValidationUntil === undefined;
@@ -466,7 +471,14 @@ export async function planSceneDocumentWithRepair<T>(
       fatal_count: candidateValidation.errors.filter((error) => error.severity === "fatal").length,
     });
     evaluated.push({ response: candidate, validation: candidateValidation, seededRepair: false });
-    if (candidateValidation.valid && firstValidAt === null) firstValidAt = Date.now();
+    if (candidateValidation.valid) {
+      hasValidCandidate = true;
+      const decision = candidate.document.visualDecision;
+      const declined = decision === "text_only" || (isPlainObject(decision) && decision.mode === "text_only");
+      if (firstValidAt === null && (!plannerOptions.waitForRequiredScenePeers || !declined)) {
+        firstValidAt = Date.now();
+      }
+    }
   };
 
   // Every initial plan settled without a parseable candidate: one serial plan
@@ -485,7 +497,7 @@ export async function planSceneDocumentWithRepair<T>(
     .sort((a, b) => compareValidations(a.validation, b.validation))[0];
   /** Rounds remain and a seed exists: only the hold or the previous round stand in the way. */
   const repairPossible = () =>
-    firstValidAt === null && rounds.length < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
+    !hasValidCandidate && rounds.length < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
     nextSeed() !== undefined;
 
   const maybeLaunchRepairRound = () => {
