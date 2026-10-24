@@ -117,6 +117,44 @@ for (const kind of ["lens", "mirror"] as const) {
   check(!crossed.ok && crossed.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: a ratio across two display scales must stay refused`);
   const same = structuredClone(mixed); same.assertions = same.assertions.filter((a) => a.id !== "cross-scale-ratio");
   check(compileSceneDocument(same).ok, `${kind}: the two-image control document must compile`);
+  // Same scale, centre and axis but another length unit: 5 m and 5 cm draw at
+  // one height, so neither a ratio nor an equality across them is certified.
+  const units = scene(kind);
+  units.quantities.push({ id: "u2", value: -30, unit: "m" }, { id: "f2", value: kind === "lens" ? 10 : -10, unit: "m" }, { id: "h2", value: 5, unit: "m" });
+  const metres = structuredClone(units.constructions.find((c) => c.id === "image")!); metres.id = "image-m";
+  metres.inputs = { ...metres.inputs, objectDistance: { value: "u2" }, focalLength: "f2", objectHeight: "h2", lengthUnit: "m" }; metres.outputs = ["obm", "otm", "ibm", "itm"];
+  units.constructions.push(metres);
+  for (const id of metres.outputs) units.entities.push({ id, kind: "point", role: "Cartesian optical geometry" });
+  units.requiredEntityIds.push(...metres.outputs); units.revealGroups[0]!.entityIds.push(...metres.outputs);
+  check(compileSceneDocument(units).ok, `${kind}: the mixed-unit control document must compile`);
+  for (const [predicate, expected] of [["distance_ratio", 1], ["equal_length", true]] as const) {
+    const crossUnit = structuredClone(units);
+    crossUnit.assertions.push({ id: "cross-unit", predicate, entities: ["ibm", "itm", "ib", "it"], expected, severity: "fatal" });
+    const refused = compileSceneDocument(crossUnit);
+    check(!refused.ok && refused.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: ${predicate} across metres and centimetres must stay refused`);
+  }
+  // Focus anchors share the image display, so their drawn lengths are the
+  // physical ones: |F ib| = 5 cm equals the object height, |F ib| and |ob F|
+  // (20 cm) differ, and a focus drawn at another displayScale is refused.
+  const focus = kind === "lens" ? "F2" : "F";
+  const withAssertion = (entities: string[], extra?: (s: SceneDocument) => void) => {
+    const s = scene(kind); extra?.(s);
+    s.assertions.push({ id: "focus-length", predicate: "equal_length", entities, expected: true, severity: "fatal" });
+    return compileSceneDocument(s);
+  };
+  const trueFocus = withAssertion([focus, "ib", "ob", "ot"]);
+  check(trueFocus.ok, `${kind}: a true focus equal_length must be measured and pass: ${JSON.stringify(trueFocus.report.issues.filter((issue) => issue.severity === "fatal"))}`);
+  const falseFocus = withAssertion([focus, "ib", "ob", focus]);
+  check(!falseFocus.ok && falseFocus.report.issues.some((issue) => issue.code === "assertion_failed" && issue.entityIds?.includes("ib")) &&
+    !falseFocus.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: a false focus equal_length must be measured and fail`);
+  const otherScale = withAssertion(["G", "ib", "ob", "ot"], (s) => {
+    s.quantities.push({ id: "scale3", value: 3, unit: "dimensionless" });
+    const foci = structuredClone(s.constructions.find((c) => c.id === "foci")!); foci.id = "foci3"; foci.inputs.displayScale = "scale3";
+    foci.outputs = kind === "lens" ? ["G0", "G"] : ["G"]; s.constructions.push(foci);
+    for (const id of foci.outputs) s.entities.push({ id, kind: "point", role: "Cartesian optical geometry" });
+    s.requiredEntityIds.push(...foci.outputs); s.revealGroups[0]!.entityIds.push(...foci.outputs);
+  });
+  check(!otherScale.ok && otherScale.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: a focus at another displayScale must stay refused`);
 }
   const correct = compileSceneDocument(resultQuantities); check(correct.ok, `correct source-bound annotations must compile: ${JSON.stringify(correct.report.issues)}`);
   for (const [kind, u, f, ratio] of [["lens", -5, 10, 2], ["lens", -30, -10, 0.25], ["mirror", -30, 10, 0.25], ["mirror", 30, -10, 0.25]] as const) {

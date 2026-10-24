@@ -5321,7 +5321,7 @@ function geometryMetadataMatches(value: Geometry | undefined, predicate: (metada
  * The display matcher for one length comparison. A gaussian_image or
  * optical_focus point is placed at its physical axis distance and height times
  * one displayScale, so when every compared point carries the same optical
- * display (same scale, centre and axis) that scale cancels: a ratio or an
+ * display (same scale, length unit, centre and axis) that scale cancels: a ratio or an
  * equality of their drawn lengths is the physical one. Those points are
  * therefore not independently normalized. Any other display ancestor, or a
  * point from an optical display with another scale, still matches.
@@ -5341,6 +5341,7 @@ function opticalDisplayOf(value: Geometry | undefined): OpticalImageDefinition |
 }
 function sameOpticalDisplay(first: OpticalImageDefinition | OpticalFocusDefinition, second: OpticalImageDefinition | OpticalFocusDefinition): boolean {
   return Number.isFinite(first.displayScale) && first.displayScale > 0 && first.displayScale === second.displayScale &&
+    first.lengthUnit === second.lengthUnit &&
     first.center.x === second.center.x && first.center.y === second.center.y &&
     first.axis.x === second.axis.x && first.axis.y === second.axis.y;
 }
