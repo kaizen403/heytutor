@@ -115,8 +115,8 @@ for (const stem of [
 ]) check(detected(stem) === "collision_line", `"${stem}" lost the line collision`);
 // An RL circuit is not a resistor network.
 check(detected("Draw an RL circuit with a switch that first establishes current from a cell", ["Ohm's law"]) !== "resistor_network", "an RL circuit drew a resistor network");
-// Plural satellites still cue the orbit.
-check(detected("Explain polar satellites and their orbits") === "satellite_orbit", "polar satellites lost the orbit");
+// The satellite cue stays singular as on main: a plural ("two satellites at
+// 400 km and 800 km") would draw one orbit for several bodies (Greptile #271).
 
 // A meniscus stem whose only lens cue came from its lensmaker law draws no
 // lens: the lens maker drew biconvex, and with that law match refused the
@@ -150,4 +150,17 @@ for (const stem of [
   }
 }
 check(detected("A concave mirror of focal length 20 cm forms an image of an object placed 30 cm in front of it.", ["mirror_equation"]) === "spherical_mirror", "a single concave mirror still draws");
+// Plural setups are never drawn as one body (Greptile #271): the cues match
+// the singular only, as on main.
+for (const laws of [[], ["gravitation"]]) {
+  check(detected("Two satellites are at heights 400 km and 800 km above Earth. Compare their periods.", laws) !== "satellite_orbit", `two satellites are not one orbit (${laws.length ? "plan" : "bare"})`);
+}
+check(detected("A satellite revolves around the Earth in a circular orbit at a height of 300 km.") === "satellite_orbit", "a single satellite still draws");
+// The family layer never draws stock point charges for a stem without charges.
+for (const laws of [[], ["gravitation"]]) {
+  const stem = "Two satellites are at heights 400 km and 800 km above Earth. Compare their periods.";
+  const family = synthesizeFamilyScene({ question: stem, turnPlan: laws.length ? plan(stem, laws) : null, problemIR: null } as Parameters<typeof synthesizeFamilyScene>[0]);
+  check(!family?.document.entities.some((entity) => entity.role === "point charge"), `two satellites are never drawn as point charges (${laws.length ? "plan" : "bare"})`);
+  check(!family?.document.entities.some((entity) => entity.role === "satellite"), `two satellites are never drawn as one satellite (${laws.length ? "plan" : "bare"})`);
+}
 console.log(`archetype stem evidence verification passed (${checks} checks)`);

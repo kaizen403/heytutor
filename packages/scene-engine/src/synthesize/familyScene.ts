@@ -4145,6 +4145,9 @@ function buildPointField(question: string, _quantities: PlanQuantity[], _schemat
   }
   if (isParallelPlateStem(stem)) return parallelPlateDocument(question);
   if (isCurrentSegmentFieldStem(stem)) return currentSegmentFieldDocument(question);
+  // The stock picture is two labelled point charges: only a stem about charges
+  // may get it. Satellites, solenoids or wires drawn as q1 and q2 are false.
+  if (!/\b(?:point charges?|charges?|charged|coulomb|microcoulomb|nanocoulomb)\b|\b[μn]C\b/i.test(stem)) return null;
   return baseDocument({
     question,
     reason: "two source points and the joining field line",

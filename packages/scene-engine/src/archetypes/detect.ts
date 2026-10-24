@@ -851,7 +851,9 @@ const CUE_SETS: readonly CueSet[] = [
   },
   {
     id: "satellite_orbit",
-    cues: [[/\bsatellites?\b/i, 4], [/\b(?:orbit|orbital|revolves? around|geostationary)\b/i, 2], [/\b(?:earth|planet|moon)\b/i, 1]],
+    cues: [[/\bsatellite\b/i, 4], [/\b(?:orbit|orbital|revolves? around|geostationary)\b/i, 2], [/\b(?:earth|planet|moon)\b/i, 1]],
+    // The figure draws one satellite on one orbit: never for several bodies.
+    vetoes: [/\b(?:two|three|2|3|both|pair of|several)\s+(?:[\w-]+,?\s+){0,3}satellites\b/i],
     extract: (stem, _plan, bag) => {
       // A planet radius and an orbital radius have the same dimension, but
       // different roles. Require the orbit role and the stated length unit.
