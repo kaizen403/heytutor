@@ -205,7 +205,9 @@ export let phoneShellMinimum: number | null | undefined;
 export function phoneShellTree() { return lastShellTree; }
 class ShellMount {
   slots: unknown[] = []; cursor = 0;
+  layoutEffects: Array<() => void> = [];
   constructor(private subtitles: boolean) {}
+  runLayoutEffects() { for (const effect of this.layoutEffects.splice(0)) effect(); }
   react = { ...React,
     useState: <T,>(initial: T | (() => T)) => {
       const index = this.cursor++;
@@ -217,7 +219,14 @@ class ShellMount {
     },
     useRef: <T,>(initial: T) => this.react.useState(() => ({ current: initial }))[0],
     useMemo: <T,>(make: () => T) => make(), useCallback: <T,>(fn: T) => fn,
-    useEffect: () => {}, useLayoutEffect: () => {},
+    useEffect: () => {},
+    // Layout effects run after each commit when their deps change, as React does.
+    useLayoutEffect: (effect: () => void | (() => void), deps?: readonly unknown[]) => {
+      const slot = this.react.useState(() => ({ deps: undefined as readonly unknown[] | undefined, cleanup: undefined as void | (() => void) }))[0];
+      if (deps && slot.deps && deps.length === slot.deps.length && deps.every((value, index) => Object.is(value, slot.deps![index]))) return;
+      slot.deps = deps;
+      this.layoutEffects.push(() => { slot.cleanup?.(); slot.cleanup = effect(); });
+    },
     useSyncExternalStore: (_subscribe: unknown, read: () => unknown) => read(),
   };
 }
@@ -261,14 +270,20 @@ function captionLocation(html: string, text: string) {
   }
   return null;
 }
-export function shellMarkup(options: {
+type ShellOptions = {
   mobile: boolean; coarse?: boolean; width?: number; height?: number; phase?: "idle" | "planning" | "thinking" | "speaking" | "drawing"; paused?: boolean; subtitles?: boolean; recorded?: boolean; playerActive?: boolean; playerPlaying?: boolean; playerRevealed?: boolean;
   fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean; variant?: TutorSessionShellProps["variant"]; viewportScale?: number;
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean; text?: string; playerText?: string;
   scrollable?: boolean; minimumVisibleFontSize?: number | null; rewindPlaying?: boolean;
-}) {
+};
+type ShellStep = { text?: string; phase?: NonNullable<ShellOptions["phase"]>; paused?: boolean; voiceDegraded?: boolean };
+export function shellMarkup(options: ShellOptions) {
+  return shellSession(options).step({ text: options.text ?? liveCaption, phase: options.phase ?? "speaking", paused: options.paused === true });
+}
+/** One mounted shell driven through several states, so session-long state is kept. */
+export function shellSession(options: ShellOptions) {
   const mount = new ShellMount(options.subtitles ?? true);
-  const setters: { text?: (value: string) => void; phase?: (value: string) => void; paused?: (value: boolean) => void } = {};
+  const setters: { text?: (value: string) => void; phase?: (value: string) => void; paused?: (value: boolean) => void; voiceDegraded?: (value: boolean) => void } = {};
   const noop = () => {};
   const leaf = () => null;
   const children = ({ children }: { children?: import("react").ReactNode }) => children;
@@ -296,7 +311,7 @@ export function shellMarkup(options: {
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": { useBoardSession: (input: { setCurrentSegmentText: (value: string) => void }) => { setters.text = input.setCurrentSegmentText; return ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: noop, hasLiveTurn: false }); } },
-    "./hooks/useTurnLifecycle": { useTurnLifecycle: (input: { setPhase: (value: string) => void; setIsPaused: (value: boolean) => void }) => { setters.phase = input.setPhase; setters.paused = input.setIsPaused; return { pausedLessonOffer: options.pausedOffer === true }; } },
+    "./hooks/useTurnLifecycle": { useTurnLifecycle: (input: { setPhase: (value: string) => void; setIsPaused: (value: boolean) => void; onVoiceDegraded: (value: boolean) => void }) => { setters.phase = input.setPhase; setters.paused = input.setIsPaused; setters.voiceDegraded = input.onVoiceDegraded; return { pausedLessonOffer: options.pausedOffer === true }; } },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
     "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindPlaying: options.rewindPlaying === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
@@ -329,11 +344,36 @@ export function shellMarkup(options: {
   const shell = load(shellFile, process.env.CAPTION_SHELL_SOURCE ?? shellFile, mount.react, overrides).TutorSessionShell as ComponentType<TutorSessionShellProps>;
   const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId: "recorded-board", variant: options.variant }); };
   render();
-  setters.text?.(options.text ?? liveCaption); setters.phase?.(options.phase ?? "speaking"); setters.paused?.(options.paused === true);
-  lastShellTree = render();
-  const html = renderToStaticMarkup(lastShellTree);
-  return html;
+  mount.runLayoutEffects();
+  const step = (next: ShellStep) => {
+    if (next.text !== undefined) setters.text?.(next.text);
+    if (next.phase !== undefined) setters.phase?.(next.phase);
+    if (next.paused !== undefined) setters.paused?.(next.paused);
+    if (next.voiceDegraded !== undefined) setters.voiceDegraded?.(next.voiceDegraded);
+    // A state set during render (React's derived state pattern) renders again.
+    let previous: unknown[];
+    let renders = 0;
+    do { previous = [...mount.slots]; lastShellTree = render(); renders++; }
+    while (renders < 5 && (previous.length !== mount.slots.length || previous.some((value, index) => !Object.is(value, mount.slots[index]))));
+    mount.runLayoutEffects();
+    return renderToStaticMarkup(lastShellTree);
+  };
+  return { step };
 }
+
+/** The deck height the docked caption region reserves in rendered markup. */
+function reservedHeight(html: string): number {
+  const tag = html.match(/<div[^>]*aria-label="Current narration"[^>]*>/)?.[0];
+  return tag && /class="[^"]*\bh-20\b/.test(tag) ? 80 : 0;
+}
+function findCaptionRegion(node: React.ReactNode): React.ReactElement<Record<string, unknown>> | null {
+  if (Array.isArray(node)) { for (const child of node) { const result = findCaptionRegion(child); if (result) return result; } return null; }
+  if (!React.isValidElement<Record<string, unknown>>(node)) return null;
+  if (node.props["aria-label"] === "Current narration") return node;
+  return findCaptionRegion(node.props.children as React.ReactNode);
+}
+const silentSentence = "When the voice is unavailable the student reads this whole sentence on the board, so the caption must carry every word through to its final word, including this ending marker zeta.";
+const nextSilentSentence = "The next silent sentence starts with these opening words, and the student must see them first rather than from wherever the last sentence was scrolled.";
 
 check("live-and-pause", () => {
   for (const phase of ["speaking", "drawing"] as const) for (const paused of [false, true]) {
@@ -403,6 +443,30 @@ check("actual-viewport-budget", () => {
     const rotate = f.resize({ width: 844, height: 300 });
     near(rotate.scale, (300 - 80 - 32) / 700);
   });
+  // Subtitles off: the first silent sentence reserves the dock, and the voice
+  // coming back, going idle and the next turn keep it, so the board refits at
+  // most once (at the first failure) and never flaps.
+  for (const dimensions of [{ mobile: false, width: 844, height: 390, coarse: true }, { mobile: true, width: 390, height: 600 }]) {
+    const session = shellSession({ ...dimensions, subtitles: false, recorded: false });
+    const sequence: Array<{ label: string; step: ShellStep }> = [
+      { label: "spoken", step: { text: liveCaption, phase: "speaking", voiceDegraded: false } },
+      { label: "notice on", step: { text: silentSentence, voiceDegraded: true } },
+      { label: "voice back", step: { text: nextSilentSentence, voiceDegraded: false } },
+      { label: "idle", step: { text: "", phase: "idle" } },
+      { label: "next turn planning", step: { phase: "planning" } },
+      { label: "next turn speaking", step: { text: liveCaption, phase: "speaking" } },
+    ];
+    const heights = sequence.map(({ step }) => reservedHeight(session.step(step)));
+    withViewport(dimensions.width, dimensions.height, heights[1]!, f => {
+      const initial = f.read();
+      sequence.slice(1).forEach(({ label }, index) => {
+        const next = f.resize({ deckHeight: heights[index + 1]! }, "deck");
+        assert.ok(Math.abs(next.scale - initial.scale) < 0.00001, `${dimensions.width}x${dimensions.height} ${label}: board scale ${next.scale} stays ${initial.scale} after the first notice`);
+      });
+    });
+    assert.deepEqual(heights, [0, 80, 80, 80, 80, 80],
+      `${dimensions.width}x${dimensions.height}: subtitles off reserve nothing until a silent sentence, then keep 80 px for the session`);
+  }
   withViewport(390, 206, 124, f => { near(f.read().scale, 16 / 19); assert.ok(f.read().scale * 700 > 206 - 124, "tiny paper remains readable and scrollable above caption/control deck"); }, "readable-scroll");
 });
 
@@ -461,10 +525,6 @@ check("session-caption-reservation", () => {
     { phase: "idle" as const, playerActive: true, playerRevealed: false },
     { phase: "idle" as const, playerActive: true, playerText: "" },
   ];
-  const reservedHeight = (html: string): number => {
-    const tag = html.match(/<div[^>]*aria-label="Current narration"[^>]*>/)?.[0];
-    return tag && /class="[^"]*\bh-20\b/.test(tag) ? 80 : 0;
-  };
   for (const fullscreen of [false, true]) {
     for (const eligibility of [{ subtitles: true }, { subtitles: false, codeOnly: true }]) {
       for (const dimensions of [{ mobile: true, width: 390, height: 844 }, { mobile: false, width: 844, height: 390, coarse: true }]) {
@@ -558,7 +618,7 @@ check("phone-readability-shell-pan", () => {
 
 check("silent-caption-whole", () => {
   // A silently taught sentence is read, not heard: the caption shows all of it.
-  const sentence = "When the voice is unavailable the student reads this whole sentence on the board, so the caption must carry every word through to its final word, including this ending marker zeta.";
+  const sentence = silentSentence;
   assert.ok(sentence.length > 140, "the fixture sentence is longer than the live subtitle limit");
   const silent = renderToStaticMarkup(createElement(bubble as ComponentType<{ text: string; visible: boolean; placement?: string; notice?: string | null }>, { text: sentence, visible: true, placement: "below", notice: "Voice unavailable, showing the words" }));
   assert.match(silent, /ending marker zeta/, "the silent caption keeps the end of the sentence");
@@ -566,7 +626,25 @@ check("silent-caption-whole", () => {
   const spoken = renderToStaticMarkup(createElement(bubble as ComponentType<{ text: string; visible: boolean; placement?: string }>, { text: sentence, visible: true, placement: "below" }));
   assert.match(spoken, /…/, "a spoken caption keeps the live subtitle limit");
 });
-const required = ["phone-readability-role-floor", "phone-readability-shell-pan", "session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys", "silent-caption-whole"];
+check("caption-scroll-resets", () => {
+  // A long silent sentence is scrolled by touch; the next one opens at its first word.
+  for (const subtitles of [false, true]) {
+    const session = shellSession({ mobile: true, subtitles, recorded: false });
+    session.step({ text: silentSentence, phase: "speaking", voiceDegraded: !subtitles });
+    const region = findCaptionRegion(lastShellTree);
+    assert.ok(region, "the docked caption region is rendered");
+    const ref = region.props.ref as { current: unknown } | undefined;
+    assert.ok(ref && typeof ref === "object" && "current" in ref, "the docked caption region carries a ref");
+    const element = { scrollTop: 0 };
+    ref.current = element;
+    element.scrollTop = 96;
+    session.step({ phase: "drawing" });
+    assert.equal(element.scrollTop, 96, `subtitles=${subtitles}: a rerender of the same sentence keeps the student's place`);
+    session.step({ text: nextSilentSentence });
+    assert.equal(element.scrollTop, 0, `subtitles=${subtitles}: a new sentence opens at its first word, not halfway down`);
+  }
+});
+const required = ["phone-readability-role-floor", "phone-readability-shell-pan", "session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys", "silent-caption-whole", "caption-scroll-resets"];
 assert.ok(!process.env.CAPTION_DOCK_CASE || required.includes(process.env.CAPTION_DOCK_CASE), "unknown caption gate case");
 assert.ok(groups > 0, "at least one caption group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} caption groups failed: ${failures.join(", ")}`);

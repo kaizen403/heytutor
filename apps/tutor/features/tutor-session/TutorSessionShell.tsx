@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1380,6 +1381,17 @@ export function TutorSessionShell({
     voiceDegraded,
   });
   const captionShowing = caption.visible && caption.text.length > 0;
+  // Once a sentence has been taught silently, keep the docked caption space
+  // for the rest of the session: the voice coming back, going idle and the
+  // next turn must not refit the board, so a failure costs one refit at most.
+  const [silentCaptionShown, setSilentCaptionShown] = useState(false);
+  if (caption.notice && !silentCaptionShown) setSilentCaptionShown(true);
+  // A new sentence opens at its first word, whatever the last one was scrolled to.
+  const captionRegionRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const region = captionRegionRef.current;
+    if (region) region.scrollTop = 0;
+  }, [caption.text]);
   const showDockedPlayer =
     (dockLecturePlayer ||
       compactBoardChrome ||
@@ -2384,8 +2396,9 @@ export function TutorSessionShell({
               >
                 {/* Keep enabled captions' space throughout the session so
                     silent cues, Stop and End do not refit the paper. */}
-                {dockCaption && (settings.subtitlesEnabled || codeLessonActive || caption.notice) ? (
+                {dockCaption && (settings.subtitlesEnabled || codeLessonActive || silentCaptionShown || caption.notice) ? (
                   <div
+                    ref={captionRegionRef}
                     role="region"
                     aria-label="Current narration"
                     aria-hidden={!captionShowing || undefined}
