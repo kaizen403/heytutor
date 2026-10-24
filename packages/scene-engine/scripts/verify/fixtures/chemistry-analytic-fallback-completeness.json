@@ -929,8 +929,8 @@
     "question": "An ideal gas follows cycle A-B-C-D-A. A to B is isobaric expansion, B to C is isochoric heating, C to D is isobaric compression, and D to A is isochoric cooling. Sketch its P-V diagram.",
     "turnPlan": null,
     "families": null,
-    "draw": true,
+    "draw": false,
     "allowAxes": false,
-    "provenance": "Four explicitly named source processes define the qualitative P-V cycle."
+    "provenance": "Four explicitly named source processes; pv_cycle always declines (#290), so no figure is drawn."
   }
 ]
