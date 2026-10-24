@@ -56,7 +56,7 @@
     "verify:labels-and-openings": "tsx scripts/verify/verify-hinglish-opening.ts && tsx scripts/verify/verify-startup-turn.ts hinglish-opening && tsx scripts/verify/verify-startup-turn.ts startup-timeout && tsx scripts/verify/verify-mobile-caption-dock.ts",
     "verify:fresh-migrations": "tsx scripts/verify/verify-fresh-migrations.ts",
     "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts",
-    "verify:sentry": "tsx scripts/verify/verify-teaching-segment-failure.ts && tsx scripts/verify/verify-sentry-admin-receipt.ts && tsx scripts/verify/verify-storage-sentry-receipts.ts && tsx scripts/verify/verify-turn-failure-classification.ts && tsx scripts/verify/verify-sentry-backfill.ts && tsx scripts/verify/verify-sentry.ts",
+    "verify:sentry": "tsx scripts/verify/verify-teaching-segment-failure.ts && tsx scripts/verify/verify-turn-failure-reporting-truth.ts && tsx scripts/verify/verify-sentry-admin-receipt.ts && tsx scripts/verify/verify-storage-sentry-receipts.ts && tsx scripts/verify/verify-turn-failure-classification.ts && tsx scripts/verify/verify-sentry-backfill.ts && tsx scripts/verify/verify-sentry.ts",
     "verify:sentry-db": "tsx scripts/verify/verify-sentry-db.ts",
     "verify:scene-request-deadlines": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-scene-request-deadlines.ts",
     "verify:atomic-labels": "tsx scripts/verify/verify-atomic-scene-labels.ts",
