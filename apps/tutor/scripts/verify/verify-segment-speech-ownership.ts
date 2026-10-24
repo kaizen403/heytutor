@@ -114,7 +114,7 @@ function mount(deferFirstDraw = false, browserStartup = false) {
   };
   const hook = mod.exports as unknown as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
   const runner = hook.useSegmentRunner(params as unknown as UseSegmentRunnerParams);
-  return { runner, params, jobs, drawn, abandons, telemetry, until, flush, browserAttempts: () => browserAttempts,
+  return { runner, params, jobs, drawn, abandons, telemetry, until, flush, advanceBy: (ms: number) => advance(now + ms), browserAttempts: () => browserAttempts,
     failDraw: (error: Error) => { assert(rejectDraw); rejectDraw(error); },
     end: (index: number) => { const job = jobs[index]; assert(job); job.options.onEnd?.(); job.resolve(); },
     close: () => {
@@ -132,7 +132,7 @@ async function speechFailure(owner: "current" | "cancelled" | "superseded") {
     const original = new Error("owned speech failed after onStart");
     const pending = h.runner.runSegment(old, 0, [old], 1).then(() => null, error => error as unknown);
     await h.until(() => h.jobs.length === 1);
-    let successor: Promise<void> | undefined;
+    let successor: Promise<unknown> | undefined;
     if (owner === "cancelled") h.params.cancelRef.current = true;
     if (owner === "superseded") {
       h.params.turnGenerationRef.current = 2;
@@ -142,9 +142,15 @@ async function speechFailure(owner: "current" | "cancelled" | "superseded") {
     }
     h.jobs[0]!.reject(original);
     await h.flush();
-    assert.equal(await pending, owner === "current" ? original : null, "only an externally-current failure reaches the caller");
+    let settled = false;
+    void pending.then(() => { settled = true; });
+    // A current voice failure is taught silently for the sentence's estimated length.
+    for (let step = 0; owner === "current" && step < 400 && !settled; step++) await h.advanceBy(50);
+    assert.equal(await pending, null, "a voice failure never reaches the caller: the beat is taught silently or stays quiet");
     assert.deepEqual(h.abandons, owner === "current" ? [0] : [], "late cleanup cannot abandon a shared successor provider");
-    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "failed or superseded speech cannot record a completed beat");
+    assert.equal(h.params.recordedSegmentsRef.current.length, owner === "current" ? 1 : 0,
+      "the current beat is recorded as taught; a cancelled or superseded one records nothing");
+    if (owner === "current") assert.equal(h.params.recordedSegmentsRef.current[0]!.audioBytes, null, "a silent beat saves no audio");
     if (successor) {
       assert.equal(h.jobs[1]!.abandoned, false);
       h.end(1); await successor;
@@ -162,7 +168,7 @@ async function drawFailure(superseded: boolean) {
     const original = new Error("asynchronous owned ink failed");
     const pending = h.runner.runSegment(old, 0, [old], 1).then(() => null, error => error as unknown);
     await h.until(() => h.jobs.length === 1 && h.drawn.length === 1);
-    let successor: Promise<void> | undefined;
+    let successor: Promise<unknown> | undefined;
     if (superseded) {
       h.params.turnGenerationRef.current = 2;
       const next = segment("New voice while old ink returns.");
@@ -217,4 +223,7 @@ async function main() {
   try { await retiredIntroDraw(); } catch (error) { failures++; console.error(error); }
   assert.equal(failures, 0, "all actual runner cleanup must preserve media ownership");
 }
-main().catch(error => { console.error(error); process.exitCode = 1; });
+let finished = false;
+// A runner that never settles must not exit 0 with nothing printed.
+process.on("beforeExit", () => { if (!finished) { console.error("gate never finished"); process.exitCode = 1; } });
+main().then(() => { finished = true; }, error => { finished = true; console.error(error); process.exitCode = 1; });
