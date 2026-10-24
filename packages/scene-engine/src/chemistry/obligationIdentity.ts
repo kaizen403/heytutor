@@ -27,7 +27,7 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument } from "../types";
 import { elementByName, elementBySymbol, type ElementRecord } from "./elements";
 import { builtChemistryFigureIdentity, type ChemistryFigureIdentity } from "./figureIdentity";
-import { normalizeChemistryText, parseFormula } from "./formula";
+import { normalizeChemistryText, parseFormula, splitCharge } from "./formula";
 import { buildLewisScene } from "./lewis";
 import { buildMoScene } from "./moDiagram";
 import { namedSpeciesMentions } from "./namedSpecies";
@@ -184,16 +184,18 @@ function speciesKeyOfLabel(label: string): string | null {
 
 /**
  * One identity for the board and source spellings of a formula (NH_3, NH3;
- * SO_4^(2-), SO4^2-): the parsed atoms with their counts in written order,
- * and the net charge, kept apart. O_2^(-) (superoxide, O2 with charge -1)
- * and O^(2-) (oxide, O with charge -2) never share a key, although both
- * flatten to the same characters. Anything the formula reader cannot parse
- * has no key.
+ * SO_4^(2-), SO4^2-): the formula body as written, with its groups and atom
+ * order kept, and the net charge, kept apart. O_2^(-) (superoxide, body O2,
+ * charge -1) and O^(2-) (oxide, body O, charge -2) never share a key,
+ * although both flatten to the same characters, and isomers written
+ * differently (CH3COOH, CH3OCHO) keep their own keys, although their atom
+ * counts agree. Anything the formula reader cannot parse has no key.
  */
 function formulaKey(value: string): string | null {
-  const parsed = parseFormula(value.trim().replace(/\s+/g, "").replace(/_(\d+)/g, "$1"));
-  if (!parsed) return null;
-  return `${parsed.atoms.map((atom) => `${atom.symbol}${atom.count}`).join(" ")} | ${parsed.charge}`;
+  const text = normalizeChemistryText(value.trim().replace(/_(\d+)/g, "$1")).replace(/\s+/g, "");
+  if (!parseFormula(text)) return null;
+  const { body, charge } = splitCharge(text);
+  return `${body} | ${charge}`;
 }
 
 /* ------------------------------------------------------------------------- */
