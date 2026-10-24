@@ -9,8 +9,8 @@
  * at an operator that cannot draw the tangent.
  */
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { validateSceneDocument } from "../../src/document/validation";
@@ -190,10 +190,17 @@ for (const operator of ["segment", "line"] as const) {
   check(source.split(anchor).length === 2, "mutation anchor appears exactly once in validation.ts");
   const mutated = source.replace(anchor, 'actualOperator === "tangent_line"');
   check(mutated !== source, "the mutation changed the source");
-  const scratch = mkdtempSync(join(dirname(validationPath), ".m1-mutant-"));
+  // Under node_modules/.cache, which a tsup watcher ignores, so a running
+  // dev server never rebuilds from the mutant. Relative imports point at the
+  // real source tree by absolute path; the package tsconfig still applies.
+  const cacheDir = join(here, "../../node_modules/.cache");
+  mkdirSync(cacheDir, { recursive: true });
+  const scratch = mkdtempSync(join(cacheDir, "m1-mutant-"));
+  writeFileSync(join(scratch, "package.json"), '{"type":"module"}\n');
   try {
     const mutantPath = join(scratch, "validation.ts");
-    writeFileSync(mutantPath, mutated.replace(/from "\.\.\//g, 'from "../../').replace(/from "\.\//g, 'from "../'));
+    const srcDir = dirname(validationPath);
+    writeFileSync(mutantPath, mutated.replace(/from "(\.\.?\/[^"]+)"/g, (_, rel: string) => `from "${pathToFileURL(resolve(srcDir, rel)).href}"`));
     const mutant = await import(pathToFileURL(mutantPath).href) as typeof import("../../src/document/validation");
     const mutantIssues = mutant.validateSceneDocument(circleTangent()).report.issues;
     check(mutantIssues.some((issue) => issue.code === "derived_role_operator_mismatch"), "mutation control: removing the acceptance refuses the circle tangent (red)");
