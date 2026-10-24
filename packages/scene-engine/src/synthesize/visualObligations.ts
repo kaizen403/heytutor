@@ -645,6 +645,12 @@ function normalizeObligationLabel(value: string): string {
  */
 function sameObligationLabel(sceneLabel: string, problemLabel: string): boolean {
   if (normalizeObligationLabel(sceneLabel) === normalizeObligationLabel(problemLabel)) return true;
+  // A component symbol written with its stated value ("R1=4 ohm") names the
+  // same body as the bare symbol "R1". Only the name is compared here; the
+  // value is audited against the source by save admission. A different name
+  // ("R2=4 ohm" for R1) or prose before the "=" never matches.
+  const valued = /^([A-Za-z][A-Za-z0-9]{0,3})\s*=\s*\S/.exec(normalizeObligationLabel(sceneLabel));
+  if (valued && /^[A-Za-z][A-Za-z0-9]{0,3}$/.test(problemLabel.trim()) && valued[1] === problemLabel.trim()) return true;
   const sceneAqueous = aqueousFormulaIdentity(sceneLabel);
   const problemAqueous = aqueousFormulaIdentity(problemLabel);
   if (sceneAqueous !== null && problemAqueous !== null) return sceneAqueous === problemAqueous;
