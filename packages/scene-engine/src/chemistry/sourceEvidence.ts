@@ -17,6 +17,7 @@ import {
   countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, graphMatches, mentionedElements,
   type ChemistrySourceCertification,
 } from "./sourceEvidenceShared";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { certifyLewisSourceDocument } from "./lewisSourceEvidence";
 import { certifyPeriodicSourceDocument } from "./periodicSourceEvidence";
 
@@ -199,13 +200,24 @@ export function certifyVseprSourceDocument(document: SceneDocument, question: st
  * the VSEPR shape graph, the single-species Lewis graph, and the periodic
  * trend graph read from the element table. A certificate regenerates the
  * whole figure from the question and checks every role-bearing plan scalar
- * against that source; a contradiction rejects the figure.
+ * against that source; a contradiction rejects the figure. A question that
+ * writes a charge no regenerated species carries earns no certificate.
  */
 export function certifyChemistrySourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): ChemistrySourceCertification {
+  // A regenerated figure is only the builder's own reading of the stem, and
+  // some builders read a spaced or sign first charge (SO3 2-, NO2 -, O2+1) as
+  // the neutral species. Every charge the question writes must be on a
+  // regenerated species, or the figure keeps the generic audit.
   const vsepr = certifyVseprSourceDocument(document, question, plan);
   if (vsepr.status === "rejected") return vsepr;
-  if (vsepr.status === "certified") return { status: "certified", texts: vsepr.texts, quantities: [] };
+  if (vsepr.status === "certified") {
+    if (!chargeMarkersCarried(question, vseprSpecies(question).map((species) => species.formula))) return { status: "not_applicable" };
+    return { status: "certified", texts: vsepr.texts, quantities: [] };
+  }
   const lewis = certifyLewisSourceDocument(document, question, plan);
   if (lewis.status !== "not_applicable") return lewis;
-  return certifyPeriodicSourceDocument(document, question, plan);
+  const periodic = certifyPeriodicSourceDocument(document, question, plan);
+  // A periodic trend graph plots neutral elements only.
+  if (periodic.status === "certified" && !chargeMarkersCarried(question, [])) return { status: "not_applicable" };
+  return periodic;
 }

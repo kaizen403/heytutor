@@ -10,12 +10,29 @@
  * group 17, ionisation energy across period 2. The radius row stays refused:
  * its plan quotes metallic radii (Na 186 pm) and ranks Cl above Ar, both
  * false against the covalent table the graph plots.
+ *
+ * Charge rows: a regenerated figure is only the builder's reading of the
+ * stem, and the Lewis and VSEPR builders read a spaced or sign first charge
+ * (NO2 -, SO3 2-, O2 2-) as the neutral species. Those stems must earn no
+ * certificate (not_applicable keeps the generic audit, which refuses them),
+ * while charged species the builders read (NH4+, NO3^-, SO4^2-) and hyphens
+ * (C-H, sp3-hybridised) still certify. A mutation removing the guards turns
+ * the charge rows red.
  */
 import assert from "node:assert/strict";
-import { certifyChemistrySourceDocument, vseprPlanConflict } from "../../src/chemistry";
-import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../../src/contracts/contractsV3";
 import type { SceneDocument } from "../../src/types";
+
+// The mutation check at the end reruns this gate on an edited copy of src.
+const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const engineRoot = process.env.CHEM_SCALAR_ENGINE_ROOT ?? join(packageRoot, "src");
+const mutant = process.env.CHEM_SCALAR_MUTANT === "1";
+const { certifyChemistrySourceDocument, vseprPlanConflict } = await import(pathToFileURL(join(engineRoot, "chemistry", "index.ts")).href) as typeof import("../../src/chemistry");
+const { synthesizeFamilyScene } = await import(pathToFileURL(join(engineRoot, "synthesize", "familyScene.ts")).href) as typeof import("../../src/synthesize/familyScene");
 
 let checks = 0;
 function check(condition: unknown, message: string): asserts condition {
@@ -275,6 +292,80 @@ tamperedTrend.quantities[0]!.value = 186;
 check(status(tamperedTrend, radius, plan(radius)) !== "certified", "a trend document with an edited table value earns no certificate");
 check(status(co2Lewis, "lewis structure of SO2", co2Plan) !== "certified", "a CO2 graph does not certify against another question");
 
+// Charge written, builder dropped it: the regenerated figure is the neutral
+// species, so it earns no certificate. Each row is checked and reported.
+const CHARGE_DROPPED: ReadonlyArray<readonly [string, string, Array<[string, string | boolean]>]> = [
+  ["lewis structure of NO2 -", "chem_lewis", [["The nitrite ion is bent", true]]],
+  ["draw the lewis structure of NO2 -", "chem_lewis", [["Nitrite has resonance", true]]],
+  ["lewis structure of NO2 -", "chem_lewis", []],
+  ["lewis structure of O2 2-", "chem_lewis", []],
+  ["shape of SO3 2-", "chem_vsepr", []],
+  ["shape of NO2 -", "chem_vsepr", [["The nitrite ion is bent with a bond angle of about 115 degrees", true]]],
+  ["hybridisation of NO2 -", "chem_vsepr", []],
+];
+const CHARGE_READ: ReadonlyArray<readonly [string, string]> = [
+  ["lewis structure of NH4+", "chem_lewis"], ["lewis structure of NO3^-", "chem_lewis"], ["lewis structure of CN-", "chem_lewis"],
+  ["shape of NH4+ ion", "chem_vsepr"], ["shape of SO4^2-", "chem_vsepr"], ["shape of NO2^-", "chem_vsepr"],
+  ["lewis structure of CH4 showing each C-H bond", "chem_lewis"], ["shape of CH4 with sp3-hybridised carbon", "chem_vsepr"],
+];
+const chargeFailures: string[] = [];
+for (const [question, family, claims] of CHARGE_DROPPED) {
+  const turnPlan = plan(question, { claims });
+  const got = status(figure(question, family), question, turnPlan);
+  const name = `charge dropped (${question}${claims.length ? `, claim "${claims[0]![0]}"` : ""}): not_applicable`;
+  console.log(`${got === "not_applicable" ? "PASS" : "FAIL"} ${name} (got ${got})`);
+  if (got !== "not_applicable") chargeFailures.push(name);
+}
+for (const [question, family] of CHARGE_READ) {
+  const got = status(figure(question, family), question, plan(question));
+  const name = `charge read or hyphen (${question}): certified`;
+  console.log(`${got === "certified" ? "PASS" : "FAIL"} ${name} (got ${got})`);
+  if (got !== "certified") chargeFailures.push(name);
+}
+check(chargeFailures.length === 0, `charge rows failed: ${chargeFailures.join("; ")}`);
+
+/** Run this gate on a copy of the engine with exact source edits. */
+function runMutant(edits: ReadonlyArray<readonly [string, string, string]>): string {
+  const scratch = join(packageRoot, "tmp", `chem-scalar-mutant-${process.pid}`);
+  rmSync(scratch, { recursive: true, force: true });
+  mkdirSync(scratch, { recursive: true });
+  try {
+    cpSync(join(packageRoot, "src"), join(scratch, "src"), { recursive: true });
+    for (const [file, from, to] of edits) {
+      const target = join(scratch, "src", file);
+      const source = readFileSync(target, "utf8");
+      assert.equal(source.split(from).length, 2, `the mutated text must appear exactly once in ${file}`);
+      writeFileSync(target, source.replace(from, to));
+      assert.notEqual(readFileSync(target, "utf8"), source, "the mutation must change the source");
+    }
+    const child = spawnSync(process.execPath, ["--import", import.meta.resolve("tsx"), fileURLToPath(import.meta.url)], {
+      cwd: packageRoot,
+      env: { ...process.env, CHEM_SCALAR_ENGINE_ROOT: join(scratch, "src"), CHEM_SCALAR_MUTANT: "1" },
+      encoding: "utf8",
+      timeout: 300_000,
+    });
+    check(child.status !== 0, "the gate must fail on the mutant");
+    return `${child.stdout}\n${child.stderr}`;
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+if (!mutant) {
+  const output = runMutant([
+    [join("chemistry", "lewisSourceEvidence.ts"), "  if (!chargeMarkersCarried(question, [result.text])) return { status: \"not_applicable\" };\n", ""],
+    [join("chemistry", "sourceEvidence.ts"),
+      "    if (!chargeMarkersCarried(question, vseprSpecies(question).map((species) => species.formula))) return { status: \"not_applicable\" };\n", ""],
+  ]);
+  for (const [question, , claims] of CHARGE_DROPPED) {
+    check(output.includes(`FAIL charge dropped (${question}${claims.length ? `, claim "${claims[0]![0]}"` : ""})`),
+      `mutation control: without the charge guards, ${question} is certified again`);
+  }
+  for (const [question] of CHARGE_READ) {
+    check(output.includes(`PASS charge read or hyphen (${question})`), `mutation control: ${question} still certifies without the guards`);
+  }
+}
+
 // Mutation control: one changed plan value flips each certified row, and the
 // mutation really changed the plan.
 for (const [label, document, question, base] of [
@@ -292,4 +383,4 @@ mutatedIe.qualitativeClaims[1]!.claim = mutatedIe.qualitativeClaims[1]!.claim.re
 check(mutatedIe.qualitativeClaims[1]!.claim !== iePlan.qualitativeClaims[1]!.claim && status(ieGraph, ie, mutatedIe) === "rejected",
   "mutation control (IE period 2): one claimed table value moved, the graph is rejected");
 
-console.log(`verify-chemistry-plan-scalar-certification: ${checks} checks passed`);
+console.log(`verify-chemistry-plan-scalar-certification: ${checks} checks passed${mutant ? " (mutant run)" : ""}`);

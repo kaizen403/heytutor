@@ -19,6 +19,7 @@ import { pruneDeadSceneEntities, validateSceneDocument } from "../document/valid
 import type { SceneDocument, SceneIssue } from "../types";
 import { ELEMENTS, valenceElectrons, type ElementRecord } from "./elements";
 import { buildLewisScene, isLewisStem, LEWIS_FAMILY, stemSpecies, type LewisAtom, type LewisResult } from "./lewis";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { lewisClaimText, readLewisClaim } from "./lewisClaimReader";
 import {
   claimVerdict, countUnit, declarationText, declaredFormulas, equalScalar, formulaKey, planClaims,
@@ -213,8 +214,9 @@ function claimIssues(plan: TurnPlanV3, result: LewisResult): SceneIssue[] {
 }
 
 /** Certify the plain single-species Lewis graph. Resonance, overlap, ionic,
- * hydrogen-bond, metallic, topology and multi-species scenes keep the
- * generic audit (not_applicable). */
+ * hydrogen-bond, metallic, topology and multi-species scenes, and a stem
+ * whose written charge the regenerated species lacks, keep the generic
+ * audit (not_applicable). */
 export function certifyLewisSourceDocument(document: SceneDocument, question: string, plan: TurnPlanV3 | null): ChemistrySourceCertification {
   const claimsFamily = document.source.chemistryFamily === LEWIS_FAMILY || document.source.archetype === LEWIS_FAMILY;
   if (!claimsFamily || !isLewisStem(question)) return { status: "not_applicable" };
@@ -227,6 +229,9 @@ export function certifyLewisSourceDocument(document: SceneDocument, question: st
   const species = stemSpecies(question);
   if (!raw || species.length !== 1) return { status: "not_applicable" };
   const result = species[0]!;
+  // The builder reads NO2 - (spaced) as neutral NO2: a charge the question
+  // writes and the regenerated species lacks leaves the generic audit.
+  if (!chargeMarkersCarried(question, [result.text])) return { status: "not_applicable" };
   const computed: Record<string, number> = { sigma_bonds: result.sigmaBonds, pi_bonds: result.piBonds, lone_pairs: result.lonePairs };
   if (raw.quantities.map((quantity) => quantity.id).join(",") !== Object.keys(computed).join(",")
     || raw.quantities.some((quantity) => quantity.value !== computed[quantity.id])) return { status: "not_applicable" };
