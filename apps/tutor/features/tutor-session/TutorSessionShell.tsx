@@ -96,6 +96,7 @@ import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import type { SpeechStartupStatus } from "./hooks/turn/types";
+import { speechRecoveryStatus } from "./lib/turn/speechRecoveryUi";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardReading } from "./hooks/useBoardReading";
 import { useBoardSession } from "./hooks/useBoardSession";
@@ -1709,6 +1710,20 @@ export function TutorSessionShell({
     return () => onExportApi?.(null);
   }, [onExportApi]);
 
+  const audioRecovery = speechRecoveryStatus(speechStartupStatus, {
+    phase,
+    // Phase/status state drive renders; this identity check only rejects a stale callback.
+    // eslint-disable-next-line react-hooks/refs
+    turnGeneration: turnGenerationRef.current,
+    muted: mutePlayback || !settings.narrationEnabled,
+    rewindActive,
+    isReplaying,
+  });
+  const showPendingOrRecovery = !rewindActive && (waitingToTeach || audioRecovery !== null);
+  // A phone board scrolls inside its pane. A held beat's recovery card must
+  // stay in the visible pane, not at the corner of the scrolled board.
+  const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
+
   if (isHeadless) {
     return (
       <div
@@ -1732,11 +1747,14 @@ export function TutorSessionShell({
           pencilThickness={settings.pencilThickness}
           markerStunts={settings.markerStunts}
         />
-        {waitingToTeach && (
+        {showPendingOrRecovery && (
           <ThinkingOverlay
             ink={pendingInk}
             paused={isPaused}
             onResume={resumeTurn}
+            onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+            preserveBoard={!waitingToTeach}
+            muted={mutePlayback || !settings.narrationEnabled}
             onBoardAt={
               liveTurnKind === "lesson"
                 ? null
@@ -2136,7 +2154,7 @@ export function TutorSessionShell({
 
             <div
               className={`wb-stage flex min-h-0 flex-col items-center ${scrollBoard ? "w-full min-w-0" : showDockedPlayer ? "w-full" : ""} ${
-                boardCovered ? "pointer-events-none invisible absolute" : ""
+                boardCovered ? "pointer-events-none invisible absolute" : recoveryOutsideBoard ? "relative" : ""
               }`}
               aria-hidden={boardCovered || undefined}
               style={{
@@ -2260,16 +2278,14 @@ export function TutorSessionShell({
 
                     {/* A rewound lecture is the past: don't cover the board they
                 are actually watching with the pending clicker. */}
-                    {waitingToTeach && !rewindActive && (
+                    {showPendingOrRecovery && !recoveryOutsideBoard && (
                       <ThinkingOverlay
                         ink={pendingInk}
                         paused={isPaused}
                         onResume={resumeTurn}
-                        onEnableAudio={
-                  !isPaused && !mutePlayback
-                    ? speechStartupStatus?.enableAudio
-                    : null
-                }
+                        onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                        preserveBoard={!waitingToTeach}
+                        muted={mutePlayback || !settings.narrationEnabled}
                         onBoardAt={
                           liveTurnKind === "lesson"
                             ? null
@@ -2342,6 +2358,19 @@ export function TutorSessionShell({
                   </div>
                 </div>
               </div>
+
+              {recoveryOutsideBoard && (
+                <ThinkingOverlay
+                  ink={pendingInk}
+                  paused={isPaused}
+                  onResume={resumeTurn}
+                  onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                  preserveBoard={!waitingToTeach}
+                  muted={mutePlayback || !settings.narrationEnabled}
+                  onBoardAt={null}
+                  scale={boardViewport.scale}
+                />
+              )}
 
               <div
                 className="wb-deck relative shrink-0"

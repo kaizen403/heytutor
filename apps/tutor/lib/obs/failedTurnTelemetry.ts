@@ -42,7 +42,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "point_line_source_line_mismatch", "point_line_drawn_line_mismatch", "point_line_source_point_mismatch",
   "section_source_unsupported", "section_source_mismatch",
   "turnplan_loop_member_not_proven", "turnplan_loop_member_bypassed", "turnplan_route_direction_not_proven",
-  "source_loop_not_closed", "physical_vector_mixed_coordinate_spaces", "physical_relation_mixed_coordinate_spaces",
+  "source_loop_not_closed", "capacitor_depicted_twice", "physical_vector_mixed_coordinate_spaces", "physical_relation_mixed_coordinate_spaces",
   "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
   "unknown_issue",
 ] as const;

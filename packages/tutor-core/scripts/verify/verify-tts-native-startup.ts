@@ -540,3 +540,45 @@ if (!selected || selected === "binary-stop") {
   } finally { pending.release(); next.stop(); NativeAudio.hold = false; }
 }
 console.log("verified native startup: complete WS/HTTP/prefetch bytes, generation cancellation, ordered binary conversion, pause/final/resume races, and failure recovery");
+
+if (!selected || selected === "blocked-mute") {
+  for (const scenario of ["mute", "paused", "mute-denied"] as const) {
+    const paused = scenario === "paused";
+    wsEnabled = true;
+    const previousSocket = Socket.latest;
+    const count = NativeAudio.instances.length;
+    const next = new StreamingSpeechClient();
+    let blocked = 0, starts = 0;
+    NativeAudio.rejectNext = true;
+    const speaking = next.speakSegment("Retain this synthetic sentence when output is muted.", {
+      onPlaybackBlocked: state => { if (state) blocked++; }, onStart: () => starts++,
+    });
+    void speaking.catch(() => {});
+    try {
+      await waitFor(() => Socket.latest !== previousSocket && Socket.latest.segments === 1, "muted permission setup");
+      Socket.latest.emit({ context_id: "segment_1", ...packet, isFinal: true });
+      await waitFor(() => blocked === 1, "native permission block retains the clip");
+      if (paused) next.pause();
+      if (scenario === "mute-denied") NativeAudio.rejectNext = true;
+      next.setMuted(true);
+      if (scenario === "mute-denied") {
+        await waitFor(() => blocked === 2, "muted native rejection retains a reachable permission state");
+        assert.equal(starts, 0);
+        next.resume();
+      }
+      if (paused) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+        assert.equal(starts, 0, "muting cannot override deliberate Pause");
+        next.resume();
+      }
+      await waitFor(() => starts === 1, "muted retained media must retry without requiring an Enable audio gesture");
+      assert.equal(NativeAudio.instances.length, count + 1, "muting reuses exact retained bytes and native element");
+      const audio = NativeAudio.instances[count]!;
+      assert.equal(audio.muted, true);
+      audio.end(); await speaking;
+      next.stop(); next.setMuted(false); next.setMuted(true);
+      assert.equal(NativeAudio.instances.length, count + 1, "mute changes cannot resurrect stopped output");
+    } finally { next.stop(); NativeAudio.rejectNext = false; }
+  }
+  console.log("native blocked mute: retained playback progresses; manual pause and stop preserved");
+}
