@@ -31,6 +31,7 @@ import {
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { chargeMarkersCarried } from "./chargeMarker";
+import { stemHasChargeLikeToken } from "./chargeEvidence";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
@@ -736,6 +737,9 @@ const MAX_SPECIES = 4;
  * than silently drawing a recognized subset. A charge the source writes that
  * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral species)
  * declines too: the neutral shape and its angle are false for the ion asked.
+ * So does any charge-like token (NO2 minus, SO3 two minus, with charge -1,
+ * Cu II, a stray sign) when no read species is charged: the reader cannot
+ * prove the neutral formula is the species asked, so it draws none.
  */
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
@@ -747,6 +751,7 @@ export function vseprSpecies(question: string): VseprResult[] {
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
   if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
+  if (stemHasChargeLikeToken(question) && !species.some((result) => result.charge !== 0)) return [];
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
@@ -1050,6 +1055,19 @@ export function characteristicAngle(result: VseprResult): string | null {
   return result.bondAngle && layoutFor(result)?.angle ? result.bondAngle : null;
 }
 
+/** The stem asks for an angle: main's rule for writing one before #287. */
+const ANGLE_ASKED = /\bangles?\b|°|\bdegrees?\b/i;
+
+/**
+ * Whether a figure for this question writes characteristic angles. Only on
+ * positive evidence of no charge: a stem with any charge-like token (NH4+
+ * ion, NO2 minus, with charge -1) writes an angle only when it asks for one,
+ * as main did, so a misread charge never gains an angle the stem did not ask.
+ */
+export function writesCharacteristicAngle(question: string): boolean {
+  return !stemHasChargeLikeToken(question) || ANGLE_ASKED.test(chemStem(question));
+}
+
 /**
  * Pixels per world unit of a chemistry figure in the default board viewport,
  * as the compiler fits it: the panels' span into 612 by 427 px (the 740 by
@@ -1262,7 +1280,7 @@ function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[
   return text ? { kind: "caption", text } : null;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number): DrawnSpecies | null {
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1319,7 +1337,7 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   // Nonbonding electrons belong to the structure, just like its bonds.
   frameIds.push(...electronIds);
-  const characteristic = characteristicAngle(result);
+  const characteristic = withAngle ? characteristicAngle(result) : null;
   const ink: SpeciesInk = {
     origin, ligands: ligandAt, dots: pairDots,
     // sceneKit draws a wedge 0.09 wide at its base and multiple-bond strokes 0.1 apart.
@@ -1450,11 +1468,12 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
     : `shapes of ${species.map((result) => result.formula).join(", ")} by VSEPR`;
+  const withAngle = writesCharacteristicAngle(question);
   const draw = (pxPerUnit: number) => {
     const scene = new ChemScene(question, reason, VSEPR_FAMILY);
     const items: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
     species.forEach((result, index) => {
-      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit);
+      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle);
       if (item) items.push({ result, drawn: item });
     });
     return { scene, items };

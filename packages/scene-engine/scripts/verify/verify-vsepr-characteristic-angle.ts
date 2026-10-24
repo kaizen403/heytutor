@@ -18,6 +18,16 @@
  *              with its false angle (sulfite 120°, nitrite 134°; T5, 24 Oct);
  *              attached forms still draw their true angle; hyphen controls
  *              (C-H bond, sp3-hybridised, pH 3-4, 2-methylpropane) are no charge
+ *              to the marker reader
+ *   word       positive evidence of no charge (T9, 24 Oct): a stem with any
+ *              charge-like token (stemHasChargeLikeToken: NO2 minus, SO3 two
+ *              minus, with charge -1, H2O plus, Xe(II), a stray sign) whose
+ *              read species are all neutral declines; every stem of the two
+ *              #287 reviews is a row. A charged species read correctly (NO2-,
+ *              NH4+ ion, SO4^2-, NH3 and NH4+ ions) keeps its shape with no
+ *              angle the stem did not ask; a stem that asks keeps main's
+ *              angle (bond angle in NH4+ ion 109.5°). Neutral stems with no
+ *              charge token keep theirs (the table)
  *   pair       a steric number 5 or 6 angle names its pair: an arc sweeps the
  *              value on the page, a caption says ax-eq, eq. or cis; a pair it
  *              cannot name in the compact limit writes none (PCl5 in a
@@ -26,7 +36,9 @@
  *              red, so these rows depend on the drawing, not on the stem; a
  *              build that draws nothing turns every sweep row red; a reader
  *              that ignores the charge, or a caption without its pair words,
- *              turns the charge and pair rows red
+ *              turns the charge and pair rows red; a reader without the
+ *              charge-like decline, or an angle writer without its charge
+ *              rule, turns the word rows red
  */
 import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,7 +46,7 @@ import { fileURLToPath } from "node:url";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../../src/contracts/contractsV3";
 import { certifyVseprSourceDocument } from "../../src/chemistry/sourceEvidence";
 import { readChargeMarkers } from "../../src/chemistry/chargeMarker";
-import { buildVseprFigure, characteristicAngle, VSEPR_PROBES, vseprSpecies } from "../../src/chemistry/vsepr";
+import { buildVseprFigure, characteristicAngle, VSEPR_PROBES, vseprSpecies, writesCharacteristicAngle } from "../../src/chemistry/vsepr";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
@@ -78,7 +90,9 @@ function sweepRed(build: Build): string[] {
     const figure = build(probe.question, [], false);
     // A probe that expects a drawing and draws nothing is a failure.
     if (!figure) return true;
-    const expected = vseprSpecies(probe.question).map(characteristicAngle).filter((angle): angle is string => angle !== null);
+    const expected = writesCharacteristicAngle(probe.question)
+      ? vseprSpecies(probe.question).map(characteristicAngle).filter((angle): angle is string => angle !== null)
+      : [];
     return JSON.stringify(degrees(figure.document).map(valueOf).sort()) !== JSON.stringify([...expected].sort());
   }).map((probe) => `sweep/${probe.question}`);
 }
@@ -94,7 +108,7 @@ await check("table", () => assert.deepEqual(tableRed(buildVseprFigure), []));
 await check("sweep", () => assert.deepEqual(sweepRed(buildVseprFigure), []));
 await check("sweep-has-angles", () => {
   const drawn = VSEPR_PROBES.filter((probe) => probe.expect === "draw" && !/\bangles?\b|°|\bdegrees?\b/i.test(probe.question))
-    .filter((probe) => vseprSpecies(probe.question).some((result) => characteristicAngle(result) !== null));
+    .filter((probe) => writesCharacteristicAngle(probe.question) && vseprSpecies(probe.question).some((result) => characteristicAngle(result) !== null));
   assert.ok(drawn.length >= 5, `shape-only probes with a characteristic angle: ${drawn.length}`);
 });
 
@@ -126,11 +140,18 @@ await check("authority/plan-angle-checked", () => {
 
 /** A charge written apart from the formula, or as a word, that no read species carries. */
 const SPACED_CHARGE = ["shape of NO2 -", "shape of SO3 2-", "shape of the SO3 2- ion", "shape of SeO3 2-", "shape of SO3 -2", "shape of SO3 2\u2212", "What is the shape of the SO3 ion?"];
-/** Attached charges the reader carries, with the true angle (null: the shape has none in the table). */
+/**
+ * Attached charges the reader carries, with the angle written: none on a
+ * shape stem, since a charge-like token withholds the angle the stem did not
+ * ask (NO2- would have 115°, NH4+ 109.5°); main's angle where the stem asks.
+ */
 const ATTACHED_CHARGE: ReadonlyArray<readonly [string, string | null]> = [
-  ["shape of NO2-", "115°"], ["shape of NH4\u207a", "109.5°"], ["shape of ClO4-", "109.5°"], ["shape of NO2+", "180°"],
-  ["shape of SO3^2-", null], ["shape of SO\u2083\u00b2\u207b", null], ["The shape of I3- ion is:", null],
+  ["shape of NO2-", null], ["shape of NO2^-", null], ["shape of NH4+", null], ["shape of NH4\u207a", null], ["shape of ClO4-", null],
+  ["shape of NO2+", null], ["shape of SO3^2-", null], ["shape of SO\u2083\u00b2\u207b", null], ["The shape of I3- ion is:", null],
+  ["shape of NH4+ ion", null], ["shape of NO2- ion", null], ["shape of SO4^2-", null],
+  ["bond angle in NH4+ ion", "109.5°"], ["bond angle in NO2- ion", "115°"],
 ];
+/** A hyphen the marker reader passes is still a charge-like token, so these decline: a false decline, never a false angle. */
 const HYPHEN_CONTROLS: ReadonlyArray<readonly [string, string]> = [
   ["shape of C-H bond in CH4", "C-H bond"], ["shape of sp3-hybridised CH4", "sp3-hybridised"], ["shape of CH4 at pH 3-4", "pH 3-4"],
 ];
@@ -142,9 +163,34 @@ function chargeRed(build: Build): string[] {
     const figure = build(question, [], false);
     if (!figure || JSON.stringify(degrees(figure.document)) !== JSON.stringify(angle ? [angle] : [])) red.push(`charge/attached/${question}`);
   }
-  for (const [question] of HYPHEN_CONTROLS) {
+  return red;
+}
+
+/**
+ * Every stem of the #287 reviews (pr-287.md, pr-287-delta.md) whose charge
+ * the reader does not carry: each declines. On e98f85910 these drew the
+ * neutral species, and every shape stem among them a false angle.
+ */
+const WORD_CHARGE = [
+  "shape of SO3 two minus", "shape of SO3 2 minus", "shape of SO3 minus 2", "shape of SO3 minus two",
+  "shape of SO3 with a 2- charge", "shape of SO3 carrying a charge of -2", "shape of SeO3 two minus",
+  "shape of NO2 minus", "shape of NO2 negative", "shape of NO2 with a negative charge", "shape of NO2 with charge -1",
+  "shape of NO2 with a charge of minus one", "shape of NO2 negatively charged", "shape of NO2, which is negatively charged",
+  "shape of NO2 one minus", "shape of NO2 plus", "shape of NO2 positive", "shape of H2O plus",
+  "shape of NO2 (oxidation state of N is +3)", "bond angle in NO2 minus",
+  "shape of Xe(II) fluoride", "shape of S(IV) oxide", "shape of sulfur(IV) oxide", "shape of SF4 - see-saw?",
+  "shape of NO2 \u2212", "shape of NO2 radical", "ionic radius and shape of NH3",
+  ...HYPHEN_CONTROLS.map(([question]) => question),
+];
+/** Mixed rows: a charged species is read, so the shapes stay, with no angle the stem did not ask. */
+const MIXED_CHARGE: ReadonlyArray<readonly [string, number]> = [["shape of NO2 and NO2-", 2], ["shapes of NH3 and NH4+ ions", 2]];
+
+function wordRed(build: Build): string[] {
+  const red: string[] = [];
+  for (const question of WORD_CHARGE) if (build(question, [], false)) red.push(`word/declines/${question}`);
+  for (const [question, count] of MIXED_CHARGE) {
     const figure = build(question, [], false);
-    if (!figure || JSON.stringify(degrees(figure.document)) !== JSON.stringify(["109.5°"])) red.push(`charge/hyphen/${question}`);
+    if (!figure || vseprSpecies(question).length !== count || degrees(figure.document).length > 0) red.push(`word/mixed/${question}`);
   }
   return red;
 }
@@ -197,6 +243,13 @@ await check("charge", () => {
     assert.notEqual(synthesizeFamilyScene({ question, turnPlan: plan(question) })?.family, "chem_vsepr", `${question}: no VSEPR family scene`);
   }
 });
+await check("word", () => {
+  assert.deepEqual(wordRed(buildVseprFigure), []);
+  for (const question of WORD_CHARGE) {
+    assert.deepEqual(vseprSpecies(question), [], `${question}: the reader declines the species`);
+    assert.notEqual(synthesizeFamilyScene({ question, turnPlan: plan(question) })?.family, "chem_vsepr", `${question}: no VSEPR family scene`);
+  }
+});
 await check("charge/hyphen-markers", () => {
   for (const [, phrase] of [...HYPHEN_CONTROLS, ["", "2-methylpropane"] as const]) assert.deepEqual(readChargeMarkers(phrase), [], `${phrase} is not a charge`);
 });
@@ -221,9 +274,35 @@ async function mutant(name: string, from: string, to: string): Promise<Build> {
   try { return ((await import(path)) as { buildVseprFigure: Build }).buildVseprFigure; }
   finally { rmSync(path, { force: true }); }
 }
+const MARKER_LINE = "  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];\n";
+const WORD_LINE = "  if (stemHasChargeLikeToken(question) && !species.some((result) => result.charge !== 0)) return [];\n";
+const ANGLE_RULE = "  return !stemHasChargeLikeToken(question) || ANGLE_ASKED.test(chemStem(question));\n";
 await check("mutation/charge-ignored", async () => {
-  const build = await mutant("charge", "  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];\n", "");
+  // A reader that ignores every charge: both declines gone, angles always written.
+  const build = await mutant("charge", MARKER_LINE + WORD_LINE, "");
   assert.deepEqual(chargeRed(build), SPACED_CHARGE.map((question) => `charge/declines/${question}`), "every spaced charge row goes red, the controls stay green");
+  const word = wordRed(build);
+  const drawn = WORD_CHARGE.filter((question) => vseprSpecies(question).length === 0 && build(question, [], false));
+  assert.ok(drawn.length >= 20, `word rows drawn without the reader: ${drawn.length}`);
+  assert.deepEqual(word.filter((row) => row.startsWith("word/declines/")), drawn.map((question) => `word/declines/${question}`));
+});
+await check("mutation/no-charge-like-decline", async () => {
+  // Every #287 review row the old reader drew goes red without the rule.
+  const build = await mutant("word", WORD_LINE, "");
+  const red = wordRed(build);
+  for (const question of ["shape of NO2 minus", "shape of NO2 plus", "shape of SO3 two minus", "shape of H2O plus", "bond angle in NO2 minus", "shape of NO2 with charge -1", "shape of Xe(II) fluoride"]) {
+    assert.ok(red.includes(`word/declines/${question}`), `${question} goes red: ${red.join("; ")}`);
+  }
+  assert.ok(red.length >= 20, `word rows red: ${red.length}`);
+});
+await check("mutation/angle-without-charge-rule", async () => {
+  // An angle writer that ignores the charge-like token writes the unasked
+  // angle on attached charges (NO2- 115°, NH4+ 109.5°) and mixed rows.
+  const build = await mutant("angle", ANGLE_RULE, "  return true;\n");
+  const red = [...chargeRed(build), ...wordRed(build)];
+  for (const question of ["shape of NO2-", "shape of NH4+ ion", "shape of NO2+", "shape of ClO4-"]) assert.ok(red.includes(`charge/attached/${question}`), `${question} goes red: ${red.join("; ")}`);
+  for (const [question] of MIXED_CHARGE) assert.ok(red.includes(`word/mixed/${question}`), `${question} goes red`);
+  assert.ok(!red.includes("charge/attached/bond angle in NH4+ ion"), "the asked angle stays green");
 });
 await check("mutation/caption-without-pair-words", async () => {
   const build = await mutant("pair", "  const prefix = anglePairQualifier(result.stericNumber, seated[a]!.slot.seat, seated[b]!.slot.seat);\n", "  const prefix = \"\";\n");
@@ -231,7 +310,7 @@ await check("mutation/caption-without-pair-words", async () => {
   for (const question of PAIR_STEMS.slice(0, 2)) assert.ok(red.some((row) => row.startsWith(`pair/${question}:`)), `${question} goes red: ${red.join("; ")}`);
 });
 await check("mutation/no-angle", async () => {
-  const from = "  const characteristic = characteristicAngle(result);\n";
+  const from = "  const characteristic = withAngle ? characteristicAngle(result) : null;\n";
   assert.ok(original.includes(from), "mutation anchor is missing");
   const text = original.replace(from, "  const characteristic: string | null = null;\n");
   assert.notEqual(text, original);

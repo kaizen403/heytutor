@@ -16,7 +16,8 @@
  *              captions)
  *   written    each species with a characteristic angle shows that value
  *              exactly once, on its arc or as a caption naming the atoms
- *              (NH3 "H-N-H = 107°", SF4 "eq. F-S-F <120°"); every figure
+ *              (NH3 "H-N-H = 107°", SF4 "eq. F-S-F <120°"), unless a
+ *              charge-like token withholds an unasked angle; every figure
  *              compiles, four species included
  *   scale      fitPxPerUnit (what the builder places the value with) matches
  *              the compiled fit within 3%
@@ -27,7 +28,7 @@ import assert from "node:assert/strict";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { measureTextInkBounds } from "@heytutor/drawing";
-import { buildVseprFigure, characteristicAngle, fitPxPerUnit, VSEPR_PROBES, vseprSpecies } from "../../src/chemistry/vsepr";
+import { buildVseprFigure, characteristicAngle, fitPxPerUnit, VSEPR_PROBES, vseprSpecies, writesCharacteristicAngle } from "../../src/chemistry/vsepr";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { RenderPrimitive, RenderScene, SceneDocument } from "../../src/types";
@@ -176,7 +177,8 @@ function sweep(build: Build): Sweep {
     for (const problem of arcProblems(scene)) red.push(`${question}: ${problem}`);
     const texts = figure.document.entities.filter((entity) => entity.label && /°/.test(entity.label));
     vseprSpecies(question).forEach((result, index) => {
-      const want = characteristicAngle(result);
+      // A charge-like token withholds the angle the stem did not ask (T9).
+      const want = writesCharacteristicAngle(question) ? characteristicAngle(result) : null;
       const mine = texts.filter((entity) => entity.id.startsWith(`m${index + 1}_`));
       const shown = mine.map((entity) => VALUE.exec(entity.label!)?.[1] ?? entity.label!);
       arcs += mine.filter((entity) => entity.id.endsWith("_ang_val")).length;
