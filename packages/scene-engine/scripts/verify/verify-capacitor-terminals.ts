@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument, validateTurnPlanSceneProofs } from "../../src/index";
 import { buildTopologyGraph } from "../../src/topology/topology";
-import { capacitorCircuit, capacitorPlan, freeCapacitorPlates } from "./fixtures/capacitor-circuit";
+import { capacitorCircuit, capacitorDrawnTwice, capacitorPlan, capacitorRectanglePlates, freeCapacitorPlates } from "./fixtures/capacitor-circuit";
 
 let checks = 0;
 let fixedProfile: number[] | undefined;
@@ -69,5 +69,40 @@ const resistorOnlyPlan = { ...capacitorPlan, question: "Sketch the stated batter
 const noCapacitorInstruction = validateTurnPlanSceneProofs(unnamedPlates, resistorOnlyPlan).find(({ code }) => code === "source_loop_not_closed")!.message;
 assert.match(noCapacitorInstruction, /If the required component is a capacitor/, "a negative source mention must not turn repair advice into a directive to add a capacitor");
 assert.match(noCapacitorInstruction, /never bypass a component/);
+checks += 2;
+// A capacitor symbol already draws both plates. Free segments wired to its
+// terminals draw the capacitor a second time, and open switch wording does not
+// waive that.
+for (const kind of ["K", "N", "recorded"] as const) {
+  for (const plan of [capacitorPlan, { ...capacitorPlan, assumptions: ["The switch is open."] }]) {
+    const document = capacitorDrawnTwice(kind);
+    assert.ok(validateSceneDocument(pruneDeadSceneEntities({ ...structuredClone(document) })).document, `${kind}: the double draw is otherwise a well formed document`);
+    const issue = validateTurnPlanSceneProofs(document, plan).find(({ code }) => code === "capacitor_depicted_twice");
+    assert.ok(issue, `${kind}: a capacitor drawn as a symbol and as free plates is refused`);
+    assert.equal(issue.severity, "fatal");
+    assert.equal(issue.failureKind, "truth", "a double drawn capacitor is a false figure, not a missing proof");
+    assert.match(issue.message, /delete the free plate segments/);
+    checks += 5;
+  }
+}
+assert.equal(validateTurnPlanSceneProofs(capacitorCircuit(), capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "the native symbol alone is one capacitor");
+// A recorded repair drew the plates as rectangles centred on the symbol's own terminals.
+const rectanglePlates = validateTurnPlanSceneProofs(capacitorRectanglePlates(), capacitorPlan).find(({ code }) => code === "capacitor_depicted_twice");
+assert.ok(rectanglePlates && rectanglePlates.failureKind === "truth", "plate rectangles centred on the symbol terminals draw the capacitor twice");
+const gap = capacitorRectanglePlates(true);
+gap.constructions = gap.constructions.filter(({ id }) => !id.startsWith("make_plate"));
+gap.entities = gap.entities.filter(({ id }) => !id.startsWith("plate"));
+assert.equal(validateTurnPlanSceneProofs(gap, capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "a plate separation dimension between the terminals is not a second capacitor");
+assert.ok(validateSceneDocument(pruneDeadSceneEntities(structuredClone(capacitorRectanglePlates()))).document, "the rectangle fixture is a well formed document, so the refusal is the double draw check");
+// Terminal marks that are not plates stay admitted.
+const marked = capacitorCircuit();
+marked.entities.push({ id: "dot", kind: "circle", role: "terminal marker" }, { id: "I", kind: "vector", role: "reference current" });
+marked.constructions.push(
+  { id: "make_dot", operator: "circle", inputs: { center: "C", radius: 0.1 }, outputs: ["dot"] },
+  { id: "make_I", operator: "vector", inputs: { start: "A", end: "C" }, outputs: ["I"] },
+);
+assert.equal(validateTurnPlanSceneProofs(marked, capacitorPlan).some(({ code }) => code === "capacitor_depicted_twice"), false, "a terminal circle and a reference current vector are not a second capacitor");
+checks += 4;
+assert.match(validateTurnPlanSceneProofs(freeCapacitorPlates(), capacitorPlan).find(({ code }) => code === "source_loop_not_closed")!.message, /delete the free plate segments/, "the closure repair tells the planner to delete free plates");
 checks += 2;
 console.log(`Capacitor terminals: ${checks} checks passed`);

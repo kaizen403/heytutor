@@ -77,6 +77,9 @@ export function useSegmentRunner({
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
   const startupStatusOwnerRef = useRef<symbol | null>(null);
+  // Set while a provider clip waits on a browser autoplay gesture. Its clock
+  // stays paused so neither startup nor playback budgets can expire the beat.
+  const permissionWaitOwnerRef = useRef<symbol | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
@@ -90,12 +93,13 @@ export function useSegmentRunner({
     // Resume will repeat the browser sentence, not continue its old media cursor.
     // Invalidate the pen synchronously before the board's paused flag is lifted.
     if (introDrawOwnerRef.current?.owner === browserFallbackOwnerRef.current) introDrawOwnerRef.current?.freeze();
-    speechClockRef.current?.resume();
+    if (!permissionWaitOwnerRef.current) speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     if (browserFallbackOwnerRef.current) browserSpeechRef.current?.resume();
   };
   const stopFallbackSpeech = () => {
     // A cancelled turn must not leave its startup poll suspended forever.
+    permissionWaitOwnerRef.current = null;
     speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     fallbackPauseGenerationRef.current++;
@@ -699,6 +703,10 @@ export function useSegmentRunner({
         const clearStartupStatus = () => {
           if (startupStatusOwnerRef.current !== startupOwner) return;
           startupStatusOwnerRef.current = null;
+          if (permissionWaitOwnerRef.current === startupOwner) {
+            permissionWaitOwnerRef.current = null;
+            if (!isPausedRef.current) clock.resume();
+          }
           onSpeechStartupStatus?.(null);
         };
         const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
@@ -725,6 +733,14 @@ export function useSegmentRunner({
                 reason: blocked.reason,
                 audio_context_state: blocked.audioContextState,
               });
+              // Permission is a user action, not provider latency. Retain the
+              // current clip and beat and suspend both startup and playback
+              // budgets instead of replacing it with another gesture blocked
+              // transport. The recovery overlay owns the way out.
+              if (onSpeechStartupStatus) {
+                permissionWaitOwnerRef.current = startupOwner;
+                clock.pause();
+              }
               startupStatusOwnerRef.current = startupOwner;
               onSpeechStartupStatus?.({
                 turnGeneration,
@@ -738,6 +754,8 @@ export function useSegmentRunner({
                     turn_generation: turnGeneration,
                     audio_context_state: tts.getAudioContextState?.() ?? null,
                   });
+                  permissionWaitOwnerRef.current = null;
+                  clock.resume();
                   tts.unlockAudio?.();
                   tts.resume();
                 },
@@ -748,6 +766,10 @@ export function useSegmentRunner({
               onAudioReady();
             },
             onStart: () => {
+              if (canAcceptPrimary() && permissionWaitOwnerRef.current === startupOwner && !isPausedRef.current) {
+                permissionWaitOwnerRef.current = null;
+                clock.resume();
+              }
               const accepted = canAcceptPrimary() && !isPausedRef.current && onStart();
               if (!isStale()) tel?.mark("tts-startup-accepted", {
                 segment_index: index,

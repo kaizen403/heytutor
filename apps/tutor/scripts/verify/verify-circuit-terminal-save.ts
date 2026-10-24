@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { pruneDeadSceneEntities, SCENE_ENGINE_VERSION, validateCircuitTerminalClosure, validateTurnPlanSceneProofs, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
-import { capacitorCircuit, capacitorPlan, capacitorQuestion, freeCapacitorPlates } from "../../../../packages/scene-engine/scripts/verify/fixtures/capacitor-circuit";
+import { capacitorCircuit, capacitorDrawnTwice, capacitorPlan, capacitorQuestion, capacitorRectanglePlates, freeCapacitorPlates } from "../../../../packages/scene-engine/scripts/verify/fixtures/capacitor-circuit";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { liveSceneSaveFailure, sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
 
@@ -60,6 +60,25 @@ async function main() {
     const input = { document: candidate("missing_return"), question: capacitorQuestion, turnPlan: capacitorPlan, tier };
     assert.match(sceneSaveAdmissionFailure(input) ?? "", /source_loop_not_closed/);
     assert.match(liveSceneSaveFailure(input) ?? "", /source_loop_not_closed/); checks += 2;
+  }
+  for (const kind of ["K", "N", "recorded"] as const) {
+    const result = await save(capacitorDrawnTwice(kind));
+    assert.equal(result.ok, false, `${kind}: a forged ready save cannot keep a capacitor drawn twice`); checks++;
+    if (!result.ok) {
+      assert.equal(result.code, "scene_admission_failed", kind);
+      assert.match(result.error, /capacitor_depicted_twice/, `${kind}: the save is refused by the double draw check itself`); checks += 2;
+    }
+    for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+      const input = { document: capacitorDrawnTwice(kind), question: capacitorQuestion, turnPlan: capacitorPlan, tier };
+      assert.match(sceneSaveAdmissionFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: saved admission refuses the double draw`);
+      assert.match(liveSceneSaveFailure(input) ?? "", /capacitor_depicted_twice/, `${kind} ${tier}: live save refuses the double draw`); checks += 2;
+    }
+  }
+  const rectangleSave = await save(capacitorRectanglePlates());
+  assert.equal(rectangleSave.ok, false, "a forged ready save cannot keep rectangle plates beside the capacitor symbol"); checks++;
+  if (!rectangleSave.ok) { assert.match(rectangleSave.error, /capacitor_depicted_twice/, "the rectangle save is refused by the double draw check itself"); checks++; }
+  for (const tier of ["exact_verified", "qualitative_verified", "question_representation"] as const) {
+    assert.match(liveSceneSaveFailure({ document: capacitorRectanglePlates(), question: capacitorQuestion, turnPlan: capacitorPlan, tier }) ?? "", /capacitor_depicted_twice/); checks++;
   }
   const withoutPlan = await save(candidate("missing_return"), capacitorQuestion, null);
   assert.equal(withoutPlan.ok, false, "a qualitative payload without a plan still needs declared source terminals to close"); checks++;

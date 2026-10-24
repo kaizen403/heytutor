@@ -2,6 +2,7 @@ import { validateLabelOwnerTruth } from "./labelOwnerTruth";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
+import { validateQualitativeLabelTruth } from "./qualitativeLabelTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -421,6 +422,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   issues.push(...validateVelocityTriangleTruth(document, geometry));
+  issues.push(...validateQualitativeLabelTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   issues.push(...validateLaunchVelocityTruth(document, geometry));
   if (verifiedPartsEnabled) {
