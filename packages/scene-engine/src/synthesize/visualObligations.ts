@@ -557,6 +557,8 @@ function lookupSceneIds(
  * satisfy a connection on an uncompiled document. Transitive connectivity
  * counts: a series path through other components still joins its ends.
  */
+const NON_MATERIAL_KINDS: ReadonlySet<string> = new Set(["vector", "angle_mark", "right_angle_mark", "dimension", "label"]);
+
 function sceneIdsConnected(document: SceneDocument, sceneIds: readonly string[]): boolean {
   if (sceneIds.length < 2) return true;
   const known = new Set(document.entities.map((entity) => entity.id));
@@ -577,10 +579,17 @@ function sceneIdsConnected(document: SceneDocument, sceneIds: readonly string[])
       }
     }
   };
+  const kindOf = new Map(document.entities.map((entity) => [entity.id, entity.kind]));
   for (const construction of document.constructions) {
+    // A force or velocity arrow, an angle mark, a dimension or a label sits
+    // on bodies without joining them: a tension arrow drawn from a block to
+    // the axle is not the string. Only material ink can connect two bodies,
+    // so a pulley with a cut string stays disconnected.
+    const outputs = construction.outputs.filter((output) => known.has(output));
+    if (outputs.length > 0 && outputs.every((output) => NON_MATERIAL_KINDS.has(kindOf.get(output) ?? ""))) continue;
     const touched = [
       ...collectEntityReferences(construction.inputs, known),
-      ...construction.outputs.filter((output) => known.has(output)),
+      ...outputs,
     ];
     clique(touched);
   }
@@ -636,6 +645,12 @@ function normalizeObligationLabel(value: string): string {
  */
 function sameObligationLabel(sceneLabel: string, problemLabel: string): boolean {
   if (normalizeObligationLabel(sceneLabel) === normalizeObligationLabel(problemLabel)) return true;
+  // A component symbol written with its stated value ("R1=4 ohm") names the
+  // same body as the bare symbol "R1". Only the name is compared here; the
+  // value is audited against the source by save admission. A different name
+  // ("R2=4 ohm" for R1) or prose before the "=" never matches.
+  const valued = /^([A-Za-z][A-Za-z0-9]{0,3})\s*=\s*\S/.exec(normalizeObligationLabel(sceneLabel));
+  if (valued && /^[A-Za-z][A-Za-z0-9]{0,3}$/.test(problemLabel.trim()) && valued[1] === problemLabel.trim()) return true;
   const sceneAqueous = aqueousFormulaIdentity(sceneLabel);
   const problemAqueous = aqueousFormulaIdentity(problemLabel);
   if (sceneAqueous !== null && problemAqueous !== null) return sceneAqueous === problemAqueous;
