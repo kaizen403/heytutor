@@ -567,6 +567,31 @@ function shapeRoleTarget(roles: readonly ShapeRole[], shapes: readonly Span[], s
 
 const CONTRAST_LEAD = /\b(?:rather\s+than|instead\s+of|unlike)\s+(?:(?:being|having|an?|the|its|ideal|perfect(?:ly)?|regular|purely|fully)\s+)*$/;
 const CONTRAST_LIST_JOIN = /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/;
+const BARE_COMMA_JOIN = /^\s*,\s*(?:an?\s+)?$/;
+const OR_NOR_JOIN = /^(?:\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/;
+/** A shape word that takes a predicate is a clause subject, not a list member. */
+const PREDICATE_AFTER_SHAPE = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?|structures?|forms?|ones?)\s+)?(?:is|are|was|were|be|being|describes?|adopts?|takes?|has|have|had|remains?|becomes?|applies|apply|fits?|suits?|matches|match|holds?|gives?|results?|exists?|seems?|appears?|best|correctly)\b/;
+
+/**
+ * A bare comma before shape `at` joins a contrasted list ("rather than
+ * linear, trigonal planar or tetrahedral") only when the list ends in an
+ * or/nor member and no member takes a predicate. "Rather than tetrahedral,
+ * linear is the shape" starts the main clause at "linear", which keeps its
+ * positive reading and is checked.
+ */
+function bareCommaJoinsList(clause: string, shapes: readonly Span[], at: number): boolean {
+  const joinBefore = (index: number) => clause.slice(shapes[index - 1]!.end, shapes[index]!.start);
+  let last = at;
+  while (last + 1 < shapes.length && CONTRAST_LIST_JOIN.test(joinBefore(last + 1))) {
+    last += 1;
+    if (OR_NOR_JOIN.test(joinBefore(last))) break;
+  }
+  if (last === at || !OR_NOR_JOIN.test(joinBefore(last))) return false;
+  for (let index = at; index <= last; index += 1) {
+    if (PREDICATE_AFTER_SHAPE.test(clause.slice(shapes[index]!.end))) return false;
+  }
+  return true;
+}
 /**
  * "<shape> is not ..." denies the shape only when the words after the
  * negation name the shape property or its correctness ("tetrahedral is not
@@ -588,7 +613,11 @@ function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: re
   // "rather than linear or tetrahedral": the contrast governs the whole list,
   // read from the text itself so a skipped list member cannot break it.
   let first = index;
-  while (first > 0 && CONTRAST_LIST_JOIN.test(clause.slice(shapes[first - 1]!.end, shapes[first]!.start))) first--;
+  while (first > 0) {
+    const join = clause.slice(shapes[first - 1]!.end, shapes[first]!.start);
+    if (!CONTRAST_LIST_JOIN.test(join) || (BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, first))) break;
+    first--;
+  }
   const lead = CONTRAST_LEAD.exec(clause.slice(0, shapes[first]!.start));
   if (!lead) return false;
   const partner = /^unlike\b/.test(lead[0])
@@ -657,8 +686,13 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
       const explicitNegative = /\b(?:not|no|neither)\s+(?:(?:have|has)\s+)?(?:an?\s+)?$/.test(clause.slice(0, shape.start));
       // One negative can govern a comma/or/nor list. A new predicate or
       // property clause ends that list; it must keep its own truth value.
+      // A bare comma joins the list only when it ends in or/nor: "rather than
+      // tetrahedral, linear is the shape" and "not tetrahedral, linear is its
+      // shape" deny tetrahedral only, and linear is checked.
+      const join = previousShape ? clause.slice(previousShape.end, shape.start) : "";
       const joinedNegative = previousShape?.negated === true
-        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
+        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(join)
+        && !(BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, index));
       const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index, ownersOf);
       claims.push({ shape: shape.shape, target, negated, owners });
       previousShape = { end: shape.end, negated };

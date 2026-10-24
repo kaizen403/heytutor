@@ -17,7 +17,11 @@
  *              after "not" name the shape property: "the tetrahedral shape
  *              is not flat" admits, "the square planar shape is not
  *              distorted" for CH4 refuses
+ *   comma      a bare comma joins a contrasted list only when the list ends in
+ *              or/nor and no member takes a predicate: "rather than
+ *              tetrahedral, linear is the shape of water" checks linear
  *   mutation   the reader without contrast negation turns the positives red;
+ *              a bare comma that always joins admits every false comma row;
  *              a role-blind contrast turns every property row red, including
  *              admitting the false electron geometry
  */
@@ -98,7 +102,23 @@ const DENIED: Row[] = [
   { id: "denied/false-linear-isnt-surprising", question: WATER, claim: "The linear shape of water isn't surprising.", expected: true, admit: false },
   { id: "denied/false-bent-not-the-shape", question: WATER, claim: "Bent is not the shape of water.", expected: true, admit: false },
 ];
-const ALL = [...POSITIVES, ...PROPERTY, ...CONTROLS, ...OWNERS, ...DENIED];
+/**
+ * A bare comma joins a contrasted list only when the list ends in an or/nor
+ * member and no member takes a predicate; the shape that starts the main
+ * clause keeps its positive reading and is checked.
+ */
+const COMMA: Row[] = [
+  { id: "comma/false-rather-than-linear-is-shape", question: "why is H2O bent", claim: "Rather than tetrahedral, linear is the molecular shape of water.", expected: true, admit: false },
+  { id: "comma/false-rather-than-linear-is-the-shape", question: "why is H2O bent", claim: "Rather than tetrahedral, linear is the shape of water.", expected: true, admit: false },
+  { id: "comma/false-instead-of-linear", question: "why is H2O bent", claim: "Instead of tetrahedral, linear is the molecular shape of water.", expected: true, admit: false },
+  { id: "comma/false-unlike-linear-describes", question: "why is H2O bent", claim: "Unlike tetrahedral, linear describes water.", expected: true, admit: false },
+  { id: "comma/false-nh3-planar", question: "why is NH3 pyramidal", claim: "Rather than tetrahedral, trigonal planar is the shape of NH3.", expected: true, admit: false },
+  { id: "comma/or-ended-list", question: WATER, claim: "Rather than linear, trigonal planar or tetrahedral, the shape of water is bent.", expected: true, admit: true },
+  { id: "comma/false-not-then-comma", question: WATER, claim: "Water is not tetrahedral, linear is its shape.", expected: true, admit: false },
+  { id: "comma/not-or-list", question: WATER, claim: "Water is not linear, trigonal planar or tetrahedral.", expected: true, admit: true },
+  { id: "comma/nor-ended-list", question: WATER, claim: "Water is neither linear, trigonal planar nor tetrahedral, but bent.", expected: true, admit: true },
+];
+const ALL = [...POSITIVES, ...PROPERTY, ...CONTROLS, ...OWNERS, ...DENIED, ...COMMA];
 
 function plan(row: Row): TurnPlanV3 {
   return {
@@ -140,7 +160,7 @@ await check("mutation/no-contrast-negation", async () => {
   const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index, ownersOf)", "");
   const went = red(conflict, ALL);
   // Rows read through a denial of the shape itself depend on the reader too.
-  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape"]);
+  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape", "comma/or-ended-list"]);
   assert.ok(went.every(id => id.startsWith("positive/") || denials.has(id)), `only positives and denials go red: ${went.join(", ")}`);
   for (const id of denials) assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
   // Forms no other reader covers (a "than" reference skip cannot reach them).
@@ -154,6 +174,15 @@ await check("mutation/role-blind-contrast", async () => {
   // Role-blind negation also admits a false electron geometry: the property check is live both ways.
   assert.ok(went.every(id => id.startsWith("property/")), `only property rows go red: ${went.join(", ")}`);
   assert.ok(went.includes("property/unlike-electron-geometry") && went.includes("property/false-electron-geometry"), went.join(", "));
+});
+
+await check("mutation/bare-comma-always-joins", async () => {
+  const conflict = await mutant("bare-comma", "function bareCommaJoinsList(clause: string, shapes: readonly Span[], at: number): boolean {\n", "function bareCommaJoinsList(clause: string, shapes: readonly Span[], at: number): boolean {\n  if (at >= 0) return true;\n");
+  const went = red(conflict, ALL);
+  // Every false fronted contrast row goes red (admitted) when a bare comma always joins.
+  const falseRows = COMMA.filter(row => !row.admit).map(row => row.id);
+  for (const id of falseRows) assert.ok(went.includes(id), `${id} must depend on the bare comma rule`);
+  assert.ok(went.every(id => falseRows.includes(id)), `only the false comma rows go red: ${went.join(", ")}`);
 });
 
 console.log(`verify-vsepr-contrast-claims: ${passed} passed, ${failures.length} failed`);
