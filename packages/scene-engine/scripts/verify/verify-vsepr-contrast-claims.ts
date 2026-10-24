@@ -47,6 +47,9 @@ const POSITIVES: Row[] = [
 const PROPERTY: Row[] = [
   { id: "property/unlike-electron-geometry", question: WATER, claim: "Unlike the tetrahedral electron geometry, the molecular shape of water is bent.", expected: true, admit: true },
   { id: "property/rather-than-electron-geometry", question: "Explain the shape of H2O", claim: "The molecular shape of H2O is bent rather than the tetrahedral electron geometry.", expected: true, admit: true },
+  // One shape word: the contrast names a different property, so the electron geometry stays asserted.
+  { id: "property/unlike-electron-geometry-alone", question: WATER, claim: "Unlike its tetrahedral electron geometry, water's shape is based only on atom positions.", expected: true, admit: true },
+  { id: "property/false-electron-geometry-alone", question: WATER, claim: "Unlike its linear electron geometry, water's shape is based only on atom positions.", expected: true, admit: false },
   { id: "property/false-electron-geometry", question: WATER, claim: "Unlike the bent electron geometry, the molecular shape of water is bent.", expected: true, admit: false },
 ];
 const CONTROLS: Row[] = [
@@ -71,6 +74,12 @@ const OWNERS: Row[] = [
   { id: "owners/false-co2-bent", question: CO2, claim: "Unlike the bent shape of CO2, H2O is linear.", expected: true, admit: false },
   { id: "owners/false-water-linear", question: WATER, claim: "Unlike the linear shape of water, carbon dioxide is bent.", expected: true, admit: false },
   { id: "owners/same-owner-still-denied", question: CO2, claim: "Unlike a bent shape, CO2 is linear.", expected: true, admit: true },
+  { id: "owners/unlike-intro-subject", question: CO2, claim: "Unlike H2O, CO2 is linear.", expected: true, admit: true },
+  { id: "owners/false-like-intro", question: "What is the shape of H2O", claim: "Like CO2, H2O is linear.", expected: true, admit: false },
+  // A comma list with no introductory comparison is a shared subject.
+  { id: "owners/false-comma-list", question: "What is the shape of H2O", claim: "H2O, NH3, CO2 are linear.", expected: true, admit: false },
+  { id: "owners/false-comma-and-list", question: "What is the shape of H2O", claim: "NH3, H2O and CO2 are linear.", expected: true, admit: false },
+  { id: "owners/false-postposed-comma-list", question: "What is the shape of H2O", claim: "The shapes of CO2, H2O are linear.", expected: true, admit: false },
 ];
 /** "<shape> is not ..." denies the shape only when the words after "not" name the shape property. */
 const DENIED: Row[] = [

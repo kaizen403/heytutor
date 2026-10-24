@@ -488,6 +488,8 @@ function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
 }
 
 const BARE_COMMA = /^\s*,\s*$/;
+/** The head of a clause up to a comparison's own molecule: "Unlike the linear shape of CO2", "Like water". */
+const INTRODUCTORY_PHRASE = /^\s*(?:unlike|like|compared\s+(?:with|to)|in\s+contrast\s+(?:with|to)|rather\s+than|instead\s+of|similar\s+to|as\s+(?:with|in))\b[^,]*$/i;
 const PREDICATE_START = /^\s+(?:(?:molecule|ion|species)\s+)?(?:is|are|was|were|has|have|adopts?|exhibits?)\b/i;
 
 /** A postposed property owner or a local subject owns this fact, not its neighbour. */
@@ -507,7 +509,8 @@ function localMoleculeOwners(
         // A bare comma before a molecule that starts its own predicate ends
         // the phrase ("unlike the linear shape of CO2, H2O is bent").
         const next = mentions[at + 1]!;
-        if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))) break;
+        if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))
+          && INTRODUCTORY_PHRASE.test(clause.slice(0, mentions[at]!.end))) break;
         owners.push(mentions[++at]!.key);
       }
       return owners;
@@ -523,14 +526,12 @@ function localMoleculeOwners(
   if (subject) {
     const owners = [subject.key];
     let at = before.indexOf(subject);
-    // A shared subject ("X and Y have ...", "X, Y and Z are") describes all
-    // of them, never just Y. A bare comma straight before the subject closes
-    // an introductory phrase instead ("unlike CO2, H2O is bent").
-    let joined = false;
+    // A shared subject ("X and Y have ...", "X, Y, Z are") describes all of
+    // them, never just Y. Only a bare comma closing an introductory
+    // comparison at the head of the clause ("unlike CO2, H2O is bent") ends
+    // the subject; any other comma joins the list.
     while (at > 0 && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(before[at - 1]!.end, before[at]!.start))) {
-      const bare = BARE_COMMA.test(clause.slice(before[at - 1]!.end, before[at]!.start));
-      if (bare && !joined) break;
-      joined = true;
+      if (BARE_COMMA.test(clause.slice(before[at - 1]!.end, before[at]!.start)) && INTRODUCTORY_PHRASE.test(clause.slice(0, before[at - 1]!.end))) break;
       owners.push(before[--at]!.key);
     }
     return owners;
@@ -587,7 +588,21 @@ function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: re
     ? [shapes[first - 1], shapes[index + 1]].filter((other): other is Span => other !== undefined)
       .sort((left, right) => Math.abs(left.start - shape.start) - Math.abs(right.start - shape.start))[0]
     : shapes[first - 1] ?? shapes[index + 1];
-  if (!partner) return true;
+  if (!partner) {
+    // One shape word: "unlike its tetrahedral electron geometry, water's
+    // shape is ..." contrasts two properties, so the named property keeps
+    // its value. Without a different property named outside the phrase the
+    // shape itself is denied.
+    const phraseEnd = clause.indexOf(",", shape.end) < 0 ? clause.length : clause.indexOf(",", shape.end);
+    const inPhrase = roles.filter((role) => role.start >= lead.index && role.start < phraseEnd);
+    const named = new Set(inPhrase.map((role) => role.target));
+    if (named.size !== 1) return true;
+    const rest = clause.slice(phraseEnd);
+    const differs = named.has("electron")
+      ? /\b(?:molecular\s+)?shapes?\b|\bgeometry\s+of\s+(?:the\s+)?(?:molecule|ion)\b|\bmolecular\s+geometry\b/.test(rest)
+      : /\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b/.test(rest);
+    return !differs;
+  }
   // A contrast between two molecules ("unlike the linear shape of CO2, H2O is
   // bent") asserts each shape for its own owner; only a contrast that shares
   // an owner, or whose owners are unknown, denies one of them.
