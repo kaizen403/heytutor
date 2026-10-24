@@ -30,6 +30,7 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
@@ -732,7 +733,9 @@ const MAX_SPECIES = 4;
 /**
  * The complete formula set in the source. Up to four resolved species are
  * drawn together; an unsupported member or an overfull set declines rather
- * than silently drawing a recognized subset.
+ * than silently drawing a recognized subset. A charge the source writes that
+ * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral species)
+ * declines too: the neutral shape and its angle are false for the ion asked.
  */
 export function vseprSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
@@ -743,6 +746,7 @@ export function vseprSpecies(question: string): VseprResult[] {
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
+  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
@@ -781,8 +785,10 @@ interface Slot {
   readonly len: number;
   readonly style: BondStyle;
   /** Position family, used to seat mixed ligands the way the exam expects. */
-  readonly seat: "axial" | "equatorial" | "plain";
+  readonly seat: SlotSeat;
 }
+
+export type SlotSeat = "axial" | "equatorial" | "plain";
 
 interface Layout {
   readonly bonds: readonly Slot[];
@@ -1204,14 +1210,39 @@ function arcValueBox(value: string, layout: Layout, pair: readonly [number, numb
   return best ? { value: best.value, box: best.box } : null;
 }
 
-/** The caption form, e.g. "H-N-H = 107°", "eq. F-S-F <120°"; null past the compact limit. */
+/**
+ * The words that name a marked pair of bonds without the drawing: "" where
+ * every pair of that shape shares the angle (CH4, BF3, NH3), "eq. " for two
+ * equatorial bonds of a trigonal bipyramid (SF4: <120° against about 173°
+ * axial), "ax-eq " for an axial and an equatorial one (PCl5: 90° against
+ * 120° and 180°), "cis " for two adjacent bonds of an octahedron (SF6, BrF5,
+ * XeF4: 90° against 180° trans). Null for a pair this does not name.
+ */
+export function anglePairQualifier(stericNumber: number, seatA: SlotSeat, seatB: SlotSeat): string | null {
+  if (stericNumber < 5) return "";
+  if (stericNumber === 5) {
+    if (seatA === "equatorial" && seatB === "equatorial") return "eq. ";
+    if ([seatA, seatB].includes("axial") && [seatA, seatB].includes("equatorial")) return "ax-eq ";
+    return null;
+  }
+  // An octahedron's marked pairs are adjacent: an apex to the base, or two
+  // neighbouring basal or square-planar bonds (layoutFor never marks a trans pair).
+  if (stericNumber === 6) return "cis ";
+  return null;
+}
+
+/**
+ * The caption form, e.g. "H-N-H = 107°", "eq. F-S-F <120°", "cis F-S-F = 90°".
+ * A caption names its pair in words, since no arc shows which bonds it
+ * means; past the compact limit, or for a pair the words cannot name, it
+ * is null and no angle is written (PCl5's "ax-eq Cl-P-Cl 90°" is too long:
+ * a bare "Cl-P-Cl = 90°" reads as THE angle of a shape that has three).
+ */
 function angleCaption(result: VseprResult, layout: Layout, seated: readonly Seated[], value: string): string | null {
   const [a, b] = layout.angle!;
   const atoms = `${seated[a]!.ligand.label}-${result.central.symbol}-${seated[b]!.ligand.label}`;
-  // In a TBP the equatorial pair is not the axial pair (SF4: <120° against
-  // about 173°), so its caption says which pair it means.
-  const equatorial = result.stericNumber === 5 && seated[a]!.slot.seat === "equatorial" && seated[b]!.slot.seat === "equatorial";
-  const prefix = equatorial ? "eq. " : "";
+  const prefix = anglePairQualifier(result.stericNumber, seated[a]!.slot.seat, seated[b]!.slot.seat);
+  if (prefix === null) return null;
   const bound = value.startsWith("<") || value.startsWith(">");
   const forms = [bound ? `${prefix}${atoms} ${value}` : `${prefix}${atoms} = ${value}`, `${prefix}${atoms} ${value}`];
   return forms.find((form) => form.length <= 16) ?? null;
@@ -1219,6 +1250,11 @@ function angleCaption(result: VseprResult, layout: Layout, seated: readonly Seat
 
 function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[], ink: SpeciesInk, value: string, pxPerUnit: number): AngleMark | null {
   const radius = layout.angleRadius ?? 0.36;
+  // An arc shows its pair on the page, so its value is bare; it is still
+  // drawn only on a pair the words could name (never a trans or other pair
+  // whose angle differs from the value).
+  const [first, second] = layout.angle!;
+  if (anglePairQualifier(result.stericNumber, seated[first]!.slot.seat, seated[second]!.slot.seat) === null) return null;
   const pair = honestArc(layout, ink, radius);
   const placed = pair ? arcValueBox(value, layout, pair, radius, ink, pxPerUnit) : null;
   if (pair && placed) return { kind: "arc", a: pair[0], b: pair[1], radius, ...placed };
