@@ -47,7 +47,7 @@ assert.match(find(doc, "invalid_set_partition_intersections"), /intersections\[0
 checks++;
 
 doc = base(); doc.constructions[1].inputs.partition = "cPartition";
-assert.match(find(doc, "invalid_set_select_partition"), /cPartition is the id of construction cPartition, not an entity; name one of its output entity ids, such as circleA/);
+assert.match(find(doc, "invalid_set_select_partition"), /cPartition is the id of construction cPartition, not an entity; name one of its output entity ids of kind "circle" or "label", such as circleA/);
 checks++;
 
 doc = base(); doc.entities[2].kind = "point";
@@ -56,6 +56,34 @@ checks++;
 
 doc = base(); doc.constructions[0].inputs.universeCount = 12;
 assert.match(find(doc, "invalid_set_partition_outputs"), /requires exactly 6 distinct output ids; got 5: 2 circles, then 3 region label anchors in mask order, then 1 outside label anchor because universeCount is supplied/);
+checks++;
+
+// Three sets: a malformed pair entry keeps its pair, and an unreadable entry
+// is shown the whole required list, never only the triple.
+const threeSets = (intersections: unknown[]): Doc => {
+  const next = base();
+  next.constructions[0].inputs.sets = [{ name: "A", count: 9 }, { name: "B", count: 8 }, { name: "C", count: 7 }];
+  next.constructions[0].inputs.intersections = intersections;
+  return next;
+};
+const pairMessage = find(threeSets(["AB", "AC", "BC", "ABC"]), "invalid_set_partition_intersections");
+assert.match(pairMessage, /intersections\[0\] is "AB"; write \{sets:\["A","B"\],count:n\}/, pairMessage);
+assert.doesNotMatch(pairMessage, /\["A","B","C"\]/, "a pair entry is not told to name all three sets");
+checks++;
+const symbolMessage = find(threeSets([{ sets: ["A", "B"], count: 3 }, "A ∩ C", { sets: ["B", "C"], count: 2 }, { sets: ["A", "B", "C"], count: 1 }]), "invalid_set_partition_intersections");
+assert.match(symbolMessage, /intersections\[1\] is "A ∩ C"; write \{sets:\["A","C"\],count:n\}/, symbolMessage);
+checks++;
+const unreadMessage = find(threeSets([5, 4, 3, 2]), "invalid_set_partition_intersections");
+assert.match(unreadMessage, /these 4 entries, one each: \{sets:\["A","B"\],count:n\}, \{sets:\["A","C"\],count:n\}, \{sets:\["B","C"\],count:n\}, \{sets:\["A","B","C"\],count:n\}/, unreadMessage);
+checks++;
+
+// A construction id given where a point is needed: its circle outputs are not
+// offered, since a circle cannot be a placement origin.
+doc = base(); doc.constructions[1].inputs.at = "cPartition";
+const originMessage = fatal(doc).map((issue) => issue.message).find((message) => message.includes("cPartition is the id of construction"));
+assert.ok(originMessage, `origin finding expected; got ${JSON.stringify(fatal(doc).map((issue) => issue.code))}`);
+assert.doesNotMatch(originMessage!, /such as (circleA|anchorA)/, originMessage);
+assert.match(originMessage!, /none of its outputs has kind "point"; name an ordinary point entity, or give inline coordinates \[x, y\]/, originMessage);
 checks++;
 
 // Undeclared anchors are inferred as labels, not segments; the finding says to require and group them.

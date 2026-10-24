@@ -74,6 +74,31 @@ function membership(point: RenderPoint, circles: readonly { center: RenderPoint;
   let mask = 0;
   circles.forEach((circle, index) => { const distance = Math.hypot(point.x - circle.center.x, point.y - circle.center.y); if (!Number.isFinite(distance) || Math.abs(distance - circle.radius) <= circle.radius * 1e-8) fail("precision", "set region witness membership is numerically unresolved"); if (distance < circle.radius) mask |= 1 << index; }); return mask;
 }
+const intersectionEntry = (sets: readonly string[]) => `{sets:[${sets.map((name) => JSON.stringify(name)).join(",")}],count:n}`;
+/** The set names a malformed intersection entry plainly means, such as "AB" or "A∩C"; null when it is not certain. */
+function intendedIntersection(entry: unknown, names: readonly string[]): string[] | null {
+  const tokens = typeof entry === "string" ? entry.split(/[^A-Za-z0-9_]+/).filter(Boolean)
+    : Array.isArray(entry) && entry.every((item) => typeof item === "string") ? entry as string[] : null;
+  if (!tokens) return null;
+  const picked = tokens.every((token) => names.includes(token)) ? tokens
+    : tokens.length === 1 && names.every((name) => name.length === 1) && [...tokens[0]!].every((letter) => names.includes(letter)) ? [...tokens[0]!]
+      : null;
+  if (!picked || picked.length < 2 || new Set(picked).size !== picked.length) return null;
+  return names.filter((name) => picked.includes(name));
+}
+/** How to write one malformed intersection entry: the pair or triple it names, or the whole required list. */
+function intersectionShape(entry: unknown, names: readonly string[]): string {
+  const intended = intendedIntersection(entry, names);
+  const tail = "with n the whole number of elements in all of those sets";
+  if (intended) return `write ${intersectionEntry(intended)} ${tail}`;
+  const required: string[][] = [];
+  for (let mask = 1; mask < 1 << names.length; mask++) {
+    const sets = names.filter((_, bit) => mask & (1 << bit));
+    if (sets.length >= 2) required.push(sets);
+  }
+  required.sort((a, b) => a.length - b.length);
+  return `intersections needs exactly ${required.length === 1 ? "this entry" : `these ${required.length} entries, one each`}: ${required.map(intersectionEntry).join(", ")}, each ${tail}`;
+}
 function partitionCounts(inputs: Record<string, unknown>, context: SetEvaluationContext): Pick<SetPartitionDefinition, "names" | "inclusiveCounts" | "exclusiveCounts" | "universeCount"> {
   const { names, counts } = namesInput(inputs.sets, context); const size = 1 << names.length;
   const inclusiveCounts: Array<number | null> = Array.from({ length: size }, () => null);
@@ -81,7 +106,7 @@ function partitionCounts(inputs: Record<string, unknown>, context: SetEvaluation
   counts.forEach((value, index) => { inclusiveCounts[1 << index] = value; });
   if (!Array.isArray(inputs.intersections) || inputs.intersections.length !== (names.length === 2 ? 1 : 4)) fail("intersections", "every inclusive intersection of two or more sets must be supplied exactly once");
   inputs.intersections.forEach((entry, index) => {
-    if (!record(entry)) fail("intersections", `inclusive intersections require sets and count: intersections[${index}] is ${JSON.stringify(entry)}; write {sets:[${names.map((name) => JSON.stringify(name)).join(",")}],count:n} with n the whole number of elements in all of those sets`); fields(entry, ["sets", "count"], "intersections");
+    if (!record(entry)) fail("intersections", `inclusive intersections require sets and count: intersections[${index}] is ${JSON.stringify(entry)}; ${intersectionShape(entry, names)}`); fields(entry, ["sets", "count"], "intersections");
     if (!Array.isArray(entry.sets) || entry.sets.length < 2 || entry.sets.length > names.length || new Set(entry.sets).size !== entry.sets.length) fail("intersections", "intersection set names must be distinct and explicit");
     let mask = 0; for (const name of entry.sets) { const index = names.indexOf(String(name)); if (typeof name !== "string" || index < 0) fail("intersections", "intersection references an unknown finite set"); mask |= 1 << index; }
     if (inclusiveCounts[mask] !== null) fail("intersections", "inclusive intersection counts cannot be duplicated"); inclusiveCounts[mask] = count(entry.count, "count", context);
@@ -199,8 +224,15 @@ function referenceFinding(value: string, entities: SceneDocument["entities"], pr
   const what = `${key === "outputs" ? "output" : key} ${value}${role ? ` (${role})` : ""}`;
   const construction = document.constructions.find((entry) => entry.id === value);
   if (construction && entities.length === 0) {
-    const example = construction.outputs[0];
-    return `${what} is the id of construction ${value}, not an entity; name one of its output entity ids${example ? `, such as ${example}` : ""}`;
+    // Only suggest an output this reference may name: its declared kind, or the
+    // kind a set partition writes at that position when it is undeclared.
+    const circles = construction.operator === "set_partition" && record(construction.inputs) && Array.isArray(construction.inputs.sets) ? construction.inputs.sets.length : 0;
+    const outputKind = (id: string, index: number) => document.entities.find((entity) => entity.id === id)?.kind
+      ?? (construction.operator === "set_partition" ? (index < circles ? "circle" : "label") : undefined);
+    const example = construction.outputs.find((id, index) => typeof id === "string" && allowedKinds.includes(outputKind(id, index) ?? ""));
+    if (example) return `${what} is the id of construction ${value}, not an entity; name one of its output entity ids of kind ${kindList(allowedKinds)}, such as ${example}`;
+    const alternative = allowedKinds.includes("point") && key === "origin" ? "; name an ordinary point entity, or give inline coordinates [x, y]" : "";
+    return `${what} is the id of construction ${value}, not an entity, and none of its outputs has kind ${kindList(allowedKinds)}${alternative}`;
   }
   if (entities.length === 0) return `${what} is not declared in entities; declare {id:"${value}",kind:${kindList(allowedKinds)}} and list it in requiredEntityIds and one reveal group`;
   if (entities.length > 1) return `${what} is declared ${entities.length} times in entities; declare it once`;
