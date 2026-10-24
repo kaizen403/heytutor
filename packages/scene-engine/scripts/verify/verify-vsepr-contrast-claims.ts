@@ -10,6 +10,13 @@
  *   controls   real wrong claims still refuse: "water is tetrahedral", "linear
  *              rather than bent", "NH3 is trigonal planar, not pyramidal",
  *              wrong hybridisation and lone-pair counts
+ *   owners     a contrast between two molecules ("unlike the linear shape of
+ *              CO2, H2O is bent") keeps each shape positive for its own
+ *              owner, so a wrong shape for the asked molecule there refuses
+ *   denied     "<shape> is not ..." denies the shape only when the words
+ *              after "not" name the shape property: "the tetrahedral shape
+ *              is not flat" admits, "the square planar shape is not
+ *              distorted" for CH4 refuses
  *   mutation   the reader without contrast negation turns the positives red;
  *              a role-blind contrast turns every property row red, including
  *              admitting the false electron geometry
@@ -54,7 +61,27 @@ const CONTROLS: Row[] = [
   { id: "control/tetrahedral-rather-than-list", question: WATER, claim: "Water is tetrahedral rather than bent or linear.", expected: true, admit: false },
   { id: "control/false-claim-expected-false", question: WATER, claim: "Water is bent rather than tetrahedral.", expected: false, admit: false },
 ];
-const ALL = [...POSITIVES, ...PROPERTY, ...CONTROLS];
+const CO2 = "What is the shape of CO2";
+const CH4 = "What is the shape of CH4";
+/** A contrast between two molecules keeps each shape positive for its own owner, both ways round. */
+const OWNERS: Row[] = [
+  { id: "owners/unlike-co2-formula", question: CO2, claim: "Unlike the linear shape of CO2, H2O is bent.", expected: true, admit: true },
+  { id: "owners/unlike-co2-name", question: WATER, claim: "Unlike the linear shape of carbon dioxide, water is bent.", expected: true, admit: true },
+  { id: "owners/rather-than-water", question: CO2, claim: "Rather than the bent shape of H2O, CO2 is linear.", expected: true, admit: true },
+  { id: "owners/false-co2-bent", question: CO2, claim: "Unlike the bent shape of CO2, H2O is linear.", expected: true, admit: false },
+  { id: "owners/false-water-linear", question: WATER, claim: "Unlike the linear shape of water, carbon dioxide is bent.", expected: true, admit: false },
+  { id: "owners/same-owner-still-denied", question: CO2, claim: "Unlike a bent shape, CO2 is linear.", expected: true, admit: true },
+];
+/** "<shape> is not ..." denies the shape only when the words after "not" name the shape property. */
+const DENIED: Row[] = [
+  { id: "denied/tetrahedral-not-flat", question: CH4, claim: "The tetrahedral shape is not flat.", expected: true, admit: true },
+  { id: "denied/tetrahedral-isnt-planar", question: CH4, claim: "The tetrahedral geometry isn't planar.", expected: true, admit: true },
+  { id: "denied/linear-not-correct-shape", question: WATER, claim: "Linear is not the correct shape for water; water is bent.", expected: true, admit: true },
+  { id: "denied/false-square-planar-not-distorted", question: CH4, claim: "The square planar shape is not distorted.", expected: true, admit: false },
+  { id: "denied/false-linear-isnt-surprising", question: WATER, claim: "The linear shape of water isn't surprising.", expected: true, admit: false },
+  { id: "denied/false-bent-not-the-shape", question: WATER, claim: "Bent is not the shape of water.", expected: true, admit: false },
+];
+const ALL = [...POSITIVES, ...PROPERTY, ...CONTROLS, ...OWNERS, ...DENIED];
 
 function plan(row: Row): TurnPlanV3 {
   return {
@@ -93,9 +120,12 @@ async function mutant(name: string, from: string, to: string): Promise<Conflict>
   finally { rmSync(path, { force: true }); }
 }
 await check("mutation/no-contrast-negation", async () => {
-  const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index)", "");
+  const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index, ownersOf)", "");
   const went = red(conflict, ALL);
-  assert.ok(went.every(id => id.startsWith("positive/")), `only positives go red: ${went.join(", ")}`);
+  // Rows read through a denial of the shape itself depend on the reader too.
+  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape"]);
+  assert.ok(went.every(id => id.startsWith("positive/") || denials.has(id)), `only positives and denials go red: ${went.join(", ")}`);
+  for (const id of denials) assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
   // Forms no other reader covers (a "than" reference skip cannot reach them).
   for (const id of ["positive/instead-of", "positive/rather-than-list", "positive/unlike", "positive/denied-subject"]) {
     assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
