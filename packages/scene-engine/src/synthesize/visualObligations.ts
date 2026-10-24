@@ -636,12 +636,31 @@ function normalizeObligationLabel(value: string): string {
  */
 function sameObligationLabel(sceneLabel: string, problemLabel: string): boolean {
   if (normalizeObligationLabel(sceneLabel) === normalizeObligationLabel(problemLabel)) return true;
+  if (headNounLabelHolds(sceneLabel, problemLabel)) return true;
   const sceneAqueous = aqueousFormulaIdentity(sceneLabel);
   const problemAqueous = aqueousFormulaIdentity(problemLabel);
   if (sceneAqueous !== null && problemAqueous !== null) return sceneAqueous === problemAqueous;
   const sceneKey = formulaIdentity(sceneLabel);
   const problemKey = formulaIdentity(problemLabel);
   return sceneKey !== null && sceneKey === problemKey;
+}
+
+/**
+ * A ProblemIR name that is the scene label with leading descriptors, or a
+ * parenthesised description, binds that label: "parabolic trajectory" binds
+ * "trajectory", "projectile (point mass)" binds "projectile", "near bank"
+ * binds "bank". The scene label must be the whole trailing word sequence (the
+ * head noun) of the name, both sides must be plain words (no values, symbols
+ * or single letters), and the caller's kind check still applies. The dropped
+ * words are not read: this cannot tell "circular orbit" from an ellipse
+ * labelled "orbit".
+ */
+function headNounLabelHolds(sceneLabel: string, problemLabel: string): boolean {
+  const scene = sceneLabel.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (scene.length === 0 || !scene.every((word) => /^[a-z]{3,}$/.test(word))) return false;
+  const problem = problemLabel.toLowerCase().replace(/\([^()]*\)/g, " ").trim().split(/\s+/).filter(Boolean);
+  if (problem.length < scene.length || !problem.every((word) => /^[a-z]+$/.test(word))) return false;
+  return problem.slice(-scene.length).join(" ") === scene.join(" ");
 }
 
 /** Closed equivalent spellings of one aqueous species. Formula grouping and
