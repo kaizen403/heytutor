@@ -240,9 +240,20 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  if (options.pointLabelRivals === false) return compileSceneDocumentOnce(document, options, undefined);
+  const rule = { moved: false };
+  const result = compileSceneDocumentOnce(document, options, () => { rule.moved = true; });
+  // The point rival rule moves labels and must never cost a figure. When a
+  // figure it laid out fails any later check, the figure is compiled with
+  // the rule off, exactly as without it, and is not refused for the rule.
+  return !result.ok && rule.moved ? compileSceneDocumentOnce(document, { ...options, pointLabelRivals: false }, undefined) : result;
+}
+
+function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptions, onPointRivalLayout: (() => void) | undefined): CompileResult {
   if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
   const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
+  const pointRivals = options.pointLabelRivals;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const matrixSourceIssues = [
@@ -866,7 +877,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const solve = (marks: RenderPrimitive[]) => placeLabels(
       ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
       [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
-      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk},
+      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk,pointRivals,onPointRivalLayout},
     );
     let placed = solve(primitives);
     if (!placed.ok) {
@@ -929,7 +940,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       tetherPx: primitive.provenance?.pvRole === "state_name" ? pointLabelTether(primitive.text!) : undefined,
     }));
     const placed = placeLabels(owners, [...obstaclesFromPrimitives(primitives.filter((primitive) => !pvLabels.includes(primitive))), workColumnObstacle()],
-      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
+      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout });
     for (const issue of placed.issues) issues.push({ code: issue.code, message: issue.message, severity: "fatal", entityIds: pvLabels.filter((primitive) => primitive.id === issue.entityId).map((primitive) => primitive.entityId) });
     if (placed.ok) for (const placement of placed.placements) {
       const primitive = pvLabels.find((candidate) => candidate.id === placement.labelId)!;
@@ -1028,8 +1039,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
     // rejected labels the document had already accepted.
-    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
-    : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
+    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout }
+    : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout };
   const solveOwners = (owners: LabelOwner[], obstacles: LabelObstacle[] = labelObstacles) => {
     const stackedOwners = pinDsaLabels
       ? null

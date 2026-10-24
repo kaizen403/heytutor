@@ -138,8 +138,10 @@ assert.deepEqual(violations(mutated), ["V1: across a rival line from its point"]
 
 // 4. Escape leaders measure the full ink. A label whose ink overhangs its
 // layout box (a subscript, a handwritten tail) is held to the ink, not the em
-// box: here the ink of V1 and V2 grows 30 px past the box whenever they sit
-// beyond the tether, and the escape spot chosen must still clear every stroke.
+// box: here the ink of V1 and V2 grows a 30 px lead-in stroke to the left of
+// the box whenever they sit beyond the tether (escape leaders are straight, so
+// an ink box grown on every side leaves no escape to test), and the escape
+// spot chosen must still clear every stroke. Unmeasured ink fails this.
 const pointAt = (primitives: RenderPrimitive[], id: string) => primitives.find((primitive) => primitive.kind === "point" && primitive.entityId === id)!.points[0]!;
 const anchors = ["V1", "V2"].map((id) => pointAt(ellipse, id));
 const overhang = 30;
@@ -148,7 +150,7 @@ const overhangingInk = (text: string, x: number, y: number, fontPx: number) => {
   if (!ink || !/^V/.test(text)) return ink;
   const centre = { x: ink.x + ink.width / 2, y: ink.y + ink.height / 2 };
   if (anchors.some((anchor) => Math.hypot(centre.x - anchor.x, centre.y - anchor.y) <= POINT_LABEL_TETHER_PX + 4)) return ink;
-  return { x: ink.x - overhang, y: ink.y, width: ink.width + 2 * overhang, height: ink.height + overhang };
+  return { x: ink.x - overhang, y: ink.y, width: ink.width + overhang, height: ink.height };
 };
 const strokesOf = (primitive: RenderPrimitive): Segment[] => {
   const p = primitive.points;
@@ -206,4 +208,65 @@ const triangleCase = (mark: boolean) => {
 }
 assert.equal(triangleCase(true).placement.usesLeader ?? false, false, "a right-angle square at P is P's own mark, not a rival line");
 
-console.log(`verify-point-label-rival-lines: V1 and V2 leave the directrices by leaders; ${controls} control labels unmoved; mutation caught; escape ink measured; a short triangle side is a rival`);
+// 6. Recorded documents where the first version of this rule moved a
+// neighbour onto another point (the review of #296 replayed 9,977 recorded
+// documents): B beside A's pin, "(8/3,0)" across L1, q+ beside the negative
+// charge, V under the focus, A beside a node. Each figure now either reads
+// right label by label (every point label nearer its own dot than any other
+// dot, or tied to its point by a leader, and never across a rival line) or
+// keeps origin/main's layout exactly. Rule off reproduces origin/main.
+type Recorded = { documents: Record<string, { recorded: string; document: SceneDocument }>; mainLabels: Record<string, Array<[string, string, number, number]>> };
+const recorded = JSON.parse(readFileSync(new URL("./fixtures/point-label-recorded-rivals.json", import.meta.url), "utf8")) as Recorded;
+const labelSummary = (primitives: RenderPrimitive[]) => primitives.filter((primitive) => primitive.kind === "label")
+  .map((primitive): [string, string, number, number] => [primitive.id, primitive.text ?? "", primitive.points[0]!.x, primitive.points[0]!.y]);
+const sameLabels = (a: Array<[string, string, number, number]>, b: Array<[string, string, number, number]>) =>
+  a.length === b.length && a.every(([id, text, x, y], index) => b[index]![0] === id && b[index]![1] === text &&
+    Math.abs(b[index]![2] - x) < 0.01 && Math.abs(b[index]![3] - y) < 0.01);
+/** Point labels nearer another point's dot than their own (within 1 px), with no leader from their own point. */
+function misreadDots(primitives: RenderPrimitive[]): string[] {
+  const dots = primitives.filter((primitive) => primitive.kind === "point");
+  return primitives.filter((primitive) => primitive.kind === "label").flatMap((label) => {
+    const own = dots.filter((dot) => dot.entityId === label.entityId);
+    const box = label.provenance?.labelBounds as Box | undefined;
+    if (own.length === 0 || !box) return [];
+    const leader = primitives.find((primitive) => primitive.id === `${label.id}_leader`);
+    if (label.provenance?.usesLeader === true && leader && own.some((dot) => Math.hypot(leader.points[0]!.x - dot.points[0]!.x, leader.points[0]!.y - dot.points[0]!.y) <= 1)) return [];
+    const ownReach = Math.min(...own.map((dot) => boxToPoint(box, dot.points[0]!)));
+    const rival = dots.filter((dot) => dot.entityId !== label.entityId && Math.hypot(dot.points[0]!.x - own[0]!.points[0]!.x, dot.points[0]!.y - own[0]!.points[0]!.y) > HOST_PX)
+      .find((dot) => boxToPoint(box, dot.points[0]!) < ownReach + 1);
+    return rival ? [`${label.text}: nearer ${rival.entityId}'s dot than its own`] : [];
+  });
+}
+const recordedNames = Object.keys(recorded.documents);
+assert.ok(recordedNames.length >= 8, "every recorded case is present");
+let repairedFigures = 0;
+const verdicts: Record<string, "moved" | "main"> = {};
+for (const name of recordedNames) {
+  const document = recorded.documents[name]!.document;
+  const head = compiled(document, name);
+  const off = compileSceneDocument(structuredClone(document), { pointLabelRivals: false });
+  assert.ok(off.ok && off.renderScene, `${name}: compiles with the rule off`);
+  assert.ok(sameLabels(recorded.mainLabels[name]!, labelSummary(off.renderScene.primitives)), `${name}: the rule off is origin/main's layout`);
+  if (sameLabels(recorded.mainLabels[name]!, labelSummary(head))) { verdicts[name] = "main"; continue; }
+  verdicts[name] = "moved";
+  assert.deepEqual(misreadDots(head), [], `${name}: every point label is nearer its own dot`);
+  assert.deepEqual(violations(head), [], `${name}: no point label sits across a rival line`);
+  repairedFigures += 1;
+}
+// The five recorded regressions are repaired, not merely held at main.
+for (const name of ["glassBlockPins", "lineIntercepts", "dipoleCharges", "parabolaFocus", "standingWaves"]) {
+  assert.equal(verdicts[name], "moved", `${name}: the misread main label is repaired`);
+  assert.ok(misreadDots(compileSceneDocument(structuredClone(recorded.documents[name]!.document), { pointLabelRivals: false }).renderScene!.primitives).length +
+    violations(compileSceneDocument(structuredClone(recorded.documents[name]!.document), { pointLabelRivals: false }).renderScene!.primitives).length > 0,
+  `${name}: origin/main misreads a label here (the control is live)`);
+}
+// The whole figure guard: here the joint solve repairs "position" but moves
+// "final" beside the position dot, which origin/main kept clear. The figure
+// keeps origin/main's layout.
+assert.equal(verdicts.trajectoryPoints, "main", "trajectoryPoints: a layout that misreads a label main read right falls back to main");
+// A figure the rule lays out and a later check then refuses (an escape leader
+// counted as the lens's own ink collapsed it to a line) compiles with the
+// rule off instead: the rule never costs a figure.
+assert.equal(verdicts.lensLeaderFallback, "main", "lensLeaderFallback: compiles, with origin/main's layout");
+
+console.log(`verify-point-label-rival-lines: V1 and V2 leave the directrices by leaders; ${controls} control labels unmoved; mutation caught; escape ink measured; a short triangle side is a rival; ${repairedFigures} recorded figures repaired, the rest keep main's layout`);
