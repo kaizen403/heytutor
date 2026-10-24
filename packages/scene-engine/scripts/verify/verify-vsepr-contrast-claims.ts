@@ -75,6 +75,9 @@ const OWNERS: Row[] = [
   { id: "owners/false-water-linear", question: WATER, claim: "Unlike the linear shape of water, carbon dioxide is bent.", expected: true, admit: false },
   { id: "owners/same-owner-still-denied", question: CO2, claim: "Unlike a bent shape, CO2 is linear.", expected: true, admit: true },
   { id: "owners/unlike-intro-subject", question: CO2, claim: "Unlike H2O, CO2 is linear.", expected: true, admit: true },
+  { id: "owners/discourse-then-unlike", question: CO2, claim: "For example, unlike H2O, CO2 is linear.", expected: true, admit: true },
+  { id: "owners/discourse-then-unlike-other", question: CO2, claim: "For example, unlike CO2, H2O is bent.", expected: true, admit: true },
+  { id: "owners/false-discourse-then-like", question: "What is the shape of H2O", claim: "However, like CO2, H2O is linear.", expected: true, admit: false },
   { id: "owners/false-like-intro", question: "What is the shape of H2O", claim: "Like CO2, H2O is linear.", expected: true, admit: false },
   // A comma list with no introductory comparison is a shared subject.
   { id: "owners/false-comma-list", question: "What is the shape of H2O", claim: "H2O, NH3, CO2 are linear.", expected: true, admit: false },

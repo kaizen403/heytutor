@@ -488,8 +488,12 @@ function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
 }
 
 const BARE_COMMA = /^\s*,\s*$/;
-/** The head of a clause up to a comparison's own molecule: "Unlike the linear shape of CO2", "Like water". */
-const INTRODUCTORY_PHRASE = /^\s*(?:unlike|like|compared\s+(?:with|to)|in\s+contrast\s+(?:with|to)|rather\s+than|instead\s+of|similar\s+to|as\s+(?:with|in))\b[^,]*$/i;
+/**
+ * The head of a clause up to a comparison's own molecule: "Unlike the linear
+ * shape of CO2", "Like water", "For example, unlike CO2". Only a closed set
+ * of discourse openers may precede the comparison word.
+ */
+const INTRODUCTORY_PHRASE = /^\s*(?:(?:for\s+example|for\s+instance|however|similarly|by\s+contrast|also|so|thus|here|again)\s*,?\s+)?(?:unlike|like|compared\s+(?:with|to)|in\s+contrast\s+(?:with|to)|rather\s+than|instead\s+of|similar\s+to|as\s+(?:with|in))\b[^,]*$/i;
 const PREDICATE_START = /^\s+(?:(?:molecule|ion|species)\s+)?(?:is|are|was|were|has|have|adopts?|exhibits?)\b/i;
 
 /** A postposed property owner or a local subject owns this fact, not its neighbour. */
