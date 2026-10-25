@@ -35,6 +35,10 @@ const point = (id: string, x: number, y: number, role = "node"): [Entity, Constr
 function build(parts: Array<[Entity, Construction]>): Doc {
   return scene(parts.map((part) => part[0]), parts.map((part) => part[1]));
 }
+function annotate(document: Doc, ...annotations: Array<{ id: string; kind: string; targetIds: string[] }>): Doc {
+  (document.annotations as unknown[]).push(...annotations);
+  return document;
+}
 
 function codes(document: Doc, figureConsistency = true): string[] {
   const validated = validateSceneDocument(structuredClone(document));
@@ -79,6 +83,24 @@ const stub = loop("positive");
 for (const key of ["requiredEntityIds"]) (stub[key] as string[]).push("T", "stub", "stubFlow");
 ((stub.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push("T", "stub", "stubFlow");
 expect("a mark on a dead end stub off the loop is not judged", stub, "current_against_source_polarity", false);
+
+// A switch drawn open (the renderer's default when no state is given) is no bypass:
+// the resistor still carries the whole cell current, so a reversed mark on it is refused.
+// Current runs P to Q along the bottom and so Q to R through the resistor, against its start-to-end sense.
+function bypassed(state?: string): Doc {
+  return build([
+    point("P", 0, 0), point("Q", 5, 0), point("R", 5, 3), point("S", 0, 3),
+    [{ id: "cell", kind: "component", role: "source", label: "E" }, { id: "make_cell", operator: "symbol", inputs: { start: "P", end: "S", symbol: "cell" }, outputs: ["cell"] }],
+    [{ id: "top", kind: "connector", role: "wire" }, { id: "make_top", operator: "connect", inputs: { start: "S", end: "R" }, outputs: ["top"] }],
+    [{ id: "load", kind: "component", role: "resistor", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "R", end: "Q", symbol: "resistor" }, outputs: ["load"] }],
+    [{ id: "bottom", kind: "connector", role: "wire" }, { id: "make_bottom", operator: "connect", inputs: { start: "P", end: "Q" }, outputs: ["bottom"] }],
+    [{ id: "key", kind: "component", role: "switch", label: "K" }, { id: "make_key", operator: "symbol", inputs: { start: "R", end: "Q", symbol: "switch", ...(state ? { state } : {}) }, outputs: ["key"] }],
+    [{ id: "flow", kind: "sign_badge", role: "current direction", label: "I" }, { id: "make_flow", operator: "sign_badge", inputs: { target: "load", at: 0.5, sense: "positive" }, outputs: ["flow"] }],
+  ]);
+}
+expect("an open switch bypass with no state (drawn open) does not hide a reversed current mark", bypassed(), "current_against_source_polarity", true);
+expect("an open switch bypass with state open does not hide a reversed current mark", bypassed("open"), "current_against_source_polarity", true);
+expect("mutation: a closed switch bypass shares the current, so the mark is not judged", bypassed("closed"), "current_against_source_polarity", false);
 
 // --- glyphs on top of each other ----------------------------------------------------
 // A bridge on A B C D with the meter across B D. With the cell across A C its plates
@@ -140,9 +162,25 @@ expect("mutation: the arrow named is admitted", body([
 expect("an arrow mirroring a named arrow is read as its twin", body([
   { id: "push", from: [1, 2], to: [2, 2], label: "F", role: "push" }, { id: "pull", from: [5, 2], to: [4, 2], role: "pull" },
 ]), "vector_without_label", false);
+expect("an unnamed arrow beside a named arrow of the same length and direction is refused", body([
+  { id: "push", from: [0.5, 3.5], to: [1.5, 3.5], label: "F", role: "push" }, { id: "pull", from: [4.5, 3.5], to: [5.5, 3.5], role: "pull" },
+]), "vector_without_label", true);
+expect("an unnamed arrow parallel to a named one, same length and sense, is refused", body([
+  { id: "push", from: [0.5, 0.5], to: [0.5, 1.5], label: "F", role: "push" }, { id: "pull", from: [5.5, 2.5], to: [5.5, 3.5], role: "pull" },
+]), "vector_without_label", true);
 expect("a family of like arrows sharing one role is named once", body([
   { id: "line1", from: [0.5, 3.5], to: [2, 3.5], role: "field line" }, { id: "line2", from: [4, 0.5], to: [5.5, 0.5], role: "field line" },
 ]), "vector_without_label", false);
+
+// A trace annotation redraws its arrow's own ink; the copy is not a second arrow on that line.
+const traced = () => annotate(body([
+  { id: "down", from: [2.6, 2.7], to: [2.6, 1.8], label: "F1" }, { id: "up", from: [3.4, 1.3], to: [3.4, 2.5], label: "F2" },
+]), { id: "traceUp", kind: "trace", targetIds: ["up"] });
+expect("tracing an arrow is not a collinear overlap", traced(), "vector_collinear_overlap", false);
+expect("a trace of a named arrow is not an unnamed arrow", traced(), "vector_without_label", false);
+expect("tracing still leaves two forces through one line refused", annotate(body([
+  { id: "down", from: [3, 2.7], to: [3, 1.8], label: "F1" }, { id: "up", from: [3, 1.3], to: [3, 2.5], label: "F2" },
+]), { id: "traceUp", kind: "trace", targetIds: ["up"] }), "vector_collinear_overlap", true);
 
 // --- a region name inside a nested body ---------------------------------------------
 function tank(bodyAt: number): Doc {
@@ -156,6 +194,23 @@ function tank(bodyAt: number): Doc {
 }
 expect("a region name inside the body nested in it is refused", tank(3), "region_label_in_nested_body", true);
 expect("mutation: the body moved aside, the name stays in the liquid", tank(1.2), "region_label_in_nested_body", false);
+// A loop highlight draws a larger outline around its target under the annotation's own id.
+// Around a diagonal rod in the liquid that outline is a box holding the liquid's name,
+// which sits clear of every body: the highlight is not a body.
+function highlightedRod(): Doc {
+  const document = tank(1.2);
+  const parts: Array<[Entity, Construction]> = [point("r1", 2.5, 0.5, "construction helper"), point("r2", 5.5, 3.5, "construction helper"),
+    [{ id: "rod", kind: "segment", role: "rod", label: "rod" }, { id: "make_rod", operator: "segment", inputs: { start: "r1", end: "r2" }, outputs: ["rod"] }]];
+  for (const [entity, construction] of parts) {
+    (document.entities as Entity[]).push(entity);
+    (document.constructions as Construction[]).push(construction);
+    (document.requiredEntityIds as string[]).push(entity.id);
+    ((document.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push(entity.id);
+  }
+  return annotate(document, { id: "ring", kind: "loop", targetIds: ["rod"] });
+}
+expect("a loop highlight holding the region name does not count as a nested body", highlightedRod(), "region_label_in_nested_body", false);
+expect("mutation: a highlighted body still refuses a name inside the body", annotate(tank(3), { id: "ring", kind: "loop", targetIds: ["solid"] }), "region_label_in_nested_body", true);
 
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }

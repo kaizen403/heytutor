@@ -45,6 +45,12 @@ function isInk(primitive: RenderPrimitive): boolean {
   return primitive.kind !== "label" && !primitive.provenance?.labelLeader && primitive.provenance?.summary !== true;
 }
 
+/** Ink an annotation draws (a trace copy, a loop outline) restates its target under the
+ * annotation's own id; it is not a separate arrow or body. */
+function isAnnotationMark(document: SceneDocument, primitive: RenderPrimitive): boolean {
+  return typeof primitive.provenance?.annotationId === "string" || document.annotations.some((annotation) => annotation.id === primitive.entityId);
+}
+
 function constructionOf(document: SceneDocument, entityId: string): SceneConstruction | undefined {
   return document.constructions.find((construction) => construction.outputs.includes(entityId));
 }
@@ -133,7 +139,8 @@ function symbolName(construction: SceneConstruction): string {
 function conducts(construction: SceneConstruction): boolean {
   const symbol = symbolName(construction);
   if (symbol === "open") return false;
-  if (symbol === "switch") return String(construction.inputs.state ?? "closed").trim().toLowerCase() === "closed";
+  // The renderer draws a switch open unless its state is "closed".
+  if (symbol === "switch") return String(construction.inputs.state ?? "open").trim().toLowerCase() === "closed";
   return true;
 }
 
@@ -214,7 +221,7 @@ const ALONG_BASIS_OPERATORS = new Set(["vector_projection", "vector_components",
 export function validateArrowOverlap(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
   const alongBasis = (entityId: string) => ALONG_BASIS_OPERATORS.has(constructionOf(document, entityId)?.operator ?? "");
   const arrows = primitives.flatMap((primitive) => {
-    const segment = isInk(primitive) ? arrowSegment(primitive) : null;
+    const segment = isInk(primitive) && !isAnnotationMark(document, primitive) ? arrowSegment(primitive) : null;
     return segment ? [{ primitive, segment }] : [];
   });
   const issues: SceneIssue[] = [];
@@ -278,26 +285,34 @@ export function validateArrowLabels(document: SceneDocument, primitives: RenderP
   // An arrow from one named point to another reads as "from P to Q".
   const namedPoints = primitives.filter((primitive) => primitive.kind === "point" && primitive.points[0] && named.has(primitive.entityId)).map((primitive) => primitive.points[0]!);
   const atNamedPoint = (p: Point) => namedPoints.some((q) => length(sub(p, q)) <= 3);
-  // A symmetric figure names one side: an arrow that mirrors a named arrow (same
-  // length, reflected across a vertical or horizontal axis) is read as its twin.
+  // A symmetric figure names one side: an arrow that is a named arrow reflected
+  // across a vertical or horizontal axis (both ends land on the reflected ends,
+  // and the reflection turns the arrow) is read as its twin.
   const namedArrows = primitives.flatMap((primitive) => {
     const segment = isInk(primitive) && named.has(primitive.entityId) ? arrowSegment(primitive) : null;
-    return segment ? [sub(segment[1], segment[0])] : [];
+    return segment ? [segment] : [];
   });
-  const mirrorsNamedArrow = (direction: Point) => namedArrows.some((twin) => {
-    const size = length(direction), twinSize = length(twin);
-    if (Math.abs(size - twinSize) > 0.03 * twinSize) return false;
-    return [{ x: -twin.x, y: twin.y }, { x: twin.x, y: -twin.y }].some((mirror) => dot(mirror, direction) / (size * twinSize) > Math.cos(2 * Math.PI / 180));
+  const mirrorsNamedArrow = ([a, b]: [Point, Point]) => namedArrows.some(([p, q]) => {
+    const twin = sub(q, p), twinSize = length(twin), tolerance = Math.max(3, 0.03 * twinSize);
+    return (["x", "y"] as const).some((axis) => {
+      const across = axis === "x" ? "y" : "x";
+      // Reflection across a line axis = c leaves the other coordinate and maps v to 2c - v.
+      if (Math.abs(a[across] - p[across]) > tolerance || Math.abs(b[across] - q[across]) > tolerance) return false;
+      if (Math.abs((a[axis] + p[axis]) - (b[axis] + q[axis])) > 2 * tolerance) return false;
+      // A reflection that leaves the arrow's direction unchanged is only a parallel copy.
+      const mirrored = axis === "x" ? { x: -twin.x, y: twin.y } : { x: twin.x, y: -twin.y };
+      return dot(mirrored, twin) / (twinSize * twinSize) < Math.cos(10 * Math.PI / 180);
+    });
   });
   const issues: SceneIssue[] = [];
   const reported = new Set<string>();
   for (const primitive of primitives) {
-    const segment = isInk(primitive) ? arrowSegment(primitive) : null;
+    const segment = isInk(primitive) && !isAnnotationMark(document, primitive) ? arrowSegment(primitive) : null;
     if (!segment || reported.has(primitive.entityId)) continue;
     if (named.has(primitive.entityId) || isHelper(document, primitive.entityId)) continue;
     if ((roleCount.get(roleOf(primitive.entityId)) ?? 0) >= 2) continue;
     if (atNamedPoint(segment[0]) && atNamedPoint(segment[1])) continue;
-    if (mirrorsNamedArrow(sub(segment[1], segment[0]))) continue;
+    if (mirrorsNamedArrow(segment)) continue;
     reported.add(primitive.entityId);
     issues.push({ code: "vector_without_label", severity: "fatal", failureKind: "truth", entityIds: [primitive.entityId],
       message: `Arrow ${primitive.entityId} carries no name; an unnamed arrow reads as an unexplained quantity.` });
@@ -320,8 +335,9 @@ function closedOutline(primitive: RenderPrimitive): Point[] | null {
 
 /** A region's untethered name inside a smaller body drawn within that region names the body. */
 export function validateRegionLabelPlacement(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+  // An annotation outline (a loop highlight) surrounds its target; it is not a body.
   const outlines = primitives.flatMap((primitive) => {
-    const outline = closedOutline(primitive);
+    const outline = isAnnotationMark(document, primitive) ? null : closedOutline(primitive);
     return outline ? [{ entityId: primitive.entityId, outline }] : [];
   });
   const issues: SceneIssue[] = [];
