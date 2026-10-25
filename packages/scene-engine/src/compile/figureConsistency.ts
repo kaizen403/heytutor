@@ -157,10 +157,12 @@ function connected(edges: Conductor[], from: string, to: string): boolean {
   return false;
 }
 
-/** A badge declares a current by its role or label naming a current ("current direction", "I", "I_2"). */
-function declaresCurrent(role: string | undefined, label: string | undefined): boolean {
-  if (/\bcurrent\b/i.test(`${role ?? ""} ${label ?? ""}`)) return true;
-  return /^I(?:_?\{?\d+\}?)?(?:\s*=.*)?$/.test(String(label ?? "").trim());
+/** A badge declares a current by its role or any label it draws naming a current
+ * ("current direction", "I", "I_2"). Labels come from the entity and from label
+ * annotations targeting the badge, since either one names the arrow on the page. */
+function declaresCurrent(role: string | undefined, labels: Array<string | undefined>): boolean {
+  if (/\bcurrent\b/i.test(role ?? "")) return true;
+  return labels.some((label) => /\bcurrent\b/i.test(label ?? "") || /^I(?:_?\{?\d+\}?)?(?:\s*=.*)?$/.test(String(label ?? "").trim()));
 }
 
 /** The document draws a cell's long (positive) plate at its start terminal. Conventional
@@ -188,10 +190,13 @@ export function validateCurrentSourcePolarity(document: SceneDocument): SceneIss
     if (badge.operator !== "sign_badge" || !badge.outputs[0]) continue;
     const entity = document.entities.find((candidate) => candidate.id === badge.outputs[0]);
     // Electron flow is declared to run the other way; it is not a conventional current mark.
-    if (/electron/i.test(`${entity?.role ?? ""} ${entity?.label ?? ""}`)) continue;
+    const labels = [entity?.label, ...(document.annotations ?? [])
+      .filter((annotation) => annotation.kind === "label" && annotation.targetIds.includes(badge.outputs[0]!))
+      .map((annotation) => annotation.text)];
+    if (/electron/i.test(`${entity?.role ?? ""} ${labels.join(" ")}`)) continue;
     // A sign badge states any direction convention (a voltage reference may point against
     // the current), so only a badge that declares a current is judged against the cell.
-    if (!declaresCurrent(entity?.role, entity?.label)) continue;
+    if (!declaresCurrent(entity?.role, labels)) continue;
     const target = badge.inputs.target ?? badge.inputs.axis ?? badge.inputs.path;
     const sense = String(badge.inputs.sense ?? badge.inputs.kind ?? "").trim().toLowerCase();
     if (sense !== "positive" && sense !== "negative") continue;

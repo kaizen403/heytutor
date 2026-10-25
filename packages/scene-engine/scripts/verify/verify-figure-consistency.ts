@@ -76,6 +76,16 @@ expect("two cells: the polarity alone does not fix the current", loop("negative"
 expect("a voltage reference badge may point against the current and is not judged", loop("negative", "voltage reference", false, "V"), "current_against_source_polarity", false);
 expect("mutation: a badge labelled I with a neutral role is still judged as a current", loop("negative", "direction marker", false, "I"), "current_against_source_polarity", true);
 expect("mutation: a badge whose role names a current is judged whatever its label", loop("negative", "conventional current", false, "flow"), "current_against_source_polarity", true);
+// A badge may carry its name in a label annotation instead of the entity label.
+function annotatedLoop(sense: string, text: string): Doc {
+  const document = loop(sense, "direction marker");
+  for (const entity of document.entities as Entity[]) if (entity.id === "flow") delete entity.label;
+  (document.annotations as unknown[]).push({ id: "flow_name", kind: "label", targetIds: ["flow"], text });
+  return document;
+}
+expect("mutation: a reversed badge named I only by a label annotation is still judged as a current", annotatedLoop("negative", "I"), "current_against_source_polarity", true);
+expect("a badge named I only by a label annotation and drawn forward is admitted", annotatedLoop("positive", "I"), "current_against_source_polarity", false);
+expect("a badge named V only by a label annotation is not judged", annotatedLoop("negative", "V"), "current_against_source_polarity", false);
 
 // A stub off the loop carries no current, so a mark on it is not the source current.
 const stub = loop("positive");
