@@ -157,6 +157,12 @@ function connected(edges: Conductor[], from: string, to: string): boolean {
   return false;
 }
 
+/** A badge declares a current by its role or label naming a current ("current direction", "I", "I_2"). */
+function declaresCurrent(role: string | undefined, label: string | undefined): boolean {
+  if (/\bcurrent\b/i.test(`${role ?? ""} ${label ?? ""}`)) return true;
+  return /^I(?:_?\{?\d+\}?)?(?:\s*=.*)?$/.test(String(label ?? "").trim());
+}
+
 /** The document draws a cell's long (positive) plate at its start terminal. Conventional
  * current leaves that plate, so on any conductor every external path must cross, it
  * flows from the side joined to the start terminal towards the side joined to the end. */
@@ -183,6 +189,9 @@ export function validateCurrentSourcePolarity(document: SceneDocument): SceneIss
     const entity = document.entities.find((candidate) => candidate.id === badge.outputs[0]);
     // Electron flow is declared to run the other way; it is not a conventional current mark.
     if (/electron/i.test(`${entity?.role ?? ""} ${entity?.label ?? ""}`)) continue;
+    // A sign badge states any direction convention (a voltage reference may point against
+    // the current), so only a badge that declares a current is judged against the cell.
+    if (!declaresCurrent(entity?.role, entity?.label)) continue;
     const target = badge.inputs.target ?? badge.inputs.axis ?? badge.inputs.path;
     const sense = String(badge.inputs.sense ?? badge.inputs.kind ?? "").trim().toLowerCase();
     if (sense !== "positive" && sense !== "negative") continue;
