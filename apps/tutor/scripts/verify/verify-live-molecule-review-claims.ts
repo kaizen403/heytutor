@@ -236,18 +236,21 @@ for (const question of [
 // letters SF4's equatorial angle with the true bound <120° (measured about
 // 102°), computed from the formula, so "label its bond angle" is served
 // honestly instead of refused. It must stay a bound: no exact SF4 angle.
+// Since the arc-clearance fix (5c5ce955) no SF4 arc can be drawn without
+// crossing a bond, so the bound is written as a caption naming the atoms,
+// "eq. F-S-F <120°", and no arc is built (verify-vsepr-angle-arc-clearance
+// checks the same in the scene engine).
 test("bound-angle/Show the shape of SF4 and label its bond angle.", () => {
   const question = "Show the shape of SF4 and label its bond angle.";
   const selected = selectProductionScene({ question, turnPlan: planFor(question), problemIR: null });
   assert(selected.representation, selected.reason);
   const document = selected.representation.sceneDocument;
-  const angles = document.entities.filter((entity) => entity.role === "bond angle");
-  assert.deepEqual(angles.map((entity) => entity.label), ["<120°"], "the only lettered SF4 angle is the equatorial bound");
+  assert.equal(document.entities.find((entity) => entity.id === "m1_ang_txt")?.label, "eq. F-S-F <120°", "the equatorial bound is captioned with its atoms");
+  assert(!document.entities.some((entity) => entity.id === "m1_ang" || entity.role === "bond angle"), "no SF4 angle arc is built");
+  assert(!document.constructions.some((construction) => construction.inputs?.startAngle !== undefined || construction.inputs?.endAngle !== undefined), "no construction sweeps an SF4 angle");
   const texts = selected.representation.renderScene.primitives.map((primitive) => primitive.text ?? "");
-  assert(!texts.some((text) => /^\d+(?:\.\d+)?°$/.test(text)), `no exact SF4 angle is drawn: ${texts.join(" | ")}`);
-  const arc = document.constructions.find((construction) => construction.outputs.includes(angles[0]!.id));
-  const span = Number(arc?.inputs.endAngle) - Number(arc?.inputs.startAngle);
-  assert(span > 90 && span < 120, `the bound sits on the equatorial pair, drawn span ${span}`);
+  assert.deepEqual(texts.filter((text) => text.includes("°")), ["eq. F-S-F <120°"], "the bound caption is the only angle text");
+  assert(!texts.some((text) => /^\d+(?:\.\d+)?°$/.test(text) || /=\s*\d+(?:\.\d+)?°/.test(text)), `no exact SF4 angle is drawn: ${texts.join(" | ")}`);
 });
 
 for (const question of [

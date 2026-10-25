@@ -169,12 +169,13 @@ async function main(): Promise<void> {
   await check("explicit-angle-without-authority-not-silently-dropped", () => {
     // Since #258 the engine letters SF4's equatorial angle with the true bound
     // <120°, so the obligation is met by a bound, never dropped and never
-    // turned into an exact number.
+    // turned into an exact number. Since the arc-clearance fix the bound is a
+    // caption naming the atoms, "eq. F-S-F <120°", not a bare arc label.
     const question = "Draw the shape of SF4 and label its bond angle.";
     const explicit = selectProductionScene({ question, turnPlan: planFor(question), problemIR: null });
     assert(explicit.representation, explicit.reason);
     const texts = explicit.representation.renderScene.primitives.map(primitive => primitive.text ?? "");
-    assert(texts.includes("<120°"), "the angle obligation is met by the source bound");
+    assert(texts.includes("eq. F-S-F <120°"), `the angle obligation is met by the source bound caption: ${texts.join(" | ")}`);
     assert(!texts.some(text => /^\d+(?:\.\d+)?°$/.test(text)), "no exact SF4 angle is drawn");
   });
   for (const expected of [
