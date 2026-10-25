@@ -9,6 +9,7 @@ tsx scripts/verify/verify-mensuration-operators.ts
 tsx scripts/verify/verify-optics-operators.ts
 tsx scripts/verify/verify-mirror-ray-diagram.ts
 tsx scripts/verify/verify-optics-stem-element.ts
+tsx scripts/verify/verify-archetype-stem-evidence.ts
 tsx scripts/verify/verify-operator-primitives.ts
 tsx scripts/verify/verify-constraint-region.ts
 tsx scripts/verify/verify-structure-driven-scene.ts
@@ -72,3 +73,4 @@ tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
 tsx scripts/verify/verify-projectile-units.ts
 tsx scripts/verify/verify-pv-cycle-stated-values.ts
+tsx scripts/verify/verify-rounded-circle-point-repair.ts

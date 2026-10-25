@@ -8,6 +8,7 @@ import {
   type DiagramStrategyContext,
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { resolveCheapFireworksModel, resolveFireworksModel } from "../../lib/llm/fireworksModels";
+import { resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { hasPricedUsage, type LabSpendMode, type LabUsageObservation, type LabUnresolvedCall } from "./labSpend";
 
 export type DiagramEvalArm =
@@ -310,8 +311,8 @@ export function estimateEvaluationCostUsd(
   model: DiagramEvalModel = "configured",
   env: Record<string, string | undefined> = process.env,
 ): number {
-  if (model === "fast") {
-    throw new Error("evaluation cost estimates require the configured provider");
+  if (model === "fast" && resolveLlmEndpoint(env).provider !== "fireworks") {
+    throw new Error("Fast evaluation cost estimates require the Fireworks provider");
   }
   const standardProfile = arm === "current"
     ? { input: 5_300, output: 1_500 }
@@ -320,7 +321,7 @@ export function estimateEvaluationCostUsd(
       : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
     { input: rowCount * standardProfile.input, output: rowCount * standardProfile.output },
-    { model: resolveFireworksModel({ fastMode: false, env }) },
+    { model: resolveFireworksModel({ fastMode: model === "fast", env }) },
   ).total ?? 0;
   const picker = evaluationUsesExamples(arm)
     ? calculateLlmCostDetails(
@@ -357,14 +358,15 @@ export function estimateLabCallWorstCaseUsd(input: {
   ).total ?? 0;
 }
 
-/** Evaluation turns use the configured provider without a Fast lane override. */
+/**
+ * Evaluation turns use the configured provider without a Fast lane override,
+ * unless `--model fast` asks for production's Fireworks Fast routing.
+ */
 export function evaluationRunFastMode(
   isEvaluation: boolean,
   model: DiagramEvalModel = "configured",
 ): boolean | undefined {
-  if (isEvaluation && model === "fast") {
-    throw new Error("evaluation rounds require the configured provider");
-  }
+  if (model === "fast") return true;
   return isEvaluation ? false : undefined;
 }
 
@@ -373,6 +375,16 @@ export function evaluationUsesStandardModelHeader(
   model: DiagramEvalModel,
 ): boolean {
   return isEvaluation && model !== "fast";
+}
+
+/** Every authenticated Fireworks lab request is pinned to standard K3 unless Fast was chosen. */
+export function labUsesStandardModelHeader(
+  provider: string,
+  isEvaluation: boolean,
+  model: DiagramEvalModel,
+): boolean {
+  if (model === "fast") return false;
+  return evaluationUsesStandardModelHeader(isEvaluation, model) || provider === "fireworks";
 }
 
 export function evaluationSelectionOrder(arm: DiagramEvalArm): "current" | "planner_first" {

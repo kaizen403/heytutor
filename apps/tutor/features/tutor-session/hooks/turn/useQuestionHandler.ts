@@ -156,6 +156,7 @@ import {
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
+  waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
 import {
   findVerifiedSceneRecovery,
@@ -309,6 +310,7 @@ export function useQuestionHandler(
     onComplete,
     onError,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   } = params;
 
   const emitError = useCallback((error: { message: string; question: string; billing?: BillingFailure }) => {
@@ -433,6 +435,7 @@ export function useQuestionHandler(
       const terminal = turnTerminalRecordFor(saveExit);
       markTurnStarted(terminal, turnGeneration);
       onSpeechStartupStatus?.(null);
+      onVoiceDegraded?.(false);
       cancelRef.current = false;
       isPausedRef.current = false;
       setIsPaused(false);
@@ -1421,6 +1424,7 @@ export function useQuestionHandler(
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
+                waitForRequiredScenePeers: waitForRequiredScenePeers(planningTurnPlan.visualRequirement),
                 fastMode: fastModeRef.current,
                 onRequestOutcome: outcome => {
                   sceneRequestFailure = sceneRequestFailureTelemetry({
@@ -2890,6 +2894,7 @@ export function useQuestionHandler(
       emitError,
       onComplete,
       onSpeechStartupStatus,
+      onVoiceDegraded,
       turnActiveRef,
       turnGenerationRef,
       turnAbortRef,
