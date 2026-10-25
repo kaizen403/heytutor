@@ -190,8 +190,9 @@ export function validateCurrentSourcePolarity(document: SceneDocument): SceneIss
     if (badge.operator !== "sign_badge" || !badge.outputs[0]) continue;
     const entity = document.entities.find((candidate) => candidate.id === badge.outputs[0]);
     // Electron flow is declared to run the other way; it is not a conventional current mark.
+    // The compiler draws a label only on its first target, so only that badge is named by it.
     const labels = [entity?.label, ...(document.annotations ?? [])
-      .filter((annotation) => annotation.kind === "label" && annotation.targetIds.includes(badge.outputs[0]!))
+      .filter((annotation) => annotation.kind === "label" && annotation.targetIds[0] === badge.outputs[0])
       .map((annotation) => annotation.text)];
     if (/electron/i.test(`${entity?.role ?? ""} ${labels.join(" ")}`)) continue;
     // A sign badge states any direction convention (a voltage reference may point against
