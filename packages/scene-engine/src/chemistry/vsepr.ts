@@ -507,6 +507,10 @@ function localMoleculeOwners(
       let at = mentions.indexOf(owner);
       while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
         && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        // A bare comma before a molecule with its own predicate ends the list
+        // ("bent is not the shape of CO2, H2O is bent").
+        const next = mentions[at + 1]!;
+        if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))) break;
         owners.push(mentions[++at]!.key);
       }
       return owners;

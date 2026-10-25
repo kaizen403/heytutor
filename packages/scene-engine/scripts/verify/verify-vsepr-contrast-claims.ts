@@ -111,6 +111,9 @@ const DENIED: Row[] = [
   { id: "denied/bent-not-shape-of-co2", question: WATER, claim: "Bent is not the shape of CO2.", expected: true, admit: true },
   { id: "denied/false-bent-not-molecular-shape-of-h2o", question: WATER, claim: "Bent is not the molecular shape of H2O.", expected: true, admit: false },
   { id: "denied/false-bent-not-shape-of-co2-or-h2o", question: WATER, claim: "Bent is not the molecular shape of CO2 or H2O.", expected: true, admit: false },
+  // A bare comma before a molecule with its own predicate ends the denied list.
+  { id: "denied/bent-not-shape-of-co2-comma-h2o-is-bent", question: WATER, claim: "Bent is not the shape of CO2, H2O is bent.", expected: true, admit: true },
+  { id: "denied/false-bent-not-shape-of-co2-comma-h2o", question: WATER, claim: "Bent is not the molecular shape of CO2, H2O.", expected: true, admit: false },
 ];
 /**
  * A bare comma joins a contrasted list only when the list ends in an or/nor
@@ -177,7 +180,7 @@ await check("mutation/no-contrast-negation", async () => {
   const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index, ownersOf)", "");
   const went = red(conflict, ALL);
   // Rows read through a denial of the shape itself depend on the reader too.
-  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape", "denied/false-bent-not-molecular-shape-of-h2o", "denied/false-bent-not-shape-of-co2-or-h2o", "comma/or-ended-list"]);
+  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape", "denied/false-bent-not-molecular-shape-of-h2o", "denied/false-bent-not-shape-of-co2-or-h2o", "denied/false-bent-not-shape-of-co2-comma-h2o", "comma/or-ended-list"]);
   assert.ok(went.every(id => id.startsWith("positive/") || denials.has(id)), `only positives and denials go red: ${went.join(", ")}`);
   for (const id of denials) assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
   // Forms no other reader covers (a "than" reference skip cannot reach them).
@@ -189,9 +192,15 @@ await check("mutation/no-denied-shape-owner", async () => {
   const conflict = await mutant("no-denied-owner", "const deniedOf = DENIED_SHAPE_OF.exec(tail);", "const deniedOf = null as RegExpExecArray | null;");
   const went = red(conflict, ALL);
   // Without the owner after "is not the shape of", the CO2 denial falls to H2O and refuses.
-  const owned = ["denied/bent-not-molecular-shape-of-co2", "denied/bent-not-shape-of-co2"];
+  const owned = ["denied/bent-not-molecular-shape-of-co2", "denied/bent-not-shape-of-co2", "denied/bent-not-shape-of-co2-comma-h2o-is-bent"];
   for (const id of owned) assert.ok(went.includes(id), `${id} must depend on the denied shape owner`);
   assert.ok(went.every(id => owned.includes(id)), `only the denied owner rows go red: ${went.join(", ")}`);
+});
+await check("mutation/no-denied-list-predicate-stop", async () => {
+  const conflict = await mutant("no-denied-stop", "if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))) break;", "");
+  const went = red(conflict, ALL);
+  // Without the stop, "CO2, H2O is bent" carries the CO2 denial onto H2O.
+  assert.deepEqual(went, ["denied/bent-not-shape-of-co2-comma-h2o-is-bent"], `only the predicate-stop row goes red: ${went.join(", ")}`);
 });
 await check("mutation/no-shape-claims", async () => {
   const conflict = await mutant("no-shape-claims", "for (const described of shapeClaims(rawText, result)) {", "for (const described of [] as ShapeClaim[]) {");
