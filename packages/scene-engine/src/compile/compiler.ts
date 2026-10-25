@@ -2287,6 +2287,11 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        // Points exempted through one shared optical display are compared in
+        // physical units: a fixed drawn tolerance at a tiny displayScale would
+        // otherwise accept physically unequal lengths.
+        const opticalScale = sharedOpticalDisplay(assertion.entities, geometry)?.displayScale;
+        if (opticalScale !== undefined) measured.forEach((value, index) => { measured[index] = value / opticalScale; });
         report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
@@ -5327,13 +5332,18 @@ function geometryMetadataMatches(value: Geometry | undefined, predicate: (metada
  * point from an optical display with another scale, still matches.
  */
 function independentDisplayMatcher(entityIds: readonly string[], geometry: Map<string, Geometry>): (value: Geometry | undefined) => boolean {
-  const displays = entityIds.map((id) => opticalDisplayOf(geometry.get(id)));
-  const shared = displays[0];
-  if (!shared || displays.some((display) => !display || !sameOpticalDisplay(display, shared))) return hasIndependentDisplayMetric;
+  const shared = sharedOpticalDisplay(entityIds, geometry);
+  if (!shared) return hasIndependentDisplayMetric;
   return (value) => {
     const display = opticalDisplayOf(value);
     return display && sameOpticalDisplay(display, shared) ? false : hasIndependentDisplayMetric(value);
   };
+}
+/** The one optical display every listed point carries, or null. */
+function sharedOpticalDisplay(entityIds: readonly string[], geometry: Map<string, Geometry>): OpticalImageDefinition | OpticalFocusDefinition | null {
+  const displays = entityIds.map((id) => opticalDisplayOf(geometry.get(id)));
+  const shared = displays[0];
+  return !shared || displays.some((display) => !display || !sameOpticalDisplay(display, shared)) ? null : shared;
 }
 function opticalDisplayOf(value: Geometry | undefined): OpticalImageDefinition | OpticalFocusDefinition | null {
   if (value?.kind !== "point") return null;

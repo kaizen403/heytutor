@@ -155,6 +155,14 @@ for (const kind of ["lens", "mirror"] as const) {
     s.requiredEntityIds.push(...foci.outputs); s.revealGroups[0]!.entityIds.push(...foci.outputs);
   });
   check(!otherScale.ok && otherScale.report.issues.some((issue) => issue.code === "invalid_display_metric_assertion"), `${kind}: a focus at another displayScale must stay refused`);
+  // At displayScale 1e-5 the 5 cm and 2.5 cm heights draw 0.000025 apart,
+  // under the 1e-4 tolerance; lengths are compared physically, so the 2:1
+  // mismatch still fails while a genuinely equal pair still passes.
+  const tiny = (entities: string[]) => withAssertion(entities, (s) => { s.quantities.find((q) => q.id === "scale")!.value = 1e-5; });
+  const tinyFalse = tiny(["ob", "ot", "ib", "it"]);
+  check(!tinyFalse.ok && tinyFalse.report.issues.some((issue) => issue.code === "assertion_failed"), `${kind}: a 2:1 height mismatch at displayScale 1e-5 must fail equal_length`);
+  const tinyTrue = tiny([focus, "ib", "ob", "ot"]);
+  check(tinyTrue.ok, `${kind}: a true equal_length at displayScale 1e-5 must pass: ${JSON.stringify(tinyTrue.report.issues.filter((issue) => issue.severity === "fatal"))}`);
 }
   const correct = compileSceneDocument(resultQuantities); check(correct.ok, `correct source-bound annotations must compile: ${JSON.stringify(correct.report.issues)}`);
   for (const [kind, u, f, ratio] of [["lens", -5, 10, 2], ["lens", -30, -10, 0.25], ["mirror", -30, 10, 0.25], ["mirror", 30, -10, 0.25]] as const) {
