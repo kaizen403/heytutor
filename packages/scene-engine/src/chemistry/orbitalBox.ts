@@ -18,6 +18,7 @@ import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKi
 import { electronConfiguration, type Subshell } from "./electronConfiguration";
 import { ELEMENTS, elementBySymbol, type ElementRecord } from "./elements";
 import { complexTokens, formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
+import { monatomicFormula, stemChargesRead } from "./speciesChargeGuard";
 
 export const ORBITAL_FAMILY = "chem_orbital" as const;
 
@@ -788,6 +789,9 @@ export function buildOrbitalScene(question: string, quantities: ChemPlanQuantity
 
   const species = readSpecies(question);
   if (species.length > 0) {
+    // Cu 2+, Na +, "the copper ion": a charge the reader did not apply to
+    // any species it read. The neutral atom's boxes are false for the ion.
+    if (!stemChargesRead(question, species.map((entry) => monatomicFormula(entry.element.symbol, entry.charge)))) return null;
     if (hasMetalCompound(question)) return null;
     if (species.length > 4) return null;
     // A bare element is only drawn as itself: when the stem is about a product,

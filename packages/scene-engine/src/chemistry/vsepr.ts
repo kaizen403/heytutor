@@ -16,8 +16,10 @@
  * measured table grounds it, and the hybridisation and shape written under
  * the molecule.
  */
+import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type BondStyle, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { speciesWithWrittenCharges } from "./speciesChargeGuard";
 import {
   buildDipoleScene,
   buildFajanScene,
@@ -29,6 +31,7 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
+import { chargeMarkersCarried } from "./chargeMarker";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
@@ -732,8 +735,12 @@ const MAX_SPECIES = 4;
  * The complete formula set in the source. Up to four resolved species are
  * drawn together; an unsupported member or an overfull set declines rather
  * than silently drawing a recognized subset.
+ *
+ * This is the routing read: it decides whether the stem is a VSEPR stem and
+ * so whether it stays in the chemistry lane. It carries no charge guard, so a
+ * charge the figure cannot draw never sends the stem to another lane.
  */
-export function vseprSpecies(question: string): VseprResult[] {
+function vseprRoutingSpecies(question: string): VseprResult[] {
   const text = repairOcr(normalizeChemistryText(question));
   const lower = text.toLowerCase();
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower) || connectedCarbonStructure(question)) return [];
@@ -745,8 +752,24 @@ export function vseprSpecies(question: string): VseprResult[] {
   return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
-function dipoleInputs(question: string): DipoleInput[] {
-  return vseprSpecies(question).map((result) => ({
+/**
+ * The figure read: the routing read, or none when the source writes a charge
+ * no read species carries (SO3 2-, NO2 -, "the ... ion" over neutral
+ * species). The neutral shape and its angle are false for the ion asked, so
+ * the figure declines; the stem still routes as the routing read says.
+ */
+export function vseprSpecies(question: string): VseprResult[] {
+  const species = vseprRoutingSpecies(question);
+  if (species.length === 0) return [];
+  const text = repairOcr(normalizeChemistryText(question));
+  // A charge in words (NO2 minus, SO3 two minus, Cu II) is one the sign reader below does not see.
+  if (speciesWithWrittenCharges(text, species, (result) => result.formula).length === 0) return [];
+  if (!chargeMarkersCarried(text, species.map((result) => result.formula))) return [];
+  return species;
+}
+
+function dipoleInputs(species: readonly VseprResult[]): DipoleInput[] {
+  return species.map((result) => ({
     formula: result.formula,
     label: result.label,
     central: result.central.symbol,
@@ -762,8 +785,10 @@ export function isVseprStem(question: string): boolean {
   const stem = chemStem(question);
   if (HARD_VETO.test(stem) || ORGANIC_VETO.test(stem)) return false;
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
-  if (dipoleIsTheAsk(stem) && dipoleInputs(question).some((input) => dipoleAccount(input) !== null)) return true;
-  const species=vseprSpecies(question);
+  // Routing reads species without the charge guard: a charged shape stem stays
+  // in the chemistry lane and declines there, never reaching another lane.
+  const species=vseprRoutingSpecies(question);
+  if (dipoleIsTheAsk(stem) && dipoleInputs(species).some((input) => dipoleAccount(input) !== null)) return true;
   if (!CUE.test(stem)) {
     const text=repairOcr(normalizeChemistryText(question));
     if(!hasValidatedVseprNotation(sentencesOf(text),vseprFormulaArguments(text,formulaTokens(text)),species))return false;
@@ -780,8 +805,10 @@ interface Slot {
   readonly len: number;
   readonly style: BondStyle;
   /** Position family, used to seat mixed ligands the way the exam expects. */
-  readonly seat: "axial" | "equatorial" | "plain";
+  readonly seat: SlotSeat;
 }
+
+export type SlotSeat = "axial" | "equatorial" | "plain";
 
 interface Layout {
   readonly bonds: readonly Slot[];
@@ -1006,6 +1033,7 @@ interface DrawnSpecies {
   readonly electronIds: string[];
   readonly lonePairIds: Array<readonly [string, string]>;
   readonly formulaId: string;
+  readonly panel: { minX: number; maxX: number; minY: number; maxY: number };
 }
 
 /** Reach of the panel beyond the molecule's furthest atom, so symbols and caption lines clear its border. */
@@ -1028,7 +1056,235 @@ function panel(c: ChemScene, id: string, center: Vec2, width: number, height: nu
   return rectId;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, withAngle: boolean): DrawnSpecies | null {
+/**
+ * The angle a species writes when the stem asks for one (withAngle): the
+ * source value (ideal, quoted, or a bound) wherever the layout names the pair
+ * of bonds it belongs to, else null. angleMark() decides only how that value
+ * is shown: an arc between two in-plane bonds with the value beside it, or a
+ * caption naming the atoms. Both are part of the regenerated source graph,
+ * so certifyVseprSourceDocument certifies them and still checks any plan
+ * angle scalar by species and role.
+ */
+export function askedAngle(result: VseprResult): string | null {
+  return result.bondAngle && layoutFor(result)?.angle ? result.bondAngle : null;
+}
+
+/**
+ * Pixels per world unit of a chemistry figure in the default board viewport,
+ * as the compiler fits it: the panels' span into 612 by 427 px (the 740 by
+ * 555 viewport less its 24 px padding and the 40 px glyph margin each side).
+ * verify-vsepr-angle-arc-clearance checks this estimate against the compile.
+ */
+const FIT_PX = { width: 612, height: 427 } as const;
+const LABEL_FONT_PX = 24;
+const LABEL_PAD_PX = 4;
+/** Clear ink kept between the angle value and every other mark, in px. */
+const MARK_GAP_PX = 7;
+/** Clearance between two labels' whole text boxes (verify-vsepr-label-geometry), in px. */
+const LABEL_BOX_GAP_PX = 6;
+const SECTOR_MARGIN_DEG = 3;
+
+interface Box { readonly cx: number; readonly cy: number; readonly hw: number; readonly hh: number }
+interface SpeciesInk {
+  readonly origin: Vec2;
+  readonly ligands: readonly Vec2[];
+  /** Half the drawn width of each bond about its axis: a wedge's base, a multiple bond's outer stroke. */
+  readonly bondHalfWidths: readonly number[];
+  readonly dots: readonly Vec2[];
+  /** Glyph ink of the atom symbols. */
+  readonly symbols: readonly Box[];
+  /** Whole text boxes of the atom symbols, as the label engine reserves them. */
+  readonly symbolBoxes: readonly Box[];
+}
+type AngleMark =
+  | { kind: "arc"; a: number; b: number; radius: number; value: Box; box: Box }
+  | { kind: "caption"; text: string }
+  /** A row of species keeps main's mark: the layout's arc, its value placed by the label solver. */
+  | { kind: "row"; a: number; b: number; radius: number };
+
+const norm360 = (deg: number) => ((deg % 360) + 360) % 360;
+
+/** The swept sector c.angle() draws between two directions, in degrees. */
+function sectorOf(degA: number, degB: number): { start: number; span: number } {
+  let sweep = degB - degA;
+  while (sweep <= -180) sweep += 360;
+  while (sweep > 180) sweep -= 360;
+  return { start: norm360(sweep >= 0 ? degA : degB), span: Math.abs(sweep) };
+}
+
+function inSector(deg: number, sector: { start: number; span: number }): boolean {
+  const offset = norm360(deg - sector.start);
+  return offset > SECTOR_MARGIN_DEG && offset < sector.span - SECTOR_MARGIN_DEG;
+}
+
+function inkBox(text: string, at: Vec2, pxPerUnit: number): Box {
+  const ink = measureTextInkBounds(text, 0, 0, LABEL_FONT_PX);
+  const width = ink?.width ?? text.length * LABEL_FONT_PX * 0.6;
+  const height = ink?.height ?? LABEL_FONT_PX * 0.65;
+  return { cx: at.x, cy: at.y, hw: (width / 2 + 1) / pxPerUnit, hh: (height / 2 + 1) / pxPerUnit };
+}
+
+/** The whole text box the label engine reserves for a pinned label centred at `at`. */
+function textBox(text: string, at: Vec2, pxPerUnit: number): Box {
+  return { cx: at.x, cy: at.y, hw: (measureTextWidth(text, LABEL_FONT_PX) / 2 + LABEL_PAD_PX) / pxPerUnit, hh: (LABEL_FONT_PX / 2 + LABEL_PAD_PX) / pxPerUnit };
+}
+
+function pointBoxDistance(p: Vec2, box: Box): number {
+  const dx = Math.max(Math.abs(p.x - box.cx) - box.hw, 0);
+  const dy = Math.max(Math.abs(p.y - box.cy) - box.hh, 0);
+  return Math.hypot(dx, dy);
+}
+
+function pointSegmentDistance(p: Vec2, a: Vec2, b: Vec2): number {
+  const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
+  const t = length === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length));
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
+
+function segmentBoxDistance(a: Vec2, b: Vec2, box: Box): number {
+  const corners = [-1, 1].flatMap((sx) => [-1, 1].map((sy) => ({ x: box.cx + sx * box.hw, y: box.cy + sy * box.hh })));
+  // Clipped to the box's slab, the segment touches the box iff its y-range there meets the box.
+  const x0 = box.cx - box.hw, x1 = box.cx + box.hw;
+  const tAt = (x: number) => (b.x === a.x ? null : (x - a.x) / (b.x - a.x));
+  let lo = 0, hi = 1;
+  if (b.x === a.x) { if (a.x < x0 || a.x > x1) lo = 2; }
+  else { const t0 = tAt(x0)!, t1 = tAt(x1)!; lo = Math.max(lo, Math.min(t0, t1)); hi = Math.min(hi, Math.max(t0, t1)); }
+  if (lo <= hi) {
+    const y = (t: number) => a.y + (b.y - a.y) * t;
+    const yMin = Math.min(y(lo), y(hi)), yMax = Math.max(y(lo), y(hi));
+    if (yMax >= box.cy - box.hh && yMin <= box.cy + box.hh) return 0;
+  }
+  return Math.min(pointBoxDistance(a, box), pointBoxDistance(b, box), ...corners.map((corner) => pointSegmentDistance(corner, a, b)));
+}
+
+function boxBoxDistance(a: Box, b: Box): number {
+  return Math.hypot(Math.max(Math.abs(a.cx - b.cx) - a.hw - b.hw, 0), Math.max(Math.abs(a.cy - b.cy) - a.hh - b.hh, 0));
+}
+
+/**
+ * An arc is honest only between two bonds drawn flat on the page (a plain
+ * line projects its true angle; a wedge or dash does not), and only when its
+ * swept sector holds no other bond or lone pair of the species: an arc that
+ * crosses a third bond reads as a bent bond (NH3's dashed H, 24 Oct judge).
+ */
+function honestArc(layout: Layout, ink: SpeciesInk, radius: number): readonly [number, number] | null {
+  if (!layout.angle) return null;
+  const [a, b] = layout.angle;
+  const slotA = layout.bonds[a];
+  const slotB = layout.bonds[b];
+  if (!slotA || !slotB || slotA.style !== "plain" || slotB.style !== "plain") return null;
+  const sector = sectorOf(slotA.deg, slotB.deg);
+  const direction = (p: Vec2) => (Math.atan2(p.y - ink.origin.y, p.x - ink.origin.x) * 180) / Math.PI;
+  if (layout.bonds.some((slot, index) => index !== a && index !== b && inSector(slot.deg, sector))) return null;
+  for (const dot of ink.dots) {
+    if (inSector(direction(dot), sector)) return null;
+    for (let i = 0; i <= 64; i++) {
+      const rad = ((sector.start + (sector.span * i) / 64) * Math.PI) / 180;
+      const on = { x: ink.origin.x + Math.cos(rad) * radius, y: ink.origin.y + Math.sin(rad) * radius };
+      if (Math.hypot(on.x - dot.x, on.y - dot.y) < 0.08) return null;
+    }
+  }
+  return [a, b];
+}
+
+/**
+ * Where the value of an honest arc sits: inside its sector, just outside the
+ * arc, its ink clear of every bond, symbol and lone pair by MARK_GAP_PX and
+ * its text box clear of every symbol's box by LABEL_BOX_GAP_PX at the
+ * figure's own scale, and nearer its arc than any other mark. Of the places
+ * that qualify the nearest the arc wins, the bisector breaking near ties.
+ * Null when none does (a narrow sector in a small multi-species figure).
+ */
+function arcValueBox(value: string, layout: Layout, pair: readonly [number, number], radius: number, ink: SpeciesInk, pxPerUnit: number): { value: Box; box: Box } | null {
+  const [a, b] = pair;
+  const sector = sectorOf(layout.bonds[a]!.deg, layout.bonds[b]!.deg);
+  const gap = MARK_GAP_PX / pxPerUnit;
+  const boxGap = LABEL_BOX_GAP_PX / pxPerUnit;
+  const size = inkBox(value, ink.origin, pxPerUnit);
+  const whole = textBox(value, ink.origin, pxPerUnit);
+  let best: { value: Box; box: Box; toArc: number; offset: number } | null = null;
+  const reach = Math.max(0, sector.span / 2 - 6);
+  for (let offset = 0; offset <= reach; offset += 2) {
+    for (const sign of offset === 0 ? [1] : [1, -1]) {
+      const rad = ((sector.start + sector.span / 2 + sign * offset) * Math.PI) / 180;
+      for (let d = radius; d <= radius + 1.2; d += 0.01) {
+        const at = { cx: ink.origin.x + Math.cos(rad) * d, cy: ink.origin.y + Math.sin(rad) * d };
+        const box = { ...size, ...at };
+        const text = { ...whole, ...at };
+        // Nearest point of the ink to the arc's centre, less the radius.
+        const toArc = pointBoxDistance(ink.origin, box) - radius;
+        if (toArc < gap) continue;
+        // Off the bisector a place must sit 2 px nearer the arc to win.
+        if (best && toArc >= best.toArc - 2 / pxPerUnit) break;
+        if (ink.symbolBoxes.some((symbol) => boxBoxDistance(symbol, text) < boxGap)) continue;
+        const nearestOther = Math.min(
+          ...ink.ligands.map((end, index) => segmentBoxDistance(ink.origin, end, box) - ink.bondHalfWidths[index]!),
+          ...ink.dots.map((dot) => pointBoxDistance(dot, box)),
+          ...ink.symbols.map((symbol) => boxBoxDistance(symbol, box)),
+        );
+        if (nearestOther < gap || toArc + 1 / pxPerUnit >= nearestOther) continue;
+        best = { value: box, box: text, toArc, offset };
+        break;
+      }
+    }
+  }
+  return best ? { value: best.value, box: best.box } : null;
+}
+
+/**
+ * The words that name a marked pair of bonds without the drawing: "" where
+ * every pair of that shape shares the angle (CH4, BF3, NH3), "eq. " for two
+ * equatorial bonds of a trigonal bipyramid (SF4: <120° against about 173°
+ * axial), "ax-eq " for an axial and an equatorial one (PCl5: 90° against
+ * 120° and 180°), "cis " for two adjacent bonds of an octahedron (SF6, BrF5,
+ * XeF4: 90° against 180° trans). Null for a pair this does not name.
+ */
+export function anglePairQualifier(stericNumber: number, seatA: SlotSeat, seatB: SlotSeat): string | null {
+  if (stericNumber < 5) return "";
+  if (stericNumber === 5) {
+    if (seatA === "equatorial" && seatB === "equatorial") return "eq. ";
+    if ([seatA, seatB].includes("axial") && [seatA, seatB].includes("equatorial")) return "ax-eq ";
+    return null;
+  }
+  // An octahedron's marked pairs are adjacent: an apex to the base, or two
+  // neighbouring basal or square-planar bonds (layoutFor never marks a trans pair).
+  if (stericNumber === 6) return "cis ";
+  return null;
+}
+
+/**
+ * The caption form, e.g. "H-N-H = 107°", "eq. F-S-F <120°", "cis F-S-F = 90°".
+ * A caption names its pair in words, since no arc shows which bonds it
+ * means. Past the compact limit the atoms go and the pair words stay
+ * ("ax-eq 90°" for PCl5, "eq. <120°" for SCl4): a bare "Cl-P-Cl = 90°"
+ * would read as THE angle of a shape that has three. The asked value is
+ * always written; only a pair the words cannot name gets none.
+ */
+function angleCaption(result: VseprResult, layout: Layout, seated: readonly Seated[], value: string): string | null {
+  const [a, b] = layout.angle!;
+  const atoms = `${seated[a]!.ligand.label}-${result.central.symbol}-${seated[b]!.ligand.label}`;
+  const prefix = anglePairQualifier(result.stericNumber, seated[a]!.slot.seat, seated[b]!.slot.seat);
+  if (prefix === null) return null;
+  const bound = value.startsWith("<") || value.startsWith(">");
+  const forms = [bound ? `${prefix}${atoms} ${value}` : `${prefix}${atoms} = ${value}`, `${prefix}${atoms} ${value}`];
+  return forms.find((form) => form.length <= 16) ?? `${prefix}${value}`;
+}
+
+function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[], ink: SpeciesInk, value: string, pxPerUnit: number): AngleMark | null {
+  const radius = layout.angleRadius ?? 0.36;
+  // An arc shows its pair on the page, so its value is bare; it is still
+  // drawn only on a pair the words could name (never a trans or other pair
+  // whose angle differs from the value).
+  const [first, second] = layout.angle!;
+  if (anglePairQualifier(result.stericNumber, seated[first]!.slot.seat, seated[second]!.slot.seat) === null) return null;
+  const pair = honestArc(layout, ink, radius);
+  const placed = pair ? arcValueBox(value, layout, pair, radius, ink, pxPerUnit) : null;
+  if (pair && placed) return { kind: "arc", a: pair[0], b: pair[1], radius, ...placed };
+  const text = angleCaption(result, layout, seated, value);
+  return text ? { kind: "caption", text } : null;
+}
+
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean, row: boolean): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1045,9 +1301,12 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   let maxY = origin.y;
   let reachX = 0;
   const ligandIds: string[] = [];
+  const ligandAt: Vec2[] = [];
+  const pairDots: Vec2[] = [];
   seated.forEach(({ slot, ligand }, index) => {
     const rad = (slot.deg * Math.PI) / 180;
     const at = { x: origin.x + Math.cos(rad) * slot.len, y: origin.y + Math.sin(rad) * slot.len };
+    ligandAt.push(at);
     minY = Math.min(minY, at.y);
     maxY = Math.max(maxY, at.y);
     reachX = Math.max(reachX, Math.abs(at.x - origin.x));
@@ -1061,6 +1320,10 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   layout.lonePairs.forEach((pair, index) => {
     const rad = (pair.deg * Math.PI) / 180;
+    const centre = { x: origin.x + Math.cos(rad) * pair.dist, y: origin.y + Math.sin(rad) * pair.dist };
+    const spread = { x: -Math.sin(rad) * 0.11, y: Math.cos(rad) * 0.11 };
+    if (result.unpairedElectron && index === layout.lonePairs.length - 1) pairDots.push(centre);
+    else pairDots.push({ x: centre.x - spread.x, y: centre.y - spread.y }, { x: centre.x + spread.x, y: centre.y + spread.y });
     minY = Math.min(minY, origin.y + Math.sin(rad) * pair.dist - 0.12);
     maxY = Math.max(maxY, origin.y + Math.sin(rad) * pair.dist + 0.12);
     reachX = Math.max(reachX, Math.abs(Math.cos(rad) * pair.dist) + 0.12);
@@ -1078,28 +1341,62 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   });
   // Nonbonding electrons belong to the structure, just like its bonds.
   frameIds.push(...electronIds);
-  if (withAngle && layout.angle && result.bondAngle) {
-    const [a, b] = layout.angle;
-    const radius = layout.angleRadius ?? 0.36;
-    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[a]!, ligandIds[b]!, result.bondAngle, radius));
+  const characteristic = withAngle ? askedAngle(result) : null;
+  const ink: SpeciesInk = {
+    origin, ligands: ligandAt, dots: pairDots,
+    // sceneKit draws a wedge 0.09 wide at its base and multiple-bond strokes 0.1 apart.
+    bondHalfWidths: seated.map(({ slot, ligand }) => {
+      if (slot.style === "wedge") return 0.09;
+      const order = orders ? ligand.bondOrder : 1;
+      return order === 3 ? 0.1 : order === 2 ? 0.05 : 0;
+    }),
+    symbols: [inkBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => inkBox(ligand.label, ligandAt[index]!, pxPerUnit))],
+    symbolBoxes: [textBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => textBox(ligand.label, ligandAt[index]!, pxPerUnit))],
+  };
+  // Only a single molecule gets the arc and caption rules. A row of species
+  // keeps main's mark exactly, so a row main's label solver refuses is still
+  // refused, and no row draws where main would not.
+  const mark: AngleMark | null = !characteristic ? null
+    : row ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 }
+    : angleMark(result, layout, seated, ink, characteristic, pxPerUnit);
+  const angleTextIds: string[] = [];
+  if (mark?.kind === "row") {
+    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[mark.a]!, ligandIds[mark.b]!, characteristic!, mark.radius));
     // A linear molecule has no atom above its centre, but its semicircular
     // angle mark occupies that space. Include the mark in the panel reach so
     // the formula cannot be pinned on top of the angle's label anchor.
-    minY = Math.min(minY, origin.y - radius);
-    maxY = Math.max(maxY, origin.y + radius);
+    minY = Math.min(minY, origin.y - mark.radius);
+    maxY = Math.max(maxY, origin.y + mark.radius);
+  }
+  if (mark?.kind === "arc") {
+    detailIds.push(c.angle(`${tag}_ang`, centralId, ligandIds[mark.a]!, ligandIds[mark.b]!, undefined, mark.radius));
+    // The value is pinned where arcValueBox proved it clear, not left to the
+    // label solver, whose arc slots sat it a bond length away (or behind a
+    // leader). It shares the arc's reveal group, so it never shows alone.
+    const valueId = c.text(`${tag}_ang_val`, { x: mark.value.cx, y: mark.value.cy }, characteristic!, "bond angle value");
+    detailIds.push(valueId);
+    angleTextIds.push(valueId);
+    // A linear molecule has no atom above its centre, but its semicircular
+    // angle mark and value occupy that space: include them in the panel reach.
+    minY = Math.min(minY, origin.y - mark.radius, mark.box.cy - mark.box.hh);
+    maxY = Math.max(maxY, origin.y + mark.radius, mark.box.cy + mark.box.hh);
+    reachX = Math.max(reachX, Math.abs(mark.box.cx - origin.x) + mark.box.hw);
   }
   const titleY = maxY + TITLE_GAP;
   const hybridY = minY - CAPTION_GAP;
   const shapeY = hybridY - CAPTION_STEP;
-  const domainY = shapeY - CAPTION_STEP;
-  const claim = withAngle && layout.angle && result.bondAngle ? angleClaim(result.bondAngle) : null;
+  // No honest arc: the value is written under the shape, naming its atoms.
+  const angleY = mark?.kind === "caption" ? shapeY - CAPTION_STEP : shapeY;
+  const domainY = angleY - CAPTION_STEP;
+  const claim = mark ? angleClaim(characteristic!) : null;
   const claimY = claim ? domainY - CAPTION_STEP : domainY;
   const titleId = c.text(`${tag}_title`, { x: origin.x, y: titleY }, result.label, "species formula");
   frameIds.push(titleId);
   const hybridId = c.text(`${tag}_hyb`, { x: origin.x, y: hybridY }, result.hybridisationLabel, "hybridisation");
   const shapeId = c.text(`${tag}_shape`, { x: origin.x, y: shapeY }, result.shapeLabel, "molecular shape");
+  if (mark?.kind === "caption") angleTextIds.push(c.text(`${tag}_ang_txt`, { x: origin.x, y: angleY }, mark.text, "bond angle"));
   const domainId = c.text(`${tag}_dom`, { x: origin.x, y: domainY }, ELECTRON_GEOMETRY_LABEL[result.electronGeometry], "electron geometry");
-  detailIds.push(hybridId, shapeId, domainId);
+  detailIds.push(hybridId, shapeId, ...(mark?.kind === "caption" ? angleTextIds : []), domainId);
   let claimId: string | null = null;
   if (claim) {
     claimId = c.text(`${tag}_claim`, { x: origin.x, y: claimY }, claim, "angle is ideal, an inequality, or a quoted value");
@@ -1109,9 +1406,10 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
   const bottom = claimY - PANEL_END;
   const halfWidth = Math.max(reachX + PANEL_SIDE, 1.45);
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
-  c.scene.labelled(centralId, titleId, hybridId, shapeId, domainId, ...(claimId ? [claimId] : []));
+  c.scene.labelled(centralId, titleId, hybridId, shapeId, ...angleTextIds, domainId, ...(claimId ? [claimId] : []));
   return { ids: [...frameIds, ...detailIds], frameIds, detailIds,
-    atomIds: [centralId, ...ligandIds], bondIds, electronIds, lonePairIds, formulaId: titleId };
+    atomIds: [centralId, ...ligandIds], bondIds, electronIds, lonePairIds, formulaId: titleId,
+    panel: { minX: origin.x - halfWidth, maxX: origin.x + halfWidth, minY: bottom, maxY: top } };
 }
 
 function speciesCue(result: VseprResult): string {
@@ -1138,6 +1436,13 @@ function angleClaim(bondAngle: string): "ideal" | "quoted" | "inequality" {
 }
 
 const SPECIES_PITCH = 3.6;
+
+/** The compiler's uniform fit of these panels into FIT_PX. */
+export function fitPxPerUnit(panels: ReadonlyArray<{ minX: number; maxX: number; minY: number; maxY: number }>): number {
+  const spanX = Math.max(...panels.map((p) => p.maxX)) - Math.min(...panels.map((p) => p.minX));
+  const spanY = Math.max(...panels.map((p) => p.maxY)) - Math.min(...panels.map((p) => p.minY));
+  return Math.min(FIT_PX.width / Math.max(spanX, 1), FIT_PX.height / Math.max(spanY, 1));
+}
 
 /**
  * The figure for a stem: one molecule, or up to four listed species in a
@@ -1171,7 +1476,7 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     if (fajan) return { document: fajan, structures: [] };
   }
   if (dipoleIsTheAsk(stem)) {
-    const dipole = buildDipoleScene(question, dipoleInputs(question));
+    const dipole = buildDipoleScene(question, dipoleInputs(vseprSpecies(question)));
     if (dipole) return { document: dipole, structures: [] };
   }
   const species = vseprSpecies(question);
@@ -1180,17 +1485,31 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
     : `shapes of ${species.map((result) => result.formula).join(", ")} by VSEPR`;
-  const c = new ChemScene(question, reason, VSEPR_FAMILY);
   // A shape/lone-pair request needs the complete molecule, not an extra
   // measured angle. Requested/stated angles remain in the ordinary numeric
   // admission path; suppressing them would turn that request into a fragment.
   const withAngle = /\bangles?\b|°|\bdegrees?\b/i.test(stem);
-  const drawn: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
-  species.forEach((result, index) => {
-    const origin = { x: index * SPECIES_PITCH, y: 0 };
-    const item = drawSpecies(c, result, origin, `m${index + 1}`, withAngle);
-    if (item) drawn.push({ result, drawn: item });
-  });
+  const draw = (pxPerUnit: number) => {
+    const scene = new ChemScene(question, reason, VSEPR_FAMILY);
+    const items: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
+    species.forEach((result, index) => {
+      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle, !single);
+      if (item) items.push({ result, drawn: item });
+    });
+    return { scene, items };
+  };
+  // A single molecule's angle value is placed at the figure's own scale, which
+  // depends on the panels it sizes: draw, fit, and redraw until the fit stops
+  // shrinking. A row keeps main's mark, which needs no scale.
+  let pxPerUnit = FIT_PX.height / 5;
+  let pass = draw(pxPerUnit);
+  for (let round = 0; single && round < 3 && pass.items.length === species.length; round++) {
+    const fitted = fitPxPerUnit(pass.items.map((item) => item.drawn.panel));
+    if (fitted >= pxPerUnit * 0.99) break;
+    pxPerUnit = fitted;
+    pass = draw(pxPerUnit);
+  }
+  const { scene: c, items: drawn } = pass;
   if (drawn.length !== species.length) return null;
   if (single) {
     const only = drawn[0]!;
@@ -1232,7 +1551,7 @@ export const VSEPR_PROBES: ReadonlyArray<{
   { question: "The shape of ClF3 and its bond angle are:", expect: "draw", labels: ["ClF_3", "sp^3d", "T-shaped", "87.5°"] },
   { question: "The number of lone pairs on Xe in XeF2 and the shape of the molecule are:", expect: "draw", labels: ["XeF_2", "sp^3d", "linear"], forbidLabels: ["180°"], note: "three equatorial lone pairs, no arc" },
   { question: "The shape of I3- ion is:", expect: "draw", labels: ["I_3^(-)", "sp^3d", "linear"] },
-  { question: "The bond angle in NH3 and the shape of the molecule are:", expect: "draw", labels: ["NH_3", "sp^3", "trig. pyramidal", "107°"] },
+  { question: "The bond angle in NH3 and the shape of the molecule are:", expect: "draw", labels: ["NH_3", "sp^3", "trig. pyramidal", "H-N-H = 107°"], note: "plain to wedge sector holds the dashed H: caption, no arc" },
   { question: "The bond angle of H2O and its geometry are:", expect: "draw", labels: ["H_2O", "sp^3", "bent", "104.5°"] },
   { question: "The shape of CO2 molecule is:", expect: "draw", labels: ["CO_2", "sp", "linear"] },
   { question: "The hybridisation of boron in BF3 and its shape are:", expect: "draw", labels: ["BF_3", "sp^2", "trig. planar"] },
