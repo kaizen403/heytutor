@@ -464,7 +464,7 @@
     "lateral magnification",
     "dioptre definition"
    ],
-   "hintedArchetype": "lens_maker"
+   "hintedArchetype": null
   },
   {
    "question": "A toy 4.8 cm tall stands 54 cm in front of a convex mirror whose radius of curvature is 36 cm. Find the image distance, the magnification and the image height, and describe the image.",
@@ -755,7 +755,7 @@
     "lens_maker_equation",
     "sign_convention"
    ],
-   "hintedArchetype": "lens_maker"
+   "hintedArchetype": null
   },
   {
    "question": "Draw Focal length of a concave mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
@@ -818,7 +818,7 @@
     "magnification_definition",
     "power_definition"
    ],
-   "hintedArchetype": "lens_maker"
+   "hintedArchetype": null
   },
   {
    "question": "Draw Plotting the graph between distance and magnification for a convex lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
@@ -1407,7 +1407,7 @@
     "law-of-reflection",
     "principal-ray-rules-for-spherical-mirrors"
    ],
-   "hintedArchetype": "spherical_mirror"
+   "hintedArchetype": null
   }
  ]
 }

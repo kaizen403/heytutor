@@ -8,6 +8,7 @@ import { expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } 
 
 const K3 = "accounts/fireworks/models/kimi-k3";
 const FLASH = "accounts/fireworks/models/deepseek-v4p1-flash";
+const FAST = "accounts/fireworks/routers/kimi-k3-fast";
 const profile: LabModelProfile = {
   version: "lab-model-profile/v1", provider: "fireworks", deployment: null, fastMode: false,
   models: { planner: K3, problemIR: K3, teaching: K3, picker: FLASH },
@@ -26,6 +27,13 @@ const serverConfig = {
   },
   plannerOutputCap: 1_000, teachingOutputCap: 2_000,
 };
+const fastRates = { lane: "kimi-k3-fast" as const, inputUsdPer1M: 4.5, outputUsdPer1M: 22.5, cachedInputUsdPer1M: 0.45 };
+const fastProfile: LabModelProfile = { ...profile, fastMode: true,
+  models: { planner: FAST, problemIR: FAST, teaching: FAST, picker: FLASH },
+  rates: { planner: fastRates, problemIR: fastRates, teaching: fastRates, picker: profile.rates.picker },
+  // Production's teaching fallback after a 429, connect failures or a startup retry.
+  teachingAlternate: { model: K3, rates: profile.rates.teaching } };
+const fastServerConfig = { ...serverConfig, fastModelProfile: fastProfile };
 const origin = "http://offline.test";
 const endpoint = { provider: "fireworks" as const, deployment: null, url: "https://provider.invalid/chat" };
 const init = { method: "POST", body: JSON.stringify({ messages: [{ role: "user", content: "A π question" }], max_tokens: 100 }) };
@@ -139,6 +147,41 @@ function verifyDecision(api: BudgetApi): void {
   invalidProfile.models.planner = "unpriced-fallback";
   assert.throws(() => api.assertLabBudgetPreflight(invalidProfile, { ...serverConfig, modelProfile: invalidProfile }),
     "a self-consistent but unpriced fallback profile is not acceptable");
+
+  // Fast: production routing, compared against the server's advertised Fast profile.
+  try {
+    api.assertLabBudgetPreflight(fastProfile, fastServerConfig);
+    api.assertLabBudgetPreflight(profile, fastServerConfig);
+  } catch {
+    assert.fail("M12: a Fast lab must compare against the server's Fast profile, standard against standard");
+  }
+  const fastDecide = (headers: Record<string, string>, url = `${origin}/api/chat`) => api.labRequestBudgetDecision({ url, origin,
+    headers: new Headers(headers), init, endpoint, profile: fastProfile, serverConfig: fastServerConfig });
+  const fastScene = fastDecide(sceneHeaders, `${origin}/api/chat?diagramExampleIds=a,b`);
+  assert.equal(fastScene.model, FAST, "Fast scene requests use the Fast router identity");
+  // ((43 + 20,000 + 2,048) * $4.5 + 1,000 * $22.5) / 1M, twice.
+  close(fastScene.worstCaseUsd, 0.24382, "Fast scene reserves at captured Kimi K3 Fast rates");
+  for (const laneHeaders of [{ "x-turn-planner-version": "3" }, { "x-problem-ir-version": "1" }] as Record<string, string>[]) {
+    const result = fastDecide({ "x-heytutor-trace-id": "fast-lane", "x-planner": "1", ...laneHeaders });
+    assert.equal(result.model, FAST, "Fast turn planner and ProblemIR use the Fast router");
+    // ((43 + 2,048) * $4.5, rounded to $0.00941, + 1,000 * $22.5) / 1M, twice.
+    close(result.worstCaseUsd, 0.06382, "Fast planner lanes reserve at Fast rates");
+  }
+  assert.equal(fastDecide({ ...sceneHeaders, "x-diagram-example-picker": "1" }).model, FLASH, "Fast keeps the cheap picker");
+  assert.equal(fastDecide({ "x-heytutor-trace-id": "fast-teaching" }).model, FAST);
+  const fastAsStandard = { ...fastProfile, fastMode: false };
+  for (const [local, mismatch] of [
+    [fastProfile, serverConfig],
+    [fastProfile, { ...serverConfig, fastModelProfile: null }],
+    [fastProfile, { ...serverConfig, fastModelProfile: profile }],
+    [fastProfile, { ...serverConfig, fastModelProfile: { ...fastProfile, rates: { ...fastProfile.rates, planner: profile.rates.planner } } }],
+    [fastProfile, { ...fastServerConfig, modelProfile: fastProfile, fastModelProfile: profile }],
+    [profile, { ...serverConfig, modelProfile: fastProfile, fastModelProfile: fastProfile }],
+    [fastAsStandard, { ...serverConfig, modelProfile: fastAsStandard }],
+  ] as const) {
+    assert.throws(() => api.assertLabBudgetPreflight(local, mismatch),
+      "M9: a Fast/standard identity mismatch or a missing Fast profile fails before dispatch");
+  }
 
   const azureRates = { lane: "gpt-6.1-sol" as const, inputUsdPer1M: 2, outputUsdPer1M: 10, cachedInputUsdPer1M: 0.1 };
   const azureProfile: LabModelProfile = { ...profile, provider: "azure", deployment: "gpt-6-1-sol",
@@ -283,6 +326,8 @@ function verifyMutations(source: string): void {
         && node.expression.text === "labModelProfilesMatch", "true") },
     { name: "M10 all lanes charged at the picker price", expected: /M8\/M10: captured K3/,
       source: replaceInitializer(pure, "lane", '"picker"') },
+    { name: "M12 Fast compared against the standard server profile", expected: /M12: a Fast lab/,
+      source: replaceInitializer(pure, "serverProfile", "serverConfig.modelProfile") },
     { name: "M11 teaching reserves only one attempt", expected: /M11: teaching can dispatch three/,
       source: replaceInitializer(pure, "maxAttempts", "chatRequest ? plannerRequest ? 2 : 1 : 1") },
   ];

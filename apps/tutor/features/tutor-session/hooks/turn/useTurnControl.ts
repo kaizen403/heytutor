@@ -19,7 +19,8 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { IncompleteCodeBeatError, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { IncompleteCodeBeatError, shouldAbandonTurn, type SegmentRunOutcome } from "../../lib/turn/turnFailurePolicy";
+import { withTeachingVoiceDegraded } from "@/lib/obs/failedTurnTelemetry";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { workColumnRows } from "../../lib/board/boardLayout";
 import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
@@ -87,6 +88,21 @@ interface IntroProgress {
   remainder: boolean;
 }
 
+/**
+ * A beat taught without its voice (provider and browser both failed) marks the
+ * lesson as voice degraded for telemetry. It is not a failure: the lesson
+ * taught, so `failed`, `stage` and `code` stay as they were.
+ */
+function noteVoiceDegradedBeat(
+  outcome: SegmentRunOutcome | undefined,
+  page: BoardPageRecord | null,
+  current: BoardPageRecord | null,
+  sessionId: string | null | undefined,
+): void {
+  if (!outcome?.voiceDegraded || !page || page !== current || page.boardId !== sessionId) return;
+  page.failureTelemetry = withTeachingVoiceDegraded(page.failureTelemetry);
+}
+
 export function useTurnControl(
   params: UseTurnLifecycleParams,
   handleQuestionRef: RefObject<(question: string, options?: HandleQuestionOptions) => Promise<void>>,
@@ -101,6 +117,7 @@ export function useTurnControl(
     enableKeyboardControls = true,
     onError,
     onSpeechStartupStatus,
+    onVoiceDegraded,
     phase,
     isReplaying,
     boardLoaded,
@@ -204,6 +221,7 @@ export function useTurnControl(
     }
     turnActiveRef.current = false;
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
+    onVoiceDegraded?.(false);
     isPausedRef.current = false;
     setIsPaused(false);
     whiteboardRef.current?.setPaused(false);
@@ -230,6 +248,7 @@ export function useTurnControl(
     setInputInteracted,
     phaseRef,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   ]);
 
   const applyTurnPhase = useCallback(
@@ -295,13 +314,18 @@ export function useTurnControl(
         }
 
         try {
-          await runSegment(
+          const outcome = await runSegment(
             segmentToRun,
             index,
             collectedSegmentsRef.current,
             turnGeneration,
           );
-          if (counted()) consecutiveSegmentFailuresRef.current = 0;
+          if (counted()) {
+            // A beat taught without its voice still taught: it resets the
+            // watchdog like any other, and only marks the lesson.
+            consecutiveSegmentFailuresRef.current = 0;
+            noteVoiceDegradedBeat(outcome, segmentPage, boardPageRef.current, sessionId);
+          }
         } catch (error) {
           // Old async speech/draw cleanup cannot change a successor's failure
           // history or publish an error against the replacement turn.
@@ -496,7 +520,7 @@ export function useTurnControl(
             progress.savepointId = savepointId;
             progress.beatLayout = beatLayout;
             progress.inBeat = true;
-            await runSegment(
+            const beatOutcome = await runSegment(
               segment,
               startIndex + offset,
               collectedSegmentsRef.current,
@@ -514,6 +538,7 @@ export function useTurnControl(
                 narrationAfterIntro = narrationSinceEpochRef.current;
               },
             );
+            if (counted()) noteVoiceDegradedBeat(beatOutcome, introPage, boardPageRef.current, sessionId);
             progress.inBeat = false;
             progress.completed = offset + 1;
           }
@@ -865,6 +890,7 @@ export function useTurnControl(
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
+    onVoiceDegraded?.(false);
     // A plain Stop of a lesson or a resume (not a doubt's interrupt, not a new
     // board, not a replay) leaves it to continue: it keeps its figure and words
     // like a doubt does, and is offered again below (decisions 3 and 4).
@@ -1095,6 +1121,7 @@ export function useTurnControl(
     setReplayProgressMs,
     setReplayTotalMs,
     onSpeechStartupStatus,
+    onVoiceDegraded,
   ]);
 
   useEffect(() => {

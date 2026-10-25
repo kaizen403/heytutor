@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import vm from "node:vm";
 import { lectureExportFileMs } from "../../lib/lecture-export/lectureExportSpeed";
+import { renderSourceFiles } from "../../lib/lecture-export/buildRenderFingerprint.mjs";
 
 const app = resolve(import.meta.dirname, "../..");
 const load = createRequire(resolve(app, "package.json"));
@@ -181,8 +182,21 @@ async function main() {
     assert.equal(outcome.result!.tailTruncated, false);
   }
   assert.equal(unchanged.result!.totalMs, captured.result!.totalMs, "a terminal sample with no changed ink adds no duration");
-  assert.equal(mainFlush.result!.totalMs, 25 * (1000 / 24), "24 natural-speed frames plus one terminal frame retain the final ink");
-  assert.equal(mainFlush.encoded.at(-1)!.duration, 1 / 24, "the changed terminal picture occupies one bounded frame");
+  // 24 natural-speed frames plus one terminal frame retain the final ink,
+  // then the settled page is held 2 s (48 frames) so the file never ends on
+  // a stroke still being drawn (v3 p1e2 ended 3.5 s before its audio).
+  assert.equal(mainFlush.result!.totalMs, (25 + 48) * (1000 / 24), "final ink frame plus the 2 s end hold");
+  for (const outcome of [captured, mainFlush, tailFlush, voiced, missing]) {
+    const totalSec = outcome.result!.totalMs / 1000;
+    const lastInk = outcome.encoded.find(frame => frame.value === 2)!;
+    assert.ok(lastInk, `${outcome.scenario}: the final ink is encoded`);
+    assert.ok(totalSec - lastInk.start >= 1.5,
+      `${outcome.scenario}/${outcome.voice}: the last ink lands at least 1.5 s before the end of the file (${(totalSec - lastInk.start).toFixed(3)} s)`);
+    const last = outcome.encoded.at(-1)!;
+    assert.equal(last.value, 2, `${outcome.scenario}: the file ends on the finished page`);
+    assert.ok(Math.abs(last.start + last.duration - totalSec) < 1e-9, `${outcome.scenario}: the held page runs to the end of the file`);
+    assert.ok(totalSec * 1000 >= lectureExportFileMs(outcome.durationMs) + 2_000 - 1e-6, `${outcome.scenario}: the hold also follows the last word`);
+  }
   assert.equal(unchanged.finalEncoded, 0);
   assert.equal(unfinished.result!.tailTruncated, true, "an unfinished drawing remains truthfully truncated");
   assert.equal(unfinished.finalEncoded, 0);
@@ -194,6 +208,11 @@ async function main() {
   assert.ok(voiced.audioSamples[0]! > 0, "actual audio preparation keeps decoded voiced samples");
   assert.equal(missing.result!.missingAudioCues, 1); assert.equal(missing.result!.noVoice, true);
   assert.equal(missing.audioSamples[0], 0, "a missing speaking clip remains silence");
+  // A file cached before the 2 s end hold ends on the last stroke. The
+  // render fingerprint hashes the export module, so the hold moves the cache
+  // key and every such file is rebuilt.
+  assert.ok(renderSourceFiles(resolve(app, "../..")).includes("apps/tutor/lib/lecture-export/exportLectureMp4.ts"),
+    "the export end hold is inside the render fingerprint, so files cached before it are rebuilt");
   console.log("verify-lecture-export-final-frame: final main/tail flush ink, unchanged duration, cancellation, error, truncation and voice metadata");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

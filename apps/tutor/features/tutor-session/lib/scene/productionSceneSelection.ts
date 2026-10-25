@@ -4,7 +4,7 @@
  */
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
-  ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
+  ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
@@ -71,7 +71,9 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
   const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question);
   const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
-  const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR });
+  // The planner request keeps main's archetype choice (prompt guidance and
+  // whether to call the planner), so strict is exactly main's request.
+  const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR, keepLawOnlyLead: true });
   const shouldAttemptLlmScene = shouldAttemptExactScene({
     visualRequirement: planningTurnPlan.visualRequirement,
     chemistryLane, familyCount: sceneCapabilities.families.length,
@@ -670,6 +672,20 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     candidateValidation = input.candidate
       ? validateProductionSceneCandidate({ candidate: input.candidate, question, turnPlan })
       : input.candidateValidation ?? null;
+    // On the current lane a stem matched only through its plan's laws draws
+    // nothing, planner candidate included: with that match refused, the next
+    // archetype, a family or an unchecked planner figure took the turn (a
+    // spring for an air bubble, a floating image point inside a glass sphere).
+    // Strict, which prefers the planner, is unchanged.
+    if (!input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null })) {
+      const reason = "the stem matched an archetype only through its plan's laws";
+      const leadStatus = resolveDiagramFailureStatus({
+        visualRequirement: questionRequiresVisual(question) ? "required" : turnPlan.visualRequirement,
+        requiredRetryEnabled: input.requiredRetryEnabled ?? true,
+      });
+      return empty(reason, leadStatus === "retry_required" ? "retry_required" : "text_only",
+        validScene(candidateValidation) ? { code: "law_only_archetype_lead", reason, preferred: false, replacedBy: null } : null);
+    }
     const value = validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,

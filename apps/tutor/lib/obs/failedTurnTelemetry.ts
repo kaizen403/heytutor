@@ -18,8 +18,12 @@ export const FAILED_TURN_CODES = [
 ] as const;
 export const FAILED_TURN_ISSUE_CODES = [
   ...FAILED_TURN_CODES,
+  // Not a failure: both voices failed and the lesson still taught every
+  // sentence with its ink. Kept out of FAILED_TURN_CODES and the confirmed
+  // failure list on purpose, so it never fails the turn or opens an issue.
+  "teaching_voice_degraded",
   // #172 drop codes, saved after valid_candidate_dropped.
-  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "save_admission_refused", "selection_error", "source_policy_suppressed",
+  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id", "duplicate_quantity_id",
   "duplicate_unknown_id", "given_trig_stipulation_conflict", "invalid_assumption", "invalid_claim",
   "invalid_claim_entity_hints", "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
@@ -42,7 +46,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "point_line_source_line_mismatch", "point_line_drawn_line_mismatch", "point_line_source_point_mismatch",
   "section_source_unsupported", "section_source_mismatch",
   "turnplan_loop_member_not_proven", "turnplan_loop_member_bypassed", "turnplan_route_direction_not_proven",
-  "source_loop_not_closed", "physical_vector_mixed_coordinate_spaces", "physical_relation_mixed_coordinate_spaces",
+  "source_loop_not_closed", "capacitor_depicted_twice", "physical_vector_mixed_coordinate_spaces", "physical_relation_mixed_coordinate_spaces",
   "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
   // Figure consistency (scene-engine compile/figureConsistency.ts).
   "component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap",
@@ -93,6 +97,18 @@ export function sceneRequestFailureTelemetry(outcome: {
         : !outcome.bodyParsed && outcome.httpStatus === null && outcome.errorPresent ? "transport_error"
           : !outcome.bodyParsed ? "scene_planner_invalid" : undefined;
   return code ? { stage: "scene_planner", code } : undefined;
+}
+
+export const TEACHING_VOICE_DEGRADED = "teaching_voice_degraded" as const;
+
+/**
+ * Note a lesson that taught at least one sentence without its voice. It goes
+ * first in `issueCodes` so the 32 code cap cannot drop it, and it never
+ * touches `failed`, `stage` or `code`: a voice degraded lesson is taught.
+ */
+export function withTeachingVoiceDegraded(telemetry: FailedTurnTelemetry | undefined): FailedTurnTelemetry {
+  const issueCodes = (telemetry?.issueCodes ?? []).filter((code) => code !== TEACHING_VOICE_DEGRADED);
+  return { ...telemetry, subject: telemetry?.subject ?? "other", issueCodes: [TEACHING_VOICE_DEGRADED, ...issueCodes] };
 }
 
 /** Client diagnostics cross the persistence boundary through enums/counts only. */

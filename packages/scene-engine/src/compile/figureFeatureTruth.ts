@@ -176,9 +176,10 @@ function oppositeAlignment(extra: RenderPrimitive, positive: RenderPrimitive): n
 }
 
 /**
- * A space frame names its axes x, y, z; each name must sit nearest its own
- * axis. Positive halves are strokes 0–2. Negative halves are appended after
- * them and still belong to the axis they run opposite.
+ * A space frame names its axes x, y, z; each name must sit nearest the
+ * positive half of its own axis. Positive halves are strokes 0–2. Negative
+ * halves are appended after them; every negative half, its own included,
+ * counts against a name.
  */
 export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneIssue[] {
   const issues: SceneIssue[] = [];
@@ -202,10 +203,12 @@ export function validateAxisNamePlacement(primitives: RenderPrimitive[]): SceneI
     const distanceTo = (line: RenderPrimitive) => Math.min(...segments(line).map(([s, t]) => segmentDistance(label.points[0]!, s, t)));
     const nearest = (halves: RenderPrimitive[]) => halves.length ? Math.min(...halves.map(distanceTo)) : Infinity;
     const halvesOf = (index: number) => [positive[index]!, ...extras.filter((extra) => ownerOf.get(extra) === index)];
-    const ownDistance = nearest(halvesOf(own));
+    // Only the positive half earns a name: a name at the far end of its own
+    // negative half reads as that axis pointing the wrong way.
+    const ownDistance = distanceTo(positive[own]!);
     const otherDistance = Math.min(
       ...[0, 1, 2].filter((index) => index !== own).map((index) => nearest(halvesOf(index))),
-      nearest(extras.filter((extra) => ownerOf.get(extra) === null)),
+      nearest(extras.filter((extra) => ownerOf.get(extra) === own || ownerOf.get(extra) === null)),
     );
     if (otherDistance + 4 < ownDistance) {
       issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [label.entityId],
@@ -227,8 +230,24 @@ export function validateAngleLabelWedge(
     if (!id) return undefined;
     const direct = primitives.find((p) => p.entityId === id && p.kind === "point")?.points[0];
     if (direct) return direct;
-    const renderedId = pointAliases.get(id);
-    return renderedId ? primitives.find((p) => p.entityId === renderedId && p.kind === "point")?.points[0] : undefined;
+    // Coincident points can alias in a chain; follow it to the rendered one.
+    const seen = new Set([id]);
+    for (let next = pointAliases.get(id); next && !seen.has(next); next = pointAliases.get(next)) {
+      seen.add(next);
+      const point = primitives.find((p) => p.entityId === next && p.kind === "point")?.points[0];
+      if (point) return point;
+    }
+    return undefined;
+  };
+  const labelPath = (mark: SceneDocument["entities"][number], label: RenderPrimitive): string | undefined => {
+    const annotationIndex = (document.annotations ?? []).findIndex((annotation) => annotation.id === label.provenance?.annotationId);
+    const index = document.entities.findIndex((entity) => entity.id === mark.id);
+    return annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : index >= 0 && document.entities[index]!.label ? `entities[${index}].label` : undefined;
+  };
+  const refuse = (mark: SceneDocument["entities"][number], label: RenderPrimitive, message: string) => {
+    const path = labelPath(mark, label);
+    issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [mark.id],
+      ...(path ? { path } : {}), expected: "angle_wedge", message });
   };
   for (const mark of marks) {
     const construction = document.constructions.find((c) => c.outputs.includes(mark.id));
@@ -242,7 +261,12 @@ export function validateAngleLabelWedge(
     const vertex = arcPrimitive?.points[0] ?? renderedPoint(vertexId);
     const labels = primitives.filter((p) => p.kind === "label" && !p.provenance?.usesLeader && p.points[0] && (p.entityId === mark.id ||
       (document.annotations ?? []).some((annotation) => annotation.id === p.provenance?.annotationId && annotation.targetIds.length === 1 && annotation.targetIds[0] === mark.id)));
-    if (!vertex || !arc || labels.length === 0) continue;
+    if (!arc || labels.length === 0) continue;
+    if (!vertex) {
+      // A drawn arc and name whose vertex cannot be found cannot be proved.
+      for (const label of labels) refuse(mark, label, "An angle name cannot be checked against its wedge: the vertex is not drawn");
+      continue;
+    }
     const angleOf = (p: Point) => Math.atan2(p.y - vertex.y, p.x - vertex.x);
     const start = angleOf(arc.points[0]!), middle = angleOf(arc.points[Math.floor(arc.points.length / 2)]!), end = angleOf(arc.points.at(-1)!);
     const norm = (a: number) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
@@ -252,12 +276,7 @@ export function validateAngleLabelWedge(
     for (const label of labels) {
       const offset = ccw ? norm(angleOf(label.points[0]!) - start) : norm(start - angleOf(label.points[0]!));
       const inside = offset <= span + margin || offset >= 2 * Math.PI - margin;
-      if (inside) continue;
-      const annotationIndex = (document.annotations ?? []).findIndex((annotation) => annotation.id === label.provenance?.annotationId);
-      const index = document.entities.findIndex((entity) => entity.id === mark.id);
-      const path = annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : index >= 0 && document.entities[index]!.label ? `entities[${index}].label` : undefined;
-      issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: [mark.id],
-        ...(path ? { path } : {}), expected: "angle_wedge", message: "An angle name sits outside the wedge its arc marks" });
+      if (!inside) refuse(mark, label, "An angle name sits outside the wedge its arc marks");
     }
   }
   return issues;
