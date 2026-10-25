@@ -13,7 +13,7 @@ export function parseDiagramYieldPolicy(value: unknown): DiagramYieldPolicy {
  */
 export function prepareVerifiedParts(
   original: SceneDocument,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; figureConsistency?: boolean } = {},
 ): { document: SceneDocument; issues: SceneIssue[]; compiledScene?: CompileResult } {
   const admitted = withDiagramYieldPolicy(original, options.enabled ? "verified_parts" : "off");
   if (!options.enabled) return { document: admitted, issues: [] };
@@ -28,7 +28,7 @@ export function prepareVerifiedParts(
   let compiledScene: CompileResult | undefined;
   // Bounded retries expose errors hidden behind an earlier failed label check.
   for (let pass = 0; pass < 6; pass++) {
-    const compiled = compileSceneDocument(document);
+    const compiled = compileSceneDocument(document, { figureConsistency: options.figureConsistency });
     compiledScene = compiled;
     if (compiled.ok) break;
     // A secondary proof error on the same label cannot mask a measured lie.
@@ -202,5 +202,5 @@ export function prepareVerifiedParts(
   }
   // The last retry may have changed the document. Return only a compilation
   // of the exact surviving scene, so admission can reuse its complete proofs.
-  return { document, issues, compiledScene: compiledScene ?? compileSceneDocument(document) };
+  return { document, issues, compiledScene: compiledScene ?? compileSceneDocument(document, { figureConsistency: options.figureConsistency }) };
 }

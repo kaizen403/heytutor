@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateFigureConsistency } from "./figureConsistency";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
@@ -1033,6 +1034,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
+    ...axesTitleOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan),
     ...axisLetterOwners,
   ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
@@ -1168,6 +1170,14 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
   if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives),
     ...validateFigureLegibility(primitives), ...validateAxisNamePlacement(primitives), ...validateAngleLabelWedge(document, primitives, coincidentPointAliases));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
+  // Ink that contradicts a planner document (a reversed current, glyphs drawn on
+  // top of each other, hidden or unnamed arrows) is false under both yield policies.
+  if (options.figureConsistency) issues.push(...validateFigureConsistency(document, primitives, (entityId) => {
+    const value = geometry.get(entityId);
+    if (value?.kind !== "compound") return null;
+    const transform = transformPlan.transformFor(entityId);
+    return [transform(value.terminals[0]), transform(value.terminals[1])];
+  }));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   // Native bond truth is core geometry under both yield policies; labels or
   // repair cannot turn overlapping double/triple strokes into valid ink.
@@ -1217,6 +1227,62 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
 
 /** Shorter drawn axes than this carry no letter; three letters would crowd one point. */
 const MIN_LETTERED_AXIS_PX = 16;
+
+/**
+ * Axis titles named on the axes construction itself (xLabel, yLabel). Each
+ * sits at its own axis's arrow tip, where a graph names the axis. A label
+ * construction aimed at the axes entity has only the middle of the plot to
+ * stand on and names neither axis; validation refuses it.
+ */
+function axesTitleOwners(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  renderableIds: ReadonlySet<string>,
+  constructionOnlyIds: ReadonlySet<string>,
+  entityToGroup: ReadonlyMap<string, string>,
+  transformPlan: EntityTransformPlan,
+): LabelOwner[] {
+  const owners: LabelOwner[] = [];
+  for (const construction of document.constructions) {
+    if (construction.operator !== "axes") continue;
+    const entityId = construction.outputs[0];
+    const value = entityId ? geometry.get(entityId) : undefined;
+    if (!entityId || value?.kind !== "axes") continue;
+    if (!renderableIds.has(entityId) || constructionOnlyIds.has(entityId) || !entityToGroup.has(entityId)) continue;
+    const transform = transformPlan.transformFor(entityId);
+    const axes = [
+      { key: "xLabel", origin: { x: value.xMin, y: 0 }, tip: { x: value.xMax, y: 0 } },
+      { key: "yLabel", origin: { x: 0, y: value.yMin }, tip: { x: 0, y: value.yMax } },
+    ] as const;
+    for (const axis of axes) {
+      const text = construction.inputs[axis.key];
+      // Fail closed: only x on the horizontal and y on the vertical ever draw.
+      // Turn binding (all plan quantities x or y) lives in
+      // pruneUnverifiedSceneAnnotations; this rule also holds for a stored or
+      // replayed document that never passed that prune.
+      if (typeof text !== "string" || text.trim() !== (axis.key === "xLabel" ? "x" : "y")) continue;
+      const origin = transform(axis.origin);
+      const tip = transform(axis.tip);
+      const length = Math.hypot(tip.x - origin.x, tip.y - origin.y);
+      if (!(length >= MIN_LETTERED_AXIS_PX)) continue;
+      owners.push({
+        labelId: `primitive_${entityId}_${axis.key}`,
+        entityId,
+        // The x and y titles are two labels even when their text is equal.
+        duplicateKey: `${entityId}\u0000${axis.key}`,
+        anchor: tip,
+        text: text.trim(),
+        viewBounds: transformPlan.viewportFor(entityId),
+        useOwnerBounds: false,
+        incidentTangents: [{ x: (origin.x - tip.x) / length, y: (origin.y - tip.y) / length }],
+        tetherPx: pointLabelTether(text.trim()),
+        allowLeader: false,
+        leaderGeometrySafe: true,
+      });
+    }
+  }
+  return owners;
+}
 
 /**
  * Engine-owned letters x, y, z at the positive tips of every drawn space
@@ -2204,7 +2270,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       return;
     }
   }
-  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, hasIndependentDisplayMetric)) {
+  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, independentDisplayMatcher(assertion.entities, geometry))) {
     issues.push({code:"invalid_display_metric_assertion",message:"Independently normalized arrows and scaled physical plots cannot certify length equality or distance ratios",severity:"fatal",entityIds:assertion.entities});
     return;
   }
@@ -2298,6 +2364,11 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        // Points exempted through one shared optical display are compared in
+        // physical units: a fixed drawn tolerance at a tiny displayScale would
+        // otherwise accept physically unequal lengths.
+        const opticalScale = sharedOpticalDisplay(assertion.entities, geometry)?.displayScale;
+        if (opticalScale !== undefined) measured.forEach((value, index) => { measured[index] = value / opticalScale; });
         report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
@@ -5390,6 +5461,39 @@ function geometryMetadataMatches(value: Geometry | undefined, predicate: (metada
     return predicate(candidate) || Object.values(candidate).some((entry) => visit(entry, depth + 1));
   }
   return value !== undefined && Object.entries(value).some(([key, entry]) => !["points", "paths", "point", "center", "terminals"].includes(key) && visit(entry, 0));
+}
+/**
+ * The display matcher for one length comparison. A gaussian_image or
+ * optical_focus point is placed at its physical axis distance and height times
+ * one displayScale, so when every compared point carries the same optical
+ * display (same scale, length unit, centre and axis) that scale cancels: a ratio or an
+ * equality of their drawn lengths is the physical one. Those points are
+ * therefore not independently normalized. Any other display ancestor, or a
+ * point from an optical display with another scale, still matches.
+ */
+function independentDisplayMatcher(entityIds: readonly string[], geometry: Map<string, Geometry>): (value: Geometry | undefined) => boolean {
+  const shared = sharedOpticalDisplay(entityIds, geometry);
+  if (!shared) return hasIndependentDisplayMetric;
+  return (value) => {
+    const display = opticalDisplayOf(value);
+    return display && sameOpticalDisplay(display, shared) ? false : hasIndependentDisplayMetric(value);
+  };
+}
+/** The one optical display every listed point carries, or null. */
+function sharedOpticalDisplay(entityIds: readonly string[], geometry: Map<string, Geometry>): OpticalImageDefinition | OpticalFocusDefinition | null {
+  const displays = entityIds.map((id) => opticalDisplayOf(geometry.get(id)));
+  const shared = displays[0];
+  return !shared || displays.some((display) => !display || !sameOpticalDisplay(display, shared)) ? null : shared;
+}
+function opticalDisplayOf(value: Geometry | undefined): OpticalImageDefinition | OpticalFocusDefinition | null {
+  if (value?.kind !== "point") return null;
+  return value.opticalImage ?? value.opticalFocus ?? null;
+}
+function sameOpticalDisplay(first: OpticalImageDefinition | OpticalFocusDefinition, second: OpticalImageDefinition | OpticalFocusDefinition): boolean {
+  return Number.isFinite(first.displayScale) && first.displayScale > 0 && first.displayScale === second.displayScale &&
+    first.lengthUnit === second.lengthUnit &&
+    first.center.x === second.center.x && first.center.y === second.center.y &&
+    first.axis.x === second.axis.x && first.axis.y === second.axis.y;
 }
 function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => Object.keys(metadata).some((key) => INDEPENDENT_DISPLAY_KEYS.has(key)) ||

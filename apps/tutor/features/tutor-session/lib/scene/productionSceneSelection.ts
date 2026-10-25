@@ -152,11 +152,14 @@ export function validateProductionSceneCandidate(input: {
       };
     }
   }
-  const prepared = prepareVerifiedParts(validated.document, { enabled });
-  const compiledScene = prepared.compiledScene ?? compileSceneDocument(prepared.document);
+  // Planner ink must also agree with its own document (figure consistency).
+  const prepared = prepareVerifiedParts(validated.document, { enabled, figureConsistency: true });
+  const compiledScene = prepared.compiledScene ?? compileSceneDocument(prepared.document, { figureConsistency: true });
   validated.document = enabled ? deferVerifiedAnswerLabels(prepared.document, authoritativePlan, compiledScene.renderScene ?? undefined) : prepared.document;
   const yieldIssues = [...circular.issues, ...normalized.issues, ...prepared.issues];
-  if (yieldIssues.length) validated.document = { ...validated.document, source: { ...validated.document.source, yieldDemotions: yieldIssues } };
+  // Keep demotions recorded earlier (an omitted unbound axis title) beside the yield ones.
+  const earlierDemotions = Array.isArray(validated.document.source.yieldDemotions) ? validated.document.source.yieldDemotions : [];
+  if (yieldIssues.length) validated.document = { ...validated.document, source: { ...validated.document.source, yieldDemotions: [...earlierDemotions, ...yieldIssues] } };
   const agreementIssues = validateSceneQuantityAgreement(
     validated.document.quantities,
     authoritativePlan,

@@ -31,6 +31,7 @@ import {
   PROBLEM_IR_VERSION,
   SCENE_ARTIFACTS_V3_VERSION,
   checkVisualObligations,
+  compileSceneDocument,
   deriveVisualObligations,
   visualObligationRejection,
   validateProblemIR,
@@ -293,12 +294,46 @@ function checkVectorSum(
   check(gap < 1e-6, `${label}: resultant must equal heading + current (gap ${gap})`);
 }
 
-/** Triangle proof in either shape: endpoint arithmetic or a fatal vector_sum. */
+/**
+ * A triangle built by velocity_triangle or crossing_strategies (731c87f4e,
+ * PR #83) has no endpoint points and no vector_sum assertion: the operator
+ * computes the resultant. Measure it on the compiled ink instead: each drawn
+ * resultant must equal its drawn frame (current) plus body (boat) arrow.
+ * Returns the number of triangles measured.
+ */
+function checkOperatorTriangles(document: SceneDocument, label: string): number {
+  const triples = document.constructions.flatMap((construction) => {
+    if (construction.operator === "velocity_triangle") return [construction.outputs.slice(0, 3)];
+    if (construction.operator === "crossing_strategies") return [construction.outputs.slice(0, 3), construction.outputs.slice(3, 6)];
+    return [];
+  });
+  if (triples.length === 0) return 0;
+  const compiled = compileSceneDocument(document);
+  check(compiled.ok && compiled.renderScene, `${label}: the operator triangle must compile`);
+  const delta = (id: string): { x: number; y: number } => {
+    const arrow = compiled.renderScene!.primitives.find((primitive) => primitive.kind === "vector" && primitive.entityId === id);
+    check(arrow && arrow.points.length >= 2, `${label}: ${id} must be drawn as an arrow`);
+    const [start, end] = arrow!.points;
+    return { x: end!.x - start!.x, y: end!.y - start!.y };
+  };
+  for (const [frame, body, resultant] of triples) {
+    const a = delta(frame!);
+    const b = delta(body!);
+    const r = delta(resultant!);
+    const gap = Math.hypot(r.x - a.x - b.x, r.y - a.y - b.y);
+    check(Math.hypot(a.x, a.y) > 1 && Math.hypot(b.x, b.y) > 1, `${label}: ${frame} and ${body} must have visible length`);
+    check(gap < 1e-6 * Math.max(1, Math.hypot(r.x, r.y)), `${label}: drawn ${resultant} must equal ${frame} + ${body} (gap ${gap})`);
+  }
+  return triples.length;
+}
+
+/** Triangle proof in any shape: endpoint arithmetic, measured operator ink, or a fatal vector_sum. */
 function checkCrossingSum(document: SceneDocument, label: string): void {
   if (pointOf(document, "vb_end") && pointOf(document, "vc_end") && pointOf(document, "vr_end")) {
     checkVectorSum(document, label, "origin", "vb_end", "vc_end", "vr_end");
     return;
   }
+  if (checkOperatorTriangles(document, label) >= 1) return;
   check(
     document.assertions.some(
       (assertion) => assertion.predicate === "vector_sum" && assertion.severity === "fatal",
@@ -315,6 +350,7 @@ function checkTwoTriangleSums(document: SceneDocument, label: string): void {
     checkVectorSum(document, `${label} shortest-time`, "short_origin", "short_vb_end", "short_vc_end", "short_vr_end");
     return;
   }
+  if (checkOperatorTriangles(document, label) >= 2) return;
   const sums = document.assertions.filter(
     (assertion) => assertion.predicate === "vector_sum" && assertion.severity === "fatal",
   );
@@ -806,9 +842,18 @@ async function runLiveSlice(live: LiveCase): Promise<SliceResult> {
 
   // Label checks: in-zone, non-empty, anchored, never invented.
   const entityIds = new Set(selected.sceneDocument.entities.map((entity) => entity.id));
-  const drawnLabels = new Set(
-    selected.sceneDocument.entities.map((entity) => entity.label).filter((label): label is string => Boolean(label)),
-  );
+  // An operator may letter its own outputs: parallel_guides writes "bank" on
+  // both river banks (731c87f4e, PR #83). That text is the compiler's verified
+  // output label on a construction output, not teaching-stream text, so it is
+  // the scene's own lettering. Text on anything else still does not count.
+  const constructedIds = new Set(selected.sceneDocument.constructions.flatMap((construction) => construction.outputs));
+  const drawnLabels = new Set([
+    ...selected.sceneDocument.entities.map((entity) => entity.label).filter((label): label is string => Boolean(label)),
+    ...selected.renderScene.primitives
+      .filter((primitive) => primitive.kind === "label" && typeof primitive.entityId === "string"
+        && constructedIds.has(primitive.entityId) && typeof primitive.text === "string")
+      .map((primitive) => primitive.text as string),
+  ]);
   const labelCommands = presentation.diagram.commands.filter((command) => command.type === "LABEL");
   check(labelCommands.length > 0, `${id}: the committed figure must letter at least one part`);
   for (const command of labelCommands) {

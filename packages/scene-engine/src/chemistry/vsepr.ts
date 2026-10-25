@@ -477,12 +477,45 @@ function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
   });
 }
 
+const BARE_COMMA = /^\s*,\s*$/;
+/**
+ * The head of a clause up to a contrast's own molecule: "Unlike the linear
+ * shape of CO2", "For example, unlike CO2". Only a closed set of discourse
+ * openers may precede the contrast word. "Like" and "as with" share the
+ * property, so they never separate the two molecules.
+ */
+const INTRODUCTORY_PHRASE = /^\s*(?:(?:for\s+example|for\s+instance|however|similarly|by\s+contrast|also|so|thus|here|again)\s*,?\s+)?(?:unlike|compared\s+(?:with|to)|in\s+contrast\s+(?:with|to)|rather\s+than|instead\s+of)\b[^,]*$/i;
+const PREDICATE_START = /^\s+(?:(?:molecule|ion|species)\s+)?(?:is|are|was|were|has|have|adopts?|exhibits?)\b/i;
+/**
+ * "<shape> is not the molecular shape of CO2" names the denied shape's owner
+ * after the shape noun, so the denial describes CO2, not the asked molecule.
+ */
+const DENIED_SHAPE_OF = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:(?:is|was|are)\s+not|isn['\u2019]t|wasn['\u2019]t|aren['\u2019]t)\s+(?:(?:the|its|their|an?)\s+)?(?:(?:actual|true|correct|right|real|observed|ideal|molecular|electron(?:[ -](?:domain|pair))?)\s+)*(?:shapes?|geometr(?:y|ies)|arrangements?|structures?)\s+(?:of|for|in)\s+(?:(?:the|molecule|ion)\s+)*/i;
+
 /** A postposed property owner or a local subject owns this fact, not its neighbour. */
 function localMoleculeOwners(
   clause: string, start: number, end: number, nextStart: number,
   mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
 ): readonly string[] | null {
   const tail = clause.slice(end, nextStart);
+  const deniedOf = DENIED_SHAPE_OF.exec(tail);
+  if (deniedOf) {
+    const owner = mentions.find(mention => mention.start === end + deniedOf[0].length);
+    if (owner) {
+      // "is not the shape of CO2 or H2O" denies the shape for every listed owner.
+      const owners = [owner.key];
+      let at = mentions.indexOf(owner);
+      while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
+        && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        // A bare comma before a molecule with its own predicate ends the list
+        // ("bent is not the shape of CO2, H2O is bent").
+        const next = mentions[at + 1]!;
+        if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))) break;
+        owners.push(mentions[++at]!.key);
+      }
+      return owners;
+    }
+  }
   const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+|hybridi[sz](?:ed|ation)\s+)?(?:of|for|in|on|around)\s+(?:(?:the|molecule|ion|each)\s+)*(?:(?:central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+in\s+)?/i.exec(tail);
   if (postposed) {
     const owner = mentions.find(mention => mention.start === end + postposed[0].length);
@@ -491,6 +524,11 @@ function localMoleculeOwners(
       let at = mentions.indexOf(owner);
       while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
         && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        // A bare comma before a molecule that starts its own predicate ends
+        // the phrase ("unlike the linear shape of CO2, H2O is bent").
+        const next = mentions[at + 1]!;
+        if (BARE_COMMA.test(clause.slice(mentions[at]!.end, next.start)) && PREDICATE_START.test(clause.slice(next.end))
+          && INTRODUCTORY_PHRASE.test(clause.slice(0, mentions[at]!.end))) break;
         owners.push(mentions[++at]!.key);
       }
       return owners;
@@ -506,8 +544,12 @@ function localMoleculeOwners(
   if (subject) {
     const owners = [subject.key];
     let at = before.indexOf(subject);
-    // A shared subject ("X and Y have ...") describes both, never just Y.
+    // A shared subject ("X and Y have ...", "X, Y, Z are") describes all of
+    // them, never just Y. Only a bare comma closing an introductory
+    // comparison at the head of the clause ("unlike CO2, H2O is bent") ends
+    // the subject; any other comma joins the list.
     while (at > 0 && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(before[at - 1]!.end, before[at]!.start))) {
+      if (BARE_COMMA.test(clause.slice(before[at - 1]!.end, before[at]!.start)) && INTRODUCTORY_PHRASE.test(clause.slice(0, before[at - 1]!.end))) break;
       owners.push(before[--at]!.key);
     }
     return owners;
@@ -517,6 +559,106 @@ function localMoleculeOwners(
     return keys.length === 1 ? keys : null;
   }
   return inherited;
+}
+
+interface Span { start: number; end: number }
+interface ShapeRole extends Span { target: "electron" | "molecular" }
+
+/** The property a shape word describes: the only role named, else the nearest one. */
+function shapeRoleTarget(roles: readonly ShapeRole[], shapes: readonly Span[], shape: Span): ShapeClaim["target"] {
+  const targets = new Set(roles.map((role) => role.target));
+  if (targets.size === 0) return "molecular";
+  if (targets.size === 1) return [...targets][0]!;
+  if (shapes.length === 1) return null;
+  const distance = (role: ShapeRole) => Math.max(0, role.start - shape.end, shape.start - role.end);
+  const nearest = Math.min(...roles.map(distance));
+  const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
+  return nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
+}
+
+const CONTRAST_LEAD = /\b(?:rather\s+than|instead\s+of|unlike)\s+(?:(?:being|having|an?|the|its|ideal|perfect(?:ly)?|regular|purely|fully)\s+)*$/;
+const CONTRAST_LIST_JOIN = /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/;
+const BARE_COMMA_JOIN = /^\s*,\s*(?:an?\s+)?$/;
+const OR_NOR_JOIN = /^(?:\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/;
+/** A shape word that takes a predicate is a clause subject, not a list member. */
+const PREDICATE_AFTER_SHAPE = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?|structures?|forms?|ones?)\s+)?(?:is|are|was|were|be|being|describes?|adopts?|takes?|has|have|had|remains?|becomes?|applies|apply|fits?|suits?|matches|match|holds?|gives?|results?|exists?|seems?|appears?|best|correctly)\b/;
+
+/**
+ * A bare comma before shape `at` joins a contrasted list ("rather than
+ * linear, trigonal planar or tetrahedral") only when the list ends in an
+ * or/nor member and no member takes a predicate. "Rather than tetrahedral,
+ * linear is the shape" starts the main clause at "linear", which keeps its
+ * positive reading and is checked.
+ */
+function bareCommaJoinsList(clause: string, shapes: readonly Span[], at: number): boolean {
+  const joinBefore = (index: number) => clause.slice(shapes[index - 1]!.end, shapes[index]!.start);
+  let last = at;
+  while (last + 1 < shapes.length && CONTRAST_LIST_JOIN.test(joinBefore(last + 1))) {
+    last += 1;
+    if (OR_NOR_JOIN.test(joinBefore(last))) break;
+  }
+  if (last === at || !OR_NOR_JOIN.test(joinBefore(last))) return false;
+  for (let index = at; index <= last; index += 1) {
+    if (PREDICATE_AFTER_SHAPE.test(clause.slice(shapes[index]!.end))) return false;
+  }
+  return true;
+}
+/**
+ * "<shape> is not ..." denies the shape only when the words after the
+ * negation name the shape property or its correctness ("tetrahedral is not
+ * the molecular shape", "linear is not correct"). "The tetrahedral shape is
+ * not flat" denies flatness and keeps tetrahedral asserted.
+ */
+const DENIED_AS_SUBJECT = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:(?:is|was|are)\s+not|isn['\u2019]t|wasn['\u2019]t|aren['\u2019]t)\s+(?:(?:the|its|their|an?)\s+)?(?:(?:actual|true|correct|right|real|observed|ideal|molecular|electron(?:[ -](?:domain|pair))?)\s+)*(?:shapes?|geometr(?:y|ies)|arrangements?|structures?|correct|right|true|observed|adopted)\b/;
+
+/**
+ * A contrasted shape is denied for its owner: "bent rather than tetrahedral",
+ * "instead of linear", "unlike a tetrahedral shape", "tetrahedral is not the
+ * shape". A contrast between two properties ("unlike the tetrahedral electron
+ * geometry, the molecular shape is bent") keeps each value positive for its
+ * own property, so the electron geometry is still checked as tetrahedral.
+ */
+function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: readonly Span[], index: number, owners: ReadonlyArray<readonly string[] | null>): boolean {
+  const shape = shapes[index]!;
+  if (DENIED_AS_SUBJECT.test(clause.slice(shape.end))) return true;
+  // "rather than linear or tetrahedral": the contrast governs the whole list,
+  // read from the text itself so a skipped list member cannot break it.
+  let first = index;
+  while (first > 0) {
+    const join = clause.slice(shapes[first - 1]!.end, shapes[first]!.start);
+    if (!CONTRAST_LIST_JOIN.test(join) || (BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, first))) break;
+    first--;
+  }
+  const lead = CONTRAST_LEAD.exec(clause.slice(0, shapes[first]!.start));
+  if (!lead) return false;
+  const partner = /^unlike\b/.test(lead[0])
+    ? [shapes[first - 1], shapes[index + 1]].filter((other): other is Span => other !== undefined)
+      .sort((left, right) => Math.abs(left.start - shape.start) - Math.abs(right.start - shape.start))[0]
+    : shapes[first - 1] ?? shapes[index + 1];
+  if (!partner) {
+    // One shape word: "unlike its tetrahedral electron geometry, H2O's
+    // shape is ..." contrasts two properties, so the named property keeps
+    // its value. Without a different property named outside the phrase the
+    // shape itself is denied.
+    const phraseEnd = clause.indexOf(",", shape.end) < 0 ? clause.length : clause.indexOf(",", shape.end);
+    const inPhrase = roles.filter((role) => role.start >= lead.index && role.start < phraseEnd);
+    const named = new Set(inPhrase.map((role) => role.target));
+    if (named.size !== 1) return true;
+    const rest = clause.slice(phraseEnd);
+    const differs = named.has("electron")
+      ? /\b(?:molecular\s+)?shapes?\b|\bgeometry\s+of\s+(?:the\s+)?(?:molecule|ion)\b|\bmolecular\s+geometry\b/.test(rest)
+      : /\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b/.test(rest);
+    return !differs;
+  }
+  // A contrast between two molecules ("unlike the linear shape of CO2, H2O is
+  // bent") asserts each shape for its own owner; only a contrast that shares
+  // an owner, or whose owners are unknown, denies one of them.
+  const mine = owners[index];
+  const theirs = owners[shapes.indexOf(partner)];
+  if (mine && theirs && !mine.some((key) => theirs.includes(key))) return false;
+  const own = shapeRoleTarget(roles, shapes, shape);
+  const other = shapeRoleTarget(roles, shapes, partner);
+  return own === null || other === null || own === other;
 }
 
 /** Bind each geometry in its property clause, including compound claims. */
@@ -535,7 +677,7 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
       const owners = [...new Set(mentions.map(mention => mention.key))];
       inheritedOwners = owners.length === 1 ? owners : null;
     }
-    const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
+    const roles: ShapeRole[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
       [/\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b|\b(?:geometry|arrangement)\s+(?:of|for)\s+(?:(?:the|its)\s+)?electron(?:s|\s+(?:domains?|pairs?))?\b/g, "electron"],
@@ -545,27 +687,27 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     for (const [pattern, target] of patterns) for (const match of clause.matchAll(pattern)) {
       roles.push({ start: match.index, end: match.index + match[0].length, target });
     }
+    // Owners first, so a contrast can see whether its partner is the same molecule.
+    const ownersOf = shapes.map((shape, index) => {
+      inheritedOwners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
+      return inheritedOwners;
+    });
     let previousShape: { end: number; negated: boolean } | undefined;
     for (const [index, shape] of shapes.entries()) {
-      const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
-      const targets = new Set(roles.map((role) => role.target));
-      let target: ShapeClaim["target"] = "molecular";
-      if (targets.size === 1) target = [...targets][0]!;
-      else if (targets.size > 1 && shapes.length === 1) target = null;
-      else if (targets.size > 1) {
-        const distance = (role: typeof roles[number]) => Math.max(0, role.start - shape.end, shape.start - role.end);
-        const nearest = Math.min(...roles.map(distance));
-        const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
-        target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
-      }
+      const owners = ownersOf[index]!;
+      const target = shapeRoleTarget(roles, shapes, shape);
       const explicitNegative = /\b(?:not|no|neither)\s+(?:(?:have|has)\s+)?(?:an?\s+)?$/.test(clause.slice(0, shape.start));
       // One negative can govern a comma/or/nor list. A new predicate or
       // property clause ends that list; it must keep its own truth value.
+      // A bare comma joins the list only when it ends in or/nor: "rather than
+      // tetrahedral, linear is the shape" and "not tetrahedral, linear is its
+      // shape" deny tetrahedral only, and linear is checked.
+      const join = previousShape ? clause.slice(previousShape.end, shape.start) : "";
       const joinedNegative = previousShape?.negated === true
-        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
-      const negated = explicitNegative || joinedNegative;
+        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(join)
+        && !(BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, index));
+      const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index, ownersOf);
       claims.push({ shape: shape.shape, target, negated, owners });
-      inheritedOwners = owners;
       previousShape = { end: shape.end, negated };
     }
   }
