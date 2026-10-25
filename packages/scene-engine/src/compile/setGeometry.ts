@@ -59,8 +59,8 @@ function origin(value: unknown, context: SetEvaluationContext): RenderPoint {
 function namesInput(value: unknown, context: SetEvaluationContext): { names: string[]; counts: number[] } {
   if (!Array.isArray(value) || value.length < 2 || value.length > 3) fail("sets", "set_partition requires exactly two or three named finite sets");
   const names: string[] = []; const counts: number[] = [];
-  value.forEach((entry) => {
-    if (!record(entry)) fail("sets", "each finite set requires a name and inclusive count"); fields(entry, ["name", "count"], "sets");
+  value.forEach((entry, index) => {
+    if (!record(entry)) fail("sets", `each finite set requires a name and inclusive count: sets[${index}] is ${JSON.stringify(entry)}; write {name:${JSON.stringify(typeof entry === "string" ? entry : "A")},count:n} with n the whole number of elements of that set the question states`); fields(entry, ["name", "count"], "sets");
     if (typeof entry.name !== "string" || !/^[A-Za-z][A-Za-z0-9_]{0,3}$/.test(entry.name) || names.includes(entry.name)) fail("sets", "set names must be distinct identifiers with one to four characters");
     names.push(entry.name); counts.push(count(entry.count, "count", context));
   }); return { names, counts };
@@ -74,14 +74,39 @@ function membership(point: RenderPoint, circles: readonly { center: RenderPoint;
   let mask = 0;
   circles.forEach((circle, index) => { const distance = Math.hypot(point.x - circle.center.x, point.y - circle.center.y); if (!Number.isFinite(distance) || Math.abs(distance - circle.radius) <= circle.radius * 1e-8) fail("precision", "set region witness membership is numerically unresolved"); if (distance < circle.radius) mask |= 1 << index; }); return mask;
 }
+const intersectionEntry = (sets: readonly string[]) => `{sets:[${sets.map((name) => JSON.stringify(name)).join(",")}],count:n}`;
+/** The set names a malformed intersection entry plainly means, such as "AB" or "A∩C"; null when it is not certain. */
+function intendedIntersection(entry: unknown, names: readonly string[]): string[] | null {
+  const tokens = typeof entry === "string" ? entry.split(/[^A-Za-z0-9_]+/).filter(Boolean)
+    : Array.isArray(entry) && entry.every((item) => typeof item === "string") ? entry as string[] : null;
+  if (!tokens) return null;
+  const picked = tokens.every((token) => names.includes(token)) ? tokens
+    : tokens.length === 1 && names.every((name) => name.length === 1) && [...tokens[0]!].every((letter) => names.includes(letter)) ? [...tokens[0]!]
+      : null;
+  if (!picked || picked.length < 2 || new Set(picked).size !== picked.length) return null;
+  return names.filter((name) => picked.includes(name));
+}
+/** How to write one malformed intersection entry: the pair or triple it names, or the whole required list. */
+function intersectionShape(entry: unknown, names: readonly string[]): string {
+  const intended = intendedIntersection(entry, names);
+  const tail = "with n the whole number of elements in all of those sets";
+  if (intended) return `write ${intersectionEntry(intended)} ${tail}`;
+  const required: string[][] = [];
+  for (let mask = 1; mask < 1 << names.length; mask++) {
+    const sets = names.filter((_, bit) => mask & (1 << bit));
+    if (sets.length >= 2) required.push(sets);
+  }
+  required.sort((a, b) => a.length - b.length);
+  return `intersections needs exactly ${required.length === 1 ? "this entry" : `these ${required.length} entries, one each`}: ${required.map(intersectionEntry).join(", ")}, each ${tail}`;
+}
 function partitionCounts(inputs: Record<string, unknown>, context: SetEvaluationContext): Pick<SetPartitionDefinition, "names" | "inclusiveCounts" | "exclusiveCounts" | "universeCount"> {
   const { names, counts } = namesInput(inputs.sets, context); const size = 1 << names.length;
   const inclusiveCounts: Array<number | null> = Array.from({ length: size }, () => null);
   const universeCount = inputs.universeCount === undefined ? null : count(inputs.universeCount, "universeCount", context); inclusiveCounts[0] = universeCount;
   counts.forEach((value, index) => { inclusiveCounts[1 << index] = value; });
   if (!Array.isArray(inputs.intersections) || inputs.intersections.length !== (names.length === 2 ? 1 : 4)) fail("intersections", "every inclusive intersection of two or more sets must be supplied exactly once");
-  inputs.intersections.forEach((entry) => {
-    if (!record(entry)) fail("intersections", "inclusive intersections require sets and count"); fields(entry, ["sets", "count"], "intersections");
+  inputs.intersections.forEach((entry, index) => {
+    if (!record(entry)) fail("intersections", `inclusive intersections require sets and count: intersections[${index}] is ${JSON.stringify(entry)}; ${intersectionShape(entry, names)}`); fields(entry, ["sets", "count"], "intersections");
     if (!Array.isArray(entry.sets) || entry.sets.length < 2 || entry.sets.length > names.length || new Set(entry.sets).size !== entry.sets.length) fail("intersections", "intersection set names must be distinct and explicit");
     let mask = 0; for (const name of entry.sets) { const index = names.indexOf(String(name)); if (typeof name !== "string" || index < 0) fail("intersections", "intersection references an unknown finite set"); mask |= 1 << index; }
     if (inclusiveCounts[mask] !== null) fail("intersections", "inclusive intersection counts cannot be duplicated"); inclusiveCounts[mask] = count(entry.count, "count", context);
@@ -188,10 +213,68 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   if (quantities.length === 1) { seen.add(value); return validationNumber(quantities[0]!.value, document, seen, depth + 1); }
   preserveLiteral(value, "scalar"); return finite(Number(value), "scalar");
 }
-function sourceProducer(value: unknown, document: SceneDocument, byOutput: Map<string, SceneConstruction>, allowedKinds: readonly string[], key: string): SceneConstruction {
+function sourceProducer(value: unknown, document: SceneDocument, byOutput: Map<string, SceneConstruction>, allowedKinds: readonly string[], key: string, role?: string): SceneConstruction {
   if (typeof value !== "string" || !value.trim()) fail(key, "set references require one constructed entity id");
   const entities = document.entities.filter((entity) => entity.id === value); const producers = document.constructions.filter((construction) => construction.outputs.includes(value)); const producer = byOutput.get(value);
-  if (entities.length !== 1 || !allowedKinds.includes(entities[0]!.kind) || producers.length !== 1 || !producer || producer !== producers[0]) fail(key, "set reference must name an unambiguous constructed entity of the required kind"); return producer;
+  if (entities.length !== 1 || !allowedKinds.includes(entities[0]!.kind) || producers.length !== 1 || !producer || producer !== producers[0]) fail(key, `set reference must name an unambiguous constructed entity of the required kind: ${referenceFinding(value, entities, producers, document, allowedKinds, key, role)}`); return producer;
+}
+const kindList = (kinds: readonly string[]) => kinds.map((kind) => `"${kind}"`).join(" or ");
+/** What is wrong with one set reference, and what a valid one looks like. */
+function referenceFinding(value: string, entities: SceneDocument["entities"], producers: SceneConstruction[], document: SceneDocument, allowedKinds: readonly string[], key: string, role?: string): string {
+  const what = `${key === "outputs" ? "output" : key} ${value}${role ? ` (${role})` : ""}`;
+  const construction = document.constructions.find((entry) => entry.id === value);
+  if (construction && entities.length === 0 && !Array.isArray(construction.outputs)) {
+    return `${what} is the id of construction ${value}, not an entity, and that construction's outputs must be an array of output entity ids, such as ${typeof construction.outputs === "string" ? JSON.stringify([construction.outputs]) : '["<entity id>"]'}; write its outputs as an array, then name one of its entity ids here`;
+  }
+  if (construction && entities.length === 0) {
+    // Only suggest an output this reference may name: its declared kind, or the
+    // kind a set partition writes at that position when it is undeclared.
+    const circles = construction.operator === "set_partition" && record(construction.inputs) && Array.isArray(construction.inputs.sets) ? construction.inputs.sets.length : 0;
+    const outputKind = (id: string, index: number) => {
+      const entity = document.entities.find((entry) => entry.id === id);
+      return entity && !inferredSetOutput(entity) ? entity.kind : construction.operator === "set_partition" ? (index < circles ? "circle" : "label") : undefined;
+    };
+    const example = construction.outputs.find((id, index) => typeof id === "string" && allowedKinds.includes(outputKind(id, index) ?? ""));
+    if (example) return `${what} is the id of construction ${value}, not an entity; name one of its output entity ids of kind ${kindList(allowedKinds)}, such as ${example}`;
+    const alternative = allowedKinds.includes("point") && key === "origin" ? "; name an ordinary point entity, or give inline coordinates [x, y]" : "";
+    return `${what} is the id of construction ${value}, not an entity, and none of its outputs has kind ${kindList(allowedKinds)}${alternative}`;
+  }
+  if (entities.length === 0) return `${what} is not declared in entities; declare {id:"${value}",kind:${kindList(allowedKinds)}} and list it in requiredEntityIds and one reveal group`;
+  if (entities.length > 1) return `${what} is declared ${entities.length} times in entities; declare it once`;
+  if (!allowedKinds.includes(entities[0]!.kind)) return `${what} is declared with kind "${entities[0]!.kind}"; it needs kind ${kindList(allowedKinds)}`;
+  if (producers.length === 0) return `${what} is not an output of any construction; list it in the outputs of the construction that computes it`;
+  return `${what} is an output of ${producers.length} constructions (${producers.map((entry) => entry.id).join(", ")}); keep it in exactly one`;
+}
+/**
+ * An output the planner never declared. Document normalization reads it as a
+ * "set partition geometry" segment, which the set validator refuses: the
+ * engine does not guess which id is which circle or region.
+ */
+const inferredSetOutput = (entity: SceneDocument["entities"][number]) => entity.kind === "segment" && entity.role === "set partition geometry";
+/** Refuses undeclared set partition outputs, naming the declaration each one needs for its slot. */
+function undeclaredOutputs(construction: SceneConstruction, document: SceneDocument, circleCount: number, names: readonly string[]): void {
+  if (construction.operator !== "set_partition") return;
+  const missing = construction.outputs.flatMap((id, index) => {
+    const entities = document.entities.filter((entity) => entity.id === id);
+    return entities.length === 1 && inferredSetOutput(entities[0]!) ? [{ id, index }] : [];
+  });
+  if (!missing.length) return;
+  const declarations = missing.map(({ id, index }) => `{id:${JSON.stringify(id)},kind:"${index < circleCount ? "circle" : "label"}"} (${outputRole(construction.operator, index, circleCount, names)})`);
+  fail("outputs", `set_partition outputs must be declared entities: ${missing.map(({ id }) => id).join(", ")} ${missing.length === 1 ? "is" : "are"} not declared in entities; declare ${missing.length === 1 ? "it" : "each"} with the kind its output slot needs, ${declarations.join(", ")}, and list ${missing.length === 1 ? "it" : "each"} in requiredEntityIds and one reveal group. Output order is fixed: the circles in sets order, then one label anchor per region in mask order (${Array.from({ length: (1 << circleCount) - 1 }, (_, index) => atomName(index + 1, names)).join(", ")}), then the outside anchor when universeCount is supplied`);
+}
+function outputRole(operator: string, index: number, circleCount: number, names: readonly string[]): string {
+  if (operator !== "set_partition") return "the aggregate count label anchor";
+  if (index < circleCount) return `the circle for set ${names[index]}`;
+  const mask = index - circleCount + 1;
+  return mask < 1 << circleCount ? `the label anchor for region ${atomName(mask, names)}` : "the outside label anchor";
+}
+/** The output order a set operator writes, so an arity miss says which ids are missing or extra. */
+function outputLayout(operator: string, circleCount: number, arity: number, outputs: unknown): string {
+  const given = Array.isArray(outputs) ? outputs.length : 0;
+  if (operator !== "set_partition") return `; got ${given}: write one output id for the aggregate count label anchor`;
+  const anchors = (1 << circleCount) - 1;
+  const outside = arity - circleCount - anchors;
+  return `; got ${given}: ${circleCount} circles, then ${anchors} region label anchors in mask order${outside ? ", then 1 outside label anchor because universeCount is supplied" : " (no outside anchor without universeCount)"}`;
 }
 function placementSchema(value: unknown, document: SceneDocument, byOutput: Map<string, SceneConstruction>, context: SetEvaluationContext): void {
   if (value === undefined) return;
@@ -203,11 +286,11 @@ function placementSchema(value: unknown, document: SceneDocument, byOutput: Map<
 function constructionSchema(construction: SceneConstruction, document: SceneDocument, byOutput: Map<string, SceneConstruction>, context: SetEvaluationContext): void {
   if (!record(construction.inputs)) fail("inputs", "set inputs must be an object"); const { inputs, operator } = construction;
   const allowed = INPUT_KEYS[operator]; if (!allowed) fail("operator", "requires a computed set operator"); fields(inputs, allowed);
-  let circleCount = 0; let arity = 1;
+  let circleCount = 0; let arity = 1; let setNames: string[] = [];
   if (operator === "set_partition") {
     for (const entry of [...(Array.isArray(inputs.sets) ? inputs.sets : []), ...(Array.isArray(inputs.intersections) ? inputs.intersections : [])]) if (record(entry)) units(entry.count, false, document);
     for (const key of ["universeCount", "displayScale"]) if (inputs[key] !== undefined) units(inputs[key], false, document); if (inputs.rotationRadians !== undefined) units(inputs.rotationRadians, true, document);
-    const counts = partitionCounts(inputs, context); circleCount = counts.names.length; arity = circleCount + (1 << circleCount) - 1 + (counts.universeCount !== null ? 1 : 0);
+    const counts = partitionCounts(inputs, context); circleCount = counts.names.length; setNames = counts.names; arity = circleCount + (1 << circleCount) - 1 + (counts.universeCount !== null ? 1 : 0);
     const scale = scalar(inputs.displayScale, "displayScale", context); if (!(scale > MIN_DISPLAY) || scale > 1e9) fail("displayScale", "set displayScale must be visible, positive, and no greater than1e9");
     if (inputs.rotationRadians !== undefined) scalar(inputs.rotationRadians, "rotationRadians", context, true); placementSchema(inputs.origin, document, byOutput, context);
   } else {
@@ -216,8 +299,9 @@ function constructionSchema(construction: SceneConstruction, document: SceneDocu
     expression(inputs.expression, counts);
     placementSchema(inputs.at, document, byOutput, context);
   }
-  if (!Array.isArray(construction.outputs) || construction.outputs.length !== arity || construction.outputs.some((id) => typeof id !== "string" || !id.trim()) || new Set(construction.outputs).size !== arity) fail("outputs", `${operator} requires exactly ${arity} distinct output ids`);
-  construction.outputs.forEach((id, outputIndex) => sourceProducer(id, document, byOutput, [outputIndex < circleCount ? "circle" : "label"], "outputs"));
+  if (!Array.isArray(construction.outputs) || construction.outputs.length !== arity || construction.outputs.some((id) => typeof id !== "string" || !id.trim()) || new Set(construction.outputs).size !== arity) fail("outputs", `${operator} requires exactly ${arity} distinct output ids${outputLayout(operator, circleCount, arity, construction.outputs)}`);
+  undeclaredOutputs(construction, document, circleCount, setNames);
+  construction.outputs.forEach((id, outputIndex) => sourceProducer(id, document, byOutput, [outputIndex < circleCount ? "circle" : "label"], "outputs", outputRole(operator, outputIndex, circleCount, setNames)));
 }
 /** Unknown derived origins retain their references until the atomic compiler evaluates them. */
 export function validateSetConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
