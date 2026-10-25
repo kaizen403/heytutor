@@ -16,7 +16,9 @@
  *   denied     "<shape> is not ..." denies the shape only when the words
  *              after "not" name the shape property: "the tetrahedral shape
  *              is not flat" admits, "the square planar shape is not
- *              distorted" for CH4 refuses
+ *              distorted" for CH4 refuses; "bent is not the molecular shape
+ *              of CO2" denies bent for CO2, so it admits for H2O, while the
+ *              same denial of H2O refuses
  *   comma      a bare comma joins a contrasted list only when the list ends in
  *              or/nor and no member takes a predicate: "rather than
  *              tetrahedral, linear is the shape of H2O" checks linear
@@ -104,6 +106,11 @@ const DENIED: Row[] = [
   { id: "denied/false-square-planar-not-distorted", question: CH4, claim: "The square planar shape is not distorted.", expected: true, admit: false },
   { id: "denied/false-linear-isnt-surprising", question: WATER, claim: "The linear shape of H2O isn't surprising.", expected: true, admit: false },
   { id: "denied/false-bent-not-the-shape", question: WATER, claim: "Bent is not the shape of H2O.", expected: true, admit: false },
+  // The owner named after the shape noun owns the denial, not the asked molecule.
+  { id: "denied/bent-not-molecular-shape-of-co2", question: WATER, claim: "Bent is not the molecular shape of CO2.", expected: true, admit: true },
+  { id: "denied/bent-not-shape-of-co2", question: WATER, claim: "Bent is not the shape of CO2.", expected: true, admit: true },
+  { id: "denied/false-bent-not-molecular-shape-of-h2o", question: WATER, claim: "Bent is not the molecular shape of H2O.", expected: true, admit: false },
+  { id: "denied/false-bent-not-shape-of-co2-or-h2o", question: WATER, claim: "Bent is not the molecular shape of CO2 or H2O.", expected: true, admit: false },
 ];
 /**
  * A bare comma joins a contrasted list only when the list ends in an or/nor
@@ -170,13 +177,21 @@ await check("mutation/no-contrast-negation", async () => {
   const conflict = await mutant("no-contrast", " || contrastedShape(clause, roles, shapes, index, ownersOf)", "");
   const went = red(conflict, ALL);
   // Rows read through a denial of the shape itself depend on the reader too.
-  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape", "comma/or-ended-list"]);
+  const denials = new Set(["owners/same-owner-still-denied", "denied/linear-not-correct-shape", "denied/false-bent-not-the-shape", "denied/false-bent-not-molecular-shape-of-h2o", "denied/false-bent-not-shape-of-co2-or-h2o", "comma/or-ended-list"]);
   assert.ok(went.every(id => id.startsWith("positive/") || denials.has(id)), `only positives and denials go red: ${went.join(", ")}`);
   for (const id of denials) assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
   // Forms no other reader covers (a "than" reference skip cannot reach them).
   for (const id of ["positive/instead-of", "positive/rather-than-list", "positive/unlike", "positive/denied-subject"]) {
     assert.ok(went.includes(id), `${id} must depend on the contrast reader`);
   }
+});
+await check("mutation/no-denied-shape-owner", async () => {
+  const conflict = await mutant("no-denied-owner", "const deniedOf = DENIED_SHAPE_OF.exec(tail);", "const deniedOf = null as RegExpExecArray | null;");
+  const went = red(conflict, ALL);
+  // Without the owner after "is not the shape of", the CO2 denial falls to H2O and refuses.
+  const owned = ["denied/bent-not-molecular-shape-of-co2", "denied/bent-not-shape-of-co2"];
+  for (const id of owned) assert.ok(went.includes(id), `${id} must depend on the denied shape owner`);
+  assert.ok(went.every(id => owned.includes(id)), `only the denied owner rows go red: ${went.join(", ")}`);
 });
 await check("mutation/no-shape-claims", async () => {
   const conflict = await mutant("no-shape-claims", "for (const described of shapeClaims(rawText, result)) {", "for (const described of [] as ShapeClaim[]) {");

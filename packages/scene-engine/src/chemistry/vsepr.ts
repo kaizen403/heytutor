@@ -483,6 +483,11 @@ const BARE_COMMA = /^\s*,\s*$/;
  */
 const INTRODUCTORY_PHRASE = /^\s*(?:(?:for\s+example|for\s+instance|however|similarly|by\s+contrast|also|so|thus|here|again)\s*,?\s+)?(?:unlike|compared\s+(?:with|to)|in\s+contrast\s+(?:with|to)|rather\s+than|instead\s+of)\b[^,]*$/i;
 const PREDICATE_START = /^\s+(?:(?:molecule|ion|species)\s+)?(?:is|are|was|were|has|have|adopts?|exhibits?)\b/i;
+/**
+ * "<shape> is not the molecular shape of CO2" names the denied shape's owner
+ * after the shape noun, so the denial describes CO2, not the asked molecule.
+ */
+const DENIED_SHAPE_OF = /^\s+(?:(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:(?:is|was|are)\s+not|isn['\u2019]t|wasn['\u2019]t|aren['\u2019]t)\s+(?:(?:the|its|their|an?)\s+)?(?:(?:actual|true|correct|right|real|observed|ideal|molecular|electron(?:[ -](?:domain|pair))?)\s+)*(?:shapes?|geometr(?:y|ies)|arrangements?|structures?)\s+(?:of|for|in)\s+(?:(?:the|molecule|ion)\s+)*/i;
 
 /** A postposed property owner or a local subject owns this fact, not its neighbour. */
 function localMoleculeOwners(
@@ -490,6 +495,20 @@ function localMoleculeOwners(
   mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
 ): readonly string[] | null {
   const tail = clause.slice(end, nextStart);
+  const deniedOf = DENIED_SHAPE_OF.exec(tail);
+  if (deniedOf) {
+    const owner = mentions.find(mention => mention.start === end + deniedOf[0].length);
+    if (owner) {
+      // "is not the shape of CO2 or H2O" denies the shape for every listed owner.
+      const owners = [owner.key];
+      let at = mentions.indexOf(owner);
+      while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
+        && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        owners.push(mentions[++at]!.key);
+      }
+      return owners;
+    }
+  }
   const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+|hybridi[sz](?:ed|ation)\s+)?(?:of|for|in|on|around)\s+(?:(?:the|molecule|ion|each)\s+)*(?:(?:central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+in\s+)?/i.exec(tail);
   if (postposed) {
     const owner = mentions.find(mention => mention.start === end + postposed[0].length);
