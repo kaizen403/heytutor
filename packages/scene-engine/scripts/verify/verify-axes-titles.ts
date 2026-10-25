@@ -58,6 +58,8 @@ const recorded = boyle({}, [{ id: "label_x", text: "V", target: "axes" }, { id: 
 const refused = fatal(recorded).filter((issue) => issue.code === "label_targets_axes");
 assert.equal(refused.length, 2, "both labels aimed at axes are refused");
 assert.match(refused[0]!.message, /xLabel and yLabel/, "the refusal says how to name the axes");
+assert.doesNotMatch(refused[0]!.message, /"xLabel":"V"/, "the refusal never promises a title the engine omits");
+assert.match(refused[0]!.message, /only the bare coordinate names draw/, "the refusal says which axis titles actually draw");
 
 // 2. Mutation: aim the same label at the curve instead; the axes rule must not fire.
 assert.equal(fatal(boyle({}, [{ id: "label_y", text: "P", target: "curve" }])).some((issue) => issue.code === "label_targets_axes"), false,

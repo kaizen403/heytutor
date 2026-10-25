@@ -4444,7 +4444,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (typeof target === "string" && document.entities.find((candidate) => candidate.id === target)?.kind === "axes") {
         issues.push({
           code: "label_targets_axes",
-          message: `label ${String(output)} targets axes ${target}: an axes object has no point for a label, so the text would float in the middle of the plot and name neither axis. Remove this label construction and its label entity, and name the axes on the axes construction instead: inputs xLabel and yLabel (for example {"xLabel":"V","yLabel":"P"}) are drawn at the arrow tips.`,
+          message: `label ${String(output)} targets axes ${target}: an axes object has no point for a label, so the text would float in the middle of the plot and name neither axis. Remove this label construction and its label entity. To name the axes, use inputs xLabel and yLabel on the axes construction: only the bare coordinate names draw at the arrow tips ({"xLabel":"x","yLabel":"y"}, in a turn whose quantities are all x or y). Any other axis title, such as "V" or "P", is omitted, so name those quantities in the narration or on the curve instead.`,
           severity: "fatal",
           path: `constructions[${index}].inputs.target`,
           entityIds: typeof output === "string" ? [output, target] : [target],
