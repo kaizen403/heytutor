@@ -74,7 +74,7 @@ const extras: Array<(typeof SOLUTIONS_PROBES)[number]> = [
   { question: "25 mL of 0.1 M NaOH is titrated with 0.1 M HCl. Draw the pH curve.", expect: "draw", labels: ["eq. point", "pH = 7", "pH = 13"] },
   { question: "At 25°C, 20.0 mL of 0.2 M weak monoprotic acid HX is titrated against 0.2 M NaOH. The pH of the solution (a) at the start of the titration and (b) when 10 mL of NaOH is added respectively are. Given: Ka = 5 x 10^-4, pKa = 3.3", expect: "draw", labels: ["pH = pK_a = 3.3", "V_eq = 20 mL"] },
   { question: "The vapour pressures of two volatile liquids A and B at 25°C are 50 Torr and 100 Torr, respectively. If the liquid mixture contains 0.3 mole fraction of A, then the mole fraction of liquid B in the vapour phase is", expect: "draw", labels: ["p°_A = 50", "p°_B = 100", "p_total = 85"] },
-  { question: "A weak base is titrated with a strong acid. Sketch the titration curve and mark the equivalence point.", expect: "draw", labels: ["eq. point", "pOH = pK_b", "pH < 7"] },
+  { question: "A weak base is titrated with a strong acid. Sketch the titration curve and mark the equivalence point.", expect: "draw", labels: ["eq. point", "pOH = pK_b", "pH_eq < 7"] },
   { question: "0.1 M HCN is titrated with 0.1 M NaOH. Sketch the pH curve and state the pH at equivalence.", expect: "draw", labels: ["eq. point"] },
   { question: "Draw the vapour pressure against composition graph for an ideal solution of two volatile liquids.", expect: "draw", labels: ["p_A", "p_B", "p_total"] },
   { question: "The elevation in boiling point of a solution is 0.52 K. Show it on a vapour pressure versus temperature graph.", expect: "draw", labels: ["ΔT_b = 0.52 K"] },
