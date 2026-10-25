@@ -4,6 +4,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity } from "./sceneKit";
+import { stemChargesRead } from "./speciesChargeGuard";
 
 const FAMILY = "chem_orbital" as const;
 
@@ -35,6 +36,9 @@ export function buildHydrogenicRadialScene(
   if (!isHydrogenicRadialStem(question)) return null;
   const stem = chemStem(question);
   if (/draw the (?:path|trajectory|orbit) of the electron/.test(stem)) return null;
+  // The curves are hydrogen's (Z = 1, r in a0). A charged species the stem
+  // writes (He +, Li2+, "hydrogen-like ion") has another Z and other curves.
+  if (!stemChargesRead(question, ["H"])) return null;
   const want1s = /1s/.test(stem);
   const want2s = /2s/.test(stem);
   if (!want1s && !want2s) return null;
