@@ -52,6 +52,12 @@ export interface LabelOwner {
    * label that has no slot left.
    */
   sideRegions?: LabelSideRegion[];
+  /**
+   * Identity for the duplicate text check when one entity owns two distinct
+   * labels that may share a text, such as the x and y titles of one axes
+   * object. Defaults to the entity id.
+   */
+  duplicateKey?: string;
 }
 
 /** A screen region bounded by an interface, keeping a label in one medium. */
@@ -573,7 +579,7 @@ function placeLabelsInternal(
         message: `Label for ${owner.entityId} exceeds ${maxLabelChars} characters`,
       });
     }
-    const ownerTextKey = `${owner.entityId}\u0000${owner.text}`;
+    const ownerTextKey = `${owner.duplicateKey ?? owner.entityId}\u0000${owner.text}`;
     if (seenOwnerText.has(ownerTextKey)) {
       issues.push({
         code: "label_duplicate",

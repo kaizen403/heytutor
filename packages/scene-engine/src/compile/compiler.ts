@@ -1033,6 +1033,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
+    ...axesTitleOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan),
     ...axisLetterOwners,
   ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
@@ -1217,6 +1218,62 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
 
 /** Shorter drawn axes than this carry no letter; three letters would crowd one point. */
 const MIN_LETTERED_AXIS_PX = 16;
+
+/**
+ * Axis titles named on the axes construction itself (xLabel, yLabel). Each
+ * sits at its own axis's arrow tip, where a graph names the axis. A label
+ * construction aimed at the axes entity has only the middle of the plot to
+ * stand on and names neither axis; validation refuses it.
+ */
+function axesTitleOwners(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  renderableIds: ReadonlySet<string>,
+  constructionOnlyIds: ReadonlySet<string>,
+  entityToGroup: ReadonlyMap<string, string>,
+  transformPlan: EntityTransformPlan,
+): LabelOwner[] {
+  const owners: LabelOwner[] = [];
+  for (const construction of document.constructions) {
+    if (construction.operator !== "axes") continue;
+    const entityId = construction.outputs[0];
+    const value = entityId ? geometry.get(entityId) : undefined;
+    if (!entityId || value?.kind !== "axes") continue;
+    if (!renderableIds.has(entityId) || constructionOnlyIds.has(entityId) || !entityToGroup.has(entityId)) continue;
+    const transform = transformPlan.transformFor(entityId);
+    const axes = [
+      { key: "xLabel", origin: { x: value.xMin, y: 0 }, tip: { x: value.xMax, y: 0 } },
+      { key: "yLabel", origin: { x: 0, y: value.yMin }, tip: { x: 0, y: value.yMax } },
+    ] as const;
+    for (const axis of axes) {
+      const text = construction.inputs[axis.key];
+      // Fail closed: only x on the horizontal and y on the vertical ever draw.
+      // Turn binding (all plan quantities x or y) lives in
+      // pruneUnverifiedSceneAnnotations; this rule also holds for a stored or
+      // replayed document that never passed that prune.
+      if (typeof text !== "string" || text.trim() !== (axis.key === "xLabel" ? "x" : "y")) continue;
+      const origin = transform(axis.origin);
+      const tip = transform(axis.tip);
+      const length = Math.hypot(tip.x - origin.x, tip.y - origin.y);
+      if (!(length >= MIN_LETTERED_AXIS_PX)) continue;
+      owners.push({
+        labelId: `primitive_${entityId}_${axis.key}`,
+        entityId,
+        // The x and y titles are two labels even when their text is equal.
+        duplicateKey: `${entityId}\u0000${axis.key}`,
+        anchor: tip,
+        text: text.trim(),
+        viewBounds: transformPlan.viewportFor(entityId),
+        useOwnerBounds: false,
+        incidentTangents: [{ x: (origin.x - tip.x) / length, y: (origin.y - tip.y) / length }],
+        tetherPx: pointLabelTether(text.trim()),
+        allowLeader: false,
+        leaderGeometrySafe: true,
+      });
+    }
+  }
+  return owners;
+}
 
 /**
  * Engine-owned letters x, y, z at the positive tips of every drawn space
