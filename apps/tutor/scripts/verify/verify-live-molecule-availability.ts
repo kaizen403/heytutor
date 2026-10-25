@@ -233,7 +233,11 @@ async function main(): Promise<void> {
   ] as const) await check(`unnamed-angle-declined/${kind}/${value}/${question}`, () => {
     const selected = selectProductionScene({ question, turnPlan: anglePlanFor(question, value, kind), problemIR: null });
     assert.equal(selected.representation, null, "an angle naming neither role nor species is not certified");
-    assert.match(selected.reason, /vsepr_plan_fact_unverified/);
+    // Since #304 (speciesChargeGuard) a charge the VSEPR reader did not read
+    // declines the figure before the certificate audit runs, so a charged stem
+    // may be refused by either guard. The neutral H2O rows must still reach
+    // the certificate audit.
+    assert.match(selected.reason, question.includes("H2O") ? /vsepr_plan_fact_unverified/ : /vsepr_plan_fact_unverified|no family operator program was available/);
   });
   const load = createRequire(import.meta.url); const enginePath = realpathSync(load.resolve("@heytutor/scene-engine"));
   const output = process.argv.indexOf("--out");
