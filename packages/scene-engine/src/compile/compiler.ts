@@ -2204,7 +2204,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       return;
     }
   }
-  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, hasIndependentDisplayMetric)) {
+  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, independentDisplayMatcher(assertion.entities, geometry))) {
     issues.push({code:"invalid_display_metric_assertion",message:"Independently normalized arrows and scaled physical plots cannot certify length equality or distance ratios",severity:"fatal",entityIds:assertion.entities});
     return;
   }
@@ -2298,6 +2298,11 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        // Points exempted through one shared optical display are compared in
+        // physical units: a fixed drawn tolerance at a tiny displayScale would
+        // otherwise accept physically unequal lengths.
+        const opticalScale = sharedOpticalDisplay(assertion.entities, geometry)?.displayScale;
+        if (opticalScale !== undefined) measured.forEach((value, index) => { measured[index] = value / opticalScale; });
         report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
@@ -5390,6 +5395,39 @@ function geometryMetadataMatches(value: Geometry | undefined, predicate: (metada
     return predicate(candidate) || Object.values(candidate).some((entry) => visit(entry, depth + 1));
   }
   return value !== undefined && Object.entries(value).some(([key, entry]) => !["points", "paths", "point", "center", "terminals"].includes(key) && visit(entry, 0));
+}
+/**
+ * The display matcher for one length comparison. A gaussian_image or
+ * optical_focus point is placed at its physical axis distance and height times
+ * one displayScale, so when every compared point carries the same optical
+ * display (same scale, length unit, centre and axis) that scale cancels: a ratio or an
+ * equality of their drawn lengths is the physical one. Those points are
+ * therefore not independently normalized. Any other display ancestor, or a
+ * point from an optical display with another scale, still matches.
+ */
+function independentDisplayMatcher(entityIds: readonly string[], geometry: Map<string, Geometry>): (value: Geometry | undefined) => boolean {
+  const shared = sharedOpticalDisplay(entityIds, geometry);
+  if (!shared) return hasIndependentDisplayMetric;
+  return (value) => {
+    const display = opticalDisplayOf(value);
+    return display && sameOpticalDisplay(display, shared) ? false : hasIndependentDisplayMetric(value);
+  };
+}
+/** The one optical display every listed point carries, or null. */
+function sharedOpticalDisplay(entityIds: readonly string[], geometry: Map<string, Geometry>): OpticalImageDefinition | OpticalFocusDefinition | null {
+  const displays = entityIds.map((id) => opticalDisplayOf(geometry.get(id)));
+  const shared = displays[0];
+  return !shared || displays.some((display) => !display || !sameOpticalDisplay(display, shared)) ? null : shared;
+}
+function opticalDisplayOf(value: Geometry | undefined): OpticalImageDefinition | OpticalFocusDefinition | null {
+  if (value?.kind !== "point") return null;
+  return value.opticalImage ?? value.opticalFocus ?? null;
+}
+function sameOpticalDisplay(first: OpticalImageDefinition | OpticalFocusDefinition, second: OpticalImageDefinition | OpticalFocusDefinition): boolean {
+  return Number.isFinite(first.displayScale) && first.displayScale > 0 && first.displayScale === second.displayScale &&
+    first.lengthUnit === second.lengthUnit &&
+    first.center.x === second.center.x && first.center.y === second.center.y &&
+    first.axis.x === second.axis.x && first.axis.y === second.axis.y;
 }
 function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => Object.keys(metadata).some((key) => INDEPENDENT_DISPLAY_KEYS.has(key)) ||
