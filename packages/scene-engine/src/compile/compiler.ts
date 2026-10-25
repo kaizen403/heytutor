@@ -2579,7 +2579,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   if (!passed) {
     issues.push({
       code: "assertion_failed",
-      message: assertionFinding(assertion, measured, residual),
+      message: assertionFinding(assertion, measured, residual) + roundedTypedPointHint(assertion, residual, geometry, document),
       severity, entityIds: assertion.entities, expected: assertion.expected, residual,
       ...(measured !== undefined ? { actual: measured } : {}),
     });
@@ -2631,6 +2631,69 @@ function assertionFinding(assertion: SceneAssertion, measured: unknown, residual
     : "";
   const claim = assertion.reason ? ` The candidate's claim: "${assertion.reason}".` : "";
   return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${gap}${claim}`;
+}
+
+/** Points the planner typed as literal coordinates, behind an assertion's operands. */
+function typedPointIdsBehind(entityIds: readonly string[], document: SceneDocument): string[] {
+  const producer = (id: string) => document.constructions.find((construction) => construction.outputs.includes(id));
+  const typed = new Set<string>();
+  const visit = (id: string) => {
+    const construction = producer(id);
+    if (!construction) return;
+    if (construction.operator === "point") {
+      if (construction.inputs.coordinateSpace !== "layout") typed.add(id);
+      return;
+    }
+    if (construction.operator === "segment" || construction.operator === "connect") {
+      for (const end of [construction.inputs.start, construction.inputs.end]) {
+        if (typeof end === "string" && producer(end)?.operator === "point") visit(end);
+      }
+    }
+  };
+  for (const id of entityIds) visit(id);
+  return [...typed];
+}
+
+/**
+ * A rounding sized gap on typed points: equal radii or a point on a circle
+ * that fails by about the last typed digit. The tolerance stays; the repair
+ * says how to build the points so the relation holds exactly.
+ */
+function roundedTypedPointHint(assertion: SceneAssertion, residual: number | undefined, geometry: Map<string, Geometry>, document: SceneDocument): string {
+  if (assertion.expected === false || (assertion.predicate !== "equal_length" && assertion.predicate !== "on")) return "";
+  if (residual === undefined || !Number.isFinite(residual) || !(residual > 0)) return "";
+  if (residual > geometryScale(geometry) * 0.005) return "";
+  const typed = typedPointIdsBehind(assertion.entities, document);
+  if (typed.length === 0) return "";
+  const producer = (id: string) => document.constructions.find((entry) => entry.outputs.includes(id));
+  // The pivot comes only from the failed check itself: the centre of the circle
+  // an `on` check names, or the endpoint every radius in an equal_length check
+  // shares. Lines, free segments and unnamed circles get no circle advice.
+  let pivot: string | undefined;
+  if (assertion.predicate === "on") {
+    const centres = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction?.operator === "circle" && typeof construction.inputs.center === "string" ? construction.inputs.center : undefined;
+    }).filter((centre): centre is string => centre !== undefined);
+    pivot = centres.length === 1 ? centres[0] : undefined;
+  } else {
+    const ends = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction && (construction.operator === "segment" || construction.operator === "connect")
+        ? [construction.inputs.start, construction.inputs.end].filter((end): end is string => typeof end === "string")
+        : [];
+    });
+    pivot = ends.length >= 2 && ends.every((pair) => pair.length === 2) ? ends[0]!.find((end) => ends.every((pair) => pair.includes(end))) : undefined;
+  }
+  if (!pivot) return "";
+  const offCentre = typed.filter((id) => id !== pivot);
+  const fractional = offCentre.filter((id) => {
+    const inputs = document.constructions.find((entry) => entry.outputs.includes(id))?.inputs;
+    return [inputs?.x, inputs?.y].some((value) => typeof value === "number" && !Number.isInteger(value));
+  });
+  const named = fractional.length > 0 ? fractional : offCentre;
+  if (named.length === 0) return "";
+  return ` The gap is rounding size: ${named.join(", ")} ${named.length === 1 ? "is a point" : "are points"} typed as rounded coordinates. Do not type rounded r cos θ, r sin θ values and do not add digits. Type one point at the radius, then construct each other point on the circle from it with rotate {point: <that point>, center: ${pivot}, angle: <degrees>, angleUnit: "degrees"}, or with circle_intersections, so equal radii and on-circle assertions hold exactly.`;
 }
 
 function isDerivedDirection(entityId: string | undefined, document: SceneDocument): boolean {
