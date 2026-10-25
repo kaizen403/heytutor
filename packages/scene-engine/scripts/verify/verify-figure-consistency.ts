@@ -86,6 +86,14 @@ function annotatedLoop(sense: string, text: string): Doc {
 expect("mutation: a reversed badge named I only by a label annotation is still judged as a current", annotatedLoop("negative", "I"), "current_against_source_polarity", true);
 expect("a badge named I only by a label annotation and drawn forward is admitted", annotatedLoop("positive", "I"), "current_against_source_polarity", false);
 expect("a badge named V only by a label annotation is not judged", annotatedLoop("negative", "V"), "current_against_source_polarity", false);
+// The compiler draws a label only on its first target; a later target is not named by it.
+function sharedLabelLoop(sense: string): Doc {
+  const document = loop(sense, "direction marker");
+  for (const entity of document.entities as Entity[]) if (entity.id === "flow") delete entity.label;
+  (document.annotations as unknown[]).push({ id: "wire_name", kind: "label", targetIds: ["bottom", "flow"], text: "I" });
+  return document;
+}
+expect("a reversed unnamed badge listed second on a wire's label is not judged as a current", sharedLabelLoop("negative"), "current_against_source_polarity", false);
 
 // A stub off the loop carries no current, so a mark on it is not the source current.
 const stub = loop("positive");
