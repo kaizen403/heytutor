@@ -59,20 +59,23 @@ function expect(name: string, document: Doc, code: string, present: boolean): vo
 // --- current sense against the cell -------------------------------------------------
 // One loop P -cell- S -wire- R -resistor- Q -wire- P. The cell's long plate is at its
 // start, P, so conventional current runs P to Q along the bottom wire.
-function loop(sense: string, role = "current direction", extraSource = false): Doc {
+function loop(sense: string, role = "current direction", extraSource = false, label = "I"): Doc {
   return build([
     point("P", 0, 0), point("Q", 5, 0), point("R", 5, 3), point("S", 0, 3),
     [{ id: "cell", kind: "component", role: "source", label: "E" }, { id: "make_cell", operator: "symbol", inputs: { start: "P", end: "S", symbol: "cell" }, outputs: ["cell"] }],
     [{ id: "top", kind: "connector", role: "wire" }, { id: "make_top", operator: "connect", inputs: { start: "S", end: "R" }, outputs: ["top"] }],
     [{ id: "load", kind: "component", role: extraSource ? "source" : "resistor", label: "R" }, { id: "make_load", operator: "symbol", inputs: { start: "R", end: "Q", symbol: extraSource ? "battery" : "resistor" }, outputs: ["load"] }],
     [{ id: "bottom", kind: "connector", role: "wire" }, { id: "make_bottom", operator: "connect", inputs: { start: "P", end: "Q" }, outputs: ["bottom"] }],
-    [{ id: "flow", kind: "sign_badge", role, label: "I" }, { id: "make_flow", operator: "sign_badge", inputs: { target: "bottom", at: 0.5, sense }, outputs: ["flow"] }],
+    [{ id: "flow", kind: "sign_badge", role, label }, { id: "make_flow", operator: "sign_badge", inputs: { target: "bottom", at: 0.5, sense }, outputs: ["flow"] }],
   ]);
 }
 expect("current leaving the positive plate is admitted", loop("positive"), "current_against_source_polarity", false);
 expect("mutation: the same mark reversed is refused", loop("negative"), "current_against_source_polarity", true);
 expect("an electron flow mark runs the other way and is not judged", loop("negative", "electron flow"), "current_against_source_polarity", false);
 expect("two cells: the polarity alone does not fix the current", loop("negative", "current direction", true), "current_against_source_polarity", false);
+expect("a voltage reference badge may point against the current and is not judged", loop("negative", "voltage reference", false, "V"), "current_against_source_polarity", false);
+expect("mutation: a badge labelled I with a neutral role is still judged as a current", loop("negative", "direction marker", false, "I"), "current_against_source_polarity", true);
+expect("mutation: a badge whose role names a current is judged whatever its label", loop("negative", "conventional current", false, "flow"), "current_against_source_polarity", true);
 
 // A stub off the loop carries no current, so a mark on it is not the source current.
 const stub = loop("positive");
