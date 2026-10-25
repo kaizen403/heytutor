@@ -4682,7 +4682,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!required.has(entity.id)) {
       issues.push({
         code: "unrequired_entity",
-        message: `Entity ${entity.id} is not declared in requiredEntityIds`,
+        message: `Entity ${entity.id} is not declared in requiredEntityIds; add ${entity.id} to requiredEntityIds, since every declared or constructed entity is drawn`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],
@@ -4691,7 +4691,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!grouped.has(entity.id)) {
       issues.push({
         code: "ungrouped_entity",
-        message: `Entity ${entity.id} is not assigned to a reveal group`,
+        message: `Entity ${entity.id} is not assigned to a reveal group; add ${entity.id} to the entityIds of one reveal group`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],
