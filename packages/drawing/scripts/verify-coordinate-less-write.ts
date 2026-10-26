@@ -72,6 +72,13 @@ const refused = [
   "[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]",
   "[STEP]Q2 next. [WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]",
   "[STEP]An empty row. [WRITE:] Nothing.[/STEP]",
+  // Labelled coordinates, seen in production resumes: never written as text.
+  "[STEP]Tissue next. [WRITE:tissue = similar cells together:y=541] Cells group.[/STEP]",
+  "[STEP]Levels. [WRITE:organ -> organism, y=475] Up a level.[/STEP]",
+  "[STEP]Chapter ten. [WRITE:chapter = many exercises, x=60, y=541] Many.[/STEP]",
+  "[STEP]The answer. [WRITE:solution: x = 3, y = 4] Both found.[/STEP]",
+  // A row id in front names a row; it must not be written as ink.
+  "[STEP]Kelvin. [WRITE:w4:T(K) = T(C) + 273.15] Always kelvin.[/STEP]",
 ];
 for (const source of refused) {
   assert(streamed(source).writes.length === 0, `the streaming parser must refuse ${JSON.stringify(source)}`);

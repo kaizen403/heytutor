@@ -693,11 +693,14 @@ function matchWriteLabelTag(slice: string): string | null {
  * to a body that is plainly row text. A trailing number is taken as y only
  * when it sits on the work row grid and is glued to its comma, the way the
  * model writes coordinates; any other trailing number, a placeholder letter,
- * or an id and coordinate body such as `w6:y475` is refused, so a list like
- * "2, 3" is never cut down to "2".
+ * a labelled coordinate such as `, y=475`, a row id in front such as `w4:`,
+ * or an id and coordinate body such as `w6:y475` is refused, so a list like "2, 3" is never cut down to "2" and
+ * no coordinate is ever written as row text.
  */
 const COORDINATE_LESS_WRITE_HEADER = /^\[WRITE:/i;
 const COORDINATE_ONLY_WRITE_BODY = /^(?:w\d+\s*[:,]?\s*)?(?:y\s*=?\s*-?\d+)?$/i;
+// A work row id in front (`w4:...`) names a row; it is not row text.
+const ROW_ID_PREFIXED_WRITE_BODY = /^w\d+\s*[:.,)]/i;
 
 function onWorkRowGrid(y: number): boolean {
   const offset = y - WORK_ZONE.topY;
@@ -706,7 +709,7 @@ function onWorkRowGrid(y: number): boolean {
 
 function coordinateLessWriteRow(body: string): { text: string; y: number } | null {
   const trimmed = body.trim();
-  if (!/[\p{L}\p{N}]/u.test(trimmed) || COORDINATE_ONLY_WRITE_BODY.test(trimmed)) return null;
+  if (!/[\p{L}\p{N}]/u.test(trimmed) || COORDINATE_ONLY_WRITE_BODY.test(trimmed) || ROW_ID_PREFIXED_WRITE_BODY.test(trimmed)) return null;
   const placeholderX = /^(.*\S),x,(\d+)$/u.exec(trimmed);
   if (placeholderX) {
     const y = Number(placeholderX[2]);
@@ -719,6 +722,9 @@ function coordinateLessWriteRow(body: string): { text: string; y: number } | nul
   }
   // Any other trailing number or coordinate letter is ambiguous: refuse it.
   if (/,\s*(?:-?\d+(?:\.\d+)?|[xy])\s*$/iu.test(trimmed)) return null;
+  // A labelled coordinate (`text, y=475`, `text:y=541`, `x=60, y=475`) would
+  // be written as row text, and `x = 3, y = 4` may be the row itself: refuse.
+  if (/(?:^|[\s,:;(])[xy]\s*=\s*-?\d+(?:\.\d+)?\s*\)?\s*$/iu.test(trimmed)) return null;
   return { text: trimmed, y: WORK_ZONE.topY };
 }
 
