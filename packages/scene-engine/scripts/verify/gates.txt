@@ -79,3 +79,4 @@ tsx scripts/verify/verify-figure-consistency.ts
 tsx scripts/verify/verify-pv-cycle-stated-values.ts
 tsx scripts/verify/verify-rounded-circle-point-repair.ts
 tsx scripts/verify/verify-axes-titles.ts
+tsx scripts/verify/verify-semiconductor-bands.ts
