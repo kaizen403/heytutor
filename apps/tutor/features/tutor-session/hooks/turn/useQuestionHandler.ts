@@ -177,6 +177,7 @@ import type { TutorPhase } from "../../types";
 import { isWhiteboardReadyToDraw } from "../../lib/board/whiteboardReady";
 import { lessonAdmission } from "../../lib/turn/lessonOwnership";
 import { currentPausedLesson } from "../../lib/turn/pausedLessonRestore";
+import { reloadStaleTabForQuestion } from "@/lib/client/staleBuild";
 import type { HandleQuestionOptions, TurnControlApi, UseTurnLifecycleParams } from "./types";
 
 type PendingQuestionFlushState = {
@@ -2941,6 +2942,13 @@ export function useQuestionHandler(
   useLayoutEffect(() => { admissionBoardRef.current = sessionId; }, [sessionId]);
   const handleQuestion = useCallback(
     async (rawQuestion: string, options?: HandleQuestionOptions) => {
+      // A tab left open across a deploy would teach with the old bundle's
+      // figures. A new lesson reloads into the current build and asks the
+      // same question there; doubts and resumes stay on this page.
+      if (!options?.doubt && !options?.resume && reloadStaleTabForQuestion(rawQuestion)) {
+        options?.onAdmission?.(false);
+        return;
+      }
       // Audio unlock stays in the user gesture; title/billing wait for admission.
       ensureTTSClient().unlockAudio?.();
       if (!boardLoaded || !isWhiteboardReadyToDraw(whiteboardRef.current)) {
