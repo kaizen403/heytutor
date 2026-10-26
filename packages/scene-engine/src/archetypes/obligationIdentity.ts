@@ -98,12 +98,14 @@ export function bindArchetypeBody(
   consumed: ReadonlySet<string>,
   usedBodies: ReadonlySet<CertifiedArchetypeBody>,
 ): ArchetypeBodyBinding | null {
-  // An article is filler only when written lower case before another word. A capital or
-  // trailing letter ("projectile A", "projectile a") is a body name, so the label keeps it
-  // and cannot bind as the bare role noun.
+  // An article is filler only when written lower case before another word, and only first
+  // ("a projectile") or right after "of" ("path of the ball"). A capital, trailing or inner
+  // letter ("projectile A", "projectile a", "projectile a (point mass)") is a body name, so
+  // the label keeps it and cannot bind as the bare role noun.
   const tokens = problemLabel.replace(/[()]/g, " ").trim().split(/\s+/).filter(Boolean);
   const words = tokens
-    .filter((token, index) => !(FILLER.has(token) && index < tokens.length - 1))
+    .filter((token, index) => !(FILLER.has(token) && index < tokens.length - 1
+      && (token === "of" || index === 0 || tokens[index - 1] === "of")))
     .map((token) => token.toLowerCase());
   if (words.length === 0) return null;
   for (const body of identity.bodies) {
