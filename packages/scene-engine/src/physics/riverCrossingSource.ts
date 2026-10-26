@@ -154,6 +154,86 @@ export function riverCrossingValues(speeds: RiverCrossingSpeeds, question = ""):
   return { velocity, angle, ...(w === null ? {} : { time, length }) };
 }
 
+const HEADING_VERB = String.raw`\b(?:head(?:s|ed|ing)?|point(?:s|ed|ing)?|aim(?:s|ed|ing)?|steer(?:s|ed|ing)?|direct(?:s|ed|ing)?|orient(?:s|ed|ing|ated)?|fac(?:e|es|ed|ing)|rows?|rowed|rowing|swims?|swimming|swam|paddl(?:e|es|ed|ing)|keep(?:s|ing)?\s+(?:his|her|its|the|their)\s+(?:boat|body|bow|head)(?:\s+(?:pointed|pointing|aimed|directed|headed|heading|facing))?)\b`;
+const ACROSS_TARGET = String.raw`(?:banks?|shore|current|stream|river|flow|water\s+flow|direction\s+of\s+(?:the\s+)?(?:current|flow|stream|river))`;
+const PERPENDICULAR_TARGET = String.raw`(?:perpendicular(?:ly)?(?:\s+to\s+(?:the\s+)?${ACROSS_TARGET})?|normal(?:ly)?\s+to\s+(?:the\s+)?${ACROSS_TARGET}|at\s+right\s+angles?\s+to\s+(?:the\s+)?${ACROSS_TARGET}|(?:at\s+)?90\s*(?:°|degrees?)\s+to\s+(?:the\s+)?${ACROSS_TARGET}|straight\s+across|directly\s+across)\b`;
+// The words between a heading verb and its direction may name the boat, never a goal.
+const HEADING_GAP = String.raw`(?:(?!\b(?:to|so|order|reach(?:es)?|lands?|arrives?|cross(?:es)?|gets?|go(?:es)?|wants?|should|must)\b)[^.;?!]){0,25}?`;
+const INTENT_BEFORE = /\b(?:wants?|wish(?:es)?|desires?|order|so\s+as|so\s+that|has|have|must|should|needs?|to|which\s+direction|what\s+direction|where)\s*$/i;
+
+/**
+ * The boat heading a river crossing stem states, read from positive evidence.
+ *
+ * "perpendicular": a heading verb ("heads", "pointed", "rows") is followed by
+ * a perpendicular direction ("perpendicular to the banks", "straight across").
+ * "upstream": a heading verb is followed by "upstream" or "against the
+ * current". A goal ("wants to row straight across", "head to reach the point
+ * directly opposite") is a request, not a heading. Anything else that names a
+ * direction (a heading angle, a perpendicular the reader did not bind, a
+ * downstream heading) is "unread": the figure cannot know the heading.
+ * `pathAsked` and `timeAsked` read the stem without the heading phrases.
+ */
+export interface RiverCrossingHeading {
+  readonly perpendicular: boolean;
+  readonly upstream: boolean;
+  readonly unread: string | null;
+  readonly pathAsked: boolean;
+  readonly timeAsked: boolean;
+}
+
+export function riverCrossingHeading(question: string): RiverCrossingHeading {
+  let text = prepareStem(question);
+  const take = (pattern: RegExp): boolean => {
+    let found = false;
+    text = text.replace(pattern, (match: string, ...rest: unknown[]) => {
+      const offset = rest.find((item) => typeof item === "number") as number;
+      if (INTENT_BEFORE.test(text.slice(Math.max(0, offset - 30), offset))) return match;
+      found = true;
+      return " ".repeat(match.length);
+    });
+    return found;
+  };
+  const perpendicular = take(new RegExp(`${HEADING_VERB}${HEADING_GAP}\\s*${PERPENDICULAR_TARGET}`, "gi"));
+  const upstream = take(new RegExp(`${HEADING_VERB}${HEADING_GAP}\\s*\\b(?:upstream|up\\s+the\\s+(?:river|stream)|against\\s+the\\s+(?:current|stream|flow))\\b`, "gi"));
+  const downstream = new RegExp(`${HEADING_VERB}${HEADING_GAP}\\s*\\b(?:downstream|down\\s+the\\s+(?:river|stream)|with\\s+the\\s+(?:current|stream|flow))\\b`, "i").test(text);
+  const unread = new RegExp(`${STEM_NUMBER}\\s*(?:°|degrees?\\b|deg\\b|radians?\\b|rad\\b)`, "i").test(text) ? "the stem states an angle the river figure does not read"
+    : /\b(?:perpendicular(?:ly)?|right\s+angles?|normal\s+to|oblique(?:ly)?)\b/i.test(text) ? "the stem names a perpendicular direction not bound to the heading"
+      : downstream ? "the stem states a downstream heading"
+        : null;
+  return { perpendicular, upstream, unread, pathAsked: riverShortestPathAsked(text), timeAsked: riverShortestTimeAsked(text) };
+}
+
+/**
+ * A heading angle the stem measures from the current ("at 150° to the
+ * direction of river flow"), when it is the stem's only angle; otherwise null.
+ */
+export function riverHeadingFromFlow(question: string): number | null {
+  const text = prepareStem(question);
+  const angles = [...text.matchAll(new RegExp(`${STEM_NUMBER}\\s*(?:°|degrees?\\b|deg\\b)`, "gi"))];
+  if (angles.length !== 1) return null;
+  const angle = angles[0]!;
+  const after = text.slice(angle.index! + angle[0].length);
+  const fromFlow = /^\s*(?:to|with)\s+(?:the\s+)?(?:direction\s+of\s+(?:the\s+)?(?:river(?:\s+(?:flow|current))?|flow|current|stream)|(?:river\s+)?(?:flow|current|stream))\b/i;
+  if (!fromFlow.test(after)) return null;
+  return parseStemNumber(angle[1]!);
+}
+
+/**
+ * The one crossing a single velocity triangle may draw for the stem, or null.
+ * Upstream (resultant straight across) needs a path request or a stated
+ * upstream heading with one, and a boat faster than the current. Perpendicular
+ * needs a stated perpendicular heading or a shortest time request. A stem
+ * with neither, with both, or with an unread direction draws no crossing.
+ */
+export function riverCrossingTriangle(question: string, vb: number, vc: number): "upstream" | "perpendicular" | null {
+  const heading = riverCrossingHeading(question);
+  if (heading.unread) return null;
+  if (heading.perpendicular) return heading.upstream || heading.pathAsked ? null : "perpendicular";
+  if (heading.upstream && !heading.pathAsked) return null;
+  if (heading.pathAsked) return vb > vc ? "upstream" : null;
+  return heading.timeAsked ? "perpendicular" : null;
+}
+
 const BOAT_SYMBOLS = new Set(["vb", "vboat", "boatspeed", "vbw", "vbinstillwater", "vswimmer"]);
 const RIVER_SYMBOLS = new Set(["vc", "vriver", "vcurrent", "riverspeed", "vstream", "vw", "vwater"]);
 
