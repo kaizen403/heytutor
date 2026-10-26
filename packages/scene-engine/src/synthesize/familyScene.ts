@@ -1317,11 +1317,15 @@ function buildCircuit(
     || resistors.length < 2)) return null;
   if (resistors.length < 2 && !schematic && !namedNetwork) return null;
   // A schematic still requires the stem to name circuit apparatus; never invent a network.
+  // An induced, motional or back emf names a field effect, not a source in a
+  // circuit, and once the stem names one, its other "emf" mentions are that one.
+  const fieldEmf = /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question);
   if (
     schematic
     && resistors.length < 2
     && !namedNetwork
-    && !/(?:resist|circuit|battery|\bcells?\b|\bemf\b|capacitor|inductor|diode|zener|galvanometer|ammeter|voltmeter|\bohm|series|parallel|bulb|lamp)/i.test(question)
+    && !/(?:resist|circuit|battery|\bcells?\b|capacitor|inductor|diode|zener|galvanometer|ammeter|voltmeter|\bohm|series|parallel|bulb|lamp)/i.test(question)
+    && (fieldEmf || !/\bemf\b/i.test(question))
   ) {
     return null;
   }

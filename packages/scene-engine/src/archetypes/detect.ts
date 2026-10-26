@@ -356,6 +356,10 @@ function volts(stem: string): number[] {
 /* Cue sets                                                                   */
 /* ------------------------------------------------------------------------- */
 
+// A conductor turning in a field: a generator's loop or coil, or a rod, disc
+// or blade turning about an axis. Neither induction figure draws one.
+const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|disc|disk|blade|wheel)\b[^.]{0,60}\b(?:rotat|spin|revolv)\w*|\b(?:rotat|spinn|revolv)\w*\s+(?:\w+\s+)?(?:loop|coil|armature|rod|disc|disk|blade|wheel)\b|\babout (?:one|its|an?) end\b|\b(?:ac|a\.c\.) generator\b|\balternator\b|\bdynamo\b/i;
+
 const CUE_SETS: readonly CueSet[] = [
   {
     id: "projectile",
@@ -861,9 +865,11 @@ const CUE_SETS: readonly CueSet[] = [
     id: "motional_emf_rod",
     cues: [[/\b(?:conducting|metal|metallic) (?:rod|bar|wire)\b/i, 3], [/\b(?:motional emf|induced emf|emf induced)\b/i, 3], [/\b(?:moves|moving|velocity|rails?)\b/i, 1], [/\bmagnetic field\b/i, 1]],
     minScore: 5,
-    // The figure is a straight conductor sliding on rails. A rotating loop or
-    // a coil has an induced emf too, but no rod to draw.
-    requires: [/\b(?:rods?|bars?|straight (?:wire|conductor)|(?:conducting|metal|metallic|sliding) (?:wire|conductor))\b/i],
+    // The figure is a straight conductor moving through the field. A loop or
+    // coil has an induced emf too, and so does a magnet pushed into one, but
+    // neither has that conductor to draw; nor does a rod turning about an end.
+    requires: [/\b(?:rods?|bars?|(?<!(?:coil|loop|turns|ring) of )wires?|conductors?|axles?|(?:movable|moving|sliding) arms?)\b/i],
+    vetoes: [TURNING_CONDUCTOR, /\bmagnet\b[^.]{0,60}\b(?:coil|solenoid|loop|ring)\b|\b(?:coil|solenoid|loop|ring)\b[^.]{0,60}\bmagnet\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "length", planNumber(plan, ["l", "length"]), "plan");
       const rodMetres = firstNumberWithUnit(stem, UNIT.metre);
@@ -1463,7 +1469,12 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "faraday_induction",
     cues: [[/\bfaraday\b/i, 4], [/\belectromagnetic induction\b/i, 4], [/\b(?:magnet|coil)\b[^.]{0,40}\b(?:moved|moving|pushed|pulled|brought|withdrawn)\b/i, 3], [/\binduced (?:current|emf)\b/i, 2], [/\blenz\b/i, 2]],
-    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i],
+    // The figure is a magnet pushed into a coil, so the stem must name one of
+    // them or the law the figure shows; an induced emf alone may be a wire
+    // moving through a field. A loop or coil turning in a field is a
+    // generator, and this figure would stand in for it.
+    requires: [/\b(?:magnets?|(?:north|south|[NS])[- ]pole|coils?|solenoids?|lenz|faraday|electromagnetic induction)\b/i],
+    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR],
     extract: () => undefined,
   },
   {
