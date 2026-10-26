@@ -1654,6 +1654,10 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
   void schematic;
   const stem = chemStem(question);
   const example = options.exampleCaption;
+  // A plan example is drawn only as its molecular shape. A stem that asks for
+  // another figure of the species (its dipoles, its Fajans polarisation)
+  // would get a shape without the marks the lesson needs: decline instead.
+  if (example && (dipoleIsTheAsk(stem) || (!shapeIsTheAsk(stem) && fajanAsked(stem)))) return null;
   if (!example && !shapeIsTheAsk(stem) && fajanAsked(stem)) {
     const fajan = buildFajanScene(question);
     if (fajan) return { document: fajan, structures: [] };

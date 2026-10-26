@@ -112,9 +112,11 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   // of itself: one named value, and the example has it.
   const asked = namedVseprProperties(question);
   const result = species[0]!;
+  // A shape word next to "electron geometry" names the electron geometry.
+  const electronAsk = /\belectron(?:[ -]pair)?[ -](?:geometry|domain|arrangement)/i.test(question);
   for (const [named, value, property] of [
     [asked.hybridisations, result.hybridisation, "hybridisation"],
-    [asked.shapes, result.shape, "shape"],
+    [asked.shapes, electronAsk ? result.electronGeometry : result.shape, electronAsk ? "electron geometry" : "shape"],
     [asked.lonePairs, actualLonePairCount(result), "lone-pair count"],
   ] as const) {
     if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
