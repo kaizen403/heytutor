@@ -57,7 +57,7 @@ const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:\w+\s+)?(?:gas(?:es)?|molecu
 const MOLECULAR_ENERGY_DISTRIBUTION = new RegExp(
   String.raw`\b(?:molecular|particle)\s+(?:kinetic\s+)?energy\s+distributions?\b` +
   String.raw`|\b(?:kinetic\s+)?energy\s+distributions?\s+(?:of|among|in|for)\s+${CARRIER}` +
-  String.raw`|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+(?:kinetic\s+)?energ(?:y|ies)\b|(?:kinetic\s+)?energ(?:y|ies)\s+(?:of|among|in)\s+${CARRIER})`,
+  String.raw`|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+(?:kinetic\s+)?energ(?:y|ies)\b|(?:kinetic\s+)?energ(?:y|ies)\s+(?:of|among|in|for)\s+${CARRIER})`,
 );
 
 /**
