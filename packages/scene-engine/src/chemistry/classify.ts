@@ -101,12 +101,16 @@ function chemicalWords(text: string, originalQuestion: string): string[] {
  * magnetism to an ion as surely as the word "ion" does, but it names none,
  * so the stem left the chemistry lane for a physics susceptibility curve.
  * Only a charge written on a formula counts (the shared sign reader or a
- * sign word, "NO2 minus"); a stem with no charge is read as before.
+ * sign word, "NO2 minus"); a stem with no charge is read as before. A
+ * charge phrase counts only when its owner formula is written before it
+ * ("NO2 with a negative charge"): an owner written after it is a coulomb C,
+ * a field B, a point P or a pole N ("a sphere with a charge of +5 C"), so
+ * the stem stays physics.
  */
 function ionMagnetismContext(stem: string, originalQuestion: string): boolean {
   if (!/\b(?:para|dia)magnetic\b/.test(stem)) return false;
   return readChargeMarkers(originalQuestion).some((marker) => marker.formula !== null)
-    || readWrittenCharges(originalQuestion).some((marker) => marker.formula !== null);
+    || readWrittenCharges(originalQuestion).some((marker) => marker.formula !== null && (marker.ownerAt === undefined || marker.ownerAt < marker.at));
 }
 
 function countMatches(text: string, pattern: RegExp): number {

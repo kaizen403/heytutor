@@ -96,14 +96,30 @@ const FORMULA_TOKEN = String.raw`\[[^\]\s]+\]\d*|[A-Z][A-Za-z0-9]*(?:\([A-Z][A-Z
 const COUNT_WORDS: Record<string, number> = { one: 1, single: 1, two: 2, double: 2, three: 3, triple: 3, four: 4 };
 const COUNT = String.raw`\d|one|two|three|four`;
 
+/**
+ * A word in any letter case, one character class per letter ([Mm][Ii]...).
+ * Never an inline case modifier group: V8 gave one a different answer
+ * once it compiled the regex to native code, so a cold process and a warm
+ * one read the same stem differently (the charged species gate fails on any
+ * inline modifier group in scene-engine src).
+ */
+function anyCase(word: string): string {
+  return [...word].map((letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`).join("");
+}
+const SIGN_WORDS = ["minus", "plus", "negative", "positive"].map(anyCase).join("|");
+const LY_CHARGED = String.raw`${anyCase("ly")}\s+${anyCase("charged")}`;
+
 /** NO2 minus, SO3 two minus, SO3 minus 2, N2 plus, NO2 negative, NO2 negatively charged. */
 const SIGN_WORD = new RegExp(
-  String.raw`(?<![\p{L}\p{N}_\])])(${FORMULA_TOKEN})\s+(?:(${COUNT})\s+)?(?i:(minus|plus|negative|positive)(ly\s+charged)?)\b(?:\s+(${COUNT})\b)?`,
+  String.raw`(?<![\p{L}\p{N}_\])])(${FORMULA_TOKEN})\s+(?:(${COUNT})\s+)?(${SIGN_WORDS})(${LY_CHARGED})?\b(?:\s+(${COUNT})\b)?`,
   "gu",
 );
 
 /** A negatively charged NO2. */
-const CHARGED_BEFORE = new RegExp(String.raw`(?i:\b(negative|positive)ly\s+charged)\s+(?:species\s+)?(${FORMULA_TOKEN})(?![\p{L}\p{N}])`, "gu");
+const CHARGED_BEFORE = new RegExp(
+  String.raw`\b(${anyCase("negative")}|${anyCase("positive")})${LY_CHARGED}\s+(?:species\s+)?(${FORMULA_TOKEN})(?![\p{L}\p{N}])`,
+  "gu",
+);
 
 /** with a negative charge, carrying a positive charge, with charge -1, has a charge of 2-, with a net charge of +1. */
 const CHARGE_PHRASE = new RegExp(

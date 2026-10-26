@@ -25,9 +25,13 @@
  *    with no charge keep their lane (the uncharged NO2 paramagnetic stem
  *    stays where main has it, and physics dipole stems stay physics).
  *  - determinism: the gate rows give the same result with the regex
- *    interpreter only (node --regexp-interpret-all). On main the negator
- *    used a (?i:...) group whose result changed once V8 compiled it to
- *    native code, so a cold process drew neutral NO and a warm one did not.
+ *    interpreter only (node --regexp-interpret-all), and in one process
+ *    after the first 2,000 sweep stems (warm) as before them (cold). On
+ *    main the negator and the "negatively charged" reader used inline case
+ *    modifier groups whose result changed once V8 compiled them to native
+ *    code, so a cold process drew neutral NO and a warm one did not, and a
+ *    warm one drew neutral NO2 under "Negatively charged NO2". No inline
+ *    modifier group is left in scene-engine src, and the gate fails on one.
  *  - sweep: every syllabus probe, every data/diagram-eval stem, the checked
  *    in question bank (and the built bank when present) and a charged grid
  *    run here and on a copy of src with the four fixes switched off (main's
@@ -57,6 +61,10 @@ const withSweep = !argv.includes("--no-sweep") && !child;
 // A child asked only for the sweep writes it to this file and stops.
 const sweepFlag = argv.indexOf("--sweep-only");
 const sweepOut = sweepFlag >= 0 ? resolve(argv[sweepFlag + 1]!) : null;
+// A child asked to run warm reads the first WARM_STEMS sweep stems, then the gate rows, and writes their reads to this file.
+const warmFlag = argv.indexOf("--warm");
+const warmOut = warmFlag >= 0 ? resolve(argv[warmFlag + 1]!) : null;
+const WARM_STEMS = 2000;
 
 await import(`${root}/src/chemistry/families.ts`);
 const { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder, isChemistryQuestion, inferChemistryFamilies } = await import(`${root}/src/chemistry/index.ts`);
@@ -85,7 +93,7 @@ function labels(document: Doc | undefined): string[] {
 
 /* --------------------------------------------------------------------- rows */
 
-interface DeclineRow { readonly id: string; readonly fix: "negator" | "diatomic" | "lane-vsepr" | "lane-magnetism"; readonly question: string; readonly charge: string }
+interface DeclineRow { readonly id: string; readonly fix: "negator" | "diatomic" | "lane-vsepr" | "lane-magnetism" | "case-blind"; readonly question: string; readonly charge: string }
 
 const DECLINE: DeclineRow[] = [
   // #304 post merge review, section 2 row 1: neutral NO drawn under NO+.
@@ -115,6 +123,9 @@ const DECLINE: DeclineRow[] = [
   { id: "lane-NO2-minus-word-para", fix: "lane-magnetism", question: "Is NO2 minus paramagnetic? Show its MO diagram", charge: "-" },
   { id: "lane-NO2-caret-para", fix: "lane-magnetism", question: "Is NO2^- paramagnetic? Show its MO diagram", charge: "-" },
   { id: "lane-SO3-2-para", fix: "lane-magnetism", question: "Is SO3 2- paramagnetic? Show its MO diagram", charge: "2-" },
+  // PR #309 review, fix 2: on main a warm process lost the case blind read of these and drew neutral NO2.
+  { id: "case-Negatively-charged-NO2", fix: "case-blind", question: "Draw the shape of Negatively charged NO2", charge: "-" },
+  { id: "case-NEGATIVELY-CHARGED-NO2", fix: "case-blind", question: "Draw the shape of NEGATIVELY CHARGED NO2", charge: "-" },
 ];
 
 /** Neutral and attached species that draw on main and must draw the same here. */
@@ -148,6 +159,14 @@ const LANE: Array<{ id: string; question: string; chemistry: boolean }> = [
   { id: "physics-paramagnetic-sample", question: "A paramagnetic sample with susceptibility χ: draw χ against T.", chemistry: false },
   { id: "physics-normal-force", question: "N2 - mg = ma; draw the free body diagram of the block.", chemistry: false },
   { id: "main-already-NO2-dipole", question: "Dipole moment of NO2 - and its shape", chemistry: true },
+  // PR #309 review, fix 1: a charge phrase whose formula owner is written after it (the
+  // coulomb C, a field B, a point P, a pole N) is not ion magnetism; these stay physics.
+  { id: "physics-para-sphere-coulomb", question: "A paramagnetic sphere carrying a charge of +5 C is cooled. Sketch χ against T.", chemistry: false },
+  { id: "physics-para-grain-field-B", question: "A paramagnetic dust grain has a negative charge and sits in field B. Plot χ against T.", chemistry: false },
+  { id: "physics-para-sample-coulomb", question: "Is a sample with a charge of +2 C paramagnetic? Plot it against T", chemistry: false },
+  { id: "physics-para-bead-point-P", question: "A paramagnetic bead with a positive charge sits at point P. Draw χ against T.", chemistry: false },
+  { id: "physics-dia-rod-pole-N", question: "A diamagnetic rod with a negative charge is placed near pole N. Draw the field.", chemistry: false },
+  { id: "physics-para-sphere-microcoulomb", question: "A paramagnetic sphere has a charge of -3 μC at C. Sketch χ vs T.", chemistry: false },
 ];
 
 /* ------------------------------------------------------------------- checks */
@@ -202,13 +221,9 @@ function chargedGrid(): string[] {
   return out;
 }
 
-function sweepStems(): string[] {
-  const stems = new Set<string>([...DECLINE, ...DRAWS, ...LANE].map((row) => row.question));
-  const probes = join(repoRoot, "data/syllabus-probes");
-  for (const name of readdirSync(probes).filter((file) => file.endsWith(".json")).sort()) {
-    const unit = JSON.parse(readFileSync(join(probes, name), "utf8")) as { questions?: Array<{ question?: string }> };
-    for (const row of unit.questions ?? []) if (row.question) stems.add(row.question);
-  }
+/** Every data/diagram-eval stem, files in name order. */
+function evalStems(): string[] {
+  const stems: string[] = [];
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       const path = join(dir, entry.name);
@@ -217,12 +232,29 @@ function sweepStems(): string[] {
         for (const line of readFileSync(path, "utf8").split("\n")) {
           if (!line.trim()) continue;
           const row = JSON.parse(line) as { question?: unknown };
-          if (typeof row.question === "string" && row.question.trim()) stems.add(row.question);
+          if (typeof row.question === "string" && row.question.trim()) stems.push(row.question);
         }
       }
     }
   };
   walk(join(repoRoot, "data/diagram-eval"));
+  return stems;
+}
+
+/**
+ * The sweep stems: the gate rows, every syllabus probe, every diagram-eval stem, the bank, the
+ * charged grid. With evalFirst the diagram-eval stems lead (the order the PR #309 review warmed
+ * main in, where a warm process lost the case blind read).
+ */
+function sweepStems(evalFirst = false): string[] {
+  const stems = new Set<string>(evalFirst ? evalStems() : []);
+  for (const row of [...DECLINE, ...DRAWS, ...LANE]) stems.add(row.question);
+  const probes = join(repoRoot, "data/syllabus-probes");
+  for (const name of readdirSync(probes).filter((file) => file.endsWith(".json")).sort()) {
+    const unit = JSON.parse(readFileSync(join(probes, name), "utf8")) as { questions?: Array<{ question?: string }> };
+    for (const row of unit.questions ?? []) if (row.question) stems.add(row.question);
+  }
+  for (const stem of evalStems()) stems.add(stem);
   for (const bank of ["data/question-bank/questions.jsonl", "data/question-bank/build/questions.all.jsonl"]) {
     if (!existsSync(join(repoRoot, bank))) continue;
     for (const line of readFileSync(join(repoRoot, bank), "utf8").split("\n")) {
@@ -253,7 +285,46 @@ if (sweepOut) {
   process.exit(0);
 }
 
+/**
+ * The gate rows read cold: first thing in a fresh process, before any sweep stem. Reading them
+ * here, before a warm up, hides the flip, so the warm run is a separate process.
+ */
+const rowStems = [...DECLINE, ...DRAWS, ...LANE].map((row) => row.question);
+const coldRows = warmOut ? [] : rowStems.map(sweepRow);
+/** One stem through every reader a sweep touches: routing, the family path (inferred and default), every builder. */
+function exercise(question: string): void {
+  try {
+    sweepRow(question);
+    synthesizeFamilyScene({ question, families: inferChemistryFamilies(question) });
+    drawnDocuments(question);
+  } catch {
+    // A stem a builder throws on still warms the readers it reached.
+  }
+}
+if (warmOut) for (const stem of sweepStems(true).slice(0, WARM_STEMS)) exercise(stem);
+
 rowsOnly();
+
+if (warmOut) writeFileSync(warmOut, JSON.stringify(rowStems.map(sweepRow)));
+
+/* --------------------------------------------------------- source checks */
+
+/** Every file under a directory, sorted. */
+function filesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((entry) => entry.isDirectory() ? filesUnder(join(dir, entry.name)) : [join(dir, entry.name)]);
+}
+
+if (!child) {
+  check("source/no-inline-modifier-groups", () => {
+    // (?i:...), (?-i:...), (?m:...), (?i-s:...): V8 gave an inline case modifier group a different
+    // answer once it tiered the regex up to native code. Write the casings out ([Mm][Ii]...).
+    const inline = /\(\?-?[ims]+(?:-[ims]+)?:/;
+    const hits = filesUnder(join(root, "src")).flatMap((path) => readFileSync(path, "utf8").split("\n")
+      .flatMap((line, i) => inline.test(line) ? [`${path.slice(root.length + 1)}:${i + 1}`] : []));
+    assert.deepEqual(hits, [], "no inline regex modifier group in scene-engine src");
+  });
+}
 
 /* ------------------------------------------------------------------ mutants */
 
@@ -273,6 +344,8 @@ const FIXES: Record<DeclineRow["fix"], (src: string) => void> = {
   diatomic: (src) => patchFile(join(src, "chemistry/moDiagram.ts"), "if (nonDiatomicSpeciesWritten(question)) return null;", "if ((() => false)()) return null;"),
   "lane-vsepr": (src) => patchFile(join(src, "chemistry/vsepr.ts"), "  return chargedRoutingSpecies(question);\n}", "  return [];\n}"),
   "lane-magnetism": (src) => patchFile(join(src, "chemistry/classify.ts"), "else if (ionMagnetismContext(stem, originalQuestion))", "else if ((() => false)())"),
+  // Not main's behaviour (main was case blind through an inline group); the sweep leaves it on.
+  "case-blind": (src) => patchFile(join(src, "chemistry/speciesChargeGuard.ts"), "return [...word].map((letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`).join(\"\");", "return word;"),
 };
 
 function copyWith(name: string, patch: (src: string) => void): string {
@@ -287,8 +360,8 @@ function runChild(dir: string, extra: string[], nodeFlags: string[] = []): { std
   return { stdout: out.stdout, stderr: out.stderr };
 }
 
-function failedIds(dir: string, nodeFlags: string[] = []): string[] {
-  const { stdout, stderr } = runChild(dir, ["--json"], nodeFlags);
+function failedIds(dir: string, nodeFlags: string[] = [], extra: string[] = []): string[] {
+  const { stdout, stderr } = runChild(dir, ["--json", ...extra], nodeFlags);
   const report = JSON.parse(stdout.trim().split("\n").pop() ?? "{}") as { results?: Array<{ id: string; passed: boolean }> };
   assert.ok(report.results, `child produced no report: ${stderr.slice(0, 300)}`);
   return report.results.filter((row) => !row.passed).map((row) => row.id);
@@ -298,6 +371,18 @@ if (!child) {
   check("determinism/regex-interpreter-only", () => {
     const failed = failedIds(packageRoot, ["--regexp-interpret-all"]);
     assert.deepEqual(failed, [], "the rows give the same result with the regex interpreter only");
+  });
+  check("determinism/warm-after-sweep-stems", () => {
+    const file = join(mkdtempSync(join(packageRoot, ".charged-declines-warm-")), "warm.json");
+    try {
+      const failed = failedIds(packageRoot, [], ["--warm", file]);
+      assert.deepEqual(failed, [], `the rows pass after ${WARM_STEMS} sweep stems in one process`);
+      const warmRows = JSON.parse(readFileSync(file, "utf8")) as SweepRow[];
+      const moved = rowStems.filter((_, i) => JSON.stringify(warmRows[i]) !== JSON.stringify(coldRows[i]));
+      assert.deepEqual(moved, [], "each row reads the same warm as cold");
+    } finally {
+      rmSync(dirname(file), { recursive: true, force: true });
+    }
   });
 }
 
@@ -321,7 +406,7 @@ if (withSweep) {
   check("sweep/only-figures-lost", () => {
     const stems = sweepStems();
     const mine = stems.map(sweepRow);
-    const dir = copyWith("off", (src) => { for (const patch of Object.values(FIXES)) patch(src); });
+    const dir = copyWith("off", (src) => { for (const [fix, patch] of Object.entries(FIXES)) if (fix !== "case-blind") patch(src); });
     let off: SweepRow[];
     try {
       const file = join(dir, "sweep.json");
