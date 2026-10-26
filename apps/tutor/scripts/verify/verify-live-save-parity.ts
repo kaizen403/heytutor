@@ -29,16 +29,22 @@ interface Case {
   derived?: Given[];
   /** Expected: the live check declines (the save would refuse this figure). */
   declined: boolean;
+  /** The figure must be qualitative with no number for an unsourced angle. */
+  noDisplayDefault?: boolean;
 }
 
 const g = (id: string, value: number, unit: string, sourceText: string): Given => ({ id, symbol: id, value, unit, sourceText });
 
 const CLIFF = "A ball is thrown horizontally at 10 m/s from a cliff 20 m high. Find the time to reach the ground.";
 const CASES: Case[] = [
-  // The ladder figure draws theta = 60 degrees, a display default: the engine's
-  // own slot provenance has no source for it (the stem's foot distance 3 m
-  // gives acos(3/5) = 53.13 degrees). The audit is right to refuse it.
-  { id: "ladder-default-angle", question: "A ladder 5 m long rests against a vertical wall with its foot 3 m from the wall. Find the height the ladder reaches on the wall.", givens: [g("L", 5, "m", "5 m"), g("d", 3, "m", "3 m")], declined: true },
+  // The ladder figure used to carry theta = 60 degrees, a display default with
+  // no source (the stem's 3 m foot gives acos(3/5) = 53.13 degrees), and the
+  // audit refused it. Since #201 (066fe3a65, "keep archetype display defaults
+  // symbolic") an ungrounded angle is never a quantity: the figure is
+  // qualitative, letters the angle as a bare theta and carries only L = 5 m.
+  // Nothing false is drawn, so it is drawn and saved. noDisplayDefault pins
+  // that the 60 degree default never comes back as a number.
+  { id: "ladder-default-angle", question: "A ladder 5 m long rests against a vertical wall with its foot 3 m from the wall. Find the height the ladder reaches on the wall.", givens: [g("L", 5, "m", "5 m"), g("d", 3, "m", "3 m")], declined: false, noDisplayDefault: true },
   // The plan omits a stated given; the engine reads 20 m and 30 degrees from
   // the stem and derives R = 10 sqrt(2*20/9.8) = 20.2 m itself: drawn and saved.
   { id: "cliff-plan-omits-height", question: CLIFF, givens: [g("u", 10, "m/s", "10 m/s")], declined: false },
@@ -84,6 +90,15 @@ async function main(): Promise<void> {
     if (!saved.ok) assert.equal(liveFailure, (saved as { error: string }).error, `${c.id}: live and save give the same reason`);
     assert.equal(liveFailure !== null, c.declined, `${c.id}: expected ${c.declined ? "a decline" : "a drawn, saved figure"}; live said ${liveFailure ?? "accept"}`);
     assert.equal(decision.representation !== null, saved.ok, `${c.id}: the selected production output saves in both directions`);
+    if (c.noDisplayDefault) {
+      const document = selected.sceneDocument;
+      assert.equal(selected.tier, "qualitative_verified", `${c.id}: a display-scaled angle keeps the figure qualitative`);
+      assert(!document.quantities.some((quantity) => quantity.id === "theta"), `${c.id}: an unsourced angle is never a quantity`);
+      const lettering = document.entities.map((entity) => entity.label ?? "");
+      assert(!lettering.some((label) => /\d\s*°|\bdeg/.test(label)), `${c.id}: no angle is lettered with a number: ${lettering.join(", ")}`);
+      assert(lettering.includes("L=5 m"), `${c.id}: the ladder keeps its stated length`);
+      checks += 4;
+    }
     checks += 6;
   }
   // Engine-derived values are recomputed, never trusted from the document: a

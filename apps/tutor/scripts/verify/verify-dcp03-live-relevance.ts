@@ -31,7 +31,9 @@ import {
   PROBLEM_IR_VERSION,
   SCENE_ARTIFACTS_V3_VERSION,
   checkVisualObligations,
+  compileSceneDocument,
   deriveVisualObligations,
+  visualObligationRejection,
   validateProblemIR,
   validateSceneDocument,
   validateTurnPlanV3,
@@ -292,12 +294,46 @@ function checkVectorSum(
   check(gap < 1e-6, `${label}: resultant must equal heading + current (gap ${gap})`);
 }
 
-/** Triangle proof in either shape: endpoint arithmetic or a fatal vector_sum. */
+/**
+ * A triangle built by velocity_triangle or crossing_strategies (731c87f4e,
+ * PR #83) has no endpoint points and no vector_sum assertion: the operator
+ * computes the resultant. Measure it on the compiled ink instead: each drawn
+ * resultant must equal its drawn frame (current) plus body (boat) arrow.
+ * Returns the number of triangles measured.
+ */
+function checkOperatorTriangles(document: SceneDocument, label: string): number {
+  const triples = document.constructions.flatMap((construction) => {
+    if (construction.operator === "velocity_triangle") return [construction.outputs.slice(0, 3)];
+    if (construction.operator === "crossing_strategies") return [construction.outputs.slice(0, 3), construction.outputs.slice(3, 6)];
+    return [];
+  });
+  if (triples.length === 0) return 0;
+  const compiled = compileSceneDocument(document);
+  check(compiled.ok && compiled.renderScene, `${label}: the operator triangle must compile`);
+  const delta = (id: string): { x: number; y: number } => {
+    const arrow = compiled.renderScene!.primitives.find((primitive) => primitive.kind === "vector" && primitive.entityId === id);
+    check(arrow && arrow.points.length >= 2, `${label}: ${id} must be drawn as an arrow`);
+    const [start, end] = arrow!.points;
+    return { x: end!.x - start!.x, y: end!.y - start!.y };
+  };
+  for (const [frame, body, resultant] of triples) {
+    const a = delta(frame!);
+    const b = delta(body!);
+    const r = delta(resultant!);
+    const gap = Math.hypot(r.x - a.x - b.x, r.y - a.y - b.y);
+    check(Math.hypot(a.x, a.y) > 1 && Math.hypot(b.x, b.y) > 1, `${label}: ${frame} and ${body} must have visible length`);
+    check(gap < 1e-6 * Math.max(1, Math.hypot(r.x, r.y)), `${label}: drawn ${resultant} must equal ${frame} + ${body} (gap ${gap})`);
+  }
+  return triples.length;
+}
+
+/** Triangle proof in any shape: endpoint arithmetic, measured operator ink, or a fatal vector_sum. */
 function checkCrossingSum(document: SceneDocument, label: string): void {
   if (pointOf(document, "vb_end") && pointOf(document, "vc_end") && pointOf(document, "vr_end")) {
     checkVectorSum(document, label, "origin", "vb_end", "vc_end", "vr_end");
     return;
   }
+  if (checkOperatorTriangles(document, label) >= 1) return;
   check(
     document.assertions.some(
       (assertion) => assertion.predicate === "vector_sum" && assertion.severity === "fatal",
@@ -314,6 +350,7 @@ function checkTwoTriangleSums(document: SceneDocument, label: string): void {
     checkVectorSum(document, `${label} shortest-time`, "short_origin", "short_vb_end", "short_vc_end", "short_vr_end");
     return;
   }
+  if (checkOperatorTriangles(document, label) >= 2) return;
   const sums = document.assertions.filter(
     (assertion) => assertion.predicate === "vector_sum" && assertion.severity === "fatal",
   );
@@ -334,7 +371,20 @@ interface LiveCase {
   expectFamily: string;
 }
 
+// Since #244 (6eb4c0344) the engine draws a two-loop network only when the
+// stem binds each loop's members, the shared branch and the battery polarity.
+// The old stem ("Two loops share R3", then a value list) left all three to a
+// stock layout, so a battery could sit in the wrong loop or point the wrong
+// way. That stem now declines (checked below); this one states the topology.
 function circuitQuestion(r1: number, r2: number, r3: number, v1: number, v2: number): string {
+  return `Use Kirchhoff's laws to find the branch currents. ` +
+    `The left loop consists of a ${v1} V ideal battery, resistor R1 = ${r1} ohm, and shared resistor R3 = ${r3} ohm. ` +
+    `The right loop consists of a ${v2} V ideal battery, resistor R2 = ${r2} ohm, and the same shared R3. ` +
+    `Both battery positive terminals are at the top. Draw the two-loop network.`;
+}
+
+/** The pre-#244 stem: values only, no loop membership and no polarity. */
+function unboundCircuitQuestion(r1: number, r2: number, r3: number, v1: number, v2: number): string {
   return `Use Kirchhoff's laws to find the branch currents. Two loops share R3. ` +
     `R1 = ${r1} ohm, R2 = ${r2} ohm, R3 = ${r3} ohm, with batteries V1 = ${v1} V and V2 = ${v2} V. ` +
     `Draw the two-loop network.`;
@@ -349,17 +399,18 @@ function circuitProblem(question: string, r1: number, r2: number, r3: number, v1
       { id: "r1Fact", kind: "given", statement: `R1 is ${r1} ohm.`, evidence: evidence(question, `R1 = ${r1} ohm`) },
       { id: "r2Fact", kind: "given", statement: `R2 is ${r2} ohm.`, evidence: evidence(question, `R2 = ${r2} ohm`) },
       { id: "r3Fact", kind: "given", statement: `R3 is ${r3} ohm.`, evidence: evidence(question, `R3 = ${r3} ohm`) },
-      { id: "v1Fact", kind: "given", statement: `V1 is ${v1} V.`, evidence: evidence(question, `V1 = ${v1} V`) },
-      { id: "v2Fact", kind: "given", statement: `V2 is ${v2} V.`, evidence: evidence(question, `V2 = ${v2} V`) },
-      { id: "loopFact", kind: "given", statement: "Two loops share R3.", evidence: evidence(question, "Two loops share R3") },
+      { id: "v1Fact", kind: "given", statement: `V1 is ${v1} V.`, evidence: evidence(question, `${v1} V ideal battery`) },
+      { id: "v2Fact", kind: "given", statement: `V2 is ${v2} V.`, evidence: evidence(question, `${v2} V ideal battery`) },
+      { id: "loopFact", kind: "given", statement: "The two loops share R3.", evidence: evidence(question, "shared resistor R3") },
       { id: "reqFact", kind: "requested", statement: "Find the branch currents.", evidence: evidence(question, "find the branch currents") },
     ],
     entities: [
       { id: "r1", kind: "component", label: "R1", evidenceFactIds: ["r1Fact"] },
       { id: "r2", kind: "component", label: "R2", evidenceFactIds: ["r2Fact"] },
       { id: "r3", kind: "component", label: "R3", evidenceFactIds: ["r3Fact"] },
-      { id: "v1", kind: "component", label: "V1", evidenceFactIds: ["v1Fact"] },
-      { id: "v2", kind: "component", label: "V2", evidenceFactIds: ["v2Fact"] },
+      // The stem names no battery symbol; the engine writes E1 and E2.
+      { id: "v1", kind: "component", evidenceFactIds: ["v1Fact"] },
+      { id: "v2", kind: "component", evidenceFactIds: ["v2Fact"] },
     ],
     expressions: [
       { id: "eR1", valueType: "scalar", root: { kind: "number", value: r1 }, evidenceFactIds: ["r1Fact"] },
@@ -386,12 +437,16 @@ function circuitProblem(question: string, r1: number, r2: number, r3: number, v1
 }
 
 function circuitPlan(question: string, r1: number, r2: number, r3: number, v1: number, v2: number): TurnPlanV3 {
+  return circuitPlanFor(question, r1, r2, r3, v1, v2, `${v1} V`, `${v2} V`);
+}
+
+function circuitPlanFor(question: string, r1: number, r2: number, r3: number, v1: number, v2: number, v1Source: string, v2Source: string): TurnPlanV3 {
   return plan(question, [
     { id: "R1", symbol: "R1", value: r1, unit: "ohm", provenance: "given", sourceText: `R1 = ${r1} ohm` },
     { id: "R2", symbol: "R2", value: r2, unit: "ohm", provenance: "given", sourceText: `R2 = ${r2} ohm` },
     { id: "R3", symbol: "R3", value: r3, unit: "ohm", provenance: "given", sourceText: `R3 = ${r3} ohm` },
-    { id: "V1", symbol: "V1", value: v1, unit: "V", provenance: "given", sourceText: `V1 = ${v1} V` },
-    { id: "V2", symbol: "V2", value: v2, unit: "V", provenance: "given", sourceText: `V2 = ${v2} V` },
+    { id: "V1", symbol: "V1", value: v1, unit: "V", provenance: "given", sourceText: v1Source },
+    { id: "V2", symbol: "V2", value: v2, unit: "V", provenance: "given", sourceText: v2Source },
   ]);
 }
 
@@ -787,9 +842,18 @@ async function runLiveSlice(live: LiveCase): Promise<SliceResult> {
 
   // Label checks: in-zone, non-empty, anchored, never invented.
   const entityIds = new Set(selected.sceneDocument.entities.map((entity) => entity.id));
-  const drawnLabels = new Set(
-    selected.sceneDocument.entities.map((entity) => entity.label).filter((label): label is string => Boolean(label)),
-  );
+  // An operator may letter its own outputs: parallel_guides writes "bank" on
+  // both river banks (731c87f4e, PR #83). That text is the compiler's verified
+  // output label on a construction output, not teaching-stream text, so it is
+  // the scene's own lettering. Text on anything else still does not count.
+  const constructedIds = new Set(selected.sceneDocument.constructions.flatMap((construction) => construction.outputs));
+  const drawnLabels = new Set([
+    ...selected.sceneDocument.entities.map((entity) => entity.label).filter((label): label is string => Boolean(label)),
+    ...selected.renderScene.primitives
+      .filter((primitive) => primitive.kind === "label" && typeof primitive.entityId === "string"
+        && constructedIds.has(primitive.entityId) && typeof primitive.text === "string")
+      .map((primitive) => primitive.text as string),
+  ]);
   const labelCommands = presentation.diagram.commands.filter((command) => command.type === "LABEL");
   check(labelCommands.length > 0, `${id}: the committed figure must letter at least one part`);
   for (const command of labelCommands) {
@@ -1273,6 +1337,30 @@ async function main(): Promise<void> {
     const verdict = oracleTwoLoopCircuit(varied.sceneDocument);
     check(verdict.pass, `two-loop R=${r1}/${r2}/${r3} must keep its picture class: ${verdict.detail}`);
     check(sceneCarries(varied.sceneDocument, r1), `two-loop scene must carry R1 = ${r1}`);
+  }
+  {
+    // A stem that names the method and lists values but never says which
+    // battery and resistor sit in which loop, or which way the batteries
+    // point, must not get a stock two-loop layout (#244).
+    const question = unboundCircuitQuestion(4, 6, 8, 12, 9);
+    const unbound = selectVerifiedRepresentation({ question, turnPlan: circuitPlanFor(question, 4, 6, 8, 12, 9, `V1 = 12 V`, `V2 = 9 V`) });
+    check(
+      !unbound.sceneDocument.entities.some((entity) => entity.role === "source"),
+      "an unbound two-loop stem draws no stock battery layout",
+    );
+  }
+  {
+    // The engine letters a stated resistor "R1=4 ohm"; the ProblemIR names it
+    // "R1". The name before "=" must match exactly: a resistor lettered with
+    // another name is still a missing body.
+    const question = circuitQuestion(4, 6, 8, 12, 9);
+    const problem = circuitProblem(question, 4, 6, 8, 12, 9, false);
+    const drawn = selectVerifiedRepresentation({ question, turnPlan: circuitPlan(question, 4, 6, 8, 12, 9), problemIR: problem });
+    const obligations = deriveVisualObligations(problem);
+    check(visualObligationRejection(obligations, drawn.sceneDocument, question) === null, "a valued R1=4 ohm label names the obligated R1");
+    const renamed = structuredClone(drawn.sceneDocument);
+    renamed.entities.find((entity) => entity.id === "r1")!.label = "R9=4 ohm";
+    check(visualObligationRejection(obligations, renamed, question) !== null, "a resistor lettered R9=4 ohm does not stand in for R1");
   }
 
   /* -- Fallback catalog: no-ProblemIR stems commit the same picture class --- */

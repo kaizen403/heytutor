@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateFigureConsistency } from "./figureConsistency";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateAngleLabelWedge, validateAxisNamePlacement, validateDimensionAnchors, validateFieldLineShape, validateFigureLegibility, validatePointLabelPlacement } from "./figureFeatureTruth";
@@ -240,9 +241,20 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  if (options.pointLabelRivals === false) return compileSceneDocumentOnce(document, options, undefined);
+  const rule = { moved: false };
+  const result = compileSceneDocumentOnce(document, options, () => { rule.moved = true; });
+  // The point rival rule moves labels and must never cost a figure. When a
+  // figure it laid out fails any later check, the figure is compiled with
+  // the rule off, exactly as without it, and is not refused for the rule.
+  return !result.ok && rule.moved ? compileSceneDocumentOnce(document, { ...options, pointLabelRivals: false }, undefined) : result;
+}
+
+function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptions, onPointRivalLayout: (() => void) | undefined): CompileResult {
   if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
   const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
+  const pointRivals = options.pointLabelRivals;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const matrixSourceIssues = [
@@ -866,7 +878,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const solve = (marks: RenderPrimitive[]) => placeLabels(
       ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
       [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
-      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk},
+      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk,pointRivals,onPointRivalLayout},
     );
     let placed = solve(primitives);
     if (!placed.ok) {
@@ -929,7 +941,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       tetherPx: primitive.provenance?.pvRole === "state_name" ? pointLabelTether(primitive.text!) : undefined,
     }));
     const placed = placeLabels(owners, [...obstaclesFromPrimitives(primitives.filter((primitive) => !pvLabels.includes(primitive))), workColumnObstacle()],
-      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
+      { fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout });
     for (const issue of placed.issues) issues.push({ code: issue.code, message: issue.message, severity: "fatal", entityIds: pvLabels.filter((primitive) => primitive.id === issue.entityId).map((primitive) => primitive.entityId) });
     if (placed.ok) for (const placement of placed.placements) {
       const primitive = pvLabels.find((candidate) => candidate.id === placement.labelId)!;
@@ -1022,14 +1034,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
+    ...axesTitleOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan),
     ...axisLetterOwners,
   ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
     // rejected labels the document had already accepted.
-    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
-    : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
+    ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout }
+    : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk, pointRivals, onPointRivalLayout };
   const solveOwners = (owners: LabelOwner[], obstacles: LabelObstacle[] = labelObstacles) => {
     const stackedOwners = pinDsaLabels
       ? null
@@ -1157,6 +1170,14 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (verifiedPartsEnabled) issues.push(...validateFieldLineShape(document, primitives), ...validateDimensionAnchors(primitives), ...validatePointLabelPlacement(document, primitives),
     ...validateFigureLegibility(primitives), ...validateAxisNamePlacement(primitives), ...validateAngleLabelWedge(document, primitives, coincidentPointAliases));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
+  // Ink that contradicts a planner document (a reversed current, glyphs drawn on
+  // top of each other, hidden or unnamed arrows) is false under both yield policies.
+  if (options.figureConsistency) issues.push(...validateFigureConsistency(document, primitives, (entityId) => {
+    const value = geometry.get(entityId);
+    if (value?.kind !== "compound") return null;
+    const transform = transformPlan.transformFor(entityId);
+    return [transform(value.terminals[0]), transform(value.terminals[1])];
+  }));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   // Native bond truth is core geometry under both yield policies; labels or
   // repair cannot turn overlapping double/triple strokes into valid ink.
@@ -1206,6 +1227,62 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
 /** Shorter drawn axes than this carry no letter; three letters would crowd one point. */
 const MIN_LETTERED_AXIS_PX = 16;
+
+/**
+ * Axis titles named on the axes construction itself (xLabel, yLabel). Each
+ * sits at its own axis's arrow tip, where a graph names the axis. A label
+ * construction aimed at the axes entity has only the middle of the plot to
+ * stand on and names neither axis; validation refuses it.
+ */
+function axesTitleOwners(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  renderableIds: ReadonlySet<string>,
+  constructionOnlyIds: ReadonlySet<string>,
+  entityToGroup: ReadonlyMap<string, string>,
+  transformPlan: EntityTransformPlan,
+): LabelOwner[] {
+  const owners: LabelOwner[] = [];
+  for (const construction of document.constructions) {
+    if (construction.operator !== "axes") continue;
+    const entityId = construction.outputs[0];
+    const value = entityId ? geometry.get(entityId) : undefined;
+    if (!entityId || value?.kind !== "axes") continue;
+    if (!renderableIds.has(entityId) || constructionOnlyIds.has(entityId) || !entityToGroup.has(entityId)) continue;
+    const transform = transformPlan.transformFor(entityId);
+    const axes = [
+      { key: "xLabel", origin: { x: value.xMin, y: 0 }, tip: { x: value.xMax, y: 0 } },
+      { key: "yLabel", origin: { x: 0, y: value.yMin }, tip: { x: 0, y: value.yMax } },
+    ] as const;
+    for (const axis of axes) {
+      const text = construction.inputs[axis.key];
+      // Fail closed: only x on the horizontal and y on the vertical ever draw.
+      // Turn binding (all plan quantities x or y) lives in
+      // pruneUnverifiedSceneAnnotations; this rule also holds for a stored or
+      // replayed document that never passed that prune.
+      if (typeof text !== "string" || text.trim() !== (axis.key === "xLabel" ? "x" : "y")) continue;
+      const origin = transform(axis.origin);
+      const tip = transform(axis.tip);
+      const length = Math.hypot(tip.x - origin.x, tip.y - origin.y);
+      if (!(length >= MIN_LETTERED_AXIS_PX)) continue;
+      owners.push({
+        labelId: `primitive_${entityId}_${axis.key}`,
+        entityId,
+        // The x and y titles are two labels even when their text is equal.
+        duplicateKey: `${entityId}\u0000${axis.key}`,
+        anchor: tip,
+        text: text.trim(),
+        viewBounds: transformPlan.viewportFor(entityId),
+        useOwnerBounds: false,
+        incidentTangents: [{ x: (origin.x - tip.x) / length, y: (origin.y - tip.y) / length }],
+        tetherPx: pointLabelTether(text.trim()),
+        allowLeader: false,
+        leaderGeometrySafe: true,
+      });
+    }
+  }
+  return owners;
+}
 
 /**
  * Engine-owned letters x, y, z at the positive tips of every drawn space
@@ -2193,7 +2270,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
       return;
     }
   }
-  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, hasIndependentDisplayMetric)) {
+  if (["equal_length", "distance_ratio"].includes(predicate) && hasDisplayAncestor(assertion.entities, geometry, document, independentDisplayMatcher(assertion.entities, geometry))) {
     issues.push({code:"invalid_display_metric_assertion",message:"Independently normalized arrows and scaled physical plots cannot certify length equality or distance ratios",severity:"fatal",entityIds:assertion.entities});
     return;
   }
@@ -2287,6 +2364,11 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
             )
           : values.map((value) => spaceMetricLength(value) ?? length(asLine(value)));
         if (measured.length < 2) break;
+        // Points exempted through one shared optical display are compared in
+        // physical units: a fixed drawn tolerance at a tiny displayScale would
+        // otherwise accept physically unequal lengths.
+        const opticalScale = sharedOpticalDisplay(assertion.entities, geometry)?.displayScale;
+        if (opticalScale !== undefined) measured.forEach((value, index) => { measured[index] = value / opticalScale; });
         report({ lengths: measured.map(roundMeasured) });
         residual = Math.max(...measured.slice(1).map((value) => Math.abs(value - measured[0]!)));
         passed = residual < tolerance(assertion);
@@ -2574,7 +2656,7 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
   if (!passed) {
     issues.push({
       code: "assertion_failed",
-      message: assertionFinding(assertion, measured, residual),
+      message: assertionFinding(assertion, measured, residual) + roundedTypedPointHint(assertion, residual, geometry, document),
       severity, entityIds: assertion.entities, expected: assertion.expected, residual,
       ...(measured !== undefined ? { actual: measured } : {}),
     });
@@ -2626,6 +2708,69 @@ function assertionFinding(assertion: SceneAssertion, measured: unknown, residual
     : "";
   const claim = assertion.reason ? ` The candidate's claim: "${assertion.reason}".` : "";
   return `Assertion ${assertion.id} (${assertion.predicate} on ${assertion.entities.join(", ")}): ${rule}; ${found}.${gap}${claim}`;
+}
+
+/** Points the planner typed as literal coordinates, behind an assertion's operands. */
+function typedPointIdsBehind(entityIds: readonly string[], document: SceneDocument): string[] {
+  const producer = (id: string) => document.constructions.find((construction) => construction.outputs.includes(id));
+  const typed = new Set<string>();
+  const visit = (id: string) => {
+    const construction = producer(id);
+    if (!construction) return;
+    if (construction.operator === "point") {
+      if (construction.inputs.coordinateSpace !== "layout") typed.add(id);
+      return;
+    }
+    if (construction.operator === "segment" || construction.operator === "connect") {
+      for (const end of [construction.inputs.start, construction.inputs.end]) {
+        if (typeof end === "string" && producer(end)?.operator === "point") visit(end);
+      }
+    }
+  };
+  for (const id of entityIds) visit(id);
+  return [...typed];
+}
+
+/**
+ * A rounding sized gap on typed points: equal radii or a point on a circle
+ * that fails by about the last typed digit. The tolerance stays; the repair
+ * says how to build the points so the relation holds exactly.
+ */
+function roundedTypedPointHint(assertion: SceneAssertion, residual: number | undefined, geometry: Map<string, Geometry>, document: SceneDocument): string {
+  if (assertion.expected === false || (assertion.predicate !== "equal_length" && assertion.predicate !== "on")) return "";
+  if (residual === undefined || !Number.isFinite(residual) || !(residual > 0)) return "";
+  if (residual > geometryScale(geometry) * 0.005) return "";
+  const typed = typedPointIdsBehind(assertion.entities, document);
+  if (typed.length === 0) return "";
+  const producer = (id: string) => document.constructions.find((entry) => entry.outputs.includes(id));
+  // The pivot comes only from the failed check itself: the centre of the circle
+  // an `on` check names, or the endpoint every radius in an equal_length check
+  // shares. Lines, free segments and unnamed circles get no circle advice.
+  let pivot: string | undefined;
+  if (assertion.predicate === "on") {
+    const centres = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction?.operator === "circle" && typeof construction.inputs.center === "string" ? construction.inputs.center : undefined;
+    }).filter((centre): centre is string => centre !== undefined);
+    pivot = centres.length === 1 ? centres[0] : undefined;
+  } else {
+    const ends = assertion.entities.map((id) => {
+      const construction = producer(id);
+      return construction && (construction.operator === "segment" || construction.operator === "connect")
+        ? [construction.inputs.start, construction.inputs.end].filter((end): end is string => typeof end === "string")
+        : [];
+    });
+    pivot = ends.length >= 2 && ends.every((pair) => pair.length === 2) ? ends[0]!.find((end) => ends.every((pair) => pair.includes(end))) : undefined;
+  }
+  if (!pivot) return "";
+  const offCentre = typed.filter((id) => id !== pivot);
+  const fractional = offCentre.filter((id) => {
+    const inputs = document.constructions.find((entry) => entry.outputs.includes(id))?.inputs;
+    return [inputs?.x, inputs?.y].some((value) => typeof value === "number" && !Number.isInteger(value));
+  });
+  const named = fractional.length > 0 ? fractional : offCentre;
+  if (named.length === 0) return "";
+  return ` The gap is rounding size: ${named.join(", ")} ${named.length === 1 ? "is a point" : "are points"} typed as rounded coordinates. Do not type rounded r cos θ, r sin θ values and do not add digits. Type one point at the radius, then construct each other point on the circle from it with rotate {point: <that point>, center: ${pivot}, angle: <degrees>, angleUnit: "degrees"}, or with circle_intersections, so equal radii and on-circle assertions hold exactly.`;
 }
 
 function isDerivedDirection(entityId: string | undefined, document: SceneDocument): boolean {
@@ -5317,6 +5462,39 @@ function geometryMetadataMatches(value: Geometry | undefined, predicate: (metada
   }
   return value !== undefined && Object.entries(value).some(([key, entry]) => !["points", "paths", "point", "center", "terminals"].includes(key) && visit(entry, 0));
 }
+/**
+ * The display matcher for one length comparison. A gaussian_image or
+ * optical_focus point is placed at its physical axis distance and height times
+ * one displayScale, so when every compared point carries the same optical
+ * display (same scale, length unit, centre and axis) that scale cancels: a ratio or an
+ * equality of their drawn lengths is the physical one. Those points are
+ * therefore not independently normalized. Any other display ancestor, or a
+ * point from an optical display with another scale, still matches.
+ */
+function independentDisplayMatcher(entityIds: readonly string[], geometry: Map<string, Geometry>): (value: Geometry | undefined) => boolean {
+  const shared = sharedOpticalDisplay(entityIds, geometry);
+  if (!shared) return hasIndependentDisplayMetric;
+  return (value) => {
+    const display = opticalDisplayOf(value);
+    return display && sameOpticalDisplay(display, shared) ? false : hasIndependentDisplayMetric(value);
+  };
+}
+/** The one optical display every listed point carries, or null. */
+function sharedOpticalDisplay(entityIds: readonly string[], geometry: Map<string, Geometry>): OpticalImageDefinition | OpticalFocusDefinition | null {
+  const displays = entityIds.map((id) => opticalDisplayOf(geometry.get(id)));
+  const shared = displays[0];
+  return !shared || displays.some((display) => !display || !sameOpticalDisplay(display, shared)) ? null : shared;
+}
+function opticalDisplayOf(value: Geometry | undefined): OpticalImageDefinition | OpticalFocusDefinition | null {
+  if (value?.kind !== "point") return null;
+  return value.opticalImage ?? value.opticalFocus ?? null;
+}
+function sameOpticalDisplay(first: OpticalImageDefinition | OpticalFocusDefinition, second: OpticalImageDefinition | OpticalFocusDefinition): boolean {
+  return Number.isFinite(first.displayScale) && first.displayScale > 0 && first.displayScale === second.displayScale &&
+    first.lengthUnit === second.lengthUnit &&
+    first.center.x === second.center.x && first.center.y === second.center.y &&
+    first.axis.x === second.axis.x && first.axis.y === second.axis.y;
+}
 function hasIndependentDisplayMetric(value: Geometry | undefined): boolean {
   return geometryMetadataMatches(value, (metadata) => Object.keys(metadata).some((key) => INDEPENDENT_DISPLAY_KEYS.has(key)) ||
     ("displayScale" in metadata && "unit" in metadata && "magnitude" in metadata));
@@ -5740,7 +5918,11 @@ function assertScreenAttachedLabels(
     const attached = labels.some((label) => {
       const center = label.points[0];
       if (!center) return false;
-      return Math.hypot(center.x - screen.x, center.y - screen.y) <= pointLabelTether(label.text ?? "") + 0.02;
+      if (Math.hypot(center.x - screen.x, center.y - screen.y) <= pointLabelTether(label.text ?? "") + 0.02) return true;
+      // A label moved off a rival line keeps its point by a drawn leader
+      // that starts on the point itself.
+      const leaderStart = primitives.find((primitive) => primitive.id === `${label.id}_leader` && primitive.provenance?.labelLeader === true)?.points[0];
+      return label.provenance?.usesLeader === true && leaderStart !== undefined && Math.hypot(leaderStart.x - screen.x, leaderStart.y - screen.y) <= 1;
     });
     if (!attached) {
       issues.push({

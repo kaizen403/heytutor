@@ -203,6 +203,11 @@ export interface ValidationResult {
 export interface CompileOptions {
   /** Explicit rollout override. Otherwise retain an admitted document's policy. */
   yieldPolicy?: "off" | "verified_parts";
+  /**
+   * Refuse ink that contradicts a model authored document (compile/figureConsistency.ts).
+   * Planner candidate admission turns this on; engine built figures keep their own conventions.
+   */
+  figureConsistency?: boolean;
   viewport?: { x: number; y: number; width: number; height: number; padding?: number };
   /**
    * Ink measure for label collision boxes. Defaults to the shared exact
@@ -215,4 +220,11 @@ export interface CompileOptions {
     y: number,
     fontHeightPx: number,
   ) => { x: number; y: number; width: number; height: number } | null;
+  /**
+   * Judge point labels against rival marks (other points' dots, straight
+   * lines across from the point). Off gives the layout without the rule,
+   * which the label engine falls back to on its own; gates compare the two.
+   * Defaults to on.
+   */
+  pointLabelRivals?: boolean;
 }
