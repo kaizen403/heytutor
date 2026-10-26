@@ -52,7 +52,9 @@ function archetypeFigure(question: string, archetype: string): SceneDocument {
 }
 
 const PROJECTILE = "Derive the range of a projectile launched with speed u at angle theta on level ground.";
-const RIVER = "A boat moves at 5 m/s in still water across a 100 m wide river flowing at 3 m/s. Find the time to cross.";
+// The stem states its heading: since #310 a crossing with no stated heading
+// draws nothing, so the guard would fail before any binding is tested.
+const RIVER = "A boat moves at 5 m/s in still water across a 100 m wide river flowing at 3 m/s, heading perpendicular to the banks. Find the time to cross.";
 const projectile = archetypeFigure(PROJECTILE, "projectile");
 const river = archetypeFigure(RIVER, "river_boat");
 // An edited copy keeps every label but draws a straight path: not the figure
