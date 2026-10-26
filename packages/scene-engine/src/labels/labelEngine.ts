@@ -7,6 +7,7 @@
 
 import type { RenderPoint, RenderPrimitive } from "../types";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
+import { LABEL_IN_NAMED_GAP, insideNamedGap, namedGaps, ownerNamedGaps } from "./levelGap";
 
 export interface LabelBounds {
   x: number;
@@ -738,6 +739,7 @@ function placeLabelsInternal(
   const fixedLabelBounds = fixedLabelObstacles.map(obstacle => obstacle.bounds);
   const leaderGeometry = obstacles.filter(obstacle => obstacle.kind !== "label");
   const geometryQuery = owners.some(owner => owner.leaderGeometrySafe) ? createLeaderGeometryQuery(leaderGeometry) : undefined;
+  const gaps = namedGaps(obstacles);
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     const prepareOwner = (exhaustive = false): PreparedLabelOwner => {
@@ -799,6 +801,9 @@ function placeLabelsInternal(
       const ownership = owner.useOwnerBounds === false ? null : strokeOwnership(owner, obstacles);
       const pointForeign = ownership || options.pointRivals === false ? null : pointRivalMarks(owner, obstacles);
       const nearerForeignInk = (box: LabelBounds) => pointForeign !== null && pointLabelNearerForeign(box, owner.anchor, pointForeign);
+      const ownerGaps = ownerNamedGaps(owner, obstacles, gaps);
+      let gapRule = ownerGaps.length > 0;
+      const inNamedGap = (box: LabelBounds) => gapRule && insideNamedGap(box, ownerGaps);
       // Point labels can use a closer compass slot when the usual margin wastes
       // clear interior space. Every candidate still clears ink by minGapPx.
       const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
@@ -821,6 +826,7 @@ function placeLabelsInternal(
           const margin = ownership ? ownershipMargin(collisionBounds, ownership) : Infinity;
           if (overlaps.length === 0 && margin < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
           if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+          if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
           const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
@@ -838,6 +844,18 @@ function placeLabelsInternal(
           };
         });
       }));
+      // A level label leaves a named gap only for a clear slot beside its own
+      // line. Pushed onto a long leader it reads worse than where it was, so
+      // with no such slot the owner is placed exactly as without the rule.
+      if (gapRule && !candidates.some((candidate) => candidate.overlaps.length === 0)) {
+        gapRule = false;
+        for (const candidate of candidates) {
+          const index = candidate.overlaps.indexOf(LABEL_IN_NAMED_GAP);
+          if (index < 0) continue;
+          candidate.overlaps.splice(index, 1);
+          candidate.score -= 10;
+        }
+      }
 
       // Only feasibility consumes this branch: the caller receives no chosen
       // placement. Honor first-position deduplication before accepting a slot.
@@ -919,6 +937,7 @@ function placeLabelsInternal(
             // proximity, so it must sit nearest its owner like a slot label.
             if (overlaps.length === 0 && !candidate.usesLeader && ownership && ownershipMargin(collisionBounds, ownership) < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
             if (overlaps.length === 0 && !candidate.usesLeader && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+            if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
             // Routing cannot repair a glyph box that is already illegal. Keep
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
@@ -945,6 +964,7 @@ function placeLabelsInternal(
             if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
             if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
             if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+            if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
             return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
           })
         : [];
