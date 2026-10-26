@@ -47,6 +47,7 @@ import {
   normalizeStem,
   orderFamiliesByStemPreference,
   restrictFamiliesToChemistry,
+  riverAlongStreamStated,
   riverBoatVariant,
   type SceneVisualFamily,
 } from "./familyClassification";
@@ -3444,6 +3445,7 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   // current is that angle; a stated, asked or unread heading of any other kind
   // is the archetype's alone, with or without stated speeds.
   const variant = riverBoatVariant(normalizeStem(question));
+  if (variant === "along_stream" && !riverAlongStreamStated(question)) return true;
   if (variant === "crossing") {
     const fromFlow = riverHeadingFromFlow(question);
     if (fromFlow === null || angleDegrees(quantities, question) !== fromFlow) return true;
