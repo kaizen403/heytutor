@@ -2316,7 +2316,10 @@ function buildContactBody(
   if (isProjectileStem(stem)) {
     return projectileDocument(question, quantities);
   }
+  // A body launched at an angle (or horizontally) is not a vertical drop, even
+  // "from the top of a tower": a declined launch draws nothing here.
   if (isFallingStem(stem)) {
+    if (projectileLaunchAngle(question) !== null) return null;
     return fallingBodyDocument(question);
   }
   if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)) {

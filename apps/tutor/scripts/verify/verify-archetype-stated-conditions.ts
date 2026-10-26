@@ -239,6 +239,107 @@ check("projectile: a derived H in the plan is never a launch height", () => {
   declinesOrTrue(numeric.question, turnPlan, { H: 5, R: 34.64 });
 });
 
+/* 5. Projectile: a height is a launch height only when the launch starts on that body. */
+
+const launchGivens = [given("u", 20, "m/s", "20 m/s"), given("θ", 30, "°", "30 degrees")];
+// A ground launch at 20 m/s and 30° with g = 9.8: H = 5.10 m, R = 35.35 m.
+const GROUND = { H: 5.1, R: 35.35 };
+for (const question of [
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from the foot of a 20 m tower. Find the range.",
+  "A ball is thrown from the ground at 20 m/s at 30 degrees above the horizontal to hit the top of a 20 m tower. Find the time.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from a point 10 m from the base of a 20 m tower. Find the range.",
+  "A boy standing on a 20 m tower watches a ball projected from the ground at 20 m/s at 30 degrees above the horizontal. Find the range.",
+  "A ball is projected from the ground at 20 m/s at 30 degrees above the horizontal. A man standing on a 20 m tower watches it. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from the ground near a 20 m high cliff. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. A bird sits on a 20 m tower nearby. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from the ground over a 20 m tall building. Find the range.",
+  "A ball is projected at 20 m/s at 30° to the horizontal from ground level, 20 m above sea level. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground towards a building 20 m high. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from a point on level ground 50 m from a 20 m high building. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal towards the top of a 20 m tower. Find the range.",
+]) {
+  check(`projectile: a nearby height is not the launch height: "${question.slice(0, 90)}"`, () => {
+    declinesOrTrue(question, plan(question, launchGivens), GROUND);
+    for (const figure of drawnOnEveryPath(question, plan(question, launchGivens))) {
+      assert.ok(!figure.document.entities.some((entity) => entity.id === "tower"), `${figure.path} drew a launch tower ${JSON.stringify(figure.labels)}`);
+    }
+  });
+}
+const PLATFORM = "A ball is projected at 20 m/s at 30° above horizontal from a tower of height 20 m. It lands 25 m from the tower foot on a 5 m high platform. Find the time.";
+check("projectile: another stated height (a 5 m landing platform) declines the 20 m tower launch", () => declines(PLATFORM, plan(PLATFORM, launchGivens)));
+const TOWER_45 = "A stone is thrown horizontally at 10 m/s from a 45 m high tower. Take g = 10 m/s^2. Find where it lands.";
+check("projectile: a launch from a 45 m high tower still draws R = 30 m", () => {
+  const turnPlan = plan(TOWER_45, [given("u", 10, "m/s", "10 m/s")]);
+  declinesOrTrue(TOWER_45, turnPlan, { R: 30 });
+  assert.ok(drawnOnEveryPath(TOWER_45, turnPlan).some((figure) => figure.path === "synthesizeFamilyScene" && figure.labels.includes("45 m")), "the tower figure declined");
+});
+
+/* 6. Projectile: a declined launch never falls through to a vertical drop or another sketch. */
+
+const isDropSketch = (document: SceneDocument) => document.entities.some((entity) => entity.role === "drop" || entity.role === "release point");
+function noFallThrough(question: string, turnPlan: TurnPlanV3, truth?: { H?: number; R: number }): void {
+  for (const figure of drawnOnEveryPath(question, turnPlan)) {
+    assert.ok(!isDropSketch(figure.document), `${figure.path} drew a vertical drop ${JSON.stringify(figure.labels)} for an angled launch`);
+    assert.ok(figure.document.entities.some((entity) => entity.id === "tower"), `${figure.path} drew no launch tower ${JSON.stringify(figure.labels)}`);
+  }
+  if (truth) declinesOrTrue(question, turnPlan, truth);
+  else {
+    for (const figure of drawnOnEveryPath(question, turnPlan)) {
+      assert.ok(!figure.labels.some((label) => /^[HR]=/.test(label)), `${figure.path} put a number on an unread height ${JSON.stringify(figure.labels)}`);
+    }
+  }
+}
+const TOWER_IS = "A ball is projected at 20 m/s at 30 degrees above the horizontal from the top of a tower. The tower is 20 m high. Find the range.";
+check("projectile: \"the tower is 20 m high\" never draws a vertical drop", () => noFallThrough(TOWER_IS, plan(TOWER_IS, launchGivens), { H: 25.1, R: 56.88 }));
+const TOWER_SYMBOL = "A ball is projected at 20 m/s at 30 degrees above the horizontal from the top of a tower of height h. Find the range.";
+check("projectile: a tower of height h with numbers never draws a vertical drop", () => noFallThrough(TOWER_SYMBOL, plan(TOWER_SYMBOL, launchGivens)));
+for (const question of [
+  "A ball is projected at 20 m/s at 30 degrees below the horizontal from the top of a tower 40 m high. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees to the vertical from the top of a building 20 m high. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from the top of a building. Find the range.",
+]) {
+  check(`projectile: a declined launch declines everywhere: "${question.slice(0, 80)}"`, () => declines(question, plan(question, launchGivens)));
+}
+
+/* 7. Projectile: a g stated for another body, or a ratio of gravities, is not the local g. */
+
+const gravityCases: Array<[string, { H: number; R: number } | null]> = [
+  // g = 5: H = 100/10 = 10 m, R = 346.4/5 = 69.28 m.
+  ["A ball is projected at 20 m/s at 30 degrees above the horizontal on a planet where the acceleration due to gravity is half of that on Earth. Take g = 10 m/s^2. Find the range.", { H: 10, R: 69.28 }],
+  ["A ball is projected at 20 m/s at 30 degrees above the horizontal. Take g = 10 m/s^2 for Earth; the ball is thrown on Jupiter. Find the range.", null],
+  // g = 9.8/6: H = 30.61 m, R = 212.1 m.
+  ["On the Moon, a ball is projected at 20 m/s at 30 degrees above the horizontal. On Earth g = 9.8 m/s^2 and the Moon's gravity is one sixth of Earth's. Find the range.", { H: 30.61, R: 212.1 }],
+  // g = 19.6: H = 2.55 m, R = 17.67 m.
+  ["A ball is projected at 20 m/s at 30 degrees above the horizontal on a planet whose gravity is twice that of Earth (g = 9.8 m/s^2). Find the range.", { H: 2.55, R: 17.67 }],
+  ["A ball is projected at 20 m/s at 30 degrees above the horizontal at a place where the acceleration due to gravity is twice its usual value g = 9.8 m/s^2. Find the range.", { H: 2.55, R: 17.67 }],
+];
+for (const [question, truth] of gravityCases) {
+  check(`projectile: another body's g is not read as the local g: "${question.slice(0, 90)}"`, () =>
+    truth ? declinesOrTrue(question, plan(question, launchGivens), truth) : declines(question, plan(question, launchGivens)));
+}
+const MOON_G = "On the Moon, where the acceleration due to gravity is 1.6 m/s^2, a ball is projected at 20 m/s at 30 degrees above the horizontal. Find the range.";
+check("projectile: \"On the Moon, where g is 1.6 m/s^2\" still draws H = 31.25 m, R = 216.5 m", () => {
+  declinesOrTrue(MOON_G, plan(MOON_G, launchGivens), { H: 31.25, R: 216.51 });
+  assert.ok(drawnOnEveryPath(MOON_G, plan(MOON_G, launchGivens)).some((figure) => figure.path === "synthesizeFamilyScene"), "the Moon figure declined");
+});
+
+/* 8. Projectile: a vertical axis, a vertical line, the y-axis or a slope is not the horizontal. */
+
+// 30° to the vertical is 60° elevation: H = 15.31 m, R = 35.35 m.
+for (const question of [
+  "A ball is projected at 20 m/s at 30 degrees to the vertical axis. Find the range.",
+  "A ball is projected at 20 m/s at 30° to the vertical line. Find the range.",
+  "A ball is projected at 20 m/s at 30° to the y-axis. Find the range.",
+]) {
+  check(`projectile: "${question.slice(29, 60)}" is not drawn from the horizontal`, () => declinesOrTrue(question, plan(question, launchGivens), { H: 15.31, R: 35.35 }));
+}
+for (const question of [
+  "A ball is projected at 20 m/s at 30° to the horizontal down a slope. Find the range.",
+  "A ball is projected at 20 m/s at 30° to the horizontal on a hill. Find the range.",
+]) {
+  check(`projectile: a launch "${question.slice(56, 75)}" draws no level ground and no incline block`, () => declines(question, plan(question, launchGivens)));
+}
+
 /* Controls: an exact figure that states only what the figure reads is unchanged. */
 
 const LEVEL = "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Find the range.";
