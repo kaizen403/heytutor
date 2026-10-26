@@ -481,31 +481,25 @@ export function placeLabels(
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
 ): LabelEngineResult {
-  const ungapped = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: false });
-  // The gap ruled solve runs only where the rule can move a label: some
-  // owner has a gap an arrow names. Ordinary figures solve once.
+  const withRivals = (gapRule: boolean): LabelEngineResult => {
+    const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: gapRule });
+    if (options.pointRivals === false || !plain.ok) return plain;
+    const before = labelReadings(plain, owners, obstacles);
+    if (!before || ![...before.values()].some((reading) => reading.point && reading.misread)) return plain;
+    const ruled = placeLabelsInternal(owners, obstacles, { ...options, namedGaps: gapRule });
+    if (!ruled.ok) return plain;
+    const after = labelReadings(ruled, owners, obstacles);
+    if (!after || pointRivalLayoutRegressions(before, after).length > 0) return plain;
+    options.onPointRivalLayout?.();
+    return ruled;
+  };
+  const base = withRivals(false);
   const gaps = options.namedGaps === false ? [] : namedGaps(obstacles);
   const gapApplies = gaps.length > 0 && owners.some((owner) => ownerNamedGaps(owner, obstacles, gaps).length > 0);
-  if (gapApplies) options.onNamedGapSolve?.();
-  const gapped = gapApplies
-    ? placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: true })
-    : ungapped;
-  const plain = NAMED_GAP_GUARD && !keepNamedGapLayout(ungapped, gapped, owners, obstacles) ? ungapped : gapped;
-  if (options.pointRivals === false || !plain.ok) return plain;
-  // The rule exists to repair a point letter that names the wrong mark.
-  // Where the layout without it misreads no point letter, it is the layout.
-  const before = labelReadings(plain, owners, obstacles);
-  if (!before || ![...before.values()].some((reading) => reading.point && reading.misread)) return plain;
-  const ruled = placeLabelsInternal(owners, obstacles, options);
-  // The rule may move labels, never cost a figure: when its joint solve
-  // fails the figure keeps the layout without it, byte for byte.
-  if (!ruled.ok) return plain;
-  // Fail closed: the ruled layout is kept only when every label it moved
-  // passes every test against the layout without it.
-  const after = labelReadings(ruled, owners, obstacles);
-  if (!after || pointRivalLayoutRegressions(before, after).length > 0) return plain;
-  options.onPointRivalLayout?.();
-  return ruled;
+  if (!gapApplies) return base;
+  options.onNamedGapSolve?.();
+  const gapped = withRivals(true);
+  return NAMED_GAP_GUARD && !keepNamedGapLayout(base, gapped, owners, obstacles) ? base : gapped;
 }
 
 /**
@@ -720,6 +714,7 @@ function keepNamedGapLayout(
     const ownerGaps = owner ? ownerNamedGaps(owner, obstacles, gaps) : [];
     const leftThisGap = ownerGaps.length > 0 && insideNamedGap(prior.bounds, ownerGaps) && !insideNamedGap(next.bounds, ownerGaps);
     if (leftThisGap) {
+      if (next.boxes.some((box, index) => box.margin < Math.min(prior.boxes[index]!.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX, 8))) return false;
       leftGap = true;
       continue;
     }

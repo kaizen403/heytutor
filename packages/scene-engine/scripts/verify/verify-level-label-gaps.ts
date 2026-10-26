@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { readFileSync } from "node:fs";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { validateSceneDocument } from "../../src/document/validation";
 import { canPlaceSingleLabel, obstaclesFromPrimitives, placeLabels } from "../../src/labels/labelEngine";
@@ -290,6 +291,45 @@ const slant = [{ x: 100, y: 200 }, { x: 400, y: 100 }];
     namedGaps(obstaclesFromPrimitives(prims)),
   );
   assert.ok(!kGaps.some((gap) => gap.arrowEntityId === "A2"), "the outer A2 band does not constrain K");
+  checks += 1;
+}
+
+// Two constructed stacks from the delta review's fuzz (geometry only).
+// case-154: the gap rule must be judged against main's final layout, after
+// #308's point rival step. Judged against the layout before that step, the
+// gap layout was kept and #308's repair of B0 was then refused, so B0 read
+// as P1's letter. case-156: the label that leaves its gap keeps a margin
+// floor, so "n = 1" may not end as near the next level as its own.
+{
+  type Fixture = { prims: RenderPrimitive[]; owners: Parameters<typeof placeLabels>[0] };
+  const fixture = (name: string): Fixture => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), "utf8"));
+  const toPoint = (box: Box, p: RenderPoint) => Math.hypot(Math.max(box.x - p.x, 0, p.x - (box.x + box.width)), Math.max(box.y - p.y, 0, p.y - (box.y + box.height)));
+  const toLevel = (box: Box, [a, b]: RenderPoint[]) => {
+    const dx = Math.max(Math.min(a!.x, b!.x) - (box.x + box.width), box.x - Math.max(a!.x, b!.x), 0);
+    const dy = Math.max(a!.y - (box.y + box.height), box.y - a!.y, 0);
+    return Math.hypot(dx, dy);
+  };
+  const place = (case_: Fixture, text: string) => {
+    const result = placeLabels(case_.owners, obstaclesFromPrimitives(case_.prims));
+    const placement = result.placements.find((entry) => entry.text === text);
+    assert.ok(result.ok && placement, `${text} is labelled`);
+    return placement!.bounds;
+  };
+
+  const c154 = fixture("level-label-gap-case-154.json");
+  const b0 = place(c154, "B0");
+  const dots = c154.prims.filter((prim) => prim.kind === "point");
+  const ownDot = toPoint(b0, dots.find((prim) => prim.entityId === "P0")!.points[0]!);
+  const foreignDot = Math.min(...dots.filter((prim) => prim.entityId !== "P0").map((prim) => toPoint(b0, prim.points[0]!)));
+  assert.ok(ownDot < foreignDot, `B0 reads as its own point, as on main (own ${ownDot.toFixed(1)} px, nearest other dot ${foreignDot.toFixed(1)} px)`);
+  checks += 1;
+
+  const c156 = fixture("level-label-gap-case-156.json");
+  const n1 = place(c156, "n = 1");
+  const levels = c156.prims.filter((prim) => prim.kind === "line");
+  const ownLevel = toLevel(n1, levels.find((prim) => prim.entityId === "L2")!.points);
+  const otherLevel = Math.min(...levels.filter((prim) => prim.entityId !== "L2").map((prim) => toLevel(n1, prim.points)));
+  assert.ok(otherLevel - ownLevel >= 8, `"n = 1" stays at least 8 px nearer its own level than any other (own ${ownLevel.toFixed(1)} px, other ${otherLevel.toFixed(1)} px)`);
   checks += 1;
 }
 
