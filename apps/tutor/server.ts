@@ -8,6 +8,7 @@ import { WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { relayTtsWebSocket } from "./lib/tts/wsRelay";
 import { protectNodeRequest } from "./lib/http/nodeRequest";
+import { installGracefulShutdown } from "./lib/http/gracefulShutdown";
 import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
 import { startFailedTurnSentryWorker } from "./lib/obs/failedTurnSentry";
 import { prisma } from "./lib/db/prisma";
@@ -76,6 +77,8 @@ app.prepare().then(() => {
   server.keepAliveTimeout = 5_000;
   server.maxConnections = 256;
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
+  // A deploy restart lets the lessons already in flight finish (capped at 60 s).
+  installGracefulShutdown({ server, wss });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {
     // Next installs its own upgrade listener via getRequestHandler. Leave HMR
