@@ -112,15 +112,21 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   // of itself: one named value, and the example has it.
   const asked = namedVseprProperties(question);
   const result = species[0]!;
-  // A shape word next to "electron geometry" names the electron geometry.
+  // A shape word is read as the electron geometry only when the question
+  // speaks of electron geometry and never of the molecular shape. When it
+  // speaks of both, the named shape must be both, since the reader does not
+  // bind each word to its property.
   const electronAsk = /\belectron(?:[ -]pair)?[ -](?:geometry|domain|arrangement)/i.test(question);
-  for (const [named, value, property] of [
-    [asked.hybridisations, result.hybridisation, "hybridisation"],
-    [asked.shapes, electronAsk ? result.electronGeometry : result.shape, electronAsk ? "electron geometry" : "shape"],
-    [asked.lonePairs, actualLonePairCount(result), "lone-pair count"],
+  const molecularAsk = /\bmolecular\b|\bshapes?\b/i.test(question);
+  const shapeValues = electronAsk && !molecularAsk ? [result.electronGeometry]
+    : electronAsk ? [result.shape, result.electronGeometry] : [result.shape];
+  for (const [named, values, property] of [
+    [asked.hybridisations, [result.hybridisation], "hybridisation"],
+    [asked.shapes, shapeValues, electronAsk && !molecularAsk ? "electron geometry" : "shape"],
+    [asked.lonePairs, [actualLonePairCount(result)], "lone-pair count"],
   ] as const) {
     if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
-    if (named.size === 1 && !(named as ReadonlySet<unknown>).has(value)) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
+    if (named.size === 1 && !values.every((value) => (named as ReadonlySet<unknown>).has(value))) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
   }
   const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
   if (checked.scopeError || checked.facts.length === 0) return { status: "declined", reason: "plan example claim states no checkable fact about the species" };

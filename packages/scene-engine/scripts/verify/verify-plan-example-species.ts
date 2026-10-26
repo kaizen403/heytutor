@@ -87,6 +87,8 @@ const OFF_TOPIC: Array<[string, string, string, string]> = [
   ["difference between sp2 and sp3 hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "one example for two named hybridisations"],
   ["explain dipole moment in molecules", "NH3", "NH3 is sp3 and trigonal pyramidal", "a bare shape for a dipole ask"],
   ["which molecules have a tetrahedral molecular shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example for a tetrahedral shape ask"],
+  ["explain tetrahedral molecular shape and electron geometry using vsepr", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example when the tetrahedral shape is asked beside electron geometry"],
+  ["which molecules have a tetrahedral electron geometry and shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example when shape is asked beside electron geometry"],
 ];
 for (const [question, formula, claim, label] of OFF_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
@@ -99,6 +101,7 @@ const ON_TOPIC: Array<[string, string, string]> = [
   ["why are some molecules bent", "H2O", "H2O is bent with two lone pairs on O"],
   ["what molecules have two lone pairs", "H2O", "H2O is bent with two lone pairs on O"],
   ["which molecules have a tetrahedral electron geometry", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["explain tetrahedral molecular shape and electron geometry using vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
 ];
 for (const [question, formula, claim] of ON_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
