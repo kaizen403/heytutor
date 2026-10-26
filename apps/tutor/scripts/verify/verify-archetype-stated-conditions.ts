@@ -257,6 +257,8 @@ for (const question of [
   "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground towards a building 20 m high. Find the range.",
   "A ball is projected at 20 m/s at 30 degrees above the horizontal from a point on level ground 50 m from a 20 m high building. Find the range.",
   "A ball is projected at 20 m/s at 30 degrees above the horizontal towards the top of a 20 m tower. Find the range.",
+  "A projectile is launched on level ground at 20 m/s at 30 degrees above the horizontal. An observer watches it from a 20 m tower. Find the range.",
+  "A projectile is launched at 20 m/s at 30 degrees above the horizontal and an observer watches it from a 20 m tower. Find the range.",
 ]) {
   check(`projectile: a nearby height is not the launch height: "${question.slice(0, 90)}"`, () => {
     declinesOrTrue(question, plan(question, launchGivens), GROUND);
@@ -267,6 +269,11 @@ for (const question of [
 }
 const PLATFORM = "A ball is projected at 20 m/s at 30° above horizontal from a tower of height 20 m. It lands 25 m from the tower foot on a 5 m high platform. Find the time.";
 check("projectile: another stated height (a 5 m landing platform) declines the 20 m tower launch", () => declines(PLATFORM, plan(PLATFORM, launchGivens)));
+const FRONTED = "From the top of a 20 m tower, a ball is projected at 20 m/s at 30 degrees above the horizontal. Find the range.";
+check("projectile: a fronted \"From the top of a 20 m tower,\" still draws H = 25.1 m, R = 56.9 m", () => {
+  declinesOrTrue(FRONTED, plan(FRONTED, launchGivens), { H: 25.1, R: 56.88 });
+  assert.ok(drawnOnEveryPath(FRONTED, plan(FRONTED, launchGivens)).some((figure) => figure.path === "synthesizeFamilyScene" && figure.labels.includes("20 m")), "the tower figure declined");
+});
 const TOWER_45 = "A stone is thrown horizontally at 10 m/s from a 45 m high tower. Take g = 10 m/s^2. Find where it lands.";
 check("projectile: a launch from a 45 m high tower still draws R = 30 m", () => {
   const turnPlan = plan(TOWER_45, [given("u", 10, "m/s", "10 m/s")]);
@@ -317,6 +324,23 @@ for (const [question, truth] of gravityCases) {
   check(`projectile: another body's g is not read as the local g: "${question.slice(0, 90)}"`, () =>
     truth ? declinesOrTrue(question, plan(question, launchGivens), truth) : declines(question, plan(question, launchGivens)));
 }
+// A g written as an expression is read whole or not at all: 2 × 9.8 is 19.6, never 2.
+for (const question of [
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 2 × 9.8. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 2 x 9.8. Find the range.",
+  "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 2*9.8. Find the range.",
+]) {
+  check(`projectile: a g expression is never cut to its first factor: "${question.slice(83, 110)}"`, () =>
+    declinesOrTrue(question, plan(question, launchGivens), { H: 2.55, R: 17.67 }));
+}
+// g = 9.8/6 = 1.633: H = 30.61 m, R = 212.1 m.
+const G_EARTH = "A ball is projected at 20 m/s at 30 degrees above the horizontal. Find the range. Take g = 10 m/s² (on Earth).";
+check("projectile: a bracket after a whole g (\"(on Earth)\") still reads g = 10", () => {
+  declinesOrTrue(G_EARTH, plan(G_EARTH, launchGivens), { H: 5, R: 34.64 });
+  assert.ok(drawnOnEveryPath(G_EARTH, plan(G_EARTH, launchGivens)).some((figure) => figure.path === "synthesizeFamilyScene"), "declined");
+});
+const G_RATIO = "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 9.8/6. Find the range.";
+check("projectile: g = 9.8/6 is never read as 9.8", () => declinesOrTrue(G_RATIO, plan(G_RATIO, launchGivens), { H: 30.61, R: 212.1 }));
 const MOON_G = "On the Moon, where the acceleration due to gravity is 1.6 m/s^2, a ball is projected at 20 m/s at 30 degrees above the horizontal. Find the range.";
 check("projectile: \"On the Moon, where g is 1.6 m/s^2\" still draws H = 31.25 m, R = 216.5 m", () => {
   declinesOrTrue(MOON_G, plan(MOON_G, launchGivens), { H: 31.25, R: 216.51 });

@@ -1,7 +1,9 @@
 import { STEM_NUMBER, firstAngle, parseStemNumber, prepareStem } from "../archetypes/slots";
 
+const LAUNCH_VERB = /\b(?:launched|projected|thrown|kicked|fired|hurled|tossed|lobbed)\b/i;
+
 function launchClause(question: string): string {
-  const launchStart = /\b(?:launched|projected|thrown|kicked|fired|hurled|tossed|lobbed)\b/i.exec(question);
+  const launchStart = LAUNCH_VERB.exec(question);
   return launchStart ? question.slice(launchStart.index)
     .split(/\.(?!\d)|[;!?]|\band\b(?!\s+(?:(?:an?|the)\s+)?angle\s+(?:of\s+|is\s+)?\(?\s*[+-]?\d|\s+(?:at\s+)?\d+(?:\.\d+)?\s*(?:°|deg))|\b(?:hence|show|it|maximum)\b/i)[0]! : "";
 }
@@ -91,7 +93,9 @@ function statedGravity(text: string): ProjectileStatedConditions["g"] {
     const end = match.index! + match[0].length;
     // A number with no supported unit may still carry an unsupported one
     // ("980 cm/s^2", "32 ft/s^2"); that value is never m/s^2.
-    const foreignUnit = /^\s*(?:[a-zµμ]{1,6}\s*(?:\/|\^|²|per\b)|(?:cm|mm|km|ft|feet|foot|inch(?:es)?|gal)\b)/i.test(text.slice(end));
+    const foreignUnit = /^\s*(?:[a-zµμ]{1,6}\s*(?:\/|\^|²|per\b)|(?:cm|mm|km|ft|feet|foot|inch(?:es)?|gal)\b)/i.test(text.slice(end))
+      // "g = 2 × 9.8" is an expression the reader does not evaluate, never its first factor.
+      || /^(?:\s*(?:[×x*·÷/+^]|times\b|into\b)|\()/i.test(text.slice(end));
     return { start: match.index!, end, value: foreignUnit ? null : parseStemNumber(match[1]!) };
   });
   // Every stated acceleration must be a read g; an unread one may be the g.
@@ -123,6 +127,22 @@ const LAUNCH_GOVERNS = /\b(?:from|off|atop)\s+(?:(?:the\s+)?(?:top|edge|roof)\s+
 const GROUND_LAUNCH = /\bfrom\s+(?:the\s+)?(?:level\s+)?ground\b|\bfrom\s+ground\s+level\b|\bfrom\s+a\s+point\s+on\s+(?:the\s+)?(?:level\s+)?ground\b/i;
 const FOOT_OF = /\b(?:foot|base|bottom)\s+of\b/i;
 
+/**
+ * Where the launched body's own launch is stated: the launch clause, and a
+ * fronted "From the top of a 20 m tower," that opens the launch sentence.
+ * "An observer watches it from a 20 m tower" in another clause is neither.
+ */
+function launchSpans(text: string): Array<readonly [number, number]> {
+  const launch = LAUNCH_VERB.exec(text);
+  if (!launch) return [];
+  const spans: Array<readonly [number, number]> = [[launch.index, launch.index + launchClause(text).length]];
+  const before = text.slice(0, launch.index);
+  const sentenceStart = Math.max(...[...before.matchAll(/(?<!\d)\.(?!\d)|[;?!]/g)].map((mark) => mark.index! + 1), 0);
+  const fronted = /^\s*(?:from|off)\b[^,]*,/i.exec(before.slice(sentenceStart));
+  if (fronted) spans.push([sentenceStart, sentenceStart + fronted[0].length]);
+  return spans;
+}
+
 function statedHeight(text: string): ProjectileStatedConditions["height"] {
   if (!HEIGHT_MENTION.test(text)) return { status: "none" };
   if (LANDING_ELEVATION.test(text)) return { status: "unread", reason: "the projectile lands on a raised body the figure does not draw" };
@@ -131,10 +151,12 @@ function statedHeight(text: string): ProjectileStatedConditions["height"] {
   if (GROUND_LAUNCH.test(text) || FOOT_OF.test(launchClause(text))) {
     return { status: "unread", reason: "the question states a ground launch beside a raised body" };
   }
+  const spans = launchSpans(text);
   const heights = HEIGHT_VALUES.flatMap((pattern) => [...text.matchAll(pattern)].map((match) => ({
     value: parseStemNumber(match[1]!),
-    // A launch height is where the launch starts.
-    launch: LAUNCH_GOVERNS.test(text.slice(Math.max(0, match.index! - 40), match.index!)) || /^\s*(?:from|at)\b/i.test(match[0]),
+    // A launch height is where this body's launch starts, stated in its own clause.
+    launch: (LAUNCH_GOVERNS.test(text.slice(Math.max(0, match.index! - 40), match.index!)) || /^\s*(?:from|at)\b/i.test(match[0]))
+      && spans.some(([start, end]) => match.index! >= start && match.index! < end),
   })));
   const values = [...new Set(heights.filter((height) => height.launch).map((height) => height.value))];
   // Another stated height ("lands on a 5 m high platform", "a 45 m building")
