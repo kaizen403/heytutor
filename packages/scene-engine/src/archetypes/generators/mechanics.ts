@@ -6,8 +6,9 @@
  * arrows are in the stated speed ratio. Where a slot is missing the figure
  * uses a declared display value and the tier rule keeps it qualitative.
  */
-import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked, riverShortestTimeAsked } from "../../physics/riverCrossingSource";
-import { projectileLaunchAngle } from "../../physics/projectileLaunchSource";
+import { riverCrossingHeading, riverCrossingPlanConflicts, riverCrossingSpeeds, riverCrossingTriangle } from "../../physics/riverCrossingSource";
+import { projectileLaunchAngle, projectileStatedConditions } from "../../physics/projectileLaunchSource";
+import { planGivenNumber } from "../slots";
 import { recordArchetypeFigureIdentity } from "../figureIdentity";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
@@ -31,16 +32,45 @@ function projectile(context: GeneratorContext) {
   // Read only the launch clause; symbolic theta keeps display geometry symbolic.
   const launchAngle = projectileLaunchAngle(context.question);
   if (context.sources.theta === "plan" && (launchAngle === null || launchAngle !== maybeNum(context, "theta"))) return null;
+  // A stem angle the launch clause does not read ("kicked at 50°") would be
+  // drawn at the display 45° under an exact tier: with a stated speed, decline.
+  if (context.sources.theta === "stem" && launchAngle === null && grounded(context, "u")) return null;
   context = { ...context, slots: { ...context.slots, theta: launchAngle ?? 45 },
     sources: { ...context.sources, theta: launchAngle === null ? "default" : context.sources.theta ?? "stem" } };
+  // The figure measures from the horizontal, launches from level ground or a
+  // read height, and computes with a read g. A stated condition it does not
+  // read is never replaced by the stock value: a foreign angle reference
+  // declines at any tier, an unread g or height declines a figure with
+  // numbers and leaves a numberless one its display value.
+  const stated = projectileStatedConditions(context.question);
+  if (stated.angle.status === "unread") return null;
+  const metric = grounded(context, "u") && grounded(context, "theta");
   const theta = num(context, "theta", 45);
   const u = num(context, "u", 20);
-  const h0 = Math.max(0, num(context, "h0", 0));
-  const g = num(context, "g", G);
+  // Only a given counts: a derived "H" is the maximum height, not a launch height.
+  const planG = planGivenNumber(context.quantities, ["g", "gravity"]);
+  const planH = planGivenNumber(context.quantities, ["h0", "h", "height", "towerheight", "launchheight"]);
+  if (stated.g.status === "unread" && metric) return null;
+  if (stated.g.status === "read" && planG !== null && Math.abs(planG - stated.g.value) > 1e-9) return null;
+  // A plan g far from 9.8 with none stated was read from a spelling the stem reader missed.
+  if (stated.g.status === "none" && planG !== null && Math.abs(planG - G) > 0.05) return null;
+  const g = stated.g.status === "read" ? stated.g.value : G;
+  // A horizontal launch needs a height, so an unstated one is unread too.
+  const height = stated.height.status === "none" && theta === 0 ? { status: "unread" as const } : stated.height;
+  // A stated metre elevation the reader does not bind declines without numbers
+  // too, rather than drawing a placeholder in its place. A horizontal launch
+  // already draws its symbolic "h" when no height is stated.
+  if (height.status === "unread" && (metric || ("numeric" in height && height.numeric && theta !== 0))) return null;
+  if (height.status === "read" && planH !== null && Math.abs(planH - height.value) > 1e-9) return null;
+  if (height.status === "none" && planH !== null && planH !== 0) return null;
   const vx = u * Math.cos(theta * DEG);
   const vy = u * Math.sin(theta * DEG);
   if (vx <= 0 || u <= 0) return null;
-  const height0 = theta === 0 && h0 === 0 ? 20 : h0;
+  const height0 = height.status === "read" ? height.value : height.status === "unread" ? 20 : 0;
+  if (theta === 0 && height0 === 0) return null;
+  context = { ...context, slots: { ...context.slots, h0: height0, g },
+    sources: { ...context.sources, h0: height.status === "read" ? context.sources.h0 ?? "stem" : "default",
+      g: stated.g.status === "read" ? context.sources.g ?? "stem" : "default" } };
   const flight = (vy + Math.sqrt(vy * vy + 2 * g * height0)) / g;
   const range = vx * flight;
   const apexX = vx * vy / g;
@@ -57,6 +87,7 @@ function projectile(context: GeneratorContext) {
   if (grounded(context, "u")) scene.quantity("u", "u", u, "m/s");
   if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   if (height0 > 0 && grounded(context, "h0")) scene.quantity("h0", "h", height0, "m");
+  if (grounded(context, "g")) scene.quantity("g", "g", g, "m/s^2");
 
   // These two points establish an analytic relation, not display formatting.
   // Independent coordinate rounding rotates the launch vector away from its
@@ -765,11 +796,15 @@ function riverBoat(context: GeneratorContext) {
   const variant = text(context, "variant", "crossing");
   // Shortest path (straight across) heads upstream; shortest time heads
   // straight across and drifts. A boat no faster than the current cannot
-  // cross straight, so that figure is declined rather than drawn.
-  const pathAsked = riverShortestPathAsked(context.question);
-  const timeAsked = riverShortestTimeAsked(context.question);
-  if ((pathAsked || variant === "two_triangles") && vb <= vc) return null;
-  const crossingUpstream = pathAsked || !timeAsked;
+  // cross straight, so that figure is declined rather than drawn. One
+  // crossing draws only the heading the stem states or asks for: an unread
+  // direction, or no heading at all, is never drawn as an upstream heading.
+  const heading = riverCrossingHeading(context.question);
+  if (variant !== "along_stream" && heading.unread) return null;
+  if (variant === "two_triangles" && vb <= vc) return null;
+  const crossing = variant === "crossing" ? riverCrossingTriangle(context.question, vb, vc) : null;
+  if (variant === "crossing" && crossing === null) return null;
+  const crossingUpstream = crossing === "upstream";
   const width = 4;
   const scene = new SceneBuilder(context.question, variant === "along_stream"
     ? "boat moving downstream and upstream along the river"
@@ -840,7 +875,9 @@ function riverBoat(context: GeneratorContext) {
   } else {
     triangle("", { x: 2.2, y: 0.4 }, crossingUpstream, crossingUpstream
       ? "head upstream at α so the resultant points straight across"
-      : "shortest time: head perpendicular, the current carries the boat downstream");
+      : heading.timeAsked
+        ? "shortest time: head perpendicular, the current carries the boat downstream"
+        : "head perpendicular to the banks, the current carries the boat downstream");
   }
   // The river is the strip the two banks bound: it is named by the near bank
   // and consumes neither bank, which stay free to be the banks themselves.

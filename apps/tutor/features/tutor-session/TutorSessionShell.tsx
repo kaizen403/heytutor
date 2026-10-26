@@ -152,6 +152,7 @@ import {
 import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind } from "./lib/turn/doubtTurn";
 import { canStartStoredLectureReplay } from "./lib/replay/autoReplay";
+import { watchServerBuild } from "@/lib/client/staleBuild";
 
 const FAST_MODE_STORAGE_KEY = "htutor_fast_mode";
 const SUBTITLES_STORAGE_KEY = "htutor_subtitles";
@@ -345,6 +346,9 @@ export function TutorSessionShell({
     void loadHomeSuggestions(controller.signal);
     return () => controller.abort();
   }, [isDraft, isHeadless, loadHomeSuggestions]);
+  // A student tab learns when the server runs a newer deploy, so its next new
+  // lesson reloads into it instead of drawing the old bundle's figures.
+  useEffect(() => (variant === "full" ? watchServerBuild() : undefined), [variant]);
   /**
    * What this surface may do, and — separately — whether it draws the app
    * frame. Admin Watch is a `panel`: the whole lesson, inside a drawer that

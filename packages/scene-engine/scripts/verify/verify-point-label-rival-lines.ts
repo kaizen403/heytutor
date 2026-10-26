@@ -2,14 +2,17 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { compileSceneDocument } from "../../src/compile/compiler";
-import { obstaclesFromPrimitives, placeLabels, POINT_LABEL_TETHER_PX } from "../../src/labels/labelEngine";
+import { obstaclesFromPrimitives, placeLabels, POINT_LABEL_TETHER_PX, pointRivalLayoutRegressionsFor, type LabelEngineResult } from "../../src/labels/labelEngine";
 import type { RenderPoint, RenderPrimitive, SceneDocument } from "../../src/types";
 
 // A point letter must never sit across another straight line from its own
-// point, nearer that line than the point: the reader names the line. The
-// recorded ellipse wrote V1 and V2 past the directrices (judged WRONG); here
-// they keep their points by drawn leaders, and every label that already sat
-// well stays exactly where origin/main put it.
+// point, nearer that line than the point: the reader names the line. The rule
+// may move labels only where every moved label then reads better, judged by
+// where its box sits (a leader does not tie a box to its mark), and every
+// figure it cannot improve keeps origin/main's layout byte for byte. The
+// recorded ellipse wrote V1 and V2 past the directrices (judged WRONG); the
+// leadered boxes the rule finds for them sit 52 px from their points and
+// still nearer a foreign mark, so it keeps origin/main's layout too.
 
 type Fixture = {
   ellipse: SceneDocument;
@@ -106,42 +109,40 @@ function assertUnmoved(name: keyof Fixture["baseLabelCentres"], primitives: Rend
   return checked;
 }
 
-// 1. The recorded ellipse: V1 and V2 no longer name the directrices. The
-// label_attached assertions accept a leader that starts on the point.
+/** Labels and their leaders, as drawn. */
+const labelInk = (primitives: RenderPrimitive[]) => JSON.stringify(primitives
+  .filter((primitive) => primitive.kind === "label" || primitive.provenance?.labelLeader)
+  .map((primitive) => [primitive.id, primitive.points, primitive.provenance?.labelBounds ?? null]));
+
+// 1. The recorded ellipse keeps origin/main's layout. The rule's leaders for
+// V1 and V2 end in boxes nearer a foreign mark than their own points, so the
+// guard refuses them. The check below still sees the misread origin/main
+// draws (the control is live), and the label_attached assertions pass.
 const ellipseDocument: SceneDocument = structuredClone(fixture.ellipse);
 ellipseDocument.assertions.push(
   { id: "assert_label_V1", predicate: "label_attached", entities: ["V1"], expected: true, severity: "fatal" } as SceneDocument["assertions"][number],
   { id: "assert_label_V2", predicate: "label_attached", entities: ["V2"], expected: true, severity: "fatal" } as SceneDocument["assertions"][number],
 );
 const ellipse = compiled(ellipseDocument, "ellipse");
-assert.deepEqual(violations(ellipse), [], "ellipse: no point label sits across a rival line");
-for (const id of ["V1", "V2"]) {
-  const label = ellipse.find((primitive) => primitive.id === `primitive_${id}_label`);
-  assert.equal(label?.provenance?.usesLeader, true, `${id} keeps its point by a drawn leader`);
-}
+const ellipseOff = compileSceneDocument(structuredClone(ellipseDocument), { pointLabelRivals: false });
+assert.ok(ellipseOff.ok && ellipseOff.renderScene, "ellipse compiles with the rule off");
+assert.equal(labelInk(ellipse), labelInk(ellipseOff.renderScene.primitives), "ellipse: keeps origin/main's layout, byte for byte");
+assert.deepEqual(violations(ellipse), ["V1: across a rival line from its point", "V2: across a rival line from its point"],
+  "ellipse: the check sees origin/main's V1 and V2 across the directrices");
 
-// 2. Controls: every other label stays exactly where origin/main put it.
-const controls = assertUnmoved("ellipse", ellipse, ["primitive_V1_label", "primitive_V2_label"]) +
+// 2. Controls: every label stays exactly where origin/main put it.
+const controls = assertUnmoved("ellipse", ellipse) +
   assertUnmoved("ellipseNoDirectrix", compiled(fixture.ellipseNoDirectrix, "ellipse without directrices")) +
   assertUnmoved("tangents", compiled(fixture.tangents, "external tangents"));
-assert.ok(controls >= 20, `controls cover every recorded label (${controls})`);
+assert.ok(controls >= 23, `controls cover every recorded label (${controls})`);
 
-// 3. Mutation: put V1 back where origin/main drew it. The check must see it.
-const mutated = structuredClone(ellipse).filter((primitive) => primitive.id !== "primitive_V1_label_leader");
-const v1 = mutated.find((primitive) => primitive.id === "primitive_V1_label")!;
-const [oldX, oldY] = fixture.baseLabelCentres.ellipse.primitive_V1_label!;
-const box = v1.provenance!.labelBounds as Box;
-assert.ok(Math.hypot(v1.points[0]!.x - oldX, v1.points[0]!.y - oldY) > 20, "mutation moves V1");
-v1.points = [{ x: oldX, y: oldY }];
-v1.provenance = { ...v1.provenance, usesLeader: false, labelBounds: { ...box, x: oldX - box.width / 2, y: oldY - box.height / 2 } };
-assert.deepEqual(violations(mutated), ["V1: across a rival line from its point"], "mutation: V1 across the directrix is caught");
-
-// 4. Escape leaders measure the full ink. A label whose ink overhangs its
+// 3. Escape leaders measure the full ink. A label whose ink overhangs its
 // layout box (a subscript, a handwritten tail) is held to the ink, not the em
 // box: here the ink of V1 and V2 grows a 30 px lead-in stroke to the left of
 // the box whenever they sit beyond the tether (escape leaders are straight, so
-// an ink box grown on every side leaves no escape to test), and the escape
-// spot chosen must still clear every stroke. Unmeasured ink fails this.
+// an ink box grown on every side leaves no escape to test), and any escape
+// spot drawn must still clear every stroke. The guard refuses the escape
+// leaders here as in 1, so the figure keeps origin/main's layout.
 const pointAt = (primitives: RenderPrimitive[], id: string) => primitives.find((primitive) => primitive.kind === "point" && primitive.entityId === id)!.points[0]!;
 const anchors = ["V1", "V2"].map((id) => pointAt(ellipse, id));
 const overhang = 30;
@@ -152,34 +153,26 @@ const overhangingInk = (text: string, x: number, y: number, fontPx: number) => {
   if (anchors.some((anchor) => Math.hypot(centre.x - anchor.x, centre.y - anchor.y) <= POINT_LABEL_TETHER_PX + 4)) return ink;
   return { x: ink.x - overhang, y: ink.y, width: ink.width + overhang, height: ink.height };
 };
-const strokesOf = (primitive: RenderPrimitive): Segment[] => {
-  const p = primitive.points;
-  if (primitive.kind === "axes" && p.length === 4) return [[p[0]!, p[1]!], [p[2]!, p[3]!]];
-  return p.slice(1).map((point, index): Segment => [p[index]!, point]);
-};
 const overhung = compileSceneDocument(structuredClone(fixture.ellipse), { measureLabelInkBounds: overhangingInk });
 assert.ok(overhung.ok && overhung.renderScene, "ellipse with overhanging escape ink still compiles");
-let escapes = 0;
+const overhungOff = compileSceneDocument(structuredClone(fixture.ellipse), { measureLabelInkBounds: overhangingInk, pointLabelRivals: false });
+assert.ok(overhungOff.ok && overhungOff.renderScene, "ellipse with overhanging escape ink compiles with the rule off");
+assert.equal(labelInk(overhung.renderScene.primitives), labelInk(overhungOff.renderScene.primitives), "ellipse with overhanging ink: keeps origin/main's layout");
+// The guard refuses every gained leader, so the overhung figure draws no
+// escape leader for V1 or V2 at all: the plain layout never draws one.
 for (const id of ["V1", "V2"]) {
   const label = overhung.renderScene.primitives.find((primitive) => primitive.id === `primitive_${id}_label`)!;
-  if (label.provenance?.usesLeader !== true) continue;
-  escapes += 1;
-  const box = label.provenance!.labelBounds as Box;
-  const ink = overhangingInk(label.text!, box.x + 2, box.y + 2, Number(label.provenance?.fontPx ?? 24))!;
-  const hit = overhung.renderScene.primitives
-    .filter((primitive) => primitive.entityId !== id && primitive.kind !== "label" && primitive.kind !== "point" && !primitive.provenance?.labelLeader)
-    .filter((primitive) => strokesOf(primitive).some((segment) => boxToSegment(ink, segment) === 0))
-    .map((primitive) => primitive.id);
-  assert.deepEqual(hit, [], `${id}: escape label ink clears every stroke`);
+  assert.notEqual(label.provenance?.usesLeader, true, `${id}: the rule draws no escape leader`);
 }
-assert.ok(escapes >= 1, "the overhang case exercises an escape leader");
 
-// 5. A short triangle side next to a vertex is a rival line, not an angle
-// mark. P at a right-angle vertex with legs of 25 px; the hypotenuse AB runs
-// 17.7 px from P. With the other sides of P blocked, the letter must not sit
-// beyond AB without a leader. A real right-angle square in the same place is
-// still read as P's own mark.
-const triangleCase = (mark: boolean) => {
+// 4. A short triangle side next to a vertex. P at a right-angle vertex with
+// legs of 25 px; the hypotenuse AB runs 17.7 px from P. With the other sides
+// of P blocked, origin/main sets P beyond AB. The rule's only way out is a
+// leader to a box 86 px from P (23.5 px before), so the box distance and
+// drift tests refuse it and P keeps origin/main's spot, which the check here
+// still sees across AB. A real right-angle square in the same place is P's
+// own mark: no leader.
+const triangleCase = (mark: boolean, pointRivals = true) => {
   const P = { x: 600, y: 400 }; const A = { x: 625, y: 400 }; const B = { x: 600, y: 375 };
   const primitives = [
     { id: "pt_P", kind: "point", entityId: "P", points: [P] },
@@ -193,28 +186,30 @@ const triangleCase = (mark: boolean) => {
   const result = placeLabels(
     [{ entityId: "P", anchor: P, text: "P", tetherPx: POINT_LABEL_TETHER_PX, allowLeader: false, viewBounds: { x: 0, y: 0, width: 1200, height: 700 } }],
     [...obstaclesFromPrimitives(primitives), block("left", P.x - 60, P.y - 60, 60, 120), block("below", P.x, P.y, 60, 60)],
-    { fontHeightPx: 24, paddingPx: 2, minGapPx: 3, measureTextPx: measureTextWidth, measureTextInkBounds },
+    { fontHeightPx: 24, paddingPx: 2, minGapPx: 3, measureTextPx: measureTextWidth, measureTextInkBounds, pointRivals },
   );
   assert.deepEqual(result.issues, [], `triangle case (${mark ? "mark" : "side"}) places P`);
   return { P, A, B, placement: result.placements[0]! };
 };
 {
   const { P, A, B, placement } = triangleCase(false);
+  assert.deepEqual(placement, triangleCase(false, false).placement, "triangle case: P keeps origin/main's spot");
   const box = placement.bounds;
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const acrossSide = boxToSegment(box, [A, B]) < boxToPoint(box, P) - 1 && crosses(P, centre, [A, B]);
-  assert.ok(placement.usesLeader === true || !acrossSide, `P does not sit beyond the hypotenuse without a leader: ${JSON.stringify(placement)}`);
-  if (placement.usesLeader) assert.ok(placement.leaderFrom && Math.hypot(placement.leaderFrom.x - P.x, placement.leaderFrom.y - P.y) <= 1, "P's leader starts on P");
+  assert.ok(placement.usesLeader !== true && acrossSide, `triangle case: the check sees origin/main's P beyond the hypotenuse: ${JSON.stringify(placement)}`);
 }
 assert.equal(triangleCase(true).placement.usesLeader ?? false, false, "a right-angle square at P is P's own mark, not a rival line");
 
-// 6. Recorded documents where the first version of this rule moved a
-// neighbour onto another point (the review of #296 replayed 9,977 recorded
-// documents): B beside A's pin, "(8/3,0)" across L1, q+ beside the negative
-// charge, V under the focus, A beside a node. Each figure now either reads
-// right label by label (every point label nearer its own dot than any other
-// dot, or tied to its point by a leader, and never across a rival line) or
-// keeps origin/main's layout exactly. Rule off reproduces origin/main.
+// 5. Recorded documents (the reviews of #296 replayed 9,977 recorded
+// documents). The rule's layout may replace origin/main's only when every
+// label it moved reads at least as well, measured here independently of the
+// engine: no label reads as a foreign mark, none loses margin to a foreign
+// mark or drifts from its own mark (all measured from its box, leader or
+// not), none gains a leader other than one straight stroke from its own mark
+// or loses a leader origin/main drew, and none origin/main read right gains a
+// leader at all. A figure the rule cannot improve under all of these keeps
+// origin/main's layout exactly. Rule off reproduces origin/main.
 type Recorded = { documents: Record<string, { recorded: string; document: SceneDocument }>; mainLabels: Record<string, Array<[string, string, number, number]>> };
 const recorded = JSON.parse(readFileSync(new URL("./fixtures/point-label-recorded-rivals.json", import.meta.url), "utf8")) as Recorded;
 const labelSummary = (primitives: RenderPrimitive[]) => primitives.filter((primitive) => primitive.kind === "label")
@@ -237,8 +232,100 @@ function misreadDots(primitives: RenderPrimitive[]): string[] {
     return rival ? [`${label.text}: nearer ${rival.entityId}'s dot than its own`] : [];
   });
 }
+
+// The per label test, on compiled primitives. Every owner is judged, not
+// only points: its layout box and its ink box against every other entity's
+// dots and strokes (a point's host strokes excepted). Distances are from the
+// box, leader or not; one straight clean leader from the own mark only exempts
+// a point from the across a rival line test.
+type Reading = { text: string; point: boolean; box: Box; leader: RenderPoint[] | null; straight: boolean; misread: boolean; boxes: Array<{ own: number; margin: number }> };
+const MARGIN_TOLERANCE_PX = 1;
+const DRIFT_TOLERANCE_PX = 2;
+function segmentsCross(p: RenderPoint, q: RenderPoint, [a, b]: Segment): boolean {
+  if (Math.max(p.x, q.x) < Math.min(a.x, b.x) || Math.max(a.x, b.x) < Math.min(p.x, q.x) ||
+    Math.max(p.y, q.y) < Math.min(a.y, b.y) || Math.max(a.y, b.y) < Math.min(p.y, q.y)) return false;
+  return crosses(p, q, [a, b]);
+}
+function labelReadings(primitives: RenderPrimitive[]): Map<string, Reading> {
+  const geometry = obstaclesFromPrimitives(primitives.filter((primitive) => primitive.kind !== "label" && !primitive.provenance?.labelLeader))
+    .filter((obstacle) => obstacle.kind === "geometry");
+  const strokes = geometry.filter((obstacle) => obstacle.segments?.length);
+  const dots = primitives.filter((primitive) => primitive.kind === "point").map((primitive) => ({ entityId: primitive.entityId, at: primitive.points[0]! }));
+  const readings = new Map<string, Reading>();
+  for (const label of primitives.filter((primitive) => primitive.kind === "label")) {
+    const leaderPrimitive = primitives.find((primitive) => primitive.id === `${label.id}_leader`);
+    const leader = label.provenance?.usesLeader === true && leaderPrimitive ? leaderPrimitive.points : null;
+    const ownDots = dots.filter((dot) => dot.entityId === label.entityId).map((dot) => dot.at);
+    const ownStrokes = strokes.filter((stroke) => stroke.entityId === label.entityId).flatMap((stroke) => stroke.segments!);
+    const anchor = ownDots.length > 0 && ownStrokes.length === 0 ? ownDots[0] : undefined;
+    const hosted = (segments: Segment[]) => anchor !== undefined && segments.some((segment) => pointToSegment(anchor, segment) <= HOST_PX);
+    const foreignStrokes = strokes.filter((stroke) => stroke.entityId !== label.entityId && !hosted(stroke.segments!)).map((stroke) => stroke.segments!);
+    const foreignDots = dots.filter((dot) => dot.entityId !== label.entityId && (!anchor || Math.hypot(dot.at.x - anchor.x, dot.at.y - anchor.y) > HOST_PX)).map((dot) => dot.at);
+    const onOwn = (at: RenderPoint) => Math.min(...ownDots.map((dot) => Math.hypot(at.x - dot.x, at.y - dot.y)), ...ownStrokes.map((segment) => pointToSegment(at, segment)), Infinity) <= 1.5;
+    let straight = false;
+    if (leader && leader.length === 2 && onOwn(leader[0]!)) {
+      const [from, to] = [leader[0]!, leader[1]!];
+      const length = Math.hypot(to.x - from.x, to.y - from.y);
+      const clear = length > HOST_PX ? { x: from.x + (to.x - from.x) * HOST_PX / length, y: from.y + (to.y - from.y) * HOST_PX / length } : to;
+      straight = !strokes.some((stroke) => stroke.entityId !== label.entityId && stroke.segments!.some((segment) => segmentsCross(clear, to, segment)));
+    }
+    const layout = label.provenance?.labelBounds as Box;
+    const ink = (label.provenance?.labelCollisionBounds ?? layout) as Box;
+    let misread = false;
+    const boxes = [layout, ink].map((box) => {
+      const own = Math.min(...ownDots.map((dot) => boxToPoint(box, dot)), ...ownStrokes.map((segment) => boxToSegment(box, segment)), Infinity);
+      const dot = Math.min(Infinity, ...foreignDots.map((at) => boxToPoint(box, at)));
+      const stroke = Math.min(Infinity, ...foreignStrokes.flatMap((segments) => segments.map((segment) => boxToSegment(box, segment))));
+      const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      const across = anchor !== undefined && !straight && foreignStrokes.some((segments) =>
+        segments.some((segment) => segmentsCross(anchor, centre, segment)) && Math.min(...segments.map((segment) => boxToSegment(box, segment))) < boxToPoint(box, anchor) - 1);
+      if (dot < own + 1 || stroke < own - 1 || across) misread = true;
+      return { own, margin: Math.min(dot, stroke) - own };
+    });
+    readings.set(`${label.id}\u0000${label.text}`, { text: label.text ?? "", point: anchor !== undefined, box: layout, leader, straight, misread, boxes });
+  }
+  return readings;
+}
+/** Every moved label that reads worse than origin/main's, and how many point labels origin/main misread now read right. */
+function perLabelVerdict(main: RenderPrimitive[], head: RenderPrimitive[]): { worse: string[]; repaired: number } {
+  const before = labelReadings(main);
+  const after = labelReadings(head);
+  const worse: string[] = [];
+  let repaired = 0;
+  assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), "the same labels are drawn");
+  for (const [key, next] of after) {
+    const prior = before.get(key)!;
+    if (JSON.stringify(prior.box) === JSON.stringify(next.box) && JSON.stringify(prior.leader) === JSON.stringify(next.leader)) continue;
+    if (next.misread) worse.push(`${next.text}: reads as a foreign mark`);
+    if (prior.leader && !next.leader) worse.push(`${next.text}: loses its leader`);
+    if (next.leader && !next.straight) worse.push(`${next.text}: leader is not one clean straight stroke from its own mark`);
+    if (next.leader && !prior.leader) worse.push(`${next.text}: gains a leader`);
+    next.boxes.forEach((box, index) => {
+      if (box.margin < prior.boxes[index]!.margin - MARGIN_TOLERANCE_PX) worse.push(`${next.text}: margin falls`);
+      if (box.own > prior.boxes[index]!.own + DRIFT_TOLERANCE_PX) worse.push(`${next.text}: drifts from its own mark`);
+    });
+    if (prior.point && prior.misread && !next.misread) repaired += 1;
+  }
+  return { worse, repaired };
+}
+// The verdict counts only point repairs, as placeLabels does: an arrow's
+// label moved off a foreign dot is not a repair the rule may be kept for.
+{
+  const dot = (id: string, x: number, y: number) => ({ id: `pt_${id}`, kind: "point", entityId: id, points: [{ x, y }] });
+  const label = (id: string, entityId: string, text: string, bounds: Box) => ({ id, kind: "label", entityId, text, points: [{ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 }], provenance: { labelBounds: bounds } });
+  const marks = [dot("Q", 730, 340), { id: "arrow", kind: "vector", entityId: "arrow", points: [{ x: 700, y: 300 }, { x: 700, y: 400 }] }];
+  const arrowMisread = [...marks, label("lh", "arrow", "h", { x: 720, y: 330, width: 20, height: 20 })] as RenderPrimitive[];
+  const arrowRepaired = [...marks, label("lh", "arrow", "h", { x: 675, y: 340, width: 20, height: 20 })] as RenderPrimitive[];
+  const arrowVerdict = perLabelVerdict(arrowMisread, arrowRepaired);
+  assert.deepEqual(arrowVerdict, { worse: [], repaired: 0 }, `verdict: a repaired arrow label is not a point repair: ${JSON.stringify(arrowVerdict)}`);
+  const pointMisread = [...marks, dot("P", 700, 450), label("lP", "P", "P", { x: 715, y: 455, width: 20, height: 20 }), dot("S", 735, 465)] as RenderPrimitive[];
+  const pointRepaired = [...marks, dot("P", 700, 450), label("lP", "P", "P", { x: 670, y: 440, width: 20, height: 20 }), dot("S", 735, 465)] as RenderPrimitive[];
+  const pointVerdict = perLabelVerdict(pointMisread, pointRepaired);
+  assert.deepEqual(pointVerdict, { worse: [], repaired: 1 }, `verdict: a repaired point label counts: ${JSON.stringify(pointVerdict)}`);
+}
+
 const recordedNames = Object.keys(recorded.documents);
-assert.ok(recordedNames.length >= 8, "every recorded case is present");
+assert.ok(recordedNames.length >= 15, "every recorded case is present");
 let repairedFigures = 0;
 const verdicts: Record<string, "moved" | "main"> = {};
 for (const name of recordedNames) {
@@ -247,26 +334,126 @@ for (const name of recordedNames) {
   const off = compileSceneDocument(structuredClone(document), { pointLabelRivals: false });
   assert.ok(off.ok && off.renderScene, `${name}: compiles with the rule off`);
   assert.ok(sameLabels(recorded.mainLabels[name]!, labelSummary(off.renderScene.primitives)), `${name}: the rule off is origin/main's layout`);
-  if (sameLabels(recorded.mainLabels[name]!, labelSummary(head))) { verdicts[name] = "main"; continue; }
+  if (labelInk(off.renderScene.primitives) === labelInk(head)) { verdicts[name] = "main"; continue; }
   verdicts[name] = "moved";
   assert.deepEqual(misreadDots(head), [], `${name}: every point label is nearer its own dot`);
   assert.deepEqual(violations(head), [], `${name}: no point label sits across a rival line`);
+  const { worse, repaired } = perLabelVerdict(off.renderScene.primitives, head);
+  assert.deepEqual(worse, [], `${name}: no moved label reads worse than on origin/main`);
+  assert.ok(repaired >= 1, `${name}: the move repairs a label origin/main misread`);
   repairedFigures += 1;
 }
-// The five recorded regressions are repaired, not merely held at main.
-for (const name of ["glassBlockPins", "lineIntercepts", "dipoleCharges", "parabolaFocus", "standingWaves"]) {
-  assert.equal(verdicts[name], "moved", `${name}: the misread main label is repaired`);
-  assert.ok(misreadDots(compileSceneDocument(structuredClone(recorded.documents[name]!.document), { pointLabelRivals: false }).renderScene!.primitives).length +
-    violations(compileSceneDocument(structuredClone(recorded.documents[name]!.document), { pointLabelRivals: false }).renderScene!.primitives).length > 0,
-  `${name}: origin/main misreads a label here (the control is live)`);
+// Repaired: (−3,1) no longer sits beside the origin's dot, nearer it than
+// its own point.
+assert.equal(verdicts.coordinateBesideOrigin, "moved", "coordinateBesideOrigin: the misread main label is repaired");
+assert.ok(repairedFigures >= 1, "a recorded figure is repaired");
+// Origin/main misreads a label in each of these, so the rule tries them.
+for (const name of ["glassBlockPins", "lineIntercepts", "dipoleCharges", "parabolaFocus", "standingWaves", "pointLeaderToAxisTip", "coordinateBesideOrigin"]) {
+  const off = compileSceneDocument(structuredClone(recorded.documents[name]!.document), { pointLabelRivals: false }).renderScene!.primitives;
+  assert.ok(misreadDots(off).length + violations(off).length > 0, `${name}: origin/main misreads a label here (the control is live)`);
 }
-// The whole figure guard: here the joint solve repairs "position" but moves
-// "final" beside the position dot, which origin/main kept clear. The figure
-// keeps origin/main's layout.
+// Controls that keep origin/main's layout. The four admitted figures the
+// round 2 review of #296 found worse: the image height read as the object's
+// with an elbowed leader along the axis (mirrorImageHeight), an image height
+// moved onto the incoming ray (lensImageArrow), F above the image distance
+// line with an elbowed leader (mirrorImageDistance), and i losing its leader
+// across the normal with A and D drifting off their pins (glassBlockPins).
+// parabolaFocus would move F beside the latus rectum (margin test) and
+// mirrorLeaderAlongArc would run x_M's leader along the mirror (leader test).
+// The review of the follow up found two more: objectHeightLeader (row-0881)
+// would move h=0.020 m, which read right beside its object arrow, 68 px up
+// onto a vertical leader in line with a dimension's extension line (a right
+// label gains no leader), and pointLeaderToAxisTip would end P=(-1,1)'s
+// leader 7.5 px above the y axis arrowhead, where it reads as the axis title
+// (a leadered label is judged by its box). lineIntercepts would repair L1's
+// intercept by a leader whose box ends 25.2 px from its point (19.8 px
+// before): judged by its box, that is a drift. The rule cannot improve any of
+// them under every test, so each keeps origin/main's layout, byte for byte.
+for (const name of ["mirrorImageHeight", "lensImageArrow", "mirrorImageDistance", "glassBlockPins", "parabolaFocus", "mirrorLeaderAlongArc", "objectHeightLeader", "pointLeaderToAxisTip", "lineIntercepts"]) {
+  assert.equal(verdicts[name], "main", `${name}: keeps origin/main's layout`);
+}
+// The whole figure guard: the joint solve repairs "position" but moves
+// "final" beside the position dot, which origin/main kept clear.
 assert.equal(verdicts.trajectoryPoints, "main", "trajectoryPoints: a layout that misreads a label main read right falls back to main");
 // A figure the rule lays out and a later check then refuses (an escape leader
 // counted as the lens's own ink collapsed it to a line) compiles with the
 // rule off instead: the rule never costs a figure.
 assert.equal(verdicts.lensLeaderFallback, "main", "lensLeaderFallback: compiles, with origin/main's layout");
 
-console.log(`verify-point-label-rival-lines: V1 and V2 leave the directrices by leaders; ${controls} control labels unmoved; mutation caught; escape ink measured; a short triangle side is a rival; ${repairedFigures} recorded figures repaired, the rest keep main's layout`);
+// 6. The guard itself, on constructed layouts: each test alone decides a
+// case, so switching any test off fails here. P is misread beside Q's dot
+// on the plain layout and repaired on the ruled one in every case; one other
+// label then changes in one way.
+{
+  const P = { x: 500, y: 400 }; const R = { x: 800, y: 550 };
+  const primitives = [
+    { id: "pt_P", kind: "point", entityId: "P", points: [P] },
+    { id: "pt_Q", kind: "point", entityId: "Q", points: [{ x: 530, y: 400 }] },
+    { id: "pt_R", kind: "point", entityId: "R", points: [R] },
+    { id: "pt_S", kind: "point", entityId: "S", points: [{ x: 800, y: 610 }] },
+    { id: "arrow", kind: "vector", entityId: "arrow", points: [{ x: 700, y: 300 }, { x: 700, y: 400 }] },
+    { id: "ray", kind: "line", entityId: "ray", points: [{ x: 705, y: 329.1 }, { x: 800, y: 329.1 }] },
+  ] as RenderPrimitive[];
+  const obstacles = obstaclesFromPrimitives(primitives);
+  const owners = [
+    { entityId: "P", labelId: "lP", anchor: P, text: "P" },
+    { entityId: "R", labelId: "lR", anchor: R, text: "R" },
+    { entityId: "arrow", labelId: "lh", anchor: { x: 700, y: 350 }, text: "h" },
+  ];
+  type Placement = LabelEngineResult["placements"][number];
+  const place = (labelId: string, entityId: string, text: string, bounds: Box, leader?: RenderPoint[]): Placement => ({
+    labelId, entityId, text, bounds, slot: "right" as Placement["slot"], usesLeader: leader !== undefined,
+    ...(leader ? { leaderFrom: leader[0], leaderTo: leader.at(-1), ...(leader.length > 2 ? { leaderPath: leader } : {}) } : {}),
+  });
+  const layout = (p: Placement, r: Placement, h: Placement): LabelEngineResult => ({ ok: true, placements: [p, r, h], issues: [] });
+  const pMisread = place("lP", "P", "P", { x: 510, y: 370, width: 20, height: 20 });
+  const pRepaired = place("lP", "P", "P", { x: 470, y: 380, width: 20, height: 20 });
+  const r = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 });
+  const h = place("lh", "arrow", "h", { x: 710, y: 300, width: 30, height: 20 });
+  const guard = (plain: LabelEngineResult, ruled: LabelEngineResult) => pointRivalLayoutRegressionsFor(plain, ruled, owners, obstacles);
+  // The repair alone is kept; no repair is not.
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, r, h)), [], "guard: a repair that moves nothing else is kept");
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pMisread, r, h)), ["no point letter repaired"], "guard: no repair, no ruled layout");
+  // Test 1 for an owner that is not a point: h moves 0.6 px down, its
+  // margin falls by 0.6 px (inside the tolerance) and it does not drift,
+  // but it is now plainly nearer the ray than its own arrow.
+  const hNearRay = place("lh", "arrow", "h", { x: 710, y: 300.6, width: 30, height: 20 });
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, r, hNearRay)), ["h: reads as a foreign mark"],
+    "guard: an arrow's label nearer a foreign stroke than its arrow is caught (non-point stroke test)");
+  // Test 2, margin: R stays nearest its own dot and nearer it than before,
+  // but its margin to S's dot falls by 5.7 px.
+  const rTowardS = place("lR", "R", "R", { x: 810, y: 550, width: 20, height: 20 });
+  const margin = guard(layout(pMisread, r, h), layout(pRepaired, rTowardS, h));
+  assert.ok(margin.length === 2 && margin.every((reason) => /^R: margin /.test(reason)), `guard: a fall in margin is caught (margin test): ${JSON.stringify(margin)}`);
+  // Test 2, drift: R moves 8.3 px farther from its dot and gains margin.
+  const rAway = place("lR", "R", "R", { x: 810, y: 510, width: 20, height: 20 });
+  const drift = guard(layout(pMisread, r, h), layout(pRepaired, rAway, h));
+  assert.ok(drift.length === 2 && drift.every((reason) => /^R: .* from its own mark$/.test(reason)), `guard: a drift from the own mark is caught (margin test): ${JSON.stringify(drift)}`);
+  // Test 3: R keeps its box but gains an elbowed leader from its dot. R read
+  // right, so the right label test refuses it too.
+  const rElbow = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 805, y: 545 }, { x: 810, y: 540 }]);
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, rElbow, h)),
+    ["R: leader is not one clean straight stroke from its own mark", "R: gains a leader"],
+    "guard: an elbowed leader is caught (leader test)");
+  // Test 3: R loses the straight leader the plain layout drew.
+  const rLeader = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 810, y: 535 }]);
+  const lost = guard(layout(pMisread, rLeader, h), layout(pRepaired, r, h));
+  assert.ok(lost.includes("R: loses its leader"), `guard: a lost leader is caught (leader test): ${JSON.stringify(lost)}`);
+  // Test 3: R read right without a leader and gains one straight clean
+  // leader from its own dot, box unchanged. Nothing else catches this.
+  const rStraight = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 810, y: 535 }]);
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, rStraight, h)), ["R: gains a leader"],
+    "guard: a label the plain layout read right gains no leader (gained leader test)");
+  // Test 2, box distance: P is repaired by one straight clean leader from its
+  // own dot, but the leader's box ends 10 px from Q's dot and 27 px from P's.
+  // A leader does not make that box read as P's.
+  const pLeaderBesideQ = place("lP", "P", "P", { x: 525, y: 410, width: 20, height: 20 }, [P, { x: 525, y: 415 }]);
+  const besideQ = guard(layout(pMisread, r, h), layout(pLeaderBesideQ, r, h));
+  assert.ok(besideQ.includes("P: reads as a foreign mark"), `guard: a leadered box beside a foreign mark is caught (box distance test): ${JSON.stringify(besideQ)}`);
+  // Even one straight clean leader whose box reads as its own mark is a
+  // gained leader, and the rule keeps the plain layout.
+  const pLeaderRepaired = place("lP", "P", "P", { x: 470, y: 380, width: 20, height: 20 }, [P, { x: 490, y: 395 }]);
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pLeaderRepaired, r, h)), ["P: gains a leader"], "guard: a gained leader is refused even when its box reads as its own mark (gained leader test)");
+}
+
+console.log(`verify-point-label-rival-lines: the ellipse keeps main's layout and the check sees V1 and V2 across the directrices; ${controls} control labels unmoved; the escape ink case keeps main's layout; a far leader past a short triangle side is refused; ${repairedFigures} recorded figures repaired with no label worse, ${recordedNames.length - repairedFigures} keep main's layout; only point repairs count; the guard's stroke, margin, box distance, leader and gained leader tests each decide a case`);

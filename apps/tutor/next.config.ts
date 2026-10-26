@@ -4,9 +4,15 @@ import path from "path";
 import { securityHeaderEntries } from "./lib/http/securityHeaders";
 import { SENTRY_TUNNEL_PATH } from "./lib/obs/sentryTunnel";
 import { renderFingerprint } from "./lib/lecture-export/buildRenderFingerprint.mjs";
+import { resolveBuildIdentity } from "./lib/client/buildIdentity.mjs";
 
 const nextConfig: NextConfig = {
-  env: { NEXT_PUBLIC_LECTURE_RENDER_HASH: renderFingerprint(path.resolve(process.cwd(), "../..")) },
+  env: {
+    NEXT_PUBLIC_LECTURE_RENDER_HASH: renderFingerprint(path.resolve(process.cwd(), "../..")),
+    // The deployed commit, inlined into the browser bundle and the server alike,
+    // so a tab left open across a deploy can tell (lib/client/staleBuild.ts).
+    NEXT_PUBLIC_HEYTUTOR_BUILD_ID: resolveBuildIdentity(path.resolve(process.cwd(), "../..")),
+  },
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   async headers() {
     return [
