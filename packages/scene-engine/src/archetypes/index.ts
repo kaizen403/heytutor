@@ -27,7 +27,7 @@ import { resolveTier, type RepresentationTier } from "./tier";
 
 export * from "./catalog";
 export { checkPictureContract, metricAssertions, METRIC_PROOF_PREDICATES } from "./contract";
-export { detectArchetype, rankArchetypes, type ArchetypeMatch, type DetectionHints } from "./detect";
+export { detectArchetype, lawOnlyArchetypeLead, rankArchetypes, type ArchetypeMatch, type DetectionHints } from "./detect";
 export { resolveTier, tierForForeignDocument, type RepresentationTier, type TierDecision } from "./tier";
 export { collectPlanQuantities, type PlanQuantity, type SlotSource } from "./slots";
 

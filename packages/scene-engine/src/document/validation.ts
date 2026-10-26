@@ -4441,6 +4441,15 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
           entityIds: typeof output === "string" ? [output] : undefined,
         });
       }
+      if (typeof target === "string" && document.entities.find((candidate) => candidate.id === target)?.kind === "axes") {
+        issues.push({
+          code: "label_targets_axes",
+          message: `label ${String(output)} targets axes ${target}: an axes object has no point for a label, so the text would float in the middle of the plot and name neither axis. Remove this label construction and its label entity. To name the axes, use inputs xLabel and yLabel on the axes construction: only the bare coordinate names draw at the arrow tips ({"xLabel":"x","yLabel":"y"}, in a turn whose quantities are all x or y). Any other axis title, such as "V" or "P", is omitted, so name those quantities in the narration or on the curve instead.`,
+          severity: "fatal",
+          path: `constructions[${index}].inputs.target`,
+          entityIds: typeof output === "string" ? [output, target] : [target],
+        });
+      }
     }
     if (isRecord(construction.inputs)) {
       if (COMPLEX_CONSTRUCTIONS.has(construction.operator)) validateComplexConstruction(construction, index, document, constructionByOutput, issues);
@@ -4682,7 +4691,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!required.has(entity.id)) {
       issues.push({
         code: "unrequired_entity",
-        message: `Entity ${entity.id} is not declared in requiredEntityIds`,
+        message: `Entity ${entity.id} is not declared in requiredEntityIds; add ${entity.id} to requiredEntityIds, since every declared or constructed entity is drawn`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],
@@ -4691,7 +4700,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     if (!grouped.has(entity.id)) {
       issues.push({
         code: "ungrouped_entity",
-        message: `Entity ${entity.id} is not assigned to a reveal group`,
+        message: `Entity ${entity.id} is not assigned to a reveal group; add ${entity.id} to the entityIds of one reveal group`,
         severity: "fatal",
         path: `entities[${index}]`,
         entityIds: [entity.id],

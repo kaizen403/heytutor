@@ -2529,6 +2529,36 @@ export function displayedSceneQuantityTexts(document: Pick<SceneDocument, "entit
   ].filter((value): value is string => typeof value === "string");
 }
 
+const AXES_TITLE_KEYS = ["xLabel", "yLabel"] as const;
+
+/** The titles axes constructions name on themselves (inputs xLabel and yLabel), drawn at the arrow tips. */
+export function axesTitleTexts(document: Pick<SceneDocument, "constructions">): Array<{
+  constructionIndex: number; axesId: string | undefined; key: typeof AXES_TITLE_KEYS[number]; text: string;
+}> {
+  return (document.constructions ?? []).flatMap((construction, constructionIndex) => {
+    if (construction.operator !== "axes" || !construction.inputs || typeof construction.inputs !== "object") return [];
+    const axesId = typeof construction.outputs?.[0] === "string" ? construction.outputs[0] : undefined;
+    return AXES_TITLE_KEYS.flatMap((key) => {
+      const text = (construction.inputs as Record<string, unknown>)[key];
+      return typeof text === "string" && text.trim() ? [{ constructionIndex, axesId, key, text }] : [];
+    });
+  });
+}
+
+/**
+ * Whether an axis title may draw. Fail closed: nothing proves that a title
+ * names the quantity its axis plots, so only the bare coordinate names draw,
+ * each on its own axis (x on the horizontal, y on the vertical), and only in a
+ * turn whose plan quantities are all x or y (or that has none). A title with
+ * a unit, a value, or any other symbol is omitted; main drew no axis titles.
+ * The compiler applies the same text rule (axesTitleOwners), so a document
+ * that skipped this prune still draws nothing else.
+ */
+function axisTitleBound(key: typeof AXES_TITLE_KEYS[number], text: string, plan: TurnPlanV3): boolean {
+  if (text.trim() !== (key === "xLabel" ? "x" : "y")) return false;
+  return [...plan.givens, ...plan.derived, ...plan.unknowns].every((quantity) => quantity.symbol === "x" || quantity.symbol === "y");
+}
+
 /** Verify that any shared numeric quantity keeps the plan's value and unit. */
 export function validateSceneQuantityAgreement(
   sceneQuantities: Array<Record<string, unknown> & { id: string }>,
@@ -2627,6 +2657,29 @@ export function pruneUnverifiedSceneAnnotations(
     }
     return !unsupported;
   });
+  // An axis title the engine cannot prove (anything but x on the horizontal
+  // or y on the vertical of an x and y turn) is omitted, not drawn, and the
+  // omission is recorded. The figure still draws.
+  const titleOmissions: SceneIssue[] = [];
+  const constructions = document.constructions.map((construction, constructionIndex) => {
+    const unbound = axesTitleTexts({ constructions: [construction] })
+      .filter((title) => !axisTitleBound(title.key, title.text, plan));
+    if (unbound.length === 0) return construction;
+    const inputs = { ...construction.inputs };
+    for (const title of unbound) {
+      delete inputs[title.key];
+      titleOmissions.push({
+        code: "axes_title_omitted",
+        severity: "warning",
+        path: `constructions[${constructionIndex}].inputs.${title.key}`,
+        ...(title.axesId ? { entityIds: [title.axesId] } : {}),
+        expected: "axes_title_unbound",
+        message: `Omitted axis title ${JSON.stringify(title.text)}: only x on the horizontal axis or y on the vertical axis of a turn whose quantities are all x or y is drawn.`,
+      });
+    }
+    changed = true;
+    return { ...construction, inputs };
+  });
   const entities = document.entities.map((entity) => {
     if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
     const label = pruneUnsupportedMeasuredLabel(entity.label, plan);
@@ -2639,8 +2692,11 @@ export function pruneUnverifiedSceneAnnotations(
     return withoutLabel;
   });
   if (!changed) return document;
+  const previousDemotions = Array.isArray(document.source.yieldDemotions) ? document.source.yieldDemotions : [];
   return {
     ...document,
+    ...(titleOmissions.length ? { source: { ...document.source, yieldDemotions: [...previousDemotions, ...titleOmissions] } } : {}),
+    constructions,
     entities,
     annotations,
     // Named-point normalization added this obligation while the label was

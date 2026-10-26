@@ -9,6 +9,7 @@ tsx scripts/verify/verify-mensuration-operators.ts
 tsx scripts/verify/verify-optics-operators.ts
 tsx scripts/verify/verify-mirror-ray-diagram.ts
 tsx scripts/verify/verify-optics-stem-element.ts
+tsx scripts/verify/verify-archetype-stem-evidence.ts
 tsx scripts/verify/verify-operator-primitives.ts
 tsx scripts/verify/verify-constraint-region.ts
 tsx scripts/verify/verify-structure-driven-scene.ts
@@ -45,10 +46,12 @@ tsx scripts/verify/verify-right-angle-precision.ts
 tsx scripts/verify/verify-annotation-target-precision.ts
 tsx scripts/verify/verify-energy-measurement-anchors.ts
 tsx scripts/verify/verify-vsepr-label-geometry.ts
+tsx scripts/verify/verify-vsepr-angle-arc-clearance.ts
 tsx scripts/verify/verify-pinned-label-precision.ts
 tsx scripts/verify/verify-instrument-labels.ts
 tsx scripts/verify/verify-label-ink-clearance.ts
 tsx scripts/verify/verify-label-owner-placement.ts
+tsx scripts/verify/verify-point-label-rival-lines.ts
 tsx scripts/verify/verify-archetype-point-ownership.ts
 tsx scripts/verify/verify-solid-measurement-proof.ts
 pnpm verify:startup
@@ -71,4 +74,7 @@ tsx scripts/verify/verify-mechanics-state-consistency.ts
 tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
 tsx scripts/verify/verify-projectile-units.ts
+tsx scripts/verify/verify-figure-consistency.ts
 tsx scripts/verify/verify-pv-cycle-stated-values.ts
+tsx scripts/verify/verify-rounded-circle-point-repair.ts
+tsx scripts/verify/verify-axes-titles.ts

@@ -754,7 +754,10 @@ function titrationScene(
     ? (normalisedVolume ? "V_eq" : `V_eq = ${fmtNumber(curve.equivalenceVolume)}${volumeUnit}`)
     : "V_eq");
   dashed(c, "eq_drop", eq, { x: eq.x, y: 0 }, "drop to the equivalence volume");
-  c.scene.point("eq_ph", { x: 0, y: eq.y }, "pH at equivalence on the axis", numeric ? `pH = ${fmtNumber(curve.pHEquivalence)}` : (curve.pHEquivalence > 7.5 ? "pH > 7" : curve.pHEquivalence < 6.5 ? "pH < 7" : "pH 7"));
+  const eqPhText = numeric
+    ? `pH = ${fmtNumber(curve.pHEquivalence)}`
+    : curve.pHEquivalence > 7.5 ? "pH_eq > 7" : curve.pHEquivalence < 6.5 ? "pH_eq < 7" : "pH 7";
+  c.scene.point("eq_ph", { x: 0, y: eq.y }, "pH at equivalence on the axis", eqPhText);
   dashed(c, "eq_guide", { x: 0, y: eq.y }, eq, "guide to the equivalence pH");
   const half: Vec2 = { x: curve.equivalenceVolume / 2, y: k * curve.pHHalfEquivalence };
   const weak = curve.kind === "weak acid + strong base" || curve.kind === "weak base + strong acid";
@@ -771,7 +774,18 @@ function titrationScene(
     c.scene.point("start_point", { x: 0, y: k * curve.pHInitial }, "initial pH", `pH = ${fmtNumber(curve.pHInitial)}`);
   } else {
     // A shape figure carries the neutral line the student compares against.
-    dashed(c, "neutral", { x: 0, y: 7 * k }, { x: 1.05 * xSpan, y: 7 * k }, "pH 7 reference", curve.pHEquivalence > 7.5 || curve.pHEquivalence < 6.5 ? "pH 7" : undefined);
+    dashed(c, "neutral", { x: 0, y: 7 * k }, { x: 1.05 * xSpan, y: 7 * k }, "pH 7 reference");
+    if (curve.pHEquivalence > 7.5 || curve.pHEquivalence < 6.5) {
+      // Two dashed lines leave the pH axis: the equivalence guide and the
+      // pH 7 reference. Each value is read off the axis at its own line's
+      // end, on the side away from the other line, so the equivalence pH
+      // cannot settle at the pH 7 height and read as naming that line.
+      const eqAbove = curve.pHEquivalence > 7;
+      c.scene.annotations.push(
+        { id: "eq_ph_value", kind: "label", targetIds: ["eq_ph"], text: eqPhText, placementIntent: eqAbove ? "above-left" : "below-left" },
+        { id: "neutral_value", kind: "label", targetIds: ["neutral_a"], text: "pH 7", placementIntent: eqAbove ? "below-left" : "above-left" },
+      );
+    }
   }
   if (numeric) {
     c.scene.assert("eq_on_curve", "function_value", ["curve"], { t: round(curve.pHEquivalence, 8), x: round(eq.x, 8), y: round(eq.y, 8) });

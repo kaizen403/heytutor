@@ -21,6 +21,7 @@ import { NAMED_SPECIES } from "./namedSpecies";
 import { molecularShapeRequested } from "./foundation/molecularShapeRequest";
 import { type ElementRecord, isMetal, valenceElectrons } from "./elements";
 import { complexTokens, formulaTokens, parseFormula, type ParsedFormula } from "./formula";
+import { stemChargesRead } from "./speciesChargeGuard";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import {
   buildBondTopologyScene,
@@ -1027,6 +1028,10 @@ function stemSpecies(question: string): LewisResult[] {
   };
   formulaTokens(question).forEach(push);
   NAMED_SPECIES.forEach(([pattern, formula]) => { if (pattern.test(stem)) push(formula); });
+  // A charge the stem writes that no read species carries (NO2 -, O2 2-, "the
+  // ... ion" over a neutral formula): the neutral structure is false for the
+  // ion asked, so no species is read.
+  if (!stemChargesRead(question, out.map((result) => result.text))) return [];
   return out;
 }
 

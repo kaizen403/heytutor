@@ -22,6 +22,7 @@ import { complexTokens, normalizeChemistryText, ocrSuspectToken } from "./formul
 import { elementBySymbol } from "./elements";
 
 import { requiresConformationProjection } from "./foundation/conformationRequest";
+import { stemChargesRead } from "./speciesChargeGuard";
 
 export const MO_FAMILY = "chem_mo" as const;
 
@@ -511,6 +512,9 @@ export function buildMoScene(question: string, quantities: ChemPlanQuantity[], s
   const stem = chemStem(question);
   const options: MoOptions = { mixing: mixingOff(stem) ? "off" : "auto" };
   const tokens = moSpeciesTokens(question);
+  // A charge written apart from the formula (O2 2-, N2 -, O2+1) is one the
+  // token reader dropped: the neutral ladder is false for the ion asked.
+  if (!stemChargesRead(question, tokens)) return null;
   const results = tokens.map((token) => moConfiguration(token, options)).filter((result): result is MoResult => result !== null);
   if (results.length === 0 || results.length > 4) return null;
   if (results.length !== tokens.length) return null;
