@@ -716,6 +716,8 @@ function coordinateLessWriteRow(body: string): { text: string; y: number } | nul
     return onWorkRowGrid(y) ? { text: placeholderX[1]!.trim(), y } : null;
   }
   const yOnly = /^(.*\S),(\d+)$/u.exec(trimmed);
+  // `1,211` is a number with a thousands separator, not a row and its y.
+  if (yOnly && /\d$/u.test(yOnly[1]!)) return null;
   if (yOnly) {
     const y = Number(yOnly[2]);
     return onWorkRowGrid(y) ? { text: yOnly[1]!.trim(), y } : null;
@@ -749,6 +751,11 @@ export function matchCoordinateLessWriteTag(slice: string): { raw: string; canon
       }
       const body = slice.slice(header[0].length, index);
       if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) return null;
+      // An evaluation bar (`x^3/3 ]_0^1 = 1/3]`) is not the end of the row:
+      // refuse when bounds follow the bracket, or another "]" closes later
+      // on the same line before any tag.
+      const after = slice.slice(index + 1);
+      if (/^\s*[_^]/u.test(after) || (after.split(/[[\r\n]/u, 1)[0] ?? '').includes(']')) return null;
       const row = coordinateLessWriteRow(body);
       if (!row) return null;
       const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;

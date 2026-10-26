@@ -77,6 +77,10 @@ const refused = [
   "[STEP]Levels. [WRITE:organ -> organism, y=475] Up a level.[/STEP]",
   "[STEP]Chapter ten. [WRITE:chapter = many exercises, x=60, y=541] Many.[/STEP]",
   "[STEP]The answer. [WRITE:solution: x = 3, y = 4] Both found.[/STEP]",
+  // A thousands separator is not a coordinate: "1,211" must not become "1".
+  "[STEP]The count. [WRITE:Population = 1,211] That many.[/STEP]",
+  // An evaluation bar is not the end of the row: the bounds and result stay with it.
+  "[STEP]Area. [WRITE:x^3/3 ]_0^1 = 1/3] So a third.[/STEP]",
   // A row id in front names a row; it must not be written as ink.
   "[STEP]Kelvin. [WRITE:w4:T(K) = T(C) + 273.15] Always kelvin.[/STEP]",
 ];
@@ -109,7 +113,7 @@ for (const source of canonical) {
 assert(batchWrites(canonical[0]!)[0]!.text === "x^3/3 ]_0^1 = 1/3", "the evaluation bar row keeps its full text");
 
 // Two coordinate-less rows in one step: each is closed by the tag after it.
-const two = streamed(`[STEP]First. [WRITE:a = 1] then [WRITE:b = 2,${ROW(1)}] end.[/STEP]`);
-assert(two.writes.map((write) => write.text).join("|") === "a = 1|b = 2", "consecutive repaired rows both reach the board");
+const two = streamed(`[STEP]First. [WRITE:a = 1] then [WRITE:b = 2 m,${ROW(1)}] end.[/STEP]`);
+assert(two.writes.map((write) => write.text).join("|") === "a = 1|b = 2 m", "consecutive repaired rows both reach the board");
 
 console.log("verify-coordinate-less-write: coordinate-less WRITE rows are repaired to the work margin; ambiguous, id-shaped and LABEL tags stay refused; canonical rows are unchanged");
