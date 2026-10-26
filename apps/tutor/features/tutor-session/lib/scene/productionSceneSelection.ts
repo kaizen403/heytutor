@@ -5,6 +5,7 @@
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
+  PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
@@ -642,6 +643,25 @@ export function settleSelectionDegradation<Earlier extends { reason: string }>(i
 }
 
 /**
+ * The one figure a law only lead may still draw (#303). The plan's laws
+ * ("orbital hybridisation model", "LCAO") can lead an archetype a topic ask
+ * never names; that archetype, a planner figure and every other family stay
+ * refused. A chemistry topic ask that names no species may still show the
+ * plan's own example, and only the figure the plan example path built and
+ * checked: provenance `plan_example`, and the same species regenerated here
+ * from the question and the plan by the same reader, topic and claim checks,
+ * and the graph the save admission regenerates from them.
+ */
+export function lawOnlyLeadExemptExample(selected: SelectedRepresentation, question: string, turnPlan: TurnPlanV3): boolean {
+  const source = selected.sceneDocument.source;
+  if (source.figureProvenance !== PLAN_EXAMPLE_PROVENANCE || selected.tier !== "qualitative_verified") return false;
+  const rebuilt = buildPlanExampleDocument(question, turnPlan);
+  return rebuilt.status === "built" && rebuilt.family === selected.family &&
+    typeof source.exampleSpecies === "string" && rebuilt.document.source.exampleSpecies === source.exampleSpecies &&
+    liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) === null;
+}
+
+/**
  * One live/lab final decision: effective visual need → validated exact/fallback
  * selection → readable ink → source policy → exact obligations/save admission
  * → solver-blocked commit. Invalid or rejected candidates never become output geometry.
@@ -678,17 +698,21 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     // nothing, planner candidate included: with that match refused, the next
     // archetype, a family or an unchecked planner figure took the turn (a
     // spring for an air bubble, a floating image point inside a glass sphere).
-    // Strict, which prefers the planner, is unchanged.
-    if (!input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null })) {
-      const reason = "the stem matched an archetype only through its plan's laws";
+    // Strict, which prefers the planner, is unchanged. The one exemption is a
+    // checked plan example (`lawOnlyLeadExemptExample`): the planner candidate
+    // is never offered, and any other selected figure still declines here.
+    const lawOnlyLead = !input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null });
+    const lawOnlyReason = "the stem matched an archetype only through its plan's laws";
+    const lawOnlyDecline = () => {
       const leadStatus = resolveDiagramFailureStatus({
         visualRequirement: questionRequiresVisual(question) ? "required" : turnPlan.visualRequirement,
         requiredRetryEnabled: input.requiredRetryEnabled ?? true,
       });
-      return empty(reason, leadStatus === "retry_required" ? "retry_required" : "text_only",
-        validScene(candidateValidation) ? { code: "law_only_archetype_lead", reason, preferred: false, replacedBy: null } : null);
-    }
-    const value = validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
+      return empty(lawOnlyReason, leadStatus === "retry_required" ? "retry_required" : "text_only",
+        validScene(candidateValidation) ? { code: "law_only_archetype_lead", reason: lawOnlyReason, preferred: false, replacedBy: null } : null);
+    };
+    if (lawOnlyLead && buildPlanExampleDocument(question, turnPlan).status !== "built") return lawOnlyDecline();
+    const value = !lawOnlyLead && validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
     });
@@ -702,6 +726,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       exactFigureSource: input.exactFigureSource ?? "planner",
     });
     let selected = input.fastRepresentation ?? explained!.selected;
+    if (lawOnlyLead && !lawOnlyLeadExemptExample(selected, question, turnPlan)) return lawOnlyDecline();
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
@@ -732,6 +757,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       !explained?.exactDecline && selected.figureSource === (input.exactFigureSource ?? "planner");
     // Every way a valid scene candidate can leave the board names itself.
     const decline: ExactCandidateDecline | null = !validScene(candidateValidation) || candidateDrawn ? null
+      : lawOnlyLead ? { code: "law_only_archetype_lead", reason: lawOnlyReason, preferred: false }
       : !gate.shouldPlanExactScene ? { code: "exact_scene_not_admitted", reason: "the gate does not admit an exact scene for this question", preferred: false }
         : input.fastRepresentation ? { code: "fast_figure_preferred", reason: "a fast verified figure was selected first", preferred: true }
           : explained?.exactDecline ?? (saveFailure ? { code: "save_admission_refused", reason: saveFailure, preferred: false }

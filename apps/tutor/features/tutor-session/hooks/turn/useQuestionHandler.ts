@@ -122,6 +122,7 @@ import {
   buildDoubtTeachingPrompt,
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
+  figureExampleSpeciesOf,
   resumeLessonUserPrompt,
   resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
@@ -1975,6 +1976,9 @@ export function useQuestionHandler(
         : buildTurnTeachingPrompt({
             question,
             diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+            // Only a committed figure that is the plan's example lets the
+            // lesson name that example as the species on the board.
+            figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneV2Document) : null,
             turnPlan,
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
