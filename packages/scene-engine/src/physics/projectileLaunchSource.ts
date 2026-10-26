@@ -78,7 +78,13 @@ function statedLaunchAngle(text: string): ProjectileStatedConditions["angle"] {
 }
 
 function statedGravity(text: string): ProjectileStatedConditions["g"] {
-  const reads = [...text.matchAll(G_VALUE)].map((match) => ({ start: match.index!, end: match.index! + match[0].length, value: parseStemNumber(match[1]!) }));
+  const reads = [...text.matchAll(G_VALUE)].map((match) => {
+    const end = match.index! + match[0].length;
+    // A number with no supported unit may still carry an unsupported one
+    // ("980 cm/s^2", "32 ft/s^2"); that value is never m/s^2.
+    const foreignUnit = /^\s*(?:[a-zµμ]{1,6}\s*(?:\/|\^|²|per\b)|(?:cm|mm|km|ft|feet|foot|inch(?:es)?|gal)\b)/i.test(text.slice(end));
+    return { start: match.index!, end, value: foreignUnit ? null : parseStemNumber(match[1]!) };
+  });
   // Every stated acceleration must be a read g; an unread one may be the g.
   const quantities = [...text.matchAll(ACCEL_QUANTITY)];
   const unreadQuantity = quantities.some((quantity) => !reads.some((read) => quantity.index! >= read.start && quantity.index! < read.end));

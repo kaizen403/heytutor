@@ -188,6 +188,8 @@ export function riverCrossingHeading(question: string): RiverCrossingHeading {
     text = text.replace(pattern, (match: string, ...rest: unknown[]) => {
       const offset = rest.find((item) => typeof item === "number") as number;
       if (INTENT_BEFORE.test(text.slice(Math.max(0, offset - 30), offset))) return match;
+      // A stated angle inside the heading phrase stays for the unread check.
+      if (new RegExp(`${STEM_NUMBER}\\s*(?:°|degrees?\\b|deg\\b|radians?\\b|rad\\b)`, "i").test(match)) return match;
       found = true;
       return " ".repeat(match.length);
     });

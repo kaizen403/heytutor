@@ -139,6 +139,9 @@ check("river: a slow boat with no time request declines (the upstream cue would 
 const OBLIQUE = "A boat moves at 5 m/s in still water across a river flowing at 3 m/s. It heads at 30 degrees upstream from the bank. Find its resultant velocity.";
 check("river: a stated oblique heading the figure does not read declines", () =>
   declines(OBLIQUE, plan(OBLIQUE, [given("v_b", 5, "m/s", "5 m/s in still water"), given("v_r", 3, "m/s", "flowing at 3 m/s")])));
+const OBLIQUE_PATH = "A boat moves at 5 m/s in still water across a river flowing at 3 m/s. It heads at 30 degrees upstream from the bank. How much longer is its path than the shortest path?";
+check("river: an angle inside a stated upstream heading is not dropped for the shortest path heading", () =>
+  declines(OBLIQUE_PATH, plan(OBLIQUE_PATH, [given("v_b", 5, "m/s", "5 m/s in still water"), given("v_r", 3, "m/s", "flowing at 3 m/s")])));
 const NO_HEADING = "A boat moves at 5 m/s in still water. It crosses a 100 m wide river flowing at 3 m/s. How far downstream does it land?";
 check("river: no stated heading and no request draws no upstream heading", () =>
   declines(NO_HEADING, plan(NO_HEADING, riverGivens)));
@@ -183,6 +186,12 @@ const G16 = G10.replace("g = 10", "g = 1.6");
 check("projectile: g = 1.6 gives H = 31.25 m and R = 216.5 m", () =>
   declinesOrTrue(G16, plan(G16, [given("u", 20, "m/s", "20 m/s"), given("θ", 30, "°", "30 degrees"), given("g", 1.6, "m/s^2", "g = 1.6 m/s^2")], [derived("T", 12.5, "s")]),
     { H: 31.25, R: 216.51 }));
+const CGS = "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 1000 cm/s^2. Find the range.";
+check("projectile: a g in a unit the reader does not convert (1000 cm/s^2) is never used as m/s^2", () =>
+  declinesOrTrue(CGS, plan(CGS, [given("u", 20, "m/s", "20 m/s"), given("θ", 30, "°", "30 degrees")]), { H: 5, R: 34.64 }));
+const FEET = "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Take g = 32 ft/s^2. Find the range.";
+check("projectile: g = 32 ft/s^2 is never used as m/s^2", () =>
+  declinesOrTrue(FEET, plan(FEET, [given("u", 20, "m/s", "20 m/s"), given("θ", 30, "°", "30 degrees")]), { H: 5.13, R: 35.51 }));
 const MOON = "A ball is projected at 20 m/s at 30 degrees above the horizontal on the Moon. Find the range.";
 check("projectile: an unread g (on the Moon) declines a figure with numbers", () =>
   declines(MOON, plan(MOON, [given("u", 20, "m/s", "20 m/s"), given("θ", 30, "°", "30 degrees")])));
