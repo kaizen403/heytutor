@@ -62,7 +62,9 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "xt-shm", archetype: "xt_graph", tier: "exact_verified", question: "A particle executes simple harmonic motion with amplitude 5 cm and period 2 s. Draw the displacement-time graph." },
   { id: "rel-cars-catch", group: "relative", archetype: "relative_motion_line", tier: "qualitative_verified", question: "Car A moves at 20 m/s and car B, 100 m ahead of A, moves at 12 m/s in the same direction. Find the time for A to catch B." },
   { id: "rel-cars-east", group: "relative", archetype: "relative_motion_line", tier: "qualitative_verified", question: "Car A travels east at 20 m/s and car B travels east at 5.0 m/s on the same straight road. Find the velocity of A relative to B." },
-  { id: "river-crossing", archetype: "river_boat", tier: "exact_verified", question: "A boat can move at 5 m/s in still water. The river flows at 3 m/s. In what direction should the boat head to reach the point directly opposite on the other bank?" },
+  // "head to reach the point directly opposite" names no heading the crossing reader binds, and
+  // it drew the along-stream picture (vb+vc, vb−vc) here before; a crossing stem now declines it.
+  { id: "river-crossing", archetype: "river_boat", declines: true, question: "A boat can move at 5 m/s in still water. The river flows at 3 m/s. In what direction should the boat head to reach the point directly opposite on the other bank?" },
   { id: "vectors-resultant", archetype: "vectors_resultant", tier: "exact_verified", question: "Two vectors of magnitude 6 and 8 units act at an angle of 60 degrees. Draw the vector triangle and find the magnitude of their resultant." },
   { id: "vectors-dot-concept", archetype: "vectors_resultant", declines: true, question: "If a . b = 0 for two non-zero vectors a and b, what is the angle between a and b?" },
   // Laws of motion
