@@ -50,14 +50,17 @@ function thresholdHasReactionOwner(stem: string): boolean {
 /** A distribution of speeds is a distribution over moving particles. */
 const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/;
 // A gas may carry a short run of descriptions ("a monatomic ideal gas"); the
-// noun itself stays the evidence.
-const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:(?:\w+\s+){0,3}gas(?:es)?|(?:\w+\s+)?(?:molecules|particles|atoms))\b`;
+// noun itself stays the evidence. The run may not cross a preposition
+// ("radiation in a gas") or name a quantum gas, and particles or atoms are
+// not kinetic theory evidence: beta particles and an electron gas have
+// energy distributions that are not this curve.
+const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?|(?:\w+\s+)?molecules)\b`;
 /**
  * An energy distribution is the molecules' only when the stem says so beside
  * it: a standing electromagnetic wave has an energy distribution too.
  */
 const MOLECULAR_ENERGY_DISTRIBUTION = new RegExp(
-  String.raw`\b(?:molecular|particle)\s+(?:kinetic\s+)?energy\s+distributions?\b` +
+  String.raw`\bmolecular\s+(?:kinetic\s+)?energy\s+distributions?\b` +
   String.raw`|\b(?:kinetic\s+)?energy\s+distributions?\s+(?:of|among|in|for)\s+${CARRIER}` +
   String.raw`|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+(?:kinetic\s+)?energ(?:y|ies)\b|(?:kinetic\s+)?energ(?:y|ies)\s+(?:of|among|in|for)\s+${CARRIER})`,
 );
