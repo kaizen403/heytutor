@@ -19,7 +19,7 @@
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type BondStyle, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { speciesWithWrittenCharges } from "./speciesChargeGuard";
+import { chargeAttachedReadings, speciesWithWrittenCharges } from "./speciesChargeGuard";
 import {
   buildDipoleScene,
   buildFajanScene,
@@ -910,6 +910,34 @@ export function vseprSpecies(question: string): VseprResult[] {
   return species;
 }
 
+/**
+ * Routing only, when the routing read is empty: the routing read of the stem
+ * with each written charge attached to its formula. "Shape of CO3 2-" and
+ * "shape of NH4 +" name bodies that are no molecule (CO3, NH4), so the plain
+ * read is empty and the stem used to leave the chemistry lane for a physics
+ * dipole figure. Read with the charge attached they are the carbonate and
+ * ammonium ions, so the stem stays here. Nothing is drawn from this read:
+ * the figure read (vseprSpecies) still declines a charge it did not read.
+ */
+function chargedRoutingSpecies(question: string): VseprResult[] {
+  for (const reading of chargeAttachedReadings(question)) {
+    const species = vseprRoutingSpecies(reading);
+    if (species.length > 0) return species;
+  }
+  return [];
+}
+
+/**
+ * The species routing reads: the routing read, or for a stem that names a
+ * shape or a dipole and reads none, the charged routing read (a charge
+ * written apart from a body that is no molecule: CO3 2-, NH4 +).
+ */
+function routingSpecies(question: string, stem: string): VseprResult[] {
+  const plain = vseprRoutingSpecies(question);
+  if (plain.length > 0 || !(CUE.test(stem) || dipoleIsTheAsk(stem))) return plain;
+  return chargedRoutingSpecies(question);
+}
+
 function dipoleInputs(species: readonly VseprResult[]): DipoleInput[] {
   return species.map((result) => ({
     formula: result.formula,
@@ -929,7 +957,7 @@ export function isVseprStem(question: string): boolean {
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
   // Routing reads species without the charge guard: a charged shape stem stays
   // in the chemistry lane and declines there, never reaching another lane.
-  const species=vseprRoutingSpecies(question);
+  const species = routingSpecies(question, stem);
   if (dipoleIsTheAsk(stem) && dipoleInputs(species).some((input) => dipoleAccount(input) !== null)) return true;
   if (!CUE.test(stem)) {
     const text=repairOcr(normalizeChemistryText(question));

@@ -474,7 +474,7 @@ function guardsOff(src: string): void {
 
 /** VSEPR routing reading the guarded species again, as #304's first head did. */
 function routingGuarded(src: string): void {
-  patchFile(join(src, "chemistry/vsepr.ts"), "const species=vseprRoutingSpecies(question);", "const species=vseprSpecies(question);");
+  patchFile(join(src, "chemistry/vsepr.ts"), "const species = routingSpecies(question, stem);", "const species=vseprSpecies(question);");
 }
 
 /** Stems whose routing differs between two sweeps, quoted for the failure message. */
