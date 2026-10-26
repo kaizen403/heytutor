@@ -1974,6 +1974,9 @@ export function useQuestionHandler(
         : buildTurnTeachingPrompt({
             question,
             diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+            // Only a committed figure that is the plan's example lets the
+            // lesson name that example as the species on the board.
+            figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneV2Document) : null,
             turnPlan,
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
@@ -3074,4 +3077,9 @@ export function useQuestionHandler(
   ]);
 
   return { handleQuestion };
+}
+
+function figureExampleSpeciesOf(document: SceneDocument | Record<string, unknown> | null): string | null {
+  const source = document && typeof document === "object" ? (document as { source?: { figureProvenance?: unknown; exampleSpecies?: unknown } }).source : undefined;
+  return source?.figureProvenance === "plan_example" && typeof source.exampleSpecies === "string" ? source.exampleSpecies : null;
 }

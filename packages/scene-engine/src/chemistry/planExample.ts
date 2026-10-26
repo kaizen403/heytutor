@@ -10,7 +10,7 @@ import { elementByName } from "./elements";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { namedSpeciesMentions } from "./namedSpecies";
 import { isChemistryQuestion } from "./router";
-import { buildVseprFigure, compositionKey, isVseprStem, vseprClaimFacts, vseprSpecies } from "./vsepr";
+import { actualLonePairCount, buildVseprFigure, compositionKey, isVseprStem, namedVseprProperties, vseprClaimFacts, vseprSpecies } from "./vsepr";
 import type { ParsedFormula } from "./formula";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 import type { SceneDocument } from "../types";
@@ -51,6 +51,20 @@ function claimNamesSpecies(text: string, species: ParsedFormula): boolean {
   return keys.size === 1 && keys.has(key);
 }
 
+/**
+ * A charge is read only when it is written whole: none, a single trailing
+ * sign (NH4+, NO3-), or an explicit ^ charge (SO4^2-, NH₄⁺). A bare digit run
+ * the parser would have to split into subscript and charge (SO42-), a second
+ * sign, or a sign anywhere else declines.
+ */
+export function chargeReadWhole(formula: string): boolean {
+  const signs = formula.match(/[+-]/g) ?? [];
+  if (signs.length === 0) return true;
+  if (signs.length !== 1) return false;
+  if (/\^\(?\d*[+-]\)?$/.test(formula)) return /^[^^]*\^[^^]*$/.test(formula);
+  return /[A-Za-z\])]\d?[+-]$/.test(formula) && !/\d{2,}[+-]$/.test(formula);
+}
+
 /** The plan's example, accepted only on a chemistry question that names no species. */
 export function readPlanExample(question: string, turnPlan: unknown): PlanExampleReading {
   const raw = typeof turnPlan === "object" && turnPlan !== null ? (turnPlan as { exampleSpecies?: unknown }).exampleSpecies : undefined;
@@ -62,11 +76,13 @@ export function readPlanExample(question: string, turnPlan: unknown): PlanExampl
   }
   if (!isChemistryQuestion(question)) return { status: "declined", reason: "not a chemistry question" };
   if (questionNamesSpecies(question)) return { status: "declined", reason: "the question names its own species" };
-  const formula = entry.formula.trim();
+  // Compared in normal notation (BF₃ is BF3), still one whole species.
+  const formula = normalizeChemistryText(entry.formula);
   const tokens = formulaTokens(formula);
   if (tokens.length !== 1 || tokens[0] !== formula || !parseFormula(formula)) {
     return { status: "declined", reason: "plan example formula does not parse as one species" };
   }
+  if (!chargeReadWhole(formula)) return { status: "declined", reason: "plan example charge is not written in a form read whole" };
   return { status: "accepted", source: {
     formula, claim: entry.claim.trim(), stem: `${question.trim()} (example: ${formula})`, caption: `example: ${formula}`,
   } };
@@ -92,6 +108,18 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   if (species.length !== 1 || compositionKey(parseFormula(species[0]!.formula)!) !== compositionKey(parsed)) {
     return { status: "declined", reason: "the VSEPR family cannot compute this species" };
   }
+  // The example must illustrate what the question names, not merely be true
+  // of itself: one named value, and the example has it.
+  const asked = namedVseprProperties(question);
+  const result = species[0]!;
+  for (const [named, value, property] of [
+    [asked.hybridisations, result.hybridisation, "hybridisation"],
+    [asked.shapes, result.shape, "shape"],
+    [asked.lonePairs, actualLonePairCount(result), "lone-pair count"],
+  ] as const) {
+    if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
+    if (named.size === 1 && !(named as ReadonlySet<unknown>).has(value)) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
+  }
   const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
   if (checked.scopeError || checked.facts.length === 0) return { status: "declined", reason: "plan example claim states no checkable fact about the species" };
   const wrong = checked.facts.find((fact) => !fact.truth);
@@ -112,6 +140,7 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   const figure = buildVseprFigure(source.stem, [], false, { exampleCaption: source.caption });
   if (!figure) return { status: "declined", reason: "the VSEPR family declined the example" };
   const document = figure.document;
-  document.source = { ...document.source, figureProvenance: PLAN_EXAMPLE_PROVENANCE, exampleSpecies: source.formula };
+  // The builders read the example stem; the figure answers the question as asked.
+  document.source = { ...document.source, question, figureProvenance: PLAN_EXAMPLE_PROVENANCE, exampleSpecies: source.formula };
   return { status: "built", document, source, family: "chem_vsepr" };
 }

@@ -10,6 +10,7 @@
  */
 import { validateTurnPlanV3 } from "../../src/contracts/contractsV3";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
+import { chargeReadWhole } from "../../src/chemistry/planExample";
 import { buildPlanExampleDocument, certifyVseprSourceDocument, readPlanExample, questionNamesSpecies } from "../../src/chemistry";
 
 let failures = 0;
@@ -74,6 +75,61 @@ for (const [question, example, label] of DECLINE) {
   const scene = synthesizeFamilyScene({ question, turnPlan: plan(question, example) });
   check(scene?.document.source.figureProvenance !== "plan_example", `declines ${label} (${question})`);
 }
+// The example must illustrate what the question names: an sp3 figure is not
+// an answer to "what is sp2 hybridisation", however true it is of CH4.
+const OFF_TOPIC: Array<[string, string, string, string]> = [
+  ["what is sp2 hybridisation", "CH4", "CH4 is sp3 and tetrahedral", "an sp3 example for an sp2 ask"],
+  ["what is sp3d2 hybridisation", "PCl5", "PCl5 is sp3d and trigonal bipyramidal", "an sp3d example for an sp3d2 ask"],
+  ["explain sp hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "an sp2 example for an sp ask"],
+  ["why are some molecules linear", "BF3", "BF3 is sp2 and trigonal planar", "a trigonal planar example for a linear ask"],
+  ["why are some molecules bent", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example for a bent ask"],
+  ["what molecules have two lone pairs", "NH3", "NH3 has one lone pair on N and is trigonal pyramidal", "a one lone pair example for a two lone pair ask"],
+  ["difference between sp2 and sp3 hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "one example for two named hybridisations"],
+];
+for (const [question, formula, claim, label] of OFF_TOPIC) {
+  const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
+  check(built.status === "declined", `declines ${label} (${question}, ${formula}): ${built.status}`);
+}
+const ON_TOPIC: Array<[string, string, string]> = [
+  ["what is sp3d2 hybridisation", "SF6", "SF6 is sp3d2 and octahedral"],
+  ["explain sp hybridisation", "CO2", "CO2 is sp hybridised and linear"],
+  ["why are some molecules linear", "CO2", "CO2 is sp hybridised and linear"],
+  ["why are some molecules bent", "H2O", "H2O is bent with two lone pairs on O"],
+  ["what molecules have two lone pairs", "H2O", "H2O is bent with two lone pairs on O"],
+];
+for (const [question, formula, claim] of ON_TOPIC) {
+  const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
+  check(built.status === "built", `${question} with ${formula} draws: ${built.status === "declined" ? built.reason : built.status}`);
+}
+
+// Notation: subscripts and explicit charges are read; a charge the parser
+// would have to guess or cannot read whole declines.
+const NOTATION: Array<[string, string, string, string]> = [
+  ["what is sp2 hybridisation", "BF₃", "BF₃ is sp2 and trigonal planar", "BF3"],
+  ["explain hybridisation", "NH₄⁺", "NH₄⁺ is sp3 and tetrahedral", "NH4^(+)"],
+  ["explain hybridisation", "SO4^2-", "SO4^2- is sp3 and tetrahedral", "SO4^2-"],
+];
+for (const [question, formula, claim, recorded] of NOTATION) {
+  const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
+  check(built.status === "built" && built.document.source.exampleSpecies === recorded,
+    `${formula} reads as ${recorded}: ${built.status === "declined" ? built.reason : built.status === "built" ? built.document.source.exampleSpecies : "none"}`);
+}
+for (const formula of ["SO42-", "PO43-", "SO4-2", "NH4(+)", "SO4^-2", "NH4+-", "SO4^2-^", "S-O4", "NO2^(+)^"]) {
+  check(!chargeReadWhole(formula), `the charge reader refuses ${formula}`);
+}
+for (const formula of ["BF3", "NH4+", "NO3-", "SO4^2-", "SO4^(2-)", "NH4^+", "[BF4]-"]) {
+  check(chargeReadWhole(formula), `the charge reader reads ${formula} whole`);
+}
+for (const formula of ["SO4 2-", "SO42-", "SO4-2", "NH4(+)", "SO4^-2", "NH4+-", "NO2 minus"]) {
+  const built = buildPlanExampleDocument("explain hybridisation", plan("explain hybridisation", [{ formula, claim: `${formula} is sp3 and tetrahedral` }]));
+  check(built.status === "declined", `a charge not read whole declines (${formula}): ${built.status}`);
+}
+
+// The saved document keeps the student's own question, not the example stem.
+const savedExample = buildPlanExampleDocument("explain hybridisation", plan("explain hybridisation", [{ formula: "CH4", claim: "CH4 is sp3 and tetrahedral" }]));
+check(savedExample.status === "built" && savedExample.document.source.question === "explain hybridisation",
+  `the example document records the question as asked (${savedExample.status === "built" ? savedExample.document.source.question : savedExample.status})`);
+
 const contradiction = plan("what is sp2 hybridisation", [{ formula: "BF3", claim: "BF3 is sp2 and trigonal planar" }],
   { qualitativeClaims: [{ id: "c1", claim: "BF3 has one lone pair on B", expected: true }] });
 check(buildPlanExampleDocument("what is sp2 hybridisation", contradiction).status === "declined", "a plan claim contradicting the computed example declines");
@@ -93,4 +149,4 @@ if (failures) {
   console.error(`verify-plan-example-species: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log(`verify-plan-example-species: schema, ${DRAW.length} example draws with caption and save, ${DECLINE.length + 1} declines`);
+console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + 8} declines, charge reader`);

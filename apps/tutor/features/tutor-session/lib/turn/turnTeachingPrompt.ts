@@ -52,6 +52,8 @@ export interface TurnTeachingPromptInput {
   question: string;
   /** `VerifiedDiagram.promptAddon` when a figure was committed, else null. */
   diagramPromptAddon: string | null;
+  /** The committed figure's `source.exampleSpecies` when it is the plan's example, else null. */
+  figureExampleSpecies?: string | null;
   turnPlan: TurnPlanV3 | null;
   /** `ProblemAuthorityV1Response["projection"]` when the solver answered. */
   solverProjection: unknown;
@@ -750,10 +752,16 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   };
 }
 
-/** Empty unless the plan's example is accepted for this chemistry question. */
-export function planExampleTeachingAddon(question: string, turnPlan: TurnPlanV3 | null): string {
+/**
+ * Empty unless the figure committed to the board is the plan's example for
+ * this chemistry question. A parseable example the figure checks refused, or
+ * a turn whose board shows something else, gets nothing: the lesson never
+ * commits to a species the board does not show.
+ */
+export function planExampleTeachingAddon(question: string, turnPlan: TurnPlanV3 | null, figureExampleSpecies: string | null | undefined): string {
+  if (!figureExampleSpecies) return "";
   const reading = readPlanExample(question, turnPlan);
-  if (reading.status !== "accepted") return "";
+  if (reading.status !== "accepted" || reading.source.formula !== figureExampleSpecies) return "";
   const { formula } = reading.source;
   return `EXAMPLE TO TEACH WITH
 The question names no species. Teach the idea with ${formula} as the one worked example, and say early that ${formula} is an example you chose. Any figure on the board is ${formula}. Do not switch to another species as the main example; a second species only as a brief contrast.`;
@@ -858,7 +866,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     !codeLesson && isChemistryQuestion(question) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
     // The figure of a topic ask with no species is the plan's own example;
     // the lesson teaches with that same species so voice and board agree.
-    !codeLesson && isChemistryQuestion(question) ? planExampleTeachingAddon(question, turnPlan) : "",
+    !codeLesson && hasFigure && isChemistryQuestion(question) ? planExampleTeachingAddon(question, turnPlan, input.figureExampleSpecies) : "",
     !codeLesson && input.fastMode ? FAST_MODE_TEACHING_ADDON : "",
     !codeLesson ? (FAMILIARITY_ADDONS[input.familiarity] ?? "") : "",
     !hasFigure ? noFigurePromptAddon(Boolean(codeLesson)) : "",

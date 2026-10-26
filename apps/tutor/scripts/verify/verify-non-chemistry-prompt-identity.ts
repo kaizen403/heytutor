@@ -56,16 +56,18 @@ async function plannerBodies(question: string, candidate: TurnPlanV3): Promise<s
   return bodies.sort();
 }
 
-function teachingPrompts(question: string, turnPlan: TurnPlanV3): string[] {
-  return [null, "FIGURE ON THE BOARD\n(gate figure addon)"].flatMap((diagramPromptAddon) => {
+function teachingPrompts(question: string, turnPlan: TurnPlanV3, figureExampleSpecies?: string | null, figures: ReadonlyArray<string | null> = [null, "FIGURE ON THE BOARD\n(gate figure addon)"]): string[] {
+  return figures.flatMap((diagramPromptAddon) => {
     const prompt = buildTurnTeachingPrompt({
       question, diagramPromptAddon, turnPlan, solverProjection: null, codeLesson: null,
+      ...(figureExampleSpecies === undefined ? {} : { figureExampleSpecies }),
       isDsa: false, familiarity: "normal", fastMode: true, narrationLanguage: "english",
     } as Parameters<typeof buildTurnTeachingPrompt>[0]);
     return [prompt.systemPrompt, prompt.continuationPrompt];
   });
 }
 
+const FIGURE = "FIGURE ON THE BOARD\n(gate figure addon)";
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 async function main(): Promise<void> {
@@ -85,8 +87,15 @@ const chemistryBodies = await plannerBodies(chemistryQuestion, chemistryPlan);
 const chemistryProblems = [
   chemistryBodies.every((body) => body.includes(JSON.stringify(TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON).slice(1, -1))) ? "" : "a chemistry planner request lacks the example addon",
   questionNamesSpecies(TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON) ? "the planner addon names a species" : "",
-  teachingPrompts(chemistryQuestion, chemistryPlan).every((prompt) => prompt.includes("EXAMPLE TO TEACH WITH") && prompt.includes("BF3")) ? "" : "the chemistry teaching prompt lacks the plan example",
-  teachingPrompts("why is water bent", plan("why is water bent", { exampleSpecies: [{ formula: "NH3", claim: "NH3 is sp3" }] }))
+  teachingPrompts(chemistryQuestion, chemistryPlan, "BF3", [FIGURE]).every((prompt) => prompt.includes("EXAMPLE TO TEACH WITH") && prompt.includes("BF3")) ? "" : "the chemistry teaching prompt lacks the plan example",
+  // The lesson names the example only when the board shows it: no figure, a
+  // figure that is not the example (its checks refused it), or another species.
+  teachingPrompts(chemistryQuestion, chemistryPlan, "BF3", [null]).some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a turn with no figure was told the example is on the board" : "",
+  teachingPrompts(chemistryQuestion, chemistryPlan, null, [FIGURE]).some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a figure that is not the plan example was described as the example" : "",
+  teachingPrompts(chemistryQuestion, chemistryPlan, "NH3", [FIGURE]).some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a figure of another species was described as the plan example" : "",
+  teachingPrompts(chemistryQuestion, plan(chemistryQuestion, { exampleSpecies: [{ formula: "CH4", claim: "CH4 is sp3 and tetrahedral" }] }), null, [FIGURE])
+    .some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a refused example was taught as the board's species" : "",
+  teachingPrompts("why is water bent", plan("why is water bent", { exampleSpecies: [{ formula: "NH3", claim: "NH3 is sp3" }] }), "NH3")
     .some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a question naming its species was given a plan example" : "",
 ].filter(Boolean);
 if (chemistryProblems.length) {

@@ -456,10 +456,36 @@ function stemProperty(stem: string): StemProperty {
   return { hybridisation: readHybridisation(stem), shape: readShape(stem), lonePairs: readLonePairs(stem) };
 }
 
+/**
+ * Every hybridisation, shape and lone-pair count a topic ask names, so a plan
+ * example can be held to the topic: "what is sp2 hybridisation" names sp2, and
+ * an sp3 example does not illustrate it. A bare "sp" counts as sp here; the
+ * reader errs towards naming something, which only ever declines an example.
+ */
+export function namedVseprProperties(text: string): { hybridisations: Set<Hybridisation>; shapes: Set<VseprShape>; lonePairs: Set<number> } {
+  const stem = normalizeChemistryText(text).toLowerCase();
+  const compact = stem.replace(/[\^*'\u2019"`()]/g, "");
+  const hybridisations = new Set<Hybridisation>();
+  for (const match of compact.matchAll(/\bsp\s?(\d)?\s?(d)?\s?(\d)?(?![a-z])/g)) {
+    const [, power, d, dPower] = match;
+    if (d) hybridisations.add(dPower === "2" ? "sp3d2" : dPower === "3" ? "sp3d3" : "sp3d");
+    else if (power === "2") hybridisations.add("sp2");
+    else if (power === "3") hybridisations.add("sp3");
+    else hybridisations.add("sp");
+  }
+  const shapes = new Set<VseprShape>();
+  for (const [pattern, shape] of SHAPE_WORDS) if (pattern.test(stem)) shapes.add(shape);
+  const lonePairs = new Set<number>();
+  const words: Record<string, number> = { zero: 0, no: 0, one: 1, two: 2, three: 3 };
+  for (const match of stem.matchAll(/\b(zero|no|one|two|three|[0-3])\s+lone[ -]?pairs?/g)) lonePairs.add(words[match[1]!] ?? Number(match[1]));
+  return { hybridisations, shapes, lonePairs };
+}
+
 /** A radical's single-electron domain is not an electron pair. */
 function actualLonePairs(result: VseprResult): number {
   return result.lonePairs - (result.unpairedElectron ? 1 : 0);
 }
+export const actualLonePairCount = actualLonePairs;
 
 type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean; owners: readonly string[] | null };
 
