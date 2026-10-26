@@ -153,26 +153,16 @@ const overhangingInk = (text: string, x: number, y: number, fontPx: number) => {
   if (anchors.some((anchor) => Math.hypot(centre.x - anchor.x, centre.y - anchor.y) <= POINT_LABEL_TETHER_PX + 4)) return ink;
   return { x: ink.x - overhang, y: ink.y, width: ink.width + overhang, height: ink.height };
 };
-const strokesOf = (primitive: RenderPrimitive): Segment[] => {
-  const p = primitive.points;
-  if (primitive.kind === "axes" && p.length === 4) return [[p[0]!, p[1]!], [p[2]!, p[3]!]];
-  return p.slice(1).map((point, index): Segment => [p[index]!, point]);
-};
 const overhung = compileSceneDocument(structuredClone(fixture.ellipse), { measureLabelInkBounds: overhangingInk });
 assert.ok(overhung.ok && overhung.renderScene, "ellipse with overhanging escape ink still compiles");
 const overhungOff = compileSceneDocument(structuredClone(fixture.ellipse), { measureLabelInkBounds: overhangingInk, pointLabelRivals: false });
 assert.ok(overhungOff.ok && overhungOff.renderScene, "ellipse with overhanging escape ink compiles with the rule off");
 assert.equal(labelInk(overhung.renderScene.primitives), labelInk(overhungOff.renderScene.primitives), "ellipse with overhanging ink: keeps origin/main's layout");
+// The guard refuses every gained leader, so the overhung figure draws no
+// escape leader for V1 or V2 at all: the plain layout never draws one.
 for (const id of ["V1", "V2"]) {
   const label = overhung.renderScene.primitives.find((primitive) => primitive.id === `primitive_${id}_label`)!;
-  if (label.provenance?.usesLeader !== true) continue;
-  const box = label.provenance!.labelBounds as Box;
-  const ink = overhangingInk(label.text!, box.x + 2, box.y + 2, Number(label.provenance?.fontPx ?? 24))!;
-  const hit = overhung.renderScene.primitives
-    .filter((primitive) => primitive.entityId !== id && primitive.kind !== "label" && primitive.kind !== "point" && !primitive.provenance?.labelLeader)
-    .filter((primitive) => strokesOf(primitive).some((segment) => boxToSegment(ink, segment) === 0))
-    .map((primitive) => primitive.id);
-  assert.deepEqual(hit, [], `${id}: escape label ink clears every stroke`);
+  assert.notEqual(label.provenance?.usesLeader, true, `${id}: the rule draws no escape leader`);
 }
 
 // 4. A short triangle side next to a vertex. P at a right-angle vertex with
@@ -309,7 +299,7 @@ function perLabelVerdict(main: RenderPrimitive[], head: RenderPrimitive[]): { wo
     if (next.misread) worse.push(`${next.text}: reads as a foreign mark`);
     if (prior.leader && !next.leader) worse.push(`${next.text}: loses its leader`);
     if (next.leader && !next.straight) worse.push(`${next.text}: leader is not one clean straight stroke from its own mark`);
-    if (!prior.misread && next.leader && !prior.leader) worse.push(`${next.text}: gains a leader though it read right`);
+    if (next.leader && !prior.leader) worse.push(`${next.text}: gains a leader`);
     next.boxes.forEach((box, index) => {
       if (box.margin < prior.boxes[index]!.margin - MARGIN_TOLERANCE_PX) worse.push(`${next.text}: margin falls`);
       if (box.own > prior.boxes[index]!.own + DRIFT_TOLERANCE_PX) worse.push(`${next.text}: drifts from its own mark`);
@@ -443,7 +433,7 @@ assert.equal(verdicts.lensLeaderFallback, "main", "lensLeaderFallback: compiles,
   // right, so the right label test refuses it too.
   const rElbow = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 805, y: 545 }, { x: 810, y: 540 }]);
   assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, rElbow, h)),
-    ["R: leader is not one clean straight stroke from its own mark", "R: gains a leader though it read right"],
+    ["R: leader is not one clean straight stroke from its own mark", "R: gains a leader"],
     "guard: an elbowed leader is caught (leader test)");
   // Test 3: R loses the straight leader the plain layout drew.
   const rLeader = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 810, y: 535 }]);
@@ -452,17 +442,18 @@ assert.equal(verdicts.lensLeaderFallback, "main", "lensLeaderFallback: compiles,
   // Test 3: R read right without a leader and gains one straight clean
   // leader from its own dot, box unchanged. Nothing else catches this.
   const rStraight = place("lR", "R", "R", { x: 810, y: 520, width: 20, height: 20 }, [R, { x: 810, y: 535 }]);
-  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, rStraight, h)), ["R: gains a leader though it read right"],
-    "guard: a label the plain layout read right gains no leader (right label test)");
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pRepaired, rStraight, h)), ["R: gains a leader"],
+    "guard: a label the plain layout read right gains no leader (gained leader test)");
   // Test 2, box distance: P is repaired by one straight clean leader from its
   // own dot, but the leader's box ends 10 px from Q's dot and 27 px from P's.
   // A leader does not make that box read as P's.
   const pLeaderBesideQ = place("lP", "P", "P", { x: 525, y: 410, width: 20, height: 20 }, [P, { x: 525, y: 415 }]);
   const besideQ = guard(layout(pMisread, r, h), layout(pLeaderBesideQ, r, h));
   assert.ok(besideQ.includes("P: reads as a foreign mark"), `guard: a leadered box beside a foreign mark is caught (box distance test): ${JSON.stringify(besideQ)}`);
-  // One straight clean leader whose box reads as its own mark repairs P.
+  // Even one straight clean leader whose box reads as its own mark is a
+  // gained leader, and the rule keeps the plain layout.
   const pLeaderRepaired = place("lP", "P", "P", { x: 470, y: 380, width: 20, height: 20 }, [P, { x: 490, y: 395 }]);
-  assert.deepEqual(guard(layout(pMisread, r, h), layout(pLeaderRepaired, r, h)), [], "guard: a straight clean leader to a box that reads as its own mark is kept");
+  assert.deepEqual(guard(layout(pMisread, r, h), layout(pLeaderRepaired, r, h)), ["P: gains a leader"], "guard: a gained leader is refused even when its box reads as its own mark (gained leader test)");
 }
 
-console.log(`verify-point-label-rival-lines: the ellipse keeps main's layout and the check sees V1 and V2 across the directrices; ${controls} control labels unmoved; the escape ink case keeps main's layout; a far leader past a short triangle side is refused; ${repairedFigures} recorded figures repaired with no label worse, ${recordedNames.length - repairedFigures} keep main's layout; only point repairs count; the guard's stroke, margin, box distance, leader and right label tests each decide a case`);
+console.log(`verify-point-label-rival-lines: the ellipse keeps main's layout and the check sees V1 and V2 across the directrices; ${controls} control labels unmoved; the escape ink case keeps main's layout; a far leader past a short triangle side is refused; ${repairedFigures} recorded figures repaired with no label worse, ${recordedNames.length - repairedFigures} keep main's layout; only point repairs count; the guard's stroke, margin, box distance, leader and gained leader tests each decide a case`);

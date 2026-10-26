@@ -495,8 +495,8 @@ const POINT_RIVAL_GUARD_CHECKS = {
   margins: true,
   /** A moved label gains no leader other than one straight stroke from its own mark, and loses no leader. */
   leaders: true,
-  /** A label the plain layout read right gains no leader at all. */
-  rightLabelsKeepNoLeader: true,
+  /** A moved label gains no leader at all, so the rule never draws an escape leader the plain layout did not. */
+  noGainedLeader: true,
   /** A leadered label is judged by where its box sits, as an unleadered one: a leader does not tie its box to its mark. */
   leaderBoxDistance: true,
 };
@@ -626,9 +626,8 @@ export function pointRivalLayoutRegressionsFor(
  * within POINT_RIVAL_MARGIN_TOLERANCE_PX and end no more than
  * POINT_RIVAL_DRIFT_TOLERANCE_PX farther from its own mark, all measured
  * from its box (test 2), and draw no leader but one straight clean stroke
- * from its own mark, losing none, and gaining none where the plain layout
- * read it right (test 3). At least one point letter the plain layout misread
- * must be repaired.
+ * from its own mark, losing none, and gaining none (test 3). At least one
+ * point letter the plain layout misread must be repaired.
  */
 function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: Map<string, LabelReading>): string[] {
   const checks = POINT_RIVAL_GUARD_CHECKS;
@@ -648,7 +647,7 @@ function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: M
     if (next.misread) reasons.push(`${name}: reads as a foreign mark`);
     if (checks.leaders && prior.leader && !next.leader) reasons.push(`${name}: loses its leader`);
     if (checks.leaders && next.leader && !next.straightOwnLeader) reasons.push(`${name}: leader is not one clean straight stroke from its own mark`);
-    if (checks.rightLabelsKeepNoLeader && !prior.misread && next.leader && !prior.leader) reasons.push(`${name}: gains a leader though it read right`);
+    if (checks.noGainedLeader && next.leader && !prior.leader) reasons.push(`${name}: gains a leader`);
     if (checks.margins) next.boxes.forEach((box, index) => {
       const was = prior.boxes[index]!;
       if (box.margin < was.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX) reasons.push(`${name}: margin ${was.margin.toFixed(1)} to ${box.margin.toFixed(1)} px`);
