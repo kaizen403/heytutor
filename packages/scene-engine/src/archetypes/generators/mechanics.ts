@@ -56,7 +56,10 @@ function projectile(context: GeneratorContext) {
   const g = stated.g.status === "read" ? stated.g.value : G;
   // A horizontal launch needs a height, so an unstated one is unread too.
   const height = stated.height.status === "none" && theta === 0 ? { status: "unread" as const } : stated.height;
-  if (height.status === "unread" && metric) return null;
+  // A stated metre elevation the reader does not bind declines without numbers
+  // too, rather than drawing a placeholder in its place. A horizontal launch
+  // already draws its symbolic "h" when no height is stated.
+  if (height.status === "unread" && (metric || ("numeric" in height && height.numeric && theta !== 0))) return null;
   if (height.status === "read" && planH !== null && Math.abs(planH - height.value) > 1e-9) return null;
   if (height.status === "none" && planH !== null && planH !== 0) return null;
   const vx = u * Math.cos(theta * DEG);

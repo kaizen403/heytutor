@@ -380,6 +380,10 @@ for (const question of [
 ]) {
   check(`projectile: an unbound stated elevation declines: "${question.slice(64, 140)}"`, () => declines(question, plan(question, launchGivens)));
 }
+// With no numbers the figure would draw a placeholder height "h" for the
+// stated 10 m, so it declines as well.
+const WALL_SYMBOLIC = "A ball is thrown from a 10 m high wall with speed u at an angle θ above the horizontal. Find the range.";
+check("projectile: an unbound stated elevation declines a figure without numbers too", () => declines(WALL_SYMBOLIC, plan(WALL_SYMBOLIC)));
 
 /* Controls: an exact figure that states only what the figure reads is unchanged. */
 

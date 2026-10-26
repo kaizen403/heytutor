@@ -32,7 +32,8 @@ export function projectileLaunchAngle(question: string): number | null {
 export interface ProjectileStatedConditions {
   readonly angle: { readonly status: "read" } | { readonly status: "unread"; readonly reason: string };
   readonly g: { readonly status: "none" } | { readonly status: "read"; readonly value: number } | { readonly status: "unread"; readonly reason: string };
-  readonly height: { readonly status: "none" } | { readonly status: "read"; readonly value: number } | { readonly status: "unread"; readonly reason: string };
+  /** `numeric` marks a stated metre elevation the reader does not bind: no figure may draw a placeholder for it. */
+  readonly height: { readonly status: "none" } | { readonly status: "read"; readonly value: number } | { readonly status: "unread"; readonly reason: string; readonly numeric?: true };
 }
 
 const REFERENCE_NOUN = String.raw`(?:vertical|y[\s-]?axis|normal|perpendicular|inclined?\s+(?:plane|surface)|incline|plane|slope|ramp|wedge|hill(?:side)?)`;
@@ -175,7 +176,7 @@ function statedHeight(text: string): ProjectileStatedConditions["height"] {
     return { status: "unread", reason: "the question states another height the figure does not draw" };
   }
   if (elevations.some((at) => !heights.some((height) => at >= height.start && at < height.end))) {
-    return { status: "unread", reason: "the question states an elevation the reader does not bind" };
+    return { status: "unread", reason: "the question states an elevation the reader does not bind", numeric: true };
   }
   if (values.length === 0) return { status: "unread", reason: "the question states a launch height without a metre value bound to the launch" };
   if (values.length !== 1 || values[0] === null || !(values[0] >= 0)) return { status: "unread", reason: "the stated launch height is not one value" };
