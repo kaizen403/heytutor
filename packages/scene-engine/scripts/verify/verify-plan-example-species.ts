@@ -83,12 +83,12 @@ const OFF_TOPIC: Array<[string, string, string, string]> = [
   ["explain sp hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "an sp2 example for an sp ask"],
   ["why are some molecules linear", "BF3", "BF3 is sp2 and trigonal planar", "a trigonal planar example for a linear ask"],
   ["why are some molecules bent", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example for a bent ask"],
-  ["what molecules have two lone pairs", "NH3", "NH3 has one lone pair on N and is trigonal pyramidal", "a one lone pair example for a two lone pair ask"],
+  ["explain molecules with two lone pairs", "NH3", "NH3 has one lone pair on N and is trigonal pyramidal", "a one lone pair example for a two lone pair ask"],
   ["difference between sp2 and sp3 hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "one example for two named hybridisations"],
   ["explain dipole moment in molecules", "NH3", "NH3 is sp3 and trigonal pyramidal", "a bare shape for a dipole ask"],
-  ["which molecules have a tetrahedral molecular shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example for a tetrahedral shape ask"],
+  ["explain the tetrahedral molecular shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example for a tetrahedral shape ask"],
   ["explain tetrahedral molecular shape and electron geometry using vsepr", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example when the tetrahedral shape is asked beside electron geometry"],
-  ["which molecules have a tetrahedral electron geometry and shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example when shape is asked beside electron geometry"],
+  ["explain the tetrahedral electron geometry and shape", "NH3", "NH3 is sp3 and trigonal pyramidal", "a pyramidal example when shape is asked beside electron geometry"],
 ];
 for (const [question, formula, claim, label] of OFF_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
@@ -99,13 +99,76 @@ const ON_TOPIC: Array<[string, string, string]> = [
   ["explain sp hybridisation", "CO2", "CO2 is sp hybridised and linear"],
   ["why are some molecules linear", "CO2", "CO2 is sp hybridised and linear"],
   ["why are some molecules bent", "H2O", "H2O is bent with two lone pairs on O"],
-  ["what molecules have two lone pairs", "H2O", "H2O is bent with two lone pairs on O"],
-  ["which molecules have a tetrahedral electron geometry", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["explain molecules with two lone pairs", "H2O", "H2O is bent with two lone pairs on O"],
+  ["explain the tetrahedral electron geometry of molecules", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
   ["explain tetrahedral molecular shape and electron geometry using vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
+  // Every word of these is read or puts no condition on the species.
+  ["what is a lone pair", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["how do lone pairs change bond angle", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["explain molecules with no lone pairs", "CH4", "CH4 is sp3 and tetrahedral with no lone pairs"],
+  ["what is a see-saw shape in vsepr theory", "SF4", "SF4 is sp3d and see-saw with one lone pair"],
+  ["what does octahedral molecular geometry look like", "SF6", "SF6 is sp3d2 and octahedral"],
+  ["difference between electron geometry and molecular geometry", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["what is sp^3d^2 hybridisation?", "SF6", "SF6 is sp3d2 and octahedral"],
+  ["What is sp³ hybridisation?", "CH4", "CH4 is sp3 and tetrahedral"],
+  ["shapes of molecules by vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
 ];
 for (const [question, formula, claim] of ON_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
   check(built.status === "built", `${question} with ${formula} draws: ${built.status === "declined" ? built.reason : built.status}`);
+}
+
+// The example must fit the whole question, not only the words the reader
+// understands. Each example below is true of itself; each question carries a
+// word the reader does not read (a negation, a property, a substance, a
+// count it does not bind, a hybridisation it cannot map), so it declines.
+const CO2 = "CO2 is sp hybridised and linear";
+const CH4 = "CH4 is sp3 and tetrahedral with no lone pairs";
+const H2O = "H2O is bent with two lone pairs on O";
+const BF3 = "BF3 is sp2 hybridised and trigonal planar";
+const SF6 = "SF6 is sp3d2 and octahedral";
+const NH3 = "NH3 is sp3 and trigonal pyramidal with one lone pair";
+const UNREAD: Array<[string, string, string]> = [
+  ["explain the shape of nonlinear molecules", "CO2", CO2],
+  ["explain why some molecules are not linear", "CO2", CO2],
+  ["what is a lone pair", "CH4", CH4],
+  ["explain the shape of molecules without lone pairs", "H2O", H2O],
+  ["explain dsp2 hybridisation", "XeF4", "XeF4 is sp3d2 and square planar"],
+  ["explain the shape of polar molecules", "CO2", CO2],
+  ["what shape has a bond angle of 120", "CH4", CH4],
+  ["explain sp3 hybridisation in ice", "CH4", CH4],
+  ["explain sp2 hybridisation in graphite", "BF3", BF3],
+  ["explain the shape of non planar molecules", "BF3", BF3],
+  ["explain the shape of non-linear molecules", "CO2", CO2],
+  ["explain the shape of a molecule with a single lone pair", "CH4", CH4],
+  ["explain the shape of molecules with lone pairs", "CH4", CH4],
+  ["how do lone pairs change bond angle", "CH4", CH4],
+  ["explain the shape of a molecule with four bond pairs and one lone pair", "NH3", NH3],
+  ["explain the shape of a molecule with three bond pairs", "CH4", CH4],
+  ["explain the shape of a molecule with 5 electron domains", "CH4", CH4],
+  ["explain the shape of molecules with an expanded octet", "CH4", CH4],
+  ["explain the shape of electron deficient molecules", "CH4", CH4],
+  ["explain the shape of odd electron molecules", "CH4", CH4],
+  ["explain the shape of nonpolar molecules", "H2O", H2O],
+  ["explain the shape of a diatomic molecule", "CO2", CO2],
+  ["explain the shape of triatomic molecules", "CH4", CH4],
+  ["explain the shape of a hydride", "SF6", SF6],
+  ["explain the shape of interhalogen compounds", "XeF4", "XeF4 is sp3d2 and square planar"],
+  ["explain hybridisation in coordination compounds", "SF6", SF6],
+  ["why is the bond angle smaller than tetrahedral", "CH4", CH4],
+  ["explain sp2 hybridisation in aldehydes", "BF3", BF3],
+  ["explain sp hybridisation in alkynes", "CO2", CO2],
+  ["explain sp3 hybridisation in diamond", "SiH4", "SiH4 is sp3 and tetrahedral"],
+  ["explain d2sp3 hybridisation", "SF6", SF6],
+  ["explain sp3d3 hybridisation", "IF7", "IF7 is sp3d3 and pentagonal bipyramidal"],
+  ["explain distorted tetrahedral shape", "CH4", CH4],
+];
+for (const [question, formula, claim] of UNREAD) {
+  const turnPlan = plan(question, [{ formula, claim }]);
+  const built = buildPlanExampleDocument(question, turnPlan);
+  const scene = synthesizeFamilyScene({ question, turnPlan });
+  check(built.status === "declined" && scene?.document.source.figureProvenance !== "plan_example",
+    `declines ${formula} for a question with an unread word (${question}): ${built.status}`);
 }
 
 // Notation: subscripts and explicit charges are read; a charge the parser
@@ -155,4 +218,4 @@ if (failures) {
   console.error(`verify-plan-example-species: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + 8} declines, charge reader`);
+console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + UNREAD.length + 8} declines, charge reader`);

@@ -88,6 +88,55 @@ export function readPlanExample(question: string, turnPlan: unknown): PlanExampl
   } };
 }
 
+/**
+ * The closed vocabulary of a topic ask an example may answer. The reader binds
+ * only a hybridisation, a shape and a lone-pair count, so every other word must
+ * be one that puts no condition on the species: an ask frame, or the name of
+ * the topic itself. Each word is here because a reader uses it or because it
+ * asks without constraining; anything else ("not", "polar", "ice", "120",
+ * "octet", "hydride") is a condition the example was never checked against.
+ */
+const ASK_WORDS = [
+  "explain", "what", "is", "are", "does", "do", "how", "why", "define", "describe", "tell", "me", "about", "some",
+  "the", "a", "an", "of", "in", "by", "with", "using", "example", "examples", "look", "like", "mean", "difference",
+  "between", "and", "change",
+] as const;
+const TOPIC_WORDS = [
+  "hybridisation", "hybridization", "vsepr", "theory", "shape", "shapes", "geometry", "molecular", "molecule", "molecules",
+  "electron", "pair", "pairs", "domain", "domains", "arrangement", "bond", "angle", "angles",
+] as const;
+const VOCABULARY: ReadonlySet<string> = new Set<string>([...ASK_WORDS, ...TOPIC_WORDS]);
+/** The shape phrases SHAPE_WORDS in the VSEPR reader maps, as whole word runs. */
+const SHAPE_PHRASES = [
+  "square pyramidal", "trigonal bipyramidal", "pentagonal bipyramidal", "see saw", "seesaw", "t shaped", "square planar",
+  "trigonal planar", "trigonal pyramidal", "pyramidal", "octahedral", "tetrahedral", "bent", "angular", "v shaped", "linear",
+] as const;
+/** The hybridisations the reader maps to a VSEPR result; sp3d3, dsp2 and d2sp3 are not among them. */
+const MAPPED_HYBRIDISATION = /^sp(?:2|3|3d|3d2)?$/;
+const HYBRIDISATION_LIKE = /^[d0-9]*sp[d0-9]*$/;
+/** The counts the reader reads, only directly before "lone pair(s)". */
+const LONE_PAIR_COUNT = /^(?:zero|no|one|two|three|[0-3])$/;
+
+/** Why the question carries a word the example was not checked against, or null when every word is read. */
+export function unreadQuestionWord(question: string): string | null {
+  const words = normalizeChemistryText(question).toLowerCase().replace(/[\^*'’"`()]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+  const phrases = SHAPE_PHRASES.map((phrase) => phrase.split(" "));
+  for (let i = 0; i < words.length;) {
+    const word = words[i]!;
+    const shape = phrases.find((parts) => parts.every((part, k) => words[i + k] === part));
+    if (shape) { i += shape.length; continue; }
+    if (HYBRIDISATION_LIKE.test(word)) {
+      if (!MAPPED_HYBRIDISATION.test(word)) return `the question names a hybridisation the reader cannot map (${word})`;
+      i += 1; continue;
+    }
+    if (word === "lone" && /^pairs?$/.test(words[i + 1] ?? "")) { i += 2; continue; }
+    if (LONE_PAIR_COUNT.test(word) && words[i + 1] === "lone" && /^pairs?$/.test(words[i + 2] ?? "")) { i += 3; continue; }
+    if (!VOCABULARY.has(word)) return `the question puts a condition the example was not checked against (${word})`;
+    i += 1;
+  }
+  return null;
+}
+
 export type PlanExampleDocument =
   | { status: "none" }
   | { status: "declined"; reason: string }
@@ -102,6 +151,8 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   const reading = readPlanExample(question, turnPlan);
   if (reading.status !== "accepted") return reading;
   const { source } = reading;
+  const unread = unreadQuestionWord(question);
+  if (unread) return { status: "declined", reason: unread };
   if (!isVseprStem(source.stem)) return { status: "declined", reason: "no figure family with claim checks reads this topic" };
   const species = vseprSpecies(source.stem);
   const parsed = parseFormula(source.formula)!;
@@ -127,6 +178,10 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   ] as const) {
     if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
     if (named.size === 1 && !values.every((value) => (named as ReadonlySet<unknown>).has(value))) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
+  }
+  // "a lone pair" or "lone pairs" names no count, but the example must have one.
+  if (asked.lonePairs.size === 0 && /\blone[ -]?pairs?\b/i.test(question) && actualLonePairCount(result) < 1) {
+    return { status: "declined", reason: "the question asks about lone pairs and the example has none" };
   }
   const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
   if (checked.scopeError || checked.facts.length === 0) return { status: "declined", reason: "plan example claim states no checkable fact about the species" };

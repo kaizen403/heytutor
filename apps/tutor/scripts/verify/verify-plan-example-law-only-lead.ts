@@ -203,6 +203,15 @@ try {
     ["two examples", withExample(topic,
       [{ formula: "CH4", claim: "CH4 is sp3 hybridised and tetrahedral." }, { formula: "NH3", claim: "NH3 is sp3 hybridised and trigonal pyramidal." }])],
   ];
+  // The example must fit every word of the question: a hybridisation the
+  // reader cannot map, or a substance it does not read, declines.
+  for (const [question, formula, claim] of [
+    ["explain dsp2 hybridisation", "XeF4", "XeF4 is sp3d2 hybridised and square planar."],
+    ["explain sp3 hybridisation in ice", "CH4", "CH4 is sp3 hybridised and tetrahedral."],
+    ["explain sp2 hybridisation in graphite", "BF3", "BF3 is sp2 hybridised and trigonal planar."],
+  ] as const) {
+    failing.push([`a word the reader does not read (${question}, ${formula})`, plan(question, sp2.lawIds, [{ formula, claim }])]);
+  }
   for (const [name, turnPlan] of failing) {
     declinesAsMain(`failing example: ${name}`, turnPlan);
     declinesAsMain(`failing example with a planner candidate: ${name}`, turnPlan, { candidate: plannerCandidate(turnPlan.question) });
