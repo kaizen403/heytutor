@@ -98,7 +98,13 @@ export function bindArchetypeBody(
   consumed: ReadonlySet<string>,
   usedBodies: ReadonlySet<CertifiedArchetypeBody>,
 ): ArchetypeBodyBinding | null {
-  const words = problemLabel.toLowerCase().replace(/[()]/g, " ").trim().split(/\s+/).filter((word) => word && !FILLER.has(word));
+  // An article is filler only when written lower case before another word. A capital or
+  // trailing letter ("projectile A", "projectile a") is a body name, so the label keeps it
+  // and cannot bind as the bare role noun.
+  const tokens = problemLabel.replace(/[()]/g, " ").trim().split(/\s+/).filter(Boolean);
+  const words = tokens
+    .filter((token, index) => !(FILLER.has(token) && index < tokens.length - 1))
+    .map((token) => token.toLowerCase());
   if (words.length === 0) return null;
   for (const body of identity.bodies) {
     const role = ROLES[body.role];

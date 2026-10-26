@@ -81,6 +81,9 @@ const probes: Probe[] = [
   // Controls: correct pairs a working binding must accept.
   { name: "control: parabolic trajectory on the projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "curve", label: "parabolic trajectory" }], adversarial: false },
   { name: "control: projectile (point mass) on the projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "point", label: "projectile (point mass)" }], adversarial: false },
+  { name: "projectile A is a named body, not the bare projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "point", label: "projectile A" }], adversarial: true },
+  { name: "a trailing lower case a is a body name too", question: PROJECTILE, document: projectile, bodies: [{ kind: "point", label: "projectile a" }], adversarial: true },
+  { name: "control: a projectile still binds", question: PROJECTILE, document: projectile, bodies: [{ kind: "point", label: "a projectile" }], adversarial: false },
   { name: "control: level ground on the projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "line", label: "level ground" }], adversarial: false },
   { name: "control: near bank and far bank on the river", question: RIVER, document: river, bodies: [{ kind: "line", label: "near bank" }, { kind: "line", label: "far bank" }], adversarial: false },
   { name: "control: river current on the river", question: RIVER, document: river, bodies: [{ kind: "field", label: "river current" }], adversarial: false },
