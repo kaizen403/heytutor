@@ -71,7 +71,7 @@ import {
   runScenePlanningOverlap,
   type SpeculationAbortReason,
 } from "@/features/tutor-session/lib/scene/planningOverlap";
-import { buildTurnTeachingPrompt } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
+import { buildTurnTeachingPrompt, figureExampleSpeciesOf } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
@@ -890,6 +890,8 @@ export async function runLecture(
     const teachingPrompt = buildTurnTeachingPrompt({
       question,
       diagramPromptAddon,
+      // As live: only a committed figure that is the plan's example names it.
+      figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneDocument) : null,
       turnPlan,
       solverProjection: problemAuthority?.projection ?? null,
       codeLesson: null,

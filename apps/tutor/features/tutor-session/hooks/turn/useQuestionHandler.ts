@@ -122,6 +122,7 @@ import {
   buildDoubtTeachingPrompt,
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
+  figureExampleSpeciesOf,
   resumeLessonUserPrompt,
   resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
@@ -3089,9 +3090,4 @@ export function useQuestionHandler(
   ]);
 
   return { handleQuestion };
-}
-
-function figureExampleSpeciesOf(document: SceneDocument | Record<string, unknown> | null): string | null {
-  const source = document && typeof document === "object" ? (document as { source?: { figureProvenance?: unknown; exampleSpecies?: unknown } }).source : undefined;
-  return source?.figureProvenance === "plan_example" && typeof source.exampleSpecies === "string" ? source.exampleSpecies : null;
 }

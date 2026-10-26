@@ -752,6 +752,12 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   };
 }
 
+/** The plan example a committed scene document draws, or null when it draws none. */
+export function figureExampleSpeciesOf(document: unknown): string | null {
+  const source = document && typeof document === "object" ? (document as { source?: { figureProvenance?: unknown; exampleSpecies?: unknown } }).source : undefined;
+  return source?.figureProvenance === "plan_example" && typeof source.exampleSpecies === "string" ? source.exampleSpecies : null;
+}
+
 /**
  * Empty unless the figure committed to the board is the plan's example for
  * this chemistry question. A parseable example the figure checks refused, or

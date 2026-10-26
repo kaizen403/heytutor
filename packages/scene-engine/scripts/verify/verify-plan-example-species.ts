@@ -112,6 +112,8 @@ const ON_TOPIC: Array<[string, string, string]> = [
   ["what is sp^3d^2 hybridisation?", "SF6", "SF6 is sp3d2 and octahedral"],
   ["What is sp³ hybridisation?", "CH4", "CH4 is sp3 and tetrahedral"],
   ["shapes of molecules by vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
+  ["explain trigonal-planar molecular geometry using vsepr", "BF3", "BF3 is sp2 hybridised and trigonal planar"],
+  ["explain two-lone-pair geometry", "H2O", "H2O is bent with two lone pairs on O"],
 ];
 for (const [question, formula, claim] of ON_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
@@ -162,6 +164,13 @@ const UNREAD: Array<[string, string, string]> = [
   ["explain d2sp3 hybridisation", "SF6", SF6],
   ["explain sp3d3 hybridisation", "IF7", "IF7 is sp3d3 and pentagonal bipyramidal"],
   ["explain distorted tetrahedral shape", "CH4", CH4],
+  // Both readers see one separator: a hyphen is a space to each, and any
+  // other separator is a word neither reads.
+  ["explain trigonal-planar molecular geometry using vsepr", "CH4", CH4],
+  ["explain two-lone-pair geometry", "NH3", NH3],
+  ["explain trigonal, planar molecular geometry using vsepr", "CH4", CH4],
+  ["explain trigonal (planar) molecular geometry using vsepr", "CH4", CH4],
+  ["explain trigonal_planar molecular geometry using vsepr", "CH4", CH4],
 ];
 for (const [question, formula, claim] of UNREAD) {
   const turnPlan = plan(question, [{ formula, claim }]);

@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { auditTurnPlanV3, planTurnV3, TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON } from "@heytutor/tutor-core";
 import { questionNamesSpecies } from "@heytutor/scene-engine";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
+import { buildTurnTeachingPrompt, figureExampleSpeciesOf } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "non-chemistry-prompt-identity.json");
 
@@ -68,6 +68,32 @@ function teachingPrompts(question: string, turnPlan: TurnPlanV3, figureExampleSp
 }
 
 const FIGURE = "FIGURE ON THE BOARD\n(gate figure addon)";
+
+/**
+ * The live hook and the lecture lab both hand the teaching prompt the example
+ * the committed figure draws, so a lab lesson is taught as a live one is.
+ * Each buildTurnTeachingPrompt call is sliced from its opening to its closing
+ * "});" and both anchors must be found.
+ */
+function exampleWiringProblems(): string[] {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+  const problems = [
+    figureExampleSpeciesOf({ source: { figureProvenance: "plan_example", exampleSpecies: "BF3" } }) === "BF3" ? "" : "a plan example document does not yield its species",
+    figureExampleSpeciesOf({ source: { exampleSpecies: "BF3" } }) === null ? "" : "a document without plan_example provenance yields an example",
+    figureExampleSpeciesOf(null) === null ? "" : "no document yields an example",
+  ];
+  for (const [file, wiring] of [
+    ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneV2Document) : null"],
+    ["scripts/lecture-lab/lecturePipeline.ts", "figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneDocument) : null"],
+  ] as const) {
+    const source = readFileSync(join(root, file), "utf8");
+    const start = source.indexOf(": buildTurnTeachingPrompt({") >= 0 ? source.indexOf(": buildTurnTeachingPrompt({") : source.indexOf("= buildTurnTeachingPrompt({");
+    const end = start < 0 ? -1 : source.indexOf("});", start);
+    if (start < 0 || end < 0) { problems.push(`${file}: the buildTurnTeachingPrompt call was not found`); continue; }
+    if (!source.slice(start, end).includes(wiring)) problems.push(`${file}: the teaching prompt is not given the committed figure's example`);
+  }
+  return problems;
+}
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 async function main(): Promise<void> {
@@ -97,6 +123,7 @@ const chemistryProblems = [
     .some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a refused example was taught as the board's species" : "",
   teachingPrompts("why is water bent", plan("why is water bent", { exampleSpecies: [{ formula: "NH3", claim: "NH3 is sp3" }] }), "NH3")
     .some((prompt) => prompt.includes("EXAMPLE TO TEACH WITH")) ? "a question naming its species was given a plan example" : "",
+  ...exampleWiringProblems(),
 ].filter(Boolean);
 if (chemistryProblems.length) {
   console.error(chemistryProblems.join("; "));

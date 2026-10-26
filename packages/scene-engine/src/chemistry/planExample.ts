@@ -117,18 +117,35 @@ const HYBRIDISATION_LIKE = /^[d0-9]*sp[d0-9]*$/;
 /** The counts the reader reads, only directly before "lone pair(s)". */
 const LONE_PAIR_COUNT = /^(?:zero|no|one|two|three|[0-3])$/;
 
-/** Why the question carries a word the example was not checked against, or null when every word is read. */
-export function unreadQuestionWord(question: string): string | null {
-  const words = normalizeChemistryText(question).toLowerCase().replace(/[\^*'’"`()]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+/**
+ * The question as the vocabulary gate and the property readers both see it:
+ * chemistry notation normalised, lower case, a hyphen or underscore read as a
+ * space ("trigonal-planar" is "trigonal planar" to both, "two-lone-pair" is
+ * "two lone pair"), one closing ? . or ! dropped.
+ */
+export function readableQuestion(question: string): string {
+  return normalizeChemistryText(question).toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim().replace(/[?.!]$/, "").trim();
+}
+
+/**
+ * Why the readable question carries a word the example was not checked
+ * against, or null when every word is read. Words are split on single spaces
+ * only, so a word carrying any other separator ("trigonal,", "(planar)") is
+ * in no list and declines.
+ */
+export function unreadQuestionWord(readable: string): string | null {
+  const words = readable.split(" ").filter(Boolean);
   const phrases = SHAPE_PHRASES.map((phrase) => phrase.split(" "));
   for (let i = 0; i < words.length;) {
     const word = words[i]!;
-    const shape = phrases.find((parts) => parts.every((part, k) => words[i + k] === part));
-    if (shape) { i += shape.length; continue; }
-    if (HYBRIDISATION_LIKE.test(word)) {
-      if (!MAPPED_HYBRIDISATION.test(word)) return `the question names a hybridisation the reader cannot map (${word})`;
+    // The reader drops carets inside a hybridisation (sp^3d^2 is sp3d2).
+    const hybrid = word.replace(/\^/g, "");
+    if (HYBRIDISATION_LIKE.test(hybrid)) {
+      if (!MAPPED_HYBRIDISATION.test(hybrid)) return `the question names a hybridisation the reader cannot map (${word})`;
       i += 1; continue;
     }
+    const shape = phrases.find((parts) => parts.every((part, k) => words[i + k] === part));
+    if (shape) { i += shape.length; continue; }
     if (word === "lone" && /^pairs?$/.test(words[i + 1] ?? "")) { i += 2; continue; }
     if (LONE_PAIR_COUNT.test(word) && words[i + 1] === "lone" && /^pairs?$/.test(words[i + 2] ?? "")) { i += 3; continue; }
     if (!VOCABULARY.has(word)) return `the question puts a condition the example was not checked against (${word})`;
@@ -151,7 +168,8 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   const reading = readPlanExample(question, turnPlan);
   if (reading.status !== "accepted") return reading;
   const { source } = reading;
-  const unread = unreadQuestionWord(question);
+  const readable = readableQuestion(question);
+  const unread = unreadQuestionWord(readable);
   if (unread) return { status: "declined", reason: unread };
   if (!isVseprStem(source.stem)) return { status: "declined", reason: "no figure family with claim checks reads this topic" };
   const species = vseprSpecies(source.stem);
@@ -161,14 +179,14 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   }
   // The example must illustrate what the question names, not merely be true
   // of itself: one named value, and the example has it.
-  const asked = namedVseprProperties(question);
+  const asked = namedVseprProperties(readable);
   const result = species[0]!;
   // A shape word is read as the electron geometry only when the question
   // speaks of electron geometry and never of the molecular shape. When it
   // speaks of both, the named shape must be both, since the reader does not
   // bind each word to its property.
-  const electronAsk = /\belectron(?:[ -]pair)?[ -](?:geometry|domain|arrangement)/i.test(question);
-  const molecularAsk = /\bmolecular\b|\bshapes?\b/i.test(question);
+  const electronAsk = /\belectron(?:[ -]pair)?[ -](?:geometry|domain|arrangement)/i.test(readable);
+  const molecularAsk = /\bmolecular\b|\bshapes?\b/i.test(readable);
   const shapeValues = electronAsk && !molecularAsk ? [result.electronGeometry]
     : electronAsk ? [result.shape, result.electronGeometry] : [result.shape];
   for (const [named, values, property] of [
@@ -180,7 +198,7 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
     if (named.size === 1 && !values.every((value) => (named as ReadonlySet<unknown>).has(value))) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
   }
   // "a lone pair" or "lone pairs" names no count, but the example must have one.
-  if (asked.lonePairs.size === 0 && /\blone[ -]?pairs?\b/i.test(question) && actualLonePairCount(result) < 1) {
+  if (asked.lonePairs.size === 0 && /\blone[ -]?pairs?\b/i.test(readable) && actualLonePairCount(result) < 1) {
     return { status: "declined", reason: "the question asks about lone pairs and the example has none" };
   }
   const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
