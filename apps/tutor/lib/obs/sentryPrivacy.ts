@@ -86,13 +86,13 @@ export function sentryDataCollection() {
   };
 }
 
-/** Production traces are a sample. Health checks and the tunnel are never traces. */
+/** Production traces are a sample. Health and version checks and the tunnel are never traces. */
 export function sentryTracesSampler(
   context: { name?: string },
   env: NodeJS.ProcessEnv = process.env,
 ): number {
   const name = context.name ?? "";
-  if (name.includes("/api/health") || name.includes(SENTRY_TUNNEL_PATH)) return 0;
+  if (name.includes("/api/health") || name.includes("/api/version") || name.includes(SENTRY_TUNNEL_PATH)) return 0;
   if (env.NODE_ENV !== "production") return 0;
   return 0.1;
 }
