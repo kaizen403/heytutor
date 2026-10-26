@@ -206,16 +206,61 @@ export function riverBoatVariant(stem: string): RiverBoatVariant {
   return "along_stream";
 }
 
+/** Wording that states motion along the river: the only evidence for the along-stream picture. */
+const ALONG_STREAM_EVIDENCE = String.raw`(?:downstream|upstream|down the river|up the stream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))`;
 /**
- * The along-stream picture (downstream at vb+vc, upstream at vb−vc) needs stated motion along
- * the river and no crossing word. A stem naming a width, the opposite or other bank, a heading
- * across or at right angles, a steer, a drift, or a boat pointed towards a bank is a crossing,
- * whatever variant the oracle above fell back to, so it draws no along-stream picture.
+ * Any other river geometry: a bank, shore or side, a width, a direction across or by the compass,
+ * an angle, a heading, steer, aim or point, a drift, or a minimum time or shortest path. The
+ * along-stream picture draws none of these, so a stem naming one is not that picture.
+ */
+const RIVER_OTHER_GEOMETRY = /\b(?:banks?|shores?|sides?|wide|width|breadth|opposite|across|cross\w*|(?:north|south|east|west)\w*|normal\w*|perpendicular\w*|right[- ]angles?|angles?|degrees?|head(?:s|ed|ing)?|steer\w*|drift\w*|aim\w*|point\w*|minimum time|least time|shortest|quickest)\b|°/i;
+const LENGTH_UNIT = String.raw`(?:km|m|cm|mm|mi|miles?|ft|feet|foot|yards?|yd|kilomet(?:er|re)s?|met(?:er|re)s?)`;
+/** A number with a length unit; a speed ("m/s", "km h^-1", "m per second") is not a length. */
+const RIVER_LENGTH = String.raw`\d+(?:\.\d+)?\s*${LENGTH_UNIT}\b(?!\s*(?:\/|per\b|p\.?h\b|h(?:rs?|ours?)?\s*(?:\^?-1|⁻¹)|s\s*(?:\^?-1|⁻¹)|\^|-1|⁻¹))`;
+const TRAVEL_VERB = String.raw`\b(?:go(?:es|ing)?|went|gone|travel(?:s|led|ed|ling|ing)?|rows?|rowed|rowing|covers?|covered|covering|swims?|swam|swimming|sails?|sailed|sailing|moves?|moved|moving|cruises?|cruised|paddles?|paddled|returns?|returned)\s+`;
+/** A distance travelled along the stream: "go 100 m downstream", "covers 16 km upstream and 24 km downstream". */
+const DISTANCE_ALONG_STREAM = new RegExp(String.raw`${TRAVEL_VERB}(?:(?:a|the)\s+(?:total\s+)?distance\s+of\s+)?(?:${RIVER_LENGTH}\s+${ALONG_STREAM_EVIDENCE}|${ALONG_STREAM_EVIDENCE}\s+(?:(?:for|by)\s+|(?:a|the)\s+distance\s+of\s+)?${RIVER_LENGTH})(?:\s*,?\s*(?:and\s+)?(?:then\s+)?${RIVER_LENGTH}\s+${ALONG_STREAM_EVIDENCE})*`, "gi");
+const RIVER_SPEED = String.raw`\d+(?:\.\d+)?\s*(?:(?:km|m|cm|mi|miles?|ft|feet|met(?:er|re)s?|kilomet(?:er|re)s?)\s*(?:\/\s*(?:s|sec|seconds?|h|hrs?|hours?|min)\b|per\s+[a-z]+|h(?:rs?|ours?)?\s*(?:\^?-1|-1|⁻¹)|s\s*(?:\^?-1|-1|⁻¹))|kmph\b|mph\b|ms\s*(?:\^?-1|-1|⁻¹))`;
+/** A speed at most four words from along-stream wording, either way round, in one clause. */
+const SPEED_BY_ALONG_STREAM = new RegExp(String.raw`${RIVER_SPEED}(?:\s+[^\s.;:?!]+){0,4}?\s+${ALONG_STREAM_EVIDENCE}|${ALONG_STREAM_EVIDENCE}(?:\s+[^\s.;:?!]+){0,4}?\s+(?:=\s*)?(${RIVER_SPEED})`, "gi");
+/** Role words before a speed; the first group is a river word, which names the current's own speed. */
+const SPEED_ROLE_WORD = /\b(?:(river|current|stream|flows?|flowing|water)|boat\w*|\w+boat|swim\w*|rows?|rowed|rowing|ferry|steamer|launch|man|woman|person|he|she|it|its)\b/gi;
+
+/** Every length in the stem is a distance travelled along the stream. */
+function riverLengthsAlongStream(text: string): boolean {
+  const spans = [...text.matchAll(DISTANCE_ALONG_STREAM)].map((match) => [match.index!, match.index! + match[0].length] as const);
+  return [...text.matchAll(new RegExp(RIVER_LENGTH, "gi"))]
+    .every((length) => spans.some(([start, end]) => length.index! >= start && length.index! + length[0].length <= end));
+}
+
+/**
+ * A speed stated beside along-stream wording ("goes downstream at 8 m/s") is the boat's speed
+ * over the ground, not its speed in still water, unless the last role word before it is the
+ * river's ("the current is 3 m/s along the river"). With no role word it is unread.
+ */
+function riverSpeedAlongStream(text: string): boolean {
+  return [...text.matchAll(SPEED_BY_ALONG_STREAM)].some((match) => {
+    const clauseStart = Math.max(...[".", ";", ":", "?", "!"].map((mark) => text.lastIndexOf(mark, match.index!)));
+    const speedAt = match[1] === undefined ? match.index! : match.index! + match[0].lastIndexOf(match[1]);
+    const roles = [...text.slice(clauseStart + 1, speedAt).matchAll(SPEED_ROLE_WORD)];
+    return roles.length === 0 || roles[roles.length - 1]![1] === undefined;
+  });
+}
+
+/**
+ * The along-stream picture (downstream at vb+vc, upstream at vb−vc) draws only on positive
+ * evidence: the stem states motion along the river and names no other geometry at all. Any
+ * other river geometry, a length that is not a distance travelled along the stream, or a speed
+ * over the ground declines, whatever variant the oracle above fell back to. Lists of crossing
+ * wording keep missing spellings ("far bank", "normal to the current", "pointing north"), so
+ * the decline is wide on purpose: when unsure, no along-stream picture.
  */
 export function riverAlongStreamStated(stem: string): boolean {
   const text = normalizeStem(stem);
-  if (/\b(?:wide|width|opposite|other bank|across|perpendicular|right angles?|steer\w*|drift\w*|points?(?:ed)? (?:straight )?towards)\b/i.test(text)) return false;
-  return /\b(?:downstream|upstream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))\b/i.test(text);
+  if (RIVER_OTHER_GEOMETRY.test(text)) return false;
+  if (!riverLengthsAlongStream(text)) return false;
+  if (riverSpeedAlongStream(text)) return false;
+  return new RegExp(String.raw`\b${ALONG_STREAM_EVIDENCE}\b`, "i").test(text);
 }
 
 /* ------------------------------------------------------------------------- */
