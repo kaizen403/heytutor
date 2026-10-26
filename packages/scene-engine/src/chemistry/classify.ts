@@ -105,12 +105,25 @@ function chemicalWords(text: string, originalQuestion: string): string[] {
  * charge phrase counts only when its owner formula is written before it
  * ("NO2 with a negative charge"): an owner written after it is a coulomb C,
  * a field B, a point P or a pole N ("a sphere with a charge of +5 C"), so
- * the stem stays physics.
+ * the stem stays physics. So does a lone letter label (see namesSpecies).
  */
 function ionMagnetismContext(stem: string, originalQuestion: string): boolean {
   if (!/\b(?:para|dia)magnetic\b/.test(stem)) return false;
   return readChargeMarkers(originalQuestion).some((marker) => marker.formula !== null)
-    || readWrittenCharges(originalQuestion).some((marker) => marker.formula !== null && (marker.ownerAt === undefined || marker.ownerAt < marker.at));
+    || readWrittenCharges(originalQuestion).some((marker) => marker.formula !== null && namesSpecies(marker.formula)
+      && (marker.ownerAt === undefined || marker.ownerAt < marker.at));
+}
+
+/**
+ * Whether a formula written with a charge in words names a species, not a
+ * label. One capital letter, alone or with digits (point P, P2, field B,
+ * pole N, region B II, sample S II), is how physics names a point, a field
+ * or a body, so it counts only as a homonuclear diatomic a chemistry stem
+ * asks about (H2, B2, C2, N2, O2, F2). A stem it refuses keeps main's lane.
+ */
+function namesSpecies(formula: string): boolean {
+  const lone = /^([A-Z])(\d*)$/.exec(formula);
+  return !lone || (lone[2] === "2" && "HBCNOF".includes(lone[1]!));
 }
 
 function countMatches(text: string, pattern: RegExp): number {

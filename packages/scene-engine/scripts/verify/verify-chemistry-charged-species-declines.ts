@@ -151,7 +151,8 @@ const DRAWS: Array<{ id: string; question: string; family: string; shows: string
 ];
 
 /** Lane rows: a stem with no charge keeps main's lane; a row already right on main stays right. */
-const LANE: Array<{ id: string; question: string; chemistry: boolean }> = [
+/** A lane row owned by a fix stays in chemistry only through it: that fix's mutant must turn it red. */
+const LANE: Array<{ id: string; question: string; chemistry: boolean; fix?: DeclineRow["fix"] }> = [
   { id: "neutral-NO2-para", question: "Is NO2 paramagnetic? Show its MO diagram", chemistry: false },
   { id: "neutral-CO2-dipole", question: "Shape of CO2 and its dipole moment", chemistry: true },
   { id: "neutral-NH3-dipole", question: "Draw the shape of NH3 and show its dipole", chemistry: true },
@@ -167,6 +168,20 @@ const LANE: Array<{ id: string; question: string; chemistry: boolean }> = [
   { id: "physics-para-bead-point-P", question: "A paramagnetic bead with a positive charge sits at point P. Draw χ against T.", chemistry: false },
   { id: "physics-dia-rod-pole-N", question: "A diamagnetic rod with a negative charge is placed near pole N. Draw the field.", chemistry: false },
   { id: "physics-para-sphere-microcoulomb", question: "A paramagnetic sphere has a charge of -3 μC at C. Sketch χ vs T.", chemistry: false },
+  // Greptile on #309: a one letter label written before the charge (point P, P2, C) or carrying a
+  // sign word or numeral (B positively charged, S II, region B II) is not a species; these stay physics.
+  { id: "physics-para-sphere-point-P-before", question: "A paramagnetic sphere at point P with a charge of +5 C is cooled. Sketch χ against T.", chemistry: false },
+  { id: "physics-para-bead-P2-before", question: "A paramagnetic bead at P2 with a positive charge is cooled. Draw χ against T.", chemistry: false },
+  { id: "physics-para-sphere-at-C-before", question: "A paramagnetic sphere at C carrying a negative charge is cooled. Sketch χ vs T.", chemistry: false },
+  { id: "physics-para-ball-B-sign-word", question: "A paramagnetic ball at B positively charged P sits still. Draw χ against T.", chemistry: false },
+  { id: "physics-para-sample-S-II", question: "Sample S II is paramagnetic; draw χ against T", chemistry: false },
+  { id: "physics-para-region-B-II", question: "Is the material in region B II paramagnetic?", chemistry: false },
+  // Species written in words keep the chemistry lane: a diatomic, a formula, an oxidation state.
+  { id: "chem-O2-negative-charge-para", question: "Is O2 with a negative charge paramagnetic? Show its MO diagram", chemistry: true },
+  { id: "chem-O2-minus-para", question: "Is O2 minus paramagnetic? Show its MO diagram", chemistry: true },
+  { id: "chem-C2-negative-charge-para", question: "Is C2 with a negative charge paramagnetic? Show its MO diagram", chemistry: true },
+  { id: "chem-NO2-negative-charge-para", question: "Is NO2 with a negative charge paramagnetic? Show its MO diagram", chemistry: true, fix: "lane-magnetism" },
+  { id: "chem-Fe-II-para", question: "Is Fe II paramagnetic?", chemistry: true, fix: "lane-magnetism" },
 ];
 
 /* ------------------------------------------------------------------- checks */
@@ -394,7 +409,9 @@ if (withMutants) {
         const failed = failedIds(dir);
         const owned = DECLINE.filter((row) => row.fix === fix);
         for (const row of owned) assert.ok(failed.includes(`decline/${row.id}`), `${fix} off must turn decline/${row.id} red`);
-        assert.ok(failed.every((id) => id.startsWith("decline/")), `${fix} off touches only decline rows: ${failed.join(", ")}`);
+        const ownedLane = LANE.filter((row) => row.fix === fix).map((row) => `lane/${row.id}`);
+        for (const id of ownedLane) assert.ok(failed.includes(id), `${fix} off must turn ${id} red`);
+        assert.ok(failed.every((id) => id.startsWith("decline/") || ownedLane.includes(id)), `${fix} off touches only decline rows and its own lane rows: ${failed.join(", ")}`);
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }
