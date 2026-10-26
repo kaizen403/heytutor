@@ -1,5 +1,6 @@
 import { unwrapMathMarkup } from './mathMarkup';
 import { normalizeStrokeText } from '../handwriting/handwriting';
+import { WORK_ZONE } from '../layout/boardZones';
 
 export type DrawCommandType =
   | 'DRAW_CUBOID'
@@ -679,6 +680,122 @@ function matchWriteLabelTag(slice: string): string | null {
   return null;
 }
 
+/**
+ * A WRITE that closed without its two numbers: `[WRITE:text]`,
+ * `[WRITE:text,277]` or `[WRITE:text,x,211]`.
+ *
+ * Production, 21 to 25 Oct: resumed lessons wrote every row this way, the
+ * parser refused all of them, and the lesson was failed for having no ink.
+ * The runtime owns where a work row goes (the sequential slot finder ignores
+ * the model's x and y), so the numbers carry nothing a row needs and the
+ * repair cannot move ink. It applies only when the tag cannot close the
+ * canonical way, only to WRITE (labels belong to the scene engine), and only
+ * to a body that is plainly row text. A trailing number is taken as y only
+ * when it sits on the work row grid and is glued to its comma, the way the
+ * model writes coordinates; any other trailing number, a placeholder letter,
+ * a labelled coordinate such as `, y=475`, a row id in front such as `w4:`,
+ * or an id and coordinate body such as `w6:y475` is refused, so a list like "2, 3" is never cut down to "2" and
+ * no coordinate is ever written as row text.
+ */
+const COORDINATE_LESS_WRITE_HEADER = /^\[WRITE:/i;
+const COORDINATE_ONLY_WRITE_BODY = /^(?:w\d+\s*[:,]?\s*)?(?:y\s*=?\s*-?\d+)?$/i;
+// A work row id in front (`w4:...`) names a row; it is not row text.
+const ROW_ID_PREFIXED_WRITE_BODY = /^w\d+\s*[:.,)]/i;
+
+function onWorkRowGrid(y: number): boolean {
+  const offset = y - WORK_ZONE.topY;
+  return Number.isInteger(y) && offset >= 0 && offset % WORK_ZONE.lineHeight === 0;
+}
+
+function coordinateLessWriteRow(body: string): { text: string; y: number } | null {
+  const trimmed = body.trim();
+  if (!/[\p{L}\p{N}]/u.test(trimmed) || COORDINATE_ONLY_WRITE_BODY.test(trimmed) || ROW_ID_PREFIXED_WRITE_BODY.test(trimmed)) return null;
+  const placeholderX = /^(.*\S),x,(\d+)$/u.exec(trimmed);
+  if (placeholderX) {
+    const y = Number(placeholderX[2]);
+    return onWorkRowGrid(y) ? { text: placeholderX[1]!.trim(), y } : null;
+  }
+  const yOnly = /^(.*\S),(\d+)$/u.exec(trimmed);
+  // `1,211` is a number with a thousands separator, not a row and its y.
+  if (yOnly && /\d$/u.test(yOnly[1]!)) return null;
+  if (yOnly) {
+    const y = Number(yOnly[2]);
+    return onWorkRowGrid(y) ? { text: yOnly[1]!.trim(), y } : null;
+  }
+  // Any other trailing number or coordinate letter is ambiguous: refuse it.
+  if (/,\s*(?:-?\d+(?:\.\d+)?|[xy])\s*$/iu.test(trimmed)) return null;
+  // A labelled coordinate (`text, y=475`, `text:y=541`, `x=60, y=475`) would
+  // be written as row text, and `x = 3, y = 4` may be the row itself: refuse.
+  if (/(?:^|[\s,:;(])[xy]\s*=\s*-?\d+(?:\.\d+)?\s*\)?\s*$/iu.test(trimmed)) return null;
+  return { text: trimmed, y: WORK_ZONE.topY };
+}
+
+/**
+ * The coordinate-less WRITE at the start of `slice`, as the raw tag and the
+ * canonical tag it stands for, or null. The caller has already found that
+ * the tag cannot close the canonical way.
+ */
+export function matchCoordinateLessWriteTag(slice: string): { raw: string; canonical: string } | null {
+  const header = COORDINATE_LESS_WRITE_HEADER.exec(slice);
+  if (!header) return null;
+  const brackets: string[] = [];
+  for (let index = header[0].length; index < slice.length; index += 1) {
+    const char = slice[index]!;
+    if (char === '\n' || char === '\r') return null;
+    if (char === '[' || (char === '(' && brackets.length > 0)) brackets.push(char);
+    else if (char === ')') brackets.pop();
+    else if (char === ']') {
+      if (brackets.length > 0) {
+        brackets.pop();
+        continue;
+      }
+      const body = slice.slice(header[0].length, index);
+      if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) return null;
+      // An evaluation bar (`x^3/3 ]_0^1 = 1/3]`) is not the end of the row:
+      // refuse when bounds follow the bracket, or another "]" closes later
+      // on the same line before any tag.
+      const after = slice.slice(index + 1);
+      if (/^\s*[_^]/u.test(after) || (after.split(/[[\r\n]/u, 1)[0] ?? '').includes(']')) return null;
+      const row = coordinateLessWriteRow(body);
+      if (!row) return null;
+      const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;
+      // The repaired tag must itself be one canonical row, or nothing changes.
+      if (matchWriteLabelTag(canonical) !== canonical) return null;
+      return { raw: slice.slice(0, index + 1), canonical };
+    }
+  }
+  return null;
+}
+
+/** Rewrite every coordinate-less WRITE that cannot close canonically. */
+export function repairCoordinateLessWriteTags(responseText: string): string {
+  let out = '';
+  let from = 0;
+  const opens = /\[WRITE:/giu;
+  for (;;) {
+    opens.lastIndex = from;
+    const found = opens.exec(responseText);
+    if (!found) break;
+    const open = found.index;
+    const slice = responseText.slice(open);
+    const canonical = matchWriteLabelTag(slice);
+    if (canonical) {
+      out += responseText.slice(from, open + canonical.length);
+      from = open + canonical.length;
+      continue;
+    }
+    const repaired = matchCoordinateLessWriteTag(slice);
+    if (repaired) {
+      out += responseText.slice(from, open) + repaired.canonical;
+      from = open + repaired.raw.length;
+      continue;
+    }
+    out += responseText.slice(from, open + 1);
+    from = open + 1;
+  }
+  return out + responseText.slice(from);
+}
+
 export function isCompleteDrawingTag(rawTag: string): boolean {
   if (WRITE_LABEL_HEADER_PATTERN.test(rawTag)) {
     return matchWriteLabelTag(rawTag) === rawTag;
@@ -736,7 +853,7 @@ export function scanDrawingTags(responseText: string): DrawingTagMatch[] {
 }
 
 export function parseDrawingCommands(rawResponseText: string): ParsedResponse {
-  const responseText = repairHeaderOnlyTextTags(rawResponseText);
+  const responseText = repairCoordinateLessWriteTags(repairHeaderOnlyTextTags(rawResponseText));
   const commands: DrawCommand[] = [];
   const segments: { text: string; commandIndex: number }[] = [];
   let narration = '';
