@@ -206,6 +206,18 @@ export function riverBoatVariant(stem: string): RiverBoatVariant {
   return "along_stream";
 }
 
+/**
+ * The along-stream picture (downstream at vb+vc, upstream at vb−vc) needs stated motion along
+ * the river and no crossing word. A stem naming a width, the opposite or other bank, a heading
+ * across or at right angles, a steer, a drift, or a boat pointed towards a bank is a crossing,
+ * whatever variant the oracle above fell back to, so it draws no along-stream picture.
+ */
+export function riverAlongStreamStated(stem: string): boolean {
+  const text = normalizeStem(stem);
+  if (/\b(?:wide|width|opposite|other bank|across|perpendicular|right angles?|steer\w*|drift\w*|points?(?:ed)? (?:straight )?towards)\b/i.test(text)) return false;
+  return /\b(?:downstream|upstream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))\b/i.test(text);
+}
+
 /* ------------------------------------------------------------------------- */
 /* English family tables (test oracle / no-ProblemIR fallback).              */
 /* ------------------------------------------------------------------------- */
