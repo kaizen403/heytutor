@@ -60,6 +60,21 @@ for (const question of [
   "Young fringes from two slits are followed by photoelectron emission from a metal of work function 2.0 eV.",
   "An electron has wavelength lambda[nm]=1.227/sqrt(V[V]). Find its accelerating voltage.",
 ]) check(`negative chemical-role neighbor: ${question}`, () => outsideChemistry(question));
+for (const question of [
+  "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
+  "State the Maxwell right-hand thumb rule and use it to find the field direction.",
+  "Write Maxwell's equations and show how they predict the speed of light.",
+  "Using Maxwell's equations, find the field of a spherical charge distribution.",
+  "A Maxwell bridge measures an unknown inductance. Find L at balance.",
+  "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
+]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
+for (const question of [
+  "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+  "Draw the Maxwell speed distribution and mark the most probable speed.",
+  "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
+  "Sketch two normalized Maxwell distributions for the same gas.",
+  "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
+]) check(`maxwell distribution keeps its curve: ${question}`, () => chemistryFigure(question, "chem_thermo"));
 check("chemical first-order half-life retains kinetics", () => chemistryFigure("The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?", "chem_kinetics"));
 check("rate law notation retains kinetics", () => chemistryFigure("For a first order reaction the rate law is r = k[A]. 50% of A is decomposed in 120 min. Calculate time for 90% decomposition.", "chem_kinetics"));
 check("molar heat capacity retains thermodynamics", () => chemistryFigure("The molar heat capacity is 30 J/(mol K). Find heat for 2 mol heated from 300 K to 310 K.", "chem_thermo"));
