@@ -18,7 +18,8 @@ import { fileURLToPath } from "node:url";
 import { resolveBuildIdentity } from "../../lib/client/buildIdentity.mjs";
 import {
   checkServerBuild, isClientBuildStale, noteServerBuild, reloadStaleTabForQuestion,
-  resetStaleBuildStateForTests, staleBuildReloadUrl, MAX_RELOAD_QUESTION_CHARS,
+  resetStaleBuildStateForTests, staleBuildReloadInFlight, staleBuildReloadUrl, MAX_RELOAD_QUESTION_CHARS,
+  MIN_CHECK_GAP_MS, RELOAD_IN_FLIGHT_MS,
 } from "../../lib/client/staleBuild";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
@@ -59,14 +60,27 @@ check("stale only when both builds are known and differ", async () => {
   assert.equal(isClientBuildStale(OLD), false, "an unknown server build never counts as stale");
   noteServerBuild("not a commit");
   assert.equal(isClientBuildStale(OLD), false, "a malformed server answer is ignored");
-  await checkServerBuild((async () => Response.json({ build: NEW })) as typeof fetch);
+  let t = 1_000_000;
+  await checkServerBuild((async () => Response.json({ build: NEW })) as typeof fetch, t);
   assert.equal(isClientBuildStale(OLD), true, "an older bundle is stale");
   assert.equal(isClientBuildStale(NEW), false, "the current bundle is not");
   assert.equal(isClientBuildStale(""), false, "a bundle without an identity never reloads");
-  await checkServerBuild((async () => { throw new Error("offline"); }) as typeof fetch);
+  t += MIN_CHECK_GAP_MS;
+  await checkServerBuild((async () => { throw new Error("offline"); }) as typeof fetch, t);
   assert.equal(isClientBuildStale(OLD), true, "a failed check keeps the last known answer");
-  await checkServerBuild((async () => new Response("down", { status: 503 })) as typeof fetch);
+  t += MIN_CHECK_GAP_MS;
+  await checkServerBuild((async () => new Response("down", { status: 503 })) as typeof fetch, t);
   assert.equal(isClientBuildStale(OLD), true);
+  // Focus and visibility both fire when a student returns: one request, not two.
+  let requests = 0;
+  const counted = (async () => { requests++; return Response.json({ build: OLD }); }) as typeof fetch;
+  t += MIN_CHECK_GAP_MS;
+  await checkServerBuild(counted, t);
+  await checkServerBuild(counted, t + 10);
+  await checkServerBuild(counted, t + MIN_CHECK_GAP_MS - 1);
+  assert.equal(requests, 1, "checks closer than the minimum gap are skipped");
+  await checkServerBuild(counted, t + MIN_CHECK_GAP_MS);
+  assert.equal(requests, 2);
 });
 
 check("reload carries the question once per server build, only where it can", () => {
@@ -81,15 +95,19 @@ check("reload carries the question once per server build, only where it can", ()
   assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: NEW, location: at("/c/b1"), storage }), false, "a current tab teaches here");
   assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location: at("/c/b1"), storage }), true, "a stale tab reloads");
   assert.deepEqual(assigned, [`/c/b1?q=${encodeURIComponent(question)}`], "the same board, with the question");
+  const newDocument = () => { resetStaleBuildStateForTests(); noteServerBuild(NEW); };
+  newDocument();
   assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location: at("/c/b1"), storage }), false,
     "a build that still differs after one reload teaches here instead of looping");
   assert.equal(assigned.length, 1);
 
+  newDocument();
   const fresh = new Map<string, string>();
   const freshStorage = { getItem: (key: string) => fresh.get(key) ?? null, setItem: (key: string, value: string) => { fresh.set(key, value); } };
   assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location: at("/"), storage: freshStorage }), true, "the home board reloads too");
   assert.equal(assigned.at(-1), `/?q=${encodeURIComponent(question)}`);
 
+  newDocument();
   const none = { getItem: () => null, setItem: () => { throw new Error("storage refused"); } };
   assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location: at("/c/b2"), storage: none }), false,
     "without a place to remember the attempt, it teaches here");
@@ -99,6 +117,50 @@ check("reload carries the question once per server build, only where it can", ()
   assert.equal(staleBuildReloadUrl(at("/c/b1"), "   "), null);
   const long = "x".repeat(MAX_RELOAD_QUESTION_CHARS + 1);
   assert.equal(staleBuildReloadUrl(at("/c/b1"), long), null, "a question too long for the address bar teaches here");
+});
+
+check("while the reload is in flight, every later ask on the page rides with it", () => {
+  resetStaleBuildStateForTests();
+  noteServerBuild(NEW);
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => { store.set(key, value); } };
+  const assigned: string[] = [];
+  const location = { pathname: "/", search: "", assign: (url: string) => { assigned.push(url); } };
+  const question = "What is the work done by friction on a sliding block?";
+  assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location, storage }), true, "the first ask reloads");
+  assert.equal(staleBuildReloadInFlight(), true);
+  // The ?q= effect's retry or the pending flush asks again before the page is replaced.
+  assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location, storage }), true,
+    "a second ask on the same page must not fall through to a lesson on the old bundle");
+  assert.equal(reloadStaleTabForQuestion("another question", { clientBuildId: OLD, location, storage }), true);
+  assert.equal(assigned.length, 1, "the page navigates once");
+  // The new document starts with fresh module state; the mark stops a loop there.
+  resetStaleBuildStateForTests();
+  noteServerBuild(NEW);
+  assert.equal(reloadStaleTabForQuestion(question, { clientBuildId: OLD, location, storage }), false,
+    "after the reload, a build that still differs teaches instead of reloading again");
+  assert.equal(assigned.length, 1);
+});
+
+check("a cancelled reload stops refusing lessons after a bounded wait", async () => {
+  resetStaleBuildStateForTests();
+  noteServerBuild(NEW);
+  const store = new Map<string, string>();
+  const storage = { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => { store.set(key, value); } };
+  const location = { pathname: "/c/b9", search: "", assign: () => {} };
+  const realSetTimeout = globalThis.setTimeout;
+  let fire: (() => void) | null = null;
+  let delay = -1;
+  globalThis.setTimeout = ((fn: () => void, ms: number) => { fire = fn; delay = ms; return 1 as unknown as ReturnType<typeof setTimeout>; }) as typeof setTimeout;
+  try {
+    assert.equal(reloadStaleTabForQuestion("Why is the sky blue?", { clientBuildId: OLD, location, storage }), true);
+  } finally { globalThis.setTimeout = realSetTimeout; }
+  assert.equal(delay, RELOAD_IN_FLIGHT_MS, "the in flight hold is bounded");
+  assert(fire, "a timer clears the hold");
+  (fire as () => void)();
+  assert.equal(staleBuildReloadInFlight(), false, "a navigation that never replaced the page releases it");
+  assert.equal(reloadStaleTabForQuestion("Why is the sky blue?", { clientBuildId: OLD, location, storage }), false,
+    "and the next ask teaches here (the mark already says this build was tried)");
 });
 
 check("wiring: build inlines the identity, the server reports it, the shell watches, a new lesson reloads first", () => {
@@ -114,8 +176,12 @@ check("wiring: build inlines the identity, the server reports it, the shell watc
   const unlock = handler.indexOf("ensureTTSClient().unlockAudio?.();", start);
   assert(start > 0 && unlock > start, "handleQuestion anchors");
   const head = handler.slice(start, unlock);
-  assert.match(head, /if \(!options\?\.doubt && !options\?\.resume && reloadStaleTabForQuestion\(rawQuestion\)\) \{\s*options\?\.onAdmission\?\.\(false\);\s*return;/,
+  assert.match(head, /if \(!options\?\.doubt && !options\?\.resume && reloadStaleTabForQuestion\(rawQuestion\)\) \{/,
     "a new lesson reloads a stale tab before anything else; doubts and resumes stay");
+  assert.match(head, /reloadStaleTabForQuestion\(rawQuestion\)\) \{[\s\S]*?pendingQuestionRef\.current = null;[\s\S]*?options\?\.onAdmission\?\.\(true\);\s*return;/,
+    "the stale return clears the pending question and does not report a failed start");
+  const watcher = readFileSync(path.join(app, "lib/client/staleBuild.ts"), "utf8");
+  assert.match(watcher, /addEventListener\("pageshow", onPageShow\)/, "a page restored from the back forward cache may teach again");
 });
 
 let finished = false;

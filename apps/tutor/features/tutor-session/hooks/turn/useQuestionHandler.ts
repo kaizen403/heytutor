@@ -2946,7 +2946,11 @@ export function useQuestionHandler(
       // figures. A new lesson reloads into the current build and asks the
       // same question there; doubts and resumes stay on this page.
       if (!options?.doubt && !options?.resume && reloadStaleTabForQuestion(rawQuestion)) {
-        options?.onAdmission?.(false);
+        // The question travels with the reload in ?q=: nothing is pending on
+        // this page (a flush or retry would ask again), and the input bar
+        // must not say the lesson could not start.
+        pendingQuestionRef.current = null;
+        options?.onAdmission?.(true);
         return;
       }
       // Audio unlock stays in the user gesture; title/billing wait for admission.
@@ -3021,7 +3025,7 @@ export function useQuestionHandler(
       void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
       return receipt.finished;
     },
-    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, turnAbortRef, pendingSegmentCountRef, whiteboardRef, emitError, finishLectureUi],
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, turnAbortRef, pendingSegmentCountRef, pendingQuestionRef, whiteboardRef, emitError, finishLectureUi],
   );
 
   useEffect(() => {
