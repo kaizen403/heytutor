@@ -49,7 +49,9 @@ function thresholdHasReactionOwner(stem: string): boolean {
 
 /** A distribution of speeds is a distribution over moving particles. */
 const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/;
-const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:\w+\s+)?(?:gas(?:es)?|molecules|particles|atoms)\b`;
+// A gas may carry a short run of descriptions ("a monatomic ideal gas"); the
+// noun itself stays the evidence.
+const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:(?:\w+\s+){0,3}gas(?:es)?|(?:\w+\s+)?(?:molecules|particles|atoms))\b`;
 /**
  * An energy distribution is the molecules' only when the stem says so beside
  * it: a standing electromagnetic wave has an energy distribution too.

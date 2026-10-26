@@ -81,6 +81,8 @@ for (const question of [
   "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
   "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
   "Sketch the distribution of energy for an ideal gas at two temperatures.",
+  "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
+  "Sketch the energy distribution in a real diatomic gas at two temperatures.",
 ]) check(`maxwell distribution keeps its curve: ${question}`, () => chemistryFigure(question, "chem_thermo"));
 check("chemical first-order half-life retains kinetics", () => chemistryFigure("The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?", "chem_kinetics"));
 check("rate law notation retains kinetics", () => chemistryFigure("For a first order reaction the rate law is r = k[A]. 50% of A is decomposed in 120 min. Calculate time for 90% decomposition.", "chem_kinetics"));
