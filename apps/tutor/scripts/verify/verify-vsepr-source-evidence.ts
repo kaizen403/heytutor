@@ -225,6 +225,19 @@ async function main(): Promise<void> {
   check(!(await saved(sample.question, null, noPlanStaging)).ok, "missing plan cannot bless submitted answer staging");
   const invalidPlan = { schemaVersion: "turn-plan/v3", question: sample.question, givens: "invalid" };
   check(!(await saved(sample.question, null, sample.document, { rawPlan: invalidPlan })).ok, "an explicitly invalid retained plan is rejected rather than silently treated as an absent plan");
+  // A topic ask's plan example saves through the real canonicalization, not
+  // only the certificate: its document records the question as asked.
+  for (const [question, formula, claim] of [
+    ["explain hybridisation", "CH4", "CH4 is sp3 and tetrahedral"],
+    ["what is sp2 hybridisation", "BF3", "BF3 is sp2 hybridised and trigonal planar"],
+  ] as const) {
+    const examplePlan = { ...makePlan(question), visualRequirement: "optional", lawIds: [], exampleSpecies: [{ formula, claim }] } as TurnPlanV3;
+    const example = synthesizeFamilyScene({ question, turnPlan: examplePlan });
+    check(example?.document.source.figureProvenance === "plan_example", `${question}: the plan example draws`);
+    const persistedExample = await saved(question, examplePlan, example.document);
+    check(persistedExample.ok, `${question}: the plan example figure saves (${persistedExample.ok ? "ok" : `${persistedExample.code}: ${persistedExample.error}`})`);
+    check(!(await saved(question, makePlan(question), example.document)).ok, `${question}: without its example in the plan the figure does not save`);
+  }
   let nativeShapeProbes = 0;
   for (const probe of VSEPR_PROBES.filter((probe) => probe.expect === "draw")) {
     const plan = makePlan(probe.question);

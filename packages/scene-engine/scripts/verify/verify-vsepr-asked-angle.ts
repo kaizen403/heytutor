@@ -272,7 +272,7 @@ await check("mutation/long-caption-drops-value", async () => {
 });
 await check("mutation/rows-take-single-marks", async () => {
   // Rows drawn with the single molecule marks leave main's drawing: every row goes red.
-  const build = await mutant("rows", "`m${index + 1}`, pxPerUnit, withAngle, !single);", "`m${index + 1}`, pxPerUnit, withAngle, false);");
+  const build = await mutant("rows", "`m${index + 1}`, pxPerUnit, withAngle, !single, example);", "`m${index + 1}`, pxPerUnit, withAngle, false, example);");
   assert.deepEqual(rowsRed(build), ASKED.filter((row) => row.species.length > 1).map(({ question }) => `rows/${question}`));
 });
 // A build that draws nothing: a missing figure on a probe that expects a
