@@ -15,6 +15,8 @@
  *   unexplained quantity.
  * - region_label_in_nested_body: a region's name sits inside a body drawn
  *   within that region, so it names the body instead.
+ * - axes_frames_overlap: two axes drawn over one another, so two graphs the
+ *   document keeps apart read as one and each one's marks land on the other.
  */
 import type { RenderPrimitive, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
@@ -372,6 +374,37 @@ export function validateRegionLabelPlacement(document: SceneDocument, primitives
   return issues;
 }
 
+// ---------------------------------------------------------------------------
+// Coordinate frames
+
+/** Frames sharing no more than this many pixels across both directions only touch. */
+const FRAME_OVERLAP_PX = 2;
+
+function frameBox(primitive: RenderPrimitive): { minX: number; maxX: number; minY: number; maxY: number } | null {
+  if (primitive.kind !== "axes" || primitive.points.length < 2) return null;
+  const xs = primitive.points.map((p) => p.x), ys = primitive.points.map((p) => p.y);
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+}
+
+/** Every pair of axes of different entities whose drawn frames overlap; packed panels are apart. */
+export function validateFrameOverlap(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {
+  const frames = primitives.flatMap((primitive) => {
+    const box = isInk(primitive) && !isAnnotationMark(document, primitive) ? frameBox(primitive) : null;
+    return box ? [{ entityId: primitive.entityId, box }] : [];
+  });
+  const issues: SceneIssue[] = [];
+  for (let i = 0; i < frames.length; i++) for (let j = i + 1; j < frames.length; j++) {
+    const first = frames[i]!, second = frames[j]!;
+    if (first.entityId === second.entityId) continue;
+    const width = Math.min(first.box.maxX, second.box.maxX) - Math.max(first.box.minX, second.box.minX);
+    const height = Math.min(first.box.maxY, second.box.maxY) - Math.max(first.box.minY, second.box.minY);
+    if (width <= FRAME_OVERLAP_PX || height <= FRAME_OVERLAP_PX) continue;
+    issues.push({ code: "axes_frames_overlap", severity: "fatal", failureKind: "truth", entityIds: [first.entityId, second.entityId],
+      message: `Axes ${first.entityId} and ${second.entityId} are drawn over one another, so their two graphs read as one and each one's marks land on the other.` });
+  }
+  return issues;
+}
+
 export function validateFigureConsistency(document: SceneDocument, primitives: RenderPrimitive[], terminalsOf?: SymbolTerminals): SceneIssue[] {
   return [
     ...validateComponentGlyphOverlap(document, primitives, terminalsOf),
@@ -379,5 +412,6 @@ export function validateFigureConsistency(document: SceneDocument, primitives: R
     ...validateArrowOverlap(document, primitives),
     ...validateArrowLabels(document, primitives),
     ...validateRegionLabelPlacement(document, primitives),
+    ...validateFrameOverlap(document, primitives),
   ];
 }

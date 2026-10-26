@@ -233,6 +233,27 @@ function highlightedRod(): Doc {
 expect("a loop highlight holding the region name does not count as a nested body", highlightedRod(), "region_label_in_nested_body", false);
 expect("mutation: a highlighted body still refuses a name inside the body", annotate(tank(3), { id: "ring", kind: "loop", targetIds: ["solid"] }), "region_label_in_nested_body", true);
 
+// --- two axes drawn over one another ------------------------------------------------
+// Production drew a transverse and a longitudinal wave as two axes in two reveal groups
+// with no placement: both landed on one frame, so the compression mark sat on a crest.
+function frames(count: 1 | 2, options: { curves?: boolean; secondRange?: [number, number, number, number] } = {}): Doc {
+  const parts: Array<[Entity, Construction]> = [];
+  const names = ["T", "L"].slice(0, count);
+  for (const [index, name] of names.entries()) {
+    const [xMin, xMax, yMin, yMax] = index === 1 && options.secondRange ? options.secondRange : [-0.4, 8.6, -2.6, 2.6];
+    parts.push([{ id: `axes${name}`, kind: "axes", role: `${name} axes` }, { id: `make_axes${name}`, operator: "axes", inputs: { xMin, xMax, yMin, yMax }, outputs: [`axes${name}`] }]);
+    if (options.curves !== false) parts.push([{ id: `wave${name}`, kind: "polyline", role: `${name} wave`, label: `wave ${index + 1}` }, { id: `make_wave${name}`, operator: "function_curve", inputs: { expression: "1.6*sin(1.5707963267948966*x)", variable: "x", xMin: 0, xMax: 8, samples: 49 }, outputs: [`wave${name}`] }]);
+  }
+  const document = build(parts);
+  document.revealGroups = names.map((name, index) => ({
+    id: `panel${name}`, dependsOn: index === 0 ? [] : ["panelT"], entityIds: [`axes${name}`, ...(options.curves === false ? [] : [`wave${name}`])], narrationCue: `panel ${name}` }));
+  return document;
+}
+expect("two axes in two reveal groups drawn on one frame are refused", frames(2), "axes_frames_overlap", true);
+expect("two axes with different ranges still share the world frame and are refused", frames(2, { secondRange: [-1, 4, -1, 1] }), "axes_frames_overlap", true);
+expect("mutation: the same figure with one axes is admitted", frames(1), "axes_frames_overlap", false);
+expect("two lone axes the compiler packs into separate panels are admitted", frames(2, { curves: false }), "axes_frames_overlap", false);
+
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }
 else { passed += 1; console.log("pass the rules run only when admission opts in"); }
