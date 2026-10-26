@@ -221,10 +221,11 @@ const TRAVEL_VERB = String.raw`\b(?:go(?:es|ing)?|went|gone|travel(?:s|led|ed|li
 /** A distance travelled along the stream: "go 100 m downstream", "covers 16 km upstream and 24 km downstream". */
 const DISTANCE_ALONG_STREAM = new RegExp(String.raw`${TRAVEL_VERB}(?:(?:a|the)\s+(?:total\s+)?distance\s+of\s+)?(?:${RIVER_LENGTH}\s+${ALONG_STREAM_EVIDENCE}|${ALONG_STREAM_EVIDENCE}\s+(?:(?:for|by)\s+|(?:a|the)\s+distance\s+of\s+)?${RIVER_LENGTH})(?:\s*,?\s*(?:and\s+)?(?:then\s+)?${RIVER_LENGTH}\s+${ALONG_STREAM_EVIDENCE})*`, "gi");
 const RIVER_SPEED = String.raw`\d+(?:\.\d+)?\s*(?:(?:km|m|cm|mi|miles?|ft|feet|met(?:er|re)s?|kilomet(?:er|re)s?)\s*(?:\/\s*(?:s|sec|seconds?|h|hrs?|hours?|min)\b|per\s+[a-z]+|h(?:rs?|ours?)?\s*(?:\^?-1|-1|⁻¹)|s\s*(?:\^?-1|-1|⁻¹))|kmph\b|mph\b|ms\s*(?:\^?-1|-1|⁻¹))`;
-/** A speed at most four words from along-stream wording, either way round, in one clause. */
-const SPEED_BY_ALONG_STREAM = new RegExp(String.raw`${RIVER_SPEED}(?:\s+[^\s.;:?!]+){0,4}?\s+${ALONG_STREAM_EVIDENCE}|${ALONG_STREAM_EVIDENCE}(?:\s+[^\s.;:?!]+){0,4}?\s+(?:=\s*)?(${RIVER_SPEED})`, "gi");
 /** Role words before a speed; the first group is a river word, which names the current's own speed. */
-const SPEED_ROLE_WORD = /\b(?:(river|current|stream|flows?|flowing|water)|boat\w*|\w+boat|swim\w*|rows?|rowed|rowing|ferry|steamer|launch|man|woman|person|he|she|it|its)\b/gi;
+const SPEED_ROLE_WORD = /\b(?:(river|current|stream|flows?|flowing)|boat\w*|\w+boat|swim\w*|rows?|rowed|rowing|ferry|steamer|launch|man|woman|person|he|she|it|its|water)\b/gi;
+/** A still-water qualifier names the boat's own speed: "5 m/s in still water", "speed in still water is 5 m/s". */
+const STILL_WATER_AFTER = /^\s*(?:(?:in|relative\s+to|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:the\s+)?(?:still|stationary|calm)\s+water|relative\s+to\s+(?:the\s+)?water)\b/i;
+const STILL_WATER_BEFORE = /\b(?:still|stationary|calm)\s+water\s+(?:is\s+|=\s*|of\s+|equals\s+)?$/i;
 
 /** Every length in the stem is a distance travelled along the stream. */
 function riverLengthsAlongStream(text: string): boolean {
@@ -234,16 +235,25 @@ function riverLengthsAlongStream(text: string): boolean {
 }
 
 /**
- * A speed stated beside along-stream wording ("goes downstream at 8 m/s") is the boat's speed
- * over the ground, not its speed in still water, unless the last role word before it is the
- * river's ("the current is 3 m/s along the river"). With no role word it is unread.
+ * In a sentence with along-stream wording, every speed must be owned: by a still-water qualifier
+ * (the boat's own speed) or by a river word as the last role word before it (the current's,
+ * "the current is 3 m/s along the river"). Any other speed there ("goes downstream at 8 m/s",
+ * "goes downstream and the boat moves at 8 m/s") is a speed over the ground, not the boat's
+ * speed in still water. The along-stream wording itself is blanked first, so its own "river"
+ * or "current" never owns a speed.
  */
 function riverSpeedAlongStream(text: string): boolean {
-  return [...text.matchAll(SPEED_BY_ALONG_STREAM)].some((match) => {
-    const clauseStart = Math.max(...[".", ";", ":", "?", "!"].map((mark) => text.lastIndexOf(mark, match.index!)));
-    const speedAt = match[1] === undefined ? match.index! : match.index! + match[0].lastIndexOf(match[1]);
-    const roles = [...text.slice(clauseStart + 1, speedAt).matchAll(SPEED_ROLE_WORD)];
-    return roles.length === 0 || roles[roles.length - 1]![1] === undefined;
+  const evidence = new RegExp(String.raw`\b${ALONG_STREAM_EVIDENCE}\b`, "gi");
+  return text.split(/(?<=[.;:?!])\s+/).some((sentence) => {
+    const blanked = sentence.replace(evidence, (phrase) => " ".repeat(phrase.length));
+    if (blanked === sentence) return false;
+    return [...sentence.matchAll(new RegExp(RIVER_SPEED, "gi"))].some((speed) => {
+      const start = speed.index!; const end = start + speed[0].length;
+      if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;
+      if (STILL_WATER_BEFORE.test(sentence.slice(0, start))) return false;
+      const roles = [...blanked.slice(0, start).matchAll(SPEED_ROLE_WORD)];
+      return roles.length === 0 || roles[roles.length - 1]![1] === undefined;
+    });
   });
 }
 

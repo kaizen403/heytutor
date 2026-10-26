@@ -267,6 +267,15 @@ const OFF_STREAM_LENGTH_STEMS: Array<[string, number, number]> = [
 const GROUND_SPEED_STEMS: Array<[string, number, number] | [string]> = [
   ["A boat goes downstream at 8 m/s. The river flows at 2 m/s. Find the speed of the boat in still water.", 8, 2],
   ["A boat moves at 8 m/s down the river, which flows at 2 m/s. Find its speed in still water.", 8, 2],
+  // Greptile on #319: five words between the direction and the speed. The first is refused by the
+  // speed reader too; the second binds vb = 8 and drew vb+vc = 10 under a four word window.
+  ["A boat moves down the river at a steady speed of 8 m/s. The river flows at 2 m/s. Find its speed in still water.", 8, 2],
+  ["A boat goes downstream and the boat moves at 8 m/s. The river flows at 2 m/s. Find its speed in still water.", 8, 2],
+];
+// A speed a still-water qualifier names is the boat's own, beside along-stream wording or not:
+// these draw downstream at vb+vc = 8 and upstream at vb−vc = 2 (Greptile on #319).
+const STILL_WATER_STEMS = [
+  "A boat rows upstream at 5 m/s in still water. The river flows at 3 m/s. Find its downstream speed.",
 ];
 // The two widened evidence phrases: these draw downstream at vb+vc = 8 and upstream at vb−vc = 2.
 const WIDENED_STEMS = [
@@ -285,6 +294,7 @@ const evidenceRows: Repro[] = [
   ...declineRows("evidence ground speed", GROUND_SPEED_STEMS),
   // Drawn with no ProblemIR; the live river ProblemIR keeps main's refusal, as for "downstream".
   // The swimmer stem is the legacy sketch's alone: the fast path declines it.
+  ...STILL_WATER_STEMS.map((question, index) => ({ name: `evidence still water ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: refusedWithIR(ALONG_STREAM_FIG) })),
   ...WIDENED_STEMS.map((question, index) => ({
     name: `evidence widened ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question),
     expected: /swimmer/.test(question) ? refusedWithIR(LEGACY_ALONG_STREAM_FIG, null) : refusedWithIR(ALONG_STREAM_FIG),
@@ -296,8 +306,11 @@ const OTHER_GEOMETRY_ROWS = evidenceNames("other geometry");
 const OFF_STREAM_LENGTH_ROWS = evidenceNames("off stream length");
 const GROUND_SPEED_ROWS = evidenceNames("ground speed");
 const WIDENED_ROWS = evidenceNames("widened");
-// Every decline row draws the along-stream picture with no evidence check at all.
-const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_ROWS];
+const STILL_WATER_ROWS = evidenceNames("still water");
+// The ground speed rows that draw without the rule: Greptile's own stem (3) the speed reader refuses too.
+const GROUND_SPEED_DRAWN_ROWS = GROUND_SPEED_ROWS.filter((name) => !name.startsWith("evidence ground speed 3"));
+// Every other decline row draws the along-stream picture with no evidence check at all.
+const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS];
 // The archetype's widened rows: the swimmer stem is the legacy sketch's, which records no bodies.
 const WIDENED_ARCHETYPE_ROWS = WIDENED_ROWS.filter((name) => !/swimmer/.test(name));
 
@@ -460,7 +473,7 @@ const mutations: Mutation[] = [
   {
     name: "fix: the along-stream picture records its bodies again",
     edits: [{ file: MECHANICS, from: "  if (variant === \"along_stream\") return scene.build();\n", to: "" }],
-    red: [ALONG_STREAM_ROW, ...WIDENED_ARCHETYPE_ROWS],
+    red: [ALONG_STREAM_ROW, ...STILL_WATER_ROWS, ...WIDENED_ARCHETYPE_ROWS],
   },
   {
     name: "fix: a horizontal launch with an unread numeric drop draws again",
@@ -488,7 +501,12 @@ const mutations: Mutation[] = [
   {
     name: "evidence: a speed over the ground read as the boat's speed again",
     edits: [{ file: CLASSIFY, from: "  if (riverSpeedAlongStream(text)) return false;\n", to: "" }],
-    red: GROUND_SPEED_ROWS,
+    red: GROUND_SPEED_DRAWN_ROWS,
+  },
+  {
+    name: "evidence: a still-water qualifier after a speed no longer names the boat's own speed",
+    edits: [{ file: CLASSIFY, from: "      if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;\n", to: "" }],
+    red: STILL_WATER_ROWS,
   },
   {
     name: "evidence: down the river and up the stream are not along-stream evidence again",
