@@ -88,6 +88,9 @@ for (const question of [
   "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
   "Sketch the energy distribution of a gas of photons in a cavity at two temperatures.",
   "Sketch the energy distribution of the gas giant's atmosphere layers.",
+  "Sketch the energy distribution of the particles in a photon gas at two temperatures.",
+  "Sketch the energy distribution of the atoms in a Fermi gas.",
+  "Sketch the energy distribution in a mixture of radiation in a gas.",
 ]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
 for (const question of [
   "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
@@ -101,6 +104,8 @@ for (const question of [
   "Sketch the distribution of energy for an ideal gas at two temperatures.",
   "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
   "Sketch the energy distribution in a real diatomic gas at two temperatures.",
+  "Sketch the distribution of energy among the particles of an ideal gas at two temperatures.",
+  "Sketch the energy distribution in a mixture of ideal gases at two temperatures.",
 ]) check(`maxwell distribution keeps its curve: ${question}`, () => chemistryFigure(question, "chem_thermo"));
 check("chemical first-order half-life retains kinetics", () => chemistryFigure("The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?", "chem_kinetics"));
 check("rate law notation retains kinetics", () => chemistryFigure("For a first order reaction the rate law is r = k[A]. 50% of A is decomposed in 120 min. Calculate time for 90% decomposition.", "chem_kinetics"));
