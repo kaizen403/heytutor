@@ -210,10 +210,11 @@ export function riverBoatVariant(stem: string): RiverBoatVariant {
 const ALONG_STREAM_EVIDENCE = String.raw`(?:downstream|upstream|down the river|up the stream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))`;
 /**
  * Any other river geometry: a bank, shore or side, a width, a direction across or by the compass,
- * an angle, a heading, steer, aim or point, a drift, or a minimum time or shortest path. The
+ * an angle, a heading, steer, aim or point, a drift, a landing place, a point facing or in front
+ * of the boat, a square nose, a due compass course, or a minimum time or shortest path. The
  * along-stream picture draws none of these, so a stem naming one is not that picture.
  */
-const RIVER_OTHER_GEOMETRY = /\b(?:banks?|shores?|sides?|wide|width|breadth|opposite|across|cross\w*|(?:north|south|east|west)\w*|normal\w*|perpendicular\w*|right[- ]angles?|angles?|degrees?|head(?:s|ed|ing)?|steer\w*|drift\w*|aim\w*|point\w*|minimum time|least time|shortest|quickest)\b|°/i;
+const RIVER_OTHER_GEOMETRY = /\b(?:banks?|shores?|sides?|wide|width|breadth|opposite|across|cross\w*|(?:north|south|east|west)\w*|normal\w*|perpendicular\w*|right[- ]angles?|angles?|degrees?|head(?:s|ed|ing)?|steer\w*|drift\w*|aim\w*|point\w*|land(?:s|ed|ing)?|facing|front|edges?|square|islands?|due\s+[nsew]|minimum time|least time|shortest|quickest)\b|°/i;
 const LENGTH_UNIT = String.raw`(?:km|m|cm|mm|mi|miles?|ft|feet|foot|yards?|yd|kilomet(?:er|re)s?|met(?:er|re)s?)`;
 /** A number with a length unit; a speed ("m/s", "km h^-1", "m per second") is not a length. */
 const RIVER_LENGTH = String.raw`\d+(?:\.\d+)?\s*${LENGTH_UNIT}\b(?!\s*(?:\/|per\b|p\.?h\b|h(?:rs?|ours?)?\s*(?:\^?-1|⁻¹)|s\s*(?:\^?-1|⁻¹)|\^|-1|⁻¹))`;
@@ -235,7 +236,8 @@ function riverLengthsAlongStream(text: string): boolean {
 }
 
 /**
- * In a sentence with along-stream wording, every speed must be owned: by a still-water qualifier
+ * Once the stem has along-stream wording anywhere, every speed in every sentence must be owned
+ * ("A boat goes downstream. Its speed is 8 m/s." splits the ground speed off): by a still-water qualifier
  * (the boat's own speed) or by a river word as the last role word before it (the current's,
  * "the current is 3 m/s along the river"). Any other speed there ("goes downstream at 8 m/s",
  * "goes downstream and the boat moves at 8 m/s") is a speed over the ground, not the boat's
@@ -244,9 +246,9 @@ function riverLengthsAlongStream(text: string): boolean {
  */
 function riverSpeedAlongStream(text: string): boolean {
   const evidence = new RegExp(String.raw`\b${ALONG_STREAM_EVIDENCE}\b`, "gi");
+  if (!new RegExp(evidence.source, "i").test(text)) return false;
   return text.split(/(?<=[.;:?!])\s+/).some((sentence) => {
     const blanked = sentence.replace(evidence, (phrase) => " ".repeat(phrase.length));
-    if (blanked === sentence) return false;
     return [...sentence.matchAll(new RegExp(RIVER_SPEED, "gi"))].some((speed) => {
       const start = speed.index!; const end = start + speed[0].length;
       if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;

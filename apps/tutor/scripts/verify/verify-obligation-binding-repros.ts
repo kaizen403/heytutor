@@ -247,11 +247,12 @@ const PIT_ROWS = fixRows.filter((row) => row.name.startsWith("fix pit")).map((ro
  */
 const RIVER_IRS = (question: string) => [{ tag: "riverIR", ir: riverIR(question) }, { tag: "riverIRc", ir: restemIR(riverCase.authority.problemIR, question) }];
 // Crossing stems in words #316's crossing list did not know: far bank or side, normal to,
-// compass headings, aim, an angle in degrees.
+// compass headings, aim, an angle in degrees. Rows 1 and 3 say "in still water", so the speed
+// reader owns their speeds and only the geometry rule declines them.
 const OTHER_GEOMETRY_STEMS: Array<[string, number, number]> = [
-  ["A boat rows at 4 m/s normal to the current of a river flowing at 2 m/s. How long does it take to reach the far bank, and how far downstream does it land?", 4, 2],
+  ["A boat rows at 4 m/s in still water normal to the current of a river flowing at 2 m/s. How long does it take to reach the far bank, and how far downstream does it land?", 4, 2],
   ["A boat moves at 5 m/s in still water, pointing north, while the river flows east at 3 m/s. How far downstream does it land?", 5, 3],
-  ["A boat rows at 4 m/s normal to the current, which flows at 3 m/s. How far downstream does it go?", 4, 3],
+  ["A boat rows at 4 m/s in still water normal to the current, which flows at 3 m/s. How far downstream does it go?", 4, 3],
   ["A swimmer swims at 2 m/s in still water in a river flowing at 1 m/s. He reaches the far side. How far downstream is he carried?", 2, 1],
   ["A boat sails north at 5 m/s relative to the water. The river flows east at 3 m/s. How far downstream does it travel in 20 s?", 5, 3],
   ["A boatman aims his boat at the far shore, rowing at 4 m/s in still water. The river flows at 3 m/s. How far downstream does he land?", 4, 3],
@@ -283,6 +284,41 @@ const WIDENED_STEMS = [
   "A boat's speed in still water is 5 m/s and the river flows at 3 m/s. Find the time to go 100 m down the river and return.",
   "A swimmer swims at 5 m/s in still water in a river flowing at 3 m/s. How fast does he move up the stream, and how fast down the river?",
 ];
+/*
+ * #319's review (classes A to E). Each drew a wrong figure on ca5512eca on the no ProblemIR paths.
+ * A: a crossing drift asked in the widened wording ("how far down the river does it land").
+ */
+const DRIFT_DOWN_THE_RIVER_STEMS: Array<[string, number, number]> = [
+  ["A boat rows at 5 m/s in still water in a river flowing at 3 m/s. How far down the river does it land?", 5, 3],
+  ["A boat sets off at 5 m/s in still water. The river flows at 3 m/s. How far down the river does it land?", 5, 3],
+  ["A boat sets off at 5 m/s in still water for the jetty facing it. The river flows at 3 m/s. How far down the river does it land?", 5, 3],
+];
+// B: the swimmer stem's speeds under plan symbols the legacy sketch does not alias drew its stock
+// 5:2 arrows, where the stem gives 5:3.
+const SWIMMER = WIDENED_STEMS[2]!;
+const UNSOURCED_SKETCH_PLANS: Array<[string, TurnPlanV3]> = [
+  ["no givens", plan(SWIMMER)],
+  ["v_s and v_w", plan(SWIMMER, [given("v_s", 5, "m/s", "5 m/s in still water"), given("v_w", 3, "m/s", "flowing at 3 m/s")])],
+  ["u and v", plan(SWIMMER, [given("u", 5, "m/s", "5 m/s in still water"), given("v", 3, "m/s", "flowing at 3 m/s")])],
+];
+// C: a ground speed in a sentence with no along-stream wording drew vb+vc = 10 for a ground speed of 8.
+const SPLIT_GROUND_SPEED_STEMS: Array<[string, number, number]> = [
+  ["A boat goes downstream. Its speed is 8 m/s. The river flows at 2 m/s. Find the speed of the boat in still water.", 8, 2],
+  ["A boat moves at 8 m/s. It goes downstream in a river flowing at 2 m/s. Find its speed in still water.", 8, 2],
+  ["A boat goes downstream. The boat moves at 8 m/s and the river flows at 2 m/s. Find the speed in still water.", 8, 2],
+];
+// D: a boat slower than the current heading upstream drew a forward arrow labelled vb−vc=-1.
+const SLOW_BOAT = "A boat with speed 2 m/s in still water tries to go upstream in a river flowing at 3 m/s. What happens?";
+// E: crossing wording still missing from the geometry list: a dock facing it, a far edge, an
+// island in front, a nose square to the flow, due north, and a landing place.
+const CROSSING_WORDING_STEMS: Array<[string, number, number]> = [
+  ["A boat with speed 5 m/s in still water sets off for the dock facing it in a river flowing at 3 m/s. How far downstream does it land?", 5, 3],
+  ["A ferry leaves the jetty at 5 m/s in still water for the landing stage on the far edge of a river flowing at 3 m/s. How far downstream does it arrive?", 5, 3],
+  ["A girl swims at 2 m/s in still water to an island directly in front of her in a river flowing at 1 m/s. How far downstream does she end up?", 2, 1],
+  ["A boat moving at 5 m/s in still water keeps its nose square to the flow of a river flowing at 3 m/s. How far downstream does it land?", 5, 3],
+  ["A boat moves at 5 m/s in still water due N in a river flowing at 3 m/s due E. How far downstream does it land?", 5, 3],
+  ["A boat sets off at 5 m/s in still water. The river flows at 3 m/s. How far downstream does it land?", 5, 3],
+];
 const declineRows = (tag: string, stems: Array<[string, number, number] | [string]>): Repro[] => stems.flatMap(([question, vb, vc], index) => [
   { name: `${tag} ${index + 1}: ${question}`, question, turnPlan: plan(question), irs: RIVER_IRS(question), expected: everywhere(null) },
   ...(vb === undefined || vc === undefined ? [] : [
@@ -292,6 +328,13 @@ const evidenceRows: Repro[] = [
   ...declineRows("evidence other geometry", OTHER_GEOMETRY_STEMS),
   ...declineRows("evidence off stream length", OFF_STREAM_LENGTH_STEMS),
   ...declineRows("evidence ground speed", GROUND_SPEED_STEMS),
+  ...declineRows("evidence drift down the river", DRIFT_DOWN_THE_RIVER_STEMS),
+  ...UNSOURCED_SKETCH_PLANS.map(([tag, turnPlan], index) => ({ name: `evidence unsourced sketch ${index + 1}: swimmer, ${tag}`, question: SWIMMER, turnPlan, irs: RIVER_IRS(SWIMMER), expected: everywhere(null) })),
+  ...declineRows("evidence split ground speed", SPLIT_GROUND_SPEED_STEMS),
+  { name: `evidence slow boat 1: ${SLOW_BOAT}`, question: SLOW_BOAT, turnPlan: plan(SLOW_BOAT), irs: RIVER_IRS(SLOW_BOAT), expected: everywhere(null) },
+  // With vb and vc planned the legacy sketch draws it: its "up" arrow runs vc − vb = 1 downstream.
+  { name: "evidence slow boat 1 with vb and vc planned", question: SLOW_BOAT, turnPlan: crossingPlan(SLOW_BOAT, 2, 3), irs: RIVER_IRS(SLOW_BOAT), expected: refusedWithIR({ ...LEGACY_ALONG_STREAM_FIG, collinear: { vb: 2, vc: 3 } }, null) },
+  ...declineRows("evidence crossing wording", CROSSING_WORDING_STEMS),
   // Drawn with no ProblemIR; the live river ProblemIR keeps main's refusal, as for "downstream".
   // The swimmer stem is the legacy sketch's alone: the fast path declines it.
   ...STILL_WATER_STEMS.map((question, index) => ({ name: `evidence still water ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: refusedWithIR(ALONG_STREAM_FIG) })),
@@ -307,10 +350,17 @@ const OFF_STREAM_LENGTH_ROWS = evidenceNames("off stream length");
 const GROUND_SPEED_ROWS = evidenceNames("ground speed");
 const WIDENED_ROWS = evidenceNames("widened");
 const STILL_WATER_ROWS = evidenceNames("still water");
+const DRIFT_DOWN_THE_RIVER_ROWS = evidenceNames("drift down the river");
+const UNSOURCED_SKETCH_ROWS = evidenceNames("unsourced sketch");
+const SPLIT_GROUND_SPEED_ROWS = evidenceNames("split ground speed");
+const SLOW_BOAT_ROWS = evidenceNames("slow boat");
+const CROSSING_WORDING_ROWS = evidenceNames("crossing wording");
+// The review's wording rows the geometry list declines: a landing place, facing, front, edge, square, island, due.
+const NEW_GEOMETRY_ROWS = [...DRIFT_DOWN_THE_RIVER_ROWS, ...CROSSING_WORDING_ROWS];
 // The ground speed rows that draw without the rule: Greptile's own stem (3) the speed reader refuses too.
 const GROUND_SPEED_DRAWN_ROWS = GROUND_SPEED_ROWS.filter((name) => !name.startsWith("evidence ground speed 3"));
 // Every other decline row draws the along-stream picture with no evidence check at all.
-const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS];
+const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS, ...DRIFT_DOWN_THE_RIVER_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...CROSSING_WORDING_ROWS];
 // The archetype's widened rows: the swimmer stem is the legacy sketch's, which records no bodies.
 const WIDENED_ARCHETYPE_ROWS = WIDENED_ROWS.filter((name) => !/swimmer/.test(name));
 
@@ -491,7 +541,12 @@ const mutations: Mutation[] = [
   {
     name: "evidence: a stem naming other river geometry draws the along-stream picture again",
     edits: [{ file: CLASSIFY, from: "  if (RIVER_OTHER_GEOMETRY.test(text)) return false;\n", to: "" }],
-    red: OTHER_GEOMETRY_ROWS,
+    red: [...OTHER_GEOMETRY_ROWS, ...NEW_GEOMETRY_ROWS],
+  },
+  {
+    name: "evidence: landing, facing, front, edge, square, island and due compass wording are not other geometry again",
+    edits: [{ file: CLASSIFY, from: "land(?:s|ed|ing)?|facing|front|edges?|square|islands?|due\\s+[nsew]|", to: "" }],
+    red: NEW_GEOMETRY_ROWS,
   },
   {
     name: "evidence: a length not travelled along the stream draws again",
@@ -501,12 +556,33 @@ const mutations: Mutation[] = [
   {
     name: "evidence: a speed over the ground read as the boat's speed again",
     edits: [{ file: CLASSIFY, from: "  if (riverSpeedAlongStream(text)) return false;\n", to: "" }],
-    red: GROUND_SPEED_DRAWN_ROWS,
+    red: [...GROUND_SPEED_DRAWN_ROWS, ...SPLIT_GROUND_SPEED_ROWS],
+  },
+  {
+    name: "evidence: only a sentence with along-stream wording has its speeds read again",
+    edits: [{
+      file: CLASSIFY,
+      from: "  if (!new RegExp(evidence.source, \"i\").test(text)) return false;\n  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n",
+      to: "  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n    if (blanked === sentence) return false;\n",
+    }],
+    red: SPLIT_GROUND_SPEED_ROWS,
+  },
+  {
+    name: "evidence: a boat no faster than the current draws a forward upstream arrow again",
+    edits: [{ file: MECHANICS, from: "  if (variant === \"along_stream\" && vb <= vc) return null;\n", to: "" }],
+    red: SLOW_BOAT_ROWS,
+  },
+  {
+    name: "evidence: the legacy sketch draws stated speeds the plan does not name at its stock 5:2 again",
+    edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && !riverSpeeds(quantities).sourced) return true;\n", to: "" }],
+    red: [...UNSOURCED_SKETCH_ROWS, SLOW_BOAT_ROWS[0]!],
   },
   {
     name: "evidence: a still-water qualifier after a speed no longer names the boat's own speed",
     edits: [{ file: CLASSIFY, from: "      if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;\n", to: "" }],
-    red: STILL_WATER_ROWS,
+    // Every sentence's speeds are read once the stem has along-stream wording, so the qualifier
+    // also owns the drawn rows whose "5 m/s in still water" sits in a sentence without it.
+    red: [SLOW_BOAT_ROWS[1]!, ...STILL_WATER_ROWS, ...WIDENED_ROWS.filter((name) => /swimmer/.test(name))],
   },
   {
     name: "evidence: down the river and up the stream are not along-stream evidence again",
