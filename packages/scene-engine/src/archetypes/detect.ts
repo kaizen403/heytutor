@@ -861,6 +861,9 @@ const CUE_SETS: readonly CueSet[] = [
     id: "motional_emf_rod",
     cues: [[/\b(?:conducting|metal|metallic) (?:rod|bar|wire)\b/i, 3], [/\b(?:motional emf|induced emf|emf induced)\b/i, 3], [/\b(?:moves|moving|velocity|rails?)\b/i, 1], [/\bmagnetic field\b/i, 1]],
     minScore: 5,
+    // The figure is a straight conductor sliding on rails. A rotating loop or
+    // a coil has an induced emf too, but no rod to draw.
+    requires: [/\b(?:rods?|bars?|straight (?:wire|conductor)|(?:conducting|metal|metallic|sliding) (?:wire|conductor))\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "length", planNumber(plan, ["l", "length"]), "plan");
       const rodMetres = firstNumberWithUnit(stem, UNIT.metre);
@@ -1716,7 +1719,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
-    if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+    if (set && !set.vetoes?.some((veto) => veto.test(stem)) && !set.requires?.some((requirement) => !requirement.test(stem))) {
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };

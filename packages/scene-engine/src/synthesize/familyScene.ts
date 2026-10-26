@@ -2300,6 +2300,9 @@ function buildContactBody(
   _schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
+  // A stem asking for a motion graph wants the graph. Unless it names a body
+  // in contact, a contact sketch here would stand in for that graph.
+  if (isMotionGraphStem(stem) && !namesBodyInContact(stem)) return null;
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
     && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);
@@ -3103,6 +3106,10 @@ function isFallingStem(question: string): boolean {
 
 function isCircularMotionStem(question: string): boolean {
   return /(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road)/i.test(normalizeStem(question));
+}
+
+function namesBodyInContact(stem: string): boolean {
+  return /\b(?:in contact|rests? on|resting on|placed on|pushed against|pressed against|pulley|incline|inclined plane|on (?:a|the) (?:rough|smooth|horizontal|frictionless|level) (?:surface|table|floor|plane|road|track))\b/i.test(stem);
 }
 
 function isMotionGraphStem(question: string): boolean {
