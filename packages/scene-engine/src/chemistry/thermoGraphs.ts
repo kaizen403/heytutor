@@ -47,16 +47,29 @@ function thresholdHasReactionOwner(stem: string): boolean {
     || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
 }
 
+/** A distribution of speeds is a distribution over moving particles. */
+const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/;
+const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:\w+\s+)?(?:gas(?:es)?|molecules|particles|atoms)\b`;
+/**
+ * An energy distribution is the molecules' only when the stem says so beside
+ * it: a standing electromagnetic wave has an energy distribution too.
+ */
+const MOLECULAR_ENERGY_DISTRIBUTION = new RegExp(
+  String.raw`\b(?:molecular|particle)\s+(?:kinetic\s+)?energy\s+distributions?\b` +
+  String.raw`|\b(?:kinetic\s+)?energy\s+distributions?\s+(?:of|among|in|for)\s+${CARRIER}` +
+  String.raw`|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+(?:kinetic\s+)?energ(?:y|ies)\b|(?:kinetic\s+)?energ(?:y|ies)\s+(?:of|among|in)\s+${CARRIER})`,
+);
+
 /**
  * Maxwell also names the thumb rule, the equations and the bridge. Only the
- * distribution itself, or Maxwell beside a molecular speed distribution or a
- * named molecular speed, is a Maxwell curve.
+ * distribution itself, or Maxwell beside a speed distribution, an energy
+ * distribution of molecules, or a named molecular speed, is a Maxwell curve.
  */
 function namesMaxwellDistribution(stem: string): boolean {
   if (/\bmaxwell\s*[-–]?\s*boltzmann\b/.test(stem)) return true;
-  if (/\bmaxwell(?:ian|'s|’s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic)[\s-]+)*(?:distributions?|curves?|density|graphs?|plots?)\b/.test(stem)) return true;
+  if (/\bmaxwell(?:ian|'s|’s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)) return true;
   if (!/\bmaxwell/.test(stem)) return false;
-  return /\b(?:molecular\s+)?(?:speed|velocity|energy)\s+distributions?\b|\bdistributions?\s+of\s+(?:molecular\s+)?(?:speeds|velocities|energies)\b/.test(stem)
+  return SPEED_DISTRIBUTION.test(stem) || MOLECULAR_ENERGY_DISTRIBUTION.test(stem)
     || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
 }
 
@@ -70,7 +83,8 @@ function classifyThermoStem(question: string): ThermoKind | null {
     return "born_haber";
   }
   if (
-    namesMaxwellDistribution(stem) || /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
+    namesMaxwellDistribution(stem) || /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ)/.test(stem) ||
+    MOLECULAR_ENERGY_DISTRIBUTION.test(stem) ||
     (/fraction\s+of\s+(?:the\s+)?molecules/.test(stem) && /energy/.test(stem)) ||
     /effect\s+of\s+temperature\s+on\s+(?:the\s+)?(?:rate|reaction\s+rate)/.test(stem) ||
     /molecules\s+(?:having|with|possessing)\s+(?:kinetic\s+)?energy\s+(?:greater|more|higher|larger)\s+than/.test(stem)

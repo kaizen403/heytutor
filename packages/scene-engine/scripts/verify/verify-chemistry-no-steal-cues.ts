@@ -67,6 +67,9 @@ for (const question of [
   "Using Maxwell's equations, find the field of a spherical charge distribution.",
   "A Maxwell bridge measures an unknown inductance. Find L at balance.",
   "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
+  "Using Maxwell's equations, sketch the energy distribution of a standing electromagnetic wave.",
+  "Use Maxwell's energy density to sketch the field energy along a plane wave.",
+  "Sketch the distribution of energy in a standing electromagnetic wave.",
 ]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
 for (const question of [
   "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
@@ -74,6 +77,9 @@ for (const question of [
   "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
   "Sketch two normalized Maxwell distributions for the same gas.",
   "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
+  "For a Maxwell gas, sketch the distribution of molecular speed at two temperatures.",
+  "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
+  "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
 ]) check(`maxwell distribution keeps its curve: ${question}`, () => chemistryFigure(question, "chem_thermo"));
 check("chemical first-order half-life retains kinetics", () => chemistryFigure("The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?", "chem_kinetics"));
 check("rate law notation retains kinetics", () => chemistryFigure("For a first order reaction the rate law is r = k[A]. 50% of A is decomposed in 120 min. Calculate time for 90% decomposition.", "chem_kinetics"));
