@@ -90,20 +90,22 @@ export function readPlanExample(question: string, turnPlan: unknown): PlanExampl
 
 /**
  * The closed vocabulary of a topic ask an example may answer. The reader binds
- * only a hybridisation, a shape and a lone-pair count, so every other word must
- * be one that puts no condition on the species: an ask frame, or the name of
- * the topic itself. Each word is here because a reader uses it or because it
- * asks without constraining; anything else ("not", "polar", "ice", "120",
- * "octet", "hydride") is a condition the example was never checked against.
+ * only a hybridisation, a molecular shape and a lone-pair count, so every
+ * other word must be one that puts no condition on the species: an ask frame,
+ * or the name of the topic itself. Anything else declines: a condition the
+ * example was never checked against ("not", "polar", "ice", "120", "octet"),
+ * an electron arrangement or geometry word (the reader checks the molecular
+ * shape only), a comparison ("difference", "between", "change", "and"), and
+ * the definite article ("the molecule", "the bond angle": a species the
+ * question does not name).
  */
 const ASK_WORDS = [
   "explain", "what", "is", "are", "does", "do", "how", "why", "define", "describe", "tell", "me", "about", "some",
-  "the", "a", "an", "of", "in", "by", "with", "using", "example", "examples", "look", "like", "mean", "difference",
-  "between", "and", "change",
+  "a", "an", "of", "in", "by", "with", "using", "example", "examples", "look", "like", "mean",
 ] as const;
 const TOPIC_WORDS = [
-  "hybridisation", "hybridization", "vsepr", "theory", "shape", "shapes", "geometry", "molecular", "molecule", "molecules",
-  "electron", "pair", "pairs", "domain", "domains", "arrangement", "bond", "angle", "angles",
+  "hybridisation", "hybridization", "vsepr", "theory", "shape", "shapes", "molecular", "molecule", "molecules",
+  "bond", "angle", "angles",
 ] as const;
 const VOCABULARY: ReadonlySet<string> = new Set<string>([...ASK_WORDS, ...TOPIC_WORDS]);
 /** The shape phrases SHAPE_WORDS in the VSEPR reader maps, as whole word runs. */
@@ -111,7 +113,7 @@ const SHAPE_PHRASES = [
   "square pyramidal", "trigonal bipyramidal", "pentagonal bipyramidal", "see saw", "seesaw", "t shaped", "square planar",
   "trigonal planar", "trigonal pyramidal", "pyramidal", "octahedral", "tetrahedral", "bent", "angular", "v shaped", "linear",
 ] as const;
-/** The hybridisations the reader maps to a VSEPR result; sp3d3, dsp2 and d2sp3 are not among them. */
+/** The hybridisations an example may answer; sp3d3, dsp2 and d2sp3 decline. */
 const MAPPED_HYBRIDISATION = /^sp(?:2|3|3d|3d2)?$/;
 const HYBRIDISATION_LIKE = /^[d0-9]*sp[d0-9]*$/;
 /** The counts the reader reads, only directly before "lone pair(s)". */
@@ -135,6 +137,11 @@ export function readableQuestion(question: string): string {
  */
 export function unreadQuestionWord(readable: string): string | null {
   const words = readable.split(" ").filter(Boolean);
+  // A yes or no ask ("are bent molecules sp3") is answered by no example.
+  if (/^(?:is|are|do|does)$/.test(words[0] ?? "")) return "the question asks yes or no, which one example cannot answer";
+  // One lone pair phrase is read as one condition; two ("a lone pair in
+  // molecules with no lone pairs") may contradict each other.
+  if ((readable.match(/\blone pairs?\b/g) ?? []).length > 1) return "the question names lone pairs more than once; one example cannot show each";
   const phrases = SHAPE_PHRASES.map((phrase) => phrase.split(" "));
   for (let i = 0; i < words.length;) {
     const word = words[i]!;
@@ -181,17 +188,9 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   // of itself: one named value, and the example has it.
   const asked = namedVseprProperties(readable);
   const result = species[0]!;
-  // A shape word is read as the electron geometry only when the question
-  // speaks of electron geometry and never of the molecular shape. When it
-  // speaks of both, the named shape must be both, since the reader does not
-  // bind each word to its property.
-  const electronAsk = /\belectron(?:[ -]pair)?[ -](?:geometry|domain|arrangement)/i.test(readable);
-  const molecularAsk = /\bmolecular\b|\bshapes?\b/i.test(readable);
-  const shapeValues = electronAsk && !molecularAsk ? [result.electronGeometry]
-    : electronAsk ? [result.shape, result.electronGeometry] : [result.shape];
   for (const [named, values, property] of [
     [asked.hybridisations, [result.hybridisation], "hybridisation"],
-    [asked.shapes, shapeValues, electronAsk && !molecularAsk ? "electron geometry" : "shape"],
+    [asked.shapes, [result.shape], "shape"],
     [asked.lonePairs, [actualLonePairCount(result)], "lone-pair count"],
   ] as const) {
     if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };

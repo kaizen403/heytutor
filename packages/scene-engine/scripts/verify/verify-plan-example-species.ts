@@ -100,20 +100,16 @@ const ON_TOPIC: Array<[string, string, string]> = [
   ["why are some molecules linear", "CO2", "CO2 is sp hybridised and linear"],
   ["why are some molecules bent", "H2O", "H2O is bent with two lone pairs on O"],
   ["explain molecules with two lone pairs", "H2O", "H2O is bent with two lone pairs on O"],
-  ["explain the tetrahedral electron geometry of molecules", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
-  ["explain tetrahedral molecular shape and electron geometry using vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
   // Every word of these is read or puts no condition on the species.
   ["what is a lone pair", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
-  ["how do lone pairs change bond angle", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
+  ["what is a lone pair in vsepr theory", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
   ["explain molecules with no lone pairs", "CH4", "CH4 is sp3 and tetrahedral with no lone pairs"],
   ["what is a see-saw shape in vsepr theory", "SF4", "SF4 is sp3d and see-saw with one lone pair"],
-  ["what does octahedral molecular geometry look like", "SF6", "SF6 is sp3d2 and octahedral"],
-  ["difference between electron geometry and molecular geometry", "NH3", "NH3 is sp3 and trigonal pyramidal with one lone pair"],
   ["what is sp^3d^2 hybridisation?", "SF6", "SF6 is sp3d2 and octahedral"],
   ["What is sp³ hybridisation?", "CH4", "CH4 is sp3 and tetrahedral"],
   ["shapes of molecules by vsepr", "CH4", "CH4 is sp3 and tetrahedral"],
-  ["explain trigonal-planar molecular geometry using vsepr", "BF3", "BF3 is sp2 hybridised and trigonal planar"],
-  ["explain two-lone-pair geometry", "H2O", "H2O is bent with two lone pairs on O"],
+  ["explain trigonal-planar molecular shape using vsepr", "BF3", "BF3 is sp2 hybridised and trigonal planar"],
+  ["explain shapes of molecules with two-lone-pairs", "H2O", "H2O is bent with two lone pairs on O"],
 ];
 for (const [question, formula, claim] of ON_TOPIC) {
   const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
@@ -180,6 +176,76 @@ for (const [question, formula, claim] of UNREAD) {
     `declines ${formula} for a question with an unread word (${question}): ${built.status}`);
 }
 
+// The reader binds a shape word to the molecular shape only, a lone pair
+// phrase to one count, and no article to anything. So any electron
+// arrangement or geometry word, a comparison, a second lone pair phrase, a
+// definite article and a yes or no ask decline, true example or not. Each row
+// below drew on 891dd2b33.
+const XEF2 = "XeF2 is sp3d and linear with three lone pairs";
+const XEF4 = "XeF4 is sp3d2 and square planar with two lone pairs";
+const CLF3 = "ClF3 is sp3d and T-shaped with two lone pairs";
+const SF4 = "SF4 is sp3d and see-saw with one lone pair";
+const CUT: Array<[string, string, string]> = [
+  // (a) an electron arrangement checked against the molecular shape.
+  ["what is a linear arrangement in vsepr theory", "XeF2", XEF2],
+  ["explain the linear geometry of electron pairs", "XeF2", XEF2],
+  ["why are electron pairs in some molecules linear", "XeF2", XEF2],
+  ["explain linear domains in vsepr theory", "XeF2", XEF2],
+  ["explain the linear domain arrangement in vsepr theory", "XeF2", XEF2],
+  ["explain the linear geometry of domains in vsepr theory", "XeF2", XEF2],
+  ["what is the linear arrangement of pairs in vsepr theory", "XeF2", XEF2],
+  ["what is the linear vsepr arrangement", "XeF2", XEF2],
+  ["explain the square planar geometry of electron pairs", "XeF4", XEF4],
+  ["explain the square planar arrangement in vsepr theory", "XeF4", XEF4],
+  ["explain the square planar vsepr arrangement", "XeF4", XEF4],
+  ["explain the bent geometry of electron pairs", "H2O", H2O],
+  ["what is the bent pair arrangement in vsepr theory", "H2O", H2O],
+  ["explain the t shaped geometry of electron pairs", "ClF3", CLF3],
+  ["explain the t shaped arrangement in vsepr theory", "ClF3", CLF3],
+  ["explain the see saw geometry of electron pairs", "SF4", SF4],
+  ["what is linear electron pair geometry in vsepr theory", "XeF2", XEF2],
+  // (a) a comparison of electron geometry and molecular shape.
+  ["difference between electron geometry and molecular geometry", "CH4", CH4],
+  ["difference between electron geometry and molecular geometry", "CO2", CO2],
+  ["explain the electron geometry and molecular geometry", "CH4", CH4],
+  ["explain electron geometry and molecular shape", "CO2", CO2],
+  // (a) draws lost to the cut: true examples, but the words are not read.
+  ["difference between electron geometry and molecular geometry", "NH3", NH3],
+  ["explain the tetrahedral electron geometry of molecules", "NH3", NH3],
+  ["explain tetrahedral molecular shape and electron geometry using vsepr", "CH4", CH4],
+  ["what does octahedral molecular geometry look like", "SF6", SF6],
+  ["explain trigonal-planar molecular geometry using vsepr", "BF3", BF3],
+  ["explain two-lone-pair geometry", "H2O", H2O],
+  ["how do lone pairs change bond angle", "NH3", NH3],
+  ["how do lone pairs change bond angle", "XeF2", XEF2],
+  // (b) two lone pair phrases, one of them "no lone pairs".
+  ["what is a lone pair in molecules with no lone pairs", "CH4", CH4],
+  ["difference between molecules with lone pairs and molecules with no lone pairs", "CH4", CH4],
+  ["explain molecules with lone pairs and molecules with no lone pairs", "CH4", CH4],
+  ["what is a lone pair in molecules with two lone pairs", "H2O", H2O],
+  // (c) a definite article: a molecule, or its property, the question never names.
+  ["what is the shape of the molecule", "CH4", CH4],
+  ["what is the shape of the molecule", "NH3", NH3],
+  ["what is the hybridisation of the molecule", "CH4", CH4],
+  ["what is the bond angle of the molecule", "CH4", CH4],
+  ["what are the shapes of the molecules", "CH4", CH4],
+  ["what is the bond angle", "CH4", CH4],
+  ["what is the hybridisation", "CH4", CH4],
+  // A conjunction or a yes or no ask the reader does not answer.
+  ["explain sp3 hybridisation and tetrahedral shape", "CH4", CH4],
+  ["are linear molecules sp", "CO2", CO2],
+  ["is sp3 hybridisation tetrahedral", "CH4", CH4],
+  ["does sp3 hybridisation mean tetrahedral shape", "CH4", CH4],
+  ["are bent molecules sp3 in vsepr theory", "H2O", H2O],
+];
+for (const [question, formula, claim] of CUT) {
+  const turnPlan = plan(question, [{ formula, claim }]);
+  const built = buildPlanExampleDocument(question, turnPlan);
+  const scene = synthesizeFamilyScene({ question, turnPlan });
+  check(built.status === "declined" && scene?.document.source.figureProvenance !== "plan_example",
+    `declines ${formula} for a question whose words are not all read (${question}): ${built.status}`);
+}
+
 // Notation: subscripts and explicit charges are read; a charge the parser
 // would have to guess or cannot read whole declines.
 const NOTATION: Array<[string, string, string, string]> = [
@@ -227,4 +293,4 @@ if (failures) {
   console.error(`verify-plan-example-species: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + UNREAD.length + 8} declines, charge reader`);
+console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + UNREAD.length + CUT.length + 8} declines, charge reader`);
