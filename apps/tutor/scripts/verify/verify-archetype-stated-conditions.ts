@@ -364,6 +364,23 @@ for (const question of [
   check(`projectile: a launch "${question.slice(56, 75)}" draws no level ground and no incline block`, () => declines(question, plan(question, launchGivens)));
 }
 
+/* 9. Projectile: a stated elevation the height reader does not bind declines a figure with numbers. */
+
+// Each states a metre elevation outside the read height phrases, so a level
+// ground or 20 m figure would put a stock value in its place: the wall rows
+// are H = 15.1 m, R = 48.1 m, the pole H = 20.1 m, R = 52.8 m, the pit and the
+// lower ground R = 60.6 m, the raised release R = 58.4 m.
+for (const question of [
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from atop a 10 m wall. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from a 10 m high wall. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from a 15 m high pole. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from the top of a 20 m tower into a pit 5 m deep. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from the top of a 20 m tower and lands on the ground 5 m below the base. Find the range.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal from a 20 m tower. The ball is released 2 m above the top of the tower. Find the range.",
+]) {
+  check(`projectile: an unbound stated elevation declines: "${question.slice(64, 140)}"`, () => declines(question, plan(question, launchGivens)));
+}
+
 /* Controls: an exact figure that states only what the figure reads is unchanged. */
 
 const LEVEL = "A ball is projected at 20 m/s at 30 degrees above the horizontal from level ground. Find the range.";

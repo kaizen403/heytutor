@@ -143,8 +143,16 @@ function launchSpans(text: string): Array<readonly [number, number]> {
   return spans;
 }
 
+// A metre value stated as an elevation ("a 10 m high wall", "a pit 5 m deep",
+// "2 m above the top"), or written right after a launch preposition ("atop a
+// 10 m wall"). Each must sit inside a read height phrase, or the height is unread.
+const FROM_METRES = new RegExp(String.raw`\b(?:from|off|atop)\s+(?:(?:the\s+)?(?:top|edge|roof)\s+of\s+)?(?:(?:a|an|the)\s+)?${STEM_NUMBER}\s*${METRES}(?!\s*\/)`, "gi");
+const ELEVATION = new RegExp(String.raw`${STEM_NUMBER}\s*${METRES}(?:\s*-\s*|\s+)(?:high|tall|deep|below|above|up|down|lower|higher)\b`, "gi");
+
 function statedHeight(text: string): ProjectileStatedConditions["height"] {
-  if (!HEIGHT_MENTION.test(text)) return { status: "none" };
+  // Where the number of each stated elevation starts.
+  const elevations = [...text.matchAll(ELEVATION), ...text.matchAll(FROM_METRES)].map((match) => match.index! + match[0].search(/\d/));
+  if (!HEIGHT_MENTION.test(text) && elevations.length === 0) return { status: "none" };
   if (LANDING_ELEVATION.test(text)) return { status: "unread", reason: "the projectile lands on a raised body the figure does not draw" };
   // "From the foot of a tower" in the launch clause is a ground launch; a
   // later "lands some distance from the foot" is not.
@@ -153,6 +161,8 @@ function statedHeight(text: string): ProjectileStatedConditions["height"] {
   }
   const spans = launchSpans(text);
   const heights = HEIGHT_VALUES.flatMap((pattern) => [...text.matchAll(pattern)].map((match) => ({
+    start: match.index!,
+    end: match.index! + match[0].length,
     value: parseStemNumber(match[1]!),
     // A launch height is where this body's launch starts, stated in its own clause.
     launch: (LAUNCH_GOVERNS.test(text.slice(Math.max(0, match.index! - 40), match.index!)) || /^\s*(?:from|at)\b/i.test(match[0]))
@@ -163,6 +173,9 @@ function statedHeight(text: string): ProjectileStatedConditions["height"] {
   // is a body the figure does not draw.
   if (heights.some((height) => !height.launch && !values.includes(height.value))) {
     return { status: "unread", reason: "the question states another height the figure does not draw" };
+  }
+  if (elevations.some((at) => !heights.some((height) => at >= height.start && at < height.end))) {
+    return { status: "unread", reason: "the question states an elevation the reader does not bind" };
   }
   if (values.length === 0) return { status: "unread", reason: "the question states a launch height without a metre value bound to the launch" };
   if (values.length !== 1 || values[0] === null || !(values[0] >= 0)) return { status: "unread", reason: "the stated launch height is not one value" };
