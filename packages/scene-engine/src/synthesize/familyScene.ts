@@ -16,9 +16,9 @@ import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
 import { relativeMotionSource } from "../physics/relativeMotionSource";
-import { projectileLaunchAngle } from "../physics/projectileLaunchSource";
+import { projectileLaunchAngle, projectileStatedConditions } from "../physics/projectileLaunchSource";
 import { relativeMotionPlanConflicts } from "../physics/motionPlanAgreement";
-import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
+import { riverCrossingHeading, riverCrossingPlanConflicts, riverHeadingFromFlow, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
 import { relativeMotionDocument } from "./relativeMotionScene";
 import {
   applyStemFamilyOverrides,
@@ -2330,7 +2330,10 @@ function buildContactBody(
   if (isProjectileStem(stem)) {
     return projectileDocument(question, quantities);
   }
+  // A body launched at an angle (or horizontally) is not a vertical drop, even
+  // "from the top of a tower": a declined launch draws nothing here.
   if (isFallingStem(stem)) {
+    if (projectileLaunchAngle(question) !== null) return null;
     return fallingBodyDocument(question);
   }
   if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)) {
@@ -3112,6 +3115,10 @@ function projectileDocument(question: string, quantities: PlanQuantity[]): Scene
   const theta = projectileLaunchAngle(question);
   const plannedTheta = firstQuantity(quantities, ["theta", "angle", "alpha"]);
   if (theta === null || (plannedTheta !== null && plannedTheta !== theta)) return null;
+  // The same stated conditions bind this sketch: no foreign angle reference
+  // drawn from the horizontal, no stated launch height drawn as level ground.
+  const stated = projectileStatedConditions(question);
+  if (stated.angle.status === "unread" || (stated.height.status !== "none" && !fromHeight)) return null;
   return baseDocument({
     question,
     reason: fromHeight
@@ -3426,17 +3433,28 @@ function circularParkDocument(question: string): SceneDocument {
 }
 
 /**
- * The legacy river sketch is withheld when the boat and current speeds are
- * not each bound by role words, when the plan disagrees with them, or when a
- * boat no faster than the current is asked to cross straight.
+ * The legacy river sketch is withheld when it would draw a heading the stem
+ * does not state, when the boat and current speeds are not each bound by role
+ * words, when the plan disagrees with them, or when a boat no faster than the
+ * current is asked to cross straight.
  */
 function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): boolean {
+  // One crossing is drawn at the plan's or the stem's first angle, else a
+  // schematic 60° from the current. Only a heading the stem measures from the
+  // current is that angle; a stated, asked or unread heading of any other kind
+  // is the archetype's alone, with or without stated speeds.
+  const variant = riverBoatVariant(normalizeStem(question));
+  if (variant === "crossing") {
+    const fromFlow = riverHeadingFromFlow(question);
+    if (fromFlow === null || angleDegrees(quantities, question) !== fromFlow) return true;
+  }
+  if (variant === "two_triangles" && riverCrossingHeading(question).unread) return true;
   const speeds = riverCrossingSpeeds(question);
   if (speeds.status === "unstated") return false;
   if (speeds.status !== "bound") return true;
   if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
   if (speeds.vb > speeds.vc) return false;
-  return riverBoatVariant(normalizeStem(question)) === "two_triangles" || riverShortestPathAsked(question);
+  return variant === "two_triangles" || riverShortestPathAsked(question);
 }
 
 function riverSpeeds(quantities: PlanQuantity[]): { boat: number; current: number; unit: "m/s" | "km/h" | "cm/s" | "unit"; sourced: boolean } {
