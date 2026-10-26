@@ -109,12 +109,23 @@ export function ownerNamedGaps(owner: LabelOwner, obstacles: LabelObstacle[], ga
   const own = obstacles.filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId === owner.entityId);
   if (own.some((obstacle) => obstacle.primitiveKind === "vector")) return [];
   const ownLevels = levelStrokes(own);
-  const hostLevels = own.every((obstacle) => obstacle.primitiveKind === "point")
+  const hostLevels = own.length > 0 && own.every((obstacle) => obstacle.primitiveKind === "point")
     ? levelStrokes(obstacles).filter((stroke) => distanceToSegment(owner.anchor, stroke.a, stroke.b) <= HOST_PX)
     : [];
   const hosts = [...ownLevels, ...hostLevels];
   if (hosts.length === 0) return [];
-  return gaps.filter((gap) => gap.arrowEntityId !== owner.entityId && hosts.some((host) => parallel(unit(host), gap.tangent)));
+  return gaps.filter((gap) => {
+    if (gap.arrowEntityId === owner.entityId) return false;
+    const hostOnBand = hosts.filter((host) => parallel(unit(host), gap.tangent));
+    if (hostOnBand.length === 0) return false;
+    // A band that strictly contains a host does not border that host. The
+    // outer arrow on a stack of levels must not send a middle level's label
+    // across the top line.
+    return !hostOnBand.some((host) => {
+      const offset = dot(host.a, gap.normal);
+      return offset > gap.low + ON_LEVEL_PX && offset < gap.high - ON_LEVEL_PX;
+    });
+  });
 }
 
 export function insideNamedGap(box: LabelBounds, gaps: NamedGap[]): boolean {

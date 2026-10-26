@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { validateSceneDocument } from "../../src/document/validation";
 import { obstaclesFromPrimitives, placeLabels } from "../../src/labels/labelEngine";
-import { namedGaps } from "../../src/labels/levelGap";
+import { namedGaps, ownerNamedGaps } from "../../src/labels/levelGap";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { RenderPoint, RenderPrimitive, SceneDocument } from "../../src/types";
 
@@ -141,14 +141,15 @@ function assertLevelLabelsClear(primitives: RenderPrimitive[], levelOwners: stri
 
 {
   const scene = synthesizeFamilyScene({ question: "The work function of a metal is 2.0 eV and light of photon energy 3.0 eV falls on it. Draw the energy level diagram of photoemission." });
-  if (scene?.renderScene) {
-    const primitives = scene.renderScene.primitives;
-    const levelOwners = primitives
-      .filter((primitive) => primitive.kind === "label")
-      .map((primitive) => primitive.entityId)
-      .filter((entityId) => !primitives.some((primitive) => primitive.entityId === entityId && primitive.kind === "vector"));
-    assertLevelLabelsClear(primitives, levelOwners, `family ${scene.family}`);
-  }
+  assert.ok(scene?.renderScene, "the photoemission stem still draws an energy level figure");
+  const primitives = scene.renderScene.primitives;
+  assert.ok(primitives.some((primitive) => primitive.kind === "vector"), "the photoemission figure draws the K arrow");
+  const levelOwners = primitives
+    .filter((primitive) => primitive.kind === "label")
+    .map((primitive) => primitive.entityId)
+    .filter((entityId) => !primitives.some((primitive) => primitive.entityId === entityId && primitive.kind === "vector"));
+  assert.ok(levelOwners.length > 0, "the photoemission figure has level labels");
+  assertLevelLabelsClear(primitives, levelOwners, `family ${scene.family}`);
 }
 
 // The rule reads only levels joined square by an arrow. Edges of a body, a
@@ -206,6 +207,78 @@ const slant = [{ x: 100, y: 200 }, { x: 400, y: 100 }];
   const centreY = roomy.bounds.y + roomy.bounds.height / 2;
   const inBand = centreY > 100 && centreY < 300 && roomy.bounds.x < 620 && roomy.bounds.x + roomy.bounds.width > 20;
   assert.ok(!inBand && !roomy.usesLeader, "with room past the line end the label leaves the named gaps");
+  checks += 1;
+}
+
+// A labelled point on the tail of an arrow that names a stack of levels
+// would, without the figure guard, take the line's west slot and push that
+// line's label onto a leader. The guard keeps the layout without the rule.
+{
+  const prims = [
+    stroke("v0", "line", [{ x: 80, y: 80 }, { x: 520, y: 80 }]),
+    stroke("v54", "line", [{ x: 80, y: 200 }, { x: 520, y: 200 }]),
+    stroke("v270", "line", [{ x: 80, y: 360 }, { x: 520, y: 360 }]),
+    stroke("shift", "vector", [{ x: 200, y: 200 }, { x: 200, y: 80 }]),
+    stroke("drop", "vector", [{ x: 360, y: 200 }, { x: 360, y: 360 }]),
+    stroke("q", "point", [{ x: 80, y: 200 }]),
+    stroke("wall", "line", [{ x: 530, y: 40 }, { x: 530, y: 420 }]),
+  ];
+  const view = { x: 0, y: 0, width: 640, height: 440 };
+  const owners = [
+    { entityId: "v0", anchor: { x: 300, y: 80 }, text: "0 V", preferredSlot: "west" as const, viewBounds: view },
+    { entityId: "v54", anchor: { x: 300, y: 200 }, text: "54 V", preferredSlot: "west" as const, viewBounds: view },
+    { entityId: "v270", anchor: { x: 300, y: 360 }, text: "270 V", preferredSlot: "west" as const, viewBounds: view },
+    { entityId: "q", anchor: { x: 80, y: 200 }, text: "q", tetherPx: 40, allowLeader: false, viewBounds: view },
+    { entityId: "shift", anchor: { x: 200, y: 140 }, text: "s", viewBounds: view },
+  ];
+  const obstacles = obstaclesFromPrimitives(prims);
+  const unruled = placeLabels(owners, obstacles, { namedGaps: false });
+  const guarded = placeLabels(owners, obstacles);
+  assert.ok(unruled.ok && guarded.ok, "the stacked levels still label");
+  const same = (a: (typeof guarded.placements)[number], b: (typeof unruled.placements)[number]) =>
+    Math.abs(a.bounds.x - b.bounds.x) < 0.01 && Math.abs(a.bounds.y - b.bounds.y) < 0.01 && a.usesLeader === b.usesLeader;
+  assert.ok(
+    guarded.placements.length === unruled.placements.length
+    && guarded.placements.every((placement, index) => same(placement, unruled.placements[index]!)),
+    "a point whose move would push 54 V onto a leader keeps the layout without the rule",
+  );
+  checks += 1;
+}
+
+// A band that strictly contains a middle level does not constrain that
+// level's label. Taken from the merge review's fuzz-case-234: "K" has a
+// clear west slot at its own line and must keep it.
+{
+  const prims = [
+    stroke("L0", "line", [{ x: 429, y: 132 }, { x: 830, y: 132 }]),
+    stroke("L1", "line", [{ x: 484, y: 236 }, { x: 774, y: 236 }]),
+    stroke("L2", "line", [{ x: 459, y: 292 }, { x: 771, y: 292 }]),
+    stroke("L3", "line", [{ x: 429, y: 401 }, { x: 733, y: 401 }]),
+    stroke("A0", "vector", [{ x: 651, y: 132 }, { x: 651, y: 236 }]),
+    stroke("A1", "vector", [{ x: 526, y: 292 }, { x: 526, y: 236 }]),
+    stroke("A2", "vector", [{ x: 567, y: 401 }, { x: 567, y: 132 }]),
+    stroke("P1", "point", [{ x: 774, y: 236 }]),
+  ];
+  const view = { x: 400, y: 40, width: 760, height: 500 };
+  const result = placeLabels(
+    [
+      { entityId: "L0", anchor: { x: 630, y: 132 }, text: "φ", preferredSlot: "west", viewBounds: view },
+      { entityId: "L1", anchor: { x: 629, y: 236 }, text: "K", preferredSlot: "west", viewBounds: view },
+      { entityId: "A2", anchor: { x: 567, y: 266 }, text: "Lyman α", viewBounds: view },
+      { entityId: "P1", anchor: { x: 774, y: 236 }, text: "B1", tetherPx: 40, allowLeader: false, viewBounds: view },
+    ],
+    obstaclesFromPrimitives(prims),
+  );
+  const k = result.placements.find((entry) => entry.text === "K");
+  assert.ok(result.ok && k, "K is labelled");
+  const centreY = k!.bounds.y + k!.bounds.height / 2;
+  assert.ok(!k!.usesLeader && Math.abs(centreY - 236) < 8, "K keeps its west slot on its own line, not a leader across the top");
+  const kGaps = ownerNamedGaps(
+    { entityId: "L1", anchor: { x: 629, y: 236 }, text: "K" },
+    obstaclesFromPrimitives(prims),
+    namedGaps(obstaclesFromPrimitives(prims)),
+  );
+  assert.ok(!kGaps.some((gap) => gap.arrowEntityId === "A2"), "the outer A2 band does not constrain K");
   checks += 1;
 }
 
