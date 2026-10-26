@@ -26,6 +26,7 @@ tsx scripts/verify/verify-bank-family-compile.ts
 tsx scripts/verify/verify-family-synthesis.ts
 tsx scripts/verify/verify-concept-schematic.ts
 tsx scripts/verify/verify-archetype-pictures.ts
+tsx scripts/verify/verify-wave-types-compression.ts
 tsx scripts/verify/verify-discrete-structures.ts
 tsx scripts/verify/verify-dsa-trace.ts
 tsx scripts/verify/verify-dsa-trace-render.ts
