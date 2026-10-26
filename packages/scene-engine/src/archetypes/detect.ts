@@ -16,6 +16,7 @@
  */
 import { readRadiationSource, requestedPhotoelectricResult } from "../physics/radiationSource";
 import { riverCrossingSpeeds } from "../physics/riverCrossingSource";
+import { projectileStatedConditions } from "../physics/projectileLaunchSource";
 import { riverBoatVariant } from "../synthesize/familyClassification";
 import { levelRelationSource } from "../physics/levelRelationSource";
 import { extractFreeFallSlots, extractSuvatSlots } from "./generators/constantAcceleration";
@@ -24,6 +25,7 @@ import { formatResistorTree, readResistorTree } from "./resistorTree";
 import {
   UNIT,
   STEM_NUMBER,
+  planGivenNumber,
   parseStemNumber,
   lengthAfterInMetres,
   readEnergyAfterInEv,
@@ -376,8 +378,13 @@ const CUE_SETS: readonly CueSet[] = [
       setSlot(bag, "u", speedsOf(stem)[0] ?? null, "stem");
       setSlot(bag, "theta", planNumber(plan, ["theta", "angle", "alpha", "angleofprojection"]), "plan");
       setSlot(bag, "theta", /horizontally/i.test(stem) ? 0 : firstAngle(stem), "stem");
-      setSlot(bag, "h0", planNumber(plan, ["h", "h0", "height", "towerheight"]), "plan");
-      setSlot(bag, "h0", numberAfter(stem, /(?:tower|cliff|building|hill)(?: of height| which is| that is| of)?|from a height of|at a height of|height of (?:a |the )?(?:tower|cliff|building)/, UNIT.metre), "stem");
+      // One reader for the launch height and g, shared with the generator.
+      // Only a plan given is a launch height: a derived "H" is the apex.
+      const stated = projectileStatedConditions(stem);
+      setSlot(bag, "h0", planGivenNumber(plan, ["h0", "h", "height", "towerheight", "launchheight"]), "plan");
+      setSlot(bag, "h0", stated.height.status === "read" ? stated.height.value : null, "stem");
+      setSlot(bag, "g", planGivenNumber(plan, ["g", "gravity"]), "plan");
+      setSlot(bag, "g", stated.g.status === "read" ? stated.g.value : null, "stem");
     },
   },
   {
@@ -854,6 +861,9 @@ const CUE_SETS: readonly CueSet[] = [
     id: "motional_emf_rod",
     cues: [[/\b(?:conducting|metal|metallic) (?:rod|bar|wire)\b/i, 3], [/\b(?:motional emf|induced emf|emf induced)\b/i, 3], [/\b(?:moves|moving|velocity|rails?)\b/i, 1], [/\bmagnetic field\b/i, 1]],
     minScore: 5,
+    // The figure is a straight conductor sliding on rails. A rotating loop or
+    // a coil has an induced emf too, but no rod to draw.
+    requires: [/\b(?:rods?|bars?|straight (?:wire|conductor)|(?:conducting|metal|metallic|sliding) (?:wire|conductor))\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "length", planNumber(plan, ["l", "length"]), "plan");
       const rodMetres = firstNumberWithUnit(stem, UNIT.metre);
@@ -1709,7 +1719,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
-    if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+    if (set && !set.vetoes?.some((veto) => veto.test(stem)) && !set.requires?.some((requirement) => !requirement.test(stem))) {
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };

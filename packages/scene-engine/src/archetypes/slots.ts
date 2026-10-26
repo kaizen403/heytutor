@@ -90,6 +90,11 @@ export function planNumber(quantities: readonly PlanQuantity[], aliases: readonl
   return planQuantity(quantities, aliases)?.value ?? null;
 }
 
+/** A value the plan lists as a given (never one it derived), by id or symbol. */
+export function planGivenNumber(quantities: readonly PlanQuantity[], aliases: readonly string[]): number | null {
+  return planQuantity(quantities.filter((quantity) => quantity.origin === "given"), aliases)?.value ?? null;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Stem numbers                                                               */
 /* ------------------------------------------------------------------------- */

@@ -1,0 +1,226 @@
+/**
+ * A chemistry topic ask that names no species ("explain hybridisation") has
+ * nothing for a family to compute. The turn plan may name the one example the
+ * lesson teaches with; the engine then computes that species from its formula
+ * with the existing builders, checks the plan's claim against the result, and
+ * captions the figure as an example. There is no default species anywhere:
+ * no plan example, no figure.
+ */
+import { elementByName } from "./elements";
+import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
+import { namedSpeciesMentions } from "./namedSpecies";
+import { isChemistryQuestion } from "./router";
+import { actualLonePairCount, buildVseprFigure, compositionKey, isVseprStem, namedVseprProperties, vseprClaimFacts, vseprSpecies } from "./vsepr";
+import type { ParsedFormula } from "./formula";
+import type { TurnPlanV3 } from "../contracts/contractsV3";
+import type { SceneDocument } from "../types";
+
+export const PLAN_EXAMPLE_PROVENANCE = "plan_example" as const;
+
+export interface PlanExampleSource {
+  formula: string;
+  claim: string;
+  /** The question with the example appended, read by the existing family builders. */
+  stem: string;
+  caption: string;
+}
+
+export type PlanExampleReading =
+  | { status: "none" }
+  | { status: "declined"; reason: string }
+  | { status: "accepted"; source: PlanExampleSource };
+
+/** True when the question already names a species, an element, or a formula of its own. */
+export function questionNamesSpecies(question: string): boolean {
+  const text = normalizeChemistryText(question);
+  if (namedSpeciesMentions(text).length > 0) return true;
+  if (formulaTokens(text).some((token) => parseFormula(token) !== null)) return true;
+  return (text.toLowerCase().match(/[a-z]+/g) ?? []).some((word) => word.length > 2 && elementByName(word) !== null);
+}
+
+function claimNamesSpecies(text: string, species: ParsedFormula): boolean {
+  const key = compositionKey(species);
+  const normalized = normalizeChemistryText(text);
+  const formulas = [...formulaTokens(normalized), ...namedSpeciesMentions(normalized).map((mention) => mention.formula)];
+  const keys = new Set(formulas.flatMap((formula) => {
+    const parsed = parseFormula(formula);
+    return parsed ? [compositionKey(parsed)] : [];
+  }));
+  // A claim naming several species cannot be bound to one computed result,
+  // the same rule the VSEPR plan check applies to comparisons.
+  return keys.size === 1 && keys.has(key);
+}
+
+/**
+ * A charge is read only when it is written whole: none, a single trailing
+ * sign (NH4+, NO3-), or an explicit ^ charge (SO4^2-, NH₄⁺). A bare digit run
+ * the parser would have to split into subscript and charge (SO42-), a second
+ * sign, or a sign anywhere else declines.
+ */
+export function chargeReadWhole(formula: string): boolean {
+  const signs = formula.match(/[+-]/g) ?? [];
+  if (signs.length === 0) return true;
+  if (signs.length !== 1) return false;
+  if (/\^\(?\d*[+-]\)?$/.test(formula)) return /^[^^]*\^[^^]*$/.test(formula);
+  return /[A-Za-z\])]\d?[+-]$/.test(formula) && !/\d{2,}[+-]$/.test(formula);
+}
+
+/** The plan's example, accepted only on a chemistry question that names no species. */
+export function readPlanExample(question: string, turnPlan: unknown): PlanExampleReading {
+  const raw = typeof turnPlan === "object" && turnPlan !== null ? (turnPlan as { exampleSpecies?: unknown }).exampleSpecies : undefined;
+  if (raw === undefined || raw === null || (Array.isArray(raw) && raw.length === 0)) return { status: "none" };
+  if (!Array.isArray(raw) || raw.length !== 1) return { status: "declined", reason: "plan names more than one example" };
+  const entry = raw[0] as { formula?: unknown; claim?: unknown };
+  if (typeof entry?.formula !== "string" || typeof entry.claim !== "string" || !entry.claim.trim()) {
+    return { status: "declined", reason: "plan example lacks a formula or a claim" };
+  }
+  if (!isChemistryQuestion(question)) return { status: "declined", reason: "not a chemistry question" };
+  if (questionNamesSpecies(question)) return { status: "declined", reason: "the question names its own species" };
+  // Compared in normal notation (BF₃ is BF3), still one whole species.
+  const formula = normalizeChemistryText(entry.formula);
+  const tokens = formulaTokens(formula);
+  if (tokens.length !== 1 || tokens[0] !== formula || !parseFormula(formula)) {
+    return { status: "declined", reason: "plan example formula does not parse as one species" };
+  }
+  if (!chargeReadWhole(formula)) return { status: "declined", reason: "plan example charge is not written in a form read whole" };
+  return { status: "accepted", source: {
+    formula, claim: entry.claim.trim(), stem: `${question.trim()} (example: ${formula})`, caption: `example: ${formula}`,
+  } };
+}
+
+/**
+ * The closed vocabulary of a topic ask an example may answer. The reader binds
+ * only a hybridisation, a molecular shape and a lone-pair count, so every
+ * other word must be one that puts no condition on the species: an ask frame,
+ * or the name of the topic itself. Anything else declines: a condition the
+ * example was never checked against ("not", "polar", "ice", "120", "octet"),
+ * an electron arrangement or geometry word (the reader checks the molecular
+ * shape only), a comparison ("difference", "between", "change", "and"), and
+ * the definite article ("the molecule", "the bond angle": a species the
+ * question does not name).
+ */
+const ASK_WORDS = [
+  "explain", "what", "is", "are", "does", "do", "how", "why", "define", "describe", "tell", "me", "about", "some",
+  "a", "an", "of", "in", "by", "with", "using", "example", "examples", "look", "like", "mean",
+] as const;
+const TOPIC_WORDS = [
+  "hybridisation", "hybridization", "vsepr", "theory", "shape", "shapes", "molecular", "molecule", "molecules",
+  "bond", "angle", "angles",
+] as const;
+const VOCABULARY: ReadonlySet<string> = new Set<string>([...ASK_WORDS, ...TOPIC_WORDS]);
+/** The shape phrases SHAPE_WORDS in the VSEPR reader maps, as whole word runs. */
+const SHAPE_PHRASES = [
+  "square pyramidal", "trigonal bipyramidal", "pentagonal bipyramidal", "see saw", "seesaw", "t shaped", "square planar",
+  "trigonal planar", "trigonal pyramidal", "pyramidal", "octahedral", "tetrahedral", "bent", "angular", "v shaped", "linear",
+] as const;
+/** The hybridisations an example may answer; sp3d3, dsp2 and d2sp3 decline. */
+const MAPPED_HYBRIDISATION = /^sp(?:2|3|3d|3d2)?$/;
+const HYBRIDISATION_LIKE = /^[d0-9]*sp[d0-9]*$/;
+/** The counts the reader reads, only directly before "lone pair(s)". */
+const LONE_PAIR_COUNT = /^(?:zero|no|one|two|three|[0-3])$/;
+
+/**
+ * The question as the vocabulary gate and the property readers both see it:
+ * chemistry notation normalised, lower case, a hyphen or underscore read as a
+ * space ("trigonal-planar" is "trigonal planar" to both, "two-lone-pair" is
+ * "two lone pair"), one closing ? . or ! dropped.
+ */
+export function readableQuestion(question: string): string {
+  return normalizeChemistryText(question).toLowerCase().replace(/[-_]/g, " ").replace(/\s+/g, " ").trim().replace(/[?.!]$/, "").trim();
+}
+
+/**
+ * Why the readable question carries a word the example was not checked
+ * against, or null when every word is read. Words are split on single spaces
+ * only, so a word carrying any other separator ("trigonal,", "(planar)") is
+ * in no list and declines.
+ */
+export function unreadQuestionWord(readable: string): string | null {
+  const words = readable.split(" ").filter(Boolean);
+  // A yes or no ask ("are bent molecules sp3") is answered by no example.
+  if (/^(?:is|are|do|does)$/.test(words[0] ?? "")) return "the question asks yes or no, which one example cannot answer";
+  // One lone pair phrase is read as one condition; two ("a lone pair in
+  // molecules with no lone pairs") may contradict each other.
+  if ((readable.match(/\blone pairs?\b/g) ?? []).length > 1) return "the question names lone pairs more than once; one example cannot show each";
+  const phrases = SHAPE_PHRASES.map((phrase) => phrase.split(" "));
+  for (let i = 0; i < words.length;) {
+    const word = words[i]!;
+    // The reader drops carets inside a hybridisation (sp^3d^2 is sp3d2).
+    const hybrid = word.replace(/\^/g, "");
+    if (HYBRIDISATION_LIKE.test(hybrid)) {
+      if (!MAPPED_HYBRIDISATION.test(hybrid)) return `the question names a hybridisation the reader cannot map (${word})`;
+      i += 1; continue;
+    }
+    const shape = phrases.find((parts) => parts.every((part, k) => words[i + k] === part));
+    if (shape) { i += shape.length; continue; }
+    if (word === "lone" && /^pairs?$/.test(words[i + 1] ?? "")) { i += 2; continue; }
+    if (LONE_PAIR_COUNT.test(word) && words[i + 1] === "lone" && /^pairs?$/.test(words[i + 2] ?? "")) { i += 3; continue; }
+    if (!VOCABULARY.has(word)) return `the question puts a condition the example was not checked against (${word})`;
+    i += 1;
+  }
+  return null;
+}
+
+export type PlanExampleDocument =
+  | { status: "none" }
+  | { status: "declined"; reason: string }
+  | { status: "built"; document: SceneDocument; source: PlanExampleSource; family: "chem_vsepr" };
+
+/**
+ * The example figure, or why there is none. Only the VSEPR family has claim
+ * checks today, so only a VSEPR topic draws: the claim must state at least one
+ * fact about this species and every stated fact must hold.
+ */
+export function buildPlanExampleDocument(question: string, turnPlan: unknown): PlanExampleDocument {
+  const reading = readPlanExample(question, turnPlan);
+  if (reading.status !== "accepted") return reading;
+  const { source } = reading;
+  const readable = readableQuestion(question);
+  const unread = unreadQuestionWord(readable);
+  if (unread) return { status: "declined", reason: unread };
+  if (!isVseprStem(source.stem)) return { status: "declined", reason: "no figure family with claim checks reads this topic" };
+  const species = vseprSpecies(source.stem);
+  const parsed = parseFormula(source.formula)!;
+  if (species.length !== 1 || compositionKey(parseFormula(species[0]!.formula)!) !== compositionKey(parsed)) {
+    return { status: "declined", reason: "the VSEPR family cannot compute this species" };
+  }
+  // The example must illustrate what the question names, not merely be true
+  // of itself: one named value, and the example has it.
+  const asked = namedVseprProperties(readable);
+  const result = species[0]!;
+  for (const [named, values, property] of [
+    [asked.hybridisations, [result.hybridisation], "hybridisation"],
+    [asked.shapes, [result.shape], "shape"],
+    [asked.lonePairs, [actualLonePairCount(result)], "lone-pair count"],
+  ] as const) {
+    if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
+    if (named.size === 1 && !values.every((value) => (named as ReadonlySet<unknown>).has(value))) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
+  }
+  // "a lone pair" or "lone pairs" names no count, but the example must have one.
+  if (asked.lonePairs.size === 0 && /\blone[ -]?pairs?\b/i.test(readable) && actualLonePairCount(result) < 1) {
+    return { status: "declined", reason: "the question asks about lone pairs and the example has none" };
+  }
+  const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
+  if (checked.scopeError || checked.facts.length === 0) return { status: "declined", reason: "plan example claim states no checkable fact about the species" };
+  const wrong = checked.facts.find((fact) => !fact.truth);
+  if (wrong) return { status: "declined", reason: `plan example claim contradicts the computed ${wrong.property}` };
+  // Every other plan claim about this species alone must agree with it too.
+  // A claim about the idea in general ("lone pairs repel more strongly")
+  // describes no species and is the teaching's, not the figure's.
+  const claims = Array.isArray((turnPlan as TurnPlanV3).qualitativeClaims) ? (turnPlan as TurnPlanV3).qualitativeClaims : [];
+  for (const claim of claims) {
+    if (!claimNamesSpecies(`${claim.claim} ${typeof claim.expected === "string" ? claim.expected : ""}`, parsed)) continue;
+    const facts = vseprClaimFacts(claim, species[0]!);
+    if (facts.scopeError) return { status: "declined", reason: `plan claim ${claim.id} has unsupported compound boolean scope` };
+    const conflict = facts.facts.find((fact) => fact.truth !== (claim.expected !== false));
+    if (conflict) return { status: "declined", reason: `plan claim ${claim.id} contradicts the computed ${conflict.property}` };
+  }
+  // The caption uses the family's own compact formula, as the title does.
+  source.caption = `example: ${species[0]!.label}`;
+  const figure = buildVseprFigure(source.stem, [], false, { exampleCaption: source.caption });
+  if (!figure) return { status: "declined", reason: "the VSEPR family declined the example" };
+  const document = figure.document;
+  // The builders read the example stem; the figure answers the question as asked.
+  document.source = { ...document.source, question, figureProvenance: PLAN_EXAMPLE_PROVENANCE, exampleSpecies: source.formula };
+  return { status: "built", document, source, family: "chem_vsepr" };
+}

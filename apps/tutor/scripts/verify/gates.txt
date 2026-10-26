@@ -94,6 +94,8 @@ tsx scripts/verify/verify-usage-ui.ts
 tsx scripts/verify/verify-thinking-overlay.ts
 pnpm verify:mobile
 tsx scripts/verify/verify-chemistry-lane.ts
+tsx scripts/verify/verify-non-chemistry-prompt-identity.ts
+tsx scripts/verify/verify-plan-example-law-only-lead.ts
 tsx scripts/verify/verify-admin-outcome.ts
 tsx scripts/verify/verify-admin-time-buckets.ts
 tsx scripts/verify/verify-admin-cost.ts
