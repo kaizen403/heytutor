@@ -76,10 +76,15 @@ check("unattached or wrong-target callout cannot satisfy missing identity", () =
   changed.annotations.push({ id: "name", kind: "callout", targetIds: ["trajectory"], text: problemIR.entities.find((row) => row.id === "proj")!.label });
   assert.ok(missing(changed, "proj"));
 });
-// Actual captured names cannot be rendered under the unchanged 16-character
-// label contract. Full source completeness must decline, never erase the IR.
-check("captured full IR declines an incomplete compact figure", () => {
-  assert.equal(synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR }), null);
+// The captured names carry descriptors the 16-character label contract cannot
+// render ("parabolic trajectory", "projectile (point mass)"). The projectile
+// archetype rebuilt from the original question certifies the bodies it
+// constructed, so the complete figure binds them by role; without that
+// question nothing is certified and the exact-label rule still declines.
+check("captured full IR binds the certified figure by role, and only with the question", () => {
+  const full = synthesizeFamilyScene({ question: entry.question, turnPlan: entry.turnPlan, problemIR });
+  assert.ok(full);
+  assert.ok(checkVisualObligations(obligations, full.document, entry.question).satisfied);
   assert.deepEqual(checkVisualObligations(obligations, scene.document).missing.map(row => row.obligationId).sort(), ["body:proj", "body:traj"]);
 });
 // Authored renderable-name profile, not the actual captured IR or native evidence.
