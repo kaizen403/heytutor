@@ -18,7 +18,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { complexTokens, normalizeChemistryText, ocrSuspectToken } from "./formula";
+import { complexTokens, normalizeChemistryText, ocrSuspectToken, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
 
 import { requiresConformationProjection } from "./foundation/conformationRequest";
@@ -251,6 +251,29 @@ export function isMoStem(question: string): boolean {
   if (/->|<=>/.test(normalizeChemistryText(question))) return false;
   if (!MO_CUE.test(stem)) return false;
   return moSpeciesTokens(question).length > 0;
+}
+
+/**
+ * True when a species token in the stem is not a diatomic once its whole
+ * formula is read. The token reader stops at the two atom head, so NO2-
+ * (nitrite), NO3- (nitrate), NO2+ (nitronium) and CO2+ read as NO^(2-),
+ * NO^(3-), NO^(2+) and CO^(2+): a diatomic ladder for a triatomic or larger
+ * ion is false. The shared formula reader reads the head with its attached
+ * digits and sign as written (NO2- is NO2 with charge -1; O22- is O2 with
+ * charge 2-); anything but two atoms declines. Without attached digits the
+ * head is the token as written (He2+, O2-, NO+, NO^2-, O2(2-)), unchanged.
+ */
+function nonDiatomicSpeciesWritten(question: string): boolean {
+  const text = normalizeChemistryText(question);
+  for (const match of text.matchAll(SPECIES_TOKEN)) {
+    const suffix = match[2] ?? "";
+    // A bare sign (He2+, O2-, NO+) or a caret or bracket (NO^2-, O2^(2-),
+    // O2(2-)) leaves the head as written; only attached digits are in doubt.
+    if (!/^\d/.test(suffix)) continue;
+    const parsed = parseFormula(`${match[1]}${suffix}`);
+    if (!parsed || parsed.totalAtoms !== 2) return true;
+  }
+  return false;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -515,6 +538,8 @@ export function buildMoScene(question: string, quantities: ChemPlanQuantity[], s
   // A charge written apart from the formula (O2 2-, N2 -, O2+1) is one the
   // token reader dropped: the neutral ladder is false for the ion asked.
   if (!stemChargesRead(question, tokens)) return null;
+  // The cue still fires (the stem stays in the chemistry lane); the figure declines.
+  if (nonDiatomicSpeciesWritten(question)) return null;
   const results = tokens.map((token) => moConfiguration(token, options)).filter((result): result is MoResult => result !== null);
   if (results.length === 0 || results.length > 4) return null;
   if (results.length !== tokens.length) return null;

@@ -42,6 +42,8 @@ import type { VseprFigure } from "../chemistry/vsepr";
 import { parseFormula } from "../chemistry/formula";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
+import { bindArchetypeBody, certifiedArchetypeFigureIdentity } from "../archetypes/obligationIdentity";
+import type { ArchetypeFigureIdentity, CertifiedArchetypeBody } from "../archetypes/figureIdentity";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -254,7 +256,12 @@ export function checkVisualObligations(
   const missing: VisualObligationMiss[] = [];
   const unsupportedIds: string[] = [];
   const molecule = verifiedVseprStructure(document, originalQuestion);
-  const mapping = mapProblemEntities(set, document, molecule, originalQuestion);
+  // Only a certified physics archetype, recomputed whole from the original
+  // question, has an identity; every other document keeps exact binding.
+  const archetype = document.source.archetype !== undefined
+    ? certifiedArchetypeFigureIdentity(document, originalQuestion)
+    : null;
+  const mapping = mapProblemEntities(set, document, molecule, archetype, originalQuestion);
 
   for (const obligation of set.obligations) {
     if (!obligation.supported) {
@@ -434,16 +441,23 @@ function describeBody(obligation: NamedBodyObligation): string {
  * search hint, and an id hit with a missing or conflicting label does not
  * match — a renamed body is a different body. An unnamed body matches by
  * stable id. Each scene entity is consumed once, so two obligations sharing
- * one label still report the second as missing.
+ * one label still report the second as missing. Only when no exact match
+ * exists may a certified physics archetype, recomputed whole from the
+ * original question, bind a model-word name to a body it constructed, by role
+ * (`archetypes/obligationIdentity`).
  */
 function mapProblemEntities(
   set: VisualObligationSet,
   document: SceneDocument,
   molecule: VseprFigure | null,
+  archetype: ArchetypeFigureIdentity | null,
   originalQuestion?: string,
 ): Map<string, string> {
   const mapping = new Map<string, string>();
   const consumed = new Set<string>();
+  // Certified archetype bodies already bound; a body that consumes no mark
+  // (the river, named by its near bank) must still bind only once.
+  const usedBodies = new Set<CertifiedArchetypeBody>();
   const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
   const molecularBodies = new Set(molecule?.structures.flatMap((structure) => [structure.formulaId, ...structure.atomIds]) ?? []);
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
@@ -503,6 +517,15 @@ function mapProblemEntities(
     if (labelled) {
       mapping.set(obligation.problemEntityId, labelled.id);
       consumed.add(labelled.id);
+      continue;
+    }
+    // A physics body named in model words ("parabolic trajectory", "near
+    // bank") binds only to a body the certified archetype constructed, by role.
+    const bound = archetype ? bindArchetypeBody(archetype, obligation.problemKind, wanted, consumed, usedBodies) : null;
+    if (bound) {
+      mapping.set(obligation.problemEntityId, bound.entityId);
+      usedBodies.add(bound.body);
+      for (const id of bound.consumes) consumed.add(id);
     }
   }
   return mapping;
