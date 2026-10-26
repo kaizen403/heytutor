@@ -495,6 +495,10 @@ const POINT_RIVAL_GUARD_CHECKS = {
   margins: true,
   /** A moved label gains no leader other than one straight stroke from its own mark, and loses no leader. */
   leaders: true,
+  /** A label the plain layout read right gains no leader at all. */
+  rightLabelsKeepNoLeader: true,
+  /** A leadered label is judged by where its box sits, as an unleadered one: a leader does not tie its box to its mark. */
+  leaderBoxDistance: true,
 };
 
 /** A moved label may lose at most this much margin (nearest foreign mark minus own mark). */
@@ -521,10 +525,12 @@ interface LabelReading {
  * plainly nearer another entity's stroke than its own mark, or, for a point,
  * across a rival line from its point and nearer that line. Every owner is
  * judged, not only points; a point's host strokes (the curve or axis it lies
- * on) are not foreign to it. A label tied to its own mark by one straight
- * leader that crosses no foreign stroke is at distance 0 from its mark; any
- * other leader ties nothing. Null when two placements share a key, so the
- * layouts cannot be compared label by label.
+ * on) are not foreign to it. Distances are measured from the box alone, with
+ * or without a leader: a leader does not make a box that ends beside a
+ * foreign mark (an axis tip, another dot) read as its own mark. One straight
+ * leader from the own mark that crosses no foreign stroke only exempts a
+ * point from the across a rival line test. Null when two placements share a
+ * key, so the layouts cannot be compared label by label.
  */
 function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
   const checks = POINT_RIVAL_GUARD_CHECKS;
@@ -579,7 +585,7 @@ function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacle
       straightOwnLeader = !otherStrokes.some((segments) => segments.some(([start, end]) => segmentsIntersect(clear, to, start, end)));
     }
     const boxes = [placement.bounds, placement.collisionBounds ?? placement.bounds].map((box) => {
-      const ownDistance = straightOwnLeader ? 0 : hasOwnInk
+      const ownDistance = straightOwnLeader && !checks.leaderBoxDistance ? 0 : hasOwnInk
         ? Math.min(...ownDots.map((dot) => boxToPointDistance(box, dot)), ownSegments.length ? segmentsToBoundsDistance(ownSegments, box) : Infinity)
         : boxToPointDistance(box, owner.anchor);
       const dot = Math.min(Infinity, ...foreignDots.map((foreign) => boxToPointDistance(box, foreign)));
@@ -618,10 +624,11 @@ export function pointRivalLayoutRegressionsFor(
  * (a label whose box and leader are unchanged reads exactly as before).
  * Every moved label must read as its own mark (test 1), keep its margin
  * within POINT_RIVAL_MARGIN_TOLERANCE_PX and end no more than
- * POINT_RIVAL_DRIFT_TOLERANCE_PX farther from its own mark unless one
- * straight clean leader ties it there (test 2), and draw no leader but one
- * straight clean stroke from its own mark, losing none (test 3). At least
- * one point letter the plain layout misread must be repaired.
+ * POINT_RIVAL_DRIFT_TOLERANCE_PX farther from its own mark, all measured
+ * from its box (test 2), and draw no leader but one straight clean stroke
+ * from its own mark, losing none, and gaining none where the plain layout
+ * read it right (test 3). At least one point letter the plain layout misread
+ * must be repaired.
  */
 function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: Map<string, LabelReading>): string[] {
   const checks = POINT_RIVAL_GUARD_CHECKS;
@@ -641,6 +648,7 @@ function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: M
     if (next.misread) reasons.push(`${name}: reads as a foreign mark`);
     if (checks.leaders && prior.leader && !next.leader) reasons.push(`${name}: loses its leader`);
     if (checks.leaders && next.leader && !next.straightOwnLeader) reasons.push(`${name}: leader is not one clean straight stroke from its own mark`);
+    if (checks.rightLabelsKeepNoLeader && !prior.misread && next.leader && !prior.leader) reasons.push(`${name}: gains a leader though it read right`);
     if (checks.margins) next.boxes.forEach((box, index) => {
       const was = prior.boxes[index]!;
       if (box.margin < was.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX) reasons.push(`${name}: margin ${was.margin.toFixed(1)} to ${box.margin.toFixed(1)} px`);
