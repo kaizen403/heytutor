@@ -86,6 +86,8 @@ for (const question of [
   "Sketch the energy distribution of sound in a gas.",
   "Using Maxwell's equations, sketch the energy distribution of charged particles in a field.",
   "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
+  "Sketch the energy distribution of a gas of photons in a cavity at two temperatures.",
+  "Sketch the energy distribution of the gas giant's atmosphere layers.",
 ]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
 for (const question of [
   "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",

@@ -53,8 +53,9 @@ const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistrib
 // noun itself stays the evidence. The run may not cross a preposition
 // ("radiation in a gas") or name a quantum gas, and particles or atoms are
 // not kinetic theory evidence: beta particles and an electron gas have
-// energy distributions that are not this curve.
-const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?|(?:\w+\s+)?molecules)\b`;
+// energy distributions that are not this curve. "Gas" must end its noun
+// phrase: a gas of photons or a gas giant is not a kinetic theory gas.
+const CARRIER = String.raw`(?:the\s+|a\s+|an\s+)?(?:(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?(?=\s*(?:$|[.,;:!?)])|\s+(?:at|in|when|and|with|between|over|under|during)\b)|(?:\w+\s+)?molecules)\b`;
 /**
  * An energy distribution is the molecules' only when the stem says so beside
  * it: a standing electromagnetic wave has an energy distribution too.
