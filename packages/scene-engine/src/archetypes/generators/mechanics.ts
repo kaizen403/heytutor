@@ -10,6 +10,7 @@ import { riverCrossingHeading, riverCrossingPlanConflicts, riverCrossingSpeeds, 
 import { projectileLaunchAngle, projectileStatedConditions } from "../../physics/projectileLaunchSource";
 import { planGivenNumber } from "../slots";
 import { recordArchetypeFigureIdentity } from "../figureIdentity";
+import { riverAlongStreamStated } from "../../synthesize/familyClassification";
 import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
@@ -60,7 +61,9 @@ function projectile(context: GeneratorContext) {
   // A stated metre elevation the reader does not bind declines without numbers
   // too, rather than drawing a placeholder in its place. A horizontal launch
   // already draws its symbolic "h" when no height is stated.
-  if (height.status === "unread" && (metric || ("numeric" in height && height.numeric && theta !== 0))) return null;
+  // A horizontal launch with a numeric drop it does not read ("into a pit 5 m deep", "5 m
+  // below the base") declines too: its landing is not on the level ground at the foot.
+  if (height.status === "unread" && (metric || ("numeric" in height && height.numeric))) return null;
   if (height.status === "read" && planH !== null && Math.abs(planH - height.value) > 1e-9) return null;
   if (height.status === "none" && planH !== null && planH !== 0) return null;
   const vx = u * Math.cos(theta * DEG);
@@ -794,6 +797,8 @@ function riverBoat(context: GeneratorContext) {
   const { vb, vc, unit } = binding.status === "bound" ? binding : { vb: 5, vc: 3, unit: "m/s" as const };
   if (vb <= 0 || vc < 0) return null;
   const variant = text(context, "variant", "crossing");
+  // Along-stream motion is drawn only when the stem states it and names no crossing.
+  if (variant === "along_stream" && !riverAlongStreamStated(context.question)) return null;
   // Shortest path (straight across) heads upstream; shortest time heads
   // straight across and drifts. A boat no faster than the current cannot
   // cross straight, so that figure is declined rather than drawn. One
@@ -879,6 +884,9 @@ function riverBoat(context: GeneratorContext) {
         ? "shortest time: head perpendicular, the current carries the boat downstream"
         : "head perpendicular to the banks, the current carries the boat downstream");
   }
+  // The along-stream picture records no bodies, so a model-word ProblemIR name never binds to it:
+  // it keeps main's exact-label rule.
+  if (variant === "along_stream") return scene.build();
   // The river is the strip the two banks bound: it is named by the near bank
   // and consumes neither bank, which stay free to be the banks themselves.
   return recordArchetypeFigureIdentity(scene.build(), {
