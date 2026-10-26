@@ -87,6 +87,8 @@ export interface WrittenCharge {
    * read; a bare owner ("O2 with charge -1") was read neutral, so it declines.
    */
   readonly owner?: ReadonlyArray<{ readonly body: string; readonly charge: number }>;
+  /** Where the owner formula of a charge phrase starts in the folded text. */
+  readonly ownerAt?: number;
 }
 
 /** Same formula token as the shared reader, behind a lookbehind that also refuses non ASCII letters (ΔH). */
@@ -114,8 +116,13 @@ const ROMAN: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6,
 const ELEMENT_NAMES = new Map(ELEMENTS.map((element) => [element.name.toLowerCase(), element.symbol]));
 /** Cu II, Cu(II), Cu (II), copper(II); a bare "I" only in brackets (Cu I is too close to iodine or a pronoun). */
 const ROMAN_STATE = /(?<![\p{L}\p{N}])([A-Z][a-z]?|[a-z]{3,})\s*(?:\(\s*(VII|VI|IV|V|I{1,3})\s*\)|\s(VII|VI|IV|V|III|II)\b)/gu;
-/** A numeral then an anion or class word names a compound: iron(III) chloride, copper(II) sulphate. */
-const COMPOUND_AFTER = /^\s*(?:[a-z]+(?:ide|ate|ite)s?|salts?|compounds?|complex(?:es)?|solution)\b/i;
+/**
+ * A numeral then an anion or class word names a compound: iron(III) chloride,
+ * copper(II) sulphate. Lower case after the first letter, so a formula that
+ * follows (written with capitals inside it) is never read as the word and
+ * never sets the oxidation state aside.
+ */
+const COMPOUND_AFTER = /^\s*(?:[A-Za-z][a-z]*(?:ide|ate|ite)s?|[Ss]alts?|[Cc]ompounds?|[Cc]omplex(?:es)?|[Ss]olution)\b/;
 
 function countOf(word: string | undefined): number | null {
   if (!word) return null;
@@ -191,7 +198,7 @@ export function readWrittenCharges(raw: string): WrittenCharge[] {
       const digits = leadDigits || trailDigits;
       const magnitude = digits ? Number(digits) : counted;
       // "with a charge of -2" and "two negative charges" give the size; "a negative charge" gives only the sign.
-      out.push({ formula: owner.readings[0]!.body, owner: owner.readings, charge: magnitude ? polarity * magnitude : null, polarity, text: whole, at: clause.at + at });
+      out.push({ formula: owner.readings[0]!.body, owner: owner.readings, ownerAt: clause.at + owner.at, charge: magnitude ? polarity * magnitude : null, polarity, text: whole, at: clause.at + at });
     }
   }
   for (const match of text.matchAll(ROMAN_STATE)) {
@@ -222,9 +229,18 @@ function writtenChargeCarried(marker: WrittenCharge, species: readonly ReadCharg
   return key !== null && species.some((item) => item.key === key && Math.sign(item.charge) === marker.polarity && (marker.charge === null || item.charge === marker.charge));
 }
 
-/** A negator that governs a list of formulas: "No He+ or Li2+", "not NO2 -", "without Cu 2+ and Zn 2+". */
+/**
+ * A negator that governs a list of formulas: "No He+ or Li2+", "not NO2 -",
+ * "without Cu 2+ and Zn 2+". The words are matched case sensitively: lower
+ * case anywhere, or with only the first letter capital at the start of the
+ * clause. A case blind match read the formula NO ("NO with a charge of +1")
+ * as the word "no", set its charge aside, and drew neutral NO. Capitals
+ * (NO, NOT, NOR) and No (nobelium) inside a clause are never read as a
+ * negator, so a doubtful negator keeps the charge and the figure declines.
+ */
+const NEGATOR = String.raw`(?:\b(?:no|not|without|excluding|except|nor|neither)|^\s*(?:No|Not|Without|Excluding|Except|Nor|Neither))`;
 const EXCLUDED_LIST = new RegExp(
-  String.raw`\b(?i:no|not|without|excluding|except|nor|neither)\s+(?:(?:the|any)\s+)?(?:(?:${FORMULA_TOKEN})[^\s,]*(?:\s+\d?[+-])?\s*(?:,|\bor\b|\band\b|\bnor\b)\s*)*$`,
+  String.raw`${NEGATOR}\s+(?:(?:the|any)\s+)?(?:(?:${FORMULA_TOKEN})[^\s,]*(?:\s+\d?[+-])?\s*(?:,|\bor\b|\band\b|\bnor\b)\s*)*$`,
   "u",
 );
 
@@ -282,6 +298,80 @@ export function stemChargesRead(text: string, speciesFormulas: readonly string[]
  */
 export function speciesWithWrittenCharges<T>(text: string, species: readonly T[], formulaOf: (item: T) => string): T[] {
   return stemChargesRead(text, species.map(formulaOf)) ? [...species] : [];
+}
+
+/** A formula then the word ion, anion or cation: "the CO3 ion", "NO2 anion". */
+const ION_WORD_AFTER = new RegExp(String.raw`(?<![\p{L}\p{N}_\])])(${FORMULA_TOKEN})\s+(cation|anion|ion)s?\b`, "gu");
+
+const MAX_CHARGE_READINGS = 27;
+
+function withCaretCharge(body: string, charge: number): string {
+  return `${body}^(${Math.abs(charge) === 1 ? "" : Math.abs(charge)}${charge < 0 ? "-" : "+"})`;
+}
+
+/**
+ * Routing only: the stem with each charge it writes attached to its formula
+ * in caret notation ("Shape of CO3 2-" becomes "Shape of CO3^(2-)", "NH4
+ * plus" becomes "NH4^(+)", "CO3 with a charge of -2" puts ^(2-) on CO3). A
+ * reader that resolves no species from the bare bodies (NH4 and CO3 are no
+ * molecules) can then tell that the stem asks about a real ion, so the stem
+ * stays in the chemistry lane. A charge with no size ("a negative charge",
+ * "the CO3 ion") gives one reading per size 1 to 3, and "ion" both signs.
+ * Empty when the stem writes no charge on a formula, so a stem without a
+ * charge is never read differently. Never feed these to a figure: the
+ * figure reads the stem as written and declines a charge it did not read.
+ */
+export function chargeAttachedReadings(raw: string): string[] {
+  const text = fold(raw);
+  const edits: Array<{ start: number; end: number; body: string; charges: number[] }> = [];
+  const sized = (polarity: number) => [1, 2, 3].map((size) => polarity * size);
+  let from = 0;
+  for (const marker of readChargeMarkers(raw)) {
+    if (marker.formula === null || marker.charge === null) continue;
+    const at = text.indexOf(marker.text, from);
+    if (at < 0) continue;
+    from = at + marker.text.length;
+    edits.push({ start: at, end: at + marker.text.length, body: marker.formula, charges: [marker.charge] });
+  }
+  for (const marker of readWrittenCharges(raw)) {
+    if (marker.formula === null) continue;
+    const charges = marker.charge !== null ? [marker.charge] : sized(marker.polarity);
+    if (marker.owner) {
+      // A phrase puts its charge on its owner, only when the owner is written bare.
+      if (marker.ownerAt === undefined || marker.owner[0]!.charge !== 0) continue;
+      edits.push({ start: marker.ownerAt, end: marker.ownerAt + marker.formula.length, body: marker.formula, charges });
+    } else if (text.startsWith(marker.formula, marker.at)) {
+      edits.push({ start: marker.at, end: marker.at + marker.text.length, body: marker.formula, charges });
+    } else {
+      // "negatively charged NO2": the formula ends the marker.
+      const start = marker.at + marker.text.length - marker.formula.length;
+      if (text.startsWith(marker.formula, start)) edits.push({ start, end: start + marker.formula.length, body: marker.formula, charges });
+    }
+  }
+  for (const match of text.matchAll(ION_WORD_AFTER)) {
+    const token = match[1]!;
+    if (!isFormula(token) || splitCharge(token).charge !== 0) continue;
+    const word = match[2]!;
+    const charges = word === "cation" ? sized(1) : word === "anion" ? sized(-1) : [...sized(-1), ...sized(1)];
+    const start = match.index ?? 0;
+    edits.push({ start, end: start + token.length, body: token, charges });
+  }
+  if (edits.length === 0) return [];
+  edits.sort((a, b) => a.start - b.start || b.end - a.end);
+  const kept = edits.filter((edit, i) => !edits.slice(0, i).some((other) => edit.start < other.end && edit.end > other.start));
+  let readings: string[][] = [[]];
+  for (const edit of kept) {
+    readings = readings.flatMap((picked) => edit.charges.map((charge) => [...picked, withCaretCharge(edit.body, charge)])).slice(0, MAX_CHARGE_READINGS);
+  }
+  return readings.map((picked) => {
+    let out = "";
+    let cursor = 0;
+    kept.forEach((edit, i) => {
+      out += `${text.slice(cursor, edit.start)}${picked[i]}`;
+      cursor = edit.end;
+    });
+    return out + text.slice(cursor);
+  });
 }
 
 /** Board or formula spelling of a monatomic species: Fe^(3+), Cl^(-), Na. */
