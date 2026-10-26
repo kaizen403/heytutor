@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { validateSceneDocument } from "../../src/document/validation";
-import { obstaclesFromPrimitives, placeLabels } from "../../src/labels/labelEngine";
+import { canPlaceSingleLabel, obstaclesFromPrimitives, placeLabels } from "../../src/labels/labelEngine";
 import { namedGaps, ownerNamedGaps } from "../../src/labels/levelGap";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { RenderPoint, RenderPrimitive, SceneDocument } from "../../src/types";
@@ -203,6 +203,17 @@ const slant = [{ x: 100, y: 200 }, { x: 400, y: 100 }];
     { bounds: unruled.bounds, slot: unruled.slot, usesLeader: unruled.usesLeader },
     "with no slot clear of the gaps the label is placed as without the rule",
   );
+  // The gap ruled solve costs nothing where no gap is named: lines in place
+  // of arrows name none, so the figure solves once. The single label check
+  // asks the layout without the rule and agrees with placeLabels either way.
+  const owner = { entityId: "middle", anchor: { x: 320, y: 200 }, text: "n = 3", viewBounds: { x: 0, y: 0, width: 640, height: 400 } };
+  for (const [arrowKind, expected] of [["line", 0], ["vector", 1]] as const) {
+    let solves = 0;
+    const obstacles = obstaclesFromPrimitives(stack(arrowKind, 620));
+    const placed = placeLabels([owner], obstacles, { onNamedGapSolve: () => { solves += 1; } });
+    assert.equal(solves, expected, `${arrowKind} strokes run ${expected} gap ruled solve`);
+    assert.equal(canPlaceSingleLabel(owner, obstacles), placed.ok, `${arrowKind}: the single label check agrees with placeLabels`);
+  }
   const roomy = place("vector", 760, 620);
   const centreY = roomy.bounds.y + roomy.bounds.height / 2;
   const inBand = centreY > 100 && centreY < 300 && roomy.bounds.x < 620 && roomy.bounds.x + roomy.bounds.width > 20;

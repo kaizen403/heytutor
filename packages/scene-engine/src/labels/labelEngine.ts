@@ -148,6 +148,8 @@ export interface LabelEngineOptions {
    * the ruled joint solve fails or makes a label worse. Defaults to on.
    */
   namedGaps?: boolean;
+  /** Called when placeLabels runs the second, gap ruled solve. */
+  onNamedGapSolve?: () => void;
 }
 
 export interface LabelEngineResult {
@@ -461,9 +463,11 @@ export function boundsInside(inner: LabelBounds, outer: LabelBounds): boolean {
  */
 /** Query the same constraints for one label without selecting a final slot. */
 export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions = {}): boolean {
-  // placeLabels admits exactly what the layout without the point rival rule
-  // admits (it falls back to that layout), so feasibility asks that layout.
-  return placeLabels([owner], obstacles, { ...options, pointRivals: false }).ok;
+  // placeLabels admits exactly what the layout without the point rival and
+  // named gap rules admits (it falls back to that layout whenever a ruled
+  // layout fails or is not kept), so feasibility asks that layout, stopping
+  // at the first clear slot.
+  return placeLabelsInternal([owner], obstacles, { ...options, pointRivals: false, namedGaps: false }, true).ok;
 }
 
 /**
@@ -478,9 +482,14 @@ export function placeLabels(
   options: LabelEngineOptions = {},
 ): LabelEngineResult {
   const ungapped = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: false });
-  const gapped = options.namedGaps === false
-    ? ungapped
-    : placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: true });
+  // The gap ruled solve runs only where the rule can move a label: some
+  // owner has a gap an arrow names. Ordinary figures solve once.
+  const gaps = options.namedGaps === false ? [] : namedGaps(obstacles);
+  const gapApplies = gaps.length > 0 && owners.some((owner) => ownerNamedGaps(owner, obstacles, gaps).length > 0);
+  if (gapApplies) options.onNamedGapSolve?.();
+  const gapped = gapApplies
+    ? placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: true })
+    : ungapped;
   const plain = NAMED_GAP_GUARD && !keepNamedGapLayout(ungapped, gapped, owners, obstacles) ? ungapped : gapped;
   if (options.pointRivals === false || !plain.ok) return plain;
   // The rule exists to repair a point letter that names the wrong mark.
