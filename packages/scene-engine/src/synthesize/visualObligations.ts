@@ -43,7 +43,7 @@ import { parseFormula } from "../chemistry/formula";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
 import { bindArchetypeBody, certifiedArchetypeFigureIdentity } from "../archetypes/obligationIdentity";
-import type { ArchetypeFigureIdentity } from "../archetypes/figureIdentity";
+import type { ArchetypeFigureIdentity, CertifiedArchetypeBody } from "../archetypes/figureIdentity";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -455,6 +455,9 @@ function mapProblemEntities(
 ): Map<string, string> {
   const mapping = new Map<string, string>();
   const consumed = new Set<string>();
+  // Certified archetype bodies already bound; a body that consumes no mark
+  // (the river, named by its near bank) must still bind only once.
+  const usedBodies = new Set<CertifiedArchetypeBody>();
   const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
   const molecularBodies = new Set(molecule?.structures.flatMap((structure) => [structure.formulaId, ...structure.atomIds]) ?? []);
   const labelHolds = (entity: SceneDocument["entities"][number], problemLabel: string | null): boolean =>
@@ -518,9 +521,10 @@ function mapProblemEntities(
     }
     // A physics body named in model words ("parabolic trajectory", "near
     // bank") binds only to a body the certified archetype constructed, by role.
-    const bound = archetype ? bindArchetypeBody(archetype, obligation.problemKind, wanted, consumed) : null;
+    const bound = archetype ? bindArchetypeBody(archetype, obligation.problemKind, wanted, consumed, usedBodies) : null;
     if (bound) {
       mapping.set(obligation.problemEntityId, bound.entityId);
+      usedBodies.add(bound.body);
       for (const id of bound.consumes) consumed.add(id);
     }
   }

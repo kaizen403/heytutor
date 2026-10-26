@@ -76,6 +76,7 @@ const probes: Probe[] = [
   { name: "elliptical trajectory vs the drawn parabola", question: PROJECTILE, document: projectile, bodies: [{ kind: "curve", label: "elliptical trajectory" }], adversarial: true },
   { name: "parabolic trajectory vs an edited copy that draws a straight path", question: PROJECTILE, document: edited, bodies: [{ kind: "curve", label: "parabolic trajectory" }], adversarial: true },
   { name: "swimmer vs the drawn boat", question: RIVER, document: river, bodies: [{ kind: "body", label: "swimmer" }], adversarial: true },
+  { name: "two rivers vs the one drawn river", question: RIVER, document: river, bodies: [{ kind: "region", label: "river" }, { kind: "region", label: "river" }], adversarial: true },
   { name: "wind current vs the drawn river current", question: RIVER, document: river, bodies: [{ kind: "field", label: "wind current" }], adversarial: true },
   // Controls: correct pairs a working binding must accept.
   { name: "control: parabolic trajectory on the projectile", question: PROJECTILE, document: projectile, bodies: [{ kind: "curve", label: "parabolic trajectory" }], adversarial: false },
@@ -84,11 +85,12 @@ const probes: Probe[] = [
   { name: "control: near bank and far bank on the river", question: RIVER, document: river, bodies: [{ kind: "line", label: "near bank" }, { kind: "line", label: "far bank" }], adversarial: false },
   { name: "control: river current on the river", question: RIVER, document: river, bodies: [{ kind: "field", label: "river current" }], adversarial: false },
   { name: "control: river on the river", question: RIVER, document: river, bodies: [{ kind: "region", label: "river" }], adversarial: false },
+  { name: "control: river with both banks on the river", question: RIVER, document: river, bodies: [{ kind: "region", label: "river" }, { kind: "line", label: "near bank" }, { kind: "line", label: "far bank" }], adversarial: false },
 ];
 
 /**
- * Pinned outcome of this branch's binding rule (Preview B, certified figure
- * identity by role): no adversarial pair binds and every control binds.
+ * Pinned outcome of the binding rule (certified figure identity by role): no
+ * adversarial pair binds and every control binds.
  */
 const EXPECTED_WRONG: readonly string[] = [];
 const EXPECTED_CONTROLS_BOUND: readonly string[] = probes.filter((probe) => !probe.adversarial).map((probe) => probe.name);

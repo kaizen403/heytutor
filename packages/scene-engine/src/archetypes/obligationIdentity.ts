@@ -21,7 +21,7 @@
  */
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import type { SceneDocument } from "../types";
-import { builtArchetypeFigureIdentity, type ArchetypeBodyRole, type ArchetypeFigureIdentity } from "./figureIdentity";
+import { builtArchetypeFigureIdentity, type ArchetypeBodyRole, type ArchetypeFigureIdentity, type CertifiedArchetypeBody } from "./figureIdentity";
 import { attemptArchetypeScene } from "./index";
 
 /** Archetypes whose generators record the bodies they construct. */
@@ -80,26 +80,34 @@ function stableValue(value: unknown): string {
 }
 
 export interface ArchetypeBodyBinding {
+  /** The certified body bound; the caller marks it used. */
+  body: CertifiedArchetypeBody;
   entityId: string;
   consumes: string[];
 }
 
-/** Bind one obligated body name to a certified body by role, or null. */
+/**
+ * Bind one obligated body name to a certified body by role, or null. Each
+ * certified body binds at most once, whatever marks it consumes: one drawn
+ * river cannot stand for two ProblemIR rivers, so the second stays missing.
+ */
 export function bindArchetypeBody(
   identity: ArchetypeFigureIdentity,
   problemKind: string,
   problemLabel: string,
   consumed: ReadonlySet<string>,
+  usedBodies: ReadonlySet<CertifiedArchetypeBody>,
 ): ArchetypeBodyBinding | null {
   const words = problemLabel.toLowerCase().replace(/[()]/g, " ").trim().split(/\s+/).filter((word) => word && !FILLER.has(word));
   if (words.length === 0) return null;
   for (const body of identity.bodies) {
     const role = ROLES[body.role];
+    if (usedBodies.has(body)) continue;
     if (!role.kinds.includes(problemKind) || body.consumes.some((id) => consumed.has(id))) continue;
     const nouns = words.filter((word) => role.nouns.includes(word));
     if (nouns.length !== 1) continue;
     if (!words.every((word) => role.nouns.includes(word) || body.attributes.includes(word))) continue;
-    return { entityId: body.entityId, consumes: [...body.consumes] };
+    return { body, entityId: body.entityId, consumes: [...body.consumes] };
   }
   return null;
 }
