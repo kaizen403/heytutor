@@ -5,7 +5,7 @@ import {
   type TurnPlanV3,
   type TurnPlanValidationIssue,
 } from "@heytutor/scene-engine";
-import { evaluateMathExpression } from "@heytutor/scene-engine";
+import { evaluateMathExpression, isChemistryQuestion } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
@@ -38,7 +38,7 @@ export type TurnPlanOutcomeCode =
 const TURN_PLAN_DIAGNOSTIC_ISSUE_CODES = [
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id",
   "duplicate_quantity_id", "duplicate_unknown_id", "given_trig_stipulation_conflict",
-  "invalid_assumption", "invalid_claim", "invalid_claim_entity_hints",
+  "invalid_assumption", "invalid_claim", "invalid_claim_entity_hints", "invalid_example_species",
   "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
   "invalid_law_id", "invalid_plan", "invalid_provenance", "invalid_quantity",
   "invalid_quantity_id", "invalid_quantity_value", "invalid_question", "invalid_sign",
@@ -265,8 +265,8 @@ async function requestTurnPlanV3(
           {
             role: "system",
             content: options.classifySubject
-              ? `${systemPrompt}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
-              : systemPrompt,
+              ? `${withChemistryExampleAddon(systemPrompt, question)}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
+              : withChemistryExampleAddon(systemPrompt, question),
           },
           {
             role: "user",
@@ -1178,6 +1178,18 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
     second.addEventListener("abort", abort, { once: true });
   }
   return controller.signal;
+}
+
+/**
+ * Shown only on chemistry questions, so maths and physics prompts keep their
+ * bytes. It names no species: the planner picks the example, the engine
+ * computes it, and the teaching is told to use it.
+ */
+export const TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON = `CHEMISTRY EXAMPLE SPECIES
+Optional key exampleSpecies: [{formula,claim}]. Use it only when the question names no chemical species, element or formula and you will teach the idea with one example. Name the simplest common example a student meets first, as a plain formula. claim is one checkable sentence that names that formula and states its facts for this topic (for a shape or hybridisation topic: its hybridisation, shape and lone pairs on the central atom). When the question names its own species, or no single example fits, omit exampleSpecies.`;
+
+export function withChemistryExampleAddon(systemPrompt: string, question: string): string {
+  return isChemistryQuestion(question) ? `${systemPrompt}\n\n${TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON}` : systemPrompt;
 }
 
 export const TURN_PLAN_V3_VISUAL_GROUNDING =
