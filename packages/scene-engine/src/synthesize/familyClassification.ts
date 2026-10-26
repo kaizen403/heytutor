@@ -228,6 +228,14 @@ const SPEED_ROLE_WORD = /\b(?:(river|current|stream|flows?|flowing)|boat\w*|\w+b
 const STILL_WATER_AFTER = /^\s*(?:(?:in|relative\s+to|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:the\s+)?(?:still|stationary|calm)\s+water|relative\s+to\s+(?:the\s+)?water)\b/i;
 const STILL_WATER_BEFORE = /\b(?:still|stationary|calm)\s+water\s+(?:is\s+|=\s*|of\s+|equals\s+)?$/i;
 
+/**
+ * Along-stream wording that states the boat's own motion: right after a speed word, "fast" or a
+ * travel verb (with an optional length), or right before speed, velocity, journey or trip ("speed
+ * down the river", "go 100 m downstream", "its downstream speed"). Any other use ("how far down
+ * the river is it swept") may be a drift, so it is no evidence and the along-stream picture declines.
+ */
+const ALONG_STREAM_MOTION = new RegExp(String.raw`(?:\b(?:speeds?|velocit(?:y|ies)|fast)\s+|${TRAVEL_VERB}(?:(?:a|the)\s+(?:total\s+)?distance\s+of\s+)?(?:${RIVER_LENGTH}\s+)?)${ALONG_STREAM_EVIDENCE}\b|\b${ALONG_STREAM_EVIDENCE}\s+(?:speeds?|velocit(?:y|ies)|journeys?|trips?)\b`, "i");
+
 /** Every length in the stem is a distance travelled along the stream. */
 function riverLengthsAlongStream(text: string): boolean {
   const spans = [...text.matchAll(DISTANCE_ALONG_STREAM)].map((match) => [match.index!, match.index! + match[0].length] as const);
@@ -261,7 +269,7 @@ function riverSpeedAlongStream(text: string): boolean {
 
 /**
  * The along-stream picture (downstream at vb+vc, upstream at vb−vc) draws only on positive
- * evidence: the stem states motion along the river and names no other geometry at all. Any
+ * evidence: the stem states the boat's motion along the river and names no other geometry at all. Any
  * other river geometry, a length that is not a distance travelled along the stream, or a speed
  * over the ground declines, whatever variant the oracle above fell back to. Lists of crossing
  * wording keep missing spellings ("far bank", "normal to the current", "pointing north"), so
@@ -272,7 +280,7 @@ export function riverAlongStreamStated(stem: string): boolean {
   if (RIVER_OTHER_GEOMETRY.test(text)) return false;
   if (!riverLengthsAlongStream(text)) return false;
   if (riverSpeedAlongStream(text)) return false;
-  return new RegExp(String.raw`\b${ALONG_STREAM_EVIDENCE}\b`, "i").test(text);
+  return ALONG_STREAM_MOTION.test(text);
 }
 
 /* ------------------------------------------------------------------------- */

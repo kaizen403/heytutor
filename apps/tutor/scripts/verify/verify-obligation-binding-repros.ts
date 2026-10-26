@@ -319,6 +319,13 @@ const CROSSING_WORDING_STEMS: Array<[string, number, number]> = [
   ["A boat moves at 5 m/s in still water due N in a river flowing at 3 m/s due E. How far downstream does it land?", 5, 3],
   ["A boat sets off at 5 m/s in still water. The river flows at 3 m/s. How far downstream does it land?", 5, 3],
 ];
+// Greptile on #319 (round 2): a drift asked along the stream ("how far down the river is it
+// swept") is no statement of the boat's motion along it; it drew vb+vc = 8 and vb−vc = 2.
+const SWEPT_DRIFT_STEMS: Array<[string, number, number]> = [
+  ["A boat rows at 5 m/s in still water towards a pier directly ahead while the river flows at 3 m/s. How far down the river is it swept in 10 s?", 5, 3],
+  ["A boat rows at 5 m/s in still water towards a pier directly ahead while the river flows at 3 m/s. How far downstream is it swept in 10 s?", 5, 3],
+  ["A boat rows at 5 m/s in still water towards a pier while the river flows at 3 m/s. Find the distance it is swept downstream in 10 s.", 5, 3],
+];
 const declineRows = (tag: string, stems: Array<[string, number, number] | [string]>): Repro[] => stems.flatMap(([question, vb, vc], index) => [
   { name: `${tag} ${index + 1}: ${question}`, question, turnPlan: plan(question), irs: RIVER_IRS(question), expected: everywhere(null) },
   ...(vb === undefined || vc === undefined ? [] : [
@@ -335,6 +342,7 @@ const evidenceRows: Repro[] = [
   // With vb and vc planned the legacy sketch draws it: its "up" arrow runs vc − vb = 1 downstream.
   { name: "evidence slow boat 1 with vb and vc planned", question: SLOW_BOAT, turnPlan: crossingPlan(SLOW_BOAT, 2, 3), irs: RIVER_IRS(SLOW_BOAT), expected: refusedWithIR({ ...LEGACY_ALONG_STREAM_FIG, collinear: { vb: 2, vc: 3 } }, null) },
   ...declineRows("evidence crossing wording", CROSSING_WORDING_STEMS),
+  ...declineRows("evidence swept drift", SWEPT_DRIFT_STEMS),
   // Drawn with no ProblemIR; the live river ProblemIR keeps main's refusal, as for "downstream".
   // The swimmer stem is the legacy sketch's alone: the fast path declines it.
   ...STILL_WATER_STEMS.map((question, index) => ({ name: `evidence still water ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: refusedWithIR(ALONG_STREAM_FIG) })),
@@ -355,12 +363,13 @@ const UNSOURCED_SKETCH_ROWS = evidenceNames("unsourced sketch");
 const SPLIT_GROUND_SPEED_ROWS = evidenceNames("split ground speed");
 const SLOW_BOAT_ROWS = evidenceNames("slow boat");
 const CROSSING_WORDING_ROWS = evidenceNames("crossing wording");
+const SWEPT_DRIFT_ROWS = evidenceNames("swept drift");
 // The review's wording rows the geometry list declines: a landing place, facing, front, edge, square, island, due.
 const NEW_GEOMETRY_ROWS = [...DRIFT_DOWN_THE_RIVER_ROWS, ...CROSSING_WORDING_ROWS];
 // The ground speed rows that draw without the rule: Greptile's own stem (3) the speed reader refuses too.
 const GROUND_SPEED_DRAWN_ROWS = GROUND_SPEED_ROWS.filter((name) => !name.startsWith("evidence ground speed 3"));
 // Every other decline row draws the along-stream picture with no evidence check at all.
-const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS, ...DRIFT_DOWN_THE_RIVER_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...CROSSING_WORDING_ROWS];
+const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS, ...DRIFT_DOWN_THE_RIVER_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...CROSSING_WORDING_ROWS, ...SWEPT_DRIFT_ROWS];
 // The archetype's widened rows: the swimmer stem is the legacy sketch's, which records no bodies.
 const WIDENED_ARCHETYPE_ROWS = WIDENED_ROWS.filter((name) => !/swimmer/.test(name));
 
@@ -495,6 +504,13 @@ const LEGACY = "synthesize/familyScene.ts";
 const CLASSIFY = "synthesize/familyClassification.ts";
 
 interface Edit { file: string; from: string; to: string }
+/**
+ * Any along-stream wording is evidence again, not only the boat's own motion. A drift asked
+ * along the stream ("how far downstream does it land") is declined by that rule too, so each
+ * other evidence rule is measured with it switched off, and the swept drift rows, which only
+ * that rule declines, go red with each.
+ */
+const ANY_ALONG_STREAM: Edit = { file: CLASSIFY, from: "  return ALONG_STREAM_MOTION.test(text);\n", to: "  return new RegExp(String.raw`\\b${ALONG_STREAM_EVIDENCE}\\b`, \"i\").test(text);\n" };
 interface Mutation { name: string; edits: Edit[]; red: string[] }
 const FILLER_NOW = [
   "  const tokens = problemLabel.replace(/[()]/g, \" \").trim().split(/\\s+/).filter(Boolean);",
@@ -540,23 +556,23 @@ const mutations: Mutation[] = [
   },
   {
     name: "evidence: a stem naming other river geometry draws the along-stream picture again",
-    edits: [{ file: CLASSIFY, from: "  if (RIVER_OTHER_GEOMETRY.test(text)) return false;\n", to: "" }],
-    red: [...OTHER_GEOMETRY_ROWS, ...NEW_GEOMETRY_ROWS],
+    edits: [{ file: CLASSIFY, from: "  if (RIVER_OTHER_GEOMETRY.test(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
+    red: [...OTHER_GEOMETRY_ROWS, ...NEW_GEOMETRY_ROWS, ...SWEPT_DRIFT_ROWS],
   },
   {
     name: "evidence: landing, facing, front, edge, square, island and due compass wording are not other geometry again",
-    edits: [{ file: CLASSIFY, from: "land(?:s|ed|ing)?|facing|front|edges?|square|islands?|due\\s+[nsew]|", to: "" }],
-    red: NEW_GEOMETRY_ROWS,
+    edits: [{ file: CLASSIFY, from: "land(?:s|ed|ing)?|facing|front|edges?|square|islands?|due\\s+[nsew]|", to: "" }, ANY_ALONG_STREAM],
+    red: [...NEW_GEOMETRY_ROWS, ...SWEPT_DRIFT_ROWS],
   },
   {
     name: "evidence: a length not travelled along the stream draws again",
-    edits: [{ file: CLASSIFY, from: "  if (!riverLengthsAlongStream(text)) return false;\n", to: "" }],
-    red: OFF_STREAM_LENGTH_ROWS,
+    edits: [{ file: CLASSIFY, from: "  if (!riverLengthsAlongStream(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
+    red: [...OFF_STREAM_LENGTH_ROWS, ...SWEPT_DRIFT_ROWS],
   },
   {
     name: "evidence: a speed over the ground read as the boat's speed again",
-    edits: [{ file: CLASSIFY, from: "  if (riverSpeedAlongStream(text)) return false;\n", to: "" }],
-    red: [...GROUND_SPEED_DRAWN_ROWS, ...SPLIT_GROUND_SPEED_ROWS],
+    edits: [{ file: CLASSIFY, from: "  if (riverSpeedAlongStream(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
+    red: [...GROUND_SPEED_DRAWN_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...SWEPT_DRIFT_ROWS],
   },
   {
     name: "evidence: only a sentence with along-stream wording has its speeds read again",
@@ -564,8 +580,8 @@ const mutations: Mutation[] = [
       file: CLASSIFY,
       from: "  if (!new RegExp(evidence.source, \"i\").test(text)) return false;\n  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n",
       to: "  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n    if (blanked === sentence) return false;\n",
-    }],
-    red: SPLIT_GROUND_SPEED_ROWS,
+    }, ANY_ALONG_STREAM],
+    red: [...SPLIT_GROUND_SPEED_ROWS, ...SWEPT_DRIFT_ROWS],
   },
   {
     name: "evidence: a boat no faster than the current draws a forward upstream arrow again",
@@ -576,6 +592,11 @@ const mutations: Mutation[] = [
     name: "evidence: the legacy sketch draws stated speeds the plan does not name at its stock 5:2 again",
     edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && !riverSpeeds(quantities).sourced) return true;\n", to: "" }],
     red: [...UNSOURCED_SKETCH_ROWS, SLOW_BOAT_ROWS[0]!],
+  },
+  {
+    name: "evidence: any along-stream wording counts again, not only the boat's own motion",
+    edits: [ANY_ALONG_STREAM],
+    red: SWEPT_DRIFT_ROWS,
   },
   {
     name: "evidence: a still-water qualifier after a speed no longer names the boat's own speed",
@@ -600,10 +621,13 @@ for (const mutation of mutations) {
     cpSync(join(engine, "src"), join(copy, "src"), { recursive: true });
     copyFileSync(join(engine, "package.json"), join(copy, "package.json"));
     symlinkSync(join(engine, "node_modules"), join(copy, "node_modules"), "dir");
+    const touched = new Set<string>();
     for (const edit of mutation.edits) {
       const target = join(copy, "src", edit.file);
       const original = readFileSync(target, "utf8");
-      assert.equal(original, readFileSync(join(engine, "src", edit.file), "utf8"), "guard: the copy starts equal to src");
+      // A file's first edit starts from src; a later edit to the same file starts from the earlier one.
+      if (!touched.has(edit.file)) assert.equal(original, readFileSync(join(engine, "src", edit.file), "utf8"), "guard: the copy starts equal to src");
+      touched.add(edit.file);
       assert.equal(original.split(edit.from).length - 1, 1, `${mutation.name}: the mutated text occurs exactly once in ${edit.file}`);
       writeFileSync(target, original.replace(edit.from, edit.to));
       const written = readFileSync(target, "utf8");
