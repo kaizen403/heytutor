@@ -468,74 +468,188 @@ export function placeLabels(
   const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false });
   if (options.pointRivals === false || !plain.ok) return plain;
   // The rule exists to repair a point letter that names the wrong mark.
-  // Where the layout without it misreads nothing, it is the layout.
-  const misreadBefore = pointRivalMisreads(plain, owners, obstacles);
-  if (misreadBefore.size === 0) return plain;
+  // Where the layout without it misreads no point letter, it is the layout.
+  const before = labelReadings(plain, owners, obstacles);
+  if (!before || ![...before.values()].some((reading) => reading.point && reading.misread)) return plain;
   const ruled = placeLabelsInternal(owners, obstacles, options);
   // The rule may move labels, never cost a figure: when its joint solve
   // fails the figure keeps the layout without it, byte for byte.
   if (!ruled.ok) return plain;
-  const misreadAfter = pointRivalMisreads(ruled, owners, obstacles);
-  // Whole figure guard: no label that read right before may read wrong now,
-  // and the move must repair at least one label.
-  const worse = [...misreadAfter].some((key) => !misreadBefore.has(key));
-  const label = (key: string) => key.slice(key.indexOf("\u0000") + 1);
-  const labelsAfter = new Set([...misreadAfter].map(label));
-  const repaired = [...misreadBefore].some((key) => !labelsAfter.has(label(key)));
-  if (worse || !repaired) return plain;
+  // Fail closed: the ruled layout is kept only when every label it moved
+  // passes every test against the layout without it.
+  const after = labelReadings(ruled, owners, obstacles);
+  if (!after || pointRivalLayoutRegressions(before, after).length > 0) return plain;
   options.onPointRivalLayout?.();
   return ruled;
 }
 
 /**
- * Labels a layout misreads: the box sits as near another point's dot as its
- * own ink (any owner), or, for a point's label, across a rival straight line
- * nearer that line than the point. A label drawn with a leader is tied to its
- * owner by the leader and is never misread. Each label is judged by its
- * layout box and by its ink box, against dots and against lines; a key names
- * the box, the test, the label id and the text, so a label that trades one
- * misreading for another is still misread anew.
+ * Tests the whole figure guard runs on every label the ruled layout moved,
+ * besides reading as its own mark. All are always on; a verification
+ * mutation flips one in the source to prove the gate sees what it guards.
  */
-export function pointRivalMisreads(
-  result: LabelEngineResult,
-  owners: LabelOwner[],
-  obstacles: LabelObstacle[],
-): Set<string> {
+const POINT_RIVAL_GUARD_CHECKS = {
+  /** Owners that are not points (an arrow, a dimension, an angle) are judged against foreign strokes too, not only dots. */
+  nonPointStrokes: true,
+  /** A moved label keeps its margin and its distance to its own mark. */
+  margins: true,
+  /** A moved label gains no leader other than one straight stroke from its own mark, and loses no leader. */
+  leaders: true,
+};
+
+/** A moved label may lose at most this much margin (nearest foreign mark minus own mark). */
+const POINT_RIVAL_MARGIN_TOLERANCE_PX = 1;
+/** A moved label may end at most this much farther from its own mark than without the rule. */
+const POINT_RIVAL_DRIFT_TOLERANCE_PX = 2;
+
+interface LabelReading {
+  point: boolean;
+  /** Either box reads as a foreign mark (see labelReadings). */
+  misread: boolean;
+  /** Layout box, then ink box: own mark distance and margin (nearest foreign mark minus own). */
+  boxes: Array<{ own: number; margin: number; misread: boolean }>;
+  bounds: LabelBounds;
+  leader: RenderPoint[] | null;
+  /** The drawn leader is one straight stroke from the label's own mark that crosses no foreign stroke. */
+  straightOwnLeader: boolean;
+}
+
+/**
+ * How each label of a layout reads. A label names the nearest mark. It is
+ * misread when its layout box or its ink box sits as near another entity's
+ * dot as its own mark (a tie within OWNERSHIP_TOLERANCE_PX names neither),
+ * plainly nearer another entity's stroke than its own mark, or, for a point,
+ * across a rival line from its point and nearer that line. Every owner is
+ * judged, not only points; a point's host strokes (the curve or axis it lies
+ * on) are not foreign to it. A label tied to its own mark by one straight
+ * leader that crosses no foreign stroke is at distance 0 from its mark; any
+ * other leader ties nothing. Null when two placements share a key, so the
+ * layouts cannot be compared label by label.
+ */
+function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
+  const checks = POINT_RIVAL_GUARD_CHECKS;
   const key = (labelId: string, text: string) => `${labelId}\u0000${text}`;
   const ownerByKey = new Map(owners.map((owner) => [key(owner.labelId ?? `label:${owner.entityId}`, owner.text), owner]));
-  const dots = obstacles.filter((obstacle) => obstacle.kind === "geometry" && obstacle.primitiveKind === "point" && obstacle.entityId !== undefined)
-    .map((obstacle) => ({ entityId: obstacle.entityId!, centre: { x: obstacle.bounds.x + obstacle.bounds.width / 2, y: obstacle.bounds.y + obstacle.bounds.height / 2 } }));
-  const misread = new Set<string>();
+  const geometry = obstacles.filter((obstacle) => obstacle.kind === "geometry");
+  const centre = (bounds: LabelBounds) => ({ x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 });
+  const readings = new Map<string, LabelReading>();
   for (const placement of result.placements) {
     const placementKey = key(placement.labelId, placement.text);
+    if (readings.has(placementKey)) return null;
     const owner = ownerByKey.get(placementKey);
-    if (!owner || placement.usesLeader) continue;
-    for (const [measure, box] of [["layout", placement.bounds], ["ink", placement.collisionBounds ?? placement.bounds]] as const) {
-    const misreadKey = (test: "dot" | "line" | "stroke") => `${measure}|${test}\u0000${placementKey}`;
-    const pointOwner = !(owner.useOwnerBounds !== false && strokeOwnership(owner, obstacles));
-    const rivals = pointOwner ? pointRivalMarks(owner, obstacles) : null;
-    if (rivals) {
-      if (pointLabelNearerRivalDot(box, owner.anchor, rivals)) misread.add(misreadKey("dot"));
-      if (pointLabelAcrossRivalLine(box, owner.anchor, rivals)) misread.add(misreadKey("line"));
-      // Broader than the rule: any foreign stroke the point does not lie on
-      // (a curve, a frame, a dimension line) nearer the box than the point.
-      const own = boxToPointDistance(box, owner.anchor);
-      if (obstacles.some((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== owner.entityId && obstacle.segments?.length &&
-          !obstacle.segments.some(([start, end]) => pointToSegmentDistance(owner.anchor, start, end) <= POINT_HOST_PX) &&
-          segmentsToBoundsDistance(obstacle.segments, box) < own - OWNERSHIP_TOLERANCE_PX)) misread.add(misreadKey("stroke"));
+    const leader = placement.usesLeader && placement.leaderFrom && placement.leaderTo
+      ? placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo] : null;
+    if (!owner) {
+      readings.set(placementKey, { point: false, misread: true, boxes: [], bounds: placement.bounds, leader, straightOwnLeader: false });
       continue;
     }
-    const own = Math.min(boxToPointDistance(box, owner.anchor), ...obstacles
-      .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId === owner.entityId)
-      .map((obstacle) => obstacle.segments?.length
-        ? segmentsToBoundsDistance(obstacle.segments, box)
-        : boxToPointDistance(box, { x: obstacle.bounds.x + obstacle.bounds.width / 2, y: obstacle.bounds.y + obstacle.bounds.height / 2 })));
-    const coincident = (centre: RenderPoint) => Math.hypot(centre.x - owner.anchor.x, centre.y - owner.anchor.y) <= POINT_HOST_PX;
-    if (dots.some((dot) => dot.entityId !== owner.entityId && !coincident(dot.centre) &&
-        boxToPointDistance(box, dot.centre) < own + OWNERSHIP_TOLERANCE_PX)) misread.add(misreadKey("dot"));
+    const own = geometry.filter((obstacle) => obstacle.entityId === owner.entityId);
+    const point = own.length > 0 && own.every((obstacle) => obstacle.primitiveKind === "point");
+    const ownDots = own.filter((obstacle) => !obstacle.segments?.length).map((obstacle) => centre(obstacle.bounds));
+    const ownSegments = own.flatMap((obstacle) => obstacle.segments ?? []);
+    const hosted = (segments: Array<[RenderPoint, RenderPoint]>) =>
+      point && segments.some(([start, end]) => pointToSegmentDistance(owner.anchor, start, end) <= POINT_HOST_PX);
+    const otherStrokes = geometry
+      .filter((obstacle) => obstacle.entityId !== owner.entityId && obstacle.segments?.length)
+      .map((obstacle) => obstacle.segments!);
+    const foreignStrokes = otherStrokes.filter((segments) => !hosted(segments) && (point || checks.nonPointStrokes));
+    const foreignDots = geometry
+      .filter((obstacle) => obstacle.entityId !== owner.entityId && obstacle.primitiveKind === "point")
+      .map((obstacle) => centre(obstacle.bounds))
+      // A second point drawn on top of a point is not its rival. For any
+      // other owner every foreign dot is, even one on the owner's own ink.
+      .filter((dot) => !point || Math.hypot(dot.x - owner.anchor.x, dot.y - owner.anchor.y) > POINT_HOST_PX);
+    const rivals = point ? pointRivalMarks(owner, obstacles) : null;
+    const hasOwnInk = ownDots.length > 0 || ownSegments.length > 0;
+    const onOwnMark = (at: RenderPoint) => (hasOwnInk
+      ? Math.min(...ownDots.map((dot) => Math.hypot(at.x - dot.x, at.y - dot.y)),
+        ...ownSegments.map(([start, end]) => pointToSegmentDistance(at, start, end)))
+      : Math.hypot(at.x - owner.anchor.x, at.y - owner.anchor.y)) <= 1;
+    // One straight stroke that starts on the label's own mark and, once
+    // clear of where it leaves that mark, crosses no other entity's stroke
+    // (hosts included: a leader that cuts the curve its point lies on again
+    // is not clean).
+    let straightOwnLeader = false;
+    if (leader && leader.length === 2 && onOwnMark(leader[0]!)) {
+      const [from, to] = [leader[0]!, leader[1]!];
+      const length = Math.hypot(to.x - from.x, to.y - from.y);
+      const clear = length > POINT_HOST_PX
+        ? { x: from.x + (to.x - from.x) * POINT_HOST_PX / length, y: from.y + (to.y - from.y) * POINT_HOST_PX / length }
+        : to;
+      straightOwnLeader = !otherStrokes.some((segments) => segments.some(([start, end]) => segmentsIntersect(clear, to, start, end)));
     }
+    const boxes = [placement.bounds, placement.collisionBounds ?? placement.bounds].map((box) => {
+      const ownDistance = straightOwnLeader ? 0 : hasOwnInk
+        ? Math.min(...ownDots.map((dot) => boxToPointDistance(box, dot)), ownSegments.length ? segmentsToBoundsDistance(ownSegments, box) : Infinity)
+        : boxToPointDistance(box, owner.anchor);
+      const dot = Math.min(Infinity, ...foreignDots.map((foreign) => boxToPointDistance(box, foreign)));
+      const stroke = Math.min(Infinity, ...foreignStrokes.map((segments) => segmentsToBoundsDistance(segments, box)));
+      const misread = dot < ownDistance + OWNERSHIP_TOLERANCE_PX || stroke < ownDistance - OWNERSHIP_TOLERANCE_PX ||
+        (!straightOwnLeader && rivals !== null && pointLabelAcrossRivalLine(box, owner.anchor, rivals));
+      return { own: ownDistance, margin: Math.min(dot, stroke) - ownDistance, misread };
+    });
+    readings.set(placementKey, {
+      point, misread: boxes.some((box) => box.misread), boxes, bounds: placement.bounds, leader, straightOwnLeader,
+    });
   }
-  return misread;
+  return readings;
+}
+
+/**
+ * The whole figure guard on two given layouts of one figure: why the ruled
+ * layout may not replace the plain one, empty when it may. placeLabels runs
+ * exactly this test; verification calls it on constructed layouts.
+ */
+export function pointRivalLayoutRegressionsFor(
+  plain: LabelEngineResult,
+  ruled: LabelEngineResult,
+  owners: LabelOwner[],
+  obstacles: LabelObstacle[],
+): string[] {
+  const before = labelReadings(plain, owners, obstacles);
+  const after = labelReadings(ruled, owners, obstacles);
+  if (!before || !after) return ["two labels share a key"];
+  return pointRivalLayoutRegressions(before, after);
+}
+
+/**
+ * Why a ruled layout is worse than the plain one, label by label; empty
+ * when the ruled layout may be kept. Only labels the rule moved are judged
+ * (a label whose box and leader are unchanged reads exactly as before).
+ * Every moved label must read as its own mark (test 1), keep its margin
+ * within POINT_RIVAL_MARGIN_TOLERANCE_PX and end no more than
+ * POINT_RIVAL_DRIFT_TOLERANCE_PX farther from its own mark unless one
+ * straight clean leader ties it there (test 2), and draw no leader but one
+ * straight clean stroke from its own mark, losing none (test 3). At least
+ * one point letter the plain layout misread must be repaired.
+ */
+function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: Map<string, LabelReading>): string[] {
+  const checks = POINT_RIVAL_GUARD_CHECKS;
+  const reasons: string[] = [];
+  const same = (a: LabelBounds, b: LabelBounds) =>
+    Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.width - b.width) < 0.01 && Math.abs(a.height - b.height) < 0.01;
+  const sameLeader = (a: RenderPoint[] | null, b: RenderPoint[] | null) => a === null || b === null ? a === b
+    : a.length === b.length && a.every((point, index) => Math.abs(point.x - b[index]!.x) < 0.01 && Math.abs(point.y - b[index]!.y) < 0.01);
+  let repaired = false;
+  if (before.size !== after.size) reasons.push("label set changed");
+  for (const [labelKey, next] of after) {
+    const name = labelKey.slice(labelKey.indexOf("\u0000") + 1);
+    const prior = before.get(labelKey);
+    if (!prior) { reasons.push(`${name}: not in the plain layout`); continue; }
+    if (same(prior.bounds, next.bounds) && sameLeader(prior.leader, next.leader)) continue;
+    if (next.boxes.length === 0 || prior.boxes.length !== next.boxes.length) { reasons.push(`${name}: no owner`); continue; }
+    if (next.misread) reasons.push(`${name}: reads as a foreign mark`);
+    if (checks.leaders && prior.leader && !next.leader) reasons.push(`${name}: loses its leader`);
+    if (checks.leaders && next.leader && !next.straightOwnLeader) reasons.push(`${name}: leader is not one clean straight stroke from its own mark`);
+    if (checks.margins) next.boxes.forEach((box, index) => {
+      const was = prior.boxes[index]!;
+      if (box.margin < was.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX) reasons.push(`${name}: margin ${was.margin.toFixed(1)} to ${box.margin.toFixed(1)} px`);
+      if (box.own > was.own + POINT_RIVAL_DRIFT_TOLERANCE_PX) reasons.push(`${name}: ${was.own.toFixed(1)} to ${box.own.toFixed(1)} px from its own mark`);
+    });
+    if (prior.point && prior.misread && !next.misread) repaired = true;
+  }
+  if (!repaired) reasons.push("no point letter repaired");
+  return reasons;
 }
 
 function boxToPointDistance(box: LabelBounds, point: RenderPoint): number {
