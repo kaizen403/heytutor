@@ -87,10 +87,11 @@ export function plannerProvenFiguresOnly(decision: DiagramStrategyDecision): boo
  * chemistry lane forbids (docs/agent/chemistry-lessons.md). A turn the plan
  * places in chemistry, inside the lane or not, never takes a planner figure,
  * fresh or recovered from an earlier turn; it draws an engine figure or none.
- * The planner request itself is unchanged.
+ * The planner request itself is unchanged. `subject` is the plan subject,
+ * including the rejected-plan consensus that the strategy does not use.
  */
-export function chemistryRefusesPlannerFigure(decision: DiagramStrategyDecision, source: FigureSource): boolean {
-  return decision.subject === "chemistry" && (source === "planner" || source === "verified_recovery");
+export function chemistryRefusesPlannerFigure(subject: DiagramSubject | undefined, source: FigureSource): boolean {
+  return subject === "chemistry" && (source === "planner" || source === "verified_recovery");
 }
 
 /** Independently compiled complete linear source programs and verified recovery remain available in strict. */
@@ -98,7 +99,7 @@ export function diagramStrategyAllowsFigureSource(
   decision: DiagramStrategyDecision,
   source: FigureSource,
 ): boolean {
-  if (chemistryRefusesPlannerFigure(decision, source)) return false;
+  if (chemistryRefusesPlannerFigure(decision.subject, source)) return false;
   return (decision.strategy === "current" && !plannerProvenFiguresOnly(decision)) ||
     source === "planner" ||
     source === "verified_recovery" ||

@@ -140,7 +140,7 @@ async function main(): Promise<void> {
   assert(handler.includes("fetchVisualNeed({"), "live questions must ask Jev for a visual decision");
   assert(/fetchVisualNeed\(\{[\s\S]*?conversationContext: recentConversation,[\s\S]*?\}\)/.test(handler),
     "the live turn must give Jev the planner's recent conversation");
-  assert(/let recoveredScene = recentConversation\s*\? null\s*:\s*findVerifiedSceneRecovery\(/.test(handler),
+  assert(/let recoveredScene = recentConversation\s*\? null\s*:\s*(?:recoveryForPlanning\()?findVerifiedSceneRecovery\(/.test(handler),
     "contextual follow-ups must bypass context-free scene recovery and get a fresh visual decision");
   const route = readFileSync(join(process.cwd(), "app/api/visual-need/route.ts"), "utf8");
   assert(/assessVisualNeed\(\{[\s\S]*?conversationContext:/.test(route),

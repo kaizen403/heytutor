@@ -142,6 +142,7 @@ import {
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
+  chemistryRefusesPlannerFigure,
   diagramStrategyAllowsFigureSource,
   liveDiagramStrategyDecision,
   type DiagramStrategy,
@@ -1125,6 +1126,8 @@ export function useQuestionHandler(
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
+          // The recovered scene's recorded subject; recoveryForPlanning admitted it.
+          diagramSubject = recoveredScene.subject ?? diagramSubject;
           problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
@@ -1530,7 +1533,10 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
-            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
+            // The strategy reads only an accepted plan's subject; a chemistry
+            // consensus from rejected plans still refuses planner figures.
+            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
+              !chemistryRefusesPlannerFigure(diagramSubject, source)),
           },
         }));
         const selected = sceneSelection.representation;

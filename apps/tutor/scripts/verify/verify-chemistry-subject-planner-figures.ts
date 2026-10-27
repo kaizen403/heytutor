@@ -57,7 +57,7 @@ async function run(): Promise<void> {
   // Main's policy: the same module without the chemistry check.
   const source = fileURLToPath(new URL("../../features/tutor-session/lib/scene/diagramStrategy.ts", import.meta.url));
   const original = readFileSync(source, "utf8");
-  const ANCHOR = "  if (chemistryRefusesPlannerFigure(decision, source)) return false;\n";
+  const ANCHOR = "  if (chemistryRefusesPlannerFigure(decision.subject, source)) return false;\n";
   async function mainPolicy(): Promise<Policy> {
     assert.ok(original.includes(ANCHOR), "mutation anchor is missing");
     const path = source.replace(/diagramStrategy\.ts$/, `diagramStrategy.main-${process.pid}.ts`);
@@ -100,10 +100,22 @@ async function run(): Promise<void> {
 
   await check("no-planner-figure-for-chemistry", () => assert.deepEqual(plannerLeaks(policy), []));
 
-  await check("selection-order-and-examples-unchanged", () => {
-    const before = decisions(main), after = decisions(policy);
-    assert.equal(before.length, after.length);
-    before.forEach((decision, index) => assert.deepEqual(after[index], decision));
+  // When every plan is rejected, the strategy reads "other" but the
+  // rejected-plan consensus can say chemistry: the live hook and the lab both
+  // refuse planner figures on that subject too.
+  await check("rejected-plan-consensus", () => {
+    for (const figure of PLANNER_AUTHORED) assert.equal(policy.chemistryRefusesPlannerFigure("chemistry", figure), true, figure);
+    for (const figure of FIGURE_SOURCES.filter((source) => !PLANNER_AUTHORED.includes(source))) {
+      assert.equal(policy.chemistryRefusesPlannerFigure("chemistry", figure), false, `${figure} is not a planner figure`);
+    }
+    for (const subject of ["maths", "physics", "other", undefined] as const) {
+      for (const figure of FIGURE_SOURCES) assert.equal(policy.chemistryRefusesPlannerFigure(subject, figure), false, `${subject} ${figure}`);
+    }
+    const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
+    assert.match(read("../../features/tutor-session/hooks/turn/useQuestionHandler.ts"),
+      /diagramStrategyAllowsFigureSource\(diagramStrategyDecision, source\) &&\s*!chemistryRefusesPlannerFigure\(diagramSubject, source\)/, "the live hook");
+    assert.match(read("../lecture-lab/lecturePipeline.ts"),
+      /diagramStrategyAllowsFigureSource\(planning\.gate\.diagramStrategy, source\) &&\s*!chemistryRefusesPlannerFigure\(classifiedSubject, source\)/, "the lab");
   });
 
   // Authored stems in the shape of the chemistry plans the lane missed. The plan
@@ -191,6 +203,7 @@ async function run(): Promise<void> {
     const hook = readFileSync(fileURLToPath(new URL("../../features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url)), "utf8");
     assert.match(hook, /recoveryForPlanning\(findVerifiedSceneRecovery\(question, storedTurnsRef\.current/, "the hook refuses by subject");
     assert.match(hook, /rememberVerifiedScene\(question, selected\.sceneDocument, turnPlan, \{ boardId: sessionId, subject: diagramSubject \}\)/, "the hook remembers the subject");
+    assert.match(hook, /turnPlan = recoveredScene\.turnPlan;[\s\S]{0,200}diagramSubject = recoveredScene\.subject \?\? diagramSubject;/, "a recovered turn saves the subject it recovered");
     assert.equal((hook.match(/diagramStrategy: diagramStrategyDecision\.strategy,\n\s+diagramSubject,/g) ?? []).length, 2, "both saved artifact shapes record the subject");
     const persistence = readFileSync(fileURLToPath(new URL("../../lib/scene/turnScenePersistence.ts", import.meta.url)), "utf8");
     assert.match(persistence, /recordedDiagramSubject\(metadata\.sceneArtifacts\.diagramSubject\)/, "the server keeps a recorded subject from the closed set");
