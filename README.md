@@ -1,187 +1,172 @@
-# HeyTutor
+<div align="center">
 
-AI whiteboard tutor that teaches with two coordinated streams: a verified diagram committed before narration, and a teaching stream that writes equations while revealing that diagram in sync with speech.
+<img src="apps/landing/public/favicon.svg" alt="Accelute logo" width="72" height="72" />
 
-Invalid or partial diagrams never reach the canvas. Numeric values come from a deterministic solver, not from planner guesswork.
+# Accelute
 
-## Architecture
+**The AI tutor that teaches on a whiteboard.**
 
-```text
-question
-  -> TurnPlanV3
-  -> ProblemIR + SolverResult (numeric authority)
-  -> fast deterministic family figure, else scene-document candidates + constraint compilers
-  -> validate / proof / repair / compile / label layout
-  -> exact_verified | qualitative_verified | question_representation
-  -> atomic VerifiedDiagram commit + narrated reveal
-  -> teaching [STEP] narration + work-area WRITE
-```
+Ask a question. Watch it draw the figure, write the working, and explain every step out loud.
 
-| Stream | Owner | Responsibility |
-|--------|--------|----------------|
-| Verified diagram | `@heytutor/scene-engine` | Geometry, topology, labels, dimensions, layout, reveal order |
-| Narrated work | Teaching LLM + TTS (Cartesia; Sarvam for Hinglish) | Spoken explanation and left-panel `WRITE` only |
+[**Try it free**](https://app.accelute.co) &nbsp;·&nbsp; [Website](https://accelute.co) &nbsp;·&nbsp; [Watch a full lesson](https://accelute.co/hero/lesson-loop.mp4) &nbsp;·&nbsp; [Product Hunt](https://www.producthunt.com/products/accelute)
 
-The teaching model cannot draw, label, annotate, erase, or supply diagram coordinates. `[FOCUS:id]` may only trace geometry already committed by the scene engine.
+<br />
 
-Canvas: **1200×700**, origin top-left. Diagram zone: **x 400 to 1160**.
+<img src="docs/readme/demo.gif" alt="Accelute in 40 seconds: a student asks a question, the tutor draws the figure and explains it out loud, then answers a circled doubt on the same board" width="860" />
 
-Deeper design notes: [docs/agent/architecture.md](docs/agent/architecture.md), [docs/architecture/diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md), [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md).
+</div>
 
-## Repository layout
+<br />
 
-```text
-apps/
-  tutor/          Next.js product (API, WebSocket TTS relay, whiteboard session)
-  landing/        Marketing site (Vite + React)
+## Why Accelute
 
-packages/
-  scene-engine/   Diagram authority: contracts, validation, proofs, compile
-  drawing/        Command protocol, parser, paths, animation
-  tutor-core/     Turn planning, teaching stream, TTS, audio sync
-  whiteboard/     Konva renderer
-  design-tokens/  Shared visual constants
-```
+Most study tools answer in a chat box. You get a wall of text and a final number, but not the picture a good teacher would draw or the reasoning that gets you there.
 
-## Stack
+Accelute teaches the way a teacher does at the board. It draws a clear, labelled diagram, writes each line of working beside it, and talks you through it while the ink appears. When you get stuck, you circle the step and ask, and the answer appears right there on the same board.
 
-| Layer | Choice |
-|-------|--------|
-| Apps | Next.js 15, React 19, Tailwind CSS v4; Vite landing |
-| Canvas | Konva / react-konva, roughjs, tegaki |
-| LLM | Fireworks AI (Kimi K3) by default; `LLM_PROVIDER=azure` selects gpt-6.1-sol on Azure AI Foundry ([llm-provider.md](docs/agent/llm-provider.md)) |
-| TTS | Cartesia `sonic-3.6` by default (`TTS_PROVIDER`); Sarvam `bulbul:v3` for Hinglish when `SARVAM_API_KEY` is set; ElevenLabs optional |
-| Speech to text | Cartesia `ink-whisper` by default (`STT_PROVIDER`) |
-| Accounts | Auth.js (Google sign-in) |
-| Data | Prisma + Postgres |
-| Audio + question photos | Private S3 |
-| Monorepo | pnpm workspaces + Turborepo |
-| Deploy | Vercel (landing) + AWS EC2 (tutor UI / API / WebSocket) |
+Think of it as a patient tutor that is ready whenever you are, for whatever you are studying tonight.
 
-## Prerequisites
+<br />
 
-- Node.js 24 (what CI and production run)
-- [pnpm](https://pnpm.io) 10.32.0 (`packageManager` in root `package.json`)
-- Docker (local Postgres)
+## See a real lesson
 
-## Local setup
+Here is a complete lesson, recorded exactly as a student sees it. Click the picture to watch it with sound.
 
-```bash
-pnpm install
-cp apps/tutor/.env.example apps/tutor/.env.local
-```
+<div align="center">
+  <a href="https://accelute.co/hero/lesson-loop.mp4">
+    <img src="docs/readme/lesson-video.jpg" alt="Play a full Accelute lesson on the volume and surface area of a square pyramid" width="860" />
+  </a>
+  <br />
+  <sub><b>▶ Watch the 3 minute lesson with sound:</b> a square pyramid, from the question to the checked answer.</sub>
+</div>
 
-Edit `apps/tutor/.env.local`. Without `FIREWORKS_API_KEY` (or the Azure key when `LLM_PROVIDER=azure`) the LLM runs in mock mode (usable for UI and sync work); without `CARTESIA_API_KEY` narration falls back to browser speech. `.env.example` sets `AUTH_DEV_LOGIN=1`, which adds a local sign-in that skips Google (never in production).
+<br />
 
-```bash
-pnpm db:up
-pnpm --filter @heytutor/tutor db:migrate
-pnpm dev:tutor
-```
+## How it works
 
-Tutor: [http://localhost:3000](http://localhost:3000)
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/ask.jpg" alt="The Accelute home screen asking: What are you stuck on?" />
+    </td>
+    <td width="50%" valign="top">
+      <h3>1. Ask anything</h3>
+      <p>Type your question, snap a photo of the problem from your book, or just say it out loud. Ask in the same words you would use with your teacher.</p>
+      <p>Choose how deep to go: <b>New</b> if the topic is fresh, <b>Normal</b> for a regular lesson, or <b>Revision</b> for a quick recap before an exam.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>2. Watch it unfold</h3>
+      <p>Accelute plans the lesson, then teaches it on a live whiteboard. The figure is drawn and labelled, the working is written step by step, and a natural voice explains each line as the pen writes it.</p>
+      <p>Every diagram is checked before it is drawn, so what you see on the board matches the numbers in the question.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/writing.jpg" alt="The tutor's pen drawing a labelled pyramid on the whiteboard" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/doubt-circle.jpg" alt="A student circles a step on the board to ask about it" />
+      <img src="docs/readme/doubt-answer.jpg" alt="The tutor answers the doubt right below the circled step" />
+    </td>
+    <td width="50%" valign="top">
+      <h3>3. Circle it. Ask your doubt.</h3>
+      <p>Lost on a step? Pause, circle the line you did not follow, and type or say your question. The tutor understands exactly which part you mean and explains it on the same board.</p>
+      <p>Then carry on from where you left off. Your doubt becomes part of the lesson instead of a separate chat.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>4. Revisit at your own pace</h3>
+      <p>Every lesson is saved to your library. Replay the board and the voice together, jump between chapters, slow it down or speed it up until it clicks.</p>
+      <p>Download the board as PDF notes, or the whole narrated lesson as a video, ready for revision whenever you need it.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="apps/landing/public/hero/lesson-poster.jpg" alt="A finished lesson with the replay bar, chapter seek and playback speed controls" />
+    </td>
+  </tr>
+</table>
 
-`pnpm dev:tutor` starts the tutor app; if `DATABASE_URL` points at localhost, the dev script can bring up Postgres and apply migrations. Compose binds Postgres to `127.0.0.1:5433` only.
+<br />
 
-Optional lecture audio persistence (local): set `S3_BUCKET` and AWS credentials
-in `apps/tutor/.env.local`. Production uses an EC2 instance role. See
-[docs/ops/s3-setup.md](docs/ops/s3-setup.md).
+## One board for every subject
 
-Landing site:
+Accelute draws the figure each subject needs: ray diagrams and circuits in physics, graphs and shapes in maths, cells and molecules in chemistry, and step by step walkthroughs for coding problems.
 
-```bash
-pnpm dev:landing   # http://localhost:5173
-```
+<table>
+  <tr>
+    <td width="33%"><img src="docs/readme/physics.jpg" alt="Physics: a concave mirror ray diagram with labelled focal length and object distance" /></td>
+    <td width="33%"><img src="docs/readme/maths.jpg" alt="Maths: a circle drawn on coordinate axes with its equation" /></td>
+    <td width="33%"><img src="docs/readme/chemistry.jpg" alt="Chemistry: a labelled zinc copper electrochemical cell with a salt bridge" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Physics</b><br /><sub>Optics, mechanics, circuits, waves</sub></td>
+    <td align="center"><b>Maths</b><br /><sub>Geometry, graphs, coordinate and 3D figures</sub></td>
+    <td align="center"><b>Chemistry</b><br /><sub>Cells, bonding, shapes of molecules</sub></td>
+  </tr>
+</table>
 
-## Environment variables
+<br />
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `DATABASE_URL` | Postgres connection | Yes |
-| `LLM_PROVIDER` | `fireworks` (default) or `azure` (needs `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`; missing values fall back to Fireworks) | No |
-| `FIREWORKS_API_KEY` | LLM | No (mock mode) |
-| `FIREWORKS_MODEL` | Planner model id | No |
-| `FIREWORKS_FAST_MODEL` | Planner Fast serving id | No |
-| `FIREWORKS_TEACHING_MODEL` | Spoken teaching model id | No |
-| `FIREWORKS_TEACHING_FAST_MODEL` | Teaching Fast serving id | No |
-| `TTS_PROVIDER` / `STT_PROVIDER` | Speech vendor for narration and dictation: `cartesia` (default) or `elevenlabs` | No |
-| `CARTESIA_API_KEY` | Narration and ask-bar dictation | No (narration falls back to browser speech) |
-| `SARVAM_API_KEY` | Hinglish voice | No (Hinglish is not offered) |
-| `ELEVENLABS_API_KEY` / `ELEVENLABS_VOICE_ID` | Narration, only with `TTS_PROVIDER=elevenlabs` | No |
-| `ELEVENLABS_STT_API_KEY` | Dictation, only with `STT_PROVIDER=elevenlabs` | No |
-| `AUTH_SECRET` | Auth.js session secret (a dev default exists outside production) | Production |
-| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google sign-in | Production |
-| `WS_TICKET_SECRET` | Signs short-lived `/api/tts/ws` tickets | Production |
-| `S3_BUCKET` / `AWS_REGION` | Lecture audio + question photos | No |
-| `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Observability | No |
-| `NEXT_PUBLIC_SITE_URL` | SEO / absolute URLs | No |
-| `BACKEND_ORIGIN` | Leave unset on the collocated EC2 tutor | Split-deploy only |
+## Hinglish mein bhi
 
-See `apps/tutor/.env.example` for the canonical list.
+Learn in English with an Indian, UK or US voice, or switch the tutor to Hinglish. Turn on subtitles to read along under the board.
 
-## Commands
+<div align="center">
+  <img src="docs/readme/hinglish.jpg" alt="A pyramid lesson narrated in Hinglish, with the subtitle shown under the board" width="720" />
+</div>
 
-```bash
-pnpm dev              # all apps
-pnpm dev:tutor        # tutor → :3000
-pnpm dev:landing      # landing → :5173
-pnpm build
-pnpm typecheck
-pnpm lint
-pnpm check            # typecheck + lint + build
+<br />
 
-pnpm db:up
-pnpm db:down
-pnpm --filter @heytutor/tutor db:migrate
-```
+## What makes it different
 
-## Verification
+| | |
+|---|---|
+| ✍️ **A board, not a chat box** | You see the working and the figure side by side, not only the final answer. |
+| 🎙️ **Voice and pen in sync** | The tutor speaks each line as it writes it, the way a real lesson feels. |
+| ✅ **Figures you can trust** | Diagrams are checked against the question before they appear. If a figure cannot be drawn correctly, the tutor teaches without it rather than show something wrong. |
+| 🖊️ **Doubts on the same board** | Circle any step and ask. No starting over, no copy and paste. |
+| 📸 **Ask your way** | Type it, snap a photo of the problem, or say it out loud. |
+| 🇮🇳 **Hinglish mein bhi** | Learn in English with an Indian, UK or US voice, or switch to Hinglish. |
+| 🎚️ **Lessons that fit you** | Pick New, Normal or Revision and the lesson adjusts its depth. |
+| 📚 **Keep everything** | Replay any lesson, jump to a chapter, and download notes or video. |
 
-Package and app invariants (golden corpora, transport ownership, persistence trust):
+<br />
 
-```bash
-pnpm --filter @heytutor/scene-engine verify
-pnpm --filter @heytutor/tutor-core verify
-pnpm --filter @heytutor/tutor verify
-```
+## Who it is for
 
-GitHub deploys Cloudflare Pages `dev` first, then promotes the same commit
-to `main` (tutor EC2 + landing production). Before any deploy, CI runs
-typecheck, lint, build, `verify:publication`, the security, payment and
-database checks, and a dependency audit; a failure blocks the deploy. The
-full package `verify` suites above are not in CI, so run them locally before
-pushing.
+- **School and college students** working through physics, maths, chemistry and coding homework.
+- **Exam takers** who want a fast, visual recap of a topic the night before.
+- **Self learners** who understand best when they can see it drawn.
+- **Tutors and coaching centres** who want a whiteboard explanation ready for every question.
 
-## Deployment
+<br />
 
-| Surface | Platform | Notes |
-|---------|----------|--------|
-| Landing | Vercel production (`accelute.co`); Cloudflare Pages `dev` first (`dev.accelute.pages.dev`) | Push to `dev` or `main` runs `.github/workflows/deploy-tutor.yml` |
-| Tutor UI + API + WebSocket | AWS EC2 | Same workflow, after the Cloudflare `dev` stage, through GitHub OIDC and the SSM document `AcceluteDeploy` (which runs `deploy/aws/deploy.sh` on the box) |
-| Postgres | Hosted | `DATABASE_URL` — not Docker on the app box |
-| Objects | Private S3 | Lecture MP3s and question photos |
+## Get started
 
-Full runbook: [docs/ops/ci-cd.md](docs/ops/ci-cd.md). S3: [docs/ops/s3-setup.md](docs/ops/s3-setup.md).
+Accelute runs in your browser, so there is nothing to install.
 
-## Documentation
+1. Open **[app.accelute.co](https://app.accelute.co)** and sign in with Google or your email.
+2. Ask your first question, or pick one of the suggested problems.
+3. Turn your sound on and watch the lesson unfold.
 
-| Doc | Contents |
-|-----|----------|
-| [AGENTS.md](AGENTS.md) | Agent quick reference and critical ownership rules |
-| [docs/agent/layout.md](docs/agent/layout.md) | Where new files go |
-| [docs/agent/architecture.md](docs/agent/architecture.md) | Turn flow and key paths |
-| [docs/agent/backend.md](docs/agent/backend.md) | API and lib modules |
-| [docs/agent/packages.md](docs/agent/packages.md) | Shared package map |
-| [docs/architecture/tutor-sync-architecture.md](docs/architecture/tutor-sync-architecture.md) | Voice / handwriting sync |
-| [docs/architecture/speech-providers.md](docs/architecture/speech-providers.md) | Cartesia, Sarvam and ElevenLabs setup |
-| [docs/architecture/diagram-accuracy-architecture.md](docs/architecture/diagram-accuracy-architecture.md) | Verified diagram design |
-| [docs/ops/ci-cd.md](docs/ops/ci-cd.md) | Deploy runbook |
+Start on the **Free plan**, and upgrade to **Plus** when you want more lessons. Plans are listed on [accelute.co](https://accelute.co).
 
-## Product constraints (non-negotiable)
+> Accelute is a study companion, not a replacement for a qualified teacher. Like any AI, it can occasionally make mistakes, so double check anything important.
 
-1. `@heytutor/scene-engine` owns every diagram mark. No topic templates, chapter registries, regex routers, fixed-pixel plugins, or model-authored diagram ink.
-2. Teaching stream owns narration and work-area `WRITE` only.
-3. Numeric authority is deterministic (`ProblemIR` + solver). Stale planner scalars cannot pair with a correct diagram.
-4. Coverage grows through reusable operators and assertions, not per-question templates or validator bypasses.
-5. Live writing uses estimated schedules first; do not block the board on late TTS timings.
-6. Accounts use Auth.js (Google sign-in). `AUTH_DISABLED=1` with `NEXT_PUBLIC_AUTH_DISABLED=1` restores the anonymous `htutor_uid` identity outside production; production ignores it.
+<br />
+
+## About this repository
+
+This repository holds everything behind Accelute: the tutor app, the website, and the engine that draws and checks every figure. If you are a developer looking for setup steps and design notes, start with the [developer guide](docs/DEVELOPMENT.md).
+
+<br />
+
+<div align="center">
+
+**[accelute.co](https://accelute.co)**
+
+<sub>Learn every subject the way teachers actually teach it.</sub>
+
+</div>
