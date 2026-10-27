@@ -221,10 +221,13 @@ export interface ArchetypeMatch {
 
 type Cue = readonly [RegExp, number, string?];
 
+/** A regular expression, or a small reader with the same test. */
+interface StemTest { test(stem: string): boolean }
+
 interface CueSet {
   id: ArchetypeId;
   cues: readonly Cue[];
-  vetoes?: readonly RegExp[];
+  vetoes?: readonly StemTest[];
   /** Every one of these must match for the figure to be eligible at all. */
   requires?: readonly RegExp[];
   /** Minimum score to be eligible. Default 2. */
@@ -374,8 +377,26 @@ const MAGNET_COIL_CONTRADICTIONS = [
   /\bS[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bS[- ]pole\b/,
   /\bsouth[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bsouth[- ]pole\b/i,
   /\bwithdraw\w*|\b(?:pulled|drawn|taken|moved|removed)\s+(?:\w+\s+){0,2}?(?:out|away)\b|\bmov(?:es?|ing)\s+away\b|\breced\w*/i,
-  /\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b|\bmagnets?\s+(?:is\s+|are\s+|remains?\s+|kept\s+|sits?\s+)?(?:held\s+)?(?:stationary|at rest|still)\b|\bcoils?(?:\s+(?:connected|joined|attached)\s+to\s+(?:a|an|the)\s+\w+)?\s+(?:is\s+|are\s+|being\s+)?(?:moved|moving|moves|brought|pushed|pulled)\b/i,
+  /\bcoils?(?:\s+(?:connected|joined|attached)\s+to\s+(?:a|an|the)\s+\w+)?\s+(?:is\s+|are\s+|being\s+)?(?:moved|moving|moves|brought|pushed|pulled)\b/i,
+  { test: magnetHeldStill },
 ];
+/**
+ * A stem that keeps the magnet still. Read sentence by sentence: one that
+ * names a magnet and a still word keeps the magnet still unless the still
+ * word belongs to the coil ("a stationary coil", or "the coil is held
+ * fixed" with the coil as its subject, not after "inside a" or "into a").
+ */
+function magnetHeldStill(stem: string): boolean {
+  const STILL = /\b(?:stationary|at rest|still|static)\b/i;
+  const COIL = "(?:coils?|loops?|rings?|solenoids?)";
+  const coilStill = new RegExp(String.raw`\b(?:stationary|fixed|static)\s+${COIL}\b|(?<!\b(?:inside|into|in|near|within|through|to|towards|from|of|around)\s+(?:a|an|the)\s+)\b${COIL}\s+(?:is|are|remains?|stays?)\s+(?:kept\s+|held\s+)?(?:stationary|fixed|at rest|still|static)\b`, "gi");
+  return stem.split(/[.?!;]/).some((sentence) => {
+    if (!/\bmagnets?\b/i.test(sentence)) return false;
+    if (/\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b/i.test(sentence)) return true;
+    return STILL.test(sentence.replace(coilStill, " "));
+  });
+}
+
 // Other induction setups: the magnet and coil is not their figure, but
 // theirs (a sliding rod, say) may be right, so they only veto this one.
 const OTHER_INDUCTION_SETUPS = [
