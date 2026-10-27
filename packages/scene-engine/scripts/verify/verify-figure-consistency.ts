@@ -258,6 +258,7 @@ expect("two lone axes the compiler packs into separate panels are admitted", fra
 const decay: [string, string] = ["2*exp(-0.3*x)", "-2*exp(-0.3*x)"];
 expect("two frames on opposite halves of one shared axis are admitted", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", false);
 expect("a frame spanning both signs beside a half-plane frame is still refused", frames(2, { firstRange: [-0.4, 8.6, -2.6, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", true);
+expect("opposite-half frames whose curves cross the shared axis are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3] }), "axes_frames_overlap", true);
 expect("two frames in the same half are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -0.3, 2.6], expressions: ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
 
 // Scope: without the option (engine built figures) the rules do not run.
