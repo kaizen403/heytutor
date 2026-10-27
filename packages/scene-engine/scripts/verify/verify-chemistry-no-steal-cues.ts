@@ -479,6 +479,7 @@ for (const values of [
     if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
   });
   for (const question of [
+    "Sketch the distribution of kinetic energies for electrons emitted from a metal sample.",
     "Sketch the distribution of energies in the visible spectrum of a sample of white light.",
     "Sketch the distribution of energies of particles in a radioactive sample.",
     "Sketch the distribution of energies of collision products in a particle accelerator.",
