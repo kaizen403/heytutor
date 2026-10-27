@@ -767,6 +767,28 @@ export function matchCoordinateLessWriteTag(slice: string): { raw: string; canon
   return null;
 }
 
+/**
+ * A WRITE that can close neither the canonical way nor as a coordinate-less
+ * row (`[WRITE:w5]`, `[WRITE:y=277]`, `[WRITE:text, x=60, y=475]`). It is
+ * protocol, not speech and not ink: the span runs to the last "]" before the
+ * next tag or line end, so an evaluation bar's bounds go with it. Recorded
+ * resumes sent these, and the stream used to hold the rest of the step behind
+ * them and then read it all aloud, tags included. Null when the WRITE may still
+ * close, or when no "]" closes it on the line.
+ */
+export function matchRefusedWriteTag(slice: string): string | null {
+  const header = COORDINATE_LESS_WRITE_HEADER.exec(slice);
+  if (!header) return null;
+  if (matchWriteLabelTag(slice) || matchCoordinateLessWriteTag(slice)) return null;
+  const stop = slice.slice(header[0].length).search(/[[\r\n]/u);
+  const line = stop < 0 ? slice : slice.slice(0, header[0].length + stop);
+  const last = line.lastIndexOf(']');
+  return last >= header[0].length ? line.slice(0, last + 1) : null;
+}
+
+/** `[/WRITE]` closes nothing in this protocol; it is never spoken. */
+export const STRAY_WRITE_CLOSE = /\[\/WRITE\]/giu;
+
 /** Rewrite every coordinate-less WRITE that cannot close canonically. */
 export function repairCoordinateLessWriteTags(responseText: string): string {
   let out = '';
@@ -790,10 +812,16 @@ export function repairCoordinateLessWriteTags(responseText: string): string {
       from = open + repaired.raw.length;
       continue;
     }
+    const refused = matchRefusedWriteTag(slice);
+    if (refused) {
+      out += responseText.slice(from, open);
+      from = open + refused.length;
+      continue;
+    }
     out += responseText.slice(from, open + 1);
     from = open + 1;
   }
-  return out + responseText.slice(from);
+  return (out + responseText.slice(from)).replace(STRAY_WRITE_CLOSE, '');
 }
 
 export function isCompleteDrawingTag(rawTag: string): boolean {

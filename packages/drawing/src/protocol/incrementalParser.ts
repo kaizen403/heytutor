@@ -3,6 +3,7 @@ import {
   HEADER_ONLY_TEXT_TAG_EXACT,
   isCompleteDrawingTag,
   matchCoordinateLessWriteTag,
+  matchRefusedWriteTag,
   parseDrawingTag,
   parseDrawCommandFromTag,
   repairHeaderOnlyTextTags,
@@ -130,12 +131,30 @@ export class IncrementalTagParser {
    */
   private closeCoordinateLessWrite(force: boolean): boolean {
     const repaired = matchCoordinateLessWriteTag(this.tagBuffer);
-    if (!repaired) return false;
+    if (!repaired) return this.dropRefusedWrite(force);
     const rest = this.tagBuffer.slice(repaired.raw.length);
     if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
     this.tagBuffer = '';
     this.state = 'NARRATION';
     for (const char of `${repaired.canonical}${rest}`) this.processChar(char);
+    return true;
+  }
+
+  /**
+   * A buffered WRITE that can close neither way (see `matchRefusedWriteTag`)
+   * is dropped once a text tag or STEP marker follows, the buffer overflows,
+   * or the stream ends, and the rest goes back through the parser. Holding it
+   * used to swallow the next tags and read them aloud.
+   */
+  private dropRefusedWrite(force: boolean): boolean {
+    const refused = matchRefusedWriteTag(this.tagBuffer);
+    if (!refused) return false;
+    const rest = this.tagBuffer.slice(refused.length);
+    if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
+    this.charPosition += refused.length;
+    this.tagBuffer = '';
+    this.state = 'NARRATION';
+    for (const char of rest) this.processChar(char);
     return true;
   }
 
@@ -150,6 +169,7 @@ export class IncrementalTagParser {
     if (
       'STEP'.startsWith(upperInner) ||
       '/STEP'.startsWith(upperInner) ||
+      '/WRITE]'.startsWith(upperInner) ||
       upperInner.startsWith('STEP') ||
       upperInner.startsWith('/STEP')
     ) {
@@ -237,6 +257,14 @@ export class IncrementalTagParser {
         this.emitStep();
       }
       this.insideStep = true;
+      this.charPosition += this.tagBuffer.length;
+      this.tagBuffer = '';
+      this.state = 'NARRATION';
+      return;
+    }
+
+    // `[/WRITE]` closes nothing in this protocol: drop it, never speak it.
+    if (upperTag === '[/WRITE]') {
       this.charPosition += this.tagBuffer.length;
       this.tagBuffer = '';
       this.state = 'NARRATION';
