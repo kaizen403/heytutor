@@ -25,6 +25,8 @@ import { BLOCK_FLOW_REVIEW_DECLINED, RESTATED_PROCESS_CLAIM_ID, reviewBlockFlowS
 import { parseProcessReviewVerdict, PROCESS_REVIEW_VOTES, reviewProcessChains, writeProcessClaim } from "../../../../packages/tutor-core/src/planners/processReview";
 import { blockFlowCitedProcesses } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
 import { resolveChatGenerationKind } from "../../lib/obs/chatTrace";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { deriveSceneGate, selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
@@ -194,6 +196,12 @@ row("the plan's own notation, not the question's words, decides admission", () =
     edges: [edge("card", "reader", "", "c1"), edge("reader", "acq", "", "c1")] }, listed).join(";"), /does not state a chain/, "a figure from a list heading");
   assert.equal(planStatesChain(plan([claim("c1", "Reader sends request to acquirer to bank.", ["reader", "acquirer", "bank"])])), false, "prose with named parts");
   assert.equal(planStatesChain(plan([claim("c1", "Process: a → b → a")])), false, "a step written twice");
+  // A route the plan rejects is never a process, and a condition in the heading is never dropped.
+  const rejected = { ...claim("c1", "Process: right ventricle → aorta → body"), expected: false };
+  assert.equal(planStatesChain(plan([rejected])), false, "a claim marked false");
+  assert.match(validateBlockFlowGrounding({ nodes: [node("a", "right ventricle", ["c1"]), node("b", "aorta", ["c1"]), node("c", "body", ["c1"])],
+    edges: [edge("a", "b", "", "c1"), edge("b", "c", "", "c1")] }, plan([rejected])).join(";"), /not a whole step|does not state a chain/, "a false claim grounds nothing");
+  assert.equal(planStatesChain(plan([claim("c1", "On timeout: request sent → retry scheduled → request resent")])), false, "a conditional heading is not a process");
   assert.equal(planStatesChain(plan([claim("c1", "x", ["a", "b", "c"]), claim("c2", "y", ["a", "b", "c"])])), false, "shared hints");
 });
 
@@ -402,6 +410,31 @@ void (async () => {
       assert.equal(dropped.out.turnPlan, prose, `${label}: plan untouched`);
     }
     assert.equal(await writeProcessClaim("q", prose, reviewOptions((async () => new Response("no", { status: 500 })) as typeof fetch)), null, "a failed call");
+    rows++;
+  } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
+}).then(async () => {
+  const name = "review calls stay within the account's in-flight limit; repeated box words all reach the board";
+  try {
+    let inFlight = 0, peak = 0;
+    const fetchImpl = (async () => {
+      inFlight++; peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight--;
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict: "PROCESS" }) } }] });
+    }) as typeof fetch;
+    const two = [["card is tapped", "reader sends request", "bank approves"], ["bank approves", "receipt printed", "customer leaves"]];
+    const review = await reviewProcessChains("q", two, reviewOptions(fetchImpl), payPlan);
+    assert.equal(review.verdict, "process");
+    assert.equal(review.votes.length, 2 * PROCESS_REVIEW_VOTES);
+    assert(peak <= PROCESS_REVIEW_MAX_CONCURRENT, `peak in flight ${peak}`);
+    const repeated = { nodes: [node("a", "Card is tapped"), node("b", "Reader sends request"), node("c", "Bank sends request")],
+      edges: [edge("a", "b", ""), edge("b", "c", "")] };
+    const validated = validateSceneDocument(document(repeated));
+    const compiled = compileSceneDocument(validated.document!);
+    assert.equal(compiled.ok, true);
+    const presentation = buildVerifiedDiagramPresentation(validated.document!, compiled.renderScene!);
+    const written = (JSON.stringify(presentation).match(/"text":"request"/g) ?? []).length;
+    assert(written >= 2, `both boxes keep their word "request" (${written})`);
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
 }).then(() => console.log(`verify-block-flow: ok (${rows} rows)`), (error) => {

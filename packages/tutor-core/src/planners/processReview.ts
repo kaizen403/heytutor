@@ -40,6 +40,12 @@ export const PROCESS_WRITER_PROMPT = `A tutor's plan for one lesson is below as 
 Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, or the claims describe more than one version of the process, reply null. Keep every qualifier the claims state.
 Reply with only {"process":"Process: ..."} or {"process":null}.`;
 
+/**
+ * At most this many review calls in flight: an account allows four AI
+ * requests at once, and a diagram citing two processes asks eight questions.
+ */
+export const PROCESS_REVIEW_MAX_CONCURRENT = 2;
+
 /** One vote per review question; every one must say PROCESS. */
 export const PROCESS_REVIEW_VOTES = PROCESS_REVIEW_PROMPTS.length;
 
@@ -174,8 +180,17 @@ export async function reviewProcessChains(
 ): Promise<ProcessReviewResult> {
   if (processes.length === 0) return { verdict: "not", votes: [] };
   const claims = processReviewClaimsText(plan);
-  const votes = await Promise.all(processes.flatMap((steps) =>
-    PROCESS_REVIEW_PROMPTS.map((prompt) => vote(question, claims, steps, prompt, options))));
+  const tasks = processes.flatMap((steps) =>
+    PROCESS_REVIEW_PROMPTS.map((prompt) => () => vote(question, claims, steps, prompt, options)));
+  const votes: Array<"PROCESS" | "NOT" | null> = new Array(tasks.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const index = next++;
+      votes[index] = await tasks[index]!();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(PROCESS_REVIEW_MAX_CONCURRENT, tasks.length) }, worker));
   const verdict: ProcessReviewVerdict = votes.includes("NOT") ? "not"
     : votes.includes(null) ? "unavailable" : "process";
   return { verdict, votes };
