@@ -64,7 +64,8 @@ export interface VerifiedLabelFact {
 }
 
 export interface VerifiedDiagram {
-  id: "verified_scene";
+  /** `reference_picture` is the default-off reference picture tier (protocol/referencePicture.ts). */
+  id: "verified_scene" | "reference_picture";
   name: string;
   commands: VerifiedDiagramCommand[];
   anchors: VerifiedDiagramAnchor[];

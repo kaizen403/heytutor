@@ -6,6 +6,7 @@ import ts from "typescript";
 import Konva from "konva";
 import * as drawing from "@heytutor/drawing";
 import type { WhiteboardHandle } from "../src/Whiteboard";
+import * as pictureCanvases from "../src/pictureCanvases";
 
 const disposers = new WeakMap<WhiteboardHandle, () => void>();
 const boardRefs = new WeakMap<WhiteboardHandle, Array<{ current: unknown }>>();
@@ -46,6 +47,9 @@ export function mountTestWhiteboard(sourceFile?: string, paths = drawing.textToS
       if (specifier === "react-konva") return Object.fromEntries(
         ["Layer", "Stage", "Path", "Rect", "Group", "Circle", "Ellipse", "Line"].map((name) => [name, name]),
       );
+      // The picture canvas registry is module state the gates (and the asset
+      // cache they load) inspect: the board shares their copy, not its own.
+      if (specifier === "./pictureCanvases") return pictureCanvases;
       if (specifier.startsWith(".")) {
         const resolved = path.resolve(path.dirname(source), specifier);
         return load(existsSync(`${resolved}.ts`) ? `${resolved}.ts` : `${resolved}.tsx`);

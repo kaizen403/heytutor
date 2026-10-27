@@ -38,6 +38,16 @@ import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { readFailedTurnTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
+import {
+  isReferencePictureRow,
+  type ReferencePictureOutcome,
+  type StoredReferencePicture,
+} from "@/features/tutor-session/lib/scene/referencePicturePresentation";
+import {
+  canonicalReferencePictureRows,
+  canonicalizeReferencePictureTurn,
+  type ReferencePictureLoader,
+} from "@/lib/scene/referencePicturePersistence";
 
 export interface SubmittedTurnSegment {
   orderIndex: number;
@@ -77,6 +87,10 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   boardContinuation?: BoardContinuation;
   diagramStrategy?: DiagramStrategy;
   failureTelemetry?: FailedTurnTelemetry;
+  /** A text only turn that drew a stored reference picture: the server's own summary. */
+  referencePicture?: StoredReferencePicture;
+  /** How this turn's reference picture attempt ended (telemetry only). */
+  referencePictureOutcome?: ReferencePictureOutcome;
 };
 
 export interface CanonicalTurnSceneMetadata {
@@ -133,6 +147,7 @@ export type TurnScenePersistenceResult =
  */
 export async function canonicalizeTurnSceneMetadata(
   submittedMetadata: SubmittedTurnSceneMetadata,
+  options: { loadReferencePicture?: ReferencePictureLoader } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
   if (!question) return failure("scene_question_required", "question is required for scene validation");
@@ -159,10 +174,16 @@ export async function canonicalizeTurnSceneMetadata(
   const codeLesson = codeLessonParse.status === "valid" ? codeLessonParse.plan : null;
 
   if (metadata.visualStatus !== "validated") {
-    if (metadata.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) {
+    // A reference picture is the one trusted ink a text only turn may keep,
+    // and only as rebuilt here from the server's record for its id.
+    const picture = await canonicalizeReferencePictureTurn(
+      metadata.segments, metadata.sceneArtifacts, options.loadReferencePicture,
+    );
+    if (picture.segments.some((segment) =>
+      isStoredCommandTrustedGeometry(segment.command) && !(picture.stored && isReferencePictureRow(segment.command, picture.stored.id)))) {
       return failure("scene_unvalidated_trusted_geometry", "trusted diagram commands require a server-validated scene");
     }
-    const teachingCommands = canonicalizeTeachingCommands(metadata.segments, null, codeLesson);
+    const teachingCommands = canonicalizeTeachingCommands(picture.segments, picture.diagram, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
@@ -177,7 +198,7 @@ export async function canonicalizeTurnSceneMetadata(
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
     // A validated plan is kept on its own too: a text-only lesson stopped and
     // reopened needs it for Continue and for a doubt on that page.
-    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || completion || failureTelemetry
+    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || completion || failureTelemetry || picture.stored || picture.outcome
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -200,6 +221,8 @@ export async function canonicalizeTurnSceneMetadata(
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
               ...(failureTelemetry ? { failureTelemetry } : {}),
+              ...(picture.stored ? { referencePicture: picture.stored } : {}),
+              ...(picture.outcome ? { referencePictureOutcome: picture.outcome } : {}),
             }
           : null,
         segments: teachingCommands.segments,
@@ -358,8 +381,10 @@ export async function canonicalizeTurnSceneMetadata(
   // Scene-engine owns diagram ink at persist time. Client intro may be missing
   // or diverge under concurrent lecture-lab compiles; replay uses the server
   // reconstruction, never the browser's trusted-geometry payload.
+  // A picture never rides a validated scene: its passes would be paired with
+  // the scene intro's rows. Words stay, picture ink goes.
   const persistSegments = mergeServerDiagramIntro(
-    metadata.segments,
+    canonicalReferencePictureRows(metadata.segments, null, { pictureTurn: false }).segments,
     expectedPresentation.introSegments,
     { insertMissing: continuation === null },
   );
