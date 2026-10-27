@@ -545,9 +545,9 @@ const CUE_SETS: readonly CueSet[] = [
     // A magnet beside a coil, ring or solenoid is an induction setup, never a
     // block on a surface.
     vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
-      // A magnet moved towards something is magnetism, not a block on a
-      // surface; a block carrying a magnet is still a block.
-      /(?<!\b(?:carrying|with|holding|on)\s)\b(?:a|the)\s+(?:bar\s+)?magnets?\s+(?:is|are)\s+(?:pushed|pulled|moved|brought)\b/i],
+      // A magnet moved towards a nail, iron, a pin or a compass is magnetism,
+      // not a block on a surface; a magnet pushing a block is still a block.
+      /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|another magnet)\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "masses", massesOf(stem), "stem");
       setSlot(bag, "force", planNumber(plan, ["f", "force", "appliedforce"]), "plan");
