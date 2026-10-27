@@ -16,16 +16,11 @@ const GENERATED_IMAGE_USD = 0.06;
 const SUBJECTS = new Set(["maths", "physics", "chemistry", "biology", "other"]);
 
 /**
- * A student whose turn stopped waiting (its 25 s cap) leaves the search
- * running, so the topic is stored and cached for the next ask instead of the
- * paid work being thrown away. Measured 27 Oct 2026: with the fact check, two
- * of ten cold engine-less requests ran past the cap. Bounded per process, and
- * cut off at DETACHED_TIMEOUT_MS. The student is billed only for what was
- * dispatched before they left; the rest is the house's (cents a topic).
+ * Abort means stop. A turn that stops waiting at its 25 s cap does not abort
+ * (the client lets the request run to its own timeout, so the topic is stored
+ * and cached for the next ask); every abort is the client choosing to stop
+ * paying (a verified figure won, a Stop, a replaced turn) and ends the work.
  */
-const DETACHED_LIMIT = 4;
-const DETACHED_TIMEOUT_MS = 60_000;
-let detachedRuns = 0;
 
 /** Per-call ceilings: the reservation funds these, a call in flight at settle costs this. */
 function ceilings() {
@@ -94,38 +89,18 @@ export async function POST(request: Request): Promise<Response> {
     await reservation.cancelBeforeDispatch();
     return Response.json({ status: "declined", reason: "aborted" });
   }
-  let detached = false;
   const beforeRound = async (round: number | "generate"): Promise<boolean> => {
-    if (round === 0 || detached) return true;
+    if (round === 0) return true;
     funded += round === "generate" ? ceiling.generate + CALLS_PER_CANDIDATE * ceiling.judge : JUDGED_CANDIDATES * CALLS_PER_CANDIDATE * ceiling.judge;
     return (await reservation.ensureReserved(funded)) === null;
   };
   const startedAt = Date.now();
   const spend = createPictureSpend();
-  const work = new AbortController();
-  const workSignal = AbortSignal.any([work.signal, AbortSignal.timeout(DETACHED_TIMEOUT_MS)]);
-  const pipeline = findReferencePicture(input.question, subject, { apiKey, spend, signal: workSignal, imageProvider: provider, beforeRound });
-  pipeline.catch(() => undefined);
-  const clientLeft = new Promise<"left">((resolve) => {
-    if (request.signal.aborted) resolve("left");
-    request.signal.addEventListener("abort", () => resolve("left"), { once: true });
-  });
   try {
-    const raced = await Promise.race([pipeline, clientLeft]);
-    if (raced === "left") {
-      if (detachedRuns < DETACHED_LIMIT) {
-        detached = true;
-        detachedRuns++;
-        void pipeline.then(
-          (outcome) => tutorDebug("llm", "reference picture finished after the client left", { status: outcome.status, ms: Date.now() - startedAt }),
-          () => undefined,
-        ).finally(() => { detachedRuns--; });
-      } else {
-        work.abort();
-      }
-      return Response.json({ status: "declined", reason: "aborted" });
-    }
-    const outcome = raced;
+    // The client's 45 s timeout normally ends a request; this caps the server's
+    // own work even if a disconnect never reaches it.
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(50_000)]);
+    const outcome = await findReferencePicture(input.question, subject, { apiKey, spend, signal, imageProvider: provider, beforeRound });
     tutorDebug("llm", "reference picture", { status: outcome.status, ms: Date.now() - startedAt, steps: outcome.steps, usd: owed(spend, ceiling) });
     // `steps` is the search and judge trail (Commons titles and the judge's
     // reasons, no student text), kept for the lab and the analytics.
@@ -133,7 +108,8 @@ export async function POST(request: Request): Promise<Response> {
     if (outcome.status === "ready") return Response.json({ status: "ready", picture: outcome.picture, cached: outcome.cached, steps });
     return Response.json({ status: "declined", reason: outcome.reason, steps });
   } catch (error) {
-    if (request.signal.aborted || workSignal.aborted) return Response.json({ status: "declined", reason: "aborted" });
+    if (request.signal.aborted) return Response.json({ status: "declined", reason: "aborted" });
+    if (error instanceof Error && error.name === "TimeoutError") return Response.json({ status: "declined", reason: "server_timeout" });
     console.warn("[reference-picture] failed", error instanceof Error ? error.message : error);
     return Response.json({ status: "declined", reason: "pipeline_error" });
   } finally {
