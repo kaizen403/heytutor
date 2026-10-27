@@ -25,6 +25,8 @@ export interface BeginTurnOk {
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
   diagramYieldPolicy?: DiagramYieldPolicy;
+  /** Default off: draw a judged reference picture when no verified figure is drawn. */
+  referencePicture?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -226,6 +228,7 @@ async function beginTurnOnce(input: {
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
+    referencePicture: payload.referencePicture === true,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

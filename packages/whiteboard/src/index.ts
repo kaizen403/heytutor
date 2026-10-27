@@ -8,7 +8,16 @@ export {
   type AnnotationKind,
   type AnnotationOptions,
   type ShapeDrawOptions,
+  type BoardPicture,
+  type PictureDrawOptions,
 } from "./Whiteboard";
+export {
+  PICTURE_CARD_FADE_MS,
+  PICTURE_CARD_PADDING_PX,
+  PICTURE_PASS_MS,
+  resolvePicturePassMs,
+} from "./pictureReveal";
+export { boardPictureInUse, releaseBoardPicture } from "./pictureCanvases";
 export { BOARD_INK_ATTR, boardInkKindAt, type BoardInkKind } from "./inkKind";
 export {
   createVirtualWhiteboardClock,

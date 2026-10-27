@@ -53,3 +53,11 @@ export function resolveDiagramStrategyAssignment(
 export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY) {
   return parseDiagramYieldPolicy(raw);
 }
+
+/**
+ * Reference pictures (a judged Commons or generated picture drawn when no
+ * verified figure could be): off unless `DIAGRAM_REFERENCE_PICTURE=on`.
+ */
+export function resolveReferencePictureEnabled(raw = process.env.DIAGRAM_REFERENCE_PICTURE): boolean {
+  return raw?.trim().toLowerCase() === "on";
+}

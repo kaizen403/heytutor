@@ -16,6 +16,7 @@ import * as storedSceneSource from "../../lib/scene/storedSceneSource";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { turnMetadataStorageBytes } from "../../lib/boards/storageAccounting";
 import { saveFailureMessage } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 
 const root = resolve(__dirname, "../..");
 // The adapter deliberately accepts Prisma's query and JSON row shapes.
@@ -141,6 +142,7 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
     "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
+    "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row) =>
       canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(metadata))) },
     "@/lib/scene/turnUploadLimits": uploadLimits,

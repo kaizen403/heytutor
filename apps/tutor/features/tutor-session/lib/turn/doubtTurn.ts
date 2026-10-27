@@ -35,6 +35,7 @@ import {
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
 import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
+import { isReferencePictureRow, pointsAtReferencePicture, referencePictureIdOf } from "../scene/referencePicturePresentation";
 import type { FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
@@ -489,6 +490,12 @@ export function partialTurnScene(record: BoardPageRecord): PersistedTurnScene {
   if (scene.visualStatus === "validated" && !record.figureDrawn) {
     return { ...textOnlyTurnScene(), sceneArtifacts: planOnlyArtifacts(scene.sceneArtifacts) };
   }
+  // A reference picture planned but not drawn is not saved as shown either.
+  if (!record.figureDrawn && referencePictureIdOf(scene.sceneArtifacts)) {
+    const artifacts = { ...(scene.sceneArtifacts as Record<string, unknown>) };
+    delete artifacts.referencePicture;
+    return { ...scene, sceneArtifacts: artifacts };
+  }
   return scene;
 }
 
@@ -616,12 +623,20 @@ export function partialTurnSegments(
   scene: PersistedTurnScene,
 ): RecordedSegmentPayload[] {
   if (scene.visualStatus === "validated") return [...recorded];
+  // A text only turn that drew a reference picture keeps the picture's two
+  // passes and the FOCUS on it: the server rebuilds both from its own record.
+  const pictureId = referencePictureIdOf(scene.sceneArtifacts);
   const kept: RecordedSegmentPayload[] = [];
   for (const segment of recorded) {
+    if (pictureId && isReferencePictureRow(segment.command, pictureId)) {
+      kept.push(segment);
+      continue;
+    }
     // Figure intro ink, and the words that described a figure now gone.
     if (isStoredCommandTrustedGeometry(segment.command)) continue;
     const commands = parseStoredSegmentCommands(segment.command);
-    const allowed = commands.filter((command) => !SCENE_POINTING.has(command.type));
+    const allowed = commands.filter((command) =>
+      !SCENE_POINTING.has(command.type) || (pictureId !== null && pointsAtReferencePicture(command)));
     if (allowed.length === commands.length) {
       kept.push(segment);
       continue;

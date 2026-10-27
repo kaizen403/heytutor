@@ -1770,11 +1770,35 @@ const DEFAULT_DRAWING_DURATIONS: DrawingDurations = {
   ERASE: 1500,
 };
 
+/**
+ * One reveal pass of a reference picture, in 1x media ms: the pass's board
+ * stroke length at hand speed, floored so the line work is watched being drawn
+ * and capped so a dense picture cannot hold the lesson. A pass is hundreds of
+ * strokes, so it is never held to a single shape's 320 ms scene ceiling.
+ * Matches the whiteboard's `PICTURE_PASS_MS` (pictureReveal.ts); the board
+ * clamps whatever it is handed into the same range.
+ */
+export const REFERENCE_PICTURE_PASS_MS = {
+  outline: { minMs: 4_000, maxMs: 14_000 },
+  fill: { minMs: 2_000, maxMs: 7_000 },
+} as const;
+const REFERENCE_PICTURE_INK_SPEED_PX_PER_MS = 2;
+
+export function referencePicturePassMs(command: DrawCommand): number {
+  const pass = command.params[4] === 1 ? REFERENCE_PICTURE_PASS_MS.fill : REFERENCE_PICTURE_PASS_MS.outline;
+  const lengthPx = Number.isFinite(command.params[5]) ? Math.max(command.params[5] as number, 0) : 0;
+  return Math.round(Math.min(Math.max(lengthPx / REFERENCE_PICTURE_INK_SPEED_PX_PER_MS, pass.minMs), pass.maxMs));
+}
+
 export function getDrawingDuration(
   command: DrawCommand,
   pace: InkPace = "follow",
 ): number {
   switch (command.type) {
+    // A picture pass is paced by its own stroke length, whatever the pace:
+    // the scene scaling below would squash a whole picture into 320 ms.
+    case "DRAW_PICTURE":
+      return referencePicturePassMs(command);
     // A frame swap wipes the diagram zone and redraws the next figure of the
     // worked example. The redraw's own ink is timed by the nested commands;
     // this is the beat the narration gets to say what changed, and it is
@@ -1845,6 +1869,8 @@ export function getFlightDuration(
 ): number {
   let baseMs = 300;
   if (command.type === "CLEAR") baseMs = 0;
+  // The pencil's reach to the first stroke is part of the pass's own timeline.
+  else if (command.type === "DRAW_PICTURE") baseMs = 0;
   else if (command.type === "PAUSE") baseMs = 0;
   // TYPE has no pen: characters appear in the code panel with zero approach.
   else if (command.type === "TYPE") baseMs = 0;

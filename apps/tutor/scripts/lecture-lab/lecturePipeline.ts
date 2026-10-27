@@ -102,6 +102,13 @@ import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvide
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
 import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
+import {
+  LabReferencePictureStep,
+  referencePictureTextOnlyAction,
+  startsReferencePictureEarly,
+  type LabReferencePictureImage,
+  type LabReferencePictureRecord,
+} from "./labReferencePicture";
 
 export interface LectureStep {
   index: number;
@@ -159,6 +166,8 @@ export interface LectureRun {
     totalMs: number;
     /** Time from turn start until a verified figure was ready to commit. */
     figureCommitMs?: number | null;
+    /** Turn start to the first teaching content token (any picture wait included). */
+    firstTeachingTokenMs?: number | null;
     /** The live planner stages, measured on the same orchestration. */
     stages?: LecturePlanningStages;
   };
@@ -191,6 +200,8 @@ export interface LectureRun {
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
   productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
+  /** Only with `--reference-picture`: the live picture tier's outcome, timings and spend. */
+  referencePicture?: LabReferencePictureRecord;
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -297,6 +308,10 @@ export interface RunLectureOptions {
   diagramExampleCatalogue?: DiagramExampleCatalogue;
   /** Hard-cap accounting hook used by paid lecture-lab runs. */
   onModelCost?: (usd: number) => void;
+  /** Replay the live reference picture step (`--reference-picture`); off keeps the lab unchanged. */
+  referencePicture?: boolean;
+  /** The shown picture's pixels, so the runner can save what the student saw. */
+  onReferencePictureImage?: (image: LabReferencePictureImage) => void;
   spendMode?: LabSpendMode;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
@@ -453,6 +468,18 @@ export async function runLecture(
     },
     promptChars: 0,
   };
+  const referencePicture = options.referencePicture
+    ? new LabReferencePictureStep({ origin: options.origin, question, traceId, turnStartedAt: startedAt,
+        narrationLanguage: options.narrationLanguage })
+    : null;
+  // Live never asks on a DSA question (nor a doubt or a resume, which the lab does not run).
+  if (dsaClassification.isDsa) referencePicture?.exclude("dsa");
+  const settleReferencePicture = async () => {
+    if (!referencePicture) return;
+    const settled = await referencePicture.finish(run.error ? "turn_error" : "turn_ended");
+    run.referencePicture = settled.record;
+    if (settled.image) options.onReferencePictureImage?.(settled.image);
+  };
 
   try {
     const plannerStartedAt = Date.now();
@@ -522,6 +549,12 @@ export async function runLecture(
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
     }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
+    // As live: right after the merged requirement, before the picker and scene
+    // planning, for every subject outside the chemistry lane.
+    if (referencePicture && startsReferencePictureEarly({
+      chemistryLane: pickerGate.chemistryLane, visualRequirement: turnPlan.visualRequirement })) {
+      referencePicture.start(classifiedSubject, true);
+    }
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
@@ -901,13 +934,31 @@ export async function runLecture(
       plannerDeclined: run.diagram.plannerDeclined,
     });
 
+    // The live text only point. A shown picture takes the figure's slot for the
+    // prompt and the marker, but every engine field above stays text only.
+    let pictureIntro: TutorSegment[] | null = null;
+    if (referencePicture) {
+      const pictureAction = referencePictureTextOnlyAction({ solverContradiction: solverAuthorityBlocked,
+        figureDrawn: activeDiagram !== null, visualRequirement: turnPlan.visualRequirement });
+      if (pictureAction.action === "abandon") referencePicture.abandon(pictureAction.reason);
+      else {
+        const picture = await referencePicture.atTextOnlyPoint(classifiedSubject);
+        if (picture) {
+          activeDiagram = picture.diagram;
+          diagramPromptAddon = picture.diagram.promptAddon;
+          pictureIntro = picture.introSegments;
+        }
+      }
+    }
+
     if (options.figureOnly) {
       options.onPresentation?.({
         diagram: activeDiagram,
         opening: null,
         givens: [],
-        intro: presentation?.introSegments ?? [],
+        intro: pictureIntro ?? presentation?.introSegments ?? [],
       });
+      await settleReferencePicture();
       run.timings.totalMs = Date.now() - startedAt;
       return run;
     }
@@ -941,7 +992,7 @@ export async function runLecture(
       diagram: activeDiagram,
       opening: teachingPrompt.openingSegment,
       givens: teachingPrompt.givenSegments,
-      intro: presentation?.introSegments ?? [],
+      intro: pictureIntro ?? presentation?.introSegments ?? [],
     });
 
     const teachStartedAt = Date.now();
@@ -954,6 +1005,7 @@ export async function runLecture(
     let incomplete = false;
     while (continueCount <= MAX_LLM_CONTINUATIONS) {
       const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
+      const streamStartedAt = Date.now();
       const streamResult = await streamLLMResponse({
         systemPrompt: isContinuation
           ? teachingPrompt.continuationPrompt
@@ -980,6 +1032,7 @@ export async function runLecture(
       run.teaching.reasoningChars += streamResult.streamStats?.reasoningChars ?? 0;
       if (run.teaching.ttftMs === null) {
         run.teaching.ttftMs = streamResult.streamStats?.ttftContentMs ?? null;
+        if (run.teaching.ttftMs !== null) run.timings.firstTeachingTokenMs = streamStartedAt - startedAt + run.teaching.ttftMs;
       }
 
       const reasoningOnlyChunk =
@@ -1062,6 +1115,7 @@ export async function runLecture(
     }
   }
 
+  await settleReferencePicture();
   run.timings.totalMs = Date.now() - startedAt;
   return run;
 }
