@@ -50,7 +50,7 @@ import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
-import { completionTokenCap, providerChatBody, RELAY_HIDDEN_PROMPT_TOKENS, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, providerFetch, RELAY_HIDDEN_PROMPT_TOKENS, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
 import { acceptedLabResponseModels, buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
@@ -1075,7 +1075,8 @@ async function main(): Promise<void> {
       };
       const requestStartedAt = Date.now();
       try {
-        const response = await nativeFetch(input, { ...init, headers });
+        // Direct relay calls (the example picker) go out on the relay's own wire API.
+        const response = await (directProviderRequest ? providerFetch(endpoint, nativeFetch) : nativeFetch)(input, { ...init, headers });
         // A Fast teaching stream may be served by production's teaching fallback.
         // Usage is priced by the model the stream names (requestModel, the Fast
         // ceiling, only when it names none).

@@ -17,7 +17,7 @@ import {
   parseTurnPlanV3Content,
   TURN_PLAN_V3_PROMPT,
 } from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
-import { providerChatBody, relayUpstreamKind, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
+import { providerChatBody, providerFetch, relayUpstreamKind, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { resolvePlannerMaxTokens } from "../../lib/llm/plannerTransport";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 
@@ -48,7 +48,7 @@ interface Call {
 async function call(check: string, body: Record<string, unknown>): Promise<Call> {
   const started = Date.now();
   try {
-    const response = await fetch(endpoint.url, {
+    const response = await providerFetch(endpoint)(endpoint.url, {
       method: "POST",
       headers: { Authorization: `Bearer ${endpoint.apiKey}`, "content-type": "application/json" },
       body: JSON.stringify({ model, ...body }),
@@ -117,7 +117,7 @@ async function teachingStream(): Promise<Record<string, unknown>> {
     thinking: { type: "disabled" }, max_tokens: 3600,
   }, endpoint);
   const started = Date.now();
-  const response = await fetch(endpoint.url, {
+  const response = await providerFetch(endpoint)(endpoint.url, {
     method: "POST",
     headers: { Authorization: `Bearer ${endpoint.apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({ model, ...body }),
@@ -165,7 +165,7 @@ function summarize(calls: Call[]) {
 }
 
 async function main() {
-  console.log(`relay ${new URL(endpoint.url).host}, model ${model}, ${repeat} runs per check`);
+  console.log(`relay ${new URL(endpoint.url).host}, model ${model}, wire ${endpoint.wireApi}, ${repeat} runs per check`);
   const runs = (checks: [string, Record<string, unknown>][]) =>
     Promise.all(checks.flatMap(([check, body]) => Array.from({ length: repeat }, () => call(check, body))));
   const parameters = await runs(parameterChecks);

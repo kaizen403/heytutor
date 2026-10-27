@@ -49,6 +49,7 @@ import {
   completionTokenCap,
   noteProviderOutcome,
   providerChatBody,
+  providerFetch,
   providerUnavailableReason,
   readProviderPerf,
   relayUpstreamKind,
@@ -720,7 +721,7 @@ async function handlePlannerRequest({
       body,
       fetchImpl: (input, init) => {
         finalAttemptStartedAt = Date.now();
-        return fetch(input, init);
+        return providerFetch(llm)(input, init);
       },
       models: plannerModels,
       signal: boundedSignal,
@@ -1178,6 +1179,7 @@ export async function POST(request: Request): Promise<Response> {
       let failure: TeachingUpstreamFailure | null;
       try {
         const attemptResponse = await fetchTeachingCompletion({
+          fetchImpl: providerFetch(llm),
           url: llm.url,
           signal: requestSignal,
           init: {

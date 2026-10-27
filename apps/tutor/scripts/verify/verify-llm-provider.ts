@@ -172,6 +172,36 @@ const grants = load(path("lib/billing/grant.ts")) as typeof import("../../lib/bi
 const fuses = load(path("lib/billing/fuses.ts")) as typeof import("../../lib/billing/fuses");
 const labProfile = load(path("lib/llm/labModelProfile.ts")) as typeof import("../../lib/llm/labModelProfile");
 const failedTurns = load(path("lib/obs/failedTurnTelemetry.ts")) as typeof import("../../lib/obs/failedTurnTelemetry");
+const bridge = load(path("lib/llm/responsesBridge.ts")) as typeof import("../../lib/llm/responsesBridge");
+
+/** An SSE body from data payloads, cut into the given chunk sizes to test line buffering. */
+function sseStream(payloads: unknown[], cut = 0): ReadableStream<Uint8Array> {
+  const text = payloads.map((payload) => `event: x\ndata: ${typeof payload === "string" ? payload : JSON.stringify(payload)}\n\n`).join("");
+  const bytes = new TextEncoder().encode(text);
+  const pieces = cut > 0 ? Array.from({ length: Math.ceil(bytes.length / cut) }, (_, i) => bytes.slice(i * cut, (i + 1) * cut)) : [bytes];
+  return new ReadableStream({ start(controller) { for (const piece of pieces) controller.enqueue(piece); controller.close(); } });
+}
+
+/** Read a chat SSE stream back into its content, finish reasons, usage and terminator. */
+async function readChatSse(stream: ReadableStream<Uint8Array>) {
+  const text = await new Response(stream).text();
+  const datas = text.split("\n").filter((line) => line.startsWith("data: ")).map((line) => line.slice(6));
+  const events = datas.filter((data) => data !== "[DONE]").map((data) => JSON.parse(data) as { choices: { delta?: { content?: string }; finish_reason?: string | null }[]; usage?: Record<string, unknown> });
+  return {
+    content: events.map((event) => event.choices[0]?.delta?.content ?? "").join(""),
+    finishes: events.map((event) => event.choices[0]?.finish_reason).filter(Boolean),
+    usage: events.find((event) => event.usage)?.usage,
+    done: datas.at(-1) === "[DONE]",
+  };
+}
+
+const RESPONSES_USAGE = { input_tokens: 4420, input_tokens_details: { cached_tokens: 4096 }, output_tokens: 300, output_tokens_details: { reasoning_tokens: 20 }, total_tokens: 4720 };
+const CHAT_USAGE = { prompt_tokens: 4420, completion_tokens: 300, total_tokens: 4720, prompt_tokens_details: { cached_tokens: 4096 }, completion_tokens_details: { reasoning_tokens: 20 } };
+const responsesEvents = (deltas: string[], id = "resp_0abc") => [
+  { type: "response.created", response: { id, status: "in_progress" } },
+  ...deltas.map((delta) => ({ type: "response.output_text.delta", delta })),
+  { type: "response.completed", response: { id, status: "completed", usage: RESPONSES_USAGE } },
+];
 const sentryPrivacy = load(path("lib/obs/sentryPrivacy.ts")) as typeof import("../../lib/obs/sentryPrivacy");
 const billingClient = load(path("lib/billing/billingClient.ts")) as typeof import("../../lib/billing/billingClient");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
@@ -238,12 +268,12 @@ const unitChecks: [string, () => void | Promise<void>][] = [
   ["unset and fireworks both resolve to Fireworks with the Fireworks key", () => {
     for (const env of [{ FIREWORKS_API_KEY: "fw" }, { FIREWORKS_API_KEY: "fw", LLM_PROVIDER: "fireworks" }, { FIREWORKS_API_KEY: "fw", LLM_PROVIDER: " Fireworks ", ...{ AZURE_OPENAI_ENDPOINT: AZURE.AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY: "a", AZURE_OPENAI_DEPLOYMENT: "d" } }]) {
       const endpoint = provider.resolveLlmEndpoint(env);
-      assert.deepEqual(endpoint, { provider: "fireworks", url: FIREWORKS_URL, apiKey: "fw", deployment: null, fallbackReason: null });
+      assert.deepEqual(endpoint, { provider: "fireworks", url: FIREWORKS_URL, apiKey: "fw", deployment: null, fallbackReason: null, wireApi: "chat" });
     }
   }],
   ["azure with every variable resolves to the deployment on the v1 API", () => {
     const endpoint = provider.resolveLlmEndpoint({ ...AZURE, FIREWORKS_API_KEY: "fw" });
-    assert.deepEqual(endpoint, { provider: "azure", url: AZURE_URL, apiKey: "azure-test-key", deployment: "gpt-6-1-sol", fallbackReason: null });
+    assert.deepEqual(endpoint, { provider: "azure", url: AZURE_URL, apiKey: "azure-test-key", deployment: "gpt-6-1-sol", fallbackReason: null, wireApi: "chat" });
     for (const pasted of ["https://heytutor-test.cognitiveservices.azure.com", "https://heytutor-test.cognitiveservices.azure.com/openai/v1/", "https://heytutor-test.cognitiveservices.azure.com/openai"]) {
       assert.equal(provider.azureChatUrl(pasted), AZURE_URL, pasted);
     }
@@ -418,7 +448,11 @@ const unitChecks: [string, () => void | Promise<void>][] = [
   }],
   ["openai_compat resolves to the relay model; a missing variable logs once and stays on Fireworks", () => {
     const endpoint = provider.resolveLlmEndpoint({ ...RELAY, FIREWORKS_API_KEY: "fw" }, new provider.CompatCircuit());
-    assert.deepEqual(endpoint, { provider: "openai_compat", url: RELAY_URL, apiKey: "relay-test-key", deployment: "gpt-6.1-sol", fallbackReason: null });
+    assert.deepEqual(endpoint, { provider: "openai_compat", url: RELAY_URL, apiKey: "relay-test-key", deployment: "gpt-6.1-sol", fallbackReason: null, wireApi: "chat" });
+    for (const [value, wire] of [["responses", "responses"], [" Responses ", "responses"], ["chat", "chat"], ["bogus", "chat"]] as const) {
+      assert.equal(provider.resolveLlmEndpoint({ ...RELAY, OPENAI_COMPAT_API: value }, new provider.CompatCircuit()).wireApi, wire, value);
+    }
+    assert.equal(provider.resolveLlmEndpoint({ ...AZURE, OPENAI_COMPAT_API: "responses" }).wireApi, "chat", "only a relay switches wire");
     for (const pasted of ["https://relay.test/v1", "https://relay.test/v1/chat/completions", " https://relay.test/v1/chat/completions/ "]) {
       assert.equal(provider.compatChatUrl(pasted), RELAY_URL, pasted);
     }
@@ -686,6 +720,93 @@ const unitChecks: [string, () => void | Promise<void>][] = [
       Object.assign(process.env, saved);
     }
   }],
+  ["Responses bridge: a chat body becomes a Responses body", () => {
+    const image = "data:image/png;base64,AAAA";
+    const translated = bridge.chatBodyToResponses({
+      model: "gpt-6.1-sol", n: 1, stream: true, stream_options: { include_usage: true },
+      reasoning_effort: "low", max_completion_tokens: 4848, service_tier: "auto",
+      response_format: { type: "json_schema", json_schema: { name: "plan", strict: true, schema: { type: "object" } } },
+      messages: [
+        { role: "system", content: "You plan." },
+        { role: "developer", content: [{ type: "text", text: "Be brief." }] },
+        { role: "user", content: [{ type: "text", text: "Read this" }, { type: "image_url", image_url: { url: image } }] },
+        { role: "assistant", content: "Earlier answer" },
+        { role: "user", content: "Next" },
+      ],
+    });
+    assert.deepEqual(translated, {
+      model: "gpt-6.1-sol", store: false, stream: true, instructions: "You plan.\n\nBe brief.",
+      input: [
+        { role: "user", content: [{ type: "input_text", text: "Read this" }, { type: "input_image", image_url: image }] },
+        { role: "assistant", content: "Earlier answer" },
+        { role: "user", content: "Next" },
+      ],
+      reasoning: { effort: "low" }, max_output_tokens: 4848, service_tier: "auto",
+      text: { format: { type: "json_schema", name: "plan", strict: true, schema: { type: "object" } } },
+    });
+    assert.deepEqual(bridge.chatBodyToResponses({ model: "m", messages: [{ role: "user", content: "q" }], response_format: { type: "json_object" }, max_tokens: 60 }),
+      { model: "m", store: false, input: [{ role: "user", content: "q" }], max_output_tokens: 60, text: { format: { type: "json_object" } } });
+    assert.equal(bridge.responsesUrl(RELAY_URL), "https://relay.test/v1/responses");
+  }],
+  ["Responses bridge: a finished response becomes a chat completion, unwrapping <escape>", () => {
+    const reply = bridge.responsesJsonToChat({
+      id: "resp_0abc", model: "gpt-6.1-sol", status: "completed", service_tier: "default", usage: RESPONSES_USAGE,
+      output: [{ type: "reasoning", summary: [] }, { type: "message", content: [{ type: "output_text", text: "{\"v\":" }, { type: "output_text", text: "42}" }] }],
+    }, "gpt-6.1-sol");
+    assert.deepEqual(reply, {
+      id: "resp_0abc", object: "chat.completion", model: "gpt-6.1-sol", service_tier: "default", usage: CHAT_USAGE,
+      choices: [{ index: 0, message: { role: "assistant", content: "{\"v\":42}" }, finish_reason: "stop" }],
+    });
+    // The numeric pool: chat-shaped usage and a wrapped JSON reply.
+    const numeric = bridge.responsesJsonToChat({ id: "resp_1793135322466446466", status: "completed",
+      usage: { prompt_tokens: 14, completion_tokens: 7, total_tokens: 21, completion_tokens_details: { reasoning_tokens: 0 } },
+      output: [{ type: "message", content: [{ type: "output_text", text: "<escape>{\"v\":42}</escape>" }] }] }, "gpt-6.1-sol") as { choices: { message: { content: string } }[]; usage: unknown };
+    assert.equal(numeric.choices[0]!.message.content, "{\"v\":42}");
+    assert.deepEqual(numeric.usage, { prompt_tokens: 14, completion_tokens: 7, total_tokens: 21, completion_tokens_details: { reasoning_tokens: 0 } });
+    assert.equal(bridge.unwrapEscape("<b>bold</b>"), "<b>bold</b>", "other tags are content");
+    assert.equal((bridge.responsesJsonToChat({ status: "incomplete", output: [] }, "m") as { choices: { finish_reason: string }[] }).choices[0]!.finish_reason, "length");
+    assert.equal(provider.relayUpstreamKind("resp_1793135322466446466"), "responses_numeric");
+    assert.equal(provider.relayUpstreamKind("resp_0a265c909d7f3614016ae112bb77e08193a97616986c2a6d35"), "responses");
+  }],
+  ["Responses bridge: a Responses stream becomes a chat stream, whatever the chunking", async () => {
+    for (const cut of [0, 1, 7, 64]) {
+      const out = await readChatSse(bridge.responsesStreamToChat(sseStream(responsesEvents(["Force ", "is a ", "push."]), cut), "gpt-6.1-sol"));
+      assert.equal(out.content, "Force is a push.", `cut ${cut}`);
+      assert.deepEqual(out.finishes, ["stop"], `cut ${cut}`);
+      assert.deepEqual(out.usage, CHAT_USAGE, `cut ${cut}`);
+      assert.equal(out.done, true, `cut ${cut}`);
+    }
+    // The numeric pool sends the whole wrapped reply as one delta; tags split across deltas too.
+    for (const deltas of [["<escape>{\"v\":42}</escape>"], ["<esc", "ape>{\"v\":", "42}</esc", "ape>"], ["  <escape>", "{}", "</escape>  "]]) {
+      const out = await readChatSse(bridge.responsesStreamToChat(sseStream(responsesEvents(deltas, "resp_1793")), "m"));
+      assert.equal(out.content.trim(), deltas.join("").includes("{}") ? "{}" : "{\"v\":42}", JSON.stringify(deltas));
+    }
+    // Content that only looks like a tag is delivered whole, and without delay.
+    const angle = await readChatSse(bridge.responsesStreamToChat(sseStream(responsesEvents(["<", "b> is less than", " c"])), "m"));
+    assert.equal(angle.content, "<b> is less than c");
+    const failed = bridge.responsesStreamToChat(sseStream([{ type: "response.output_text.delta", delta: "Hal" }, { type: "response.failed", response: { error: { message: "upstream died" } } }]), "m");
+    await assert.rejects(new Response(failed).text(), /relay responses stream failed/);
+    // A stream cut off without a completion event still ends cleanly with what arrived.
+    const cutOff = await readChatSse(bridge.responsesStreamToChat(sseStream([{ type: "response.output_text.delta", delta: "Partial" }]), "m"));
+    assert.equal(cutOff.content, "Partial");
+    assert.equal(cutOff.done, true);
+  }],
+  ["Responses bridge: chatViaResponses posts to /responses and passes errors through untouched", async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const fake = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body)) as Record<string, unknown> });
+      return calls.length === 1 ? new Response("blocked", { status: 403 }) : Response.json({ id: "resp_0", status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: "ok" }] }] });
+    }) as typeof fetch;
+    const send = provider.providerFetch({ wireApi: "responses" }, fake);
+    const blocked = await send(RELAY_URL, { method: "POST", body: JSON.stringify({ model: "m", messages: [{ role: "user", content: "q" }] }) });
+    assert.equal(blocked.status, 403);
+    assert.equal(await blocked.text(), "blocked");
+    const ok = await send(RELAY_URL, { method: "POST", body: JSON.stringify({ model: "m", messages: [{ role: "user", content: "q" }] }) });
+    assert.equal(((await ok.json()) as { choices: { message: { content: string } }[] }).choices[0]!.message.content, "ok");
+    assert.deepEqual(calls.map((call) => call.url), ["https://relay.test/v1/responses", "https://relay.test/v1/responses"]);
+    assert.deepEqual(calls[0]!.body, { model: "m", store: false, input: [{ role: "user", content: "q" }] });
+    assert.equal(provider.providerFetch({ wireApi: "chat" }, fake), fake, "chat wire is the plain fetch");
+  }],
   ["no route or library hard-codes the Fireworks URL outside llmProvider.ts", () => {
     const offenders: string[] = [];
     const walk = (dir: string) => {
@@ -702,7 +823,7 @@ const unitChecks: [string, () => void | Promise<void>][] = [
 
 // ---------------------------------------------------------------- route
 function arrange(env: Env): string {
-  for (const key of ["LLM_PROVIDER", "DIAGRAM_PLANNER_PRIORITY", "OPENAI_COMPAT_FALLBACK", ...provider.AZURE_ENV_KEYS, ...provider.OPENAI_COMPAT_ENV_KEYS]) delete process.env[key];
+  for (const key of ["LLM_PROVIDER", "DIAGRAM_PLANNER_PRIORITY", "OPENAI_COMPAT_FALLBACK", "OPENAI_COMPAT_API", ...provider.AZURE_ENV_KEYS, ...provider.OPENAI_COMPAT_ENV_KEYS]) delete process.env[key];
   Object.assign(process.env, env);
   provider.compatCircuit.reset();
   grants.resetTurnGrantsForTests();
@@ -1091,6 +1212,42 @@ const routeChecks: [string, () => Promise<void>][] = [
     const second = await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }));
     assert.equal(second.status, 200, "the next plan still reaches the relay");
     assert.deepEqual(sent.map((call) => [call.url, call.body.model]), [[RELAY_URL, "gpt-6.1-sol"], [RELAY_URL, "gpt-6.1-sol"]]);
+  }],
+  ["relay on the Responses wire: the planner posts a Responses body and gets chat JSON back", async () => {
+    const trace = arrange({ ...RELAY, OPENAI_COMPAT_API: "responses" });
+    const sent: Sent[] = [];
+    installProvider(sent, () => Response.json({ id: "resp_0abc", model: "gpt-6.1-sol", status: "completed", usage: RESPONSES_USAGE,
+      output: [{ type: "message", content: [{ type: "output_text", text: '{"schemaVersion":"turn-plan/v3"}' }] }] }));
+    const response = await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false, temperature: 0 }));
+    assert.equal(response.status, 200);
+    const reply = await response.json() as { choices: { message: { content: string } }[] };
+    assert.equal(reply.choices[0]!.message.content, '{"schemaVersion":"turn-plan/v3"}');
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0]!.url, "https://relay.test/v1/responses");
+    assert.equal(sent[0]!.authorization, "Bearer relay-test-key");
+    assert.deepEqual(sent[0]!.body, {
+      model: "gpt-6.1-sol", store: false, input: [{ role: "user", content: "Explain force." }],
+      reasoning: { effort: "low" }, max_output_tokens: 2800 + 2048, text: { format: { type: "json_object" } },
+    });
+    const metadata = generations.at(-1)!.metadata!;
+    assert.equal(metadata.relay_upstream, "responses");
+    assert.equal(metadata.cached_input_tokens, 4096);
+    assert.equal(metadata.reasoning_tokens, 20);
+  }],
+  ["relay on the Responses wire: a teaching stream arrives as chat SSE with usage", async () => {
+    const trace = arrange({ ...RELAY, OPENAI_COMPAT_API: "responses" });
+    const sent: Sent[] = [];
+    installProvider(sent, () => new Response(sseStream(responsesEvents(["Force ", "is a ", "push."]), 9), { headers: { "content-type": "text/event-stream" } }));
+    const response = await chat.POST(chatRequest(trace, PLANNED_TEACHING));
+    assert.equal(response.status, 200);
+    assert.equal((await readChatSse(response.body!)).content, "Force is a push.");
+    assert.equal(sent[0]!.url, "https://relay.test/v1/responses");
+    assert.equal(sent[0]!.body.stream, true);
+    assert.equal("stream_options" in sent[0]!.body, false);
+    for (let tick = 0; tick < 6; tick += 1) await new Promise<void>((done) => setImmediate(done));
+    const metadata = generations.at(-1)!.metadata!;
+    assert.equal(metadata.usage_status, "known");
+    assert.equal(reservations.size, 0, "the teaching reservation settles");
   }],
   ["relay: with fallback off, repeated 5xx keep the relay (the lab measures it alone)", async () => {
     const trace = arrange({ ...RELAY, OPENAI_COMPAT_FALLBACK: "off" });

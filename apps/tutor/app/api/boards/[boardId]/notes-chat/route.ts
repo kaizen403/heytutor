@@ -32,7 +32,7 @@ import {
   startTurnTrace,
 } from "@/lib/obs/langfuse";
 import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
-import { completionTokenCap, endpointEnv, providerChatBody, providerUnavailableReason, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, endpointEnv, providerChatBody, providerFetch, providerUnavailableReason, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { registerWsConnectionRevocation } from "@/lib/tts/wsTicket";
@@ -399,6 +399,7 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   let upstream: Response;
   try {
     upstream = await fetchTeachingCompletion({
+      fetchImpl: providerFetch(llm),
       url: llm.url,
       signal: requestSignal,
       init: {

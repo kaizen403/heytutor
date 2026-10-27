@@ -25,7 +25,7 @@ export function figureCheckRuntime(scoreOnly: boolean, saved: Record<string, unk
     if ((saved.provider !== "azure" && saved.provider !== "fireworks") || models.length === 0 ||
       (saved.provider === "azure" && typeof saved.deployment !== "string")) throw new Error("offline rescoring requires recorded provider/deployment metadata");
     return { endpoint: { provider: saved.provider, deployment: typeof saved.deployment === "string" ? saved.deployment : null,
-      apiKey: undefined, url: "", fallbackReason: null }, models };
+      apiKey: undefined, url: "", fallbackReason: null, wireApi: "chat" }, models };
   }
   const endpoint = configured ?? resolveLlmEndpoint();
   if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {

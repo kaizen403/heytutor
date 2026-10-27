@@ -17,7 +17,16 @@
  * failures send new requests to Fireworks for a cooldown.
  */
 
+import { chatViaResponses } from "./responsesBridge";
+
 export type LlmProviderName = "fireworks" | "azure" | "openai_compat";
+
+/**
+ * How requests reach the provider. Fireworks and Azure always speak Chat
+ * Completions; a relay can be told to use its Responses route instead
+ * (`OPENAI_COMPAT_API=responses`), through `responsesBridge.ts`.
+ */
+export type LlmWireApi = "chat" | "responses";
 
 export const FIREWORKS_CHAT_URL = "https://api.fireworks.ai/inference/v1/chat/completions";
 
@@ -46,6 +55,8 @@ export interface LlmEndpoint {
   deployment: string | null;
   /** Set when `LLM_PROVIDER=azure` or `openai_compat` fell back to Fireworks. */
   fallbackReason: string | null;
+  /** Chat Completions everywhere except a relay set to `responses`. */
+  wireApi: LlmWireApi;
 }
 
 function trimmed(value: string | undefined): string | undefined {
@@ -247,6 +258,7 @@ export function resolveLlmEndpoint(env: Env = process.env, circuit: CompatCircui
       apiKey: trimmed(env.OPENAI_COMPAT_API_KEY),
       deployment: trimmed(env.OPENAI_COMPAT_MODEL)!,
       fallbackReason: null,
+      wireApi: trimmed(env.OPENAI_COMPAT_API)?.toLowerCase() === "responses" ? "responses" : "chat",
     };
   }
   if (requested === "azure") {
@@ -258,6 +270,7 @@ export function resolveLlmEndpoint(env: Env = process.env, circuit: CompatCircui
         apiKey: trimmed(env.AZURE_OPENAI_API_KEY),
         deployment: trimmed(env.AZURE_OPENAI_DEPLOYMENT)!,
         fallbackReason: null,
+        wireApi: "chat",
       };
     }
     const reason = `LLM_PROVIDER=azure but ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not set; using Fireworks`;
@@ -279,7 +292,18 @@ function fireworksEndpoint(env: Env, fallbackReason: string | null): LlmEndpoint
     apiKey: trimmed(env.FIREWORKS_API_KEY),
     deployment: null,
     fallbackReason,
+    wireApi: "chat",
   };
+}
+
+/**
+ * The `fetch` to call `endpoint.url` with. Callers always send and read Chat
+ * Completions; on a relay set to `responses` this sends to its Responses route
+ * and translates the reply back.
+ */
+export function providerFetch(endpoint: Pick<LlmEndpoint, "wireApi">, fetchImpl: typeof fetch = fetch): typeof fetch {
+  if (endpoint.wireApi !== "responses") return fetchImpl;
+  return ((input: RequestInfo | URL, init?: RequestInit) => chatViaResponses(input, init, fetchImpl)) as typeof fetch;
 }
 
 /** The one Azure deployment or relay model every lane uses, or null when Fireworks serves. */
@@ -391,8 +415,10 @@ export function completionTokenCap(body: Record<string, unknown>): number {
  * API, about 4,200 hidden cached prompt tokens per call) and short
  * `chatcmpl-...` ids. Recording the split shows drift between them.
  */
-export function relayUpstreamKind(id: unknown): "responses" | "chat_completions" | "unknown" {
+export function relayUpstreamKind(id: unknown): "responses" | "responses_numeric" | "chat_completions" | "unknown" {
   if (typeof id !== "string") return "unknown";
+  // A third pool (28 Oct 2026): numeric ids, no hidden prompt, JSON wrapped in <escape>.
+  if (/^resp_\d+$/.test(id)) return "responses_numeric";
   if (id.startsWith("resp_")) return "responses";
   if (id.startsWith("chatcmpl-")) return "chat_completions";
   return "unknown";

@@ -12,7 +12,7 @@ import type { LlmEndpoint } from "../../lib/llm/llmProvider";
 import { LLM_RATE_DEFAULTS, type LlmRateLane, type resolveLlmRates } from "../../lib/obs/usageCost";
 
 const endpoint: LlmEndpoint = { provider: "fireworks", deployment: null, apiKey: "synthetic-key-do-not-expose",
-  fallbackReason: null, url: "https://synthetic.invalid/chat" };
+  fallbackReason: null, url: "https://synthetic.invalid/chat", wireApi: "chat" };
 const ratesForModel: typeof resolveLlmRates = (model) => {
   const lane: LlmRateLane = model === "synthetic-azure-deployment" ? "gpt-6.1-sol"
     : model === DEFAULT_FIREWORKS_MODEL ? "kimi-k3"

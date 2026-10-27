@@ -21,7 +21,7 @@ import {
 } from "@/lib/billing/paidUsage";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
-import { completionTokenCap, endpointEnv, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, endpointEnv, providerChatBody, providerFetch, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
   parseProviderUsage,
   usageDetailsFromParsed,
@@ -217,7 +217,7 @@ export async function POST(request: Request): Promise<Response> {
     return json({ suggestions: fallback, generated: false });
   }
   try {
-    const response = await fetch(llm.url, {
+    const response = await providerFetch(llm)(llm.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,

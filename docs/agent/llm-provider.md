@@ -156,6 +156,28 @@ Azure gpt-6.1-sol rates (tokens-flow publishes none we can read).
 The relay lane only applies while `LLM_PROVIDER=openai_compat`, because its
 model id is also Azure's.
 
+### Responses wire (`OPENAI_COMPAT_API=responses`, 28 Oct 2026)
+
+`providerFetch(endpoint)` is the `fetch` every relay caller uses (chat route
+planner and teaching, notes chat, home suggestions, photo reading, the lab's
+direct picker calls). On the default `chat` wire it is plain `fetch`. On
+`responses` it sends the same chat body to `<base>/responses` through
+`lib/llm/responsesBridge.ts` and translates the reply back to Chat Completions
+(JSON and SSE, usage included), so no caller changes. System and developer
+messages become `instructions`; `max_completion_tokens` becomes
+`max_output_tokens`; `response_format` becomes `text.format`.
+
+Why: on tokens-flow the chat route reaches a 34 tok/s pool half the time; the
+Responses route never does (12 interleaved rounds, gpt-6.1-sol: writing 142
+against 80 tok/s median, full answer 8.5 against 18.0 s; first token unchanged).
+The Responses route has its own third pool (`relayUpstreamKind` =
+`responses_numeric`: numeric `resp_` ids, no hidden prompt) that wraps JSON
+replies in `<escape>…</escape>` and sends the whole reply as one delta. The
+bridge strips the wrapper in plain and streamed replies. The Responses replies
+also echo the relay's hidden prompt: OpenAI's Codex agent instructions, with
+ours placed in front, so tokens-flow resells Codex or ChatGPT subscription
+capacity.
+
 ## Relay against Fireworks, same harness (27 Oct 2026)
 
 Same build, same local server, only the provider changed. Relay prices are a
