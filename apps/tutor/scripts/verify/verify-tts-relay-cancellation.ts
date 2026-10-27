@@ -233,6 +233,20 @@ async function main() {
   check(f.skips()[0]?.reason, "server_restarting", "the relay closes once the sentence in flight finishes");
   checkClosed(f, 1);
 
+  // A refund that fails during the drain is reported once and never cuts the
+  // sentence in flight.
+  f = fixture({ pendingAfter: 1, cancelFails: true });
+  f.vendor.open(); f.say(1); await tick();
+  f.say(2); await tick();
+  f.beginDrain();
+  f.reservation.resolve(f.receipt); await tick();
+  check(f.captures.length, 1, "the failed refund during the drain is captured once");
+  check(f.skips().length, 0, "a failed refund does not close the relay while a sentence is in flight");
+  check(f.client.readyState, 1, "the relay stays open for the sentence in flight");
+  f.final(1); await tick();
+  check(f.skips()[0]?.reason, "server_restarting", "the relay closes as a restart after the sentence in flight");
+  checkClosed(f, 1);
+
   console.log(`TTS relay cancellation: ${checks} checks passed; actual relay with fake sockets and receipts, no network; a restart lets the sentence in flight finish`);
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

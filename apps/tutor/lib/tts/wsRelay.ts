@@ -238,7 +238,8 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     if (receipt instanceof Response) { close("tts_budget"); return; }
     // The drain may have begun during the awaits above: nothing is dispatched.
     if (speechDraining) {
-      await receipt.cancelBeforeDispatch();
+      // A failed refund is reported, never allowed to cut the sentence in flight.
+      await receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
       if (pending.size === 0) close("server_restarting", 1012);
       return;
     }
