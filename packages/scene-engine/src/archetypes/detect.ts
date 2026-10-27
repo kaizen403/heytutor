@@ -397,7 +397,9 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
+      // A body turning about a pivot falls as a rotation, not a free fall.
+      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|rotat\w*|swing\w*|pendulum)\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -572,6 +574,9 @@ const CUE_SETS: readonly CueSet[] = [
       [/\bradius\b/i, 1],
     ],
     vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
+    // The figure is a body going round a circle. A car moving along a level
+    // road names no circle, so the stem must say it turns.
+    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|radius|centripetal|roundabout)\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");
@@ -1716,7 +1721,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
-    if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+    if (set && !set.vetoes?.some((veto) => veto.test(stem)) && !set.requires?.some((requirement) => !requirement.test(stem))) {
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
