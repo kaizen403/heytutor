@@ -128,6 +128,7 @@ check("a turning coil or bar", () => {
   for (const [question, claim] of [
     ["A coil turns in a magnetic field. Find the induced emf.", "faraday_induction"],
     ["A metal bar rotates in a uniform magnetic field. Find the induced emf.", "motional_emf_rod"],
+    ["A coil of area 0.2 m^2 rotates at 10 rad/s in a uniform magnetic field. Find the peak induced emf.", "faraday_induction"],
   ] as const) {
     assert.notEqual(detectArchetype(question, { ...faraday, plannerArchetype: claim })?.id, claim, `${question}: a turning conductor is not ${claim}`);
   }
@@ -173,6 +174,7 @@ for (const question of [
   "A bar magnet moving towards a coil induces an emf. Explain using Faraday's law.",
   "A bar magnet is moved slowly into a coil; then it is moved quickly. Compare the induced emf using Faraday's law.",
   "When the N pole of a magnet approaches a coil, does the near face of the coil become a north or a south pole? Explain with Lenz's law.",
+  "A magnet is pushed into a stationary coil connected to a galvanometer. Draw the setup using Faraday's law.",
   "A magnet is pushed into a coil and the needle moves. Explain using Faraday's law.",
 ]) {
   check(`magnet and coil kept: ${question}`, () => {
