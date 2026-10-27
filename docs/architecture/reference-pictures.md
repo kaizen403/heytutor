@@ -159,3 +159,10 @@ Judge tuning that moved the numbers, so it is not undone by accident:
   ink is stripped and the words kept.
 - Accepted topics are judged again after 30 days. To purge one now, delete its
   `reference_picture_queries` row (and the `reference_pictures` row).
+- Two `/admin/pictures` queries (recent lessons, library use counts) scan the
+  period's lessons without the scoped id set: fine at today's volume and fail
+  closed (read only, 15 s timeout), but join them to the scoped set before
+  traffic grows.
+- With the flag on, the early start reserves about seven judge ceilings of the
+  student's balance for 10 to 40 s on every figure turn; a nearly empty
+  balance could see its teaching reservation refused meanwhile.
