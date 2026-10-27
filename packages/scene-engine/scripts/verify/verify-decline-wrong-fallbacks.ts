@@ -162,6 +162,7 @@ for (const question of [
   "The south pole of a magnet is pushed towards a ring of wire. Explain.",
   "A magnet is pushed through a ring of wire. Which way does the current flow?",
   "The magnet approaches the ring with its north pole. Find the direction of the current in the ring.",
+  "A magnet is pushed into a coil. Explain the direction of the current using Lenz's law.",
 ]) {
   check(`contradicted magnet and coil declines whole: ${question}`, () => {
     for (const hints of [{}, faraday, { ...faraday, plannerArchetype: "faraday_induction" }, { ...faraday, plannerArchetype: "blocks_contact" }, { ...faraday, plannerArchetype: "bar_magnet" }]) {
@@ -257,6 +258,12 @@ check("coils offered beside a rod keep the magnet and coil", () => {
 check("a falling magnet is no free fall", () => {
   const question = "A magnet is dropped through a coil. Explain the induced emf.";
   assert.notEqual(detectArchetype(question, {})?.id, "free_fall", "a magnet dropped through a coil gets no falling ball");
+});
+check("no guessed winding current in an induction stem", () => {
+  const question = "A solenoid sits in an increasing magnetic field. Find the direction of the current.";
+  for (const hints of [faraday, { ...faraday, plannerArchetype: "solenoid_field" }]) {
+    assert.notEqual(detectArchetype(question, hints)?.id, "solenoid_field", "the solenoid figure would guess the induced current");
+  }
 });
 check("no guessed winding current", () => {
   const question = "Use Lenz's law to find the direction of current induced in a solenoid when a magnet approaches.";
