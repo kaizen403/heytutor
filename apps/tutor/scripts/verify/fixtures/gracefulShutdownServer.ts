@@ -25,6 +25,7 @@ const server = createServer((request, response) => {
   response.end("ok");
 });
 const wss = new WebSocketServer({ noServer: true });
+let speechUntil = 0;
 // BUSY_MS: the event loop is blocked when SIGTERM arrives, as during a scene
 // compile, a server render or a GC pause.
 const busyMs = Number(process.env.BUSY_MS ?? "0");
@@ -39,6 +40,19 @@ installGracefulShutdown({
   wss,
   capMs: Number(process.env.CAP_MS ?? "60000"),
   log: (message) => process.stderr.write(`${message}\n`),
+  // SPEECH_MS: a sentence is still being synthesised for that long after the
+  // signal (SPEECH_MS=hang: it never finishes).
+  ...(process.env.SPEECH_MS
+    ? {
+        speech: {
+          inFlight: () => (speechUntil === 0 || Date.now() < speechUntil ? 1 : 0),
+          beginDrain: () => {
+            process.stderr.write("SPEECH DRAIN\n");
+            speechUntil = process.env.SPEECH_MS === "hang" ? Number.POSITIVE_INFINITY : Date.now() + Number(process.env.SPEECH_MS);
+          },
+        },
+      }
+    : {}),
   ...(process.env.FLUSH_MS
     ? {
         flushCapMs: Number(process.env.FLUSH_CAP_MS ?? "1500"),
