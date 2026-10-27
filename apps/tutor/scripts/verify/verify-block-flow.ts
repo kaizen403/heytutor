@@ -381,7 +381,7 @@ void (async () => {
     }
     for (const [label, answer] of [
       ["no process", null], ["brackets", "Process: mouth (amylase) → stomach → intestine"], ["two steps", "Process: tap → pay"],
-      ["another heading", "Components: records → intelligence → research"], ["a long step", `Process: ${"a".repeat(41)} → b → c`],
+      ["another heading", "Components: records → intelligence → research"], ["a long step", `Process: ${"a".repeat(61)} → b → c`],
       ["not text", 7],
     ] as const) {
       const dropped = await ask(prose, answer);

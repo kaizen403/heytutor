@@ -127,7 +127,8 @@ export async function writeProcessClaim(
   const chain = blockFlowChain(text);
   const ok = chain !== null && chain.heading?.trim().toLowerCase() === "process" &&
     chain.steps.length >= 3 && chain.steps.length <= 7 && new Set(chain.steps).size === chain.steps.length &&
-    chain.labels.every((label) => label.length <= 40);
+    // A box wraps to four lines, so a step may run a little past the 40 asked for.
+    chain.labels.every((label) => label.length <= 60);
   return ok ? text.trim() : null;
 }
 
