@@ -98,6 +98,21 @@ for (const stem of [
 ]) draws(`reference numbers are not values: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 draws("a plan giving g in m s^-2 is not a contradicted value", archimedes, withGravity, plan(withGravity, ["archimedes_principle"], [{ id: "g", symbol: "g", value: 9.8, unit: "m s^-2" }]));
 
+for (const stem of [
+  "A hydraulic press consists of two cylinders of different areas. Explain how it works.",
+  "Explain why the force is multiplied many times in a hydraulic press.",
+  "Show that F2/F1 = A2/A1.",
+  "Explain why F2 = F1 × A2/A1 in a hydraulic press.",
+  "Explain how a car is raised by a hydraulic lift.",
+  "Ques 3 explain the hydraulic press.",
+]) draws(`a conceptual press stem: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
+for (const stem of [
+  "State Archimedes' principle: a body wholly or partially immersed in a fluid experiences an upthrust. Derive it.",
+  "Explain why the force at the bottom of the body is greater than at the top.",
+  "CBSE 2023: derive Archimedes' principle.",
+  "Explain W1 and W2 in the derivation of Archimedes' principle.",
+]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
+
 // Spelled or disguised values refuse.
 for (const stem of [
   "In a hydraulic press the large piston has ten times the area of the small one. Explain the force multiplication.",
@@ -105,18 +120,29 @@ for (const stem of [
   "Hydraulic press mein bada piston das guna area ka hai, samjhao.",
   "The large piston area is x10 the small one; explain the hydraulic press.",
   "Explain how a hydraulic lift raises a 2000 kg car using Pascal's law.",
+  "If the area of the large piston is doubled, explain what happens to the force.",
+  "Explain why a tenfold larger piston gives a tenfold larger force.",
+  "If the small piston's area is quadrupled, explain the change.",
+  "The small piston has one-eighth the area of the large one. Explain.",
+  "हाइड्रोलिक प्रेस में बड़ा पिस्टन दस गुना क्षेत्रफल का है, समझाइए।",
 ]) refused(`a spelled or disguised value: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
 const decimalStem = "0.5 cubic metre block is fully immersed in oil. Explain the upthrust.";
 refused("a leading decimal value", archimedes, decimalStem, plan(decimalStem, ["archimedes_principle"]));
 
 // Situations the figure cannot show refuse.
 for (const stem of [
+  "State and explain the principle of floatation.",
+  "Why does a log stay on the surface of water?",
+  "Explain the upthrust on a hemisphere held under water.",
+  "A block lies at the bottom of the tank. Explain the forces on it.",
   "Why does a ship float? Explain using Archimedes' principle.",
   "A block is partially immersed in water. Explain the upthrust on it.",
   "Explain the forces on a metal sphere held under water.",
   "A block rests on the bottom of a tank of water. Explain the forces on it.",
 ]) refused(`a body the figure cannot show: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 for (const stem of [
+  "The large piston is at a height h above the smaller piston. Explain the forces.",
+  "Explain a hydraulic press whose pistons are not at the same level.",
   "Explain hydraulic brakes in a car using Pascal's law.",
   "In a hydraulic press the large piston is raised above the small one. Explain the forces.",
 ]) refused(`a press the figure cannot show: ${stem}`, press, stem, plan(stem, ["pascals_law"]));

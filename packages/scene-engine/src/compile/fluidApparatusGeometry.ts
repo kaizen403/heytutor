@@ -25,10 +25,14 @@ export const FLUID_APPARATUS_OUTPUT_COUNTS: Readonly<Record<FluidApparatusOperat
   hydraulic_press: 7,
 };
 
-/** The label texts each role may carry; the first is the default. No numbers. */
+/**
+ * The label texts each role may carry; the first is the default, and an empty
+ * default leaves the mark unnamed unless the planner names it. No numbers.
+ */
 const ROLE_LABELS: Readonly<Record<string, readonly string[]>> = {
   fluid: ["fluid", "liquid"],
-  surface: ["surface", "free surface"],
+  // The fluid outline already shows the surface; an always-on name crowds the top face labels.
+  surface: ["", "surface", "free surface"],
   body: ["body", "object", "block"],
   F_top: ["F_top", "F1", "F₁"],
   F_bottom: ["F_bottom", "F2", "F₂"],
@@ -84,16 +88,17 @@ function readSubmergedBody(inputs: Record<string, unknown>, context: SourceConte
   const h1 = displayLength(inputs.topDepth, "topDepth", context, document);
   const height = displayLength(inputs.bodyHeight, "bodyHeight", context, document);
   const width = displayLength(inputs.bodyWidth, "bodyWidth", context, document);
-  const k = inputs.forceScale === undefined ? 0.45 : displayLength(inputs.forceScale, "forceScale", context, document);
-  // F_B starts at the centroid and must end inside the body (k H <= H / 2), so
-  // it never reads as a third force beside F_top; that also keeps the top
-  // arrow's tail under the surface (k h1 < h1).
-  if (!(k <= 0.5)) invalid("forceScale", "forceScale must be at most 0.5 so F_B stays inside the body");
+  const k = inputs.forceScale === undefined ? 0.4 : displayLength(inputs.forceScale, "forceScale", context, document);
+  // F_B starts at the centroid and ends well inside the body (k H <= 0.4 H <
+  // H / 2), so its head never meets F_top's head at the top face; that also
+  // keeps the top arrow's tail under the surface (k h1 < h1).
+  if (!(k <= 0.4)) invalid("forceScale", "forceScale must be at most 0.4 so F_B ends inside the body");
   if (!(k >= 0.3)) invalid("forceScale", "forceScale must be at least 0.3 so every arrow stays readable");
   const h2 = h1 + height;
   // A body flatter than this crowds its three arrows and their labels.
   if (!(height >= width / 2 && height <= width * 2)) invalid("bodyHeight", "the body must be drawn between half and twice as tall as it is wide");
-  if (!(h1 >= height / 2 && h1 <= height * 2)) invalid("topDepth", "the top face must sit between half and twice the body height below the surface");
+  // A top face at least one body height down keeps F_top (k h1 >= 0.3 H) readable.
+  if (!(h1 >= height && h1 <= height * 2)) invalid("topDepth", "the top face must sit between one and two body heights below the surface");
   // Room for the depth markers and labels either side, even for a tall narrow body.
   const fluidWidth = Math.max(width, height) * 3.4;
   const fluidDepth = h2 + k * h2 + height * 0.35;
@@ -114,7 +119,7 @@ function readSubmergedBody(inputs: Record<string, unknown>, context: SourceConte
   const buoyant = { x: 0, y: k * height };
   const centroid = { x: cx, y: (topY + bottomY) / 2 };
   // h1 left of the body and h2 right of it, so neither label sits beside the other's marker.
-  const markerGap = Math.max(width, height) * 0.45;
+  const markerGap = Math.max(width, height) * 0.7;
   const markerX1 = bodyLeft - markerGap;
   const markerX2 = bodyRight + markerGap;
   return [
@@ -198,33 +203,40 @@ const GRAVITY_UNIT = /^(?:m\/s\^?2|m\/s²|ms\^?-2|cm\/s\^?2|cm\/s²|n\/kg)$/i;
  * h1). Anything else that is a digit counts as a stated value.
  */
 const NON_VALUE_NUMBERS = [
-  /\b(?:class|chapter|ch|section|sec|unit|grade|std|standard|lesson|part|question|q|exercise|ex|example|page|ncert|exemplar|fig|figure)\.?\s*[-–]?\s*(?:no\.?\s*)?\d+(?:\.\d+)*(?:st|nd|rd|th)?\b/gi,
+  /\b(?:class|chapter|ch|section|sec|unit|grade|std|standard|lesson|part|question|ques|q|exercise|ex|example|page|ncert|exemplar|fig|figure)\.?\s*[-–]?\s*(?:no\.?\s*)?\d+(?:\.\d+)*(?:st|nd|rd|th)?\b/gi,
   /\b\d+(?:st|nd|rd|th)\b/gi,
-  /\b(?:session|syllabus|year|exam|board|batch)\s+(?:19|20)\d\d(?:\s*[-–]\s*\d{2,4})?\b/gi,
+  /\b(?:session|syllabus|year|exam|board|batch|cbse|icse|jee|neet|paper)\s+(?:19|20)\d\d(?:\s*[-–]\s*\d{2,4})?\b/gi,
+  /\b(?:19|20)\d\d(?=\s+(?:board|paper|exam|question))/gi,
   /\b(?:19|20)\d\d\s*[-–]\s*\d{2}\b/g,
   /(?:^|\n)\s*[1-9]\d*(?:\.\d+)+\s+(?=[A-Z][a-z])/g,
   /(?:^|\n)\s*[1-9]\d*\s*[.)]\s+(?=[A-Za-z])/g,
   /\(\s*\d+\s*marks?\s*\)/gi,
   /\b[23]D\b/g,
-  /\b[AaFfHhPpDdRrVv]_?\{?[0-9]\}?(?![\d.])/g,
+  /\b[AaFfHhPpDdRrVvWw]_?\{?[0-9]\}?(?!\d|\.\d)/g,
 ];
-/** Spelled values a display proportion would contradict ("ten times the area", "das guna", "half the depth"). */
-const VALUE_WORDS = /\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million|twice|thrice|double|triple|half|quarter|third|fourth|fifth|tenth|hundredth|times|fold|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|[%½¼¾⅓⅔×]/i;
+/** Multipliers that always state a ratio: "twice", "doubled", "tenfold", "das guna", "½". */
+const MULTIPLIER = /\b(?:twice|thrice|doubl\w*|tripl\w*|quadrupl\w*|halv\w*|half|\w+fold|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|[%½¼¾⅓⅔]|गुना|दुगना|आधा|[०-९]/i;
+/** A number word states a value only beside what it measures ("ten times the area", "one-eighth the force"). */
+const NUMBER_WORD = String.raw`(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|hundredth|thousandth|das|bees|sau|दस|बीस|सौ)`;
+const NUMBER_VALUE = new RegExp(String.raw`\b(?:one[-\s])?${NUMBER_WORD}s?\b(?:[-\s]+\w+){0,2}?[-\s]+(?:times|area|areas|force|forces|radius|radii|diameter|depth|height|bigger|larger|smaller|greater|heavier|deeper)\b`, "i");
 
 function statesValue(question: string): boolean {
   let text = question;
   for (const pattern of NON_VALUE_NUMBERS) text = text.replace(pattern, " ");
-  return /\d/.test(text) || VALUE_WORDS.test(text);
+  return /\d/.test(text) || MULTIPLIER.test(text) || NUMBER_VALUE.test(text);
 }
 
 /**
  * Situations the drawing cannot show. submerged_body draws one fully
  * submerged block with no weight, so a floating, partly immersed, resting or
  * round body is a different figure; hydraulic_press draws two pistons at one
- * level, so a level difference or a brake circuit is a different figure.
+ * level, so a level difference or a brake circuit is a different figure. The
+ * principle's own wording ("wholly or partially immersed") is not a case.
  */
-const SUBMERGED_BODY_MISMATCH = /\b(?:floats?|floating|flotation|afloat|ships?|boats?|icebergs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|rests? on|resting on|lies on|stuck|bottom of the|spheres?|spherical|balls?|cones?|sinks? to the bottom)\b/i;
-const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|different (?:levels?|heights?)|level difference|height difference|raised|lowered|above the (?:small|large|other)|below the (?:small|large|other))\b/i;
+const PRINCIPLE_WORDING = /\b(?:wholly|fully|completely|totally)\s+or\s+(?:partially|partly)\b/gi;
+const CONTAINER = "(?:tank|vessel|container|beaker|jar|sea|lake|pond|river|ocean|pool)";
+const SUBMERGED_BODY_MISMATCH = new RegExp(String.raw`\b(?:float\w*|afloat|ships?|boats?|icebergs?|logs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|(?:rests?|resting|lies|lying|sits?|sitting|placed|kept)\s+(?:on|at)\s+the\s+(?:bottom|floor|base)|(?:at|on|to)\s+the\s+bottom\s+of\s+the\s+${CONTAINER}|stuck|\w*spher\w*|balls?|cones?|sinks?\s+to\s+the\s+bottom)\b`, "i");
+const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|different (?:levels?|heights?)|unequal (?:levels?|heights?)|not (?:at|on) the same (?:level|height)|level difference|height difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
 
 /**
  * The qualitative fluid figures draw display proportions. They may only draw
@@ -243,7 +255,8 @@ export function validateFluidApparatusSourceInputs(
   if (constructions.length === 0) return [];
   const stated = [...(plan?.givens ?? []), ...(plan?.derived ?? [])]
     .filter((quantity) => !GRAVITY_UNIT.test(String(quantity.unit ?? "").trim().replaceAll(" ", "")));
-  const mismatch = constructions.some((construction) => (construction.operator === "submerged_body" ? SUBMERGED_BODY_MISMATCH : HYDRAULIC_PRESS_MISMATCH).test(question));
+  const situation = question.replace(PRINCIPLE_WORDING, " ");
+  const mismatch = constructions.some((construction) => (construction.operator === "submerged_body" ? SUBMERGED_BODY_MISMATCH : HYDRAULIC_PRESS_MISMATCH).test(situation));
   const reasons = [
     ...(statesValue(question) ? ["the question states a value"] : []),
     ...(mismatch ? ["the question describes a situation the figure cannot show"] : []),

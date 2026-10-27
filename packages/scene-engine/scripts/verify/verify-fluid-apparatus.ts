@@ -56,7 +56,7 @@ function inside(point: P, polygon: P[]): boolean {
 }
 
 // --- submerged_body: the law's shape ------------------------------------------------
-const body = evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.5 }, context) as unknown as G[];
+const body = evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.4 }, context) as unknown as G[];
 check(body.length === 8, "submerged_body has 8 outputs");
 check(body.map((g) => g.instrument.role).join(",") === "fluid,surface,body,F_top,F_bottom,F_B,h1,h2", "submerged_body output order");
 const [fluid, , block, top, bottom, buoyant] = body as [G, G, G, G, G, G, G, G];
@@ -73,8 +73,10 @@ check(bottomArrow[1].y === bottomFaceY && bottomArrow[0].y < bottomArrow[1].y, "
 check(buoyantArrow[1].y > buoyantArrow[0].y, "F_B points up");
 check(inside(topArrow[0], fluid.points!) && inside(bottomArrow[0], fluid.points!), "both face arrow tails are inside the fluid");
 check(Math.abs(buoyantArrow[0].x - topArrow[0].x) > 1e-6, "F_B never shares a line with the face arrows");
-check(buoyantArrow[1].y <= topFaceY, "F_B ends inside the body, so it never reads as a third force beside F_top");
-reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.6 }, context), "a buoyant arrow longer than half the body would leave the body");
+check(topFaceY - buoyantArrow[1].y >= 0.1 * (topFaceY - bottomFaceY) - 1e-9, "F_B ends well inside the body, so its head never meets F_top's head at the top face");
+reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.5 }, context), "a buoyant arrow reaching the top face is refused");
+reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.2 }, context), "a force scale too small to read is refused");
+reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 1.5, bodyHeight: 2, bodyWidth: 2.4 }, context), "a top face less than one body height down leaves F_top unreadable");
 reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 0.1, bodyHeight: 2, bodyWidth: 2.4 }, context), "a body touching the surface is not drawn as submerged");
 reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, density: 1000 }, context), "unknown physical inputs are refused");
 
