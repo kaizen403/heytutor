@@ -12,6 +12,8 @@ export function resolvePictureQueryModel(env: NodeJS.ProcessEnv = process.env): 
 }
 
 export interface PictureQuery {
+  /** Set when a deterministic guard, not the model, turned the picture down. */
+  declineReason?: "question_specific_figure";
   /** False when no single real picture would help (a calculation, an essay ask). */
   wantsPicture: boolean;
   /** Plain English: the one structure, organism, process or apparatus to show. */
@@ -25,6 +27,7 @@ Given the student's question, reply with only compact JSON:
 {"wantsPicture":boolean,"mustShow":"the topic of the picture with the aspect the question asks about, in plain English, at most 10 words, e.g. 'structure of the human heart', 'stages of mitosis', 'apparatus for simple distillation', 'process of photosynthesis'; never a checklist of parts","queries":["2 to 4 short English search phrases for Wikimedia Commons, best first, each 2 to 5 words, ending with diagram when a diagram fits"]}
 When the question compares two things, the topic is the first one alone (the tutor draws one picture).
 Set wantsPicture false when the question is a numeric calculation, a proof, code, an essay or opinion, or when no single real picture would help.
+Set wantsPicture false when the figure would have to carry the question's own numbers or data (a graph of given values, a circuit with given resistances, a ray diagram with given distances, a free body diagram with given forces): a stock picture would show different numbers.
 Translate the topic to English if the question is in another language. Never include the student's numbers or names in the queries.`;
 
 export function queryRequestBody(question: string, subject: string | undefined, model: string): Record<string, unknown> {
@@ -39,6 +42,17 @@ export function queryRequestBody(question: string, subject: string | undefined, 
       { role: "user", content: `${subject ? `Subject: ${subject}\n` : ""}Question: ${question.slice(0, 2000)}` },
     ],
   };
+}
+
+/**
+ * A graph, circuit, ray or force diagram of a question that states numbers is
+ * that question's own figure: a stock picture would carry other values, which
+ * is a false figure. The verified engine draws those or the lesson is text.
+ */
+const QUESTION_SPECIFIC_TOPIC = /\b(graph|plot|curve|circuit|ray diagram|free[- ]body|force diagram|trajectory|number line|histogram|bar chart|pie chart)s?\b/i;
+
+export function questionSpecificFigure(question: string, mustShow: string): boolean {
+  return QUESTION_SPECIFIC_TOPIC.test(mustShow) && /\d/.test(question);
 }
 
 export function parsePictureQuery(text: string): PictureQuery | null {
@@ -80,5 +94,9 @@ export async function writePictureQuery(question: string, options: { apiKey: str
   }
   const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
   const content = data.choices?.[0]?.message?.content;
-  return { query: parsePictureQuery(typeof content === "string" ? content : ""), model, usage: data.usage };
+  const query = parsePictureQuery(typeof content === "string" ? content : "");
+  if (query?.wantsPicture && questionSpecificFigure(question, query.mustShow)) {
+    return { query: { ...query, wantsPicture: false, declineReason: "question_specific_figure" }, model, usage: data.usage };
+  }
+  return { query, model, usage: data.usage };
 }

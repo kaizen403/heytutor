@@ -1,6 +1,6 @@
 import sharp from "sharp";
-import type { ReferencePicturePlan, ReferencePictureRecord } from "@heytutor/drawing";
-import { judgePicture, verdictAccepts, type PictureJudgeInput, type PictureVerdict } from "./pictureJudge";
+import { referencePictureLayout, type ReferencePicturePlan, type ReferencePictureRecord } from "@heytutor/drawing";
+import { acceptedLabels, factCheckPasses, factCheckPicture, judgePicture, verdictAccepts, type FactCheckResult, type PictureJudgeInput, type PictureVerdict } from "./pictureJudge";
 import { generatePicture, resolveImageProvider, type ImageProviderConfig } from "./pictureGenerator";
 import { writePictureQuery } from "./pictureQuery";
 import { downloadPicture, rankCandidates, searchCommons, type PictureCandidate } from "./wikimediaSearch";
@@ -80,7 +80,38 @@ async function judgeDataUrl(bytes: Buffer): Promise<string> {
   return `data:image/png;base64,${png.toString("base64")}`;
 }
 
-interface Judged { candidate: PictureCandidate | null; bytes: Buffer; verdict: PictureVerdict; origin: PictureJudgeInput["origin"]; order: number }
+interface Judged { candidate: PictureCandidate | null; bytes: Buffer; verdict: PictureVerdict; factCheck: FactCheckResult; origin: PictureJudgeInput["origin"]; order: number }
+
+/** Every candidate costs two judge-model calls: the judge and the fact check, run side by side. */
+export const CALLS_PER_CANDIDATE = 2;
+
+const UNREAD_FACT_CHECK: FactCheckResult = { claims: [], readable: false };
+
+/**
+ * A verdict the board can show: the judge accepted it, and a numbered
+ * picture's key fits beside it at the label size with the picture still large
+ * enough to find its numbers. A key that cannot be written is a rejection: a
+ * numbered picture is never shown without its key.
+ */
+function usable(judged: Pick<Judged, "candidate" | "verdict" | "factCheck" | "origin">): boolean {
+  if (!verdictAccepts(judged.verdict, judged.origin) || !factCheckPasses(judged.factCheck)) return false;
+  const { legend } = acceptedLabels(judged.verdict);
+  if (!legend) return true;
+  const size = judged.candidate ? { width: judged.candidate.width, height: judged.candidate.height } : null;
+  return size !== null && referencePictureLayout({ plan: size, legend }) !== null;
+}
+
+function verdictStep(judged: Pick<Judged, "candidate" | "verdict" | "factCheck" | "origin">): string {
+  const { legend } = acceptedLabels(judged.verdict);
+  const accepted = usable(judged);
+  const key = judged.verdict.labelLanguage === "numbers"
+    ? legend ? ` key ${legend.length}${accepted ? "" : " does not fit beside the picture"}` : ` key incomplete (${judged.verdict.marks.length} marks, ${judged.verdict.numberKey.length} entries, ${judged.verdict.keySource}, ${judged.verdict.keyLanguage})`
+    : "";
+  const wrong = judged.factCheck.readable
+    ? judged.factCheck.claims.filter((claim) => !claim.correct).map((claim) => `fact check: ${claim.text}: ${claim.why}`)
+    : ["fact check unreadable or failed"];
+  return `${accepted ? "accept" : "reject"} (${judged.verdict.confidence})${key} ${[...judged.verdict.problems, ...wrong].join("; ")}`;
+}
 
 interface Context { deps: FindPictureDeps; spend: PictureSpend; steps: string[]; mustShow: string }
 
@@ -95,7 +126,7 @@ export async function findReferencePicture(question: string, subject: string | u
   const query = written.query;
   if (!query) return decline("query_unreadable");
   steps.push(`query: ${query.mustShow} | ${query.queries.join(" ; ")}`);
-  if (!query.wantsPicture) return decline("no_picture_wanted");
+  if (!query.wantsPicture) return decline(query.declineReason ?? "no_picture_wanted");
 
   const queryKey = store.queryKeyFor(query.mustShow);
   const cached = queryKey ? await db.readQueryCache(queryKey) : null;
@@ -107,11 +138,14 @@ export async function findReferencePicture(question: string, subject: string | u
 
   const context: Context = { deps, spend, steps, mustShow: query.mustShow };
   const { judged, searched } = await judgeCommons(query.queries, context);
-  let accepted = judged.filter((j) => verdictAccepts(j.verdict, j.origin)).sort((a, b) => b.verdict.confidence - a.verdict.confidence || a.order - b.order)[0];
+  // A picture labelled in words beats a numbered one: it is drawn larger and
+  // the student reads each name where it sits instead of in a key.
+  const numbered = (j: Judged) => (j.verdict.labelLanguage === "numbers" ? 1 : 0);
+  let accepted = judged.filter(usable).sort((a, b) => numbered(a) - numbered(b) || b.verdict.confidence - a.verdict.confidence || a.order - b.order)[0];
   const provider = deps.imageProvider === undefined ? resolveImageProvider() : deps.imageProvider;
   if (!accepted && provider && (await deps.beforeRound?.("generate")) !== false) {
     const generated = await judgeGenerated(provider, context);
-    if (generated && verdictAccepts(generated.verdict, "generated")) accepted = generated;
+    if (generated && usable(generated)) accepted = generated;
   }
   if (!accepted) {
     const reason = judged.length ? "no_candidate_accepted" : searched ? "no_candidates" : "search_failed";
@@ -145,11 +179,47 @@ async function judgeCommons(queries: string[], context: Context): Promise<{ judg
     if ((await deps.beforeRound?.(round)) === false) { steps.push(`round ${round + 1}: not funded`); break; }
     offered += batch.length;
     steps.push(`search round ${round + 1}: ${batch.map((c) => c.title).join(" | ")}`);
-    const results = await Promise.all(batch.map((candidate, i) => judgeCandidate(candidate, round * JUDGED_CANDIDATES + i, context)));
+    const results = await judgeRound(batch, round * JUDGED_CANDIDATES, context);
     judged.push(...results.filter((r): r is Judged => r !== null));
-    if (judged.some((j) => verdictAccepts(j.verdict, j.origin))) break;
+    if (judged.some(usable)) break;
   }
   return { judged, searched: offered };
+}
+
+/**
+ * After the first usable verdict in a round, how long the other judges may
+ * still answer before they are cut off. A round used to wait for its slowest
+ * call: on 27 Oct 2026 one Ember-1 call ran to its timeout and a cold mitosis
+ * request missed the turn's 25 s wait. A better ranked picture that answers
+ * inside the grace still wins.
+ */
+export const ROUND_GRACE_MS = 1500;
+
+async function judgeRound(batch: readonly PictureCandidate[], firstOrder: number, context: Context): Promise<Array<Judged | null>> {
+  const outer = context.deps.signal;
+  const cut = new AbortController();
+  const signal = outer ? AbortSignal.any([outer, cut.signal]) : cut.signal;
+  const roundContext: Context = { ...context, deps: { ...context.deps, signal } };
+  const results: Array<Judged | null> = batch.map(() => null);
+  await new Promise<void>((resolve) => {
+    let pending = batch.length;
+    let grace: ReturnType<typeof setTimeout> | undefined;
+    const done = () => { clearTimeout(grace); resolve(); };
+    batch.forEach((candidate, i) => {
+      judgeCandidate(candidate, firstOrder + i, roundContext).then(
+        (judged) => { results[i] = judged; },
+        () => { results[i] = null; },
+      ).finally(() => {
+        pending--;
+        if (pending === 0) return done();
+        if (results[i] && usable(results[i]!) && !grace) grace = setTimeout(done, ROUND_GRACE_MS);
+      });
+    });
+  });
+  if (outer?.aborted) throw outer.reason ?? new Error("aborted");
+  // Judges still running are cut off; a call cut this way stays counted as dispatched.
+  cut.abort();
+  return results;
 }
 
 async function judgeCandidate(candidate: PictureCandidate, order: number, context: Context): Promise<Judged | null> {
@@ -157,14 +227,32 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
   try {
     const { bytes } = await downloadPicture(candidate.imageUrl, { signal: deps.signal, fetchImpl: deps.fetchImpl });
     const imageDataUrl = await judgeDataUrl(bytes);
-    const result = await tracked(spend, "judge", () => judgePicture({ mustShow, origin: "wikimedia", title: candidate.title, description: candidate.description, imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
+    const options = { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl };
+    const [result, fact] = await Promise.all([
+      tracked(spend, "judge", () => judgePicture({ mustShow, origin: "wikimedia", title: candidate.title, description: candidate.description, imageDataUrl }, options), deps.signal),
+      factCheck(mustShow, imageDataUrl, context),
+    ]);
     spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
-    steps.push(`judge ${candidate.title}: ${verdictAccepts(result.verdict, "wikimedia") ? "accept" : "reject"} (${result.verdict.confidence}) ${result.verdict.problems.join("; ")}`);
-    return { candidate, bytes, verdict: result.verdict, origin: "wikimedia", order };
+    const judged: Judged = { candidate, bytes, verdict: result.verdict, factCheck: fact, origin: "wikimedia", order };
+    steps.push(`judge ${candidate.title}: ${verdictStep(judged)}`);
+    return judged;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
     steps.push(`judge ${candidate.title}: error ${error instanceof Error ? error.message : String(error)}`);
     return null;
+  }
+}
+
+/** The fact check for one picture; a failed or unreadable check rejects it. */
+async function factCheck(mustShow: string, imageDataUrl: string, context: Context): Promise<FactCheckResult> {
+  const { deps, spend } = context;
+  try {
+    const checked = await tracked(spend, "judge", () => factCheckPicture({ mustShow, imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
+    spend.usages.push({ lane: "judge", model: checked.model, usage: checked.usage });
+    return checked.result;
+  } catch (error) {
+    if (deps.signal?.aborted) throw error;
+    return UNREAD_FACT_CHECK;
   }
 }
 
@@ -174,10 +262,14 @@ async function judgeGenerated(provider: ImageProviderConfig, context: Context): 
     const { bytes } = await tracked(spend, "generate", () => generatePicture(mustShow, provider, { signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
     spend.usages.push({ lane: "generate", model: provider.model, usage: null });
     const imageDataUrl = await judgeDataUrl(bytes);
-    const result = await tracked(spend, "judge", () => judgePicture({ mustShow, origin: "generated", imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
+    const [result, fact] = await Promise.all([
+      tracked(spend, "judge", () => judgePicture({ mustShow, origin: "generated", imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal),
+      factCheck(mustShow, imageDataUrl, context),
+    ]);
     spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
-    steps.push(`judge generated: ${verdictAccepts(result.verdict, "generated") ? "accept" : "reject"} ${result.verdict.problems.join("; ")}`);
-    return { candidate: null, bytes, verdict: result.verdict, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
+    const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
+    steps.push(`judge generated: ${verdictStep(judged)}`);
+    return judged;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
     steps.push(`generate: error ${error instanceof Error ? error.message : String(error)}`);
@@ -194,6 +286,10 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
   const built = await (deps.strokePlan ?? buildStrokePlan)(accepted.bytes);
   const plan: ReferencePicturePlan = built.plan;
   steps.push(`plan: ${built.stats.outlineStrokes} outline, ${built.stats.fillStrokes} fill, ${built.stats.planBytes} B, ${built.stats.ms} ms`);
+  const { labels, legend } = acceptedLabels(accepted.verdict);
+  // Checked on the thumbnail's size before acceptance; the plan keeps its
+  // aspect, so this holds unless the planner changed shape.
+  if (legend && !referencePictureLayout({ plan, legend })) throw new Error("the key does not fit beside the planned picture");
   const id = store.pictureIdFor(sourceKey);
   return db.saveReferencePicture({
     sourceKey,
@@ -211,7 +307,8 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
       width: plan.width,
       height: plan.height,
       shows: accepted.verdict.shows,
-      labels: accepted.verdict.labels,
+      labels,
+      ...(legend ? { legend } : {}),
       plan: { width: plan.width, height: plan.height, outlineLengthPx: plan.outline.lengthPx, fillLengthPx: plan.fill.lengthPx },
     },
   });

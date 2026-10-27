@@ -11,6 +11,7 @@
 import {
   REFERENCE_PICTURE_ENTITY_ID,
   isReferencePictureId,
+  parseReferencePictureLegend,
   isStoredCommandTrustedGeometry,
   parseFocusSpec,
   parsePictureCommandParams,
@@ -19,7 +20,9 @@ import {
   referencePictureCredit,
   verifiedDiagramCommandToDrawCommand,
   type DrawCommand,
+  type PicturePass,
   type PicturePlacement,
+  type ReferencePictureLegendEntry,
   type ReferencePictureRecord,
   type TutorSegment,
   type VerifiedDiagram,
@@ -44,6 +47,8 @@ export interface StoredReferencePicture {
   artist: string;
   shows: string;
   labels: string[];
+  /** A numbered picture's key, as the server checked it. Absent otherwise. */
+  legend?: ReferencePictureLegendEntry[];
   credit: string;
 }
 
@@ -66,6 +71,7 @@ export function isReferencePictureDiagram(diagram: { id: string } | null | undef
 }
 
 export function storedReferencePictureFrom(record: ReferencePictureRecord): StoredReferencePicture {
+  const legend = record.legend?.length ? parseReferencePictureLegend(record.legend) : null;
   return {
     id: record.id,
     source: record.source,
@@ -75,6 +81,7 @@ export function storedReferencePictureFrom(record: ReferencePictureRecord): Stor
     artist: record.artist,
     shows: record.shows,
     labels: [...record.labels],
+    ...(legend ? { legend } : {}),
     credit: referencePictureCredit(record),
   };
 }
@@ -108,36 +115,38 @@ export function shownSubject(shows: string): string {
   return ARTICLE.test(subject) ? subject : `the ${subject}`;
 }
 
+type IntroBeat = { narration: string; token: string };
+
 /**
- * The two spoken beats. Each names its pass with one word the pen waits for:
- * "diagram" for the outline, "colour" for the fill. Both words stay in Latin
- * script in Hinglish, as the rest of the mixed narration does for terms.
+ * The spoken beats, one per pass. Each names its pass with one word the pen
+ * waits for: "diagram" for the outline, "colour" for the fill, "key" for a
+ * numbered picture's legend. The words stay in Latin script in Hinglish, as
+ * the rest of the mixed narration does for terms.
  */
 export function referencePictureIntroLines(
-  picture: Pick<StoredReferencePicture, "shows" | "labels">,
+  picture: Pick<StoredReferencePicture, "shows" | "labels" | "legend">,
   language?: NarrationLanguage,
-): { outline: { narration: string; token: string }; fill: { narration: string; token: string } } {
+): { outline: IntroBeat; fill: IntroBeat; legend?: IntroBeat } {
   const subject = shownSubject(picture.shows);
-  const labelled = picture.labels.length > 0;
+  const keyed = (picture.legend?.length ?? 0) > 0;
+  const kind = keyed ? "numbered " : picture.labels.length > 0 ? "labelled " : "";
   if (language === "hinglish") {
     return {
       outline: {
-        narration: subject
-          ? `यह ${subject} का ${labelled ? "labelled " : ""}diagram है.`
-          : `यह एक ${labelled ? "labelled " : ""}diagram है.`,
+        narration: subject ? `यह ${subject} का ${kind}diagram है.` : `यह एक ${kind}diagram है.`,
         token: "diagram",
       },
       fill: { narration: "अब इसमें colour भरते हैं.", token: "colour" },
+      ...(keyed ? { legend: { narration: "बगल में लिखी key हर number वाले part का नाम बताती है.", token: "key" } } : {}),
     };
   }
   return {
     outline: {
-      narration: subject
-        ? `Here is a ${labelled ? "labelled " : ""}diagram of ${subject}.`
-        : `Here is a ${labelled ? "labelled " : ""}diagram.`,
+      narration: subject ? `Here is a ${kind}diagram of ${subject}.` : `Here is a ${kind}diagram.`,
       token: "diagram",
     },
     fill: { narration: "Let me colour it in.", token: "colour" },
+    ...(keyed ? { legend: { narration: "The key beside it names each numbered part.", token: "key" } } : {}),
   };
 }
 
@@ -147,15 +156,40 @@ function labelList(labels: readonly string[]): string {
   return clean.length > 0 ? clean.map((label) => `"${label.replace(/"/g, "'")}"`).join(", ") : "none";
 }
 
-export function referencePicturePromptAddon(picture: Pick<StoredReferencePicture, "source" | "shows" | "labels">): string {
+/** "Right atrium" reads "the right atrium" in a sentence; "Bowman's capsule" and "DNA" keep their capitals. */
+function inSentence(label: string): string {
+  return /^[A-Z][a-z]+(?:\s|$)/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label;
+}
+
+/** The key as the prompt lists it: `1 = Right atrium; 2 = Left atrium`. Key names are checked to Latin letters and plain punctuation, so nothing needs quoting. */
+function legendList(legend: readonly ReferencePictureLegendEntry[]): string {
+  return legend.map((entry) => `${entry.mark} = ${entry.label}`).join("; ");
+}
+
+export function referencePicturePromptAddon(picture: Pick<StoredReferencePicture, "source" | "shows" | "labels" | "legend">): string {
   const origin = picture.source === "wikimedia" ? "a real diagram from Wikimedia Commons" : "an illustration generated for this lesson";
-  return `BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW
-The right of the board shows ${origin}. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.
-What it shows: ${picture.shows.replace(/\s+/g, " ").trim() || "not described"}.
-Labels printed on it, as read by a checker: ${labelList(picture.labels)}.
-Refer to a labelled part by its printed name. Never name, describe or point at a part that is not in that list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.
-Never emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:${REFERENCE_PICTURE_ENTITY_ID}] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.
-WRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line.`;
+  const legend = picture.legend?.length ? picture.legend : null;
+  const keyNames = new Set((legend ?? []).map((entry) => entry.label));
+  const printed = picture.labels.filter((label) => !keyNames.has(label));
+  const digits = legend?.every((entry) => /^[0-9]/.test(entry.mark)) ?? true;
+  const naming = legend
+    ? [
+        `Its parts are marked with ${digits ? "numbers" : "numbers or letters"}, and the runtime has written the key beside the picture, checked against what each mark points at: ${legendList(legend)}.`,
+        ...(printed.length > 0 ? [`Names printed on it, as read by a checker: ${labelList(printed)}.`] : []),
+        `When you talk about a marked part, say its ${digits ? "number" : "mark"} and its name together, for example "part ${legend[0]!.mark}, the ${inSentence(legend[0]!.label)}", so the student can find it on the picture. Never name, describe or point at a part that is not in the key${printed.length > 0 ? " or printed on it" : ""}, never use a mark the key does not list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.`,
+      ]
+    : [
+        `Labels printed on it, as read by a checker: ${labelList(picture.labels)}.`,
+        "Refer to a labelled part by its printed name. Never name, describe or point at a part that is not in that list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.",
+      ];
+  return [
+    "BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW",
+    `The right of the board shows ${origin}. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.`,
+    `What it shows: ${picture.shows.replace(/\s+/g, " ").trim() || "not described"}.`,
+    ...naming,
+    `Never emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:${REFERENCE_PICTURE_ENTITY_ID}] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.`,
+    "WRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line.",
+  ].join("\n");
 }
 
 function placementOf(commands: readonly VerifiedDiagramCommand[]): PicturePlacement | null {
@@ -172,7 +206,7 @@ function placementOf(commands: readonly VerifiedDiagramCommand[]): PicturePlacem
  * record live and on the server, or from the persisted rows on restore.
  */
 export function referencePictureDiagram(
-  picture: Pick<StoredReferencePicture, "id" | "source" | "shows" | "labels">,
+  picture: Pick<StoredReferencePicture, "id" | "source" | "shows" | "labels" | "legend">,
   commands: readonly VerifiedDiagramCommand[],
   reveals: VerifiedDiagram["reveals"] = [],
 ): VerifiedDiagram | null {
@@ -203,7 +237,14 @@ export function buildReferencePicturePresentation(
     semanticRef: { ...command.semanticRef },
   }));
   const lines = referencePictureIntroLines(stored, options.narrationLanguage);
-  const beats = [lines.outline, lines.fill];
+  // One beat per pass, matched by the pass each command carries: outline,
+  // fill and, for a numbered picture, the key.
+  const beats = commands.map((command) => {
+    const pass: PicturePass | undefined = parsePictureCommandParams(command.params)?.pass;
+    const beat = pass ? lines[pass] : undefined;
+    if (!beat) throw new Error(`reference picture ${pass ?? "unknown"} pass has no spoken beat`);
+    return beat;
+  });
   const reveals = beats.map((beat, index) => ({
     narration: beat.narration,
     commandIndices: [index],
@@ -265,6 +306,8 @@ export interface ReferencePictureOutcome {
   ms: number;
   /** Started while the scene was still planning (subjects with no engine). */
   speculative: boolean;
+  /** The server answered from its topic cache (no search or judge this turn). */
+  cached?: boolean;
 }
 
 const OUTCOME_STATUSES = new Set<ReferencePictureOutcome["status"]>(["shown", "declined", "unavailable", "skipped"]);
@@ -282,6 +325,7 @@ export function readReferencePictureOutcome(artifacts: unknown): ReferencePictur
     reason: value.reason as string | null,
     ms: value.ms,
     speculative: value.speculative,
+    ...(value.cached === true ? { cached: true } : {}),
   };
 }
 
@@ -300,7 +344,9 @@ export function readStoredReferencePicture(artifacts: unknown): StoredReferenceP
   const pageUrl = value.pageUrl === null || value.pageUrl === undefined ? null : string(value.pageUrl, 1000);
   const labels = Array.isArray(value.labels) && value.labels.length <= 80 &&
     value.labels.every((label) => typeof label === "string" && label.length <= 120) ? value.labels as string[] : null;
+  // A key that does not parse is not dropped: the picture's numbers would be left unnamed.
+  const legend = value.legend === undefined ? undefined : parseReferencePictureLegend(value.legend);
   if (!source || title === null || license === null || artist === null || shows === null || credit === null || !labels ||
-      (value.pageUrl != null && pageUrl === null)) return null;
-  return { id: value.id, source, title, pageUrl, license, artist, shows, labels: [...labels], credit };
+      (value.pageUrl != null && pageUrl === null) || legend === null) return null;
+  return { id: value.id, source, title, pageUrl, license, artist, shows, labels: [...labels], ...(legend ? { legend } : {}), credit };
 }

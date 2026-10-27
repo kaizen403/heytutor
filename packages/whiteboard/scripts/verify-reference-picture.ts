@@ -11,6 +11,9 @@
  *   - a cancelled, rolled back or aborted pass leaves nothing behind;
  *   - CLEAR, an animated clear and an erase take card, picture and credit away
  *     together, never one without the others;
+ *   - a numbered picture's key is written by the pen beside the card, inside
+ *     the zone and clear of the picture, lands at once on a seek, and goes
+ *     with the picture on CLEAR, an erase, a cancel or a rollback;
  *   - only a well-formed picture command for a picture id passes the ownership
  *     check, and the teaching stream cannot emit one at all;
  *   - a pass's time stays inside its documented floor and cap, and the turn's
@@ -39,7 +42,9 @@ import {
   parseDrawingCommands,
   referencePictureCommands,
   referencePictureCredit,
+  referencePictureLayout,
   type DrawCommand,
+  type ReferencePictureLegendEntry,
   type ReferencePictureRecord,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
@@ -102,6 +107,10 @@ const RECORD: ReferencePictureRecord = {
 };
 const PLACEMENT = fitPicture(PLAN_WIDTH, PLAN_HEIGHT, REFERENCE_PICTURE_ZONE);
 const SCALE = PLACEMENT.width / PLAN_WIDTH;
+const KEY: ReferencePictureLegendEntry[] = ["Right atrium", "Left atrium", "Superior vena cava", "Aorta", "Pulmonary artery", "Atrioventricular (tricuspid) valve"]
+  .map((label, i) => ({ mark: String(i + 1), label }));
+const KEYED_LAYOUT = referencePictureLayout({ plan: { width: PLAN_WIDTH, height: PLAN_HEIGHT }, legend: KEY })!;
+const KEYED_PLACEMENT = KEYED_LAYOUT.picture;
 
 /** Canvases that record what is drawn on them: the board paints nothing in Node. */
 type Recorded = { canvas: HTMLCanvasElement; calls: Array<{ name: string; args: unknown[] }> };
@@ -137,8 +146,9 @@ const isLineWork = (canvas: unknown) => callsOf(canvas).some((call) =>
   call.name === "set:globalCompositeOperation" && call.args[0] === "destination-in");
 const isZeroed = (canvas: unknown) => (canvas as HTMLCanvasElement).width === 0 && (canvas as HTMLCanvasElement).height === 0;
 
-function makePicture(image = {} as CanvasImageSource, inkMask = {} as CanvasImageSource): BoardPicture {
+function makePicture(image = {} as CanvasImageSource, inkMask = {} as CanvasImageSource, legend?: ReferencePictureLegendEntry[]): BoardPicture {
   return {
+    ...(legend ? { legend } : {}),
     id: PICTURE_ID,
     image,
     inkMask,
@@ -178,7 +188,7 @@ function verifyOwnership(): void {
     ["left of the zone", { params: [300, 118, 640, 480, 0, 640] }],
     ["below the zone", { params: [465, 300, 640, 480, 0, 640] }],
     ["off the board", { params: [465, 118, 900, 480, 0, 640] }],
-    ["unknown pass", { params: [465, 118, 640, 480, 2, 640] }],
+    ["unknown pass", { params: [465, 118, 640, 480, 7, 640] }],
     ["negative length", { params: [465, 118, 640, 480, 0, -1] }],
     ["too few params", { params: [465, 118, 640, 480, 0] }],
     ["not finite", { params: [465, 118, Number.NaN, 480, 0, 640] }],
@@ -190,6 +200,13 @@ function verifyOwnership(): void {
     assert.equal(isBlockedVerifiedDiagramCommand(command, null), true, `${name}: must be blocked`);
     assert.equal(isBlockedVerifiedDiagramCommand(command, diagram), true, `${name}: must be blocked beside a figure too`);
   }
+  // A numbered picture's three passes are all admitted; a legend pass
+  // claiming to be the outline is not.
+  const keyedCommands = referencePictureCommands({ ...RECORD, legend: KEY }).map((command) => ({ ...command, charPosition: 0, narrationBefore: "" }) as DrawCommand);
+  assert.deepEqual(keyedCommands.map((command) => admitReferencePictureCommand(command)?.pass), ["outline", "fill", "legend"]);
+  assert.ok(keyedCommands.every((command) => admitReferencePictureCommand(command)?.placement.width === KEYED_PLACEMENT.width), "every pass carries the picture's placement");
+  assert.equal(admitReferencePictureCommand({ ...keyedCommands[2]!, semanticRef: { entityId: "reference_picture", primitiveId: "reference_picture.outline" } }), null);
+
   // Another command type borrowing the picture's id and entity is not a picture.
   assert.equal(admitReferencePictureCommand({ ...outline!, type: "DRAW_RECT" }), null);
 
@@ -236,6 +253,18 @@ function verifyDurations(): void {
       }
     }
   }
+  // A legend pass: tutor-core times every pass that is not the fill by the
+  // outline's range, so the board's legend range must be the same numbers.
+  assert.deepEqual(PICTURE_PASS_MS.legend, REFERENCE_PICTURE_PASS_MS.outline, "the legend pass and the turn's schedule share one floor and cap");
+  const keyLength = KEYED_LAYOUT.legend!.inkLengthPx;
+  for (const lengthPx of [0, keyLength, 40_000]) {
+    const command = { type: "DRAW_PICTURE", params: [465, 118, 640, 480, 2, lengthPx], charPosition: 0, narrationBefore: "" } as DrawCommand;
+    const natural = resolvePicturePassMs({ pass: "legend", lengthPx, requestedMs: 0 });
+    assert.equal(referencePicturePassMs(command), natural, `legend ${lengthPx}px: the turn's estimate is the board's natural`);
+    assert.equal(cuedInkCapMs(command), PICTURE_PASS_MS.legend.maxMs);
+    assert.equal(cuedInkFloorMs(command), natural);
+  }
+
   // A spoken window inside the range is honoured when the hand can keep up.
   assert.equal(resolvePicturePassMs({ pass: "outline", lengthPx: 2_000, requestedMs: 9_000 }), 9_000);
   // Too short for the ink: stretched toward hand speed, at most 1.5x.
@@ -477,6 +506,127 @@ async function verifyBoard(): Promise<void> {
   unmountTestWhiteboard(board);
 }
 
+/** A legend group's glyph strokes, and the key's block in board px. */
+const legendOf = (board: WhiteboardHandle) => pictureGroup(board)?.getChildren((node) => node.getAttr("htReferencePicturePart") === "legend")[0] as Konva.Group | undefined;
+const glyphs = (legend: Konva.Group | undefined) => (legend?.getChildren() ?? []) as Konva.Shape[];
+/** Shown, and not held back by a reveal dash. */
+const isWritten = (node: Konva.Shape) => node.visible() && !(node instanceof Konva.Path && node.dashEnabled() && (node.dash()?.length ?? 0) > 0);
+
+async function verifyLegend(): Promise<void> {
+  const { board, step, run } = driveBoard();
+  const instrumentRef = getTestWhiteboardRefs(board).find((ref) => ref.current === "pen");
+  assert.ok(instrumentRef);
+  const keyed = makePicture(Konva.Util.createCanvasElement(), Konva.Util.createCanvasElement(), KEY);
+  const key = KEYED_LAYOUT.legend!;
+  const zone = REFERENCE_PICTURE_ZONE;
+  const cursor = board.getCursorLayer()!.getChildren()[0]!;
+  const landAll = async (duration: number) => {
+    for (const pass of ["outline", "fill", "legend"] as const) await run(board.drawPicture(keyed, KEYED_PLACEMENT, pass, duration));
+  };
+
+  // 1. Seek / restore: the key lands at once, in the picture's group, in pen.
+  const canvasesBefore = recorded.length;
+  await landAll(0);
+  const group = pictureGroup(board);
+  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit", "legend"], "the key lands last, inside the picture's group");
+  const legend = legendOf(board)!;
+  assert.ok(glyphs(legend).length >= KEY.map((entry) => entry.mark + entry.label).join("").replace(/\s+/g, "").length, "every character of the key is written");
+  assert.ok(glyphs(legend).every(isWritten), "an instant key is fully written");
+  assert.equal(instrumentRef!.current, "pen", "the key is words: the pen writes it");
+  const box = legend.getClientRect({ skipShadow: true, skipStroke: true });
+  assert.ok(box.x >= key.x - 2 && box.y >= key.y - 2 && box.x + box.width <= key.x + key.width + 2 && box.y + box.height <= key.y + key.height + 8,
+    `the key's ink stays in its block (${JSON.stringify(box)} vs ${JSON.stringify({ x: key.x, y: key.y, width: key.width, height: key.height })})`);
+  assert.ok(box.x >= zone.x && box.x + box.width <= zone.x + zone.width && box.y >= zone.y && box.y + box.height <= zone.y + zone.height + 8, "the key stays inside the zone");
+  assert.ok(box.x > KEYED_PLACEMENT.x + KEYED_PLACEMENT.width + 6, "the key never touches the card");
+  assert.equal(recorded.length, canvasesBefore + recorded.slice(canvasesBefore).filter((entry) => isLineWork(entry.canvas)).length, "the key makes no canvas of its own");
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 0));
+  assert.equal(parts(pictureGroup(board)).filter((part) => part === "legend").length, 1, "a re-land adds no second key");
+
+  // 2. CLEAR and an erase take the key with the picture.
+  await board.clearBoard();
+  assert.equal(pictureNodes(board).length, 0, "CLEAR removes the key with the picture");
+  await landAll(0);
+  await run(board.eraseRegion(key.x + 4, key.y + 4, 40, 40, 0));
+  assert.equal(pictureNodes(board).length, 0, "an erase touching the key removes the whole picture");
+  await landAll(0);
+  await run(board.eraseRegion(KEYED_PLACEMENT.x + 4, KEYED_PLACEMENT.y + 4, 40, 40, 0));
+  assert.equal(pictureNodes(board).length, 0, "an erase touching the picture removes its key too");
+
+  // 3. A watched key: the pen, row by row, inside the block, on its budget.
+  await board.clearBoard();
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "outline", 0));
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "fill", 0));
+  assert.equal(instrumentRef!.current, "pencil");
+  let wrotePen = true;
+  let sawPartial = false;
+  let nibOutside = 0;
+  let arrived = false;
+  let swapMs = 0;
+  let firstNibY = Number.POSITIVE_INFINITY;
+  let lastNibY = Number.NEGATIVE_INFINITY;
+  const watched = board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 1);
+  const watchedMs = await run(watched, () => {
+    const writing = board.getAnimLayer()!.getChildren((node) => node.getAttr("htReferencePicturePart") === "legend")[0] as Konva.Group | undefined;
+    if (!writing) { swapMs += 16; return; }
+    wrotePen &&= instrumentRef!.current === "pen";
+    const shown = glyphs(writing).filter((node) => node instanceof Konva.Path && (!node.dashEnabled() || (node.dashOffset() ?? 0) < (node.dash()?.[0] ?? 0) - 0.01)).length;
+    if (shown > 0 && shown < glyphs(writing).length) sawPartial = true;
+    const nib = { x: cursor.x(), y: cursor.y() };
+    const away = nib.x < key.x - 30 || nib.x > key.x + key.width + 30 || nib.y < key.y - 30 || nib.y > key.y + key.height + 30;
+    // The reach from the fill's last sweep is a flight; after it the pen stays on the key.
+    if (!away) { arrived = true; firstNibY = Math.min(firstNibY, nib.y); lastNibY = Math.max(lastNibY, nib.y); }
+    else if (arrived) nibOutside++;
+  });
+  assert.ok(wrotePen, "the pen, not the pencil, writes the key");
+  assert.ok(sawPartial, "the key is written stroke by stroke, not stamped");
+  assert.ok(arrived && nibOutside === 0, `the nib stays on the key once it gets there (${nibOutside} frames away)`);
+  assert.ok(lastNibY - firstNibY > key.height * 0.6, "the pen works down the rows");
+  const budget = resolvePicturePassMs({ pass: "legend", lengthPx: key.inkLengthPx, requestedMs: 1 });
+  const drawnMs = watchedMs - swapMs;
+  assert.ok(drawnMs >= budget - 16 && drawnMs <= budget + 48 && budget >= PICTURE_PASS_MS.legend.minMs && budget <= PICTURE_PASS_MS.legend.maxMs, `the key took ${drawnMs} ms, budget ${budget}`);
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit", "legend"], "the watched key lands in the picture's group");
+  assert.ok(glyphs(legendOf(board)).every(isWritten), "every stroke of the landed key is written in full");
+  assert.equal(board.getAnimLayer()!.getChildren((node) => Boolean(node.getAttr("htReferencePicturePart"))).length, 0, "the key leaves the anim layer when it lands");
+
+  // 4. Cancel and rollback take the half-written key and nothing else.
+  await board.clearBoard();
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "outline", 0));
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "fill", 0));
+  let cancelled = false;
+  const cancelledJob = board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 1, { shouldCancel: () => cancelled });
+  for (let i = 0; i < 80; i++) await step();
+  cancelled = true;
+  await run(cancelledJob);
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "a cancelled key leaves the picture and no half key");
+  assert.equal(board.getAnimLayer()!.getChildren((node) => Boolean(node.getAttr("htReferencePicturePart"))).length, 0);
+  const transaction = board.beginDrawTransaction();
+  const savepoint = board.createDrawSavepoint(transaction);
+  const beat = board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 1);
+  for (let i = 0; i < 80; i++) await step();
+  board.cancelDrawSavepoint(transaction, savepoint);
+  await run(beat);
+  board.rollbackDrawSavepoint(transaction, savepoint);
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "a rolled back key beat keeps the picture it was written beside");
+  const landed = board.createDrawSavepoint(transaction);
+  await run(board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 0));
+  board.rollbackDrawSavepoint(transaction, landed);
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "rolling back a landed key removes only the key");
+  board.abortDrawTransaction(transaction);
+  board.finishAbortedDrawTransaction(transaction);
+
+  // 5. No key, or a placement the layout does not give: nothing is written.
+  await board.clearBoard();
+  await run(board.drawPicture(makePicture(), PLACEMENT, "outline", 0));
+  await run(board.drawPicture(makePicture(), PLACEMENT, "legend", 0));
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline"], "a picture with no key writes no legend");
+  await board.clearBoard();
+  await run(board.drawPicture(keyed, PLACEMENT, "outline", 0));
+  await run(board.drawPicture(keyed, PLACEMENT, "legend", 0));
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline"], "a key is never written beside a placement it was not laid out for");
+
+  unmountTestWhiteboard(board);
+}
+
 const revealOnAnimLayer = (board: WhiteboardHandle) => board.getAnimLayer()!.getChildren(
   (node) => Boolean(node.getAttr("htReferencePicturePart")),
 )[0] as Konva.Image | undefined;
@@ -648,6 +798,8 @@ async function verifyAssetCache(): Promise<void> {
   const realFetch = globalThis.fetch;
   const realImage = (globalThis as { Image?: unknown }).Image;
   const brokenId = `rp_${"f".repeat(24)}`;
+  const keyedId = `rp_${"e".repeat(24)}`;
+  const badKeyId = `rp_${"d".repeat(24)}`;
   URL.createObjectURL = (blob: Blob) => {
     const url = `blob:verify/${brokenBlobs.has(blob) ? "broken-" : ""}${++urls}`;
     liveUrls.add(url);
@@ -679,7 +831,8 @@ async function verifyAssetCache(): Promise<void> {
       if (id === brokenId) brokenBlobs.add(blob);
       return { ok: true, status: 200, blob: async () => blob };
     }
-    return { ok: true, status: 200, json: async () => (part === "/plan" ? plan : { ...RECORD, id }) };
+    const legend = id === keyedId ? { legend: KEY } : id === badKeyId ? { legend: [{ mark: "1" }] } : {};
+    return { ok: true, status: 200, json: async () => (part === "/plan" ? plan : { ...RECORD, id, ...legend }) };
   }) as typeof fetch;
 
   const { board, run } = driveBoard();
@@ -737,6 +890,12 @@ async function verifyAssetCache(): Promise<void> {
     while (next < ids.length) await preload(ids[next++]!);
     assert.equal(cached(), limit);
 
+    // A numbered picture's key reaches the board; a malformed key is no picture.
+    const keyedAsset = await store.preloadReferencePicture(keyedId);
+    assert.deepEqual(keyedAsset.board.legend, KEY, "the record's key reaches the board");
+    assert.equal(store.peekReferencePicture(ids[0]!)?.board.legend ?? (await store.preloadReferencePicture(ids[0]!)).board.legend, undefined, "a named picture carries no key");
+    await assert.rejects(store.preloadReferencePicture(badKeyId), "a record whose key is malformed does not load");
+
     // A picture that will not decode still revokes its URL.
     await assert.rejects(store.preloadReferencePicture(brokenId));
     assert.equal(liveUrls.size, 0, "a failed decode revokes its blob URL");
@@ -755,13 +914,15 @@ runWhiteboardVerifier(async () => {
   verifyDurations();
   verifyTimeline();
   await verifyBoard();
+  await verifyLegend();
   await verifyCanvasMemory();
   await verifyAssetCache();
   console.log(
     "verify-reference-picture: seeks land card, picture and credit; the pencil traces the outline in the plan's order " +
       "on a card already down; cancel, rollback, abort, clear and erase leave nothing or everything; 50 seeks build the " +
       "line work once and every pass canvas is zeroed when it lands or is taken away; the asset cache stays bounded, " +
-      "spares pictures on the board and revokes its blob URLs; only a well-formed " +
+      "spares pictures on the board and revokes its blob URLs; a numbered picture's key is written by the pen beside the card, " +
+      "lands on a seek and goes with the picture on clear, erase, cancel and rollback; only a well-formed " +
       `picture command passes; passes stay inside outline ${PICTURE_PASS_MS.outline.minMs}..${PICTURE_PASS_MS.outline.maxMs} ms ` +
       `and fill ${PICTURE_PASS_MS.fill.minMs}..${PICTURE_PASS_MS.fill.maxMs} ms`,
   );

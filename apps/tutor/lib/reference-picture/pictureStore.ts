@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { isReferencePictureId, parseReferencePicturePlan, referencePictureAssetUrls, type ReferencePicturePlan, type ReferencePictureRecord } from "@heytutor/drawing";
+import { isReferencePictureId, normalizeReferencePictureLabels, parseReferencePictureLegend, parseReferencePicturePlan, referencePictureAssetUrls, referencePictureLayout, type ReferencePicturePlan, type ReferencePictureRecord } from "@heytutor/drawing";
 import { prisma } from "@/lib/db/prisma";
+import { ACCEPT_TTL_MS, DECLINE_TTL_MS } from "./cachePolicy";
 
 /**
  * Stored reference pictures. A row exists only for a picture the judge
@@ -9,9 +10,7 @@ import { prisma } from "@/lib/db/prisma";
  * DRAW_PICTURE command back to this row and drop it when the row is missing.
  */
 
-/** A cached decline is retried after a day; an accepted topic is judged again after 30 days. */
-const DECLINE_TTL_MS = 24 * 3_600_000;
-const ACCEPT_TTL_MS = 30 * 24 * 3_600_000;
+export { ACCEPT_TTL_MS, DECLINE_TTL_MS };
 
 export function pictureIdFor(sourceKey: string): string {
   return `rp_${createHash("sha256").update(`reference-picture:${sourceKey}`).digest("hex").slice(0, 24)}`;
@@ -35,10 +34,23 @@ function withUrls(record: StoredRecord): ReferencePictureRecord {
   return { ...record, imageUrl: urls.imageUrl, planUrl: urls.planUrl };
 }
 
+/**
+ * A stored record, or null when it is not one. A numbered picture's key is
+ * checked again here: a record whose key is malformed or no longer fits
+ * beside the picture resolves to nothing, so persistence strips the picture
+ * rather than drawing its numbers without names.
+ */
 function parseStoredRecord(id: string, raw: unknown): ReferencePictureRecord | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<StoredRecord>;
   if (r.id !== id || (r.source !== "wikimedia" && r.source !== "generated") || !r.plan || typeof r.title !== "string") return null;
+  // Records stored before the label rule may hold captions; they are dropped, never fatal.
+  r.labels = normalizeReferencePictureLabels(r.labels);
+  if (r.legend !== undefined) {
+    const legend = parseReferencePictureLegend(r.legend);
+    if (!legend || !referencePictureLayout({ plan: r.plan, legend })) return null;
+    return withUrls({ ...(r as StoredRecord), legend });
+  }
   return withUrls(r as StoredRecord);
 }
 

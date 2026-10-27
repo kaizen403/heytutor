@@ -90,7 +90,7 @@ export function candidateFromPage(page: CommonsPage): PictureCandidate | null {
     license,
     licenseUrl: meta(info, "LicenseUrl") || null,
     artist: meta(info, "Artist").slice(0, 200) || "Wikimedia Commons contributor",
-    description: meta(info, "ImageDescription").slice(0, 600),
+    description: meta(info, "ImageDescription").slice(0, 1200),
   };
 }
 

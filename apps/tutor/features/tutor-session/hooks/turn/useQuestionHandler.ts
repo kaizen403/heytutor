@@ -1059,9 +1059,9 @@ export function useQuestionHandler(
 
       // Reference pictures (default off): a real labelled diagram when no
       // verified figure is drawn. Never on a doubt, a resume, a code lesson or
-      // a DSA question. A subject with no diagram engine asks while the scene
-      // still plans; maths, physics and chemistry ask only once theirs failed,
-      // since most of those draw and a paid call each turn would be waste.
+      // a DSA question. The request starts once the turn plan wants a figure,
+      // so it runs while the scene plans, and is used only if no verified
+      // figure is drawn.
       const referencePictureAllowed = billed.referencePicture === true && !doubt && !resume && !dsaClassification.isDsa;
       type PendingReferencePicture = {
         promise: Promise<ReferencePictureResult>;
@@ -1302,10 +1302,14 @@ export function useQuestionHandler(
             effective: turnPlan.visualRequirement,
           });
           startDiagramExamplePicker(turnPlan);
-          // Only a subject the planner itself classified as having no engine
-          // (biology, general science) starts early; an unclassified plan
-          // (strict subjects off) waits for the text only point like the rest.
-          if (plannedTurn?.subject === "other" && !earlyChemistryLane && turnPlan.visualRequirement !== "none") {
+          // Every turn that wants a figure asks now, while the scene plans.
+          // Measured 27 Oct 2026 in the lab: asked only at the text only
+          // point, a failed physics figure added 14 to 16 s before teaching;
+          // started here, the picture is ready while the scene still plans
+          // (10 to 40 s). A verified figure that wins aborts the request, and
+          // a finished one is cached for the next student on that topic. The
+          // chemistry lane draws deterministically, so it is left out.
+          if (!earlyChemistryLane && turnPlan.visualRequirement !== "none") {
             startReferencePicture(true);
           }
         }
@@ -2014,6 +2018,7 @@ export function useQuestionHandler(
           reason: picture ? null : failure!.reason,
           ms: Date.now() - pending.startedAt,
           speculative: pending.speculative,
+          ...(answer.status === "ready" && answer.cached ? { cached: true } : {}),
         };
         tel.mark("reference-picture", {
           status: referencePictureOutcome.status,
@@ -2050,6 +2055,7 @@ export function useQuestionHandler(
           reference_picture_reason: referencePictureOutcome.reason,
           reference_picture_ms: referencePictureOutcome.ms,
           reference_picture_speculative: referencePictureOutcome.speculative,
+          reference_picture_cached: referencePictureOutcome.cached === true,
         });
       }
 

@@ -6,6 +6,7 @@ import {
   ChartColumn,
   FlaskConical,
   GraduationCap,
+  Images,
   LayoutDashboard,
   ScrollText,
   TriangleAlert,
@@ -46,6 +47,12 @@ const SECTIONS: AdminSection[] = [
     label: "Coverage",
     icon: ChartColumn,
     active: (p) => p.startsWith("/admin/coverage"),
+  },
+  {
+    href: "/admin/pictures",
+    label: "Pictures",
+    icon: Images,
+    active: (p) => p.startsWith("/admin/pictures"),
   },
 ];
 

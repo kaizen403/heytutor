@@ -37,6 +37,10 @@ export type ReferencePictureLoader = (id: string) => Promise<ReferencePictureRec
  * the turns that carry no picture.
  */
 export const loadStoredReferencePicture: ReferencePictureLoader = async (id) => {
+  // With the tier off no record resolves, so a client cannot save picture ink
+  // the server would not have drawn: the rows keep their words, lose the ink.
+  const { resolveReferencePictureEnabled } = await import("@/lib/scene/diagramStrategy.server");
+  if (!resolveReferencePictureEnabled()) return null;
   const { loadReferencePictureRecord } = await import("@/lib/reference-picture/pictureStore");
   return loadReferencePictureRecord(id);
 };

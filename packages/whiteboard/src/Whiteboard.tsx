@@ -14,6 +14,8 @@ import {
   resolveWriteWaitClockMs,
   shouldReleaseAudioPositionWait,
   textToStrokePaths,
+  textToStrokePathsSync,
+  referencePictureLayout,
   snapToBoardTypeScale,
   BOARD_TYPE_SCALE,
   DIAGRAM_ZONE,
@@ -25,6 +27,7 @@ import {
   type DrawCommandInkSettings,
   type PicturePass,
   type PicturePlacement,
+  type ReferencePictureLegendEntry,
   type ReferencePicturePlan,
 } from "@heytutor/drawing";
 import {
@@ -118,10 +121,12 @@ import {
   boardPictureStrokes,
   pictureFrameAt,
   pictureRevealSpans,
+  pictureStrokeFromPoints,
   pictureStrokeSpan,
   planPictureTimeline,
   resolvePicturePassMs,
   type PictureRevealMark,
+  type PictureStrokePath,
 } from "./pictureReveal";
 import {
   PictureImage,
@@ -271,6 +276,11 @@ export interface BoardPicture {
   plan: Pick<ReferencePicturePlan, "width" | "height" | "paper" | "outline" | "fill">;
   /** `referencePictureCredit(record)`, set under the card once the fill lands. */
   credit: string;
+  /**
+   * A numbered picture's key, from the server record. The legend pass writes
+   * it in pen beside the card, where `referencePictureLayout` puts it.
+   */
+  legend?: readonly ReferencePictureLegendEntry[];
 }
 
 export interface PictureDrawOptions {
@@ -283,7 +293,8 @@ export interface WhiteboardHandle {
   /**
    * One reveal pass of a reference picture at `placement`. The outline pass
    * lays the paper card first and traces the line work; the fill pass sweeps
-   * the colour in and sets the credit under the card. `duration <= 0` lands
+   * the colour in and sets the credit under the card; a numbered picture's
+   * legend pass writes its key in pen beside the card. `duration <= 0` lands
    * the pass's finished state at once (seek, restore). The pass's time is
    * clamped into `PICTURE_PASS_MS` whatever is asked.
    */
@@ -465,7 +476,7 @@ const THINKING_FLOURISH_EVERY = 4;
 const HIDDEN_PATH_DATA = "M 0 0";
 /** Konva attr naming the picture (id and placement) a card group belongs to. */
 const PICTURE_GROUP_ATTR = "htReferencePicture";
-/** Konva attr naming a child's role in its group: card, outline, fill, credit. */
+/** Konva attr naming a child's role in its group: card, outline, fill, credit, legend. */
 const PICTURE_PART_ATTR = "htReferencePicturePart";
 const PICTURE_CARD_RADIUS_PX = 6;
 /** The credit is metadata, set small and quiet, not lettered by the pen. */
@@ -1637,6 +1648,157 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           if (pass === "fill") setCredit(group);
         };
 
+        /**
+         * The key of a numbered picture: words, so the pen writes it, beside
+         * the card in the column `referencePictureLayout` gives this record.
+         * One tween walks every glyph stroke of every row with the picture
+         * pass's own timeline (the hand's lifts included), so a key of
+         * hundreds of strokes costs no chained frames. It lands in the
+         * picture's group, so CLEAR, an erase or a rollback takes it with the
+         * picture. A placement the layout does not give writes nothing: the
+         * key can never be written over the picture.
+         */
+        const writePictureLegend = async (): Promise<void> => {
+          const layout = picture.legend?.length ? referencePictureLayout({ plan: picture.plan, legend: picture.legend }) : null;
+          const legend = layout?.legend;
+          if (!layout || !legend) return;
+          const fitted = layout.picture;
+          if (Math.max(Math.abs(fitted.x - placement.x), Math.abs(fitted.y - placement.y), Math.abs(fitted.width - placement.width), Math.abs(fitted.height - placement.height)) > 1) return;
+          const writing: PenActivity = "write";
+          const existing = findGroup();
+          if (existing && partOf(existing, "legend")) return;
+
+          if (duration > 0) {
+            await equipInstrumentFor(writing, false, isCancelled, ownership);
+            if (isCancelled()) return;
+          } else {
+            applyInstrument(instrumentForActivity(writing));
+          }
+          const before = findGroup();
+          const laid = before ? null : layCard(1);
+          const group = before ?? laid?.group;
+          if (!group || partOf(group, "legend")) return;
+          const style = styleForCommand();
+          const ink = new Konva.Group({ listening: false });
+          ink.setAttr(PICTURE_PART_ATTR, "legend");
+          // Glyph strokes in writing order, each with the polyline the nib
+          // follows; a glyph with no stroke data is a text node shown when
+          // the pen reaches the stroke after it.
+          const strokes: Array<{ node: Konva.Path; length: number; path: PictureStrokePath }> = [];
+          const stamps: Array<{ node: Konva.Text; at: number }> = [];
+          for (const run of legend.runs) {
+            for (const charPath of textToStrokePathsSync(run.text, run.x, run.y, legend.fontSize)) {
+              if (charPath.strokes.length === 0) {
+                if (!charPath.char.trim()) continue;
+                const stamp = new Konva.Text({
+                  text: charPath.char, x: charPath.x, y: charPath.y, fontFamily: "Caveat, cursive",
+                  fontSize: charPath.fontSize ?? legend.fontSize, fill: style.color, opacity: style.opacity,
+                  listening: false, visible: duration <= 0,
+                });
+                ink.add(stamp);
+                stamps.push({ node: stamp, at: strokes.length });
+                continue;
+              }
+              for (const stroke of charPath.strokes) {
+                const node = new Konva.Path(inkPathConfig(stroke.pathData, stroke.width, style));
+                ink.add(node);
+                if (duration <= 0) continue;
+                const cacheKey = `${stroke.width}:${stroke.pathData}`;
+                let length = strokeLengthCacheRef.current.get(cacheKey);
+                if (length === undefined) {
+                  length = Math.max(node.getLength(), 1);
+                  if (strokeLengthCacheRef.current.size > 4000) strokeLengthCacheRef.current.clear();
+                  strokeLengthCacheRef.current.set(cacheKey, length);
+                }
+                let samples = strokeSampleCacheRef.current.get(stroke.pathData);
+                if (!samples) {
+                  samples = sampleKonvaPath(node, length);
+                  if (strokeSampleCacheRef.current.size > 4000) strokeSampleCacheRef.current.clear();
+                  strokeSampleCacheRef.current.set(stroke.pathData, samples);
+                }
+                const path = pictureStrokeFromPoints(samples);
+                if (!path) continue;
+                node.dash([length]);
+                node.dashOffset(length);
+                strokes.push({ node, length, path });
+              }
+            }
+          }
+
+          if (duration <= 0 || strokes.length === 0) {
+            for (const stamp of stamps) stamp.node.visible(true);
+            for (const { node } of strokes) node.dashEnabled(false);
+            group.add(ink);
+            ownChild(ink);
+            drawLayer.batchDraw();
+            return;
+          }
+
+          const totalMs = resolvePicturePassMs({ pass, lengthPx: legend.inkLengthPx, requestedMs: duration });
+          const timeline = planPictureTimeline({
+            pass,
+            strokes: strokes.map((stroke) => stroke.path),
+            brushPx: 0,
+            from: { x: cursorViewRef.current.x, y: cursorViewRef.current.y },
+            totalMs,
+          });
+          animLayer.add(ink);
+          if (!trackNode(ink, animNodesRef.current, ownership)) {
+            ink.destroy();
+            if (laid) discardGroup(laid.group);
+            return;
+          }
+          // Strokes before `done` are written in full; a stamp shows once the
+          // pen has reached the stroke after it.
+          let done = 0;
+          let stamped = 0;
+          let hint = 0;
+          const writeTo = (stroke: number, arcPx: number): void => {
+            for (; done < Math.min(stroke, strokes.length); done++) strokes[done]!.node.dashEnabled(false);
+            const current = strokes[stroke];
+            if (current) current.node.dashOffset(current.length * (1 - Math.min(arcPx / current.path.length, 1)));
+            for (; stamped < stamps.length && stamps[stamped]!.at <= stroke; stamped++) stamps[stamped]!.node.visible(true);
+          };
+          markCursorActivity();
+          await animateOver(timeline.totalMs, (progress) => {
+            const frame = pictureFrameAt(timeline, progress * timeline.totalMs, hint);
+            hint = frame.segment;
+            writeTo(frame.stroke, frame.arcPx);
+            if (frame.painting) moveNib(frame.nib.x, frame.nib.y, writing);
+            else hoverNib(frame.nib.x, frame.nib.y, writing, frame.lift);
+            animLayer.batchDraw();
+          }, isCancelled);
+
+          if (isCancelled()) {
+            // As a cancelled picture pass: a keep-visible commit keeps what is
+            // written; otherwise the half-written key goes.
+            if (!released()) {
+              ink.destroy(); untrackNode(ink, animNodesRef.current); drawTransactionsRef.current.detach(ink);
+              if (laid) discardGroup(laid.group);
+            }
+            animLayer.batchDraw();
+            drawLayer.batchDraw();
+            return;
+          }
+          untrackNode(ink, animNodesRef.current);
+          if (!group.getLayer()) {
+            // Erased or cleared under the pen: there is no card to write beside.
+            ink.destroy(); drawTransactionsRef.current.detach(ink);
+            animLayer.batchDraw();
+            return;
+          }
+          writeTo(strokes.length, 0);
+          for (const stamp of stamps) stamp.node.visible(true);
+          ink.moveTo(group);
+          animLayer.batchDraw();
+          drawLayer.batchDraw();
+        };
+
+        if (pass === "legend") {
+          await writePictureLegend();
+          return;
+        }
+
         if (duration <= 0) {
           applyInstrument(instrumentForActivity(activity));
           const group = findGroup() ?? layCard(1)?.group;
@@ -1769,6 +1931,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         hoverNib,
         markCursorActivity,
         moveNib,
+        styleForCommand,
         tagBoardInk,
         trackNode,
         untrackNode,

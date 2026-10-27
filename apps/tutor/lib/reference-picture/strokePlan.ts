@@ -82,6 +82,8 @@ export interface StrokePlanStats {
   /** Plan JSON length, inkMask included. */
   planBytes: number;
   ms: number;
+  /** Longest synchronous stretch between yields: what the build can hold the event loop for. */
+  longestSliceMs: number;
 }
 
 export interface StrokePlanResult {
@@ -100,6 +102,23 @@ export interface StrokePlanMasks {
   paper: Uint8Array;
   ink: Uint8Array;
   fillTarget: Uint8Array;
+}
+
+/**
+ * The plan runs inside the one production process that also relays the
+ * WebSocket TTS stream, so the build hands the event loop back between its
+ * heavy stages instead of holding it for the whole picture (about 200 ms).
+ */
+class Breather {
+  private sliceStart = performance.now();
+  longest = 0;
+  async breathe(): Promise<void> {
+    this.longest = Math.max(this.longest, performance.now() - this.sliceStart);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    this.sliceStart = performance.now();
+  }
+  /** After an await on work that ran off the thread (sharp), the clock restarts. */
+  resume(): void { this.sliceStart = performance.now(); }
 }
 
 const hex = (rgb: readonly number[]) => `#${rgb.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
@@ -311,8 +330,10 @@ async function preparePicture(input: Buffer, maxWidth: number, maxHeight: number
 }
 
 /** Everything but the strokes: the composited picture and its paper, ink and fill target masks. */
-export async function strokePlanMasks(input: Buffer, options?: { maxWidth?: number; maxHeight?: number }): Promise<StrokePlanMasks & { paperColour: [number, number, number] }> {
+export async function strokePlanMasks(input: Buffer, options?: { maxWidth?: number; maxHeight?: number; breather?: Breather }): Promise<StrokePlanMasks & { paperColour: [number, number, number] }> {
+  const breather = options?.breather ?? new Breather();
   const { width, height, rgb, alpha, paper: paperRgb } = await preparePicture(input, options?.maxWidth ?? STROKE_PLAN_MAX_WIDTH, options?.maxHeight ?? STROKE_PLAN_MAX_HEIGHT);
+  breather.resume();
   const n = width * height;
   const paperLike = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
@@ -324,15 +345,20 @@ export async function strokePlanMasks(input: Buffer, options?: { maxWidth?: numb
   for (let i = 0; i < n; i++) if (alpha[i]! < 128 && paperLike[i]) paper[i] = 1;
 
   const rawGray = toGray(rgb, width, height);
+  await breather.breathe();
   const gray = bilateral(rawGray, width, height, 7, 12, 3);
+  await breather.breathe();
   const clahe = await sharp(Buffer.from(gray), { raw: { width, height, channels: 1 } })
     .clahe({ width: Math.ceil(width / 8), height: Math.ceil(height / 8), maxSlope: 2 })
     .extractChannel(0)
     .raw()
     .toBuffer();
+  breather.resume();
   const paperGray = toGray(Uint8Array.from(paperRgb), 1, 1)[0]!;
   const thin = thinDark(rawGray, paperGray, width, height);
+  await breather.breathe();
   const ink = dilate(inkMap(new Uint8Array(clahe.buffer, clahe.byteOffset, n), thin, paper, width, height), width, height, 1);
+  await breather.breathe();
   // The fill pass reveals what the outline did not. Paper like pixels inside
   // the subject (a white highlight, the inside of a ring) already match the
   // card within PAPER_LIKE, so sweeping them would only spend time.
@@ -363,18 +389,22 @@ export async function strokePlanMasks(input: Buffer, options?: { maxWidth?: numb
 /** Build the stroke plan for one picture (PNG, JPEG, WebP, GIF; SVG arrives rasterised). */
 export async function buildStrokePlan(input: Buffer, options?: { maxWidth?: number; maxHeight?: number }): Promise<StrokePlanResult> {
   const started = performance.now();
-  const masks = await strokePlanMasks(input, options);
+  const breather = new Breather();
+  const masks = await strokePlanMasks(input, { ...options, breather });
   const { width, height } = masks;
+  await breather.breathe();
   const [maskPng, picturePng] = await Promise.all([
     encodeInkMask(masks.ink, width, height),
     sharp(Buffer.from(masks.rgb), { raw: { width, height, channels: 3 } }).png().toBuffer(),
   ]);
+  breather.resume();
   const inkMask = `data:image/png;base64,${maskPng.toString("base64")}`;
   const lengthOf = (strokes: number[][]) => Math.round(strokes.reduce((sum, stroke) => sum + polylineLength(stroke), 0));
   let built: { plan: ReferencePicturePlan; json: string; outline: ReturnType<typeof outlinePass>; fill: ReturnType<typeof fillPass> } | null = null;
   // A coarser grid only if a picture full of texture would break the size budget.
   for (const edge of OUTLINE_CELL_EDGES) {
     const outline = outlinePass(masks.ink, width, height, edge);
+    await breather.breathe();
     const last = outline.strokes.at(-1);
     const fill = fillPass(masks, last ? [last[last.length - 2]!, last[last.length - 1]!] : [0, 0]);
     const plan: ReferencePicturePlan = {
@@ -387,6 +417,7 @@ export async function buildStrokePlan(input: Buffer, options?: { maxWidth?: numb
       fill: { brushPx: fill.brushPx, strokes: fill.strokes, lengthPx: lengthOf(fill.strokes) },
     };
     built = { plan, json: JSON.stringify(plan), outline, fill };
+    await breather.breathe();
     if (Buffer.byteLength(built.json) <= PLAN_BYTES_BUDGET) break;
   }
   const { plan, json, outline, fill } = built!;
@@ -403,6 +434,7 @@ export async function buildStrokePlan(input: Buffer, options?: { maxWidth?: numb
       fillCoverage: fill.coverage,
       planBytes: Buffer.byteLength(json),
       ms: Math.round(performance.now() - started),
+      longestSliceMs: Math.round(breather.longest),
     },
   };
 }

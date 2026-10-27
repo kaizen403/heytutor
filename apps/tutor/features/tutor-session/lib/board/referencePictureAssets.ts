@@ -1,6 +1,7 @@
 import { boardPictureInUse, releaseBoardPicture, type BoardPicture } from "@heytutor/whiteboard";
 import {
   isReferencePictureId,
+  parseReferencePictureLegend,
   parseReferencePicturePlan,
   referencePictureAssetUrls,
   referencePictureCredit,
@@ -102,14 +103,20 @@ async function decodeImage(src: string): Promise<HTMLImageElement> {
   return image;
 }
 
-/** The record route may answer with the record or with `{ picture }`. */
+/**
+ * The record route may answer with the record or with `{ picture }`. A
+ * numbered picture's key must parse whole: a record whose key is malformed is
+ * no record, so the picture is skipped rather than drawn with unnamed numbers.
+ */
 function parseRecord(raw: unknown, id: string): ReferencePictureRecord | null {
   const value = raw && typeof raw === "object" && "picture" in raw ? (raw as { picture: unknown }).picture : raw;
   if (!value || typeof value !== "object") return null;
   const record = value as ReferencePictureRecord;
   if (record.id !== id || (record.source !== "wikimedia" && record.source !== "generated")) return null;
   if (typeof record.artist !== "string" || typeof record.license !== "string" || typeof record.title !== "string") return null;
-  return record;
+  if (record.legend === undefined) return record;
+  const legend = parseReferencePictureLegend(record.legend);
+  return legend ? { ...record, legend } : null;
 }
 
 async function loadReferencePicture(id: string, known?: ReferencePictureRecord): Promise<ReferencePictureAsset> {
@@ -148,7 +155,7 @@ async function loadReferencePicture(id: string, known?: ReferencePictureRecord):
       image,
       inkMask,
       credit,
-      board: { id, image, inkMask, plan, credit },
+      board: { id, image, inkMask, plan, credit, ...(record.legend ? { legend: record.legend } : {}) },
     };
   } finally {
     clearTimeout(timer);

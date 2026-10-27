@@ -5,7 +5,9 @@
  * abort all resolve to a reason, so the turn can always fall back to text.
  */
 import { resolveApiUrl, withTurnTraceHeaders, type DiagramSubject } from "@heytutor/tutor-core";
-import { isReferencePictureId, type ReferencePictureRecord } from "@heytutor/drawing";
+import { isReferencePictureId, parseReferencePictureLegend, type ReferencePictureRecord,
+  normalizeReferencePictureLabels,
+} from "@heytutor/drawing";
 
 /**
  * Hard ceiling on one request. The route's own stages are bounded (Commons
@@ -16,7 +18,7 @@ import { isReferencePictureId, type ReferencePictureRecord } from "@heytutor/dra
 export const REFERENCE_PICTURE_CLIENT_TIMEOUT_MS = 45_000;
 
 export type ReferencePictureResult =
-  | { status: "ready"; picture: ReferencePictureRecord }
+  | { status: "ready"; picture: ReferencePictureRecord; cached?: boolean }
   | { status: "declined" | "unavailable"; reason: string };
 
 export interface ReferencePictureRequest {
@@ -64,20 +66,23 @@ export function parseReferencePictureRecord(value: unknown): ReferencePictureRec
   // Null is a real value here (a generated picture has no Commons page).
   const pageUrl = value.pageUrl === null ? null : text(value.pageUrl, 1000) ?? undefined;
   const licenseUrl = value.licenseUrl === null || value.licenseUrl === undefined ? null : text(value.licenseUrl, 1000) ?? undefined;
-  const labels = Array.isArray(value.labels) && value.labels.length <= 80 &&
-    value.labels.every((label) => typeof label === "string" && label.length <= 120)
-    ? (value.labels as string[]) : null;
+  const labels = Array.isArray(value.labels) ? normalizeReferencePictureLabels(value.labels) : null;
   const plan = record(value.plan) ? value.plan : null;
   const planWidth = positive(plan?.width, 4096);
   const planHeight = positive(plan?.height, 4096);
   const outlineLengthPx = nonnegative(plan?.outlineLengthPx);
   const fillLengthPx = nonnegative(plan?.fillLengthPx);
+  // A numbered picture's key is kept whole or the record is refused: dropped,
+  // the board would draw the picture's numbers with no names beside them.
+  const legend = value.legend === undefined || value.legend === null ? undefined : parseReferencePictureLegend(value.legend);
+  if (legend === null) return null;
   if (!source || title === null || license === null || artist === null || imageUrl === null || planUrl === null ||
       shows === null || width === null || height === null || labels === null || pageUrl === undefined ||
       licenseUrl === undefined || planWidth === null || planHeight === null || outlineLengthPx === null || fillLengthPx === null) return null;
   return {
     id: value.id, source, title, pageUrl, license, licenseUrl, artist, imageUrl, planUrl, width, height, shows,
     labels: [...labels],
+    ...(legend ? { legend } : {}),
     plan: { width: planWidth, height: planHeight, outlineLengthPx, fillLengthPx },
   };
 }
@@ -87,7 +92,7 @@ export function referencePictureResultFromResponse(body: unknown): ReferencePict
   if (!record(body)) return { status: "unavailable", reason: "invalid_response" };
   if (body.status === "ready") {
     const picture = parseReferencePictureRecord(body.picture);
-    return picture ? { status: "ready", picture } : { status: "unavailable", reason: "invalid_picture" };
+    return picture ? { status: "ready", picture, ...(body.cached === true ? { cached: true } : {}) } : { status: "unavailable", reason: "invalid_picture" };
   }
   if (body.status === "declined") {
     const reason = typeof body.reason === "string" && /^[a-z0-9_:-]{1,64}$/i.test(body.reason) ? body.reason : "declined_unspecified";

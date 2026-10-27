@@ -36,11 +36,15 @@ import {
  * never applies: a pass is a whole drawing, not one stroke of one.
  *
  * tutor-core's `REFERENCE_PICTURE_PASS_MS` carries the same numbers for the
- * turn's schedule; the gate checks they agree.
+ * turn's schedule; the gate checks they agree. A numbered picture's legend
+ * pass takes the outline's range: tutor-core times every pass that is not the
+ * fill by the outline's numbers, and a key of up to 24 names is about as much
+ * writing as an outline is drawing.
  */
 export const PICTURE_PASS_MS: Readonly<Record<PicturePass, { minMs: number; maxMs: number }>> = {
   outline: { minMs: 4_000, maxMs: 14_000 },
   fill: { minMs: 2_000, maxMs: 7_000 },
+  legend: { minMs: 4_000, maxMs: 14_000 },
 };
 
 /** The card fades in while the pencil reaches the first stroke. */
@@ -117,6 +121,24 @@ export function boardPictureStrokes(
     strokes.push({ points, cumulative, length });
   }
   return strokes;
+}
+
+/**
+ * A stroke from points already on the board (a sampled glyph stroke of the
+ * legend), or null when it has no length to draw along.
+ */
+export function pictureStrokeFromPoints(samples: ReadonlyArray<{ x: number; y: number }>): PictureStrokePath | null {
+  if (samples.length < 2) return null;
+  const points = new Float64Array(samples.length * 2);
+  const cumulative = new Float64Array(samples.length);
+  let length = 0;
+  samples.forEach((point, i) => {
+    if (i > 0) length += Math.hypot(point.x - samples[i - 1]!.x, point.y - samples[i - 1]!.y);
+    points[i * 2] = point.x;
+    points[i * 2 + 1] = point.y;
+    cumulative[i] = length;
+  });
+  return length > 0 ? { points, cumulative, length } : null;
 }
 
 export type PictureSegment =

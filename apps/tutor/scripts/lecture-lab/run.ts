@@ -57,6 +57,14 @@ import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates, type LlmRate } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import {
+  budgetedReferencePictureFetch,
+  labReferencePicturePolicy,
+  referencePictureImageFile,
+  type LabReferencePictureImage,
+  type LabReferencePictureRecord,
+  type ReferencePictureCallAccounting,
+} from "./labReferencePicture";
 
 export interface Options {
   difficulty: string;
@@ -96,6 +104,8 @@ export interface Options {
   visualNeedReplay: string | null;
   exampleExclusions: string | null;
   productionStrictSubjects: readonly DiagramSubject[] | null;
+  /** Replay the live reference picture tier (paid, `POST /api/reference-picture`); off by default. */
+  referencePicture: boolean;
 }
 
 export interface LabSpendSummary {
@@ -282,7 +292,7 @@ function parseProductionStrictSubjects(flags: ReadonlyMap<string, string>): Diag
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
-  const booleans = new Set(["figure-only", "yes", "resume"]);
+  const booleans = new Set(["figure-only", "yes", "resume", "reference-picture"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
@@ -368,8 +378,10 @@ export function parseOptions(argv: string[]): Options {
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
   const productionStrictSubjects = parseProductionStrictSubjects(flags);
-  if (productionStrictSubjects && (evalFiles.length === 0 || arm !== "planner_examples_strict")) {
-    throw new Error("--production-strict-subjects requires a strict maths evaluation: --eval with --arm planner_examples_strict");
+  // An --ask round runs the same live subject policy, so questions a student
+  // typed can be measured on production's strict path too.
+  if (productionStrictSubjects && ((evalFiles.length === 0 && !flags.has("ask")) || arm !== "planner_examples_strict")) {
+    throw new Error("--production-strict-subjects requires a strict maths evaluation: --eval or --ask with --arm planner_examples_strict");
   }
   let parsedOrigin: URL;
   try {
@@ -412,6 +424,7 @@ export function parseOptions(argv: string[]): Options {
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
     productionStrictSubjects,
+    referencePicture: flags.get("reference-picture") === "true",
   };
 }
 
@@ -658,6 +671,36 @@ function loadEvaluationRows(paths: readonly string[], options: Options): Diagram
     : sampleDiagramEvalRows(rows, options.sample, options.seed);
 }
 
+function seconds(ms: number | null | undefined): string {
+  return typeof ms === "number" ? `${Math.round(ms / 100) / 10}s` : "n/a";
+}
+
+/** The picture outcome and the whole turn's stage timings, for `--reference-picture` rounds. */
+export function referencePictureTranscript(run: LectureRun, picture: LabReferencePictureRecord): string[] {
+  const stages = run.timings.stages;
+  const lines = ["## Reference picture"];
+  lines.push(`status ${picture.status} | reason ${picture.reason ?? "none"} | attempted ${picture.attempted} | speculative ${picture.speculative} | subject ${picture.subject ?? "n/a"}`);
+  if (picture.answer) {
+    lines.push(`route answer ${picture.answer.status}${picture.answer.reason ? ` (${picture.answer.reason})` : ""}${picture.answer.cached ? " | cached" : ""}`);
+  }
+  if (picture.pictureId) {
+    lines.push(`picture ${picture.pictureId} | ${picture.title ?? "untitled"} | ${picture.source ?? "?"} | ${picture.license ?? "?"} | ${picture.artist ?? "?"}`);
+    if (picture.shows) lines.push(`shows: ${picture.shows}`);
+    lines.push(`labels: ${picture.labels.join(" | ") || "none"}`);
+    if (picture.legend?.length) lines.push(`legend: ${picture.legend.map((entry) => `${entry.mark} ${entry.label}`).join(" | ")}`);
+  }
+  if (picture.image) lines.push(`image: ${picture.image}`);
+  lines.push(`timings: planner ${seconds(stages?.turnPlanMs)} | ProblemIR ${seconds(stages?.problemIrMs)} | scene planning ${seconds(stages?.scenePlannerMs)} | plan total ${seconds(run.timings.planMs)} | picture request ${seconds(picture.requestMs)} (started at ${seconds(picture.startedAtMs)}) | picture wait ${seconds(picture.waitMs)} | first teaching token ${seconds(run.timings.firstTeachingTokenMs)} | total ${seconds(run.timings.totalMs)}`);
+  if (picture.accounting) {
+    lines.push(`picture spend: reserved $${picture.accounting.reservedUsd.toFixed(2)}, charged $${picture.accounting.chargedUsd.toFixed(2)} (the route reports no usage, so the ceiling is charged)`);
+  }
+  if (picture.steps?.length) {
+    lines.push("", "### Search and judge trail");
+    for (const step of picture.steps) lines.push(`- ${step}`);
+  }
+  return lines;
+}
+
 export function transcript(run: LectureRun, grade: LectureGrade): string {
   const lines: string[] = [];
   lines.push(`# ${run.probeId}`);
@@ -709,6 +752,7 @@ export function transcript(run: LectureRun, grade: LectureGrade): string {
     lines.push(`rejected candidates: ${run.diagram.candidateErrorCodes.join(", ")}`);
   }
   lines.push("");
+  if (run.referencePicture) lines.push(...referencePictureTranscript(run, run.referencePicture), "");
   lines.push("## Lesson");
   if (run.givenRows.length > 0) {
     lines.push(`_runtime wrote:_ ${run.givenRows.join(" / ")}`);
@@ -834,10 +878,15 @@ async function main(): Promise<void> {
     ? parseDiagramEvalJsonl(readFileSync(resolve(options.exampleExclusions), "utf8")).map((row) => row.question)
     : [];
   const exampleExclusionFingerprint = labSampleFingerprint(exclusionQuestions);
-  const diagramExamples = evaluationRows && evaluationUsesExamples(options.arm)
+  const askProbes = !evaluationRows && options.ask ? loadAskFile(resolve(options.ask)) : null;
+  // Production's strict profile picks examples for any lesson, so an --ask
+  // round on it gets the same leak-filtered library an evaluation does.
+  const exampleQuestions = evaluationRows?.map((row) => row.question)
+    ?? (askProbes && options.productionStrictSubjects ? askProbes.map((probe) => probe.question) : null);
+  const diagramExamples = exampleQuestions && evaluationUsesExamples(options.arm)
     ? loadDiagramExemplarLibrary(
         resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl"),
-        [...evaluationRows.map((row) => row.question), ...exclusionQuestions],
+        [...exampleQuestions, ...exclusionQuestions],
       )
     : [];
   const diagramExampleCatalogue = diagramExamples.length > 0
@@ -850,9 +899,7 @@ async function main(): Promise<void> {
         difficulty: row.difficulty,
         question: row.question,
       }))
-    : options.ask
-      ? loadAskFile(resolve(options.ask))
-      : loadProbes(repoRoot, options);
+    : askProbes ?? loadProbes(repoRoot, options);
   const preflightEstimateUsd = evaluationRows
     ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
@@ -887,6 +934,7 @@ async function main(): Promise<void> {
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
     ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
       examplePickerProfile: "live-client-4000ms-subject-shelf/v2", subjectClassification: "existing-turn-plan" } : {}),
+    ...(options.referencePicture ? { referencePicture: labReferencePicturePolicy() } : {}),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
       ...labResponseUsagePricing(providerConfig.model),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
@@ -925,7 +973,7 @@ async function main(): Promise<void> {
   const reviewedIds = new Set(readRoundJudgments(outDir).map((row) => row.id));
   const sampleFingerprint = labSampleFingerprint(evaluationRows ?? probes);
   const oldCheckpoint = options.resume && existsSync(checkpointPath)
-    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; spendMode?: LabSpendMode; knownUsageUsd?: number; unresolvedCalls?: LabUnresolvedCall[]; inFlightCalls?: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[] }
+    ? JSON.parse(readFileSync(checkpointPath, "utf8")) as { chargedUsd: number; reservedUsd: number; spendMode?: LabSpendMode; knownUsageUsd?: number; unresolvedCalls?: LabUnresolvedCall[]; inFlightCalls?: number; arm: string; providerConfig: typeof providerConfig; scenePlannerLimitMs: number; probeIds: string[]; sampleFingerprint: string; sceneDeclinePolicy?: SceneDeclinePolicy; exampleExclusionFingerprint?: string; executionConfig?: Record<string, unknown>; visualNeedCalls?: VisualNeedCallAccounting[]; referencePictureCalls?: ReferencePictureCallAccounting[] }
     : null;
   if (oldCheckpoint && !oldCheckpoint.sampleFingerprint) throw new Error("legacy spend checkpoint lacks a sample fingerprint; verify the original sample before migrating it");
   if (options.resume && !oldCheckpoint) throw new Error("resume requires a spend checkpoint with proven execution identity");
@@ -944,7 +992,8 @@ async function main(): Promise<void> {
     throw new Error("resume requires the identical decline experiment and example exclusions");
   }
   const storedRowUsd = runs.reduce((sum, run) => sum + (run.planner?.estimatedCostUsd ?? 0) + (run.examplePicker?.estimatedCostUsd ?? 0)
-    + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0), 0);
+    + (run.visualNeed?.origin === "live_service" ? run.visualNeed.accounting?.chargedUsd ?? 0 : 0)
+    + (run.referencePicture?.accounting?.chargedUsd ?? 0), 0);
   const priorChargeUsd = restoredLabCharge(storedRowUsd, oldCheckpoint, options.resumeExtraUsd, options.spendMode);
   console.log(`resume: ${runs.length} saved, ${pendingProbes.length} pending, prior ${options.spendMode} charge $${priorChargeUsd.toFixed(6)}`);
 
@@ -970,12 +1019,15 @@ async function main(): Promise<void> {
   }
   const visualNeedCalls: VisualNeedCallAccounting[] = [...(oldCheckpoint?.visualNeedCalls ?? [])];
   const visualNeedAccountingByTrace = new Map<string, VisualNeedCallAccounting>();
+  const referencePictureCalls: ReferencePictureCallAccounting[] = [...(oldCheckpoint?.referencePictureCalls ?? [])];
+  const referencePictureAccountingByTrace = new Map<string, ReferencePictureCallAccounting>();
   const checkpointSpend = () => writeFileSync(checkpointPath, `${JSON.stringify({
     ...spendCap.summary(runs.length, probes.length), arm: options.arm, providerConfig,
     scenePlannerLimitMs: options.scenePlannerLimitMs, probeIds: probes.map((probe) => probe.id),
     sampleFingerprint, executionConfig,
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedCalls,
+    ...(options.referencePicture || referencePictureCalls.length > 0 ? { referencePictureCalls } : {}),
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
@@ -997,6 +1049,11 @@ async function main(): Promise<void> {
         replayedRows: runs.filter((run) => run.visualNeed?.origin === "frozen_replay").length,
         interruptedUsdUnattributed: oldCheckpoint?.reservedUsd ?? 0 },
       resumeAccounting: { savedRows: savedFiles.length, priorChargeUsd, interruptedAllowanceUsd: options.resumeExtraUsd },
+      ...(options.referencePicture ? { referencePictureCalls: {
+        calls: referencePictureCalls.length, reservationUsd: executionConfig.referencePicture?.reservationUsd ?? null,
+        chargedUsd: Math.round(referencePictureCalls.reduce((sum, call) => sum + call.chargedUsd, 0) * 1_000_000) / 1_000_000,
+        provedNoDispatch: referencePictureCalls.filter((call) => call.provedNoDispatch).length,
+      } } : {}),
       ...spendCap.summary(runs.length, probes.length), budgetTerminatedRows,
       evaluation: evaluationRows ? summarizeEvaluation(runs) : null,
       ...summarize(grades, runs),
@@ -1032,6 +1089,20 @@ async function main(): Promise<void> {
         beforeDispatch: checkpointSpend,
         settle: (reserved, charged, observation) => settleSpend(reserved, charged, observation, { traceId, kind: "visual_need" }),
         onAccounting: (call) => { visualNeedCalls.push(call); if (traceId) visualNeedAccountingByTrace.set(traceId, call); checkpointSpend(); },
+        onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
+      });
+    }
+    // Paid, but not a chat request: the decision below would let it through
+    // unbudgeted. The route returns no usage, so its fixed ceiling is reserved
+    // and settled whatever the flag says.
+    if (url === `${options.origin}/api/reference-picture`) {
+      return budgetedReferencePictureFetch(input, { ...init, headers }, nativeFetch, {
+        reserve: (usd) => options.spendMode === "response_usage" ? spendCap.reserveCallAsync(usd, init?.signal) : spendCap.reserveCall(usd),
+        spendMode: options.spendMode, traceId,
+        reservationUsd: executionConfig.referencePicture?.reservationUsd ?? labReferencePicturePolicy().reservationUsd,
+        beforeDispatch: checkpointSpend,
+        settle: (reserved, charged, observation) => settleSpend(reserved, charged, observation, { traceId, kind: "reference_picture" }),
+        onAccounting: (call) => { referencePictureCalls.push(call); if (traceId) referencePictureAccountingByTrace.set(traceId, call); checkpointSpend(); },
         onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
       });
     }
@@ -1118,6 +1189,12 @@ async function main(): Promise<void> {
   console.log(
     `lecture lab: ${probes.length} ${evaluationRows ? "evaluation rows" : `${options.difficulty} probes`}, concurrency ${options.concurrency}, ${options.spendMode} max $${options.maxUsd.toFixed(2)}, familiarity ${options.familiarity} -> ${options.out}`,
   );
+  if (options.referencePicture) {
+    console.log(`reference picture: on, $${executionConfig.referencePicture?.reservationUsd.toFixed(2)} reserved and charged per request (the route reports no usage), text only wait ${executionConfig.referencePicture?.textOnlyWaitMs}ms`);
+    if (!options.productionStrictSubjects) {
+      console.log("reference picture: no --production-strict-subjects, so the planner classifies no subject and nothing starts early (live with DIAGRAM_STRICT_SUBJECTS empty)");
+    }
+  }
 
   let done = runs.length;
   let newRowsDone = 0;
@@ -1129,6 +1206,7 @@ async function main(): Promise<void> {
       async (probe) => {
         const startedAt = Date.now();
         const traceId = crypto.randomUUID();
+        let pictureImage: LabReferencePictureImage | null = null;
         const run = await runLecture(probe.question, {
           origin: options.origin,
           cookie,
@@ -1150,9 +1228,12 @@ async function main(): Promise<void> {
           diagramExamples,
           diagramExampleCatalogue,
           spendMode: options.spendMode,
+          referencePicture: options.referencePicture,
+          onReferencePictureImage: (image) => { pictureImage = image; },
         });
         run.planner = await usageTracker.finishAsync(traceId);
         if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
+        if (run.referencePicture) run.referencePicture.accounting = referencePictureAccountingByTrace.get(traceId);
         if (budgetDeniedTraces.has(traceId)) {
           budgetTerminatedRows.push(probe.id);
           mkdirSync(`${outDir}/interrupted`, { recursive: true });
@@ -1175,6 +1256,14 @@ async function main(): Promise<void> {
           writeFileSync(`${outDir}/frames/${slug}.svg`, run.diagram.svg);
         }
         run.diagram.png = pngPath;
+        const shownPicture = pictureImage as LabReferencePictureImage | null;
+        if (shownPicture && run.referencePicture) {
+          // What the student saw, for the human reading the round.
+          const file = referencePictureImageFile(slug, shownPicture.contentType);
+          mkdirSync(`${outDir}/pictures`, { recursive: true });
+          writeFileSync(`${outDir}/${file}`, shownPicture.bytes);
+          run.referencePicture.image = file;
+        }
         writeFileSync(`${outDir}/runs/${slug}.json`, `${JSON.stringify({
           ...run,
           providerConfig,
@@ -1193,7 +1282,14 @@ async function main(): Promise<void> {
         const state = evaluationRows
           ? run.error ? "dead" : run.diagram.committed ? "fig " : "none"
           : grade.transportFailure ? "dead" : grade.passed ? "ok  " : "FAIL";
-        console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s ${probe.id}`);
+        const pictureState = run.referencePicture
+          ? ` picture ${run.referencePicture.status}${run.referencePicture.reason ? `:${run.referencePicture.reason}` : ""}`
+          : "";
+        console.log(`[${done}/${probes.length}] ${state} ${Math.round((Date.now() - startedAt) / 1000)}s${pictureState} ${probe.id}`);
+        // A server with the tier off answers 404 before any spend; every later row would measure nothing.
+        if (run.referencePicture?.accounting?.httpStatus === 404) {
+          throw new Error("the dev server answered 404 for /api/reference-picture: start it with DIAGRAM_REFERENCE_PICTURE=on");
+        }
       },
     );
   } catch (error) {
