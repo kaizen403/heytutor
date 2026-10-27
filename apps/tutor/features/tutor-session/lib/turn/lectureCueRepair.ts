@@ -60,13 +60,43 @@ const COMPARISON_AFTER_NUMBER = /^(?:\s+\S+){0,2}?\s+(?:less|more|greater|smalle
 /** "is one of the", "is one way to": a count, not the row's value. */
 const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?|types?|common|key|important|big|major|main|simple|useful|classic|good|great|small|quick|easy|last|final|other|more|such|particular|single|special|standard|basic|typical|possible)\b/i;
 /**
- * What may follow a value spoken in words: the end of the clause, a symbol, an
- * operation, a fraction, a ratio ("one in six"), or a unit. "one form of
- * energy" and "two marks" are counts of things, not the row's value. "in" counts
- * only before a number ("one in six"), "to" only as "to the power", and "I" is
- * never a symbol ("one I always use").
+ * A value spoken in words needs strong evidence that it is a value: a unit that
+ * ends the clause ("six newtons.", "sixty meters per second"), an operation with
+ * its operand ("two to the power of four"), a fraction word, or two or more
+ * number words ("one hundred."). A bare "one." or "one a", "one in", "one point"
+ * or a unit used loosely ("ten centimeters from the lens", "ten years old") is
+ * not enough: "here is one", "this is one a lot of students miss" stay as spoken.
  */
-const AFTER_SPOKEN_VALUE = /^(?:\s*(?:[,.;:!?)]|$)|\s+(?:(?![iI]\b)\p{L}|over|times|squared|cubed|plus|minus|divided|remainder|of|per|to\s+the\s+power|in\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|\d)|cubic|square|degrees?|half|halves|thirds?|quarters?|(?:fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\p{L}+teenth|\p{L}+tieth|hundredth|thousandth|millionth)s?|rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|electron|atmospheres?|calories?|kilocalories?|decibels?|light)\b)/iu;
+const NUMBER_WORDS = "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million";
+const UNIT = "(?:(?:square|cubic)\\s+)?(?:rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|atmospheres?|calories?|kilocalories?|decibels?|degrees?|electron\\s+volts?|light\\s+years?)\\b";
+const OPERATION = `(?:squared|cubed|(?:over|times|plus|minus|divided\\s+by|remainder|to\\s+the\\s+power(?:\\s+of)?)\\s+(?:(?:${NUMBER_WORDS})\\b|\\d|(?![iI]\\b)\\p{L}\\b))`;
+const CLAUSE_END = "\\s*(?:[,.;:!?)]|$)";
+const FRACTION = "(?:half|halves|thirds?|quarters?|(?:fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\\p{L}+teenth|\\p{L}+tieth|hundredth|thousandth|millionth)s?)";
+const SPOKEN_VALUE_END = new RegExp(
+  `^\\s+(?:${UNIT}(?:\\s+(?:per\\s+${UNIT}|squared|cubed|${UNIT}))*${CLAUSE_END}|${OPERATION}|${FRACTION}(?:${CLAUSE_END}|\\s+${OPERATION}|\\s+(?![iI]\\b)\\p{L}\\b))`,
+  "iu",
+);
+const RUN_TOKEN = new RegExp(`^[\\s-]+((?:${NUMBER_WORDS}|point|and|percent)|[\\d.,%]+)(?![\\p{L}\\p{N}])`, "iu");
+const LARGE_UNIT = /^(?:hundred|thousand|lakh|million)$/;
+const JOINER = /^(?:and|point|percent)$/;
+
+/** True when the words after "is" are a value spoken in words, by strong evidence only. */
+function isSpokenValue(after: string): boolean {
+  let rest = after;
+  let words = 0;
+  let previous = "";
+  for (let token = RUN_TOKEN.exec(rest); token; token = RUN_TOKEN.exec(rest)) {
+    const word = token[1]!.toLowerCase();
+    const next = RUN_TOKEN.exec(rest.slice(token[0].length))?.[1]?.toLowerCase();
+    // "one hundred and five" continues; "four and five" and "one point." do not.
+    if (word === "and" && !(LARGE_UNIT.test(previous) && next && !JOINER.test(next))) break;
+    if (word === "point" && !(next && !JOINER.test(next))) break;
+    if (word !== "and" && word !== "point") words += 1;
+    previous = word;
+    rest = rest.slice(token[0].length);
+  }
+  return SPOKEN_VALUE_END.test(rest) || (words >= 2 && new RegExp(`^${CLAUSE_END}`, "u").test(rest));
+}
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
@@ -174,8 +204,8 @@ function repairLectureStep(rawStep: string): string {
       // "is ten percent less than" compares; it is not a value.
       const rest = after.replace(NUMBER_RUN, "");
       if (COMPARISON_AFTER_NUMBER.test(rest)) continue;
-      // A value spoken in words must be followed by what a value is followed by.
-      if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !AFTER_SPOKEN_VALUE.test(rest))) continue;
+      // A value spoken in words needs strong evidence (isSpokenValue).
+      if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !isSpokenValue(after))) continue;
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }

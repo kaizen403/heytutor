@@ -232,7 +232,9 @@ assert(!boxSpoken.includes("[EMPHASIZE") && !boxBuffer.text().includes("[EMPHASI
 for (const [step, spoken] of [
   ["[STEP]so the force is six newtons. [WRITE:F = 6 N,90,211][/STEP]", "the force equals six newtons"],
   ["[STEP]the output power is eta times the input. [WRITE:P_out = η P_in,90,211][/STEP]", "the output power equals eta times"],
-  ["[STEP]two squared is four. [WRITE:2^2 = 4,90,211][/STEP]", "two squared equals four"],
+  ["[STEP]two squared is two times two. [WRITE:2^2 = 2 × 2,90,211][/STEP]", "two squared equals two times two"],
+  ["[STEP]so each share is one third. [WRITE:s = 1/3,90,211][/STEP]", "each share equals one third"],
+  ["[STEP]so the force is one hundred and five newtons. [WRITE:F = 105 N,90,211][/STEP]", "the force equals one hundred and five newtons"],
 ] as const) {
   assert(spokenAfter(step).includes(spoken), `a value in words or a Greek name is spoken as equals: ${spokenAfter(step)}`);
 }
@@ -256,9 +258,19 @@ for (const [step, kept] of [
   ["[STEP]This is one in which friction acts. [WRITE:F = 1.5 N,90,211][/STEP]", "This is one in which friction acts"],
   ["[STEP]This is one with a twist. [WRITE:x = 1,90,211][/STEP]", "This is one with a twist"],
   ["[STEP]There is one. [WRITE:n = 1,90,211][/STEP]", "There is one"],
+  ["[STEP]In total there is twenty newtons. [WRITE:F = 20 N,90,211][/STEP]", "there is twenty newtons"],
   ["[STEP]The trick is one I always use. [WRITE:x = 1,90,211][/STEP]", "The trick is one I always use"],
+  // A value in words needs strong evidence (#345 round 5): a lone number word,
+  // "in", or a unit used loosely is a missed cue by design, never an equals.
+  ["[STEP]Here is one. [WRITE:n = 1,90,211][/STEP]", "Here is one"],
+  ["[STEP]The object is ten centimeters from the lens. [WRITE:u = 10 cm,90,211][/STEP]", "The object is ten centimeters from the lens"],
+  ["[STEP]This is one a lot of students miss. [WRITE:x = 1,90,211][/STEP]", "This is one a lot of students miss"],
+  ["[STEP]This is two to the power of teamwork. [WRITE:x = 2,90,211][/STEP]", "This is two to the power of teamwork"],
+  ["[STEP]two squared is four. [WRITE:2^2 = 4,90,211][/STEP]", "two squared is four"],
+  ["[STEP]The pair is four and five. [WRITE:x = 4,90,211][/STEP]", "The pair is four and five"],
+  ["[STEP]so the probability is one in six. [WRITE:P = 1/6,90,211][/STEP]", "the probability is one in six"],
 ] as const) {
-  assert(spokenAfter(step).includes(kept), `a comparison or a count stays as spoken: ${spokenAfter(step)}`);
+  assert(spokenAfter(step).includes(kept), `a comparison, a count or a weak value stays as spoken: ${spokenAfter(step)}`);
 }
 const oneWay = spokenAfter("[STEP]The force is one hundred newtons. This is one way to check the result. [WRITE:F = 100 N,90,211][/STEP]");
 assert(oneWay.includes("The force equals one hundred newtons") && oneWay.includes("This is one way to check"),
@@ -267,7 +279,7 @@ assert(oneWay.includes("The force equals one hundred newtons") && oneWay.include
 assert(spokenAfter("[STEP]the pressure is one hundred thousand pascals. [WRITE:P = 100000 Pa,90,211][/STEP]").includes("the pressure equals one hundred thousand"),
   "a value of one hundred thousand leads with its first word");
 assert(spokenAfter("[STEP]so x is omicron y. [WRITE:x = ο y,90,211][/STEP]").includes("x equals omicron y"), "omicron leads by its spoken name");
-assert(spokenAfter("[STEP]so the probability is one in six. [WRITE:P = 1/6,90,211][/STEP]").includes("the probability equals one in six"), "a ratio spoken in words is still the value");
+assert(spokenAfter("[STEP]so the probability is one over six. [WRITE:P = 1/6,90,211][/STEP]").includes("the probability equals one over six"), "a fraction spoken in words is still the value");
 // A number word is read whole: "sixty" is not "six" plus "ty", so the value is
 // still found ("sixty meters per second") and a comparison after it still is.
 assert(spokenAfter("[STEP]so the speed is sixty meters per second. [WRITE:v = 60 m/s,90,211][/STEP]").includes("the speed equals sixty meters per second"),
