@@ -263,7 +263,10 @@ const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevations?|elevated|(?:d
 
 /**
  * Positive evidence, the first line of the guard. A figure draws only for a
- * bare conceptual ask: every word of the stem (after curriculum references are
+ * bare principle ask ("Derive Archimedes' principle", "Explain how a
+ * hydraulic press works"): no body, piston, symbol, placement or role word,
+ * since each of those let a stem describe a case the figure contradicts.
+ * In detail, a figure draws only for a bare conceptual ask: every word of the stem (after curriculum references are
  * removed) is in that operator's closed vocabulary, and a topic word is
  * present. Any other word declines: a number word, "times", a Hindi word, a
  * shape, a second liquid, a height, a manometer. Widening a refusal list kept
@@ -285,26 +288,16 @@ const ASK_WORDS = [
  */
 const LOCATION_WORDS = new Set(["top", "bottom", "at", "on", "near", "face", "faces"]);
 const SUBMERGED_BODY_WORDS = new Set([...ASK_WORDS,
-  "archimedes", "upthrust", "buoyancy", "buoyant", "force", "forces", "acting", "acts", "act", "experienced", "experiences",
-  "experience", "felt", "feels", "feel", "body", "block", "object", "cube", "solid", "fully", "completely", "wholly", "totally",
-  "submerged", "immersed", "held", "under", "underwater", "water", "liquid", "fluid", "upper",
-  "lower", "greater", "larger", "more", "bigger", "than", "exceeds", "exceed", "equals", "equal", "difference", "differ", "net",
-  "pressure", "depth", "deeper", "compare", "comparison", "two",
-  "f", "f1", "f2", "w", "w1", "w2", "u", "v", "rho", "g", "h", "h1", "h2",
+  "archimedes", "upthrust", "buoyancy", "buoyant", "force", "forces",
 ].filter((word) => !LOCATION_WORDS.has(word)));
 const HYDRAULIC_PRESS_WORDS = new Set([...ASK_WORDS,
-  "hydraulic", "press", "lift", "jack", "elevator", "pascal", "pascals", "transmission", "transmitted", "transmits", "pressure",
-  // Role and size words ("effort on the large piston", "a large input piston") are out: the figure draws one
-  // assignment, F1 down on the small piston and F2 up on the large one.
-  "piston", "pistons", "force", "forces", "area",
-  "areas", "multiplied", "multiplication", "multiply", "multiplies", "fluid", "liquid",
-  "oil", "incompressible", "enclosed", "equally", "all", "directions", "every", "direction", "works", "work", "working",
-  "raised", "raise", "raises", "lifts", "lifting", "heavy", "two", "cylinder", "cylinders", "different", "consists",
-  "connected", "feel", "feels", "acting", "acts", "f", "f1", "f2", "a", "a1", "a2", "p",
+  "hydraulic", "press", "lift", "jack", "pascal", "pascals", "works", "work", "working", "pressure", "transmission",
+  "transmitted", "transmits", "equally", "all", "directions", "every", "direction", "multiplied", "multiplication",
+  "multiply", "multiplies", "force", "forces", "fluid", "liquid", "enclosed", "incompressible",
 ]);
 const SUBMERGED_TOPIC = /^(?:archimedes|upthrust|buoyancy|buoyant|submerged|immersed|underwater)$/;
-/** A single "piston" or Pascal's law alone may be a one piston setup; the figure needs a press or "pistons". */
-const HYDRAULIC_PRESS_TOPIC = /^(?:hydraulic|press|lift|jack|pistons)$/;
+/** Only "hydraulic" names this apparatus: a lift, jack or press alone may be any machine. */
+const HYDRAULIC_PRESS_TOPIC = /^hydraulic$/;
 /** A named body must be said to be under the liquid. */
 const CONCRETE_BODY = /^(?:body|block|cube|object|solid)$/;
 const SUBMERSION = /^(?:submerged|immersed|underwater)$/;
