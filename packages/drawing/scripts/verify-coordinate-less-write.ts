@@ -142,6 +142,25 @@ const batchRefused = parseDrawingCommands(refusedThenTags);
 assert(batchRefused.commands.filter((command) => command.type === "WRITE").map((command) => command.text).join("|") === "F = ma" &&
   !/\[\/?WRITE/i.test(batchRefused.narration), "the batch parser drops the refused WRITE and the stray [/WRITE] the same way");
 
+// Dropped protocol between two words leaves one space: words are never glued
+// and two numbers never become one ("x = 2[/WRITE]3" is not "x = 23").
+const glued: Array<[string, string[], string[]]> = [
+  ["[STEP]It is alive.[WRITE:w3:y=211]cell = life[/WRITE]This is alive.[/STEP]", ["alive. cell", "life This"], ["alive.cell", "lifeThis"]],
+  ["[STEP]Now [WRITE:w6:y475]canal: birth[/WRITE]The delivery.[/STEP]", ["birth The"], ["birthThe"]],
+  ["Then x = 2[/WRITE]3 seconds later.", ["2 3 seconds"], ["23 seconds"]],
+  ["[STEP]Speed v = 2[WRITE:y=277]3 seconds later.[/STEP]", ["2 3 seconds"], ["23 seconds"]],
+];
+for (const [source, spaced, joined] of glued) {
+  const spokenBatch = parseDrawingCommands(source).narration;
+  for (const chunk of [1, 7]) {
+    const spoken = streamed(source, chunk).narration;
+    for (const [where, text] of [["stream", spoken], ["batch", spokenBatch]] as const) {
+      assert(spaced.every((piece) => text.includes(piece)) && !joined.some((piece) => text.includes(piece)),
+        `dropped protocol leaves a space in the ${where} (chunk ${chunk}): ${JSON.stringify(text)}`);
+    }
+  }
+}
+
 // The overflow and the end of the stream drop a refused WRITE too.
 const overflow = streamed(`[STEP]A row. [WRITE:y=277] ${"then more words ".repeat(24)}[/STEP]`);
 assert(overflow.writes.length === 0 && !overflow.narration.includes("[WRITE"), "a refused WRITE held past the buffer limit is not spoken");

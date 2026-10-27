@@ -805,11 +805,24 @@ export function matchRefusedWriteTag(slice: string): string | null {
 /** `[/WRITE]` closes nothing in this protocol; it is never spoken. */
 export const STRAY_WRITE_CLOSE = /\[\/WRITE\]/giu;
 
+/**
+ * The text left where protocol was dropped from speech: one space when a word
+ * ends right before it and a word, a number or "(" starts right after it,
+ * otherwise nothing. The streaming parser applies the same rule.
+ */
+export function separatorAfterDrop(before: string | undefined, after: string): string {
+  return before !== undefined && /\S/u.test(before) && SPOKEN_WORD_START.test(after) ? ' ' : '';
+}
+export const SPOKEN_WORD_START = /^[\p{L}\p{N}(]/u;
+
 /** Rewrite every coordinate-less WRITE that cannot close canonically. */
 export function repairCoordinateLessWriteTags(responseText: string): string {
-  // A stray [/WRITE] is dropped from speech only; a row may quote one.
-  const speech = (text: string) => text.replace(STRAY_WRITE_CLOSE, '');
+  // A stray [/WRITE] is dropped from speech only; a row may quote one. A
+  // dropped tag between two words leaves one space, so "x = 2[/WRITE]3" is
+  // never spoken as "x = 23".
   let out = '';
+  const speech = (text: string) => text.replace(STRAY_WRITE_CLOSE, (_tag, offset: number, whole: string) =>
+    separatorAfterDrop(offset > 0 ? whole[offset - 1] : out.slice(-1), whole.slice(offset + _tag.length)));
   let from = 0;
   const opens = /\[WRITE:/giu;
   for (;;) {
@@ -834,6 +847,7 @@ export function repairCoordinateLessWriteTags(responseText: string): string {
     if (refused) {
       out += speech(responseText.slice(from, open));
       from = open + refused.length;
+      out += separatorAfterDrop(out.slice(-1), responseText.slice(from));
       continue;
     }
     out += speech(responseText.slice(from, open + 1));

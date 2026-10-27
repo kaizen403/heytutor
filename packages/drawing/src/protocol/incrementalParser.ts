@@ -4,6 +4,7 @@ import {
   isCompleteDrawingTag,
   matchCoordinateLessWriteTag,
   matchRefusedWriteTag,
+  SPOKEN_WORD_START,
   parseDrawingTag,
   parseDrawCommandFromTag,
   repairHeaderOnlyTextTags,
@@ -34,6 +35,11 @@ export class IncrementalTagParser {
    * usual terminators are suspended until a newline or STEP footer arrives.
    */
   private headerOnlyTextTag = false;
+  /**
+   * Protocol was just dropped from speech after a word: the next narration
+   * character, if it starts a word, a number or "(", gets one space first.
+   */
+  private pendingSeparator = false;
   private charPosition = 0;
   private readonly preserveStepSpeech: boolean;
   private insideStep = false;
@@ -72,6 +78,10 @@ export class IncrementalTagParser {
   }
 
   private processChar(char: string): void {
+    if (this.state === 'NARRATION' && this.pendingSeparator) {
+      this.pendingSeparator = false;
+      if (SPOKEN_WORD_START.test(char)) this.narrationBuffer += ' ';
+    }
     if (this.state === 'NARRATION') {
       if (char === '[') {
         this.tagBuffer = '[';
@@ -154,6 +164,7 @@ export class IncrementalTagParser {
     this.charPosition += refused.length;
     this.tagBuffer = '';
     this.state = 'NARRATION';
+    this.pendingSeparator = /\S$/u.test(this.narrationBuffer);
     for (const char of rest) this.processChar(char);
     return true;
   }
@@ -268,6 +279,7 @@ export class IncrementalTagParser {
       this.charPosition += this.tagBuffer.length;
       this.tagBuffer = '';
       this.state = 'NARRATION';
+      this.pendingSeparator = /\S$/u.test(this.narrationBuffer);
       return;
     }
 
