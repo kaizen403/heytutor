@@ -65,9 +65,43 @@ jobs:
           node-version: 24
           cache: pnpm
       - name: Install audio validation and database tools
+        # On 26 Oct 2026 the Azure Ubuntu mirror served ffmpeg's 66 MB of dependencies at
+        # 30 to 40 kB/s and this step ate the whole 35 minute job. apt's own timeouts do not
+        # catch a slow but live transfer, so each download attempt is bounded by `timeout`,
+        # and later attempts drop the Azure mirror so apt uses the next mirrors in the
+        # runner's list. Finished downloads stay in the apt cache between attempts. The step
+        # still fails loudly when the tools cannot be installed.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg postgresql-client
+          set -euo pipefail
+          apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+          packages=(ffmpeg postgresql-client)
+          mirrors=/etc/apt/apt-mirrors.txt
+          azure='azure\.archive\.ubuntu\.com'
+          downloaded=false
+          for attempt in 1 2 3; do
+            if [ "$attempt" -gt 1 ] && [ -f "$mirrors" ] \
+              && grep -q "$azure" "$mirrors" \
+              && grep -vE "${azure}|^[[:space:]]*$" "$mirrors" >/dev/null; then
+              echo "Attempt $attempt: dropping the Azure Ubuntu mirror"
+              sudo sed -i "/${azure}/d" "$mirrors"
+            fi
+            if sudo timeout --kill-after=10s 45s apt-get "${apt_opts[@]}" update \
+              && sudo timeout --kill-after=10s 120s apt-get "${apt_opts[@]}" install -y \
+                --no-install-recommends --download-only "${packages[@]}"; then
+              downloaded=true
+              break
+            fi
+            echo "::warning::apt download attempt $attempt failed or timed out"
+          done
+          if [ "$downloaded" != true ]; then
+            echo "::error::Could not download ${packages[*]} in 3 bounded attempts"
+            exit 1
+          fi
+          sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends "${packages[@]}"
+          for tool in ffmpeg ffprobe psql; do
+            command -v "$tool" >/dev/null || { echo "::error::$tool is missing after install"; exit 1; }
+          done
           ffmpeg -version >/dev/null
           ffprobe -version >/dev/null
       - name: Install dependencies without lifecycle scripts
@@ -118,6 +152,8 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:publication
       - name: VSEPR source evidence and save regressions (offline)
         run: pnpm --filter @heytutor/tutor exec tsx --tsconfig tsconfig.json scripts/verify/verify-vsepr-source-evidence.ts
+      - name: ProblemIR body binding repros and river and launch height declines (offline)
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-obligation-binding-repros.ts
       - name: Atomic scene label regressions
         run: pnpm --filter @heytutor/tutor verify:atomic-labels
       - name: Figure tour narration regressions
@@ -141,6 +177,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-failure-classification.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-segment-speech-ownership.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-stale-tab-reload.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-graceful-shutdown.ts
       - name: Teaching truth and scoped solver authority (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-truth-authority.ts
