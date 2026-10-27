@@ -1,3 +1,4 @@
+import { mathToSpeech } from "@heytutor/tutor-core";
 import {
   matchClosedWriteRow,
   parseDrawingCommands,
@@ -45,6 +46,30 @@ function withoutClosedRows(step: string): string {
   return out + step.slice(from);
 }
 
+/**
+ * The first spoken word of each mathematical side after an "=" in the step's
+ * relation rows: "f = μN" gives "mu", "x = b/(2a)" gives "b", "P = mgv" gives
+ * "m" (spoken letter by letter). A side of plain words ("s3 = object storage",
+ * "distance = rotated") is a definition, and its "is" is never an "equals".
+ */
+const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|theta|lambda|mu|nu|pi|rho|sigma|tau|phi|omega)$/;
+const MATH_MARK = /[\d+\-*/^×·÷√∫Σ²³]/;
+function relationLeads(commands: readonly DrawCommand[]): Set<string> {
+  const leads = new Set<string>();
+  for (const command of commands) {
+    if (!isRelationWrite(command)) continue;
+    for (const raw of (command.text ?? "").split("=").slice(1)) {
+      const side = raw.trim();
+      const first = /[\p{L}\p{N}]+/u.exec(mathToSpeech(side).toLowerCase())?.[0];
+      if (!first) continue;
+      if (/^\d/.test(first) || first.length === 1 || GREEK_LETTER.test(first) || MATH_MARK.test(side)) leads.add(first);
+      // A bare run of symbols ("mgv", "IR") is spoken letter by letter.
+      if (/^\p{L}{2,4}$/u.test(side)) leads.add(first[0]!);
+    }
+  }
+  return leads;
+}
+
 function narrationOutsideTags(text: string): string {
   return parseDrawingCommands(text).narration;
 }
@@ -79,12 +104,18 @@ function repairLectureStep(rawStep: string): string {
   }
   if (cursor < step.length) ranges.push([cursor, step.length]);
 
+  // Only an "is" that the row's value follows is an "equals": "friction is mu
+  // N" for f = μN. "pneumonia is infection", "the hypotenuse is always the
+  // longest side" and "R is resistance" are descriptions, and stay as spoken.
+  const leads = relationLeads(parsed.commands);
   let last: { start: number; end: number } | null = null;
   for (const [from, to] of ranges) {
     const slice = step.slice(from, to);
     COPULA_IS.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = COPULA_IS.exec(slice))) {
+      const next = /^\s+([\p{L}\p{N}]+)/u.exec(slice.slice(match.index + match[0].length))?.[1]?.toLowerCase();
+      if (!next || !leads.has(next)) continue;
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }

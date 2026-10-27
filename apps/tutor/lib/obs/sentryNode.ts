@@ -34,6 +34,12 @@ if (dsn && sentryServerRuntimeEnabled()) {
   });
 }
 
+/** Send queued events before a restart exits; resolves at once when Sentry is off. */
+export function flushServerSentry(timeoutMs: number): Promise<unknown> {
+  if (!dsn || !sentryServerRuntimeEnabled()) return Promise.resolve();
+  return Sentry.flush(timeoutMs);
+}
+
 /** Speech-relay failures. The student text and provider credentials stay out of the event. */
 export function captureTtsRelayFailure(error: unknown): void {
   if (!dsn || !sentryServerRuntimeEnabled()) return;
