@@ -14,7 +14,7 @@ const server = createServer((request, response) => {
   if (request.url === "/stream") {
     response.writeHead(200, { "content-type": "text/plain" });
     response.write("first|");
-    setTimeout(() => response.end("last"), streamMs);
+    setTimeout(() => response.end("last", () => process.stderr.write("STREAM END\n")), streamMs);
     return;
   }
   if (request.url === "/hang") {
@@ -43,6 +43,7 @@ installGracefulShutdown({
     ? {
         flushCapMs: Number(process.env.FLUSH_CAP_MS ?? "1500"),
         beforeExit: () => new Promise<void>((done) => {
+          process.stderr.write("FLUSH START\n");
           if (process.env.FLUSH_MS === "hang") return;
           setTimeout(() => {
             process.stderr.write("FLUSHED\n");

@@ -26,8 +26,12 @@ function start(env: Record<string, string>, runner: "node-import" | "tsx-cli" = 
   const child = spawn(command, args, { detached: true, cwd: resolve(__dirname, "../.."), env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
   let stderr = "";
   child.stderr!.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+  // Resolve on "close", once stdout and stderr have been read to the end, but
+  // keep the time of "exit" for the timing checks.
+  let exitedAt = 0;
+  child.once("exit", () => { exitedAt = Date.now(); });
   const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }>((done) =>
-    child.once("exit", (code, signal) => done({ code, signal, at: Date.now() })));
+    child.once("close", (code, signal) => done({ code, signal, at: exitedAt || Date.now() })));
   return new Promise((done, fail) => {
     const timer = setTimeout(() => fail(new Error("fixture did not start")), 30_000);
     child.stdout!.on("data", (chunk: Buffer) => {
@@ -138,19 +142,32 @@ async function main() {
     }
   }
 
-  // 4. The Sentry flush runs after the drain and before exit; a stuck flush
-  //    cannot hold the exit past its own cap.
+  // 4. The Sentry flush waits for the requests already running: it starts
+  //    after the stream ends and the drain closes, and completes before exit.
   {
-    const { child, exited, stderr } = await start({ FLUSH_MS: "400" });
-    const signalledAt = Date.now();
-    signalGroup(child);
+    const { child, port, exited, stderr } = await start({ FLUSH_MS: "300", STREAM_MS: "800", CAP_MS: "20000" });
+    const streamed = get(port, "/stream", () => signalGroup(child));
+    const result = await within(streamed, 10_000, "the stream before the flush", child);
+    assert(result.complete && result.body === "first|last", "the stream in flight finishes before the flush");
     const exit = await within(exited, 10_000, "the flushed exit", child);
-    const waited = exit.at - signalledAt;
     assert.equal(exit.code, 0, `the flushed process exits 0 (code ${exit.code}, signal ${exit.signal})`);
-    assert(stderr().indexOf("[shutdown] drained") >= 0 && stderr().indexOf("FLUSHED") > stderr().indexOf("[shutdown] drained"),
-      "the flush runs after the drain and completes before the exit");
-    assert(waited >= 350, `the exit waited for the flush (${waited} ms)`);
+    const log = stderr();
+    const order = ["STREAM END", "[shutdown] drained", "FLUSH START", "FLUSHED"].map((mark) => log.indexOf(mark));
+    assert(order.every((at) => at >= 0) && order.every((at, k) => k === 0 || at > order[k - 1]!),
+      `the flush starts after the stream ends and the drain closes, and completes before exit: ${JSON.stringify(log)}`);
   }
+  //    At the drain cap the flush still runs, after the cap.
+  {
+    const { child, port, exited, stderr } = await start({ FLUSH_MS: "300", CAP_MS: "1000" });
+    void get(port, "/hang", () => signalGroup(child)).catch(() => undefined);
+    const exit = await within(exited, 10_000, "the capped then flushed exit", child);
+    assert.equal(exit.code, 0, `the capped process exits 0 after its flush (code ${exit.code}, signal ${exit.signal})`);
+    const log = stderr();
+    const order = ["[shutdown] cap", "FLUSH START", "FLUSHED"].map((mark) => log.indexOf(mark));
+    assert(order.every((at) => at >= 0) && order[1]! > order[0]! && order[2]! > order[1]!,
+      `at the cap the flush runs after the cap and completes: ${JSON.stringify(log)}`);
+  }
+  //    A stuck flush cannot hold the exit past its own cap.
   {
     const flushCapMs = 700;
     const { child, exited, stderr } = await start({ FLUSH_MS: "hang", FLUSH_CAP_MS: String(flushCapMs) });
@@ -159,7 +176,7 @@ async function main() {
     const exit = await within(exited, 10_000, "the capped flush exit", child);
     const waited = exit.at - signalledAt;
     assert.equal(exit.code, 0, `a stuck flush still exits 0 (code ${exit.code}, signal ${exit.signal})`);
-    assert(!stderr().includes("FLUSHED"), "the stuck flush never completed");
+    assert(stderr().includes("FLUSH START") && !stderr().includes("FLUSHED"), "the stuck flush started and never completed");
     assert(waited >= flushCapMs - 100 && waited < flushCapMs + 2_500, `a stuck flush holds the exit only until its cap (${waited} ms)`);
   }
 
