@@ -31,7 +31,8 @@ function contentPart(part: unknown): unknown {
   if (part.type === "text") return { type: "input_text", text: part.text };
   if (part.type === "image_url") {
     const image = part.image_url;
-    return { type: "input_image", image_url: isRecord(image) ? image.url : image };
+    // `detail` is required by the Responses schema; chat callers may omit it.
+    return { type: "input_image", image_url: isRecord(image) ? image.url : image, detail: isRecord(image) && typeof image.detail === "string" ? image.detail : "auto" };
   }
   return part;
 }
@@ -107,7 +108,9 @@ export function responsesUsageToChat(usage: unknown): Json | undefined {
 }
 
 function finishReason(response: Json): string {
-  return response.status === "incomplete" ? "length" : "stop";
+  if (response.status !== "incomplete") return "stop";
+  const details = isRecord(response.incomplete_details) ? response.incomplete_details : {};
+  return details.reason === "content_filter" ? "content_filter" : "length";
 }
 
 /** A finished Responses object as a chat completion. */
@@ -235,9 +238,80 @@ export function responsesStreamToChat(body: ReadableStream<Uint8Array>, model: u
 }
 
 /**
+ * A failure the relay reported inside a 200, as the status a Chat Completions
+ * provider would have answered with: 429 for rate limits, otherwise 502. The
+ * callers' retry, alternate-model and circuit logic all key on the status.
+ */
+function upstreamFailure(detail: unknown): Response {
+  const text = JSON.stringify(detail ?? "unknown").slice(0, 500);
+  const status = /rate.?limit|429|quota|too many/i.test(text) ? 429 : 502;
+  return Response.json({ error: { message: `relay responses failure: ${text}`, type: "relay_responses_error" } }, { status });
+}
+
+function failureOf(event: Json): unknown {
+  if (event.type === "error") return event.error ?? event.message ?? event;
+  if (event.type === "response.failed") return isRecord(event.response) ? event.response.error ?? event.response : event;
+  return null;
+}
+
+/**
+ * Read a Responses stream until its first text, completion or failure. A
+ * failure before any text becomes an error status; otherwise the bytes read so
+ * far are replayed ahead of the rest of the stream.
+ */
+async function openStream(body: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array> | Response> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  const seen: Uint8Array[] = [];
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      if (seen.length === 0) return upstreamFailure("empty stream");
+      break;
+    }
+    seen.push(value);
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    let decided = false;
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      let event: Json;
+      try { event = JSON.parse(line.slice(5).trim()) as Json; } catch { continue; }
+      const failure = failureOf(event);
+      if (failure !== null) {
+        await reader.cancel().catch(() => undefined);
+        return upstreamFailure(failure);
+      }
+      if (event.type === "response.output_text.delta" || event.type === "response.completed" || event.type === "response.incomplete") decided = true;
+    }
+    if (decided) break;
+  }
+  let replay = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (replay < seen.length) {
+        controller.enqueue(seen[replay]!);
+        replay += 1;
+        return;
+      }
+      const { done, value } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    async cancel(reason) {
+      await reader.cancel(reason).catch(() => undefined);
+    },
+  });
+}
+
+/**
  * `fetch` for a chat request, sent to the Responses route and answered in chat
  * shape. Error statuses pass through untouched so retry and failure handling
- * see exactly what the relay said.
+ * see exactly what the relay said; a failure the relay reports inside a 200
+ * (an error event before any text, a failed or non-Responses body, a body that
+ * does not parse) becomes 429 or 502 so it is retried and counted like one.
  */
 export async function chatViaResponses(
   input: RequestInfo | URL,
@@ -245,17 +319,27 @@ export async function chatViaResponses(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  const body = typeof init?.body === "string" ? JSON.parse(init.body) as Json : {};
+  if (typeof init?.body !== "string") throw new TypeError("chatViaResponses needs a JSON string body");
+  const body = JSON.parse(init.body) as Json;
   const translated = chatBodyToResponses(body);
   const response = await fetchImpl(responsesUrl(url), { ...init, body: JSON.stringify(translated) });
   if (!response.ok) return response;
   if (translated.stream === true) {
-    if (!response.body) return response;
-    return new Response(responsesStreamToChat(response.body, body.model), {
+    if (!response.body) return upstreamFailure("no stream body");
+    const opened = await openStream(response.body);
+    if (opened instanceof Response) return opened;
+    return new Response(responsesStreamToChat(opened, body.model), {
       status: response.status,
       headers: { "content-type": "text/event-stream" },
     });
   }
-  const json = await response.json() as Json;
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch (error) {
+    return upstreamFailure(`unparseable body: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (!isRecord(json) || !Array.isArray(json.output)) return upstreamFailure(isRecord(json) ? json.error ?? "not a Responses object" : "not a Responses object");
+  if (json.status === "failed" || json.status === "cancelled") return upstreamFailure(json.error ?? json.status);
   return Response.json(responsesJsonToChat(json, body.model), { status: response.status });
 }

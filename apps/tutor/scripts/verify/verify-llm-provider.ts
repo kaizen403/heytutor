@@ -737,7 +737,7 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     assert.deepEqual(translated, {
       model: "gpt-6.1-sol", store: false, stream: true, instructions: "You plan.\n\nBe brief.",
       input: [
-        { role: "user", content: [{ type: "input_text", text: "Read this" }, { type: "input_image", image_url: image }] },
+        { role: "user", content: [{ type: "input_text", text: "Read this" }, { type: "input_image", image_url: image, detail: "auto" }] },
         { role: "assistant", content: "Earlier answer" },
         { role: "user", content: "Next" },
       ],
@@ -806,6 +806,30 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     assert.deepEqual(calls.map((call) => call.url), ["https://relay.test/v1/responses", "https://relay.test/v1/responses"]);
     assert.deepEqual(calls[0]!.body, { model: "m", store: false, input: [{ role: "user", content: "q" }] });
     assert.equal(provider.providerFetch({ wireApi: "chat" }, fake), fake, "chat wire is the plain fetch");
+  }],
+  ["Responses bridge: failures the relay reports inside a 200 become 429 or 502", async () => {
+    const chatBody = (stream: boolean) => ({ method: "POST", body: JSON.stringify({ model: "m", stream, messages: [{ role: "user", content: "q" }] }) });
+    const replying = (reply: () => Response) => provider.providerFetch({ wireApi: "responses" }, (async () => reply()) as typeof fetch);
+    const sse = (payloads: unknown[]) => () => new Response(sseStream(payloads, 5), { headers: { "content-type": "text/event-stream" } });
+    // Before any text: an error status the callers retry and count.
+    const limited = await replying(sse([{ type: "response.created", response: { id: "resp_0" } }, { type: "error", error: { code: "rate_limit_exceeded", message: "slow down" } }]))(RELAY_URL, chatBody(true));
+    assert.equal(limited.status, 429);
+    const failed = await replying(sse([{ type: "response.created", response: { id: "resp_0" } }, { type: "response.failed", response: { error: { code: "server_error" } } }]))(RELAY_URL, chatBody(true));
+    assert.equal(failed.status, 502);
+    assert.equal((await replying(sse([]))(RELAY_URL, chatBody(true))).status, 502, "an empty stream");
+    // After text has started: the stream itself errors (the lesson is already speaking).
+    const late = await replying(sse([{ type: "response.output_text.delta", delta: "Hal" }, { type: "response.failed", response: { error: { code: "server_error" } } }]))(RELAY_URL, chatBody(true));
+    assert.equal(late.status, 200);
+    await assert.rejects(late.text(), /relay responses stream failed/);
+    // Non-streamed: a failed, foreign or unparseable 200 is a 502, never an empty success.
+    for (const reply of [
+      () => Response.json({ id: "resp_0", status: "failed", output: [], error: { code: "server_error" } }),
+      () => Response.json({ id: "chatcmpl-0", choices: [{ message: { content: "x" } }] }),
+      () => new Response("<html>gateway</html>", { status: 200 }),
+    ]) assert.equal((await replying(reply)(RELAY_URL, chatBody(false))).status, 502);
+    const filtered = bridge.responsesJsonToChat({ status: "incomplete", incomplete_details: { reason: "content_filter" }, output: [] }, "m") as { choices: { finish_reason: string }[] };
+    assert.equal(filtered.choices[0]!.finish_reason, "content_filter");
+    await assert.rejects(replying(() => Response.json({}))(RELAY_URL, { method: "POST" }), /JSON string body/);
   }],
   ["no route or library hard-codes the Fireworks URL outside llmProvider.ts", () => {
     const offenders: string[] = [];
@@ -1248,6 +1272,38 @@ const routeChecks: [string, () => Promise<void>][] = [
     const metadata = generations.at(-1)!.metadata!;
     assert.equal(metadata.usage_status, "known");
     assert.equal(reservations.size, 0, "the teaching reservation settles");
+  }],
+  ["relay on the Responses wire: a server error sent inside a 200 is retried like a 502", async () => {
+    const trace = arrange({ ...RELAY, OPENAI_COMPAT_API: "responses", FIREWORKS_API_KEY: "fireworks-test-key" });
+    const sent: Sent[] = [];
+    let calls = 0;
+    installProvider(sent, () => new Response(sseStream(calls++ === 0
+      ? [{ type: "response.created", response: { id: "resp_0" } }, { type: "response.failed", response: { error: { code: "server_error" } } }]
+      : responsesEvents(["Force ", "is a ", "push."]), 7), { headers: { "content-type": "text/event-stream" } }));
+    const response = await chat.POST(chatRequest(trace, PLANNED_TEACHING));
+    assert.equal(response.status, 200);
+    assert.equal((await readChatSse(response.body!)).content, "Force is a push.");
+    assert.equal(sent.length, 2, "the in-stream failure was retried");
+  }],
+  ["relay on the Responses wire: a rate limit sent inside a 200 is a 429 the circuit counts", async () => {
+    const trace = arrange({ ...RELAY, OPENAI_COMPAT_API: "responses", FIREWORKS_API_KEY: "fireworks-test-key" });
+    const sent: Sent[] = [];
+    installProvider(sent, () => new Response(sseStream([{ type: "response.created", response: { id: "resp_0" } }, { type: "error", error: { code: "rate_limit_exceeded" } }], 7),
+      { headers: { "content-type": "text/event-stream" } }));
+    const captured: string[] = [];
+    console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    try {
+      for (let i = 0; i < 3; i += 1) {
+        testNumber += 1;
+        const fresh = `provider-trace-${testNumber}`;
+        ownedTraces.set(fresh, { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) });
+        assert(grants.createLessonGrant({ userId: actor.userId, traceId: fresh, usdMillicents: 1_000_000 }).ok);
+        const response = await chat.POST(chatRequest(i === 0 ? trace : fresh, PLANNED_TEACHING));
+        assert.notEqual(response.status, 200);
+        await response.text();
+      }
+    } finally { console.error = originalConsoleError; }
+    assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/, "three rate-limited lessons open the circuit");
   }],
   ["relay: with fallback off, repeated 5xx keep the relay (the lab measures it alone)", async () => {
     const trace = arrange({ ...RELAY, OPENAI_COMPAT_FALLBACK: "off" });

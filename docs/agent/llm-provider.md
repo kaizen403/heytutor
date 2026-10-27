@@ -178,6 +178,28 @@ also echo the relay's hidden prompt: OpenAI's Codex agent instructions, with
 ours placed in front, so tokens-flow resells Codex or ChatGPT subscription
 capacity.
 
+Failures the Responses route reports inside a 200 become statuses, so the
+callers' retries, the circuit and settlement treat them like a Chat Completions
+error: an `error` or `response.failed` event before any text is a 429 (rate
+limit) or 502; a failed, foreign or unparseable non-streamed body is a 502.
+Images get `detail: "auto"`. Live check (28 Oct 2026): 4 of 4 photos read
+exactly; 10 of 10 teaching streams streamed (185 to 225 chunks), all on the
+main pool; the one-delta pool only answered JSON requests.
+
+Same harness, same day, gpt-6.1-sol, 12 eval rows and 4 lessons per wire:
+
+| | chat wire | responses wire | Kimi K3 Fast (27 Oct) |
+|---|---:|---:|---:|
+| Ask to first word (median) | 44.3 s | 42.7 s | 18.0 s |
+| Teaching first token | 2.9 to 10.0 s | 2.6 to 7.7 s | 1.0 to 1.6 s |
+| Planning before teaching | 20 to 60 s | 12 to 60 s | 4.5 to 27 s |
+| Figures drawn (eval / lessons) | 3 / 2 | 3 / 2 | 3 / 2 |
+| Eval rows at the 60 s limit | 3 | 1 | 0 |
+| Measured cost (eval + lessons, proxy rates) | $1.55 | $0.90 | $2.69 |
+
+The Responses wire speeds up teaching but not planning, which is most of the
+wait, so the first word barely moves. The relay stays off.
+
 ## Relay against Fireworks, same harness (27 Oct 2026)
 
 Same build, same local server, only the provider changed. Relay prices are a
