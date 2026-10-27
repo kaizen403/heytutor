@@ -25,6 +25,8 @@ export interface GracefulShutdownOptions {
   exit?: (code: number) => void;
   /** Awaited once, for at most `flushCapMs`, after the drain and before exit. */
   beforeExit?: () => Promise<unknown>;
+  /** Speech still being synthesised: the drain waits for it too (same cap). */
+  speech?: { inFlight: () => number; beginDrain: () => void };
   flushCapMs?: number;
   log?: (message: string) => void;
 }
@@ -70,8 +72,11 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
       exit(0);
     });
   };
+  let speechPoll: ReturnType<typeof setInterval> | undefined;
   const exitWhenDrained = () => {
-    if (draining && active.size === 0) finish("drained");
+    if (!draining || active.size > 0 || (options.speech?.inFlight() ?? 0) > 0) return;
+    if (speechPoll) clearInterval(speechPoll);
+    finish("drained");
   };
 
   server.on("request", (_request, response) => {
@@ -91,6 +96,9 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     log(`[shutdown] SIGTERM: draining ${active.size} request(s), cap ${capMs} ms`);
     server.close();
     server.closeIdleConnections();
+    // The sentence being spoken finishes; no new one starts.
+    options.speech?.beginDrain();
+    if (options.speech) speechPoll = setInterval(exitWhenDrained, 100);
     setTimeout(() => finish("cap"), capMs);
     exitWhenDrained();
   };

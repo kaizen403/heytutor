@@ -103,11 +103,18 @@ function fixture(options: { reservePending?: boolean; finishFails?: boolean; can
     clearInterval: (callback: () => void) => timers.delete(callback),
   }, { filename: source });
   const client = new Socket();
-  const relay = compiledModule.exports as { relayTtsWebSocket: (client: Socket, context: Record<string, unknown>) => void };
+  const relay = compiledModule.exports as {
+    relayTtsWebSocket: (client: Socket, context: Record<string, unknown>) => void;
+    inFlightSpeechSegments: () => number;
+    beginSpeechDrain: () => void;
+  };
   relay.relayTtsWebSocket(client, { userId: "synthetic-user", traceId: "synthetic-trace", grant });
   return {
     client, vendor: Socket.upstream, captures, receipt, reservation, revoke: () => revoke(),
-    say: () => client.emit("message", Buffer.from(JSON.stringify({ text: "synthetic speech", flush: true, segment_index: 1 })), false),
+    say: (index = 1) => client.emit("message", Buffer.from(JSON.stringify({ text: "synthetic speech", flush: true, segment_index: index })), false),
+    final: (index = 1) => Socket.upstream.emit("message", Buffer.from(JSON.stringify({ contextId: `segment_${index}`, isFinal: true })), false),
+    inFlight: () => relay.inFlightSpeechSegments(),
+    beginDrain: () => relay.beginSpeechDrain(),
     stats: () => ({ released, disposed, unregistered, finished, cancelled, reserved, timers: timers.size }),
     skips: () => client.sent.map(raw => JSON.parse(raw)).filter(message => message.type === "skip"),
   };
@@ -181,6 +188,31 @@ async function main() {
   check(f.stats().cancelled, 1, "late admission is cancelled before dispatch once");
   check(f.vendor.sent.length, 0, "late admission never sends speech after Stop");
   checkClosed(f, 0);
-  console.log(`TTS relay cancellation: ${checks} checks passed; actual relay with fake sockets and receipts, no network`);
+  // A restart lets the sentence being spoken finish. An idle relay closes at
+  // the drain with 1012; a busy one admits nothing new, keeps its in-flight
+  // segment, and closes when that segment's final arrives.
+  f = fixture();
+  f.vendor.open();
+  check(f.inFlight(), 0, "an open relay with nothing sent has no speech in flight");
+  f.beginDrain();
+  check(f.skips()[0]?.reason, "server_restarting", "an idle relay closes at the drain as a service restart");
+  checkClosed(f, 1);
+
+  f = fixture();
+  f.vendor.open(); f.say(1); await tick();
+  check(f.inFlight(), 1, "a dispatched segment is in flight until its final");
+  f.beginDrain();
+  check(f.skips().length, 0, "a busy relay is not closed at the drain");
+  f.say(2); await tick();
+  check(f.stats().reserved, 1, "no new segment is admitted or charged during the drain");
+  check(f.vendor.sent.filter((raw) => raw.includes("synthetic speech")).length, 1, "no new segment reaches the provider during the drain");
+  check(f.skips().length, 0, "a refused segment does not cut the sentence still being spoken");
+  f.final(1); await tick();
+  check(f.inFlight(), 0, "the in-flight segment finished");
+  check(f.stats().finished, 1, "the finished segment is settled once");
+  check(f.skips()[0]?.reason, "server_restarting", "the relay closes as a restart once its last segment finishes");
+  checkClosed(f, 1);
+
+  console.log(`TTS relay cancellation: ${checks} checks passed; actual relay with fake sockets and receipts, no network; a restart lets the sentence in flight finish`);
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -180,7 +180,29 @@ async function main() {
     assert(waited >= flushCapMs - 100 && waited < flushCapMs + 2_500, `a stuck flush holds the exit only until its cap (${waited} ms)`);
   }
 
-  // 5. The production unit has no tsx relay parent.
+  // 5. The drain also waits for speech still being synthesised, and a sentence
+  //    that never finishes cannot hold the exit past the cap.
+  {
+    const { child, exited, stderr } = await start({ SPEECH_MS: "700", CAP_MS: "20000" });
+    const signalledAt = Date.now();
+    signalGroup(child);
+    const exit = await within(exited, 10_000, "the speech drained exit", child);
+    const waited = exit.at - signalledAt;
+    assert.equal(exit.code, 0, `the speech drained process exits 0 (code ${exit.code}, signal ${exit.signal})`);
+    assert(stderr().includes("SPEECH DRAIN") && waited >= 600, `the exit waited for the sentence in flight (${waited} ms)`);
+  }
+  {
+    const capMs = 1_000;
+    const { child, exited, stderr } = await start({ SPEECH_MS: "hang", CAP_MS: String(capMs) });
+    const signalledAt = Date.now();
+    signalGroup(child);
+    const exit = await within(exited, 10_000, "the speech capped exit", child);
+    const waited = exit.at - signalledAt;
+    assert.equal(exit.code, 0, `stuck speech still exits 0 (code ${exit.code}, signal ${exit.signal})`);
+    assert(stderr().includes("[shutdown] cap") && waited >= capMs - 100 && waited < capMs + 3_000, `stuck speech holds the exit only until the cap (${waited} ms)`);
+  }
+
+  // 6. The production unit has no tsx relay parent.
   for (const script of ["deploy/aws/deploy.sh", "deploy/aws/setup-vm.sh"]) {
     const unit = readFileSync(resolve(__dirname, "../../../..", script), "utf8");
     const execStart = unit.split("\n").find((line) => line.startsWith("ExecStart=")) ?? "";
@@ -188,7 +210,7 @@ async function main() {
       `${script} must start the server with exec node --import tsx (got ${execStart})`);
   }
 
-  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, a hung stream is cut at the cap, and a busy server drains under the unit's node --import tsx, and the Sentry flush runs before exit within its cap");
+  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, a hung stream is cut at the cap, and a busy server drains under the unit's node --import tsx, the Sentry flush runs before exit within its cap, and speech in flight finishes within the same cap");
 }
 
 main().catch((error) => {
