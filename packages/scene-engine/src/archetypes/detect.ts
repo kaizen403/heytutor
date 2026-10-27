@@ -358,7 +358,46 @@ function volts(stem: string): number[] {
 
 // A conductor turning in a field: a generator's loop or coil, or a rod, disc
 // or blade turning about an axis. Neither induction figure draws one.
-const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|disc|disk|blade|wheel)\b[^.]{0,60}\b(?:rotat|spin|revolv)\w*|\b(?:rotat|spinn|revolv)\w*\s+(?:\w+\s+)?(?:loop|coil|armature|rod|disc|disk|blade|wheel)\b|\babout (?:one|its|an?) end\b|\b(?:ac|a\.c\.) generator\b|\balternator\b|\bdynamo\b/i;
+const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b[^.]{0,60}\b(?:rotat|spin|revolv)\w*|\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\s+(?:is\s+|being\s+)?(?:turns|turning)\b|\b(?:rotat|spinn|revolv)\w*\s+(?:\w+\s+)?(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b|\babout (?:one|its|an?) end\b|\b(?:pivoted|hinged)\s+(?:at|about)\b|\bpendulum\b|\b(?:ac|a\.c\.) generator\b|\balternator\b|\bdynamo\b/i;
+
+// A stem asking which way the induced current flows. A current whose
+// direction the stem gives ("carries 2 A clockwise") is not asked.
+const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|clockwise|anti-?clockwise|counter-?clockwise)|\b(?:direction|sense)\s+of\s+(?:the\s+)?induced\s+current\b|\bdirection\s+of\s+(?:the\s+)?current\s+induced\b|\b(?:clockwise|anti-?clockwise|counter-?clockwise)\s+or\s+(?:clockwise|anti-?clockwise|counter-?clockwise)\b|\bwhich way\b[^.?]{0,40}\bcurrent\b/i;
+
+// What the magnet and coil figure draws: a north pole moving towards a coil
+// that stays put, with the coil the only conductor. A magnet and coil stem
+// that says the south pole leads, that the magnet leaves or rests, or that
+// the coil moves, contradicts it; so does one that asks which way the induced
+// current flows, which the undrawn winding decides. No other figure may
+// stand in for such a stem, so it declines whole (contradictedMagnetCoil).
+const MAGNET_COIL_CONTRADICTIONS = [
+  /\bS[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bS[- ]pole\b/,
+  /\bsouth[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bsouth[- ]pole\b/i,
+  /\bwithdraw\w*|\b(?:pulled|drawn|taken|moved|removed)\s+(?:\w+\s+){0,2}?(?:out|away)\b|\bmov(?:es?|ing)\s+away\b|\breced\w*/i,
+  /\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b|\bmagnets?\b[^.]{0,30}\b(?:stationary|at rest|held still)\b|\bcoils?(?:\s+(?:connected|joined|attached)\s+to\s+(?:a|an|the)\s+\w+)?\s+(?:is\s+|are\s+|being\s+)?(?:moved|moving|moves|brought|pushed|pulled)\b/i,
+];
+// Other induction setups: the magnet and coil is not their figure, but
+// theirs (a sliding rod, say) may be right, so they only veto this one.
+const OTHER_INDUCTION_SETUPS = [
+  /\bgenerators?\b|\bdynamos?\b|\beddy\b|\btwo coils\b|\b(?:primary|secondary)\s+coils?\b/i,
+  /\b(?:rod|bar(?!\s+magnet)|wire)\s+(?:\w+\s+){0,2}?(?:slides?|sliding|moves?|moving|is pulled|rolls?)\b|\b(?:conducting|metal|metallic|sliding)\s+(?:rod|bar|wire)\b/i,
+];
+const NAMES_MAGNET = /\bmagnets?\b|\b(?:north|south)[- ]pole\b|\b[NS][- ]pole\b/i;
+// A ring counts when a magnet moves relative to it, when its current or
+// motion is asked, or when it is a ring of wire; a ring of compasses does not.
+const NAMES_INDUCTION_SETUP = /\b(?:coils?|loops?|solenoids?|galvanometer|(?:conducting|copper|alumin(?:i)?um|metal(?:lic)?|wire)\s+rings?|rings?\s+of\s+wire|induced\s+(?:currents?|emfs?)|electromagnetic\s+induction|lenz|faraday)\b|\b(?:pushed|pulled|moved|dropped|brought|approach\w*|withdrawn?|inserted)\b[^.?]{0,40}\brings?\b|\brings?\b[^.?]{0,40}\b(?:current|moves?|swings?|pushed away)\b/i;
+
+/**
+ * True for a stem about a magnet and a coil that contradicts the only figure
+ * the catalog has for it. Detection and the family layer then decline the
+ * whole stem, so a block on a surface or a bare magnet never stands in.
+ */
+export function contradictedMagnetCoil(question: string): boolean {
+  const stem = prepareStem(question);
+  if (!stem || !NAMES_MAGNET.test(stem) || !NAMES_INDUCTION_SETUP.test(stem)) return false;
+  return INDUCED_CURRENT_DIRECTION.test(stem) || MAGNET_COIL_CONTRADICTIONS.some((pattern) => pattern.test(stem));
+}
+
 
 const CUE_SETS: readonly CueSet[] = [
   {
@@ -401,7 +440,9 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
+      // A magnet falling through a coil or ring is an induction question.
+      /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?|tubes?|pipes?)\b|\b(?:coils?|rings?|solenoids?|tubes?|pipes?)\b[^.]{0,60}\bmagnets?\b|\binduc\w*|\blenz\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -472,7 +513,9 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:horizontal (?:surface|table|floor|track)|frictionless (?:surface|floor|table|track))\b/i, 2],
       [/\bforce of \d/i, 1],
     ],
-    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i],
+    // A magnet beside a coil, ring or solenoid is an induction setup, never a
+    // block on a surface.
+    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "masses", massesOf(stem), "stem");
       setSlot(bag, "force", planNumber(plan, ["f", "force", "appliedforce"]), "plan");
@@ -824,6 +867,9 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "solenoid_field",
     cues: [[/\bsolenoid\b/i, 4], [/\btoroid\b/i, 4], [/\b(?:turns per|turns\/|number of turns)\b/i, 1]],
+    // The figure draws the winding's current as given. An induced current's
+    // direction is what such a stem asks, and the figure would guess it.
+    vetoes: [INDUCED_CURRENT_DIRECTION],
     extract: (stem, plan, bag) => {
       setSlot(bag, "turns", planNumber(plan, ["n", "turns", "turnspermetre"]), "plan");
       setSlot(bag, "turns", numberBefore(stem, /turns/), "stem");
@@ -889,7 +935,9 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:battery|cell|emf|volt)\b/i, 1],
       [/\binternal resistance\b/i, 2],
     ],
-    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i],
+    // A coil and a resistor with a moving magnet is an induction setup; a
+    // resistor network drawn without the magnet would stand in for it.
+    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i, /\bmagnets?\b|\binduced\b|\binduction\b|\blenz\b|\bfaraday\b/i],
     extract: (fullStem, plan, bag) => {
       // "Find the potential difference across the 6 Ω resistor" names a
       // resistor already stated; it is not one more resistor.
@@ -1474,7 +1522,9 @@ const CUE_SETS: readonly CueSet[] = [
     // moving through a field. A loop or coil turning in a field is a
     // generator, and this figure would stand in for it.
     requires: [/\b(?:magnets?|(?:north|south|[NS])[- ]pole|coils?|solenoids?|lenz|faraday|electromagnetic induction)\b/i],
-    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR],
+    // The figure does not derive the induced current's direction (the coil's
+    // winding is not drawn), so a stem that asks for it gets no figure.
+    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR, INDUCED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],
     extract: () => undefined,
   },
   {
@@ -1727,6 +1777,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
   if (!stem) return null;
   const plan = collectPlanQuantities(hints?.turnPlan);
   const bonus = structureBonus(hints);
+  if (contradictedMagnetCoil(question)) return null;
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);

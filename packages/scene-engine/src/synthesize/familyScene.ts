@@ -64,7 +64,7 @@ import { extractCircleSource, findStatedCurves, type StatedCurve } from "./state
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
-import { detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
+import { contradictedMagnetCoil, detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
@@ -181,6 +181,8 @@ function synthesizeFromFamilies(
   // A stem main's archetype scoring matched only through its plan's laws gets
   // no deterministic figure at all, not the next archetype or a family.
   if (lawOnlyArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
+  // A magnet and coil stem that contradicts the only figure for it gets none.
+  if (contradictedMagnetCoil(question)) return null;
   const youngRequest=readYoungRepresentationRequest(question);
   if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;
@@ -1319,7 +1321,9 @@ function buildCircuit(
   // A schematic still requires the stem to name circuit apparatus; never invent a network.
   // An induced, motional or back emf names a field effect, not a source in a
   // circuit, and once the stem names one, its other "emf" mentions are that one.
-  const fieldEmf = /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question);
+  // So is the emf of a conductor moving or turning in a magnetic field.
+  const fieldEmf = /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question)
+    || (/\bmagnetic\s+field\b|\bin\s+a\s+field\b|\b\d+(?:\.\d+)?\s*T\b/.test(question) && /\b(?:rotat|spin|revolv|slid|mov|swing)\w*/i.test(question));
   if (
     schematic
     && resistors.length < 2
@@ -2308,6 +2312,8 @@ function buildContactBody(
   // A stem asking for a motion graph wants the graph. Unless it names a body
   // in contact, a contact sketch here would stand in for that graph.
   if (isMotionGraphStem(stem) && !namesBodyInContact(stem)) return null;
+  // An emf is a field effect or a source; no contact sketch is its figure.
+  if (/\bemfs?\b/i.test(stem)) return null;
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
     && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);

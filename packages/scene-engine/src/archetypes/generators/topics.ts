@@ -220,17 +220,13 @@ function faradayInduction(context: GeneratorContext) {
   scene.connect("w_top", "n_top", "g_top");
   scene.connect("w_bottom", "n_bottom", "g_bottom");
   scene.symbol("G", "galvanometer", "g_top", "g_bottom", "galvanometer", "G");
-  scene.point("m_centre", { x: -4, y: 0 }, "magnet centre");
-  scene.rectangle("magnet", "m_centre", 3, 0.8, "bar magnet", "S      N");
-  // A helper, not a "pole" point: the validator letters pole points as a
-  // mirror's pole, which put a stray "V" on the magnet.
-  scene.helper("m_front", { x: -2.5, y: 0 }, "magnet front");
-  scene.vector("velocity", "m_front", { direction: { x: 1, y: 0 }, length: 1.2 }, "velocity of the magnet", "v");
-  scene.point("i_at", { x: 2, y: 1.5 }, "induced current anchor");
-  scene.vector("induced", "i_at", { direction: { x: 1, y: 0 }, length: 0.8 }, "induced current", "I");
+  // Each pole letter sits on its own end, N on the face towards the coil.
+  barMagnetBody(scene, { x: -4.5, y: 0 }, 0);
+  scene.vector("velocity", "N", { direction: { x: 1, y: 0 }, length: 1.2 }, "velocity of the magnet", "v");
+  // No induced current arrow or sense: the coil's winding is not drawn, so
+  // nothing on the figure fixes which way the current flows.
   scene.assert("loop", "path", ["coil", "G"], true);
-  scene.sense("current_sense", "coil");
-  scene.labelled("coil", "G");
+  scene.labelled("coil", "G", "N", "S");
   return scene.build();
 }
 
