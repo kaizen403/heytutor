@@ -799,6 +799,8 @@ function riverBoat(context: GeneratorContext) {
   const variant = text(context, "variant", "crossing");
   // Along-stream motion is drawn only when the stem states it and names no crossing.
   if (variant === "along_stream" && !riverAlongStreamStated(context.question)) return null;
+  // A boat no faster than the current moves downstream when it heads upstream: never a forward arrow.
+  if (variant === "along_stream" && vb <= vc) return null;
   // Shortest path (straight across) heads upstream; shortest time heads
   // straight across and drifts. A boat no faster than the current cannot
   // cross straight, so that figure is declined rather than drawn. One

@@ -4,7 +4,7 @@ import {
   type DrawCommand,
   type TutorSegment,
 } from "@heytutor/drawing";
-import { tutorDebug } from "@heytutor/tutor-core";
+import { TeachingTransportError, tutorDebug } from "@heytutor/tutor-core";
 import type { SegmentPlanStats } from "../../types";
 
 export function createEmptySegmentPlanStats(): SegmentPlanStats {
@@ -107,6 +107,34 @@ export function createResumeInkGate() {
       inkStarted = false;
     },
   };
+}
+
+/** Pause before the one continuation retry, so a dropped network can come back. */
+export const CONTINUATION_FETCH_RETRY_MS = 1_500;
+
+/**
+ * Run a teaching request; when it is a continuation and its fetch failed
+ * before any response arrived (a network error, not a stop, an HTTP error or a
+ * broken read mid-stream), run it once more after a short pause. Nothing of
+ * the failed request was parsed or spoken, so the retry cannot repeat a word.
+ */
+export async function retryContinuationFetchOnce<T>(
+  run: () => Promise<T>,
+  options: { enabled: boolean; signal: AbortSignal; onRetry?: () => void; delayMs?: number },
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!options.enabled || options.signal.aborted || !(error instanceof TeachingTransportError) || error.phase !== "fetch") {
+      throw error;
+    }
+    options.onRetry?.();
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(resolve, options.delayMs ?? CONTINUATION_FETCH_RETRY_MS);
+      options.signal.addEventListener("abort", () => { clearTimeout(timer); reject(error); }, { once: true });
+    });
+    return run();
+  }
 }
 
 /** Reserve only the next request for a scheduled no-ink repair beyond the usual continuation budget. */
