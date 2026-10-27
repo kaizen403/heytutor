@@ -28,7 +28,7 @@ export function chemistryVisualObligationCheck(set: VisualObligationSet, documen
       ignoredIds.push(obligation.id); continue;
     }
     const name = label
-      .replace(/^(?:the|a|an)\s+/i, "")
+      .replace(/^(?:[Tt]he|an?)\s+/, "")
       .replace(/^(?:complex(?:\s+ion)?|molecule|compound|species)\s+/i, "")
       .replace(/\s+(?:molecules?|compounds?|species)$/i, "")
       .trim();

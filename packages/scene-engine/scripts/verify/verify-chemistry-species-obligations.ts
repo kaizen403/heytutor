@@ -10,6 +10,12 @@
  *   ion      "SF4 ion" is not the drawn neutral SF4 and still refuses.
  *   charge   "Na ion", "Na+", "SO4" never bind a drawn Na atom or sulfate;
  *            only "molecule", "compound" and articles are wrappers.
+ *   others   maths and physics names keep main's exact binding ("A B" is
+ *            never point B); a hand label is not a certified species.
+ *   certified  on real VSEPR figures the wrapper and a written charge bind
+ *            ("NH4+ ion"), and a lone pair obligation still binds.
+ *   mutations  binder off, and the wrapper strip moved into the generic
+ *            formula identity, each turn a row red.
  *   mutation dropping the molecule wrapper turns the live row red.
  */
 import assert from "node:assert/strict";
@@ -143,9 +149,11 @@ const CHARGE_ROWS: Array<{ id: string; drawn: string; wanted: string; binds: boo
   { id: "so4-vs-sulfate", drawn: "SO_4^(2-)", wanted: "SO4", binds: false },
   { id: "sulfate-vs-so4", drawn: "SO_4", wanted: "SO4^2-", binds: false },
   { id: "so4-molecule-vs-sulfate", drawn: "SO_4^(2-)", wanted: "SO4 molecule", binds: false },
-  // Controls: the wrapper alone never changes the species.
-  { id: "sf4-molecule-vs-sf4", drawn: "SF_4", wanted: "SF4 molecule", binds: true },
-  { id: "a-co2-molecule-vs-co2", drawn: "CO_2", wanted: "a CO2 molecule", binds: true },
+  // A hand-written label is not a certified figure: the wrapper is read only
+  // against a species a VSEPR figure drew (rows below).
+  { id: "sf4-molecule-vs-sf4-label", drawn: "SF_4", wanted: "SF4 molecule", binds: false },
+  { id: "a-co2-molecule-vs-co2-label", drawn: "CO_2", wanted: "a CO2 molecule", binds: false },
+  // Main's exact formula spelling still binds.
   { id: "na-plus-vs-na-plus", drawn: "Na^(+)", wanted: "Na+", binds: true },
 ];
 for (const row of CHARGE_ROWS) {
@@ -153,6 +161,53 @@ for (const row of CHARGE_ROWS) {
     const document = handFigure("Chemistry species binding probe.", [{ id: "species", kind: "label", label: row.drawn }]);
     const result = checkVisualObligations(deriveVisualObligations(bareProblem([row.wanted])), document);
     assert.equal(result.missing.length === 0, row.binds, `${row.wanted} against drawn ${row.drawn}: ${result.missing.map((miss) => miss.message).join("; ")}`);
+  });
+}
+
+// Names in other subjects keep main's exact binding: a point "A" is not an
+// article and "molecules" or "compound" never wraps a point or a component.
+const OTHER_SUBJECT_ROWS: Array<{ id: string; kind: string; drawn: string; problemKind: ProblemIR["entities"][number]["kind"]; wanted: string; binds: boolean }> = [
+  { id: "body-A-B-vs-point-B", kind: "point", drawn: "B", problemKind: "body", wanted: "A B", binds: false },
+  { id: "other-A-B-vs-point-B", kind: "point", drawn: "B", problemKind: "other", wanted: "A B", binds: false },
+  { id: "line-A-B-vs-segment-B", kind: "segment", drawn: "B", problemKind: "line", wanted: "A B", binds: false },
+  { id: "component-A-R2-vs-R2", kind: "resistor", drawn: "R2", problemKind: "component", wanted: "A R2", binds: false },
+  { id: "body-P-molecules-vs-point-P", kind: "point", drawn: "P", problemKind: "body", wanted: "P molecules", binds: false },
+  { id: "body-F-compound-vs-F", kind: "point", drawn: "F", problemKind: "body", wanted: "F compound", binds: false },
+  { id: "line-A-B-vs-segment-AB", kind: "segment", drawn: "A B", problemKind: "line", wanted: "A B", binds: true },
+];
+for (const row of OTHER_SUBJECT_ROWS) {
+  await check(`other-subject/${row.id}`, () => {
+    const document = handFigure("Geometry binding probe.", [{ id: "body", kind: row.kind, label: row.drawn }]);
+    const ir = bareProblem([row.wanted]);
+    ir.entities[0]!.kind = row.problemKind;
+    const result = checkVisualObligations(deriveVisualObligations(ir), document);
+    assert.equal(result.missing.length === 0, row.binds, `${row.wanted} against drawn ${row.drawn}: ${result.missing.map((miss) => miss.message).join("; ")}`);
+  });
+}
+
+// Certified VSEPR figures: the wrapper and a written charge bind the drawn
+// species; the lone pairs stay free for their own obligation.
+const CERTIFIED_ROWS: Array<{ id: string; stem: string; wanted: string[]; binds: boolean; bodies?: number[] }> = [
+  { id: "nh4-plus-ion", stem: "What is the shape of NH4+?", wanted: ["NH4+ ion"], binds: true },
+  { id: "a-co2-molecule", stem: "What is the shape of CO2?", wanted: ["a CO2 molecule"], binds: true },
+  { id: "the-sf4-compound", stem: "What is the shape of SF4?", wanted: ["The SF4 compound"], binds: true },
+  { id: "water-molecule-and-lone-pair", stem: "What is the shape of H2O?", wanted: ["water molecule", "lone pair"], binds: true, bodies: [1] },
+  { id: "lone-pair-then-water-molecule", stem: "What is the shape of H2O?", wanted: ["lone pair", "water molecule"], binds: true, bodies: [0] },
+  { id: "sf4-molecule-and-lone-pair", stem: "What is the shape of SF4?", wanted: ["SF4 molecule", "lone pair"], binds: true, bodies: [1] },
+  { id: "lone-pair-then-sf4-molecule", stem: "What is the shape of SF4?", wanted: ["lone pair", "SF4 molecule"], binds: true, bodies: [0] },
+  { id: "nh4-ion-without-charge", stem: "What is the shape of NH4+?", wanted: ["NH4 ion"], binds: false },
+  { id: "nh3-molecule-vs-nh4-plus", stem: "What is the shape of NH4+?", wanted: ["NH3 molecule"], binds: false },
+  { id: "A-SF4-capital-a", stem: "What is the shape of SF4?", wanted: ["A SF4"], binds: false },
+];
+for (const row of CERTIFIED_ROWS) {
+  await check(`certified/${row.id}`, () => {
+    const scene = synthesizeFamilyScene({ question: row.stem, problemIR: null });
+    assert.ok(scene && scene.family === "chem_vsepr", `guard: ${row.stem} draws chem_vsepr`);
+    const ir = bareProblem(row.wanted);
+    // A lone pair obligation is a body, as main binds it.
+    for (const index of row.bodies ?? []) ir.entities[index]!.kind = "body";
+    const result = checkVisualObligations(deriveVisualObligations(ir), scene.document, row.stem);
+    assert.equal(result.missing.length === 0, row.binds, `${row.wanted.join(" + ")} on ${row.stem}: ${result.missing.map((miss) => miss.message).join("; ")}`);
   });
 }
 
@@ -169,6 +224,39 @@ await check("mutation/wrapper", async () => {
     assert.ok(unconstrained);
     const result = mutant.checkVisualObligations(mutant.deriveVisualObligations(LIVE), unconstrained.document, STEM);
     assert.ok(result.missing.length > 0, "main's wrapper-less labels must miss");
+  } finally {
+    rmSync(path, { force: true });
+  }
+});
+
+await check("mutation/binder-off", async () => {
+  const CALL = "    const species = bindCertifiedSpecies(molecule, document, obligation, consumed);\n";
+  assert.ok(original.split(CALL).length === 2, "binder call anchor must occur once");
+  const path = source.replace(/visualObligations\.ts$/, `visualObligations.mutant-binder-${process.pid}.ts`);
+  writeFileSync(path, original.replace(CALL, "    const species = null as string | null;\n"));
+  try {
+    const mutant = await import(path) as { checkVisualObligations: typeof checkVisualObligations; deriveVisualObligations: typeof deriveVisualObligations };
+    const unconstrained = synthesizeFamilyScene({ question: STEM, problemIR: null });
+    assert.ok(unconstrained);
+    assert.ok(mutant.checkVisualObligations(mutant.deriveVisualObligations(LIVE), unconstrained.document, STEM).missing.length > 0, "the live row must need the binder");
+  } finally {
+    rmSync(path, { force: true });
+  }
+});
+
+await check("mutation/generic-wrapper", async () => {
+  // Main's mistake in review: the wrapper strip inside the generic formula
+  // identity, which every subject uses. It binds "A B" to a point B.
+  const FROM = "  const key = value\n    .trim()\n    .replace(/\\s+/g, \"\")";
+  assert.ok(original.split(FROM).length === 2, "formulaIdentity anchor must occur once");
+  const path = source.replace(/visualObligations\.ts$/, `visualObligations.mutant-generic-${process.pid}.ts`);
+  writeFileSync(path, original.replace(FROM, "  const key = value\n    .trim()\n    .replace(/^(?:the|a|an)\\s+/i, \"\")\n    .replace(/\\s+/g, \"\")"));
+  try {
+    const mutant = await import(path) as { checkVisualObligations: typeof checkVisualObligations; deriveVisualObligations: typeof deriveVisualObligations };
+    const ir = bareProblem(["A B"]);
+    ir.entities[0]!.kind = "body";
+    const document = handFigure("Geometry binding probe.", [{ id: "body", kind: "point", label: "B" }]);
+    assert.equal(mutant.checkVisualObligations(mutant.deriveVisualObligations(ir), document).missing.length, 0, "the mutant must bind A B to point B");
   } finally {
     rmSync(path, { force: true });
   }

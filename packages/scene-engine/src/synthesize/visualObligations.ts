@@ -524,8 +524,8 @@ function mapProblemEntities(
     }
     const species = bindCertifiedSpecies(molecule, document, obligation, consumed);
     if (species) {
-      mapping.set(obligation.problemEntityId, species.entityId);
-      for (const id of species.consumes) consumed.add(id);
+      mapping.set(obligation.problemEntityId, species);
+      consumed.add(species);
       continue;
     }
     // A physics body named in model words ("parabolic trajectory", "near
@@ -672,41 +672,46 @@ function normalizeObligationLabel(value: string): string {
 
 /**
  * ProblemIR often names a drawn species as "SF4 molecule". The wrapper is not
- * a different body; the formula is. A trailing "ion" is kept: "Na ion" is not
- * the Na a figure draws, so it must not lose its charge to the wrapper.
+ * a different body; the formula is. Articles are lowercase words only, so a
+ * point named "A" is never read as one. "ion" is dropped only when a charge is
+ * still written ("NH4+ ion"); "Na ion" keeps it and names no drawn species.
+ * Used only against a certified VSEPR figure, never for other subjects.
  */
 function speciesObligationName(label: string): string {
-  return label
+  const bare = label
     .trim()
-    .replace(/^(?:the|a|an)\s+/i, "")
+    .replace(/^(?:[Tt]he|an?)\s+/, "")
     .replace(/\s+(?:molecules?|compounds?|species)$/i, "")
     .trim();
+  const charged = /^(.*[+\-\u2212]\)?)\s+ions?$/i.exec(bare);
+  return charged ? charged[1]!.trim() : bare;
 }
 
-const SPECIES_BODY_KINDS = new Set(["body", "component", "other", "solid"]);
+// The kinds main binds a molecule for, plus "other", which live ProblemIR uses for
+// a named species ("SF4 molecule"). Never a solid, region or field.
+const SPECIES_BODY_KINDS = new Set(["body", "component", "other"]);
 
 /**
  * Bind one obligated chemistry name to a species the certified VSEPR figure
- * drew, or null. Each drawn species binds at most once, so a second SF4
- * obligation stays missing and an H2O obligation cannot attach to SF4.
+ * drew, with the same formula and charge, or null. Each drawn species binds
+ * at most once, so a second SF4 obligation stays missing and an H2O
+ * obligation cannot attach to SF4. Only the species title is consumed, so a
+ * "lone pair" obligation can still bind that species' electrons.
  */
 function bindCertifiedSpecies(
   molecule: VseprFigure | null,
   document: SceneDocument,
   obligation: NamedBodyObligation,
   consumed: ReadonlySet<string>,
-): { entityId: string; consumes: string[] } | null {
+): string | null {
   if (!molecule || !SPECIES_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
   const wanted = chemistrySpeciesIdentity(speciesObligationName(obligation.problemLabel));
   if (!wanted) return null;
   for (const structure of molecule.structures) {
     if (consumed.has(structure.formulaId)) continue;
     const title = document.entities.find((entity) => entity.id === structure.formulaId);
-    const drawn = title?.label ? chemistrySpeciesIdentity(speciesObligationName(title.label)) : null;
-    if (!drawn || drawn.key !== wanted.key) continue;
-    const consumes = [structure.formulaId, ...structure.atomIds, ...structure.bondIds, ...structure.electronIds];
-    if (consumes.some((id) => consumed.has(id))) continue;
-    return { entityId: structure.formulaId, consumes };
+    const drawn = title?.label ? chemistrySpeciesIdentity(title.label.replace(/_(\d+)/g, "$1").replace(/\^\(([^)]*)\)/g, "$1")) : null;
+    if (drawn && drawn.key === wanted.key) return structure.formulaId;
   }
   return null;
 }
@@ -745,7 +750,8 @@ function aqueousFormulaIdentity(label: string): string | null {
 }
 
 function formulaIdentity(value: string): string | null {
-  const key = speciesObligationName(value)
+  const key = value
+    .trim()
     .replace(/\s+/g, "")
     .replace(/_(\d+)/g, "$1")
     .replace(/\^\(([^)]*)\)/g, "$1")
