@@ -7,7 +7,9 @@
  * and SIGTERM goes to the whole group, as systemd signals the whole unit.
  * Rows: a new connection made while a stream is still draining is refused; the
  * stream started before the signal completes and the process then exits 0; a
- * hung stream cannot hold the exit past the cap.
+ * hung stream cannot hold the exit past the cap; a server busy at the signal
+ * drains under the unit's `node --import tsx`; the Sentry flush runs before
+ * exit and a stuck flush is capped.
  */
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -19,9 +21,11 @@ const fixture = resolve(__dirname, "fixtures/gracefulShutdownServer.ts");
 const tsx = resolve(__dirname, "../../node_modules/.bin/tsx");
 
 // The production unit runs `node --import tsx server.ts`: no tsx relay parent.
-function start(env: Record<string, string>, runner: "node-import" | "tsx-cli" = "node-import"): Promise<{ child: ChildProcess; port: number; exited: Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }> }> {
+function start(env: Record<string, string>, runner: "node-import" | "tsx-cli" = "node-import"): Promise<{ child: ChildProcess; port: number; stderr: () => string; exited: Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }> }> {
   const [command, args] = runner === "tsx-cli" ? [tsx, [fixture]] : [process.execPath, ["--import", "tsx", fixture]];
   const child = spawn(command, args, { detached: true, cwd: resolve(__dirname, "../.."), env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+  let stderr = "";
+  child.stderr!.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
   const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }>((done) =>
     child.once("exit", (code, signal) => done({ code, signal, at: Date.now() })));
   return new Promise((done, fail) => {
@@ -30,7 +34,7 @@ function start(env: Record<string, string>, runner: "node-import" | "tsx-cli" = 
       const match = /PORT (\d+)/.exec(chunk.toString());
       if (match) {
         clearTimeout(timer);
-        done({ child, port: Number(match[1]), exited });
+        done({ child, port: Number(match[1]), stderr: () => stderr, exited });
       }
     });
   });
@@ -134,7 +138,32 @@ async function main() {
     }
   }
 
-  // 4. The production unit has no tsx relay parent.
+  // 4. The Sentry flush runs after the drain and before exit; a stuck flush
+  //    cannot hold the exit past its own cap.
+  {
+    const { child, exited, stderr } = await start({ FLUSH_MS: "400" });
+    const signalledAt = Date.now();
+    signalGroup(child);
+    const exit = await within(exited, 10_000, "the flushed exit", child);
+    const waited = exit.at - signalledAt;
+    assert.equal(exit.code, 0, `the flushed process exits 0 (code ${exit.code}, signal ${exit.signal})`);
+    assert(stderr().indexOf("[shutdown] drained") >= 0 && stderr().indexOf("FLUSHED") > stderr().indexOf("[shutdown] drained"),
+      "the flush runs after the drain and completes before the exit");
+    assert(waited >= 350, `the exit waited for the flush (${waited} ms)`);
+  }
+  {
+    const flushCapMs = 700;
+    const { child, exited, stderr } = await start({ FLUSH_MS: "hang", FLUSH_CAP_MS: String(flushCapMs) });
+    const signalledAt = Date.now();
+    signalGroup(child);
+    const exit = await within(exited, 10_000, "the capped flush exit", child);
+    const waited = exit.at - signalledAt;
+    assert.equal(exit.code, 0, `a stuck flush still exits 0 (code ${exit.code}, signal ${exit.signal})`);
+    assert(!stderr().includes("FLUSHED"), "the stuck flush never completed");
+    assert(waited >= flushCapMs - 100 && waited < flushCapMs + 2_500, `a stuck flush holds the exit only until its cap (${waited} ms)`);
+  }
+
+  // 5. The production unit has no tsx relay parent.
   for (const script of ["deploy/aws/deploy.sh", "deploy/aws/setup-vm.sh"]) {
     const unit = readFileSync(resolve(__dirname, "../../../..", script), "utf8");
     const execStart = unit.split("\n").find((line) => line.startsWith("ExecStart=")) ?? "";
@@ -142,7 +171,7 @@ async function main() {
       `${script} must start the server with exec node --import tsx (got ${execStart})`);
   }
 
-  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, a hung stream is cut at the cap, and a busy server drains under the unit's node --import tsx");
+  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, a hung stream is cut at the cap, and a busy server drains under the unit's node --import tsx, and the Sentry flush runs before exit within its cap");
 }
 
 main().catch((error) => {
