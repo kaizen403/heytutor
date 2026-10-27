@@ -50,7 +50,7 @@ import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, RELAY_HIDDEN_PROMPT_TOKENS, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
 import { acceptedLabResponseModels, buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
@@ -501,8 +501,10 @@ export function plannerRequestWorstCaseUsd(
       // The output ceiling still provides a conservative charge for malformed bodies.
     }
   }
+  // A relay bills a hidden prompt on most calls; reserve it as production does.
+  const relay = (pricing?.endpoint ?? resolveLlmEndpoint()).provider === "openai_compat";
   return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model,
-    ...inputBound, rates: pricing?.rates });
+    ...inputBound, addedInputBytes: inputBound.addedInputBytes + (relay ? RELAY_HIDDEN_PROMPT_TOKENS : 0), rates: pricing?.rates });
 }
 
 type LabInputBound = { inputByteMultiplier: number; addedInputBytes: number };
@@ -512,6 +514,8 @@ export interface LabBudgetServerConfig {
   provider: string;
   deployment: string | null;
   modelProfile: LabModelProfile;
+  /** Why the server could not build its profile (relay prices unset, fallback on). */
+  modelProfileError?: string | null;
   /** Production Fireworks Fast routing; null on Azure or an unsupported Fast identity. */
   fastModelProfile?: LabModelProfile | null;
   inputBounds: Record<"picker" | "scene", LabInputBound>;
@@ -528,7 +532,7 @@ export function assertLabBudgetPreflight(profile: LabModelProfile, serverConfig:
     !labModelProfilesMatch(profile, serverProfile) ||
     !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
     !Number.isSafeInteger(serverConfig.teachingOutputCap) || serverConfig.teachingOutputCap <= 0) {
-    throw new Error("server provider/models/prices do not match the configured lab");
+    throw new Error(`server provider/models/prices do not match the configured lab${serverConfig.modelProfileError ? `: ${serverConfig.modelProfileError}` : ""}`);
   }
   for (const kind of ["picker", "scene"] as const) {
     const bound = serverConfig.inputBounds?.[kind];

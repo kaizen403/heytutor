@@ -2,7 +2,7 @@ import { effectiveTurnStatus, hasMeaningfulTurnSegments } from "../boards/turnSt
 import { classifyTurnFailure } from "./turnFailureClassification";
 import { failedTurnRuntimeEnvironment } from "./failedTurnRuntime";
 import { BILLING_ERROR_CODES, billingStatus, isBillingErrorCode, type BillingErrorCode } from "../billing/errors";
-import { resolveLlmEndpoint } from "../llm/llmProvider";
+import { CompatCircuit, compatCircuit, resolveLlmEndpoint } from "../llm/llmProvider";
 
 export const FAILED_TURN_BILLING_CODES = BILLING_ERROR_CODES;
 
@@ -201,11 +201,16 @@ export function buildFailedTurnSentryEvent(
   const issueCodes = [...new Set(rawCodes.map(value => typeof value === "string" && known.has(value) ? value : "unknown_issue"))].slice(0, 32);
   const strictSubjects = (env.DIAGRAM_STRICT_SUBJECTS ?? "").split(/[\s,]+/)
     .filter(value => ["maths", "physics", "chemistry"].includes(value));
-  // The provider the next turn would use, as the chat route resolves it.
-  const endpoint = resolveLlmEndpoint(env);
-  const provider = options.historical ? "unknown" : !endpoint.apiKey ? "mock" : endpoint.provider;
+  // The configured provider, with the relay circuit closed: a failure that
+  // opened the circuit must be tagged on the relay, not on its fallback. When
+  // the circuit is open, the turn's later calls ran on Fireworks, so say so.
+  const endpoint = resolveLlmEndpoint(env, new CompatCircuit());
+  const circuitOpen = endpoint.provider === "openai_compat" && compatCircuit.openReason() !== null;
+  const provider = options.historical ? "unknown" : !endpoint.apiKey ? "mock"
+    : circuitOpen ? "openai_compat_circuit_open" : endpoint.provider;
   const deployment = options.historical ? "unknown"
     : member(provider === "mock" ? "mock" : endpoint.deployment ?? "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
+
   const releaseValue = env.SENTRY_RELEASE ?? env.GITHUB_SHA ?? "";
   const release = !options.historical && /^[a-f0-9]{40}$/i.test(releaseValue) ? releaseValue.toLowerCase() : "unknown";
   const environment = failedTurnRuntimeEnvironment(env);

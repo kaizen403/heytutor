@@ -32,7 +32,7 @@ import {
   startTurnTrace,
 } from "@/lib/obs/langfuse";
 import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
-import { completionTokenCap, endpointEnv, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, endpointEnv, providerChatBody, providerUnavailableReason, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { registerWsConnectionRevocation } from "@/lib/tts/wsTicket";
@@ -297,6 +297,8 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   if (initialDispatchError) return initialDispatchError;
   const llm = resolveLlmEndpoint();
   const apiKey = llm.apiKey;
+  // A misconfigured provider in production refuses; it never answers with mock text.
+  if (providerUnavailableReason(llm)) return NextResponse.json({ error: "notes chat is unavailable" }, { status: 503 });
   const mock = !apiKey;
   const traceId = genTraceId();
   const turnTrace = startTurnTrace({

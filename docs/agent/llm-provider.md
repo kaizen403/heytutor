@@ -110,18 +110,24 @@ turn plans through our parser, three teaching streams; about 40 calls).
 | Teaching stream first content: `resp_` 1.4 to 1.7 s, `chatcmpl-` 4.6 s | Same |
 
 Guards in `resolveLlmEndpoint`: the base URL must end in `/v1` (a missing
-`/v1` makes every call a 404), and with `NODE_ENV=production` the relay also
-needs `OPENAI_COMPAT_ALLOW_PRODUCTION=1`, because a reservation sized by a cap
-the relay ignores does not bound what a student's turn bills. Either failure
-logs one `[llm]` error and serves Fireworks. Relay reservations also add
+`/v1` makes every call a 404) and carry no credentials, query or fragment; in
+production it must be https, and the relay also needs
+`OPENAI_COMPAT_ALLOW_PRODUCTION=1`, because a reservation sized by a cap the
+relay ignores does not bound what a student's turn bills. Any failure logs one
+`[llm]` error and serves Fireworks. If production has no Fireworks key either,
+the chat and notes chat routes answer 503 (`providerUnavailableReason`) rather
+than mock lessons, which would be canned and unbilled; this also covers a
+misconfigured Azure env. Relay reservations also add
 `RELAY_HIDDEN_PROMPT_TOKENS` (4,500) of input (`paidUsage.ts`).
 
 Circuit breaker (`CompatCircuit`, kept on `globalThis` so every route bundle
 shares it): a 401, 402, 403, 404 or 410 opens it at once; three 408, 429, 5xx
 or connect failures within a minute open it. The chat route reports once per
 request (the response that ended its retries, or a connect failure on every
-attempt), never for a student who left or a planner deadline. A 400 never
-counts. While open, `resolveLlmEndpoint` returns Fireworks (with
+attempt; a planner success only once its body has been read), never for a
+student who left or a planner deadline. A 400 never counts. Failed turn
+telemetry tags the configured provider, as `openai_compat_circuit_open` when
+the circuit was open at checkpoint time. While open, `resolveLlmEndpoint` returns Fireworks (with
 `fallbackReason`, recorded as `llm_fallback_reason` on generations) for five
 minutes, so the next request and the client's startup retry run on Kimi K3 with
 a Fireworks body and Fireworks prices. The failing request itself is not
@@ -133,8 +139,14 @@ relay the planner no longer blacklists a model that answered 404 or 410: there
 is no second model, so the blacklist stopped figures until a restart.
 
 The lab refuses a relay round unless `OPENAI_COMPAT_FALLBACK=off` and all three
-`OPENAI_COMPAT_*_USD_PER_1M` prices are set, and the preflight reports why
-instead of answering 500.
+`OPENAI_COMPAT_*_USD_PER_1M` prices are set; the runner prints the server's
+reason. Its worst case per call includes the hidden prompt allowance.
+
+Known limits (second review, 27 Oct 2026): one student turn sends about five
+relay requests at once, so one bad turn can open the circuit for everyone, and
+a single 403 or 404 opens it at once; slow planner calls that hit our own
+deadlines never count; output caps are still not enforced on streams, which is
+why production needs the explicit opt-in.
 
 Prices: lane `openai-compat`, env prefix `OPENAI_COMPAT_`, defaulting to the
 Azure gpt-6.1-sol rates (tokens-flow publishes none we can read).

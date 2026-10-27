@@ -516,6 +516,7 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     for (const [base, problem] of [
       ["https://relay.test", "must end in /v1"], ["https://relay.test/api", "must end in /v1"],
       ["relay.test/v1", "is not a URL"], ["ftp://relay.test/v1", "is not an http\\(s\\) URL"],
+      ["https://user:pass@relay.test/v1", "must not carry credentials"], ["https://relay.test/v1?key=x", "must not carry a query or fragment"],
     ] as const) {
       const env = { ...RELAY, FIREWORKS_API_KEY: "fw", OPENAI_COMPAT_BASE_URL: base };
       const { value } = captureErrors(() => provider.resolveLlmEndpoint(env, new provider.CompatCircuit()));
@@ -527,6 +528,19 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     assert.equal(blocked.provider, "fireworks");
     assert.match(blocked.fallbackReason ?? "", /does not enforce output caps and OPENAI_COMPAT_ALLOW_PRODUCTION is not 1/);
     assert.equal(provider.resolveLlmEndpoint({ ...production, OPENAI_COMPAT_ALLOW_PRODUCTION: "1" }, new provider.CompatCircuit()).provider, "openai_compat");
+    const { value: plain } = captureErrors(() => provider.resolveLlmEndpoint({ ...production, OPENAI_COMPAT_ALLOW_PRODUCTION: "1", OPENAI_COMPAT_BASE_URL: "http://relay.test/v1" }, new provider.CompatCircuit()));
+    assert.match(plain.fallbackReason ?? "", /must be https in production/);
+    assert.equal(provider.resolveLlmEndpoint({ ...RELAY, OPENAI_COMPAT_BASE_URL: "http://relay.test/v1" }, new provider.CompatCircuit()).provider, "openai_compat", "http is fine outside production");
+  }],
+  ["a misconfigured provider in production with no Fireworks key refuses instead of mock lessons", () => {
+    const refused = captureErrors(() => provider.resolveLlmEndpoint({ ...RELAY, NODE_ENV: "production" }, new provider.CompatCircuit())).value;
+    assert.equal(refused.apiKey, undefined);
+    assert.match(provider.providerUnavailableReason(refused, { NODE_ENV: "production" }) ?? "", /OPENAI_COMPAT_ALLOW_PRODUCTION/);
+    assert.equal(provider.providerUnavailableReason(refused, { NODE_ENV: "development" }), null, "development keeps mock mode");
+    const azureBroken = captureErrors(() => provider.resolveLlmEndpoint({ ...AZURE, AZURE_OPENAI_API_KEY: "" })).value;
+    assert.match(provider.providerUnavailableReason(azureBroken, { NODE_ENV: "production" }) ?? "", /AZURE_OPENAI_API_KEY/);
+    assert.equal(provider.providerUnavailableReason(provider.resolveLlmEndpoint({}), { NODE_ENV: "production" }), null, "no provider asked for: unchanged");
+    assert.equal(provider.providerUnavailableReason(provider.resolveLlmEndpoint({ ...RELAY, NODE_ENV: "production", FIREWORKS_API_KEY: "fw" }), { NODE_ENV: "production" }), null, "a Fireworks key serves");
   }],
   ["endpointEnv pins model choice to the endpoint a request already resolved", () => {
     const env = { ...RELAY, FIREWORKS_API_KEY: "fw" };
@@ -568,6 +582,10 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     provider.compatCircuit.reset();
     assert.deepEqual(tags({ ...RELAY, FIREWORKS_API_KEY: "fw" }), ["openai_compat", "gpt-6.1-sol"]);
     assert.deepEqual(tags({ ...RELAY }), ["openai_compat", "gpt-6.1-sol"], "no Fireworks key: still the relay, not mock");
+    // The failure that opened the circuit stays on the relay, marked as such.
+    provider.compatCircuit.record({ ok: false, status: 401 });
+    assert.deepEqual(tags({ ...RELAY, FIREWORKS_API_KEY: "fw" }), ["openai_compat_circuit_open", "gpt-6.1-sol"]);
+    provider.compatCircuit.reset();
     assert.deepEqual(tags({ ...AZURE }), ["azure", "gpt-6-1-sol"]);
     assert.deepEqual(tags({ FIREWORKS_API_KEY: "fw" }), ["fireworks", "fireworks"]);
     assert.deepEqual(tags({}), ["mock", "mock"]);
@@ -975,6 +993,54 @@ const routeChecks: [string, () => Promise<void>][] = [
     try { await post(); } finally { console.error = originalConsoleError; }
     assert.ok(dispatched > before, "the third failing request reached the relay");
     assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/);
+  }],
+  ["relay: planner client aborts and planner deadlines never count", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    for (let i = 0; i < 3; i += 1) {
+      const left = new AbortController();
+      globalThis.fetch = async () => { left.abort(); throw new DOMException("aborted", "AbortError"); };
+      const request = chatRequest(trace, PLANNER_HEADERS, { stream: false });
+      const response = await chat.POST(new Request(request, { signal: left.signal })).catch((error: unknown) => error);
+      if (response instanceof Response) await response.text().catch(() => undefined);
+    }
+    assert.equal(provider.compatCircuit.openReason(), null, "a student who left is not the relay failing");
+    // A 1 s planner deadline that every attempt runs into.
+    globalThis.fetch = async (_url, init) => new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+    for (let i = 0; i < 3; i += 1) {
+      await (await chat.POST(chatRequest(trace, { ...PLANNER_HEADERS, "x-planner-deadline-ms": "1000" }, { stream: false }))).text();
+    }
+    assert.equal(provider.compatCircuit.openReason(), null, "our own deadline is not the relay failing");
+  }],
+  ["relay: a planner body that fails after a 200 counts once, so three open the circuit", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    globalThis.fetch = async () => new Response(new ReadableStream({ start(controller) { controller.error(new TypeError("terminated")); } }),
+      { status: 200, headers: { "content-type": "application/json" } });
+    const captured: string[] = [];
+    console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    try {
+      for (let i = 0; i < 3; i += 1) await (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
+    } finally { console.error = originalConsoleError; }
+    assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/, "the 200 headers alone are not a success");
+  }],
+  ["relay: production with no opt-in and no Fireworks key refuses with 503, no provider call, no mock", async () => {
+    const savedNodeEnv = process.env.NODE_ENV;
+    try {
+      const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "" });
+      (process.env as Record<string, string>).NODE_ENV = "production";
+      let dispatched = 0;
+      globalThis.fetch = async () => { dispatched += 1; return teachingReply(); };
+      const { value } = captureErrors(() => chat.POST(chatRequest(trace, PLANNED_TEACHING)));
+      const response = await value;
+      assert.equal(response.status, 503);
+      assert.equal(dispatched, 0);
+    } finally {
+      if (savedNodeEnv === undefined) delete (process.env as Record<string, string | undefined>).NODE_ENV;
+      else (process.env as Record<string, string>).NODE_ENV = savedNodeEnv;
+      process.env.FIREWORKS_API_KEY = "fireworks-test-key";
+    }
   }],
   ["relay: a 400 is our request and never opens the circuit", async () => {
     const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });

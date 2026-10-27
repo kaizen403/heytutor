@@ -83,6 +83,13 @@ export const COMPAT_CIRCUIT = {
 
 export type ProviderOutcome = { ok: true } | { ok: false; status?: number };
 
+/**
+ * A relay adds its own prompt to most calls (about 4,200 tokens on tokens-flow,
+ * 27 Oct 2026), billed as input we never sent. Spend reservations and the lab's
+ * worst case add this much input on the relay lane.
+ */
+export const RELAY_HIDDEN_PROMPT_TOKENS = 4500;
+
 /** Statuses that mean the relay cannot serve us at all, not a passing blip. */
 const COMPAT_BLOCKING_STATUSES = new Set([401, 402, 403, 404, 410]);
 
@@ -161,19 +168,33 @@ export function noteProviderOutcome(
  * cap does not bound what a student's turn can bill.
  */
 function compatEnvProblem(env: Env): string | null {
-  let path: string;
+  const production = env.NODE_ENV === "production";
+  let base: URL;
   try {
-    const url = new URL(compatChatUrl(env.OPENAI_COMPAT_BASE_URL!));
-    if (url.protocol !== "https:" && url.protocol !== "http:") return "OPENAI_COMPAT_BASE_URL is not an http(s) URL";
-    path = url.pathname;
+    base = new URL(env.OPENAI_COMPAT_BASE_URL!.trim());
   } catch {
     return "OPENAI_COMPAT_BASE_URL is not a URL";
   }
-  if (!/\/v1\/chat\/completions$/.test(path)) return "OPENAI_COMPAT_BASE_URL must end in /v1";
-  if (env.NODE_ENV === "production" && trimmed(env.OPENAI_COMPAT_ALLOW_PRODUCTION) !== "1") {
+  if (base.protocol !== "https:" && base.protocol !== "http:") return "OPENAI_COMPAT_BASE_URL is not an http(s) URL";
+  if (production && base.protocol !== "https:") return "OPENAI_COMPAT_BASE_URL must be https in production";
+  if (base.username || base.password) return "OPENAI_COMPAT_BASE_URL must not carry credentials; use OPENAI_COMPAT_API_KEY";
+  if (base.search || base.hash) return "OPENAI_COMPAT_BASE_URL must not carry a query or fragment";
+  if (!/\/v1\/chat\/completions$/.test(new URL(compatChatUrl(base.href)).pathname)) return "OPENAI_COMPAT_BASE_URL must end in /v1";
+  if (production && trimmed(env.OPENAI_COMPAT_ALLOW_PRODUCTION) !== "1") {
     return "the relay does not enforce output caps and OPENAI_COMPAT_ALLOW_PRODUCTION is not 1";
   }
   return null;
+}
+
+/**
+ * Why a production route must refuse rather than teach: a provider was asked
+ * for, could not be used, and there is no Fireworks key to fall back to. An
+ * empty key would otherwise mean mock mode, which sends canned lessons to
+ * students and records no spend. Development keeps mock mode.
+ */
+export function providerUnavailableReason(endpoint: LlmEndpoint, env: Env = process.env): string | null {
+  if (endpoint.apiKey || !endpoint.fallbackReason || env.NODE_ENV !== "production") return null;
+  return endpoint.fallbackReason;
 }
 
 /**

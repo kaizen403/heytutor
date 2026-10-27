@@ -49,6 +49,7 @@ import {
   completionTokenCap,
   noteProviderOutcome,
   providerChatBody,
+  providerUnavailableReason,
   readProviderPerf,
   relayUpstreamKind,
   resolveLlmEndpoint,
@@ -745,7 +746,8 @@ async function handlePlannerRequest({
       responseHeadersAt: Date.now(),
     });
 
-    noteProviderOutcome(llm, response.ok ? { ok: true } : { ok: false, status: response.status });
+    // Success is reported once the body has been read, below.
+    if (!response.ok) noteProviderOutcome(llm, { ok: false, status: response.status });
     tutorDebug("planner", "provider response", {
       provider: llm.provider,
       status: response.status,
@@ -784,6 +786,7 @@ async function handlePlannerRequest({
     }
 
     const jsonBody = await response.text();
+    noteProviderOutcome(llm, { ok: true });
 
     // Trace the planner output (non-streaming, so accumulate at once).
     let returnedTier: "default" | "priority" | undefined;
@@ -969,6 +972,11 @@ export async function POST(request: Request): Promise<Response> {
   const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
     ? llm.deployment ?? DEFAULT_FIREWORKS_MODEL
     : undefined;
+  const unavailable = providerUnavailableReason(llm);
+  if (unavailable) {
+    tutorDebug("chat", "provider unavailable in production", { reason: unavailable });
+    return Response.json({ error: PUBLIC_CHAT_ERROR }, { status: 503 });
+  }
   const mock = !apiKey;
   // A startup retry after a stalled Fast router runs on the standard deployment.
   const teachingRoute: TeachingModelRoute | null = kind === "teaching"
