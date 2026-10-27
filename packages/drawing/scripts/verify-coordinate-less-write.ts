@@ -147,6 +147,20 @@ const overflow = streamed(`[STEP]A row. [WRITE:y=277] ${"then more words ".repea
 assert(overflow.writes.length === 0 && !overflow.narration.includes("[WRITE"), "a refused WRITE held past the buffer limit is not spoken");
 assert(!streamed("Last words. [WRITE:w5]").narration.includes("[WRITE"), "a refused WRITE at the end of the stream is not spoken");
 
+// The refused span ends at the tag's own "]": a bracket in the speech after it
+// (an interval) is speech, not part of the tag.
+const interval = "[STEP]The domain. [WRITE:w5] Take x in (0, 1]. Then solve.[/STEP]";
+for (const chunk of [1, 9]) {
+  const spoken = streamed(interval, chunk).narration;
+  assert(spoken.includes("Take x in (0, 1]") && !spoken.includes("[WRITE"), `the words after a refused WRITE are still spoken (chunk ${chunk}): ${spoken}`);
+}
+assert(parseDrawingCommands(interval).narration.includes("Take x in (0, 1]"), "the batch parser keeps the words after a refused WRITE");
+
+// A row may quote a closing tag: only a stray [/WRITE] outside a row is dropped.
+const quoted = `[STEP]The tag. [WRITE:the [/WRITE] tag,90,${ROW(1)}] Quoted.[/STEP]`;
+assert(batchWrites(quoted)[0]?.text === "the [/WRITE] tag", `the batch parser keeps a quoted [/WRITE] in a row: ${batchWrites(quoted)[0]?.text}`);
+assert(streamed(quoted).writes[0]?.text === "the [/WRITE] tag", "the streaming parser keeps a quoted [/WRITE] in a row");
+
 // An evaluation bar refused as a row leaves with its bounds, not as speech.
 const bar = streamed("[STEP]Area. [WRITE:x^3/3 ]_0^1 = 1/3] So a third.[/STEP]");
 assert(bar.writes.length === 0 && !bar.narration.includes("[") && !bar.narration.includes("_0^1"),
