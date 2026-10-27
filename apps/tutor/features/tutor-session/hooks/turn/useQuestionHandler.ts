@@ -2663,6 +2663,7 @@ export function useQuestionHandler(
             // it was parsed or spoken, so the lesson simply carries on.
             enabled: isContinuation && !resumeInkRetry,
             signal: abortController.signal,
+            isCurrent: isCurrentTurn,
             onRetry: () => tel.mark("teaching-continuation-retry", { continuation: continueCount }),
           });
 
