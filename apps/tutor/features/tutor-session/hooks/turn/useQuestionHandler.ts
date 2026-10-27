@@ -2021,6 +2021,11 @@ export function useQuestionHandler(
               failure = { status: "unavailable", reason: "presentation_failed" };
             }
           }
+        } else if (answer.status === "unavailable" && answer.reason === "wait_deadline") {
+          // Stop waiting, not searching: the request runs on (to the client's
+          // own timeout) so the server stores and caches the topic for the
+          // next ask. Every other exit aborts, which stops the server's work;
+          // a Stop or a replaced turn aborts it through the turn's signal.
         } else {
           pending.controller.abort();
         }

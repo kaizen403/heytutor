@@ -126,8 +126,10 @@ arm as production, `--reference-picture`; full tables in the PR):
   with given numbers.
 - Added wait before teaching: about 0 s for maths and physics (the search runs
   inside scene planning), 17 to 19 s for biology and chemistry where the engine
-  plans nothing, capped at 25 s. A cut off search now finishes in the
-  background and is cached: the next ask of that topic answered in 1 s.
+  plans nothing, capped at 25 s. A turn that stops waiting at the cap does
+  not abort the request, so the search finishes and is cached: the next ask of
+  that topic answered in 1 s. Any abort (a verified figure won, a Stop, a
+  replaced turn) stops the server's work.
 - Round 2 to 3 (grace rounds) cut engine-less waits from 20 to 25 s to 6 to 13
   s; round 4 (with the fact check) gave some of that back (17 to 25 s) in
   exchange for catching the false atmosphere picture.
