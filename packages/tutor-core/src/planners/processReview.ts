@@ -136,7 +136,8 @@ async function postReview(
 export async function writeProcessClaim(
   question: string, plan: Pick<TurnPlanV3, "qualitativeClaims">, options: ProcessReviewOptions,
 ): Promise<string | null> {
-  const claims = processReviewClaimsText(plan).slice(0, 6_000);
+  // The writer never sees a route the plan rejects, so it cannot restate one as true.
+  const claims = processReviewClaimsText(plan, { includeRejected: false }).slice(0, 6_000);
   const content = await postReview(question, "write", PROCESS_WRITER_PROMPT,
     `Question: ${question.slice(0, 2_000)}\nClaims:\n${claims}`, options);
   if (typeof content !== "string") return null;
@@ -149,7 +150,8 @@ export async function writeProcessClaim(
     chain.steps.length >= 3 && chain.steps.length <= 7 && new Set(chain.steps).size === chain.steps.length &&
     // A box wraps to four lines, so a step may run a little past the 40 asked for.
     chain.labels.every((label) => label.length <= 60);
-  return ok ? text.trim() : null;
+  // And if it restates a rejected route anyway, the route stays rejected.
+  return ok && !rejectedProcesses(plan).includes(chain.steps.join(" > ")) ? text.trim() : null;
 }
 
 async function vote(
@@ -161,10 +163,26 @@ async function vote(
 }
 
 /** The plan's claims as the reviewer and writer read them, one per line. */
-export function processReviewClaimsText(plan: Pick<TurnPlanV3, "qualitativeClaims">): string {
+export function processReviewClaimsText(
+  plan: Pick<TurnPlanV3, "qualitativeClaims">, options: { includeRejected?: boolean } = {},
+): string {
   return plan.qualitativeClaims
-    .map((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean).join(": "))
+    .filter((claim) => options.includeRejected !== false || claim.expected !== false)
+    .map((claim) => {
+      const text = [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean).join(": ");
+      // A reviewer must see that the plan rejects this, never read it as a fact.
+      return claim.expected === false ? `REJECTED by the plan (false): ${text}` : text;
+    })
     .join("\n");
+}
+
+/** The step keys of every process the plan marks false: routes it rejects. */
+function rejectedProcesses(plan: Pick<TurnPlanV3, "qualitativeClaims">): string[] {
+  return plan.qualitativeClaims
+    .filter((claim) => claim.expected === false)
+    .flatMap((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""])
+    .map((text) => blockFlowChain(text))
+    .flatMap((chain) => chain ? [chain.steps.join(" > ")] : []);
 }
 
 /**
