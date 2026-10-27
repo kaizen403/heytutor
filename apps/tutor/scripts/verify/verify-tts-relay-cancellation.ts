@@ -23,7 +23,7 @@ function deferred<T>() {
 const tick = async () => { for (let i = 0; i < 6; i++) await new Promise<void>(done => setImmediate(done)); };
 
 /** The real relay is evaluated with an error-emitting ws fake; no provider or DB calls. */
-function fixture(options: { reservePending?: boolean; finishFails?: boolean; cancelFails?: boolean; undispatched?: boolean; asyncTerminate?: boolean } = {}) {
+function fixture(options: { reservePending?: boolean; pendingAfter?: number; finishFails?: boolean; cancelFails?: boolean; undispatched?: boolean; asyncTerminate?: boolean } = {}) {
   const captures: unknown[] = [];
   let released = 0, disposed = 0, unregistered = 0, finished = 0, cancelled = 0, reserved = 0;
   let revoke = () => {};
@@ -77,7 +77,11 @@ function fixture(options: { reservePending?: boolean; finishFails?: boolean; can
     "../obs/traceOwnership": { assertOwnedTrace: async () => true },
     "../obs/usageCost": { calculateTtsCostDetails: () => ({ total: 0 }) },
     "../billing/grant": { consumeTtsChars: () => ({ allowed: true }), getTurnGrant: () => grant, shouldSkipTtsForUsage: () => false },
-    "../billing/paidUsage": { reservePaidUsage: async () => { reserved++; return options.reservePending ? reservation.promise : receipt; } },
+    "../billing/paidUsage": { reservePaidUsage: async () => {
+      reserved++;
+      const held = options.reservePending || (options.pendingAfter !== undefined && reserved > options.pendingAfter);
+      return held ? reservation.promise : receipt;
+    } },
     "../billing/track": { recordTtsSpend: () => {} },
     "./providerConfig": { ttsConfig: () => ({ apiKey: "synthetic", voiceId: "synthetic", model: "synthetic", provider: "cartesia" }) },
     "./ttsProvider": { createTtsRelay: () => ({
@@ -211,6 +215,22 @@ async function main() {
   check(f.inFlight(), 0, "the in-flight segment finished");
   check(f.stats().finished, 1, "the finished segment is settled once");
   check(f.skips()[0]?.reason, "server_restarting", "the relay closes as a restart once its last segment finishes");
+  checkClosed(f, 1);
+
+  // A drain that begins while a segment's reservation is still pending: the
+  // reservation is cancelled before dispatch, the sentence in flight finishes.
+  f = fixture({ pendingAfter: 1 });
+  f.vendor.open(); f.say(1); await tick();
+  check(f.inFlight(), 1, "the first segment is in flight");
+  f.say(2); await tick();
+  check(f.stats().reserved, 2, "the second segment's reservation is pending");
+  f.beginDrain();
+  f.reservation.resolve(f.receipt); await tick();
+  check(f.stats().cancelled, 1, "a reservation that resolves after the drain began is cancelled before dispatch");
+  check(f.vendor.sent.filter((raw) => raw.includes("synthetic speech")).length, 1, "it never reaches the provider");
+  check(f.skips().length, 0, "the sentence still being spoken is not cut");
+  f.final(1); await tick();
+  check(f.skips()[0]?.reason, "server_restarting", "the relay closes once the sentence in flight finishes");
   checkClosed(f, 1);
 
   console.log(`TTS relay cancellation: ${checks} checks passed; actual relay with fake sockets and receipts, no network; a restart lets the sentence in flight finish`);

@@ -73,8 +73,17 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     });
   };
   let speechPoll: ReturnType<typeof setInterval> | undefined;
+  let speechDrainStarted = false;
   const exitWhenDrained = () => {
-    if (!draining || active.size > 0 || (options.speech?.inFlight() ?? 0) > 0) return;
+    if (!draining || active.size > 0) return;
+    // Speech keeps flowing while a teaching stream is still open; the speech
+    // drain starts only once HTTP has drained, then the sentences already sent
+    // to the provider finish.
+    if (options.speech && !speechDrainStarted) {
+      speechDrainStarted = true;
+      options.speech.beginDrain();
+    }
+    if ((options.speech?.inFlight() ?? 0) > 0) return;
     if (speechPoll) clearInterval(speechPoll);
     finish("drained");
   };
@@ -96,8 +105,6 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     log(`[shutdown] SIGTERM: draining ${active.size} request(s), cap ${capMs} ms`);
     server.close();
     server.closeIdleConnections();
-    // The sentence being spoken finishes; no new one starts.
-    options.speech?.beginDrain();
     if (options.speech) speechPoll = setInterval(exitWhenDrained, 100);
     setTimeout(() => finish("cap"), capMs);
     exitWhenDrained();

@@ -236,6 +236,12 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       grant, kind: "tts", traceId: context.traceId, usd: calculateTtsCostDetails(characters, { model, provider }).total ?? 0,
     });
     if (receipt instanceof Response) { close("tts_budget"); return; }
+    // The drain may have begun during the awaits above: nothing is dispatched.
+    if (speechDraining) {
+      await receipt.cancelBeforeDispatch();
+      if (pending.size === 0) close("server_restarting", 1012);
+      return;
+    }
     if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await receipt.cancelBeforeDispatch(); return; }
     if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await receipt.cancelBeforeDispatch(); close("speech_backpressure"); return; }
     sequence++; charactersUsed += characters; usedContexts.add(id);
