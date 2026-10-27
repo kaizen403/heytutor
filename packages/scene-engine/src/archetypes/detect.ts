@@ -371,7 +371,7 @@ const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|
 // the ring"). A direction the stem gives is not asked.
 const ASKED_CURRENT_DIRECTION: StemTest = {
   test: (stem) => INDUCED_CURRENT_DIRECTION.test(stem)
-    || /\b(?:find|determine|show|mark|state|predict|indicate|label|draw|what is|which is)\b[^.?]{0,30}\b(?:direction|sense)\s+of\s+(?:the\s+)?(?:induced\s+)?currents?\b/i.test(stem),
+    || /\b(?:find|determine|show|mark|state|predict|indicate|label|draw|explain|describe|deduce|work out|give|what is|which is)\b[^.?]{0,30}\b(?:direction|sense)\s+of\s+(?:the\s+)?(?:induced\s+)?currents?\b/i.test(stem),
 };
 
 // What the magnet and coil figure draws: a north pole moving towards a coil
@@ -901,7 +901,9 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\bsolenoid\b/i, 4], [/\btoroid\b/i, 4], [/\b(?:turns per|turns\/|number of turns)\b/i, 1]],
     // The figure draws the winding's current as given. An induced current's
     // direction is what such a stem asks, and the figure would guess it.
-    vetoes: [INDUCED_CURRENT_DIRECTION],
+    // An asked direction in an induction stem (a changing field or flux, a
+    // moving magnet) is the induced current too, even without "induced".
+    vetoes: [INDUCED_CURRENT_DIRECTION, { test: (stem) => ASKED_CURRENT_DIRECTION.test(stem) && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|flux|induc\w*|magnets?)\b/i.test(stem) }],
     extract: (stem, plan, bag) => {
       setSlot(bag, "turns", planNumber(plan, ["n", "turns", "turnspermetre"]), "plan");
       setSlot(bag, "turns", numberBefore(stem, /turns/), "stem");
