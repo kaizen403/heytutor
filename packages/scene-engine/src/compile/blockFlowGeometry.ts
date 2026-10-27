@@ -166,6 +166,9 @@ export function blockFlowChain(value: string): { heading: string | null; steps: 
   }
   const steps = parts.map(blockFlowStepKey);
   if (steps.some((step) => !step || CLAUSE_BREAK.test(step))) return null;
+  // A step offering alternatives ("signs or vetoes") is a branch: the steps
+  // after it follow only one of them. It may only end the chain.
+  if (steps.slice(0, -1).some((step) => /(?:^| )(?:or|either)(?: |$)/.test(step))) return null;
   return { heading, steps, labels: parts.map((part) => part.trim().replace(/\s+/g, " ")) };
 }
 

@@ -4,8 +4,8 @@ import {
 } from "@heytutor/tutor-core";
 import { deriveSceneGate } from "./productionSceneSelection";
 
-/** Three short votes run in parallel; a slow review is no review. */
-export const BLOCK_FLOW_REVIEW_TIMEOUT_MS = 8_000;
+/** Three short reasoning votes run in parallel (up to about 9 s each); a slower review is no review. */
+export const BLOCK_FLOW_REVIEW_TIMEOUT_MS = 20_000;
 
 export const BLOCK_FLOW_REVIEW_DECLINED = "block_flow_review_declined";
 
@@ -55,7 +55,7 @@ export async function reviewBlockFlowScene<
   if (!result || !document || !document.constructions.some((construction) => construction.operator === "block_flow")) {
     return { result, review: null };
   }
-  const review = await reviewProcessChains(input.question, blockFlowCitedProcesses(document, input.turnPlan), input.options);
+  const review = await reviewProcessChains(input.question, blockFlowCitedProcesses(document, input.turnPlan), input.options, input.turnPlan);
   if (review.verdict === "process") return { result, review };
   return {
     review,

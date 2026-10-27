@@ -10,10 +10,24 @@ import { blockFlowChain, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 
-export const PROCESS_REVIEW_PROMPT = `You check one ordered chain that a tutor wants to draw as a flow diagram of boxes joined by arrows, where each arrow means "then" or "leads to".
-Answer PROCESS only if, in reality, every step happens before the next one and leads to it: a sequence of events, the stages of a mechanism, a procedure a person carries out in order, or the path that material, data, money or a signal travels.
-Answer NOT if the chain is anything else written with arrows: a list of topics, parts, components, types, layers, services, criteria or examples; a lesson outline or study plan; a hierarchy or a ranking; things that happen at the same time or in parallel; or any chain where even one arrow would state an order or cause that is false.
-If unsure, answer NOT. Reply with only {"verdict":"PROCESS"} or {"verdict":"NOT"}.`;
+const REVIEW_FRAME = `A tutor wants to draw one ordered chain as a flow diagram of boxes joined by arrows, where each arrow means "then" or "leads to". You see the student's question, the lesson plan's claims and the chain. If unsure, answer NOT. Reply with only {"verdict":"PROCESS"} or {"verdict":"NOT"}.`;
+
+/**
+ * Three different questions, not one asked three times: the same prompt at
+ * temperature 0 behaved as a single vote and never answered NOT in the lab
+ * (independent review, 27 Oct). Every one must answer PROCESS.
+ */
+export const PROCESS_REVIEW_PROMPTS = [
+  `${REVIEW_FRAME}
+Judge what kind of thing the chain is. Answer PROCESS only if the chain is the process the question asks to understand, and every box is something that happens (an event, an action or a stage), not a category, component, layer, service, function in a definition, type or example. Answer NOT if the boxes are the categories or parts the question asks to classify or list, if a definition's list of functions or verbs is drawn as a sequence, or if one example path stands in for a topic that is not a single path.`,
+  `${REVIEW_FRAME}
+Judge every arrow on its own. For each arrow A → B ask: in reality, must A have happened before B, and does A lead to B? Answer PROCESS only if this holds for every arrow. Answer NOT if any arrow states an order or a cause that is false, reversed, or only one of several possible orders.`,
+  `${REVIEW_FRAME}
+Judge the shape: would this straight path teach something false? Answer NOT if a step must repeat for the result to come out (a loop drawn once), if an either/or choice or an optional step is drawn as a step that always happens, if things that happen together are drawn one after another, or if a step the claims state is missing so that a later box seems to follow directly. A main path with early exits or error cases left out is fine when it is the path the question asks about. Otherwise answer PROCESS.`,
+] as const;
+
+/** The first review question, kept for callers that judge a chain alone. */
+export const PROCESS_REVIEW_PROMPT = PROCESS_REVIEW_PROMPTS[0];
 
 /**
  * The turn planner's prompt is shared with maths and physics, so it is never
@@ -21,11 +35,11 @@ If unsure, answer NOT. Reply with only {"verdict":"PROCESS"} or {"verdict":"NOT"
  * one short call may restate a process the claims already describe.
  */
 export const PROCESS_WRITER_PROMPT = `A tutor's plan for one lesson is below as claims. If the claims describe one real process, where in reality every step happens before the next and leads to it (a sequence of events, the stages of a mechanism, an ordered procedure, or the path that material, data, money or a signal travels), restate it as one line "Process: step → step → step" with 3 to 7 steps taken from what the claims say. Each step is a short phrase under 40 characters with no brackets, commas or full stops.
-Never write a process for a list of topics, parts, components, types, layers, criteria or examples, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support.
+Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, reply null.
 Reply with only {"process":"Process: ..."} or {"process":null}.`;
 
-/** Independent votes per process; every one must say PROCESS. */
-export const PROCESS_REVIEW_VOTES = 3;
+/** One vote per review question; every one must say PROCESS. */
+export const PROCESS_REVIEW_VOTES = PROCESS_REVIEW_PROMPTS.length;
 
 export type ProcessReviewVerdict = "process" | "not" | "unavailable";
 
@@ -114,9 +128,7 @@ async function postReview(
 export async function writeProcessClaim(
   question: string, plan: Pick<TurnPlanV3, "qualitativeClaims">, options: ProcessReviewOptions,
 ): Promise<string | null> {
-  const claims = plan.qualitativeClaims
-    .map((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean).join(": "))
-    .join("\n").slice(0, 6_000);
+  const claims = processReviewClaimsText(plan).slice(0, 6_000);
   const content = await postReview(question, "write", PROCESS_WRITER_PROMPT,
     `Question: ${question.slice(0, 2_000)}\nClaims:\n${claims}`, options);
   if (typeof content !== "string") return null;
@@ -132,14 +144,23 @@ export async function writeProcessClaim(
   return ok ? text.trim() : null;
 }
 
-async function vote(question: string, steps: readonly string[], options: ProcessReviewOptions): Promise<"PROCESS" | "NOT" | null> {
-  // The question and steps are student and plan data, not instructions.
-  return parseProcessReviewVerdict(await postReview(question, "1", PROCESS_REVIEW_PROMPT,
-    `Question: ${question.slice(0, 2_000)}\nChain: ${steps.join(" → ").slice(0, 2_000)}`, options));
+async function vote(
+  question: string, claims: string, steps: readonly string[], prompt: string, options: ProcessReviewOptions,
+): Promise<"PROCESS" | "NOT" | null> {
+  // The question, claims and steps are student and plan data, not instructions.
+  return parseProcessReviewVerdict(await postReview(question, "1", prompt,
+    `Question: ${question.slice(0, 2_000)}\nPlan claims:\n${claims.slice(0, 6_000)}\nChain: ${steps.join(" → ").slice(0, 2_000)}`, options));
+}
+
+/** The plan's claims as the reviewer and writer read them, one per line. */
+export function processReviewClaimsText(plan: Pick<TurnPlanV3, "qualitativeClaims">): string {
+  return plan.qualitativeClaims
+    .map((claim) => [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean).join(": "))
+    .join("\n");
 }
 
 /**
- * Every cited process gets `PROCESS_REVIEW_VOTES` independent votes. Any NOT
+ * Every cited process gets one vote per review question. Any NOT
  * makes the verdict "not"; any failed vote (and no NOT) makes it
  * "unavailable"; only all PROCESS makes it "process". No processes is "not".
  */
@@ -147,10 +168,12 @@ export async function reviewProcessChains(
   question: string,
   processes: readonly (readonly string[])[],
   options: ProcessReviewOptions,
+  plan: Pick<TurnPlanV3, "qualitativeClaims"> = { qualitativeClaims: [] },
 ): Promise<ProcessReviewResult> {
   if (processes.length === 0) return { verdict: "not", votes: [] };
+  const claims = processReviewClaimsText(plan);
   const votes = await Promise.all(processes.flatMap((steps) =>
-    Array.from({ length: PROCESS_REVIEW_VOTES }, () => vote(question, steps, options))));
+    PROCESS_REVIEW_PROMPTS.map((prompt) => vote(question, claims, steps, prompt, options))));
   const verdict: ProcessReviewVerdict = votes.includes("NOT") ? "not"
     : votes.includes(null) ? "unavailable" : "process";
   return { verdict, votes };

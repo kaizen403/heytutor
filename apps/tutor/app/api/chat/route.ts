@@ -690,7 +690,8 @@ async function handlePlannerRequest({
       // A short bounded reasoning pass: without it the review let lists of
       // parts through as processes (lane 9 held-out set, 27 Oct).
       parsed.thinking = { type: "enabled", budget_tokens: 1024 };
-      parsed.max_tokens = 1600;
+      // Reasoning can run past its budget; the verdict must still fit.
+      parsed.max_tokens = 3000;
     } else if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
       // Complex scenes routinely exceed 1,400 output tokens; truncating JSON

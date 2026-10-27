@@ -176,6 +176,9 @@ row("only a clean chain counts: no buried chains, clause breaks or code arrows",
   assert.equal(chain("Nostrils → trachea → alveoli. Breathing uses the diaphragm."), null, "a later sentence");
   assert.equal(chain("ventricle → artery → lungs, never ventricle → aorta"), null, "a negated clause");
   assert.equal(chain("Read head->next->data to walk the list"), null, "code arrows");
+  assert.equal(chain("Process: bill passes → president signs or vetoes → congress may override"), null, "a choice followed by more steps");
+  assert.deepEqual(chain("Process: card is tapped → reader sends request → bank approves or declines"), ["card is tapped", "reader sends request", "bank approves or declines"], "a choice may end the chain");
+  assert.deepEqual(chain("Process: order placed → orchestra plays → doors close"), ["order placed", "orchestra plays", "doors close"], "or inside a word is not a choice");
   assert.equal(chain("The flow is tap then pay."), null, "prose");
   assert.equal(chain("Bad heading; more: a → b → c"), null, "a heading with a clause break");
 });
@@ -325,6 +328,12 @@ void (async () => {
     assert.equal(all.calls.length, PROCESS_REVIEW_VOTES);
     assert(all.calls.every((headers) => headers.get("x-planner") === "1" && headers.get("x-process-review") === "1"), "review headers");
     assert.equal(resolveChatGenerationKind(all.calls[0]!), "process-review");
+    // Three different questions, each seeing the plan's claims, never one question asked three times.
+    const systems = all.bodies.map((body) => JSON.parse(body).messages[0].content as string);
+    assert.equal(new Set(systems).size, PROCESS_REVIEW_VOTES, "each vote asks a different question");
+    const withClaims = scriptedProxy(Array(3).fill("PROCESS"));
+    await reviewProcessChains("q", steps, reviewOptions(withClaims.fetchImpl), payPlan);
+    assert(withClaims.bodies.every((body) => (JSON.parse(body).messages[1].content as string).includes("issuing bank approves or declines")), "votes see the plan's claims");
     assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "NOT", "PROCESS"]).fetchImpl))).verdict, "not", "one NOT");
     assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "fail", "PROCESS"]).fetchImpl))).verdict, "unavailable", "one failed vote");
     assert.equal((await reviewProcessChains("q", [], reviewOptions(scriptedProxy([]).fetchImpl))).verdict, "not", "no process");
