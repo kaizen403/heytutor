@@ -194,6 +194,8 @@ function compatEnvProblem(env: Env): string | null {
  */
 export function providerUnavailableReason(endpoint: LlmEndpoint, env: Env = process.env): string | null {
   if (endpoint.apiKey || !endpoint.fallbackReason || env.NODE_ENV !== "production") return null;
+  // tutorDebug is off in production; this is the line the on-call will look for.
+  logFallbackOnce(`refusing lessons: ${endpoint.fallbackReason.replace(/; using Fireworks$/, "")}, and FIREWORKS_API_KEY is not set`);
   return endpoint.fallbackReason;
 }
 
@@ -240,7 +242,8 @@ export function resolveLlmEndpoint(env: Env = process.env, circuit: CompatCircui
     if (open) return fireworksEndpoint(env, open);
     return {
       provider: "openai_compat",
-      url: compatChatUrl(env.OPENAI_COMPAT_BASE_URL!),
+      // The normalized form compatEnvProblem validated, not the raw text.
+      url: compatChatUrl(new URL(env.OPENAI_COMPAT_BASE_URL!.trim()).href),
       apiKey: trimmed(env.OPENAI_COMPAT_API_KEY),
       deployment: trimmed(env.OPENAI_COMPAT_MODEL)!,
       fallbackReason: null,

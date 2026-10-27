@@ -206,9 +206,12 @@ export function buildFailedTurnSentryEvent(
   // the circuit is open, the turn's later calls ran on Fireworks, so say so.
   const endpoint = resolveLlmEndpoint(env, new CompatCircuit());
   const circuitOpen = endpoint.provider === "openai_compat" && compatCircuit.openReason() !== null;
-  const provider = options.historical ? "unknown" : !endpoint.apiKey ? "mock"
+  // A requested provider that could not be used, with no Fireworks key, refused
+  // the turn in production; it did not serve mock lessons.
+  const refused = !endpoint.apiKey && endpoint.fallbackReason !== null && env.NODE_ENV === "production";
+  const provider = options.historical || refused ? "unknown" : !endpoint.apiKey ? "mock"
     : circuitOpen ? "openai_compat_circuit_open" : endpoint.provider;
-  const deployment = options.historical ? "unknown"
+  const deployment = options.historical || refused ? "unknown"
     : member(provider === "mock" ? "mock" : endpoint.deployment ?? "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
 
   const releaseValue = env.SENTRY_RELEASE ?? env.GITHUB_SHA ?? "";

@@ -218,6 +218,12 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   const tag = parseNotesChatTag(body.tag);
   const userContent = formatTaggedUserMessage(message, tag);
 
+  // A misconfigured provider in production refuses before the user's message is
+  // saved (so a retry leaves no unanswered row), and never answers with mock text.
+  if (providerUnavailableReason(resolveLlmEndpoint())) {
+    return NextResponse.json({ error: "notes chat is unavailable" }, { status: 502 });
+  }
+
   const messageBytes = Buffer.byteLength(message) + Buffer.byteLength(JSON.stringify(tag)) + 256;
   const replyBudgetBytes = 64 * 1024;
   let replyBytes = 0;
@@ -297,8 +303,6 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   if (initialDispatchError) return initialDispatchError;
   const llm = resolveLlmEndpoint();
   const apiKey = llm.apiKey;
-  // A misconfigured provider in production refuses; it never answers with mock text.
-  if (providerUnavailableReason(llm)) return NextResponse.json({ error: "notes chat is unavailable" }, { status: 503 });
   const mock = !apiKey;
   const traceId = genTraceId();
   const turnTrace = startTurnTrace({

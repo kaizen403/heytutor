@@ -757,7 +757,8 @@ async function handlePlannerRequest({
     });
 
     if (!response.ok) {
-      await response.body?.cancel();
+      // A rejected cancel must not reach the catch below and count this failure twice.
+      await response.body?.cancel().catch(() => undefined);
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: {
@@ -972,10 +973,9 @@ export async function POST(request: Request): Promise<Response> {
   const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
     ? llm.deployment ?? DEFAULT_FIREWORKS_MODEL
     : undefined;
-  const unavailable = providerUnavailableReason(llm);
-  if (unavailable) {
-    tutorDebug("chat", "provider unavailable in production", { reason: unavailable });
-    return Response.json({ error: PUBLIC_CHAT_ERROR }, { status: 503 });
+  // 502 as for any upstream failure: the client reads a bare 503 as a billing outage.
+  if (providerUnavailableReason(llm)) {
+    return Response.json({ error: PUBLIC_CHAT_ERROR }, { status: 502, headers: { "x-heytutor-trace-id": traceId } });
   }
   const mock = !apiKey;
   // A startup retry after a stalled Fast router runs on the standard deployment.

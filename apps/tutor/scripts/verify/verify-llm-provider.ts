@@ -172,6 +172,8 @@ const grants = load(path("lib/billing/grant.ts")) as typeof import("../../lib/bi
 const fuses = load(path("lib/billing/fuses.ts")) as typeof import("../../lib/billing/fuses");
 const labProfile = load(path("lib/llm/labModelProfile.ts")) as typeof import("../../lib/llm/labModelProfile");
 const failedTurns = load(path("lib/obs/failedTurnTelemetry.ts")) as typeof import("../../lib/obs/failedTurnTelemetry");
+const sentryPrivacy = load(path("lib/obs/sentryPrivacy.ts")) as typeof import("../../lib/obs/sentryPrivacy");
+const billingClient = load(path("lib/billing/billingClient.ts")) as typeof import("../../lib/billing/billingClient");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
 
 type Env = Record<string, string | undefined>;
@@ -531,14 +533,21 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     const { value: plain } = captureErrors(() => provider.resolveLlmEndpoint({ ...production, OPENAI_COMPAT_ALLOW_PRODUCTION: "1", OPENAI_COMPAT_BASE_URL: "http://relay.test/v1" }, new provider.CompatCircuit()));
     assert.match(plain.fallbackReason ?? "", /must be https in production/);
     assert.equal(provider.resolveLlmEndpoint({ ...RELAY, OPENAI_COMPAT_BASE_URL: "http://relay.test/v1" }, new provider.CompatCircuit()).provider, "openai_compat", "http is fine outside production");
+    // The URL called is the normalized one that was validated.
+    assert.equal(provider.resolveLlmEndpoint({ ...RELAY, OPENAI_COMPAT_BASE_URL: "https://relay.test/v1\\" }, new provider.CompatCircuit()).url, RELAY_URL);
   }],
   ["a misconfigured provider in production with no Fireworks key refuses instead of mock lessons", () => {
     const refused = captureErrors(() => provider.resolveLlmEndpoint({ ...RELAY, NODE_ENV: "production" }, new provider.CompatCircuit())).value;
     assert.equal(refused.apiKey, undefined);
-    assert.match(provider.providerUnavailableReason(refused, { NODE_ENV: "production" }) ?? "", /OPENAI_COMPAT_ALLOW_PRODUCTION/);
+    // tutorDebug is off in production, so the refusal logs one [llm] line.
+    const first = captureErrors(() => provider.providerUnavailableReason(refused, { NODE_ENV: "production" }));
+    assert.match(first.value ?? "", /OPENAI_COMPAT_ALLOW_PRODUCTION/);
+    assert.equal(first.errors.length, 1);
+    assert.match(first.errors[0]!, /^\[llm\] refusing lessons: LLM_PROVIDER=openai_compat but .*OPENAI_COMPAT_ALLOW_PRODUCTION is not 1, and FIREWORKS_API_KEY is not set$/);
+    assert.equal(captureErrors(() => provider.providerUnavailableReason(refused, { NODE_ENV: "production" })).errors.length, 0, "logged once");
     assert.equal(provider.providerUnavailableReason(refused, { NODE_ENV: "development" }), null, "development keeps mock mode");
     const azureBroken = captureErrors(() => provider.resolveLlmEndpoint({ ...AZURE, AZURE_OPENAI_API_KEY: "" })).value;
-    assert.match(provider.providerUnavailableReason(azureBroken, { NODE_ENV: "production" }) ?? "", /AZURE_OPENAI_API_KEY/);
+    assert.match(captureErrors(() => provider.providerUnavailableReason(azureBroken, { NODE_ENV: "production" })).value ?? "", /AZURE_OPENAI_API_KEY/);
     assert.equal(provider.providerUnavailableReason(provider.resolveLlmEndpoint({}), { NODE_ENV: "production" }), null, "no provider asked for: unchanged");
     assert.equal(provider.providerUnavailableReason(provider.resolveLlmEndpoint({ ...RELAY, NODE_ENV: "production", FIREWORKS_API_KEY: "fw" }), { NODE_ENV: "production" }), null, "a Fireworks key serves");
   }],
@@ -585,7 +594,13 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     // The failure that opened the circuit stays on the relay, marked as such.
     provider.compatCircuit.record({ ok: false, status: 401 });
     assert.deepEqual(tags({ ...RELAY, FIREWORKS_API_KEY: "fw" }), ["openai_compat_circuit_open", "gpt-6.1-sol"]);
+    const event = failedTurns.buildFailedTurnSentryEvent(turn, { ...RELAY, FIREWORKS_API_KEY: "fw" })!;
+    const scrubbed = sentryPrivacy.scrubSentryEvent(structuredClone(event) as Parameters<typeof sentryPrivacy.scrubSentryEvent>[0]);
+    assert.equal((scrubbed.tags as Record<string, unknown>).provider, "openai_compat_circuit_open", "the Sentry allowlist keeps the tag");
     provider.compatCircuit.reset();
+    // A production turn refused for a misconfigured provider served no mock lesson.
+    const refused = captureErrors(() => tags({ ...RELAY, NODE_ENV: "production" })).value;
+    assert.deepEqual(refused, ["unknown", "unknown"]);
     assert.deepEqual(tags({ ...AZURE }), ["azure", "gpt-6-1-sol"]);
     assert.deepEqual(tags({ FIREWORKS_API_KEY: "fw" }), ["fireworks", "fireworks"]);
     assert.deepEqual(tags({}), ["mock", "mock"]);
@@ -1020,12 +1035,26 @@ const routeChecks: [string, () => Promise<void>][] = [
       { status: 200, headers: { "content-type": "application/json" } });
     const captured: string[] = [];
     console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    const post = async () => (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
     try {
-      for (let i = 0; i < 3; i += 1) await (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
+      await post(); await post();
+      assert.equal(provider.compatCircuit.openReason(), null, "two body failures are two, not four");
+      await post();
     } finally { console.error = originalConsoleError; }
     assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/, "the 200 headers alone are not a success");
   }],
-  ["relay: production with no opt-in and no Fireworks key refuses with 503, no provider call, no mock", async () => {
+  ["relay: a planner success clears earlier failures", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    const post = async () => (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
+    globalThis.fetch = async () => new Response("busy", { status: 503 });
+    await post(); await post();
+    installProvider([], plannerReply({}));
+    await post();
+    globalThis.fetch = async () => new Response("busy", { status: 503 });
+    await post(); await post();
+    assert.equal(provider.compatCircuit.openReason(), null, "failure, failure, success, failure, failure never reaches three in a row");
+  }],
+  ["relay: production with no opt-in and no Fireworks key refuses with 502, no provider call, no mock", async () => {
     const savedNodeEnv = process.env.NODE_ENV;
     try {
       const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "" });
@@ -1034,7 +1063,10 @@ const routeChecks: [string, () => Promise<void>][] = [
       globalThis.fetch = async () => { dispatched += 1; return teachingReply(); };
       const { value } = captureErrors(() => chat.POST(chatRequest(trace, PLANNED_TEACHING)));
       const response = await value;
-      assert.equal(response.status, 503);
+      assert.equal(response.status, 502);
+      assert.equal(response.headers.get("x-heytutor-trace-id"), trace);
+      assert.equal(billingClient.parseBillingFailureFromBody(response.status, await response.json()), null,
+        "the student must not see a billing outage");
       assert.equal(dispatched, 0);
     } finally {
       if (savedNodeEnv === undefined) delete (process.env as Record<string, string | undefined>).NODE_ENV;

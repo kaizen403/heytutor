@@ -50,7 +50,7 @@ export function labProviderConfig() {
   return {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured,
-    ...(configured ? standardProfile(endpoint) : { modelProfile: null, modelProfileError: null }),
+    ...(configured ? standardProfile(endpoint) : { modelProfile: null, modelProfileError: endpoint.fallbackReason }),
     // Production routing for `--model fast` evals (no standard-evaluation header).
     // An unsupported Fast identity advertises null, so `--model fast` fails closed
     // while the standard profile stays available.

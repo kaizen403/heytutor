@@ -115,9 +115,12 @@ production it must be https, and the relay also needs
 `OPENAI_COMPAT_ALLOW_PRODUCTION=1`, because a reservation sized by a cap the
 relay ignores does not bound what a student's turn bills. Any failure logs one
 `[llm]` error and serves Fireworks. If production has no Fireworks key either,
-the chat and notes chat routes answer 503 (`providerUnavailableReason`) rather
-than mock lessons, which would be canned and unbilled; this also covers a
-misconfigured Azure env. Relay reservations also add
+the chat and notes chat routes answer 502 (`providerUnavailableReason`, logged
+once as `[llm] refusing lessons`) rather than mock lessons, which would be
+canned and unbilled; this also covers a misconfigured Azure env. Not 503: the
+client reads a bare 503 as a billing outage. Notes chat refuses before saving
+the student's message. Failed turn telemetry tags such a turn `unknown`, not
+`mock`. Relay reservations also add
 `RELAY_HIDDEN_PROMPT_TOKENS` (4,500) of input (`paidUsage.ts`).
 
 Circuit breaker (`CompatCircuit`, kept on `globalThis` so every route bundle
