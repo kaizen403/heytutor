@@ -23,9 +23,9 @@ import {
 const RELATION = /[=<>]|\b(?:sqrt|sum|int)\b/;
 const OPEN_UNKNOWN = /=\s*\?\s*$/;
 const SAYS_EQUALS = /\bequals\b|\bequal to\b/i;
-/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is" or "here is". */
+/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is", "here is" or "there still is". */
 const COPULA_IS =
-  /(?<!\b(?:there|here)\s+)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
+  /(?<!\b(?:here|there)\s+(?:\p{L}+\s+)?)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/giu;
 
 function isRelationWrite(command: DrawCommand): boolean {
   if (command.type !== "WRITE") return false;
@@ -70,7 +70,7 @@ const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?
 const NUMBER_WORDS = "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million";
 const UNIT = "(?:(?:square|cubic)\\s+)?(?:rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|atmospheres?|calories?|kilocalories?|decibels?|degrees?|electron\\s+volts?|light\\s+years?)\\b";
 const OPERATION = `(?:squared|cubed|(?:over|times|plus|minus|divided\\s+by|remainder|to\\s+the\\s+power(?:\\s+of)?)\\s+(?:(?:${NUMBER_WORDS})\\b|\\d|(?![iI]\\b)\\p{L}\\b))`;
-const CLAUSE_END = "\\s*(?:[,.;:!?)]|$)";
+const CLAUSE_END = "\\s*(?:[,.;:!?)\u2014\u2013]|$)";
 const FRACTION = "(?:half|halves|thirds?|quarters?|(?:fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\\p{L}+teenth|\\p{L}+tieth|hundredth|thousandth|millionth)s?)";
 const SPOKEN_VALUE_END = new RegExp(
   `^\\s+(?:${UNIT}(?:\\s+(?:per\\s+${UNIT}|squared|cubed|${UNIT}))*${CLAUSE_END}|${OPERATION}|${FRACTION}(?:${CLAUSE_END}|\\s+${OPERATION}|\\s+(?![iI]\\b)\\p{L}\\b))`,
@@ -96,6 +96,23 @@ function isSpokenValue(after: string): boolean {
     rest = rest.slice(token[0].length);
   }
   return SPOKEN_VALUE_END.test(rest) || (words >= 2 && new RegExp(`^${CLAUSE_END}`, "u").test(rest));
+}
+
+/** After a numeral: an operator sign with its operand ("25 + 273"), or a unit symbol that ends the clause ("9 V.", "25 °C."). */
+const DIGIT_VALUE_END = new RegExp(`^(?:\\s*[+\u2212\u00d7*/\u00f7^=]\\s*[\\p{L}\\p{N}(\u221a]|\\s*\u00b0\\s*[CFK]?${CLAUSE_END}|\\s+\\p{L}{1,3}(?:/\\p{L}{1,3})?(?:\\^?\\d)?${CLAUSE_END})`, "u");
+const NUMERAL = /^\s+[\d.,%]+(?![\p{L}\p{N}])/u;
+
+/**
+ * A value written as a numeral. "1" is never a pronoun the way "one" is, so a
+ * numeral that ends the clause is the value ("the answer is 25."). Otherwise it
+ * needs the evidence a number word needs: "the object is 10 centimeters from
+ * the lens" and "Ali is 10 years old" stay as spoken.
+ */
+function isNumeralValue(after: string): boolean {
+  const numeral = NUMERAL.exec(after);
+  if (!numeral) return false;
+  const rest = after.slice(numeral[0].length);
+  return new RegExp(`^${CLAUSE_END}`, "u").test(rest) || DIGIT_VALUE_END.test(rest) || isSpokenValue(after);
 }
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
@@ -206,6 +223,8 @@ function repairLectureStep(rawStep: string): string {
       if (COMPARISON_AFTER_NUMBER.test(rest)) continue;
       // A value spoken in words needs strong evidence (isSpokenValue).
       if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !isSpokenValue(after))) continue;
+      // A numeral needs the same strong evidence, except that it may end the clause.
+      if (/^\s+\d/.test(after) && !isNumeralValue(after)) continue;
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }
