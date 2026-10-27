@@ -228,6 +228,8 @@ check("a magnet and an iron nail is no induction figure", () => {
   }
   assert.equal(detectArchetype("A block carrying a magnet is pushed with a force of 10 N along a rough table. Find its acceleration.", {})?.id, "blocks_contact",
     "a block that carries a magnet is still a block");
+  assert.equal(detectArchetype("Two blocks of 2 kg and 3 kg are in contact on a smooth surface. The magnet is pushed against block A with 10 N. Find the contact force.", {})?.id, "blocks_contact",
+    "a magnet pushing two blocks in contact keeps the blocks, not a pulley");
 });
 // A stated or marked current is not an asked induced direction: the solenoid keeps its figure.
 for (const question of [
