@@ -90,6 +90,37 @@ draws("curriculum numbers and symbol subscripts are not values", archimedes, cur
 const withGravity = "Explain why a body in water feels an upthrust.";
 draws("gravity alone is not a contradicted value", archimedes, withGravity, plan(withGravity, ["archimedes_principle"], [{ id: "g", symbol: "g", value: 9.8, unit: "m/s^2" }]));
 
+for (const stem of [
+  "Fig 10.6 shows a body in a liquid. Derive Archimedes' principle from it.",
+  "NCERT Exemplar 10.5: explain the upthrust on a fully immersed block.",
+  "1. Derive Archimedes' principle. (5 marks)",
+  "New syllabus session 2026-27: derive Archimedes' principle.",
+]) draws(`reference numbers are not values: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
+draws("a plan giving g in m s^-2 is not a contradicted value", archimedes, withGravity, plan(withGravity, ["archimedes_principle"], [{ id: "g", symbol: "g", value: 9.8, unit: "m s^-2" }]));
+
+// Spelled or disguised values refuse.
+for (const stem of [
+  "In a hydraulic press the large piston has ten times the area of the small one. Explain the force multiplication.",
+  "Explain why the large piston of a hydraulic lift has twice the force when its area is double.",
+  "Hydraulic press mein bada piston das guna area ka hai, samjhao.",
+  "The large piston area is x10 the small one; explain the hydraulic press.",
+  "Explain how a hydraulic lift raises a 2000 kg car using Pascal's law.",
+]) refused(`a spelled or disguised value: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
+const decimalStem = "0.5 cubic metre block is fully immersed in oil. Explain the upthrust.";
+refused("a leading decimal value", archimedes, decimalStem, plan(decimalStem, ["archimedes_principle"]));
+
+// Situations the figure cannot show refuse.
+for (const stem of [
+  "Why does a ship float? Explain using Archimedes' principle.",
+  "A block is partially immersed in water. Explain the upthrust on it.",
+  "Explain the forces on a metal sphere held under water.",
+  "A block rests on the bottom of a tank of water. Explain the forces on it.",
+]) refused(`a body the figure cannot show: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
+for (const stem of [
+  "Explain hydraulic brakes in a car using Pascal's law.",
+  "In a hydraulic press the large piston is raised above the small one. Explain the forces.",
+]) refused(`a press the figure cannot show: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
+
 // Stated values refuse.
 const depthStem = "A cube of side 10 cm is held with its top face 20 cm below the water surface. Find the upthrust.";
 refused("Archimedes with a stated depth in the stem", archimedes, depthStem, plan(depthStem, ["archimedes_principle"]));

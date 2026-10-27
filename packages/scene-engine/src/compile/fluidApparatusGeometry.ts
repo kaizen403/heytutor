@@ -27,7 +27,7 @@ export const FLUID_APPARATUS_OUTPUT_COUNTS: Readonly<Record<FluidApparatusOperat
 
 /** The label texts each role may carry; the first is the default. No numbers. */
 const ROLE_LABELS: Readonly<Record<string, readonly string[]>> = {
-  fluid: ["fluid", "liquid", "water"],
+  fluid: ["fluid", "liquid"],
   surface: ["surface", "free surface"],
   body: ["body", "object", "block"],
   F_top: ["F_top", "F1", "F₁"],
@@ -36,8 +36,8 @@ const ROLE_LABELS: Readonly<Record<string, readonly string[]>> = {
   h1: ["h1", "h₁"],
   h2: ["h2", "h₂"],
   vessel: ["vessel", "container"],
-  small_piston: ["A1", "A₁", "small piston"],
-  large_piston: ["A2", "A₂", "large piston"],
+  small_piston: ["A1", "A₁"],
+  large_piston: ["A2", "A₂"],
   F1: ["F1", "F₁"],
   F2: ["F2", "F₂"],
   pressure: ["P", "p"],
@@ -84,14 +84,18 @@ function readSubmergedBody(inputs: Record<string, unknown>, context: SourceConte
   const h1 = displayLength(inputs.topDepth, "topDepth", context, document);
   const height = displayLength(inputs.bodyHeight, "bodyHeight", context, document);
   const width = displayLength(inputs.bodyWidth, "bodyWidth", context, document);
-  const k = inputs.forceScale === undefined ? 0.6 : displayLength(inputs.forceScale, "forceScale", context, document);
-  // Every arrow tail stays inside the fluid: the top arrow starts below the
-  // surface (k h1 < h1) and the bottom arrow above the floor (room is made).
-  if (!(k < 1)) invalid("forceScale", "forceScale must be below 1 so the top face arrow starts under the surface");
+  const k = inputs.forceScale === undefined ? 0.45 : displayLength(inputs.forceScale, "forceScale", context, document);
+  // F_B starts at the centroid and must end inside the body (k H <= H / 2), so
+  // it never reads as a third force beside F_top; that also keeps the top
+  // arrow's tail under the surface (k h1 < h1).
+  if (!(k <= 0.5)) invalid("forceScale", "forceScale must be at most 0.5 so F_B stays inside the body");
+  if (!(k >= 0.3)) invalid("forceScale", "forceScale must be at least 0.3 so every arrow stays readable");
   const h2 = h1 + height;
-  if (!(height >= width / 4 && height <= width * 4)) invalid("bodyHeight", "the body must be drawn between a quarter and four times as tall as it is wide");
-  if (!(h1 >= height / 4)) invalid("topDepth", "the top face must sit visibly below the surface (at least a quarter of the body height)");
-  const fluidWidth = width * 3.4;
+  // A body flatter than this crowds its three arrows and their labels.
+  if (!(height >= width / 2 && height <= width * 2)) invalid("bodyHeight", "the body must be drawn between half and twice as tall as it is wide");
+  if (!(h1 >= height / 2 && h1 <= height * 2)) invalid("topDepth", "the top face must sit between half and twice the body height below the surface");
+  // Room for the depth markers and labels either side, even for a tall narrow body.
+  const fluidWidth = Math.max(width, height) * 3.4;
   const fluidDepth = h2 + k * h2 + height * 0.35;
   const left = origin.x;
   const right = origin.x + fluidWidth;
@@ -109,9 +113,10 @@ function readSubmergedBody(inputs: Record<string, unknown>, context: SourceConte
   const bottomForce = { x: 0, y: k * h2 };
   const buoyant = { x: 0, y: k * height };
   const centroid = { x: cx, y: (topY + bottomY) / 2 };
-  const markerX1 = bodyRight + width * 0.45;
-  const markerX2 = bodyRight + width * 0.9;
-  if (!(markerX2 < right)) invalid("bodyWidth", "the depth markers must fit inside the fluid");
+  // h1 left of the body and h2 right of it, so neither label sits beside the other's marker.
+  const markerGap = Math.max(width, height) * 0.45;
+  const markerX1 = bodyLeft - markerGap;
+  const markerX2 = bodyRight + markerGap;
   return [
     { kind: "path", points: rectangle(left, floorY, right, surfaceY), closed: true, instrument: mark("fluid", { x: fluidWidth, y: fluidDepth }, 1) },
     { kind: "path", points: [{ x: left, y: surfaceY }, { x: right, y: surfaceY }], instrument: mark("surface", { x: fluidWidth, y: 0 }, 1) },
@@ -185,24 +190,41 @@ export function evaluateFluidApparatusConstruction(operator: FluidApparatusOpera
 }
 
 /** The only stated value these figures never contradict: the gravitational field strength. */
-const GRAVITY_UNIT = /^(?:m\/s\^?2|m\/s²|m s\^?-2|cm\/s\^?2|cm\/s²|n\/kg)$/i;
+const GRAVITY_UNIT = /^(?:m\/s\^?2|m\/s²|ms\^?-2|cm\/s\^?2|cm\/s²|n\/kg)$/i;
 /**
- * Curriculum references, years and symbol subscripts are not stated values:
- * "class 11", "chapter 7", "2.3 Position", "2026-27", "A1", "F_2".
+ * References that are not stated values: "class 11", "chapter 7", "Fig 10.6",
+ * "NCERT Exemplar 10.5", "2.3 Position", "session 2026-27", "(5 marks)", a
+ * leading "1." question number, and the subscripts of fluid symbols (A1, F_2,
+ * h1). Anything else that is a digit counts as a stated value.
  */
 const NON_VALUE_NUMBERS = [
-  /\b(?:class|chapter|ch|section|sec|unit|grade|std|standard|lesson|part|question|q|exercise|ex|example|page|ncert)\.?\s*(?:no\.?\s*)?\d+(?:\.\d+)*(?:st|nd|rd|th)?\b/gi,
+  /\b(?:class|chapter|ch|section|sec|unit|grade|std|standard|lesson|part|question|q|exercise|ex|example|page|ncert|exemplar|fig|figure)\.?\s*[-–]?\s*(?:no\.?\s*)?\d+(?:\.\d+)*(?:st|nd|rd|th)?\b/gi,
   /\b\d+(?:st|nd|rd|th)\b/gi,
-  /\b(?:19|20)\d\d(?:\s*[-–]\s*\d{2,4})?\b/g,
-  /(?:^|\n)\s*\d+(?:\.\d+)+\s/g,
-  /[A-Za-z]_?\{?\d+\}?/g,
+  /\b(?:session|syllabus|year|exam|board|batch)\s+(?:19|20)\d\d(?:\s*[-–]\s*\d{2,4})?\b/gi,
+  /\b(?:19|20)\d\d\s*[-–]\s*\d{2}\b/g,
+  /(?:^|\n)\s*[1-9]\d*(?:\.\d+)+\s+(?=[A-Z][a-z])/g,
+  /(?:^|\n)\s*[1-9]\d*\s*[.)]\s+(?=[A-Za-z])/g,
+  /\(\s*\d+\s*marks?\s*\)/gi,
+  /\b[23]D\b/g,
+  /\b[AaFfHhPpDdRrVv]_?\{?[0-9]\}?(?![\d.])/g,
 ];
+/** Spelled values a display proportion would contradict ("ten times the area", "das guna", "half the depth"). */
+const VALUE_WORDS = /\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|thousand|million|twice|thrice|double|triple|half|quarter|third|fourth|fifth|tenth|hundredth|times|fold|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|[%½¼¾⅓⅔×]/i;
 
 function statesValue(question: string): boolean {
   let text = question;
   for (const pattern of NON_VALUE_NUMBERS) text = text.replace(pattern, " ");
-  return /\d/.test(text);
+  return /\d/.test(text) || VALUE_WORDS.test(text);
 }
+
+/**
+ * Situations the drawing cannot show. submerged_body draws one fully
+ * submerged block with no weight, so a floating, partly immersed, resting or
+ * round body is a different figure; hydraulic_press draws two pistons at one
+ * level, so a level difference or a brake circuit is a different figure.
+ */
+const SUBMERGED_BODY_MISMATCH = /\b(?:floats?|floating|flotation|afloat|ships?|boats?|icebergs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|rests? on|resting on|lies on|stuck|bottom of the|spheres?|spherical|balls?|cones?|sinks? to the bottom)\b/i;
+const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|different (?:levels?|heights?)|level difference|height difference|raised|lowered|above the (?:small|large|other)|below the (?:small|large|other))\b/i;
 
 /**
  * The qualitative fluid figures draw display proportions. They may only draw
@@ -221,14 +243,16 @@ export function validateFluidApparatusSourceInputs(
   if (constructions.length === 0) return [];
   const stated = [...(plan?.givens ?? []), ...(plan?.derived ?? [])]
     .filter((quantity) => !GRAVITY_UNIT.test(String(quantity.unit ?? "").trim().replaceAll(" ", "")));
+  const mismatch = constructions.some((construction) => (construction.operator === "submerged_body" ? SUBMERGED_BODY_MISMATCH : HYDRAULIC_PRESS_MISMATCH).test(question));
   const reasons = [
     ...(statesValue(question) ? ["the question states a value"] : []),
+    ...(mismatch ? ["the question describes a situation the figure cannot show"] : []),
     ...(stated.length > 0 ? [`the plan states ${stated.map((quantity) => quantity.symbol ?? "a quantity").join(", ")}`] : []),
   ];
   if (reasons.length === 0) return [];
   return constructions.map((construction) => ({
     code: `${construction.operator}_source_has_values`,
-    message: `${construction.operator} draws display proportions only, so it cannot draw a source with stated values (${reasons.join("; ")}). Use the numeric fluid operators or text only.`,
+    message: `${construction.operator} draws one conceptual case with display proportions only, so it cannot draw this source (${reasons.join("; ")}). Use the numeric fluid operators or text only.`,
     severity: "fatal" as const,
     entityIds: construction.outputs,
   }));

@@ -73,7 +73,8 @@ check(bottomArrow[1].y === bottomFaceY && bottomArrow[0].y < bottomArrow[1].y, "
 check(buoyantArrow[1].y > buoyantArrow[0].y, "F_B points up");
 check(inside(topArrow[0], fluid.points!) && inside(bottomArrow[0], fluid.points!), "both face arrow tails are inside the fluid");
 check(Math.abs(buoyantArrow[0].x - topArrow[0].x) > 1e-6, "F_B never shares a line with the face arrows");
-reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 1 }, context), "a top face arrow longer than the depth would start above the surface");
+check(buoyantArrow[1].y <= topFaceY, "F_B ends inside the body, so it never reads as a third force beside F_top");
+reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, forceScale: 0.6 }, context), "a buoyant arrow longer than half the body would leave the body");
 reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 0.1, bodyHeight: 2, bodyWidth: 2.4 }, context), "a body touching the surface is not drawn as submerged");
 reject(() => evaluateChapterInstrumentConstruction("submerged_body", { topDepth: 2, bodyHeight: 2, bodyWidth: 2.4, density: 1000 }, context), "unknown physical inputs are refused");
 
@@ -95,6 +96,7 @@ check(chapterInstrumentOutputLabels("submerged_body", body)[5] === "F_B", "F_B i
 check(chapterInstrumentOutputLabels("hydraulic_press", press, [undefined, undefined, "A1", "A2", "F1", "F2", "P"]).join(",") === "vessel,fluid,A1,A2,F1,F2,P", "hydraulic symbols are accepted");
 reject(() => chapterInstrumentOutputLabels("submerged_body", body, [undefined, undefined, undefined, undefined, undefined, "F_B=5 N"]), "a numeric buoyant label is refused");
 reject(() => chapterInstrumentOutputLabels("hydraulic_press", press, [undefined, undefined, undefined, undefined, undefined, undefined, "F3"]), "a pressure point cannot carry a force name");
+reject(() => chapterInstrumentOutputLabels("submerged_body", body, ["water"]), "the fluid is never named water: the stem may name another liquid");
 
 // --- documents: units, figure consistency -------------------------------------------------
 type Entity = { id: string; kind: string; role: string; label?: string };
