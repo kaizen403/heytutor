@@ -479,6 +479,9 @@ for (const values of [
     if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
   });
   for (const question of [
+    "Sketch the distribution of energies in the visible spectrum of a sample of white light.",
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
     "Sketch the distribution of energies of alpha particles emitted.",
     "Sketch the distribution of energies of beta particles emitted in beta decay.",
     "Sketch the distribution of energies of cosmic ray particles.",
@@ -510,6 +513,7 @@ for (const values of [
     "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
   ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
   for (const question of [
+    "Sketch the distribution of speeds of nitrogen at 300 K and 600 K.",
     "Explain, using the distribution of energies, why increasing the temperature increases the rate of reaction.",
     "Use the distribution of energies to explain how a catalyst increases the rate of a reaction.",
     "Sketch the distribution of energies in a sample and show the effect of adding a catalyst.",
