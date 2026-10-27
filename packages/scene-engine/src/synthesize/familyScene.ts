@@ -4314,7 +4314,10 @@ function semiconductorBandDocument(question: string): SceneDocument | null {
   // Flat bands with no impurity level cannot show doping, a junction, a device
   // or a superconductor: a stem that names one without saying n-type or
   // p-type gets no figure rather than an intrinsic one.
-  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ant)|donor|acceptor|impurit\w*|junction|diodes?|light emitting|solar cell|superconduct\w*|bias\w*)\b/i.test(stem)) return null;
+  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ant)|donor|acceptor|impurit\w*|light emitting|solar cell|superconduct\w*)\b/i.test(stem)) return null;
+  // A junction, a bias, a diode, a transistor or a laser bends the bands at
+  // the junction; separate flat columns cannot show it, whatever the type.
+  if (/\b(?:junctions?|bias\w*|\w*diodes?|transistors?|npn|pnp|lasers?)\b/i.test(stem)) return null;
   const columns: Array<{
     prefix: string;
     x0: number;
