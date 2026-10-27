@@ -4,9 +4,9 @@
  */
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
-  ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
+  ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
-  normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
+  normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry, planStatesChain,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
@@ -14,7 +14,7 @@ import {
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
-import { inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
+import { BLOCK_FLOW_SCENE_REQUEST, inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
@@ -35,6 +35,12 @@ export interface ProductionSceneInput {
   /** Omit only when the plan already contains the merged live decision. Null is unavailable, not none. */
   visualNeedDecision?: VisualNeedDecision | null;
   conversationContext?: string;
+  /**
+   * The caller's subject test for a block diagram, never question words: an
+   * accepted plan the planner classified "other", outside code, DSA and doubt
+   * lessons, with the rollout flag on. Off or absent behaves exactly as main.
+   */
+  blockFlowEligible?: boolean;
 }
 
 export interface ValidatedSceneCandidate {
@@ -51,6 +57,8 @@ export interface ProductionSceneGate {
   shouldAttemptLlmScene: boolean;
   families: readonly string[];
   archetypeId: string | null;
+  /** The planner was asked for a block diagram and nothing else. */
+  blockFlowAdmitted: boolean;
   request: {
     conversationContext: string;
     constructionOperators?: string[];
@@ -75,11 +83,18 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   // The planner request keeps main's archetype choice (prompt guidance and
   // whether to call the planner), so strict is exactly main's request.
   const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR, keepLawOnlyLead: true });
-  const shouldAttemptLlmScene = shouldAttemptExactScene({
+  const attemptsToday = shouldAttemptExactScene({
     visualRequirement: planningTurnPlan.visualRequirement,
     chemistryLane, familyCount: sceneCapabilities.families.length,
     hasArchetype: earlyArchetype !== null, hasSourceProgram: sceneCapabilities.hasSourceProgram,
   });
+  // A block diagram is asked for only where the planner is never asked today,
+  // so every turn that calls it now keeps its exact request, and only for a
+  // plan that itself writes a process as a chain of three stops (never stem words).
+  const blockFlowAdmitted = input.blockFlowEligible === true && !attemptsToday && shouldPlanExactScene &&
+    sceneCapabilities.families.length === 0 && earlyArchetype === null && sceneCapabilities.hasSourceProgram !== true &&
+    planStatesChain(planningTurnPlan);
+  const shouldAttemptLlmScene = attemptsToday || blockFlowAdmitted;
   const planContext = [
     input.conversationContext,
     `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
@@ -95,7 +110,13 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   return {
     turnPlan: planningTurnPlan, sceneCapabilities, chemistryLane, shouldPlanExactScene,
     shouldAttemptLlmScene, families: sceneCapabilities.families, archetypeId: earlyArchetype?.id ?? null,
-    request: {
+    blockFlowAdmitted,
+    request: blockFlowAdmitted ? {
+      conversationContext: planContext,
+      constructionOperators: [...BLOCK_FLOW_SCENE_REQUEST.constructionOperators],
+      proofPredicates: [...BLOCK_FLOW_SCENE_REQUEST.proofPredicates],
+      planningGuidance: [...BLOCK_FLOW_SCENE_REQUEST.planningGuidance],
+    } : {
       conversationContext: planContext,
       ...(sceneCapabilities.families.length > 0 || sceneCapabilities.hasSourceProgram ? {
         constructionOperators: sceneCapabilities.constructionOperators,
@@ -110,8 +131,27 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
 export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
   yieldPolicy?: DiagramYieldPolicy;
+  /** As `ProductionSceneInput.blockFlowEligible`; without it any block_flow is refused. */
+  blockFlowEligible?: boolean;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
-  const { candidate, question, turnPlan: authoritativePlan } = input;
+  const { question, turnPlan: authoritativePlan } = input;
+  // A block diagram carries no planner text beyond its grounded boxes: its
+  // narration notes and entity titles are dropped, never drawn (a title
+  // "Mitosis stages" made cytokinesis read as a stage of mitosis).
+  const candidate = input.blockFlowEligible === true && Array.isArray(input.candidate.constructions) &&
+    input.candidate.constructions.some((construction) => (construction as { operator?: unknown })?.operator === "block_flow")
+    ? {
+      ...input.candidate,
+      annotations: [],
+      entities: Array.isArray(input.candidate.entities)
+        ? input.candidate.entities.map((entity) => {
+          if (!entity || typeof entity !== "object") return entity;
+          const { label: _label, ...rest } = entity as Record<string, unknown>;
+          return rest;
+        })
+        : input.candidate.entities,
+    }
+    : input.candidate;
   const enabled = input.yieldPolicy === "verified_parts";
   const circular = prepareVerifiedCircularParts(candidate, question, enabled);
   const normalized = normalizeVerifiedPartsInputs(circular.candidate, enabled);
@@ -185,6 +225,10 @@ export function validateProductionSceneCandidate(input: {
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
   const refractionImageIssues = validateSphericalRefractionImagePlacements(validated.document, authoritativePlan);
+  const hasBlockFlow = validated.document.constructions.some((construction) => construction.operator === "block_flow");
+  const blockFlowIssues = !hasBlockFlow ? [] : input.blockFlowEligible === true
+    ? blockFlowGroundingIssues(validated.document, authoritativePlan)
+    : [{ code: "block_flow_not_admitted", message: "A block diagram is only admitted for a lesson the gate admitted for one.", path: "constructions", severity: "fatal" as const }];
 
   // Final admission already requires readable ink. Reject the same candidates
   // here so a cheaper unlabelled scene cannot displace a drawable sibling.
@@ -198,6 +242,7 @@ export function validateProductionSceneCandidate(input: {
     ...authorityIssues,
     ...proofIssues,
     ...refractionImageIssues,
+    ...blockFlowIssues,
     ...compiledScene.report.issues,
     ...(missingReadableLabel ? [{
       code: "scene_without_readable_label",
@@ -692,7 +737,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
         : null);
     }
     candidateValidation = input.candidate
-      ? validateProductionSceneCandidate({ candidate: input.candidate, question, turnPlan })
+      ? validateProductionSceneCandidate({ candidate: input.candidate, question, turnPlan, blockFlowEligible: input.blockFlowEligible })
       : input.candidateValidation ?? null;
     // On the current lane a stem matched only through its plan's laws draws
     // nothing, planner candidate included: with that match refused, the next

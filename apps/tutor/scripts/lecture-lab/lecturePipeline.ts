@@ -62,11 +62,14 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   SCENE_PLANNER_DEADLINE_MS,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
+  OTHER_SUBJECT_BLOCK_FLOW_ENABLED,
+  blockFlowEligibleTurn,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "@/features/tutor-session/lib/scene/diagramGeneration";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "@/features/tutor-session/lib/scene/blockFlowReview";
 import {
   runScenePlanningOverlap,
   type SpeculationAbortReason,
@@ -220,6 +223,10 @@ export interface LectureRun {
     candidateTimings?: Array<{ phase: string; lane: string; pass: string; validationAndCompileMs: number | null; valid: boolean; errorCodes: string[] }>;
     /** Only true for the selected, validated text_only document, not an invalid refusal. */
     plannerDeclined?: boolean;
+    /** The semantic process review of a block diagram, when one was drawn. */
+    blockFlowReview?: { verdict: string; votes: Array<string | null> } | null;
+    /** The process restated for a plan that stated none, when one was asked for. */
+    restatedProcess?: { asked: boolean; restated: string | null };
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
@@ -546,12 +553,17 @@ export async function runLecture(
       };
     }
 
+    // Match live (useQuestionHandler): the accepted plan's own subject, never stem words.
+    const blockFlowEligible = blockFlowEligibleTurn({
+      enabled: OTHER_SUBJECT_BLOCK_FLOW_ENABLED, plannedSubject: plannedTurn?.subject,
+      codeLesson: false, dsa: dsaClassification.isDsa,
+    });
     const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), blockFlowEligible });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -572,7 +584,7 @@ export async function runLecture(
       planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
     ): BenchSceneGate => {
       const gate = deriveProductionSceneGate({
-        question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
+        question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null, blockFlowEligible,
       });
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
@@ -590,6 +602,13 @@ export async function runLecture(
       };
     };
 
+    // Match live: an eligible lesson whose plan states no process may have one restated.
+    const restated = await withRestatedProcess({
+      question, turnPlan, eligible: blockFlowEligible,
+      options: { proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, fastMode, traceId },
+    });
+    run.diagram.restatedProcess = { asked: restated.asked, restated: restated.restated };
+    turnPlan = restated.turnPlan;
     const planning = await runScenePlanningOverlap<
       ProblemAuthorityV1Response,
       BenchSceneGate,
@@ -672,7 +691,12 @@ export async function runLecture(
     problemAuthority = planning.authority;
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
     const fastRepresentation = planning.fast;
-    const result = planning.scene;
+    // Match live (useQuestionHandler): a block diagram stands only after the process review.
+    const { result, review: blockFlowReview } = await reviewBlockFlowScene(planning.scene, {
+      question, turnPlan,
+      options: { proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, fastMode, traceId },
+    });
+    run.diagram.blockFlowReview = blockFlowReview;
     // The singular field belongs to the selected candidate, never to a fallback diagnostic.
     const selectedEvidence = createPlannerEvidence();
     if (result) recordPlannerResponse(selectedEvidence, result.response);
@@ -741,7 +765,7 @@ export async function runLecture(
     }
 
     const sceneSelectionInput: Parameters<typeof selectProductionScene>[0] = {
-      question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+      question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities, blockFlowEligible,
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,

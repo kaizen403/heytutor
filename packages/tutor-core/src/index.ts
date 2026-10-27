@@ -19,6 +19,7 @@ export * from "./planners/turnPlannerV3";
 export * from "./planners/diagramSubject";
 export * from "./text/questionText";
 export * from "./planners/sceneCapabilities";
+export * from "./planners/processReview";
 export * from "./planners/opticsPlanAudit";
 export * from "./planners/problemPlannerV1";
 export * from "./planners/sceneRepairErrors";

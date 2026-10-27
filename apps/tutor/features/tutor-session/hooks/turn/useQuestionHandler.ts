@@ -155,12 +155,15 @@ import {
 import {
   SCENE_PLANNER_DEADLINE_MS,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
+  OTHER_SUBJECT_BLOCK_FLOW_ENABLED,
+  blockFlowEligibleTurn,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "../../lib/scene/blockFlowReview";
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
@@ -848,6 +851,7 @@ export function useQuestionHandler(
       prepareOriginalOpening();
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let plannedSubject: string | undefined;
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
         subject: diagramStrategySubject,
@@ -1202,6 +1206,7 @@ export function useQuestionHandler(
           diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
           // Rejected-plan consensus is metadata; strict was measured on accepted plans.
           diagramStrategySubject = plannedTurn ? diagramSubject : "other";
+          plannedSubject = plannedTurn?.subject;
           page.failureTelemetry = {
             subject: diagramSubject,
             requestCount: page.failureTelemetry?.requestCount,
@@ -1260,18 +1265,22 @@ export function useQuestionHandler(
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
         let validationCallIndex = 0;
+        const blockFlowEligible = blockFlowEligibleTurn({
+          enabled: OTHER_SUBJECT_BLOCK_FLOW_ENABLED, plannedSubject,
+          codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa,
+        });
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, blockFlowEligible }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
           const gate = deriveProductionSceneGate({
             question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
-            conversationContext: recentConversation,
+            conversationContext: recentConversation, blockFlowEligible,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
@@ -1331,6 +1340,18 @@ export function useQuestionHandler(
           shouldWaitForDiagramExamples,
         ), isCurrentTurn);
         if (pickerWaitMs > 0) tel.meta({ diagram_example_picker_critical_path_ms: pickerWaitMs });
+        // An eligible lesson whose plan states no process may have one restated.
+        if (turnPlan) {
+          const restated = await withRestatedProcess({
+            question, turnPlan, eligible: blockFlowEligible,
+            options: {
+              proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+              fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+            },
+          });
+          if (restated.asked) tel.mark("block-flow-process-restated", { restated: restated.restated !== null });
+          turnPlan = restated.turnPlan;
+        }
         const planning = await runScenePlanningOverlap<
           ProblemAuthorityV1Response,
           SceneGate,
@@ -1467,7 +1488,15 @@ export function useQuestionHandler(
             primitive_count: fastRepresentation.renderScene.primitives.length,
           });
         }
-        const result = planning.scene;
+        // A block diagram stands only after the semantic process review.
+        const { result, review: blockFlowReview } = await reviewBlockFlowScene(planning.scene, {
+          question, turnPlan,
+          options: {
+            proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+            fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+          },
+        });
+        if (blockFlowReview) tel.mark("block-flow-review", { verdict: blockFlowReview.verdict });
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
         sceneV2Document = result?.response.document ?? null;
@@ -1526,7 +1555,7 @@ export function useQuestionHandler(
         }
         const selectionTurnPlan = turnPlan;
         const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
-          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities, blockFlowEligible,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,

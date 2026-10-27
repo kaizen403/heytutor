@@ -121,6 +121,7 @@ import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleG
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
 import { evaluateRigidMassConstruction, type RigidMassGeometry, type RigidMassRecord } from "./rigidMassGeometry";
 import { evaluateMatrixArrayConstruction, matrixArrayPrimitives, type MatrixArrayGeometry } from "./matrixArrayGeometry";
+import { blockFlowPrimitives, evaluateBlockFlowConstruction, type BlockFlowGeometry } from "./blockFlowGeometry";
 import { evaluateLinearRegionConstruction, linearRegionPrimitives, type LinearRegionGeometry } from "./linearRegionGeometry";
 import { validateLinearSourceBinding, validateLinearClaims } from "./linearRegionSource";
 import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
@@ -228,6 +229,7 @@ type Geometry =
   | ({ kind: "dimension"; a: Point; b: Point } & DerivedGeometryMetadata)
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry
+  | BlockFlowGeometry
   | PvPlotGeometry
   | LinearRegionGeometry;
 
@@ -1844,6 +1846,7 @@ function evaluateConstruction(
     case "crossing_strategies":
     case "parallel_guides": return evaluateRelativeMotionConstruction(operator, inputs, constructionContext);
     case "kirchhoff_network": return evaluateNetworkConstruction(operator, inputs, constructionContext);
+    case "block_flow": return evaluateBlockFlowConstruction(operator, inputs);
     case "free_body":
     case "coupled_bodies":
     case "vertical_circle":
@@ -3040,6 +3043,8 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
   if (value.kind === "linear_region") {
     return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
+  // Laid out in board pixels by the engine; no world transform applies.
+  if (value.kind === "block_flow") return blockFlowPrimitives(value, entityId, groupId);
   if (value.kind === "matrix_array") {
     const sourceProvenance = { ...provenance };
     delete sourceProvenance.matrixCell;
@@ -5745,7 +5750,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="block_flow")return blockFlowPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -6296,6 +6301,7 @@ function geometrySignature(value: Geometry): string {
   if (value.kind === "arc") return `arc:${pointKey(value.center)}:${signatureNumber(value.radius)}:${signatureNumber(value.startAngle)}:${signatureNumber(value.endAngle)}`;
   if (value.kind === "axes") return `axes:${value.xMin}:${value.xMax}:${value.yMin}:${value.yMax}`;
   if (value.kind === "linear_region") return `linear:${JSON.stringify(value)}`;
+  if (value.kind === "block_flow") return `block_flow:${JSON.stringify([value.blockFlow.nodes, value.blockFlow.edges])}`;
   if (value.kind === "matrix_array") return `matrix:${value.matrixArray.operation}:${value.matrixArray.rows}x${value.matrixArray.columns}:${JSON.stringify(value.matrixArray.exactEntries)}:${pointKey(value.matrixArray.origin)}:${signatureNumber(value.matrixArray.displayScale)}`;
   return `dimension:${pointKey(value.a)}:${pointKey(value.b)}`;
 }
