@@ -53,12 +53,12 @@ function withoutClosedRows(step: string): string {
  * "distance = rotated") is a definition, and its "is" is never an "equals".
  */
 const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/;
-/** A comparison within the next three words after "is". */
+/** The spoken number after "is" ("twenty five percent"), skipped before looking for a comparison. */
 const NUMBER_RUN = /^(?:\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million|point|and|percent|[\d.,%]+))+/i;
 /** After the spoken number, a unit or "times" and then a comparison, or "or more". */
 const COMPARISON_AFTER_NUMBER = /^(?:\s+\S+){0,2}?\s+(?:less|more|greater|smaller|fewer|higher|lower|bigger|larger|faster|slower|heavier|lighter|longer|shorter|as)\b/i;
 /** "is one of the", "is one way to": a count, not the row's value. */
-const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?|types?)\b/i;
+const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?|types?|common|key|important|big|major|main|simple|useful|classic|good|great|small|quick|easy|last|final|other|more|such|particular|single|special|standard|basic|typical|possible)\b/i;
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
@@ -74,14 +74,13 @@ function spokenNumberLeads(digits: string): string[] {
   if (!Number.isSafeInteger(value)) return [];
   const leads = new Set<string>();
   // The first word, by the largest unit: 170 is "one" (hundred ...), 100000 is
-  // "one" (hundred thousand), 2500000 is "two" (million ...). A leading one may
-  // also be said "a" ("a hundred", "a thousand").
+  // "one" (hundred thousand), 2500000 is "two" (million ...). "a hundred" is not
+  // offered: COPULA_IS never rewrites "is a".
   const firstWords = (n: number): void => {
     if (n < 20) leads.add(SMALL_NUMBER_WORDS[n]!);
     else if (n < 100) leads.add(TENS_WORDS[Math.floor(n / 10)]!);
     else {
       const head = n < 1000 ? Math.floor(n / 100) : n < 1_000_000 ? Math.floor(n / 1000) : Math.floor(n / 1_000_000);
-      if (head === 1) leads.add("a");
       firstWords(head);
     }
   };

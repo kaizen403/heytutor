@@ -247,6 +247,8 @@ for (const [step, kept] of [
   ["[STEP]the load is ten newtons or more. [WRITE:F = 10 N,90,211][/STEP]", "is ten newtons or more"],
   ["[STEP]the new car is two times faster. [WRITE:v = 2 u,90,211][/STEP]", "is two times faster"],
   ["[STEP]this is one of the most important results. [WRITE:n = 1,90,211][/STEP]", "is one of the most important"],
+  ["[STEP]this is one common mistake. [WRITE:x = 1,90,211][/STEP]", "is one common mistake"],
+  ["[STEP]this is one important result. [WRITE:N = 100000,90,211][/STEP]", "is one important result"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a comparison or a count stays as spoken: ${spokenAfter(step)}`);
 }
