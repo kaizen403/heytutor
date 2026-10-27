@@ -23,9 +23,9 @@ import {
 const RELATION = /[=<>]|\b(?:sqrt|sum|int)\b/;
 const OPEN_UNKNOWN = /=\s*\?\s*$/;
 const SAYS_EQUALS = /\bequals\b|\bequal to\b/i;
-/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is". */
+/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is" or "here is". */
 const COPULA_IS =
-  /(?<!\bthere\s+)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
+  /(?<!\b(?:there|here)\s+)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
 
 function isRelationWrite(command: DrawCommand): boolean {
   if (command.type !== "WRITE") return false;

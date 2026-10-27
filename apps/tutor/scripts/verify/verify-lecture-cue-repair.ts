@@ -259,6 +259,7 @@ for (const [step, kept] of [
   ["[STEP]This is one with a twist. [WRITE:x = 1,90,211][/STEP]", "This is one with a twist"],
   ["[STEP]There is one. [WRITE:n = 1,90,211][/STEP]", "There is one"],
   ["[STEP]In total there is twenty newtons. [WRITE:F = 20 N,90,211][/STEP]", "there is twenty newtons"],
+  ["[STEP]Here is one rupee. [WRITE:C = 1,90,211][/STEP]", "Here is one rupee"],
   ["[STEP]The trick is one I always use. [WRITE:x = 1,90,211][/STEP]", "The trick is one I always use"],
   // A value in words needs strong evidence (#345 round 5): a lone number word,
   // "in", or a unit used loosely is a missed cue by design, never an equals.
