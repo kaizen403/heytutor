@@ -86,14 +86,17 @@ export function buildSceneDocumentPlannerPrompt(
   context: ScenePlannerPromptContext = {},
   detailedOperators?: readonly string[],
 ): string {
-  const operators = context.constructionOperators === undefined
+  const requested = context.constructionOperators === undefined
     ? DEFAULT_SCENE_CONSTRUCTION_OPERATORS
     : [...new Set(context.constructionOperators.filter(isPlannerVisibleSceneConstructionOperator))];
   const proofPredicates = context.proofPredicates === undefined
     ? DEFAULT_SCENE_PROOF_PREDICATES
     : context.proofPredicates.filter(isPlannerVisibleSceneProofPredicate);
-  const operatorSet = new Set(operators);
-  const fullCatalog = DEFAULT_SCENE_CONSTRUCTION_OPERATORS.every((operator) => operatorSet.has(operator));
+  const requestedSet = new Set<string>(requested);
+  const fullCatalog = DEFAULT_SCENE_CONSTRUCTION_OPERATORS.every((operator) => requestedSet.has(operator));
+  // Family scoped operators join only a scoped request; the universal catalog keeps its budget.
+  const universal = new Set<string>(DEFAULT_SCENE_CONSTRUCTION_OPERATORS);
+  const operators = fullCatalog ? requested.filter((operator) => universal.has(operator)) : requested;
   // A scoped planning request gets full contracts. A universal catalog keeps
   // every input/output shape concise rather than expanding with each feature.
   const operatorContracts = selectConstructionInputContracts(operators,
@@ -325,6 +328,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - collinear_velocity_pair: {vf,speed}. Gives [current,boat,downstream,upstream]. Downstream is frame plus body; upstream is frame minus body. The body speed is along the frame, not a second heading.
 - crossing_strategies: {v}. Gives six vectors: across current, boat, resultant, then shortest-time current, boat, resultant. Fails closed unless boat speed exceeds current speed. Do not invent a straight-across heading.
 - parallel_guides: {gap}. Gives two parallel segments. separation and halfLength are display lengths, not a physical width.
+- block_flow: {nodes:[{id,label,claimIds:[claim_id]}],edges:[{from,to,label,claimId}],direction?:"right"|"down"}. Output one entity of kind "block_flow". 3 to 8 boxes and 2 to 10 arrows, all connected, every arrow labelled. Each box label is a component its cited claims name; each arrow cites one claim that names both of its boxes and states the arrow's label, in the claim's order. Labels: box at most 40 characters, arrow at most 32, no word over 16. The engine sizes, places and routes everything; give no coordinates.
 - kirchhoff_network: {nodes,branches}. Gives n node points, then b branch polylines, then b current vectors. Wires omit resistance and emf. A supplied multi-loop graph must not be redrawn as a series chain. Currents are solved.
 - free_body: {F}. Gives the body point, then one vector per supplied force. Do not invent a normal, friction, or weight. equilibrium requires a zero sum. mass and acceleration must satisfy sum F = ma.
 - coupled_bodies: {link,bodies}. Gives [body1,body2,tension1,tension2,accel1,accel2]. stringPull is the direction the link pulls each body. A string rejects compression. External forces include weight; gravity is not inferred.

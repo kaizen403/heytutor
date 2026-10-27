@@ -45,6 +45,19 @@ export interface SceneStructureHints {
   } | null;
 }
 
+/**
+ * The one request a gate-admitted block diagram lesson sends (see
+ * `deriveSceneGate`). It offers block_flow alone and lets the planner decline.
+ */
+export const BLOCK_FLOW_SCENE_REQUEST = Object.freeze({
+  constructionOperators: Object.freeze(["block_flow"]),
+  proofPredicates: Object.freeze(["exists"]),
+  planningGuidance: Object.freeze([
+    "This lesson has no measured apparatus. Draw one block_flow only when the plan's claims name at least three components and state how they connect; otherwise return visualDecision text_only.",
+    "A box is a component a claim names and an arrow is a relation a claim states, in the direction it states. Never draw a physical layout, anatomy or a picture as boxes. Use the one block_flow construction and nothing else.",
+  ]),
+});
+
 const BASE_OPERATORS = [
   "point", "segment", "line", "polyline", "vector", "label", "dimension", "angle_mark",
   "tick_mark", "sign_badge",

@@ -154,6 +154,8 @@ import {
 import {
   SCENE_PLANNER_DEADLINE_MS,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
+  OTHER_SUBJECT_BLOCK_FLOW_ENABLED,
+  blockFlowEligibleTurn,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
@@ -845,6 +847,7 @@ export function useQuestionHandler(
       prepareOriginalOpening();
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let plannedSubject: string | undefined;
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
         subject: diagramStrategySubject,
@@ -1195,6 +1198,7 @@ export function useQuestionHandler(
           diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
           // Rejected-plan consensus is metadata; strict was measured on accepted plans.
           diagramStrategySubject = plannedTurn ? diagramSubject : "other";
+          plannedSubject = plannedTurn?.subject;
           page.failureTelemetry = {
             subject: diagramSubject,
             requestCount: page.failureTelemetry?.requestCount,
@@ -1253,18 +1257,22 @@ export function useQuestionHandler(
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
         let validationCallIndex = 0;
+        const blockFlowEligible = blockFlowEligibleTurn({
+          enabled: OTHER_SUBJECT_BLOCK_FLOW_ENABLED, plannedSubject,
+          codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa,
+        });
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, blockFlowEligible }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
           const gate = deriveProductionSceneGate({
             question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
-            conversationContext: recentConversation,
+            conversationContext: recentConversation, blockFlowEligible,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
@@ -1519,7 +1527,7 @@ export function useQuestionHandler(
         }
         const selectionTurnPlan = turnPlan;
         const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
-          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities, blockFlowEligible,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,

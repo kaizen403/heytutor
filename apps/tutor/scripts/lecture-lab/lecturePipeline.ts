@@ -62,6 +62,8 @@ import {
   PROBLEM_AUTHORITY_DEADLINE_MS,
   SCENE_PLANNER_DEADLINE_MS,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
+  OTHER_SUBJECT_BLOCK_FLOW_ENABLED,
+  blockFlowEligibleTurn,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
@@ -546,12 +548,17 @@ export async function runLecture(
       };
     }
 
+    // Match live (useQuestionHandler): the accepted plan's own subject, never stem words.
+    const blockFlowEligible = blockFlowEligibleTurn({
+      enabled: OTHER_SUBJECT_BLOCK_FLOW_ENABLED, plannedSubject: plannedTurn?.subject,
+      codeLesson: false, dsa: dsaClassification.isDsa,
+    });
     const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), blockFlowEligible });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -572,7 +579,7 @@ export async function runLecture(
       planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
     ): BenchSceneGate => {
       const gate = deriveProductionSceneGate({
-        question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
+        question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null, blockFlowEligible,
       });
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
@@ -741,7 +748,7 @@ export async function runLecture(
     }
 
     const sceneSelectionInput: Parameters<typeof selectProductionScene>[0] = {
-      question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+      question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities, blockFlowEligible,
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
