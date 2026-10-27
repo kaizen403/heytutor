@@ -87,6 +87,101 @@ hyphen. Separate formulas, including CH3- next to CH2, stay eligible. Run
 the offline tutor gate `scripts/verify/verify-vsepr-source-evidence.ts` for
 live/save/reopen, answer staging and graph/plan tampering controls.
 
+## Curly arrow mechanisms (`organic/mechanism/`)
+
+A mechanism figure is drawn from electron bookkeeping, never from a picture
+of the reaction.
+
+- `state.ts`: atoms with lone pairs and bonds with orders; formal charge is
+  V minus lone pair electrons minus bond count. The shell rule refuses more
+  than 8 electrons, and fewer than 8 except on a carbon the step declares
+  as a carbocation.
+- `condensed.ts`: reads condensed formulas (`CH_2=CH_2`, `R-C(=O)-OH`,
+  `HO-N(CH3)2`, `(CH3)3C+`) into states. Molecular formulas such as `C2H4`
+  are refused because they name no structure. A charge must sit on the one
+  atom whose valence needs it.
+- `arrows.ts`: a curly arrow moves one pair. A lone pair forms a bond from
+  its own atom. A bond pair stays on one of its atoms or moves to a bond
+  sharing one atom. The arrows of a step act together, and the result must
+  conserve electrons and charge and pass the shell rule.
+- `eliminations.ts`: ester pyrolysis and xanthate pyrolysis (six atom
+  ring) and the Cope elimination (five atom ring). The site is found on the
+  graph. When only products are stated, the substrate is rebuilt from them
+  and the forward arrows must give exactly those products. A xanthate is
+  O-alkyl and S-alkyl: `HS-C(=S)-SH` comes from no xanthate, and
+  `HS-C(=O)-SH` only from the free xanthic acid, which loses CS2 instead.
+  A Cope amine oxide is tertiary. The alkene carbons carry only C and H, so
+  no enol or enamine is drawn as a product. Products that fit two
+  substrates, a substrate with two inequivalent beta sites, and a ring
+  opening that leaves one species decline.
+- `source.ts`: a named mechanism plus stated condensed species, read from
+  two accepted stem shapes only. Every other stem declines. The reader
+  accepts what it understands instead of refusing what it has seen go
+  wrong: seven review rounds showed free text always has one more way to
+  state the opposite (a reverse direction, a swapped pairing, an option, a
+  second task).
+  - The ask: "Show / Draw / Explain / Describe (the mechanism of) the
+    <reaction> of <substrate>", or "What is the mechanism of the
+    <reaction> of <substrate>?", with fixed tails ("on heating", "with
+    curly arrows", "with mechanism", "via a six membered cyclic transition
+    state", "at 500 C") and an optional "Draw the arrows." The substrate is
+    a condensed formula the named class runs on. A stated temperature must
+    be one the class runs at (ester pyrolysis 250 to 700 C, the others 100
+    to 700 C).
+  - Notes: reaction headings, ring size and heat phrases ("A six membered
+    T.S.", "Heat", arrows) and product sets "A + B". The only verb is a
+    bare "<reaction> gives A + B". The one descriptive phrase is "involves
+    the cleavage of amine oxide(s)", read only in a sentence whose only
+    name is the Cope elimination; a stored question cut inside it ("amine
+    oxid") still reads.
+  - Both shapes: outside formulas, only letters, digits, spaces, `. , ; :
+    ? ! ( )` and forward arrows (`→`, `->`, `⇒`) are read. Any other symbol
+    declines (`←`, `⇌`, `≠`, `<`, `/`), and so does a bare `-`: a spaced
+    sign ("at - 300 C") or a "none" mark in a table.
+  - In notes, a set is under the group of names last written before it,
+    a group being names with no line or sentence break and no set between
+    them. One name pairs the set outright; a heading line listing several
+    binds the set by chemistry among them, which photographed notes need.
+    A listing on the set's own line declines, since its order is not read,
+    and so do names joined by "and" or "," over fewer sets than names (the
+    text gives one set to more than one reaction).
+    A set followed in its sentence by a name, linked by any word but "and"
+    or "the" ("A + B via ester pyrolysis"), declines; bare juxtaposition is
+    the next heading, since notes run a set straight into it.
+  - A reaction whose own stated products fail is declined, recorded in
+    `source.yieldDemotions`, and never takes another set; the caption and
+    titles name only what is drawn. A stated set no declined reaction can
+    own (an option list, a contradiction) declines the whole figure, and
+    so does a set the text gives another reaction that a drawn class also
+    gives, since the drawn panel would answer it. Any
+    stated ring size (three to eight, "membered", "centre", "atom") must be
+    the drawn ring, and two different sizes decline.
+  - Known and left as is: a flattened two column table ("Ester pyrolysis
+    Chugaev reaction" over two sets in the other order) binds each set by
+    chemistry and draws both right panels, as photographed notes need.
+- `figure.ts`: per reaction, the substrate on a regular ring with the curly
+  arrows, the transition state with every changing bond dashed, and the
+  products. A curly arrow is a `vector` built by `polyline` through sampled
+  quadratic Bezier helpers. The compiler holds any curved path to 12 px
+  across, so arrows keep a minimum bow.
+
+`buildOrganicScene` reads the mechanism first. A mechanism ask that does not
+verify returns null instead of falling through to a product row without
+arrows. The ask is read from words: "mechanism" (and its common
+misspellings), "curly arrows", "with arrows", "draw the arrows", "electron
+movement", "movement of electrons", "transition state", "show how", a named
+rearrangement after an article or an ask verb ("the Cope rearrangement",
+"Explain Claisen rearrangement"), or SN1, SN2, E1 or E2 in any case and
+spelling (`S_N2`, `SN-2`, `SN¹`, `sn2`; not `Sn2+`, the tin ion) in a stem
+that also says show, draw, write, explain, illustrate, depict, describe,
+outline, give, steps or how. A phrasing outside that list still reaches
+the product row, so new phrasings go into the gate's lone row list. Naming
+SN1 or SN2 alone is not a mechanism ask, and neither is a reactivity
+comparison ("more reactive towards SN1", "order of", "arrange"): those keep
+their structure rows.
+SN1, SN2 and E2 mechanism asks decline until the planner example species
+(#303) can bind them; the arrow operator already runs them.
+
 ## The subject test
 
 `classify.ts` reads chemistry vocabulary against physics vocabulary; a lone
@@ -122,6 +217,7 @@ pnpm verify:chemistry
 |---|---|---|
 | `verify-chemistry-subject` | scene-engine | hand stems in both directions; shared figures kept; a bank sweep with loose thresholds (the bank's subject labels are noisy) |
 | `verify-chemistry-families` | scene-engine | every family's probes through the registry and the real family path; physics stems never reach a chemistry family |
+| `verify-chemistry-mechanism` | scene-engine | arrow bookkeeping refusals, SN2 and SN1 charges, the cyclic eliminations and their substrate rules, the source binding, guards and demotions, narration, textbook layouts, no lone product row for the listed mechanism asks; a mutant per guard, each turning exactly its own rows red |
 | `verify-chemistry-notation` | drawing | the script rewrite, wired into `normalizeStrokeText` |
 | `verify-chemistry-lane` | tutor | subject offered, addon keyed off the question, exact planner skipped, figure named to the tutor |
 
