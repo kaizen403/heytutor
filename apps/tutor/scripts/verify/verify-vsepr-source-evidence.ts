@@ -30,6 +30,10 @@ function fixture(question = "Use VSEPR to compare the molecular shapes and bond 
 function admitted(document: SceneDocument, question: string, plan: TurnPlanV3): boolean {
   return sceneSaveAdmissionFailure({ document, question, turnPlan: plan, tier: "qualitative_verified" }) === null;
 }
+/** A species' angle entity: its arc, or the caption naming its pair where the page sector cannot read as the value. */
+function angleId(document: SceneDocument, tag: string): string {
+  return document.entities.some((entity) => entity.id === `${tag}_ang`) ? `${tag}_ang` : `${tag}_ang_txt`;
+}
 function setLabel(document: SceneDocument, id: string, label: string): void {
   document.entities.find((entity) => entity.id === id)!.label = label;
   for (const construction of document.constructions) {
@@ -60,7 +64,10 @@ async function main(): Promise<void> {
   check(selected.representation?.sceneDocument.revealGroups.length === 2, "both source species survive admission");
   check(sample.document.source.slotSources === undefined, "certificate does not fabricate stem/plan slotSources");
   const labels = displayedSceneQuantityTexts(sample.document);
-  check(labels.includes("87.5°") && labels.includes("<90°"), "known measured value and strict inequality remain distinct");
+  // BrF5 is drawn at right angles, so its strict inequality is a caption naming
+  // its pair ("cis F-Br-F <90°"), never "<90°" on a 90° arc.
+  check(labels.includes("87.5°") && labels.some((label) => label === "<90°" || / <90°$/.test(label)),
+    "known measured value and strict inequality remain distinct");
   check(labels.includes("quoted") && labels.includes("inequality"), "existing angle evidence labels are retained");
   check(certifyVseprSourceDocument(sample.document, sample.question, sample.plan).status === "certified", "native source graph earns a certificate");
 
@@ -136,7 +143,7 @@ async function main(): Promise<void> {
   check(!admitted(exact.document, exact.question, staleAngles), "reassigned plan role cannot borrow another species' correct angle");
   const stripped = structuredClone(exact.document);
   delete stripped.source.chemistryFamily; delete stripped.source.archetype;
-  setLabel(stripped, "m1_ang", "90°"); setLabel(stripped, "m2_ang", "87.5°");
+  setLabel(stripped, angleId(stripped, "m1"), "90°"); setLabel(stripped, angleId(stripped, "m2"), "87.5°");
   check(!admitted(stripped, exact.question, exact.plan), "stripping both candidate tags cannot bypass species-bound angle ownership even with correct global plan scalars");
   const ordinaryPhysics = structuredClone(sample.document);
   const physicsQuestion = "Find the equivalent resistance of three 6 ohm resistors in parallel.";
@@ -159,7 +166,8 @@ async function main(): Promise<void> {
 
   const graphMutations: Array<[string, (document: SceneDocument) => void]> = [
     ["angle", (doc) => { setLabel(doc, "m1_ang", "88°"); }],
-    ["swapped angle owners", (doc) => { setLabel(doc, "m1_ang", "<90°"); setLabel(doc, "m2_ang", "87.5°"); }],
+    ["swapped angle owners", (doc) => { setLabel(doc, angleId(doc, "m1"), "<90°"); setLabel(doc, angleId(doc, "m2"), "87.5°"); }],
+    ["caption value", (doc) => { setLabel(doc, angleId(doc, "m2"), "cis F-Br-F 90°"); }],
     ["species", (doc) => { setLabel(doc, "m1_title", "BrF_3"); }],
     ["source question", (doc) => { doc.source.question = "Compare the molecular shapes of BrF3 and BrF5."; }],
     ["central atom", (doc) => { setLabel(doc, "m1_A", "Br"); }],
@@ -197,7 +205,8 @@ async function main(): Promise<void> {
   check(persisted.value.sceneDocument && admitted(persisted.value.sceneDocument, sample.question, facts), "canonical persisted scene re-establishes the same certificate");
   const restored = restoreVerifiedPresentationFromTurn({ question: sample.question, sceneDocument: persisted.value.sceneDocument, sceneArtifacts: persisted.value.sceneArtifacts });
   check(restored?.diagram.commands.some((command) => command.type === "LABEL" && command.text === "87.5°"), "saved restoration retains the measured angle");
-  check(restored?.diagram.commands.some((command) => command.type === "LABEL" && command.text === "<90°"), "saved restoration retains the inequality without making it an exact value");
+  check(restored?.diagram.commands.some((command) => command.type === "LABEL" && typeof command.text === "string" && (command.text === "<90°" || / <90°$/.test(command.text))),
+    "saved restoration retains the inequality without making it an exact value");
   check((await saved(sample.question, exact.plan, exact.document)).ok === false, "mismatched question/plan fails actual canonicalization");
   for (const yieldEnabled of [false, true]) {
     const prepared = prepareVerifiedParts(exact.document, { enabled: yieldEnabled });

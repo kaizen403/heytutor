@@ -1871,6 +1871,8 @@ function evaluateConstruction(
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
+    case "submerged_body":
+    case "hydraulic_press":
     case "cyclotron": return evaluateChapterInstrumentConstruction(operator, inputs, constructionContext, document);
     case "hydrostatic_profile":
     case "hydrostatic_state":
