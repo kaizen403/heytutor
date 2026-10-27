@@ -2,6 +2,7 @@ import {
   DRAW_COMMAND_TYPES,
   HEADER_ONLY_TEXT_TAG_EXACT,
   isCompleteDrawingTag,
+  matchCoordinateLessWriteTag,
   parseDrawingTag,
   parseDrawCommandFromTag,
   repairHeaderOnlyTextTags,
@@ -10,6 +11,9 @@ import {
 } from './drawingProtocol';
 
 const MAX_TAG_BUFFER_LENGTH = 256;
+
+/** The batch parser's body break: a text tag or a STEP marker ends a row. */
+const TEXT_TAG_BREAK = /\[\s*(?:WRITE|LABEL|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\s*(?=[:,])|\[(?:STEP|\/STEP)\]/iu;
 
 type ParserState = 'NARRATION' | 'TAG_BUFFER';
 
@@ -49,6 +53,11 @@ export class IncrementalTagParser {
   flush(): void {
     if (this.headerOnlyTextTag) {
       this.closeHeaderOnlyTextTag();
+    }
+
+    if (this.state === 'TAG_BUFFER' && this.closeCoordinateLessWrite(true)) {
+      this.flush();
+      return;
     }
 
     if (this.state === 'TAG_BUFFER') {
@@ -97,8 +106,11 @@ export class IncrementalTagParser {
 
     if (char === ']') {
       this.tryEmitCompleteTag();
+      if (this.state === 'TAG_BUFFER') this.closeCoordinateLessWrite(false);
       return;
     }
+
+    if (this.closeCoordinateLessWrite(this.tagBuffer.length > MAX_TAG_BUFFER_LENGTH)) return;
 
     if (this.tagBuffer.length > MAX_TAG_BUFFER_LENGTH || !this.couldBeTagPrefix()) {
       this.narrationBuffer += this.tagBuffer;
@@ -106,6 +118,25 @@ export class IncrementalTagParser {
       this.tagBuffer = '';
       this.state = 'NARRATION';
     }
+  }
+
+  /**
+   * A buffered WRITE that closed without its two numbers (see
+   * `matchCoordinateLessWriteTag`). It is decided only once the tag can no
+   * longer close the canonical way, which is when the batch parser decides
+   * it: a text tag or STEP marker follows, the buffer overflows, or the
+   * stream ends. The repaired row and the words after it then go back
+   * through the parser.
+   */
+  private closeCoordinateLessWrite(force: boolean): boolean {
+    const repaired = matchCoordinateLessWriteTag(this.tagBuffer);
+    if (!repaired) return false;
+    const rest = this.tagBuffer.slice(repaired.raw.length);
+    if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
+    this.tagBuffer = '';
+    this.state = 'NARRATION';
+    for (const char of `${repaired.canonical}${rest}`) this.processChar(char);
+    return true;
   }
 
   private couldBeTagPrefix(): boolean {

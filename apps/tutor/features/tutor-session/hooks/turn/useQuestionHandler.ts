@@ -125,6 +125,7 @@ import {
   figureExampleSpeciesOf,
   resumeLessonUserPrompt,
   resumeInkRetryUserPrompt,
+  resumeNextRowY,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
@@ -2347,7 +2348,7 @@ export function useQuestionHandler(
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
               userPrompt: resumeInkRetry
-                ? resumeInkRetryUserPrompt(resume?.reason)
+                ? resumeInkRetryUserPrompt(resume?.reason, resumeNextRowY(pagePromptInput))
                 : isContinuation
                 ? [
                     "continue",

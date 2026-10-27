@@ -381,6 +381,22 @@ function doubtRowY(rowsLeft: number): number {
   return WORK_ZONE.topY + index * WORK_ZONE.lineHeight;
 }
 
+/**
+ * The full row tag with real numbers. A resumed lesson's base prompt is the
+ * continuation prompt, which never showed the coordinates, and a retry that
+ * spelled them `x,y` got a literal x back: production resumes wrote
+ * `[WRITE:text]`, `[WRITE:text,277]` and `[WRITE:text,x,211]`, the parser
+ * refused every row, and the lesson taught nothing.
+ */
+function writeRowTag(y: number): string {
+  return `[WRITE:text,${WORK_ZONE.marginX},${y}]`;
+}
+
+/** The y a continued lesson's next row is quoted at: the space rule's own number. */
+export function resumeNextRowY(input: Pick<ResumeTeachingPromptInput, "rowsLeftOnPage" | "nextRowY">): number {
+  return input.rowsLeftOnPage <= 0 || input.nextRowY === null ? WORK_ZONE.topY : doubtRowY(input.rowsLeftOnPage);
+}
+
 function doubtSpaceRule(
   input: Pick<DoubtTeachingPromptInput, "rowsLeftOnPage" | "nextRowY">,
   figureOnBoard: boolean,
@@ -388,10 +404,10 @@ function doubtSpaceRule(
   const pitch = WORK_ZONE.lineHeight;
   const figureStays = figureOnBoard ? ", and the figure stays" : "";
   if (input.rowsLeftOnPage <= 0 || input.nextRowY === null) {
-    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the line the doubt is about, restated in symbols at y = ${WORK_ZONE.topY}, and explain under it, stepping y by ${pitch}.`;
+    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the line the doubt is about, restated in symbols at y = ${WORK_ZONE.topY} as ${writeRowTag(WORK_ZONE.topY)}, and explain under it, stepping y by ${pitch}.`;
   }
   const rows = input.rowsLeftOnPage;
-  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page. Fit an ordinary doubt in that room: your first row is y = ${doubtRowY(rows)}, then step y by ${pitch}. When the answer needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the line the doubt is about, so the student can still see it.`;
+  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page. Fit an ordinary doubt in that room: your first row is y = ${doubtRowY(rows)}, written ${writeRowTag(doubtRowY(rows))}, then step y by ${pitch}. When the answer needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the line the doubt is about, so the student can still see it.`;
 }
 
 /**
@@ -581,9 +597,9 @@ export function resumeLessonUserPrompt(
 }
 
 /** The one corrective retry when a resume came back without board writing. */
-export function resumeInkRetryUserPrompt(reason: PausedLessonReason = "doubt"): string {
+export function resumeInkRetryUserPrompt(reason: PausedLessonReason = "doubt", nextRowY: number = WORK_ZONE.topY): string {
   const repeat = reason === "stop" ? "Do not repeat any already written row." : "Do not repeat the doubt or any already written row.";
-  return `${resumeLessonUserPrompt(null, reason)}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. ${repeat} Return [STEP] blocks, not narration alone.`;
+  return `${resumeLessonUserPrompt(null, reason)}\n\nYour previous continuation contained no usable [WRITE] step: every row needs its two numbers. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short row tag immediately after the words that explain it, the first one as ${writeRowTag(nextRowY)} with your row text in place of "text", the next at y = ${nextRowY + WORK_ZONE.lineHeight}, and so on in steps of ${WORK_ZONE.lineHeight}. ${repeat} Return [STEP] blocks, not narration alone.`;
 }
 
 const RESUME_LENGTH_ADDON = `LESSON LENGTH FOR THIS CONTINUATION
@@ -601,10 +617,10 @@ function resumeSpaceRule(
   const pitch = WORK_ZONE.lineHeight;
   const figureStays = figureOnBoard ? ", and the figure stays" : "";
   if (input.rowsLeftOnPage <= 0 || input.nextRowY === null) {
-    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the last result the lesson reached, restated in symbols at y = ${WORK_ZONE.topY}, and continue under it, stepping y by ${pitch}.`;
+    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the last result the lesson reached, restated in symbols at y = ${WORK_ZONE.topY} as ${writeRowTag(WORK_ZONE.topY)}, and continue under it, stepping y by ${pitch}.`;
   }
   const rows = input.rowsLeftOnPage;
-  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page: your next row is y = ${doubtRowY(rows)}, then step y by ${pitch}. When the lesson needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the last result the lesson reached.`;
+  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page: your next row is y = ${doubtRowY(rows)}, written ${writeRowTag(doubtRowY(rows))}, then step y by ${pitch}. When the lesson needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the last result the lesson reached.`;
 }
 
 function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string {
