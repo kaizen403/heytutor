@@ -253,6 +253,10 @@ for (const [step, kept] of [
   ["[STEP]That is two marks for this step. [WRITE:x = 2,90,211][/STEP]", "That is two marks for this step"],
   ["[STEP]the selling price is sixty five rupees less than the cost price. [WRITE:SP = 65 less than CP,90,211][/STEP]", "is sixty five rupees less than"],
   ["[STEP]the new price is eighteen percent more than the old one. [WRITE:P = 18% more than Q,90,211][/STEP]", "is eighteen percent more than"],
+  ["[STEP]This is one in which friction acts. [WRITE:F = 1.5 N,90,211][/STEP]", "This is one in which friction acts"],
+  ["[STEP]This is one with a twist. [WRITE:x = 1,90,211][/STEP]", "This is one with a twist"],
+  ["[STEP]There is one. [WRITE:n = 1,90,211][/STEP]", "There is one"],
+  ["[STEP]The trick is one I always use. [WRITE:x = 1,90,211][/STEP]", "The trick is one I always use"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a comparison or a count stays as spoken: ${spokenAfter(step)}`);
 }
@@ -272,5 +276,7 @@ assert(spokenAfter("[STEP]so the speed is sixty meters per second. [WRITE:v = 60
 // reading ("v final" for v_final) keeps #334's rule.
 assert(spokenAfter("[STEP]so the velocity is v final. [WRITE:v = v_final,90,211][/STEP]").includes("the velocity equals v final"),
   "a symbol value keeps its equals even when a count word follows it");
+assert(spokenAfter("[STEP]so the answer is twenty-five. [WRITE:x = 25,90,211][/STEP]").includes("the answer equals twenty-five"), "a hyphenated number word is a value");
+assert(spokenAfter("[STEP]so x is two to the power of four. [WRITE:x = 2^4,90,211][/STEP]").includes("x equals two to the power of four"), "a power spoken in words is a value");
 
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");

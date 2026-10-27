@@ -23,9 +23,9 @@ import {
 const RELATION = /[=<>]|\b(?:sqrt|sum|int)\b/;
 const OPEN_UNKNOWN = /=\s*\?\s*$/;
 const SAYS_EQUALS = /\bequals\b|\bequal to\b/i;
-/** "is" used as a copula, not "is the", "is no", "is stuck". */
+/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is". */
 const COPULA_IS =
-  /\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
+  /(?<!\bthere\s+)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
 
 function isRelationWrite(command: DrawCommand): boolean {
   if (command.type !== "WRITE") return false;
@@ -54,7 +54,7 @@ function withoutClosedRows(step: string): string {
  */
 const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/;
 /** The spoken number after "is" ("twenty five percent"), skipped before looking for a comparison. */
-const NUMBER_RUN = /^(?:\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million|point|and|percent|[\d.,%]+)(?![\p{L}\p{N}]))+/iu;
+const NUMBER_RUN = /^(?:[\s-]+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million|point|and|percent|[\d.,%]+)(?![\p{L}\p{N}]))+/iu;
 /** After the spoken number, a unit or "times" and then a comparison, or "or more". */
 const COMPARISON_AFTER_NUMBER = /^(?:\s+\S+){0,2}?\s+(?:less|more|greater|smaller|fewer|higher|lower|bigger|larger|faster|slower|heavier|lighter|longer|shorter|as)\b/i;
 /** "is one of the", "is one way to": a count, not the row's value. */
@@ -62,10 +62,11 @@ const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?
 /**
  * What may follow a value spoken in words: the end of the clause, a symbol, an
  * operation, a fraction, a ratio ("one in six"), or a unit. "one form of
- * energy" and "two marks" are counts of things, not the row's value. "to" is
- * left out: "is one to watch" is not a value.
+ * energy" and "two marks" are counts of things, not the row's value. "in" counts
+ * only before a number ("one in six"), "to" only as "to the power", and "I" is
+ * never a symbol ("one I always use").
  */
-const AFTER_SPOKEN_VALUE = /^(?:\s*(?:[,.;:!?)]|$)|\s+(?:\p{L}|over|times|squared|cubed|plus|minus|divided|remainder|of|per|in|cubic|square|degrees?|half|halves|thirds?|quarters?|\p{L}+ths?|rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|electron|atmospheres?|calories?|kilocalories?|decibels?|light)\b)/iu;
+const AFTER_SPOKEN_VALUE = /^(?:\s*(?:[,.;:!?)]|$)|\s+(?:(?![iI]\b)\p{L}|over|times|squared|cubed|plus|minus|divided|remainder|of|per|to\s+the\s+power|in\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|\d)|cubic|square|degrees?|half|halves|thirds?|quarters?|(?:fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\p{L}+teenth|\p{L}+tieth|hundredth|thousandth|millionth)s?|rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|electron|atmospheres?|calories?|kilocalories?|decibels?|light)\b)/iu;
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
