@@ -185,7 +185,7 @@ export function scrubSentryEvent<T extends SentryScrubEvent>(event: T): T {
 }
 
 const FAILURE_SUBJECTS = ["physics", "chemistry", "maths", "biology", "dsa", "other", "unknown"];
-const FAILURE_PROVIDERS = ["azure", "fireworks", "mock", "unknown"];
+const FAILURE_PROVIDERS = ["azure", "openai_compat", "fireworks", "mock", "unknown"];
 const FAILURE_ENVIRONMENTS = ["production", "development", "test", "lab", "unknown"];
 
 function allowedValue(value: unknown, allowed: readonly string[]): string {

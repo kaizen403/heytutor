@@ -14,6 +14,7 @@ export type CostDetails = Record<string, number>;
 
 export type LlmRateLane =
   | "gpt-6.1-sol"
+  | "openai-compat"
   | "kimi-k3-fast"
   | "kimi-k3"
   | "deepseek-flash"
@@ -38,6 +39,10 @@ export interface LlmRate {
  */
 export const LLM_RATE_DEFAULTS: Record<Exclude<LlmRateLane, "unknown">, LlmRate> = {
   "gpt-6.1-sol": { inputUsdPer1M: 2, outputUsdPer1M: 10, cachedInputUsdPer1M: 0.1 },
+  // A relay publishes no rates we can read. Until `OPENAI_COMPAT_*_USD_PER_1M`
+  // say otherwise, price it as the Azure model it resells; the lab refuses to
+  // run a capped round on these defaults (see `buildLabModelProfile`).
+  "openai-compat": { inputUsdPer1M: 2, outputUsdPer1M: 10, cachedInputUsdPer1M: 0.1 },
   "kimi-k3-fast": { inputUsdPer1M: 4.5, outputUsdPer1M: 22.5, cachedInputUsdPer1M: 0.45 },
   "kimi-k3": { inputUsdPer1M: 3, outputUsdPer1M: 15, cachedInputUsdPer1M: 0.3 },
   "deepseek-flash": { inputUsdPer1M: 0.22, outputUsdPer1M: 0.66, cachedInputUsdPer1M: 0.22 },
@@ -67,6 +72,12 @@ export function resolveLlmRateLane(model?: string | null): LlmRateLane {
   if (id.includes("typesafe") || id.endsWith("/jev") || id === "jev" || id.startsWith("jev-")) {
     return "jev";
   }
+  // A relay model is priced as the relay only while the relay is active: its
+  // ids (gpt-6.1-sol) are Azure's too, and Azure must keep Azure rates.
+  const compatModel = process.env.OPENAI_COMPAT_MODEL?.trim().toLowerCase();
+  if (compatModel && id === compatModel && process.env.LLM_PROVIDER?.trim().toLowerCase() === "openai_compat") {
+    return "openai-compat";
+  }
   // The configured deployment keeps its rates whatever LLM_PROVIDER says, so a
   // rollback to Fireworks never reprices runs already recorded on Azure.
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT?.trim().toLowerCase();
@@ -92,6 +103,8 @@ function laneEnvPrefix(lane: LlmRateLane): string | null {
   switch (lane) {
     case "gpt-6.1-sol":
       return "AZURE_GPT_SOL";
+    case "openai-compat":
+      return "OPENAI_COMPAT";
     case "kimi-k3-fast":
       return "FIREWORKS_KIMI_FAST";
     case "kimi-k3":

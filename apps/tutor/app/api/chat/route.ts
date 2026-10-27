@@ -47,8 +47,10 @@ import {
 } from "@/lib/llm/fireworksModels";
 import {
   completionTokenCap,
+  noteProviderOutcome,
   providerChatBody,
   readProviderPerf,
+  relayUpstreamKind,
   resolveLlmEndpoint,
   type LlmEndpoint,
 } from "@/lib/llm/llmProvider";
@@ -708,10 +710,10 @@ async function handlePlannerRequest({
       },
       url: llm.url,
       apiKey,
-      // Azure scenes are non-streaming. Keep their initial 30s candidate
+      // Azure and relay scenes are non-streaming. Keep their initial 30s candidate
       // response window intact instead of canceling at 25s to retry late.
       // The existing request/client signals still bound setup and both attempts.
-      attemptTimeoutMs: llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+      attemptTimeoutMs: llm.provider !== "fireworks" && semanticSceneV2 && !diagramExamplePicker
         ? Math.min(30_000, deadlineMs)
         : undefined,
       body,
@@ -722,6 +724,7 @@ async function handlePlannerRequest({
       models: plannerModels,
       signal: boundedSignal,
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
+        noteProviderOutcome(llm, { ok: false, status });
         tutorDebug("planner", message ? "provider fetch failed" : "transient provider response", {
           provider: llm.provider,
           attempt,
@@ -742,6 +745,7 @@ async function handlePlannerRequest({
       responseHeadersAt: Date.now(),
     });
 
+    noteProviderOutcome(llm, response.ok ? { ok: true } : { ok: false, status: response.status });
     tutorDebug("planner", "provider response", {
       provider: llm.provider,
       status: response.status,
@@ -785,6 +789,7 @@ async function handlePlannerRequest({
     let returnedTier: "default" | "priority" | undefined;
     try {
       const parsedResponse = JSON.parse(jsonBody) as {
+        id?: unknown;
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
         usage?: unknown;
         perf_metrics?: unknown;
@@ -807,6 +812,7 @@ async function handlePlannerRequest({
           ...timing,
           temperature: body.temperature,
           llm_provider: llm.provider,
+          ...(llm.provider === "openai_compat" ? { relay_upstream: relayUpstreamKind(parsedResponse.id) } : {}),
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
           turn_planner_version: turnPlanV3 ? 3 : undefined,
@@ -1171,6 +1177,7 @@ export async function POST(request: Request): Promise<Response> {
           },
         });
         lastFetchError = null;
+        noteProviderOutcome(llm, attemptResponse.ok ? { ok: true } : { ok: false, status: attemptResponse.status });
         // A provider error status means no generation ran: that attempt is free.
         if (!teachingAttemptMayHaveGenerated(attemptResponse)) attemptCosts[attemptCosts.length - 1] = 0;
         failure = classifyTeachingFailure(attemptResponse);
@@ -1188,6 +1195,7 @@ export async function POST(request: Request): Promise<Response> {
       } catch (error: unknown) {
         failure = "upstream_connect_failure";
         lastFetchError = error;
+        if (!requestSignal.aborted) noteProviderOutcome(llm, { ok: false });
         tutorDebug("chat", "provider fetch failed", {
           attempt: attempt + 1,
           model,

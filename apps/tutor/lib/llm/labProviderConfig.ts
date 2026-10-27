@@ -47,8 +47,8 @@ export function labProviderConfig() {
     // while the standard profile stays available.
     fastModelProfile: configured && endpoint.provider === "fireworks" ? fastProfileOrNull(endpoint) : null,
     inputBounds: liveDiagramPromptInputBounds(),
-    // The first translated body is the primary scene request, including Azure's floor.
-    planningSpeed: { sceneEffort: endpoint.provider === "azure" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
+    // The first translated body is the primary scene request, including Azure's or the relay's floor.
+    planningSpeed: { sceneEffort: endpoint.provider !== "fireworks" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
       ...(endpoint.provider === "azure" ? plannerSpeedSettings() : { priority: false }),
       requestTier: endpoint.provider === "azure" && process.env.DIAGRAM_PLANNER_PRIORITY === "1" ? "priority"
         : "auto" },

@@ -1,4 +1,4 @@
-# LLM provider: Azure gpt-6.1-sol or Fireworks Kimi K3
+# LLM provider: Azure gpt-6.1-sol, a relay, or Fireworks Kimi K3
 
 One switch, `LLM_PROVIDER`, picks who serves every model call. Code:
 `apps/tutor/lib/llm/llmProvider.ts`. Gate: `scripts/verify/verify-llm-provider.ts`.
@@ -8,6 +8,8 @@ One switch, `LLM_PROVIDER`, picks who serves every model call. Code:
 | `LLM_PROVIDER=azure` plus `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` | Every lane calls the one Azure AI Foundry deployment through the OpenAI v1 API (`<endpoint>/openai/v1/chat/completions`, `Authorization: Bearer <key>`) |
 | `LLM_PROVIDER=fireworks` or unset | The Kimi K3 lanes, exactly as before the switch |
 | `azure` with any Azure variable missing | One `[llm]` error in the log, then Fireworks |
+| `LLM_PROVIDER=openai_compat` plus `OPENAI_COMPAT_BASE_URL` (ends in `/v1`), `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` | Every lane calls one model on an OpenAI compatible relay (`<base>/chat/completions`), with the Azure body translation. See "Relay" below |
+| `openai_compat` with any variable missing | One `[llm]` error in the log, then Fireworks |
 
 Lanes covered: planners (turn plan, scene, code lesson), fast planners,
 teaching and fast teaching, Problem IR, the cheap notes lane, photo reading,
@@ -84,3 +86,41 @@ Azure output runs at roughly 50 to 80 tokens a second, so long planner JSON
   `DEFAULT_CHEAP_FIREWORKS_MODEL`, and its cost estimates use Fireworks
   prices. Lab scripts should use `resolveLlmEndpoint`, `providerChatBody`,
   `resolveCheapFireworksModel` and `calculateLlmCostDetails` instead.
+
+## Relay: `openai_compat` (tokens-flow, probed 27 Oct 2026)
+
+tokens-flow (`https://tokens-flow.com/v1`) resells `gpt-6-sol`, `gpt-6-astra`
+and `gpt-6.1-sol`. Its errors are `new_api_error`, the open source new-api
+relay that pools upstream accounts. Probe it with
+`scripts/latency/compat-probe.ts` (parameters per upstream, caps, three real
+turn plans through our parser, three teaching streams; about 40 calls).
+
+| Finding | What the code does |
+|---------|--------------------|
+| One model name is served by two pools: `resp_...` ids (Responses API) and short `chatcmpl-...` ids. Split was about even | Planner generations record `relay_upstream` (`responses`, `chat_completions`) so drift shows in Langfuse |
+| Most calls carry about 4,200 hidden prompt tokens; on turn plans the `resp_` pool reported them uncached (5,460 input for a 1,000 token prompt) | Billed as input at the relay's rates; nothing we can strip |
+| `reasoning_effort` `none` passes on one pool and is a 400 on the other (3 of 6 calls); `minimal` is a 400 everywhere and took 49 to 69 s to fail | Azure translation, floor `low` (`OPENAI_COMPAT_MIN_REASONING_EFFORT` overrides) |
+| `temperature`, `thinking`, `perf_metrics_in_response`, `service_tier` accepted (ignored) | Dropped as on Azure |
+| `max_tokens` and `max_completion_tokens` are not enforced: a 16 token cap returned 77 to 399 tokens | The cap still sizes the spend reservation; it is an estimate, not a bound |
+| `n` above 1 is a 400 | Every lane sends `n: 1` |
+| `json_object`, strict `json_schema`, image input, streaming with `include_usage` and `[DONE]` all work | Passed through |
+| Usage: the `chatcmpl-` pool adds top level `input_tokens`, `output_tokens`, `reasoning_tokens` | `parseProviderUsage` reads both shapes |
+| Python urllib got a 403 (user agent filter); Node `fetch` is fine | Nothing |
+| Turn plans with `TURN_PLAN_V3_PROMPT`: 9 of 9 valid. `resp_` pool 5 to 7 s, `chatcmpl-` pool 8 to 24 s | Measured in the lab before any rollout |
+| Teaching stream first content: `resp_` 1.4 to 1.7 s, `chatcmpl-` 4.6 s | Same |
+
+Circuit breaker (`CompatCircuit` in `llmProvider.ts`): a 401 or 403 opens it
+at once; three 408, 429, 5xx or connect failures within a minute open it. While
+open, `resolveLlmEndpoint` returns Fireworks (with `fallbackReason`) for five
+minutes, so the next request and the client's startup retry run on Kimi K3 with
+a Fireworks body and Fireworks prices. The failing call itself is not rescued.
+It stays shut when `OPENAI_COMPAT_FALLBACK=off` or there is no
+`FIREWORKS_API_KEY` (never mock lessons). The lab sets fallback off and refuses
+to build a profile while the circuit is open, so a round measures only the relay.
+
+Prices: lane `openai-compat`, env prefix `OPENAI_COMPAT_`, defaulting to the
+Azure gpt-6.1-sol rates. The lab refuses a relay round until
+`OPENAI_COMPAT_INPUT_USD_PER_1M` and `OPENAI_COMPAT_OUTPUT_USD_PER_1M` are set.
+The relay lane only applies while `LLM_PROVIDER=openai_compat`, because its
+model id is also Azure's.
+

@@ -9,7 +9,7 @@ import { resolveLlmRates } from "../obs/usageCost";
 const MODEL_LANES = ["planner", "problemIR", "teaching", "picker"] as const;
 type ModelLane = (typeof MODEL_LANES)[number];
 type Rates = ReturnType<typeof resolveLlmRates>;
-type ProfileRateLane = "gpt-6.1-sol" | "kimi-k3" | "kimi-k3-fast" | "deepseek-flash";
+type ProfileRateLane = "gpt-6.1-sol" | "openai-compat" | "kimi-k3" | "kimi-k3-fast" | "deepseek-flash";
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
@@ -34,7 +34,7 @@ export interface LabModelProfile {
 }
 
 const RATE_PREFIXES: Record<ProfileRateLane, string> = {
-  "gpt-6.1-sol": "AZURE_GPT_SOL",
+  "gpt-6.1-sol": "AZURE_GPT_SOL", "openai-compat": "OPENAI_COMPAT",
   "kimi-k3": "FIREWORKS_KIMI_K3", "kimi-k3-fast": "FIREWORKS_KIMI_FAST", "deepseek-flash": "FIREWORKS_DEEPSEEK_FLASH",
 };
 const RATE_FIELDS = [
@@ -59,17 +59,19 @@ const FAST_LANE_MODELS: Record<Exclude<ModelLane, "picker">, string> = {
 export function assertLabModelProfile(value: unknown): asserts value is LabModelProfile {
   requireProfile(record(value), "profile must be an object");
   requireProfile(value.version === "lab-model-profile/v1", "unsupported profile version");
-  requireProfile(value.provider === "azure" || value.provider === "fireworks", "unsupported provider");
+  requireProfile(value.provider === "azure" || value.provider === "openai_compat" || value.provider === "fireworks", "unsupported provider");
+  // Azure and a relay both serve every lane from one model.
+  const single = value.provider !== "fireworks";
   requireProfile(typeof value.fastMode === "boolean", "fastMode must be a boolean");
   const fast = value.fastMode === true;
   requireProfile(!fast || value.provider === "fireworks", "Fast mode is a Fireworks evaluation profile only");
   requireProfile(record(value.models) && record(value.rates), "models and rates are required");
-  if (value.provider === "azure") requireProfile(typeof value.deployment === "string" && Boolean(value.deployment.trim()), "Azure deployment is required");
+  if (single) requireProfile(typeof value.deployment === "string" && Boolean(value.deployment.trim()), `${value.provider} deployment is required`);
   else requireProfile(value.deployment === null, "Fireworks deployment must be null");
   for (const lane of MODEL_LANES) {
     const model = value.models[lane];
     requireProfile(typeof model === "string" && Boolean(model.trim()) && model === model.trim(), `${lane} model is required`);
-    if (value.provider === "azure") requireProfile(model === value.deployment, "Azure lane model must match deployment");
+    if (single) requireProfile(model === value.deployment, `${value.provider} lane model must match deployment`);
     else if (lane !== "picker" && fast) requireProfile(model === FAST_LANE_MODELS[lane], `${lane} model must use the production Fast router`);
     else if (lane !== "picker") requireProfile(model === DEFAULT_FIREWORKS_MODEL, `${lane} model must use authenticated standard routing`);
     const rates = value.rates[lane];
@@ -77,6 +79,7 @@ export function assertLabModelProfile(value: unknown): asserts value is LabModel
     // This evaluation supports standard K3, the K3 Fast router and cheap Flash,
     // including the existing IR override that also sends the picker to standard K3.
     const expectedRateLane = value.provider === "azure" ? "gpt-6.1-sol"
+      : value.provider === "openai_compat" ? "openai-compat"
       : lane !== "picker" && fast ? "kimi-k3-fast"
       : lane !== "picker" || model === DEFAULT_FIREWORKS_MODEL ? "kimi-k3"
         : model === DEFAULT_CHEAP_FIREWORKS_MODEL ? "deepseek-flash" : null;
@@ -118,15 +121,21 @@ export function buildLabModelProfile(input: {
   const fastMode = input.fastMode === true;
   if (fastMode && endpoint.provider !== "fireworks") throw new Error("lab Fast mode requires the Fireworks provider");
   if (!endpoint.apiKey?.trim() || endpoint.fallbackReason) throw new Error("lab requires a configured provider key without fallback");
-  if (endpoint.provider === "azure" && !endpoint.deployment?.trim()) throw new Error("lab requires a configured Azure deployment");
-  const standard = endpoint.provider === "azure" ? endpoint.deployment! : DEFAULT_FIREWORKS_MODEL;
+  const single = endpoint.provider !== "fireworks";
+  if (single && !endpoint.deployment?.trim()) throw new Error(`lab requires a configured ${endpoint.provider} deployment`);
+  // A relay's default prices are a guess at its upstream. A capped round needs real ones.
+  if (endpoint.provider === "openai_compat") {
+    const unpriced = ["OPENAI_COMPAT_INPUT_USD_PER_1M", "OPENAI_COMPAT_OUTPUT_USD_PER_1M"].filter((key) => !env[key]?.trim());
+    if (unpriced.length > 0) throw new Error(`lab requires explicit relay prices: set ${unpriced.join(", ")}`);
+  }
+  const standard = single ? endpoint.deployment! : DEFAULT_FIREWORKS_MODEL;
   // Fast uses the same resolvers as an ordinary production request (no
   // standard-evaluation header); the assertion rejects any lane override.
   const models: LabModelProfile["models"] = fastMode
     ? { planner: resolveFireworksModel({ fastMode: true, env }), problemIR: resolveProblemIRFireworksModel({ env }),
         teaching: resolveTeachingFireworksModel({ fastMode: true, env }), picker: resolveCheapFireworksModel({ env }) }
     : { planner: standard, problemIR: standard, teaching: standard,
-        picker: endpoint.provider === "azure" ? standard : resolveCheapFireworksModel({ env }) };
+        picker: single ? standard : resolveCheapFireworksModel({ env }) };
   const rateResolver = input.ratesForModel ?? resolveLlmRates;
   const alternateModel = fastMode ? resolveTeachingAlternateFireworksModel({ fastMode: true, env }) : null;
   const profile: LabModelProfile = { version: "lab-model-profile/v1", provider: endpoint.provider,
