@@ -135,11 +135,22 @@ export function validateProductionSceneCandidate(input: {
   blockFlowEligible?: boolean;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { question, turnPlan: authoritativePlan } = input;
-  // A block diagram carries no annotations: the planner's narration notes are
-  // dropped, never drawn, so they cannot cost an otherwise grounded figure.
+  // A block diagram carries no planner text beyond its grounded boxes: its
+  // narration notes and entity titles are dropped, never drawn (a title
+  // "Mitosis stages" made cytokinesis read as a stage of mitosis).
   const candidate = input.blockFlowEligible === true && Array.isArray(input.candidate.constructions) &&
     input.candidate.constructions.some((construction) => (construction as { operator?: unknown })?.operator === "block_flow")
-    ? { ...input.candidate, annotations: [] }
+    ? {
+      ...input.candidate,
+      annotations: [],
+      entities: Array.isArray(input.candidate.entities)
+        ? input.candidate.entities.map((entity) => {
+          if (!entity || typeof entity !== "object") return entity;
+          const { label: _label, ...rest } = entity as Record<string, unknown>;
+          return rest;
+        })
+        : input.candidate.entities,
+    }
     : input.candidate;
   const enabled = input.yieldPolicy === "verified_parts";
   const circular = prepareVerifiedCircularParts(candidate, question, enabled);

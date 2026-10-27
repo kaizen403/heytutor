@@ -263,6 +263,10 @@ row("validation: refused unless admitted, grounded, and alone", () => {
   const notAlone = validateProductionSceneCandidate({ candidate: crowded, question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true });
   assert.equal(notAlone.valid, false);
   assert(notAlone.errors.some((issue) => /nothing else/.test(issue.message)));
+  const titled = validateProductionSceneCandidate({ candidate: document(payInputs, { entities: [{ id: "flow", kind: "block_flow", role: "diagram", label: "Payment stages" }] }),
+    question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true });
+  assert.equal(titled.valid, true);
+  assert(!titled.value!.renderScene.primitives.some((primitive) => primitive.text === "Payment stages"), "an ungrounded title is never drawn");
   const narrated = document(payInputs, { annotations: [{ id: "a1", kind: "narration", targetIds: ["flow"], text: "Sent to the bank" }] });
   assert.equal(validateProductionSceneCandidate({ candidate: narrated, question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true }).valid, true, "narration notes are dropped, not drawn");
   assert.match(blockFlowGroundingIssues(validateSceneDocument(narrated).document!, payPlan).map((issue) => issue.message).join(";"), /remove annotation a1/, "the refusal names what to remove");
@@ -331,20 +335,20 @@ void (async () => {
     // Three different questions, each seeing the plan's claims, never one question asked three times.
     const systems = all.bodies.map((body) => JSON.parse(body).messages[0].content as string);
     assert.equal(new Set(systems).size, PROCESS_REVIEW_VOTES, "each vote asks a different question");
-    const withClaims = scriptedProxy(Array(3).fill("PROCESS"));
+    const withClaims = scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS"));
     await reviewProcessChains("q", steps, reviewOptions(withClaims.fetchImpl), payPlan);
     assert(withClaims.bodies.every((body) => (JSON.parse(body).messages[1].content as string).includes("issuing bank approves or declines")), "votes see the plan's claims");
-    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "NOT", "PROCESS"]).fetchImpl))).verdict, "not", "one NOT");
-    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "fail", "PROCESS"]).fetchImpl))).verdict, "unavailable", "one failed vote");
+    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "NOT", "PROCESS", "PROCESS"]).fetchImpl))).verdict, "not", "one NOT");
+    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "fail", "PROCESS", "PROCESS"]).fetchImpl))).verdict, "unavailable", "one failed vote");
     assert.equal((await reviewProcessChains("q", [], reviewOptions(scriptedProxy([]).fetchImpl))).verdict, "not", "no process");
     // The judge reads the steps exactly as the plan wrote them.
     const validated = validateProductionSceneCandidate({ candidate: document(payInputs), question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true });
     assert.deepEqual(blockFlowCitedProcesses(validated.value!.document, payPlan),
       [["card is tapped", "reader sends request", "acquirer forwards it", "card network routes it", "issuing bank approves or declines"]]);
     const result = { validation: validated };
-    const kept = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(Array(3).fill("PROCESS")).fetchImpl) });
+    const kept = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS")).fetchImpl) });
     assert.equal(kept.result?.validation.valid, true);
-    const refused = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(["NOT", "NOT", "NOT"]).fetchImpl) });
+    const refused = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("NOT")).fetchImpl) });
     assert.equal(refused.result?.validation.valid, false);
     assert.equal(refused.result?.validation.errors[0]?.code, BLOCK_FLOW_REVIEW_DECLINED);
     const silent = scriptedProxy([]);

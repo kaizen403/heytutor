@@ -13,7 +13,7 @@ import { withTurnTraceHeaders } from "../llm/traceHeaders";
 const REVIEW_FRAME = `A tutor wants to draw one ordered chain as a flow diagram of boxes joined by arrows, where each arrow means "then" or "leads to". You see the student's question, the lesson plan's claims and the chain. If unsure, answer NOT. Reply with only {"verdict":"PROCESS"} or {"verdict":"NOT"}.`;
 
 /**
- * Three different questions, not one asked three times: the same prompt at
+ * Four different questions, not one asked four times: the same prompt at
  * temperature 0 behaved as a single vote and never answered NOT in the lab
  * (independent review, 27 Oct). Every one must answer PROCESS.
  */
@@ -24,6 +24,8 @@ Judge what kind of thing the chain is. Answer PROCESS only if the chain is the p
 Judge every arrow on its own. For each arrow A → B ask: in reality, must A have happened before B, and does A lead to B? Answer PROCESS only if this holds for every arrow. Answer NOT if any arrow states an order or a cause that is false, reversed, or only one of several possible orders.`,
   `${REVIEW_FRAME}
 Judge the shape: would this straight path teach something false? Answer NOT if a step must repeat for the result to come out (a loop drawn once), if an either/or choice or an optional step is drawn as a step that always happens, if things that happen together are drawn one after another, or if a step the claims state is missing so that a later box seems to follow directly. A main path with early exits or error cases left out is fine when it is the path the question asks about. Otherwise answer PROCESS.`,
+  `${REVIEW_FRAME}
+Judge fidelity to the plan. Check every box against the plan's claims. Answer NOT if a box drops a qualifier so that it says something the claims do not (for example "declining" where a claim says "peaks, then declines"), if any claim contradicts a box, if the claims describe more than one version or variant of this process and the chain mixes them or picks one the question did not ask for, or if a box falls outside the process the question names. Otherwise answer PROCESS.`,
 ] as const;
 
 /** The first review question, kept for callers that judge a chain alone. */
@@ -35,7 +37,7 @@ export const PROCESS_REVIEW_PROMPT = PROCESS_REVIEW_PROMPTS[0];
  * one short call may restate a process the claims already describe.
  */
 export const PROCESS_WRITER_PROMPT = `A tutor's plan for one lesson is below as claims. If the claims describe one real process, where in reality every step happens before the next and leads to it (a sequence of events, the stages of a mechanism, an ordered procedure, or the path that material, data, money or a signal travels), restate it as one line "Process: step → step → step" with 3 to 7 steps taken from what the claims say. Each step is a short phrase under 40 characters with no brackets, commas or full stops.
-Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, reply null.
+Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, or the claims describe more than one version of the process, reply null. Keep every qualifier the claims state.
 Reply with only {"process":"Process: ..."} or {"process":null}.`;
 
 /** One vote per review question; every one must say PROCESS. */
