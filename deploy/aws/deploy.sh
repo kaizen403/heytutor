@@ -89,7 +89,7 @@ WorkingDirectory=${ROOT}
 Environment=HOME=/var/lib/heytutor
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=${ENV_FILE}
-ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=app.accelute.co LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
+ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=app.accelute.co LISTEN_HOST=127.0.0.1 PORT=3000 exec node --import tsx server.ts'
 Restart=always
 RestartSec=5
 

@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { IncrementalTagParser, parseDrawingCommands, prepareVerifiedLessonSegments, type TutorSegment } from "@heytutor/drawing";
-import { canStreamResumeRepair, createResumeInkGate, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk, shouldRestoreResumeOffer } from "../../features/tutor-session/lib/turn/segmentPlanning";
+import { canStreamResumeRepair, createResumeInkGate, foldGluedSegment, isTeachingResponseIncomplete, normalizeSegmentForAlignment, shouldRepairResumeWithoutInk, shouldRestoreResumeOffer } from "../../features/tutor-session/lib/turn/segmentPlanning";
 import { pausedLessonFromLive, pausedLessonOnStop, resumePageRecord, lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { LectureMarkupBuffer } from "../../features/tutor-session/lib/turn/lectureCueRepair";
-import { buildResumeTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
+import { buildResumeTeachingPrompt, resumeInkRetryUserPrompt, resumeNextRowY } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
+import { createStreamedFocusFold } from "../../features/tutor-session/lib/turn/streamedFocusFold";
+import { WORK_ZONE } from "@heytutor/drawing";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -242,5 +244,89 @@ assert(onStartBody.includes("speakingNarrationRef.current = narration;") &&
   assert(flush.includes("if (activeResumeRef.current?.attempt === active.attempt) activeResumeRef.current = null;") &&
     flush.includes("finished.then(release, release)"), "request settlement releases only its matching stable Continue attempt");
 }
+
+// Production 21 to 25 Oct: 9 of 35 resumes taught nothing. The resume's base
+// prompt is the continuation prompt, which never gave the row coordinates, and
+// the corrective retry spelled them `[WRITE:text,x,y]`; the model sent rows
+// without numbers or with a literal x, and the parser refused every one.
+const rowTag = (y: number) => `[WRITE:text,${WORK_ZONE.marginX},${y}]`;
+const nextY = resumeNextRowY({ rowsLeftOnPage: 3, nextRowY: 200 });
+assert(nextY === WORK_ZONE.topY + 4 * WORK_ZONE.lineHeight, `three rows left quotes the base grid's fifth row (${nextY})`);
+for (const reason of ["stop", "doubt"] as const) {
+  const resumePrompt = buildResumeTeachingPrompt({
+    lessonQuestion: "Derive the range of a projectile.",
+    boardRows: [{ text: "R = u^2 sin 2θ / g" }],
+    lessonBoardRows: [{ text: "R = u^2 sin 2θ / g" }],
+    interruptedStep: undefined,
+    rowsLeftOnPage: 3,
+    nextRowY: 200,
+    diagramPromptAddon: null,
+    codePanelShowing: false,
+    turnPlan: null,
+    solverProjection: null,
+    familiarity: "normal",
+    fastMode: false,
+    reason,
+  });
+  assert(resumePrompt.systemPrompt.includes(`[WRITE:text,${WORK_ZONE.marginX},y]`),
+    `a ${reason} resume's base prompt must give the row grammar with its x`);
+  assert(resumePrompt.systemPrompt.includes(rowTag(nextY)),
+    `a ${reason} resume must quote its next row as a complete tag (${rowTag(nextY)})`);
+  const full = buildResumeTeachingPrompt({
+    lessonQuestion: "Derive the range of a projectile.", boardRows: [], lessonBoardRows: [], interruptedStep: undefined,
+    rowsLeftOnPage: 0, nextRowY: null, diagramPromptAddon: null, codePanelShowing: false, turnPlan: null,
+    solverProjection: null, familiarity: "normal", fastMode: false, reason,
+  });
+  assert(full.systemPrompt.includes(rowTag(WORK_ZONE.topY)), `a full page ${reason} resume quotes the fresh page's first row tag`);
+}
+for (const reason of ["stop", "doubt"] as const) {
+  const retry = resumeInkRetryUserPrompt(reason, nextY);
+  assert(retry.includes(rowTag(nextY)), "the corrective retry quotes the real next row tag");
+  assert(!/,\s*x\s*,|,\s*y\s*\]|\[WRITE:text,x/i.test(retry), "the corrective retry never shows a coordinate placeholder");
+}
+assert(source.includes("resumeInkRetryUserPrompt(resume?.reason, resumeNextRowY(pagePromptInput))"),
+  "the live retry quotes the page's own next row");
+
+// The live chain on the shapes production sent (synthetic text): markup
+// buffer, streaming parser, glued fold, verified filter, focus fold, ink gate.
+function resumeChainHasInk(text: string): boolean {
+  const gate = createResumeInkGate();
+  const fold = createStreamedFocusFold(null, { codeLesson: false });
+  const markup = new LectureMarkupBuffer();
+  let held: TutorSegment | null = null;
+  let started = false;
+  const queue = (segments: TutorSegment[]) => {
+    for (const segment of segments) if (gate.offer(normalizeSegmentForAlignment(segment)).length > 0) started = true;
+  };
+  const flushHeld = () => {
+    if (!held) return;
+    queue(fold.take(prepareVerifiedLessonSegments([held], null).segments, { lessonStarted: started }));
+    held = null;
+  };
+  const parser = new IncrementalTagParser({
+    preserveStepSpeech: true,
+    onSegmentReady: (segment) => {
+      if (foldGluedSegment(held, segment, { codeLesson: false })) return;
+      flushHeld();
+      held = segment;
+    },
+  });
+  for (let index = 0; index < text.length; index += 40) parser.push(markup.push(text.slice(index, index + 40)));
+  const pending = markup.finish();
+  if (pending) parser.push(pending);
+  parser.flush();
+  flushHeld();
+  queue(fold.finish());
+  return gate.hasInk();
+}
+const recordedShapes = [
+  "[STEP]statics: pressure at depth h is p = p0 + rho g h[WRITE:statics: p = p0 + rho g h] it grows with depth.[/STEP]\n\n[STEP]next, force on a wall.[WRITE:F = rho g h_c A] h_c is the centroid depth.[/STEP]",
+  "[STEP]Conduction is heat through contact.[WRITE:Conduction: contact, no bulk motion,277] The solid stays in place.[/STEP]",
+  "[STEP]The scale is a ratio of map to ground.[WRITE:Scale: E = d/D (map/real),x,145] It sets the detail.[/STEP]",
+];
+for (const text of recordedShapes) assert(resumeChainHasInk(text), `a resumed row in a recorded production shape must reach the board: ${text.slice(0, 60)}`);
+assert(!resumeChainHasInk("[STEP]Summary words only, nothing new to write.[/STEP]"), "a speech only resume still fails the ink gate");
+assert(!resumeChainHasInk("[STEP]Q2 next.[WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]"),
+  "an id and coordinate body is not a row grammar and still fails the ink gate");
 
 console.log("resume ink verification passed");

@@ -1,7 +1,8 @@
 /**
  * Fixture for verify-graceful-shutdown: a plain HTTP server with the real
  * shutdown handler. `/stream` writes one chunk, then the rest after
- * STREAM_MS; `/hang` never ends. The port is printed once listening.
+ * STREAM_MS; `/hang` never ends. The port is printed once listening. BUSY_MS
+ * blocks the event loop at the signal.
  */
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -23,6 +24,15 @@ const server = createServer((request, response) => {
   response.end("ok");
 });
 const wss = new WebSocketServer({ noServer: true });
+// BUSY_MS: the event loop is blocked when SIGTERM arrives, as during a scene
+// compile, a server render or a GC pause.
+const busyMs = Number(process.env.BUSY_MS ?? "0");
+if (busyMs > 0) {
+  process.on("SIGTERM", () => {
+    const until = Date.now() + busyMs;
+    while (Date.now() < until) { /* busy */ }
+  });
+}
 installGracefulShutdown({
   server,
   wss,
