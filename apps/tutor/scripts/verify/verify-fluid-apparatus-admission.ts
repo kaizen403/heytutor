@@ -91,7 +91,7 @@ const withGravity = "Explain why a body in water feels an upthrust.";
 draws("gravity alone is not a contradicted value", archimedes, withGravity, plan(withGravity, ["archimedes_principle"], [{ id: "g", symbol: "g", value: 9.8, unit: "m/s^2" }]));
 
 for (const stem of [
-  "Fig 10.6 shows a body in a liquid. Derive Archimedes' principle from it.",
+  "Fig 10.6: derive Archimedes' principle.",
   "NCERT Exemplar 10.5: explain the upthrust on a fully immersed block.",
   "1. Derive Archimedes' principle. (5 marks)",
   "New syllabus session 2026-27: derive Archimedes' principle.",
@@ -100,8 +100,6 @@ draws("a plan giving g in m s^-2 is not a contradicted value", archimedes, withG
 
 for (const stem of [
   "A hydraulic press consists of two cylinders of different areas. Explain how it works.",
-  "Explain why the force is multiplied many times in a hydraulic press.",
-  "Show that F2/F1 = A2/A1.",
   "Explain why F2 = F1 × A2/A1 in a hydraulic press.",
   "Explain how a car is raised by a hydraulic lift.",
   "Ques 3 explain the hydraulic press.",
@@ -117,12 +115,101 @@ for (const stem of [
   "Explain how the two forces on the top and bottom faces of a submerged block compare.",
   "State Archimedes' principle: a body partially or wholly immersed in a fluid experiences an upthrust. Derive it.",
   "Why do the forces on the top and bottom faces differ?",
-  "The force on one face is larger than on the other. Explain why.",
 ]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 for (const stem of ["Explain the hydraulic press in three steps.", "Explain how a hydraulic elevator works using Pascal's law."]) {
   draws(`a conceptual press stem: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
 }
 draws("a conceptual press stem: the second piston", press, "Why does the second piston feel a larger force?", plan("Why does the second piston feel a larger force?", ["pascals_law"]));
+
+// Right figures the positive evidence rule gives up: each says more than a
+// bare ask (a count, "times", a figure the stem cites but we cannot see, no
+// named law). Failing closed costs a figure here, never a wrong one.
+for (const [candidate, stem] of [
+  [press, "Explain why the force is multiplied many times in a hydraulic press."],
+  [press, "Show that F2/F1 = A2/A1."],
+  [archimedes, "The force on one face is larger than on the other. Explain why."],
+  [archimedes, "Fig 10.6 shows a body in a liquid. Derive Archimedes' principle from it."],
+] as const) refused(`declined by design: ${stem}`, candidate, stem, plan(stem, [candidate === press ? "pascals_law" : "archimedes_principle"]));
+
+// The merge review's 30 stems (pr-335 review): each drew a wrong figure on
+// d19771581. Refused through selection with a plan, and by save admission with
+// no plan.
+const reviewBody = [
+  "Why does an ice cube stay on top of water? Explain using Archimedes' principle.",
+  "Lakdi ka tukda paani par kyun tairta hai? Archimedes ke siddhant se samjhao.",
+  "लकड़ी का टुकड़ा पानी पर क्यों तैरता है?",
+  "A wooden block has some of its volume above the water. Explain the upthrust on it.",
+  "A cork bobs on the water surface. Explain the forces on it.",
+  "A block is held so that its top is above the water. Explain the upthrust.",
+  "A wooden block stays on water with part of it outside. Explain.",
+  "A body is immersed up to its middle in water. Explain the upthrust.",
+  "Explain why a person can lie on the surface of the Dead Sea.",
+  "A block touches the bottom of the beaker. Explain the forces on it.",
+  "A block is lying on the seabed. Explain the upthrust.",
+  "A cube is held with its top face level with the water surface. Explain the forces on its faces.",
+  "A cube is just submerged in water. Explain the forces on the top and bottom faces.",
+  "A block is held just below the surface of water. Explain the upthrust.",
+  "Ek block paani mein poora dooba hai aur uska upar wala hissa surface ke barabar hai. Samjhao.",
+  "A block is held at the interface between oil and water. Explain the upthrust.",
+  "Explain the upthrust on a block in a liquid whose density increases with depth.",
+  "Including the air pressure P0 on the water surface, explain the forces on the faces of a submerged block.",
+  "A cube of side one metre has its top face one metre below the surface. Explain the upthrust.",
+  "Explain the upthrust on an irregularly shaped stone fully immersed in water.",
+  "Explain the forces on a cube held tilted at an angle under water.",
+  "Explain the upthrust on a cylinder held horizontally under water.",
+];
+const reviewPress = [
+  "Explain Pascal's law with two pistons of equal area.",
+  "Explain a hydraulic press with pistons of the same size.",
+  "A hydraulic press with both pistons of the same diameter: explain Pascal's law.",
+  "Explain how the two pistons of a hydraulic lift with equal cross sections behave.",
+  "A hydraulic car lift has three pistons. Explain how it works.",
+  "A hydraulic system has three cylinders connected by a pipe. Explain Pascal's law.",
+  "Explain how a hydraulic press with five pistons works.",
+  "In a hydraulic lift the large piston is higher. Explain the forces.",
+  "Explain a hydraulic press whose large piston is at a higher level.",
+  "The two pistons are at heights h1 and h2 above the ground. Explain the forces.",
+  "The output piston sits at a greater height than the input piston. Explain.",
+  "The pistons are separated vertically by a distance h. Explain the forces.",
+  "The small piston has a quarter of the area of the large one. Explain.",
+  "Bade piston ka area chhote piston ka chaar times hai. Hydraulic press samjhao.",
+  "Bade piston ka area chhote ka teen times hai, samjhao.",
+];
+const offTopic = [
+  "Explain how a U-tube manometer measures pressure.",
+  "Explain why liquid stands at the same level in connected vessels.",
+  "Explain how a syringe works.",
+];
+// Wrong cases no refusal list names: only the positive evidence rule stops them.
+const unseenBody = [
+  "A raft carries a man across a river. Explain using Archimedes' principle.",
+  "Why does a duck rest on a pond? Explain with Archimedes' principle.",
+  "A stone hangs from a spring balance inside water. Explain the upthrust on it.",
+  "Explain the upthrust on a block in mercury and then in water.",
+  "A submarine rises towards the surface. Explain the upthrust on it.",
+];
+const unseenPress = [
+  "Explain a hydraulic press whose small piston is pushed by a lever.",
+  "Explain how a hydraulic press works when some oil leaks out.",
+  "Explain a hydraulic press whose connecting pipe climbs over a wall.",
+];
+const unseenOffTopic = ["Explain how a siphon works.", "Explain how a water tank supplies water to a house."];
+const reviewRows: Array<readonly [SceneDocument, string]> = [
+  ...unseenBody.map((stem) => [archimedes, stem] as const),
+  ...unseenPress.map((stem) => [press, stem] as const),
+  ...unseenOffTopic.flatMap((stem) => [[archimedes, stem] as const, [press, stem] as const]),
+  ...reviewBody.map((stem) => [archimedes, stem] as const),
+  ...reviewPress.map((stem) => [press, stem] as const),
+  ...offTopic.flatMap((stem) => [[archimedes, stem] as const, [press, stem] as const]),
+];
+for (const [candidate, stem] of reviewRows) {
+  const law = candidate === press ? "pascals_law" : "archimedes_principle";
+  refused(`review stem (${candidate === press ? "press" : "body"}): ${stem}`, candidate, stem, plan(stem, [law]));
+  row(`review stem, no plan (${candidate === press ? "press" : "body"}): ${stem}`, () => {
+    const failure = sceneSaveAdmissionFailure({ document: { ...candidate, source: { question: stem } } as SceneDocument, question: stem, turnPlan: null, tier: "qualitative_verified" });
+    assert.match(failure ?? "", /_source_has_values/, `${stem}: refused without a plan`);
+  });
+}
 
 // With no retained plan (legacy saves), the stem alone still refuses.
 for (const [candidate, stem] of [

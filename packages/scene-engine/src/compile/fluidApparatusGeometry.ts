@@ -215,7 +215,7 @@ const NON_VALUE_NUMBERS = [
   /\b[AaFfHhPpDdRrVvWw]_?\{?[0-9]\}?(?!\d|\.\d)/g,
 ];
 /** Multipliers that always state a ratio: "twice", "doubled", "tenfold", "das guna", "½". */
-const MULTIPLIER = /\b(?:twice|thrice|doubl\w*|tripl\w*|quadrupl\w*|halv\w*|half|\w+fold|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|[%½¼¾⅓⅔]|गुना|दुगना|आधा|[०-९]/i;
+const MULTIPLIER = /\b(?:twice|thrice|doubl\w*|tripl\w*|quadrupl\w*|halv\w*|half|quarter\w*|\w+fold|times|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|\bone\s+(?:metre|meter|m|cm|mm|kg|gram|newton|litre|liter)\b|[%½¼¾⅓⅔]|गुना|दुगना|आधा|[०-९]/i;
 /**
  * Every English cardinal and ordinal, so no spelled number is missed
  * ("sixteen", "ninety", "lakh"). "one", "first" and "second" are left out:
@@ -239,12 +239,14 @@ const COUNTED_PART = "(?:forces|faces|pistons|cylinders|sides|arms|limbs|vessels
  * Any spelled number is a stated value ("sixteen times the area", "a twelfth
  * of a metre") unless it directly counts one of the figure's own parts.
  */
-const NUMBER_VALUE = new RegExp(String.raw`(?:^|[^\p{L}])(?:one[-\s])?${NUMBER_WORD}s?(?![\p{L}])(?![-\s]+${COUNTED_PART}(?![\p{L}]))`, "iu");
+// Only "two" counts the figure's parts: it draws exactly two faces, two face forces, two pistons.
+const NUMBER_VALUE = new RegExp(String.raw`(?:^|[^\p{L}])(?:one[-\s])?${NUMBER_WORD}s?(?![\p{L}])`, "iu");
+const TWO_PARTS = new RegExp(String.raw`(?:^|[^\p{L}])two[-\s]+${COUNTED_PART}(?![\p{L}])`, "giu");
 
 function statesValue(question: string): boolean {
-  let text = question;
+  let text = question.replace(ANSWER_FORMAT, " ");
   for (const pattern of NON_VALUE_NUMBERS) text = text.replace(pattern, " ");
-  return /\d/.test(text) || MULTIPLIER.test(text) || NUMBER_VALUE.test(text);
+  return /\d/.test(text) || MULTIPLIER.test(text) || NUMBER_VALUE.test(text.replace(TWO_PARTS, " "));
 }
 
 /**
@@ -256,8 +258,69 @@ function statesValue(question: string): boolean {
  */
 const PRINCIPLE_WORDING = /\b(?:(?:wholly|fully|completely|totally)\s+or\s+(?:partially|partly)|(?:partially|partly)\s+or\s+(?:wholly|fully|completely|totally))\b/gi;
 const CONTAINER = "(?:tank|vessel|container|beaker|jar|sea|lake|pond|river|ocean|pool)";
-const SUBMERGED_BODY_MISMATCH = new RegExp(String.raw`\b(?:float\w*|afloat|ships?|boats?|icebergs?|logs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|(?:rests?|resting|lies|lying|sits?|sitting|placed|kept)\s+(?:on|at)\s+the\s+(?:bottom|floor|base)|(?:at|on|to)\s+the\s+bottom\s+of\s+the\s+${CONTAINER}|stuck|\w*spher\w*|balls?|cones?|sinks?\s+to\s+the\s+bottom)\b`, "i");
-const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevations?|elevated|(?:different|unequal|varying|uneven) (?:levels?|heights?|positions?)|not (?:at|on) the same (?:level|height)|(?:level|height) difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
+const SUBMERGED_BODY_MISMATCH = new RegExp(String.raw`\b(?:manometer|u[-\s]?tube|syringe|connected vessels|communicating|barometer|float\w*|afloat|ships?|boats?|icebergs?|logs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|(?:rests?|resting|lies|lying|sits?|sitting|placed|kept)\s+(?:on|at)\s+the\s+(?:bottom|floor|base)|(?:at|on|to)\s+the\s+bottom\s+of\s+the\s+${CONTAINER}|stuck|\w*spher\w*|balls?|cones?|sinks?\s+to\s+the\s+bottom|(?:above|out of|outside|on top of|on)\s+(?:the\s+)?(?:water|liquid|fluid|surface)|level with|flush with|at the surface|surface ke barabar|protrud\w*|stick\w* out|bob\w*|cork|ice|up to its|just (?:submerged|immersed|below|beneath|under)|barely|touch\w*|seabed|sea bed|river ?bed|bed of|interface|immiscible|layers?|two liquids|oil and water|density (?:increases|varies|changes)|air pressure|atmospher\w*|P_?0|P_?atm|irregular\w*|tilt\w*|inclined|at an angle|horizontal\w*|tair\w*)\b|तैर`, "i");
+const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevations?|elevated|(?:different|unequal|varying|uneven) (?:levels?|heights?|positions?)|not (?:at|on) the same (?:level|height)|(?:level|height) difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*|(?:equal|same|identical)\s+(?:\w+\s+){0,2}(?:areas?|sizes?|diameters?|radii|radius|cross[-\s]?sections?|pistons?)|higher|lower|heights|vertical\w*|at a (?:greater|higher|lower) (?:height|level)|manometer|u[-\s]?tube|syringe|connected vessels|communicating|barometer)\b/i;
+
+/**
+ * Positive evidence, the first line of the guard. A figure draws only for a
+ * bare conceptual ask: every word of the stem (after curriculum references are
+ * removed) is in that operator's closed vocabulary, and a topic word is
+ * present. Any other word declines: a number word, "times", a Hindi word, a
+ * shape, a second liquid, a height, a manometer. Widening a refusal list kept
+ * leaving gaps; a closed vocabulary cannot, and the cost is a lost figure,
+ * never a wrong one. The refusal lists below stay as a second line.
+ */
+const ASK_WORDS = [
+  "derive", "derivation", "state", "statement", "explain", "explanation", "explaination", "prove", "proof", "show", "describe",
+  "discuss", "illustrate", "draw", "sketch", "give", "define", "definition", "understand", "teach", "learn", "help",
+  "what", "why", "how", "is", "are", "does", "do", "can", "the", "a", "an", "of", "and", "also", "it", "its", "this", "that",
+  "these", "easily", "simply", "simple", "easy", "briefly", "brief", "detail", "detailed", "in", "on", "with", "using", "by",
+  "from", "for", "to", "me", "please", "us", "diagram", "figure", "neat", "labelled", "labeled", "meaning", "principle", "law",
+  "class", "chapter", "section", "ncert", "cbse", "icse", "new", "syllabus", "physics", "science", "basis", "basics", "concept",
+];
+const SUBMERGED_BODY_WORDS = new Set([...ASK_WORDS,
+  "archimedes", "upthrust", "buoyancy", "buoyant", "force", "forces", "acting", "acts", "act", "experienced", "experiences",
+  "experience", "felt", "feels", "feel", "body", "block", "object", "cube", "solid", "fully", "completely", "wholly", "totally",
+  "submerged", "immersed", "held", "under", "underwater", "water", "liquid", "fluid", "top", "bottom", "face", "faces", "upper",
+  "lower", "greater", "larger", "more", "bigger", "than", "exceeds", "exceed", "equals", "equal", "difference", "differ", "net",
+  "pressure", "depth", "deeper", "at", "compare", "comparison", "two",
+  "f", "f1", "f2", "w", "w1", "w2", "u", "v", "rho", "g", "h", "h1", "h2",
+]);
+const HYDRAULIC_PRESS_WORDS = new Set([...ASK_WORDS,
+  "hydraulic", "press", "lift", "jack", "elevator", "pascal", "pascals", "transmission", "transmitted", "transmits", "pressure",
+  "piston", "pistons", "small", "smaller", "large", "larger", "big", "bigger", "first", "second", "force", "forces", "area",
+  "areas", "multiplied", "multiplication", "multiply", "multiplies", "output", "input", "effort", "load", "fluid", "liquid",
+  "oil", "incompressible", "enclosed", "equally", "all", "directions", "every", "direction", "works", "work", "working",
+  "car", "raised", "raise", "raises", "lifts", "lifting", "heavy", "two", "cylinder", "cylinders", "different", "consists",
+  "connected", "feel", "feels", "acting", "acts", "f", "f1", "f2", "a", "a1", "a2", "p",
+]);
+const SUBMERGED_TOPIC = /^(?:archimedes|upthrust|buoyancy|buoyant|submerged|immersed|underwater)$/;
+const HYDRAULIC_PRESS_TOPIC = /^(?:hydraulic|pascal|pascals|piston|pistons)$/;
+/** A concrete body must be named as wholly under the liquid; the principle's generic "body" need not be. */
+const CONCRETE_BODY = /^(?:block|cube|object|solid)$/;
+const SUBMERSION = /^(?:submerged|immersed|underwater)$/;
+/** "in three steps": the shape of the asked answer, removed before the words are read. */
+const ANSWER_FORMAT = /\bin\s+(?:\d+|two|three|four|five|six|seven|eight|nine|ten)\s+(?:steps|points|sentences|lines|words|paragraphs)\b/gi;
+
+function stemWords(question: string): string[] {
+  let text = question.replace(PRINCIPLE_WORDING, " wholly ").replace(ANSWER_FORMAT, " ");
+  for (const pattern of NON_VALUE_NUMBERS.slice(0, -1)) text = text.replace(pattern, " ");
+  return text.toLowerCase().replace(/['’]s\b/g, "").split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/** Null when the stem is a bare conceptual ask this operator can draw; otherwise why it is not. */
+export function fluidApparatusAskMismatch(operator: FluidApparatusOperator, question: string): string | null {
+  const words = stemWords(question);
+  const vocabulary = operator === "submerged_body" ? SUBMERGED_BODY_WORDS : HYDRAULIC_PRESS_WORDS;
+  const outside = [...new Set(words.filter((word) => !vocabulary.has(word)))];
+  if (outside.length > 0) return `the question says more than a bare conceptual ask (${outside.slice(0, 6).join(", ")})`;
+  // "Why is the force on the bottom face greater than on the top?" asks for this figure without naming the law.
+  const facePair = operator === "submerged_body" && words.includes("top") && words.includes("bottom") &&
+    words.some((word) => /^(?:force|forces|face|faces|pressure)$/.test(word));
+  if (!facePair && !words.some((word) => (operator === "submerged_body" ? SUBMERGED_TOPIC : HYDRAULIC_PRESS_TOPIC).test(word))) return "the question does not name the law this figure draws";
+  if (operator === "submerged_body" && words.some((word) => CONCRETE_BODY.test(word)) && !words.some((word) => SUBMERSION.test(word))) return "the question names a body without saying it is wholly under the liquid";
+  return null;
+}
 
 /**
  * The qualitative fluid figures draw display proportions. They may only draw
@@ -278,7 +341,9 @@ export function validateFluidApparatusSourceInputs(
     .filter((quantity) => !GRAVITY_UNIT.test(String(quantity.unit ?? "").trim().replaceAll(" ", "")));
   const situation = question.replace(PRINCIPLE_WORDING, " ");
   const mismatch = constructions.some((construction) => (construction.operator === "submerged_body" ? SUBMERGED_BODY_MISMATCH : HYDRAULIC_PRESS_MISMATCH).test(situation));
+  const askMismatches = constructions.map((construction) => fluidApparatusAskMismatch(construction.operator as FluidApparatusOperator, question)).filter((reason): reason is string => reason !== null);
   const reasons = [
+    ...askMismatches,
     ...(statesValue(question) ? ["the question states a value"] : []),
     ...(mismatch ? ["the question describes a situation the figure cannot show"] : []),
     ...(stated.length > 0 ? [`the plan states ${stated.map((quantity) => quantity.symbol ?? "a quantity").join(", ")}`] : []),
