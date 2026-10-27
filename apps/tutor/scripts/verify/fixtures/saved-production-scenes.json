@@ -12,8 +12,8 @@
     "current_unclassified": "fast_family:analytic_curve"
    },
    "open": {
-    "current": "wave_types names the compression and the rarefaction a quarter wavelength off, where the particles are evenly spaced (lane 1 wave compression fix)",
-    "current_unclassified": "same wave_types figure (lane 1 wave compression fix)"
+    "current": "wave_types names the compression and the rarefaction a quarter wavelength off, where the particles are evenly spaced (closes with #313)",
+    "current_unclassified": "same wave_types figure (closes with #313)"
    },
    "turnPlan": {
     "givens": [],
@@ -675,9 +675,9 @@
     "current_unclassified": "chemistry_family:chem_thermo"
    },
    "open": {
-    "strict": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (lane 1 path 2, after #309)",
-    "current": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (lane 1 path 2, after #309)",
-    "current_unclassified": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (lane 1 path 2, after #309)"
+    "strict": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
+    "current": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
+    "current_unclassified": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)"
    },
    "turnPlan": {
     "givens": [],
@@ -1053,9 +1053,9 @@
     "current_unclassified": "fast_family:energy_level"
    },
    "open": {
-    "strict": "the work function label sits in the gap above its own line, where K belongs (lane 1 path 3, labels)",
-    "current": "the work function label sits in the K gap and the E axis title floats off its axis (lane 1 path 3, labels)",
-    "current_unclassified": "same photoelectric figure (lane 1 path 3, labels)"
+    "strict": "the work function label sits in the gap above its own line, where K belongs (closes with #314)",
+    "current": "the work function label sits in the K gap (closes with #314) and the E axis title floats off its axis (lane 1, axes title)",
+    "current_unclassified": "same photoelectric figure (#314 and the lane 1 axes title fix)"
    },
    "turnPlan": {
     "givens": [],
@@ -7621,8 +7621,8 @@
     "current_unclassified": "fast_family:energy_level"
    },
    "open": {
-    "current": "energy_level draws the conductor with a band gap and doubles the Ec and Ev labels (synthesize/familyScene.ts, held by #303 and #310)",
-    "current_unclassified": "same band figure (held by #303 and #310)"
+    "current": "energy_level draws the conductor with a band gap and doubles the Ec and Ev labels (lane 1, energy_level band figure in synthesize/familyScene.ts)",
+    "current_unclassified": "same band figure (lane 1, energy_level band figure)"
    },
    "turnPlan": {
     "givens": [],
