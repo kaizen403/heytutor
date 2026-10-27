@@ -2,7 +2,8 @@
  * Fixture for verify-graceful-shutdown: a plain HTTP server with the real
  * shutdown handler. `/stream` writes one chunk, then the rest after
  * STREAM_MS; `/hang` never ends. The port is printed once listening. BUSY_MS
- * blocks the event loop at the signal.
+ * blocks the event loop at the signal. FLUSH_MS makes `beforeExit` (the Sentry
+ * flush in production) take that long; FLUSH_MS=hang never settles.
  */
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -13,7 +14,7 @@ const server = createServer((request, response) => {
   if (request.url === "/stream") {
     response.writeHead(200, { "content-type": "text/plain" });
     response.write("first|");
-    setTimeout(() => response.end("last"), streamMs);
+    setTimeout(() => response.end("last", () => process.stderr.write("STREAM END\n")), streamMs);
     return;
   }
   if (request.url === "/hang") {
@@ -38,6 +39,19 @@ installGracefulShutdown({
   wss,
   capMs: Number(process.env.CAP_MS ?? "60000"),
   log: (message) => process.stderr.write(`${message}\n`),
+  ...(process.env.FLUSH_MS
+    ? {
+        flushCapMs: Number(process.env.FLUSH_CAP_MS ?? "1500"),
+        beforeExit: () => new Promise<void>((done) => {
+          process.stderr.write("FLUSH START\n");
+          if (process.env.FLUSH_MS === "hang") return;
+          setTimeout(() => {
+            process.stderr.write("FLUSHED\n");
+            done();
+          }, Number(process.env.FLUSH_MS));
+        }),
+      }
+    : {}),
 });
 // Another SIGTERM listener, as the Sentry client registers in production.
 process.once("SIGTERM", () => undefined);

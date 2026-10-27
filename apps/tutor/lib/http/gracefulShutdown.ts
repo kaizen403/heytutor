@@ -8,6 +8,12 @@ import type { WebSocketServer } from "ws";
  */
 export const SHUTDOWN_DRAIN_CAP_MS = 60_000;
 
+/**
+ * Longest the exit waits for `beforeExit` (the Sentry flush). Added to the
+ * drain cap, 60 s + 1.5 s still exits well before systemd's 90 s SIGKILL.
+ */
+export const SHUTDOWN_FLUSH_CAP_MS = 1_500;
+
 /** WebSocket close code 1012: the service is restarting. */
 const WS_SERVICE_RESTART = 1012;
 
@@ -17,6 +23,9 @@ export interface GracefulShutdownOptions {
   wss?: WebSocketServer;
   capMs?: number;
   exit?: (code: number) => void;
+  /** Awaited once, for at most `flushCapMs`, after the drain and before exit. */
+  beforeExit?: () => Promise<unknown>;
+  flushCapMs?: number;
   log?: (message: string) => void;
 }
 
@@ -37,6 +46,7 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
   const capMs = options.capMs ?? SHUTDOWN_DRAIN_CAP_MS;
   const exit = options.exit ?? ((code: number) => process.exit(code));
   const log = options.log ?? ((message: string) => console.log(message));
+  const flushCapMs = options.flushCapMs ?? SHUTDOWN_FLUSH_CAP_MS;
   const active = new Set<ServerResponse>();
   let draining = false;
   let exited = false;
@@ -46,7 +56,19 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     exited = true;
     for (const client of wss?.clients ?? []) client.close(WS_SERVICE_RESTART, "server restarting");
     log(`[shutdown] ${reason}, ${active.size} request(s) still open`);
-    exit(0);
+    if (!options.beforeExit) {
+      exit(0);
+      return;
+    }
+    // Error reports queued during the lesson (for example a speech relay
+    // failure) are sent before the process ends; a stuck flush cannot hold it.
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushed = Promise.resolve().then(options.beforeExit).catch(() => undefined);
+    const capped = new Promise((done) => { flushTimer = setTimeout(done, flushCapMs); });
+    void Promise.race([flushed, capped]).finally(() => {
+      clearTimeout(flushTimer);
+      exit(0);
+    });
   };
   const exitWhenDrained = () => {
     if (draining && active.size === 0) finish("drained");
