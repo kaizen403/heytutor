@@ -42,6 +42,22 @@ const MAX_QUEUED_MESSAGES = 32;
 const liveRelays = new Set<{ pending: Map<string, unknown>; restart: () => void }>();
 let speechDraining = false;
 
+/** Receipt settlements (finish or refund) still in flight, across every relay. */
+const settlements = new Set<Promise<unknown>>();
+function trackSettlement(settlement: Promise<unknown>): void {
+  settlements.add(settlement);
+  void settlement.finally(() => settlements.delete(settlement));
+}
+
+/**
+ * Resolves once every receipt settlement already started has finished, so a
+ * restart lets the charges for spoken segments land before the process exits.
+ * The caller bounds the wait (`beforeExit` runs under its own cap).
+ */
+export function speechSettlementsDone(): Promise<unknown> {
+  return Promise.allSettled([...settlements]);
+}
+
 /** Segments sent to the provider and not yet finished, across every relay. */
 export function inFlightSpeechSegments(): number {
   let count = 0;
@@ -70,7 +86,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   let unregister = () => {};
   let upstream: WebSocket | undefined = undefined;
   const pending = new Map<string, { receipt: PaidUsageReservation; characters: number; startedAt: number; grant: TurnGrant }>();
-  const finishReceipt = (receipt: PaidUsageReservation) => void receipt.finish().catch(captureTtsRelayFailure);
+  const finishReceipt = (receipt: PaidUsageReservation) => trackSettlement(receipt.finish().catch(captureTtsRelayFailure));
   const live = { pending: pending as Map<string, unknown>, restart: () => close("server_restarting", 1012) };
   liveRelays.add(live);
   const teardown = () => {
@@ -84,7 +100,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     // A serial vendor (Sarvam) queues segments here; those never reached it.
     const neverSent = new Set(undispatched());
     for (const [id, spend] of pending) {
-      if (neverSent.has(id)) void spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      if (neverSent.has(id)) trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       else finishReceipt(spend.receipt);
     }
     pending.clear();

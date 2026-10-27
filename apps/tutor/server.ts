@@ -6,7 +6,7 @@ import { parse as parseUrl } from "node:url";
 import next from "next";
 import { WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
-import { beginSpeechDrain, inFlightSpeechSegments, relayTtsWebSocket } from "./lib/tts/wsRelay";
+import { beginSpeechDrain, inFlightSpeechSegments, relayTtsWebSocket, speechSettlementsDone } from "./lib/tts/wsRelay";
 import { protectNodeRequest } from "./lib/http/nodeRequest";
 import { installGracefulShutdown, SHUTDOWN_FLUSH_CAP_MS } from "./lib/http/gracefulShutdown";
 import { flushServerSentry } from "./lib/obs/sentryNode";
@@ -82,7 +82,9 @@ app.prepare().then(() => {
   installGracefulShutdown({
     server, wss,
     speech: { inFlight: inFlightSpeechSegments, beginDrain: beginSpeechDrain },
-    beforeExit: () => flushServerSentry(SHUTDOWN_FLUSH_CAP_MS),
+    // Charges for spoken segments settle, then queued error reports send; both
+    // inside the same 1.5 s cap.
+    beforeExit: () => speechSettlementsDone().then(() => flushServerSentry(SHUTDOWN_FLUSH_CAP_MS)),
   });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {
