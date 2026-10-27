@@ -21,6 +21,10 @@ import {
 import { buildSceneDocumentPlannerPrompt } from "../../../../packages/tutor-core/src/planners/scenePlannerV2Prompt";
 import { BLOCK_FLOW_SCENE_REQUEST } from "../../../../packages/tutor-core/src/planners/sceneCapabilities";
 import { blockFlowEligibleTurn } from "../../features/tutor-session/lib/scene/diagramGeneration";
+import { BLOCK_FLOW_REVIEW_DECLINED, RESTATED_PROCESS_CLAIM_ID, reviewBlockFlowScene, withRestatedProcess } from "../../features/tutor-session/lib/scene/blockFlowReview";
+import { parseProcessReviewVerdict, PROCESS_REVIEW_VOTES, reviewProcessChains, writeProcessClaim } from "../../../../packages/tutor-core/src/planners/processReview";
+import { blockFlowCitedProcesses } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
+import { resolveChatGenerationKind } from "../../lib/obs/chatTrace";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { deriveSceneGate, selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
@@ -44,7 +48,7 @@ const edge = (from: string, to: string, label: string, claimId = "c2") => ({ fro
 
 const payClaims = [
   claim("c1", "The card and the reader talk over short range radio at 13.56 MHz.", ["card", "reader"]),
-  claim("c2", "Path: card is tapped → reader sends request → acquirer forwards it → card network routes it → issuing bank approves or declines.", ["reader", "acquirer", "card network", "issuing bank"]),
+  claim("c2", "Process: card is tapped → reader sends request → acquirer forwards it → card network routes it → issuing bank approves or declines.", ["reader", "acquirer", "card network", "issuing bank"]),
 ];
 const payInputs = {
   nodes: [node("card", "Card is tapped"), node("reader", "Reader sends request"), node("acq", "Acquirer forwards it"), node("net", "Card network routes it"), node("bank", "Issuing bank approves or declines")],
@@ -156,9 +160,9 @@ row("grounding: a box is a whole step and an arrow is one step of a clean chain 
   assert.match(withEdge(edge("reader", "net", "")), /not one step/, "a skipped step");
   assert.match(withEdge(edge("net", "bank", "routes")), /carries words/, "a labelled arrow");
   assert.match(withEdge(edge("net", "bank", "", "c1")), /does not state a chain/, "an arrow from prose");
-  const disagree = plan([{ ...payClaims[1]!, expected: "card is tapped → acquirer forwards it → reader sends request" }]);
+  const disagree = plan([{ ...payClaims[1]!, expected: "Process: card is tapped → acquirer forwards it → reader sends request" }]);
   assert.match(problems({}, disagree), /two different chains/, "claim and expected chains disagree");
-  const repeated = plan([claim("c2", "Loop: card is tapped → reader sends request → card is tapped → issuing bank approves or declines")]);
+  const repeated = plan([claim("c2", "Process: card is tapped → reader sends request → card is tapped → issuing bank approves or declines")]);
   assert.match(validateBlockFlowGrounding({ nodes: [node("card", "Card is tapped"), node("reader", "Reader sends request"), node("bank", "Issuing bank approves or declines")],
     edges: [edge("card", "reader", ""), edge("reader", "card", "")] }, repeated).join(";"), /not one step/, "a step the chain writes twice");
 });
@@ -178,10 +182,15 @@ row("only a clean chain counts: no buried chains, clause breaks or code arrows",
 
 row("the plan's own notation, not the question's words, decides admission", () => {
   assert.equal(planStatesChain(payPlan), true, "a clean chain of five steps");
-  assert.equal(planStatesChain(plan([claim("c1", "Tap: card → reader.")])), false, "two steps");
-  assert.equal(planStatesChain(plan([claim("c1", "Mouth (amylase) → oesophagus → stomach → intestine")])), false, "a step with a clause break");
+  assert.equal(planStatesChain(plan([claim("c1", "Process: card → reader.")])), false, "two steps");
+  assert.equal(planStatesChain(plan([claim("c1", "Process: mouth (amylase) → oesophagus → stomach → intestine")])), false, "a step with a clause break");
+  assert.equal(planStatesChain(plan([claim("c1", "Components: internal records → intelligence → research → analysis")])), false, "arrows on a list of parts");
+  assert.equal(planStatesChain(plan([claim("c1", "card is tapped → reader sends request → bank approves")])), false, "a chain with no Process heading");
+  const listed = plan([claim("c1", "Components: card is tapped → reader sends request → acquirer forwards it")]);
+  assert.match(validateBlockFlowGrounding({ nodes: payInputs.nodes.slice(0, 3).map((item) => ({ ...item, claimIds: ["c1"] })),
+    edges: [edge("card", "reader", "", "c1"), edge("reader", "acq", "", "c1")] }, listed).join(";"), /does not state a chain/, "a figure from a list heading");
   assert.equal(planStatesChain(plan([claim("c1", "Reader sends request to acquirer to bank.", ["reader", "acquirer", "bank"])])), false, "prose with named parts");
-  assert.equal(planStatesChain(plan([claim("c1", "a → b → a")])), false, "a step written twice");
+  assert.equal(planStatesChain(plan([claim("c1", "Process: a → b → a")])), false, "a step written twice");
   assert.equal(planStatesChain(plan([claim("c1", "x", ["a", "b", "c"]), claim("c2", "y", ["a", "b", "c"])])), false, "shared hints");
 });
 
@@ -251,6 +260,9 @@ row("validation: refused unless admitted, grounded, and alone", () => {
   const notAlone = validateProductionSceneCandidate({ candidate: crowded, question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true });
   assert.equal(notAlone.valid, false);
   assert(notAlone.errors.some((issue) => /nothing else/.test(issue.message)));
+  const narrated = document(payInputs, { annotations: [{ id: "a1", kind: "narration", targetIds: ["flow"], text: "Sent to the bank" }] });
+  assert.equal(validateProductionSceneCandidate({ candidate: narrated, question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true }).valid, true, "narration notes are dropped, not drawn");
+  assert.match(blockFlowGroundingIssues(validateSceneDocument(narrated).document!, payPlan).map((issue) => issue.message).join(";"), /remove annotation a1/, "the refusal names what to remove");
   const bare = validateSceneDocument(candidate);
   assert.equal(compileSceneDocument(bare.document!).ok, true, "the engine compiles it on its own");
   assert.deepEqual(blockFlowGroundingIssues(bare.document!, payPlan), []);
@@ -285,4 +297,101 @@ row("selection: an admitted grounded diagram is the turn's planner figure on the
   assert.equal(off.representation, null, "flag off draws nothing");
 });
 
-console.log(`verify-block-flow: ok (${rows} rows)`);
+// ------------------------------------------------------------------ review
+
+/** A fake proxy: each call pops the next scripted answer ("PROCESS", "NOT", or "fail"). */
+function scriptedProxy(answers: string[]) {
+  const calls: Headers[] = [];
+  const bodies: string[] = [];
+  const fetchImpl = (async (_url: unknown, init: RequestInit) => {
+    calls.push(new Headers(init.headers));
+    bodies.push(String(init.body));
+    const answer = answers.shift() ?? "fail";
+    if (answer === "fail") return new Response("upstream", { status: 502 });
+    return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict: answer }) } }] });
+  }) as typeof fetch;
+  return { fetchImpl, calls, bodies };
+}
+const reviewOptions = (fetchImpl: typeof fetch) => ({ proxyUrl: "http://lab/api/chat", timeoutMs: 1_000, fetchImpl });
+
+void (async () => {
+  const name = "review: only a unanimous PROCESS keeps a block diagram, and nothing else is asked";
+  try {
+    assert.equal(parseProcessReviewVerdict('{"verdict":"PROCESS"}'), "PROCESS");
+    assert.equal(parseProcessReviewVerdict("PROCESS"), null, "a bare word is no answer");
+    const steps = [["card is tapped", "reader sends request", "bank approves"]];
+    const all = scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS"));
+    assert.equal((await reviewProcessChains("q", steps, reviewOptions(all.fetchImpl))).verdict, "process");
+    assert.equal(all.calls.length, PROCESS_REVIEW_VOTES);
+    assert(all.calls.every((headers) => headers.get("x-planner") === "1" && headers.get("x-process-review") === "1"), "review headers");
+    assert.equal(resolveChatGenerationKind(all.calls[0]!), "process-review");
+    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "NOT", "PROCESS"]).fetchImpl))).verdict, "not", "one NOT");
+    assert.equal((await reviewProcessChains("q", steps, reviewOptions(scriptedProxy(["PROCESS", "fail", "PROCESS"]).fetchImpl))).verdict, "unavailable", "one failed vote");
+    assert.equal((await reviewProcessChains("q", [], reviewOptions(scriptedProxy([]).fetchImpl))).verdict, "not", "no process");
+    // The judge reads the steps exactly as the plan wrote them.
+    const validated = validateProductionSceneCandidate({ candidate: document(payInputs), question: payPlan.question, turnPlan: payPlan, blockFlowEligible: true });
+    assert.deepEqual(blockFlowCitedProcesses(validated.value!.document, payPlan),
+      [["card is tapped", "reader sends request", "acquirer forwards it", "card network routes it", "issuing bank approves or declines"]]);
+    const result = { validation: validated };
+    const kept = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(Array(3).fill("PROCESS")).fetchImpl) });
+    assert.equal(kept.result?.validation.valid, true);
+    const refused = await reviewBlockFlowScene(result, { question: payPlan.question, turnPlan: payPlan, options: reviewOptions(scriptedProxy(["NOT", "NOT", "NOT"]).fetchImpl) });
+    assert.equal(refused.result?.validation.valid, false);
+    assert.equal(refused.result?.validation.errors[0]?.code, BLOCK_FLOW_REVIEW_DECLINED);
+    const silent = scriptedProxy([]);
+    const lens = { validation: { valid: true, errors: [], value: { document: { ...validated.value!.document, constructions: [] } } } };
+    assert.equal((await reviewBlockFlowScene(lens, { question: "q", turnPlan: payPlan, options: reviewOptions(silent.fetchImpl) })).review, null);
+    assert.equal(silent.calls.length, 0, "a figure without a block diagram costs no review");
+    assert.deepEqual(await reviewBlockFlowScene(null, { question: "q", turnPlan: payPlan, options: reviewOptions(silent.fetchImpl) }), { result: null, review: null });
+    rows++;
+  } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
+})().then(async () => {
+  const name = "restated process: asked only where a figure could follow, kept only when clean";
+  try {
+    /** A writer proxy answering one scripted {"process": ...}. */
+    const writer = (process: unknown) => {
+      const calls: Headers[] = [];
+      const fetchImpl = (async (_url: unknown, init: RequestInit) => {
+        calls.push(new Headers(init.headers));
+        return Response.json({ choices: [{ message: { content: JSON.stringify({ process }) } }] });
+      }) as typeof fetch;
+      return { fetchImpl, calls };
+    };
+    const prose = plan([claim("c1", "When a card is tapped the reader sends a request that the acquirer forwards to the bank.")], "optional");
+    const clean = "Process: card is tapped → reader sends request → acquirer forwards it → bank approves";
+    const ask = (turnPlan: TurnPlanV3, process: unknown, eligible = true, question = "How does tap to pay work?") => {
+      const proxy = writer(process);
+      return withRestatedProcess({ question, turnPlan, eligible, options: reviewOptions(proxy.fetchImpl) }).then((out) => ({ out, calls: proxy.calls }));
+    };
+    const kept = await ask(prose, clean);
+    assert.equal(kept.calls.length, 1);
+    assert.equal(kept.calls[0]!.get("x-process-review"), "write");
+    assert.equal(kept.out.restated, clean);
+    assert.equal(kept.out.turnPlan.qualitativeClaims.at(-1)?.id, RESTATED_PROCESS_CLAIM_ID);
+    assert.equal(planStatesChain(kept.out.turnPlan), true, "the restated process admits the figure");
+    for (const [label, turnPlan, eligible, question] of [
+      ["flag off", prose, false, "How does tap to pay work?"],
+      ["no visual", { ...prose, visualRequirement: "none" as const }, true, "How does tap to pay work?"],
+      ["already a process", payPlan, true, "How does tap to pay work?"],
+      ["the planner is asked today", { ...prose, question: "A converging lens of focal length 10 cm forms an image of an object 15 cm away." }, true, "A converging lens of focal length 10 cm forms an image of an object 15 cm away."],
+    ] as const) {
+      const none = await ask(turnPlan, clean, eligible, question);
+      assert.equal(none.calls.length, 0, `${label}: no call`);
+      assert.equal(none.out.turnPlan, turnPlan, `${label}: plan untouched`);
+    }
+    for (const [label, answer] of [
+      ["no process", null], ["brackets", "Process: mouth (amylase) → stomach → intestine"], ["two steps", "Process: tap → pay"],
+      ["another heading", "Components: records → intelligence → research"], ["a long step", `Process: ${"a".repeat(41)} → b → c`],
+      ["not text", 7],
+    ] as const) {
+      const dropped = await ask(prose, answer);
+      assert.equal(dropped.out.restated, null, `${label} is dropped`);
+      assert.equal(dropped.out.turnPlan, prose, `${label}: plan untouched`);
+    }
+    assert.equal(await writeProcessClaim("q", prose, reviewOptions((async () => new Response("no", { status: 500 })) as typeof fetch)), null, "a failed call");
+    rows++;
+  } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
+}).then(() => console.log(`verify-block-flow: ok (${rows} rows)`), (error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

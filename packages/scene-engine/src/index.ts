@@ -8,7 +8,7 @@ export * from "./compile/compiler";
 export * from "./compile/matrixSourceBinding";
 export { validatePvSourceBinding } from "./compile/pvSourceBinding";
 export { buildLinearSourceDocument, readLinearSystemSource } from "./compile/linearRegionSource";
-export { blockFlowGroundingIssues, planStatesChain } from "./compile/blockFlowGeometry";
+export { blockFlowChain, blockFlowCitedProcesses, blockFlowGroundingIssues, planStatesChain } from "./compile/blockFlowGeometry";
 export { validateLinearSourcePlan } from "./compile/linearSourceAgreement";
 export * from "./compile/annotationMarks";
 export * from "./compile/sceneAnnotations";

@@ -134,7 +134,13 @@ export function validateProductionSceneCandidate(input: {
   /** As `ProductionSceneInput.blockFlowEligible`; without it any block_flow is refused. */
   blockFlowEligible?: boolean;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
-  const { candidate, question, turnPlan: authoritativePlan } = input;
+  const { question, turnPlan: authoritativePlan } = input;
+  // A block diagram carries no annotations: the planner's narration notes are
+  // dropped, never drawn, so they cannot cost an otherwise grounded figure.
+  const candidate = input.blockFlowEligible === true && Array.isArray(input.candidate.constructions) &&
+    input.candidate.constructions.some((construction) => (construction as { operator?: unknown })?.operator === "block_flow")
+    ? { ...input.candidate, annotations: [] }
+    : input.candidate;
   const enabled = input.yieldPolicy === "verified_parts";
   const circular = prepareVerifiedCircularParts(candidate, question, enabled);
   const normalized = normalizeVerifiedPartsInputs(circular.candidate, enabled);

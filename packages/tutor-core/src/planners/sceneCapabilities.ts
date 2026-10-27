@@ -53,7 +53,7 @@ export const BLOCK_FLOW_SCENE_REQUEST = Object.freeze({
   constructionOperators: Object.freeze(["block_flow"]),
   proofPredicates: Object.freeze(["exists"]),
   planningGuidance: Object.freeze([
-    "This lesson has no measured apparatus. Draw one block_flow only for a process a plan claim writes as a chain of steps joined by arrows; otherwise return visualDecision text_only.",
+    "This lesson has no measured apparatus. Draw one block_flow only for a process a plan claim writes as 'Process: step → step → step'; otherwise return visualDecision text_only.",
     "Boxes are the chain's own whole steps, copied exactly, and arrows follow the chain. Never draw a list, a ranking, a physical layout or anatomy as boxes. Use the one block_flow construction and nothing else.",
   ]),
 });

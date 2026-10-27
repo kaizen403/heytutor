@@ -154,7 +154,7 @@ function claimProse(claim: Claim): string[] {
  * Steps come back as keys. Null for anything else, including a chain buried
  * in a longer sentence, a step with a clause break, or code arrows.
  */
-export function blockFlowChain(value: string): { heading: string | null; steps: string[] } | null {
+export function blockFlowChain(value: string): { heading: string | null; steps: string[]; labels: string[] } | null {
   const parts = value.trim().replace(/\.$/, "").trim().split(SPACED_ARROW);
   if (parts.length < 2 || parts.some((part) => ANY_ARROW.test(part))) return null;
   let heading: string | null = null;
@@ -166,12 +166,22 @@ export function blockFlowChain(value: string): { heading: string | null; steps: 
   }
   const steps = parts.map(blockFlowStepKey);
   if (steps.some((step) => !step || CLAUSE_BREAK.test(step))) return null;
-  return { heading, steps };
+  return { heading, steps, labels: parts.map((part) => part.trim().replace(/\s+/g, " ")) };
 }
 
-/** The chain a claim states, or null; a claim whose two texts are different chains states none. */
+/**
+ * The heading the turn planner is told to write on a process and on nothing
+ * else ("Process: a → b → c"). Arrows under any other heading, or none, are a
+ * list, a ranking or an equation as far as a figure is concerned: a model put
+ * arrows on lists of parts when asked for any ordered sequence (lab, 27 Oct).
+ */
+export const BLOCK_FLOW_PROCESS_HEADING = "process";
+
+/** The process a claim states, or null; a claim whose two texts state different processes states none. */
 function claimChain(claim: Claim): string[] | null | "disagree" {
-  const chains = claimProse(claim).map(blockFlowChain).filter((chain) => chain !== null);
+  const chains = claimProse(claim).map(blockFlowChain)
+    .filter((chain): chain is NonNullable<typeof chain> =>
+      chain !== null && chain.heading !== null && blockFlowStepKey(chain.heading) === BLOCK_FLOW_PROCESS_HEADING);
   if (chains.length === 0) return null;
   const first = chains[0]!.steps.join(" > ");
   return chains.every((chain) => chain.steps.join(" > ") === first) ? chains[0]!.steps : "disagree";
@@ -215,6 +225,30 @@ export function validateBlockFlowGrounding(
     if (at < 0 || chain[at + 1] !== to || !once(from) || !once(to)) problems.push(`${name} is not one step of the chain claim ${edge.claimId} states`);
   }
   return problems;
+}
+
+/**
+ * The processes a block_flow figure draws from, as the plan wrote their
+ * steps: one per claim its arrows cite. A second, semantic review reads these
+ * (is every arrow a real "then"?) before the figure may stand.
+ */
+export function blockFlowCitedProcesses(
+  document: Pick<SceneDocument, "constructions">,
+  plan: Pick<TurnPlanV3, "qualitativeClaims">,
+): string[][] {
+  const claims = new Map(plan.qualitativeClaims.map((claim) => [claim.id, claim]));
+  const cited = new Set<string>();
+  for (const construction of document.constructions) {
+    if (construction.operator !== "block_flow") continue;
+    const edges = Array.isArray(construction.inputs.edges) ? construction.inputs.edges : [];
+    for (const edge of edges) if (isRecord(edge) && typeof edge.claimId === "string") cited.add(edge.claimId);
+  }
+  return [...cited].flatMap((id) => {
+    const claim = claims.get(id);
+    const chain = claim ? claimProse(claim).map(blockFlowChain).find((found) => found !== null &&
+      found.heading !== null && blockFlowStepKey(found.heading) === BLOCK_FLOW_PROCESS_HEADING) : undefined;
+    return chain ? [chain.labels] : [];
+  });
 }
 
 /** The plan itself states a process: one claim text is a clean chain of at least three steps. Never the question's words. */
@@ -640,7 +674,13 @@ export function blockFlowGroundingIssues(
   if (flows.length === 0) return [];
   const issue = (message: string): SceneIssue => ({ code: "block_flow_ungrounded", severity: "fatal", message, path: "constructions", entityIds: flows.flatMap((flow) => flow.outputs) });
   if (flows.length !== 1 || document.constructions.length !== 1 || document.entities.length !== 1 || document.annotations.length !== 0) {
-    return [issue("a block_flow figure is one block_flow construction with one entity and nothing else")];
+    // Name what to remove so a repair can act on it.
+    const extra = [
+      ...document.constructions.filter((construction) => construction !== flows[0]).map((construction) => `construction ${construction.id} (${construction.operator})`),
+      ...document.entities.filter((entity) => !flows[0]!.outputs.includes(entity.id)).map((entity) => `entity ${entity.id}`),
+      ...document.annotations.map((annotation) => `annotation ${annotation.id}`),
+    ];
+    return [issue(`a block_flow figure is one block_flow construction with its one entity and nothing else; remove ${extra.join(", ") || "the second block_flow"}`)];
   }
   let parsed: ReturnType<typeof parseBlockFlowInputs>;
   try { parsed = parseBlockFlowInputs(flows[0]!.inputs); }

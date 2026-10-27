@@ -162,6 +162,7 @@ import {
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "../../lib/scene/blockFlowReview";
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
@@ -1332,6 +1333,18 @@ export function useQuestionHandler(
           shouldWaitForDiagramExamples,
         ), isCurrentTurn);
         if (pickerWaitMs > 0) tel.meta({ diagram_example_picker_critical_path_ms: pickerWaitMs });
+        // An eligible lesson whose plan states no process may have one restated.
+        if (turnPlan) {
+          const restated = await withRestatedProcess({
+            question, turnPlan, eligible: blockFlowEligible,
+            options: {
+              proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+              fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+            },
+          });
+          if (restated.asked) tel.mark("block-flow-process-restated", { restated: restated.restated !== null });
+          turnPlan = restated.turnPlan;
+        }
         const planning = await runScenePlanningOverlap<
           ProblemAuthorityV1Response,
           SceneGate,
@@ -1468,7 +1481,15 @@ export function useQuestionHandler(
             primitive_count: fastRepresentation.renderScene.primitives.length,
           });
         }
-        const result = planning.scene;
+        // A block diagram stands only after the semantic process review.
+        const { result, review: blockFlowReview } = await reviewBlockFlowScene(planning.scene, {
+          question, turnPlan,
+          options: {
+            proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+            fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+          },
+        });
+        if (blockFlowReview) tel.mark("block-flow-review", { verdict: blockFlowReview.verdict });
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
         sceneV2Document = result?.response.document ?? null;
