@@ -52,7 +52,7 @@ import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
-import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -782,7 +782,8 @@ export async function runLecture(
       solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
-        allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
+        allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
+          !chemistryRefusesPlannerFigure(classifiedSubject, source)),
       },
     };
     run.figureReplayInputs = structuredClone({

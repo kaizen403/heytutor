@@ -150,6 +150,7 @@ import {
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
+  chemistryRefusesPlannerFigure,
   diagramStrategyAllowsFigureSource,
   liveDiagramStrategyDecision,
   type DiagramStrategy,
@@ -171,12 +172,14 @@ import {
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
+  recoveryForPlanning,
   rememberVerifiedScene,
 } from "../../lib/scene/verifiedSceneRecovery";
 import {
   canStreamResumeRepair,
   createEmptySegmentPlanStats,
   createResumeInkGate,
+  retryContinuationFetchOnce,
   foldGluedSegment,
   isTeachingResponseIncomplete,
   normalizeSegmentForAlignment,
@@ -790,6 +793,7 @@ export function useQuestionHandler(
       let sceneV2Repaired = false;
       let sceneArtifacts: (SceneArtifactsV3 & {
         diagramStrategy?: DiagramStrategy;
+        diagramSubject?: import("@heytutor/tutor-core").DiagramSubject;
         referencePicture?: StoredReferencePicture;
         referencePictureOutcome?: ReferencePictureOutcome;
       }) | null = null;
@@ -971,6 +975,7 @@ export function useQuestionHandler(
           solverAuthority: null,
           figureSource,
           diagramStrategy: diagramStrategyDecision.strategy,
+          diagramSubject,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: [],
@@ -1115,11 +1120,12 @@ export function useQuestionHandler(
         // A repeated phrase can refer to a different figure after prior turns.
         // Reuse of a context-free scene would skip both the contextual turn
         // planner and Jev's visual assessment for this follow-up.
+        // A recovered chemistry scene, or one with no recorded subject, plans afresh.
         let recoveredScene = recentConversation
           ? null
-          : findVerifiedSceneRecovery(question, storedTurnsRef.current, {
+          : recoveryForPlanning(findVerifiedSceneRecovery(question, storedTurnsRef.current, {
               boardId: sessionId,
-            });
+            }));
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
         let diagramExampleIds: string[] = [];
@@ -1186,6 +1192,8 @@ export function useQuestionHandler(
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
+          // The recovered scene's recorded subject; recoveryForPlanning admitted it.
+          diagramSubject = recoveredScene.subject ?? diagramSubject;
           problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
@@ -1601,7 +1609,10 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
-            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
+            // The strategy reads only an accepted plan's subject; a chemistry
+            // consensus from rejected plans still refuses planner figures.
+            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
+              !chemistryRefusesPlannerFigure(diagramSubject, source)),
           },
         }));
         const selected = sceneSelection.representation;
@@ -1676,7 +1687,7 @@ export function useQuestionHandler(
         figureSource = selected?.figureSource ?? "text_only";
         // Only admitted exact scenes enter recovery; the pure selector never writes the cache.
         if (selected?.tier === "exact_verified") {
-          rememberVerifiedScene(question, selected.sceneDocument, turnPlan, { boardId: sessionId });
+          rememberVerifiedScene(question, selected.sceneDocument, turnPlan, { boardId: sessionId, subject: diagramSubject });
         }
 
         const selectedModelCandidate = result?.candidates.find((candidate) =>
@@ -1690,6 +1701,7 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority?.audit ?? null,
           figureSource,
           diagramStrategy: diagramStrategyDecision.strategy,
+          diagramSubject,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: result?.candidates.map((candidate) => {
@@ -2510,7 +2522,7 @@ export function useQuestionHandler(
           const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
             continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
           teachingAttempt = "primary";
-          const streamResult = await streamLLMResponse(
+          const streamResult = await retryContinuationFetchOnce(() => streamLLMResponse(
             {
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
@@ -2613,7 +2625,14 @@ export function useQuestionHandler(
                 }
               }
             },
-          );
+          ), {
+            // A continuation whose request never reached the server (b97d2500:
+            // the student's network dropped it) is asked once more; nothing of
+            // it was parsed or spoken, so the lesson simply carries on.
+            enabled: isContinuation && !resumeInkRetry,
+            signal: abortController.signal,
+            onRetry: () => tel.mark("teaching-continuation-retry", { continuation: continueCount }),
+          });
 
           throwIfTurnCancelled();
           fullResponse += streamResult.text;

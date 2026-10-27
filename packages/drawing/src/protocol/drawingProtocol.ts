@@ -734,6 +734,25 @@ function coordinateLessWriteRow(body: string): { text: string; y: number } | nul
 }
 
 /**
+ * Index of the "]" that closes a WRITE body starting at `from`: the first one
+ * outside the body's own brackets, on the same line. -1 when the line ends first.
+ */
+function writeBodyClose(slice: string, from: number): number {
+  const brackets: string[] = [];
+  for (let index = from; index < slice.length; index += 1) {
+    const char = slice[index]!;
+    if (char === '\n' || char === '\r') return -1;
+    if (char === '[' || (char === '(' && brackets.length > 0)) brackets.push(char);
+    else if (char === ')') brackets.pop();
+    else if (char === ']') {
+      if (brackets.length === 0) return index;
+      brackets.pop();
+    }
+  }
+  return -1;
+}
+
+/**
  * The coordinate-less WRITE at the start of `slice`, as the raw tag and the
  * canonical tag it stands for, or null. The caller has already found that
  * the tag cannot close the canonical way.
@@ -741,40 +760,98 @@ function coordinateLessWriteRow(body: string): { text: string; y: number } | nul
 export function matchCoordinateLessWriteTag(slice: string): { raw: string; canonical: string } | null {
   const header = COORDINATE_LESS_WRITE_HEADER.exec(slice);
   if (!header) return null;
-  const brackets: string[] = [];
-  for (let index = header[0].length; index < slice.length; index += 1) {
-    const char = slice[index]!;
-    if (char === '\n' || char === '\r') return null;
-    if (char === '[' || (char === '(' && brackets.length > 0)) brackets.push(char);
-    else if (char === ')') brackets.pop();
-    else if (char === ']') {
-      if (brackets.length > 0) {
-        brackets.pop();
-        continue;
-      }
-      const body = slice.slice(header[0].length, index);
-      if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) return null;
-      // An evaluation bar (`x^3/3 ]_0^1 = 1/3]`) is not the end of the row:
-      // refuse when bounds follow the bracket, or another "]" closes later
-      // on the same line before any tag.
-      const after = slice.slice(index + 1);
-      if (/^\s*[_^]/u.test(after) || (after.split(/[[\r\n]/u, 1)[0] ?? '').includes(']')) return null;
-      const row = coordinateLessWriteRow(body);
-      if (!row) return null;
-      const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;
-      // The repaired tag must itself be one canonical row, or nothing changes.
-      if (matchWriteLabelTag(canonical) !== canonical) return null;
-      return { raw: slice.slice(0, index + 1), canonical };
-    }
-  }
-  return null;
+  const index = writeBodyClose(slice, header[0].length);
+  if (index < 0) return null;
+  const body = slice.slice(header[0].length, index);
+  if (WRITE_LABEL_BODY_BREAK_PATTERN.test(body)) return null;
+  // An evaluation bar (`x^3/3 ]_0^1 = 1/3]`) is not the end of the row:
+  // refuse when bounds follow the bracket, or another "]" closes later
+  // on the same line before any tag.
+  const after = slice.slice(index + 1);
+  if (/^\s*[_^]/u.test(after) || (after.split(/[[\r\n]/u, 1)[0] ?? '').includes(']')) return null;
+  const row = coordinateLessWriteRow(body);
+  if (!row) return null;
+  const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;
+  // The repaired tag must itself be one canonical row, or nothing changes.
+  if (matchWriteLabelTag(canonical) !== canonical) return null;
+  return { raw: slice.slice(0, index + 1), canonical };
 }
 
-/** Rewrite every coordinate-less WRITE that cannot close canonically. */
+/**
+ * A WRITE that can close neither the canonical way nor as a coordinate-less
+ * row (`[WRITE:w5]`, `[WRITE:y=277]`, `[WRITE:text, x=60, y=475]`). It is
+ * protocol, not speech and not ink: the span is the tag up to its own "]",
+ * plus an evaluation bar's bounds when they follow it. Recorded
+ * resumes sent these, and the stream used to hold the rest of the step behind
+ * them and then read it all aloud, tags included. Null when the WRITE may still
+ * close, or when no "]" closes it on the line.
+ */
+export function matchRefusedWriteTag(slice: string): string | null {
+  const header = COORDINATE_LESS_WRITE_HEADER.exec(slice);
+  if (!header) return null;
+  if (matchWriteLabelTag(slice) || matchCoordinateLessWriteTag(slice)) return null;
+  const close = writeBodyClose(slice, header[0].length);
+  if (close < 0 || WRITE_LABEL_BODY_BREAK_PATTERN.test(slice.slice(header[0].length, close))) return null;
+  // The span ends at the tag's own "]". Words after it are speech, even when
+  // they hold a bracket of their own ("Take x in (0, 1]."). Only an
+  // evaluation bar's bounds (`]_0^1 = 1/3]`) belong to the row.
+  let end = close;
+  const after = slice.slice(close + 1);
+  if (/^\s*[_^]/u.test(after)) {
+    const line = after.split(/[[\r\n]/u, 1)[0] ?? '';
+    const next = line.indexOf(']');
+    if (next >= 0) end = close + 1 + next;
+  }
+  return slice.slice(0, end + 1);
+}
+
+/**
+ * A row closed by a tag: `[WRITE]text[/WRITE]`, or a header that holds only a
+ * row id or coordinates (`[WRITE:w6:y475]text[/WRITE]`, `[WRITE:y=541]...`).
+ * The text between the tags is the row the model meant; production sent this
+ * in a fresh lesson (every row unwritten, "[/WRITE]" read aloud) and in
+ * resumes. The text is one line with no brackets, and it passes the same
+ * refusals as a coordinate-less row, so no coordinate, id or placeholder can
+ * become ink.
+ */
+const CLOSED_WRITE_ROW = /^\[WRITE(?::([^\]\r\n]*))?\]([^[\]\r\n]{1,200}?)\[\/WRITE\]/iu;
+const LABELLED_COORDINATES_ONLY = /^(?:x\s*=\s*-?\d+\s*,\s*)?y\s*=\s*-?\d+$/i;
+
+export function matchClosedWriteRow(slice: string): { raw: string; canonical: string } | null {
+  const match = CLOSED_WRITE_ROW.exec(slice);
+  if (!match) return null;
+  const head = (match[1] ?? '').trim();
+  if (head && !COORDINATE_ONLY_WRITE_BODY.test(head) && !LABELLED_COORDINATES_ONLY.test(head)) return null;
+  const row = coordinateLessWriteRow(match[2]!);
+  if (!row) return null;
+  const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;
+  if (matchWriteLabelTag(canonical) !== canonical) return null;
+  return { raw: match[0], canonical };
+}
+
+/** `[/WRITE]` closes nothing in this protocol; it is never spoken. */
+export const STRAY_WRITE_CLOSE = /\[\/WRITE\]/giu;
+
+/**
+ * The text left where protocol was dropped from speech: one space when a word
+ * ends right before it and a word, a number or "(" starts right after it,
+ * otherwise nothing. The streaming parser applies the same rule.
+ */
+export function separatorAfterDrop(before: string | undefined, after: string): string {
+  return before !== undefined && /\S/u.test(before) && SPOKEN_WORD_START.test(after) ? ' ' : '';
+}
+export const SPOKEN_WORD_START = /^[\p{L}\p{N}(]/u;
+
+/** Rewrite every coordinate-less or tag-closed WRITE that cannot close canonically. */
 export function repairCoordinateLessWriteTags(responseText: string): string {
+  // A stray [/WRITE] is dropped from speech only; a row may quote one. A
+  // dropped tag between two words leaves one space, so "x = 2[/WRITE]3" is
+  // never spoken as "x = 23".
   let out = '';
+  const speech = (text: string) => text.replace(STRAY_WRITE_CLOSE, (_tag, offset: number, whole: string) =>
+    separatorAfterDrop(offset > 0 ? whole[offset - 1] : out.slice(-1), whole.slice(offset + _tag.length)));
   let from = 0;
-  const opens = /\[WRITE:/giu;
+  const opens = /\[WRITE[:\]]/giu;
   for (;;) {
     opens.lastIndex = from;
     const found = opens.exec(responseText);
@@ -783,20 +860,33 @@ export function repairCoordinateLessWriteTags(responseText: string): string {
     const slice = responseText.slice(open);
     const canonical = matchWriteLabelTag(slice);
     if (canonical) {
-      out += responseText.slice(from, open + canonical.length);
+      out += speech(responseText.slice(from, open)) + canonical;
       from = open + canonical.length;
+      continue;
+    }
+    const closed = matchClosedWriteRow(slice);
+    if (closed) {
+      out += speech(responseText.slice(from, open)) + closed.canonical;
+      from = open + closed.raw.length;
       continue;
     }
     const repaired = matchCoordinateLessWriteTag(slice);
     if (repaired) {
-      out += responseText.slice(from, open) + repaired.canonical;
+      out += speech(responseText.slice(from, open)) + repaired.canonical;
       from = open + repaired.raw.length;
       continue;
     }
-    out += responseText.slice(from, open + 1);
+    const refused = matchRefusedWriteTag(slice);
+    if (refused) {
+      out += speech(responseText.slice(from, open));
+      from = open + refused.length;
+      out += separatorAfterDrop(out.slice(-1), responseText.slice(from));
+      continue;
+    }
+    out += speech(responseText.slice(from, open + 1));
     from = open + 1;
   }
-  return out + responseText.slice(from);
+  return out + speech(responseText.slice(from));
 }
 
 export function isCompleteDrawingTag(rawTag: string): boolean {

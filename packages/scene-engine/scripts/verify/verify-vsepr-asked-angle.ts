@@ -12,7 +12,8 @@
  *              a caption naming its atoms where no honest arc exists (NH3
  *              plain to wedge: "H-N-H = 107°"); a row of species keeps main's
  *              mark (the arc carries the value), so a row main refuses stays
- *              refused
+ *              refused, except a pair whose page sector does not read as its
+ *              value, which is a caption naming its pair (BrF5, XeF4)
  *   sweep      every VSEPR probe that draws shows exactly its species' source
  *              angles when its stem asks, and no degree label when it does not
  *   authority  an asked angle is certified from the regenerated graph with no
@@ -69,11 +70,14 @@ const ASKED: Asked[] = [
   { question: "What is the bond angle in SeCl4?", species: [["<120°", "inequality", "eq. <120°"]] },
   { question: "What is the bond angle in TeCl4?", species: [["<120°", "inequality", "eq. <120°"]] },
   { question: "What is the bond angle in ClF3?", species: [["87.5°", "quoted", "87.5°"]] },
-  { question: "What is the bond angle in BrF5?", species: [["<90°", "inequality", "<90°"]] },
+  // BrF5 is drawn at right angles, so its <90° is a caption, not a 90° arc.
+  { question: "What is the bond angle in BrF5?", species: [["<90°", "inequality", "cis F-Br-F <90°"]] },
   { question: "bond angle in NH4+ ion", species: [["109.5°", "ideal", "109.5°"]] },
-  // Rows keep main's mark: the arc entity carries the bare value.
+  // Rows keep main's mark: the arc entity carries the bare value. A pair whose
+  // page sector does not read as its value (BrF5 at right angles, XeF4's cis
+  // pair in perspective) is a caption naming its pair instead.
   { question: "Compare the bond angles of CH4, NH3 and H2O", species: [["109.5°", "ideal", "109.5°"], ["107°", "quoted", "107°"], ["104.5°", "quoted", "104.5°"]] },
-  { question: "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", species: [["90°", "ideal", "90°"], ["87.5°", "quoted", "87.5°"], ["<90°", "inequality", "<90°"], ["90°", "ideal", "90°"]] },
+  { question: "Compare the bond angles of PCl5, ClF3, BrF5 and XeF4", species: [["90°", "ideal", "90°"], ["87.5°", "quoted", "87.5°"], ["<90°", "inequality", "cis F-Br-F <90°"], ["90°", "ideal", "cis F-Xe-F = 90°"]] },
   { question: "Using VSEPR theory, predict the shape and the approximate bond angles of SF4, ClF3 and XeF2.", species: [["<120°", "inequality", "<120°"], ["87.5°", "quoted", "87.5°"]] },
   { question: "bond angles in SCl4, SeCl4 and TeCl4", species: [["<120°", "inequality", "<120°"], ["<120°", "inequality", "<120°"], ["<120°", "inequality", "<120°"]] },
 ];
@@ -116,13 +120,20 @@ function askedRed(build: Build): string[] {
   }).map(({ question }) => `asked/${question}`);
 }
 
-/** Rows whose species do not all carry their value on the arc entity, as main does. */
+/**
+ * Rows whose species do not carry their value on the arc entity, as main
+ * does, or, where the row expects a caption, carry anything but that caption
+ * and no arc.
+ */
 function rowsRed(build: Build): string[] {
   return ASKED.filter((row) => row.species.length > 1).filter(({ question, species }) => {
     const figure = build(question, [], false);
     if (!figure) return true;
-    if (figure.document.entities.some((entity) => /_ang_(?:val|txt)$/.test(entity.id))) return true;
-    return species.some(([value], index) => figure.document.entities.find((entity) => entity.id === `m${index + 1}_ang`)?.label !== value);
+    if (figure.document.entities.some((entity) => /_ang_val$/.test(entity.id))) return true;
+    const entity = (id: string) => figure.document.entities.find((candidate) => candidate.id === id);
+    return species.some(([value, , shown], index) => shown === value
+      ? entity(`m${index + 1}_ang`)?.label !== value || Boolean(entity(`m${index + 1}_ang_txt`))
+      : entity(`m${index + 1}_ang_txt`)?.label !== shown || Boolean(entity(`m${index + 1}_ang`)));
   }).map(({ question }) => `rows/${question}`);
 }
 

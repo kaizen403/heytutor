@@ -158,4 +158,73 @@ assert(
   "the parser receives one result box",
 );
 
-console.log("lecture cue repair: equals on the friction row, box on the closing relation");
+// A row the parser repairs (coordinate-less, or closed by [/WRITE]) is a row,
+// not speech: the copula repair must never rewrite the words on the board.
+const closedRowStep = "[STEP]The speed comes from distance over time. [WRITE]v = d/t[/WRITE] and so [WRITE]the speed is constant[/WRITE][/STEP]";
+const closedRows = parseDrawingCommands(repairLectureMarkup(closedRowStep)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(closedRows.includes("the speed is constant") && !closedRows.some((text) => /equals constant/.test(text ?? "")),
+  `the copula repair must not rewrite a repaired row's text: ${JSON.stringify(closedRows)}`);
+const bareRowStep = "[STEP]The speed comes from distance over time. [WRITE:v = d/t,90,211] and so [WRITE:the speed is constant][/STEP]";
+const bareRows = parseDrawingCommands(repairLectureMarkup(bareRowStep)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(bareRows.includes("the speed is constant"), `nor a coordinate-less row's text: ${JSON.stringify(bareRows)}`);
+
+// A row closed by [/WRITE] is newly a row; it must not widen the spoken
+// repair to a step main left alone ("is called" never becomes "equals called").
+const closedOnlyStep = "[STEP]Combine the right side. [WRITE](x + b/(2a))^2 = (b^2 - 4ac)/(4a^2)[/WRITE] The numerator is called the discriminant.[/STEP]";
+const closedOnlySpoken = parseDrawingCommands(repairLectureMarkup(closedOnlyStep)).narration;
+assert(closedOnlySpoken.includes("is called the discriminant") && !/equals called/.test(closedOnlySpoken),
+  `a step whose only relation row is tag-closed keeps its words: ${closedOnlySpoken}`);
+
+// Only an "is" that the row's value follows becomes "equals". On the 419
+// recorded production outputs since 20 Oct, main rewrote 409 "is", most of them
+// descriptions ("the hypotenuse equals always the longest side", "pneumonia
+// equals infection", "t equals time in seconds"); this rule keeps 33, each one
+// followed by its row's value.
+const spokenAfter = (step: string) => parseDrawingCommands(repairLectureMarkup(step)).narration;
+for (const [step, spoken] of [
+  ["[STEP]half of b over a is b over two a. [WRITE:(1/2)(b/a) = b/(2a),90,211][/STEP]", "half of b over a equals b over two a"],
+  ["[STEP]so the required power is m g v. [WRITE:P = mgv,90,211][/STEP]", "the required power equals m g v"],
+  ["[STEP]so the frequency is 170 hertz. [WRITE:f = 340 / 2 = 170 Hz,90,211][/STEP]", "the frequency equals 170 hertz"],
+] as const) {
+  assert(spokenAfter(step).includes(spoken), `an "is" its row's value follows is spoken as equals: ${spokenAfter(step)}`);
+}
+for (const [step, kept] of [
+  ["[STEP][WRITE:c = hypotenuse,90,211] the hypotenuse is always the longest side.[/STEP]", "the hypotenuse is always the longest side"],
+  ["[STEP]current flows through a resistor. [WRITE:V = IR,90,211] R is resistance in ohms.[/STEP]", "R is resistance in ohms"],
+  ["[STEP]pneumonia is infection of the lung. [WRITE:consolidation = fluid + cells,90,211][/STEP]", "pneumonia is infection of the lung"],
+  ["[STEP]s3 is object storage. [WRITE:s3 = object storage,90,211][/STEP]", "s3 is object storage"],
+] as const) {
+  assert(spokenAfter(step).includes(kept), `a descriptive "is" stays as spoken: ${spokenAfter(step)}`);
+}
+
+// The cue repair never edits a row's own text. Without the pre-repair the "is"
+// inside a coordinate-less row was rewritten (the board read "friction = μ N").
+const rowsAfter = (step: string) => parseDrawingCommands(repairLectureMarkup(step)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(rowsAfter("[STEP]Friction [WRITE:friction is mu N] and [WRITE:f = μN,90,211] here.[/STEP]").includes("friction is μ N"),
+  `a coordinate-less row keeps its words: ${JSON.stringify(rowsAfter("[STEP]Friction [WRITE:friction is mu N] and [WRITE:f = μN,90,211] here.[/STEP]"))}`);
+// A tag-closed relation row adds no spoken rewrite main would not make.
+assert(spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] here.[/STEP]").includes("Friction is mu N"),
+  `a tag-closed relation row does not widen the spoken repair: ${spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] here.[/STEP]")}`);
+assert(spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] and [WRITE:N = mg,90,211][/STEP]").includes("Friction is mu N"),
+  "nor does it lend its value to a step main treats as a relation step");
+// "has magnitude" is rewritten in speech only, never inside a row (Greptile).
+const magnitude = "[STEP]Use Newton's law. [WRITE:F = ma,90,211] [WRITE]the force has magnitude ma[/WRITE] The force has magnitude m a.[/STEP]";
+assert(rowsAfter(magnitude).includes("the force has magnitude ma") && spokenAfter(magnitude).includes("The force equals m a"),
+  `"has magnitude" changes the speech, not the row: ${JSON.stringify(rowsAfter(magnitude))} / ${spokenAfter(magnitude)}`);
+
+// The result box goes on the closing relation only while it is still the last
+// row on the board. When a plain row follows it, a trailing [EMPHASIZE:last]
+// would frame that row, so neither the board nor the saved lesson gets a box.
+const laterPlainRow = "[STEP]first x = 1. [WRITE:x = 1,90,211][/STEP][STEP]then y = 2. [WRITE:y = 2,90,277][/STEP]" +
+  "[STEP]and z = 3. [WRITE:z = 3,90,343][/STEP][STEP]so the work is done. [WRITE:all three found,90,409][/STEP]";
+const boxBuffer = new LectureMarkupBuffer();
+let boxSpoken = "";
+for (let index = 0; index < laterPlainRow.length; index += 23) boxSpoken += boxBuffer.push(laterPlainRow.slice(index, index + 23));
+boxSpoken += boxBuffer.finish();
+assert(!boxSpoken.includes("[EMPHASIZE") && !boxBuffer.text().includes("[EMPHASIZE"),
+  `no box frames a non-result row, on the board or in the saved lesson: ${boxSpoken.slice(-80)}`);
+
+console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");

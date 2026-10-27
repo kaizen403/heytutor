@@ -3454,6 +3454,11 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   const speeds = riverCrossingSpeeds(question);
   if (speeds.status === "unstated") return false;
   if (speeds.status !== "bound") return true;
+  // Stated speeds the plan does not name would fall back to the stock 5:2 sketch.
+  if (variant === "along_stream" && !riverSpeeds(quantities).sourced) return true;
+  // A boat no faster than the current moving along the stream: the archetype declines it, and main
+  // never drew this sketch for it, so it declines here too (decline only).
+  if (variant === "along_stream" && speeds.vb <= speeds.vc) return true;
   if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
   if (speeds.vb > speeds.vc) return false;
   return variant === "two_triangles" || riverShortestPathAsked(question);
