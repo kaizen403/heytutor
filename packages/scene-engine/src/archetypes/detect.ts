@@ -365,7 +365,7 @@ const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel
 
 // A stem asking which way the induced current flows. A current whose
 // direction the stem gives ("carries 2 A clockwise") is not asked.
-const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|clockwise|anti-?clockwise|counter-?clockwise)|\b(?:direction|sense)\s+of\s+(?:the\s+)?induced\s+current\b|\bdirection\s+of\s+(?:the\s+)?current\s+induced\b|\b(?:clockwise|anti-?clockwise|counter-?clockwise)\s+or\s+(?:clockwise|anti-?clockwise|counter-?clockwise)\b|\bwhich way\b[^.?]{0,40}\bcurrent\b/i;
+const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|clockwise|anti-?clockwise|counter-?clockwise)|\b(?:direction|sense)\s+of\s+(?:the\s+)?(?:induced\s+)?currents?\b|\bdirection\s+of\s+(?:the\s+)?current\s+induced\b|\b(?:clockwise|anti-?clockwise|counter-?clockwise)\s+or\s+(?:clockwise|anti-?clockwise|counter-?clockwise)\b|\bwhich way\b[^.?]{0,40}\bcurrent\b/i;
 
 // What the magnet and coil figure draws: a north pole moving towards a coil
 // that stays put, with the coil the only conductor. A magnet and coil stem
@@ -1543,7 +1543,12 @@ const CUE_SETS: readonly CueSet[] = [
     // them or the law the figure shows; an induced emf alone may be a wire
     // moving through a field. A loop or coil turning in a field is a
     // generator, and this figure would stand in for it.
-    requires: [/\b(?:magnets?|(?:north|south|[NS])[- ]pole|coils?|solenoids?|lenz|faraday|electromagnetic induction)\b/i],
+    // and a conductor the magnet acts on, or the law itself: a magnet beside
+    // an iron nail is magnetism, not induction.
+    requires: [
+      /\b(?:magnets?|(?:north|south|[NS])[- ]pole|coils?|solenoids?|lenz|faraday|electromagnetic induction)\b/i,
+      /\b(?:coils?|loops?|rings?|solenoids?|galvanometer|wires?|conductors?|lenz|faraday|electromagnetic induction|induced\s+(?:currents?|emfs?))\b/i,
+    ],
     // The figure does not derive the induced current's direction (the coil's
     // winding is not drawn), so a stem that asks for it gets no figure.
     vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR, INDUCED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],

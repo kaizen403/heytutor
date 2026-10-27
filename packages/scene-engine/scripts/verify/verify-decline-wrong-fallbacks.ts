@@ -161,6 +161,7 @@ for (const question of [
   "A magnet is pushed towards a ring. Which way does the current flow in the ring?",
   "The south pole of a magnet is pushed towards a ring of wire. Explain.",
   "A magnet is pushed through a ring of wire. Which way does the current flow?",
+  "The magnet approaches the ring with its north pole. Find the direction of the current in the ring.",
 ]) {
   check(`contradicted magnet and coil declines whole: ${question}`, () => {
     for (const hints of [{}, faraday, { ...faraday, plannerArchetype: "faraday_induction" }, { ...faraday, plannerArchetype: "blocks_contact" }, { ...faraday, plannerArchetype: "bar_magnet" }]) {
@@ -217,6 +218,13 @@ check("a rod swinging about a pivot", () => {
   const question = "A metal rod pivoted at one end swings like a pendulum in a magnetic field. Find the emf between its ends.";
   assert.notEqual(detectArchetype(question, { ...faraday, plannerArchetype: "motional_emf_rod" })?.id, "motional_emf_rod", "a swinging rod is no sliding rod");
   assert.notEqual(synthesizeLastResortScene({ question })?.family, "circuit_network", "its emf is no circuit");
+});
+check("a magnet and an iron nail is no induction figure", () => {
+  for (const question of ["A magnet is pushed towards an iron nail on a table. Explain what happens.", "A bar magnet attracts an iron nail. Explain the induced magnetism."]) {
+    for (const hints of [faraday, { ...faraday, plannerArchetype: "faraday_induction" }]) {
+      assert.notEqual(detectArchetype(question, hints)?.id, "faraday_induction", `${question}: no coil, no induction`);
+    }
+  }
 });
 check("no block for a magnet and ring", () => {
   const question = "A magnet is pushed into a ring and an emf appears. Explain.";
