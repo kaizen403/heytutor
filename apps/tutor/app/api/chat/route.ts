@@ -723,8 +723,8 @@ async function handlePlannerRequest({
       },
       models: plannerModels,
       signal: boundedSignal,
+      rememberUnavailableModels: llm.provider === "fireworks",
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
-        noteProviderOutcome(llm, { ok: false, status });
         tutorDebug("planner", message ? "provider fetch failed" : "transient provider response", {
           provider: llm.provider,
           attempt,
@@ -812,6 +812,7 @@ async function handlePlannerRequest({
           ...timing,
           temperature: body.temperature,
           llm_provider: llm.provider,
+          ...(llm.fallbackReason ? { llm_fallback_reason: llm.fallbackReason } : {}),
           ...(llm.provider === "openai_compat" ? { relay_upstream: relayUpstreamKind(parsedResponse.id) } : {}),
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
@@ -887,6 +888,9 @@ async function handlePlannerRequest({
       (error instanceof DOMException && error.name === "AbortError") ||
       signal.aborted ||
       (error instanceof Error && /abort|deadline|timeout/i.test(error.message));
+    // Every attempt failed to connect or timed out. A client that left or a
+    // planner deadline is not the relay failing.
+    if (!signal.aborted && !deadlineController.signal.aborted) noteProviderOutcome(llm, { ok: false });
     tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
     endLlmGeneration(turnTrace, {
       output: message,
@@ -1076,6 +1080,7 @@ export async function POST(request: Request): Promise<Response> {
   const teachingHedge = isTeachingHedge(request.headers);
   const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
   teachingMetadata.llm_provider = llm.provider;
+  if (llm.fallbackReason) teachingMetadata.llm_fallback_reason = llm.fallbackReason;
   const route = teachingRoute ?? { model: serverModel, alternate: null, fallbackReason: null };
   const markModelFallback = (reason: string) => {
     teachingMetadata.teaching_model_fallback = true;
@@ -1177,7 +1182,6 @@ export async function POST(request: Request): Promise<Response> {
           },
         });
         lastFetchError = null;
-        noteProviderOutcome(llm, attemptResponse.ok ? { ok: true } : { ok: false, status: attemptResponse.status });
         // A provider error status means no generation ran: that attempt is free.
         if (!teachingAttemptMayHaveGenerated(attemptResponse)) attemptCosts[attemptCosts.length - 1] = 0;
         failure = classifyTeachingFailure(attemptResponse);
@@ -1195,7 +1199,6 @@ export async function POST(request: Request): Promise<Response> {
       } catch (error: unknown) {
         failure = "upstream_connect_failure";
         lastFetchError = error;
-        if (!requestSignal.aborted) noteProviderOutcome(llm, { ok: false });
         tutorDebug("chat", "provider fetch failed", {
           attempt: attempt + 1,
           model,
@@ -1212,6 +1215,11 @@ export async function POST(request: Request): Promise<Response> {
       await sleepFor(400 * (attempt + 1), undefined, { signal: requestSignal }).catch(() => undefined);
       attempt = next;
     }
+
+    // One report per request: the response that ended the loop, or a connect
+    // failure on every attempt. A student who left reports nothing.
+    if (response) noteProviderOutcome(llm, response.ok ? { ok: true } : { ok: false, status: response.status });
+    else if (!requestSignal.aborted) noteProviderOutcome(llm, { ok: false });
 
     if (!response) {
       throw lastFetchError instanceof Error

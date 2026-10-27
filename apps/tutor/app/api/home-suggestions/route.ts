@@ -21,7 +21,7 @@ import {
 } from "@/lib/billing/paidUsage";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, endpointEnv, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
   parseProviderUsage,
   usageDetailsFromParsed,
@@ -180,7 +180,8 @@ export async function POST(request: Request): Promise<Response> {
   if (claimed.count !== 1)
     return json({ suggestions: fallback, generated: false });
 
-  const model = resolveFireworksModel({ fastMode: true });
+  // The provider resolved above, even if the relay circuit moved during the claim.
+  const model = resolveFireworksModel({ fastMode: true, env: endpointEnv(llm) });
   const messages = [
     {
       role: "system",

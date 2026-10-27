@@ -109,18 +109,81 @@ turn plans through our parser, three teaching streams; about 40 calls).
 | Turn plans with `TURN_PLAN_V3_PROMPT`: 9 of 9 valid. `resp_` pool 5 to 7 s, `chatcmpl-` pool 8 to 24 s | Measured in the lab before any rollout |
 | Teaching stream first content: `resp_` 1.4 to 1.7 s, `chatcmpl-` 4.6 s | Same |
 
-Circuit breaker (`CompatCircuit` in `llmProvider.ts`): a 401 or 403 opens it
-at once; three 408, 429, 5xx or connect failures within a minute open it. While
-open, `resolveLlmEndpoint` returns Fireworks (with `fallbackReason`) for five
+Guards in `resolveLlmEndpoint`: the base URL must end in `/v1` (a missing
+`/v1` makes every call a 404), and with `NODE_ENV=production` the relay also
+needs `OPENAI_COMPAT_ALLOW_PRODUCTION=1`, because a reservation sized by a cap
+the relay ignores does not bound what a student's turn bills. Either failure
+logs one `[llm]` error and serves Fireworks. Relay reservations also add
+`RELAY_HIDDEN_PROMPT_TOKENS` (4,500) of input (`paidUsage.ts`).
+
+Circuit breaker (`CompatCircuit`, kept on `globalThis` so every route bundle
+shares it): a 401, 402, 403, 404 or 410 opens it at once; three 408, 429, 5xx
+or connect failures within a minute open it. The chat route reports once per
+request (the response that ended its retries, or a connect failure on every
+attempt), never for a student who left or a planner deadline. A 400 never
+counts. While open, `resolveLlmEndpoint` returns Fireworks (with
+`fallbackReason`, recorded as `llm_fallback_reason` on generations) for five
 minutes, so the next request and the client's startup retry run on Kimi K3 with
-a Fireworks body and Fireworks prices. The failing call itself is not rescued.
-It stays shut when `OPENAI_COMPAT_FALLBACK=off` or there is no
-`FIREWORKS_API_KEY` (never mock lessons). The lab sets fallback off and refuses
-to build a profile while the circuit is open, so a round measures only the relay.
+a Fireworks body and Fireworks prices. The failing request itself is not
+rescued. It stays shut when `OPENAI_COMPAT_FALLBACK=off` or there is no
+`FIREWORKS_API_KEY` (never mock lessons). Routes that await between resolving
+the endpoint and picking a model (home suggestions, notes chat) pass
+`endpointEnv(llm)` to the resolvers so the two cannot disagree. On Azure and a
+relay the planner no longer blacklists a model that answered 404 or 410: there
+is no second model, so the blacklist stopped figures until a restart.
+
+The lab refuses a relay round unless `OPENAI_COMPAT_FALLBACK=off` and all three
+`OPENAI_COMPAT_*_USD_PER_1M` prices are set, and the preflight reports why
+instead of answering 500.
 
 Prices: lane `openai-compat`, env prefix `OPENAI_COMPAT_`, defaulting to the
-Azure gpt-6.1-sol rates. The lab refuses a relay round until
-`OPENAI_COMPAT_INPUT_USD_PER_1M` and `OPENAI_COMPAT_OUTPUT_USD_PER_1M` are set.
+Azure gpt-6.1-sol rates (tokens-flow publishes none we can read).
 The relay lane only applies while `LLM_PROVIDER=openai_compat`, because its
 model id is also Azure's.
+
+## Relay against Fireworks, same harness (27 Oct 2026)
+
+Same build, same local server, only the provider changed. Relay prices are a
+proxy (Azure gpt-6.1-sol rates); Fireworks is production routing (`--model
+fast`, Kimi K3 Fast). Rounds under `apps/tutor/.lecture-lab/{relay,fireworks}-20261027`
+and `*-ask-20261027`.
+
+Diagram eval, 12 rows (`v1` physics, maths, chemistry, `--sample 12 --seed 27`,
+`planner_examples_strict`, strict maths and physics, figure only):
+
+| | Relay gpt-6.1-sol | Fireworks Kimi K3 Fast |
+|---|---:|---:|
+| Figures drawn | 2 (both partial, none wrong) | 3 (1 mostly right, 2 wrong) |
+| Rows lost to the 60 s figure deadline | 2 | 0 |
+| Mean time per row | 31.3 s | 17.8 s |
+| Mean time to commit a figure | 30.4 s | 23.2 s |
+| Example picker timeouts | 4 of 6 | not hit |
+| Measured cost | $0.75 (proxy rates) | $1.82 (+ $0.83 unresolved) |
+
+Wrong on Fireworks: the Wheatstone bridge was wired wrongly; latus rectum put
+three conics on one set of axes with the parabola's vertex off the origin.
+Partial on the relay: the series-parallel network had no source; drift velocity
+was one double arrow. Twelve rows judged by eye is not a quality result.
+
+Full lessons, four asks one at a time (incline with friction, simultaneous
+equations, horizontal projectile, VSEPR water):
+
+| | Relay | Fireworks |
+|---|---:|---:|
+| Ask to first word | 67.3, 37.8, 67.4, 13.1 s (median 52.6) | 28.5, 14.0, 22.0, 6.1 s (median 18.0) |
+| Teaching first token | 4.3 to 7.2 s | 1.0 to 1.6 s |
+| Figures | 1 of 4 | 2 of 4 |
+| Missing required figure | 3 (two hit the 60 s deadline) | 2 |
+| Measured cost | $0.48 (proxy rates) | $0.87 |
+
+Cancelled calls are unmetered in the lab and booked at their full ceiling: 17
+on the relay round (ProblemIR past its 18 s client deadline, picker timeouts,
+the losing turn plan lane), 9 on Fireworks. Relay latency depends on which
+upstream pool answers: the `resp_` pool planned in 5 to 7 s, the `chatcmpl-`
+pool in 8 to 24 s.
+
+Verdict: the relay fails the rollout rule (no more wrong figures, no more
+failed turns, and clearly better latency or cost). It is about three times
+slower to the first word, misses more required figures through deadlines, and
+its real price is unknown. The provider stays available, off by default.
 

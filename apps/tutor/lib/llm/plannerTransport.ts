@@ -66,6 +66,12 @@ export interface PlannerTransportOptions {
   maxAttemptsPerModel?: number;
   maxRetryDelayMs?: number;
   models: readonly string[];
+  /**
+   * Remember a 404/410 model for the life of the process and skip it. Only
+   * Fireworks has another model to move to; on Azure or a relay the one model
+   * would be skipped forever, so figures would stop until a restart.
+   */
+  rememberUnavailableModels?: boolean;
   onRetry?: (event: PlannerRetryEvent) => void;
   signal?: AbortSignal;
   sleep?: (delayMs: number) => Promise<void>;
@@ -173,8 +179,9 @@ export async function fetchPlannerCompletion(
   const attemptsPerModel = Math.max(1, Math.floor(options.maxAttemptsPerModel ?? 2));
   const attemptTimeoutMs = Math.max(1, Math.floor(options.attemptTimeoutMs ?? 25_000));
   const maxRetryDelayMs = Math.max(0, Math.floor(options.maxRetryDelayMs ?? 2000));
+  const remember = options.rememberUnavailableModels !== false;
   const models = uniqueModels(options.models.map((model) => model.trim()).filter(Boolean))
-    .filter((model) => !unavailableModels.has(model));
+    .filter((model) => !remember || !unavailableModels.has(model));
   if (models.length === 0) throw new Error("planner transport requires at least one model");
 
   const totalAttempts = models.length * attemptsPerModel;
@@ -214,7 +221,7 @@ export async function fetchPlannerCompletion(
         clearTimeout(timeoutId);
 
         if (MODEL_UNAVAILABLE_STATUSES.has(response.status)) {
-          unavailableModels.add(model);
+          if (remember) unavailableModels.add(model);
           lastResponse = { response: await retainResponse(response), model };
           break;
         }

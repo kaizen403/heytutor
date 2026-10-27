@@ -242,7 +242,7 @@ export function RunCostBox({
               {azureRate
                 ? `AI is gpt-6.1-sol on Azure, ${formatUsd(azureRate.inputUsdPer1M)} in and ${formatUsd(azureRate.outputUsdPer1M)} out per 1M tokens`
                 : compatRate
-                  ? `AI is a relay (OPENAI_COMPAT_MODEL), priced at ${formatUsd(compatRate.inputUsdPer1M)} in and ${formatUsd(compatRate.outputUsdPer1M)} out per 1M tokens`
+                  ? `AI is a relay model, priced at ${formatUsd(compatRate.inputUsdPer1M)} in and ${formatUsd(compatRate.outputUsdPer1M)} out per 1M tokens`
                   : "AI is Fireworks serverless"}
               {jevRate != null
                 ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens`

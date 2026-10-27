@@ -32,7 +32,7 @@ import {
   startTurnTrace,
 } from "@/lib/obs/langfuse";
 import { fetchTeachingCompletion } from "@/lib/llm/teachingTransport";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, endpointEnv, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import { prepareNotesChat } from "@/lib/llm/notesChatPolicy";
 import { parseProviderUsage, usageDetailsFromParsed } from "@/lib/obs/providerUsage";
 import { registerWsConnectionRevocation } from "@/lib/tts/wsTicket";
@@ -342,6 +342,8 @@ async function postNotesChat(request: Request, context: RouteContext, actor: Spe
   let prepared: Awaited<ReturnType<typeof prepareNotesChat>>;
   policyDispatched = policy !== undefined;
   try { prepared = await prepareNotesChat({
+    // Models for the provider resolved above, even if the relay circuit moved since.
+    env: endpointEnv(llm),
     notes,
     tag,
     userMessage: message,

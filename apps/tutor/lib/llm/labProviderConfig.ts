@@ -9,6 +9,15 @@ import { plannerSpeedSettings } from "./planningSpeed";
 import { buildLabModelProfile } from "./labModelProfile";
 import { liveDiagramPromptInputBounds } from "../scene/diagramExampleLibrary.server";
 
+/** A profile the lab cannot use (no relay prices, fallback on) is a reason, not a 500. */
+function standardProfile(endpoint: ReturnType<typeof resolveLlmEndpoint>) {
+  try {
+    return { modelProfile: buildLabModelProfile({ endpoint, env: process.env }), modelProfileError: null };
+  } catch (error) {
+    return { modelProfile: null, modelProfileError: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 function fastProfileOrNull(endpoint: ReturnType<typeof resolveLlmEndpoint>) {
   try {
     return buildLabModelProfile({ endpoint, env: process.env, fastMode: true });
@@ -41,7 +50,7 @@ export function labProviderConfig() {
   return {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured,
-    modelProfile: configured ? buildLabModelProfile({ endpoint, env: process.env }) : null,
+    ...(configured ? standardProfile(endpoint) : { modelProfile: null, modelProfileError: null }),
     // Production routing for `--model fast` evals (no standard-evaluation header).
     // An unsupported Fast identity advertises null, so `--model fast` fails closed
     // while the standard profile stays available.

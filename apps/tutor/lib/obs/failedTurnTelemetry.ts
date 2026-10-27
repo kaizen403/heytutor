@@ -2,6 +2,7 @@ import { effectiveTurnStatus, hasMeaningfulTurnSegments } from "../boards/turnSt
 import { classifyTurnFailure } from "./turnFailureClassification";
 import { failedTurnRuntimeEnvironment } from "./failedTurnRuntime";
 import { BILLING_ERROR_CODES, billingStatus, isBillingErrorCode, type BillingErrorCode } from "../billing/errors";
+import { resolveLlmEndpoint } from "../llm/llmProvider";
 
 export const FAILED_TURN_BILLING_CODES = BILLING_ERROR_CODES;
 
@@ -200,9 +201,11 @@ export function buildFailedTurnSentryEvent(
   const issueCodes = [...new Set(rawCodes.map(value => typeof value === "string" && known.has(value) ? value : "unknown_issue"))].slice(0, 32);
   const strictSubjects = (env.DIAGRAM_STRICT_SUBJECTS ?? "").split(/[\s,]+/)
     .filter(value => ["maths", "physics", "chemistry"].includes(value));
-  const azure = env.LLM_PROVIDER === "azure" && Boolean(env.AZURE_OPENAI_ENDPOINT?.trim() && env.AZURE_OPENAI_API_KEY?.trim() && env.AZURE_OPENAI_DEPLOYMENT?.trim());
-  const provider = options.historical ? "unknown" : azure ? "azure" : env.FIREWORKS_API_KEY?.trim() ? "fireworks" : "mock";
-  const deployment = options.historical ? "unknown" : member(azure ? env.AZURE_OPENAI_DEPLOYMENT : provider === "mock" ? "mock" : "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
+  // The provider the next turn would use, as the chat route resolves it.
+  const endpoint = resolveLlmEndpoint(env);
+  const provider = options.historical ? "unknown" : !endpoint.apiKey ? "mock" : endpoint.provider;
+  const deployment = options.historical ? "unknown"
+    : member(provider === "mock" ? "mock" : endpoint.deployment ?? "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
   const releaseValue = env.SENTRY_RELEASE ?? env.GITHUB_SHA ?? "";
   const release = !options.historical && /^[a-f0-9]{40}$/i.test(releaseValue) ? releaseValue.toLowerCase() : "unknown";
   const environment = failedTurnRuntimeEnvironment(env);

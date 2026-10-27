@@ -171,6 +171,7 @@ const paidUsage = load(path("lib/billing/paidUsage.ts")) as typeof import("../..
 const grants = load(path("lib/billing/grant.ts")) as typeof import("../../lib/billing/grant");
 const fuses = load(path("lib/billing/fuses.ts")) as typeof import("../../lib/billing/fuses");
 const labProfile = load(path("lib/llm/labModelProfile.ts")) as typeof import("../../lib/llm/labModelProfile");
+const failedTurns = load(path("lib/obs/failedTurnTelemetry.ts")) as typeof import("../../lib/obs/failedTurnTelemetry");
 const chat = load(path("app/api/chat/route.ts")) as typeof import("../../app/api/chat/route");
 
 type Env = Record<string, string | undefined>;
@@ -466,8 +467,8 @@ const unitChecks: [string, () => void | Promise<void>][] = [
   ["the relay circuit opens on a blocked key or repeated failures, and closes after the cooldown", () => {
     const { failureWindowMs, failuresToOpen, cooldownMs } = provider.COMPAT_CIRCUIT;
     const t0 = 1_000_000;
-    // A 401 or 403 opens at once.
-    for (const status of [401, 403]) {
+    // A blocked key, empty balance, wrong URL or unrouted model opens at once.
+    for (const status of [401, 402, 403, 404, 410]) {
       const circuit = new provider.CompatCircuit();
       assert.equal(circuit.record({ ok: false, status }, t0), true, `${status}`);
       assert.match(circuit.openReason(t0 + 1) ?? "", new RegExp(`answered ${status}`));
@@ -511,6 +512,83 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     assert.equal(loud.errors.length, 1);
     assert.match(loud.errors[0]!, /\[llm\] openai_compat answered 401/);
   }],
+  ["a relay base URL without /v1, or production without the opt-in, stays on Fireworks", () => {
+    for (const [base, problem] of [
+      ["https://relay.test", "must end in /v1"], ["https://relay.test/api", "must end in /v1"],
+      ["relay.test/v1", "is not a URL"], ["ftp://relay.test/v1", "is not an http\\(s\\) URL"],
+    ] as const) {
+      const env = { ...RELAY, FIREWORKS_API_KEY: "fw", OPENAI_COMPAT_BASE_URL: base };
+      const { value } = captureErrors(() => provider.resolveLlmEndpoint(env, new provider.CompatCircuit()));
+      assert.equal(value.provider, "fireworks", base);
+      assert.match(value.fallbackReason ?? "", new RegExp(`OPENAI_COMPAT_BASE_URL ${problem}`), base);
+    }
+    const production = { ...RELAY, FIREWORKS_API_KEY: "fw", NODE_ENV: "production" };
+    const { value: blocked } = captureErrors(() => provider.resolveLlmEndpoint(production, new provider.CompatCircuit()));
+    assert.equal(blocked.provider, "fireworks");
+    assert.match(blocked.fallbackReason ?? "", /does not enforce output caps and OPENAI_COMPAT_ALLOW_PRODUCTION is not 1/);
+    assert.equal(provider.resolveLlmEndpoint({ ...production, OPENAI_COMPAT_ALLOW_PRODUCTION: "1" }, new provider.CompatCircuit()).provider, "openai_compat");
+  }],
+  ["endpointEnv pins model choice to the endpoint a request already resolved", () => {
+    const env = { ...RELAY, FIREWORKS_API_KEY: "fw" };
+    const saved = { ...process.env };
+    try {
+      Object.assign(process.env, env);
+      provider.compatCircuit.reset();
+      const relayEndpoint = provider.resolveLlmEndpoint();
+      assert.equal(relayEndpoint.provider, "openai_compat");
+      provider.compatCircuit.record({ ok: false, status: 403 });
+      // The circuit opened after the request resolved: its model stays the relay's.
+      assert.equal(models.resolveFireworksModel({ fastMode: true }), "accounts/fireworks/routers/kimi-k3-fast");
+      assert.equal(models.resolveFireworksModel({ fastMode: true, env: provider.endpointEnv(relayEndpoint) }), "gpt-6.1-sol");
+      const fireworksEndpoint = provider.resolveLlmEndpoint();
+      assert.equal(fireworksEndpoint.provider, "fireworks");
+      provider.compatCircuit.reset();
+      // The circuit closed after the request resolved: its model stays Kimi.
+      assert.equal(models.resolveFireworksModel({ fastMode: true }), "gpt-6.1-sol");
+      assert.equal(models.resolveFireworksModel({ fastMode: true, env: provider.endpointEnv(fireworksEndpoint) }), "accounts/fireworks/routers/kimi-k3-fast");
+      assert.equal(provider.endpointEnv({ provider: "azure" }, env), env);
+    } finally {
+      provider.compatCircuit.reset();
+      for (const name of Object.keys(process.env)) if (!(name in saved)) delete process.env[name];
+      Object.assign(process.env, saved);
+    }
+  }],
+  ["failed turn telemetry tags the relay, not Fireworks", () => {
+    const turn = {
+      visualStatus: "text_only", status: "complete", kind: "lesson", rawResponse: "Synthetic",
+      sceneArtifacts: { turnPlan: { visualRequirement: "required" }, failureTelemetry: { subject: "physics", stage: "scene_planner", code: "candidate_invalid" } },
+      segments: [{ narration: "Synthetic", spokenText: "Synthetic" }],
+    } as unknown as Parameters<typeof failedTurns.buildFailedTurnSentryEvent>[0];
+    const tags = (env: Env) => {
+      const event = failedTurns.buildFailedTurnSentryEvent(turn, env);
+      assert(event, "the fixture is a failed turn");
+      const all = event.tags as Record<string, unknown>;
+      return [all.provider, all.deployment];
+    };
+    provider.compatCircuit.reset();
+    assert.deepEqual(tags({ ...RELAY, FIREWORKS_API_KEY: "fw" }), ["openai_compat", "gpt-6.1-sol"]);
+    assert.deepEqual(tags({ ...RELAY }), ["openai_compat", "gpt-6.1-sol"], "no Fireworks key: still the relay, not mock");
+    assert.deepEqual(tags({ ...AZURE }), ["azure", "gpt-6-1-sol"]);
+    assert.deepEqual(tags({ FIREWORKS_API_KEY: "fw" }), ["fireworks", "fireworks"]);
+    assert.deepEqual(tags({}), ["mock", "mock"]);
+  }],
+  ["relay reservations include the hidden prompt; other lanes are unchanged", () => {
+    const saved = { ...process.env };
+    try {
+      Object.assign(process.env, RELAY);
+      const messages = [{ role: "user", content: "x".repeat(100) }];
+      const relay = paidUsage.maximumLlmCost(messages, 1000, ["gpt-6.1-sol"]);
+      const azure = paidUsage.maximumLlmCost(messages, 1000, ["azure/gpt-6-1-sol"]);
+      assert.equal(usageCost.resolveLlmRateLane("azure/gpt-6-1-sol"), "gpt-6.1-sol");
+      // Same default rates on both lanes, so the difference is the hidden prompt at $2 per 1M.
+      assert.equal(Math.round((relay - azure) * 1e6), Math.round(paidUsage.RELAY_HIDDEN_PROMPT_TOKENS * 2));
+      Object.assign(process.env, { LLM_PROVIDER: "fireworks" });
+      assert.equal(paidUsage.maximumLlmCost(messages, 1000, ["gpt-6.1-sol"]), azure, "an inactive relay adds nothing");
+    } finally {
+      for (const name of Object.keys(process.env)) if (!(name in saved)) delete process.env[name];
+      Object.assign(process.env, saved);
+    }
+  }],
   ["relay usage: both upstream shapes parse, and the id names the upstream", () => {
     // chatcmpl upstream: top level input/output/reasoning, plus cached details.
     assert.deepEqual(providerUsage.parseProviderUsage({
@@ -541,6 +619,8 @@ const unitChecks: [string, () => void | Promise<void>][] = [
         { input: 0.125, cachedInput: 0.125, output: 5, total: 5.125 });
       assert.deepEqual(runCost.snapshotPricing().llm.find((row) => row.lane === "openai-compat"),
         { lane: "openai-compat", inputUsdPer1M: 1.25, cachedInputUsdPer1M: 0.125, outputUsdPer1M: 5 });
+      assert.deepEqual(runCost.snapshotPricing().llm.map((row) => row.lane).filter((lane) => lane === "openai-compat" || lane === "gpt-6.1-sol"),
+        ["gpt-6.1-sol", "openai-compat"], "one Azure row and one relay row");
       Object.assign(process.env, AZURE);
       assert.equal(usageCost.resolveLlmRateLane("gpt-6.1-sol"), "gpt-6.1-sol");
       assert.equal(runCost.snapshotPricing().llm.some((row) => row.lane === "openai-compat"), false);
@@ -555,8 +635,11 @@ const unitChecks: [string, () => void | Promise<void>][] = [
     const saved = { ...process.env };
     try {
       Object.assign(process.env, env);
-      assert.throws(() => labProfile.buildLabModelProfile({ endpoint, env }), /explicit relay prices: set OPENAI_COMPAT_INPUT_USD_PER_1M, OPENAI_COMPAT_OUTPUT_USD_PER_1M/);
-      const priced = { ...env, OPENAI_COMPAT_INPUT_USD_PER_1M: "2", OPENAI_COMPAT_OUTPUT_USD_PER_1M: "10" };
+      assert.throws(() => labProfile.buildLabModelProfile({ endpoint, env }),
+        /explicit relay prices: set OPENAI_COMPAT_INPUT_USD_PER_1M, OPENAI_COMPAT_CACHED_INPUT_USD_PER_1M, OPENAI_COMPAT_OUTPUT_USD_PER_1M/);
+      const pricedOnly = { ...env, OPENAI_COMPAT_INPUT_USD_PER_1M: "2", OPENAI_COMPAT_CACHED_INPUT_USD_PER_1M: "0.1", OPENAI_COMPAT_OUTPUT_USD_PER_1M: "10" };
+      assert.throws(() => labProfile.buildLabModelProfile({ endpoint, env: pricedOnly }), /OPENAI_COMPAT_FALLBACK=off/);
+      const priced = { ...pricedOnly, OPENAI_COMPAT_FALLBACK: "off" };
       Object.assign(process.env, priced);
       const profile = labProfile.buildLabModelProfile({ endpoint, env: priced });
       assert.equal(profile.provider, "openai_compat");
@@ -829,6 +912,87 @@ const routeChecks: [string, () => Promise<void>][] = [
     assert.equal(next.body.model, "accounts/fireworks/routers/kimi-k3-fast");
     assert.deepEqual(next.body.thinking, { type: "disabled" });
     assert.equal("reasoning_effort" in next.body, false);
+  }],
+  ["relay: a planner 403 (final response) opens the circuit", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    const sent: Sent[] = [];
+    installProvider(sent, () => new Response("blocked", { status: 403 }));
+    const captured: string[] = [];
+    console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    try { await (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text(); }
+    finally { console.error = originalConsoleError; }
+    assert.equal(sent.length, 1);
+    assert.ok(captured.some((line) => /\[llm\] openai_compat answered 403/.test(line)));
+    assert.match(provider.compatCircuit.openReason() ?? "", /answered 403/);
+  }],
+  ["relay: planner connect failures count once per request, and three requests open the circuit", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    let dispatched = 0;
+    globalThis.fetch = async () => { dispatched += 1; throw new TypeError("fetch failed"); };
+    const post = async () => (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
+    const captured: string[] = [];
+    console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    try {
+      await post(); await post();
+      assert.ok(dispatched >= 4, `${dispatched} attempts over two requests`);
+      assert.equal(provider.compatCircuit.openReason(), null, "two requests with retries are two failures, not four");
+      await post();
+    } finally { console.error = originalConsoleError; }
+    assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/);
+    assert.ok(captured.some((line) => /\[llm\] openai_compat failed 3 times/.test(line)), captured.join("\n"));
+  }],
+  ["relay: teaching connect failures count once per request; a student who left counts nothing", async () => {
+    arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    let dispatched = 0;
+    globalThis.fetch = async () => { dispatched += 1; throw new TypeError("fetch failed"); };
+    // A lesson trace admits only a few teaching calls, so each request is its own lesson.
+    const freshTrace = () => {
+      testNumber += 1;
+      const trace = `provider-trace-${testNumber}`;
+      ownedTraces.set(trace, { userId: actor.userId, expiresAt: new Date(Date.now() + 86_400_000) });
+      assert(grants.createLessonGrant({ userId: actor.userId, traceId: trace, usdMillicents: 1_000_000 }).ok);
+      return trace;
+    };
+    const post = async (signal?: AbortSignal) => {
+      const request = chatRequest(freshTrace(), PLANNED_TEACHING);
+      const response = await chat.POST(signal ? new Request(request, { signal }) : request).catch((error: unknown) => error);
+      if (response instanceof Response) await response.text().catch(() => undefined);
+    };
+    await post(); await post();
+    assert.ok(dispatched >= 6, `${dispatched} attempts over two requests`);
+    assert.equal(provider.compatCircuit.openReason(), null, "two requests are two failures");
+    // Three requests from a student who left: every attempt aborts, nothing counts.
+    for (let i = 0; i < 3; i += 1) {
+      const left = new AbortController();
+      globalThis.fetch = async () => { left.abort(); throw new DOMException("aborted", "AbortError"); };
+      await post(left.signal);
+    }
+    assert.equal(provider.compatCircuit.openReason(), null, "aborted requests are not relay failures");
+    const before = dispatched;
+    globalThis.fetch = async () => { dispatched += 1; throw new TypeError("fetch failed"); };
+    const captured: string[] = [];
+    console.error = (...args: unknown[]) => { captured.push(args.map(String).join(" ")); };
+    try { await post(); } finally { console.error = originalConsoleError; }
+    assert.ok(dispatched > before, "the third failing request reached the relay");
+    assert.match(provider.compatCircuit.openReason() ?? "", /failed 3 times/);
+  }],
+  ["relay: a 400 is our request and never opens the circuit", async () => {
+    const trace = arrange({ ...RELAY, FIREWORKS_API_KEY: "fireworks-test-key" });
+    const sent: Sent[] = [];
+    installProvider(sent, () => Response.json({ error: { message: "bad request" } }, { status: 400 }));
+    for (let i = 0; i < 4; i += 1) await (await chat.POST(chatRequest(trace, PLANNED_TEACHING))).text();
+    assert.equal(provider.compatCircuit.openReason(), null);
+    assert.ok(sent.length >= 4 && sent.every((call) => call.url === RELAY_URL));
+  }],
+  ["relay: a planner 404 does not blacklist the relay model for the life of the process", async () => {
+    const trace = arrange({ ...RELAY, OPENAI_COMPAT_FALLBACK: "off" });
+    const sent: Sent[] = [];
+    let calls = 0;
+    installProvider(sent, () => (calls++ === 0 ? new Response("no route", { status: 404 }) : plannerReply({})()));
+    await (await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }))).text();
+    const second = await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false }));
+    assert.equal(second.status, 200, "the next plan still reaches the relay");
+    assert.deepEqual(sent.map((call) => [call.url, call.body.model]), [[RELAY_URL, "gpt-6.1-sol"], [RELAY_URL, "gpt-6.1-sol"]]);
   }],
   ["relay: with fallback off, repeated 5xx keep the relay (the lab measures it alone)", async () => {
     const trace = arrange({ ...RELAY, OPENAI_COMPAT_FALLBACK: "off" });

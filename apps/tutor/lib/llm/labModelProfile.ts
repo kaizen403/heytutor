@@ -123,10 +123,14 @@ export function buildLabModelProfile(input: {
   if (!endpoint.apiKey?.trim() || endpoint.fallbackReason) throw new Error("lab requires a configured provider key without fallback");
   const single = endpoint.provider !== "fireworks";
   if (single && !endpoint.deployment?.trim()) throw new Error(`lab requires a configured ${endpoint.provider} deployment`);
-  // A relay's default prices are a guess at its upstream. A capped round needs real ones.
+  // A relay's default prices are a guess at its upstream. A capped round needs
+  // real ones, and measures the relay alone: an open circuit would quietly
+  // send rows to Fireworks.
   if (endpoint.provider === "openai_compat") {
-    const unpriced = ["OPENAI_COMPAT_INPUT_USD_PER_1M", "OPENAI_COMPAT_OUTPUT_USD_PER_1M"].filter((key) => !env[key]?.trim());
+    const unpriced = ["OPENAI_COMPAT_INPUT_USD_PER_1M", "OPENAI_COMPAT_CACHED_INPUT_USD_PER_1M", "OPENAI_COMPAT_OUTPUT_USD_PER_1M"]
+      .filter((key) => !env[key]?.trim());
     if (unpriced.length > 0) throw new Error(`lab requires explicit relay prices: set ${unpriced.join(", ")}`);
+    if (env.OPENAI_COMPAT_FALLBACK?.trim().toLowerCase() !== "off") throw new Error("lab requires OPENAI_COMPAT_FALLBACK=off so every row runs on the relay");
   }
   const standard = single ? endpoint.deployment! : DEFAULT_FIREWORKS_MODEL;
   // Fast uses the same resolvers as an ordinary production request (no

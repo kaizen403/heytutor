@@ -67,9 +67,13 @@ export function compatChatUrl(baseUrl: string): string {
 
 /**
  * Relays pool upstream accounts and can vanish, block a key, or rate limit
- * without notice. A 401 or 403 opens the circuit at once; three 429, 5xx or
- * connect failures inside a minute open it too. While it is open new requests
- * resolve to Fireworks; after the cooldown the relay is tried again.
+ * without notice. A 401, 402, 403, 404 or 410 opens the circuit at once (a
+ * blocked key, an empty balance, a wrong base URL or a model the relay no
+ * longer routes); three 408, 429, 5xx or connect failures inside a minute open
+ * it too. Callers report once per request, not per retry. While it is open new
+ * requests resolve to Fireworks; after the cooldown the relay is tried again.
+ * A relay that answers every request with a 400 never opens it: that is a
+ * request the relay rejects, and Fireworks would get the same body shape.
  */
 export const COMPAT_CIRCUIT = {
   failureWindowMs: 60_000,
@@ -78,6 +82,9 @@ export const COMPAT_CIRCUIT = {
 } as const;
 
 export type ProviderOutcome = { ok: true } | { ok: false; status?: number };
+
+/** Statuses that mean the relay cannot serve us at all, not a passing blip. */
+const COMPAT_BLOCKING_STATUSES = new Set([401, 402, 403, 404, 410]);
 
 export class CompatCircuit {
   private failures: number[] = [];
@@ -107,10 +114,10 @@ export class CompatCircuit {
       return false;
     }
     const status = outcome.status;
-    // A 4xx other than auth and rate limits is our request, not the relay.
-    if (status !== undefined && status < 500 && status !== 401 && status !== 403 && status !== 408 && status !== 429) return false;
+    const blocked = status !== undefined && COMPAT_BLOCKING_STATUSES.has(status);
+    // Any other 4xx but a timeout or rate limit is our request, not the relay.
+    if (status !== undefined && status < 500 && !blocked && status !== 408 && status !== 429) return false;
     if (this.openReason(now)) return false;
-    const blocked = status === 401 || status === 403;
     this.failures = [...this.failures.filter((at) => now - at < COMPAT_CIRCUIT.failureWindowMs), now];
     if (!blocked && this.failures.length < COMPAT_CIRCUIT.failuresToOpen) return false;
     this.openUntil = now + COMPAT_CIRCUIT.cooldownMs;
@@ -122,8 +129,13 @@ export class CompatCircuit {
   }
 }
 
-/** The process-wide relay circuit the chat route reports into. */
-export const compatCircuit = new CompatCircuit();
+/**
+ * The process-wide relay circuit every LLM route reports into. Next bundles
+ * each route separately, so module state is per bundle; the circuit lives on
+ * globalThis (as turn grants do) so one route's failures protect the others.
+ */
+const circuitHolder = globalThis as typeof globalThis & { __heytutorCompatCircuit?: CompatCircuit };
+export const compatCircuit: CompatCircuit = circuitHolder.__heytutorCompatCircuit ??= new CompatCircuit();
 
 /**
  * Report how a relay call ended. Ignored for other providers and when
@@ -139,6 +151,41 @@ export function noteProviderOutcome(
 ): void {
   if (endpoint.provider !== "openai_compat" || !compatFallbackEnabled(env)) return;
   if (circuit.record(outcome)) console.error(`[llm] ${circuit.openReason()}`);
+}
+
+/**
+ * A relay env that must not serve students. The base URL is checked because a
+ * missing `/v1` makes every call a 404. Production also needs
+ * `OPENAI_COMPAT_ALLOW_PRODUCTION=1`: the relay ignores `max_tokens` and
+ * `max_completion_tokens` (probed 27 Oct 2026), so a reservation sized by the
+ * cap does not bound what a student's turn can bill.
+ */
+function compatEnvProblem(env: Env): string | null {
+  let path: string;
+  try {
+    const url = new URL(compatChatUrl(env.OPENAI_COMPAT_BASE_URL!));
+    if (url.protocol !== "https:" && url.protocol !== "http:") return "OPENAI_COMPAT_BASE_URL is not an http(s) URL";
+    path = url.pathname;
+  } catch {
+    return "OPENAI_COMPAT_BASE_URL is not a URL";
+  }
+  if (!/\/v1\/chat\/completions$/.test(path)) return "OPENAI_COMPAT_BASE_URL must end in /v1";
+  if (env.NODE_ENV === "production" && trimmed(env.OPENAI_COMPAT_ALLOW_PRODUCTION) !== "1") {
+    return "the relay does not enforce output caps and OPENAI_COMPAT_ALLOW_PRODUCTION is not 1";
+  }
+  return null;
+}
+
+/**
+ * An env that resolves to the same provider `endpoint` did, whatever the relay
+ * circuit does in between. Routes that resolve the endpoint, await something,
+ * then pick a model pass this to the model resolvers so a Kimi id never goes
+ * to the relay and the relay model never goes to Fireworks.
+ */
+export function endpointEnv(endpoint: Pick<LlmEndpoint, "provider">, env: Env = process.env): Env {
+  if (endpoint.provider === "fireworks") return { ...env, LLM_PROVIDER: "fireworks" };
+  if (endpoint.provider === "openai_compat") return { ...env, OPENAI_COMPAT_FALLBACK: "off" };
+  return env;
 }
 
 function compatFallbackEnabled(env: Env): boolean {
@@ -159,6 +206,12 @@ export function resolveLlmEndpoint(env: Env = process.env, circuit: CompatCircui
     const missing = OPENAI_COMPAT_ENV_KEYS.filter((key) => !trimmed(env[key]));
     if (missing.length > 0) {
       const reason = `LLM_PROVIDER=openai_compat but ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not set; using Fireworks`;
+      logFallbackOnce(reason);
+      return fireworksEndpoint(env, reason);
+    }
+    const invalid = compatEnvProblem(env);
+    if (invalid) {
+      const reason = `LLM_PROVIDER=openai_compat but ${invalid}; using Fireworks`;
       logFallbackOnce(reason);
       return fireworksEndpoint(env, reason);
     }

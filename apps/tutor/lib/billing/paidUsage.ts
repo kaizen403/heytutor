@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { calculateLlmCostDetails, type UsageCounts } from "../obs/usageCost";
+import { calculateLlmCostDetails, resolveLlmRateLane, type UsageCounts } from "../obs/usageCost";
 import { billingResponse } from "./errors";
 import type { SpendActor } from "./actor";
 import { acquirePaidCall, getTurnGrant, syncGrantUsdRemaining, type PaidCallKind, type TurnGrant, PAID_CALL_LIMITS } from "./grant";
@@ -137,9 +137,18 @@ export async function reservePaidUsage(input: {
 
 /** Text-only input upper bound: at most one token per UTF-8 byte plus protocol
  * overhead. Models/output lengths are exclusively server-selected. */
+/**
+ * A relay adds its own prompt to most calls (about 4,200 tokens on tokens-flow,
+ * 27 Oct 2026), billed as input we never sent. Reserve it on the relay lane.
+ */
+export const RELAY_HIDDEN_PROMPT_TOKENS = 4500;
+
 export function maximumLlmCost(messages: unknown, maxTokens: number, models: readonly string[], attempts = 1): number {
   const input = new TextEncoder().encode(JSON.stringify(messages)).length + 2048;
-  return Math.max(...models.map(model => calculateLlmCostDetails({ input, output: maxTokens }, { model }).total ?? 0)) * attempts;
+  return Math.max(...models.map(model => calculateLlmCostDetails({
+    input: input + (resolveLlmRateLane(model) === "openai-compat" ? RELAY_HIDDEN_PROMPT_TOKENS : 0),
+    output: maxTokens,
+  }, { model }).total ?? 0)) * attempts;
 }
 
 export function actualLlmCost(usage: UsageCounts | undefined, model: string): number | undefined {
