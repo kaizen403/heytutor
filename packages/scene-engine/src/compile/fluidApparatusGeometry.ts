@@ -216,9 +216,27 @@ const NON_VALUE_NUMBERS = [
 ];
 /** Multipliers that always state a ratio: "twice", "doubled", "tenfold", "das guna", "½". */
 const MULTIPLIER = /\b(?:twice|thrice|doubl\w*|tripl\w*|quadrupl\w*|halv\w*|half|\w+fold|percent|guna|gunaa|gune|aadha|adha|dugna|tigna)\b|[%½¼¾⅓⅔]|गुना|दुगना|आधा|[०-९]/i;
-/** A number word states a value only beside what it measures ("ten times the area", "one-eighth the force"). */
-const NUMBER_WORD = String.raw`(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|hundredth|thousandth|das|bees|sau|दस|बीस|सौ)`;
-const NUMBER_VALUE = new RegExp(String.raw`\b(?:one[-\s])?${NUMBER_WORD}s?\b(?:[-\s]+\w+){0,2}?[-\s]+(?:times|area|areas|force|forces|radius|radii|diameter|depth|height|bigger|larger|smaller|greater|heavier|deeper)\b`, "i");
+/**
+ * Every English cardinal and ordinal, so no spelled number is missed
+ * ("sixteen", "ninety", "lakh"). "one", "first" and "second" are left out:
+ * they name a face or a piston far more often than a value ("one face",
+ * "the second piston"), and "one-eighth" is still read through its fraction.
+ */
+const UNITS = ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const LARGE = ["hundred", "thousand", "lakh", "lac", "crore", "million", "billion", "dozen", "score"];
+const ORDINALS = ["third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth",
+  ...UNITS.slice(11).map((word) => `${word}th`), ...TENS.map((word) => `${word.slice(0, -1)}ieth`), ...LARGE.map((word) => `${word}th`)];
+// Romanised Hindi words that are also English words ("do", "teen", "char") are left out.
+const HINDI = ["paanch", "chhe", "saat", "aath", "nau", "das", "bees", "pachaas", "sau", "hazaar", "दो", "तीन", "चार", "पाँच", "दस", "बीस", "सौ", "हज़ार", "हजार"];
+const NUMBER_WORD = `(?:${[...UNITS, ...TENS, ...LARGE, ...ORDINALS, ...HINDI].join("|")})`;
+/** The figure's own parts: "two forces", "two faces", "two pistons" count what it draws. */
+const COUNTED_PART = "(?:forces|faces|pistons|cylinders|sides|arms|limbs|vessels|tubes|surfaces|arrows)";
+/**
+ * Any spelled number is a stated value ("sixteen times the area", "a twelfth
+ * of a metre") unless it directly counts one of the figure's own parts.
+ */
+const NUMBER_VALUE = new RegExp(String.raw`(?:^|[^\p{L}])(?:one[-\s])?${NUMBER_WORD}s?(?![\p{L}])(?![-\s]+${COUNTED_PART}(?![\p{L}]))`, "iu");
 
 function statesValue(question: string): boolean {
   let text = question;
@@ -233,10 +251,10 @@ function statesValue(question: string): boolean {
  * level, so a level difference or a brake circuit is a different figure. The
  * principle's own wording ("wholly or partially immersed") is not a case.
  */
-const PRINCIPLE_WORDING = /\b(?:wholly|fully|completely|totally)\s+or\s+(?:partially|partly)\b/gi;
+const PRINCIPLE_WORDING = /\b(?:(?:wholly|fully|completely|totally)\s+or\s+(?:partially|partly)|(?:partially|partly)\s+or\s+(?:wholly|fully|completely|totally))\b/gi;
 const CONTAINER = "(?:tank|vessel|container|beaker|jar|sea|lake|pond|river|ocean|pool)";
 const SUBMERGED_BODY_MISMATCH = new RegExp(String.raw`\b(?:float\w*|afloat|ships?|boats?|icebergs?|logs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|(?:rests?|resting|lies|lying|sits?|sitting|placed|kept)\s+(?:on|at)\s+the\s+(?:bottom|floor|base)|(?:at|on|to)\s+the\s+bottom\s+of\s+the\s+${CONTAINER}|stuck|\w*spher\w*|balls?|cones?|sinks?\s+to\s+the\s+bottom)\b`, "i");
-const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|different (?:levels?|heights?)|unequal (?:levels?|heights?)|not (?:at|on) the same (?:level|height)|level difference|height difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
+const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevat\w*|(?:different|unequal|varying|uneven) (?:levels?|heights?|positions?)|not (?:at|on) the same (?:level|height)|(?:level|height) difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
 
 /**
  * The qualitative fluid figures draw display proportions. They may only draw

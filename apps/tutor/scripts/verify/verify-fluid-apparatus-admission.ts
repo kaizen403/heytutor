@@ -113,6 +113,27 @@ for (const stem of [
   "Explain W1 and W2 in the derivation of Archimedes' principle.",
 ]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 
+for (const stem of [
+  "Explain how the two forces on the top and bottom faces of a submerged block compare.",
+  "State Archimedes' principle: a body partially or wholly immersed in a fluid experiences an upthrust. Derive it.",
+  "Why do the forces on the top and bottom faces differ?",
+  "The force on one face is larger than on the other. Explain why.",
+]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
+draws("a conceptual press stem: the second piston", press, "Why does the second piston feel a larger force?", plan("Why does the second piston feel a larger force?", ["pascals_law"]));
+
+// With no retained plan (legacy saves), the stem alone still refuses.
+for (const [candidate, stem] of [
+  [press, "The large piston has sixteen times the area of the small piston. Explain the press."],
+  [press, "Explain a hydraulic press whose pistons are at different elevations."],
+  [press, "The large piston has an area ninety times that of the small one."],
+  [archimedes, "A block is held under water at a depth of twelfth of a metre."],
+] as const) {
+  row(`no plan, stem refuses: ${stem}`, () => {
+    const failure = sceneSaveAdmissionFailure({ document: { ...candidate, source: { question: stem } } as SceneDocument, question: stem, turnPlan: null, tier: "qualitative_verified" });
+    assert.match(failure ?? "", /_source_has_values/, `${stem}: refused without a plan`);
+  });
+}
+
 // Spelled or disguised values refuse.
 for (const stem of [
   "In a hydraulic press the large piston has ten times the area of the small one. Explain the force multiplication.",
