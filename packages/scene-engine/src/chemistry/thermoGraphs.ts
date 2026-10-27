@@ -64,15 +64,16 @@ function namesMaxwellDistribution(stem: string): boolean {
 
 /**
  * A distribution of speeds or energies is the molecules' curve only for a
- * gas of molecules: it needs a molecule or gas word, and declines photons,
- * radiation, waves, a plasma or corona, an electron gas and nuclear
- * particles, whose distributions are other curves. Main matched the bare
+ * gas of molecules: it needs a molecule, gas, particle, atom, sample or
+ * reaction rate word, and declines photons, radiation, waves, a plasma or
+ * corona, an electron gas, and nuclear, decay or cosmic particles, whose
+ * distributions are other curves. Main matched the bare
  * phrase; this keeps only part of what it drew.
  */
 function moleculeDistribution(stem: string): boolean {
   if (!/boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem)) return false;
-  if (!/\b(?:molecul\w*|gas(?:es)?|maxwell|boltzmann|particles?|reactants?|reacting)\b/.test(stem)) return false;
-  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|electrons?|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body)\b/.test(stem);
+  if (!/\b(?:molecul\w*|gas(?:es)?|maxwell|boltzmann|particles?|atoms?|reactants?|reacting|reactions?|rates?|catalysts?|activation|collisions?|samples?)\b/.test(stem)) return false;
+  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body|alpha|beta|decay|cosmic)\b|\belectron\s+gas\b|\b(?:free|conduction)\s+electrons?\b|\belectrons?\s+in\s+(?:a|the)\s+metal\b|\b(?:of|among)\s+(?:the\s+)?electrons\b/.test(stem);
 }
 
 function classifyThermoStem(question: string): ThermoKind | null {
