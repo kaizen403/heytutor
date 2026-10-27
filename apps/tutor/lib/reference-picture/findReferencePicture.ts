@@ -95,6 +95,8 @@ const UNREAD_FACT_CHECK: FactCheckResult = { claims: [], readable: false };
  */
 function usable(judged: Pick<Judged, "candidate" | "verdict" | "factCheck" | "origin">): boolean {
   if (!verdictAccepts(judged.verdict, judged.origin) || !factCheckPasses(judged.factCheck)) return false;
+  // A picture with labels or a key states things; a check that listed none checked nothing.
+  if (judged.factCheck.claims.length === 0 && judged.verdict.labelLanguage !== "none") return false;
   const { legend } = acceptedLabels(judged.verdict);
   if (!legend) return true;
   const size = judged.candidate ? { width: judged.candidate.width, height: judged.candidate.height } : null;
@@ -212,7 +214,9 @@ async function judgeRound(batch: readonly PictureCandidate[], firstOrder: number
       ).finally(() => {
         pending--;
         if (pending === 0) return done();
-        if (results[i] && usable(results[i]!) && !grace) grace = setTimeout(done, ROUND_GRACE_MS);
+        let ready = false;
+        try { ready = results[i] !== null && usable(results[i]!); } catch { ready = false; }
+        if (ready && !grace) grace = setTimeout(done, ROUND_GRACE_MS);
       });
     });
   });
@@ -229,10 +233,15 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
     const imageDataUrl = await judgeDataUrl(bytes);
     const options = { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl };
     const [result, fact] = await Promise.all([
-      tracked(spend, "judge", () => judgePicture({ mustShow, origin: "wikimedia", title: candidate.title, description: candidate.description, imageDataUrl }, options), deps.signal),
-      factCheck(mustShow, imageDataUrl, context),
+      // Usage is recorded the moment the call returns, so a judge that finished
+      // while its fact check was cut off by the round's grace is still billed.
+      tracked(spend, "judge", async () => {
+        const judged = await judgePicture({ mustShow, origin: "wikimedia", title: candidate.title, description: candidate.description, imageDataUrl }, options);
+        spend.usages.push({ lane: "judge", model: judged.model, usage: judged.usage });
+        return judged;
+      }, deps.signal),
+      factCheck(mustShow, imageDataUrl, context, candidate.description),
     ]);
-    spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
     const judged: Judged = { candidate, bytes, verdict: result.verdict, factCheck: fact, origin: "wikimedia", order };
     steps.push(`judge ${candidate.title}: ${verdictStep(judged)}`);
     return judged;
@@ -244,11 +253,14 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
 }
 
 /** The fact check for one picture; a failed or unreadable check rejects it. */
-async function factCheck(mustShow: string, imageDataUrl: string, context: Context): Promise<FactCheckResult> {
+async function factCheck(mustShow: string, imageDataUrl: string, context: Context, description?: string): Promise<FactCheckResult> {
   const { deps, spend } = context;
   try {
-    const checked = await tracked(spend, "judge", () => factCheckPicture({ mustShow, imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
-    spend.usages.push({ lane: "judge", model: checked.model, usage: checked.usage });
+    const checked = await tracked(spend, "judge", async () => {
+      const result = await factCheckPicture({ mustShow, imageDataUrl, ...(description ? { description } : {}) }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl });
+      spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
+      return result;
+    }, deps.signal);
     return checked.result;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
@@ -263,10 +275,13 @@ async function judgeGenerated(provider: ImageProviderConfig, context: Context): 
     spend.usages.push({ lane: "generate", model: provider.model, usage: null });
     const imageDataUrl = await judgeDataUrl(bytes);
     const [result, fact] = await Promise.all([
-      tracked(spend, "judge", () => judgePicture({ mustShow, origin: "generated", imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal),
+      tracked(spend, "judge", async () => {
+        const judged = await judgePicture({ mustShow, origin: "generated", imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl });
+        spend.usages.push({ lane: "judge", model: judged.model, usage: judged.usage });
+        return judged;
+      }, deps.signal),
       factCheck(mustShow, imageDataUrl, context),
     ]);
-    spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
     const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
     steps.push(`judge generated: ${verdictStep(judged)}`);
     return judged;
@@ -282,7 +297,13 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
   const candidate = accepted.candidate;
   const sourceKey = candidate ? `wikimedia:${candidate.title}` : `generated:${store.queryKeyFor(mustShow) ?? mustShow.toLowerCase()}`;
   const existing = await db.findPictureBySourceKey(sourceKey);
-  if (existing) { steps.push("store: existing"); return existing; }
+  if (existing) {
+    // The same file read the other way this time (named labels then, a
+    // numbered key now, or the reverse) is not the picture that was checked.
+    if (Boolean(existing.legend?.length) !== Boolean(acceptedLabels(accepted.verdict).legend?.length)) throw new Error("stored record disagrees with this verdict on the key");
+    steps.push("store: existing");
+    return existing;
+  }
   const built = await (deps.strokePlan ?? buildStrokePlan)(accepted.bytes);
   const plan: ReferencePicturePlan = built.plan;
   steps.push(`plan: ${built.stats.outlineStrokes} outline, ${built.stats.fillStrokes} fill, ${built.stats.planBytes} B, ${built.stats.ms} ms`);
