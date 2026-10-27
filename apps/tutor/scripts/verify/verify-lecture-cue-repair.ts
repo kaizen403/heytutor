@@ -170,4 +170,11 @@ const bareRows = parseDrawingCommands(repairLectureMarkup(bareRowStep)).commands
   .filter((command) => command.type === "WRITE").map((command) => command.text);
 assert(bareRows.includes("the speed is constant"), `nor a coordinate-less row's text: ${JSON.stringify(bareRows)}`);
 
-console.log("lecture cue repair: equals on the friction row, box on the closing relation; repaired rows are never rewritten");
+// A row closed by [/WRITE] is newly a row; it must not widen the spoken
+// repair to a step main left alone ("is called" never becomes "equals called").
+const closedOnlyStep = "[STEP]Combine the right side. [WRITE](x + b/(2a))^2 = (b^2 - 4ac)/(4a^2)[/WRITE] The numerator is called the discriminant.[/STEP]";
+const closedOnlySpoken = parseDrawingCommands(repairLectureMarkup(closedOnlyStep)).narration;
+assert(closedOnlySpoken.includes("is called the discriminant") && !/equals called/.test(closedOnlySpoken),
+  `a step whose only relation row is tag-closed keeps its words: ${closedOnlySpoken}`);
+
+console.log("lecture cue repair: equals on the friction row, box on the closing relation; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");

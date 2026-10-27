@@ -1,4 +1,5 @@
 import {
+  matchClosedWriteRow,
   parseDrawingCommands,
   parseDrawingTag,
   repairCoordinateLessWriteTags,
@@ -31,6 +32,19 @@ function isRelationWrite(command: DrawCommand): boolean {
   return RELATION.test(row) && !OPEN_UNKNOWN.test(row);
 }
 
+/** The step with every tag-closed row taken out, words and tags alike. */
+function withoutClosedRows(step: string): string {
+  let out = "";
+  let from = 0;
+  for (let open = step.search(/\[WRITE[:\]]/i); open >= 0; open = step.slice(from).search(/\[WRITE[:\]]/i)) {
+    const at = from + open;
+    const closed = matchClosedWriteRow(step.slice(at));
+    out += step.slice(from, closed ? at : at + 1);
+    from = closed ? at + closed.raw.length : at + 1;
+  }
+  return out + step.slice(from);
+}
+
 function narrationOutsideTags(text: string): string {
   return parseDrawingCommands(text).narration;
 }
@@ -46,6 +60,10 @@ function repairLectureStep(rawStep: string): string {
   const step = repairCoordinateLessWriteTags(repairHeaderOnlyTextTags(rawStep));
   const parsed = parseDrawingCommands(step);
   if (!parsed.commands.some(isRelationWrite)) return step;
+  // A row closed by [/WRITE] became a row only on this branch: it does not
+  // widen the spoken repair. The step is rewritten only when its other rows
+  // already made it a relation step, as before.
+  if (!parseDrawingCommands(withoutClosedRows(rawStep)).commands.some(isRelationWrite)) return step;
   if (SAYS_EQUALS.test(narrationOutsideTags(step))) return step;
 
   if (/\bhas magnitude\b/i.test(step)) {
