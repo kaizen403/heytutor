@@ -102,8 +102,7 @@ function twoRiverIR(question: string): ProblemIR {
 
 /** One recorded drawing. Labels are the label and dimension texts in render order. */
 /** `boatPerp`: the river heading is asserted perpendicular, never straight across, and no α is drawn. */
-/** `collinear`: the legacy along-stream arrows vd and vu are vb+vc downstream and vb−vc upstream, to scale with vb and vc. */
-interface Figure { tier: string; family: string; labels: string[]; boatPerp?: boolean; tower?: boolean; collinear?: { vb: number; vc: number } }
+interface Figure { tier: string; family: string; labels: string[]; boatPerp?: boolean; tower?: boolean }
 const RIVER: Figure = { tier: "exact_verified", family: "vector_diagram", labels: ["bank", "bank", "current", "boat", "vb=5 m/s", "vc=3 m/s", "v"], boatPerp: true };
 const numericProjectile = (h: string, r: string): Figure => ({
   tier: "exact_verified", family: "contact_body",
@@ -115,8 +114,6 @@ const G98 = numericProjectile("5.1", "35.3");
 const SYMBOLIC: Figure = { tier: "qualitative_verified", family: "contact_body", labels: ["level ground", "projectile", "trajectory", "H", "B", "u", "θ", "A", "H", "R"] };
 // Downstream at vb+vc = 8 and upstream at vb−vc = 2, for 5 and 3 m/s (5 + 3 = 8, 5 − 3 = 2).
 const ALONG_STREAM_FIG: Figure = { tier: "exact_verified", family: "vector_diagram", labels: ["bank", "bank", "current", "boat", "vb+vc=8", "boat", "vb−vc=2", "vc"] };
-// The legacy along-stream sketch, for vb 5 and vc 3: its arrows are checked as vb+vc and vb−vc.
-const LEGACY_ALONG_STREAM_FIG: Figure = { tier: "qualitative_verified", family: "vector_diagram", labels: ["bank", "bank", "boat", "vc", "vb", "down", "up"], collinear: { vb: 5, vc: 3 } };
 const TOWER_FIG: Figure = { tier: "qualitative_verified", family: "contact_body", labels: ["level ground", "projectile", "h", "trajectory", "H", "B", "u", "θ", "A", "H", "R"], tower: true };
 
 /** The paths one repro runs: three per ProblemIR variant, then four with none. */
@@ -378,13 +375,15 @@ const evidenceRows: Repro[] = [
   ...UNSOURCED_SKETCH_PLANS.map(([tag, turnPlan], index) => ({ name: `evidence unsourced sketch ${index + 1}: swimmer, ${tag}`, question: SWIMMER, turnPlan, irs: RIVER_IRS(SWIMMER), expected: everywhere(null) })),
   ...declineRows("evidence split ground speed", SPLIT_GROUND_SPEED_STEMS),
   { name: `evidence slow boat 1: ${SLOW_BOAT}`, question: SLOW_BOAT, turnPlan: plan(SLOW_BOAT), irs: RIVER_IRS(SLOW_BOAT), expected: everywhere(null) },
-  // With vb and vc planned the legacy sketch draws it: its "up" arrow runs vc − vb = 1 downstream.
-  { name: "evidence slow boat 1 with vb and vc planned", question: SLOW_BOAT, turnPlan: crossingPlan(SLOW_BOAT, 2, 3), irs: RIVER_IRS(SLOW_BOAT), expected: refusedWithIR({ ...LEGACY_ALONG_STREAM_FIG, collinear: { vb: 2, vc: 3 } }, null) },
+  // With vb and vc planned the legacy sketch declines it too: main drew the archetype's arrow, never
+  // this sketch, so drawing the sketch would change a figure, not only decline one.
+  { name: "evidence slow boat 1 with vb and vc planned", question: SLOW_BOAT, turnPlan: crossingPlan(SLOW_BOAT, 2, 3), irs: RIVER_IRS(SLOW_BOAT), expected: everywhere(null) },
   ...declineRows("evidence crossing wording", CROSSING_WORDING_STEMS),
   ...declineRows("evidence swept drift", SWEPT_DRIFT_STEMS),
   ...declineRows("evidence how far down the river", HOW_FAR_DOWN_THE_RIVER_STEMS),
   ...declineRows("evidence how far downstream", HOW_FAR_DOWNSTREAM_STEMS),
   { name: `evidence equal boat 1: ${EQUAL_BOAT}`, question: EQUAL_BOAT, turnPlan: plan(EQUAL_BOAT), irs: RIVER_IRS(EQUAL_BOAT), expected: everywhere(null) },
+  { name: "evidence equal boat 1 with vb and vc planned", question: EQUAL_BOAT, turnPlan: crossingPlan(EQUAL_BOAT, 3, 3), irs: RIVER_IRS(EQUAL_BOAT), expected: everywhere(null) },
   // Drawn with no ProblemIR; the live river ProblemIR keeps main's refusal, as for "downstream".
   // The swimmer stem is the legacy sketch's alone: the fast path declines it.
   ...STILL_WATER_STEMS.map((question, index) => ({ name: `evidence still water ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: refusedWithIR(ALONG_STREAM_FIG) })),
@@ -427,18 +426,15 @@ const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROW
 const DOWNSTREAM_SPELLED = (name: string) => !/^evidence (?:drift down the river|swept drift 1|ground speed [23])\b/.test(name);
 const MAIN_WORDS = (rows: string[]) => rows.filter(DOWNSTREAM_SPELLED);
 
-type Primitive = { kind: string; id?: string; text?: string; points?: ReadonlyArray<{ x: number; y: number }> };
+type Primitive = { kind: string; text?: string };
 type Drawn = { tier: string; family?: string; renderScene: { primitives: ReadonlyArray<Primitive> }; document?: unknown; sceneDocument?: unknown } | null | undefined;
-/** `run`: each drawn vector's signed horizontal run on the board, by primitive id. */
-interface Shown { tier: string; family?: string; labels: string[]; ids: string[]; assertions: string[]; run: Record<string, number> }
+interface Shown { tier: string; family?: string; labels: string[]; ids: string[]; assertions: string[] }
 const show = (figure: Drawn): Shown | null => {
   if (!figure) return null;
   const document = (figure.sceneDocument ?? figure.document) as { entities: Array<{ id: string }>; assertions: Array<{ id: string }> } | undefined;
   const labels = figure.renderScene.primitives.flatMap((primitive) =>
     (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text ? [primitive.text] : []);
-  const run = Object.fromEntries(figure.renderScene.primitives.flatMap((primitive) =>
-    primitive.kind === "vector" && primitive.id && primitive.points?.length === 2 ? [[primitive.id, primitive.points[1]!.x - primitive.points[0]!.x]] : []));
-  return { tier: figure.tier, family: figure.family, labels, ids: document?.entities.map((entity) => entity.id) ?? [], assertions: document?.assertions.map((row) => row.id) ?? [], run };
+  return { tier: figure.tier, family: figure.family, labels, ids: document?.entities.map((entity) => entity.id) ?? [], assertions: document?.assertions.map((row) => row.id) ?? [] };
 };
 const fmt = (shown: Shown | null) => shown ? `${shown.tier}/${shown.family ?? "?"} [${shown.labels.join(", ")}]` : "none";
 
@@ -455,16 +451,6 @@ function mismatches(shown: Shown | null, expected: Figure | null): string[] {
     if (!shown.assertions.includes("boat_perp")) problems.push("the heading is not asserted perpendicular (boat_perp)");
     if (shown.assertions.includes("straight_across")) problems.push("the resultant is asserted straight across");
     if (shown.labels.some((label) => label.includes("α"))) problems.push("an α is drawn on the river");
-  }
-  if (expected.collinear) {
-    const { vb, vc } = expected.collinear;
-    const boat = shown.run.primitive_vb;
-    const want: Record<string, number> = { primitive_vc: vc / vb, primitive_vd: (vb + vc) / vb, primitive_vu: -(vb - vc) / vb };
-    if (!boat || boat <= 0) problems.push("no vb arrow pointing downstream");
-    else for (const [id, ratio] of Object.entries(want)) {
-      const drawn = (shown.run[id] ?? Number.NaN) / boat;
-      if (!(Math.abs(drawn - ratio) <= 0.01)) problems.push(`${id} runs ${drawn.toFixed(3)} vb, recorded ${ratio.toFixed(3)} vb`);
-    }
   }
   return problems;
 }
@@ -648,11 +634,16 @@ const mutations: Mutation[] = [
     red: [...SLOW_BOAT_ROWS, ...EQUAL_BOAT_ROWS],
   },
   {
+    name: "evidence: the legacy sketch draws a boat no faster than the current along the stream again",
+    edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && speeds.vb <= speeds.vc) return true;\n", to: "" }],
+    red: [SLOW_BOAT_ROWS[1]!, EQUAL_BOAT_ROWS[1]!],
+  },
+  {
     name: "evidence: the legacy sketch draws stated speeds the plan does not name at its stock 5:2 again",
     // The widening is put back too, so the review's swimmer reaches the sketch again (with it cut,
     // that stem has no evidence); the widened rows draw under it as in the cut mutation below.
     edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && !riverSpeeds(quantities).sourced) return true;\n", to: "" }, WIDEN],
-    red: [...UNSOURCED_SKETCH_ROWS, SLOW_BOAT_ROWS[0]!, ...EQUAL_BOAT_ROWS, ...WIDENED_ROWS],
+    red: [...UNSOURCED_SKETCH_ROWS, ...WIDENED_ROWS],
   },
   {
     name: "evidence: any along-stream wording counts again, not only the boat's own motion",
@@ -662,9 +653,8 @@ const mutations: Mutation[] = [
   {
     name: "evidence: a still-water qualifier after a speed no longer names the boat's own speed",
     edits: [{ file: CLASSIFY, from: "      if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;\n", to: "" }],
-    // Every sentence's speeds are read once the stem has along-stream wording, so the qualifier
-    // also owns the drawn rows whose "5 m/s in still water" sits in a sentence without it.
-    red: [SLOW_BOAT_ROWS[1]!, ...STILL_WATER_ROWS],
+    // "upstream at 5 m/s in still water": only the qualifier makes the 5 m/s the boat's own.
+    red: STILL_WATER_ROWS,
   },
   // The cut widening, put back: its right figures draw again (and nothing else, the "how far" rule
   // still declines the drift questions).
