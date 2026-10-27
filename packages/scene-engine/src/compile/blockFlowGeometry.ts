@@ -36,7 +36,7 @@ interface Bounds { x: number; y: number; width: number; height: number }
 
 /** The board's diagram zone (AGENTS.md rule 1), inset by the compile viewport. */
 export const BLOCK_FLOW_ZONE: Readonly<Bounds> = Object.freeze({ x: 410, y: 55, width: 740, height: 555 });
-const LIMITS = { minNodes: 3, maxNodes: 8, minEdges: 2, maxEdges: 10, nodeChars: 40, edgeChars: 32 } as const;
+const LIMITS = { minNodes: 3, maxNodes: 8, minEdges: 2, maxEdges: 10, nodeChars: 64, edgeChars: 32 } as const;
 /** The renderer drops any label run over 16 characters, so every line is at most this long. */
 export const BLOCK_FLOW_LINE_CHARS = 16;
 const BOX_FONT = BOARD_TYPE_SCALE.label;
@@ -126,68 +126,62 @@ export function parseBlockFlowInputs(inputs: Record<string, unknown>): { directi
 
 // ---------------------------------------------------------------- grounding
 //
-// A bag-of-words test let a careless planner draw reversed arrows, lists as
-// pipelines, anatomy as flows and invented parts from words spread across a
-// claim (independent review, 27 Oct: 28 false figures passed). Grounding is
-// now positional: a box is one unbroken span of a claim, and an arrow joins
-// two adjacent stops of a chain the plan itself writes ("a → b → c").
+// Two independent reviews (27 Oct) drew false figures through looser rules:
+// word bags let arrows reverse and lists become pipelines; sub-phrases of a
+// step let parentheses, later sentences and negations become boxes. Now a box
+// is a whole step of a clean chain the plan itself writes ("a → b → c"), an
+// arrow joins two neighbouring steps of that chain, and nothing else draws.
 
-const STOPWORDS = new Set([
-  "a", "an", "the", "of", "to", "and", "or", "for", "in", "on", "at", "by", "via", "with", "from", "into", "onto",
-  "is", "are", "be", "its", "it", "as", "that", "this", "then", "than", "per", "each",
-]);
-const CHAIN_ARROW = /→|->|⟶|⇒|=>/;
+/** Arrows written with a space on each side; "head->next" is code, not a chain. */
+const SPACED_ARROW = /\s+(?:→|->|⟶|⇒|=>)\s+/;
+const ANY_ARROW = /→|->|⟶|⇒|=>/;
+/** A clause break inside a step or heading: the step is not one stop. A point between digits is a number. */
+const CLAUSE_BREAK = /[,;:()[\]{}!?]|\.(?!\d)/;
 
-function stem(token: string): string {
-  if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
-  if (token.length > 4 && /(?:s|x|z|ch|sh)es$/.test(token)) return token.slice(0, -2);
-  if (token.length > 3 && token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1);
-  return token;
-}
-
-/** Lower case word tokens, punctuation removed, plurals folded. */
-export function blockFlowTokens(value: string): string[] {
-  return value.toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").split(" ").filter(Boolean).map(stem);
-}
-function contentTokens(value: string): string[] {
-  return blockFlowTokens(value).filter((token) => !STOPWORDS.has(token));
-}
-/** Where `needle` occurs as one unbroken run in `tokens`. */
-function spanIn(tokens: readonly string[], needle: readonly string[]): boolean {
-  if (needle.length === 0) return false;
-  for (let start = 0; start + needle.length <= tokens.length; start++) {
-    if (needle.every((token, offset) => tokens[start + offset] === token)) return true;
-  }
-  return false;
+/** Case, width forms and spacing only; signs, points and operators are kept. */
+export function blockFlowStepKey(value: string): string {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 type Claim = TurnPlanV3["qualitativeClaims"][number];
-/** What the claim says in words. Its entity hints name parts, never how they relate. */
 function claimProse(claim: Claim): string[] {
   return [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean);
 }
 
-interface Chain { heading: string[]; stops: string[][] }
 /**
- * A claim text written as a chain: its stops in order, each as content
- * tokens, and the heading before a colon in the first stop ("Flow: tap").
- * Null when the text is not a chain of at least two stops with words.
+ * A claim text that is nothing but a chain: an optional "Heading:" and two or
+ * more steps joined by spaced arrows, with at most one closing full stop.
+ * Steps come back as keys. Null for anything else, including a chain buried
+ * in a longer sentence, a step with a clause break, or code arrows.
  */
-function chainOf(value: string): Chain | null {
-  const parts = value.split(CHAIN_ARROW);
-  if (parts.length < 2) return null;
-  const colon = parts[0]!.lastIndexOf(":");
-  const heading = colon >= 0 ? contentTokens(parts[0]!.slice(0, colon)) : [];
-  const stops = [colon >= 0 ? parts[0]!.slice(colon + 1) : parts[0]!, ...parts.slice(1)].map(contentTokens);
-  return stops.every((stop) => stop.length > 0) ? { heading, stops } : null;
+export function blockFlowChain(value: string): { heading: string | null; steps: string[] } | null {
+  const parts = value.trim().replace(/\.$/, "").trim().split(SPACED_ARROW);
+  if (parts.length < 2 || parts.some((part) => ANY_ARROW.test(part))) return null;
+  let heading: string | null = null;
+  const colon = parts[0]!.indexOf(":");
+  if (colon >= 0) {
+    heading = parts[0]!.slice(0, colon).trim();
+    parts[0] = parts[0]!.slice(colon + 1);
+    if (!heading || CLAUSE_BREAK.test(heading)) return null;
+  }
+  const steps = parts.map(blockFlowStepKey);
+  if (steps.some((step) => !step || CLAUSE_BREAK.test(step))) return null;
+  return { heading, steps };
+}
+
+/** The chain a claim states, or null; a claim whose two texts are different chains states none. */
+function claimChain(claim: Claim): string[] | null | "disagree" {
+  const chains = claimProse(claim).map(blockFlowChain).filter((chain) => chain !== null);
+  if (chains.length === 0) return null;
+  const first = chains[0]!.steps.join(" > ");
+  return chains.every((chain) => chain.steps.join(" > ") === first) ? chains[0]!.steps : "disagree";
 }
 
 /**
- * Every box label is one unbroken span of a cited claim's words, or one whole
- * entity hint, and carries no arrow; every arrow joins stop i to stop i+1 of
- * a chain its claim writes; an arrow label, when given, is one span of the
- * arrow's source stop or of the chain's heading. Issues are fatal: the caller
- * refuses the figure.
+ * Every box is a whole step of a chain one of its cited claims states; every
+ * arrow joins step i to step i+1 of the chain its claim states, each step
+ * written once in that chain; arrows carry no words of their own. Issues are
+ * fatal: the caller refuses the figure.
  */
 export function validateBlockFlowGrounding(
   inputs: { nodes: readonly BlockFlowNode[]; edges: readonly BlockFlowEdge[] },
@@ -197,44 +191,38 @@ export function validateBlockFlowGrounding(
   const problems: string[] = [];
   const nodes = new Map(inputs.nodes.map((node) => [node.id, node]));
   for (const node of inputs.nodes) {
-    const label = contentTokens(node.label);
-    if (label.length === 0) { problems.push(`box ${node.id} "${node.label}" has no content word`); continue; }
-    if (CHAIN_ARROW.test(node.label)) { problems.push(`box ${node.id} "${node.label}" carries an arrow`); continue; }
     const cited = node.claimIds.map((id) => claims.get(id));
     if (cited.some((claim) => !claim)) { problems.push(`box ${node.id} cites a claim the plan does not have`); continue; }
-    const grounded = cited.some((claim) =>
-      claimProse(claim!).some((value) => spanIn(contentTokens(value), label)) ||
-      (claim!.relatedEntityHints ?? []).some((hint) => contentTokens(hint).join(" ") === label.join(" ")));
-    if (!grounded) problems.push(`box ${node.id} "${node.label}" is not one unbroken span of its cited claims`);
+    const key = blockFlowStepKey(node.label);
+    const grounded = cited.some((claim) => {
+      const chain = claimChain(claim!);
+      return Array.isArray(chain) && chain.includes(key);
+    });
+    if (!grounded) problems.push(`box ${node.id} "${node.label}" is not a whole step of a chain its cited claims state`);
   }
   for (const edge of inputs.edges) {
     const name = `arrow ${edge.from} to ${edge.to}`;
+    if (edge.label) { problems.push(`${name} carries words; a chain arrow means the next step and carries none`); continue; }
     const claim = claims.get(edge.claimId);
     if (!claim) { problems.push(`${name} cites a claim the plan does not have`); continue; }
-    const from = contentTokens(nodes.get(edge.from)!.label);
-    const to = contentTokens(nodes.get(edge.to)!.label);
-    const label = contentTokens(edge.label);
-    if (edge.label && label.length === 0) { problems.push(`${name} label "${edge.label}" has no content word`); continue; }
-    const chains = claimProse(claim).map(chainOf).filter((chain): chain is Chain => chain !== null);
-    if (chains.length === 0) { problems.push(`${name}: claim ${edge.claimId} is not written as a chain, so it states no arrow`); continue; }
-    const adjacent = chains.some((chain) => chain.stops.some((stop, index) => {
-      const next = chain.stops[index + 1];
-      if (!next || !spanIn(stop, from) || !spanIn(next, to)) return false;
-      // The label says what the source step does; a phrase of the next stop
-      // would read as the source doing it ("terminal, generated, cryptogram").
-      return label.length === 0 || spanIn(stop, label) || spanIn(chain.heading, label);
-    }));
-    if (!adjacent) problems.push(`${name}${edge.label ? ` "${edge.label}"` : ""} is not one step of a chain claim ${edge.claimId} writes`);
+    const chain = claimChain(claim);
+    if (chain === null) { problems.push(`${name}: claim ${edge.claimId} does not state a chain, so it states no arrow`); continue; }
+    if (chain === "disagree") { problems.push(`${name}: claim ${edge.claimId} states two different chains`); continue; }
+    const from = blockFlowStepKey(nodes.get(edge.from)!.label);
+    const to = blockFlowStepKey(nodes.get(edge.to)!.label);
+    const at = chain.indexOf(from);
+    const once = (step: string) => chain.indexOf(step) === chain.lastIndexOf(step);
+    if (at < 0 || chain[at + 1] !== to || !once(from) || !once(to)) problems.push(`${name} is not one step of the chain claim ${edge.claimId} states`);
   }
   return problems;
 }
 
-/**
- * The plan itself writes a process: one claim text is a chain of at least
- * three stops. Read from the plan's notation only, never from the question.
- */
+/** The plan itself states a process: one claim text is a clean chain of at least three steps. Never the question's words. */
 export function planStatesChain(plan: Pick<TurnPlanV3, "qualitativeClaims">): boolean {
-  return plan.qualitativeClaims.some((claim) => claimProse(claim).some((value) => (chainOf(value)?.stops.length ?? 0) >= 3));
+  return plan.qualitativeClaims.some((claim) => {
+    const chain = claimChain(claim);
+    return Array.isArray(chain) && chain.length >= 3 && new Set(chain).size === chain.length;
+  });
 }
 
 // ---------------------------------------------------------------- layout
@@ -329,12 +317,12 @@ function segmentsCross(s: Segment, t: Segment): boolean {
   return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0));
 }
 
-/** Where the ray from the box centre toward `toward` leaves the box. */
-function borderPoint(box: Bounds, toward: RenderPoint): RenderPoint {
-  const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-  const dx = toward.x - cx, dy = toward.y - cy;
-  const scale = 1 / Math.max(Math.abs(dx) / (box.width / 2), Math.abs(dy) / (box.height / 2));
-  return { x: round(cx + dx * scale), y: round(cy + dy * scale) };
+/** Where a ray from a point inside the box leaves it. */
+function exitPoint(box: Bounds, origin: RenderPoint, direction: RenderPoint): RenderPoint {
+  const reach = (position: number, step: number, low: number, high: number) =>
+    step > 0 ? (high - position) / step : step < 0 ? (low - position) / step : Number.POSITIVE_INFINITY;
+  const t = Math.min(reach(origin.x, direction.x, box.x, box.x + box.width), reach(origin.y, direction.y, box.y, box.y + box.height));
+  return { x: round(origin.x + direction.x * t), y: round(origin.y + direction.y * t) };
 }
 function centre(box: Bounds): RenderPoint { return { x: box.x + box.width / 2, y: box.y + box.height / 2 }; }
 
@@ -342,7 +330,7 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
   const rank = ranks(nodes, edges);
   const rankCount = Math.max(...rank.values()) + 1;
   const sized = nodes.map((node) => {
-    const lines = wrapBlockFlowLabel(node.label, 3) ?? fail("nodes", `box label "${node.label}" cannot wrap into 3 lines of ${BLOCK_FLOW_LINE_CHARS} characters`);
+    const lines = wrapBlockFlowLabel(node.label, 4) ?? fail("nodes", `box label "${node.label}" cannot wrap into 4 lines of ${BLOCK_FLOW_LINE_CHARS} characters`);
     const width = Math.ceil(Math.max(...lines.map((line) => measureTextWidth(line, BOX_FONT))) + 2 * BOX_PAD_X);
     const height = lines.length * BOX_LINE_HEIGHT + 2 * BOX_PAD_Y;
     return { node, lines, width, height };
@@ -447,9 +435,12 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
       const a = centre(source), b = centre(target);
       const length = Math.hypot(b.x - a.x, b.y - a.y);
       const nx = -(b.y - a.y) / length * offset, ny = (b.x - a.x) / length * offset;
-      const from = borderPoint(source, { x: b.x + nx, y: b.y + ny });
-      const to = borderPoint(target, { x: a.x + nx, y: a.y + ny });
-      return [{ x: round(from.x + nx), y: round(from.y + ny) }, { x: round(to.x + nx), y: round(to.y + ny) }];
+      // A paired arrow runs along the centre line shifted sideways, and leaves
+      // each box where that shifted line crosses the box's border.
+      const direction = { x: b.x - a.x, y: b.y - a.y };
+      const from = exitPoint(source, { x: a.x + nx, y: a.y + ny }, direction);
+      const to = exitPoint(target, { x: b.x + nx, y: b.y + ny }, { x: -direction.x, y: -direction.y });
+      return [from, to];
     };
     // A detour runs outside every box, past the far edge of the layout.
     const detour = (side: 1 | -1, lane: number): RenderPoint[] => {
