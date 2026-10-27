@@ -4303,11 +4303,18 @@ function sourceLevelRelationDocument(question: string): SceneDocument | null {
  * is wide, and two lines with a gap between them would draw neither.
  */
 function semiconductorBandDocument(question: string): SceneDocument | null {
-  const stem = normalizeStem(question);
+  // "semi-conductor" is one word, and "n type" or a non-breaking "n‑type" is n-type.
+  const stem = normalizeStem(question)
+    .replace(/\bsemi[\s\u2010\u2011-]+conductor/gi, "semiconductor")
+    .replace(/\b([np])[\s\u2010\u2011\u2012-]+type\b/gi, "$1-type");
   if (/\b(?:conductors?|insulators?|metals?)\b/i.test(stem)) return null;
   const bothTypes = /n-type/i.test(stem) && /p-type/i.test(stem);
   const nType = /n-type/i.test(stem);
   const pType = /p-type/i.test(stem);
+  // Flat bands with no impurity level cannot show doping, a junction, a device
+  // or a superconductor: a stem that names one without saying n-type or
+  // p-type gets no figure rather than an intrinsic one.
+  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ant)|donor|acceptor|impurit\w*|junction|diodes?|light emitting|solar cell|superconduct\w*|bias\w*)\b/i.test(stem)) return null;
   const columns: Array<{
     prefix: string;
     x0: number;
@@ -4324,7 +4331,7 @@ function semiconductorBandDocument(question: string): SceneDocument | null {
       x0: -2.4,
       x1: 2.4,
       extra: nType ? "donor" : pType ? "acceptor" : null,
-      caption: nType ? "n-type" : pType ? "p-type" : "intrinsic",
+      caption: nType ? "n-type" : pType ? "p-type" : /\bintrinsic\b/i.test(stem) ? "intrinsic" : "semiconductor",
     }];
 
   const entities: SceneEntity[] = [];

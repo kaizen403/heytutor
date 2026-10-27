@@ -23,6 +23,9 @@ for (const [question, columns, impurities, captions] of [
   ["Draw the energy band diagram of an n-type semiconductor.", 1, ["Ed"], ["n-type"]],
   ["Draw the energy band diagram of a p-type semiconductor.", 1, ["Ea"], ["p-type"]],
   ["Compare the energy band diagrams of n-type and p-type semiconductors.", 2, ["Ed", "Ea"], ["n-type", "p-type"]],
+  ["Draw the energy band diagram of an n type semiconductor.", 1, ["Ed"], ["n-type"]],
+  ["Draw the energy band diagram of a p\u2011type semiconductor.", 1, ["Ea"], ["p-type"]],
+  ["Draw the energy band diagram of a semi-conductor.", 1, [], ["semiconductor"]],
 ] as const) {
   const built = scene(question);
   assert.equal(built?.family, "energy_level", `${question}: draws the band diagram`);
@@ -45,8 +48,12 @@ for (const question of [
   "Distinguish between a conductor, a semiconductor and an insulator using energy bands.",
   "Compare the energy bands of a metal and a semiconductor.",
   "Draw the energy band diagram of a semiconductor and an insulator.",
+  "Draw the energy band diagram of an extrinsic semiconductor.",
+  "Draw the energy band diagram of a semiconductor doped with phosphorus.",
+  "Draw the energy band diagram of a p-n junction under forward bias.",
+  "Explain energy bands in a superconductor.",
 ]) {
-  assert.notEqual(scene(question)?.family, "energy_level", `${question}: no two-line band diagram stands in for a conductor or an insulator`);
+  assert.notEqual(scene(question)?.family, "energy_level", `${question}: no flat two-line band diagram stands in for it`);
   checks += 1;
 }
 
