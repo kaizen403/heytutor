@@ -92,6 +92,12 @@ row("the verifier catches every overlap it is there for", () => {
   const out = structuredClone(pay);
   out.boxes[0] = { ...out.boxes[0]!, x: 380 };
   assert(verifyBlockFlowLayout(out).some((problem) => /leaves the diagram zone/.test(problem)), "a box left of x 410");
+  const crossed = structuredClone(pay);
+  const [first, second] = [crossed.arrows[1]!, crossed.arrows[2]!];
+  const midY = (first.points[0]!.y + second.points.at(-1)!.y) / 2;
+  first.points.splice(1, 0, { x: first.points[0]!.x - 60, y: midY }, { x: first.points[0]!.x + 60, y: midY });
+  second.points.splice(1, 0, { x: second.points[0]!.x + 60, y: midY - 30 }, { x: second.points[0]!.x - 60, y: midY + 30 });
+  assert(verifyBlockFlowLayout(crossed).some((problem) => /cross$/.test(problem)), "two arrows crossing");
   const spill = structuredClone(pay);
   spill.boxLines[0]!.ink = { ...spill.boxLines[0]!.ink, width: 400 };
   assert(verifyBlockFlowLayout(spill).some((problem) => /not inside its box/.test(problem)), "box text spilling out");
