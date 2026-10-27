@@ -199,4 +199,32 @@ for (const [step, kept] of [
   assert(spokenAfter(step).includes(kept), `a descriptive "is" stays as spoken: ${spokenAfter(step)}`);
 }
 
+// The cue repair never edits a row's own text. Without the pre-repair the "is"
+// inside a coordinate-less row was rewritten (the board read "friction = μ N").
+const rowsAfter = (step: string) => parseDrawingCommands(repairLectureMarkup(step)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(rowsAfter("[STEP]Friction [WRITE:friction is mu N] and [WRITE:f = μN,90,211] here.[/STEP]").includes("friction is μ N"),
+  `a coordinate-less row keeps its words: ${JSON.stringify(rowsAfter("[STEP]Friction [WRITE:friction is mu N] and [WRITE:f = μN,90,211] here.[/STEP]"))}`);
+// A tag-closed relation row adds no spoken rewrite main would not make.
+assert(spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] here.[/STEP]").includes("Friction is mu N"),
+  `a tag-closed relation row does not widen the spoken repair: ${spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] here.[/STEP]")}`);
+assert(spokenAfter("[STEP]Friction is mu N [WRITE]f = μN[/WRITE] and [WRITE:N = mg,90,211][/STEP]").includes("Friction is mu N"),
+  "nor does it lend its value to a step main treats as a relation step");
+// "has magnitude" is rewritten in speech only, never inside a row (Greptile).
+const magnitude = "[STEP]Use Newton's law. [WRITE:F = ma,90,211] [WRITE]the force has magnitude ma[/WRITE] The force has magnitude m a.[/STEP]";
+assert(rowsAfter(magnitude).includes("the force has magnitude ma") && spokenAfter(magnitude).includes("The force equals m a"),
+  `"has magnitude" changes the speech, not the row: ${JSON.stringify(rowsAfter(magnitude))} / ${spokenAfter(magnitude)}`);
+
+// The result box goes on the closing relation only while it is still the last
+// row on the board. When a plain row follows it, a trailing [EMPHASIZE:last]
+// would frame that row, so neither the board nor the saved lesson gets a box.
+const laterPlainRow = "[STEP]first x = 1. [WRITE:x = 1,90,211][/STEP][STEP]then y = 2. [WRITE:y = 2,90,277][/STEP]" +
+  "[STEP]and z = 3. [WRITE:z = 3,90,343][/STEP][STEP]so the work is done. [WRITE:all three found,90,409][/STEP]";
+const boxBuffer = new LectureMarkupBuffer();
+let boxSpoken = "";
+for (let index = 0; index < laterPlainRow.length; index += 23) boxSpoken += boxBuffer.push(laterPlainRow.slice(index, index + 23));
+boxSpoken += boxBuffer.finish();
+assert(!boxSpoken.includes("[EMPHASIZE") && !boxBuffer.text().includes("[EMPHASIZE"),
+  `no box frames a non-result row, on the board or in the saved lesson: ${boxSpoken.slice(-80)}`);
+
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");

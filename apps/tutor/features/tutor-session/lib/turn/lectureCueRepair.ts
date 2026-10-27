@@ -88,12 +88,9 @@ function repairLectureStep(rawStep: string): string {
   // A row closed by [/WRITE] became a row only on this branch: it does not
   // widen the spoken repair. The step is rewritten only when its other rows
   // already made it a relation step, as before.
-  if (!parseDrawingCommands(withoutClosedRows(rawStep)).commands.some(isRelationWrite)) return step;
+  const mainRows = parseDrawingCommands(withoutClosedRows(rawStep)).commands;
+  if (!mainRows.some(isRelationWrite)) return step;
   if (SAYS_EQUALS.test(narrationOutsideTags(step))) return step;
-
-  if (/\bhas magnitude\b/i.test(step)) {
-    return step.replace(/\bhas magnitude\b/i, "equals");
-  }
 
   const tags = scanDrawingTags(step);
   const ranges: Array<[number, number]> = [];
@@ -104,10 +101,20 @@ function repairLectureStep(rawStep: string): string {
   }
   if (cursor < step.length) ranges.push([cursor, step.length]);
 
+  // "has magnitude" is rewritten only in speech, never inside a row's text.
+  for (const [from, to] of ranges) {
+    const magnitude = /\bhas magnitude\b/i.exec(step.slice(from, to));
+    if (magnitude) {
+      const start = from + magnitude.index;
+      return `${step.slice(0, start)}equals${step.slice(start + magnitude[0].length)}`;
+    }
+  }
+
   // Only an "is" that the row's value follows is an "equals": "friction is mu
   // N" for f = μN. "pneumonia is infection", "the hypotenuse is always the
   // longest side" and "R is resistance" are descriptions, and stay as spoken.
-  const leads = relationLeads(parsed.commands);
+  // Leads come from the rows main sees too, so a tag-closed row never adds one.
+  const leads = relationLeads(mainRows);
   let last: { start: number; end: number } | null = null;
   for (const [from, to] of ranges) {
     const slice = step.slice(from, to);
@@ -123,11 +130,12 @@ function repairLectureStep(rawStep: string): string {
   return `${step.slice(0, last.start)}equals${step.slice(last.end)}`;
 }
 
-function ensureResultEmphasis(raw: string): string {
-  if (/\[EMPHASIZE[:\]]/i.test(raw)) return raw;
+/** Where the result box goes: after the closing relation row, or null for no box. */
+function resultBoxAt(raw: string): number | null {
+  if (/\[EMPHASIZE[:\]]/i.test(raw)) return null;
   const parsed = parseDrawingCommands(raw);
   const relations = parsed.commands.filter(isRelationWrite);
-  if (relations.length < 3) return raw;
+  if (relations.length < 3) return null;
 
   const tags = scanDrawingTags(raw);
   let commandIndex = 0;
@@ -141,8 +149,21 @@ function ensureResultEmphasis(raw: string): string {
       lastWrite = { index: tag.index, length: tag.fullTag.length };
     }
   }
-  if (!lastWrite) return raw;
-  const insertAt = lastWrite.index + lastWrite.length;
+  return lastWrite ? lastWrite.index + lastWrite.length : null;
+}
+
+/** The end of the last WRITE tag, the row `[EMPHASIZE:last]` boxes on the board. */
+function lastWriteEnd(raw: string): number | null {
+  let end: number | null = null;
+  for (const tag of scanDrawingTags(raw)) {
+    if (parseDrawingTag(tag.fullTag)?.type === "WRITE") end = tag.index + tag.fullTag.length;
+  }
+  return end;
+}
+
+function ensureResultEmphasis(raw: string): string {
+  const insertAt = resultBoxAt(raw);
+  if (insertAt === null) return raw;
   return `${raw.slice(0, insertAt)}[EMPHASIZE:last]${raw.slice(insertAt)}`;
 }
 
@@ -222,11 +243,22 @@ export class LectureMarkupBuffer {
   finish(): string {
     const tail = this.pending.length > 0 ? repairLectureStep(this.pending) : "";
     this.pending = "";
-    const full = ensureResultEmphasis(this.pushed + tail);
-    const extra = full.startsWith(this.pushed)
-      ? full.slice(this.pushed.length)
-      : `${tail}[EMPHASIZE:last]`;
-    this.pushed = full;
+    const combined = this.pushed + tail;
+    const at = resultBoxAt(combined);
+    let saved = combined;
+    let extra = tail;
+    if (at !== null && at >= this.pushed.length) {
+      saved = `${combined.slice(0, at)}[EMPHASIZE:last]${combined.slice(at)}`;
+      extra = saved.slice(this.pushed.length);
+    } else if (at !== null && at === lastWriteEnd(combined)) {
+      // The result row was already spoken, and it is still the last row on
+      // the board, so a trailing box lands on it.
+      saved = `${combined.slice(0, at)}[EMPHASIZE:last]${combined.slice(at)}`;
+      extra = `${tail}[EMPHASIZE:last]`;
+    }
+    // Otherwise a later row was written after the result: a trailing box would
+    // frame that row, so neither the board nor the saved lesson gets one.
+    this.pushed = saved;
     return extra;
   }
 
