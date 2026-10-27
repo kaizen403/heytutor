@@ -45,6 +45,19 @@ export interface SceneStructureHints {
   } | null;
 }
 
+/**
+ * The one request a gate-admitted block diagram lesson sends (see
+ * `deriveSceneGate`). It offers block_flow alone and lets the planner decline.
+ */
+export const BLOCK_FLOW_SCENE_REQUEST = Object.freeze({
+  constructionOperators: Object.freeze(["block_flow"]),
+  proofPredicates: Object.freeze(["exists"]),
+  planningGuidance: Object.freeze([
+    "This lesson has no measured apparatus. When a plan claim states 'Process: step → step → step', draw that process as one block_flow; return visualDecision text_only only when no claim does.",
+    "Boxes are the chain's own whole steps, copied exactly, and arrows follow the chain. Never draw a list, a ranking, a physical layout or anatomy as boxes. Use the one block_flow construction and nothing else.",
+  ]),
+});
+
 const BASE_OPERATORS = [
   "point", "segment", "line", "polyline", "vector", "label", "dimension", "angle_mark",
   "tick_mark", "sign_badge",
