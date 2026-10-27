@@ -158,4 +158,26 @@ assert(
   "the parser receives one result box",
 );
 
-console.log("lecture cue repair: equals on the friction row, box on the closing relation");
+// Only an "is" that the row's value follows becomes "equals". On the 419
+// recorded production outputs since 20 Oct, main rewrote 409 "is", most of them
+// descriptions ("the hypotenuse equals always the longest side", "pneumonia
+// equals infection", "t equals time in seconds"); this rule keeps 33, each one
+// followed by its row's value.
+const spokenAfter = (step: string) => parseDrawingCommands(repairLectureMarkup(step)).narration;
+for (const [step, spoken] of [
+  ["[STEP]half of b over a is b over two a. [WRITE:(1/2)(b/a) = b/(2a),90,211][/STEP]", "half of b over a equals b over two a"],
+  ["[STEP]so the required power is m g v. [WRITE:P = mgv,90,211][/STEP]", "the required power equals m g v"],
+  ["[STEP]so the frequency is 170 hertz. [WRITE:f = 340 / 2 = 170 Hz,90,211][/STEP]", "the frequency equals 170 hertz"],
+] as const) {
+  assert(spokenAfter(step).includes(spoken), `an "is" its row's value follows is spoken as equals: ${spokenAfter(step)}`);
+}
+for (const [step, kept] of [
+  ["[STEP][WRITE:c = hypotenuse,90,211] the hypotenuse is always the longest side.[/STEP]", "the hypotenuse is always the longest side"],
+  ["[STEP]current flows through a resistor. [WRITE:V = IR,90,211] R is resistance in ohms.[/STEP]", "R is resistance in ohms"],
+  ["[STEP]pneumonia is infection of the lung. [WRITE:consolidation = fluid + cells,90,211][/STEP]", "pneumonia is infection of the lung"],
+  ["[STEP]s3 is object storage. [WRITE:s3 = object storage,90,211][/STEP]", "s3 is object storage"],
+] as const) {
+  assert(spokenAfter(step).includes(kept), `a descriptive "is" stays as spoken: ${spokenAfter(step)}`);
+}
+
+console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals");
