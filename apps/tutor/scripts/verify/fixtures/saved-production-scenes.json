@@ -11,6 +11,42 @@
     "current": "fast_family:analytic_curve",
     "current_unclassified": "fast_family:analytic_curve"
    },
+   "drawing": {
+    "current": {
+     "labels": [
+      "compression",
+      "oscillation",
+      "oscillation",
+      "rarefaction",
+      "transverse",
+      "v"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 41,
+      "point": 84,
+      "polyline": 1,
+      "vector": 3
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "compression",
+      "oscillation",
+      "oscillation",
+      "rarefaction",
+      "transverse",
+      "v"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 41,
+      "point": 84,
+      "polyline": 1,
+      "vector": 3
+     }
+    }
+   },
    "turnPlan": {
     "givens": [],
     "lawIds": [
@@ -670,6 +706,50 @@
     "current": "chemistry_family:chem_thermo",
     "current_unclassified": "chemistry_family:chem_thermo"
    },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    },
+    "current": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    }
+   },
    "open": {
     "strict": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
     "current": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
@@ -1047,6 +1127,60 @@
     "strict": "planner:",
     "current": "fast_family:energy_level",
     "current_unclassified": "fast_family:energy_level"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "0",
+      "E",
+      "K",
+      "hf",
+      "hf",
+      "φ"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 1,
+      "vector": 2
+     }
+    },
+    "current": {
+     "labels": [
+      "E (eV)",
+      "K",
+      "hν",
+      "hν",
+      "if hν > φ",
+      "φ",
+      "φ",
+      "φ not given"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 5,
+      "vector": 3
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "E (eV)",
+      "K",
+      "hν",
+      "hν",
+      "if hν > φ",
+      "φ",
+      "φ",
+      "φ not given"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 5,
+      "vector": 3
+     }
+    }
    },
    "open": {
     "strict": "the E axis title floats off its axis (lane 1 axes title, parked); the work function label left the K gap with #314",
@@ -1535,6 +1669,49 @@
     "strict": "planner:",
     "current": "fast_family:point_field",
     "current_unclassified": "fast_family:point_field"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "B",
+      "I",
+      "axis",
+      "solenoid"
+     ],
+     "marks": {
+      "line": 7,
+      "point": 4,
+      "polyline": 3,
+      "rectangle": 1,
+      "vector": 1
+     }
+    },
+    "current": {
+     "labels": [
+      "B",
+      "I",
+      "n"
+     ],
+     "marks": {
+      "line": 11,
+      "point": 4,
+      "rectangle": 1,
+      "vector": 4
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "B",
+      "I",
+      "n"
+     ],
+     "marks": {
+      "line": 11,
+      "point": 4,
+      "rectangle": 1,
+      "vector": 4
+     }
+    }
    },
    "open": {
     "strict": "partial: one turn arrow and B along the axis, no field pattern (lane 6)",
@@ -6985,6 +7162,68 @@
     "current": "planner:",
     "current_unclassified": "planner:"
    },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    },
+    "current": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    }
+   },
    "turnPlan": {
     "givens": [],
     "lawIds": [
@@ -7615,6 +7854,44 @@
     "strict": "none",
     "current": "fast_family:energy_level",
     "current_unclassified": "fast_family:energy_level"
+   },
+   "drawing": {
+    "current": {
+     "labels": [
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ev",
+      "Ev",
+      "Ev",
+      "Ev",
+      "conductor",
+      "semiconductor"
+     ],
+     "marks": {
+      "line": 5,
+      "point": 2
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ev",
+      "Ev",
+      "Ev",
+      "Ev",
+      "conductor",
+      "semiconductor"
+     ],
+     "marks": {
+      "line": 5,
+      "point": 2
+     }
+    }
    },
    "open": {
     "current": "energy_level draws the conductor with a band gap and doubles the Ec and Ev labels (lane 1, energy_level band figure in synthesize/familyScene.ts)",

@@ -9,10 +9,13 @@
  * arms: the strict cohort (planner first), the current cohort (a fast figure
  * first) and the current cohort with subject classification off.
  *
- * Each arm's outcome must equal the recorded one. Every recorded draw was
- * rendered and judged; a row whose figure is still wrong names the work that
- * closes it in `open`. When an outcome changes, render the row, judge it, and
- * update the fixture.
+ * Each arm's outcome must equal the recorded one: the figure source and
+ * family, and for a drawn figure its drawing (the sorted label texts and the
+ * count of marks by kind), so a lost wave, a changed label or a moved arrow
+ * within the same family fails too. Every recorded draw was rendered and
+ * judged; a row whose figure is still wrong names the work that closes it in
+ * `open`. When an outcome changes, render the row, judge it, and update the
+ * fixture.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-saved-production-scenes.ts
  */
@@ -32,8 +35,11 @@ interface Row {
   problemIR: Parameters<typeof selectProductionScene>[0]["problemIR"];
   candidate: Record<string, unknown>;
   expect: Record<Arm, string>;
+  /** For each arm that draws: what the figure draws, pinned. */
+  drawing?: Partial<Record<Arm, Drawing>>;
   open?: Partial<Record<Arm, string>>;
 }
+interface Drawing { labels: string[]; marks: Record<string, number> }
 
 const fixture = JSON.parse(readFileSync(new URL("./fixtures/saved-production-scenes.json", import.meta.url), "utf8")) as { rows: Row[] };
 const ARMS: Array<{ arm: Arm; assigned: DiagramStrategy; classified: boolean }> = [
@@ -46,7 +52,7 @@ const subjectOf = (plan: TurnPlanV3) => {
   return subject === "physics" || subject === "chemistry" || subject === "maths" ? subject : "other";
 };
 
-function outcome(row: Row, arm: (typeof ARMS)[number]): string {
+function outcome(row: Row, arm: (typeof ARMS)[number]): { source: string; drawing: Drawing | null } {
   const { question, turnPlan } = row;
   const problemIR = row.problemIR ?? null;
   const gate = deriveSceneGate({ question, turnPlan, problemIR });
@@ -68,7 +74,12 @@ function outcome(row: Row, arm: (typeof ARMS)[number]): string {
     },
   });
   const drawn = selection.representation;
-  return drawn ? `${drawn.figureSource}:${drawn.family ?? ""}` : "none";
+  if (!drawn) return { source: "none", drawing: null };
+  const primitives = drawn.renderScene.primitives;
+  const marks: Record<string, number> = {};
+  for (const primitive of primitives) if (primitive.kind !== "label") marks[primitive.kind] = (marks[primitive.kind] ?? 0) + 1;
+  const labels = primitives.filter((primitive) => primitive.kind === "label").map((primitive) => String(primitive.text ?? "")).sort();
+  return { source: `${drawn.figureSource}:${drawn.family ?? ""}`, drawing: { labels, marks: Object.fromEntries(Object.entries(marks).sort()) } };
 }
 
 const failures: string[] = [];
@@ -76,11 +87,18 @@ const open: string[] = [];
 let passed = 0;
 for (const row of fixture.rows) {
   for (const arm of ARMS) {
-    const actual = outcome(row, arm);
+    const result = outcome(row, arm);
+    const actual = result.source;
     const expected = row.expect[arm.arm];
     if (actual !== expected) {
       failures.push(`${row.id} ${arm.arm}: expected ${expected}, got ${actual}`);
       console.log(`FAIL ${row.id} ${arm.arm}: expected ${expected}, got ${actual} (render it, judge it, update the fixture)`);
+      continue;
+    }
+    const pinned = row.drawing?.[arm.arm] ?? null;
+    if (JSON.stringify(pinned) !== JSON.stringify(result.drawing)) {
+      failures.push(`${row.id} ${arm.arm}: the drawing changed`);
+      console.log(`FAIL ${row.id} ${arm.arm}: drawing ${JSON.stringify(pinned)} became ${JSON.stringify(result.drawing)} (render it, judge it, update the fixture)`);
       continue;
     }
     passed += 1;
