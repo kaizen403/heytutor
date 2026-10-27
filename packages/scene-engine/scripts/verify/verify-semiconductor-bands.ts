@@ -56,6 +56,10 @@ for (const question of [
   "Draw the energy band diagram of a photodiode.",
   "Draw the energy band diagram of an npn transistor.",
   "Draw the energy band diagram of a semiconductor laser.",
+  "Draw the energy band diagram of an LED.",
+  "Draw the energy band diagram of a semiconductor with donors.",
+  "Draw the energy band diagram of a semiconductor with acceptors.",
+  "Draw the energy band diagram of a semiconductor with dopants.",
 ]) {
   assert.notEqual(scene(question)?.family, "energy_level", `${question}: no flat two-line band diagram stands in for it`);
   checks += 1;
