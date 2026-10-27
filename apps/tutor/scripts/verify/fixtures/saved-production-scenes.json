@@ -11,10 +11,6 @@
     "current": "fast_family:analytic_curve",
     "current_unclassified": "fast_family:analytic_curve"
    },
-   "open": {
-    "current": "wave_types names the compression and the rarefaction a quarter wavelength off, where the particles are evenly spaced (closes with #313)",
-    "current_unclassified": "same wave_types figure (closes with #313)"
-   },
    "turnPlan": {
     "givens": [],
     "lawIds": [
@@ -1053,9 +1049,9 @@
     "current_unclassified": "fast_family:energy_level"
    },
    "open": {
-    "strict": "the work function label sits in the gap above its own line, where K belongs (closes with #314)",
-    "current": "the work function label sits in the K gap (closes with #314) and the E axis title floats off its axis (lane 1, axes title)",
-    "current_unclassified": "same photoelectric figure (#314 and the lane 1 axes title fix)"
+    "strict": "the E axis title floats off its axis (lane 1 axes title, parked); the work function label left the K gap with #314",
+    "current": "the E axis title floats off its axis (lane 1 axes title, parked); φ left the K gap for the axis side with #314",
+    "current_unclassified": "same photoelectric figure (lane 1 axes title, parked)"
    },
    "turnPlan": {
     "givens": [],
