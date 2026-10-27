@@ -89,12 +89,11 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
     hasArchetype: earlyArchetype !== null, hasSourceProgram: sceneCapabilities.hasSourceProgram,
   });
   // A block diagram is asked for only where the planner is never asked today,
-  // so every turn that calls it now keeps its exact request. An optional
-  // visual must also come from a plan whose own claims link three components.
+  // so every turn that calls it now keeps its exact request, and only for a
+  // plan whose own claims link three named components (never stem words).
   const blockFlowAdmitted = input.blockFlowEligible === true && !attemptsToday && shouldPlanExactScene &&
     sceneCapabilities.families.length === 0 && earlyArchetype === null && sceneCapabilities.hasSourceProgram !== true &&
-    (planningTurnPlan.visualRequirement === "required" ||
-      (planningTurnPlan.visualRequirement === "optional" && planDescribesLinkedComponents(planningTurnPlan)));
+    planDescribesLinkedComponents(planningTurnPlan);
   const shouldAttemptLlmScene = attemptsToday || blockFlowAdmitted;
   const planContext = [
     input.conversationContext,

@@ -145,8 +145,12 @@ function contentTokens(value: string): string[] {
 }
 
 type Claim = TurnPlanV3["qualitativeClaims"][number];
+/** What the claim says in words. Its entity hints name parts, never how they relate. */
+function claimProse(claim: Claim): string[] {
+  return [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean);
+}
 function claimTexts(claim: Claim): string[] {
-  return [claim.claim, typeof claim.expected === "string" ? claim.expected : "", ...(claim.relatedEntityHints ?? [])].filter(Boolean);
+  return [...claimProse(claim), ...(claim.relatedEntityHints ?? [])];
 }
 function contains(haystack: ReadonlySet<string>, needle: readonly string[]): boolean {
   return needle.length > 0 && needle.every((token) => haystack.has(token));
@@ -168,9 +172,10 @@ function chainPosition(claimText: string, label: string): number | null {
 }
 
 /**
- * Every box label is in a cited claim; every arrow's claim names both of its
- * boxes and its own label; an arrow cited to a claim written as a chain may
- * not run against the chain. Issues are fatal: the caller refuses the figure.
+ * Every box label is in a cited claim (its words or its entity hints); every
+ * arrow's claim states, in its own words, both of its boxes and its label; an
+ * arrow cited to a claim written as a chain may not run against the chain.
+ * Issues are fatal: the caller refuses the figure.
  */
 export function validateBlockFlowGrounding(
   inputs: { nodes: readonly BlockFlowNode[]; edges: readonly BlockFlowEdge[] },
@@ -178,6 +183,7 @@ export function validateBlockFlowGrounding(
 ): string[] {
   const claims = new Map(plan.qualitativeClaims.map((claim) => [claim.id, claim]));
   const tokensOf = (claim: Claim) => new Set(claimTexts(claim).flatMap(blockFlowTokens));
+  const proseTokensOf = (claim: Claim) => new Set(claimProse(claim).flatMap(blockFlowTokens));
   const problems: string[] = [];
   const nodes = new Map(inputs.nodes.map((node) => [node.id, node]));
   for (const node of inputs.nodes) {
@@ -195,14 +201,14 @@ export function validateBlockFlowGrounding(
     if (!claim) { problems.push(`${name} cites a claim the plan does not have`); continue; }
     const from = nodes.get(edge.from)!;
     const to = nodes.get(edge.to)!;
-    const tokens = tokensOf(claim);
+    const tokens = proseTokensOf(claim);
     if (!contains(tokens, contentTokens(from.label)) || !contains(tokens, contentTokens(to.label))) {
-      problems.push(`${name}: claim ${edge.claimId} does not name both "${from.label}" and "${to.label}"`);
+      problems.push(`${name}: claim ${edge.claimId} does not state both "${from.label}" and "${to.label}" in its words`);
       continue;
     }
     const label = contentTokens(edge.label);
     if (!contains(tokens, label)) problems.push(`${name} label "${edge.label}" is not stated in claim ${edge.claimId}`);
-    for (const value of claimTexts(claim)) {
+    for (const value of claimProse(claim)) {
       const a = chainPosition(value, from.label);
       const b = chainPosition(value, to.label);
       if (a !== null && b !== null && a > b) problems.push(`${name} runs against the order claim ${edge.claimId} states`);

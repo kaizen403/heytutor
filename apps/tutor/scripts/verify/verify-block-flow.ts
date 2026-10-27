@@ -134,11 +134,15 @@ row("grounding: every box and arrow is in the plan's claims, in the claim's orde
   const problems = (inputs: Partial<typeof payInputs>) => validateBlockFlowGrounding({ ...payInputs, ...inputs }, payPlan);
   assert.match(problems({ nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Central bank")] }).join(";"), /not named in its cited claims/, "an invented box");
   assert.match(problems({ nodes: [node("card", "Card", ["c9"]), ...payInputs.nodes.slice(1)] }).join(";"), /claim the plan does not have/, "an unknown claim");
-  assert.match(problems({ edges: [edge("card", "acq", "exchange data", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /does not name both/, "an arrow its claim does not join");
+  assert.match(problems({ edges: [edge("card", "acq", "exchange data", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /does not state both/, "an arrow its claim does not join");
   assert.match(problems({ edges: [edge("card", "reader", "encrypts", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /not stated/, "an invented arrow label");
   assert.match(problems({ edges: [edge("card", "reader", "then", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /not stated/, "a filler word label");
   assert.match(problems({ edges: [...payInputs.edges.slice(0, 3), edge("bank", "net", "routes")] }).join(";"), /against the order/, "a reversed chain arrow");
   assert.match(problems({ nodes: [node("card", "the", ["c1"]), ...payInputs.nodes.slice(1)] }).join(";"), /no content word/, "a box with no content word");
+  // A hint list names parts, not how they relate: no arrow may rest on it.
+  const listed = plan([...payClaims, claim("c3", "The parts of the system.", ["card", "issuing bank"])]);
+  assert.deepEqual(validateBlockFlowGrounding({ ...payInputs, nodes: [node("card", "Card", ["c3"]), ...payInputs.nodes.slice(1)] }, listed), [], "a box may rest on a hint");
+  assert.match(validateBlockFlowGrounding({ ...payInputs, edges: [...payInputs.edges, edge("card", "bank", "parts", "c3")] }, listed).join(";"), /in its words/, "an arrow resting on a hint list");
 });
 
 row("the plan's own structure, not its words, decides an optional diagram", () => {
@@ -183,6 +187,7 @@ row("eligible: admitted only where the planner is never asked today", () => {
   assert.deepEqual(admitted.request.planningGuidance, [...BLOCK_FLOW_SCENE_REQUEST.planningGuidance]);
   const optionalFlat = plan([claim("c1", "The topic could mean several things.", ["cloud", "framework", "services"])], "optional");
   assert.equal(deriveSceneGate({ question: "cloud architecture", turnPlan: { ...optionalFlat, question: "cloud architecture" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, false, "optional without structure");
+  assert.equal(deriveSceneGate({ question: "cloud architecture", turnPlan: { ...optionalFlat, question: "cloud architecture", visualRequirement: "required" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, false, "required without structure");
   assert.equal(deriveSceneGate({ question: payPlan.question, turnPlan: { ...payPlan, visualRequirement: "optional" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, true, "optional with structure");
   assert.equal(deriveSceneGate({ question: payPlan.question, turnPlan: { ...payPlan, visualRequirement: "none" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, false, "no visual");
   const lens = "A converging lens of focal length 10 cm forms an image of an object 15 cm away. Find the image distance.";
