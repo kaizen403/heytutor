@@ -47,6 +47,7 @@ import {
   normalizeStem,
   orderFamiliesByStemPreference,
   restrictFamiliesToChemistry,
+  riverAlongStreamStated,
   riverBoatVariant,
   type SceneVisualFamily,
 } from "./familyClassification";
@@ -3444,6 +3445,7 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   // current is that angle; a stated, asked or unread heading of any other kind
   // is the archetype's alone, with or without stated speeds.
   const variant = riverBoatVariant(normalizeStem(question));
+  if (variant === "along_stream" && !riverAlongStreamStated(question)) return true;
   if (variant === "crossing") {
     const fromFlow = riverHeadingFromFlow(question);
     if (fromFlow === null || angleDegrees(quantities, question) !== fromFlow) return true;
@@ -3452,6 +3454,11 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   const speeds = riverCrossingSpeeds(question);
   if (speeds.status === "unstated") return false;
   if (speeds.status !== "bound") return true;
+  // Stated speeds the plan does not name would fall back to the stock 5:2 sketch.
+  if (variant === "along_stream" && !riverSpeeds(quantities).sourced) return true;
+  // A boat no faster than the current moving along the stream: the archetype declines it, and main
+  // never drew this sketch for it, so it declines here too (decline only).
+  if (variant === "along_stream" && speeds.vb <= speeds.vc) return true;
   if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
   if (speeds.vb > speeds.vc) return false;
   return variant === "two_triangles" || riverShortestPathAsked(question);
