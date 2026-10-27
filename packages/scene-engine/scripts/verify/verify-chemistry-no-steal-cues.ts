@@ -496,6 +496,7 @@ for (const values of [
     "Derive the Maxwell relations from the thermodynamic potentials."
   ]) check(`maxwell named outside kinetic theory: ${question}`, () => assert.equal(draws(question), false));
   for (const question of [
+    "Sketch Maxwell's normalized distribution for an ideal gas at two temperatures.",
     "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
     "Draw the Maxwell speed distribution and mark the most probable speed.",
     "Sketch one Maxwell speed-distribution curve and mark the named speeds.",

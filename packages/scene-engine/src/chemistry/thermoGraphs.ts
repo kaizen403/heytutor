@@ -57,7 +57,7 @@ function thresholdHasReactionOwner(stem: string): boolean {
 function namesMaxwellDistribution(stem: string): boolean {
   if (!/maxwell/.test(stem)) return false;
   return /maxwell[\s-]*boltzmann/.test(stem)
-    || /maxwell(?:ian|'s|\u2019s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)
+    || /maxwell(?:ian|'s|\u2019s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic|normali[sz]ed|probability|two|the)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)
     || /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/.test(stem)
     || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
 }
