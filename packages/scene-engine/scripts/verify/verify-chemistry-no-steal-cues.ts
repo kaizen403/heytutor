@@ -498,6 +498,14 @@ for (const values of [
     "Explain Maxwell's demon and why it does not violate the second law.",
     "Derive the Maxwell relations from the thermodynamic potentials."
   ]) check(`maxwell named outside kinetic theory: ${question}`, () => assert.equal(draws(question), false));
+  // A stem that names Maxwell but not the distribution must not fall through
+  // to another thermo figure (main drew the MB curve for these; a reaction
+  // energy profile is wrong), so it declines.
+  for (const question of [
+    "Using Maxwell's theory, sketch how the number of molecules with energy above the activation energy of 50 kJ/mol changes from 300 K to 400 K.",
+    "Sketch Maxwell's law for a gas at 300 K and 600 K and mark the activation energy.",
+    "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
+  ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
   for (const question of [
     "Sketch Maxwell's normalized distribution for an ideal gas at two temperatures.",
     "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
