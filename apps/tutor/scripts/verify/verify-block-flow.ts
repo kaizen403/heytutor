@@ -433,8 +433,17 @@ void (async () => {
     const compiled = compileSceneDocument(validated.document!);
     assert.equal(compiled.ok, true);
     const presentation = buildVerifiedDiagramPresentation(validated.document!, compiled.renderScene!);
-    const written = (JSON.stringify(presentation).match(/"text":"request"/g) ?? []).length;
-    assert(written >= 2, `both boxes keep their word "request" (${written})`);
+    const labelTexts = (value: unknown, out: string[] = []): string[] => {
+      if (Array.isArray(value)) value.forEach((item) => labelTexts(item, out));
+      else if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        if (record.type === "LABEL" && typeof record.text === "string") out.push(`${record.text}@${JSON.stringify(record.params)}`);
+        Object.values(record).forEach((item) => labelTexts(item, out));
+      }
+      return out;
+    };
+    const written = new Set(labelTexts((presentation as unknown as { diagram: unknown }).diagram).filter((text) => text.startsWith("request@"))).size;
+    assert.equal(written, 2, "both boxes write their word \"request\", each in its own place");
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
 }).then(() => console.log(`verify-block-flow: ok (${rows} rows)`), (error) => {
