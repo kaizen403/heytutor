@@ -227,4 +227,16 @@ boxSpoken += boxBuffer.finish();
 assert(!boxSpoken.includes("[EMPHASIZE") && !boxBuffer.text().includes("[EMPHASIZE"),
   `no box frames a non-result row, on the board or in the saved lesson: ${boxSpoken.slice(-80)}`);
 
+// A value spoken in words, or a Greek name the old list missed, is still the
+// row's value; a comparison after "is" is not.
+for (const [step, spoken] of [
+  ["[STEP]so the force is six newtons. [WRITE:F = 6 N,90,211][/STEP]", "the force equals six newtons"],
+  ["[STEP]the output power is eta times the input. [WRITE:P_out = η P_in,90,211][/STEP]", "the output power equals eta times"],
+  ["[STEP]two squared is four. [WRITE:2^2 = 4,90,211][/STEP]", "two squared equals four"],
+] as const) {
+  assert(spokenAfter(step).includes(spoken), `a value in words or a Greek name is spoken as equals: ${spokenAfter(step)}`);
+}
+assert(spokenAfter("[STEP]so the selling price is ten percent less than its cost price. [WRITE:SP = 10% less than CP,90,211][/STEP]").includes("is ten percent less than"),
+  "a comparison after is stays a comparison");
+
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");

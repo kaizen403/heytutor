@@ -52,7 +52,34 @@ function withoutClosedRows(step: string): string {
  * "m" (spoken letter by letter). A side of plain words ("s3 = object storage",
  * "distance = rotated") is a definition, and its "is" is never an "equals".
  */
-const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|theta|lambda|mu|nu|pi|rho|sigma|tau|phi|omega)$/;
+const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/;
+/** A comparison within the next three words after "is". */
+const COMPARISON_AHEAD = /^(?:\s+\S+){0,2}?\s+(?:less|more|greater|smaller|fewer|higher|lower|bigger|larger)\b/i;
+const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+/**
+ * The first word a number is spoken with: "6" is "six", "170" is "one"
+ * (hundred seventy), "45" is "forty", "0.5" is "zero" or "point". The model
+ * often says the value in words, "the force is six newtons", for "F = 6 N".
+ */
+function spokenNumberLeads(digits: string): string[] {
+  const [whole = "", fraction] = digits.split(".");
+  const value = Number(whole);
+  if (!Number.isSafeInteger(value)) return [];
+  const leads: string[] = [];
+  if (value < 20) leads.push(SMALL_NUMBER_WORDS[value]!);
+  else if (value < 100) leads.push(TENS_WORDS[Math.floor(value / 10)]!);
+  else if (value < 1_000_000) {
+    const head = value < 1000 ? Math.floor(value / 100) : Math.floor(value / 1000);
+    if (head < 20) leads.push(SMALL_NUMBER_WORDS[head]!);
+    else if (head < 100) leads.push(TENS_WORDS[Math.floor(head / 10)]!);
+    if (head === 1) leads.push("a");
+  }
+  if (value === 0 && fraction !== undefined) leads.push("point", "nought");
+  return leads;
+}
 const MATH_MARK = /[\d+\-*/^×·÷√∫Σ²³]/;
 function relationLeads(commands: readonly DrawCommand[]): Set<string> {
   const leads = new Set<string>();
@@ -63,6 +90,8 @@ function relationLeads(commands: readonly DrawCommand[]): Set<string> {
       const first = /[\p{L}\p{N}]+/u.exec(mathToSpeech(side).toLowerCase())?.[0];
       if (!first) continue;
       if (/^\d/.test(first) || first.length === 1 || GREEK_LETTER.test(first) || MATH_MARK.test(side)) leads.add(first);
+      const number = /^\d+(?:\.\d+)?/.exec(side)?.[0];
+      if (number) for (const word of spokenNumberLeads(number)) leads.add(word);
       // A bare run of symbols ("mgv", "IR") is spoken letter by letter.
       if (/^\p{L}{2,4}$/u.test(side)) leads.add(first[0]!);
     }
@@ -121,8 +150,11 @@ function repairLectureStep(rawStep: string): string {
     COPULA_IS.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = COPULA_IS.exec(slice))) {
-      const next = /^\s+([\p{L}\p{N}]+)/u.exec(slice.slice(match.index + match[0].length))?.[1]?.toLowerCase();
+      const after = slice.slice(match.index + match[0].length);
+      const next = /^\s+([\p{L}\p{N}]+)/u.exec(after)?.[1]?.toLowerCase();
       if (!next || !leads.has(next)) continue;
+      // "is ten percent less than" compares; it is not a value.
+      if (COMPARISON_AHEAD.test(after)) continue;
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }
