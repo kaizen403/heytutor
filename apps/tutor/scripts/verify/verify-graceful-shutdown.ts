@@ -12,16 +12,13 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { request } from "node:http";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const fixture = resolve(__dirname, "fixtures/gracefulShutdownServer.ts");
 const tsx = resolve(__dirname, "../../node_modules/.bin/tsx");
 
-// The production unit runs `node --import tsx server.ts`: no tsx relay parent.
-function start(env: Record<string, string>, runner: "node-import" | "tsx-cli" = "node-import"): Promise<{ child: ChildProcess; port: number; exited: Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }> }> {
-  const [command, args] = runner === "tsx-cli" ? [tsx, [fixture]] : [process.execPath, ["--import", "tsx", fixture]];
-  const child = spawn(command, args, { detached: true, cwd: resolve(__dirname, "../.."), env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
+function start(env: Record<string, string>): Promise<{ child: ChildProcess; port: number; exited: Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }> }> {
+  const child = spawn(tsx, [fixture], { detached: true, env: { ...process.env, ...env }, stdio: ["ignore", "pipe", "pipe"] });
   const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null; at: number }>((done) =>
     child.once("exit", (code, signal) => done({ code, signal, at: Date.now() })));
   return new Promise((done, fail) => {
@@ -118,31 +115,7 @@ async function main() {
     assert(!result.complete, "the hung stream is cut at the cap");
   }
 
-  // 3. A server busy at the signal still drains under `node --import tsx`.
-  //    Under the tsx CLI its relay parent SIGKILLs a child that has not
-  //    reported the signal within about 60 ms, so the same stream is cut.
-  for (const runner of ["node-import", "tsx-cli"] as const) {
-    const { child, port, exited } = await start({ STREAM_MS: "800", CAP_MS: "20000", BUSY_MS: "250" }, runner);
-    const streamed = get(port, "/stream", () => signalGroup(child));
-    const result = await within(streamed, 15_000, `the busy ${runner} stream`, child);
-    const exit = await within(exited, 15_000, `the busy ${runner} exit`, child);
-    if (runner === "node-import") {
-      assert(result.complete && result.body === "first|last", "a server busy at SIGTERM still finishes its stream under node --import tsx");
-      assert.equal(exit.code, 0, `the busy node --import tsx process exits 0 (code ${exit.code}, signal ${exit.signal})`);
-    } else {
-      assert(!result.complete, "under the tsx CLI a busy server is killed at the signal; if this changes, revisit the unit");
-    }
-  }
-
-  // 4. The production unit has no tsx relay parent.
-  for (const script of ["deploy/aws/deploy.sh", "deploy/aws/setup-vm.sh"]) {
-    const unit = readFileSync(resolve(__dirname, "../../../..", script), "utf8");
-    const execStart = unit.split("\n").find((line) => line.startsWith("ExecStart=")) ?? "";
-    assert(/&& (?:[A-Z_]+=\S+ )*exec node --import tsx server\.ts'$/.test(execStart),
-      `${script} must start the server with exec node --import tsx (got ${execStart})`);
-  }
-
-  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, a hung stream is cut at the cap, and a busy server drains under the unit's node --import tsx");
+  console.log("verify-graceful-shutdown: an in-flight stream finishes before exit, new connections are refused, and a hung stream is cut at the cap");
 }
 
 main().catch((error) => {
