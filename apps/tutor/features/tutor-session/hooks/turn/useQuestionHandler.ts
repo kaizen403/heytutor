@@ -1133,6 +1133,9 @@ export function useQuestionHandler(
           turnPlan = recoveredScene.turnPlan;
           // The recovered scene's recorded subject; recoveryForPlanning admitted it.
           diagramSubject = recoveredScene.subject ?? diagramSubject;
+          // The block diagram test reads the recorded subject too, so a recovered
+          // block diagram is judged by the rules that admitted it.
+          plannedSubject = recoveredScene.subject ?? undefined;
           problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,

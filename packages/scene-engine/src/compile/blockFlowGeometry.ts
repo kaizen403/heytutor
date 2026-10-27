@@ -145,6 +145,8 @@ export function blockFlowStepKey(value: string): string {
 
 type Claim = TurnPlanV3["qualitativeClaims"][number];
 function claimProse(claim: Claim): string[] {
+  // A claim the plan marks false is a route it rejects, never one to draw.
+  if (claim.expected === false) return [];
   return [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean);
 }
 
