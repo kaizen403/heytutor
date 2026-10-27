@@ -263,8 +263,9 @@ const OFF_STREAM_LENGTH_STEMS: Array<[string, number, number]> = [
   ["A boat moving at 5 m/s in still water is carried 30 m downstream by a river flowing at 3 m/s. Find its resultant speed.", 5, 3],
 ];
 // A speed over the ground, stated beside along-stream wording, is not the boat's speed in still
-// water: read as vb it draws vb+vc = 10 for a boat whose ground speed is 8. The second stem guards
-// the widened "down the river", which origin/main did not read as evidence.
+// water: read as vb it draws vb+vc = 10 for a boat whose ground speed is 8. The second and third
+// stems say "down the river", which is no along-stream evidence (as on origin/main), so they also
+// decline for want of evidence.
 const GROUND_SPEED_STEMS: Array<[string, number, number] | [string]> = [
   ["A boat goes downstream at 8 m/s. The river flows at 2 m/s. Find the speed of the boat in still water.", 8, 2],
   ["A boat moves at 8 m/s down the river, which flows at 2 m/s. Find its speed in still water.", 8, 2],
@@ -278,7 +279,10 @@ const GROUND_SPEED_STEMS: Array<[string, number, number] | [string]> = [
 const STILL_WATER_STEMS = [
   "A boat rows upstream at 5 m/s in still water. The river flows at 3 m/s. Find its downstream speed.",
 ];
-// The two widened evidence phrases: these draw downstream at vb+vc = 8 and upstream at vb−vc = 2.
+// The two phrases an earlier round of #319 widened the evidence with, "down the river" and "up the
+// stream". Read as evidence they drew the along-stream picture for crossing drift questions ("how
+// far does it go down the river" to a jetty ahead) over three review rounds, so the widening is cut
+// and these right figures are the accepted cost: they decline everywhere, as on origin/main.
 const WIDENED_STEMS = [
   "A boat's speed in still water is 5 m/s and the river flows at 3 m/s. Find its speed down the river and up the stream.",
   "A boat's speed in still water is 5 m/s and the river flows at 3 m/s. Find the time to go 100 m down the river and return.",
@@ -294,7 +298,9 @@ const DRIFT_DOWN_THE_RIVER_STEMS: Array<[string, number, number]> = [
   ["A boat sets off at 5 m/s in still water for the jetty facing it. The river flows at 3 m/s. How far down the river does it land?", 5, 3],
 ];
 // B: the swimmer stem's speeds under plan symbols the legacy sketch does not alias drew its stock
-// 5:2 arrows, where the stem gives 5:3.
+// 5:2 arrows, where the stem gives 5:3. With the widening cut this stem has no evidence at all, so
+// the withhold's own mutation puts the widening back to reach the sketch. (In origin/main's words,
+// "move upstream, and how fast downstream", the archetype draws the right 8 and 2 before the sketch.)
 const SWIMMER = WIDENED_STEMS[2]!;
 const UNSOURCED_SKETCH_PLANS: Array<[string, TurnPlanV3]> = [
   ["no givens", plan(SWIMMER)],
@@ -326,6 +332,39 @@ const SWEPT_DRIFT_STEMS: Array<[string, number, number]> = [
   ["A boat rows at 5 m/s in still water towards a pier directly ahead while the river flows at 3 m/s. How far downstream is it swept in 10 s?", 5, 3],
   ["A boat rows at 5 m/s in still water towards a pier while the river flows at 3 m/s. Find the distance it is swept downstream in 10 s.", 5, 3],
 ];
+/*
+ * #319's delta review (round 3): a crossing drift asked as "how far does it go / move / travel /
+ * swim down the river" for a boat or swimmer making for a pier, jetty or friend straight ahead.
+ * Each drew the along-stream picture on 5c0541ea3 (the widened evidence plus a travel verb), where
+ * origin/main declines. Both the cut and the "how far" rule decline them.
+ */
+const HOW_FAR_DOWN_THE_RIVER_STEMS: Array<[string, number, number]> = [
+  ["A boat rows at 5 m/s in still water towards a pier directly ahead while the river flows at 3 m/s. How far does it go down the river in 10 s?", 5, 3],
+  ["A boat with speed 5 m/s in still water sets off to reach the jetty directly ahead in a river flowing at 3 m/s. How far does it move down the river?", 5, 3],
+  ["A boat with speed 5 m/s in still water sets out for the far jetty in a river flowing at 3 m/s. How far does it go down the river?", 5, 3],
+  ["A boat with speed 5 m/s in still water makes for the jetty that faces it in a river flowing at 3 m/s. How far does it move down the river?", 5, 3],
+  ["A boat with speed 5 m/s in still water goes straight out into a river flowing at 3 m/s. How far does it move down the river in 10 s?", 5, 3],
+  ["A boat with speed 5 m/s in still water is swept by a river flowing at 3 m/s as it goes over to the jetty. How far does it go down the river?", 5, 3],
+  ["A swimmer swims at 2 m/s in still water toward the jetty straight ahead in a river flowing at 1 m/s. How far does she travel down the river in 20 s?", 2, 1],
+  ["A swimmer swims at 2 m/s in still water to get to her friend directly ahead in a river flowing at 1 m/s. How far does she swim down the river?", 2, 1],
+  // Ambiguous in the review (a jetty reached at the end of a trip along the river, or a crossing); declined.
+  ["A boat rows at 5 m/s in still water in a river flowing at 3 m/s. How far does it travel down the river before it reaches the jetty?", 5, 3],
+];
+// The same drift questions spelled "downstream": each drew the along-stream picture on origin/main
+// and on 5c0541ea3 (a travel verb right before "downstream"). Only the "how far" rule declines them.
+const HOW_FAR_DOWNSTREAM_STEMS: Array<[string, number, number]> = [
+  ["A boat rows at 5 m/s in still water towards a pier directly ahead while the river flows at 3 m/s. How far does it go downstream in 10 s?", 5, 3],
+  ["A boat with speed 5 m/s in still water sets off to reach the jetty directly ahead in a river flowing at 3 m/s. How far does it move downstream?", 5, 3],
+  ["A swimmer swims at 2 m/s in still water toward the jetty straight ahead in a river flowing at 1 m/s. How far does she travel downstream in 20 s?", 2, 1],
+  ["A boat with speed 5 m/s in still water makes for the pier in line with it in a river flowing at 3 m/s. How far does it move downstream?", 5, 3],
+  ["A boat with speed 5 m/s in still water sets out for the jetty dead ahead in a river flowing at 3 m/s. How far does it travel downstream on the way?", 5, 3],
+  ["A boat with speed 5 m/s in still water goes towards the jetty over the water in a river flowing at 3 m/s. How far does it go downstream?", 5, 3],
+  ["A boat with speed 5 m/s in still water is in a river flowing at 3 m/s. How far does it go downstream by the time it arrives at the jetty?", 5, 3],
+  // Ambiguous in the review (a jetty reached at the end of a trip along the river, or a crossing); declined.
+  ["A boat rows at 5 m/s in still water in a river flowing at 3 m/s. How far does it travel downstream before it reaches the jetty?", 5, 3],
+];
+// A boat exactly as fast as the current, heading upstream, stays put: main drew a forward arrow labelled vb−vc=0.
+const EQUAL_BOAT = "A boat with speed 3 m/s in still water goes upstream in a river flowing at 3 m/s.";
 const declineRows = (tag: string, stems: Array<[string, number, number] | [string]>): Repro[] => stems.flatMap(([question, vb, vc], index) => [
   { name: `${tag} ${index + 1}: ${question}`, question, turnPlan: plan(question), irs: RIVER_IRS(question), expected: everywhere(null) },
   ...(vb === undefined || vc === undefined ? [] : [
@@ -343,12 +382,15 @@ const evidenceRows: Repro[] = [
   { name: "evidence slow boat 1 with vb and vc planned", question: SLOW_BOAT, turnPlan: crossingPlan(SLOW_BOAT, 2, 3), irs: RIVER_IRS(SLOW_BOAT), expected: refusedWithIR({ ...LEGACY_ALONG_STREAM_FIG, collinear: { vb: 2, vc: 3 } }, null) },
   ...declineRows("evidence crossing wording", CROSSING_WORDING_STEMS),
   ...declineRows("evidence swept drift", SWEPT_DRIFT_STEMS),
+  ...declineRows("evidence how far down the river", HOW_FAR_DOWN_THE_RIVER_STEMS),
+  ...declineRows("evidence how far downstream", HOW_FAR_DOWNSTREAM_STEMS),
+  { name: `evidence equal boat 1: ${EQUAL_BOAT}`, question: EQUAL_BOAT, turnPlan: plan(EQUAL_BOAT), irs: RIVER_IRS(EQUAL_BOAT), expected: everywhere(null) },
   // Drawn with no ProblemIR; the live river ProblemIR keeps main's refusal, as for "downstream".
   // The swimmer stem is the legacy sketch's alone: the fast path declines it.
   ...STILL_WATER_STEMS.map((question, index) => ({ name: `evidence still water ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: refusedWithIR(ALONG_STREAM_FIG) })),
+  // The cut widening: declined everywhere with vb and vc planned, as on origin/main.
   ...WIDENED_STEMS.map((question, index) => ({
-    name: `evidence widened ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question),
-    expected: /swimmer/.test(question) ? refusedWithIR(LEGACY_ALONG_STREAM_FIG, null) : refusedWithIR(ALONG_STREAM_FIG),
+    name: `evidence widened ${index + 1}: ${question}`, question, turnPlan: crossingPlan(question, 5, 3), irs: RIVER_IRS(question), expected: everywhere(null),
   })),
 ];
 repros.push(...evidenceRows);
@@ -364,14 +406,26 @@ const SPLIT_GROUND_SPEED_ROWS = evidenceNames("split ground speed");
 const SLOW_BOAT_ROWS = evidenceNames("slow boat");
 const CROSSING_WORDING_ROWS = evidenceNames("crossing wording");
 const SWEPT_DRIFT_ROWS = evidenceNames("swept drift");
+const HOW_FAR_DOWN_THE_RIVER_ROWS = evidenceNames("how far down the river");
+const HOW_FAR_DOWNSTREAM_ROWS = evidenceNames("how far downstream");
+const EQUAL_BOAT_ROWS = evidenceNames("equal boat");
 // The review's wording rows the geometry list declines: a landing place, facing, front, edge, square, island, due.
 const NEW_GEOMETRY_ROWS = [...DRIFT_DOWN_THE_RIVER_ROWS, ...CROSSING_WORDING_ROWS];
 // The ground speed rows that draw without the rule: Greptile's own stem (3) the speed reader refuses too.
 const GROUND_SPEED_DRAWN_ROWS = GROUND_SPEED_ROWS.filter((name) => !name.startsWith("evidence ground speed 3"));
+// The swimmer drift rows (7 and 8) with no plan never reached a figure, even on 5c0541ea3.
+const HOW_FAR_DOWN_THE_RIVER_DRAWN_ROWS = HOW_FAR_DOWN_THE_RIVER_ROWS.filter((name) => !/^evidence how far down the river [78]:/.test(name));
 // Every other decline row draws the along-stream picture with no evidence check at all.
-const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS, ...DRIFT_DOWN_THE_RIVER_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...CROSSING_WORDING_ROWS, ...SWEPT_DRIFT_ROWS];
-// The archetype's widened rows: the swimmer stem is the legacy sketch's, which records no bodies.
-const WIDENED_ARCHETYPE_ROWS = WIDENED_ROWS.filter((name) => !/swimmer/.test(name));
+const ALONG_STREAM_CALL_ROWS = [...OTHER_GEOMETRY_ROWS, ...OFF_STREAM_LENGTH_ROWS, ...GROUND_SPEED_DRAWN_ROWS, ...DRIFT_DOWN_THE_RIVER_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...CROSSING_WORDING_ROWS, ...SWEPT_DRIFT_ROWS,
+  ...HOW_FAR_DOWN_THE_RIVER_DRAWN_ROWS, ...HOW_FAR_DOWNSTREAM_ROWS, ...WIDENED_ROWS];
+/*
+ * Under ANY_ALONG_STREAM (bare main evidence words, no motion and no "how far" rule) a row that says
+ * "down the river" has no evidence at all, so it stays declined: the drift down the river rows, swept
+ * drift 1 and ground speed 2 and 3. The "how far downstream" drift rows, which only the "how far"
+ * rule declines, go red with every such mutation.
+ */
+const DOWNSTREAM_SPELLED = (name: string) => !/^evidence (?:drift down the river|swept drift 1|ground speed [23])\b/.test(name);
+const MAIN_WORDS = (rows: string[]) => rows.filter(DOWNSTREAM_SPELLED);
 
 type Primitive = { kind: string; id?: string; text?: string; points?: ReadonlyArray<{ x: number; y: number }> };
 type Drawn = { tier: string; family?: string; renderScene: { primitives: ReadonlyArray<Primitive> }; document?: unknown; sceneDocument?: unknown } | null | undefined;
@@ -505,13 +559,18 @@ const CLASSIFY = "synthesize/familyClassification.ts";
 
 interface Edit { file: string; from: string; to: string }
 /**
- * Any along-stream wording is evidence again, not only the boat's own motion. A drift asked
- * along the stream ("how far downstream does it land") is declined by that rule too, so each
- * other evidence rule is measured with it switched off, and the swept drift rows, which only
- * that rule declines, go red with each.
+ * Any along-stream wording is evidence again, not only the boat's own motion, and a "how far"
+ * question is read again. A drift asked along the stream ("how far downstream does it land") is
+ * declined by those rules too, so each other evidence rule is measured with them switched off,
+ * and the swept drift and "how far downstream" rows, which only those rules decline, go red with each.
  */
-const ANY_ALONG_STREAM: Edit = { file: CLASSIFY, from: "  return ALONG_STREAM_MOTION.test(text);\n", to: "  return new RegExp(String.raw`\\b${ALONG_STREAM_EVIDENCE}\\b`, \"i\").test(text);\n" };
+const HOW_FAR_LINE = "  return ALONG_STREAM_MOTION.test(text.replace(/\\bhow\\s+far\\b[^.;:?!]*/gi, \" \"));\n";
+const ANY_ALONG_STREAM: Edit = { file: CLASSIFY, from: HOW_FAR_LINE, to: "  return new RegExp(String.raw`\\b${ALONG_STREAM_EVIDENCE}\\b`, \"i\").test(text);\n" };
 interface Mutation { name: string; edits: Edit[]; red: string[] }
+/** The cut widening of the evidence words, put back. */
+const WIDEN: Edit = { file: CLASSIFY, from: "(?:downstream|upstream|along", to: "(?:downstream|upstream|down the river|up the stream|along" };
+/** The "how far" rule dropped: the boat's own motion is read in the whole stem again. */
+const DROP_HOW_FAR: Edit = { file: CLASSIFY, from: HOW_FAR_LINE, to: "  return ALONG_STREAM_MOTION.test(text);\n" };
 const FILLER_NOW = [
   "  const tokens = problemLabel.replace(/[()]/g, \" \").trim().split(/\\s+/).filter(Boolean);",
   "  const words = tokens",
@@ -539,7 +598,7 @@ const mutations: Mutation[] = [
   {
     name: "fix: the along-stream picture records its bodies again",
     edits: [{ file: MECHANICS, from: "  if (variant === \"along_stream\") return scene.build();\n", to: "" }],
-    red: [ALONG_STREAM_ROW, ...STILL_WATER_ROWS, ...WIDENED_ARCHETYPE_ROWS],
+    red: [ALONG_STREAM_ROW, ...STILL_WATER_ROWS],
   },
   {
     name: "fix: a horizontal launch with an unread numeric drop draws again",
@@ -557,22 +616,22 @@ const mutations: Mutation[] = [
   {
     name: "evidence: a stem naming other river geometry draws the along-stream picture again",
     edits: [{ file: CLASSIFY, from: "  if (RIVER_OTHER_GEOMETRY.test(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
-    red: [...OTHER_GEOMETRY_ROWS, ...NEW_GEOMETRY_ROWS, ...SWEPT_DRIFT_ROWS],
+    red: [...OTHER_GEOMETRY_ROWS, ...MAIN_WORDS(NEW_GEOMETRY_ROWS), ...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: landing, facing, front, edge, square, island and due compass wording are not other geometry again",
     edits: [{ file: CLASSIFY, from: "land(?:s|ed|ing)?|facing|front|edges?|square|islands?|due\\s+[nsew]|", to: "" }, ANY_ALONG_STREAM],
-    red: [...NEW_GEOMETRY_ROWS, ...SWEPT_DRIFT_ROWS],
+    red: [...MAIN_WORDS(NEW_GEOMETRY_ROWS), ...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: a length not travelled along the stream draws again",
     edits: [{ file: CLASSIFY, from: "  if (!riverLengthsAlongStream(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
-    red: [...OFF_STREAM_LENGTH_ROWS, ...SWEPT_DRIFT_ROWS],
+    red: [...OFF_STREAM_LENGTH_ROWS, ...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: a speed over the ground read as the boat's speed again",
     edits: [{ file: CLASSIFY, from: "  if (riverSpeedAlongStream(text)) return false;\n", to: "" }, ANY_ALONG_STREAM],
-    red: [...GROUND_SPEED_DRAWN_ROWS, ...SPLIT_GROUND_SPEED_ROWS, ...SWEPT_DRIFT_ROWS],
+    red: [...MAIN_WORDS(GROUND_SPEED_DRAWN_ROWS), ...SPLIT_GROUND_SPEED_ROWS, ...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: only a sentence with along-stream wording has its speeds read again",
@@ -581,34 +640,53 @@ const mutations: Mutation[] = [
       from: "  if (!new RegExp(evidence.source, \"i\").test(text)) return false;\n  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n",
       to: "  return text.split(/(?<=[.;:?!])\\s+/).some((sentence) => {\n    const blanked = sentence.replace(evidence, (phrase) => \" \".repeat(phrase.length));\n    if (blanked === sentence) return false;\n",
     }, ANY_ALONG_STREAM],
-    red: [...SPLIT_GROUND_SPEED_ROWS, ...SWEPT_DRIFT_ROWS],
+    red: [...SPLIT_GROUND_SPEED_ROWS, ...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: a boat no faster than the current draws a forward upstream arrow again",
     edits: [{ file: MECHANICS, from: "  if (variant === \"along_stream\" && vb <= vc) return null;\n", to: "" }],
-    red: SLOW_BOAT_ROWS,
+    red: [...SLOW_BOAT_ROWS, ...EQUAL_BOAT_ROWS],
   },
   {
     name: "evidence: the legacy sketch draws stated speeds the plan does not name at its stock 5:2 again",
-    edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && !riverSpeeds(quantities).sourced) return true;\n", to: "" }],
-    red: [...UNSOURCED_SKETCH_ROWS, SLOW_BOAT_ROWS[0]!],
+    // The widening is put back too, so the review's swimmer reaches the sketch again (with it cut,
+    // that stem has no evidence); the widened rows draw under it as in the cut mutation below.
+    edits: [{ file: LEGACY, from: "  if (variant === \"along_stream\" && !riverSpeeds(quantities).sourced) return true;\n", to: "" }, WIDEN],
+    red: [...UNSOURCED_SKETCH_ROWS, SLOW_BOAT_ROWS[0]!, ...EQUAL_BOAT_ROWS, ...WIDENED_ROWS],
   },
   {
     name: "evidence: any along-stream wording counts again, not only the boat's own motion",
     edits: [ANY_ALONG_STREAM],
-    red: SWEPT_DRIFT_ROWS,
+    red: [...MAIN_WORDS(SWEPT_DRIFT_ROWS), ...HOW_FAR_DOWNSTREAM_ROWS],
   },
   {
     name: "evidence: a still-water qualifier after a speed no longer names the boat's own speed",
     edits: [{ file: CLASSIFY, from: "      if (STILL_WATER_AFTER.test(sentence.slice(end))) return false;\n", to: "" }],
     // Every sentence's speeds are read once the stem has along-stream wording, so the qualifier
     // also owns the drawn rows whose "5 m/s in still water" sits in a sentence without it.
-    red: [SLOW_BOAT_ROWS[1]!, ...STILL_WATER_ROWS, ...WIDENED_ROWS.filter((name) => /swimmer/.test(name))],
+    red: [SLOW_BOAT_ROWS[1]!, ...STILL_WATER_ROWS],
+  },
+  // The cut widening, put back: its right figures draw again (and nothing else, the "how far" rule
+  // still declines the drift questions).
+  {
+    name: "cut: down the river and up the stream are along-stream evidence again",
+    edits: [WIDEN],
+    red: WIDENED_ROWS,
   },
   {
-    name: "evidence: down the river and up the stream are not along-stream evidence again",
-    edits: [{ file: CLASSIFY, from: "(?:downstream|upstream|down the river|up the stream|along", to: "(?:downstream|upstream|along" }],
-    red: WIDENED_ROWS,
+    name: "how far: the boat's own motion is read inside a how far question again",
+    edits: [DROP_HOW_FAR],
+    red: HOW_FAR_DOWNSTREAM_ROWS,
+  },
+  {
+    name: "cut and how far: the widening is back and a how far question is read again",
+    edits: [WIDEN, DROP_HOW_FAR],
+    red: [...HOW_FAR_DOWN_THE_RIVER_DRAWN_ROWS, ...HOW_FAR_DOWNSTREAM_ROWS, ...WIDENED_ROWS],
+  },
+  {
+    name: "evidence: a boat exactly as fast as the current draws a forward upstream arrow again",
+    edits: [{ file: MECHANICS, from: "  if (variant === \"along_stream\" && vb <= vc) return null;\n", to: "  if (variant === \"along_stream\" && vb < vc) return null;\n" }],
+    red: EQUAL_BOAT_ROWS,
   },
 ];
 

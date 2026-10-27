@@ -206,8 +206,8 @@ export function riverBoatVariant(stem: string): RiverBoatVariant {
   return "along_stream";
 }
 
-/** Wording that states motion along the river: the only evidence for the along-stream picture. */
-const ALONG_STREAM_EVIDENCE = String.raw`(?:downstream|upstream|down the river|up the stream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))`;
+/** Wording that states motion along the river: the only evidence for the along-stream picture (main's words, no wider). */
+const ALONG_STREAM_EVIDENCE = String.raw`(?:downstream|upstream|along the (?:river|stream)|(?:with|against) the (?:current|stream|flow))`;
 /**
  * Any other river geometry: a bank, shore or side, a width, a direction across or by the compass,
  * an angle, a heading, steer, aim or point, a drift, a landing place, a point facing or in front
@@ -231,8 +231,8 @@ const STILL_WATER_BEFORE = /\b(?:still|stationary|calm)\s+water\s+(?:is\s+|=\s*|
 /**
  * Along-stream wording that states the boat's own motion: right after a speed word, "fast" or a
  * travel verb (with an optional length), or right before speed, velocity, journey or trip ("speed
- * down the river", "go 100 m downstream", "its downstream speed"). Any other use ("how far down
- * the river is it swept") may be a drift, so it is no evidence and the along-stream picture declines.
+ * upstream", "go 100 m downstream", "its downstream speed"). Any other use ("how far downstream
+ * is it swept") may be a drift, so it is no evidence and the along-stream picture declines.
  */
 const ALONG_STREAM_MOTION = new RegExp(String.raw`(?:\b(?:speeds?|velocit(?:y|ies)|fast)\s+|${TRAVEL_VERB}(?:(?:a|the)\s+(?:total\s+)?distance\s+of\s+)?(?:${RIVER_LENGTH}\s+)?)${ALONG_STREAM_EVIDENCE}\b|\b${ALONG_STREAM_EVIDENCE}\s+(?:speeds?|velocit(?:y|ies)|journeys?|trips?)\b`, "i");
 
@@ -280,7 +280,9 @@ export function riverAlongStreamStated(stem: string): boolean {
   if (RIVER_OTHER_GEOMETRY.test(text)) return false;
   if (!riverLengthsAlongStream(text)) return false;
   if (riverSpeedAlongStream(text)) return false;
-  return ALONG_STREAM_MOTION.test(text);
+  // The along-stream distance a "how far" question asks about is a drift ("how far does it go
+  // downstream" for a boat heading to a jetty ahead), so the boat's own motion is read outside it.
+  return ALONG_STREAM_MOTION.test(text.replace(/\bhow\s+far\b[^.;:?!]*/gi, " "));
 }
 
 /* ------------------------------------------------------------------------- */
