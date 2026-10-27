@@ -142,6 +142,14 @@ export function unreadQuestionWord(readable: string): string | null {
   // One lone pair phrase is read as one condition; two ("a lone pair in
   // molecules with no lone pairs") may contradict each other.
   if ((readable.match(/\blone pairs?\b/g) ?? []).length > 1) return "the question names lone pairs more than once; one example cannot show each";
+  // A singular "molecule" needs "a" or "an" as its own article, with only a
+  // shape or hybridisation between them ("a t shaped molecule", "an sp3
+  // molecule"). An article that belongs to another noun ("a bond angle of
+  // molecule", "a shape of molecule") is a species the question does not name.
+  const molecules = (readable.match(/\bmolecule\b/g) ?? []).length;
+  if (molecules > 0 && moleculePhrasesWithArticle(readable) !== molecules) {
+    return "the question refers to a molecule it does not name";
+  }
   const phrases = SHAPE_PHRASES.map((phrase) => phrase.split(" "));
   for (let i = 0; i < words.length;) {
     const word = words[i]!;
@@ -159,6 +167,12 @@ export function unreadQuestionWord(readable: string): string | null {
     i += 1;
   }
   return null;
+}
+
+/** "a" or "an" plus at most one shape or hybridisation, then "molecule". */
+function moleculePhrasesWithArticle(readable: string): number {
+  const shape = [...SHAPE_PHRASES].join("|");
+  return (readable.match(new RegExp(`\\ban? (?:(?:${shape}|sp(?:2|3|3d2|3d)?) )?molecule\\b`, "g")) ?? []).length;
 }
 
 export type PlanExampleDocument =
@@ -196,8 +210,13 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
     if (named.size > 1) return { status: "declined", reason: `the question names more than one ${property}; one example cannot show them all` };
     if (named.size === 1 && !values.every((value) => (named as ReadonlySet<unknown>).has(value))) return { status: "declined", reason: `the example's ${property} is not the one the question names` };
   }
-  // "a lone pair" or "lone pairs" names no count, but the example must have one.
-  if (asked.lonePairs.size === 0 && /\blone[ -]?pairs?\b/i.test(readable) && actualLonePairCount(result) < 1) {
+  // A singular "lone pair" with no count word is the count one, with or
+  // without "a" or "an". The plural names no count, but the example must have
+  // at least one.
+  if (asked.lonePairs.size === 0 && /\blone pair\b/.test(readable) && actualLonePairCount(result) !== 1) {
+    return { status: "declined", reason: "the question names one lone pair and the example does not have exactly one" };
+  }
+  if (asked.lonePairs.size === 0 && /\blone pairs\b/.test(readable) && actualLonePairCount(result) < 1) {
     return { status: "declined", reason: "the question asks about lone pairs and the example has none" };
   }
   const checked = vseprClaimFacts({ claim: source.claim, expected: true }, species[0]!);
@@ -220,6 +239,12 @@ export function buildPlanExampleDocument(question: string, turnPlan: unknown): P
   const figure = buildVseprFigure(source.stem, [], false, { exampleCaption: source.caption });
   if (!figure) return { status: "declined", reason: "the VSEPR family declined the example" };
   const document = figure.document;
+  // Board text is shortened to one label's length; a shortened caption names
+  // another species or cuts a charge.
+  const captions = document.entities.filter((entity) => entity.role === "example caption").map((entity) => entity.label);
+  if (captions.length !== 1 || captions[0] !== source.caption) {
+    return { status: "declined", reason: "the example caption does not fit one board label" };
+  }
   // The builders read the example stem; the figure answers the question as asked.
   document.source = { ...document.source, question, figureProvenance: PLAN_EXAMPLE_PROVENANCE, exampleSpecies: source.formula };
   return { status: "built", document, source, family: "chem_vsepr" };

@@ -8,6 +8,8 @@ import {
   parseMathExpression,
   synthesizeFamilyScene,
   synthesizeLastResortScene,
+  isFullProblemIRStructure,
+  visualObligationIssues,
   synthesizeUniformCircularScene,
   demandRejection,
   sceneDemand,
@@ -354,9 +356,19 @@ export function selectVerifiedRepresentationExplained(
       family: synthesized.family,
     });
   }
+  // A family figure the ProblemIR obligations refused leaves the turn without
+  // a figure for a named reason. The fallbacks below are unchanged; the misses
+  // are only attached when the turn ends text only, so a refusal is never silent.
+  const obligationMisses = familyObligationMisses(input, families);
+  const recordMisses = (selected: SelectedRepresentation): SelectedRepresentation =>
+    obligationMisses.length === 0 || selected.figureSource !== "text_only" ? selected : {
+      ...selected,
+      reason: obligationMisses[0]!.message,
+      validationReport: { ...selected.validationReport, issues: [...selected.validationReport.issues, ...obligationMisses] },
+    };
 
   try {
-    return explained(buildSourceGroundedRepresentation(input.question, input.turnPlan));
+    return explained(recordMisses(buildSourceGroundedRepresentation(input.question, input.turnPlan)));
   } catch {
     const lastResort = prepareFallbackFunctionInventory(input.question, synthesizeLastResortScene({
       question: input.question,
@@ -375,8 +387,24 @@ export function selectVerifiedRepresentationExplained(
         reason: lastResort.reason,
       });
     }
-    return explained(buildTextOnlySelected(input.question));
+    return explained(recordMisses(buildTextOnlySelected(input.question)));
   }
+}
+
+/** The obligations a family figure for this question would miss. Empty unless
+ * a full ProblemIR is present and the unconstrained family scene draws. */
+function familyObligationMisses(
+  input: RepresentationSelectionInput,
+  families: RepresentationSelectionInput["families"] | undefined,
+): ReturnType<typeof visualObligationIssues> {
+  if (!isFullProblemIRStructure(input.problemIR)) return [];
+  const unconstrained = synthesizeFamilyScene({
+    question: input.question,
+    turnPlan: input.turnPlan,
+    families,
+    problemIR: null,
+  });
+  return unconstrained ? visualObligationIssues(input.problemIR, unconstrained.document, input.question) : [];
 }
 
 function motionPlanConflict(question: string, turnPlan: unknown): string | null {

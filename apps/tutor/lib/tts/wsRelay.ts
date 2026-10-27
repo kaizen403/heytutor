@@ -35,6 +35,30 @@ interface SegmentMessage {
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
 const MAX_QUEUED_MESSAGES = 32;
 
+/**
+ * Live relays and the segments each is still synthesising, so a restart can
+ * let the sentence being spoken finish (see `installGracefulShutdown`).
+ */
+const liveRelays = new Set<{ pending: Map<string, unknown>; restart: () => void }>();
+let speechDraining = false;
+
+/** Segments sent to the provider and not yet finished, across every relay. */
+export function inFlightSpeechSegments(): number {
+  let count = 0;
+  for (const relay of liveRelays) count += relay.pending.size;
+  return count;
+}
+
+/**
+ * A restart has begun: an idle relay closes now with 1012 (service restart),
+ * a busy one when its last segment finishes, and no new segment is admitted.
+ * The browser treats the close like any other and falls back for the rest.
+ */
+export function beginSpeechDrain(): void {
+  speechDraining = true;
+  for (const relay of [...liveRelays]) if (relay.pending.size === 0) relay.restart();
+}
+
 /** Every segment is admitted and durably charged before the first vendor send.
  * Socket close/error retains that charge, including missing provider finals. */
 export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): void {
@@ -47,9 +71,12 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   let upstream: WebSocket | undefined = undefined;
   const pending = new Map<string, { receipt: PaidUsageReservation; characters: number; startedAt: number; grant: TurnGrant }>();
   const finishReceipt = (receipt: PaidUsageReservation) => void receipt.finish().catch(captureTtsRelayFailure);
+  const live = { pending: pending as Map<string, unknown>, restart: () => close("server_restarting", 1012) };
+  liveRelays.add(live);
   const teardown = () => {
     if (stopped) return;
     stopped = true;
+    liveRelays.delete(live);
     if (idle) clearTimeout(idle);
     if (keepalive) clearInterval(keepalive);
     unregister();
@@ -136,6 +163,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
         recordTtsSpend({ userId: context.userId, characters: spend.characters, model, provider,
           skipAutumn: spend.grant.skipAutumn, skipGates: spend.grant.skipGates, accounted: true });
         flushInBackground();
+        if (speechDraining && pending.size === 0) close("server_restarting", 1012);
       }
     } catch (error) { captureTtsRelayFailure(error); close("speech_generation_failed", 1011); }
   });
@@ -181,6 +209,13 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
         style: bounded("style", 0), speed: bounded("speed", context.speed ?? 1, 0.7, 1.2) };
     }
     if (message.flush !== true) return;
+    // During a restart no new segment is admitted or charged. A close or a
+    // skip fails every segment this client is generating, so a busy relay
+    // waits for its last in-flight segment and closes then.
+    if (speechDraining) {
+      if (pending.size === 0) close("server_restarting", 1012);
+      return;
+    }
     const segmentText = text.trim();
     const settings = voiceSettings ?? { stability: 0.5, similarity_boost: 0.75, speed: context.speed ?? 1 };
     const start = startedAt;
@@ -201,6 +236,13 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       grant, kind: "tts", traceId: context.traceId, usd: calculateTtsCostDetails(characters, { model, provider }).total ?? 0,
     });
     if (receipt instanceof Response) { close("tts_budget"); return; }
+    // The drain may have begun during the awaits above: nothing is dispatched.
+    if (speechDraining) {
+      // A failed refund is reported, never allowed to cut the sentence in flight.
+      await receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      if (pending.size === 0) close("server_restarting", 1012);
+      return;
+    }
     if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await receipt.cancelBeforeDispatch(); return; }
     if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await receipt.cancelBeforeDispatch(); close("speech_backpressure"); return; }
     sequence++; charactersUsed += characters; usedContexts.add(id);
