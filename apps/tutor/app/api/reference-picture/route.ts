@@ -2,7 +2,9 @@ import { requireLessonGrant } from "@/lib/billing/gate";
 import { actualLlmCost, reservePaidUsage } from "@/lib/billing/paidUsage";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { usageDetailsFromParsed, parseProviderUsage } from "@/lib/obs/providerUsage";
-import { CALLS_PER_CANDIDATE, createPictureSpend, findReferencePicture, JUDGED_CANDIDATES, type PictureSpend } from "@/lib/reference-picture/findReferencePicture";
+// The pipeline (and sharp, a native module) loads inside the handler after the
+// flag check, so with the tier off nothing native is loaded by this route.
+import type { PictureSpend } from "@/lib/reference-picture/findReferencePicture";
 import { resolvePictureJudgeModel } from "@/lib/reference-picture/pictureJudge";
 import { resolveImageProvider } from "@/lib/reference-picture/pictureGenerator";
 import { resolvePictureQueryModel } from "@/lib/reference-picture/pictureQuery";
@@ -72,6 +74,7 @@ export async function POST(request: Request): Promise<Response> {
   const subject = typeof input.subject === "string" && SUBJECTS.has(input.subject) ? input.subject : undefined;
   const apiKey = process.env.FIREWORKS_API_KEY?.trim();
   if (!apiKey) return Response.json({ status: "declined", reason: "missing_key" });
+  const { CALLS_PER_CANDIDATE, createPictureSpend, findReferencePicture, JUDGED_CANDIDATES } = await import("@/lib/reference-picture/findReferencePicture");
 
   // Funded one round at a time: the query and the first three judges now,
   // the second round and a generation only if they run.
