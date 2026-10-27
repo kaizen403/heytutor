@@ -169,6 +169,7 @@ import {
   canStreamResumeRepair,
   createEmptySegmentPlanStats,
   createResumeInkGate,
+  retryContinuationFetchOnce,
   foldGluedSegment,
   isTeachingResponseIncomplete,
   normalizeSegmentForAlignment,
@@ -2342,7 +2343,7 @@ export function useQuestionHandler(
           const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
             continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
           teachingAttempt = "primary";
-          const streamResult = await streamLLMResponse(
+          const streamResult = await retryContinuationFetchOnce(() => streamLLMResponse(
             {
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
@@ -2445,7 +2446,14 @@ export function useQuestionHandler(
                 }
               }
             },
-          );
+          ), {
+            // A continuation whose request never reached the server (b97d2500:
+            // the student's network dropped it) is asked once more; nothing of
+            // it was parsed or spoken, so the lesson simply carries on.
+            enabled: isContinuation && !resumeInkRetry,
+            signal: abortController.signal,
+            onRetry: () => tel.mark("teaching-continuation-retry", { continuation: continueCount }),
+          });
 
           throwIfTurnCancelled();
           fullResponse += streamResult.text;
