@@ -410,6 +410,24 @@ void (async () => {
       assert.equal(dropped.out.turnPlan, prose, `${label}: plan untouched`);
     }
     assert.equal(await writeProcessClaim("q", prose, reviewOptions((async () => new Response("no", { status: 500 })) as typeof fetch)), null, "a failed call");
+    // A route the plan rejects never reaches the writer, never comes back true, and reviewers see it marked.
+    const rejectedPlan = plan([
+      { ...claim("c1", "Process: right ventricle → aorta → body"), expected: false },
+      claim("c2", "Blood leaves the right ventricle for the lungs, then returns to the left atrium."),
+    ], "optional");
+    const bodies: string[] = [];
+    const echo = (async (_url: unknown, init: RequestInit) => {
+      bodies.push(String(init.body));
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ process: "Process: right ventricle → aorta → body" }) } }] });
+    }) as typeof fetch;
+    const out = await withRestatedProcess({ question: "Where does blood go from the right ventricle?", turnPlan: rejectedPlan, eligible: true, options: reviewOptions(echo) });
+    assert.equal(bodies.length, 1, "the writer is asked");
+    assert(!bodies[0]!.includes("aorta"), "the writer never sees the rejected route");
+    assert.equal(out.restated, null, "a restated rejected route is dropped");
+    assert.equal(out.turnPlan, rejectedPlan, "the plan stays untouched");
+    const reviewBodies = scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS"));
+    await reviewProcessChains("q", [["right ventricle", "lungs", "left atrium"]], reviewOptions(reviewBodies.fetchImpl), rejectedPlan);
+    assert(reviewBodies.bodies.every((body) => body.includes("REJECTED by the plan (false): Process: right ventricle → aorta → body")), "reviewers see the rejection");
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
 }).then(async () => {
