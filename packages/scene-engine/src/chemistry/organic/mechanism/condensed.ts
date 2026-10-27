@@ -36,9 +36,13 @@ interface Draft { elements: string[]; hydrogens: number[]; bonds: Array<{ a: num
 /** The largest count a condensed formula may state, and the most heavy atoms it may expand to: question text never makes a reader allocate more. */
 const MAX_COUNT = 12;
 const MAX_HEAVY_ATOMS = 48;
+/** The longest formula and the deepest bracket nesting read, so the recursive reader never runs deep. */
+const MAX_FORMULA_LENGTH = 80;
+const MAX_DEPTH = 6;
 
 class Reader {
   at = 0;
+  depth = 0;
   readonly draft: Draft = { elements: [], hydrogens: [], bonds: [] };
   constructor(readonly text: string) {}
 
@@ -98,7 +102,10 @@ class Reader {
         const innerOrder = this.bondSymbol() || 1;
         const atomsBefore = this.draft.elements.length;
         const bondsBefore = this.draft.bonds.length;
+        if (this.depth >= MAX_DEPTH) return null;
+        this.depth += 1;
         const root = this.chain();
+        this.depth -= 1;
         if (root === null || this.text[this.at] !== ")") return null;
         this.at += 1;
         const count = this.count();
@@ -149,7 +156,7 @@ export function readCondensed(raw: string): MechState | null {
     charge = sign[1] === "+" ? 1 : -1;
     text = text.slice(0, -1);
   }
-  if (!text || /[^A-Za-z0-9()=#-]/.test(text)) return null;
+  if (!text || text.length > MAX_FORMULA_LENGTH || /[^A-Za-z0-9()=#-]/.test(text)) return null;
   const reader = new Reader(text);
   if (reader.chain() === null || reader.at !== text.length) return null;
   const { elements, hydrogens, bonds } = reader.draft;

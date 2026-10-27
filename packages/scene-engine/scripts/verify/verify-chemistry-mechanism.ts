@@ -133,6 +133,11 @@ check("condensed/bounded", () => {
   for (const text of ["CH999999999", "C(CH3)999999999", "((((((CH2)12)12)12)12)12)12", "CH13"]) assert.equal(readCondensed(text), null, text);
   assert.ok(Date.now() - started < 200, "refused at once");
   assert.ok(readCondensed("(CH3)3C-O-C(=O)-CH3"), "ordinary counts still read");
+  // Deep nesting never reaches the recursive reader: a long token and a deep bracket both decline, through the whole question reader too.
+  const deep = `${"(".repeat(5000)}CH3${")".repeat(5000)}`;
+  assert.equal(readCondensed(deep), null);
+  assert.equal(readCondensed("C(C(C(C(C(C(C(CH3)))))))"), null, "seven levels");
+  assert.equal(readMechanismSource(`Show the ester pyrolysis of ${deep} on heating.`).status, "declined");
 });
 check("arrows/lone-pair-must-exist", () => {
   const result = applyStep(bromomethane, { arrows: [{ tail: { kind: "lone_pair", atom: carbon }, head: { kind: "bond", a: carbon, b: hydrogen } }] });
