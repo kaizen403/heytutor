@@ -96,7 +96,7 @@ const UNREAD_FACT_CHECK: FactCheckResult = { claims: [], readable: false };
 function usable(judged: Pick<Judged, "candidate" | "verdict" | "factCheck" | "origin">): boolean {
   if (!verdictAccepts(judged.verdict, judged.origin) || !factCheckPasses(judged.factCheck)) return false;
   // A picture with labels or a key states things; a check that listed none checked nothing.
-  if (judged.factCheck.claims.length === 0 && (judged.verdict.labels.length > 0 || judged.verdict.labelLanguage === "numbers")) return false;
+  if (judged.factCheck.claims.length === 0 && judged.verdict.labelLanguage !== "none") return false;
   const { legend } = acceptedLabels(judged.verdict);
   if (!legend) return true;
   const size = judged.candidate ? { width: judged.candidate.width, height: judged.candidate.height } : null;

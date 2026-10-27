@@ -231,15 +231,18 @@ async function main(): Promise<void> {
     // AbortSignal.timeout does not hold the event loop open; without this the
     // process would exit mid check with code 0 and the gate would pass silently.
     const hold = setInterval(() => {}, 25);
-    const picture = step(fakeServer({ route: "hang" }), 30, 120);
-    assert.equal(await picture.atTextOnlyPoint("physics"), null);
-    const { record, image } = await picture.finish();
-    assert.equal(record.status, "unavailable");
-    assert.equal(record.reason, "wait_deadline");
-    assert.equal(record.speculative, false);
-    assert.notEqual(record.answer?.reason, "aborted", "a deadline does not abort the request, as live does not");
-    assert.equal(image, null);
-    clearInterval(hold);
+    try {
+      const picture = step(fakeServer({ route: "hang" }), 30, 120);
+      assert.equal(await picture.atTextOnlyPoint("physics"), null);
+      const { record, image } = await picture.finish();
+      assert.equal(record.status, "unavailable");
+      assert.equal(record.reason, "wait_deadline");
+      assert.equal(record.speculative, false);
+      assert.notEqual(record.answer?.reason, "aborted", "a deadline does not abort the request, as live does not");
+      assert.equal(image, null);
+    } finally {
+      clearInterval(hold);
+    }
   });
 
   await check("a verified figure abandons the early request; unloadable pixels are text", async () => {

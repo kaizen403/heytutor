@@ -97,7 +97,10 @@ export async function POST(request: Request): Promise<Response> {
   const startedAt = Date.now();
   const spend = createPictureSpend();
   try {
-    const outcome = await findReferencePicture(input.question, subject, { apiKey, spend, signal: request.signal, imageProvider: provider, beforeRound });
+    // The client's 45 s timeout normally ends a request; this caps the server's
+    // own work even if a disconnect never reaches it.
+    const signal = AbortSignal.any([request.signal, AbortSignal.timeout(50_000)]);
+    const outcome = await findReferencePicture(input.question, subject, { apiKey, spend, signal, imageProvider: provider, beforeRound });
     tutorDebug("llm", "reference picture", { status: outcome.status, ms: Date.now() - startedAt, steps: outcome.steps, usd: owed(spend, ceiling) });
     // `steps` is the search and judge trail (Commons titles and the judge's
     // reasons, no student text), kept for the lab and the analytics.
@@ -106,6 +109,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ status: "declined", reason: outcome.reason, steps });
   } catch (error) {
     if (request.signal.aborted) return Response.json({ status: "declined", reason: "aborted" });
+    if (error instanceof Error && error.name === "TimeoutError") return Response.json({ status: "declined", reason: "server_timeout" });
     console.warn("[reference-picture] failed", error instanceof Error ? error.message : error);
     return Response.json({ status: "declined", reason: "pipeline_error" });
   } finally {
