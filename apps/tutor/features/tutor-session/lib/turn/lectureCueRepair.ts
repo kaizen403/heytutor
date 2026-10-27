@@ -54,11 +54,18 @@ function withoutClosedRows(step: string): string {
  */
 const GREEK_LETTER = /^(?:alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/;
 /** The spoken number after "is" ("twenty five percent"), skipped before looking for a comparison. */
-const NUMBER_RUN = /^(?:\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million|point|and|percent|[\d.,%]+))+/i;
+const NUMBER_RUN = /^(?:\s+(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million|point|and|percent|[\d.,%]+)(?![\p{L}\p{N}]))+/iu;
 /** After the spoken number, a unit or "times" and then a comparison, or "or more". */
 const COMPARISON_AFTER_NUMBER = /^(?:\s+\S+){0,2}?\s+(?:less|more|greater|smaller|fewer|higher|lower|bigger|larger|faster|slower|heavier|lighter|longer|shorter|as)\b/i;
 /** "is one of the", "is one way to": a count, not the row's value. */
 const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?|types?|common|key|important|big|major|main|simple|useful|classic|good|great|small|quick|easy|last|final|other|more|such|particular|single|special|standard|basic|typical|possible)\b/i;
+/**
+ * What may follow a value spoken in words: the end of the clause, a symbol, an
+ * operation, a fraction, a ratio ("one in six"), or a unit. "one form of
+ * energy" and "two marks" are counts of things, not the row's value. "to" is
+ * left out: "is one to watch" is not a value.
+ */
+const AFTER_SPOKEN_VALUE = /^(?:\s*(?:[,.;:!?)]|$)|\s+(?:\p{L}|over|times|squared|cubed|plus|minus|divided|remainder|of|per|in|cubic|square|degrees?|half|halves|thirds?|quarters?|\p{L}+ths?|rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|electron|atmospheres?|calories?|kilocalories?|decibels?|light)\b)/iu;
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
 const TENS_WORDS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
@@ -165,7 +172,9 @@ function repairLectureStep(rawStep: string): string {
       if (!next || !leads.has(next)) continue;
       // "is ten percent less than" compares; it is not a value.
       const rest = after.replace(NUMBER_RUN, "");
-      if (COMPARISON_AFTER_NUMBER.test(rest) || COUNT_NOT_VALUE.test(after)) continue;
+      if (COMPARISON_AFTER_NUMBER.test(rest)) continue;
+      // A value spoken in words must be followed by what a value is followed by.
+      if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !AFTER_SPOKEN_VALUE.test(rest))) continue;
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }

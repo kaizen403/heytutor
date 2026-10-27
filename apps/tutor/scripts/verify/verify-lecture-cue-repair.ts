@@ -249,6 +249,10 @@ for (const [step, kept] of [
   ["[STEP]this is one of the most important results. [WRITE:n = 1,90,211][/STEP]", "is one of the most important"],
   ["[STEP]this is one common mistake. [WRITE:x = 1,90,211][/STEP]", "is one common mistake"],
   ["[STEP]this is one important result. [WRITE:N = 100000,90,211][/STEP]", "is one important result"],
+  ["[STEP]Kinetic energy is one form of energy. [WRITE:KE = 1/2 m v^2,90,211][/STEP]", "Kinetic energy is one form of energy"],
+  ["[STEP]That is two marks for this step. [WRITE:x = 2,90,211][/STEP]", "That is two marks for this step"],
+  ["[STEP]the selling price is sixty five rupees less than the cost price. [WRITE:SP = 65 less than CP,90,211][/STEP]", "is sixty five rupees less than"],
+  ["[STEP]the new price is eighteen percent more than the old one. [WRITE:P = 18% more than Q,90,211][/STEP]", "is eighteen percent more than"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a comparison or a count stays as spoken: ${spokenAfter(step)}`);
 }
@@ -259,5 +263,14 @@ assert(oneWay.includes("The force equals one hundred newtons") && oneWay.include
 assert(spokenAfter("[STEP]the pressure is one hundred thousand pascals. [WRITE:P = 100000 Pa,90,211][/STEP]").includes("the pressure equals one hundred thousand"),
   "a value of one hundred thousand leads with its first word");
 assert(spokenAfter("[STEP]so x is omicron y. [WRITE:x = ο y,90,211][/STEP]").includes("x equals omicron y"), "omicron leads by its spoken name");
+assert(spokenAfter("[STEP]so the probability is one in six. [WRITE:P = 1/6,90,211][/STEP]").includes("the probability equals one in six"), "a ratio spoken in words is still the value");
+// A number word is read whole: "sixty" is not "six" plus "ty", so the value is
+// still found ("sixty meters per second") and a comparison after it still is.
+assert(spokenAfter("[STEP]so the speed is sixty meters per second. [WRITE:v = 60 m/s,90,211][/STEP]").includes("the speed equals sixty meters per second"),
+  "a longer number word is read whole, not cut at a shorter one");
+// The count and value guards apply only to a value spoken in words: a symbol
+// reading ("v final" for v_final) keeps #334's rule.
+assert(spokenAfter("[STEP]so the velocity is v final. [WRITE:v = v_final,90,211][/STEP]").includes("the velocity equals v final"),
+  "a symbol value keeps its equals even when a count word follows it");
 
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");
