@@ -358,7 +358,7 @@ function volts(stem: string): number[] {
 
 // A conductor turning in a field: a generator's loop or coil, or a rod, disc
 // or blade turning about an axis. Neither induction figure draws one.
-const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b[^.]{0,60}\b(?:rotat|spin|revolv)\w*|\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\s+(?:is\s+|being\s+)?(?:turns|turning)\b|\b(?:rotat|spinn|revolv)\w*\s+(?:\w+\s+)?(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b|\babout (?:one|its|an?) end\b|\b(?:pivoted|hinged)\s+(?:at|about)\b|\bpendulum\b|\b(?:ac|a\.c\.) generator\b|\balternator\b|\bdynamo\b/i;
+const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b(?:[^.]|\.\d){0,60}\b(?:rotat|spin|revolv)\w*|\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\s+(?:is\s+|being\s+)?(?:turns|turning)\b|\b(?:rotat|spinn|revolv)\w*\s+(?:\w+\s+)?(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel)\b|\babout (?:one|its|an?) end\b|\b(?:pivoted|hinged)\s+(?:at|about)\b|\bpendulum\b|\b(?:ac|a\.c\.) generator\b|\balternator\b|\bdynamo\b/i;
 
 // A stem asking which way the induced current flows. A current whose
 // direction the stem gives ("carries 2 A clockwise") is not asked.
@@ -374,7 +374,7 @@ const MAGNET_COIL_CONTRADICTIONS = [
   /\bS[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bS[- ]pole\b/,
   /\bsouth[- ]pole\b[^.?]{0,40}\b(?:approach|push|pushed|mov|brought|fac|towards|enter|insert)\w*|\b(?:pushed|moved|brought)\b[^.?]{0,30}\bsouth[- ]pole\b/i,
   /\bwithdraw\w*|\b(?:pulled|drawn|taken|moved|removed)\s+(?:\w+\s+){0,2}?(?:out|away)\b|\bmov(?:es?|ing)\s+away\b|\breced\w*/i,
-  /\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b|\bmagnets?\b[^.]{0,30}\b(?:stationary|at rest|held still)\b|\bcoils?(?:\s+(?:connected|joined|attached)\s+to\s+(?:a|an|the)\s+\w+)?\s+(?:is\s+|are\s+|being\s+)?(?:moved|moving|moves|brought|pushed|pulled)\b/i,
+  /\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b|\bmagnets?\s+(?:is\s+|are\s+|remains?\s+|kept\s+|sits?\s+)?(?:held\s+)?(?:stationary|at rest|still)\b|\bcoils?(?:\s+(?:connected|joined|attached)\s+to\s+(?:a|an|the)\s+\w+)?\s+(?:is\s+|are\s+|being\s+)?(?:moved|moving|moves|brought|pushed|pulled)\b/i,
 ];
 // Other induction setups: the magnet and coil is not their figure, but
 // theirs (a sliding rod, say) may be right, so they only veto this one.
