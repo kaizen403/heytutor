@@ -1966,7 +1966,9 @@ function addLabel(
     ? boundedLinearLabel(primitive.text)
     : compactDiagramLabel(primitive.text);
   if (!text) return;
-  const key = primitive.provenance?.matrixCell
+  // Matrix cells and block diagram lines repeat text by design ("request" can
+  // end two different boxes); each keeps its own identity.
+  const key = primitive.provenance?.matrixCell || primitive.provenance?.blockFlowRole
     ? `${primitive.entityId}:cell:${primitive.id}`
     : `${primitive.entityId}:${text}`;
   if (labels.keys.has(key)) return;
