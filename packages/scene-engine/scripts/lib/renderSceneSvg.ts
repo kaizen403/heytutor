@@ -119,11 +119,11 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       // centre put every label about half a line above where the board does.
       if (provenance?.labelBounds && primitive.text) {
         const bounds = provenance.labelBounds as { x: number; y: number; width: number; height: number };
-        // The label engine's sizes: 24 px with 4 px padding unless the
-        // compiler recorded its own (annotations: 2 px, marked labelPad 0;
-        // DSA labels: labelPad 3).
+        // The board's sizes: 24 px with the engine's 4 px padding, unless the
+        // compiler recorded its own font and pad (the board writes those
+        // labels at exactly that pad, zero included).
         const fontPx = typeof provenance?.fontPx === "number" ? provenance.fontPx : 24;
-        const pad = typeof provenance?.labelPad === "number" ? (provenance.labelPad === 0 ? 2 : provenance.labelPad) : 4;
+        const pad = typeof provenance?.labelPad === "number" ? provenance.labelPad : 4;
         const ink = measureTextInkBounds(primitive.text, bounds.x + pad, bounds.y + pad, fontPx);
         const centre = ink ? { x: ink.x + ink.width / 2, y: ink.y + ink.height / 2 } : { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
         return `<text x="${centre.x}" y="${centre.y}" font-size="${fontPx}" text-anchor="middle" dominant-baseline="central" fill="${labelColor}">${escapeXml(primitive.text)}</text>`;

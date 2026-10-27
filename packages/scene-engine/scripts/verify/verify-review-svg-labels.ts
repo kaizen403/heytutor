@@ -17,11 +17,12 @@ let checks = 0;
 for (const label of scene!.renderScene.primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.labelBounds && primitive.text)) {
   const provenance = label.provenance as { labelBounds: { x: number; y: number }; fontPx?: number; labelPad?: number };
   const fontPx = provenance.fontPx ?? 24;
-  const pad = typeof provenance.labelPad === "number" ? (provenance.labelPad === 0 ? 2 : provenance.labelPad) : 4;
+  const pad = typeof provenance.labelPad === "number" ? provenance.labelPad : 4;
   const ink = measureTextInkBounds(label.text!, provenance.labelBounds.x + pad, provenance.labelBounds.y + pad, fontPx)!;
   const escaped = label.text!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const match = new RegExp(`<text x="([0-9.]+)" y="([0-9.]+)" font-size="([0-9.]+)"[^>]*>${escaped}</text>`).exec(svg);
-  assert.ok(match, `${label.text}: drawn`);
+  // Centred on the ink: the anchor and baseline settings are part of the position.
+  const match = new RegExp(`<text x="([0-9.]+)" y="([0-9.]+)" font-size="([0-9.]+)" text-anchor="middle" dominant-baseline="central"[^>]*>${escaped}</text>`).exec(svg);
+  assert.ok(match, `${label.text}: drawn centred on its ink`);
   assert.equal(Number(match![3]), fontPx, `${label.text}: drawn at the engine's size`);
   assert.ok(Math.abs(Number(match![2]) - (ink.y + ink.height / 2)) < 1, `${label.text}: centred on the ink the engine measured`);
   checks += 1;
