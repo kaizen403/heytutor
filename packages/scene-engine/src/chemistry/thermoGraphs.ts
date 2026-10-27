@@ -56,7 +56,7 @@ const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistrib
 // energy distributions that are not this curve. "Gas" must end its noun
 // phrase: a gas of photons or a gas giant is not a kinetic theory gas.
 // Particles, atoms or a mixture count only when they belong to such a gas.
-const GAS = String.raw`(?:the\s+|a\s+|an\s+)?(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?(?=\s*(?:$|[.,;:!?)])|\s+(?:at|in|when|and|with|between|over|under|during)\b)`;
+const GAS = String.raw`(?:the\s+|a\s+|an\s+)?(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?(?=\s*(?:$|[.,;:!?)])|\s+(?:at|in|for|as|when|and|with|between|over|under|during)\b)`;
 const CARRIER = String.raw`(?:${GAS}|(?:the\s+|a\s+|an\s+)?(?:(?:\w+\s+)?(?:particles|atoms)|mixtures?)\s+(?:of|in)\s+${GAS}|(?:\w+\s+)?molecules)\b`;
 /**
  * An energy distribution is the molecules' only when the stem says so beside
