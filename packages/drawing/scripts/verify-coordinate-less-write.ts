@@ -8,6 +8,8 @@
  */
 import {
   IncrementalTagParser,
+  buildLessonSegments,
+  lessonNarrationText,
   WORK_ZONE,
   getSegmentCommands,
   parseDrawingCommands,
@@ -69,8 +71,6 @@ const refused = [
   `[STEP]A row on the wrong grid. [WRITE:v = 12,100] Done.[/STEP]`,
   "[STEP]A placeholder only. [WRITE:v = 12,x] Done.[/STEP]",
   `[STEP]Off grid y. [WRITE:v = 12,x,${ROW(1) + 3}] Done.[/STEP]`,
-  "[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]",
-  "[STEP]Q2 next. [WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]",
   "[STEP]An empty row. [WRITE:] Nothing.[/STEP]",
   // Labelled coordinates, seen in production resumes: never written as text.
   "[STEP]Tissue next. [WRITE:tissue = similar cells together:y=541] Cells group.[/STEP]",
@@ -119,8 +119,8 @@ assert(two.writes.map((write) => write.text).join("|") === "a = 1|b = 2 m", "con
 // A WRITE that closes neither way is protocol: it is dropped, never spoken,
 // and the tags after it still run. Recorded resumes sent these; the stream
 // used to hold the rest of the step behind them and read it all aloud.
-const refusedThenTags = "[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]\n\n" +
-  `[STEP]Next the force. [WRITE:F = ma,90,${ROW(1)}] Newton. [PAUSE:400] Done.[/STEP]`;
+const refusedThenTags = "[STEP]The canal. [WRITE:w6:y475] It also receives.[/STEP]\n\n" +
+  `[STEP]Next the force. [WRITE:F = ma,90,${ROW(1)}] Newton. [/WRITE] [PAUSE:400] Done.[/STEP]`;
 for (const chunk of [1, 7, 64]) {
   const commands: DrawCommand[] = [];
   const narration: string[] = [];
@@ -145,8 +145,9 @@ assert(batchRefused.commands.filter((command) => command.type === "WRITE").map((
 // Dropped protocol between two words leaves one space: words are never glued
 // and two numbers never become one ("x = 2[/WRITE]3" is not "x = 23").
 const glued: Array<[string, string[], string[]]> = [
-  ["[STEP]It is alive.[WRITE:w3:y=211]cell = life[/WRITE]This is alive.[/STEP]", ["alive. cell", "life This"], ["alive.cell", "lifeThis"]],
-  ["[STEP]Now [WRITE:w6:y475]canal: birth[/WRITE]The delivery.[/STEP]", ["birth The"], ["birthThe"]],
+  // (A [WRITE:w3:y=211]text[/WRITE] pair is a tag-closed row on this branch.)
+  ["[STEP]It is alive.[WRITE:w3:y=211]cell is life.[/STEP]", ["alive. cell"], ["alive.cell"]],
+  ["[STEP]Now the canal[/WRITE]The delivery.[/STEP]", ["canal The"], ["canalThe"]],
   ["Then x = 2[/WRITE]3 seconds later.", ["2 3 seconds"], ["23 seconds"]],
   ["[STEP]Speed v = 2[WRITE:y=277]3 seconds later.[/STEP]", ["2 3 seconds"], ["23 seconds"]],
 ];
@@ -165,6 +166,46 @@ for (const [source, spaced, joined] of glued) {
 const overflow = streamed(`[STEP]A row. [WRITE:y=277] ${"then more words ".repeat(24)}[/STEP]`);
 assert(overflow.writes.length === 0 && !overflow.narration.includes("[WRITE"), "a refused WRITE held past the buffer limit is not spoken");
 assert(!streamed("Last words. [WRITE:w5]").narration.includes("[WRITE"), "a refused WRITE at the end of the stream is not spoken");
+
+// A row closed by a tag is the row the model meant, with a bare header or a
+// header that holds only an id or coordinates. Recorded production shapes.
+const closedRows: Array<[string, string]> = [
+  ["[STEP]The square. [WRITE]x^2 + (b/a)x = (x + b/(2a))^2[/WRITE] The key step.[/STEP]", "x^2 + (b/a)x = (x + b/(2a))^2"],
+  ["[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]", "canal: birth"],
+  ["[STEP]Q2 next. [WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]", "Q2: where?"],
+  ["[STEP]Ten. [WRITE:x=60, y=475]chapter = many exercises[/WRITE] Many.[/STEP]", "chapter = many exercises"],
+];
+for (const [source, text] of closedRows) {
+  for (const chunk of [1, 7, 64]) {
+    const { writes, narration } = streamed(source, chunk);
+    assert(writes.length === 1 && writes[0]!.text === text, `a tag-closed row is written (chunk ${chunk}): ${JSON.stringify(writes.map((write) => write.text))}`);
+    assert(writes[0]!.params[0] === WORK_ZONE.marginX, "a tag-closed row sits at the work margin");
+    assert(!/\[\/?WRITE/i.test(narration), `no WRITE tag is spoken around a tag-closed row (chunk ${chunk}): ${narration}`);
+  }
+  const batch = batchWrites(source);
+  assert(batch.length === 1 && batch[0]!.text === text, `the batch parser agrees on ${JSON.stringify(source)}`);
+}
+// The refusals still hold inside the tags, and a header that says more than
+// an id or coordinates is not a tag-closed row.
+for (const source of [
+  "[STEP]Count. [WRITE]Population = 1,211[/WRITE] That many.[/STEP]",
+  "[STEP]Kelvin. [WRITE]w4:T(K) = T(C) + 273[/WRITE] Always.[/STEP]",
+]) {
+  assert(streamed(source).writes.length === 0 && batchWrites(source).length === 0, `a tag-closed body still refuses ${JSON.stringify(source)}`);
+}
+
+// Notes and history read the same rows the board wrote.
+const notesSource = `[STEP]The square. [WRITE]x^2 + 2x = (x + 1)^2 - 1[/WRITE] The key step.[/STEP]\n\n[STEP]Rows. [WRITE:y = 2x,${ROW(2)}] Done. [WRITE:w5] Next.[/STEP]`;
+const notes = lessonNarrationText(notesSource);
+assert(!/\[\/?WRITE/i.test(notes), `lesson notes never carry a WRITE tag: ${notes}`);
+const noteRows = buildLessonSegments(notesSource).flatMap((segment) => getSegmentCommands(segment))
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(noteRows.join("|") === "x^2 + 2x = (x + 1)^2 - 1|y = 2x", `lesson segments hold the repaired rows: ${JSON.stringify(noteRows)}`);
+
+// A header with a real row is that row; the words after it are not ink.
+const headed = "[STEP]Head. [WRITE:v = 3]and more[/WRITE] Done.[/STEP]";
+assert(streamed(headed).writes.map((write) => write.text).join("|") === "v = 3" &&
+  batchWrites(headed).map((write) => write.text).join("|") === "v = 3", "a header that holds a row keeps only that row");
 
 // The refused span ends at the tag's own "]": a bracket in the speech after it
 // (an interval) is speech, not part of the tag.

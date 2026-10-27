@@ -2,6 +2,7 @@ import {
   DRAW_COMMAND_TYPES,
   HEADER_ONLY_TEXT_TAG_EXACT,
   isCompleteDrawingTag,
+  matchClosedWriteRow,
   matchCoordinateLessWriteTag,
   matchRefusedWriteTag,
   SPOKEN_WORD_START,
@@ -100,6 +101,17 @@ export class IncrementalTagParser {
         return;
       }
       this.tagBuffer += char;
+      // `[WRITE]text[/WRITE]`: the closing tag ends the row.
+      if (/\[\/WRITE\]$/i.test(this.tagBuffer)) {
+        const closed = matchClosedWriteRow(this.tagBuffer);
+        if (closed && closed.raw === this.tagBuffer) {
+          this.tagBuffer = '';
+          this.headerOnlyTextTag = false;
+          this.state = 'NARRATION';
+          for (const closedChar of closed.canonical) this.processChar(closedChar);
+          return;
+        }
+      }
       if (/\[\/STEP\]$/i.test(this.tagBuffer)) {
         const footer = this.tagBuffer.slice(-7);
         this.tagBuffer = this.tagBuffer.slice(0, -7);
@@ -140,7 +152,7 @@ export class IncrementalTagParser {
    * through the parser.
    */
   private closeCoordinateLessWrite(force: boolean): boolean {
-    const repaired = matchCoordinateLessWriteTag(this.tagBuffer);
+    const repaired = matchCoordinateLessWriteTag(this.tagBuffer) ?? matchClosedWriteRow(this.tagBuffer);
     if (!repaired) return this.dropRefusedWrite(force);
     const rest = this.tagBuffer.slice(repaired.raw.length);
     if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
