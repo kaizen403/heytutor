@@ -37,6 +37,8 @@ import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/w
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
+import type { DiagramSubject } from "@heytutor/tutor-core";
 import { readFailedTurnTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 export interface SubmittedTurnSegment {
@@ -76,6 +78,8 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   codeLesson?: CodeLessonPlan;
   boardContinuation?: BoardContinuation;
   diagramStrategy?: DiagramStrategy;
+  /** The plan subject the scene was drawn under; scene recovery refuses chemistry and unrecorded subjects. */
+  diagramSubject?: DiagramSubject;
   failureTelemetry?: FailedTurnTelemetry;
 };
 
@@ -422,6 +426,9 @@ export async function canonicalizeTurnSceneMetadata(
     nonMetric,
     figureSource: validatedFigureSource(metadata.sceneArtifacts),
     diagramStrategy: validatedDiagramStrategy(metadata.sceneArtifacts),
+    ...(recordedDiagramSubject(metadata.sceneArtifacts.diagramSubject)
+      ? { diagramSubject: recordedDiagramSubject(metadata.sceneArtifacts.diagramSubject)! }
+      : {}),
     failureTelemetry: readFailedTurnTelemetry(metadata.sceneArtifacts.failureTelemetry),
     candidates: [{
       candidateId,
