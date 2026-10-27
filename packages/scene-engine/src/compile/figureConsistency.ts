@@ -380,10 +380,33 @@ export function validateRegionLabelPlacement(document: SceneDocument, primitives
 /** Frames sharing no more than this many pixels across both directions only touch. */
 const FRAME_OVERLAP_PX = 2;
 
-function frameBox(primitive: RenderPrimitive): { minX: number; maxX: number; minY: number; maxY: number } | null {
+/** How far past a shared axis a half-plane frame may reach, as a share of its height. */
+const HALF_PLANE_MARGIN = 0.2;
+
+function frameBox(primitive: RenderPrimitive): { minX: number; maxX: number; minY: number; maxY: number; axisY: number | null } | null {
   if (primitive.kind !== "axes" || primitive.points.length < 2) return null;
   const xs = primitive.points.map((p) => p.x), ys = primitive.points.map((p) => p.y);
-  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+  // An axes primitive lists its horizontal axis first: (xMin, 0), (xMax, 0).
+  const horizontal = primitive.points.length >= 4 && Math.abs(primitive.points[0]!.y - primitive.points[1]!.y) < 0.5 ? primitive.points[0]!.y : null;
+  return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys), axisY: horizontal };
+}
+
+/**
+ * Two frames that share one horizontal axis and one x span, one drawn above
+ * it and one below (g(r) above, V(r) below), are one graph split at its
+ * axis, not two graphs on one scale: each reaches past the shared axis only
+ * by a small margin.
+ */
+function oppositeHalves(first: NonNullable<ReturnType<typeof frameBox>>, second: NonNullable<ReturnType<typeof frameBox>>): boolean {
+  if (first.axisY === null || second.axisY === null || Math.abs(first.axisY - second.axisY) > 1) return false;
+  if (Math.abs(first.minX - second.minX) > 2 || Math.abs(first.maxX - second.maxX) > 2) return false;
+  const axis = first.axisY;
+  const above = (box: NonNullable<ReturnType<typeof frameBox>>) => axis - box.minY;
+  const below = (box: NonNullable<ReturnType<typeof frameBox>>) => box.maxY - axis;
+  const height = (box: NonNullable<ReturnType<typeof frameBox>>) => box.maxY - box.minY;
+  const upper = (box: NonNullable<ReturnType<typeof frameBox>>) => below(box) <= HALF_PLANE_MARGIN * height(box);
+  const lower = (box: NonNullable<ReturnType<typeof frameBox>>) => above(box) <= HALF_PLANE_MARGIN * height(box);
+  return (upper(first) && lower(second)) || (lower(first) && upper(second));
 }
 
 /** Every pair of axes of different entities whose drawn frames overlap; packed panels are apart. */
@@ -399,6 +422,7 @@ export function validateFrameOverlap(document: SceneDocument, primitives: Render
     const width = Math.min(first.box.maxX, second.box.maxX) - Math.max(first.box.minX, second.box.minX);
     const height = Math.min(first.box.maxY, second.box.maxY) - Math.max(first.box.minY, second.box.minY);
     if (width <= FRAME_OVERLAP_PX || height <= FRAME_OVERLAP_PX) continue;
+    if (oppositeHalves(first.box, second.box)) continue;
     issues.push({ code: "axes_frames_overlap", severity: "fatal", failureKind: "truth", entityIds: [first.entityId, second.entityId],
       message: `Axes ${first.entityId} and ${second.entityId} are drawn over one another, so their two graphs read as one and each one's marks land on the other.` });
   }
