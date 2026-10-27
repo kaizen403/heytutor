@@ -802,6 +802,30 @@ export function matchRefusedWriteTag(slice: string): string | null {
   return slice.slice(0, end + 1);
 }
 
+/**
+ * A row closed by a tag: `[WRITE]text[/WRITE]`, or a header that holds only a
+ * row id or coordinates (`[WRITE:w6:y475]text[/WRITE]`, `[WRITE:y=541]...`).
+ * The text between the tags is the row the model meant; production sent this
+ * in a fresh lesson (every row unwritten, "[/WRITE]" read aloud) and in
+ * resumes. The text is one line with no brackets, and it passes the same
+ * refusals as a coordinate-less row, so no coordinate, id or placeholder can
+ * become ink.
+ */
+const CLOSED_WRITE_ROW = /^\[WRITE(?::([^\]\r\n]*))?\]([^[\]\r\n]{1,200}?)\[\/WRITE\]/iu;
+const LABELLED_COORDINATES_ONLY = /^(?:x\s*=\s*-?\d+\s*,\s*)?y\s*=\s*-?\d+$/i;
+
+export function matchClosedWriteRow(slice: string): { raw: string; canonical: string } | null {
+  const match = CLOSED_WRITE_ROW.exec(slice);
+  if (!match) return null;
+  const head = (match[1] ?? '').trim();
+  if (head && !COORDINATE_ONLY_WRITE_BODY.test(head) && !LABELLED_COORDINATES_ONLY.test(head)) return null;
+  const row = coordinateLessWriteRow(match[2]!);
+  if (!row) return null;
+  const canonical = `[WRITE:${row.text},${WORK_ZONE.marginX},${row.y}]`;
+  if (matchWriteLabelTag(canonical) !== canonical) return null;
+  return { raw: match[0], canonical };
+}
+
 /** `[/WRITE]` closes nothing in this protocol; it is never spoken. */
 export const STRAY_WRITE_CLOSE = /\[\/WRITE\]/giu;
 
@@ -815,7 +839,7 @@ export function separatorAfterDrop(before: string | undefined, after: string): s
 }
 export const SPOKEN_WORD_START = /^[\p{L}\p{N}(]/u;
 
-/** Rewrite every coordinate-less WRITE that cannot close canonically. */
+/** Rewrite every coordinate-less or tag-closed WRITE that cannot close canonically. */
 export function repairCoordinateLessWriteTags(responseText: string): string {
   // A stray [/WRITE] is dropped from speech only; a row may quote one. A
   // dropped tag between two words leaves one space, so "x = 2[/WRITE]3" is
@@ -824,7 +848,7 @@ export function repairCoordinateLessWriteTags(responseText: string): string {
   const speech = (text: string) => text.replace(STRAY_WRITE_CLOSE, (_tag, offset: number, whole: string) =>
     separatorAfterDrop(offset > 0 ? whole[offset - 1] : out.slice(-1), whole.slice(offset + _tag.length)));
   let from = 0;
-  const opens = /\[WRITE:/giu;
+  const opens = /\[WRITE[:\]]/giu;
   for (;;) {
     opens.lastIndex = from;
     const found = opens.exec(responseText);
@@ -835,6 +859,12 @@ export function repairCoordinateLessWriteTags(responseText: string): string {
     if (canonical) {
       out += speech(responseText.slice(from, open)) + canonical;
       from = open + canonical.length;
+      continue;
+    }
+    const closed = matchClosedWriteRow(slice);
+    if (closed) {
+      out += speech(responseText.slice(from, open)) + closed.canonical;
+      from = open + closed.raw.length;
       continue;
     }
     const repaired = matchCoordinateLessWriteTag(slice);

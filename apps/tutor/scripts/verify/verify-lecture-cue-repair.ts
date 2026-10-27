@@ -158,4 +158,16 @@ assert(
   "the parser receives one result box",
 );
 
-console.log("lecture cue repair: equals on the friction row, box on the closing relation");
+// A row the parser repairs (coordinate-less, or closed by [/WRITE]) is a row,
+// not speech: the copula repair must never rewrite the words on the board.
+const closedRowStep = "[STEP]The speed comes from distance over time. [WRITE]v = d/t[/WRITE] and so [WRITE]the speed is constant[/WRITE][/STEP]";
+const closedRows = parseDrawingCommands(repairLectureMarkup(closedRowStep)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(closedRows.includes("the speed is constant") && !closedRows.some((text) => /equals constant/.test(text ?? "")),
+  `the copula repair must not rewrite a repaired row's text: ${JSON.stringify(closedRows)}`);
+const bareRowStep = "[STEP]The speed comes from distance over time. [WRITE:v = d/t,90,211] and so [WRITE:the speed is constant][/STEP]";
+const bareRows = parseDrawingCommands(repairLectureMarkup(bareRowStep)).commands
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(bareRows.includes("the speed is constant"), `nor a coordinate-less row's text: ${JSON.stringify(bareRows)}`);
+
+console.log("lecture cue repair: equals on the friction row, box on the closing relation; repaired rows are never rewritten");

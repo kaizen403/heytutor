@@ -1,6 +1,8 @@
 import {
   parseDrawingCommands,
   parseDrawingTag,
+  repairCoordinateLessWriteTags,
+  repairHeaderOnlyTextTags,
   scanDrawingTags,
   type DrawCommand,
 } from "@heytutor/drawing";
@@ -37,8 +39,11 @@ function narrationOutsideTags(text: string): string {
  * One closed step, or a tail that never opened one. Relation rows that were
  * spoken without "equals" pick up the word. Everything else is unchanged.
  */
-function repairLectureStep(step: string): string {
-  if (/\[TYPE[:\]]/i.test(step)) return step;
+function repairLectureStep(rawStep: string): string {
+  if (/\[TYPE[:\]]/i.test(rawStep)) return rawStep;
+  // Rows the parser would repair are repaired first, so the copula and the
+  // result box land on real tags, never inside a coordinate-less row.
+  const step = repairCoordinateLessWriteTags(repairHeaderOnlyTextTags(rawStep));
   const parsed = parseDrawingCommands(step);
   if (!parsed.commands.some(isRelationWrite)) return step;
   if (SAYS_EQUALS.test(narrationOutsideTags(step))) return step;
