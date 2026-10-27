@@ -479,6 +479,9 @@ for (const values of [
     if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
   });
   for (const question of [
+    "Sketch the distribution of energy in a standing electromagnetic wave.",
+    "Sketch the distribution of energy for a photon gas at two temperatures.",
+    "Draw the distribution of molecular speeds in a star's corona plasma.",
     "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
     "Write Maxwell's equations and show how they predict the speed of light.",
     "State the Maxwell right-hand thumb rule and use it to find the field direction.",

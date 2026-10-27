@@ -62,6 +62,19 @@ function namesMaxwellDistribution(stem: string): boolean {
     || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
 }
 
+/**
+ * A distribution of speeds or energies is the molecules' curve only for a
+ * gas of molecules: it needs a molecule or gas word, and declines photons,
+ * radiation, waves, a plasma or corona, an electron gas and nuclear
+ * particles, whose distributions are other curves. Main matched the bare
+ * phrase; this keeps only part of what it drew.
+ */
+function moleculeDistribution(stem: string): boolean {
+  if (!/boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem)) return false;
+  if (!/\b(?:molecul\w*|gas(?:es)?|maxwell|boltzmann|particles?|reactants?|reacting)\b/.test(stem)) return false;
+  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|electrons?|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body)\b/.test(stem);
+}
+
 function classifyThermoStem(question: string): ThermoKind | null {
   const stem = chemStem(question);
   if (FIGURE_ABSENT.test(stem)) return null;
@@ -73,7 +86,7 @@ function classifyThermoStem(question: string): ThermoKind | null {
   }
   if (
     namesMaxwellDistribution(stem) ||
-    /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
+    moleculeDistribution(stem) ||
     (/fraction\s+of\s+(?:the\s+)?molecules/.test(stem) && /energy/.test(stem)) ||
     /effect\s+of\s+temperature\s+on\s+(?:the\s+)?(?:rate|reaction\s+rate)/.test(stem) ||
     /molecules\s+(?:having|with|possessing)\s+(?:kinetic\s+)?energy\s+(?:greater|more|higher|larger)\s+than/.test(stem)
