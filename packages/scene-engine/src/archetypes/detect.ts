@@ -383,13 +383,14 @@ const MAGNET_COIL_CONTRADICTIONS = [
 /**
  * A stem that keeps the magnet still. Read sentence by sentence: one that
  * names a magnet and a still word keeps the magnet still unless the still
- * word belongs to the coil ("a stationary coil", or "the coil is held
- * fixed" with the coil as its subject, not after "inside a" or "into a").
+ * word belongs to the coil: "a stationary coil", "a coil that is
+ * stationary", or "the coil is held fixed" with the coil as its subject,
+ * not after "inside a" or "into a".
  */
 function magnetHeldStill(stem: string): boolean {
   const STILL = /\b(?:stationary|at rest|still|static)\b/i;
   const COIL = "(?:coils?|loops?|rings?|solenoids?)";
-  const coilStill = new RegExp(String.raw`\b(?:stationary|fixed|static)\s+${COIL}\b|(?<!\b(?:inside|into|in|near|within|through|to|towards|from|of|around)\s+(?:a|an|the)\s+)\b${COIL}\s+(?:is|are|remains?|stays?)\s+(?:kept\s+|held\s+)?(?:stationary|fixed|at rest|still|static)\b`, "gi");
+  const coilStill = new RegExp(String.raw`\b(?:stationary|fixed|static)\s+${COIL}\b|(?<!\b(?:inside|into|in|near|within|through|to|towards|from|of|around)\s+(?:a|an|the)\s+)\b${COIL}\s+(?:is|are|remains?|stays?)\s+(?:kept\s+|held\s+)?(?:stationary|fixed|at rest|still|static)\b|\b${COIL}\s+(?:that|which)\s+(?:is|are|remains?|stays?)\s+(?:kept\s+|held\s+)?(?:stationary|fixed|at rest|still|static)\b`, "gi");
   return stem.split(/[.?!;]/).some((sentence) => {
     if (!/\bmagnets?\b/i.test(sentence)) return false;
     if (/\b(?:stationary|fixed|static)\s+(?:bar\s+)?magnets?\b/i.test(sentence)) return true;
