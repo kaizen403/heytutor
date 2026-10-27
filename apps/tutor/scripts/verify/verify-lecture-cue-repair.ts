@@ -239,4 +239,23 @@ for (const [step, spoken] of [
 assert(spokenAfter("[STEP]so the selling price is ten percent less than its cost price. [WRITE:SP = 10% less than CP,90,211][/STEP]").includes("is ten percent less than"),
   "a comparison after is stays a comparison");
 
+// Review of #345: a comparison past the spoken number, or a count ("one way",
+// "one of the"), is not the row's value, and must not steal the rewrite from
+// the sentence that states it.
+for (const [step, kept] of [
+  ["[STEP]the selling price is twenty five percent less than its cost price. [WRITE:SP = 25% less than CP,90,211][/STEP]", "is twenty five percent less than"],
+  ["[STEP]the load is ten newtons or more. [WRITE:F = 10 N,90,211][/STEP]", "is ten newtons or more"],
+  ["[STEP]the new car is two times faster. [WRITE:v = 2 u,90,211][/STEP]", "is two times faster"],
+  ["[STEP]this is one of the most important results. [WRITE:n = 1,90,211][/STEP]", "is one of the most important"],
+] as const) {
+  assert(spokenAfter(step).includes(kept), `a comparison or a count stays as spoken: ${spokenAfter(step)}`);
+}
+const oneWay = spokenAfter("[STEP]The force is one hundred newtons. This is one way to check the result. [WRITE:F = 100 N,90,211][/STEP]");
+assert(oneWay.includes("The force equals one hundred newtons") && oneWay.includes("This is one way to check"),
+  `the value sentence keeps the rewrite, the count sentence keeps its words: ${oneWay}`);
+// Large values and omicron lead too (Greptile P2s).
+assert(spokenAfter("[STEP]the pressure is one hundred thousand pascals. [WRITE:P = 100000 Pa,90,211][/STEP]").includes("the pressure equals one hundred thousand"),
+  "a value of one hundred thousand leads with its first word");
+assert(spokenAfter("[STEP]so x is omicron y. [WRITE:x = ο y,90,211][/STEP]").includes("x equals omicron y"), "omicron leads by its spoken name");
+
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");
