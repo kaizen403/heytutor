@@ -46,7 +46,7 @@ const EDGE_LINE_HEIGHT = EDGE_FONT + 7;
 const BOX_PAD_X = 14;
 const BOX_PAD_Y = 10;
 const BOX_GAP = 28;
-const MIN_RANK_GAP = 64;
+const MIN_RANK_GAP = 48;
 /** Clearance kept between any two parts the verifier compares. */
 const CLEAR = 4;
 const INPUT_KEYS = ["direction", "nodes", "edges"] as const;
@@ -100,10 +100,12 @@ export function parseBlockFlowInputs(inputs: Record<string, unknown>): { directi
     const key = `edges[${index}]`;
     if (!isRecord(raw)) fail(key, `${key} must be an object`);
     if (Object.keys(raw).some((name) => !["from", "to", "label", "claimId"].includes(name))) fail(key, `${key} has unsupported fields`);
+    if (raw.label !== undefined && typeof raw.label !== "string") fail(`${key}.label`, `${key}.label must be text`);
     const edge = {
       from: identifier(raw.from, `${key}.from`),
       to: identifier(raw.to, `${key}.to`),
-      label: text(raw.label, `${key}.label`, LIMITS.edgeChars),
+      // A chain step needs no words of its own: the plan's arrow is the relation.
+      label: raw.label === undefined || raw.label === "" ? "" : text(raw.label, `${key}.label`, LIMITS.edgeChars),
       claimId: identifier(raw.claimId, `${key}.claimId`),
     };
     if (!ids.has(edge.from) || !ids.has(edge.to)) fail(key, `${key} joins a node that is not declared`);
@@ -123,11 +125,18 @@ export function parseBlockFlowInputs(inputs: Record<string, unknown>): { directi
 }
 
 // ---------------------------------------------------------------- grounding
+//
+// A bag-of-words test let a careless planner draw reversed arrows, lists as
+// pipelines, anatomy as flows and invented parts from words spread across a
+// claim (independent review, 27 Oct: 28 false figures passed). Grounding is
+// now positional: a box is one unbroken span of a claim, and an arrow joins
+// two adjacent stops of a chain the plan itself writes ("a → b → c").
 
 const STOPWORDS = new Set([
   "a", "an", "the", "of", "to", "and", "or", "for", "in", "on", "at", "by", "via", "with", "from", "into", "onto",
   "is", "are", "be", "its", "it", "as", "that", "this", "then", "than", "per", "each",
 ]);
+const CHAIN_ARROW = /→|->|⟶|⇒|=>/;
 
 function stem(token: string): string {
   if (token.length > 4 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
@@ -143,117 +152,87 @@ export function blockFlowTokens(value: string): string[] {
 function contentTokens(value: string): string[] {
   return blockFlowTokens(value).filter((token) => !STOPWORDS.has(token));
 }
+/** Where `needle` occurs as one unbroken run in `tokens`. */
+function spanIn(tokens: readonly string[], needle: readonly string[]): boolean {
+  if (needle.length === 0) return false;
+  for (let start = 0; start + needle.length <= tokens.length; start++) {
+    if (needle.every((token, offset) => tokens[start + offset] === token)) return true;
+  }
+  return false;
+}
 
 type Claim = TurnPlanV3["qualitativeClaims"][number];
 /** What the claim says in words. Its entity hints name parts, never how they relate. */
 function claimProse(claim: Claim): string[] {
   return [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean);
 }
-function claimTexts(claim: Claim): string[] {
-  return [...claimProse(claim), ...(claim.relatedEntityHints ?? [])];
-}
-function contains(haystack: ReadonlySet<string>, needle: readonly string[]): boolean {
-  return needle.length > 0 && needle.every((token) => haystack.has(token));
-}
 
+interface Chain { heading: string[]; stops: string[][] }
 /**
- * Where a label sits in a claim written as a chain ("tap → terminal → bank"):
- * the first segment holding all of its tokens, or null when no single
- * segment does or the text is not a chain.
+ * A claim text written as a chain: its stops in order, each as content
+ * tokens, and the heading before a colon in the first stop ("Flow: tap").
+ * Null when the text is not a chain of at least two stops with words.
  */
-function chainPosition(claimText: string, label: string): number | null {
-  const segments = claimText.split(/→|->|⟶|⇒|=>/);
-  if (segments.length < 2) return null;
-  const needle = contentTokens(label);
-  for (let index = 0; index < segments.length; index++) {
-    if (contains(new Set(blockFlowTokens(segments[index]!)), needle)) return index;
-  }
-  return null;
+function chainOf(value: string): Chain | null {
+  const parts = value.split(CHAIN_ARROW);
+  if (parts.length < 2) return null;
+  const colon = parts[0]!.lastIndexOf(":");
+  const heading = colon >= 0 ? contentTokens(parts[0]!.slice(0, colon)) : [];
+  const stops = [colon >= 0 ? parts[0]!.slice(colon + 1) : parts[0]!, ...parts.slice(1)].map(contentTokens);
+  return stops.every((stop) => stop.length > 0) ? { heading, stops } : null;
 }
 
 /**
- * Every box label is in a cited claim (its words or its entity hints); every
- * arrow's claim states, in its own words, both of its boxes and its label; an
- * arrow cited to a claim written as a chain may not run against the chain.
- * Issues are fatal: the caller refuses the figure.
+ * Every box label is one unbroken span of a cited claim's words, or one whole
+ * entity hint, and carries no arrow; every arrow joins stop i to stop i+1 of
+ * a chain its claim writes; an arrow label, when given, is one span of those
+ * two stops or of the chain's heading. Issues are fatal: the caller refuses
+ * the figure.
  */
 export function validateBlockFlowGrounding(
   inputs: { nodes: readonly BlockFlowNode[]; edges: readonly BlockFlowEdge[] },
   plan: Pick<TurnPlanV3, "qualitativeClaims">,
 ): string[] {
   const claims = new Map(plan.qualitativeClaims.map((claim) => [claim.id, claim]));
-  const tokensOf = (claim: Claim) => new Set(claimTexts(claim).flatMap(blockFlowTokens));
-  const proseTokensOf = (claim: Claim) => new Set(claimProse(claim).flatMap(blockFlowTokens));
   const problems: string[] = [];
   const nodes = new Map(inputs.nodes.map((node) => [node.id, node]));
   for (const node of inputs.nodes) {
     const label = contentTokens(node.label);
     if (label.length === 0) { problems.push(`box ${node.id} "${node.label}" has no content word`); continue; }
+    if (CHAIN_ARROW.test(node.label)) { problems.push(`box ${node.id} "${node.label}" carries an arrow`); continue; }
     const cited = node.claimIds.map((id) => claims.get(id));
     if (cited.some((claim) => !claim)) { problems.push(`box ${node.id} cites a claim the plan does not have`); continue; }
-    if (!cited.some((claim) => contains(tokensOf(claim!), label))) {
-      problems.push(`box ${node.id} "${node.label}" is not named in its cited claims`);
-    }
+    const grounded = cited.some((claim) =>
+      claimProse(claim!).some((value) => spanIn(contentTokens(value), label)) ||
+      (claim!.relatedEntityHints ?? []).some((hint) => contentTokens(hint).join(" ") === label.join(" ")));
+    if (!grounded) problems.push(`box ${node.id} "${node.label}" is not one unbroken span of its cited claims`);
   }
   for (const edge of inputs.edges) {
     const name = `arrow ${edge.from} to ${edge.to}`;
     const claim = claims.get(edge.claimId);
     if (!claim) { problems.push(`${name} cites a claim the plan does not have`); continue; }
-    const from = nodes.get(edge.from)!;
-    const to = nodes.get(edge.to)!;
-    const tokens = proseTokensOf(claim);
-    if (!contains(tokens, contentTokens(from.label)) || !contains(tokens, contentTokens(to.label))) {
-      problems.push(`${name}: claim ${edge.claimId} does not state both "${from.label}" and "${to.label}" in its words`);
-      continue;
-    }
+    const from = contentTokens(nodes.get(edge.from)!.label);
+    const to = contentTokens(nodes.get(edge.to)!.label);
     const label = contentTokens(edge.label);
-    if (!contains(tokens, label)) problems.push(`${name} label "${edge.label}" is not stated in claim ${edge.claimId}`);
-    for (const value of claimProse(claim)) {
-      const a = chainPosition(value, from.label);
-      const b = chainPosition(value, to.label);
-      if (a !== null && b !== null && a > b) problems.push(`${name} runs against the order claim ${edge.claimId} states`);
-    }
+    if (edge.label && label.length === 0) { problems.push(`${name} label "${edge.label}" has no content word`); continue; }
+    const chains = claimProse(claim).map(chainOf).filter((chain): chain is Chain => chain !== null);
+    if (chains.length === 0) { problems.push(`${name}: claim ${edge.claimId} is not written as a chain, so it states no arrow`); continue; }
+    const adjacent = chains.some((chain) => chain.stops.some((stop, index) => {
+      const next = chain.stops[index + 1];
+      if (!next || !spanIn(stop, from) || !spanIn(next, to)) return false;
+      return label.length === 0 || spanIn(stop, label) || spanIn(next, label) || spanIn(chain.heading, label);
+    }));
+    if (!adjacent) problems.push(`${name}${edge.label ? ` "${edge.label}"` : ""} is not one step of a chain claim ${edge.claimId} writes`);
   }
   return problems;
 }
 
 /**
- * The plan itself describes a structure: at least three of its named
- * components (`relatedEntityHints`) are joined, through claims that each name
- * two or more of them, into one connected group held by two or more such
- * claims. Read from the plan's structure only, never from the question.
+ * The plan itself writes a process: one claim text is a chain of at least
+ * three stops. Read from the plan's notation only, never from the question.
  */
-export function planDescribesLinkedComponents(plan: Pick<TurnPlanV3, "qualitativeClaims">): boolean {
-  const parent = new Map<string, string>();
-  const find = (id: string): string => {
-    const up = parent.get(id) ?? id;
-    if (up === id) return id;
-    const root = find(up);
-    parent.set(id, root);
-    return root;
-  };
-  const links: string[][] = [];
-  for (const claim of plan.qualitativeClaims) {
-    const hints = [...new Set((claim.relatedEntityHints ?? []).map((hint) => contentTokens(hint).join(" ")).filter(Boolean))];
-    if (hints.length < 2) continue;
-    links.push(hints);
-    for (const hint of hints) if (!parent.has(hint)) parent.set(hint, hint);
-    for (const hint of hints.slice(1)) parent.set(find(hint), find(hints[0]!));
-  }
-  const groups = new Map<string, { members: Set<string>; claims: number }>();
-  for (const hints of links) {
-    const root = find(hints[0]!);
-    const group = groups.get(root) ?? { members: new Set<string>(), claims: 0 };
-    hints.forEach((hint) => group.members.add(hint));
-    group.claims++;
-    groups.set(root, group);
-  }
-  for (const [root, group] of groups) {
-    // Merge members whose roots moved after this group was first recorded.
-    if (find(root) !== root) continue;
-    if (group.members.size >= 3 && group.claims >= 2) return true;
-  }
-  return false;
+export function planStatesChain(plan: Pick<TurnPlanV3, "qualitativeClaims">): boolean {
+  return plan.qualitativeClaims.some((claim) => claimProse(claim).some((value) => (chainOf(value)?.stops.length ?? 0) >= 3));
 }
 
 // ---------------------------------------------------------------- layout
@@ -366,9 +345,9 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
     const height = lines.length * BOX_LINE_HEIGHT + 2 * BOX_PAD_Y;
     return { node, lines, width, height };
   });
-  const edgeLines = edges.map((edge) => balancedArrowLabel(edge.label) ?? fail("edges", `arrow label "${edge.label}" cannot wrap into 2 lines of ${BLOCK_FLOW_LINE_CHARS} characters`));
+  const edgeLines = edges.map((edge) => edge.label === "" ? [] : balancedArrowLabel(edge.label) ?? fail("edges", `arrow label "${edge.label}" cannot wrap into 2 lines of ${BLOCK_FLOW_LINE_CHARS} characters`));
   const edgeLabelSize = edgeLines.map((lines) => ({
-    width: Math.ceil(Math.max(...lines.map((line) => measureTextWidth(line, EDGE_FONT)))),
+    width: lines.length ? Math.ceil(Math.max(...lines.map((line) => measureTextWidth(line, EDGE_FONT)))) : 0,
     height: lines.length * EDGE_LINE_HEIGHT,
   }));
   // Order inside a rank: declared order, then two barycentre sweeps over neighbours.
@@ -394,7 +373,7 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
   // arrow spanning more ranks detours outside and labels its own long leg.
   const gaps = Array.from({ length: Math.max(0, rankCount - 1) }, (_, gap) => Math.max(MIN_RANK_GAP, ...edges.map((edge, index) => {
     const a = rank.get(edge.from)!, b = rank.get(edge.to)!;
-    if (Math.abs(a - b) !== 1 || Math.min(a, b) !== gap) return 0;
+    if (Math.abs(a - b) !== 1 || Math.min(a, b) !== gap || edgeLines[index]!.length === 0) return 0;
     const size = edgeLabelSize[index]!;
     return (direction === "right" ? size.width : size.height) + 2 * 14;
   })));
@@ -459,7 +438,16 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
         point.y >= BLOCK_FLOW_ZONE.y && point.y <= BLOCK_FLOW_ZONE.y + BLOCK_FLOW_ZONE.height);
     const routes = [straight(), detour(-1, index % 3), detour(1, index % 3)];
     const points = routes.find(clear) ?? fail("edges", `arrow ${edge.from} to ${edge.to} cannot be drawn without crossing a box or another arrow`);
+    arrows.push({ from: edge.from, to: edge.to, points, labelLines: [] });
+  });
+  // Labels go on only after every arrow is routed, so no label sits where a
+  // later arrow runs; a paired arrow's label takes the outer side of its pair.
+  edges.forEach((edge, index) => {
     const lines = edgeLines[index]!;
+    if (lines.length === 0) return;
+    const arrow = arrows[index]!;
+    const points = arrow.points;
+    const offset = pairOffset(edge);
     const size = edgeLabelSize[index]!;
     const longest = segmentsOf(points).reduce((best, segment) =>
       Math.hypot(segment.b.x - segment.a.x, segment.b.y - segment.a.y) > Math.hypot(best.b.x - best.a.x, best.b.y - best.a.y) ? segment : best);
@@ -468,13 +456,13 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
       const mx = longest.a.x + (longest.b.x - longest.a.x) * t, my = longest.a.y + (longest.b.y - longest.a.y) * t;
       const length = Math.hypot(longest.b.x - longest.a.x, longest.b.y - longest.a.y) || 1;
       const nx = -(longest.b.y - longest.a.y) / length, ny = (longest.b.x - longest.a.x) / length;
-      for (const side of [-1, 1]) {
+      for (const side of offset ? [1, -1] : [-1, 1]) {
         const reach = Math.abs(nx) * size.width / 2 + Math.abs(ny) * size.height / 2 + 8;
         const cx = mx + side * nx * reach, cy = my + side * ny * reach;
         candidates.push({ x: round(cx - size.width / 2), y: round(cy - size.height / 2), width: size.width, height: size.height });
       }
     }
-    const everySegment = [...arrows.flatMap((arrow) => segmentsOf(arrow.points)), ...segmentsOf(points)];
+    const everySegment = arrows.flatMap((other) => segmentsOf(other.points));
     const spot = candidates.find((candidate) => {
       const padded = inflate(candidate, CLEAR);
       return candidate.x >= BLOCK_FLOW_ZONE.x && candidate.x + candidate.width <= BLOCK_FLOW_ZONE.x + BLOCK_FLOW_ZONE.width &&
@@ -484,14 +472,11 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
         everySegment.every((segment) => !segmentHitsBox(segment, padded));
     }) ?? fail("edges", `arrow ${edge.from} to ${edge.to} has no clear place for its label`);
     placedLabels.push(spot);
-    arrows.push({
-      from: edge.from, to: edge.to, points,
-      labelLines: lines.map((line, row) => {
+    arrow.labelLines = lines.map((line, row) => {
         const width = measureTextWidth(line, EDGE_FONT);
         const x = round(spot.x + (spot.width - width) / 2);
         const y = round(spot.y + row * EDGE_LINE_HEIGHT + (EDGE_LINE_HEIGHT - EDGE_FONT) / 2);
         return { text: line, x, y, fontPx: EDGE_FONT, ink: inkOf(line, x, y, EDGE_FONT), owner: `${edge.from}>${edge.to}` };
-      }),
     });
   });
   const definition: BlockFlowDefinition = { direction, nodes: [...nodes], edges: [...edges], boxes, boxLines, arrows, nonmetric: true };
@@ -529,7 +514,7 @@ export function verifyBlockFlowLayout(definition: BlockFlowDefinition): string[]
   definition.arrows.forEach((arrow, index) => {
     const edge = definition.edges[index];
     if (!edge || edge.from !== arrow.from || edge.to !== arrow.to) problems.push(`arrow ${index} does not match its edge`);
-    if (arrow.labelLines.length === 0) problems.push(`arrow ${arrow.from} to ${arrow.to} has no label`);
+    if (edge && (edge.label === "") !== (arrow.labelLines.length === 0)) problems.push(`arrow ${arrow.from} to ${arrow.to} does not carry exactly its stated label`);
     const source = boxById.get(arrow.from), target = boxById.get(arrow.to);
     const onBorder = (point: RenderPoint, box: Bounds | undefined) => box !== undefined &&
       point.x >= box.x - 0.5 && point.x <= box.x + box.width + 0.5 && point.y >= box.y - 0.5 && point.y <= box.y + box.height + 0.5 &&

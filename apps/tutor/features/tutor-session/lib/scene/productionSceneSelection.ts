@@ -6,7 +6,7 @@ import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
-  normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry, planDescribesLinkedComponents,
+  normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry, planStatesChain,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
@@ -90,10 +90,10 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   });
   // A block diagram is asked for only where the planner is never asked today,
   // so every turn that calls it now keeps its exact request, and only for a
-  // plan whose own claims link three named components (never stem words).
+  // plan that itself writes a process as a chain of three stops (never stem words).
   const blockFlowAdmitted = input.blockFlowEligible === true && !attemptsToday && shouldPlanExactScene &&
     sceneCapabilities.families.length === 0 && earlyArchetype === null && sceneCapabilities.hasSourceProgram !== true &&
-    planDescribesLinkedComponents(planningTurnPlan);
+    planStatesChain(planningTurnPlan);
   const shouldAttemptLlmScene = attemptsToday || blockFlowAdmitted;
   const planContext = [
     input.conversationContext,

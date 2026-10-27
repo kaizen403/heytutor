@@ -15,7 +15,7 @@ import {
   compileSceneDocument, validateSceneDocument, type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
-  BLOCK_FLOW_LINE_CHARS, BLOCK_FLOW_ZONE, blockFlowGroundingIssues, evaluateBlockFlowConstruction, planDescribesLinkedComponents,
+  BLOCK_FLOW_LINE_CHARS, BLOCK_FLOW_ZONE, blockFlowGroundingIssues, evaluateBlockFlowConstruction, planStatesChain,
   validateBlockFlowGrounding, verifyBlockFlowLayout, wrapBlockFlowLabel, type BlockFlowDefinition,
 } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
 import { buildSceneDocumentPlannerPrompt } from "../../../../packages/tutor-core/src/planners/scenePlannerV2Prompt";
@@ -43,12 +43,12 @@ const node = (id: string, label: string, claimIds = ["c2"]) => ({ id, label, cla
 const edge = (from: string, to: string, label: string, claimId = "c2") => ({ from, to, label, claimId });
 
 const payClaims = [
-  claim("c1", "The card and the reader exchange data over short range radio.", ["card", "reader"]),
+  claim("c1", "Tap: card → reader, over short range radio.", ["card", "reader"]),
   claim("c2", "Path: reader sends request → acquirer forwards it → card network routes it → issuing bank approves or declines.", ["reader", "acquirer", "card network", "issuing bank"]),
 ];
 const payInputs = {
   nodes: [node("card", "Card", ["c1"]), node("reader", "Reader"), node("acq", "Acquirer"), node("net", "Card network"), node("bank", "Issuing bank")],
-  edges: [edge("card", "reader", "exchange data", "c1"), edge("reader", "acq", "sends request"), edge("acq", "net", "forwards"), edge("net", "bank", "routes")],
+  edges: [edge("card", "reader", "", "c1"), edge("reader", "acq", "sends request"), edge("acq", "net", "forwards"), edge("net", "bank", "routes")],
 };
 const payPlan = plan(payClaims);
 const document = (inputs: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
@@ -82,10 +82,14 @@ row("the verifier catches every overlap it is there for", () => {
   moved.boxes[1] = { ...moved.boxes[1]!, x: moved.boxes[0]!.x, y: moved.boxes[0]!.y };
   assert(verifyBlockFlowLayout(moved).some((problem) => /too close/.test(problem)), "two boxes on top of each other");
   const label = structuredClone(pay);
-  const line = label.arrows[0]!.labelLines[0]!;
+  const line = label.arrows[1]!.labelLines[0]!;
   const target = label.boxes[2]!;
   line.ink = { x: target.x + 2, y: target.y + 2, width: 20, height: 10 };
   assert(verifyBlockFlowLayout(label).some((problem) => /touches box/.test(problem)), "an arrow label on a box");
+  assert.equal(pay.arrows[0]!.labelLines.length, 0, "an unlabelled chain step draws no label");
+  const dropped = structuredClone(pay);
+  dropped.arrows[1]!.labelLines = [];
+  assert(verifyBlockFlowLayout(dropped).some((problem) => /exactly its stated label/.test(problem)), "a stated label that went missing");
   const loose = structuredClone(pay);
   loose.arrows[0]!.points[1] = { x: loose.arrows[0]!.points[1]!.x, y: loose.arrows[0]!.points[1]!.y + 30 };
   assert(verifyBlockFlowLayout(loose).some((problem) => /does not join its boxes/.test(problem)), "an arrow that stops short");
@@ -129,27 +133,40 @@ row("labels wrap at 16 characters, break after a slash, and refuse an unbreakabl
   refuses({ ...payInputs, nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Internationalisation")] }, /cannot wrap/, "a 20 letter word");
 });
 
-row("grounding: every box and arrow is in the plan's claims, in the claim's order", () => {
+row("grounding: a box is one span of a claim and an arrow is one step of a chain the plan writes", () => {
   assert.deepEqual(validateBlockFlowGrounding(payInputs, payPlan), []);
-  const problems = (inputs: Partial<typeof payInputs>) => validateBlockFlowGrounding({ ...payInputs, ...inputs }, payPlan);
-  assert.match(problems({ nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Central bank")] }).join(";"), /not named in its cited claims/, "an invented box");
-  assert.match(problems({ nodes: [node("card", "Card", ["c9"]), ...payInputs.nodes.slice(1)] }).join(";"), /claim the plan does not have/, "an unknown claim");
-  assert.match(problems({ edges: [edge("card", "acq", "exchange data", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /does not state both/, "an arrow its claim does not join");
-  assert.match(problems({ edges: [edge("card", "reader", "encrypts", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /not stated/, "an invented arrow label");
-  assert.match(problems({ edges: [edge("card", "reader", "then", "c1"), ...payInputs.edges.slice(1)] }).join(";"), /not stated/, "a filler word label");
-  assert.match(problems({ edges: [...payInputs.edges.slice(0, 3), edge("bank", "net", "routes")] }).join(";"), /against the order/, "a reversed chain arrow");
-  assert.match(problems({ nodes: [node("card", "the", ["c1"]), ...payInputs.nodes.slice(1)] }).join(";"), /no content word/, "a box with no content word");
-  // A hint list names parts, not how they relate: no arrow may rest on it.
+  const problems = (inputs: Partial<typeof payInputs>, onPlan = payPlan) => validateBlockFlowGrounding({ ...payInputs, ...inputs }, onPlan).join(";");
+  const withEdge = (replacement: ReturnType<typeof edge>, at = 3) => problems({ edges: payInputs.edges.map((item, index) => index === at ? replacement : item) });
+  // Boxes: the review's invented parts, wrong facts and arrows inside a box.
+  assert.match(problems({ nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Central bank")] }), /unbroken span/, "an invented box");
+  assert.match(problems({ nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Network bank")] }), /unbroken span/, "a box mixed from two phrases");
+  assert.match(problems({ nodes: [...payInputs.nodes.slice(0, 4), node("bank", "Card → Bank")] }), /carries an arrow/, "a box that asserts a flow");
+  assert.match(problems({ nodes: [node("card", "Card", ["c9"]), ...payInputs.nodes.slice(1)] }), /claim the plan does not have/, "an unknown claim");
+  assert.match(problems({ nodes: [node("card", "the", ["c1"]), ...payInputs.nodes.slice(1)] }), /no content word/, "a box with no content word");
+  // Arrows: reversed, skipped, stitched, lifted labels, lists in prose.
+  assert.match(withEdge(edge("bank", "net", "routes")), /not one step/, "a reversed chain arrow");
+  assert.match(withEdge(edge("reader", "net", "")), /not one step/, "a skipped stop");
+  assert.match(withEdge(edge("net", "bank", "sends request")), /not one step/, "a label lifted from another step");
+  assert.match(withEdge(edge("net", "bank", "encrypts")), /not one step/, "an invented arrow label");
+  assert.match(withEdge(edge("net", "bank", "then")), /no content word/, "a filler word label");
+  const sameStop = plan([claim("c1", "Flow: tap → reader reads card → bank approves.", ["reader", "card", "bank"])]);
+  assert.match(validateBlockFlowGrounding({ nodes: [node("card", "Card", ["c1"]), node("reader", "Reader", ["c1"]), node("bank", "Bank", ["c1"])],
+    edges: [edge("card", "reader", "", "c1"), edge("reader", "bank", "", "c1")] }, sameStop).join(";"), /card to reader is not one step/, "two parts of one stop");
+  const prose = plan([...payClaims, claim("c3", "The reader sends the request to the acquirer, which forwards it to the card network.")]);
+  assert.match(problems({ edges: payInputs.edges.map((item, index) => index === 1 ? edge("reader", "acq", "", "c3") : item) }, prose), /not written as a chain/, "a relation stated only in prose");
   const listed = plan([...payClaims, claim("c3", "The parts of the system.", ["card", "issuing bank"])]);
-  assert.deepEqual(validateBlockFlowGrounding({ ...payInputs, nodes: [node("card", "Card", ["c3"]), ...payInputs.nodes.slice(1)] }, listed), [], "a box may rest on a hint");
-  assert.match(validateBlockFlowGrounding({ ...payInputs, edges: [...payInputs.edges, edge("card", "bank", "parts", "c3")] }, listed).join(";"), /in its words/, "an arrow resting on a hint list");
+  assert.deepEqual(validateBlockFlowGrounding({ ...payInputs, nodes: [node("card", "Card", ["c3"]), ...payInputs.nodes.slice(1)] }, listed), [], "a box may rest on a whole hint");
+  assert.match(validateBlockFlowGrounding({ ...payInputs, edges: [...payInputs.edges, edge("card", "bank", "", "c3")] }, listed).join(";"), /not written as a chain/, "an arrow resting on a hint list");
+  // The heading of a chain may label its steps; the arrow itself may go unlabelled.
+  assert.equal(problems({ edges: payInputs.edges.map((item, index) => index === 0 ? edge("card", "reader", "Tap", "c1") : item) }), "", "the chain heading as a label");
 });
 
-row("the plan's own structure, not its words, decides an optional diagram", () => {
-  assert.equal(planDescribesLinkedComponents(payPlan), true, "four components joined over two claims");
-  assert.equal(planDescribesLinkedComponents(plan([claim("c1", "The topic could mean several things.", ["cloud", "framework", "services"])])), false, "one claim listing three names");
-  assert.equal(planDescribesLinkedComponents(plan([claim("c1", "Reader sends request to acquirer to bank.")])), false, "no named components");
-  assert.equal(planDescribesLinkedComponents(plan([claim("c1", "x", ["a", "b"]), claim("c2", "y", ["c", "d"])])), false, "two unconnected pairs");
+row("the plan's own notation, not the question's words, decides admission", () => {
+  assert.equal(planStatesChain(payPlan), true, "a chain of four stops");
+  assert.equal(planStatesChain(plan([claim("c1", "Tap: card → reader.")])), false, "two stops");
+  assert.equal(planStatesChain(plan([claim("c1", "Reader sends request to acquirer to bank.", ["reader", "acquirer", "bank"])])), false, "prose with named parts");
+  assert.equal(planStatesChain(plan([claim("c1", "x", ["a", "b", "c"]), claim("c2", "y", ["a", "b", "c"])])), false, "shared hints");
+  assert.equal(planStatesChain(plan([claim("c1", "Order: → a → → b")])), false, "empty stops");
 });
 
 // ---------------------------------------------------------------- admission
@@ -185,7 +202,7 @@ row("eligible: admitted only where the planner is never asked today", () => {
   assert.equal(admitted.shouldAttemptLlmScene, true);
   assert.deepEqual(admitted.request.constructionOperators, ["block_flow"]);
   assert.deepEqual(admitted.request.planningGuidance, [...BLOCK_FLOW_SCENE_REQUEST.planningGuidance]);
-  const optionalFlat = plan([claim("c1", "The topic could mean several things.", ["cloud", "framework", "services"])], "optional");
+  const optionalFlat = plan([claim("c1", "The service connects the cloud, the framework and the services.", ["cloud", "framework", "services"]), claim("c2", "The framework sits on the cloud.", ["cloud", "framework", "services"])], "optional");
   assert.equal(deriveSceneGate({ question: "cloud architecture", turnPlan: { ...optionalFlat, question: "cloud architecture" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, false, "optional without structure");
   assert.equal(deriveSceneGate({ question: "cloud architecture", turnPlan: { ...optionalFlat, question: "cloud architecture", visualRequirement: "required" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, false, "required without structure");
   assert.equal(deriveSceneGate({ question: payPlan.question, turnPlan: { ...payPlan, visualRequirement: "optional" }, problemIR: null, blockFlowEligible: true }).blockFlowAdmitted, true, "optional with structure");
