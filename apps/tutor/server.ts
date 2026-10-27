@@ -6,9 +6,9 @@ import { parse as parseUrl } from "node:url";
 import next from "next";
 import { WebSocketServer } from "ws";
 import { HTUTOR_UID_COOKIE } from "./lib/cookies";
-import { beginSpeechDrain, inFlightSpeechSegments, relayTtsWebSocket, speechSettlementsDone } from "./lib/tts/wsRelay";
+import { beginSpeechDrain, inFlightSpeechSegments, openSpeechSettlements, relayTtsWebSocket, speechSettlementsDone } from "./lib/tts/wsRelay";
 import { protectNodeRequest } from "./lib/http/nodeRequest";
-import { installGracefulShutdown, SHUTDOWN_FLUSH_CAP_MS } from "./lib/http/gracefulShutdown";
+import { installGracefulShutdown, settleThenFlush } from "./lib/http/gracefulShutdown";
 import { flushServerSentry } from "./lib/obs/sentryNode";
 import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
 import { startFailedTurnSentryWorker } from "./lib/obs/failedTurnSentry";
@@ -82,9 +82,13 @@ app.prepare().then(() => {
   installGracefulShutdown({
     server, wss,
     speech: { inFlight: inFlightSpeechSegments, beginDrain: beginSpeechDrain },
-    // Charges for spoken segments settle, then queued error reports send; both
-    // inside the same 1.5 s cap.
-    beforeExit: () => speechSettlementsDone().then(() => flushServerSentry(SHUTDOWN_FLUSH_CAP_MS)),
+    // Charges for spoken segments settle in their own slice, then queued error
+    // reports send with the time left; both inside the same 1.5 s cap.
+    beforeExit: () => settleThenFlush({
+      settled: speechSettlementsDone,
+      open: openSpeechSettlements,
+      flush: flushServerSentry,
+    }),
   });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {

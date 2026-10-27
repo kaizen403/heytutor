@@ -44,9 +44,18 @@ let speechDraining = false;
 
 /** Receipt settlements (finish or refund) still in flight, across every relay. */
 const settlements = new Set<Promise<unknown>>();
-function trackSettlement(settlement: Promise<unknown>): void {
+function trackSettlement<T>(settlement: Promise<T>): Promise<T> {
   settlements.add(settlement);
-  void settlement.finally(() => settlements.delete(settlement));
+  // then(remove, remove): a raw (possibly rejecting) promise is tracked too,
+  // and a derived finally() would reject unhandled.
+  const remove = () => { settlements.delete(settlement); };
+  settlement.then(remove, remove);
+  return settlement;
+}
+
+/** Receipt settlements still open, for the exit log. */
+export function openSpeechSettlements(): number {
+  return settlements.size;
 }
 
 /**
@@ -202,7 +211,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       // finishes and is charged, and the client ignores its audio.
       if (spend && relay.cancel?.(id)) {
         pending.delete(id);
-        await spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+        await trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       }
       return;
     }
@@ -255,12 +264,12 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     // The drain may have begun during the awaits above: nothing is dispatched.
     if (speechDraining) {
       // A failed refund is reported, never allowed to cut the sentence in flight.
-      await receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      await trackSettlement(receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       if (pending.size === 0) close("server_restarting", 1012);
       return;
     }
-    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await receipt.cancelBeforeDispatch(); return; }
-    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await receipt.cancelBeforeDispatch(); close("speech_backpressure"); return; }
+    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await trackSettlement(receipt.cancelBeforeDispatch()); return; }
+    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await trackSettlement(receipt.cancelBeforeDispatch()); close("speech_backpressure"); return; }
     sequence++; charactersUsed += characters; usedContexts.add(id);
     pending.set(id, { receipt, characters, startedAt: start, grant });
     // From this point any uncertain send failure is charged conservatively.
