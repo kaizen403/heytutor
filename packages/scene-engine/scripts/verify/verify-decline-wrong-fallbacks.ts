@@ -110,6 +110,8 @@ for (const question of [
   "A magnet is moved away from a coil. Explain Lenz's law.",
   "A magnet is held stationary inside a coil. Explain why no current is induced (Faraday's law).",
   "A coil is moved towards a stationary bar magnet. Explain the induced emf using Faraday's law.",
+  "A magnet is kept stationary inside a coil. Explain electromagnetic induction using Faraday's law.",
+  "A magnet placed inside a coil is stationary. Explain why no emf is induced using Faraday's law.",
   "Two coils are placed side by side; switching on the current in one induces a current in the other. Explain Faraday's law.",
   "Explain the working of an electric generator using Faraday's law.",
   "Explain eddy currents and Lenz's law.",
