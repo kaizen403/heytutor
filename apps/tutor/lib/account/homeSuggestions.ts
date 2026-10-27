@@ -150,6 +150,31 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
   ],
 };
 
+/**
+ * Every fixed card a student can be shown, in subject order. The lecture-lab
+ * suggestion check builds its evaluation set from this list, so a new card
+ * is measured before it ships.
+ */
+export function shownHomeSuggestions(): Array<
+  CanvasLandingSuggestion & { subject: SubjectId }
+> {
+  const seen = new Set<string>();
+  const shown: Array<CanvasLandingSuggestion & { subject: SubjectId }> = [];
+  for (const subject of AVAILABLE_SUBJECTS) {
+    for (const suggestion of SUBJECT_SUGGESTIONS[subject] ?? []) {
+      if (seen.has(suggestion.question)) continue;
+      seen.add(suggestion.question);
+      shown.push({ ...suggestion, subject });
+    }
+  }
+  for (const suggestion of LANDING_SUGGESTIONS) {
+    if (seen.has(suggestion.question)) continue;
+    seen.add(suggestion.question);
+    shown.push({ ...suggestion, subject: "physics" });
+  }
+  return shown;
+}
+
 /** Topic lectures start as Derive / Explain / Show how, not as a numbered exam item. */
 export function isLectureHomePrompt(question: string): boolean {
   return /^(?:derive|explain|show how)\b/i.test(question.trim());

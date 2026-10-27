@@ -398,6 +398,48 @@ teaching quality, board and voice coupling, and question coverage. Ranked
 findings from them drive the next fix; the rubric only keeps the fixed things
 fixed.
 
+## Home screen suggestions
+
+A new student's first lesson is usually a card we wrote, so every fixed card
+must teach, and every card that needs a figure must draw a right one. The cards
+live in `apps/tutor/lib/account/homeSuggestions.ts` and
+`features/tutor-session/constants.ts`; `shownHomeSuggestions()` lists every one
+that can show (DSA cards never show while DSA is coming soon). Personalized
+cards that the model writes per student are only checked for shape, in
+`verify-landing-suggestions`, never for figures.
+
+`data/home-suggestions/oracle.jsonl` holds one diagram evaluation row per card,
+written from the question alone. `data/home-suggestions/recorded/` holds each
+card's judged lab inputs: turn plan, ProblemIR, the raw selected planner
+document, and the figure that was judged.
+
+```bash
+cd apps/tutor
+# the evaluation set, built from the cards that can show; fails on a card without an oracle row
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts eval --out .lecture-lab/home-suggestions.jsonl
+# one paid round of full lessons on production's routing (orchestrator's yes and a cap first)
+DIAGRAM_YIELD_POLICY=verified_parts pnpm exec tsx scripts/lecture-lab/run.ts --eval .lecture-lab/home-suggestions.jsonl \
+  --arm planner_examples_strict --production-strict-subjects maths,physics --model fast \
+  --scene-planner-limit-ms 60000 --figure-only false --concurrency 2 --max-usd <cap> --yes --out .lecture-lab/home-<date>
+# per card: teaches, draws, tier, source; every drawn figure as SVG and PNG under home-figures/
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts report .lecture-lab/home-<date>
+# after judging the PNGs: freeze the judged figures for the gate
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts record .lecture-lab/home-<date> --judgements judged.json
+# replay every recording through today's engine and render it, $0
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
+```
+
+The offline gate `scripts/verify/verify-home-suggestion-figures.ts` (in
+`gates.d`) runs after every merge at $0. It fails when a card has no oracle row
+or no judged recording, when a card that needs a figure is not judged right,
+and when today's engine draws anything different from what was judged: lost or
+added entities, changed text, a different figure source or tier, or no figure.
+Replay revalidates the raw planner document and rebuilds the family figure, so
+it tests the engine, not a saved verdict. A failure means: run the round for
+that card again, look at the render, and record it again, or replace the card
+with one the lab proves draws a right figure. A card is chosen only because the
+general engine already draws it right; never add a template for one.
+
 ## The DSA lane
 
 `lecturePipeline.ts` replays the physics path. A LeetCode question takes a
