@@ -398,8 +398,9 @@ const CUE_SETS: readonly CueSet[] = [
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
     vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
-      // A body turning about a pivot falls as a rotation, not a free fall.
-      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|rotat\w*|swing\w*|pendulum)\b/i],
+      // A body turning about a pivot falls as a rotation, not a free fall;
+      // the Earth's rotation or a swinging crane beside a dropped ball is not.
+      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?)\b[^.]{0,40}\b(?:rotat|swing)\w*/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -576,7 +577,7 @@ const CUE_SETS: readonly CueSet[] = [
     vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
     // The figure is a body going round a circle. A car moving along a level
     // road names no circle, so the stem must say it turns.
-    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|radius|centripetal|roundabout)\b/i],
+    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?|strings?|horizontal (?:plane|table|surface))\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");

@@ -25,6 +25,15 @@ for (const question of [
   assert.equal(detectArchetype(question, {})?.id, "circular_motion_level", `${question}: a stated turn keeps the circle`);
   checks += 1;
 }
+// A whirled stone names its circle in other words; the planner's circle claim stands.
+for (const question of [
+  "A stone of mass 0.2 kg is whirled on a string of length 1 m at 3 revolutions per second in a horizontal plane. Find the tension.",
+  "A stone tied to a string of length 0.5 m is whirled round at 4 m/s on a smooth horizontal table.",
+  "A ball attached to a string revolves at 2 m/s on a frictionless horizontal surface, string length 0.8 m.",
+]) {
+  assert.equal(detectArchetype(question, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", `${question}: the planner's circle claim stands`);
+  checks += 1;
+}
 for (const question of [
   "A rod pivoted at one end is released from horizontal. Find its angular speed at the bottom.",
   "A uniform rod hinged at one end is released from rest in the horizontal position. Find its angular acceleration.",
@@ -35,6 +44,8 @@ for (const question of [
 for (const question of [
   "A stone is dropped from the top of a 45 m tower. Find the time it takes to reach the ground.",
   "A ball is released from a height of 20 m. Find its speed just before it hits the ground.",
+  "A ball is dropped from a height of 20 m. Ignore air resistance and the Earth's rotation. Find the time to reach the ground.",
+  "A ball is dropped from a swinging crane at a height of 30 m. Find its speed when it reaches the ground.",
 ]) {
   assert.equal(detectArchetype(question, {})?.id, "free_fall", `${question}: a dropped body keeps free fall`);
   checks += 1;
