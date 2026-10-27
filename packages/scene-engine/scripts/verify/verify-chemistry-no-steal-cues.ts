@@ -91,6 +91,8 @@ for (const question of [
   "Sketch the energy distribution of the particles in a photon gas at two temperatures.",
   "Sketch the energy distribution of the atoms in a Fermi gas.",
   "Sketch the energy distribution in a mixture of radiation in a gas.",
+  "Sketch the energy distribution of beta particles in a gas during beta decay.",
+  "Sketch the energy distribution of the alpha particles of a gas source.",
 ]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
 for (const question of [
   "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
