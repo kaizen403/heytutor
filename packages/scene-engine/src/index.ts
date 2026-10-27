@@ -7,6 +7,7 @@ export * from "./document/placementIntent";
 export * from "./compile/compiler";
 export * from "./compile/matrixSourceBinding";
 export { validatePvSourceBinding } from "./compile/pvSourceBinding";
+export { validateFluidApparatusSourceInputs } from "./compile/fluidApparatusGeometry";
 export { buildLinearSourceDocument, readLinearSystemSource } from "./compile/linearRegionSource";
 export { validateLinearSourcePlan } from "./compile/linearSourceAgreement";
 export * from "./compile/annotationMarks";
