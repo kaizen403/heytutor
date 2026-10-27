@@ -632,6 +632,12 @@ check("lone-row/rearrangement-needs-a-name", () => {
   assert.equal(readMechanismSource(question).status, "not_applicable", "'What rearrangement' names no rearrangement");
   assert.ok(buildOrganicScene(question, [], false), "the reactant row still draws");
 });
+check("lone-row/show-how-is-not-a-mechanism", () => {
+  // "show how" asks for many things; the Hofmann carbon count keeps its checked reaction figure.
+  const question = "Benzamide is treated with Br2 and aqueous NaOH. Show the amine product and show how the carbon count changes.";
+  assert.equal(readMechanismSource(question).status, "not_applicable");
+  assert.ok(buildOrganicScene(question, [], false), "the reaction figure still draws");
+});
 check("lone-row/tin-is-not-sn2", () => {
   assert.equal(readMechanismSource("Explain why Sn2+ reduces Fe3+ to Fe2+.").status, "not_applicable", "Sn2+ is the tin(II) ion");
   assert.ok(buildOrganicScene("Explain why SnCl2 is a reducing agent for nitrobenzene.", [], false), "a tin reagent beside an organic name keeps its row");
@@ -656,6 +662,9 @@ const MUTANTS: Mutant[] = [
   { name: "one-substrate", file: "chemistry/organic/mechanism/eliminations.ts", from: "if (verified.some((model) => !sameSpecies(model.substrate, [first.substrate]))) return", to: "if (false) return", red: ["eliminations/two-substrates", "source/two-substrates-decline"] },
   { name: "equivalent-sites", file: "chemistry/organic/mechanism/eliminations.ts", from: "if (runs.some((run) => !sameSpecies(run!.products, [first.products]))) return", to: "if (false) return", red: ["eliminations/inequivalent-sites"] },
   { name: "type-with-verb", file: "chemistry/organic/mechanism/source.ts", from: "return MECHANISM_TYPE.test(question) && ASK_VERB.test(question) && !COMPARISON.test(question);", to: "return false;", red: [
+    "Show how bromoethane undergoes S_N2 substitution with hydroxide ion.",
+    "Show how 2-bromo-2-methylpropane gives 2-methylpropan-2-ol in an SN¹ reaction.",
+    "E2 of 2-bromopropane with ethoxide gives propene. Show how the alkene forms.",
     "Draw the S_N2 reaction of bromoethane with hydroxide ion.",
     "Draw the SN-2 reaction of bromoethane with hydroxide ion.",
     "The S_N2 reaction of bromoethane with hydroxide gives ethanol. Explain.",
@@ -699,6 +708,7 @@ const MUTANTS: Mutant[] = [
   { name: "drawn-set-elsewhere", file: "chemistry/organic/mechanism/source.ts", from: "    if (sets.some((set, index) => !drawnFrom.has(index) && set.species && drawn.some(", to: "    if (false && sets.some((set, index) => !drawnFrom.has(index) && set.species && drawn.some(", red: ["source/drawn-set-elsewhere"] },
   { name: "ts-case", file: "chemistry/organic/mechanism/source.ts", from: "text.replace(/\\bT\\.\\s?S\\./gi, \"TS\")", to: "text.replace(/\\bT\\.\\s?S\\./g, \"TS\")", red: ["source/lower-case-ts"] },
   { name: "bare-sign", file: "chemistry/organic/mechanism/source.ts", from: "→⟶⇒Δ]*$/u;", to: "→⟶⇒Δ-]*$/u;", red: ["source/temperature-sign", "source/symbols"] },
+  { name: "show-how-cue", file: "chemistry/organic/mechanism/source.ts", from: "|\\btransition\\s+state\\b/i;", to: "|\\btransition\\s+state\\b|\\bshow\\s+how\\b/i;", red: ["lone-row/show-how-is-not-a-mechanism"] },
   { name: "cope-tertiary", file: "chemistry/organic/mechanism/eliminations.ts", from: "if (!around.every((other) => other === oxide[0] || CARBON_LIKE.has(element(state, other)))) continue;", to: "", red: ["eliminations/cope-is-tertiary"] },
   { name: "xanthate-s-alkyl", file: "chemistry/organic/mechanism/eliminations.ts", from: "&& zTail.length === 1 && CARBON_LIKE.has(element(state, zTail[0]!))", to: "", red: ["eliminations/xanthate-is-s-alkyl", "source/spare-set"] },
   { name: "alpha-hydrocarbon", file: "chemistry/organic/mechanism/eliminations.ts", from: "if (!hydrocarbon(alpha, [leaving])) continue;", to: "", red: ["eliminations/no-enol-alpha"] },

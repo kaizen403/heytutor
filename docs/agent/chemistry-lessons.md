@@ -169,7 +169,7 @@ of the reaction.
 verify returns null instead of falling through to a product row without
 arrows. The ask is read from words: "mechanism" (and its common
 misspellings), "curly arrows", "with arrows", "draw the arrows", "electron
-movement", "movement of electrons", "transition state", "show how", a named
+movement", "movement of electrons", "transition state", a named
 rearrangement after an article or an ask verb ("the Cope rearrangement",
 "Explain Claisen rearrangement"), or SN1, SN2, E1 or E2 in any case and
 spelling (`S_N2`, `SN-2`, `SN¹`, `sn2`; not `Sn2+`, the tin ion) in a stem

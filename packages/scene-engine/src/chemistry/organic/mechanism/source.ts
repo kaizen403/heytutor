@@ -67,7 +67,7 @@ const NAMED_REARRANGEMENT = /\b(?:the|a|[Ee]xplain|[Ss]how|[Dd]raw|[Dd]escribe|[
  * reactivity towards SN2" keeps its structure row. The common misspellings
  * of "mechanism" count.
  */
-const MECHANISM_ASK = /\bmec?h?ani?s[ia]?m|\bmechanistic\b|\bcurly\s+arrows?\b|\b(?:with|using|use|by)\s+(?:curly\s+)?arrows\b|\b(?:draw|show|add|mark)\s+(?:in\s+)?(?:the\s+)?arrows?\b|\barrow\s+pushing\b|\belectron\s+(?:movement|flow|pushing)\b|\bmovement\s+of\s+(?:the\s+)?electrons?\b|\btransition\s+state\b|\bshow\s+how\b/i;
+const MECHANISM_ASK = /\bmec?h?ani?s[ia]?m|\bmechanistic\b|\bcurly\s+arrows?\b|\b(?:with|using|use|by)\s+(?:curly\s+)?arrows\b|\b(?:draw|show|add|mark)\s+(?:in\s+)?(?:the\s+)?arrows?\b|\barrow\s+pushing\b|\belectron\s+(?:movement|flow|pushing)\b|\bmovement\s+of\s+(?:the\s+)?electrons?\b|\btransition\s+state\b/i;
 const RING_SIZE = /\b(three|four|five|six|seven|eight|[3-8])[\s-]*(?:membered|cent(?:re|er)(?:d|ed)?|atom)\b/gi;
 const SIZE_WORDS: Readonly<Record<string, number>> = { three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 };
 /** "500 C", "400 °C". A sign before it is left as a symbol, which no shape reads. */
