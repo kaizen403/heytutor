@@ -230,8 +230,11 @@ const ORDINALS = ["third", "fourth", "fifth", "sixth", "seventh", "eighth", "nin
 // Romanised Hindi words that are also English words ("do", "teen", "char") are left out.
 const HINDI = ["paanch", "chhe", "saat", "aath", "nau", "das", "bees", "pachaas", "sau", "hazaar", "दो", "तीन", "चार", "पाँच", "दस", "बीस", "सौ", "हज़ार", "हजार"];
 const NUMBER_WORD = `(?:${[...UNITS, ...TENS, ...LARGE, ...ORDINALS, ...HINDI].join("|")})`;
-/** The figure's own parts: "two forces", "two faces", "two pistons" count what it draws. */
-const COUNTED_PART = "(?:forces|faces|pistons|cylinders|sides|arms|limbs|vessels|tubes|surfaces|arrows)";
+/**
+ * Counts that are not physical values: the figure's own parts ("two forces",
+ * "two pistons") and the shape of the asked answer ("in three steps").
+ */
+const COUNTED_PART = "(?:forces|faces|pistons|cylinders|sides|arms|limbs|vessels|tubes|surfaces|arrows|steps|points|sentences|lines|words|paragraphs|examples|ways|reasons|methods|marks|minutes)";
 /**
  * Any spelled number is a stated value ("sixteen times the area", "a twelfth
  * of a metre") unless it directly counts one of the figure's own parts.
@@ -254,7 +257,7 @@ function statesValue(question: string): boolean {
 const PRINCIPLE_WORDING = /\b(?:(?:wholly|fully|completely|totally)\s+or\s+(?:partially|partly)|(?:partially|partly)\s+or\s+(?:wholly|fully|completely|totally))\b/gi;
 const CONTAINER = "(?:tank|vessel|container|beaker|jar|sea|lake|pond|river|ocean|pool)";
 const SUBMERGED_BODY_MISMATCH = new RegExp(String.raw`\b(?:float\w*|afloat|ships?|boats?|icebergs?|logs?|hydrometers?|balloons?|partly|partially|part of (?:its|the) volume|fraction of (?:its|the) volume|half(?:-|\s)(?:immersed|submerged)|(?:rests?|resting|lies|lying|sits?|sitting|placed|kept)\s+(?:on|at)\s+the\s+(?:bottom|floor|base)|(?:at|on|to)\s+the\s+bottom\s+of\s+the\s+${CONTAINER}|stuck|\w*spher\w*|balls?|cones?|sinks?\s+to\s+the\s+bottom)\b`, "i");
-const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevat\w*|(?:different|unequal|varying|uneven) (?:levels?|heights?|positions?)|not (?:at|on) the same (?:level|height)|(?:level|height) difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
+const HYDRAULIC_PRESS_MISMATCH = /\b(?:brakes?|braking|elevations?|elevated|(?:different|unequal|varying|uneven) (?:levels?|heights?|positions?)|not (?:at|on) the same (?:level|height)|(?:level|height) difference|raised (?:above|higher|to a height)|lowered (?:below|to)|(?:higher|lower) than the (?:small|large|other)\w*|(?:above|below) the (?:small|large|other)\w*)\b/i;
 
 /**
  * The qualitative fluid figures draw display proportions. They may only draw

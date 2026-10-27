@@ -119,6 +119,9 @@ for (const stem of [
   "Why do the forces on the top and bottom faces differ?",
   "The force on one face is larger than on the other. Explain why.",
 ]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
+for (const stem of ["Explain the hydraulic press in three steps.", "Explain how a hydraulic elevator works using Pascal's law."]) {
+  draws(`a conceptual press stem: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
+}
 draws("a conceptual press stem: the second piston", press, "Why does the second piston feel a larger force?", plan("Why does the second piston feel a larger force?", ["pascals_law"]));
 
 // With no retained plan (legacy saves), the stem alone still refuses.
