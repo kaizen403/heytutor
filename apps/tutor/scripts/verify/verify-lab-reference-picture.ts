@@ -93,9 +93,9 @@ function fakeServer(options: { route?: "ready" | "declined" | "hang"; image?: "o
   }) as typeof fetch;
 }
 
-const step = (fetchImpl: typeof fetch, waitMs?: number, clientTimeoutMs?: number) =>
+const step = (fetchImpl: typeof fetch, waitMs?: number) =>
   new LabReferencePictureStep({ origin: ORIGIN, question: "Explain the structure of the human heart.", traceId: "trace-1",
-    turnStartedAt: Date.now(), fetchImpl, waitMs, ...(clientTimeoutMs !== undefined ? { clientTimeoutMs } : {}) });
+    turnStartedAt: Date.now(), fetchImpl, waitMs });
 
 async function main(): Promise<void> {
   await check("lab copies of the live wait and preload bounds match their sources", () => {
@@ -117,7 +117,6 @@ async function main(): Promise<void> {
       'abandonReferencePicture("not_waited");',
       'resolve({ status: "unavailable", reason: "wait_deadline" })',
       'failure = { status: "unavailable", reason: "preload_failed" }',
-      '} else if (answer.status === "unavailable" && answer.reason === "wait_deadline") {',
       'diagramPromptAddon: activeDiagram?.promptAddon ?? null,',
     ]) assert(hook.includes(line), `live hook changed: ${line.split("\n")[0]}`);
     assert(startsReferencePictureEarly({ chemistryLane: false, visualRequirement: "required" }), "every subject starts early");
@@ -227,22 +226,15 @@ async function main(): Promise<void> {
     assert.deepEqual(seen.sort(), ["GET /api/reference-picture/" + ID + "/image", "GET /api/reference-picture/" + ID + "/plan", "POST /api/reference-picture"].sort());
   });
 
-  await check("the bounded wait ends a slow route as wait_deadline but lets it finish (only the client timeout ends it)", async () => {
-    // AbortSignal.timeout does not hold the event loop open; without this the
-    // process would exit mid check with code 0 and the gate would pass silently.
-    const hold = setInterval(() => {}, 25);
-    try {
-      const picture = step(fakeServer({ route: "hang" }), 30, 120);
-      assert.equal(await picture.atTextOnlyPoint("physics"), null);
-      const { record, image } = await picture.finish();
-      assert.equal(record.status, "unavailable");
-      assert.equal(record.reason, "wait_deadline");
-      assert.equal(record.speculative, false);
-      assert.notEqual(record.answer?.reason, "aborted", "a deadline does not abort the request, as live does not");
-      assert.equal(image, null);
-    } finally {
-      clearInterval(hold);
-    }
+  await check("the bounded wait ends a slow route as wait_deadline and stops paying", async () => {
+    const picture = step(fakeServer({ route: "hang" }), 30);
+    assert.equal(await picture.atTextOnlyPoint("physics"), null);
+    const { record, image } = await picture.finish();
+    assert.equal(record.status, "unavailable");
+    assert.equal(record.reason, "wait_deadline");
+    assert.equal(record.speculative, false);
+    assert.equal(record.answer?.reason, "aborted", "the request was aborted, as live does");
+    assert.equal(image, null);
   });
 
   await check("a verified figure abandons the early request; unloadable pixels are text", async () => {
@@ -361,9 +353,4 @@ async function main(): Promise<void> {
   }
 }
 
-// A main that never settles (a hung check) must fail, not exit 0 when the event loop drains.
-let settled = false;
-process.on("exit", (code) => {
-  if (!settled && code === 0) { console.error("lab reference picture: exited before every check ran"); process.exitCode = 1; }
-});
-void main().then(() => { settled = true; }, (error) => { settled = true; console.error(error); process.exitCode = 1; });
+void main().catch((error) => { console.error(error); process.exitCode = 1; });

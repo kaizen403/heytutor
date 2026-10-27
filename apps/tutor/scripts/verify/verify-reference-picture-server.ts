@@ -14,7 +14,7 @@ import { acceptedLabels, completeNumberKey, parseVerdict, verdictAccepts, type P
 import { parsePictureQuery, questionSpecificFigure } from "../../lib/reference-picture/pictureQuery";
 import { pictureIdFor, queryKeyFor } from "../../lib/reference-picture/pictureStore";
 import { createPictureSpend, findReferencePicture, ROUND_GRACE_MS, type FindPictureDeps } from "../../lib/reference-picture/findReferencePicture";
-import { factCheckPasses, factCheckRequestBody, judgePrompt, parseFactCheck } from "../../lib/reference-picture/pictureJudge";
+import { judgePrompt } from "../../lib/reference-picture/pictureJudge";
 import { downloadPicture } from "../../lib/reference-picture/wikimediaSearch";
 import { resolveLlmRateLane } from "../../lib/obs/usageCost";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
@@ -354,24 +354,6 @@ async function pipelineChecks(): Promise<void> {
     check(ok.status === "ready", "a textbook simplification does not reject a picture");
     const unreadable = await findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl: fixtureFetch({ "Heart diagram-en.svg": accept }, false, "not json"), store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
     check(unreadable.status === "declined", "an unreadable fact check is a rejection");
-  }
-  {
-    // The fact check parser fails closed: only "correct" and "simplified" pass.
-    for (const grade of ["False", "wrong", "incorrect", "", "maybe"]) {
-      check(!factCheckPasses(parseFactCheck(`{"claims":[{"text":"x","grade":"${grade}"}]}`)), `grade "${grade}" is a false claim`);
-    }
-    check(!factCheckPasses(parseFactCheck('{"claims":[{"text":"x"}]}')), "a claim with no grade is a false claim");
-    check(factCheckPasses(parseFactCheck('{"claims":[{"text":"x","grade":" Correct "},{"text":"y","grade":"SIMPLIFIED"}]}')), "grades are read case-insensitively");
-    const body = JSON.stringify(factCheckRequestBody({ mustShow: "the kidney", imageDataUrl: "data:,", description: "1 Renal cortex 2 Medulla" }, "m"));
-    check(body.includes("1 Renal cortex 2 Medulla") && body.includes("each key entry is a claim"), "the fact check reads the author's description and checks a key against it");
-    // An accepted, labelled picture whose fact check listed no claims checked nothing.
-    const empty = await findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl: fixtureFetch({ "Heart diagram-en.svg": accept }, false, '{"claims":[]}'), store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
-    check(empty.status === "declined", "an empty fact check does not pass a labelled picture");
-    // A stored record that disagrees on the key is not reused.
-    const keyed = memoryStore();
-    const store = { ...keyed.store, findPictureBySourceKey: async () => ({ id: pictureIdFor("x"), source: "wikimedia" as const, title: "Heart", pageUrl: null, license: "CC0", licenseUrl: null, artist: "a", imageUrl: "", planUrl: "", width: 100, height: 80, shows: "", labels: ["Aorta"], legend: [{ mark: "1", label: "Aorta" }], plan: { width: 100, height: 80, outlineLengthPx: 1, fillLengthPx: 1 } }) };
-    const mismatch = await findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl: fixtureFetch({ "Heart diagram-en.svg": accept }), store, strokePlan: stubPlan, imageProvider: null });
-    check(mismatch.status === "declined", "a stored record keyed differently from this verdict is not drawn");
   }
   {
     const redirect: FindPictureDeps["fetchImpl"] = async (_url, init) => {

@@ -126,10 +126,8 @@ arm as production, `--reference-picture`; full tables in the PR):
   with given numbers.
 - Added wait before teaching: about 0 s for maths and physics (the search runs
   inside scene planning), 17 to 19 s for biology and chemistry where the engine
-  plans nothing, capped at 25 s. A turn that stops waiting at the cap does
-  not abort the request, so the search finishes and is cached: the next ask of
-  that topic answered in 1 s. Any abort (a verified figure won, a Stop, a
-  replaced turn) stops the server's work.
+  plans nothing, capped at 25 s. A cut off search now finishes in the
+  background and is cached: the next ask of that topic answered in 1 s.
 - Round 2 to 3 (grace rounds) cut engine-less waits from 20 to 25 s to 6 to 13
   s; round 4 (with the fact check) gave some of that back (17 to 25 s) in
   exchange for catching the false atmosphere picture.
@@ -159,10 +157,3 @@ Judge tuning that moved the numbers, so it is not undone by accident:
   ink is stripped and the words kept.
 - Accepted topics are judged again after 30 days. To purge one now, delete its
   `reference_picture_queries` row (and the `reference_pictures` row).
-- Two `/admin/pictures` queries (recent lessons, library use counts) scan the
-  period's lessons without the scoped id set: fine at today's volume and fail
-  closed (read only, 15 s timeout), but join them to the scoped set before
-  traffic grows.
-- With the flag on, the early start reserves about seven judge ceilings of the
-  student's balance for 10 to 40 s on every figure turn; a nearly empty
-  balance could see its teaching reservation refused meanwhile.

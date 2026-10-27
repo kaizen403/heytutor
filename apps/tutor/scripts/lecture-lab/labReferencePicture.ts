@@ -174,8 +174,6 @@ export class LabReferencePictureStep {
     fetchImpl?: typeof fetch;
     waitMs?: number;
     preloadTimeoutMs?: number;
-    /** The request's own hard timeout (the live client's 45 s by default). */
-    clientTimeoutMs?: number;
     now?: () => number;
   }) {
     this.now = input.now ?? Date.now;
@@ -209,7 +207,6 @@ export class LabReferencePictureStep {
       subject,
       traceId: this.input.traceId,
       signal: controller.signal,
-      ...(this.input.clientTimeoutMs !== undefined ? { timeoutMs: this.input.clientTimeoutMs } : {}),
       fetchImpl: async (_url, init) => {
         const response = await this.fetch(routeUrl, init);
         if (response.ok) {
@@ -287,8 +284,7 @@ export class LabReferencePictureStep {
           failure = { status: "unavailable", reason: "presentation_failed" };
         }
       }
-    } else if (!(answer.status === "unavailable" && answer.reason === "wait_deadline")) {
-      // As live: a deadline stops waiting but lets the search finish and cache.
+    } else {
       pending.controller.abort();
     }
     this.waitMs = this.now() - waitStartedAt;
