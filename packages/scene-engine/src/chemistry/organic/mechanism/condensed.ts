@@ -33,6 +33,10 @@ export function plainCondensed(raw: string): string {
 
 interface Draft { elements: string[]; hydrogens: number[]; bonds: Array<{ a: number; b: number; order: number }> }
 
+/** The largest count a condensed formula may state, and the most heavy atoms it may expand to: question text never makes a reader allocate more. */
+const MAX_COUNT = 12;
+const MAX_HEAVY_ATOMS = 48;
+
 class Reader {
   at = 0;
   readonly draft: Draft = { elements: [], hydrogens: [], bonds: [] };
@@ -40,11 +44,13 @@ class Reader {
 
   private rest(): string { return this.text.slice(this.at); }
 
+  /** The count after an atom or group, 1 when none, or -1 past `MAX_COUNT`. */
   private count(): number {
     const match = /^\d+/.exec(this.rest());
     if (!match) return 1;
     this.at += match[0].length;
-    return Number(match[0]);
+    const value = Number(match[0]);
+    return value > MAX_COUNT ? -1 : value;
   }
 
   private bondSymbol(): number {
@@ -96,9 +102,11 @@ class Reader {
         if (root === null || this.text[this.at] !== ")") return null;
         this.at += 1;
         const count = this.count();
+        if (count < 0) return null;
         const atoms = Array.from({ length: this.draft.elements.length - atomsBefore }, (_, index) => atomsBefore + index);
         const bonds = this.draft.bonds.slice(bondsBefore);
         const roots = [root];
+        if (this.draft.elements.length + atoms.length * (count - 1) > MAX_HEAVY_ATOMS) return null;
         for (let copy = 1; copy < count; copy += 1) roots.push(this.copy(atoms, bonds, root));
         if (previous >= 0 && !pendingOrder) for (const entry of roots) this.draft.bonds.push({ a: previous, b: entry, order: innerOrder });
         else if (previous < 0 && !pendingOrder && !leadingH) prefix.push(...roots.map((entry) => ({ root: entry, order: innerOrder })));
@@ -111,6 +119,7 @@ class Reader {
       this.at += element.length;
       if (element === "H") {
         const count = this.count();
+        if (count < 0) return null;
         if (previous >= 0 && !pendingOrder) { this.draft.hydrogens[previous] = this.draft.hydrogens[previous]! + count; continue; }
         if (previous < 0 && !prefix.length) { leadingH += count; continue; }
         return null;

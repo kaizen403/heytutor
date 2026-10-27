@@ -126,6 +126,14 @@ const carbon = atomsOf(bromomethane, "C")[0]!;
 const bromine = atomsOf(bromomethane, "Br")[0]!;
 const hydrogen = atomsOf(bromomethane, "H")[0]!;
 
+check("condensed/bounded", () => {
+  // Question text never makes the reader allocate: huge counts and nested copies are refused before expanding.
+  // Defensive, with no mutant: a mutant would have to allocate the memory the bound prevents.
+  const started = Date.now();
+  for (const text of ["CH999999999", "C(CH3)999999999", "((((((CH2)12)12)12)12)12)12", "CH13"]) assert.equal(readCondensed(text), null, text);
+  assert.ok(Date.now() - started < 200, "refused at once");
+  assert.ok(readCondensed("(CH3)3C-O-C(=O)-CH3"), "ordinary counts still read");
+});
 check("arrows/lone-pair-must-exist", () => {
   const result = applyStep(bromomethane, { arrows: [{ tail: { kind: "lone_pair", atom: carbon }, head: { kind: "bond", a: carbon, b: hydrogen } }] });
   assert.equal(result.ok, false, "a carbon with no lone pair cannot give one");
