@@ -13,6 +13,7 @@
 import assert from "node:assert/strict";
 import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
+import { fluidApparatusRefusals } from "@heytutor/scene-engine";
 import type { SceneDocument, TurnPlanV3 } from "@heytutor/scene-engine";
 
 let checks = 0;
@@ -87,12 +88,11 @@ const explainPress = "Explain the hydraulic press on the basis of Pascal's law w
 draws("conceptual press", press, explainPress, plan(explainPress, ["pascals_law", "pressure_definition"]));
 const curriculum = "Class 11 chapter 10, section 10.3: explain Archimedes' principle and why F2 - F1 equals the upthrust.";
 draws("curriculum numbers and symbol subscripts are not values", archimedes, curriculum, plan(curriculum, ["archimedes_principle"]));
-const withGravity = "Explain why a body in water feels an upthrust.";
+const withGravity = "Explain why a fully immersed body feels an upthrust.";
 draws("gravity alone is not a contradicted value", archimedes, withGravity, plan(withGravity, ["archimedes_principle"], [{ id: "g", symbol: "g", value: 9.8, unit: "m/s^2" }]));
 
 for (const stem of [
   "Fig 10.6: derive Archimedes' principle.",
-  "NCERT Exemplar 10.5: explain the upthrust on a fully immersed block.",
   "1. Derive Archimedes' principle. (5 marks)",
   "New syllabus session 2026-27: derive Archimedes' principle.",
 ]) draws(`reference numbers are not values: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
@@ -101,25 +101,20 @@ draws("a plan giving g in m s^-2 is not a contradicted value", archimedes, withG
 for (const stem of [
   "A hydraulic press consists of two cylinders of different areas. Explain how it works.",
   "Explain why F2 = F1 × A2/A1 in a hydraulic press.",
-  "Explain how a car is raised by a hydraulic lift.",
   "Ques 3 explain the hydraulic press.",
 ]) draws(`a conceptual press stem: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
 for (const stem of [
   "State Archimedes' principle: a body wholly or partially immersed in a fluid experiences an upthrust. Derive it.",
-  "Explain why the force at the bottom of the body is greater than at the top.",
   "CBSE 2023: derive Archimedes' principle.",
   "Explain W1 and W2 in the derivation of Archimedes' principle.",
 ]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 
 for (const stem of [
-  "Explain how the two forces on the top and bottom faces of a submerged block compare.",
   "State Archimedes' principle: a body partially or wholly immersed in a fluid experiences an upthrust. Derive it.",
-  "Why do the forces on the top and bottom faces differ?",
 ]) draws(`a conceptual Archimedes stem: ${stem}`, archimedes, stem, plan(stem, ["archimedes_principle"]));
 for (const stem of ["Explain the hydraulic press in three steps.", "Explain how a hydraulic elevator works using Pascal's law."]) {
   draws(`a conceptual press stem: ${stem}`, press, stem, plan(stem, ["pascals_law"]));
 }
-draws("a conceptual press stem: the second piston", press, "Why does the second piston feel a larger force?", plan("Why does the second piston feel a larger force?", ["pascals_law"]));
 
 // Right figures the positive evidence rule gives up: each says more than a
 // bare ask (a count, "times", a figure the stem cites but we cannot see, no
@@ -129,6 +124,14 @@ for (const [candidate, stem] of [
   [press, "Show that F2/F1 = A2/A1."],
   [archimedes, "The force on one face is larger than on the other. Explain why."],
   [archimedes, "Fig 10.6 shows a body in a liquid. Derive Archimedes' principle from it."],
+  // The final vocabulary cut (no placement or role words) gives these up too.
+  [archimedes, "NCERT Exemplar 10.5: explain the upthrust on a fully immersed block."],
+  [archimedes, "Explain why the force at the bottom of the body is greater than at the top."],
+  [archimedes, "Explain how the two forces on the top and bottom faces of a submerged block compare."],
+  [archimedes, "Why do the forces on the top and bottom faces differ?"],
+  [archimedes, "Explain why a body in water feels an upthrust."],
+  [press, "Explain how a car is raised by a hydraulic lift."],
+  [press, "Why does the second piston feel a larger force?"],
 ] as const) refused(`declined by design: ${stem}`, candidate, stem, plan(stem, [candidate === press ? "pascals_law" : "archimedes_principle"]));
 
 // The merge review's 30 stems (pr-335 review): each drew a wrong figure on
@@ -194,7 +197,36 @@ const unseenPress = [
   "Explain a hydraulic press whose connecting pipe climbs over a wall.",
 ];
 const unseenOffTopic = ["Explain how a siphon works.", "Explain how a water tank supplies water to a house."];
+// The delta review (pr-335-delta): placements, piston roles and a single piston, drawn wrong on 0684e395f.
+const deltaBody = [
+  "Explain the upthrust on a body at the bottom.",
+  "Why does a body at the bottom of water feel an upthrust?",
+  "Explain the buoyant force on a body held at the bottom under water.",
+  "Explain the upthrust on a submerged block at the bottom of the water.",
+  "Explain the upthrust on a submerged block on the bottom.",
+  "Explain the forces on a submerged block at the bottom.",
+  "Explain the forces on a block held underwater at the bottom.",
+  "Explain the upthrust on a block submerged at the bottom of the liquid.",
+  "Explain the upthrust on a block immersed in a fluid at the bottom of water.",
+  "Explain the upthrust on a block immersed with its bottom face on the bottom.",
+  "Explain the upthrust on a body at the top of the water.",
+  "Explain the upthrust on a submerged block at the top of the liquid.",
+  "Explain the upthrust on a body in water at the top.",
+  "Explain the upthrust on a block immersed in water with its top at the water.",
+];
+const deltaPress = [
+  "Explain a hydraulic jack with a large input piston and a small output piston.",
+  "Explain the hydraulic press with the effort on the large piston and the load on the small piston.",
+  "Explain the hydraulic lift with the input force on the larger piston.",
+  "Explain a hydraulic press with the car on the small piston and the effort on the large piston.",
+  "Explain how a hydraulic lift works with the effort on the output piston.",
+  "Explain Pascal's law with a piston.",
+  "Explain Pascal's law with a piston in a cylinder.",
+  "Explain a hydraulic lift with two pistons of small area.",
+];
 const reviewRows: Array<readonly [SceneDocument, string]> = [
+  ...deltaBody.map((stem) => [archimedes, stem] as const),
+  ...deltaPress.map((stem) => [press, stem] as const),
   ...unseenBody.map((stem) => [archimedes, stem] as const),
   ...unseenPress.map((stem) => [press, stem] as const),
   ...unseenOffTopic.flatMap((stem) => [[archimedes, stem] as const, [press, stem] as const]),
@@ -269,6 +301,30 @@ const ratioPlan = "Explain the force on the large piston of a hydraulic lift.";
 refused("press with a stated area ratio in the plan", press, ratioPlan, plan(ratioPlan, ["pascals_law"], [{ id: "ratio", symbol: "A2/A1", value: 10, unit: "" }]));
 const forcePlan = "Explain how a hydraulic jack lifts a car.";
 refused("press with a stated force in the plan", press, forcePlan, plan(forcePlan, ["pascals_law"], [{ id: "F1", symbol: "F1", value: 200, unit: "N" }]));
+
+// The second line on its own: one row per pattern, so widening the vocabulary
+// can never silently reopen what these name.
+for (const [operator, stem, why] of [
+  ["submerged_body", "Explain the upthrust on a block 3 cm below the surface.", "a digit"],
+  ["hydraulic_press", "The large piston has twice the area of the small one.", "a multiplier"],
+  ["hydraulic_press", "The piston areas are in the ratio sixteen to one.", "a spelled number"],
+  ["hydraulic_press", "A hydraulic lift with three pistons.", "a count other than two"],
+  ["submerged_body", "Why does a block float?", "a floating body"],
+  ["submerged_body", "Explain the upthrust on a body at the bottom of the water.", "a body at the bottom of the liquid"],
+  ["hydraulic_press", "A hydraulic press whose pistons are at different levels.", "pistons at different levels"],
+  ["hydraulic_press", "A hydraulic press with pistons of the same size.", "equal pistons"],
+  ["hydraulic_press", "Explain how a U-tube manometer works.", "other apparatus"],
+] as const) {
+  row(`second line refuses ${why}: ${stem}`, () => {
+    assert.ok(fluidApparatusRefusals(operator, stem).length > 0, `${stem}: the second line must refuse ${why}`);
+  });
+}
+row("second line counts two parts: Explain the two forces on a submerged block.", () => {
+  assert.equal(fluidApparatusRefusals("submerged_body", "Explain the two forces on a submerged block.").length, 0, "two counts parts");
+});
+// A body that is named but never said to be under the liquid: only the concrete body rule refuses it.
+const looseBody = "Why does a block in water feel an upthrust?";
+refused(`the concrete body rule: ${looseBody}`, archimedes, looseBody, plan(looseBody, ["archimedes_principle"]));
 
 if (failures.length > 0) {
   console.error(`verify-fluid-apparatus-admission: ${failures.length} failed: ${failures.join("; ")}`);
