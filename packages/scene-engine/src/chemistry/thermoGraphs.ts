@@ -80,6 +80,9 @@ function classifyThermoStem(question: string): ThermoKind | null {
   ) {
     return "maxwell";
   }
+  // A stem that names Maxwell but not the distribution never reaches the
+  // other thermo figures: main returned "maxwell" for it, so this only declines.
+  if (/maxwell/.test(stem)) return null;
   const gibbsSource = readGibbsEnergies(question);
   const hasDeltaH = gibbsSource !== null || readEnthalpyChange(question) !== null;
   const hasDeltaS = gibbsSource !== null || readEntropyChange(question) !== null;
