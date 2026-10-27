@@ -34,6 +34,13 @@ for (const question of [
   assert.equal(detectArchetype(question, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", `${question}: the planner's circle claim stands`);
   checks += 1;
 }
+check: {
+  const straight = "A block slides straight across a smooth horizontal table at 3 m/s. Find the time to cross 2 m.";
+  assert.notEqual(detectArchetype(straight, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", "a horizontal table names no turn");
+  const axle = "A disc of radius 0.2 m is mounted at its rim on a fixed horizontal axle and released from rest to rotate under gravity. Find its angular speed at the bottom.";
+  assert.notEqual(detectArchetype(axle, { plannerArchetype: "free_fall" })?.id, "free_fall", "rotation about an axle is no free fall");
+  checks += 1;
+}
 for (const question of [
   "A rod pivoted at one end is released from horizontal. Find its angular speed at the bottom.",
   "A uniform rod hinged at one end is released from rest in the horizontal position. Find its angular acceleration.",
