@@ -27,7 +27,11 @@ export function chemistryVisualObligationCheck(set: VisualObligationSet, documen
     if (GENERIC.test(label)) {
       ignoredIds.push(obligation.id); continue;
     }
-    const name = label.replace(/^(?:the\s+)?(?:complex(?:\s+ion)?|molecule|compound|species)\s+/i, "");
+    const name = label
+      .replace(/^(?:the|a|an)\s+/i, "")
+      .replace(/^(?:complex(?:\s+ion)?|molecule|compound|species)\s+/i, "")
+      .replace(/\s+(?:molecules?|compounds?|species)$/i, "")
+      .trim();
     const identity = chemistrySpeciesIdentity(name);
     const matched = identity !== null && [...audit.species.values()].some((species) =>
       identity.key === species.identityKey || (identity.kind === "formula" && identity.key === `formula:${species.formulaKey}`) ||

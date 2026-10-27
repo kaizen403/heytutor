@@ -40,6 +40,7 @@ import type { SceneDocument, SceneIssue } from "../types";
 import { verifiedVseprStructure } from "../chemistry/vseprStructure";
 import type { VseprFigure } from "../chemistry/vsepr";
 import { parseFormula } from "../chemistry/formula";
+import { chemistrySpeciesIdentity } from "../chemistry/representation/species";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
 import { bindArchetypeBody, certifiedArchetypeFigureIdentity } from "../archetypes/obligationIdentity";
@@ -306,9 +307,10 @@ export function checkVisualObligations(
 export function visualObligationIssues(
   problem: ProblemIR,
   document: SceneDocument,
+  originalQuestion?: string,
 ): SceneIssue[] {
   const set = deriveVisualObligations(problem);
-  const result = checkVisualObligations(set, document);
+  const result = checkVisualObligations(set, document, originalQuestion);
   return result.missing.map((miss) => ({
     code: miss.code,
     message: miss.message,
@@ -444,7 +446,8 @@ function describeBody(obligation: NamedBodyObligation): string {
  * one label still report the second as missing. Only when no exact match
  * exists may a certified physics archetype, recomputed whole from the
  * original question, bind a model-word name to a body it constructed, by role
- * (`archetypes/obligationIdentity`).
+ * (`archetypes/obligationIdentity`). A chemistry name such as "SF4 molecule"
+ * binds only to a species the certified VSEPR figure actually drew.
  */
 function mapProblemEntities(
   set: VisualObligationSet,
@@ -517,6 +520,12 @@ function mapProblemEntities(
     if (labelled) {
       mapping.set(obligation.problemEntityId, labelled.id);
       consumed.add(labelled.id);
+      continue;
+    }
+    const species = bindCertifiedSpecies(molecule, document, obligation, consumed);
+    if (species) {
+      mapping.set(obligation.problemEntityId, species.entityId);
+      for (const id of species.consumes) consumed.add(id);
       continue;
     }
     // A physics body named in model words ("parabolic trajectory", "near
@@ -662,6 +671,47 @@ function normalizeObligationLabel(value: string): string {
 }
 
 /**
+ * ProblemIR often names a drawn species as "SF4 molecule". The wrapper is not
+ * a different body; the formula is. A trailing "ion" is kept: "Na ion" is not
+ * the Na a figure draws, so it must not lose its charge to the wrapper.
+ */
+function speciesObligationName(label: string): string {
+  return label
+    .trim()
+    .replace(/^(?:the|a|an)\s+/i, "")
+    .replace(/\s+(?:molecules?|compounds?|species)$/i, "")
+    .trim();
+}
+
+const SPECIES_BODY_KINDS = new Set(["body", "component", "other", "solid"]);
+
+/**
+ * Bind one obligated chemistry name to a species the certified VSEPR figure
+ * drew, or null. Each drawn species binds at most once, so a second SF4
+ * obligation stays missing and an H2O obligation cannot attach to SF4.
+ */
+function bindCertifiedSpecies(
+  molecule: VseprFigure | null,
+  document: SceneDocument,
+  obligation: NamedBodyObligation,
+  consumed: ReadonlySet<string>,
+): { entityId: string; consumes: string[] } | null {
+  if (!molecule || !SPECIES_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
+  const wanted = chemistrySpeciesIdentity(speciesObligationName(obligation.problemLabel));
+  if (!wanted) return null;
+  for (const structure of molecule.structures) {
+    if (consumed.has(structure.formulaId)) continue;
+    const title = document.entities.find((entity) => entity.id === structure.formulaId);
+    const drawn = title?.label ? chemistrySpeciesIdentity(speciesObligationName(title.label)) : null;
+    if (!drawn || drawn.key !== wanted.key) continue;
+    const consumes = [structure.formulaId, ...structure.atomIds, ...structure.bondIds, ...structure.electronIds];
+    if (consumes.some((id) => consumed.has(id))) continue;
+    return { entityId: structure.formulaId, consumes };
+  }
+  return null;
+}
+
+/**
  * A board formula writes subscripts as `_4` and charges as `^(2-)`. That is
  * the same species as the source spelling `SF4` or `SO4^2-`, not a renamed body.
  * Anything that is not a chemical formula keeps the exact trimmed comparison.
@@ -695,8 +745,7 @@ function aqueousFormulaIdentity(label: string): string | null {
 }
 
 function formulaIdentity(value: string): string | null {
-  const key = value
-    .trim()
+  const key = speciesObligationName(value)
     .replace(/\s+/g, "")
     .replace(/_(\d+)/g, "$1")
     .replace(/\^\(([^)]*)\)/g, "$1")
