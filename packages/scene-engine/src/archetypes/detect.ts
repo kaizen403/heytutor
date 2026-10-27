@@ -365,7 +365,14 @@ const TURNING_CONDUCTOR = /\b(?:loop|coil|armature|rod|bar|disc|disk|blade|wheel
 
 // A stem asking which way the induced current flows. A current whose
 // direction the stem gives ("carries 2 A clockwise") is not asked.
-const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|clockwise|anti-?clockwise|counter-?clockwise)|\b(?:direction|sense)\s+of\s+(?:the\s+)?(?:induced\s+)?currents?\b|\bdirection\s+of\s+(?:the\s+)?current\s+induced\b|\b(?:clockwise|anti-?clockwise|counter-?clockwise)\s+or\s+(?:clockwise|anti-?clockwise|counter-?clockwise)\b|\bwhich way\b[^.?]{0,40}\bcurrent\b/i;
+const INDUCED_CURRENT_DIRECTION = /\binduced current\b[^.?]{0,60}\b(?:direction|clockwise|anti-?clockwise|counter-?clockwise)|\b(?:direction|sense)\s+of\s+(?:the\s+)?induced\s+current\b|\bdirection\s+of\s+(?:the\s+)?current\s+induced\b|\b(?:clockwise|anti-?clockwise|counter-?clockwise)\s+or\s+(?:clockwise|anti-?clockwise|counter-?clockwise)\b|\bwhich way\b[^.?]{0,40}\bcurrent\b/i;
+// The same ask in a magnet and coil stem that does not say "induced": the
+// stem asks which way a current flows ("find the direction of the current in
+// the ring"). A direction the stem gives is not asked.
+const ASKED_CURRENT_DIRECTION: StemTest = {
+  test: (stem) => INDUCED_CURRENT_DIRECTION.test(stem)
+    || /\b(?:find|determine|show|mark|state|predict|indicate|label|draw|what is|which is)\b[^.?]{0,30}\b(?:direction|sense)\s+of\s+(?:the\s+)?(?:induced\s+)?currents?\b/i.test(stem),
+};
 
 // What the magnet and coil figure draws: a north pole moving towards a coil
 // that stays put, with the coil the only conductor. A magnet and coil stem
@@ -417,7 +424,7 @@ const NAMES_INDUCTION_SETUP = /\b(?:coils?|loops?|solenoids?|galvanometer|(?:con
 export function contradictedMagnetCoil(question: string): boolean {
   const stem = prepareStem(question);
   if (!stem || !NAMES_MAGNET.test(stem) || !NAMES_INDUCTION_SETUP.test(stem)) return false;
-  return INDUCED_CURRENT_DIRECTION.test(stem) || MAGNET_COIL_CONTRADICTIONS.some((pattern) => pattern.test(stem));
+  return ASKED_CURRENT_DIRECTION.test(stem) || MAGNET_COIL_CONTRADICTIONS.some((pattern) => pattern.test(stem));
 }
 
 
@@ -537,7 +544,10 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // A magnet beside a coil, ring or solenoid is an induction setup, never a
     // block on a surface.
-    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i],
+    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
+      // A magnet moved towards something is magnetism, not a block on a
+      // surface; a block carrying a magnet is still a block.
+      /(?<!\b(?:carrying|with|holding|on)\s)\b(?:a|the)\s+(?:bar\s+)?magnets?\s+(?:is|are)\s+(?:pushed|pulled|moved|brought)\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "masses", massesOf(stem), "stem");
       setSlot(bag, "force", planNumber(plan, ["f", "force", "appliedforce"]), "plan");
@@ -1551,7 +1561,7 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // The figure does not derive the induced current's direction (the coil's
     // winding is not drawn), so a stem that asks for it gets no figure.
-    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR, INDUCED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],
+    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR, ASKED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],
     extract: () => undefined,
   },
   {

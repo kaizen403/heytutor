@@ -223,9 +223,21 @@ check("a magnet and an iron nail is no induction figure", () => {
   for (const question of ["A magnet is pushed towards an iron nail on a table. Explain what happens.", "A bar magnet attracts an iron nail. Explain the induced magnetism."]) {
     for (const hints of [faraday, { ...faraday, plannerArchetype: "faraday_induction" }]) {
       assert.notEqual(detectArchetype(question, hints)?.id, "faraday_induction", `${question}: no coil, no induction`);
+      assert.notEqual(detectArchetype(question, hints)?.id, "blocks_contact", `${question}: nor a block on a surface`);
     }
   }
+  assert.equal(detectArchetype("A block carrying a magnet is pushed with a force of 10 N along a rough table. Find its acceleration.", {})?.id, "blocks_contact",
+    "a block that carries a magnet is still a block");
 });
+// A stated or marked current is not an asked induced direction: the solenoid keeps its figure.
+for (const question of [
+  "A solenoid of 500 turns per metre carries a current of 2 A. Mark the direction of the current and the field.",
+  "A long solenoid has 1000 turns per metre and carries 3 A. The direction of the current is anticlockwise when viewed from the left. Find the field.",
+]) {
+  check(`solenoid keeps its figure: ${question}`, () => {
+    assert.equal(detectArchetype(question, faraday)?.id, "solenoid_field", `${question}: no induced current is asked`);
+  });
+}
 check("no block for a magnet and ring", () => {
   const question = "A magnet is pushed into a ring and an emf appears. Explain.";
   for (const hints of [{}, { ...faraday, plannerArchetype: "blocks_contact" }]) {
