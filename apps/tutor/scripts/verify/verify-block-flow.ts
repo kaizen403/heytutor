@@ -98,9 +98,11 @@ row("the verifier catches every overlap it is there for", () => {
   assert(verifyBlockFlowLayout(out).some((problem) => /leaves the diagram zone/.test(problem)), "a box left of x 410");
   const crossed = structuredClone(pay);
   const [first, second] = [crossed.arrows[1]!, crossed.arrows[2]!];
-  const midY = (first.points[0]!.y + second.points.at(-1)!.y) / 2;
-  first.points.splice(1, 0, { x: first.points[0]!.x - 60, y: midY }, { x: first.points[0]!.x + 60, y: midY });
-  second.points.splice(1, 0, { x: second.points[0]!.x + 60, y: midY - 30 }, { x: second.points[0]!.x - 60, y: midY + 30 });
+  const [a, b] = [first.points[0]!, first.points.at(-1)!];
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  const normal = { x: -(b.y - a.y) / length * 30, y: (b.x - a.x) / length * 30 };
+  second.points = [second.points[0]!, { x: mid.x - normal.x, y: mid.y - normal.y }, { x: mid.x + normal.x, y: mid.y + normal.y }, second.points.at(-1)!];
   assert(verifyBlockFlowLayout(crossed).some((problem) => /cross$/.test(problem)), "two arrows crossing");
   const spill = structuredClone(pay);
   spill.boxLines[0]!.ink = { ...spill.boxLines[0]!.ink, width: 400 };
@@ -148,6 +150,7 @@ row("grounding: a box is one span of a claim and an arrow is one step of a chain
   assert.match(withEdge(edge("reader", "net", "")), /not one step/, "a skipped stop");
   assert.match(withEdge(edge("net", "bank", "sends request")), /not one step/, "a label lifted from another step");
   assert.match(withEdge(edge("net", "bank", "encrypts")), /not one step/, "an invented arrow label");
+  assert.match(withEdge(edge("acq", "net", "routes"), 2), /not one step/, "a label from the next stop");
   assert.match(withEdge(edge("net", "bank", "then")), /no content word/, "a filler word label");
   const sameStop = plan([claim("c1", "Flow: tap → reader reads card → bank approves.", ["reader", "card", "bank"])]);
   assert.match(validateBlockFlowGrounding({ nodes: [node("card", "Card", ["c1"]), node("reader", "Reader", ["c1"]), node("bank", "Bank", ["c1"])],

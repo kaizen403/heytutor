@@ -185,9 +185,9 @@ function chainOf(value: string): Chain | null {
 /**
  * Every box label is one unbroken span of a cited claim's words, or one whole
  * entity hint, and carries no arrow; every arrow joins stop i to stop i+1 of
- * a chain its claim writes; an arrow label, when given, is one span of those
- * two stops or of the chain's heading. Issues are fatal: the caller refuses
- * the figure.
+ * a chain its claim writes; an arrow label, when given, is one span of the
+ * arrow's source stop or of the chain's heading. Issues are fatal: the caller
+ * refuses the figure.
  */
 export function validateBlockFlowGrounding(
   inputs: { nodes: readonly BlockFlowNode[]; edges: readonly BlockFlowEdge[] },
@@ -220,7 +220,9 @@ export function validateBlockFlowGrounding(
     const adjacent = chains.some((chain) => chain.stops.some((stop, index) => {
       const next = chain.stops[index + 1];
       if (!next || !spanIn(stop, from) || !spanIn(next, to)) return false;
-      return label.length === 0 || spanIn(stop, label) || spanIn(next, label) || spanIn(chain.heading, label);
+      // The label says what the source step does; a phrase of the next stop
+      // would read as the source doing it ("terminal, generated, cryptogram").
+      return label.length === 0 || spanIn(stop, label) || spanIn(chain.heading, label);
     }));
     if (!adjacent) problems.push(`${name}${edge.label ? ` "${edge.label}"` : ""} is not one step of a chain claim ${edge.claimId} writes`);
   }
@@ -345,7 +347,9 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
     const height = lines.length * BOX_LINE_HEIGHT + 2 * BOX_PAD_Y;
     return { node, lines, width, height };
   });
-  const edgeLines = edges.map((edge) => edge.label === "" ? [] : balancedArrowLabel(edge.label) ?? fail("edges", `arrow label "${edge.label}" cannot wrap into 2 lines of ${BLOCK_FLOW_LINE_CHARS} characters`));
+  // Flowing down, a label sits beside its arrow and stays on one line when it
+  // fits; flowing right it sits along the arrow, so a long one splits in two.
+  const edgeLines = edges.map((edge) => edge.label === "" ? [] : (direction === "down" ? wrapBlockFlowLabel(edge.label, 2) : balancedArrowLabel(edge.label)) ?? fail("edges", `arrow label "${edge.label}" cannot wrap into 2 lines of ${BLOCK_FLOW_LINE_CHARS} characters`));
   const edgeLabelSize = edgeLines.map((lines) => ({
     width: lines.length ? Math.ceil(Math.max(...lines.map((line) => measureTextWidth(line, EDGE_FONT)))) : 0,
     height: lines.length * EDGE_LINE_HEIGHT,
@@ -378,24 +382,53 @@ function layout(nodes: readonly BlockFlowNode[], edges: readonly BlockFlowEdge[]
     return (direction === "right" ? size.width : size.height) + 2 * 14;
   })));
   const rankSpan = (items: typeof sized) => items.reduce((sum, item) => sum + across(item), 0) + BOX_GAP * (items.length - 1);
-  const totalAlong = rankDepth.reduce((sum, depth) => sum + depth, 0) + gaps.reduce((sum, gap) => sum + gap, 0);
-  const totalAcross = Math.max(...byRank.map(rankSpan));
   const zoneAlong = direction === "right" ? BLOCK_FLOW_ZONE.width : BLOCK_FLOW_ZONE.height;
   const zoneAcross = direction === "right" ? BLOCK_FLOW_ZONE.height : BLOCK_FLOW_ZONE.width;
+  // Ranks run along the flow and wrap onto a new line when the next rank
+  // would leave the zone. Lines snake: the second runs back the other way, so
+  // the step after the turn sits beside the step before it (a six step chain
+  // reads as two rows of three). The verifier checks whatever this places.
+  const lines: number[][] = [];
+  let line: number[] = [];
+  let used = 0;
+  for (let r = 0; r < rankCount; r++) {
+    const need = rankDepth[r]! + (line.length ? gaps[r - 1]! : 0);
+    if (line.length && used + need > zoneAlong) { lines.push(line); line = [r]; used = rankDepth[r]!; }
+    else { line.push(r); used += need; }
+  }
+  lines.push(line);
+  const lineAlong = (ranksOnLine: number[]) => ranksOnLine.reduce((sum, r, index) => sum + rankDepth[r]! + (index ? gaps[r - 1]! : 0), 0);
+  const lineAcross = (ranksOnLine: number[]) => Math.max(...ranksOnLine.map((r) => rankSpan(byRank[r]!)));
+  // Between lines, room for the label of an arrow that crosses to the next line.
+  const lineGap = Math.max(MIN_RANK_GAP + 8, ...edges.map((edge, index) => {
+    const a = rank.get(edge.from)!, b = rank.get(edge.to)!;
+    const crosses = lines.findIndex((ranksOnLine) => ranksOnLine.includes(a)) !== lines.findIndex((ranksOnLine) => ranksOnLine.includes(b));
+    const size = edgeLabelSize[index]!;
+    return crosses && size.height ? (direction === "right" ? size.height : size.width) + 2 * 14 : 0;
+  }));
+  const totalAlong = Math.max(...lines.map(lineAlong));
+  const totalAcross = lines.reduce((sum, ranksOnLine) => sum + lineAcross(ranksOnLine), 0) + lineGap * (lines.length - 1);
   if (totalAlong > zoneAlong || totalAcross > zoneAcross) fail("nodes", `the diagram does not fit the board flowing ${direction}`);
   const startAlong = (zoneAlong - totalAlong) / 2;
   const boxes: BlockFlowBox[] = [];
-  let cursor = startAlong;
-  byRank.forEach((items, r) => {
-    let acrossCursor = (zoneAcross - rankSpan(items)) / 2;
-    for (const item of items) {
-      const a = cursor + (rankDepth[r]! - along(item)) / 2;
-      const [x, y] = direction === "right" ? [a, acrossCursor] : [acrossCursor, a];
-      boxes.push({ id: item.node.id, x: round(BLOCK_FLOW_ZONE.x + x), y: round(BLOCK_FLOW_ZONE.y + y), width: item.width, height: item.height, lines: item.lines });
-      acrossCursor += across(item) + BOX_GAP;
+  let lineStart = (zoneAcross - totalAcross) / 2;
+  for (const [lineIndex, ranksOnLine] of lines.entries()) {
+    const band = lineAcross(ranksOnLine);
+    let cursor = startAlong;
+    for (const r of ranksOnLine) {
+      const items = byRank[r]!;
+      let acrossCursor = lineStart + (band - rankSpan(items)) / 2;
+      for (const item of items) {
+        const forward = cursor + (rankDepth[r]! - along(item)) / 2;
+        const a = lineIndex % 2 === 0 ? forward : 2 * startAlong + totalAlong - forward - along(item);
+        const [x, y] = direction === "right" ? [a, acrossCursor] : [acrossCursor, a];
+        boxes.push({ id: item.node.id, x: round(BLOCK_FLOW_ZONE.x + x), y: round(BLOCK_FLOW_ZONE.y + y), width: item.width, height: item.height, lines: item.lines });
+        acrossCursor += across(item) + BOX_GAP;
+      }
+      cursor += rankDepth[r]! + (gaps[r] ?? 0);
     }
-    cursor += rankDepth[r]! + (gaps[r] ?? 0);
-  });
+    lineStart += band + lineGap;
+  }
   const boxById = new Map(boxes.map((box) => [box.id, box]));
   const boxLines = boxes.flatMap((box) => box.lines.map((line, index): BlockFlowLabelLine => {
     const width = measureTextWidth(line, BOX_FONT);
