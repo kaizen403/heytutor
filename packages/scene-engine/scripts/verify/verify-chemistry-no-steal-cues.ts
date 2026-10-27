@@ -60,57 +60,6 @@ for (const question of [
   "Young fringes from two slits are followed by photoelectron emission from a metal of work function 2.0 eV.",
   "An electron has wavelength lambda[nm]=1.227/sqrt(V[V]). Find its accelerating voltage.",
 ]) check(`negative chemical-role neighbor: ${question}`, () => outsideChemistry(question));
-for (const question of [
-  "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
-  "State the Maxwell right-hand thumb rule and use it to find the field direction.",
-  "Write Maxwell's equations and show how they predict the speed of light.",
-  "Using Maxwell's equations, find the field of a spherical charge distribution.",
-  "A Maxwell bridge measures an unknown inductance. Find L at balance.",
-  "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
-  "Using Maxwell's equations, sketch the energy distribution of a standing electromagnetic wave.",
-  "Use Maxwell's energy density to sketch the field energy along a plane wave.",
-  "Sketch the distribution of energy in a standing electromagnetic wave.",
-  "Sketch the energy distribution of beta particles emitted in beta decay.",
-  "Sketch the kinetic energy distribution of beta particles.",
-  "Sketch the energy distribution of the emitted particles in beta decay.",
-  "Sketch the energy distribution of alpha particles emitted in a decay.",
-  "Sketch the energy distribution of an electron gas at two temperatures.",
-  "Sketch the energy distribution in the electron gas of a metal.",
-  "Sketch the energy distribution of particles in a Fermi gas.",
-  "Sketch the energy distribution of atoms in a Bose Einstein condensate.",
-  "Sketch the energy distribution of a photon gas at two temperatures.",
-  "Sketch the distribution of energy for a photon gas at two temperatures.",
-  "Sketch the particle energy distribution in a plasma at two temperatures.",
-  "Sketch the energy distribution of radiation in a gas at two temperatures.",
-  "Sketch the energy distribution of a wave in a gas at two temperatures.",
-  "Sketch the energy distribution of sound in a gas.",
-  "Using Maxwell's equations, sketch the energy distribution of charged particles in a field.",
-  "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
-  "Sketch the energy distribution of a gas of photons in a cavity at two temperatures.",
-  "Sketch the energy distribution of the gas giant's atmosphere layers.",
-  "Sketch the energy distribution of the particles in a photon gas at two temperatures.",
-  "Sketch the energy distribution of the atoms in a Fermi gas.",
-  "Sketch the energy distribution in a mixture of radiation in a gas.",
-  "Sketch the energy distribution of beta particles in a gas during beta decay.",
-  "Sketch the energy distribution of the alpha particles of a gas source.",
-]) check(`maxwell outside kinetic theory: ${question}`, () => outsideChemistry(question));
-for (const question of [
-  "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
-  "Draw the Maxwell speed distribution and mark the most probable speed.",
-  "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
-  "Sketch two normalized Maxwell distributions for the same gas.",
-  "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
-  "For a Maxwell gas, sketch the distribution of molecular speed at two temperatures.",
-  "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
-  "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
-  "Sketch the distribution of energy for an ideal gas at two temperatures.",
-  "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
-  "Sketch the energy distribution in a real diatomic gas at two temperatures.",
-  "Sketch the distribution of energy among the particles of an ideal gas at two temperatures.",
-  "Sketch the energy distribution in a mixture of ideal gases at two temperatures.",
-  "Sketch the energy distribution of an ideal gas for two different temperatures.",
-  "Plot the energy distribution of an ideal gas as a function of energy at two temperatures.",
-]) check(`maxwell distribution keeps its curve: ${question}`, () => chemistryFigure(question, "chem_thermo"));
 check("chemical first-order half-life retains kinetics", () => chemistryFigure("The half life of a first order reaction is 20 min. What fraction of the reactant remains after 60 min?", "chem_kinetics"));
 check("rate law notation retains kinetics", () => chemistryFigure("For a first order reaction the rate law is r = k[A]. 50% of A is decomposed in 120 min. Calculate time for 90% decomposition.", "chem_kinetics"));
 check("molar heat capacity retains thermodynamics", () => chemistryFigure("The molar heat capacity is 30 J/(mol K). Find heat for 2 mol heated from 300 K to 310 K.", "chem_thermo"));
@@ -515,6 +464,58 @@ for (const values of [
   assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
   assert.equal(synthesizeFamilyScene({ question }), null);
 });
+
+// Maxwell routing may only decline relative to main. Main routed the bare
+// name "maxwell" into the molecular curve, so the thumb rule, the equations,
+// the bridge, the demon and the relations drew it too. Each stem's main outcome
+// is recorded; the head may draw, or call a stem chemistry, only where main
+// did. The named non kinetic stems must stay out, and every keep stem main
+// drew must still draw.
+{
+  const oracle = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/maxwell-subset-of-main.json"), "utf8")) as { rows: Array<{ stem: string; mainDraws: boolean; mainChemistry: boolean }> };
+  const draws = (question: string) => inferChemistryFamilies(question).includes("chem_thermo") && !!chemistryFamilyBuilder("chem_thermo")?.(question, [], false);
+  for (const row of oracle.rows) check(`maxwell subset of main: ${row.stem}`, () => {
+    if (!row.mainDraws) assert.equal(draws(row.stem), false, "draws where main did not");
+    if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
+  });
+  for (const question of [
+    "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
+    "Write Maxwell's equations and show how they predict the speed of light.",
+    "State the Maxwell right-hand thumb rule and use it to find the field direction.",
+    "Using Maxwell's equations, find the field of a spherical charge distribution.",
+    "A Maxwell bridge measures an unknown inductance. Find L at balance.",
+    "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
+    "Using Maxwell's equations, sketch the energy distribution of a standing electromagnetic wave.",
+    "Use Maxwell's energy density to sketch the field energy along a plane wave.",
+    "Using Maxwell's equations, sketch the energy distribution of charged particles in a field.",
+    "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
+    "Using Maxwell's equations, draw the energy distribution of electromagnetic waves in a gas-filled cavity.",
+    "Draw the Maxwell bridge circuit and its balance condition.",
+    "Explain Maxwell's corkscrew rule with a diagram.",
+    "Explain Maxwell's demon and why it does not violate the second law.",
+    "Derive the Maxwell relations from the thermodynamic potentials."
+  ]) check(`maxwell named outside kinetic theory: ${question}`, () => assert.equal(draws(question), false));
+  for (const question of [
+    "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+    "Draw the Maxwell speed distribution and mark the most probable speed.",
+    "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
+    "Sketch two normalized Maxwell distributions for the same gas.",
+    "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
+    "For a Maxwell gas, sketch the distribution of molecular speed at two temperatures.",
+    "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
+    "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
+    "Sketch the distribution of energy for an ideal gas at two temperatures.",
+    "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
+    "Sketch the distribution of energy among the particles of an ideal gas at two temperatures.",
+    "Sketch the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+    "Draw the distribution of kinetic energies of gas molecules at two temperatures and mark the activation energy.",
+    "Sketch the distribution of molecular energies for a monatomic ideal gas at two temperatures.",
+    "Explain with a Maxwell Boltzmann curve why rate increases with temperature.",
+    "Draw the distribution of energy for an ideal gas at two temperatures.",
+    "Sketch the distribution of molecular speeds for nitrogen gas at 300 K and 600 K.",
+    "Draw the Maxwell distribution for an ideal gas for two different temperatures."
+  ]) check(`maxwell keep row main drew: ${question}`, () => assert.equal(draws(question), true));
+}
 
 // The frozen public corpus remains external: fixtures are oracles, never routing inputs.
 const args = process.argv.slice(2);

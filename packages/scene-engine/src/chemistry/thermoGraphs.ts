@@ -47,38 +47,18 @@ function thresholdHasReactionOwner(stem: string): boolean {
     || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
 }
 
-/** A distribution of speeds is a distribution over moving particles. */
-const SPEED_DISTRIBUTION = /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/;
-// A gas may carry a short run of descriptions ("a monatomic ideal gas"); the
-// noun itself stays the evidence. The run may not cross a preposition
-// ("radiation in a gas") or name a quantum gas, and particles or atoms are
-// not kinetic theory evidence: beta particles and an electron gas have
-// energy distributions that are not this curve. "Gas" must end its noun
-// phrase: a gas of photons or a gas giant is not a kinetic theory gas.
-// Bare particles, atoms or a mixture count only when they are "of" such a
-// gas: beta particles that are merely in a gas are not its particles.
-const GAS = String.raw`(?:the\s+|a\s+|an\s+)?(?!(?:\w+\s+){0,3}?(?:photon|electron|fermi|bose|degenerate|quantum)\b)(?:(?!(?:of|in|for|among|from|with|by|on|at|through|inside|within)\b)\w+\s+){0,3}gas(?:es)?(?=\s*(?:$|[.,;:!?)])|\s+(?:at|in|for|as|when|and|with|between|over|under|during)\b)`;
-const CARRIER = String.raw`(?:${GAS}|(?:the\s+|a\s+|an\s+)?(?:particles|atoms|mixtures?)\s+of\s+${GAS}|(?:\w+\s+)?molecules)\b`;
 /**
- * An energy distribution is the molecules' only when the stem says so beside
- * it: a standing electromagnetic wave has an energy distribution too.
- */
-const MOLECULAR_ENERGY_DISTRIBUTION = new RegExp(
-  String.raw`\bmolecular\s+(?:kinetic\s+)?energy\s+distributions?\b` +
-  String.raw`|\b(?:kinetic\s+)?energy\s+distributions?\s+(?:of|among|in|for)\s+${CARRIER}` +
-  String.raw`|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+(?:kinetic\s+)?energ(?:y|ies)\b|(?:kinetic\s+)?energ(?:y|ies)\s+(?:of|among|in|for)\s+${CARRIER})`,
-);
-
-/**
- * Maxwell also names the thumb rule, the equations and the bridge. Only the
- * distribution itself, or Maxwell beside a speed distribution, an energy
- * distribution of molecules, or a named molecular speed, is a Maxwell curve.
+ * Maxwell also names the thumb rule, the equations, the bridge and the demon.
+ * The name routes here only beside the curve itself: Maxwell Boltzmann,
+ * Maxwell naming a distribution or curve, or Maxwell beside a speed
+ * distribution or a named molecular speed. Every branch needs "maxwell", so
+ * this only ever declines what the bare name drew.
  */
 function namesMaxwellDistribution(stem: string): boolean {
-  if (/\bmaxwell\s*[-–]?\s*boltzmann\b/.test(stem)) return true;
-  if (/\bmaxwell(?:ian|'s|’s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)) return true;
-  if (!/\bmaxwell/.test(stem)) return false;
-  return SPEED_DISTRIBUTION.test(stem) || MOLECULAR_ENERGY_DISTRIBUTION.test(stem)
+  if (!/maxwell/.test(stem)) return false;
+  return /maxwell[\s-]*boltzmann/.test(stem)
+    || /maxwell(?:ian|'s|\u2019s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)
+    || /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/.test(stem)
     || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
 }
 
@@ -92,8 +72,8 @@ function classifyThermoStem(question: string): ThermoKind | null {
     return "born_haber";
   }
   if (
-    namesMaxwellDistribution(stem) || /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ)/.test(stem) ||
-    MOLECULAR_ENERGY_DISTRIBUTION.test(stem) ||
+    namesMaxwellDistribution(stem) ||
+    /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
     (/fraction\s+of\s+(?:the\s+)?molecules/.test(stem) && /energy/.test(stem)) ||
     /effect\s+of\s+temperature\s+on\s+(?:the\s+)?(?:rate|reaction\s+rate)/.test(stem) ||
     /molecules\s+(?:having|with|possessing)\s+(?:kinetic\s+)?energy\s+(?:greater|more|higher|larger)\s+than/.test(stem)
