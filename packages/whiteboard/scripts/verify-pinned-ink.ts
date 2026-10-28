@@ -65,6 +65,7 @@ async function main() {
     assert(count(board, "work") > 0, "the work row must be on the board");
     assert(count(board, "scene") > 0, "the figure line must be on the board");
     assert.equal(count(board, "pin"), 1, `a pinned ring outlives the transient fade (duration ${duration})`);
+    assert.equal(board.pinnedInkCount(), 1, "the page cap reads the rings that stand on the board");
     // Pump well past any fade: the pin must still stand.
     for (let i = 0; i < 40; i++) { clock.advance(16); clock.pump(); await Promise.resolve(); }
     assert.equal(count(board, "pin"), 1, "a pinned ring is never faded away");
@@ -75,6 +76,7 @@ async function main() {
     const scene = count(board, "scene");
     await settle(clock, board.eraseWorkInk(0));
     assert.equal(count(board, "pin"), 0, "a page turn (eraseWorkInk) takes the pinned ring away");
+    assert.equal(board.pinnedInkCount(), 0, "a page turn resets the page cap");
     assert.equal(count(board, "work"), 0, "a page turn takes the work away");
     assert.equal(count(board, "scene"), scene, "a page turn leaves the figure");
     unmountTestWhiteboard(board);

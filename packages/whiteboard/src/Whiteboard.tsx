@@ -353,6 +353,8 @@ export interface WhiteboardHandle {
   eraseWorkInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
   /** Remove every kept FOCUS ring at once. The figure and the work stay. */
   erasePinnedInk: () => void;
+  /** How many kept FOCUS rings stand on the board: the page cap reads this. */
+  pinnedInkCount: () => number;
   /** Wipe the figure zone ink: scene strokes and kept rings. Work ink stays. */
   eraseSceneInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
   /** Split diagram vector lines that pass through a label emphasis region. */
@@ -3182,6 +3184,16 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       animLayerRef.current?.batchDraw();
     }, [destroyTaggedInk]);
 
+    const pinnedInkCount = useCallback((): number => {
+      let count = 0;
+      for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+        nodes.forEach((node) => {
+          if (node.getAttr(BOARD_INK_ATTR) === "pin") count += 1;
+        });
+      }
+      return count;
+    }, []);
+
     const eraseSceneInk = useCallback(
       async (duration: number, shouldCancel?: () => boolean): Promise<void> => {
         const ownership = drawTransactionsRef.current.capture();
@@ -3871,6 +3883,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         eraseWorkInk,
         erasePinnedInk,
         eraseSceneInk,
+        pinnedInkCount,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
         setCursorState: updateCursorState,
@@ -3946,7 +3959,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
