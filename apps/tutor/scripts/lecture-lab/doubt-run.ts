@@ -85,6 +85,7 @@ import {
   type BoardMark,
 } from "../../features/tutor-session/lib/board/boardMarking";
 import { buildDoubtPrompt, doubtTurnTitle } from "../../features/tutor-session/lib/input/askDoubt";
+import { buildDoubtPointingPolicy, doubtActiveFigure } from "../../features/tutor-session/lib/turn/doubtPointing";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../features/tutor-session/lib/turn/streamedFocusFold";
@@ -365,23 +366,6 @@ interface DoubtRecord {
   elapsedMs: number;
 }
 
-/** Lane B's `doubtFigureIds`: lowercased anchor ids, labels and group ids, minus frame ids. */
-function figureIdsOf(diagram: VerifiedDiagram | null, exclude: readonly string[]): Set<string> {
-  const ids = new Set<string>();
-  if (!diagram) return ids;
-  const add = (raw: string | undefined) => {
-    const id = raw?.trim().toLowerCase();
-    if (id) ids.add(id);
-  };
-  for (const anchor of diagram.anchors) {
-    add(anchor.id);
-    for (const label of anchor.labels) add(label);
-  }
-  for (const group of diagram.groups ?? []) add(group.id);
-  for (const raw of exclude) ids.delete(raw.trim().toLowerCase());
-  return ids;
-}
-
 function focusModifiers(command: DrawCommand): string[] {
   return (command.semanticRef?.entityId ?? command.text ?? "").split("|").slice(1).map((entry) => entry.trim().toLowerCase());
 }
@@ -438,22 +422,22 @@ export async function runDoubt(
   const codeBoard = lesson.kind === "dsa";
   const zoneFigure = lesson.diagram;
   const codeFigureVisible = codeBoard && Boolean(zoneFigure) && verifiedDiagramHasDrawableInk(zoneFigure!);
-  // Lane B's doubtActiveFigure: a code board points at its frame only with the flag.
-  const activeDiagram = codeBoard ? (doubtPointing && codeFigureVisible ? zoneFigure : null) : zoneFigure;
+  // The live helpers: a code board points at its frame only with the flag.
+  const activeDiagram = doubtActiveFigure({ granted: doubtPointing, codeBoard, codeFigureVisible, zoneFigure });
   const frameIds = lesson.dsa?.frameIds ?? [];
-  const policy: DoubtPointingPolicy = {
-    enabled: doubtPointing,
-    figureIds: doubtPointing ? figureIdsOf(activeDiagram, codeBoard ? frameIds : []) : new Set<string>(),
+  const policy: DoubtPointingPolicy = buildDoubtPointingPolicy({
+    granted: doubtPointing,
+    figure: activeDiagram,
     codeBoard,
-  };
+    frameIds,
+  });
   const layout = boardLayoutFor(lesson);
   const room = workColumnRoom(layout, Boolean(zoneFigure) && !codeBoard);
   const boardRows = workColumnRows(layout);
   const fastMode = options.model === "fast";
 
-  // A variable, not a literal: `doubtPointing`, `codeFrameCells` and
-  // `doubtFigures` are lane B / phase 2 fields. Before they merge the prompt
-  // ignores them, which is exactly a server that knows neither flag.
+  // A variable, not a literal: `doubtFigures` is a phase 2 field the prompt
+  // ignores until it lands, which is exactly a server that knows no such flag.
   const promptInput = {
     lessonQuestion: lesson.lessonQuestion,
     boardRows,
