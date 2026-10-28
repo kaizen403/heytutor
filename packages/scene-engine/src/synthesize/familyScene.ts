@@ -4297,48 +4297,57 @@ function sourceLevelRelationDocument(question: string): SceneDocument | null {
   });
 }
 
-function semiconductorBandDocument(question: string): SceneDocument {
-  const stem = normalizeStem(question);
+/**
+ * One band column, or n-type beside p-type. A comparison with a conductor or
+ * an insulator declines: a conductor's bands overlap and an insulator's gap
+ * is wide, and two lines with a gap between them would draw neither.
+ */
+function semiconductorBandDocument(question: string): SceneDocument | null {
+  // "semi-conductor" is one word, and "n type" or a non-breaking "n‑type" is n-type.
+  const stem = normalizeStem(question)
+    .replace(/\bsemi[\s\u2010\u2011-]+conductor/gi, "semiconductor")
+    .replace(/\b([np])[\s\u2010\u2011\u2012-]+type\b/gi, "$1-type");
+  if (/\b(?:conductors?|insulators?|metals?)\b/i.test(stem)) return null;
   const bothTypes = /n-type/i.test(stem) && /p-type/i.test(stem);
   const nType = /n-type/i.test(stem);
   const pType = /p-type/i.test(stem);
-  const conductorSplit = /conductor/i.test(stem) && /(?:semiconductor|insulator)/i.test(stem);
+  // Flat bands with no impurity level cannot show doping, a junction, a device
+  // or a superconductor: a stem that names one without saying n-type or
+  // p-type gets no figure rather than an intrinsic one.
+  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ants?)|donors?|acceptors?|impurit\w*|solar cells?|superconduct\w*)\b/i.test(stem)) return null;
+  // A junction, a bias, a diode, a transistor or a laser bends the bands at
+  // the junction; separate flat columns cannot show it, whatever the type.
+  if (/\b(?:junctions?|bias\w*|\w*diodes?|transistors?|npn|pnp|lasers?|light[\s-]emitting|LEDs?)\b/i.test(stem)) return null;
   const columns: Array<{
     prefix: string;
     x0: number;
     x1: number;
-    extra: "donor" | "acceptor" | "narrow" | null;
+    extra: "donor" | "acceptor" | null;
     caption: string;
   }> = bothTypes
     ? [
       { prefix: "n", x0: -3.2, x1: -0.6, extra: "donor", caption: "n-type" },
       { prefix: "p", x0: 0.6, x1: 3.2, extra: "acceptor", caption: "p-type" },
     ]
-    : conductorSplit
-      ? [
-        { prefix: "cond", x0: -3.2, x1: -0.6, extra: "narrow", caption: "conductor" },
-        { prefix: "semi", x0: 0.6, x1: 3.2, extra: null, caption: "semiconductor" },
-      ]
-      : [{
-        prefix: "band",
-        x0: -2.4,
-        x1: 2.4,
-        extra: nType ? "donor" : pType ? "acceptor" : null,
-        caption: nType ? "n-type" : pType ? "p-type" : "intrinsic",
-      }];
+    : [{
+      prefix: "band",
+      x0: -2.4,
+      x1: 2.4,
+      extra: nType ? "donor" : pType ? "acceptor" : null,
+      caption: nType ? "n-type" : pType ? "p-type" : /\bintrinsic\b/i.test(stem) ? "intrinsic" : "semiconductor",
+    }];
 
   const entities: SceneEntity[] = [];
   const constructions: SceneConstruction[] = [];
   const levelIds: string[] = [];
   for (const column of columns) {
-    const evY = column.extra === "narrow" ? -0.25 : -1.2;
-    const ecY = column.extra === "narrow" ? 0.25 : 1.2;
     const evL = `${column.prefix}_ev_l`;
     const evR = `${column.prefix}_ev_r`;
     const ecL = `${column.prefix}_ec_l`;
     const ecR = `${column.prefix}_ec_r`;
     const ev = `${column.prefix}_ev`;
     const ec = `${column.prefix}_ec`;
+    // Each level is named once, by its own label.
     entities.push(
       { id: evL, kind: "point", role: "band end" },
       { id: evR, kind: "point", role: "band end" },
@@ -4348,18 +4357,12 @@ function semiconductorBandDocument(question: string): SceneDocument {
       { id: ec, kind: "segment", role: "conduction band", label: "Ec" },
     );
     constructions.push(
-      pointAt(evL, column.x0, evY),
-      pointAt(evR, column.x1, evY),
-      pointAt(ecL, column.x0, ecY),
-      pointAt(ecR, column.x1, ecY),
+      pointAt(evL, column.x0, -1.2),
+      pointAt(evR, column.x1, -1.2),
+      pointAt(ecL, column.x0, 1.2),
+      pointAt(ecR, column.x1, 1.2),
       { id: `make_${ev}`, operator: "segment", inputs: { start: evL, end: evR }, outputs: [ev] },
       { id: `make_${ec}`, operator: "segment", inputs: { start: ecL, end: ecR }, outputs: [ec] },
-      { id: `label_${ev}`, operator: "label", inputs: { target: ev, text: "Ev" }, outputs: [`${ev}_label`] },
-      { id: `label_${ec}`, operator: "label", inputs: { target: ec, text: "Ec" }, outputs: [`${ec}_label`] },
-    );
-    entities.push(
-      { id: `${ev}_label`, kind: "label", role: "band label" },
-      { id: `${ec}_label`, kind: "label", role: "band label" },
     );
     levelIds.push(ev, ec);
     if (column.extra === "donor" || column.extra === "acceptor") {
@@ -4372,13 +4375,11 @@ function semiconductorBandDocument(question: string): SceneDocument {
         { id: a, kind: "point", role: "impurity end" },
         { id: b, kind: "point", role: "impurity end" },
         { id: seg, kind: "segment", role: "impurity level", label: extraText },
-        { id: `${seg}_label`, kind: "label", role: "band label" },
       );
       constructions.push(
         pointAt(a, column.x0, extraY),
         pointAt(b, column.x1, extraY),
         { id: `make_${seg}`, operator: "segment", inputs: { start: a, end: b }, outputs: [seg] },
-        { id: `label_${seg}`, operator: "label", inputs: { target: seg, text: extraText }, outputs: [`${seg}_label`] },
       );
       levelIds.push(seg);
     }
