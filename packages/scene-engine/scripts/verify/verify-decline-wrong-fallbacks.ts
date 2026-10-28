@@ -230,6 +230,8 @@ check("a magnet and an iron nail is no induction figure", () => {
   }
   assert.equal(detectArchetype("A block carrying a magnet is pushed with a force of 10 N along a rough table. Find its acceleration.", {})?.id, "blocks_contact",
     "a block that carries a magnet is still a block");
+  assert.equal(detectArchetype("Two blocks of 2 kg and 3 kg are in contact on a smooth horizontal table. A magnet attracts block A with a force of 10 N. Find the contact force.", {})?.id, "blocks_contact",
+    "a magnet's pull on blocks in contact keeps the blocks");
   assert.equal(detectArchetype("Two blocks of 2 kg and 3 kg are in contact on a smooth surface. The magnet is pushed against block A with 10 N. Find the contact force.", {})?.id, "blocks_contact",
     "a magnet pushing two blocks in contact keeps the blocks, not a pulley");
 });
@@ -262,6 +264,9 @@ check("a falling magnet is no free fall", () => {
   assert.notEqual(detectArchetype(question, {})?.id, "free_fall", "a magnet dropped through a coil gets no falling ball");
 });
 check("no guessed winding current in an induction stem", () => {
+  for (const magnitude of ["A solenoid sits in an increasing magnetic field. The current has magnitude 2 A. Find the direction of the current."]) {
+    assert.notEqual(detectArchetype(magnitude, faraday)?.id, "solenoid_field", "a bare magnitude gives no direction");
+  }
   const question = "A solenoid sits in an increasing magnetic field. Find the direction of the current.";
   for (const hints of [faraday, { ...faraday, plannerArchetype: "solenoid_field" }]) {
     assert.notEqual(detectArchetype(question, hints)?.id, "solenoid_field", "the solenoid figure would guess the induced current");
