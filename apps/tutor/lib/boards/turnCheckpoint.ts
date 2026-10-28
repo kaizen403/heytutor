@@ -53,6 +53,9 @@ import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { sceneKeepsReferencePictureRows } from "@/lib/scene/referencePicturePersistence";
+import { pageFigureLoaderFor } from "@/lib/scene/pageFigureLoader";
+import { boardContinuationOf } from "@/lib/boards/boardContinuation";
+import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
 import {
   audioPrefixMatchesType,
   validateCheckpointUploadParts,
@@ -79,6 +82,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const VISUAL_STATUSES = new Set(["validated", "text_only", "legacy", "retry_required"]);
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
 const SCENE_POINTING = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
+/** A doubt naming its page's figure keeps these for the canonicalizer to check against that figure. */
+const DOUBT_POINTING = new Set<DrawCommand["type"]>(["FOCUS", "ANNOTATE"]);
 
 type VisualStatus = "validated" | "text_only" | "legacy" | "retry_required";
 
@@ -376,13 +381,21 @@ function parseScene(raw: Record<string, unknown>): Parsed<CheckpointScene> {
  * rows a validated scene accepted earlier; a later text-only checkpoint (the
  * client's fallback when a figure is refused) must not be refused for them.
  * It only drops what the text-only canonicalizer would refuse.
+ *
+ * `keepPointing`: a doubt whose artifacts name its page's figure keeps its
+ * FOCUS and ANNOTATE, which the canonicalizer checks against that figure.
+ * Trusted geometry still goes.
  */
-export function stripSceneInk<T extends CheckpointRow>(rows: readonly T[]): T[] {
+export function stripSceneInk<T extends CheckpointRow>(
+  rows: readonly T[],
+  options: { keepPointing?: boolean } = {},
+): T[] {
   const kept: T[] = [];
   for (const row of rows) {
     if (isStoredCommandTrustedGeometry(row.command)) continue;
     const commands = parseStoredSegmentCommands(row.command);
-    const allowed = commands.filter((command) => !SCENE_POINTING.has(command.type));
+    const allowed = commands.filter((command) =>
+      !SCENE_POINTING.has(command.type) || (options.keepPointing === true && DOUBT_POINTING.has(command.type)));
     if (allowed.length === commands.length) {
       kept.push(row);
       continue;
@@ -391,6 +404,10 @@ export function stripSceneInk<T extends CheckpointRow>(rows: readonly T[]): T[] 
     kept.push({ ...row, command: allowed.length > 0 ? serializeSegmentCommands(allowed) : null });
   }
   return kept;
+}
+
+function sceneKeepsDoubtPointing(sceneArtifacts: unknown): boolean {
+  return boardContinuationOf(sceneArtifacts) !== null && doubtFigureRefOf(sceneArtifacts) !== null;
 }
 
 function sceneOf(turn: Turn): CheckpointScene {
@@ -708,7 +725,11 @@ async function applyCheckpoint(
 
   // A reference picture turn is text only for the engine, but its picture rows
   // must reach the persistence branch that rebuilds them from the stored record.
-  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" || sceneKeepsReferencePictureRows(selected.sceneArtifacts) ? merged : stripSceneInk(merged))
+  // A doubt naming the figure on its page keeps its pointing for the
+  // canonicalizer, which checks it against that figure's own saved row.
+  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" || sceneKeepsReferencePictureRows(selected.sceneArtifacts)
+    ? merged
+    : stripSceneInk(merged, { keepPointing: sceneKeepsDoubtPointing(selected.sceneArtifacts) }))
     .map((row): CheckpointRow => ({
       orderIndex: row.orderIndex,
       narration: row.narration,
@@ -721,7 +742,8 @@ async function applyCheckpoint(
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
     return reject("turn_metadata_oversized", "turn metadata exceeds the size limit", 413);
   }
-  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
+  const loadPageFigure = pageFigureLoaderFor({ boardId, userId, turnId }, prisma);
+  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
@@ -731,7 +753,7 @@ async function applyCheckpoint(
     // scene. A surviving producer must submit a fresh, coherent scene.
     ownsScene = false;
     const storedScene = sceneOf(before);
-    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) });
+    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure });
     if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);

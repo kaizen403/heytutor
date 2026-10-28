@@ -48,6 +48,7 @@ import {
   type PersistedTurnScene,
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
+import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
 import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 // ---------------------------------------------------------------------------
@@ -311,7 +312,9 @@ function baseLiveTurnScene(input: {
 }): PersistedTurnScene {
   const { page } = input;
   if (input.kind === "doubt" || page?.turn.kind === "doubt") {
-    return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage);
+    // The figure the doubt pointed at rides only on a doubt that kept the page.
+    const pointsAtFigure = page?.turn.kind === "doubt" ? doubtFigureRefOf(page.turn.scene?.sceneArtifacts) : null;
+    return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage, undefined, pointsAtFigure);
   }
   if (!page) return textOnlyTurnScene();
   if (input.textOnly) {
@@ -542,6 +545,8 @@ export class LiveTurnSaveRegistry {
   figureCommitted(owner: object, generation: number): void {
     const turn = this.find(owner, generation);
     if (!turn) return;
+    // The figure in the zone is this turn's now: a doubt on the page names it.
+    if (turn.page) turn.page.figureTurnId = turn.turnId;
     this.emit();
     this.pump(turn);
   }
@@ -550,6 +555,7 @@ export class LiveTurnSaveRegistry {
   dropIntroRows(owner: object, generation: number): void {
     const turn = this.find(owner, generation);
     if (!turn) return;
+    if (turn.page?.figureTurnId === turn.turnId) turn.page.figureTurnId = null;
     const kept = turn.recorded.slice(0, turn.taken);
     for (const entry of turn.recorded.slice(turn.taken)) {
       if (!entry.intro) kept.push(entry);
