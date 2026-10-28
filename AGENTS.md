@@ -103,7 +103,8 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    [docs/architecture/reference-pictures.md](docs/architecture/reference-pictures.md).
 3. **Teaching stream owns narration and work-area `WRITE` only** — never draw,
    label, annotate, erase, circle, or supply focus coordinates. `[FOCUS:id]` may
-   trace existing verified geometry. Filters and `useCommandExecution()` enforce
+   trace existing verified geometry, or (with `REFERENCE_PICTURE_PART_FOCUS=on`)
+   ring a label the server located on a stored reference picture. Filters and `useCommandExecution()` enforce
    ownership.
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot

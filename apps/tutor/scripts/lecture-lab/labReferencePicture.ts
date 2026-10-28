@@ -170,6 +170,8 @@ export class LabReferencePictureStep {
     traceId: string;
     turnStartedAt: number;
     narrationLanguage?: NarrationLanguage;
+    /** As live's begin-turn `referencePicturePartFocus`: build part and key focus targets. */
+    partFocus?: boolean;
     /** Defaults to the global fetch at call time, so the runner's budget wrapper sees every request. */
     fetchImpl?: typeof fetch;
     waitMs?: number;
@@ -282,7 +284,10 @@ export class LabReferencePictureStep {
       if (!loaded) failure = { status: "unavailable", reason: "preload_failed" };
       else {
         try {
-          picture = buildReferencePicturePresentation(answer.picture, { narrationLanguage: this.input.narrationLanguage });
+          picture = buildReferencePicturePresentation(answer.picture, {
+            narrationLanguage: this.input.narrationLanguage,
+            partFocus: this.input.partFocus === true,
+          });
         } catch {
           failure = { status: "unavailable", reason: "presentation_failed" };
         }

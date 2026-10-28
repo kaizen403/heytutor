@@ -108,6 +108,12 @@ export interface ReferencePictureRecord {
    * Absent for a picture labelled with names (or not at all).
    */
   legend?: ReferencePictureLegendEntry[];
+  /**
+   * Where named parts are printed on the picture (`parseReferencePictureParts`).
+   * Absent on pictures stored before parts were located, and for a part the
+   * locator could not place with certainty.
+   */
+  parts?: ReferencePicturePart[];
   /** The stored plan's size and pass lengths, so commands need no plan fetch. */
   plan: { width: number; height: number; outlineLengthPx: number; fillLengthPx: number };
 }
@@ -451,4 +457,161 @@ export function normalizeReferencePictureLabels(raw: unknown): string[] {
     .map((label) => label.replace(/\s+/g, " ").trim())
     .filter((label) => label.length > 0 && label.length <= REFERENCE_PICTURE_LABEL_MAX)
     .slice(0, REFERENCE_PICTURE_LABELS_MAX);
+}
+
+/**
+ * A located part: where a judged label, or a numbered picture's mark, is
+ * printed on the picture. Found once when the picture is stored, from the
+ * Commons SVG's own text or by reading the stored picture, and kept only when
+ * the printed text matches a judged name that occurs once. It is what lets
+ * `[FOCUS:reference_picture.part.<n>]` bring the pen to "R1" instead of the
+ * whole picture. A name with no located part can be said, never pointed at.
+ */
+export interface ReferencePicturePart {
+  /**
+   * `reference_picture.part.<n>`: n is the 1-based position of `label` in the
+   * record's `labels`, so a backfill that locates one more name never
+   * renumbers the others (a lesson saved before it replays the same rings).
+   */
+  id: string;
+  /** The judged name it answers to: a printed label verbatim, or the key's name for `mark`. */
+  label: string;
+  /** For a numbered picture, the mark printed on the drawing ("3", "12a"). */
+  mark?: string;
+  /** The printed text's box on the picture, plan px (`plan.width` x `plan.height`). */
+  box: PicturePlacement;
+  /** How the box was found: the SVG's text element, or reading the raster. */
+  source: "svg" | "ocr";
+}
+
+export const REFERENCE_PICTURE_PART_PREFIX = "reference_picture.part." as const;
+export const REFERENCE_PICTURE_PARTS_MAX = 60;
+const PART_ID = /^reference_picture\.part\.([1-9][0-9]{0,2})$/;
+/** Smallest printed text box kept, plan px: below this it is a speck, not a word. */
+const PART_MIN_SIDE_PX = 3;
+/** A label box taller than this share of the picture is a region, not printed text. */
+const PART_MAX_HEIGHT_SHARE = 0.25;
+
+/** The part id for the name at `labelIndex` (0-based) in the record's `labels`. */
+export function referencePicturePartId(labelIndex: number): string {
+  return `${REFERENCE_PICTURE_PART_PREFIX}${labelIndex + 1}`;
+}
+
+export function isReferencePicturePartId(value: unknown): value is string {
+  return typeof value === "string" && PART_ID.test(value.trim().toLowerCase());
+}
+
+/**
+ * A numbered picture's key entry as a focus target, named by its printed mark
+ * (`reference_picture.key.3`, `reference_picture.key.12a`), never by its place
+ * in the list: on a key whose marks skip (1, 2, 4, 5) "part 4" must be
+ * `key.4`, or the model's natural id rings the wrong row. Sub-anchors add
+ * `.mark` (on the drawing) and `.row` (the key row).
+ */
+export const REFERENCE_PICTURE_KEY_PREFIX = "reference_picture.key." as const;
+const KEY_ID = /^reference_picture\.key\.([0-9]{1,2}[a-z]?|[a-z])(?:\.(?:mark|row))?$/;
+
+export function referencePictureKeyId(mark: string): string {
+  return `${REFERENCE_PICTURE_KEY_PREFIX}${legendMarkKey(mark)}`;
+}
+
+/** A key target or one of its sub-anchors. */
+export function isReferencePictureKeyId(value: unknown): value is string {
+  return typeof value === "string" && KEY_ID.test(value.trim().toLowerCase());
+}
+
+/** Any part or key focus id, sub-anchors included (not the whole picture). */
+export function isReferencePicturePartFocusId(value: unknown): value is string {
+  return isReferencePicturePartId(value) || isReferencePictureKeyId(value);
+}
+
+/** Names compare without case or spacing: "R 1" printed, "R1" judged. */
+export function referencePicturePartKey(label: string): string {
+  return label.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+}
+
+/**
+ * Validate located parts from anywhere (locator, store, client, artifacts).
+ * Unlike the key, a bad part is dropped alone: the picture stays, that part
+ * just cannot be pointed at. A part is kept only when its name is one the
+ * record already shows (a printed label, or the key name its mark carries),
+ * its id is that name's place in `labels` (`referencePicturePartId`),
+ * its box lies on the picture and is the size of printed text, and no other
+ * part claims the same name, mark or id.
+ */
+export function parseReferencePictureParts(
+  raw: unknown,
+  record: { plan: { width: number; height: number }; labels: readonly string[]; legend?: readonly ReferencePictureLegendEntry[] | null },
+): ReferencePicturePart[] {
+  if (!Array.isArray(raw)) return [];
+  const { width: planW, height: planH } = record.plan;
+  const printed = new Map(record.labels.map((label) => [referencePicturePartKey(label), label] as const));
+  const position = new Map<string, number>();
+  record.labels.forEach((label, index) => { if (!position.has(referencePicturePartKey(label))) position.set(referencePicturePartKey(label), index); });
+  const keyed = new Map((record.legend ?? []).map((entry) => [legendMarkKey(entry.mark), entry] as const));
+  const parts: ReferencePicturePart[] = [];
+  const seenIds = new Set<string>();
+  const seenNames = new Set<string>();
+  const seenMarks = new Set<string>();
+  for (const entry of raw.slice(0, REFERENCE_PICTURE_PARTS_MAX * 2)) {
+    if (parts.length >= REFERENCE_PICTURE_PARTS_MAX) break;
+    if (!entry || typeof entry !== "object") continue;
+    const value = entry as Record<string, unknown>;
+    const id = typeof value.id === "string" ? value.id.trim().toLowerCase() : "";
+    if (!PART_ID.test(id) || seenIds.has(id)) continue;
+    const source = value.source === "svg" || value.source === "ocr" ? value.source : null;
+    const box = value.box as Record<string, unknown> | null | undefined;
+    if (!source || !box || typeof box !== "object") continue;
+    const [x, y, w, h] = [box.x, box.y, box.width, box.height].map(Number) as [number, number, number, number];
+    if (![x, y, w, h].every(Number.isFinite)) continue;
+    if (w < PART_MIN_SIDE_PX || h < PART_MIN_SIDE_PX || h > planH * PART_MAX_HEIGHT_SHARE) continue;
+    if (x < 0 || y < 0 || x + w > planW || y + h > planH) continue;
+    let label: string | undefined;
+    let mark: string | undefined;
+    if (value.mark != null) {
+      const bare = normalizeLegendMark(String(value.mark));
+      const keyEntry = bare ? keyed.get(legendMarkKey(bare)) : undefined;
+      if (!keyEntry || seenMarks.has(legendMarkKey(keyEntry.mark))) continue;
+      mark = keyEntry.mark;
+      label = keyEntry.label;
+    } else if (typeof value.label === "string") {
+      label = printed.get(referencePicturePartKey(value.label));
+    }
+    if (!label || seenNames.has(referencePicturePartKey(label))) continue;
+    // The id is the name's place in `labels`; any other numbering is refused.
+    const index = position.get(referencePicturePartKey(label));
+    if (index === undefined || id !== referencePicturePartId(index)) continue;
+    seenIds.add(id);
+    seenNames.add(referencePicturePartKey(label));
+    if (mark) seenMarks.add(legendMarkKey(mark));
+    parts.push({ id, label, ...(mark ? { mark } : {}), box: { x, y, width: w, height: h }, source });
+  }
+  return parts;
+}
+
+/** A part's box on the board: the same mapping the pencil's strokes use (picture px scaled into the placement). */
+export function referencePicturePartBoardRect(
+  part: Pick<ReferencePicturePart, "box">,
+  placement: PicturePlacement,
+  plan: { width: number; height: number },
+): PicturePlacement {
+  const sx = placement.width / Math.max(1, plan.width);
+  const sy = placement.height / Math.max(1, plan.height);
+  return {
+    x: placement.x + part.box.x * sx,
+    y: placement.y + part.box.y * sy,
+    width: part.box.width * sx,
+    height: part.box.height * sy,
+  };
+}
+
+/** The board box of one key entry (its mark and every row of its name), or null when the layout has no such entry. */
+export function referencePictureLegendEntryRect(legend: PictureLegendLayout, entry: number): PicturePlacement | null {
+  const runs = legend.runs.filter((run) => run.entry === entry);
+  if (runs.length === 0) return null;
+  const left = Math.min(...runs.map((run) => run.x));
+  const right = Math.max(...runs.map((run) => run.x + measureTextWidth(run.text, legend.fontSize)));
+  const top = Math.min(...runs.map((run) => run.y));
+  const bottom = Math.max(...runs.map((run) => run.y)) + legend.rowPx;
+  return { x: left, y: top, width: right - left, height: bottom - top };
 }

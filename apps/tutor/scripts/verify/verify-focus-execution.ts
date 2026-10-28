@@ -418,6 +418,47 @@ async function main(): Promise<void> {
     assert(!/trigger\.text/.test(gesture), "takeDeferredAnnotations must not read a text trigger");
   }
 
+  // A numbered picture's key entry is one spoken window with two places:
+  // its mark on the drawing, then its row in the key. Both rings fall inside
+  // the window, mark first, and the spotlight follows the pen from one to
+  // the other instead of one hole spanning both. Each hole is used exactly
+  // as given, since a fixed pad does not clear a ring round a tall row.
+  {
+    const board = fakeBoard();
+    const mark = { x: 520, y: 470, width: 9, height: 12 };
+    const row = { x: 922, y: 300, width: 196, height: 30 };
+    const keyEntry: ScheduledFocusTarget = {
+      ...board.target("reference_picture.key.3", 1400, 3800, { x: mark.x, y: mark.y }),
+      rects: [mark, row],
+      paths: [ring("mark", mark.x, mark.y), ring("row", row.x, row.y)],
+      pathHoles: [
+        { x: mark.x - 14, y: mark.y - 12, width: mark.width + 28, height: mark.height + 24 },
+        { x: row.x - 16, y: row.y - 7, width: row.width + 32, height: row.height + 14 },
+      ],
+    };
+    const cancelled = await runScheduledFocus(board.host, [keyEntry], {
+      emphasis: "spotlight", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+    });
+    assert(!cancelled, "the key entry runs to the end");
+    const traces = board.traces();
+    assert(traces.map((trace) => trace.path).join(",") === "ring:mark,ring:row", "mark first, then the key row");
+    assert(traces[0]!.at >= 1400, "the mark is ringed on the name, not before it");
+    const last = traces.at(-1)!;
+    assert(last.at + last.ms <= 3800 + 1, `the key row's ring ends with the clause (${last.at + last.ms})`);
+    const holes = board.spotlights().flatMap((event) => event.hole ? [event.hole] : []);
+    const holeOf = (rect: SpotlightRect) => {
+      const hole = keyEntry.pathHoles![rect === mark ? 0 : 1]!;
+      return `${hole.x},${hole.y},${hole.width},${hole.height}`;
+    };
+    const seen = holes.map((hole) => `${hole.x},${hole.y},${hole.width},${hole.height}`);
+    assert(seen[0] === holeOf(mark), "the veil opens on the mark, not on both places");
+    assert(seen.at(-1) === holeOf(row), "the veil ends on the key row");
+    const rowHoleAt = board.spotlights().find((event) => event.hole && `${event.hole.x},${event.hole.y},${event.hole.width},${event.hole.height}` === holeOf(row))!.at;
+    assert(rowHoleAt >= traces[0]!.at + traces[0]!.ms && rowHoleAt <= traces[1]!.at,
+      "the hole moves to the row between the two rings");
+  }
+
   console.log("verify-focus-execution: each focus target is lettered in its beat and traced on its name, in spoken order, and a cancel lowers the veil");
 }
 

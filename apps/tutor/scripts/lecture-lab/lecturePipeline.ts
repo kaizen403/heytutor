@@ -310,6 +310,8 @@ export interface RunLectureOptions {
   onModelCost?: (usd: number) => void;
   /** Replay the live reference picture step (`--reference-picture`); off keeps the lab unchanged. */
   referencePicture?: boolean;
+  /** Build the picture with part focus targets (the live begin-turn `referencePicturePartFocus`). */
+  referencePicturePartFocus?: boolean;
   /** The shown picture's pixels, so the runner can save what the student saw. */
   onReferencePictureImage?: (image: LabReferencePictureImage) => void;
   spendMode?: LabSpendMode;
@@ -470,7 +472,7 @@ export async function runLecture(
   };
   const referencePicture = options.referencePicture
     ? new LabReferencePictureStep({ origin: options.origin, question, traceId, turnStartedAt: startedAt,
-        narrationLanguage: options.narrationLanguage })
+        narrationLanguage: options.narrationLanguage, partFocus: options.referencePicturePartFocus === true })
     : null;
   // Live never asks on a DSA question (nor a doubt or a resume, which the lab does not run).
   if (dsaClassification.isDsa) referencePicture?.exclude("dsa");

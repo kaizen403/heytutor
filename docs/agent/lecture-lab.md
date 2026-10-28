@@ -340,6 +340,10 @@ DSA); a 25 s wait plus the asset preload (image and stroke plan);
 an abort when a verified figure wins. A shown picture gives the teaching prompt
 the presentation's `promptAddon` and the marker its `reference_picture` target,
 while every engine field stays text only, as live.
+`--reference-picture-part-focus` also builds the picture's part and key focus
+targets (live begin-turn `referencePicturePartFocus`); start the dev server with
+`REFERENCE_PICTURE_PART_FOCUS=on` too, since the server strips `parts` from
+records when its flag is off.
 
 Use `--production-strict-subjects` for production parity (now allowed with
 `--ask` on the strict arm, with the same leak-filtered example library): it is

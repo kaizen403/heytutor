@@ -106,6 +106,12 @@ export interface Options {
   productionStrictSubjects: readonly DiagramSubject[] | null;
   /** Replay the live reference picture tier (paid, `POST /api/reference-picture`); off by default. */
   referencePicture: boolean;
+  /**
+   * Point at the picture's located parts and key rows, as live with
+   * `REFERENCE_PICTURE_PART_FOCUS=on`. Must match the dev server's env: the
+   * server strips `parts` from records when its flag is off.
+   */
+  referencePicturePartFocus: boolean;
 }
 
 export interface LabSpendSummary {
@@ -292,7 +298,7 @@ function parseProductionStrictSubjects(flags: ReadonlyMap<string, string>): Diag
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
-  const booleans = new Set(["figure-only", "yes", "resume", "reference-picture"]);
+  const booleans = new Set(["figure-only", "yes", "resume", "reference-picture", "reference-picture-part-focus"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
@@ -425,6 +431,7 @@ export function parseOptions(argv: string[]): Options {
     exampleExclusions: flags.get("example-exclusions") ?? null,
     productionStrictSubjects,
     referencePicture: flags.get("reference-picture") === "true",
+    referencePicturePartFocus: flags.get("reference-picture-part-focus") === "true",
   };
 }
 
@@ -1229,6 +1236,7 @@ async function main(): Promise<void> {
           diagramExampleCatalogue,
           spendMode: options.spendMode,
           referencePicture: options.referencePicture,
+          referencePicturePartFocus: options.referencePicturePartFocus,
           onReferencePictureImage: (image) => { pictureImage = image; },
         });
         run.planner = await usageTracker.finishAsync(traceId);

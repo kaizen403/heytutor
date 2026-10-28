@@ -6,7 +6,7 @@
  */
 import { resolveApiUrl, withTurnTraceHeaders, type DiagramSubject } from "@heytutor/tutor-core";
 import { isReferencePictureId, parseReferencePictureLegend, type ReferencePictureRecord,
-  normalizeReferencePictureLabels,
+  normalizeReferencePictureLabels, parseReferencePictureParts,
 } from "@heytutor/drawing";
 
 /**
@@ -79,10 +79,14 @@ export function parseReferencePictureRecord(value: unknown): ReferencePictureRec
   if (!source || title === null || license === null || artist === null || imageUrl === null || planUrl === null ||
       shows === null || width === null || height === null || labels === null || pageUrl === undefined ||
       licenseUrl === undefined || planWidth === null || planHeight === null || outlineLengthPx === null || fillLengthPx === null) return null;
+  // Located parts are checked one by one: a bad part loses its pointing, the
+  // picture stays. The server sends none while part focus is off.
+  const parts = parseReferencePictureParts(value.parts, { plan: { width: planWidth, height: planHeight }, labels, legend });
   return {
     id: value.id, source, title, pageUrl, license, licenseUrl, artist, imageUrl, planUrl, width, height, shows,
     labels: [...labels],
     ...(legend ? { legend } : {}),
+    ...(parts.length > 0 ? { parts } : {}),
     plan: { width: planWidth, height: planHeight, outlineLengthPx, fillLengthPx },
   };
 }

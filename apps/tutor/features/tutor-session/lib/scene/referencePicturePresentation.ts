@@ -7,11 +7,24 @@
  * restore, so all three produce the same ink and the same spoken cues from the
  * same record. It is never a verified scene: the authority is the server's
  * stored record, which exists only after its judge accepted the picture.
+ *
+ * With part focus on (`REFERENCE_PICTURE_PART_FOCUS`, off by default) the
+ * picture also offers one anchor per located part and one target per key
+ * entry, so the pen can point at "R1" or at part 3 and its key row. Off, the
+ * diagram, the prompt and the stored artifact are exactly what they were.
  */
 import {
   REFERENCE_PICTURE_ENTITY_ID,
   isReferencePictureId,
+  legendMarkKey,
   parseReferencePictureLegend,
+  parseReferencePictureParts,
+  referencePictureKeyId,
+  referencePictureLayout,
+  referencePictureLegendEntryRect,
+  referencePicturePartBoardRect,
+  referencePicturePartKey,
+  resolveVerifiedDiagramFocusTargets,
   isStoredCommandTrustedGeometry,
   parseFocusSpec,
   parsePictureCommandParams,
@@ -23,10 +36,13 @@ import {
   type PicturePass,
   type PicturePlacement,
   type ReferencePictureLegendEntry,
+  type ReferencePicturePart,
   type ReferencePictureRecord,
   type TutorSegment,
   type VerifiedDiagram,
+  type VerifiedDiagramAnchor,
   type VerifiedDiagramCommand,
+  type VerifiedDiagramGroup,
 } from "@heytutor/drawing";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
 
@@ -49,7 +65,20 @@ export interface StoredReferencePicture {
   labels: string[];
   /** A numbered picture's key, as the server checked it. Absent otherwise. */
   legend?: ReferencePictureLegendEntry[];
+  /**
+   * Present only when part focus was on as the turn was saved and the picture
+   * has something to point at: the plan size its part boxes and its key
+   * layout are expressed in, and its located parts (checked with
+   * `parseReferencePictureParts`, possibly none for a numbered picture, whose
+   * key rows are pointable on their own). Restore rebuilds the same targets.
+   */
+  partFocus?: ReferencePicturePartFocus;
   credit: string;
+}
+
+export interface ReferencePicturePartFocus {
+  plan: { width: number; height: number };
+  parts: ReferencePicturePart[];
 }
 
 /** The board diagram of a picture: the verified diagram slot with the picture's id. */
@@ -70,8 +99,22 @@ export function isReferencePictureDiagram(diagram: { id: string } | null | undef
   return diagram?.id === REFERENCE_PICTURE_ENTITY_ID;
 }
 
-export function storedReferencePictureFrom(record: ReferencePictureRecord): StoredReferencePicture {
+/**
+ * The part focus a record offers: its checked parts and its plan size, or
+ * null when part focus is off or there is nothing to point at.
+ */
+function partFocusFrom(record: ReferencePictureRecord, legend: readonly ReferencePictureLegendEntry[] | null): ReferencePicturePartFocus | null {
+  const plan = { width: record.plan.width, height: record.plan.height };
+  const parts = parseReferencePictureParts(record.parts, { plan, labels: record.labels, legend });
+  return parts.length > 0 || (legend?.length ?? 0) > 0 ? { plan, parts } : null;
+}
+
+export function storedReferencePictureFrom(
+  record: ReferencePictureRecord,
+  options: { partFocus?: boolean } = {},
+): StoredReferencePicture {
   const legend = record.legend?.length ? parseReferencePictureLegend(record.legend) : null;
+  const partFocus = options.partFocus ? partFocusFrom(record, legend) : null;
   return {
     id: record.id,
     source: record.source,
@@ -82,6 +125,7 @@ export function storedReferencePictureFrom(record: ReferencePictureRecord): Stor
     shows: record.shows,
     labels: [...record.labels],
     ...(legend ? { legend } : {}),
+    ...(partFocus ? { partFocus } : {}),
     credit: referencePictureCredit(record),
   };
 }
@@ -166,7 +210,165 @@ function legendList(legend: readonly ReferencePictureLegendEntry[]): string {
   return legend.map((entry) => `${entry.mark} = ${entry.label}`).join("; ");
 }
 
-export function referencePicturePromptAddon(picture: Pick<StoredReferencePicture, "source" | "shows" | "labels" | "legend">): string {
+/**
+ * Focus target ids of a numbered picture's key entry, named by its printed
+ * mark (never its place in the key, which skips and reorders): the target,
+ * its row and its mark on the drawing.
+ */
+export function referencePictureKeyIds(mark: string): { target: string; row: string; mark: string } {
+  const target = referencePictureKeyId(mark);
+  return { target, row: `${target}.row`, mark: `${target}.mark` };
+}
+
+/**
+ * Words a sentence uses for their ordinary meaning. A printed label that is
+ * one of them ("Top", "Image", "Water") may still be pointed at by its tag,
+ * but saying it must not move the pen: "the image is upright" is not about a
+ * label printed "Image". The optics role names are here so the role cues of
+ * the spoken inference never fire on a picture.
+ */
+const COMMON_WORDS = new Set([
+  "a", "an", "the", "and", "or", "of", "to", "in", "on", "at", "by", "for", "from", "with", "into", "onto", "over", "under",
+  "is", "are", "was", "be", "it", "its", "this", "that", "these", "those", "here", "there", "as", "if", "so", "no", "not",
+  "up", "down", "out", "off", "all", "one", "two", "three", "four", "five", "six", "ten", "first", "second", "third", "last", "next",
+  "top", "bottom", "left", "right", "front", "back", "side", "end", "start", "middle", "centre", "center", "inside", "outside",
+  "upper", "lower", "inner", "outer", "above", "below", "near", "far", "high", "low", "north", "south", "east", "west",
+  "input", "output", "area", "part", "point", "line", "edge", "face", "base", "head", "body", "tail", "arm", "leg",
+  "image", "object", "focus", "pole", "vertex", "axis", "view", "key", "label", "figure", "diagram", "picture", "scale",
+  "light", "heat", "water", "air", "time", "mass", "force", "work", "power", "energy", "current", "charge", "field", "wave",
+  "flow", "direction", "length", "width", "height", "size", "space", "level", "stage", "step", "phase", "state", "type",
+  "new", "old", "big", "small", "large", "long", "short", "open", "closed", "hot", "cold", "warm", "dry", "wet",
+]);
+
+/**
+ * A label a spoken name may point at on its own: two characters or more, not
+ * a bare number and not every word a common one. Others are pointed at only
+ * by their tag; the spoken inference never guesses at them.
+ */
+export function isDistinctivePictureLabel(label: string): boolean {
+  const clean = label.replace(/\s+/g, " ").trim();
+  if (clean.length < 2) return false;
+  if (/^[0-9.,\s%°+\-−]+$/.test(clean)) return false;
+  const words = clean.toLowerCase().split(/[\s/-]+/).filter(Boolean);
+  return words.some((word) => !COMMON_WORDS.has(word.replace(/[^\p{L}\p{N}']/gu, "")));
+}
+
+/** One pointable part as the prompt lists it: what is said, then the tag. */
+interface ListedTarget {
+  spoken: string;
+  id: string;
+}
+
+export interface ReferencePictureFocusTargets {
+  anchors: VerifiedDiagramAnchor[];
+  groups: VerifiedDiagramGroup[];
+  listed: ListedTarget[];
+}
+
+const NO_TARGETS: ReferencePictureFocusTargets = { anchors: [], groups: [], listed: [] };
+
+function samePlacement(a: PicturePlacement, b: PicturePlacement): boolean {
+  return Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1 &&
+    Math.abs(a.width - b.width) <= 1 && Math.abs(a.height - b.height) <= 1;
+}
+
+/**
+ * The picture's part and key targets at `placement`, beyond the whole
+ * picture. Nothing without `partFocus`, and nothing when the placement is not
+ * where the record's own layout puts the picture: the rows and the record
+ * would disagree about where a part is, and a pointer on the wrong part is a
+ * false mark.
+ *
+ * - A located printed label: one anchor, `reference_picture.part.<n>`, on
+ *   its printed text. It carries the label for the spoken inference only
+ *   when the label is distinctive.
+ * - A numbered picture's key entry: the group `reference_picture.key.<mark>`
+ *   (the printed mark, so "part 4" is `key.4` even on a key that skips 3) of
+ *   the mark on the drawing (when it was located) then the key row the pen
+ *   wrote, so the pen goes to "3" and then to "3 Loop of Henle". Key rows are
+ *   computed from the record, so every entry is pointable.
+ */
+export function referencePictureFocusTargets(
+  picture: Pick<StoredReferencePicture, "legend" | "partFocus">,
+  placement: PicturePlacement,
+): ReferencePictureFocusTargets {
+  const focus = picture.partFocus;
+  if (!focus) return NO_TARGETS;
+  const legend = picture.legend?.length ? picture.legend : null;
+  const layout = referencePictureLayout({ plan: focus.plan, legend });
+  if (!layout || !samePlacement(layout.picture, placement)) return NO_TARGETS;
+  const anchors: VerifiedDiagramAnchor[] = [];
+  const groups: VerifiedDiagramGroup[] = [];
+  const listed: ListedTarget[] = [];
+  const keyNames = new Set((legend ?? []).map((entry) => referencePicturePartKey(entry.label)));
+  for (const part of focus.parts) {
+    // A mark belongs to its key entry; a key name printed on a numbered
+    // picture is pointed at through that entry, never twice.
+    if (part.mark !== undefined || keyNames.has(referencePicturePartKey(part.label))) continue;
+    anchors.push({
+      id: part.id,
+      labels: isDistinctivePictureLabel(part.label) ? [part.label] : [],
+      ...referencePicturePartBoardRect(part, placement, focus.plan),
+    });
+    listed.push({ spoken: `"${part.label.replace(/"/g, "'")}"`, id: part.id });
+  }
+  if (legend && layout.legend) {
+    legend.forEach((entry, index) => {
+      const row = referencePictureLegendEntryRect(layout.legend!, index);
+      if (!row) return;
+      const ids = referencePictureKeyIds(entry.mark);
+      const mark = focus.parts.find((part) => part.mark !== undefined && legendMarkKey(part.mark) === legendMarkKey(entry.mark));
+      const members: string[] = [];
+      if (mark) {
+        anchors.push({ id: ids.mark, labels: [], ...referencePicturePartBoardRect(mark, placement, focus.plan) });
+        members.push(ids.mark);
+      }
+      anchors.push({ id: ids.row, labels: [], ...row });
+      members.push(ids.row);
+      groups.push({ id: ids.target, entityIds: members });
+      listed.push({ spoken: `part ${entry.mark}, the ${inSentence(entry.label)}`, id: ids.target });
+    });
+  }
+  return { anchors, groups, listed };
+}
+
+/**
+ * Everything a FOCUS on this picture may name, at the place the record's
+ * layout puts it: for the save filters, which see the artifact but not always
+ * the rows. Only the whole picture when part focus is off.
+ */
+export function referencePicturePointables(
+  picture: Pick<StoredReferencePicture, "legend" | "partFocus">,
+): Pick<VerifiedDiagram, "anchors" | "groups"> {
+  const whole: VerifiedDiagramAnchor = { id: REFERENCE_PICTURE_ENTITY_ID, labels: [], x: 0, y: 0, width: 0, height: 0 };
+  const layout = picture.partFocus
+    ? referencePictureLayout({ plan: picture.partFocus.plan, legend: picture.legend?.length ? picture.legend : null })
+    : null;
+  const targets = layout ? referencePictureFocusTargets(picture, layout.picture) : NO_TARGETS;
+  return { anchors: [whole, ...targets.anchors], groups: targets.groups };
+}
+
+/**
+ * The focus sentence. With no part targets it is the sentence every picture
+ * turn had before part focus, word for word.
+ */
+function focusRule(listed: readonly ListedTarget[]): string[] {
+  const drawing = "Never emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags.";
+  const whole = `[FOCUS:${REFERENCE_PICTURE_ENTITY_ID}] may point at the whole picture, at most once in a step, inside the sentence that talks about it`;
+  if (listed.length === 0) return [`${drawing} ${whole}; there is no other focus target and no part of the picture can be focused on its own.`];
+  const first = listed[0]!;
+  const example = first.spoken.startsWith('"') ? `notice ${first.spoken.slice(1, -1)} [FOCUS:${first.id}]` : `${first.spoken} [FOCUS:${first.id}]`;
+  return [
+    `${drawing} ${whole}.`,
+    `These parts of the picture can be pointed at, each written as what you say then its tag: ${listed.map((target) => `${target.spoken} = [FOCUS:${target.id}]`).join("; ")}.`,
+    `When you say one of them, put its tag inside that sentence directly after the name, for example "${example}". Say the name, never the id. One id per tag, and each part at most once in a step. No other part has a focus target: say any other name without a tag, and never write an id that is not listed here.`,
+  ];
+}
+
+export function referencePicturePromptAddon(
+  picture: Pick<StoredReferencePicture, "source" | "shows" | "labels" | "legend">,
+  targets: Pick<ReferencePictureFocusTargets, "listed"> = NO_TARGETS,
+): string {
   const origin = picture.source === "wikimedia" ? "a real diagram from Wikimedia Commons" : "an illustration generated for this lesson";
   const legend = picture.legend?.length ? picture.legend : null;
   const keyNames = new Set((legend ?? []).map((entry) => entry.label));
@@ -187,7 +389,7 @@ export function referencePicturePromptAddon(picture: Pick<StoredReferencePicture
     `The right of the board shows ${origin}. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.`,
     `What it shows: ${picture.shows.replace(/\s+/g, " ").trim() || "not described"}.`,
     ...naming,
-    `Never emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:${REFERENCE_PICTURE_ENTITY_ID}] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.`,
+    ...focusRule(targets.listed),
     "WRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line.",
   ].join("\n");
 }
@@ -206,30 +408,33 @@ function placementOf(commands: readonly VerifiedDiagramCommand[]): PicturePlacem
  * record live and on the server, or from the persisted rows on restore.
  */
 export function referencePictureDiagram(
-  picture: Pick<StoredReferencePicture, "id" | "source" | "shows" | "labels" | "legend">,
+  picture: Pick<StoredReferencePicture, "id" | "source" | "shows" | "labels" | "legend" | "partFocus">,
   commands: readonly VerifiedDiagramCommand[],
   reveals: VerifiedDiagram["reveals"] = [],
 ): VerifiedDiagram | null {
   const placement = placementOf(commands);
   if (!placement) return null;
+  const targets = referencePictureFocusTargets(picture, placement);
   const diagram: ReferencePictureDiagram = {
     id: REFERENCE_PICTURE_ENTITY_ID,
     name: `reference picture ${picture.id}`,
     commands: commands.map((command) => ({ ...command, params: [...command.params] })),
     // No labels: a spoken name must not infer a FOCUS on the whole picture.
-    // An explicit [FOCUS:reference_picture] still resolves by id.
-    anchors: [{ id: REFERENCE_PICTURE_ENTITY_ID, labels: [], ...placement }],
+    // An explicit [FOCUS:reference_picture] still resolves by id. It stays
+    // first: the board reads the picture's own box from anchors[0].
+    anchors: [{ id: REFERENCE_PICTURE_ENTITY_ID, labels: [], ...placement }, ...targets.anchors],
     reveals,
-    promptAddon: referencePicturePromptAddon(picture),
+    ...(targets.groups.length > 0 ? { groups: targets.groups } : {}),
+    promptAddon: referencePicturePromptAddon(picture, targets),
   };
   return asBoardDiagram(diagram);
 }
 
 export function buildReferencePicturePresentation(
   record: ReferencePictureRecord,
-  options: { narrationLanguage?: NarrationLanguage } = {},
+  options: { narrationLanguage?: NarrationLanguage; partFocus?: boolean } = {},
 ): ReferencePicturePresentation {
-  const stored = storedReferencePictureFrom(record);
+  const stored = storedReferencePictureFrom(record, { partFocus: options.partFocus === true });
   const commands: VerifiedDiagramCommand[] = referencePictureCommands(record).map((command) => ({
     type: command.type,
     params: [...command.params],
@@ -285,12 +490,28 @@ export function isReferencePictureRow(stored: unknown, id?: string | null): bool
     command?.type === "DRAW_PICTURE" && (id == null || command.text === id));
 }
 
-/** A FOCUS on the whole picture, the one gesture a picture turn may keep. */
-export function pointsAtReferencePicture(command: Pick<DrawCommand, "type" | "text" | "semanticRef">): boolean {
+/**
+ * A FOCUS a picture turn may keep: on the whole picture, or, given the
+ * picture's `pointables` (its diagram, or `referencePicturePointables`), on
+ * one of its part or key targets, resolved exactly as the board resolves
+ * them. Every target must resolve; anything else is dropped, words kept.
+ */
+export function pointsAtReferencePicture(
+  command: Pick<DrawCommand, "type" | "text" | "semanticRef">,
+  pointables?: Pick<VerifiedDiagram, "anchors" | "groups"> | null,
+): boolean {
   if (command.type !== "FOCUS") return false;
   const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
   const targets = spec.targetIds.length > 0 ? spec.targetIds : [(command.semanticRef?.entityId ?? command.text ?? "").trim()];
-  return targets.length > 0 && targets.every((target) => target.trim().toLowerCase() === REFERENCE_PICTURE_ENTITY_ID);
+  return targets.length > 0 && targets.every((target) => {
+    const id = target.trim().toLowerCase();
+    if (id === REFERENCE_PICTURE_ENTITY_ID) return true;
+    if (!pointables || !id) return false;
+    const probe = { id: REFERENCE_PICTURE_ENTITY_ID, name: "", commands: [], reveals: [], promptAddon: "", ...pointables } as VerifiedDiagram;
+    const resolved = resolveVerifiedDiagramFocusTargets({ type: "FOCUS", params: [], text: id, charPosition: 0, narrationBefore: "" }, probe);
+    return resolved.length > 0 && resolved.every((anchor) =>
+      anchor.id === REFERENCE_PICTURE_ENTITY_ID || anchor.id.startsWith(`${REFERENCE_PICTURE_ENTITY_ID}.`));
+  });
 }
 
 /**
@@ -348,5 +569,27 @@ export function readStoredReferencePicture(artifacts: unknown): StoredReferenceP
   const legend = value.legend === undefined ? undefined : parseReferencePictureLegend(value.legend);
   if (!source || title === null || license === null || artist === null || shows === null || credit === null || !labels ||
       (value.pageUrl != null && pageUrl === null) || legend === null) return null;
-  return { id: value.id, source, title, pageUrl, license, artist, shows, labels: [...labels], ...(legend ? { legend } : {}), credit };
+  // Unlike the key, part focus that does not parse only loses its pointing.
+  const partFocus = readPartFocus(value.partFocus, labels, legend);
+  return {
+    id: value.id, source, title, pageUrl, license, artist, shows, labels: [...labels],
+    ...(legend ? { legend } : {}),
+    ...(partFocus ? { partFocus } : {}),
+    credit,
+  };
+}
+
+function readPartFocus(
+  raw: unknown,
+  labels: readonly string[],
+  legend: readonly ReferencePictureLegendEntry[] | undefined,
+): ReferencePicturePartFocus | null {
+  if (!isRecord(raw) || !isRecord(raw.plan)) return null;
+  const size = (field: unknown) => typeof field === "number" && Number.isFinite(field) && field > 0 && field <= 4096 ? field : null;
+  const width = size(raw.plan.width);
+  const height = size(raw.plan.height);
+  if (width === null || height === null) return null;
+  const plan = { width, height };
+  const parts = parseReferencePictureParts(raw.parts, { plan, labels, legend });
+  return parts.length > 0 || (legend?.length ?? 0) > 0 ? { plan, parts } : null;
 }

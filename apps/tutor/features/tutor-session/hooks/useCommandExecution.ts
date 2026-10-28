@@ -45,6 +45,7 @@ import {
   BOARD_TYPE_SCALE,
   snapToBoardTypeScale,
   WORK_CONTINUATION_INDENT,
+  isReferencePicturePartFocusId,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -71,6 +72,13 @@ import { emphasisGroupRows, markEmphasisGroupBoxed, nextWorkRowGroup, rowGroupBo
 import { fitRecordedWorkRow } from "../lib/board/workTextPresentation";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
+import {
+  focusVeilZone,
+  pictureFocusHole,
+  pictureFocusUnionHole,
+  pictureTextPulsePath,
+  pictureTextRingPath,
+} from "../lib/board/pictureFocus";
 import {
   runScheduledFocus,
   focusHopMs,
@@ -1264,7 +1272,7 @@ export function useCommandExecution({
               scheduled,
               {
                 emphasis,
-                veil: DIAGRAM_ZONE,
+                veil: focusVeilZone(targets, DIAGRAM_ZONE),
                 getAudioPositionMs: focusAudioClock,
                 deadlineMs: options.focusDeadlineMs,
                 isPaused: options.isPaused,
@@ -1429,7 +1437,7 @@ export function useCommandExecution({
             const bottom = Math.max(union.y + union.height, target.y + target.height);
             return { x, y, width: right - x, height: bottom - y };
           }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
-          const veil = codeLessonActive ? DSA_DIAGRAM_ZONE : DIAGRAM_ZONE;
+          const veil = codeLessonActive ? DSA_DIAGRAM_ZONE : focusVeilZone(targets, DIAGRAM_ZONE);
           // Every focus path raises its veil through withSpotlight, so a cancel
           // or a throw between raising and lowering it cannot strand the veil and
           // leave the whole figure greyed out for the rest of the lesson.
@@ -1438,7 +1446,9 @@ export function useCommandExecution({
             emphasis === "spotlight"
               ? {
                   veil: { x: veil.x, y: veil.y, width: veil.width, height: veil.height },
-                  hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
+                  // A picture part's hole clears its ring, which a fixed pad round a tall key row does not.
+                  hole: pictureFocusUnionHole(targets)
+                    ?? { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
                   opacity: 0.36,
                 }
               : null,
@@ -1449,11 +1459,13 @@ export function useCommandExecution({
               const tracePaths = targetCommands
                 .map(verifiedCommandTracePath)
                 .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
-              const fallbacks = targets.map((target) => ({
-                path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
-                x: target.x + target.width / 2,
-                y: target.y,
-              }));
+              const fallbacks = targets.map((target) => isReferencePicturePartFocusId(target.id)
+                ? pictureTextRingPath(target)
+                : {
+                    path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
+                    x: target.x + target.width / 2,
+                    y: target.y,
+                  });
               const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
               for (const candidate of paths) {
                 const perPathMs = totalMs / paths.length;
@@ -1490,7 +1502,9 @@ export function useCommandExecution({
                 const pulse = compactPulseBox(target, targetCommands);
                 await drawAnnotation(
                   "circle_around",
-                  emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
+                  isReferencePicturePartFocusId(target.id)
+                    ? pictureTextPulsePath(target).path
+                    : emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
                   260,
                   { strokeWidth: 1.1, transient: true },
                 );
@@ -1950,6 +1964,22 @@ function scheduledFocusTargets(
     anchors: readonly VerifiedDiagramAnchor[],
   ): ScheduledFocusTarget => {
     const ids = new Set(anchors.map((anchor) => anchor.id));
+    const rects = anchors.map(({ x, y, width, height }) => ({ x, y, width, height }));
+    if (anchors.every((anchor) => isReferencePicturePartFocusId(anchor.id))) {
+      // A picture part owns no ink: the pen rings its printed text, one ring
+      // per anchor in order (a key entry's mark, then its row), and the
+      // spotlight follows it from ring to ring.
+      return {
+        id: window.id,
+        startMs: window.startMs,
+        endMs: window.endMs,
+        rects,
+        paths: rects.slice(0, 8).map((rect) => pictureTextRingPath(rect)),
+        pathHoles: rects.slice(0, 8).map(pictureFocusHole),
+        pulse: pictureTextPulsePath(rects[0]!),
+        letter: letterFor(window.id, [window.id, ...anchors.map((anchor) => anchor.id)], window),
+      };
+    }
     const ink = focusTraceCommands(diagram, ids);
     const paths = anchors
       .flatMap((anchor) => {
@@ -1965,7 +1995,7 @@ function scheduledFocusTargets(
       id: window.id,
       startMs: window.startMs,
       endMs: window.endMs,
-      rects: anchors.map(({ x, y, width, height }) => ({ x, y, width, height })),
+      rects,
       paths,
       pulse: {
         path: emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),

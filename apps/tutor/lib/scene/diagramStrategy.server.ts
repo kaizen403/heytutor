@@ -61,3 +61,14 @@ export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY
 export function resolveReferencePictureEnabled(raw = process.env.DIAGRAM_REFERENCE_PICTURE): boolean {
   return raw?.trim().toLowerCase() === "on";
 }
+
+/**
+ * Pointing at a picture's parts (`[FOCUS:reference_picture.part.<n>]`): off
+ * unless `REFERENCE_PICTURE_PART_FOCUS=on`. Off, the server serves and saves
+ * records without `parts`, so the turn has only the whole picture to point at,
+ * exactly as before. Located parts are still stored, so turning it on needs no
+ * re-judging.
+ */
+export function resolveReferencePicturePartFocusEnabled(raw = process.env.REFERENCE_PICTURE_PART_FOCUS): boolean {
+  return raw?.trim().toLowerCase() === "on";
+}

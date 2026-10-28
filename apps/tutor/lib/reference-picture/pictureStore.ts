@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { isReferencePictureId, normalizeReferencePictureLabels, parseReferencePictureLegend, parseReferencePicturePlan, referencePictureAssetUrls, referencePictureLayout, type ReferencePicturePlan, type ReferencePictureRecord } from "@heytutor/drawing";
+import { isReferencePictureId, normalizeReferencePictureLabels, parseReferencePictureLegend, parseReferencePictureParts, parseReferencePicturePlan, referencePictureAssetUrls, referencePictureLayout, type ReferencePicturePlan, type ReferencePictureRecord } from "@heytutor/drawing";
 import { prisma } from "@/lib/db/prisma";
+import { resolveReferencePicturePartFocusEnabled } from "@/lib/scene/diagramStrategy.server";
 import { ACCEPT_TTL_MS, DECLINE_TTL_MS } from "./cachePolicy";
 
 /**
@@ -35,6 +36,20 @@ function withUrls(record: StoredRecord): ReferencePictureRecord {
 }
 
 /**
+ * A record as the rest of the server sees it. Located parts (stored with
+ * part focus on, or by the backfill) are served only with
+ * `REFERENCE_PICTURE_PART_FOCUS=on`: off, the
+ * record has no `parts` key at all, exactly as before parts existed. On,
+ * they are validated again against the record (a part whose name or box no
+ * longer holds is dropped alone).
+ */
+export function servedRecord(record: StoredRecord, partFocus = resolveReferencePicturePartFocusEnabled()): ReferencePictureRecord {
+  const { parts: raw, ...rest } = record;
+  const parts = partFocus && raw !== undefined ? parseReferencePictureParts(raw, rest) : [];
+  return withUrls(parts.length ? { ...rest, parts } : rest);
+}
+
+/**
  * A stored record, or null when it is not one. A numbered picture's key is
  * checked again here: a record whose key is malformed or no longer fits
  * beside the picture resolves to nothing, so persistence strips the picture
@@ -49,9 +64,9 @@ function parseStoredRecord(id: string, raw: unknown): ReferencePictureRecord | n
   if (r.legend !== undefined) {
     const legend = parseReferencePictureLegend(r.legend);
     if (!legend || !referencePictureLayout({ plan: r.plan, legend })) return null;
-    return withUrls({ ...(r as StoredRecord), legend });
+    return servedRecord({ ...(r as StoredRecord), legend });
   }
-  return withUrls(r as StoredRecord);
+  return servedRecord(r as StoredRecord);
 }
 
 export async function loadReferencePictureRecord(id: string): Promise<ReferencePictureRecord | null> {
@@ -97,7 +112,7 @@ export async function saveReferencePicture(input: { sourceKey: string; record: S
     if (winner) return winner;
     throw error;
   }
-  return withUrls(input.record);
+  return servedRecord(input.record);
 }
 
 export type CachedQuery = { status: "ready"; picture: ReferencePictureRecord } | { status: "declined"; reason: string } | null;
