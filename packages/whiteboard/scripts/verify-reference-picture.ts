@@ -67,6 +67,7 @@ import {
 } from "../src/pictureReveal";
 import { INK_SPEED_PX_PER_MS } from "../src/penMotion";
 import * as pictureCanvases from "../src/pictureCanvases";
+import { BLEND_PAPER_MIN_LUMA, keyPaperToAlpha } from "../src/pictureCanvases";
 import type { BoardPicture, WhiteboardHandle } from "../src/Whiteboard";
 import { createVirtualWhiteboardClock } from "../src/whiteboardClock";
 import { getTestWhiteboardRefs, mountTestWhiteboard, unmountTestWhiteboard } from "./whiteboardTestHarness";
@@ -338,6 +339,31 @@ function driveBoard() {
     return clock.now() - startedAt;
   };
   return { board, step, run };
+}
+
+/** A light-paper picture blends into the board: its paper keys to transparent and its card draws nothing. */
+async function verifyBlend(): Promise<void> {
+  const px = new Uint8ClampedArray([255, 255, 255, 255, 0, 0, 0, 255, 128, 128, 128, 255, 220, 40, 40, 255, 250, 252, 251, 255]);
+  keyPaperToAlpha(px, [255, 255, 255]);
+  assert.equal(px[3], 0, "white paper keys to fully transparent");
+  assert.deepEqual([...px.slice(4, 8)], [0, 0, 0, 255], "black ink stays opaque black");
+  assert.ok(px[11]! > 100 && px[11]! < 160 && px[8]! < 10, "a grey antialiased edge keeps partial black cover, so it blends with no halo");
+  const red = [...px.slice(12, 16)];
+  const over = (c: number, a: number) => Math.round((c * a + 255 * (255 - a)) / 255);
+  assert.deepEqual([over(red[0]!, red[3]!), over(red[1]!, red[3]!), over(red[2]!, red[3]!)], [220, 40, 40], "colour laid back over white gives the original");
+  assert.equal(px[19], 0, "near-white paper noise keys out");
+  assert.ok(BLEND_PAPER_MIN_LUMA > 150 && BLEND_PAPER_MIN_LUMA < 230, "only light paper is keyed");
+
+  const { board, run } = driveBoard();
+  const picture: BoardPicture = { ...makePicture(Konva.Util.createCanvasElement(), Konva.Util.createCanvasElement()), blended: true };
+  await run(board.drawPicture(picture, PLACEMENT, "outline", 0));
+  await run(board.drawPicture(picture, PLACEMENT, "fill", 0));
+  const group = pictureGroup(board);
+  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit"], "a blended picture lands the same parts");
+  const card = group!.getChildren()[0] as Konva.Rect;
+  assert.equal(card.fill(), "rgba(0,0,0,0)", "a blended picture's card draws no paper");
+  assert.ok(!card.shadowColor() && !card.hasShadow(), "and casts no shadow");
+  assert.ok(card.x() < PLACEMENT.x && card.x() + card.width() > PLACEMENT.x + PLACEMENT.width, "the card still frames the picture for erase and FOCUS");
 }
 
 async function verifyBoard(): Promise<void> {
@@ -914,6 +940,7 @@ runWhiteboardVerifier(async () => {
   verifyDurations();
   verifyTimeline();
   await verifyBoard();
+  await verifyBlend();
   await verifyLegend();
   await verifyCanvasMemory();
   await verifyAssetCache();

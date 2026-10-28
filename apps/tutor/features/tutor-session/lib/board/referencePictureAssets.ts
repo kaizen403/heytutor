@@ -1,4 +1,4 @@
-import { boardPictureInUse, releaseBoardPicture, type BoardPicture } from "@heytutor/whiteboard";
+import { blendPictureIntoBoard, boardPictureInUse, releaseBoardPicture, type BoardPicture } from "@heytutor/whiteboard";
 import {
   isReferencePictureId,
   parseReferencePictureLegend,
@@ -148,6 +148,9 @@ async function loadReferencePicture(id: string, known?: ReferencePictureRecord):
     }
     const [image, inkMask] = decoded;
     const credit = referencePictureCredit(record);
+    // Light paper is keyed to transparent so the picture blends into the
+    // board instead of sitting on a white box (owner, 28 Oct 2026).
+    const shown = blendPictureIntoBoard(image, plan.paper);
     return {
       id,
       record,
@@ -155,7 +158,7 @@ async function loadReferencePicture(id: string, known?: ReferencePictureRecord):
       image,
       inkMask,
       credit,
-      board: { id, image, inkMask, plan, credit, ...(record.legend ? { legend: record.legend } : {}) },
+      board: { id, image: shown.image, ...(shown.blended ? { blended: true } : {}), inkMask, plan, credit, ...(record.legend ? { legend: record.legend } : {}) },
     };
   } finally {
     clearTimeout(timer);

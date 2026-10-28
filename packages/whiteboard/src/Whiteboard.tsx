@@ -271,6 +271,11 @@ export interface BoardPicture {
   id: string;
   /** The full picture, any size with the plan's aspect. */
   image: CanvasImageSource;
+  /**
+   * The picture's paper was keyed to transparent (`blendPictureIntoBoard`),
+   * so it lies on the board with no card: no white box, no shadow.
+   */
+  blended?: boolean;
   /** The plan's ink mask: opaque where the picture has line work. */
   inkMask: CanvasImageSource;
   plan: Pick<ReferencePicturePlan, "width" | "height" | "paper" | "outline" | "fill">;
@@ -1552,13 +1557,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             y: placement.y - PICTURE_CARD_PADDING_PX,
             width: placement.width + PICTURE_CARD_PADDING_PX * 2,
             height: placement.height + PICTURE_CARD_PADDING_PX * 2,
-            fill: picture.plan.paper,
+            // A blended picture keeps the card's bounds (erase, FOCUS and the
+            // credit are placed by it) but draws nothing: the board shows through.
+            ...(picture.blended
+              ? { fill: "rgba(0,0,0,0)" }
+              : { fill: picture.plan.paper, shadowColor: "#3A2E1F", shadowBlur: 6, shadowOffsetY: 1, shadowOpacity: 0.16 }),
             cornerRadius: PICTURE_CARD_RADIUS_PX,
             opacity,
-            shadowColor: "#3A2E1F",
-            shadowBlur: 6,
-            shadowOffsetY: 1,
-            shadowOpacity: 0.16,
             listening: false,
             perfectDrawEnabled: false,
           });

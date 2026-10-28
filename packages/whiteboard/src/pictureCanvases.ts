@@ -194,3 +194,71 @@ export function releaseBoardPicture(picture: PictureSources): void {
   entry.retired = true;
   freeIdleLineWork(entry);
 }
+
+/**
+ * Paper lighter than this (Rec. 601 luma, 0 to 255) is keyed out so the
+ * picture blends into the board; darker paper (a grey film still, a coloured
+ * plate) keeps its card, since removing it would eat the picture itself.
+ */
+export const BLEND_PAPER_MIN_LUMA = 180;
+/** Alpha this small after keying is paper noise (JPEG ringing, scan grain). */
+const BLEND_NOISE_ALPHA = 10;
+
+export function paperLuma(paper: string): number {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(paper);
+  if (!m) return 0;
+  return 0.299 * parseInt(m[1]!, 16) + 0.587 * parseInt(m[2]!, 16) + 0.114 * parseInt(m[3]!, 16);
+}
+
+/**
+ * Colour to alpha against the picture's paper, in place: each pixel becomes
+ * the least opaque colour that, laid over the paper, gives the original back.
+ * Paper turns fully transparent, ink stays exactly its colour, and an
+ * antialiased edge keeps its partial cover, so the picture lies on the board
+ * like ink printed on it, with no white box and no halo.
+ */
+export function keyPaperToAlpha(data: Uint8ClampedArray, paper: readonly [number, number, number]): void {
+  for (let i = 0; i < data.length; i += 4) {
+    let alpha = 0;
+    for (let c = 0; c < 3; c++) {
+      const v = data[i + c]!;
+      const p = paper[c]!;
+      const a = v > p ? (p < 255 ? (v - p) / (255 - p) : 0) : v < p ? (p > 0 ? (p - v) / p : 0) : 0;
+      if (a > alpha) alpha = a;
+    }
+    const a255 = Math.round(alpha * 255);
+    if (a255 <= BLEND_NOISE_ALPHA) {
+      data[i + 3] = 0;
+      continue;
+    }
+    for (let c = 0; c < 3; c++) {
+      const p = paper[c]!;
+      data[i + c] = Math.max(0, Math.min(255, Math.round((data[i + c]! - p) / alpha + p)));
+    }
+    data[i + 3] = Math.round((a255 * data[i + 3]!) / 255);
+  }
+}
+
+/**
+ * The picture as the board shows it: keyed to transparent paper when the
+ * paper is light (`blended`), or the decoded picture untouched otherwise.
+ * The keyed canvas belongs to the picture's asset like the decoded image
+ * did; the board never frees it.
+ */
+export function blendPictureIntoBoard(image: CanvasImageSource & { width: number; height: number }, paper: string): { image: CanvasImageSource; blended: boolean } {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(paper);
+  if (!m || paperLuma(paper) < BLEND_PAPER_MIN_LUMA) return { image, blended: false };
+  const width = "naturalWidth" in image ? (image as HTMLImageElement).naturalWidth : image.width;
+  const height = "naturalHeight" in image ? (image as HTMLImageElement).naturalHeight : image.height;
+  if (!(width > 0 && height > 0)) return { image, blended: false };
+  const canvas = Konva.Util.createCanvasElement();
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { image, blended: false };
+  ctx.drawImage(image, 0, 0, width, height);
+  const pixels = ctx.getImageData(0, 0, width, height);
+  keyPaperToAlpha(pixels.data, [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)]);
+  ctx.putImageData(pixels, 0, 0);
+  return { image: canvas, blended: true };
+}
