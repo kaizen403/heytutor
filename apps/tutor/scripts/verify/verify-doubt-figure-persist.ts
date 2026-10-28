@@ -279,10 +279,12 @@ async function main(): Promise<void> {
   }
   {
     const metadata = { ...fixture.doubtMetadata(fixture.doubtSegments), question: DOUBT_TITLE };
-    const off = await canonicalizeTurnSceneMetadata(metadata, { kind: "doubt", doubtFiguresEnabled: false });
-    assert(!off.ok && off.code === "scene_doubt_figure_disabled", "the marker is refused when the flag is off at save time");
-    const envOff = await canonicalizeTurnSceneMetadata(metadata, { kind: "doubt" });
-    assert(!envOff.ok && envOff.code === "scene_doubt_figure_disabled", "the flag is read from the environment, off by default");
+    // Off at save time (turned off mid doubt, or a forged client): never a
+    // figure, and never a lost doubt either.
+    savedAsText(await canonicalizeTurnSceneMetadata(metadata, { kind: "doubt", doubtFiguresEnabled: false, checkDoubtFigurePage: fixture.pageCheck }),
+      "the flag off at save time");
+    savedAsText(await canonicalizeTurnSceneMetadata(metadata, { kind: "doubt", checkDoubtFigurePage: fixture.pageCheck }),
+      "the flag read from the environment, off by default");
     const lessonKind = await canonicalizeTurnSceneMetadata(metadata, { kind: "lesson", doubtFiguresEnabled: true });
     assert(!lessonKind.ok && lessonKind.code === "scene_doubt_figure_invalid", "only a doubt may carry a doubt figure");
     const noKind = await canonicalizeTurnSceneMetadata(metadata, { doubtFiguresEnabled: true });

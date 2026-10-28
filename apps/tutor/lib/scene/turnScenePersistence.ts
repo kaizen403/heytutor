@@ -138,7 +138,7 @@ export type TurnSceneRejectionCode =
   | "scene_problem_ir_invalid" | "scene_solver_result_invalid" | "scene_solver_recomputation_failed"
   | "scene_solver_values_mismatch" | "scene_solver_plan_contradiction"
   | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed"
-  | "scene_doubt_figure_invalid" | "scene_doubt_figure_disabled";
+  | "scene_doubt_figure_invalid";
 
 type TurnSceneFailure = { ok: false; error: string; code?: TurnSceneRejectionCode };
 
@@ -317,8 +317,10 @@ export async function canonicalizeTurnSceneMetadata(
     if (!submittedDoubtFigure || options.kind !== "doubt" || !doubtContinuation?.lessonQuestion) {
       return failure("scene_doubt_figure_invalid", "a doubt figure needs a doubt turn on its lesson's page");
     }
+    // Off at save time: a doubt that drew its figure while the flag was on
+    // keeps its words rather than losing every later checkpoint.
     if (!(options.doubtFiguresEnabled ?? resolveDoubtFiguresEnabled())) {
-      return failure("scene_doubt_figure_disabled", "doubt figures are off");
+      return doubtFigureAsText(submittedMetadata, doubtContinuation, options);
     }
   }
   const doubtFigure = submittedDoubtFigure && doubtContinuation ? submittedDoubtFigure : null;
