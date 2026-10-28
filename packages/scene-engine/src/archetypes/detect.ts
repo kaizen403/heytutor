@@ -400,7 +400,7 @@ const CUE_SETS: readonly CueSet[] = [
     vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
       // A body turning about a pivot falls as a rotation, not a free fall;
       // the Earth's rotation or a swinging crane beside a dropped ball is not.
-      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?|discs?|disks?|wheels?|rings?|cylinders?)\b[^.]{0,40}\b(?:rotat|swing)\w*|\baxles?\b|\b(?:about|around)\s+(?:a|the|its)\s+(?:fixed\s+)?(?:horizontal\s+)?(?:axis|support)\b/i],
+      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?|discs?|disks?|wheels?|rings?|cylinders?)\b[^.]{0,40}?(?<!\b(?:without|no|not)\s)\b(?:rotat|swing)\w*|\baxles?\b|\b(?:about|around)\s+(?:a|the|its)\s+(?:fixed\s+)?(?:horizontal\s+)?(?:axis|support)\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -577,7 +577,7 @@ const CUE_SETS: readonly CueSet[] = [
     vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
     // The figure is a body going round a circle. A car moving along a level
     // road names no circle, so the stem must say it turns.
-    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b/i],
+    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");

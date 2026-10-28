@@ -30,6 +30,7 @@ for (const question of [
   "A stone of mass 0.2 kg is whirled on a string of length 1 m at 3 revolutions per second in a horizontal plane. Find the tension.",
   "A stone tied to a string of length 0.5 m is whirled round at 4 m/s on a smooth horizontal table.",
   "A ball attached to a string revolves at 2 m/s on a frictionless horizontal surface, string length 0.8 m.",
+  "A stone tied to a string of length 1 m rotates at 4 m/s in a horizontal plane. Find the tension.",
 ]) {
   assert.equal(detectArchetype(question, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", `${question}: the planner's circle claim stands`);
   checks += 1;
@@ -53,6 +54,7 @@ for (const question of [
   "A ball is released from a height of 20 m. Find its speed just before it hits the ground.",
   "A ball is dropped from a height of 20 m. Ignore air resistance and the Earth's rotation. Find the time to reach the ground.",
   "A ball is dropped from a swinging crane at a height of 30 m. Find its speed when it reaches the ground.",
+  "A disc is dropped without rotation from a height of 20 m. Find its speed before it reaches the ground.",
 ]) {
   assert.equal(detectArchetype(question, {})?.id, "free_fall", `${question}: a dropped body keeps free fall`);
   checks += 1;
