@@ -137,10 +137,13 @@ export function selectFastFigure(input: {
 /** From the doubt's start: need check, planning, selection, all of it. */
 export const DOUBT_FIGURE_BUDGET_MS = 20_000;
 
-/** Spoken once while the doubt's figure plans. */
+/**
+ * Spoken once while the doubt's figure plans. It promises no figure: a miss
+ * (budget, no fast family, the same figure) teaches on the old one.
+ */
 export const DOUBT_FIGURE_HOLDING_LINE: Record<NarrationLanguage, string> = {
-  english: "Let me draw that.",
-  hinglish: "रुको, इसे बना कर दिखाता हूँ.",
+  english: "Good question. Give me a moment.",
+  hinglish: "अच्छा सवाल है. एक पल रुको.",
 };
 
 export function doubtFigureHoldingSegment(language: NarrationLanguage = "english"): TutorSegment {
