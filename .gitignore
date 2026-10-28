@@ -10,6 +10,9 @@ dist/
 build/
 out/
 .next/
+.next-a/
+.next-b/
+.next-legacy/
 .turbo/
 .cache/
 *.tsbuildinfo
