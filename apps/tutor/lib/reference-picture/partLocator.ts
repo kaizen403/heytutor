@@ -13,11 +13,12 @@
  * Never wrong over complete: a name printed twice, read twice, or boxed
  * where the plan has no ink gets no part. Any failure or the time budget
  * running out gives no parts at all, and the picture is stored and shown as
- * before. Only the caller's own abort is thrown.
+ * before. It never throws and takes no caller signal: locating is free work,
+ * so a request that goes away mid-locate still gets its picture stored.
  */
 import sharp from "sharp";
 import { legendMarkKey, normalizeLegendMark, parseReferencePictureParts, type PicturePlacement, type ReferencePictureLegendEntry, type ReferencePicturePart, type ReferencePicturePlan } from "@heytutor/drawing";
-import { joinLines, labelKeys, matchLabels, matchMarks, partsFrom, wordKey, type LocatedName, type MatchOutcome, type TextLine } from "./partLocatorMatch";
+import { joinLines, labelKeys, markSetHolds, matchLabels, matchMarks, partsFrom, wordKey, type LocatedName, type MatchOutcome, type TextLine } from "./partLocatorMatch";
 import { readSvgText, SVG_MAX_BYTES } from "./partLocatorSvg";
 import { downloadPicture } from "./wikimediaSearch";
 
@@ -45,7 +46,6 @@ export interface LocatePartsInput {
   picturePng: Buffer;
   labels: readonly string[];
   legend?: readonly ReferencePictureLegendEntry[] | null;
-  signal?: AbortSignal;
   fetchImpl?: FetchLike;
   readRaster?: RasterTextReader | null;
   budgetMs?: number;
@@ -105,11 +105,10 @@ async function svgLines(input: LocatePartsInput, signal: AbortSignal): Promise<{
   if (input.candidate?.mime !== "image/svg+xml" || !url) return null;
   try {
     const { bytes } = await downloadPicture(url, { maxBytes: SVG_MAX_BYTES, signal, fetchImpl: input.fetchImpl });
-    const read = await readSvgText(bytes.toString("utf8"), input.plan);
+    const read = await readSvgText(bytes.toString("utf8"), input.plan, signal);
     if (!read) return { lines: [], unplaced: [], note: "svg unreadable" };
     return { lines: read.lines, unplaced: read.unplaced, note: `svg ${read.texts} texts${read.skipped ? ` (${read.skipped} left out)` : ""}` };
   } catch (error) {
-    if (input.signal?.aborted) throw error;
     return { lines: [], unplaced: [], note: `svg ${error instanceof Error ? error.message : "failed"}` };
   }
 }
@@ -127,7 +126,6 @@ async function locate(input: LocatePartsInput, signal: AbortSignal): Promise<Loc
       lines = await input.readRaster(input.picturePng, input.plan, signal);
       notes.push(`ocr ${lines.length} lines`);
     } catch (error) {
-      if (input.signal?.aborted) throw error;
       notes.push(`ocr ${error instanceof Error ? error.message : "failed"}`);
       lines = [];
     }
@@ -138,39 +136,47 @@ async function locate(input: LocatePartsInput, signal: AbortSignal): Promise<Loc
   const joined = joinLines(lines);
   const numbered = Boolean(input.legend?.length);
   const matched: MatchOutcome = numbered ? matchMarks(joined, input.legend!) : matchLabels(joined, input.labels);
-  // A name also printed where it could not be boxed (rotated, on a path) is printed twice.
-  const unplaced = (svg?.unplaced ?? []).map((text) => text.split(/\s+/).map(wordKey).filter(Boolean));
+  // A name also printed where it could not be boxed (rotated, on a path) is
+  // printed twice. Each unplaced word is indexed by its key (a mark's key on a
+  // numbered picture), so a name is compared only where its first word is.
+  const unplaced = (svg?.unplaced ?? []).map((text) => text.split(/\s+/).map(wordKey).filter(Boolean).map((word) => (numbered ? legendMarkKey(normalizeLegendMark(word) ?? "") : word)));
+  const starts = new Map<string, Array<[text: number, word: number]>>();
+  unplaced.forEach((words, t) => words.forEach((key, i) => { if (key) (starts.get(key) ?? starts.set(key, []).get(key)!).push([t, i]); }));
   const elsewhere = (name: LocatedName) => {
     const keys = numbered ? [legendMarkKey(name.mark!)] : labelKeys(name.label);
-    return unplaced.some((words) => words.some((_, i) => keys.every((k, j) => (numbered ? legendMarkKey(normalizeLegendMark(words[i + j] ?? "") ?? "") : words[i + j]) === k)));
+    return (starts.get(keys[0]!) ?? []).some(([t, i]) => keys.every((k, j) => unplaced[t]![i + j] === k));
   };
   const outcome: MatchOutcome = { ...matched, located: matched.located.filter((name) => !elsewhere(name)), ambiguous: [...matched.ambiguous, ...matched.located.filter(elsewhere).map((name) => name.mark ?? name.label)] };
   const ink = await decodeInkMask(input.plan.inkMask, input.plan.width, input.plan.height);
   if (!ink) return { parts: [], step: `${notes.join(", ")}: ink mask unreadable` };
   const offInk: LocatedName[] = [];
-  const onInk = outcome.located.filter((name) => {
+  let onInk = outcome.located.filter((name) => {
     const ok = boxOnInk(name.box, ink, input.plan.width, input.plan.height);
     if (!ok) offInk.push(name);
     return ok;
   });
-  const order = numbered ? input.legend!.map((entry) => entry.mark) : [...input.labels];
+  // Marks count only as a set (enough of the key, at one size); a lone digit may be anything.
+  const looseMarks = numbered && onInk.length > 0 && !markSetHolds(onInk, input.legend!.length) ? onInk.length : 0;
+  if (looseMarks) onInk = [];
   const record = { plan: input.plan, labels: input.labels, legend: input.legend ?? null };
-  const parts = parseReferencePictureParts(partsFrom(onInk, order, input.plan), record);
+  const parts = parseReferencePictureParts(partsFrom(onInk, input.labels, input.plan), record);
   const named = numbered ? input.legend!.length : input.labels.length;
   const tally = [`${parts.length} of ${named} ${numbered ? "marks" : "names"}`];
   if (outcome.ambiguous.length) tally.push(`${outcome.ambiguous.length} ambiguous`);
   if (offInk.length) tally.push(`${offInk.length} off ink`);
+  if (looseMarks) tally.push(`${looseMarks} marks not a set`);
   return { parts, step: `${notes.join(", ")}: ${tally.join(", ")}` };
 }
 
 /**
  * Locate a stored picture's parts. Resolves with no parts on any failure or
- * when the budget runs out; rejects only when the caller's signal aborts.
+ * when the budget runs out (which also stops the fetch and the reader);
+ * never rejects.
  */
 export async function locateReferencePictureParts(input: LocatePartsInput): Promise<LocatePartsResult> {
   if (!input.labels.length && !input.legend?.length) return { parts: [], step: "no names" };
   const budget = new AbortController();
-  const signal = input.signal ? AbortSignal.any([input.signal, budget.signal]) : budget.signal;
+  const signal = budget.signal;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<LocatePartsResult>((resolve) => {
     timer = setTimeout(() => {
@@ -180,10 +186,7 @@ export async function locateReferencePictureParts(input: LocatePartsInput): Prom
   });
   try {
     return await Promise.race([
-      locate(input, signal).catch((error: unknown) => {
-        if (input.signal?.aborted) throw error;
-        return { parts: [], step: `failed: ${error instanceof Error ? error.message : String(error)}` };
-      }),
+      locate(input, signal).catch((error: unknown) => ({ parts: [], step: `failed: ${error instanceof Error ? error.message : String(error)}` })),
       timeout,
     ]);
   } finally {

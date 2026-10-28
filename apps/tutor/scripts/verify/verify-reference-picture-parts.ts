@@ -6,17 +6,22 @@
  * Covers the SVG reader (markup, transforms, units, viewBox mapping, switch,
  * hidden and left out text), the matcher (whole lines, words in a line,
  * wrapped names, duplicates, longer names, marks and printed key rows), the
- * ink check, the locator's failure paths (budget, fetch failure, abort), the
- * store's flag (off: no `parts` at all), and the backfill's idempotence.
+ * ink check, the locator's failure paths (budget, fetch failure), the
+ * store's flag (off: no `parts` at all, and the locator never runs), the
+ * store path's safety (a locator that throws, hangs, or outlives the
+ * request still leaves the picture stored), the reader's ceilings against
+ * hostile files (each timed, each failing closed), and the backfill's
+ * idempotence.
  */
 import sharp from "sharp";
-import { parseReferencePictureParts, type PicturePlacement, type ReferencePicturePart } from "@heytutor/drawing";
-import { parseSvg, parseTransform, readSvgText, rootToPlan, SVG_MAX_BYTES } from "../../lib/reference-picture/partLocatorSvg";
-import { joinLines, matchLabels, matchMarks, partsFrom, wordKey, type TextLine } from "../../lib/reference-picture/partLocatorMatch";
+import { parseReferencePictureParts, REFERENCE_PICTURE_PLAN_VERSION, type PicturePlacement, type ReferencePicturePart, type ReferencePicturePlan } from "@heytutor/drawing";
+import { parseSvg, parseTransform, readSvgText, rootToPlan, SVG_MAX_BYTES, SVG_MAX_TEXTS } from "../../lib/reference-picture/partLocatorSvg";
+import { joinLines, markSetHolds, matchLabels, matchMarks, partsFrom, wordKey, type TextLine } from "../../lib/reference-picture/partLocatorMatch";
 import { boxOnInk, decodeInkMask, locateReferencePictureParts, recordWithParts, type LocatePartsInput } from "../../lib/reference-picture/partLocator";
 import { buildStrokePlan } from "../../lib/reference-picture/strokePlan";
-import { candidateFromPage } from "../../lib/reference-picture/wikimediaSearch";
+import { candidateFromPage, commonsFileInfo } from "../../lib/reference-picture/wikimediaSearch";
 import { servedRecord } from "../../lib/reference-picture/pictureStore";
+import { findReferencePicture, type FindPictureDeps } from "../../lib/reference-picture/findReferencePicture";
 
 let failures = 0;
 function check(condition: unknown, message: string): void {
@@ -128,7 +133,11 @@ function matchChecks(): void {
   check(at("Pulmonary artery"), "a name split across two chunks of one line is located");
   check(out.missing.includes("Missing"), "a name not printed is missing");
   const inLine = matchLabels([L(1, w("Aorta", 10, 10), w("(to", 60, 10), w("body)", 90, 10))], ["Aorta"]);
-  check(inLine.located[0] && near(inLine.located[0].box.width, 40), "a name that is the first words of a longer line boxes only those words");
+  check(inLine.located.length === 0 && inLine.ambiguous.includes("Aorta"), "a name read inside a longer printed line is not located");
+  const artery = matchLabels([L(1, w("Pulmonary", 10, 10), w("artery", 90, 10))], ["Artery", "Aorta"]);
+  check(artery.located.length === 0, "a short name inside a longer printed name (\"Artery\" in \"Pulmonary artery\") is not located");
+  const row = matchLabels([L(1, w("Left", 10, 10), w("atrium", 50, 10), w("–", 110, 10), w("Right", 130, 10), w("atrium", 180, 10))], ["Left atrium", "Right atrium"]);
+  check(row.located.length === 2 && row.located[0] && near(row.located[0].box.width, 88), "a line made only of judged names (and punctuation) locates each name in it");
   const far = matchLabels([L(1, w("Superior", 10, 10)), L(2, w("vena", 300, 200), w("cava", 340, 200))], ["Superior vena cava"]);
   check(far.located.length === 0, "lines that are not stacked do not join into a name");
   const shared = matchLabels([L(1, w("Bundle", 10, 10), w("of", 70, 10), w("His", 90, 10))], ["Bundle of", "of His"]);
@@ -149,11 +158,18 @@ function matchChecks(): void {
   check(mark("3") && mark("4"), "marks set side by side each stand alone");
   check(!mark("5") && marks.ambiguous.includes("5"), "a mark printed twice is not located");
   check(mark("1")?.label === "Aorta", "a located mark answers to its key name");
+  const box = (height: number) => ({ box: { x: 0, y: 0, width: 8, height } });
+  check(!markSetHolds([box(14)], 2) && !markSetHolds([box(14), box(14)], 5) && markSetHolds([box(14), box(14), box(15)], 5), "marks count only as a set: at least two, and at least half the key");
+  check(!markSetHolds([box(14), box(14), box(6)], 4) && !markSetHolds([box(14), box(14), box(30)], 4) && markSetHolds([box(14), box(12), box(19)], 4), "a mark much smaller or larger than the others (a subscript, a heading) breaks the set");
 
-  const parts = partsFrom([{ label: "Septum", box: { x: -4, y: 10.2, width: 30, height: 10 }, source: "svg" }, { label: "Aorta", box: { x: 5, y: 5, width: 10, height: 10 }, source: "svg" }, { label: "Apex", box: { x: 790, y: 5, width: 40, height: 10 }, source: "svg" }], ["Aorta", "Septum", "Apex"], { width: 800, height: 400 });
+  const parts = partsFrom([{ label: "Septum", box: { x: -4, y: 10.2, width: 30, height: 10 }, source: "svg" }, { label: "Aorta", box: { x: 5, y: 5, width: 10, height: 10 }, source: "svg" }, { label: "Apex", box: { x: 790, y: 5, width: 40, height: 10 }, source: "svg" }], ["Heart", "Aorta", "Septum", "Apex"], { width: 800, height: 400 });
   check(parts.map((p) => p.label).join(",") === "Aorta,Septum", "parts follow the record's order; a box mostly off the picture is dropped");
-  check(parts[0]?.id === "reference_picture.part.1" && parts[1]?.id === "reference_picture.part.2", "ids follow the kept order");
+  check(parts[0]?.id === "reference_picture.part.2" && parts[1]?.id === "reference_picture.part.3", "a part's id is its name's place in labels, not its place among the located");
   check(parts[1] && parts[1].box.x === 0 && parts[1].box.y === 10 && parts[1].box.width === 26 && parts[1].box.height === 11, "boxes clamp to the picture and round outward");
+  const alone = partsFrom([{ label: "Septum", box: { x: 5, y: 5, width: 30, height: 10 }, source: "svg" }], ["Heart", "Aorta", "Septum", "Apex"], { width: 800, height: 400 });
+  check(alone[0]?.id === parts[1]?.id, "locating one name more or less never renumbers the others");
+  const keyed = partsFrom([{ label: "Left atrium", mark: "4", box: { x: 5, y: 5, width: 10, height: 10 }, source: "svg" }], ["Aorta", "Right atrium", "Left atrium"], { width: 800, height: 400 });
+  check(keyed[0]?.id === "reference_picture.part.3" && keyed[0].mark === "4", "a mark's part is numbered by its key name's place in labels");
 }
 
 // ---------------------------------------------------------------------------
@@ -230,7 +246,12 @@ async function endToEndChecks(): Promise<void> {
   const nBuilt = await buildStrokePlan(nRaster);
   const legend = [{ mark: "1", label: "Aorta" }, { mark: "2", label: "Left atrium" }, { mark: "3", label: "Right atrium" }, { mark: "4", label: "Septum" }];
   const nResult = await locateReferencePictureParts({ ...input(), plan: nBuilt.plan, picturePng: nBuilt.picturePng, labels: legend.map((e) => e.label), legend, fetchImpl: async () => svgResponse(numbered) });
-  check(nResult.parts.map((p) => `${p.mark}:${p.label}`).join(",") === "1:Aorta,2:Left atrium", `a numbered picture locates marks 1 and 2; 3 is also read in "Phase 3"; 4 is not printed (${nResult.step})`);
+  check(nResult.parts.map((p) => `${p.mark}:${p.label}:${p.id}`).join(",") === "1:Aorta:reference_picture.part.1,2:Left atrium:reference_picture.part.2", `a numbered picture locates marks 1 and 2; 3 is also read in "Phase 3"; 4 is not printed (${nResult.step})`);
+  check(JSON.stringify(parseReferencePictureParts(nResult.parts, { plan: nBuilt.plan, labels: legend.map((e) => e.label), legend })) === JSON.stringify(nResult.parts), "mark parts pass the shared parser unchanged (ids by key name position)");
+  // Only mark 1 on the drawing: one lone digit is not a set, so no mark is trusted.
+  const lone = numbered.replace(`<text ${LAB} x="500" y="120">2</text>`, "");
+  const loneResult = await locateReferencePictureParts({ ...input(), plan: nBuilt.plan, picturePng: nBuilt.picturePng, labels: legend.map((e) => e.label), legend, fetchImpl: async () => svgResponse(lone) });
+  check(loneResult.parts.length === 0 && loneResult.step.includes("not a set"), `a lone located mark is not trusted (${loneResult.step})`);
   check(nResult.parts[0] && near(nResult.parts[0].box.x, 100 * nBuilt.plan.width / 800, 3), "mark 1 is the one on the drawing, not the one in the printed key row");
 
   // Failure paths: none of them stores a part, none throws, except the caller's own abort.
@@ -245,16 +266,173 @@ async function endToEndChecks(): Promise<void> {
   const started = Date.now();
   const late = await locateReferencePictureParts(input({ fetchImpl: hanging, budgetMs: 60 }));
   check(late.parts.length === 0 && late.step === "timed out" && Date.now() - started < 1000, "the budget running out stores no parts, promptly");
-  const controller = new AbortController();
-  const pending = locateReferencePictureParts(input({ fetchImpl: hanging, signal: controller.signal }));
-  controller.abort();
-  check(await pending.then(() => false, () => true), "the caller's abort is thrown, not swallowed");
+  check(!("signal" in input()) && (await locateReferencePictureParts(input({ fetchImpl: async () => { throw new Error("socket closed"); } })).then((r) => r.parts.length === 0, () => false)), "the locator takes no caller signal and never rejects");
 
   // The ink check on its own: paper is not text.
   const ink = await decodeInkMask(plan.inkMask, plan.width, plan.height);
   const aorta = located.get("Aorta");
   check(ink && aorta && boxOnInk(aorta.box, ink, plan.width, plan.height), "a printed word's box is on ink");
   check(ink && !boxOnInk({ x: plan.width - 60, y: plan.height / 2 - 10, width: 50, height: 20 }, ink, plan.width, plan.height), "a box on blank paper is not");
+}
+
+// ---------------------------------------------------------------------------
+// Hostile files: each finishes fast, holds the event loop under 50 ms, and fails closed
+
+/** Run `work` while a 5 ms timer watches the event loop; returns the result, wall time, and the longest stall. */
+async function timed<T>(work: () => Promise<T>): Promise<{ value: T; ms: number; stallMs: number }> {
+  let last = performance.now();
+  let stallMs = 0;
+  const watch = setInterval(() => {
+    const now = performance.now();
+    stallMs = Math.max(stallMs, now - last - 5);
+    last = now;
+  }, 5);
+  const started = performance.now();
+  try {
+    const value = await work();
+    const ms = performance.now() - started;
+    stallMs = Math.max(stallMs, performance.now() - last - 5);
+    return { value, ms, stallMs };
+  } finally {
+    clearInterval(watch);
+  }
+}
+
+const SHEET = { width: 800, height: 600 };
+const doc = (body: string, head = "") => `<?xml version="1.0"?>${head}<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">${body}</svg>`;
+
+async function hostileChecks(): Promise<void> {
+  const label = `<text x="40" y="60" font-size="28">Aorta</text>`;
+  // A stylesheet with a long run and no brace: a backtracking scan took 3.2 s at 80 KB.
+  const style = (css: string) => doc(`<style>${css}</style>${label}`);
+  const bigSheet = await timed(() => readSvgText(style("a".repeat(80_000)), SHEET));
+  check(bigSheet.value === null && bigSheet.ms < 200 && bigSheet.stallMs < 50, `an 80 KB stylesheet is declined fast (${bigSheet.ms.toFixed(0)} ms, stall ${bigSheet.stallMs.toFixed(0)} ms)`);
+  const runOn = await timed(() => readSvgText(style(`.x{font-size:9px}${"a".repeat(60_000)}`), SHEET));
+  check(runOn.value?.lines.length === 1 && runOn.ms < 100 && runOn.stallMs < 50, `a 60 KB stylesheet run with no brace reads in linear time (${runOn.ms.toFixed(1)} ms)`);
+  const comments = await timed(() => readSvgText(style("/*a*/".repeat(2).concat("/*x".repeat(20_000))), SHEET));
+  check(comments.value?.lines.length === 1 && comments.ms < 100, `20,000 unclosed comment openers read in linear time (${comments.ms.toFixed(1)} ms)`);
+  const sheet = await readSvgText(style(".a{font-size:10px} /* c */ @media print { .b { font-size: 40px } } .big{font-size:56px}").replace(`font-size="28"`, `class="big" font-size="28"`), SHEET);
+  check(sheet?.lines[0] && near(sheet.lines[0].words[0]!.box.height, 56 * 0.98, 0.6), "the linear stylesheet scan still reads rules after comments and at-rules");
+
+  // Entity amplification: a 5,000 character entity used 10,000 times would be 50 million characters.
+  const laughs = doc(`<text x="10" y="20">${"&a;".repeat(10_000)}</text>${label}`, `<!DOCTYPE svg [<!ENTITY a "${"x".repeat(5_000)}">]>`);
+  const amplified = await timed(() => readSvgText(laughs, SHEET));
+  check(amplified.value === null && amplified.ms < 200 && amplified.stallMs < 50, `entities that would grow the file past twice its size decline it (${amplified.ms.toFixed(0)} ms)`);
+  const inAttribute = doc(`<g id="${"&a;".repeat(10_000)}">${label}</g>`, `<!DOCTYPE svg [<!ENTITY a "${"x".repeat(5_000)}">]>`);
+  check((await readSvgText(inAttribute, SHEET)) === null, "the same amplification inside an attribute (no text ceiling there) declines the file too");
+  const nested = doc(`<text x="10" y="20">&b;&b;&b;</text>${label}`, `<!DOCTYPE svg [<!ENTITY a "lol"><!ENTITY b "&a;&a;&a;&a;&a;&a;">]>`);
+  const once = await readSvgText(nested, SHEET);
+  check(once?.lines[0]?.words[0]?.text === "&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;", "an entity's value is never expanded again (no nesting)");
+  check((await readSvgText(doc(label, `<!DOCTYPE svg [<!ENTITY a "never closed>]>`), SHEET)) === null, "an entity value that never closes declines the file");
+  check((await readSvgText(doc(`<text x="10" y="20">&ns;</text>`, `<!DOCTYPE svg [<!ENTITY ns "Aorta">]>`), SHEET))?.lines[0]?.words[0]?.text === "Aorta", "a small literal entity still reads");
+
+  // Too many texts: 30,000 on distinct baselines (1.6 MB) held the loop for 2 s through the line joiner.
+  const many = doc(Array.from({ length: 30_000 }, (_, i) => `<text x="${i % 700}" y="${(i * 0.02).toFixed(2)}">${i % 10}</text>`).join(""));
+  const crowd = await timed(() => readSvgText(many, SHEET));
+  check(crowd.value === null && crowd.ms < 1500 && crowd.stallMs < 50, `30,000 texts are declined (${crowd.ms.toFixed(0)} ms, stall ${crowd.stallMs.toFixed(0)} ms)`);
+  const atCap = doc(Array.from({ length: SVG_MAX_TEXTS }, (_, i) => `<text x="${i % 700}" y="${(i * 0.19).toFixed(2)}" font-size="4">${i}</text>`).join(""));
+  check((await readSvgText(atCap, SHEET))?.lines.length === SVG_MAX_TEXTS, "a file at the text ceiling still reads");
+  check((await readSvgText(doc(`<text x="10" y="20">${"Aorta ".repeat(60)}</text>`), SHEET))?.unplaced[0]?.startsWith("Aorta Aorta"), "a text too long to be a label is printed but not boxed (it still counts as a copy)");
+  const chars = doc(Array.from({ length: 400 }, (_, i) => `<text x="10" y="${i}">${"w".repeat(190)}</text>`).join(""));
+  check((await readSvgText(chars, SHEET)) === null, "a file with more than 60,000 characters of text is declined");
+
+  // The joiner and the matcher on their own: line joining is near linear, matching has a step budget.
+  const pieces: TextLine[] = Array.from({ length: 20_000 }, (_, i) => L(i, w(String(i), i * 10, (i % 50) * 20)));
+  const started = performance.now();
+  const joined = joinLines(pieces);
+  const joinMs = performance.now() - started;
+  check(joined.length === 20_000 && joinMs < 150, `20,000 separate pieces join in near linear time (${joinMs.toFixed(0)} ms)`);
+  const stack: TextLine[] = Array.from({ length: 3_000 }, (_, i) => L(i, w("a", 10, i * 0.5, 8, 10)));
+  const matchStart = performance.now();
+  let refused = false;
+  try { matchLabels(stack, ["a a a b"]); } catch { refused = true; }
+  const matchMs = performance.now() - matchStart;
+  check(refused && matchMs < 50, `a pile of lines built to explode the wrapped name search gives up within its step budget (${matchMs.toFixed(0)} ms)`);
+  const words = (n: number) => Array.from({ length: n }, (_, i) => w(String((i % 9) + 1), i * 10, 10));
+  const markStart = performance.now();
+  matchMarks([L(1, ...words(20_000))], Array.from({ length: 9 }, (_, i) => ({ mark: String(i + 1), label: `Part ${i + 1}` })));
+  check(performance.now() - markStart < 50, `one line of 20,000 marks is matched in linear time (${(performance.now() - markStart).toFixed(0)} ms)`);
+
+  // Through the locator: a hostile file costs no parts and no stall.
+  const plan: ReferencePicturePlan = { version: REFERENCE_PICTURE_PLAN_VERSION, width: 800, height: 600, paper: "#ffffff", inkMask: "data:image/png;base64,AAAA", outline: { brushPx: 8, strokes: [], lengthPx: 0 }, fill: { brushPx: 30, strokes: [], lengthPx: 0 } };
+  const viaLocator = await timed(() => locateReferencePictureParts({ candidate: { mime: "image/svg+xml", originalUrl: "https://upload.wikimedia.org/x.svg" }, plan, picturePng: Buffer.alloc(0), labels: ["Aorta"], fetchImpl: async () => svgResponse(laughs) }));
+  check(viaLocator.value.parts.length === 0 && viaLocator.value.step.includes("svg unreadable") && viaLocator.stallMs < 50, `the locator turns a hostile file into no parts (${viaLocator.value.step})`);
+
+  // What the reader cannot place is left out, and still counts as printed.
+  check((await readSvgText(doc(label).replace("<svg ", `<svg transform="wobble(2)" `), SHEET)) === null, "an unreadable root transform declines the file");
+  const css = await readSvgText(doc(`<style>.t{transform:translate(300px,0)}</style><text class="t" x="40" y="60">Aorta</text><text x="40" y="200" style="transform: rotate(10deg)">Apex</text><g style="transform:scale(2)"><text x="10" y="300">Septum</text></g>`), SHEET);
+  check(css && css.lines.length === 0 && ["Aorta", "Apex", "Septum"].every((t) => css.unplaced.includes(t)), "text under a CSS transform is not boxed but counts as a copy");
+  const repeated = await readSvgText(doc(`<defs><pattern id="p"><text x="0" y="10">Aorta</text></pattern><marker id="m"><text>Apex</text></marker><symbol id="s"><text>Septum</text></symbol></defs>${label}`), SHEET);
+  check(repeated && ["Aorta", "Apex", "Septum"].every((t) => repeated.unplaced.includes(t)) && repeated.lines.length === 1, "text in a pattern, marker or symbol counts as a printed copy");
+}
+
+// ---------------------------------------------------------------------------
+// The store path: the locator runs only with the flag, and never costs the picture
+
+async function storePathChecks(): Promise<void> {
+  const png = await sharp({ create: { width: 400, height: 300, channels: 3, background: "#ffffff" } }).png().toBuffer();
+  const plan: ReferencePicturePlan = { version: REFERENCE_PICTURE_PLAN_VERSION, width: 400, height: 300, paper: "#ffffff", inkMask: "data:image/png;base64,AAAA", outline: { brushPx: 8, strokes: [[0, 0, 10, 10]], lengthPx: 14.1 }, fill: { brushPx: 30, strokes: [[0, 0, 0, 80]], lengthPx: 80 } };
+  const stubPlan: FindPictureDeps["strokePlan"] = async () => ({ plan, picturePng: png, stats: { inkPixels: 1, outlineStrokes: 1, fillStrokes: 1, outlineCoverage: 1, fillCoverage: 1, planBytes: 100, ms: 1, longestSliceMs: 1 } });
+  const accept = '{"use":true,"shows":"heart","labels":["Aorta","Left atrium"],"labelLanguage":"en","problems":[],"confidence":0.96}';
+  const fetchImpl: FindPictureDeps["fetchImpl"] = async (url, init) => {
+    if (url.includes("commons.wikimedia.org/w/api.php")) {
+      return Response.json({ query: { pages: [{ title: "File:Heart diagram-en.svg", index: 1, imageinfo: [{ url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Heart.svg", thumburl: "https://upload.wikimedia.org/x.png", thumbwidth: 960, thumbheight: 720, mime: "image/svg+xml", descriptionurl: "https://commons.wikimedia.org/wiki/x", extmetadata: { LicenseShortName: { value: "CC0" } } }] }] } });
+    }
+    if (url.includes("upload.wikimedia.org")) return new Response(new Uint8Array(png), { headers: { "content-type": "image/png" } });
+    const text = JSON.stringify((JSON.parse(String(init?.body ?? "{}")) as { messages?: unknown }).messages);
+    if (text.includes("wantsPicture")) return Response.json({ choices: [{ message: { content: '{"wantsPicture":true,"mustShow":"human heart chambers","queries":["heart diagram"]}' } }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
+    if (text.includes("You fact check a diagram")) return Response.json({ choices: [{ message: { content: '{"claims":[{"text":"Aorta label on the aorta","grade":"correct"}]}' } }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
+    return Response.json({ choices: [{ message: { content: accept } }], usage: { prompt_tokens: 1, completion_tokens: 1 } });
+  };
+  const run = async (flag: "on" | undefined, locateParts: FindPictureDeps["locateParts"], signal?: AbortSignal) => {
+    const saved: Array<Record<string, unknown>> = [];
+    const store: NonNullable<FindPictureDeps["store"]> = {
+      readQueryCache: async () => null,
+      writeQueryCache: async () => undefined,
+      findPictureBySourceKey: async () => null,
+      saveReferencePicture: async (input) => { saved.push(input.record as unknown as Record<string, unknown>); return { ...input.record, imageUrl: "", planUrl: "" }; },
+    };
+    const before = process.env.REFERENCE_PICTURE_PART_FOCUS;
+    if (flag) process.env.REFERENCE_PICTURE_PART_FOCUS = flag; else delete process.env.REFERENCE_PICTURE_PART_FOCUS;
+    const started = performance.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const hung = new Promise<{ status: "hung" }>((resolve) => { timer = setTimeout(() => resolve({ status: "hung" }), 5000); });
+    try {
+      const out = await Promise.race([hung, findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl, store, strokePlan: stubPlan, imageProvider: null, locateParts, locatePartsBudgetMs: 60, ...(signal ? { signal } : {}) }).catch((error: unknown) => ({ status: "threw", error }) as const)]);
+      return { out, saved, ms: performance.now() - started };
+    } finally {
+      clearTimeout(timer);
+      if (before === undefined) delete process.env.REFERENCE_PICTURE_PART_FOCUS; else process.env.REFERENCE_PICTURE_PART_FOCUS = before;
+    }
+  };
+  const part: ReferencePicturePart = { id: "reference_picture.part.1", label: "Aorta", box: { x: 10, y: 10, width: 40, height: 12 }, source: "svg" };
+  let calls = 0;
+  const counting: FindPictureDeps["locateParts"] = async () => { calls++; return { parts: [part], step: "1 of 2 names" }; };
+
+  const off = await run(undefined, counting);
+  check(off.out.status === "ready" && calls === 0 && off.saved.length === 1 && !("parts" in off.saved[0]!), "with part focus off the locator never runs and the record is stored without parts");
+  check(off.out.status === "ready" && !off.out.steps.some((step) => step.startsWith("parts")), "with part focus off the step trail is as before");
+  const on = await run("on", counting);
+  check(on.out.status === "ready" && calls === 1 && JSON.stringify(on.saved[0]?.parts) === JSON.stringify([part]) && on.out.steps.includes("parts: 1 of 2 names"), "with part focus on the located parts are stored");
+
+  const throwing = await run("on", async () => { throw new Error("reader crashed"); });
+  check(throwing.out.status === "ready" && throwing.saved.length === 1 && !("parts" in throwing.saved[0]!) && throwing.out.steps.some((step) => step.startsWith("parts: failed")), "a locator that throws costs the parts, never the picture");
+  const hanging = await run("on", () => new Promise(() => undefined));
+  check(hanging.out.status === "ready" && hanging.saved.length === 1 && !("parts" in hanging.saved[0]!) && hanging.out.steps.includes("parts: timed out") && hanging.ms < 2500, `a locator that hangs is cut at its budget and the picture is stored (${hanging.ms.toFixed(0)} ms)`);
+  const controller = new AbortController();
+  let sawSignal = true;
+  const aborting = await run("on", async (input) => {
+    sawSignal = "signal" in input;
+    controller.abort();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return { parts: [part], step: "1 of 2 names" };
+  }, controller.signal);
+  check(!sawSignal && aborting.out.status === "ready" && aborting.saved.length === 1 && JSON.stringify(aborting.saved[0]?.parts) === JSON.stringify([part]), "a request aborted while parts are located still stores its picture, parts and all");
+
+  // The backfill asks Commons for the revision's upload time and hash.
+  let asked = "";
+  const info = await commonsFileInfo("File:Heart.svg", { fetchImpl: async (url) => { asked = url; return Response.json({ query: { pages: [{ imageinfo: [{ url: "https://upload.wikimedia.org/h.svg", mime: "image/svg+xml", timestamp: "2026-10-29T10:00:00Z", sha1: "abc" }] }] } }); } });
+  check(new URL(asked).searchParams.get("iiprop") === "url|mime|timestamp|sha1" && info?.timestamp === "2026-10-29T10:00:00Z" && info.sha1 === "abc", "the backfill's file lookup returns the current revision's upload time and hash");
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +466,8 @@ async function main(): Promise<void> {
   await markupChecks();
   matchChecks();
   await endToEndChecks();
+  await hostileChecks();
+  await storePathChecks();
   storeChecks();
   if (failures) {
     console.error(`verify-reference-picture-parts: ${failures} failure(s)`);

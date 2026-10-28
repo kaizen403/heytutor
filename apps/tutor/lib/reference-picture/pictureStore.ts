@@ -36,8 +36,9 @@ function withUrls(record: StoredRecord): ReferencePictureRecord {
 }
 
 /**
- * A record as the rest of the server sees it. Located parts are stored
- * always but served only with `REFERENCE_PICTURE_PART_FOCUS=on`: off, the
+ * A record as the rest of the server sees it. Located parts (stored with
+ * part focus on, or by the backfill) are served only with
+ * `REFERENCE_PICTURE_PART_FOCUS=on`: off, the
  * record has no `parts` key at all, exactly as before parts existed. On,
  * they are validated again against the record (a part whose name or box no
  * longer holds is dropped alone).
@@ -134,10 +135,3 @@ export async function writeQueryCache(queryKey: string, outcome: { pictureId: st
 
 /** Asset responses are public on purpose: free licence pictures, no student data, and the landing replay is anonymous. Ids are content-addressed, so a response never changes. */
 export const IMMUTABLE_ASSET_HEADERS = { "cache-control": "public, max-age=31536000, immutable", "x-content-type-options": "nosniff" } as const;
-/**
- * The record itself, with part focus on: its parts can change after it was
- * stored (a backfill locates them, the flag is turned off again), so it is
- * cached briefly instead of forever. With the flag off a record never
- * changes, and keeps the immutable headers.
- */
-export const RECORD_WITH_PARTS_HEADERS = { "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" } as const;
