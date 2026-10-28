@@ -23,7 +23,7 @@ function deferred<T>() {
 const tick = async () => { for (let i = 0; i < 6; i++) await new Promise<void>(done => setImmediate(done)); };
 
 /** The real relay is evaluated with an error-emitting ws fake; no provider or DB calls. */
-function fixture(options: { reservePending?: boolean; pendingAfter?: number; finishFails?: boolean; cancelFails?: boolean; undispatched?: boolean; asyncTerminate?: boolean } = {}) {
+function fixture(options: { reservePending?: boolean; pendingAfter?: number; finishFails?: boolean; finishPending?: boolean; cancelPending?: boolean; cancelFails?: boolean; undispatched?: boolean; asyncTerminate?: boolean } = {}) {
   const captures: unknown[] = [];
   let released = 0, disposed = 0, unregistered = 0, finished = 0, cancelled = 0, reserved = 0;
   let revoke = () => {};
@@ -64,10 +64,20 @@ function fixture(options: { reservePending?: boolean; pendingAfter?: number; fin
   }
   const grant = { skipGates: false, skipAutumn: true, allowedTraceIds: new Set(["synthetic-trace"]) };
   const receipt = {
-    finish: async () => { finished++; if (options.finishFails) throw new Error("synthetic billing settlement failure"); },
-    cancelBeforeDispatch: async () => { cancelled++; if (options.cancelFails) throw new Error("synthetic billing cancellation failure"); },
+    finish: async () => {
+      finished++;
+      if (options.finishPending) await settlement.promise;
+      if (options.finishFails) throw new Error("synthetic billing settlement failure");
+    },
+    cancelBeforeDispatch: async () => {
+      cancelled++;
+      if (options.cancelPending) await refund.promise;
+      if (options.cancelFails) throw new Error("synthetic billing cancellation failure");
+    },
   };
   const reservation = deferred<typeof receipt>();
+  const settlement = deferred<void>();
+  const refund = deferred<void>();
   const dependencies: Record<string, unknown> = {
     ws: { WebSocket: Socket },
     "@heytutor/tutor-core": { normalizeVoiceKey: (voice: unknown) => voice },
@@ -111,6 +121,8 @@ function fixture(options: { reservePending?: boolean; pendingAfter?: number; fin
     relayTtsWebSocket: (client: Socket, context: Record<string, unknown>) => void;
     inFlightSpeechSegments: () => number;
     beginSpeechDrain: () => void;
+    speechSettlementsDone: () => Promise<unknown>;
+    openSpeechSettlements: () => number;
   };
   relay.relayTtsWebSocket(client, { userId: "synthetic-user", traceId: "synthetic-trace", grant });
   return {
@@ -119,6 +131,10 @@ function fixture(options: { reservePending?: boolean; pendingAfter?: number; fin
     final: (index = 1) => Socket.upstream.emit("message", Buffer.from(JSON.stringify({ contextId: `segment_${index}`, isFinal: true })), false),
     inFlight: () => relay.inFlightSpeechSegments(),
     beginDrain: () => relay.beginSpeechDrain(),
+    settled: () => relay.speechSettlementsDone(),
+    settle: () => settlement.resolve(),
+    refund: () => refund.resolve(),
+    open: () => relay.openSpeechSettlements(),
     stats: () => ({ released, disposed, unregistered, finished, cancelled, reserved, timers: timers.size }),
     skips: () => client.sent.map(raw => JSON.parse(raw)).filter(message => message.type === "skip"),
   };
@@ -246,6 +262,57 @@ async function main() {
   f.final(1); await tick();
   check(f.skips()[0]?.reason, "server_restarting", "the relay closes as a restart after the sentence in flight");
   checkClosed(f, 1);
+
+  // A restart waits for the charge of a spoken segment to settle: the
+  // settlement started at the final is tracked until it lands.
+  f = fixture({ finishPending: true });
+  f.vendor.open(); f.say(1); await tick();
+  f.final(1); await tick();
+  check(f.stats().finished, 1, "the spoken segment's settlement has started");
+  let settledAll = false;
+  void f.settled().then(() => { settledAll = true; });
+  await tick();
+  check(settledAll, false, "the settlement wait holds while the charge is still landing");
+  f.settle(); await tick();
+  check(settledAll, true, "the settlement wait resolves once the charge has landed");
+  check(f.open(), 0, "a landed settlement leaves the open set");
+  f.client.close(); await tick();
+  checkClosed(f, 0);
+
+  // A refund started during the drain is tracked: the drain begins while a
+  // reservation is held, its refund stays pending, and the settle wait holds
+  // until it lands, even after the sentence in flight has finished.
+  f = fixture({ pendingAfter: 1, cancelPending: true });
+  f.vendor.open(); f.say(1); await tick();
+  f.say(2); await tick();
+  f.beginDrain();
+  f.reservation.resolve(f.receipt); await tick();
+  f.final(1); await tick();
+  let drainSettled = false;
+  void f.settled().then(() => { drainSettled = true; });
+  await tick();
+  check(drainSettled, false, "a pending drain refund holds the settle wait");
+  check(f.open() >= 1, true, "the pending drain refund is counted as open");
+  f.refund(); await tick();
+  check(drainSettled, true, "the settle wait resolves once the drain refund lands");
+  check(f.open(), 0, "nothing is left open after the refund lands");
+
+  // A refund started at teardown for a segment never sent is tracked too.
+  f = fixture({ undispatched: true, cancelPending: true });
+  f.vendor.open(); f.say(1); await tick();
+  f.client.close(); await tick();
+  let teardownSettled = false;
+  void f.settled().then(() => { teardownSettled = true; });
+  await tick();
+  check(teardownSettled, false, "a pending teardown refund holds the settle wait");
+  f.refund(); await tick();
+  check(teardownSettled, true, "the settle wait resolves once the teardown refund lands");
+  check(f.open(), 0, "the teardown refund leaves the open set");
+
+  // The production exit settles speech in its own slice, then flushes.
+  const server = readFileSync(resolve(import.meta.dirname, "../../server.ts"), "utf8");
+  check(/beforeExit: \(\) => settleThenFlush\(\{\s*settled: speechSettlementsDone,\s*open: openSpeechSettlements,\s*flush: flushServerSentry,/.test(server), true,
+    "server.ts settles speech charges in their own slice before the Sentry flush");
 
   console.log(`TTS relay cancellation: ${checks} checks passed; actual relay with fake sockets and receipts, no network; a restart lets the sentence in flight finish`);
 }

@@ -120,12 +120,15 @@ export const CONTINUATION_FETCH_RETRY_MS = 1_500;
  */
 export async function retryContinuationFetchOnce<T>(
   run: () => Promise<T>,
-  options: { enabled: boolean; signal: AbortSignal; onRetry?: () => void; delayMs?: number },
+  options: { enabled: boolean; signal: AbortSignal; isCurrent?: () => boolean; onRetry?: () => void; delayMs?: number },
 ): Promise<T> {
+  // A turn the student left (a new question, a board switch) never pays for a
+  // retry, whether it was left before the failure or during the pause.
+  const current = () => !options.signal.aborted && (options.isCurrent?.() ?? true);
   try {
     return await run();
   } catch (error) {
-    if (!options.enabled || options.signal.aborted || !(error instanceof TeachingTransportError) || error.phase !== "fetch") {
+    if (!options.enabled || !current() || !(error instanceof TeachingTransportError) || error.phase !== "fetch") {
       throw error;
     }
     options.onRetry?.();
@@ -133,6 +136,7 @@ export async function retryContinuationFetchOnce<T>(
       const timer = setTimeout(resolve, options.delayMs ?? CONTINUATION_FETCH_RETRY_MS);
       options.signal.addEventListener("abort", () => { clearTimeout(timer); reject(error); }, { once: true });
     });
+    if (!current()) throw error;
     return run();
   }
 }
