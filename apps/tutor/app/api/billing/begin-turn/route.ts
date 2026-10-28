@@ -7,6 +7,7 @@ import {
   resolveReferencePictureEnabled,
   resolveReferencePicturePartFocusEnabled,
 } from "@/lib/scene/diagramStrategy.server";
+import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 
 export async function POST(request: Request): Promise<Response> {
   const startedAt = Date.now();
@@ -36,5 +37,6 @@ export async function POST(request: Request): Promise<Response> {
     diagramYieldPolicy: resolveDiagramYieldPolicy(),
     referencePicture: resolveReferencePictureEnabled(),
     referencePicturePartFocus: resolveReferencePicturePartFocusEnabled(),
+    doubtPointing: resolveDoubtPointingEnabled(),
   });
 }

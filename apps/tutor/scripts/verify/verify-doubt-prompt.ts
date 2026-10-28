@@ -11,6 +11,10 @@
  * for real boards, with the figure addon written by the same presentation the
  * live board uses.
  */
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { RenderScene, SceneDocument, TurnPlanV3 } from "@heytutor/scene-engine";
 import { WORK_ZONE } from "@heytutor/drawing";
 import {
@@ -296,6 +300,95 @@ for (const [label, prompt] of Object.entries(variants)) {
   assert(marked.includes("\"for example\" and never written as givens"), "a marked doubt's example is not a given");
   assert(!/[—–]/.test(marked), "the student's words carry no dash punctuation");
   assert(marked.includes("ray diagram\".") && !marked.includes("diagram.\"."), "a stem ending on a full stop is not quoted as `.\".`");
+}
+
+// 9. DIAGRAM_DOUBT_POINTING off: the prompt is byte-identical to the one the
+// doubt was given before the flag existed. The fixture holds sha256 of each
+// case's system and continuation prompts, written from main's
+// turnTeachingPrompt.ts (`--write-flag-off-fixture` with that file checked out).
+{
+  const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "doubt-prompt-flag-off.json");
+  const sha = (text: string) => createHash("sha256").update(text).digest("hex");
+  const digest = (prompt: TurnTeachingPrompt) => ({ system: sha(prompt.systemPrompt), continuation: sha(prompt.continuationPrompt) });
+  const CELLS = [{ id: "cell_0", labels: ["3"] }, { id: "cell_1", labels: ["5"] }];
+  const baseCases: Record<string, Partial<DoubtTeachingPromptInput>> = {
+    figure: { diagramPromptAddon: figureAddon, fastMode: true, familiarity: "new" },
+    figureNormal: { diagramPromptAddon: figureAddon },
+    full: { rowsLeftOnPage: 0, nextRowY: null, familiarity: "revision" },
+    fullFigure: { rowsLeftOnPage: 0, nextRowY: null, diagramPromptAddon: figureAddon },
+    noFigure: {},
+    codePanel: { codePanelShowing: true, codeLessonBoard: true, codePanelText: CODE, diagramPromptAddon: codeLessonAddon },
+    codePanelNoFigure: { codePanelShowing: true, codeLessonBoard: true, codePanelText: CODE },
+    codeHidden: { codeLessonBoard: true, codePanelShowing: false, codeFigureVisible: true },
+    codeHiddenNoFigure: { codeLessonBoard: true, codePanelShowing: false, codeFigureVisible: false },
+  };
+  if (process.argv.includes("--write-flag-off-fixture")) {
+    const written = Object.fromEntries(Object.entries(baseCases).map(([name, overrides]) =>
+      [name, digest(buildDoubtTeachingPrompt(input(overrides)))]));
+    writeFileSync(FIXTURE, `${JSON.stringify(written, null, 2)}\n`);
+    console.log(`wrote ${FIXTURE}`);
+    process.exit(0);
+  }
+  assert(existsSync(FIXTURE), "the flag off identity fixture is missing");
+  const expected = JSON.parse(readFileSync(FIXTURE, "utf8")) as Record<string, { system: string; continuation: string }>;
+  assert(Object.keys(expected).sort().join() === Object.keys(baseCases).sort().join(), "the fixture names every flag off case");
+  for (const [name, overrides] of Object.entries(baseCases)) {
+    const offs: Array<[string, Partial<DoubtTeachingPromptInput>]> = [
+      ["absent", overrides],
+      ["false", { ...overrides, doubtPointing: false }],
+      ["false with cells", { ...overrides, doubtPointing: false, codeFrameCells: CELLS }],
+    ];
+    for (const [how, variant] of offs) {
+      const got = digest(buildDoubtTeachingPrompt(input(variant)));
+      assert(got.system === expected[name]!.system, `${name} (flag ${how}): the doubt system prompt must be byte-identical to main`);
+      assert(got.continuation === expected[name]!.continuation, `${name} (flag ${how}): the doubt continuation must be byte-identical to main`);
+    }
+  }
+  // With nothing on the board to point at, the flag changes nothing either.
+  for (const name of ["noFigure", "full", "codePanelNoFigure", "codeHiddenNoFigure"]) {
+    const got = digest(buildDoubtTeachingPrompt(input({ ...baseCases[name], doubtPointing: true, codeFrameCells: CELLS })));
+    assert(got.system === expected[name]!.system, `${name}: with no figure, the flag on prompt is today's`);
+  }
+  // A code board with the flag on but no cells to list keeps today's prompt.
+  {
+    const got = digest(buildDoubtTeachingPrompt(input({ ...baseCases.codePanel, doubtPointing: true, codeFrameCells: [] })));
+    assert(got.system === expected.codePanel!.system, "a code board with no listed cells keeps today's prompt");
+  }
+}
+
+// 10. DIAGRAM_DOUBT_POINTING on, figure board: walk the parts, a kept ring on
+// the part the doubt turns on, ANNOTATE for a withheld measurement.
+{
+  const on = buildDoubtTeachingPrompt(input({ diagramPromptAddon: figureAddon, doubtPointing: true }));
+  const off = buildDoubtTeachingPrompt(input({ diagramPromptAddon: figureAddon }));
+  const block = doubtBlockOf(on, "figure, flag on");
+  assert(block.includes("Walk through the parts the doubt turns on, one part per step, in the order they matter"), "flag on: the doubt walks the named parts one per step");
+  assert(block.includes("[FOCUS:entity_id|keep]") && block.includes("a ring that stays while this page is up"), "flag on: a kept ring is offered");
+  assert(block.includes("once or twice"), "flag on: the kept ring is rationed");
+  assert(block.includes("[ANNOTATE:entity_id]") && !block.includes("Never use [ANNOTATE] in this turn"), "flag on: ANNOTATE is allowed for a withheld measurement");
+  assert(!block.includes("Point only at the parts the doubt is about"), "flag on: the old figure line is replaced, not doubled");
+  assert(/To reveal a withheld measurement/.test(on.runtimeAddon), "flag on: the figure addon keeps its ANNOTATE sentence");
+  assert(!/To reveal a withheld measurement/.test(off.runtimeAddon), "flag off: the figure addon still drops it");
+  assert(!/[—–]/.test(block), "the flag on doubt block carries no dash punctuation");
+}
+
+// 11. DIAGRAM_DOUBT_POINTING on, code board with a frame on it: cells only,
+// spotlight only, never a frame id, never keep, never ANNOTATE.
+{
+  const cells = [{ id: "cell_0", labels: ["3"] }, { id: "cell_1", labels: ["5", "i"] }, { id: "ptr_lo", labels: [] }];
+  for (const [label, overrides] of [
+    ["panel", { codePanelShowing: true, codeLessonBoard: true, codePanelText: CODE, diagramPromptAddon: codeLessonAddon }],
+    ["hidden", { codeLessonBoard: true, codePanelShowing: false, codeFigureVisible: true }],
+  ] as const) {
+    const prompt = buildDoubtTeachingPrompt(input({ ...overrides, doubtPointing: true, codeFrameCells: cells }));
+    const block = doubtBlockOf(prompt, `code ${label}, flag on`);
+    assert(block.includes("[FOCUS:cell_id|spotlight]"), `code ${label}: cells may be lit`);
+    assert(block.includes("Cells of the worked example on the board now (id: label):\ncell_0: 3\ncell_1: 5, i\nptr_lo"), `code ${label}: the frame's cells are listed by id and label`);
+    assert(block.includes("Never name a frame") && block.includes("never use |keep or [ANNOTATE]"), `code ${label}: no frame ids, no keep, no ANNOTATE`);
+    assert(!block.includes("[FOCUS:entity_id|keep]"), `code ${label}: a code board is never offered a kept ring`);
+    assert(!block.includes("never [FOCUS] in this turn") && !block.includes("Do not point at it with [FOCUS]"), `code ${label}: the old no-FOCUS rule is replaced`);
+    assert(!/[—–]/.test(block), `code ${label}: no dash punctuation`);
+  }
 }
 
 console.log("doubt prompt verification passed");

@@ -278,6 +278,22 @@ export interface DoubtTeachingPromptInput {
   alwaysStateLawFirst?: boolean;
   /** "hinglish" when the Sarvam voice speaks: the narration changes, the board does not. */
   narrationLanguage?: NarrationLanguage;
+  /**
+   * `DIAGRAM_DOUBT_POINTING` granted for this turn. Off (or absent), the
+   * prompt is exactly what it was before the flag existed.
+   */
+  doubtPointing?: boolean;
+  /**
+   * Code lesson board only: the cells of the frame on the board now, ids and
+   * labels taken from its verified anchors. Never a frame id.
+   */
+  codeFrameCells?: readonly DoubtCodeFrameCell[];
+}
+
+/** A cell of the worked-example frame on the board, as the doubt prompt lists it. */
+export interface DoubtCodeFrameCell {
+  id: string;
+  labels: readonly string[];
 }
 
 /**
@@ -339,11 +355,11 @@ const FIGURE_LESSON_FLOW_LINES: readonly RegExp[] = [
 const ANNOTATE_SENTENCE = /\s*To reveal a withheld measurement.*$/;
 
 /** The figure's parts and pointing forms, without the lesson that revealed it. */
-export function figureAddonForDoubt(addon: string): string {
+export function figureAddonForDoubt(addon: string, options: { keepAnnotate?: boolean } = {}): string {
   const kept = addon
     .split("\n")
     .filter((line) => !FIGURE_LESSON_FLOW_LINES.some((pattern) => pattern.test(line.trim())))
-    .map((line) => line.replace(ANNOTATE_SENTENCE, ""))
+    .map((line) => (options.keepAnnotate ? line : line.replace(ANNOTATE_SENTENCE, "")))
     .filter((line) => line.trim().length > 0);
   return ["The figure on the right is already drawn on this page. For pointing at it:", ...kept].join("\n");
 }
@@ -356,6 +372,17 @@ function doubtBoardBlock(rows: readonly DoubtBoardRow[]): string {
     .slice(-MAX_DOUBT_BOARD_ROWS)
     .map((row) => `${row.workId ? `${row.workId}: ` : ""}${row.text.slice(0, MAX_DOUBT_ROW_CHARS)}`);
   return `Written down the left of the board now, top to bottom:\n${lines.join("\n")}`;
+}
+
+const MAX_DOUBT_FRAME_CELLS = 40;
+
+/** The frame's cells, ids and labels only, for `[FOCUS:cell_id|spotlight]`. */
+function doubtFrameCellsBlock(cells: readonly DoubtCodeFrameCell[]): string {
+  const lines = cells.slice(0, MAX_DOUBT_FRAME_CELLS).map((cell) => {
+    const labels = cell.labels.map((label) => label.trim()).filter(Boolean).slice(0, 3);
+    return labels.length > 0 ? `${cell.id}: ${labels.join(", ")}` : cell.id;
+  });
+  return `Cells of the worked example on the board now (id: label):\n${lines.join("\n")}`;
 }
 
 function doubtCodeBlock(codePanelText: string | null | undefined): string {
@@ -426,6 +453,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard);
   const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeBoard && input.codeFigureVisible);
   const figureOnBoard = !codeBoard && hasFigure;
+  // DIAGRAM_DOUBT_POINTING: walk the figure's parts, keep a ring, letter a
+  // withheld measurement; on a code board, light the cells of the frame shown.
+  const pointAtFigure = input.doubtPointing === true && figureOnBoard;
+  const frameCells = input.doubtPointing === true && codeBoard && hasFigure ? (input.codeFrameCells ?? []) : [];
+  const pointAtCells = frameCells.length > 0;
   // A code lesson's turn plan is a fallback that carries only the question,
   // and printing it invites the tutor to talk about givens.
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
@@ -438,6 +470,12 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     "Use the problem's own numbers, or new numbers said with \"for example\" and never written as givens.";
   const noAnnotate =
     "- Never use [ANNOTATE] in this turn: the labels it reveals belong to the part of the lesson still ahead.";
+  const annotateWithheld =
+    "- When the doubt needs a measurement the figure still withholds, letter it with [ANNOTATE:entity_id] on that part, using only an id listed above. Never use [ANNOTATE] for anything else in this turn.";
+  const keepRing =
+    "- On the one part the whole doubt turns on, you may write [FOCUS:entity_id|keep] once or twice: a ring that stays while this page is up. Use it only on a figure part listed above, never on a board row.";
+  const cellSpotlight =
+    "You may light the cells of the worked example the doubt is about with [FOCUS:cell_id|spotlight], using only the ids in the list of cells. Never name a frame, and never use |keep or [ANNOTATE].";
   const emptyMark =
     "- If the mark landed on an empty area and nothing was typed, ask one short question about what they meant, write nothing, and stop. That question is the one exception to the last rule.";
   const closing =
@@ -450,7 +488,9 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
           ? "- In your first step say which line of the code or which part of the worked example you mean, quoting the line as it reads on the panel above."
           : "- In your first step identify the visible code line the doubt concerns, quoting it as it reads on the panel above.",
         `- Explain it a different way from the first time: a smaller step, the reason behind the line, or the example traced by hand with its values said out loud. ${example} When the student asks you to go through the whole thing again, go through all of it, one line per step.`,
-        `${hasFigure ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are." : "- The code editor stays as it is; there is no worked-example figure beside it."} Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.`,
+        pointAtCells
+          ? `- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE] and never [TYPE] in this turn: teach it in speech, one idea per step. ${cellSpotlight} On this board a step with no tag is correct.`
+          : `${hasFigure ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are." : "- The code editor stays as it is; there is no worked-example figure beside it."} Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.`,
         noAnnotate,
         emptyMark,
         closing,
@@ -465,15 +505,19 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
         "- Never [WRITE] a row that is still on this page. To use one again, say so and box it with [EMPHASIZE:row_id|exact row text]. For a line you just wrote in this doubt, use [EMPHASIZE:last|exact row text]. The runtime checks the text against visible ink before boxing.",
         "- When the student asks you to go through the whole thing again, walk the rows top to bottom, one step each with [EMPHASIZE:row_id|exact row text] on that row (boxing every row is right here), and write only the lines that are missing. When they ask you to start over, write it again under the last row, and let the board turn when the column runs out.",
         `- ${doubtSpaceRule(input, figureOnBoard)}`,
-        noAnnotate,
+        ...(pointAtFigure ? [keepRing, annotateWithheld] : [noAnnotate]),
         emptyMark,
         closing,
       ];
 
   const figureLine = panelShowing
     ? ""
+    : pointAtFigure
+      ? "The figure on the right is drawn and stays. Its parts are listed above. Walk through the parts the doubt turns on, one part per step, in the order they matter, and point at each with [FOCUS:entity_id] as you name it. Do not read the whole figure to the student again."
     : figureOnBoard
       ? "The figure on the right is drawn and stays. Its parts are listed above. Point only at the parts the doubt is about, and do not read the whole figure to the student again."
+      : pointAtCells
+        ? `The worked example on the right stays as it is. ${cellSpotlight}`
       : codeBoard && hasFigure
         ? "The worked example on the right stays as it is. Do not point at it with [FOCUS] in this turn; say in words which part you mean."
         : "No figure is on this board. Do not use [FOCUS] or [ANNOTATE].";
@@ -485,6 +529,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
       : "The student asked a doubt about what is on the board. The board is exactly as they left it, and everything on it stays where it is.",
     panelShowing ? doubtCodeBlock(input.codePanelText) : doubtBoardBlock(input.boardRows),
     figureLine,
+    pointAtCells ? doubtFrameCellsBlock(frameCells) : "",
     "This turn is a doubt, not a new lesson. It replaces every rule above about opening the lesson, the \"Given\" rows, the order and the number of work rows, the lesson length, the rule that every step writes a board line (a step that only points is correct here), reading a relation or the figure before using it (a relation already on this page is pointed at, not rewritten), and closing with a check. Those rules describe a fresh page; this page is already written.",
     ...rules,
   ]
@@ -492,7 +537,9 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     .join("\n");
 
   const runtimeAddon = [
-    figureOnBoard && input.diagramPromptAddon ? figureAddonForDoubt(input.diagramPromptAddon) : "",
+    figureOnBoard && input.diagramPromptAddon
+      ? figureAddonForDoubt(input.diagramPromptAddon, { keepAnnotate: pointAtFigure })
+      : "",
     turnPlanPromptAddon,
     solverPromptAddon,
     !codeBoard && isChemistryQuestion(lessonQuestion) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
