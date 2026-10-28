@@ -11,6 +11,10 @@
 import {
   REFERENCE_PICTURE_ZONE,
   getSegmentCommands,
+  referencePictureLayout,
+  referencePictureLegendEntryRect,
+  referencePicturePartBoardRect,
+  resolveVerifiedDiagramFocusTargets,
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
   parsePictureCommandParams,
@@ -24,8 +28,12 @@ import {
 } from "@heytutor/drawing";
 import {
   buildReferencePicturePresentation,
+  isDistinctivePictureLabel,
+  pointsAtReferencePicture,
   readStoredReferencePicture,
+  referencePictureDiagram,
   referencePictureIntroLines,
+  referencePicturePointables,
   shownSubject,
 } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
 import {
@@ -33,6 +41,7 @@ import {
   restoreReferencePictureFromTurn,
 } from "../../features/tutor-session/lib/scene/restoreReferencePicture";
 import {
+  parseReferencePictureRecord,
   referencePictureResultFromResponse,
   requestReferencePicture,
 } from "../../features/tutor-session/lib/scene/referencePictureClient";
@@ -44,7 +53,7 @@ import {
   canonicalizeTurnSceneMetadata,
   type SubmittedTurnSegment,
 } from "../../lib/scene/turnScenePersistence";
-import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
+import { recordForPartFocus, sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 import type { RecordedSegmentPayload, StoredTurn } from "../../lib/boards/boardsClient";
 
 let failures = 0;
@@ -397,12 +406,225 @@ async function main(): Promise<void> {
   await preloadReferencePictureWithin(RECORD.id, 100, RECORD, async (_id, record) => { passedRecord = record; });
   check(passedRecord === RECORD, "preload: the live record is handed to the board");
 
+  await partFocusChecks();
+
   finished = true;
   if (failures > 0) {
     console.error(`verify-reference-picture-turn: ${failures} of ${checks} checks failed`);
     process.exit(1);
   }
   console.log(`verify-reference-picture-turn: ${checks} checks passed`);
+}
+
+// ---------------------------------------------------------------------------
+// Part focus (REFERENCE_PICTURE_PART_FOCUS): the pen points at located parts
+// and key rows; off, everything above is byte for byte what it was.
+// ---------------------------------------------------------------------------
+const PART_RECORD: ReferencePictureRecord = {
+  ...RECORD,
+  id: "rp_00112233445566778899aabb",
+  title: "File:Von Neumann architecture.svg",
+  shows: "A labelled diagram of a simple CPU with its registers.",
+  labels: ["Accumulator", "R1", "Input", "A", "Program counter"],
+  parts: [
+    { id: "reference_picture.part.1", label: "Accumulator", box: { x: 100, y: 100, width: 120, height: 22 }, source: "svg" },
+    { id: "reference_picture.part.2", label: "r 1", box: { x: 300, y: 200, width: 28, height: 20 }, source: "svg" },
+    { id: "reference_picture.part.3", label: "Input", box: { x: 500, y: 300, width: 60, height: 20 }, source: "svg" },
+    { id: "reference_picture.part.4", label: "A", box: { x: 600, y: 400, width: 14, height: 20 }, source: "ocr" },
+    // Not a judged label, and a box off the picture: both dropped alone.
+    { id: "reference_picture.part.5", label: "Cache", box: { x: 10, y: 10, width: 40, height: 20 }, source: "svg" },
+    { id: "reference_picture.part.6", label: "Program counter", box: { x: 990, y: 10, width: 40, height: 20 }, source: "svg" },
+  ],
+};
+const KEYED_RECORD: ReferencePictureRecord = {
+  ...RECORD,
+  id: "rp_aabbccddeeff00112233aabb",
+  title: "File:Kidney nephron numbered.svg",
+  shows: "A numbered diagram of a nephron.",
+  labels: ["Glomerulus", "Proximal tubule", "Loop of Henle", "Cortex"],
+  legend: [{ mark: "1", label: "Glomerulus" }, { mark: "2", label: "Proximal tubule" }, { mark: "3", label: "Loop of Henle" }],
+  parts: [
+    { id: "reference_picture.part.1", label: "Glomerulus", mark: "1", box: { x: 200, y: 120, width: 12, height: 18 }, source: "svg" },
+    { id: "reference_picture.part.2", label: "Loop of Henle", mark: "3", box: { x: 420, y: 500, width: 12, height: 18 }, source: "svg" },
+    { id: "reference_picture.part.3", label: "Cortex", box: { x: 700, y: 60, width: 70, height: 20 }, source: "svg" },
+  ],
+};
+const withoutParts = (record: ReferencePictureRecord): ReferencePictureRecord => {
+  const copy = { ...record };
+  delete copy.parts;
+  return copy;
+};
+const focusCommand = (target: string): DrawCommand => ({ type: "FOCUS", params: [], text: target, charPosition: 0, narrationBefore: "" });
+const anchorIds = (diagram: { anchors: { id: string }[] } | null | undefined) => (diagram?.anchors ?? []).map((anchor) => anchor.id);
+const inferred = (narration: string, diagram: Parameters<typeof prepareVerifiedLessonSegments>[1]) =>
+  prepareVerifiedLessonSegments([{ narration, command: null }], diagram).segments
+    .flatMap(getSegmentCommands).filter((command) => command.type === "FOCUS").map((command) => command.semanticRef?.entityId ?? command.text);
+
+async function partFocusChecks(): Promise<void> {
+  // Flag off: a record with parts gives today's diagram, prompt and artifact.
+  const today = buildReferencePicturePresentation(withoutParts(PART_RECORD));
+  const off = buildReferencePicturePresentation(PART_RECORD);
+  check(JSON.stringify(off.diagram) === JSON.stringify(today.diagram), "part focus off: the diagram is today's, parts ignored");
+  check(JSON.stringify(off.stored) === JSON.stringify(today.stored) && !("partFocus" in off.stored), "part focus off: the stored artifact is today's");
+  check(off.promptAddon === today.promptAddon && off.promptAddon.includes("no part of the picture can be focused on its own"), "part focus off: the prompt is today's");
+  const keyedOff = buildReferencePicturePresentation(KEYED_RECORD);
+  check(JSON.stringify(anchorIds(keyedOff.diagram)) === JSON.stringify(["reference_picture"]) && !keyedOff.diagram.groups, "part focus off: a numbered picture has no key targets");
+  // Flag on with nothing to point at: unchanged too.
+  const plainOn = buildReferencePicturePresentation(RECORD, { partFocus: true });
+  check(JSON.stringify(plainOn.diagram) === JSON.stringify(presentation.diagram) && JSON.stringify(plainOn.stored) === JSON.stringify(presentation.stored), "part focus on, no parts and no key: unchanged");
+
+  // Flag on, printed labels.
+  const on = buildReferencePicturePresentation(PART_RECORD, { partFocus: true });
+  const onDiagram = on.diagram;
+  check(JSON.stringify(anchorIds(onDiagram)) === JSON.stringify(["reference_picture", "reference_picture.part.1", "reference_picture.part.2", "reference_picture.part.3", "reference_picture.part.4"]), `part focus: one anchor per checked part, whole picture first (${anchorIds(onDiagram).join(", ")})`);
+  const placement = parsePictureCommandParams(getSegmentCommands(on.introSegments[0]!)[0]!.params)!.placement;
+  const r1 = onDiagram.anchors.find((anchor) => anchor.id === "reference_picture.part.2");
+  const r1Rect = referencePicturePartBoardRect(PART_RECORD.parts![1]!, placement, PART_RECORD.plan);
+  check(r1 && r1.x === r1Rect.x && r1.y === r1Rect.y && r1.width === r1Rect.width && r1.height === r1Rect.height, "part focus: a part's anchor is its printed box on the board");
+  check(r1 && r1.x > placement.x && r1.width < 40, "part focus: the anchor is the label, not the card");
+  const labelsOf = (id: string) => JSON.stringify(onDiagram.anchors.find((anchor) => anchor.id === id)?.labels);
+  check(labelsOf("reference_picture.part.1") === '["Accumulator"]' && labelsOf("reference_picture.part.2") === '["R1"]', "part focus: distinctive labels name their anchors (judged spelling)");
+  check(labelsOf("reference_picture.part.3") === "[]" && labelsOf("reference_picture.part.4") === "[]", "part focus: a common word and a single letter name nothing");
+  check(on.promptAddon.includes('"R1" = [FOCUS:reference_picture.part.2]') && on.promptAddon.includes('"Input" = [FOCUS:reference_picture.part.3]'), "part focus: the prompt lists each pointable part with its tag");
+  check(!on.promptAddon.includes("no part of the picture can be focused") && !on.promptAddon.includes("Cache") && !on.promptAddon.includes("part.5"), "part focus: the no part sentence goes, dropped parts are not offered");
+  check(on.promptAddon.includes("[FOCUS:reference_picture] may point at the whole picture"), "part focus: the whole picture stays a target");
+  check(on.stored.partFocus?.parts.length === 4 && on.stored.partFocus.plan.width === PART_RECORD.plan.width, "part focus: the artifact carries the checked parts and the plan size");
+  check(isDistinctivePictureLabel("Loop of Henle") && !isDistinctivePictureLabel("12") && !isDistinctivePictureLabel("Top view") && !isDistinctivePictureLabel("x"), "distinctive: names yes, numbers, common words and letters no");
+
+  // Live filter and spoken inference.
+  const live = prepareVerifiedLessonSegments([
+    { narration: "Notice R1.", command: focusCommand("reference_picture.part.2"), commands: [focusCommand("reference_picture.part.2")] },
+    { narration: "And this.", command: focusCommand("reference_picture.part.9"), commands: [focusCommand("reference_picture.part.9")] },
+  ], onDiagram);
+  check(live.blockedCommandCount === 1 && getSegmentCommands(live.segments[0]!).some((command) => command.text === "reference_picture.part.2"), "live: a listed part passes, an unknown part is blocked");
+  check(live.segments.some((segment) => segment.narration === "And this."), "live: the blocked part's words are kept");
+  check(prepareVerifiedLessonSegments([{ narration: "Here.", command: focusCommand("reference_picture.part.2"), commands: [focusCommand("reference_picture.part.2")] }], off.diagram).blockedCommandCount === 1, "live, part focus off: a part FOCUS is blocked as before");
+  check(JSON.stringify(inferred("Now look at the Accumulator, it keeps the running sum.", onDiagram)) === '["reference_picture.part.1"]', "inference: a distinctive name spoken infers its part");
+  check(JSON.stringify(inferred("R1 is a general purpose register.", onDiagram)) === '["reference_picture.part.2"]', "inference: a short name in its printed case infers its part");
+  check(inferred("The input is read first, and this is A for short.", onDiagram).length === 0, "inference: common words and single letters infer nothing");
+  check(inferred("The reference picture shows the diagram of a CPU.", onDiagram).length === 0, "inference: the whole picture is never inferred");
+
+  // Numbered picture: key targets, mark first then row.
+  const keyed = buildReferencePicturePresentation(KEYED_RECORD, { partFocus: true });
+  const keyedDiagram = keyed.diagram;
+  const layout = referencePictureLayout(KEYED_RECORD)!;
+  const groupOf = (id: string) => JSON.stringify(keyedDiagram.groups?.find((group) => group.id === id)?.entityIds);
+  check(groupOf("reference_picture.key.1") === '["reference_picture.key.1.mark","reference_picture.key.1.row"]', "key: a located mark, then its row");
+  check(groupOf("reference_picture.key.2") === '["reference_picture.key.2.row"]', "key: no mark located, the row alone stays pointable");
+  check(groupOf("reference_picture.key.3") === '["reference_picture.key.3.mark","reference_picture.key.3.row"]', "key: entry 3");
+  const row3 = keyedDiagram.anchors.find((anchor) => anchor.id === "reference_picture.key.3.row");
+  const row3Rect = referencePictureLegendEntryRect(layout.legend!, 2)!;
+  check(row3 && JSON.stringify({ x: row3.x, y: row3.y, width: row3.width, height: row3.height }) === JSON.stringify(row3Rect), "key: the row anchor is the key entry's box");
+  check(row3 && row3.x > layout.picture.x + layout.picture.width, "key: the row sits beside the picture, not on it");
+  const mark3 = keyedDiagram.anchors.find((anchor) => anchor.id === "reference_picture.key.3.mark");
+  const mark3Rect = referencePicturePartBoardRect(KEYED_RECORD.parts![1]!, layout.picture, KEYED_RECORD.plan);
+  check(mark3 && mark3.x === mark3Rect.x && mark3.y === mark3Rect.y, "key: the mark anchor is the located mark");
+  const resolved = resolveVerifiedDiagramFocusTargets(focusCommand("reference_picture.key.3"), keyedDiagram).map((anchor) => anchor.id);
+  check(JSON.stringify(resolved) === '["reference_picture.key.3.mark","reference_picture.key.3.row"]', "key: the group resolves mark first, then the row");
+  check(keyedDiagram.anchors.every((anchor) => anchor.labels.length === 0 || anchor.id === "reference_picture.part.3"), "key: key targets carry no spoken labels");
+  check(anchorIds(keyedDiagram).includes("reference_picture.part.3"), "key: a printed name on a numbered picture is its own part");
+  check(keyed.promptAddon.includes("part 3, the loop of Henle = [FOCUS:reference_picture.key.3]") && keyed.promptAddon.includes("part 2, the proximal tubule = [FOCUS:reference_picture.key.2]"), "key: the prompt lists every key entry with its tag");
+  check(!anchorIds(keyedDiagram).some((id) => /^reference_picture\.part\.[12]$/.test(id)), "key: a mark is not offered twice as a part");
+  const unlocated = buildReferencePicturePresentation(withoutParts(KEYED_RECORD), { partFocus: true });
+  check(unlocated.diagram.groups?.length === 3 && unlocated.stored.partFocus?.parts.length === 0, "key: with nothing located every key row is still pointable");
+
+  // A placement the record's layout does not give: no part targets at all.
+  const shifted = getSegmentCommands(on.introSegments[0]!).map((command) => ({ type: command.type, params: [command.params[0]! + 30, ...command.params.slice(1)], text: command.text }));
+  check(JSON.stringify(anchorIds(referencePictureDiagram(on.stored, shifted))) === '["reference_picture"]', "placement disagreeing with the record: whole picture only");
+
+  // Filters for saves that see only the artifact.
+  const pointables = referencePicturePointables(on.stored);
+  check(pointsAtReferencePicture(focusCommand("reference_picture.part.2|pulse"), pointables), "filter: a listed part is kept");
+  check(pointsAtReferencePicture(focusCommand("reference_picture,reference_picture.part.1"), pointables), "filter: the whole picture with a part is kept");
+  check(!pointsAtReferencePicture(focusCommand("reference_picture.part.2,nucleus"), pointables), "filter: one unknown target drops the FOCUS");
+  check(!pointsAtReferencePicture(focusCommand("reference_picture.part.9"), pointables), "filter: an unknown part is dropped");
+  check(!pointsAtReferencePicture(focusCommand("reference_picture.part.2"), null) && !pointsAtReferencePicture(focusCommand("reference_picture.part.2"), referencePicturePointables(off.stored)), "filter: no part focus, only the whole picture");
+  check(pointsAtReferencePicture(focusCommand("reference_picture.key.2"), referencePicturePointables(keyed.stored)), "filter: a key target is kept");
+  check(!pointsAtReferencePicture(focusCommand("P"), { anchors: [...pointables.anchors, { id: "P", labels: ["P"], x: 0, y: 0, width: 10, height: 10 }] }), "filter: an anchor that is not the picture's is never kept");
+  check(!("parts" in recordForPartFocus(PART_RECORD, false)) && recordForPartFocus(PART_RECORD, true).parts?.length === PART_RECORD.parts!.length, "loader: parts stripped when part focus is off, kept when on");
+
+  // The artifact reader.
+  const back = readStoredReferencePicture({ referencePicture: JSON.parse(JSON.stringify(on.stored)) });
+  check(back && JSON.stringify(back) === JSON.stringify(on.stored), "artifact: part focus round trips");
+  const badPlan = readStoredReferencePicture({ referencePicture: { ...on.stored, partFocus: { plan: { width: 0, height: 10 }, parts: on.stored.partFocus!.parts } } });
+  check(badPlan?.id === PART_RECORD.id && !badPlan.partFocus, "artifact: broken part focus loses its pointing, keeps the picture");
+  const forgedPart = readStoredReferencePicture({ referencePicture: { ...on.stored, partFocus: { ...on.stored.partFocus!, parts: [...on.stored.partFocus!.parts, { id: "reference_picture.part.7", label: "Cache", box: { x: 1, y: 1, width: 20, height: 10 }, source: "svg" }] } } });
+  check(forgedPart?.partFocus?.parts.length === 4, "artifact: a part the record does not name is dropped");
+
+  // The request client keeps checked parts only.
+  const parsed = parseReferencePictureRecord(JSON.parse(JSON.stringify(PART_RECORD)));
+  check(parsed?.parts?.length === 4 && parsed.parts[1]!.label === "R1", "client: parts parsed and checked against the labels");
+  check(parseReferencePictureRecord(JSON.parse(JSON.stringify(RECORD))) && !("parts" in parseReferencePictureRecord(JSON.parse(JSON.stringify(RECORD)))!), "client: no parts, no field");
+
+  // Persistence: the server checks targets against its own record and flag.
+  const partRows = (): SubmittedTurnSegment[] => {
+    const intro = on.introSegments.flatMap(getSegmentCommands);
+    return [
+      { orderIndex: 0, narration: on.introSegments[0]!.narration, spokenText: on.introSegments[0]!.narration, command: trusted([intro[0]!]) },
+      { orderIndex: 1, narration: on.introSegments[1]!.narration, spokenText: on.introSegments[1]!.narration, command: trusted([intro[1]!]) },
+      { orderIndex: 2, narration: "Notice R1, a register.", spokenText: "Notice R1, a register.", command: serializeSegmentCommands([write, focus("reference_picture.part.2")]) },
+      { orderIndex: 3, narration: "And the cache.", spokenText: "And the cache.", command: serializeSegmentCommands([focus("reference_picture.part.5")]) },
+    ];
+  };
+  const partArtifacts = (stored: unknown) => ({ ...artifacts(), referencePicture: stored });
+  const partLoader = async (id: string) => (id === PART_RECORD.id ? PART_RECORD : null);
+  const savedFocus = (segments: readonly SubmittedTurnSegment[], narration: string) =>
+    parseStoredSegmentCommands(segments.find((segment) => segment.narration.startsWith(narration))?.command).filter((command) => command.type === "FOCUS").map((command) => command.text);
+
+  process.env.REFERENCE_PICTURE_PART_FOCUS = "on";
+  const savedOn = await canonicalizeTurnSceneMetadata(
+    { question: QUESTION, visualStatus: "text_only", sceneArtifacts: partArtifacts(on.stored), segments: partRows() },
+    { loadReferencePicture: partLoader },
+  );
+  delete process.env.REFERENCE_PICTURE_PART_FOCUS;
+  check(savedOn.ok, `save, part focus on: succeeds (${savedOn.ok ? "" : savedOn.error})`);
+  if (savedOn.ok) {
+    check(JSON.stringify(savedFocus(savedOn.value.segments, "Notice R1")) === '["reference_picture.part.2"]', "save, part focus on: FOCUS on a listed part kept");
+    check(savedFocus(savedOn.value.segments, "And the cache").length === 0 && savedOn.value.segments.some((segment) => segment.narration === "And the cache."), "save, part focus on: unknown part dropped, words kept");
+    check(JSON.stringify(savedOn.value.sceneArtifacts?.referencePicture) === JSON.stringify(on.stored), "save, part focus on: the artifact is the server's, with its parts");
+    // Restore and replay point exactly where the live turn pointed.
+    const turn = { sceneDocument: null, sceneArtifacts: savedOn.value.sceneArtifacts, segments: savedOn.value.segments, question: QUESTION } as unknown as StoredTurn;
+    const restored = restoreReferencePictureFromTurn(turn);
+    check(restored && JSON.stringify(restored.anchors) === JSON.stringify(onDiagram.anchors) && JSON.stringify(restored.groups) === JSON.stringify(onDiagram.groups), "restore: the same part anchors as the live turn");
+    check(restored?.promptAddon === on.promptAddon, "restore: the same prompt as the live turn");
+    const replayed = prepareVerifiedLessonSegments(savedOn.value.segments.filter((segment) => segment.orderIndex >= 2).map((segment) => {
+      const commands = parseStoredSegmentCommands(segment.command) as DrawCommand[];
+      return { narration: segment.narration, command: commands[0] ?? null, commands };
+    }), restored);
+    check(replayed.blockedCommandCount === 0 && replayed.segments.flatMap(getSegmentCommands).some((command) => command.text === "reference_picture.part.2"), "replay: the saved part FOCUS resolves on the restored picture");
+  }
+  // A forged artifact cannot add a part: the server rebuilds it from the record.
+  const forgedStored = { ...on.stored, partFocus: { ...on.stored.partFocus!, parts: [...on.stored.partFocus!.parts, { id: "reference_picture.part.5", label: "Cache", box: { x: 10, y: 10, width: 40, height: 20 }, source: "svg" }] } };
+  process.env.REFERENCE_PICTURE_PART_FOCUS = "on";
+  const savedForged = await canonicalizeTurnSceneMetadata(
+    { question: QUESTION, visualStatus: "text_only", sceneArtifacts: partArtifacts(forgedStored), segments: partRows() },
+    { loadReferencePicture: partLoader },
+  );
+  delete process.env.REFERENCE_PICTURE_PART_FOCUS;
+  check(savedForged.ok && savedFocus(savedForged.value.segments, "And the cache").length === 0 &&
+    savedForged.value.sceneArtifacts?.referencePicture?.partFocus?.parts.length === 4, "save: a part the browser added is not kept");
+
+  // Flag off on the server: the same submission saves as today.
+  const savedOff = await canonicalizeTurnSceneMetadata(
+    { question: QUESTION, visualStatus: "text_only", sceneArtifacts: partArtifacts(on.stored), segments: partRows() },
+    { loadReferencePicture: partLoader },
+  );
+  check(savedOff.ok, "save, part focus off: succeeds");
+  if (savedOff.ok) {
+    check(savedFocus(savedOff.value.segments, "Notice R1").length === 0 && savedOff.value.segments.some((segment) => segment.narration === "Notice R1, a register."), "save, part focus off: part FOCUS dropped, words kept");
+    check(JSON.stringify(savedOff.value.sceneArtifacts?.referencePicture) === JSON.stringify(off.stored), "save, part focus off: the artifact is today's");
+  }
+
+  // The client's partial save keeps only targets of the picture it showed.
+  const recordedParts = partRows().map((row) => ({ ...row, audioBytes: null, durationMs: 1000 }) as unknown as RecordedSegmentPayload);
+  const sceneWith = (stored: unknown) => ({ sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only" as const, sceneArtifacts: partArtifacts(stored) });
+  const partialOn = partialTurnSegments(recordedParts, sceneWith(on.stored));
+  const partialFocus = (rows: RecordedSegmentPayload[], narration: string) =>
+    parseStoredSegmentCommands(rows.find((row) => row.narration.startsWith(narration))?.command).filter((command) => command.type === "FOCUS").map((command) => command.text);
+  check(JSON.stringify(partialFocus(partialOn, "Notice R1")) === '["reference_picture.part.2"]', "partial: FOCUS on a listed part kept");
+  check(partialFocus(partialOn, "And the cache").length === 0, "partial: unknown part dropped");
+  const partialOff = partialTurnSegments(recordedParts, sceneWith(off.stored));
+  check(partialFocus(partialOff, "Notice R1").length === 0, "partial, part focus off: part FOCUS dropped as before");
 }
 
 // A promise left pending with nothing on the loop exits 0 without a word.

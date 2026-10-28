@@ -5,7 +5,9 @@
  *
  * The picture's placement is read from the turn's own trusted `DRAW_PICTURE`
  * rows, which the server rebuilt from its stored record before saving; the
- * labels and description come from the artifact the server wrote beside them.
+ * labels and description come from the artifact the server wrote beside them,
+ * and so do the located parts and key of a turn saved with part focus on, so
+ * replay, seek and export point at the same part targets the live turn had.
  * A turn with the artifact but no matching ink restores nothing. Call sites
  * try `restoreVerifiedDiagramFromTurn` first; a turn never carries both.
  */

@@ -2048,7 +2048,10 @@ export function useQuestionHandler(
           if (!loaded) failure = { status: "unavailable", reason: "preload_failed" };
           else {
             try {
-              picture = buildReferencePicturePresentation(answer.picture, { narrationLanguage: turnNarrationLanguage });
+              picture = buildReferencePicturePresentation(answer.picture, {
+                narrationLanguage: turnNarrationLanguage,
+                partFocus: billed.referencePicturePartFocus === true,
+              });
             } catch {
               failure = { status: "unavailable", reason: "presentation_failed" };
             }

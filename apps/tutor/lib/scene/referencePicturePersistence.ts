@@ -39,11 +39,26 @@ export type ReferencePictureLoader = (id: string) => Promise<ReferencePictureRec
 export const loadStoredReferencePicture: ReferencePictureLoader = async (id) => {
   // With the tier off no record resolves, so a client cannot save picture ink
   // the server would not have drawn: the rows keep their words, lose the ink.
-  const { resolveReferencePictureEnabled } = await import("@/lib/scene/diagramStrategy.server");
+  const { resolveReferencePictureEnabled, resolveReferencePicturePartFocusEnabled } = await import("@/lib/scene/diagramStrategy.server");
   if (!resolveReferencePictureEnabled()) return null;
   const { loadReferencePictureRecord } = await import("@/lib/reference-picture/pictureStore");
-  return loadReferencePictureRecord(id);
+  const record = await loadReferencePictureRecord(id);
+  return record ? recordForPartFocus(record, resolveReferencePicturePartFocusEnabled()) : null;
 };
+
+/** Part focus off: the record without its parts, so a save sees it exactly as before parts existed. */
+export function recordForPartFocus(record: ReferencePictureRecord, partFocus: boolean): ReferencePictureRecord {
+  if (partFocus || record.parts === undefined) return record;
+  const withoutParts = { ...record };
+  delete withoutParts.parts;
+  return withoutParts;
+}
+
+/** Whether this server points at a picture's parts (`REFERENCE_PICTURE_PART_FOCUS`). */
+async function partFocusEnabled(): Promise<boolean> {
+  const { resolveReferencePicturePartFocusEnabled } = await import("@/lib/scene/diagramStrategy.server");
+  return resolveReferencePicturePartFocusEnabled();
+}
 
 /**
  * For the checkpoint route: a text only scene that claims a picture keeps its
@@ -54,7 +69,7 @@ export function sceneKeepsReferencePictureRows(sceneArtifacts: unknown): boolean
   return referencePictureIdOf(sceneArtifacts) !== null;
 }
 
-/** Pointing that names scene parts. A picture turn keeps only FOCUS on the picture. */
+/** Pointing that names scene parts. A picture turn keeps only FOCUS on the picture or, with part focus, on its parts. */
 const SCENE_POINTING = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
 
 interface PictureRow {
@@ -91,7 +106,7 @@ function words(row: PictureRow): boolean {
 export function canonicalReferencePictureRows<Row extends PictureRow>(
   segments: readonly Row[],
   record: ReferencePictureRecord | null,
-  options: { pictureTurn: boolean },
+  options: { pictureTurn: boolean; partFocus?: boolean },
 ): CanonicalReferencePictureRows<Row> {
   // The passes are rebuilt in the voice they were recorded in, so each keeps
   // the cue word its own sentence says (as the scene intro rebuild does).
@@ -99,7 +114,13 @@ export function canonicalReferencePictureRows<Row extends PictureRow>(
   let presentation: ReturnType<typeof buildReferencePicturePresentation> | null = null;
   if (record) {
     try {
-      presentation = buildReferencePicturePresentation(record, hinglish ? { narrationLanguage: "hinglish" } : {});
+      // Part and key targets come from this record and this server's flag,
+      // never from the browser's artifact: a FOCUS is kept only on a target
+      // the server itself would offer.
+      presentation = buildReferencePicturePresentation(record, {
+        ...(hinglish ? { narrationLanguage: "hinglish" as const } : {}),
+        partFocus: options.partFocus === true,
+      });
     } catch {
       presentation = null;
     }
@@ -147,7 +168,7 @@ export function canonicalReferencePictureRows<Row extends PictureRow>(
     }
     const commands = parseStoredSegmentCommands(row.command);
     const allowed = commands.filter((command) => command?.type !== "DRAW_PICTURE" && !(
-      options.pictureTurn && SCENE_POINTING.has(command.type) && !(presentation && pointsAtReferencePicture(command))
+      options.pictureTurn && SCENE_POINTING.has(command.type) && !(presentation && pointsAtReferencePicture(command, presentation.diagram))
     ));
     if (allowed.length === commands.length) {
       kept.push(row);
@@ -164,11 +185,15 @@ export function canonicalReferencePictureRows<Row extends PictureRow>(
   };
 }
 
-/** Load the record a turn claims (never throwing) and canonicalize its rows. */
+/**
+ * Load the record a turn claims (never throwing) and canonicalize its rows.
+ * `partFocus` defaults to this server's flag.
+ */
 export async function canonicalizeReferencePictureTurn<Row extends PictureRow>(
   segments: readonly Row[],
   sceneArtifacts: unknown,
   loader: ReferencePictureLoader = loadStoredReferencePicture,
+  partFocus?: boolean,
 ): Promise<CanonicalReferencePictureRows<Row> & { outcome: ReferencePictureOutcome | null }> {
   const id = referencePictureIdOf(sceneArtifacts);
   let record: ReferencePictureRecord | null = null;
@@ -180,7 +205,10 @@ export async function canonicalizeReferencePictureTurn<Row extends PictureRow>(
       record = null;
     }
   }
-  const rows = canonicalReferencePictureRows(segments, record, { pictureTurn: id !== null });
+  const rows = canonicalReferencePictureRows(segments, record, {
+    pictureTurn: id !== null,
+    partFocus: record ? partFocus ?? await partFocusEnabled() : false,
+  });
   // The browser's account of its own attempt, kept as telemetry only. Whether
   // a picture was saved is `referencePicture`, which only the server writes.
   // A resume inherits its lesson's outcome; count outcomes on lesson turns.

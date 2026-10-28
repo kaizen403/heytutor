@@ -27,6 +27,8 @@ export interface BeginTurnOk {
   diagramYieldPolicy?: DiagramYieldPolicy;
   /** Default off: draw a judged reference picture when no verified figure is drawn. */
   referencePicture?: boolean;
+  /** Default off: the pen may point at a reference picture's located parts and key rows. */
+  referencePicturePartFocus?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -229,6 +231,7 @@ async function beginTurnOnce(input: {
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
     referencePicture: payload.referencePicture === true,
+    referencePicturePartFocus: payload.referencePicturePartFocus === true,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

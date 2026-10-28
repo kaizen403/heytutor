@@ -35,7 +35,13 @@ import {
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
 import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
-import { isReferencePictureRow, pointsAtReferencePicture, referencePictureIdOf } from "../scene/referencePicturePresentation";
+import {
+  isReferencePictureRow,
+  pointsAtReferencePicture,
+  readStoredReferencePicture,
+  referencePictureIdOf,
+  referencePicturePointables,
+} from "../scene/referencePicturePresentation";
 import type { FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
@@ -624,8 +630,11 @@ export function partialTurnSegments(
 ): RecordedSegmentPayload[] {
   if (scene.visualStatus === "validated") return [...recorded];
   // A text only turn that drew a reference picture keeps the picture's two
-  // passes and the FOCUS on it: the server rebuilds both from its own record.
+  // passes and the FOCUS on it (or, with part focus, on its parts): the
+  // server rebuilds the passes and checks every target against its own record.
   const pictureId = referencePictureIdOf(scene.sceneArtifacts);
+  const storedPicture = pictureId ? readStoredReferencePicture(scene.sceneArtifacts) : null;
+  const pointables = storedPicture ? referencePicturePointables(storedPicture) : null;
   const kept: RecordedSegmentPayload[] = [];
   for (const segment of recorded) {
     if (pictureId && isReferencePictureRow(segment.command, pictureId)) {
@@ -636,7 +645,7 @@ export function partialTurnSegments(
     if (isStoredCommandTrustedGeometry(segment.command)) continue;
     const commands = parseStoredSegmentCommands(segment.command);
     const allowed = commands.filter((command) =>
-      !SCENE_POINTING.has(command.type) || (pictureId !== null && pointsAtReferencePicture(command)));
+      !SCENE_POINTING.has(command.type) || (pictureId !== null && pointsAtReferencePicture(command, pointables)));
     if (allowed.length === commands.length) {
       kept.push(segment);
       continue;
