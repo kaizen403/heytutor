@@ -46,6 +46,8 @@ import { DOUBT_FIGURE_REF_VERSION, doubtFigureRefArtifacts } from "../../lib/boa
 import { bindPageFigureLoader, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
+import { DOUBT_TITLE, doubtFigurePageFixture } from "./fixtures/doubtFigureScene";
+import { doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -633,6 +635,42 @@ async function main(): Promise<void> {
       /\? resumePageRecord\(\{/.test(handler) && handler.includes('kind: doubt ? "doubt" : resume ? "resume" : "lesson",'),
       "a resume runs on its own page record and saves as kind resume",
     );
+  }
+
+  // --- a doubt that drew its own figure is still on the lesson's page -------
+  // DIAGRAM_DOUBT_FIGURES: the doubt is saved as its own validated scene, yet
+  // it continues the page. Every surface keeps one page, one question and one
+  // notes page across it, and the figure step runs inside the continuation
+  // branch, never instead of it.
+  {
+    const fixture = await doubtFigurePageFixture();
+    const [, doubtFigureTurn] = fixture.turns;
+    assert(doubtFigureTurn!.visualStatus === "validated" && storedTurnContinuesBoard(doubtFigureTurn!),
+      "a doubt figure is a validated scene that continues the lesson's page");
+    assert(pageTurnsEndingAt(fixture.turns).length === 4 && latestLecturePage(fixture.turns).length === 4,
+      "the lesson, the doubt figure, the doubt after it and the resume are one page");
+    assert(storedTurnPageQuestion(doubtFigureTurn!) === fixture.lesson.question,
+      "the doubt figure's page belongs to the lesson's question");
+    const timeline = buildReplayTimeline(fixture.turns);
+    assert(!timeline.cues.some((cue) => cue.turnIndex > 0 && cue.commands.some((command) => command.type === "CLEAR")),
+      "nothing after the opener clears the page in replay");
+    const record = resumePageRecord({ boardId: "b1", lessonQuestion: fixture.lesson.question, figureDrawn: true,
+      turnPlan: null, solverProjection: null, scene: null });
+    record.turn = { ...record.turn, kind: "doubt", question: DOUBT_TITLE,
+      scene: doubtFigureTurnScene(doubtFigureTurn as unknown as PersistedTurnScene, fixture.lesson.question, null) };
+    const live = liveTurnScene({ page: record, kind: "doubt", preview: DOUBT_TITLE, opensPage: false, status: "complete", textOnly: false });
+    assert(live.visualStatus === "validated" && boardContinuationOf(live.sceneArtifacts)?.lessonQuestion === fixture.lesson.question,
+      "the live doubt figure save keeps the continuation marker beside its scene");
+
+    const sync = between("features/tutor-session/hooks/useReplay.ts", "const syncReplayTurn = useCallback(", "const runReplaySegmentDraw = useCallback(");
+    const guard = sync.indexOf("storedTurnContinuesBoard(turn)");
+    const step = sync.indexOf("syncStoredPageFigure(");
+    assert(guard >= 0 && step > guard && step < sync.indexOf("controller.commit(plan)"),
+      "replay runs the figure step inside the continuation branch, before any rebuild");
+    const restore = between("features/tutor-session/hooks/useBoardSession.ts", "const restoreBoardFromApi = useCallback(", "const restoreBoardFromApiRef = useRef(restoreBoardFromApi);");
+    const keep = restore.indexOf("if (!continuesPage) {");
+    assert(keep >= 0 && restore.indexOf("syncStoredPageFigure(", keep) > keep,
+      "restore runs the figure step for a continuing turn, after the page's own figure");
   }
 
   console.log("verify-board-continuation: ok");

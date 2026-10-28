@@ -8,6 +8,11 @@ import {
   drawReplayDiagramTimeline,
 } from "../../features/tutor-session/lib/replay/completeReplayDiagram";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { takeDeferredAnnotations } from "@heytutor/drawing";
+import { pageFigureAt } from "../../lib/boards/pageFigure";
+import { releasedEntityIds } from "../../features/tutor-session/lib/scene/figureSwap";
+import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { doubtFigurePageFixture } from "./fixtures/doubtFigureScene";
 
 // Live teaching flushes the verified marks narration never named once a turn
 // ends (useTurnControl). Replay and seek must leave the same board behind.
@@ -187,6 +192,47 @@ const nextTurn = cue("t1-a", 1, 200, "next turn");
     // here would push the next turn's ink behind its own voice.
     const flushed = executed.filter((entry) => entry.trusted);
     assert(flushed.length === 4 && flushed.every((entry) => entry.durationScale === 0), "forward playback must land withheld marks instantly on the audio clock");
+  }
+
+  // A doubt that drew its own figure (DIAGRAM_DOUBT_FIGURES) leaves the zone
+  // at the resume. Its scene is its own, not a rival copy of the lesson's, so
+  // the completed resume still runs the final flush on the returned figure.
+  {
+    const fixture = await doubtFigurePageFixture();
+    const [lessonTurn, , , resumeTurn] = fixture.turns as [StoredTurn, StoredTurn, StoredTurn, StoredTurn];
+    const resumeCue: ReplayCue = { ...last, turnIndex: 3 };
+    const returned = async () => {
+      const at = pageFigureAt(fixture.turns, 3);
+      assert(at.returnsLesson && at.sourceIndex === 0, "the fixture's resume returns the lesson's figure");
+      const presentation = restoreVerifiedPresentationFromTurn(lessonTurn)!;
+      const diagram = structuredClone(presentation.diagram);
+      takeDeferredAnnotations(diagram, { entityIds: releasedEntityIds(diagram, at.consumedIds) });
+      return diagram;
+    };
+    const { executed, executeCommand } = recorder();
+    await completeReplayDiagramTurn({
+      cue: resumeCue, turn: resumeTurn, diagram: await returned(), pageTurns: fixture.turns,
+      executeCommand, shouldCancel: () => false, durationScale: 0,
+    });
+    assert(executed.length === 1 && executed.every((entry) => entry.trusted && entry.durationScale === 0),
+      `the resume after a doubt figure must flush the lesson's last withheld mark, released ${executed.length}`);
+    // The plain page (no doubt figure) flushes exactly as before.
+    const plain = recorder();
+    await completeReplayDiagramTurn({
+      cue: { ...last, turnIndex: 2 }, turn: resumeTurn, diagram: await returned(),
+      pageTurns: [lessonTurn, fixture.turns[2]!, resumeTurn],
+      executeCommand: plain.executeCommand, shouldCancel: () => false, durationScale: 0,
+    });
+    assert(plain.executed.length === 1, "a resume after a plain doubt still flushes");
+    // A doubt figure saved without a validated scene is no figure: the page
+    // is no longer the lesson's own and the flush stays off.
+    const forged = { ...fixture.turns[1]!, visualStatus: "text_only" as const };
+    const refused = recorder();
+    await completeReplayDiagramTurn({
+      cue: resumeCue, turn: resumeTurn, diagram: await returned(), pageTurns: [lessonTurn, forged, fixture.turns[2]!, resumeTurn],
+      executeCommand: refused.executeCommand, shouldCancel: () => false, durationScale: 0,
+    });
+    assert(refused.executed.length === 0, "only a validated doubt figure is skipped when the resume compares scenes");
   }
 
   console.log("verify-replay-diagram-completion: ok");
