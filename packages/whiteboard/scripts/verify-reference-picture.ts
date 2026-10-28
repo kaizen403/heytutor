@@ -375,6 +375,18 @@ async function verifyBlend(): Promise<void> {
   assert.equal(card.fill(), "rgba(0,0,0,0)", "a blended picture's card draws no paper");
   assert.ok(!card.shadowColor() && !card.hasShadow(), "and casts no shadow");
   assert.ok(card.x() < PLACEMENT.x && card.x() + card.width() > PLACEMENT.x + PLACEMENT.width, "the card still frames the picture for erase and FOCUS");
+  const drawnBy = (node: Konva.Node): number => {
+    let images = 0;
+    const context = new Proxy({}, { get: (_t, key) => (key === "drawImage" ? () => { images++; } : () => {}) });
+    (node as Konva.Shape).getSceneFunc().call(node, context as unknown as Konva.Context, node as Konva.Shape);
+    return images;
+  };
+  const [, outlineNode, fillNode] = group!.getChildren();
+  assert.equal(drawnBy(fillNode!), 1, "the landed fill draws the picture");
+  assert.equal(drawnBy(outlineNode!), 0, "the outline under a landed blended fill draws nothing, so part transparent edges are not doubled");
+  fillNode!.remove();
+  assert.equal(drawnBy(outlineNode!), 1, "with no fill beside it the outline draws again (rollback keeps the lines)");
+  group!.add(fillNode as Konva.Shape);
 }
 
 async function verifyBoard(): Promise<void> {
