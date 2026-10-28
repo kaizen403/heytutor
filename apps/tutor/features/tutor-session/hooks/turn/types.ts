@@ -354,5 +354,5 @@ export type TurnControlApi = {
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.
    */
-  handleAskDoubt: (question: string, options?: { prompt?: string; title?: string }) => void;
+  handleAskDoubt: (question: string, options?: { prompt?: string; title?: string; markedFigureIds?: readonly string[] }) => void;
 };

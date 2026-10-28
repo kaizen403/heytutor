@@ -1313,7 +1313,7 @@ export function useTurnControl(
      * hand it over whole, instead of having it wrapped a second time.
      * `options.title` is what the doubt is saved and listed under.
      */
-    (rawDoubt: string, options?: { prompt?: string; title?: string }) => {
+    (rawDoubt: string, options?: { prompt?: string; title?: string; markedFigureIds?: readonly string[] }) => {
       const doubt = rawDoubt.trim();
       const composed = options?.prompt?.trim() ?? "";
       if (!doubt && !composed) {
@@ -1341,6 +1341,7 @@ export function useTurnControl(
         // Over a replay, or over the page a stopped replay left behind, the
         // board is not the last saved page, so the doubt cannot continue it.
         afterReplay: isReplayingRef.current || boardShowsStoppedReplayRef.current,
+        ...(options?.markedFigureIds?.length ? { markedFigureIds: [...options.markedFigureIds] } : {}),
       };
       // Capture the exact lesson before Stop and the doubt replace its page.
       if (!request.afterReplay) captureEarlyLessonRestart("doubt", currentTraceIdRef.current);

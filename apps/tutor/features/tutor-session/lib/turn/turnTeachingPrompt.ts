@@ -293,6 +293,11 @@ export interface DoubtTeachingPromptInput {
    * labels taken from its verified anchors. Never a frame id.
    */
   codeFrameCells?: readonly DoubtCodeFrameCell[];
+  /**
+   * DIAGRAM_DOUBT_FIGURES: this doubt drew its own figure, which replaced the
+   * lesson's in the zone. Off (or absent), the prompt is exactly as before.
+   */
+  doubtFigureDrawn?: boolean;
 }
 
 /** A cell of the worked-example frame on the board, as the doubt prompt lists it. */
@@ -463,6 +468,8 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const pointAtFigure = input.doubtPointing === true && figureOnBoard;
   const frameCells = input.doubtPointing === true && codeBoard && hasFigure ? (input.codeFrameCells ?? []) : [];
   const pointAtCells = frameCells.length > 0;
+  // DIAGRAM_DOUBT_FIGURES: the figure on the right is this doubt's own.
+  const newFigure = input.doubtFigureDrawn === true && figureOnBoard;
   // A code lesson's turn plan is a fallback that carries only the question,
   // and printing it invites the tutor to talk about givens.
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
@@ -517,6 +524,8 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
 
   const figureLine = panelShowing
     ? ""
+    : newFigure
+      ? "A new figure, drawn for this doubt, replaced the lesson's figure on the right. The lesson's figure comes back when the lesson resumes. Its parts are listed above. Teach the doubt on this new figure: point at its parts with [FOCUS:entity_id] as you name them, one part per step, in the order they matter."
     : pointAtFigure
       ? "The figure on the right is drawn and stays. Its parts are listed above. Walk through the parts the doubt turns on, one part per step, in the order they matter, and point at each with [FOCUS:entity_id] as you name it. Do not read the whole figure to the student again."
     : figureOnBoard
@@ -529,7 +538,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
 
   const doubtBlock = [
     "THIS TURN ANSWERS A DOUBT ON THE SAME BOARD",
-    lessonQuestion
+    newFigure
+      ? lessonQuestion
+        ? `The student stopped the lesson on "${lessonQuestion}" to ask about part of it. The work on the left is exactly as they left it and stays where it is.`
+        : "The student asked a doubt about what is on the board. The work on the left is exactly as they left it and stays where it is."
+    : lessonQuestion
       ? `The student stopped the lesson on "${lessonQuestion}" to ask about part of it. The board is exactly as they left it, and everything on it stays where it is.`
       : "The student asked a doubt about what is on the board. The board is exactly as they left it, and everything on it stays where it is.",
     panelShowing ? doubtCodeBlock(input.codePanelText) : doubtBoardBlock(input.boardRows),

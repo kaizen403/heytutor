@@ -74,6 +74,8 @@ export interface DoubtTurnRequest {
   lessonQuestion: string;
   /** Asked over a replay, not over the live page. */
   afterReplay: boolean;
+  /** Figure part ids the student's marks landed on (`markedEntityIds`); a ring on a part is a doubt about it. */
+  markedFigureIds?: readonly string[];
 }
 
 const DOUBT_TITLE_PREFIX = "Doubt: ";
