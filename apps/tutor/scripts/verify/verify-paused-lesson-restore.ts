@@ -773,7 +773,8 @@ async function main() {
     assert(handler.includes("if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));"),
       "and a resume's rides its own");
     const branch = between(file, "} else if (resume) {", "diagramSource = activeDiagram ?");
-    assert(branch.includes("activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;"),
+    // A lesson figure returned from under a doubt's own figure counts as drawn (DIAGRAM_DOUBT_FIGURES).
+    assert(branch.includes("activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;"),
       "a figure a Stop caught before its first beat is drawn whole by Continue");
     assert(branch.includes("sceneV2IntroSegments = [...resume.remainingIntro];") && branch.includes("resumeIntroRemainder = true;"),
       "Continue draws the beats a Stop cut off");
