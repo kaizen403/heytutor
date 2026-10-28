@@ -547,7 +547,7 @@ const CUE_SETS: readonly CueSet[] = [
     vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
       // A magnet moved towards a nail, iron, a pin or a compass is magnetism,
       // not a block on a surface; a magnet pushing a block is still a block.
-      /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:\w+\s+){0,2}?(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|magnets?)\b|\bmagnets?\b[^.]{0,60}\b(?:repul\w*|repel\w*|attract\w*)/i],
+      /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:\w+\s+){0,2}?(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|magnets?)\b|^(?![\s\S]*\bblocks?\b)[\s\S]*\bmagnets?\b[^.]{0,60}\b(?:repul\w*|repel\w*|attract\w*)/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "masses", massesOf(stem), "stem");
       setSlot(bag, "force", planNumber(plan, ["f", "force", "appliedforce"]), "plan");
@@ -902,10 +902,11 @@ const CUE_SETS: readonly CueSet[] = [
     // The figure draws the winding's current as given. An induced current's
     // direction is what such a stem asks, and the figure would guess it.
     // An asked direction in an induction stem (a changing field, a moving
-    // magnet) is the induced current too, even without "induced"; a stem
-    // that states its current is not asking for an induced one.
+    // magnet) is the induced current too, even without "induced"; a solenoid
+    // that carries a stated current is not asking for an induced one, but a
+    // bare magnitude ("the current has magnitude 2 A") gives no direction.
     vetoes: [INDUCED_CURRENT_DIRECTION, { test: (stem) => ASKED_CURRENT_DIRECTION.test(stem) && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|induc\w*|magnets?)\b/i.test(stem)
-      && !/\bcarr(?:y|ies|ying)\s+(?:a\s+)?(?:current\s+of\s+)?\d|\b\d+(?:\.\d+)?\s*(?:m|k)?A\b/.test(stem) }],
+      && !/\bcarr(?:y|ies|ying)\s+(?:a\s+)?(?:(?:steady|constant)\s+)?(?:current\s+(?:of\s+)?)?\d/.test(stem) }],
     extract: (stem, plan, bag) => {
       setSlot(bag, "turns", planNumber(plan, ["n", "turns", "turnspermetre"]), "plan");
       setSlot(bag, "turns", numberBefore(stem, /turns/), "stem");
