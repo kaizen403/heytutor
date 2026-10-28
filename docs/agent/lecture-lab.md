@@ -491,6 +491,109 @@ every frame shown, and whether the narration read code aloud, leaked machinery
 words, or repeated itself. Whether the explanation teaches well is a reviewer's
 job.
 
+## The doubt lane
+
+`doubt-run.ts` asks a doubt on the page a lesson left: the measurement for
+"figures at any point" (`.context/plans/figures-any-time-brief.md`, section 5).
+The set is `data/doubt-probes/doubts-v1.jsonl`, 40 lesson and doubt pairs
+written from the subject, never from engine output. Each row names the part a
+teacher would point at (`expect.point`, with `pointTerms`: the marks a teacher
+would write on it), or the new figure a teacher would draw (`expect.newFigure`),
+or neither. A row may circle a figure part or a work row first (`mark`,
+`markTerms`). DSA rows may pick the frame on the board (`dsaFrame`, negative
+counts from the end; the default is the last).
+
+| Lane | Rows | Point | New figure | Neither |
+|---|---|---|---|---|
+| `physics_maths` (hand coded families) | 14 | 8 | 6 | 0 |
+| `chemistry` | 8 | 5 | 3 | 0 |
+| `dsa` | 8 | 7 | 1, out of scope: must draw nothing | 0 |
+| `reference_picture` | 6 | 6 | 0 | 0 |
+| `control` | 4 | 0 | 0 | 4 |
+
+Per row, the runner:
+
+1. builds the lesson. Physics, maths, chemistry and picture rows run
+   `runLecture` once per distinct lesson question (rows sharing a question share
+   it), saved under `lessons/`; `--lessons <round>` reuses a prior round's at
+   $0. Picture rows run the reference picture step, so the dev server needs
+   `DIAGRAM_REFERENCE_PICTURE=on` (and `REFERENCE_PICTURE_PART_FOCUS=on` with
+   `--reference-picture-part-focus`). DSA rows build the walk-through offline
+   with `resolveDsaFrames`;
+2. lays the lesson's rows out with the live slot finder, so `workColumnRows`
+   and `workColumnRoom` hand the prompt the rows and room the board would;
+3. asks the doubt as live does: `buildDoubtPrompt`, or `buildMarkedDoubtPrompt`
+   with a mark built from `collectMarkCandidates`; `buildDoubtTeachingPrompt`;
+   the dev server's `/api/chat` with the continuation loop; then per segment
+   `prepareVerifiedLessonSegments`, the streamed FOCUS fold and `doubtSegment`
+   with the arm's pointing policy;
+4. resolves every FOCUS and ANNOTATE that survived with
+   `resolveVerifiedDiagramFocusTargets`;
+5. saves it in process: `doubtFigureRefFor` and `doubtTurnScene` build the
+   artifacts, and `canonicalizeTurnSceneMetadata` runs with an in-memory
+   `loadPageFigure` that returns the lesson's figure.
+
+Arms run on the same rows and the same lesson: `today` grants nothing,
+`pointing` grants `DIAGRAM_DOUBT_POINTING` (the begin-turn `doubtPointing`),
+`figures` also grants `DIAGRAM_DOUBT_FIGURES` (phase 2). `--doubt-pointing` and
+`--doubt-figures` add those arms. The lab builds the grant itself, as live
+builds it from begin-turn, so a server that knows neither flag is unaffected.
+
+What differs from live: no hedged first request and no startup retry reason;
+the doubt is asked after the lesson finished, never mid lesson; a DSA board
+has no code plan (the panel is hidden, so its text is never quoted); a long
+WRITE row takes one row, not its wrapped lines; and the page figure the save
+checks against is the lesson's own presentation, not one restored from a
+saved row (the loader rules are `verify-doubt-figure-pointing`'s job).
+
+Grades (`doubtGrade.ts`, pure, so `--regrade` rescores a round):
+
+- pointing: `right_part` when a pointed part carries a `pointTerms` mark,
+  `wrong_part` (sent to a human), `no_pointer`, or `no_figure` when the lesson
+  drew nothing to point at; a row expecting no point records
+  `pointed_unasked` if it pointed anyway;
+- new figure: `none_when_needed`, `drawn_when_not_needed`, `drawn_unjudged`
+  until a judge says right or wrong, and `ok_out_of_scope` or
+  `drawn_out_of_scope` for the DSA row;
+- wrong pins: a `|keep` ring on a part that is not the expected one, or any
+  ring on a row expecting no point;
+- saved equals live: every live FOCUS id survives the save (a dropped ANNOTATE
+  is reported apart: the save drops a withheld answer label by design).
+
+The bar per arm: 0 wrong figures, 0 wrong pins, saved equals live on every
+row, and p50 time to first word on doubts that drew no figure within 0.5 s of
+the `today` arm.
+
+Rows the rule cannot settle go to `judge-queue.jsonl`. A judge (a human, or a
+subagent with the row's transcript) appends one line per row to
+`judgments.jsonl`: `{"id","arm","pointing"?,"newFigure"?,"pins"?,"by","reason"}`,
+with `pointing` one of `right_part | wrong_part | no_pointer`, and `newFigure`
+and `pins` one of `right | wrong`. Then `--regrade` rewrites `grades.jsonl`
+and `summary.json`. A human reviews every `wrong`.
+
+```bash
+cd apps/tutor
+# offline: parse the set, print the plan and spend estimate, smoke the doubt
+# path on real DSA frames and a fixture figure with scripted answers
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --dry-run
+# synthetic checks of the grades
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --check
+# the paid round: both arms, live cap (default $5), concurrency 2 (default)
+DIAGRAM_YIELD_POLICY=verified_parts caffeinate -i pnpm exec tsx scripts/lecture-lab/doubt-run.ts --max-usd 5 --out .lecture-lab/doubts-01
+# the pointing rows only, reusing that round's lessons at $0
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --lessons .lecture-lab/doubts-01 --lanes physics_maths,chemistry,dsa --max-usd 2 --out .lecture-lab/doubts-02
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --regrade .lecture-lab/doubts-01
+```
+
+Spend: every chat, visual need and picture request reserves its worst case
+before it is sent and settles after (conservative mode, the pieces `run.ts`
+uses). A request that would pass `--max-usd` is never sent, and its row is
+listed as untested, not graded. A picture lesson reserves the route's full
+ceiling ($0.40, or $0.80 with an image provider), so the six picture rows alone
+can take most of a $5 cap: run them as their own `--lanes reference_picture`
+round, or reuse recorded lessons. An output directory with a
+`spend-checkpoint.json` is never reused. Never build while a round runs.
+
 ## Semantic review
 
 `assess.ts` reads a finished round and asks Jev whether the explanation is
