@@ -1,0 +1,2 @@
+# Lane 4 phase 2: plan example reactions (SN1, SN2, E2) end to end
+tsx scripts/verify/verify-plan-example-reactions.ts

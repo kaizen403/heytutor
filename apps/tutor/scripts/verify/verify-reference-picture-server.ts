@@ -374,6 +374,65 @@ async function pipelineChecks(): Promise<void> {
     check(mismatch.status === "declined", "a stored record keyed differently from this verdict is not drawn");
   }
   {
+    // Billing: only a provider's error status releases a dispatched call; a
+    // timeout or dropped connection after dispatch keeps its ceiling charge.
+    const refused = createPictureSpend();
+    await findReferencePicture("Explain the heart", "other", { apiKey: "k", spend: refused, fetchImpl: fixtureFetch({}, true), store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
+    check(refused.inFlight.judge === 0, "an error status from the provider is not charged");
+    const base = fixtureFetch({ "Heart diagram-en.svg": accept })!;
+    const timingOut: FindPictureDeps["fetchImpl"] = (url, init) => {
+      if (url.includes("chat/completions") && !String(init?.body).includes("wantsPicture")) return Promise.reject(new DOMException("The operation timed out.", "TimeoutError"));
+      return base(url, init);
+    };
+    const timedOut = createPictureSpend();
+    const out = await findReferencePicture("Explain the heart", "other", { apiKey: "k", spend: timedOut, fetchImpl: timingOut, store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
+    check(out.status === "declined" && timedOut.inFlight.judge === 12, "judge and fact check calls that timed out after dispatch stay charged (12 calls over two rounds)");
+  }
+  {
+    // Export: the preload names every picture that did not arrive in time.
+    const { preloadReferencePictureIds } = await import("../../features/tutor-session/lib/scene/referencePicturePreload");
+    const fast = pictureIdFor("fast"), slow = pictureIdFor("slow");
+    const { missing } = await preloadReferencePictureIds([fast, slow], 50,
+      (id) => id === slow ? new Promise(() => {}) : Promise.resolve());
+    check(missing.length === 1 && missing[0] === slow, "the export preload names the picture that did not load in time");
+    const exporter = (await import("node:fs")).readFileSync(new URL("../../lib/lecture-export/exportLectureMp4.ts", import.meta.url), "utf8");
+    check(/if \(missing\.length > 0\) throw new ExportPictureMissingError/.test(exporter), "the MP4 export refuses to start with a picture missing");
+  }
+  {
+    // A call whose signal is already aborted is never sent and never charged:
+    // the abort lands while the picture is being prepared, before the judge.
+    const controller = new AbortController();
+    const spend = createPictureSpend();
+    const base = fixtureFetch({ "Heart diagram-en.svg": accept })!;
+    const abortingDownload: FindPictureDeps["fetchImpl"] = (url, init) => {
+      if (url.includes("upload.wikimedia.org")) controller.abort();
+      return base(url, init);
+    };
+    let threw = false;
+    try { await findReferencePicture("Explain the heart", "other", { apiKey: "k", spend, signal: controller.signal, fetchImpl: abortingDownload, store: memoryStore().store, strokePlan: stubPlan, imageProvider: null }); } catch { threw = true; }
+    check(threw && spend.inFlight.judge === 0 && spend.usages.filter((u) => u.lane === "judge").length === 0, "judge and fact check calls that start already aborted are never charged");
+    // Connect-phase failures never reached the provider; a mid-request reset may have been billed.
+    const failing = (code: string): FindPictureDeps["fetchImpl"] => (url, init) => {
+      if (url.includes("chat/completions") && !String(init?.body).includes("wantsPicture")) return Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code } }));
+      return base(url, init);
+    };
+    const unreached = createPictureSpend();
+    await findReferencePicture("Explain the heart", "other", { apiKey: "k", spend: unreached, fetchImpl: failing("ENOTFOUND"), store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
+    check(unreached.inFlight.judge === 0, "a DNS failure (never reached the provider) is not charged");
+    const reset = createPictureSpend();
+    await findReferencePicture("Explain the heart", "other", { apiKey: "k", spend: reset, fetchImpl: failing("ECONNRESET"), store: memoryStore().store, strokePlan: stubPlan, imageProvider: null });
+    check(reset.inFlight.judge === 12, "a connection reset mid-request stays charged");
+  }
+  {
+    // A provider outage on every fact check is not a verdict: no picture, and no 24 h cached decline.
+    const base = fixtureFetch({ "Heart diagram-en.svg": accept })!;
+    const factDown: FindPictureDeps["fetchImpl"] = (url, init) =>
+      String(init?.body).includes("You fact check a diagram") ? Promise.resolve(new Response("down", { status: 503 })) : base(url, init);
+    const m = memoryStore();
+    const out = await findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl: factDown, store: m.store, strokePlan: stubPlan, imageProvider: null });
+    check(out.status === "declined" && m.cache.size === 0 && m.saved.length === 0, "failed fact checks decline without caching the topic as declined");
+  }
+  {
     const redirect: FindPictureDeps["fetchImpl"] = async (_url, init) => {
       if (init?.redirect !== "error") throw new Error("redirect not refused");
       return new Response(new Uint8Array(10), { headers: { "content-type": "image/png" } });

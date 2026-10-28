@@ -1,5 +1,6 @@
 import { FIREWORKS_CHAT_URL } from "@/lib/llm/llmProvider";
 import { DEFAULT_CHEAP_FIREWORKS_MODEL } from "@/lib/llm/fireworksModels";
+import { ProviderRefusedError } from "./providerErrors";
 
 /**
  * One cheap call turns the student's question into what the picture must show
@@ -90,7 +91,7 @@ export async function writePictureQuery(question: string, options: { apiKey: str
   });
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Picture query upstream ${response.status} from ${model}`);
+    throw new ProviderRefusedError(`Picture query upstream ${response.status} from ${model}`, response.status);
   }
   const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
   const content = data.choices?.[0]?.message?.content;

@@ -228,6 +228,7 @@ jobs:
       - name: Security and payment regressions
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
+          python3 deploy/aws/verify-tutor-release.py
           pnpm verify:security
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks
