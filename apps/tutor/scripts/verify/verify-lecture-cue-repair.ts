@@ -292,4 +292,27 @@ assert(spokenAfter("[STEP]so the velocity is v final. [WRITE:v = v_final,90,211]
 assert(spokenAfter("[STEP]so the answer is twenty-five. [WRITE:x = 25,90,211][/STEP]").includes("the answer equals twenty-five"), "a hyphenated number word is a value");
 assert(spokenAfter("[STEP]so x is two to the power of four. [WRITE:x = 2^4,90,211][/STEP]").includes("x equals two to the power of four"), "a power spoken in words is a value");
 
+// A numeral needs strong evidence too, except that it may end the clause: "1"
+// is never a pronoun the way "one" is. A unit used loosely, a count, "here is"
+// and "there still is" stay as spoken.
+for (const [step, kept] of [
+  ["[STEP]The object is 10 centimeters from the lens. [WRITE:u = 10 cm,90,211][/STEP]", "The object is 10 centimeters from the lens"],
+  ["[STEP]Ali is 10 years old. [WRITE:a = 10,90,211][/STEP]", "Ali is 10 years old"],
+  ["[STEP]Here is 1. [WRITE:n = 1,90,211][/STEP]", "Here is 1"],
+  ["[STEP]There still is 1. [WRITE:n = 1,90,211][/STEP]", "There still is 1"],
+  ["[STEP]This is 2 of the cases. [WRITE:n = 2,90,211][/STEP]", "This is 2 of the cases"],
+] as const) {
+  assert(spokenAfter(step).includes(kept), `a numeral without strong evidence stays as spoken: ${spokenAfter(step)}`);
+}
+for (const [step, spoken] of [
+  ["[STEP]so the answer is 25. [WRITE:x = 25,90,211][/STEP]", "the answer equals 25"],
+  ["[STEP]so the frequency is 170 hertz. [WRITE:f = 170 Hz,90,211][/STEP]", "the frequency equals 170 hertz"],
+  ["[STEP]25°C is 25 + 273 = 298 K. [WRITE:T = 25 + 273 = 298 K,90,211][/STEP]", "25°C equals 25 + 273"],
+  ["[STEP]half of 9 V is 4.5 V. [WRITE:V = 4.5 V,90,211][/STEP]", "half of 9 V equals 4.5 V"],
+  ["[STEP]the room is 25 °C. [WRITE:T = 25 °C,90,211][/STEP]", "the room equals 25 °C"],
+  ["[STEP]the wavelength is 2 metres — consistent with step one. [WRITE:λ = 2 m,90,211][/STEP]", "the wavelength equals 2 metres —"],
+] as const) {
+  assert(spokenAfter(step).includes(spoken), `a numeral with strong evidence is spoken as equals: ${spokenAfter(step)}`);
+}
+
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");
