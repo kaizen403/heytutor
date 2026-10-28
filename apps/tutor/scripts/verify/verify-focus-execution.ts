@@ -439,7 +439,7 @@ async function main(): Promise<void> {
         { type: "DRAW_POINT", params: [905, 305, 4], semanticRef: { entityId: "P" } },
       ],
     };
-    const focus = (text: string, params: number[] = []): DrawCommand => ({ type: "FOCUS", params, text, semanticRef: { entityId: text } });
+    const focus = (text: string, params: number[] = []): DrawCommand => ({ type: "FOCUS", params, text, semanticRef: { entityId: text }, charPosition: 0, narrationBefore: "" });
     const plan = (text: string, pinsOnPage = 0, layout: VerifiedDiagram["layout"] = "standard", codeLessonActive = false) =>
       pinnedMarksFor({
         command: focus(text, [1, 2, 3, 4]),

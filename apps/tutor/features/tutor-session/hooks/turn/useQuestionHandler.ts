@@ -75,13 +75,20 @@ import {
 } from "../../lib/board/boardLayout";
 import {
   doubtPageRecord,
-  doubtSegment,
   inheritedTeachingContext,
   lessonPageRecord,
   planDoubtPage,
   resumePageRecord,
   revealedCodeText,
 } from "../../lib/turn/doubtTurn";
+// REMOVE AT INTEGRATION: lane A exports both from doubtTurn.ts.
+import { doubtFigureRefFor, doubtSegment } from "../../lib/turn/doubtPointingShim";
+import {
+  buildDoubtPointingPolicy,
+  doubtActiveFigure,
+  doubtCodeFrameCells,
+  segmentWithoutFocusKeep,
+} from "../../lib/turn/doubtPointing";
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
@@ -656,8 +663,25 @@ export function useQuestionHandler(
         : resume
           ? resume.lessonQuestion
           : question;
-      const page = doubt
-        ? doubtPageRecord({
+      // The figure in the zone while the doubt teaches, named on its save so
+      // the server can check the doubt's pointing against it (lane A).
+      const doubtFrames = codeLessonControllerRef?.current?.getActivePlan()
+        ? codeLessonControllerRef.current.frames
+        : null;
+      const pointsAtFigure = doubt
+        ? doubtFigureRefFor({
+            record: pageRecord,
+            boardId: sessionId,
+            afterReplay: doubt.afterReplay,
+            figureOnPage: doubtPage?.figureOnPage ?? false,
+            storedTurns: storedTurnsRef.current,
+            activeDiagram: activeVerifiedDiagramRef.current,
+            codeLessonFrameIndex: doubtFrames?.getSet() ? doubtFrames.currentIndex() : null,
+          })
+        : null;
+      // A variable, not a literal: lane A's doubtPageRecord takes `pointsAtFigure`.
+      const doubtRecordInput = doubt
+        ? {
             boardId: sessionId,
             lessonQuestion: doubt.lessonQuestion,
             title: doubt.title,
@@ -665,7 +689,11 @@ export function useQuestionHandler(
             figureDrawn: doubtPage?.figureOnPage ?? false,
             turnPlan: inherited?.turnPlan ?? null,
             solverProjection: inherited?.solverProjection ?? null,
-          })
+            pointsAtFigure,
+          }
+        : null;
+      const page = doubtRecordInput
+        ? doubtPageRecord(doubtRecordInput)
         : resume
           ? resumePageRecord({
               boardId: sessionId,
@@ -1826,12 +1854,25 @@ export function useQuestionHandler(
       // notebook to write in, and its frames are conducted by a plan this turn
       // does not run: a doubt there teaches in speech and points at nothing.
       const codeLessonBoard = Boolean(doubt && codeLessonControllerRef?.current?.getActivePlan());
+      const codeFigureVisible = Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
+        activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current));
+      // DIAGRAM_DOUBT_POINTING, granted for this turn by begin-turn.
+      const doubtPointingGranted = billed.doubtPointing === true;
+      const codeFrameIds = codeLessonBoard
+        ? (codeLessonControllerRef?.current?.frames.getSet()?.frames.map((frame) => frame.id) ?? [])
+        : [];
       const codePanelShowing =
         Boolean((doubt || resume) && codeLessonControllerRef?.current?.getActivePlan()) &&
         codeLessonControllerRef?.current?.getState().mode !== "hidden";
       if (doubt) {
-        // The doubt answers on the figure already drawn on this page.
-        activeDiagram = codeLessonBoard ? null : activeVerifiedDiagramRef.current;
+        // The doubt answers on the figure already drawn on this page. On a
+        // code board that is the frame on the board, and only with the flag.
+        activeDiagram = doubtActiveFigure({
+          granted: doubtPointingGranted,
+          codeBoard: codeLessonBoard,
+          codeFigureVisible,
+          zoneFigure: activeVerifiedDiagramRef.current,
+        });
         diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram) ? "reference_picture" : "verified_scene") : "none";
       } else if (resume) {
         // Keep the figure the lesson already committed. If the intro never
@@ -2134,6 +2175,18 @@ export function useQuestionHandler(
           )
         : 0;
       const narrationLanguage = turnNarrationLanguage;
+      // What a doubt may point at: the ids of the figure in the zone, cut to
+      // the frame's cells on a code board. Off unless the turn was granted
+      // DIAGRAM_DOUBT_POINTING, and then the live filter is today's.
+      const doubtPointingPolicy = doubt
+        ? buildDoubtPointingPolicy({
+            granted: doubtPointingGranted,
+            figure: activeDiagram,
+            codeBoard: codeLessonBoard,
+            frameIds: codeFrameIds,
+          })
+        : null;
+      const keptRingsAllowed = Boolean(doubtPointingPolicy?.enabled && !doubtPointingPolicy.codeBoard);
       const pagePromptInput = {
         boardRows: workColumnRows(boardLayoutRef.current),
         rowsLeftOnPage: pageRoom?.rowsLeft ?? 0,
@@ -2159,9 +2212,10 @@ export function useQuestionHandler(
             ...pagePromptInput,
             lessonQuestion: doubt.lessonQuestion,
             codeLessonBoard,
-            codeFigureVisible: Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
-              activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current)),
+            codeFigureVisible,
             solverProjection: inherited?.solverProjection ?? null,
+            doubtPointing: doubtPointingGranted,
+            codeFrameCells: codeLessonBoard ? doubtCodeFrameCells(activeDiagram, codeFrameIds) : [],
           })
         : resume
           ? buildResumeTeachingPrompt({
@@ -2446,15 +2500,20 @@ export function useQuestionHandler(
           // A doubt conducts no code lesson, and beside the code panel it has
           // no notebook: `doubtSegment` keeps its words and only the ink it can
           // put on this page.
-          const outgoing = doubt
+          const filtered = doubt
             ? preparedSegments.flatMap((segment) => {
                 const kept = doubtSegment(segment, {
                   codePanelShowing,
                   boardRows: pagePromptInput.boardRows,
+                  pointing: doubtPointingPolicy ?? undefined,
                 });
                 return kept ? [kept] : [];
               })
             : (resolved?.segments ?? preparedSegments);
+          // A kept ring is drawn live only where the flag offered it: a
+          // doubt on a figure board. Everywhere else `|keep` is removed before
+          // it is drawn or saved.
+          const outgoing = keptRingsAllowed ? filtered : filtered.map(segmentWithoutFocusKeep);
           const hasTeachingContent = outgoing.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration));
           if (!usableTeachingStepReceived && !hasTeachingContent) startupControlSegments.push(...outgoing);
           const queuedSegments = !usableTeachingStepReceived && !hasTeachingContent
