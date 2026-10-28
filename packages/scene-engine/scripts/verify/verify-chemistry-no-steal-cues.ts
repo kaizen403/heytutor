@@ -514,6 +514,7 @@ for (const values of [
     "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
   ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
   for (const question of [
+    "Sketch the distribution of molecular speeds for a light gas at two temperatures.",
     "Sketch the distribution of speeds of nitrogen at 300 K and 600 K.",
     "Explain, using the distribution of energies, why increasing the temperature increases the rate of reaction.",
     "Use the distribution of energies to explain how a catalyst increases the rate of a reaction.",

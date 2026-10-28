@@ -73,7 +73,7 @@ function namesMaxwellDistribution(stem: string): boolean {
 function moleculeDistribution(stem: string): boolean {
   if (!/boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem)) return false;
   if (!/\b(?:molecul\w*|gas(?:es)?|maxwell|boltzmann|particles?|atoms?|reactants?|reacting|reactions?|rates?|catalysts?|activation|collisions?|samples?|nitrogen|oxygen|hydrogen|helium|neon|argon|air)\b/.test(stem)) return false;
-  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body|alpha|beta|decay|cosmic|light|spectrum|spectral|radioactive|accelerator)\b|\belectron\s+gas\b|\b(?:free|conduction)\s+electrons?\b|\belectrons?\s+in\s+(?:a|the)\s+metal\b|\b(?:of|for|among)\s+(?:the\s+)?(?:\w+\s+)?electrons\b|\belectrons?\s+(?:emitted|ejected|released|liberated)\b|\bphotoelectrons?\b/.test(stem);
+  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body|alpha|beta|decay|cosmic|light(?!\s+(?:gas|gases|molecules?|atoms?))|spectrum|spectral|radioactive|accelerator)\b|\belectron\s+gas\b|\b(?:free|conduction)\s+electrons?\b|\belectrons?\s+in\s+(?:a|the)\s+metal\b|\b(?:of|for|among)\s+(?:the\s+)?(?:\w+\s+)?electrons\b|\belectrons?\s+(?:emitted|ejected|released|liberated)\b|\bphotoelectrons?\b/.test(stem);
 }
 
 function classifyThermoStem(question: string): ThermoKind | null {
