@@ -116,10 +116,9 @@ if [ -f /etc/systemd/system/heytutor.service ]; then
   sudo node "$ROOT/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
   sudo systemctl reset-failed heytutor || true
   # Stop drains the old server on its own build (up to 60 s), then the live
-  # link moves and the new server starts on the new build.
-  sudo systemctl stop heytutor
-  tutor_activate_release "$TUTOR_DIR" "$TUTOR_RELEASE"
-  sudo systemctl start heytutor
+  # link moves and the new server starts on the new build. A failed switch
+  # starts the old build again and fails the deploy.
+  tutor_switch_release "$TUTOR_DIR" "$TUTOR_RELEASE"
 else
   tutor_activate_release "$TUTOR_DIR" "$TUTOR_RELEASE"
   echo "==> heytutor.service not installed; start manually or run setup-vm.sh"

@@ -36,7 +36,7 @@ try {
   assertBefore(script, 'export SENTRY_RELEASE', 'pnpm turbo run build');
   assertBefore(script, 'export SENTRY_ENVIRONMENT=production', 'pnpm turbo run build');
   assertBefore(script, 'export NEXT_PUBLIC_SENTRY_ENVIRONMENT=production', 'pnpm turbo run build');
-  assertBefore(script, 'set-sentry-release.mjs', 'sudo systemctl start heytutor');
+  assertBefore(script, 'set-sentry-release.mjs', 'tutor_switch_release "$TUTOR_DIR"');
   assert.ok(script.includes('sudo node "$ROOT/deploy/aws/set-sentry-release.mjs"'), "release stamping preserves privileged env ownership on manual deployments");
   const setup = readFileSync(new URL("./setup-vm.sh", import.meta.url), "utf8");
   assertBefore(setup, 'export SENTRY_RELEASE', 'pnpm turbo run build');
