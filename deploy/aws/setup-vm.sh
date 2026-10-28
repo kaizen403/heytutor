@@ -119,10 +119,13 @@ ${HOSTNAME_FQDN} {
   reverse_proxy 127.0.0.1:3000 {
     # A deploy stops the old server (it drains for up to 60 s with its
     # listener closed) before the new one starts. Hold requests until it
-    # is up instead of answering 502. A refused connection is always safe
-    # to retry. (deploy/aws/caddy-hold-restarts.sh)
+    # is up instead of answering 502. Caddy retries a refused connection
+    # for any method and a GET after other transport errors; a POST that
+    # reached a server is never replayed. (deploy/aws/caddy-hold-restarts.sh)
     lb_try_duration 90s
     lb_try_interval 250ms
+    # A config reload leaves open speech sockets up to 5 min to finish.
+    stream_close_delay 5m
   }
 }
 EOF

@@ -44,12 +44,25 @@ BOX = """app.example.test, box.example.test {
 HOLD = """  reverse_proxy 127.0.0.1:3000 {
     # A deploy stops the old server (it drains for up to 60 s with its
     # listener closed) before the new one starts. Hold requests until it
-    # is up instead of answering 502. A refused connection is always safe
-    # to retry. (deploy/aws/caddy-hold-restarts.sh)
+    # is up instead of answering 502. Caddy retries a refused connection
+    # for any method and a GET after other transport errors; a POST that
+    # reached a server is never replayed. (deploy/aws/caddy-hold-restarts.sh)
     lb_try_duration 90s
     lb_try_interval 250ms
+    # A config reload leaves open speech sockets up to 5 min to finish.
+    stream_close_delay 5m
   }
 """
+
+# Greptile, PR #361: an unrelated lb_try_duration must not read as applied.
+UNRELATED = BOX.replace("app.example.test, box.example.test {", """# lb_try_duration was tried here once
+other.example.test {
+  reverse_proxy 127.0.0.1:4000 {
+    lb_try_duration 5s
+  }
+}
+
+app.example.test, box.example.test {""")
 
 FAKE_CADDY = r"""#!/usr/bin/env bash
 if [ "$1" = "validate" ]; then
@@ -58,6 +71,12 @@ if [ "$1" = "validate" ]; then
   exit 0
 fi
 echo "unexpected caddy $*" >&2; exit 9
+"""
+
+# Fails the rename that swaps the new Caddyfile in, as a full disk might.
+FAKE_MV = r"""#!/usr/bin/env bash
+[ "${FAIL_MV:-0}" = "1" ] && exit 1
+exec /bin/mv "$@"
 """
 
 FAKE_SYSTEMCTL = r"""#!/usr/bin/env bash
@@ -73,7 +92,7 @@ class CaddyHold(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        for name, body in [("caddy", FAKE_CADDY), ("systemctl", FAKE_SYSTEMCTL)]:
+        for name, body in [("caddy", FAKE_CADDY), ("systemctl", FAKE_SYSTEMCTL), ("mv", FAKE_MV)]:
             (self.bin / name).write_text(body)
             (self.bin / name).chmod(0o755)
         self.caddyfile = self.root / "Caddyfile"
@@ -89,6 +108,7 @@ class CaddyHold(unittest.TestCase):
         if not with_caddy:
             (self.root / "nocaddy").mkdir(exist_ok=True)
             shutil.copy(self.bin / "systemctl", self.root / "nocaddy/systemctl")
+            shutil.copy(self.bin / "mv", self.root / "nocaddy/mv")
             path = f"{self.root / 'nocaddy'}:/usr/bin:/bin"
         full_env = {"PATH": path, "SYSTEMCTL_LOG": str(self.log), "REAL_CADDY": REAL_CADDY or "", **env}
         return subprocess.run(["bash", str(SCRIPT), str(self.caddyfile)], env=full_env, capture_output=True, text=True)
@@ -111,6 +131,34 @@ class CaddyHold(unittest.TestCase):
         self.assertIn("already holds", again.stdout)
         self.assertEqual(self.caddyfile.read_text(), applied)
         self.assertEqual(self.reloads(), ["reload caddy"], "no second reload")
+
+    def test_another_lb_try_duration_does_not_count_as_applied(self):
+        result = self.run_hold(text=UNRELATED)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("already holds", result.stdout)
+        self.assertEqual(self.caddyfile.read_text(), UNRELATED.replace("  reverse_proxy 127.0.0.1:3000\n", HOLD))
+        self.assertEqual(self.reloads(), ["reload caddy"])
+
+    def test_a_failed_swap_leaves_the_old_file_whole(self):
+        result = self.run_hold(FAIL_MV="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("could not write", result.stderr)
+        self.assertEqual(self.caddyfile.read_text(), BOX)
+        self.assertEqual([p.name for p in self.root.iterdir() if ".next-" in p.name], [], "no half-written file left behind")
+        self.assertEqual(self.reloads(), [])
+
+    @unittest.skipIf(os.geteuid() == 0, "root writes through a read-only directory")
+    def test_a_directory_it_cannot_write_changes_nothing(self):
+        self.caddyfile.write_text(BOX)
+        self.root.chmod(0o555)
+        try:
+            result = self.run_hold(text=None)
+        finally:
+            self.root.chmod(0o755)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("left unchanged", result.stderr)
+        self.assertEqual(self.caddyfile.read_text(), BOX)
+        self.assertEqual(self.reloads(), [])
 
     def test_unexpected_shapes_are_left_alone(self):
         for text in [BOX.replace("127.0.0.1:3000", "127.0.0.1:4000"),
@@ -182,6 +230,7 @@ class CaddyHold(unittest.TestCase):
             self.assertEqual(len(found), 1, name)
             lb = json.loads("{" + found[0] + "}")["load_balancing"]
             self.assertEqual((lb.get("try_duration"), lb.get("try_interval")), (90_000_000_000, 250_000_000), name)
+            self.assertIn('"stream_close_delay":300000000000', adapted, name)
 
 
 if __name__ == "__main__":
