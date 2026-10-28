@@ -19,6 +19,20 @@ export type { DiagramGenerationStatus, VisualRequirement };
 export const REQUIRED_DIAGRAM_RETRY_ENABLED =
   process.env.NEXT_PUBLIC_SCENE_ENGINE_V3_REQUIRED_RETRY !== "0";
 
+/**
+ * Block diagrams for lessons the planner classifies "other" (productionSceneSelection
+ * `blockFlowEligible`). Off by default; turning it on in production is the owner's call.
+ */
+export const OTHER_SUBJECT_BLOCK_FLOW_ENABLED =
+  process.env.NEXT_PUBLIC_OTHER_SUBJECT_BLOCK_FLOW === "1";
+
+/** True only for an accepted plan classified "other", outside code and DSA lessons, with the flag on. */
+export function blockFlowEligibleTurn(input: {
+  enabled: boolean; plannedSubject: string | undefined; codeLesson: boolean; dsa: boolean;
+}): boolean {
+  return input.enabled && input.plannedSubject === "other" && !input.codeLesson && !input.dsa;
+}
+
 /** Hard end-to-end planner deadline; the tracked target remains 45 seconds. */
 export const SCENE_PLANNER_DEADLINE_MS = REQUIRED_DIAGRAM_DEADLINE_MS;
 

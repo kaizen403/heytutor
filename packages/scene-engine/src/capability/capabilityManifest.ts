@@ -156,6 +156,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "matrix_scale",
     "matrix_product",
     "matrix_transpose",
+    "block_flow",
     "centre_of_mass",
     "com_motion",
     "point_mass_inertia",
@@ -353,11 +354,12 @@ export const SUPPORTED_SCENE_CONSTRUCTION_OPERATORS =
   SCENE_CAPABILITY_MANIFEST.constructionOperators;
 
 /**
- * Operators a planner sees only when a selected family names them (the
- * qualitative fluid apparatus). The universal catalog leaves them out so it
- * stays inside its transport budget; they are executable either way.
+ * Operators a planner sees only when a scoped request names them: a selected
+ * family (the qualitative fluid apparatus) or a gate admission (block_flow).
+ * The universal catalog leaves them out so it stays inside its transport
+ * budget; they are executable either way.
  */
-export const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS = ["submerged_body", "hydraulic_press"] as const;
+export const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS = ["submerged_body", "hydraulic_press", "block_flow"] as const;
 const FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATOR_SET = new Set<string>(FAMILY_SCOPED_SCENE_CONSTRUCTION_OPERATORS);
 
 export const PLANNER_VISIBLE_SCENE_CONSTRUCTION_OPERATORS =
