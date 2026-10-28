@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-doubt-figure-need.ts
+tsx scripts/verify/verify-doubt-figure-live.ts
