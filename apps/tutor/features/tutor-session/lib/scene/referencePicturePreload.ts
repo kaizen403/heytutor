@@ -7,7 +7,7 @@
  * text, a replay draws whatever the board can).
  */
 import type { ReferencePictureRecord } from "@heytutor/drawing";
-import { preloadReferencePicture } from "../board/referencePictureAssets";
+import { pinReferencePictures, preloadReferencePicture } from "../board/referencePictureAssets";
 import { referencePictureIdsOfTurns } from "./restoreReferencePicture";
 
 /** Same-origin, immutable assets: past this, the network is the problem. */
@@ -57,6 +57,14 @@ export async function preloadReferencePicturesForTurns(
   preload?: (id: string) => Promise<unknown>,
 ): Promise<{ missing: string[] }> {
   return preloadReferencePictureIds(referencePictureIdsOfTurns(turns), timeoutMs, preload);
+}
+
+/**
+ * Pin every picture a set of stored turns draws, so none is evicted while an
+ * export records them. Call the returned release when the export ends.
+ */
+export function pinReferencePicturesForTurns(turns: Parameters<typeof referencePictureIdsOfTurns>[0]): () => void {
+  return pinReferencePictures(referencePictureIdsOfTurns(turns));
 }
 
 /** Preload pictures by id in parallel; name the ones not here within `timeoutMs`. */

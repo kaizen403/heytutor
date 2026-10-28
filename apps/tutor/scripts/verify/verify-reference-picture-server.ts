@@ -424,6 +424,15 @@ async function pipelineChecks(): Promise<void> {
     check(reset.inFlight.judge === 12, "a connection reset mid-request stays charged");
   }
   {
+    // A provider outage on every fact check is not a verdict: no picture, and no 24 h cached decline.
+    const base = fixtureFetch({ "Heart diagram-en.svg": accept })!;
+    const factDown: FindPictureDeps["fetchImpl"] = (url, init) =>
+      String(init?.body).includes("You fact check a diagram") ? Promise.resolve(new Response("down", { status: 503 })) : base(url, init);
+    const m = memoryStore();
+    const out = await findReferencePicture("Explain the heart", "other", { apiKey: "k", fetchImpl: factDown, store: m.store, strokePlan: stubPlan, imageProvider: null });
+    check(out.status === "declined" && m.cache.size === 0 && m.saved.length === 0, "failed fact checks decline without caching the topic as declined");
+  }
+  {
     const redirect: FindPictureDeps["fetchImpl"] = async (_url, init) => {
       if (init?.redirect !== "error") throw new Error("redirect not refused");
       return new Response(new Uint8Array(10), { headers: { "content-type": "image/png" } });

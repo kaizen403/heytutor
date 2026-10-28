@@ -923,6 +923,17 @@ async function verifyAssetCache(): Promise<void> {
     assert.ok(onBoard.filter((asset) => asset !== evicted[0]).every((asset) => !isZeroed(lineWorkOnBoard.get(asset.id))),
       "pictures still cached keep their line work for the next seek");
 
+    // An export pins every picture it needs: none is evicted past the limit
+    // until the pin is released, then the cache shrinks back.
+    const pinStore = loadAssetStore();
+    const pinIds = Array.from({ length: limit + 3 }, (_, i) => `rp_${(i + 0x100).toString(16).padStart(24, "0")}`);
+    const release = pinStore.pinReferencePictures(pinIds);
+    for (const id of pinIds) await pinStore.preloadReferencePicture(id);
+    assert.equal(pinIds.filter((id) => pinStore.peekReferencePicture(id)).length, limit + 3, "pinned pictures all stay cached past the limit");
+    release();
+    await pinStore.preloadReferencePicture(`rp_${(0x200).toString(16).padStart(24, "0")}`);
+    assert.ok(pinIds.filter((id) => pinStore.peekReferencePicture(id)).length <= limit, "once unpinned, eviction bounds the cache again");
+
     // A long session: the cache never grows past the limit.
     while (next < ids.length) await preload(ids[next++]!);
     assert.equal(cached(), limit);
