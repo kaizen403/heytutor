@@ -21,8 +21,7 @@ import {
   doubtActiveFigure,
   doubtCodeFrameCells,
 } from "../../features/tutor-session/lib/turn/doubtPointing";
-// REMOVE AT INTEGRATION: import doubtSegment from doubtTurn.ts.
-import { doubtSegment } from "../../features/tutor-session/lib/turn/doubtPointingShim";
+import { doubtSegment } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);

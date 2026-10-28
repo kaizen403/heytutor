@@ -284,6 +284,11 @@ export interface DoubtTeachingPromptInput {
    */
   doubtPointing?: boolean;
   /**
+   * The figure in the zone is a reference picture. Its parts may be pointed
+   * at, but the board keeps no ring on a picture, so `|keep` is not offered.
+   */
+  figureIsPicture?: boolean;
+  /**
    * Code lesson board only: the cells of the frame on the board now, ids and
    * labels taken from its verified anchors. Never a frame id.
    */
@@ -505,7 +510,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
         "- Never [WRITE] a row that is still on this page. To use one again, say so and box it with [EMPHASIZE:row_id|exact row text]. For a line you just wrote in this doubt, use [EMPHASIZE:last|exact row text]. The runtime checks the text against visible ink before boxing.",
         "- When the student asks you to go through the whole thing again, walk the rows top to bottom, one step each with [EMPHASIZE:row_id|exact row text] on that row (boxing every row is right here), and write only the lines that are missing. When they ask you to start over, write it again under the last row, and let the board turn when the column runs out.",
         `- ${doubtSpaceRule(input, figureOnBoard)}`,
-        ...(pointAtFigure ? [keepRing, annotateWithheld] : [noAnnotate]),
+        ...(pointAtFigure ? [...(input.figureIsPicture ? [] : [keepRing]), annotateWithheld] : [noAnnotate]),
         emptyMark,
         closing,
       ];

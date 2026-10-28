@@ -68,8 +68,7 @@ import {
   revealedCodeText,
   textOnlyTurnScene,
 } from "../../features/tutor-session/lib/turn/doubtTurn";
-// REMOVE AT INTEGRATION: import doubtSegment's pointing form from doubtTurn.ts.
-import { doubtSegment as pointedDoubtSegment } from "../../features/tutor-session/lib/turn/doubtPointingShim";
+import { doubtSegment as pointedDoubtSegment } from "../../features/tutor-session/lib/turn/doubtTurn";
 import {
   buildDoubtPointingPolicy,
   segmentWithoutFocusKeep,

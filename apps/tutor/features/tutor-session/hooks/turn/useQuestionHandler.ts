@@ -74,15 +74,15 @@ import {
   workColumnRows,
 } from "../../lib/board/boardLayout";
 import {
+  doubtFigureRefFor,
   doubtPageRecord,
+  doubtSegment,
   inheritedTeachingContext,
   lessonPageRecord,
   planDoubtPage,
   resumePageRecord,
   revealedCodeText,
 } from "../../lib/turn/doubtTurn";
-// REMOVE AT INTEGRATION: lane A exports both from doubtTurn.ts.
-import { doubtFigureRefFor, doubtSegment } from "../../lib/turn/doubtPointingShim";
 import {
   buildDoubtPointingPolicy,
   doubtActiveFigure,
@@ -679,7 +679,6 @@ export function useQuestionHandler(
             codeLessonFrameIndex: doubtFrames?.getSet() ? doubtFrames.currentIndex() : null,
           })
         : null;
-      // A variable, not a literal: lane A's doubtPageRecord takes `pointsAtFigure`.
       const doubtRecordInput = doubt
         ? {
             boardId: sessionId,
@@ -689,6 +688,7 @@ export function useQuestionHandler(
             figureDrawn: doubtPage?.figureOnPage ?? false,
             turnPlan: inherited?.turnPlan ?? null,
             solverProjection: inherited?.solverProjection ?? null,
+            replaces: pageRecord,
             pointsAtFigure,
           }
         : null;
@@ -2215,6 +2215,7 @@ export function useQuestionHandler(
             codeFigureVisible,
             solverProjection: inherited?.solverProjection ?? null,
             doubtPointing: doubtPointingGranted,
+            figureIsPicture: activeDiagram?.id === "reference_picture",
             codeFrameCells: codeLessonBoard ? doubtCodeFrameCells(activeDiagram, codeFrameIds) : [],
           })
         : resume

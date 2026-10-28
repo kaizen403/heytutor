@@ -370,6 +370,13 @@ for (const [label, prompt] of Object.entries(variants)) {
   assert(/To reveal a withheld measurement/.test(on.runtimeAddon), "flag on: the figure addon keeps its ANNOTATE sentence");
   assert(!/To reveal a withheld measurement/.test(off.runtimeAddon), "flag off: the figure addon still drops it");
   assert(!/[—–]/.test(block), "the flag on doubt block carries no dash punctuation");
+  // A reference picture keeps no ring, so the kept ring is not offered on one.
+  const picture = doubtBlockOf(
+    buildDoubtTeachingPrompt(input({ diagramPromptAddon: figureAddon, doubtPointing: true, figureIsPicture: true })),
+    "picture, flag on",
+  );
+  assert(!picture.includes("|keep"), "flag on, reference picture: no kept ring is offered");
+  assert(picture.includes("Walk through the parts the doubt turns on"), "flag on, reference picture: the walk through stays");
 }
 
 // 11. DIAGRAM_DOUBT_POINTING on, code board with a frame on it: cells only,
