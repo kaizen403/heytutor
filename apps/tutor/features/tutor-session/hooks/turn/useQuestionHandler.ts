@@ -157,16 +157,24 @@ import {
   doubtFigureHoldingSegment,
   doubtFigureNeedInput,
   doubtFigureNeedSkip,
-  doubtFigureTurnScene,
+  doubtFigurePlannedScene,
   planDoubtFigure,
   reconcilePlanWithAuthority,
-  releasedDeferredIds,
   requestDoubtFigureNeed,
   selectFastFigure,
   snapshotPresentation,
   type DoubtFigureDrawn,
 } from "../../lib/turn/doubtFigurePlan";
-import { returnPageFigure, swapFigureIn } from "../../lib/scene/figureSwap";
+import { swapFigureIn } from "../../lib/scene/figureSwap";
+// LANE D SHIM: at integration import these from figureSwap.ts, doubtTurn.ts and pageFigureSync.ts.
+import {
+  consumedDeferredIds,
+  doubtFigureTurnScene,
+  returnFigureToZone,
+  returnPageFigure,
+  storedFigurePresentation,
+  type PausedLessonRequestWithReturn,
+} from "../../lib/turn/doubtFigureLaneDShim";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   chemistryRefusesPlannerFigure,
@@ -351,6 +359,7 @@ export function useQuestionHandler(
     setNarrationText,
     setCurrentSegmentText,
     ensureTTSClient,
+    executeCommandWithCancel,
     beginBoardEpoch,
     revokeUnreferencedReplayBlobUrls,
     onComplete,
@@ -1952,9 +1961,8 @@ export function useQuestionHandler(
           const wb = whiteboardRef.current;
           const zoneLive = activeVerifiedDiagramRef.current;
           const zoneEntry = zoneLive && zonePresentationRef.current?.live === zoneLive ? zonePresentationRef.current : null;
-          const replacedTurnId = page.figureTurnId ?? null;
           const stash = page.zoneStash ?? (zoneLive && zoneEntry
-            ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: replacedTurnId }
+            ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null }
             : null);
           const previousStash = page.zoneStash ?? null;
           page.zoneStash = stash;
@@ -1975,7 +1983,8 @@ export function useQuestionHandler(
             }
             // Ink once its intro commits (enqueueVerifiedIntro), as a lesson's.
             page.figureDrawn = false;
-            page.turn.scene = doubtFigureTurnScene({ lessonQuestion: doubt.lessonQuestion, drawn, replacedTurnId });
+            // Planned on composeDoubtFigureQuestion; the marker names the stashed lesson figure.
+            page.turn.scene = doubtFigureTurnScene(doubtFigurePlannedScene(drawn), page.lessonQuestion, page.zoneStash?.turnId ?? null);
             // The figure's numbers came from this plan; the narration reads the same one.
             turnPlan = drawn.turnPlan;
           } else {
@@ -2000,7 +2009,8 @@ export function useQuestionHandler(
           const wb = whiteboardRef.current;
           const returned = wb
             ? await returnPageFigure(wb, boardLayoutRef.current, zoneStash.presentation,
-                releasedDeferredIds(zoneStash.presentation.diagram, zoneStash.diagram), { shouldCancel: () => !isCurrentTurn() })
+                consumedDeferredIds(zoneStash.presentation.diagram, zoneStash.diagram),
+                { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel })
             : null;
           throwIfTurnCancelled();
           activeVerifiedDiagramRef.current = returned;
@@ -2015,6 +2025,29 @@ export function useQuestionHandler(
             zonePresentationRef.current = null;
           }
           page.figureTurnId = returned ? zoneStash.turnId : null;
+          page.figureDrawn = returned !== null;
+          figureReturned = returned !== null;
+        } else if ((resume as PausedLessonRequestWithReturn).returnsFigure) {
+          // After a reload there is no stash: the stored turn whose figure the
+          // resume returns is redrawn with the marks earlier turns released.
+          const back = (resume as PausedLessonRequestWithReturn).returnsFigure!;
+          const source = back.turnId ? storedTurnsRef.current.find((turn) => turn.id === back.turnId) ?? null : null;
+          const wb = whiteboardRef.current;
+          const result = wb
+            ? await returnFigureToZone(wb, boardLayoutRef.current,
+                source ? storedFigurePresentation(source) : { diagram: null, introSegments: [] },
+                back.consumedIds, { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel })
+            : { cancelled: false, diagram: null };
+          throwIfTurnCancelled();
+          const returned = result.cancelled ? null : result.diagram;
+          activeVerifiedDiagramRef.current = returned;
+          setActiveVerifiedDiagram?.(returned);
+          dropDiagramRects(boardLayoutRef.current);
+          for (const anchor of returned?.anchors ?? []) {
+            registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+          }
+          zonePresentationRef.current = null;
+          page.figureTurnId = returned ? back.turnId : null;
           page.figureDrawn = returned !== null;
           figureReturned = returned !== null;
         }
@@ -2039,7 +2072,8 @@ export function useQuestionHandler(
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!rebuildingCodeIntro && !activeDiagram && !zoneStash && resume.scene?.sceneDocument) {
+        if (!rebuildingCodeIntro && !activeDiagram && !zoneStash && !(resume as PausedLessonRequestWithReturn).returnsFigure &&
+          resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
             sceneArtifacts: resume.scene.sceneArtifacts,
@@ -3121,7 +3155,8 @@ export function useQuestionHandler(
           givenSegments,
           // The stopped lesson's withheld labels belong to the part of it the
           // student has not reached yet; a doubt must not reveal them.
-          { revealDeferredAnnotations: !doubt || doubtFigure !== null, errorQuestion: question },
+          // A doubt's own figure keeps them too: replay never flushes a doubt.
+          { revealDeferredAnnotations: !doubt, errorQuestion: question },
         ), isCurrentTurn);
 
         const finalNarration =

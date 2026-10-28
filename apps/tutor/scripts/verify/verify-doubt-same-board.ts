@@ -678,8 +678,8 @@ function between(source: string, file: string, start: string, end: string): stri
   assert(handler.includes("buildResumeTeachingPrompt("), "the rest of the lesson continues under the resume prompt");
   assert(handler.includes("offerPausedLessonResume("), "a finished doubt offers to continue the paused lesson");
   assert(handler.includes("clearPausedLesson("), "a fresh question drops the paused lecture");
-  assert(handler.includes("revealDeferredAnnotations: !doubt || doubtFigure !== null,"),
-    "a doubt does not reveal what the stopped lesson had not reached; only its own figure's withheld labels end with it");
+  assert(handler.includes("revealDeferredAnnotations: !doubt,"),
+    "a doubt does not reveal withheld labels at its end, its own figure's included: replay never flushes a doubt");
   // The stopped turn is saved by its own Stop (progressive save), not by the
   // doubt: a doubt refused by billing used to lose the lesson it stopped.
   assert(!handler.includes("partialTurnSave"), "the doubt no longer saves the stopped turn itself");

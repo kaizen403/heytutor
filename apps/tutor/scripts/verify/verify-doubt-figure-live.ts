@@ -20,12 +20,13 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { composeDoubtFigureQuestion, doubtFigureOf } from "../../lib/boards/doubtFigure";
 import {
   DOUBT_FIGURE_BUDGET_MS,
-  doubtFigureTurnScene,
+  doubtFigurePlannedScene,
   planDoubtFigure,
-  releasedDeferredIds,
   sameFigureAsZone,
   type DoubtFigurePlanners,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+// LANE D SHIM: swap for figureSwap.ts and doubtTurn.ts at integration.
+import { consumedDeferredIds, doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtFigureLaneDShim";
 
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
@@ -103,7 +104,7 @@ async function main(): Promise<void> {
 
   // 2. The doubt's saved scene: validated, the marker, the continuation, the plan.
   {
-    const scene = doubtFigureTurnScene({ lessonQuestion, drawn, replacedTurnId: "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b" });
+    const scene = doubtFigureTurnScene(doubtFigurePlannedScene(drawn), lessonQuestion, "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b");
     assert.equal(scene.visualStatus, "validated", "the doubt row is a validated scene");
     const artifacts = scene.sceneArtifacts as Record<string, unknown>;
     assert.deepEqual(doubtFigureOf(artifacts)?.replacedTurnId, "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b", "the marker names the figure it replaced");
@@ -159,7 +160,7 @@ async function main(): Promise<void> {
       { entityId: "a", commands: [] }, { entityId: "b", commands: [] }, { entityId: "c", commands: [], revealAfterLesson: true },
     ] };
     const live = { ...fresh, deferredAnnotations: [{ entityId: "b", commands: [] }, { entityId: "c", commands: [], revealAfterLesson: true }] };
-    assert.deepEqual(releasedDeferredIds(fresh, live), ["a"], "only the marks the student already saw come back drawn");
+    assert.deepEqual(consumedDeferredIds(fresh, live), ["a"], "only the marks the student already saw come back drawn");
   }
 
   // 8. The live turn, from source.
@@ -193,6 +194,15 @@ async function main(): Promise<void> {
     assert(returnCall >= 0, "a resume with a zone stash returns the lesson's figure");
     assert(refRead > returnCall, "the resume returns the lesson's figure before it reads the zone's ref");
     assert(/pageRecord!\.zoneStash = null;\s*page\.zoneStash = null;/.test(resume), "the stash is cleared once returned");
+    assert(/consumedDeferredIds\(zoneStash\.presentation\.diagram, zoneStash\.diagram\),\s*\{ shouldCancel: \(\) => !isCurrentTurn\(\), executeCommand: executeCommandWithCancel \}/.test(resume),
+      "the return gets the pristine presentation, the live consumed ids and the board's executor");
+    const reload = resume.indexOf("returnFigureToZone(");
+    assert(reload > returnCall && refRead > reload, "after a reload, returnsFigure redraws the stored figure before the ref is read");
+    assert(resume.includes("source ? storedFigurePresentation(source) : { diagram: null, introSegments: [] }"), "the stored turn's own figure ink comes back");
+    assert(swap.includes("page.figureDrawn = false;"), "the swap clears figureDrawn; enqueueVerifiedIntro sets it on commit");
+    assert(swap.includes("page.turn.scene = doubtFigureTurnScene(doubtFigurePlannedScene(drawn), page.lessonQuestion, page.zoneStash?.turnId ?? null);"),
+      "the doubt row is its own scene, planned on the composed question, marked with the stashed figure");
+    assert(!/page\.turnPlan = |page\.solverProjection = /.test(swap), "the record keeps the lesson's plan and projection");
     assert(resume.includes("activeDiagram && !figureReturned && !resume.codeLesson && resume.remainingIntro?.length"),
       "a returned figure comes back whole: the stopped intro remainder is dropped");
   }

@@ -33,8 +33,7 @@ import {
 } from "@heytutor/tutor-core";
 import type { TutorSegment, VerifiedDiagram } from "@heytutor/drawing";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
-import { boardContinuationArtifacts } from "@/lib/boards/boardContinuation";
-import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "@/lib/boards/doubtFigure";
+import { composeDoubtFigureQuestion } from "@/lib/boards/doubtFigure";
 import {
   DOUBT_FIGURE_NEED_DEADLINE_MS,
   pointDecision,
@@ -394,16 +393,10 @@ export async function planDoubtFigure(input: {
 }
 
 /**
- * The doubt's own validated scene, saved on its row: the composed question is
- * the scene's source, the continuation keeps it on the lesson's page, and the
- * marker names the figure it replaced.
+ * The doubt's own validated scene as planned on the composed question, before
+ * lane D's doubtFigureTurnScene adds the continuation and the marker.
  */
-export function doubtFigureTurnScene(input: {
-  lessonQuestion: string;
-  drawn: DoubtFigureDrawn;
-  replacedTurnId: string | null;
-}): PersistedTurnScene {
-  const { drawn } = input;
+export function doubtFigurePlannedScene(drawn: DoubtFigureDrawn): PersistedTurnScene {
   const representation = drawn.representation;
   const artifacts: SceneArtifactsV3 = {
     schemaVersion: "scene-artifacts/v3",
@@ -432,20 +425,8 @@ export function doubtFigureTurnScene(input: {
     sceneEngineVersion: SCENE_ENGINE_VERSION,
     validationReport: representation.validationReport,
     visualStatus: "validated",
-    sceneArtifacts: {
-      ...artifacts,
-      ...boardContinuationArtifacts(input.lessonQuestion),
-      ...doubtFigureArtifacts(input.replacedTurnId),
-    },
+    sceneArtifacts: artifacts,
   };
-}
-
-/** Deferred mark ids the live figure already released: the fresh copy still holds them. */
-export function releasedDeferredIds(fresh: VerifiedDiagram, live: VerifiedDiagram): string[] {
-  const remaining = new Set((live.deferredAnnotations ?? []).map((entry) => entry.entityId));
-  return [...new Set((fresh.deferredAnnotations ?? [])
-    .map((entry) => entry.entityId)
-    .filter((id) => !remaining.has(id)))];
 }
 
 /** A pristine copy of a presentation, taken before teaching consumes its deferred marks. */
