@@ -574,7 +574,11 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:car|cyclist|vehicle|particle|stone)\b/i, 1],
       [/\bradius\b/i, 1],
     ],
-    vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
+    vetoes: [
+      /\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i,
+      // A body spinning in place travels round no circle.
+      /\b(?:about|around)\s+(?:its|their)\s+(?:own\s+)?(?:axis|axes|axle|centre|center|diameter)\b|\bown\s+axis\b|\bspin(?:s|ning)?\b|\brotational\s+(?:kinetic|energy|inertia)\b|\bmoment\s+of\s+inertia\b/i,
+    ],
     // The figure is a body going round a circle. A car moving along a level
     // road names no circle, so the stem must say it turns.
     requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],

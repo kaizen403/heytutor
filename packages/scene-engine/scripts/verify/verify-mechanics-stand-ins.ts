@@ -35,6 +35,15 @@ for (const question of [
   assert.equal(detectArchetype(question, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", `${question}: the planner's circle claim stands`);
   checks += 1;
 }
+// A body spinning in place goes round no circle, even with a radius named.
+for (const question of [
+  "A ball rotates about its own axis at 10 rad/s. Find its rotational kinetic energy.",
+  "A solid sphere of radius 0.1 m spins at 20 rad/s. Find its angular momentum.",
+  "A particle of mass 2 kg rotates about its centre of radius 0.3 m. Find its moment of inertia.",
+]) {
+  assert.notEqual(detectArchetype(question, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", `${question}: a spin in place is no circle`);
+  checks += 1;
+}
 check: {
   const straight = "A block slides straight across a smooth horizontal table at 3 m/s. Find the time to cross 2 m.";
   assert.notEqual(detectArchetype(straight, { plannerArchetype: "circular_motion_level" })?.id, "circular_motion_level", "a horizontal table names no turn");
