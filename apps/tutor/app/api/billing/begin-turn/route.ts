@@ -8,6 +8,7 @@ import {
   resolveReferencePicturePartFocusEnabled,
 } from "@/lib/scene/diagramStrategy.server";
 import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
+import { resolveDoubtFiguresEnabled } from "@/lib/boards/doubtFigure";
 
 export async function POST(request: Request): Promise<Response> {
   const startedAt = Date.now();
@@ -38,5 +39,6 @@ export async function POST(request: Request): Promise<Response> {
     referencePicture: resolveReferencePictureEnabled(),
     referencePicturePartFocus: resolveReferencePicturePartFocusEnabled(),
     doubtPointing: resolveDoubtPointingEnabled(),
+    doubtFigures: resolveDoubtFiguresEnabled(),
   });
 }

@@ -1,0 +1,140 @@
+/**
+ * DIAGRAM_DOUBT_FIGURES need check: an LLM judgment on the lesson's own
+ * provider, 3 s deadline, and "point" on any failure.
+ *
+ *   A timeout, a thrown fetch, a bad status or an unreadable reply is "point".
+ *   A mark on the figure's anchors skips the call. A code board skips it.
+ *   Flag off skips it. The route answers "point" when the flag is off, makes
+ *   one fast mode attempt bounded by the deadline, and never routes on words.
+ */
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import type { VerifiedDiagram } from "@heytutor/drawing";
+import {
+  DOUBT_FIGURE_NEED_DEADLINE_MS,
+  buildDoubtFigureNeedMessages,
+  parseDoubtFigureNeedInput,
+  parseDoubtFigureNeedReply,
+} from "../../lib/llm/doubtFigureNeed";
+import {
+  doubtFigureNeedInput,
+  doubtFigureNeedSkip,
+  requestDoubtFigureNeed,
+} from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+
+const root = resolve(import.meta.dirname, "../..");
+const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
+function between(source: string, file: string, start: string, end: string): string {
+  const from = source.indexOf(start);
+  assert(from >= 0, `${file}: start anchor "${start}" is gone. Repoint this gate; do not relax it.`);
+  const to = source.indexOf(end, from + start.length);
+  assert(to > from, `${file}: end anchor "${end}" is gone after "${start}". Repoint this gate; do not relax it.`);
+  return source.slice(from, to + end.length);
+}
+
+const figure = {
+  id: "verified_scene",
+  name: "projectile",
+  commands: [],
+  reveals: [],
+  promptAddon: "",
+  anchors: [
+    { id: "launch_point", labels: ["O"], x: 500, y: 500, width: 10, height: 10 },
+    { id: "range", labels: ["R"], x: 700, y: 520, width: 10, height: 10 },
+  ],
+} as unknown as VerifiedDiagram;
+const body = doubtFigureNeedInput({ lessonQuestion: "Range of a projectile", doubtTitle: "Doubt: what if it is thrown off a cliff", zoneFigure: figure });
+const url = "http://test.invalid/api/doubt-figure-need";
+const ok = (payload: unknown) => (async () => new Response(JSON.stringify(payload), { status: 200 })) as unknown as typeof fetch;
+
+async function main(): Promise<void> {
+  // 1. Timeout is "point", well inside the deadline it was given.
+  {
+    const hanging = ((_input: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    })) as unknown as typeof fetch;
+    const startedAt = Date.now();
+    const result = await requestDoubtFigureNeed({ url, body, fetchImpl: hanging, deadlineMs: 40 });
+    assert.equal(result.decision, "point", "a need check that times out answers point");
+    assert(Date.now() - startedAt < 1_000, "the deadline is enforced on the client, not left to the server");
+    assert.equal(DOUBT_FIGURE_NEED_DEADLINE_MS, 3_000, "the need check deadline is 3 s");
+  }
+
+  // 2. Failure is "point".
+  {
+    const thrown = (async () => { throw new TypeError("network down"); }) as unknown as typeof fetch;
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: thrown })).decision, "point", "a failed request answers point");
+    const status = (async () => new Response("no", { status: 503 })) as unknown as typeof fetch;
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: status })).decision, "point", "a bad status answers point");
+    const garbled = (async () => new Response("not json", { status: 200 })) as unknown as typeof fetch;
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: garbled })).decision, "point", "an unreadable body answers point");
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: ok({ decision: "maybe" }) })).decision, "point", "an unknown answer is point");
+    const aborted = new AbortController();
+    aborted.abort();
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: ok({ decision: "new_figure" }), signal: aborted.signal })).decision,
+      "point", "a cancelled turn answers point");
+    assert.equal((await requestDoubtFigureNeed({ url, body, fetchImpl: ok({ decision: "new_figure", reason: "a cliff" }) })).decision,
+      "new_figure", "the model's new_figure is passed through");
+  }
+
+  // 3. Skips: a ring on the figure, a code board, the flag off, a zone that cannot be returned.
+  {
+    const base = { granted: true, codeBoard: false, markedFigureIds: [] as string[], zoneFigure: figure, zoneReturnable: true };
+    assert.equal(doubtFigureNeedSkip(base), null, "a doubt on a returnable verified figure asks the need check");
+    assert.equal(doubtFigureNeedSkip({ ...base, markedFigureIds: ["Range"] }), "marked_figure_part", "a mark on a figure anchor skips the call");
+    assert.equal(doubtFigureNeedSkip({ ...base, markedFigureIds: ["row_3"] }), null, "a mark on a work row still asks");
+    assert.equal(doubtFigureNeedSkip({ ...base, codeBoard: true }), "code_board", "a code board skips the call");
+    assert.equal(doubtFigureNeedSkip({ ...base, granted: false }), "flag_off", "flag off skips the call");
+    assert.equal(doubtFigureNeedSkip({ ...base, zoneReturnable: false }), "zone_not_returnable", "a figure that cannot be returned is pointed at");
+    assert.equal(doubtFigureNeedSkip({ ...base, zoneFigure: null }), "zone_not_returnable", "an empty zone is not swapped in v1");
+  }
+
+  // 4. The classifier's input and output: parts, never keywords.
+  {
+    assert.deepEqual(body.figure.parts.map((part) => part.id), ["launch_point", "range"], "the zone's parts are what the model reads");
+    assert.equal(body.doubt, "what if it is thrown off a cliff", "the doubt is sent without its title prefix");
+    assert(parseDoubtFigureNeedInput(body), "the client body passes the route's validation");
+    assert.equal(parseDoubtFigureNeedInput({ ...body, doubt: "" }), null, "an empty doubt is refused");
+    const messages = buildDoubtFigureNeedMessages(body);
+    assert(messages[1]!.content.includes("- range: R"), "the user message lists the figure's parts");
+    assert(messages[0]!.content.includes("When unsure, answer \"point\"."), "the prompt defaults to point");
+    assert(!/[—–]/.test(messages[0]!.content), "the prompt carries no dash punctuation");
+    assert.deepEqual(parseDoubtFigureNeedReply('{"decision":"new_figure","reason":"cliff"}'), { decision: "new_figure", reason: "cliff" });
+    assert.equal(parseDoubtFigureNeedReply("new_figure"), null, "a bare word is not a decision");
+  }
+
+  // 5. The route: flag first, one fast attempt inside the deadline, point on every failure.
+  {
+    const file = "app/api/doubt-figure-need/route.ts";
+    const route = between(read(file), file, "export async function POST(", "\n}\n");
+    const flag = route.indexOf("if (!resolveDoubtFiguresEnabled()) return Response.json(pointDecision(\"flag_off\"));");
+    assert(flag >= 0 && flag < route.indexOf("requireLessonGrant("), "flag off answers point before any work");
+    assert(route.includes("fastMode: true"), "the classifier runs in fast mode");
+    assert(route.includes("resolveLlmEndpoint()"), "the classifier runs on the lesson's own provider");
+    assert(route.includes("maxAttemptsPerModel: 1") && route.includes("attemptTimeoutMs: DOUBT_FIGURE_NEED_DEADLINE_MS"),
+      "one attempt, bounded by the deadline");
+    assert(route.includes("AbortSignal.timeout(DOUBT_FIGURE_NEED_DEADLINE_MS)"), "the whole call is bounded by the deadline");
+    assert(/catch \{\s*return Response\.json\(pointDecision\(signal\.aborted \? "timeout" : "provider_error"\)\);/.test(route),
+      "a thrown or timed out call answers point");
+    assert(!/JEV|jev/.test(route), "the need check never uses Jev");
+  }
+
+  // 6. The live turn skips the call on a skip, and only calls with the flag.
+  {
+    const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
+    const plan = between(read(file), file, "if (doubt && doubtFiguresGranted) {\n        // doubt-figure-plan:begin", "// doubt-figure-plan:end");
+    assert(/markedFigureIds: doubt\.markedFigureIds \?\? \[\]/.test(plan), "the doubt's marked figure parts reach the skip");
+    assert(/codeBoard: Boolean\(codeLessonControllerRef\?\.current\?\.getActivePlan\(\)\)/.test(plan), "a code board reaches the skip");
+    assert(/const need = skip\s*\? \{ decision: "point" as const, reason: skip \}\s*: await awaitCurrentTurn\(requestDoubtFigureNeed\(/.test(plan),
+      "a skip answers point without the call");
+    const shell = read("features/tutor-session/TutorSessionShell.tsx");
+    assert(shell.includes("handleAskDoubt(doubt, { prompt, title, markedFigureIds: markedEntityIds(marks) });"),
+      "a marked doubt carries the figure parts its marks landed on");
+  }
+}
+
+main().then(() => console.log("doubt figure need verification passed"), (error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});

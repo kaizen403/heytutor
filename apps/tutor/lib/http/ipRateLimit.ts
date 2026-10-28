@@ -67,7 +67,7 @@ export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
   if (pathname === "/api/trace" || pathname.startsWith("/api/trace/")) return "trace";
   if (pathname === "/api/home-suggestions") return "suggestions";
   if (pathname.startsWith("/api/reference-picture/")) return "pictures";
-  if (["/api/chat", "/api/stt", "/api/tts/stream", "/api/tts/ws-ticket", "/api/extract-question", "/api/visual-need", "/api/reference-picture", "/api/dsa-teaching-policy", "/api/board-name"].includes(pathname)) return "paid";
+  if (["/api/chat", "/api/stt", "/api/tts/stream", "/api/tts/ws-ticket", "/api/extract-question", "/api/visual-need", "/api/reference-picture", "/api/dsa-teaching-policy", "/api/doubt-figure-need", "/api/board-name"].includes(pathname)) return "paid";
   if (pathname === SENTRY_TUNNEL_PATH || pathname.startsWith(`${SENTRY_TUNNEL_PATH}/`)) return "sentry";
   return null;
 }

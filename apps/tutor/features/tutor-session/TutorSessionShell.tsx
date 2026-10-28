@@ -134,6 +134,7 @@ import {
 } from "./lib/sessionCapabilities";
 import {
   buildMarkedDoubtPrompt,
+  markedEntityIds,
   summarizeMarks,
   type BoardMark,
 } from "./lib/board/boardMarking";
@@ -1489,7 +1490,7 @@ export function TutorSessionShell({
       }
       const prompt = buildMarkedDoubtPrompt(marks, doubt, liveQuestionRef.current);
       marking.disarm();
-      handleAskDoubt(doubt, { prompt, title });
+      handleAskDoubt(doubt, { prompt, title, markedFigureIds: markedEntityIds(marks) });
     },
     [boardLayoutRef, handleAskDoubt, marking],
   );
