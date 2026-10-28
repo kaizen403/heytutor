@@ -18,7 +18,7 @@
  */
 import sharp from "sharp";
 import { legendMarkKey, normalizeLegendMark, parseReferencePictureParts, type PicturePlacement, type ReferencePictureLegendEntry, type ReferencePicturePart, type ReferencePicturePlan } from "@heytutor/drawing";
-import { joinLines, labelKeys, markSetHolds, matchLabels, matchMarks, partsFrom, wordKey, type LocatedName, type MatchOutcome, type TextLine } from "./partLocatorMatch";
+import { joinLines, labelKeys, markSetHolds, markStylesMixed, matchLabels, matchMarks, partsFrom, wordKey, type LocatedName, type MatchOutcome, type TextLine } from "./partLocatorMatch";
 import { readSvgText, SVG_MAX_BYTES } from "./partLocatorSvg";
 import { downloadPicture } from "./wikimediaSearch";
 
@@ -175,6 +175,8 @@ async function locate(input: LocatePartsInput, signal: AbortSignal): Promise<Loc
  */
 export async function locateReferencePictureParts(input: LocatePartsInput): Promise<LocatePartsResult> {
   if (!input.labels.length && !input.legend?.length) return { parts: [], step: "no names" };
+  // A key printing both "01" and "1" was misread; its marks are not looked for.
+  if (input.legend?.length && markStylesMixed(input.legend)) return { parts: [], step: "key mixes 01 and 1 marks: none" };
   const budget = new AbortController();
   const signal = budget.signal;
   let timer: ReturnType<typeof setTimeout> | undefined;

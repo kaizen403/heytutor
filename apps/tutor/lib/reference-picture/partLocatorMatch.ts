@@ -62,16 +62,25 @@ export function unionBox(boxes: readonly PicturePlacement[]): PicturePlacement {
  * they share a baseline and size and the gap between them is a word space.
  * Pieces arrive left to right, so a line that ends further than a word space
  * before the current piece can never take another: it leaves the active
- * list, which keeps a page of separate labels near linear.
+ * list, which keeps a page of separate labels near linear. Pieces that
+ * overlap across the page never leave it, so joining has a step budget too:
+ * past it, it throws and the picture gets no parts.
  */
 export function joinLines(lines: readonly TextLine[]): TextLine[] {
+  const step = stepBudget(JOIN_STEPS, "too much text to join");
   const sorted = lines.filter((l) => l.words.length).map((l) => ({ ...l, box: lineBox(l.words) })).sort((a, b) => a.box.x - b.box.x);
   const out: Array<TextLine & { box: PicturePlacement }> = [];
-  let active: Array<TextLine & { box: PicturePlacement }> = [];
+  const active: Array<TextLine & { box: PicturePlacement }> = [];
   for (const line of sorted) {
     const h = line.box.height;
-    active = active.filter((o) => line.box.x - (o.box.x + o.box.width) < 0.6 * o.box.height);
+    let kept = 0;
+    for (const o of active) {
+      step();
+      if (line.box.x - (o.box.x + o.box.width) < 0.6 * o.box.height) active[kept++] = o;
+    }
+    active.length = kept;
     const host = active.find((o) => {
+      step();
       const oh = o.box.height;
       if (o.source !== line.source || Math.max(h, oh) / Math.min(h, oh) > 1.35) return false;
       const minH = Math.min(h, oh);
@@ -96,11 +105,13 @@ export function joinLines(lines: readonly TextLine[]): TextLine[] {
  * parts). A real diagram takes a few thousand; this many take under 20 ms.
  */
 export const MATCH_STEPS = 300_000;
+/** Comparisons joining may make before it gives up. A real diagram makes a few thousand; this many take about 10 ms. */
+export const JOIN_STEPS = 1_000_000;
 
-function stepBudget(limit = MATCH_STEPS): () => void {
+function stepBudget(limit = MATCH_STEPS, failure = "too much text to match"): () => void {
   let left = limit;
   return () => {
-    if (--left < 0) throw new Error("too much text to match");
+    if (--left < 0) throw new Error(failure);
   };
 }
 
@@ -311,20 +322,48 @@ export function matchMarks(lines: readonly TextLine[], legend: readonly Referenc
 
 /** Located marks must agree on height within this factor of their median, or none is trusted. */
 const MARK_HEIGHT_SPREAD = 1.6;
+/** Marks whose bottoms differ by less than this share of their median height sit on one baseline. */
+const BASELINE_SHARE = 0.2;
+/** Gaps between neighbouring marks that differ by less than this share of their mean are even. */
+const EVEN_SPACING_SHARE = 0.15;
 
 /**
  * Marks are trusted only as a set. A lone digit that is not a mark (a
  * subscript set apart, an axis tick, a scale number) looks just like one; a
  * set of marks located together, at one size, does not happen by accident.
  * True when at least two marks and at least half the key's marks are
- * located, all within 1.6x of their median height.
+ * located, all within 1.6x of their median height, and they are not three
+ * or more on one baseline at even spacing (the numbers of an axis or a
+ * scale bar).
  */
 export function markSetHolds(marks: readonly Pick<LocatedName, "box">[], keySize: number): boolean {
   if (marks.length < 2 || marks.length * 2 < keySize) return false;
   const heights = marks.map((m) => m.box.height).sort((a, b) => a - b);
   const mid = heights.length >> 1;
   const median = heights.length % 2 ? heights[mid]! : (heights[mid - 1]! + heights[mid]!) / 2;
-  return heights.every((h) => h <= MARK_HEIGHT_SPREAD * median && median <= MARK_HEIGHT_SPREAD * h);
+  if (!heights.every((h) => h <= MARK_HEIGHT_SPREAD * median && median <= MARK_HEIGHT_SPREAD * h)) return false;
+  return marks.length < 3 || !evenRow(marks.map((m) => m.box), median);
+}
+
+/** Boxes on one baseline whose centres step across at one even gap. */
+function evenRow(boxes: readonly PicturePlacement[], height: number): boolean {
+  const bottoms = boxes.map((b) => b.y + b.height);
+  if (Math.max(...bottoms) - Math.min(...bottoms) > BASELINE_SHARE * height) return false;
+  const centres = boxes.map((b) => b.x + b.width / 2).sort((a, b) => a - b);
+  const gaps = centres.slice(1).map((c, i) => c - centres[i]!);
+  const mean = gaps.reduce((n, g) => n + g, 0) / gaps.length;
+  return mean > 0 && Math.max(...gaps) - Math.min(...gaps) <= EVEN_SPACING_SHARE * mean;
+}
+
+/**
+ * A key that prints some marks zero padded ("01") and some not ("1") was
+ * misread: the two styles do not mix on one drawing, and "01" and "1" would
+ * be two marks for what is likely one. Such a key gets no mark parts.
+ */
+export function markStylesMixed(legend: readonly ReferencePictureLegendEntry[]): boolean {
+  const padded = legend.some((entry) => /^0[0-9]/.test(entry.mark));
+  const bare = legend.some((entry) => /^[1-9][a-z]?$/i.test(entry.mark));
+  return padded && bare;
 }
 
 /**

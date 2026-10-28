@@ -21,7 +21,9 @@
  * entity expansion may at most double the file, stylesheets are read up to
  * 64 KB, and a file with more than 3,000 texts or 60,000 characters of text
  * is declined. Hitting a ceiling declines the file (no parts), never the
- * picture.
+ * picture. Style rules are looked up by tag, class and id, an element naming
+ * more than 32 classes or a text holding more than 200 parts is left out,
+ * and every stage that visits elements yields the event loop.
  */
 import type { PicturePlacement } from "@heytutor/drawing";
 import type { TextLine, TextWord } from "./partLocatorMatch";
@@ -41,6 +43,12 @@ export const SVG_MAX_TEXTS = 3_000;
 export const SVG_MAX_TEXT_CHARS = 60_000;
 /** A `<text>` saying more than this is a caption or a paragraph, not a label: it is printed but not boxed. */
 const MAX_LABEL_CHARS = 200;
+/** Parts (`tspan`, `a`) one `<text>` may hold, one per character at most; more is printed but not boxed. */
+const MAX_TEXT_PARTS = MAX_LABEL_CHARS;
+/** Distinct classes one element may name; drawing tools write one or two. More, and the element's style is unreadable. */
+const MAX_CLASSES = 32;
+/** Class tokens read from one attribute at most, repeats included; more, and the element's style is unreadable. */
+const MAX_CLASS_TOKENS = 4 * MAX_CLASSES;
 /** How long the reader may hold the event loop before it yields. */
 const SLICE_MS = 12;
 /** Text turned further than this is not a horizontal label: it is left out. */
@@ -263,19 +271,56 @@ function parseStylesheet(css: string): Rule[] {
   return rules.map((rule, order) => ({ rule, order })).sort((a, b) => a.rule.specificity - b.rule.specificity || a.order - b.order).map((x) => x.rule);
 }
 
+/**
+ * Rules in cascade order, each filed under its most specific part (id, then
+ * class, then tag), so an element looks up only the rules that can match it
+ * rather than scanning the whole sheet.
+ */
+interface RuleIndex { rules: readonly Rule[]; byId: Map<string, number[]>; byClass: Map<string, number[]>; byTag: Map<string, number[]> }
+
+function indexRules(rules: readonly Rule[]): RuleIndex {
+  const index: RuleIndex = { rules, byId: new Map(), byClass: new Map(), byTag: new Map() };
+  rules.forEach((rule, at) => {
+    const [map, key] = rule.id ? [index.byId, rule.id] : rule.cls ? [index.byClass, rule.cls] : [index.byTag, rule.tag!];
+    (map.get(key) ?? map.set(key, []).get(key)!).push(at);
+  });
+  return index;
+}
+
+/** An element's distinct classes, or null when it names more than this reader trusts. */
+function classesOf(element: Element): string[] | null {
+  const raw = element.attrs.class;
+  if (!raw) return [];
+  const classes = new Set<string>();
+  let tokens = 0;
+  for (const token of raw.matchAll(/\S+/g)) {
+    if (++tokens > MAX_CLASS_TOKENS) return null;
+    classes.add(token[0]);
+    if (classes.size > MAX_CLASSES) return null;
+  }
+  return [...classes];
+}
+
 const STYLE_KEYS = ["font-size", "font-family", "font-weight", "font-stretch", "font", "text-anchor", "display", "visibility", "opacity", "fill-opacity", "letter-spacing", "dominant-baseline", "alignment-baseline", "writing-mode"] as const;
 
 /**
  * Own declared style of an element: presentation attributes, then the
  * stylesheet, then `style=""` (SVG's precedence). A `transform` here comes
  * only from CSS (the attribute is read on its own), and marks the element as
- * one this reader cannot place.
+ * one this reader cannot place. Null when the element names too many
+ * classes to read: it cannot be placed either.
  */
-function ownStyle(element: Element, rules: readonly Rule[]): Style {
+function ownStyle(element: Element, sheet: RuleIndex): Style | null {
+  const classes = classesOf(element);
+  if (!classes) return null;
   const style: Style = {};
   for (const key of STYLE_KEYS) if (element.attrs[key] !== undefined && element.attrs[key]!.length <= MAX_STYLE_VALUE) style[key] = element.attrs[key]!;
-  const classes = (element.attrs.class ?? "").split(/\s+/).filter(Boolean);
-  for (const rule of rules) {
+  // Each rule is filed once and each class is distinct, so no rule is met twice.
+  const candidates = [...(sheet.byTag.get(element.name) ?? []), ...(element.attrs.id !== undefined ? sheet.byId.get(element.attrs.id) ?? [] : [])];
+  for (const cls of classes) candidates.push(...(sheet.byClass.get(cls) ?? []));
+  candidates.sort((a, b) => a - b);
+  for (const at of candidates) {
+    const rule = sheet.rules[at]!;
     if (rule.tag && rule.tag !== element.name) continue;
     if (rule.cls && !classes.includes(rule.cls)) continue;
     if (rule.id && rule.id !== element.attrs.id) continue;
@@ -502,20 +547,23 @@ function isConditionalFalse(element: Element): boolean {
 }
 
 /**
- * Lay out one `<text>` element into chunks. Null when it holds something
- * this cannot place (text on a path, vertical writing).
+ * Lay out one `<text>` element into chunks, yielding through `pace`. Null
+ * when it holds something this cannot place (text on a path, vertical
+ * writing, more parts than a label has characters).
  */
-function layoutText(text: Element, base: TextState, ctm: Matrix, rules: readonly Rule[]): Chunk[] | null {
+async function layoutText(text: Element, base: TextState, ctm: Matrix, sheet: RuleIndex, pace: () => Promise<void>): Promise<Chunk[] | null> {
   const chunks: Chunk[] = [];
   let current: Chunk | null = null;
   let cx = 0;
   let cy = 0;
   let unreadable = false;
-  const visit = (element: Element, state: TextState, isRoot: boolean) => {
+  let parts = 0;
+  const visit = async (element: Element, state: TextState, isRoot: boolean): Promise<void> => {
     if (unreadable) return;
     if (element.name === "textpath" || element.name === "tref") { unreadable = true; return; }
     if (!isRoot && element.name !== "tspan" && element.name !== "a") return;
-    if (state.vertical) { unreadable = true; return; }
+    if (state.vertical || (!isRoot && ++parts > MAX_TEXT_PARTS)) { unreadable = true; return; }
+    await pace();
     const xs = numbers(element.attrs.x);
     const ys = numbers(element.attrs.y);
     const dxs = numbers(element.attrs.dx);
@@ -545,15 +593,16 @@ function layoutText(text: Element, base: TextState, ctm: Matrix, rules: readonly
         cx += width;
       } else {
         if (isConditionalFalse(child)) continue;
-        const style = ownStyle(child, rules);
-        if (cssTransformed(style)) { unreadable = true; return; }
+        const style = ownStyle(child, sheet);
+        if (!style || cssTransformed(style)) { unreadable = true; return; }
         const childState = inherit(state, style);
         if (childState.hidden) continue;
-        visit(child, childState, false);
+        await visit(child, childState, false);
+        if (unreadable) return;
       }
     }
   };
-  visit(text, base, true);
+  await visit(text, base, true);
   return unreadable ? null : chunks;
 }
 
@@ -650,24 +699,38 @@ export async function readSvgText(source: string, plan: { width: number; height:
   // A root transform this cannot read moves every label somewhere unknown.
   const rootTransform = parseTransform(svg.attrs.transform);
   if (!rootTransform) return null;
+  let sliceStart = performance.now();
+  /** Yield once the reader has held the event loop for `SLICE_MS`; the caller's abort declines the file. */
+  const pace = async () => {
+    if (performance.now() - sliceStart <= SLICE_MS) return;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (signal?.aborted) throw new Declined();
+    sliceStart = performance.now();
+  };
   const sheets: string[] = [];
   let styleChars = 0;
-  const collectStyles = (element: Element) => {
+  const collectStyles = async (element: Element): Promise<void> => {
     for (const child of element.children) {
       if (typeof child === "string") continue;
+      await pace();
       if (child.name === "style") {
         const css = child.children.filter((c): c is string => typeof c === "string").join("");
         styleChars += css.length;
         sheets.push(css);
-      } else collectStyles(child);
+      } else await collectStyles(child);
     }
   };
-  collectStyles(svg);
+  try {
+    await collectStyles(svg);
+  } catch (error) {
+    if (error instanceof Declined) return null;
+    throw error;
+  }
   if (styleChars > MAX_STYLE_CHARS) return null;
   const rules = sheets.flatMap(parseStylesheet);
   if (rules.length > MAX_STYLE_RULES) return null;
   // Each sheet comes back sorted; a stable sort keeps document order between sheets.
-  const sorted = [...rules].sort((a, b) => a.specificity - b.specificity);
+  const sheet = indexRules([...rules].sort((a, b) => a.specificity - b.specificity));
   const result: SvgTextResult = { lines: [], texts: 0, skipped: 0, unplaced: [] };
   let textChars = 0;
   /** Past a ceiling the whole file is declined, so a hostile one costs a bounded amount of work. */
@@ -677,63 +740,67 @@ export async function readSvgText(source: string, plan: { width: number; height:
   };
   // One group used a thousand times is read once.
   const printedBy = new WeakMap<Element, string[]>();
-  const leaveOut = (element: Element) => {
-    const texts = printedBy.get(element) ?? textsOf(element);
+  const leaveOut = async (element: Element) => {
+    const texts = printedBy.get(element) ?? await textsOf(element, pace);
     printedBy.set(element, texts);
     result.skipped += texts.length;
     result.unplaced.push(...texts);
     tally(texts.reduce((n, t) => n + t.length, 0));
   };
   let ids: Map<string, Element> | null = null;
-  const byId = (id: string) => {
+  /** Built on first use, in document order (a later duplicate wins), yielding as it goes: a file may hold a quarter million elements. */
+  const byId = async (id: string) => {
     if (!ids) {
       ids = new Map();
-      const index = (element: Element) => {
-        for (const c of element.children) if (typeof c !== "string") { if (c.attrs.id) ids!.set(c.attrs.id, c); index(c); }
-      };
-      index(svg);
+      const stack: Element[] = [svg];
+      while (stack.length) {
+        await pace();
+        const element = stack.pop()!;
+        if (element !== svg && element.attrs.id) ids.set(element.attrs.id, element);
+        for (let at = element.children.length - 1; at >= 0; at--) {
+          const c = element.children[at]!;
+          if (typeof c !== "string") stack.push(c);
+        }
+      }
     }
     return ids.get(id);
   };
   const base: TextState = { fontSize: 16, family: "sans-serif", bold: false, narrow: false, anchor: "start", letterSpacing: 0, baseline: "auto", hidden: false, vertical: false };
   let group = 0;
-  let sliceStart = performance.now();
   const walk = async (element: Element, state: TextState, ctm: Matrix): Promise<void> => {
     const isSwitch = element.name === "switch";
     let switched = false;
     for (const child of element.children) {
       if (typeof child === "string") continue;
-      if (performance.now() - sliceStart > SLICE_MS) {
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        if (signal?.aborted) throw new Declined();
-        sliceStart = performance.now();
-      }
+      await pace();
       if (NON_RENDERED.has(child.name) || child.name.includes(":")) continue;
       if (isConditionalFalse(child)) continue;
       // A switch renders its first child that passes (rsvg, English).
       if (isSwitch) { if (switched) continue; switched = true; }
-      const style = ownStyle(child, sorted);
+      const style = ownStyle(child, sheet);
+      // Too many classes to read: its style, and so where it puts text, is unknown. Printed, not boxed.
+      if (!style) { await leaveOut(child); continue; }
       const childState = inherit(state, style);
       if (childState.hidden) continue;
       // A CSS transform moves the text somewhere this does not map: printed, not boxed.
-      if (cssTransformed(style)) { leaveOut(child); continue; }
+      if (cssTransformed(style)) { await leaveOut(child); continue; }
       const own = parseTransform(child.attrs.transform);
       // Text in a nested viewport, or reached through `<use>`, is left out rather than mapped twice.
-      if (child.name === "svg") { leaveOut(child); continue; }
+      if (child.name === "svg") { await leaveOut(child); continue; }
       if (child.name === "use") {
         const href = (child.attrs.href ?? child.attrs["xlink:href"] ?? "").trim();
-        const target = href.startsWith("#") ? byId(href.slice(1)) : undefined;
-        if (target) leaveOut(target);
+        const target = href.startsWith("#") ? await byId(href.slice(1)) : undefined;
+        if (target) await leaveOut(target);
         continue;
       }
       if (child.name === "text") {
         result.texts++;
-        const length = textContent(child).length;
+        const length = (await textContent(child, pace)).length;
         // Too long to be a label: printed, so it still counts as a copy of any name it holds.
-        if (length > MAX_LABEL_CHARS) { leaveOut(child); continue; }
+        if (length > MAX_LABEL_CHARS) { await leaveOut(child); continue; }
         tally(length);
-        const chunks = own ? layoutText(child, childState, multiply(ctm, own), sorted) : null;
-        if (!chunks) { leaveOut(child); continue; }
+        const chunks = own ? await layoutText(child, childState, multiply(ctm, own), sheet, pace) : null;
+        if (!chunks) { await leaveOut(child); continue; }
         group++;
         let kept = 0;
         for (const chunk of chunks) {
@@ -745,16 +812,16 @@ export async function readSvgText(source: string, plan: { width: number; height:
         if (chunks.length && !kept) result.skipped++;
         continue;
       }
-      if (!own) { leaveOut(child); continue; }
+      if (!own) { await leaveOut(child); continue; }
       await walk(child, childState, multiply(ctm, own));
     }
   };
-  const rootStyle = ownStyle(svg, sorted);
-  if (cssTransformed(rootStyle)) return null;
+  const rootStyle = ownStyle(svg, sheet);
+  if (!rootStyle || cssTransformed(rootStyle)) return null;
   try {
     await walk(svg, inherit(base, rootStyle), rootTransform);
     // Text in a pattern, marker or symbol is printed wherever that is used: a copy of any name it holds, though it is never boxed.
-    for (const element of definitions(svg)) leaveOut(element);
+    for (const element of await definitions(svg, pace)) await leaveOut(element);
   } catch (error) {
     if (error instanceof Declined) return null;
     throw error;
@@ -768,39 +835,49 @@ class Declined extends Error {}
 const REPEATED = new Set(["pattern", "marker", "symbol"]);
 
 /** Every pattern, marker and symbol, wherever it sits (usually in `<defs>`), outermost only. */
-function definitions(root: Element): Element[] {
+async function definitions(root: Element, pace: () => Promise<void>): Promise<Element[]> {
   const out: Element[] = [];
-  const visit = (element: Element) => {
+  const visit = async (element: Element): Promise<void> => {
     for (const c of element.children) {
       if (typeof c === "string") continue;
+      await pace();
       if (REPEATED.has(c.name)) out.push(c);
-      else visit(c);
+      else await visit(c);
     }
   };
-  visit(root);
+  await visit(root);
   return out;
 }
 
-function textContent(element: Element): string {
-  return element.children.map((c) => (typeof c === "string" ? c : textContent(c))).join("");
+async function textContent(element: Element, pace: () => Promise<void>): Promise<string> {
+  let out = "";
+  for (const c of element.children) {
+    if (typeof c === "string") out += c;
+    else {
+      await pace();
+      out += await textContent(c, pace);
+    }
+  }
+  return out;
 }
 
 /** What an element prints: one string per `<text>`, the element itself included. */
-function textsOf(element: Element): string[] {
+async function textsOf(element: Element, pace: () => Promise<void>): Promise<string[]> {
   if (element.name === "text") {
-    const words = textContent(element).replace(/\s+/g, " ").trim();
+    const words = (await textContent(element, pace)).replace(/\s+/g, " ").trim();
     return words ? [words] : [];
   }
-  return textsIn(element);
+  return textsIn(element, pace);
 }
 
 /** The words of every `<text>` under an element, one string per text. */
-function textsIn(element: Element): string[] {
+async function textsIn(element: Element, pace: () => Promise<void>): Promise<string[]> {
   const out: string[] = [];
   for (const c of element.children) {
     if (typeof c === "string") continue;
-    if (c.name === "text") out.push(...textsOf(c));
-    else out.push(...textsIn(c));
+    await pace();
+    if (c.name === "text") out.push(...(await textsOf(c, pace)));
+    else out.push(...(await textsIn(c, pace)));
   }
   return out;
 }

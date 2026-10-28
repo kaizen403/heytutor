@@ -16,7 +16,7 @@
 import sharp from "sharp";
 import { parseReferencePictureParts, REFERENCE_PICTURE_PLAN_VERSION, type PicturePlacement, type ReferencePicturePart, type ReferencePicturePlan } from "@heytutor/drawing";
 import { parseSvg, parseTransform, readSvgText, rootToPlan, SVG_MAX_BYTES, SVG_MAX_TEXTS } from "../../lib/reference-picture/partLocatorSvg";
-import { joinLines, markSetHolds, matchLabels, matchMarks, partsFrom, wordKey, type TextLine } from "../../lib/reference-picture/partLocatorMatch";
+import { joinLines, markSetHolds, markStylesMixed, matchLabels, matchMarks, partsFrom, wordKey, type TextLine } from "../../lib/reference-picture/partLocatorMatch";
 import { boxOnInk, decodeInkMask, locateReferencePictureParts, recordWithParts, type LocatePartsInput } from "../../lib/reference-picture/partLocator";
 import { buildStrokePlan } from "../../lib/reference-picture/strokePlan";
 import { candidateFromPage, commonsFileInfo } from "../../lib/reference-picture/wikimediaSearch";
@@ -161,6 +161,11 @@ function matchChecks(): void {
   const box = (height: number) => ({ box: { x: 0, y: 0, width: 8, height } });
   check(!markSetHolds([box(14)], 2) && !markSetHolds([box(14), box(14)], 5) && markSetHolds([box(14), box(14), box(15)], 5), "marks count only as a set: at least two, and at least half the key");
   check(!markSetHolds([box(14), box(14), box(6)], 4) && !markSetHolds([box(14), box(14), box(30)], 4) && markSetHolds([box(14), box(12), box(19)], 4), "a mark much smaller or larger than the others (a subscript, a heading) breaks the set");
+  const placed = (x: number, y: number) => ({ box: { x, y, width: 8, height: 14 } });
+  check(!markSetHolds([placed(100, 500), placed(200, 501), placed(300, 500)], 4) && !markSetHolds([placed(100, 500), placed(150, 500), placed(200, 500), placed(250, 500)], 4), "marks on one baseline at even spacing (scale bar or axis numbers) are not a set");
+  check(markSetHolds([placed(100, 500), placed(140, 500), placed(300, 500)], 4) && markSetHolds([placed(100, 100), placed(200, 300), placed(300, 500)], 4) && markSetHolds([placed(100, 500), placed(200, 500)], 4), "uneven spacing, separate baselines, or only two marks still hold");
+  const keyOf = (...marks: string[]) => marks.map((mark) => ({ mark, label: `Part ${mark}` }));
+  check(markStylesMixed(keyOf("01", "1")) && markStylesMixed(keyOf("01", "02", "3")) && !markStylesMixed(keyOf("01", "02", "10")) && !markStylesMixed(keyOf("1", "2", "10", "a")), "a key mixing \"01\" and \"1\" marks is a misread; one style alone is not");
 
   const parts = partsFrom([{ label: "Septum", box: { x: -4, y: 10.2, width: 30, height: 10 }, source: "svg" }, { label: "Aorta", box: { x: 5, y: 5, width: 10, height: 10 }, source: "svg" }, { label: "Apex", box: { x: 790, y: 5, width: 40, height: 10 }, source: "svg" }], ["Heart", "Aorta", "Septum", "Apex"], { width: 800, height: 400 });
   check(parts.map((p) => p.label).join(",") === "Aorta,Septum", "parts follow the record's order; a box mostly off the picture is dropped");
@@ -253,6 +258,17 @@ async function endToEndChecks(): Promise<void> {
   const loneResult = await locateReferencePictureParts({ ...input(), plan: nBuilt.plan, picturePng: nBuilt.picturePng, labels: legend.map((e) => e.label), legend, fetchImpl: async () => svgResponse(lone) });
   check(loneResult.parts.length === 0 && loneResult.step.includes("not a set"), `a lone located mark is not trusted (${loneResult.step})`);
   check(nResult.parts[0] && near(nResult.parts[0].box.x, 100 * nBuilt.plan.width / 800, 3), "mark 1 is the one on the drawing, not the one in the printed key row");
+  // Marks 1, 2, 3 as the numbers of a scale bar: one baseline, even steps. Not a set of part marks.
+  const scale = numbered.replace(`<text ${LAB} x="100" y="100">1</text><text ${LAB} x="500" y="120">2</text><text ${LAB} x="480" y="480">3</text>`, `<text ${LAB} x="200" y="420">1</text><text ${LAB} x="300" y="420">2</text><text ${LAB} x="400" y="420">3</text>`).replace("Phase 3", "Phase");
+  const sBuilt = await buildStrokePlan(await sharp(Buffer.from(scale)).png().toBuffer());
+  const scaleResult = await locateReferencePictureParts({ ...input(), plan: sBuilt.plan, picturePng: sBuilt.picturePng, labels: legend.map((e) => e.label), legend, fetchImpl: async () => svgResponse(scale) });
+  check(scaleResult.parts.length === 0 && scaleResult.step.includes("3 marks not a set"), `marks set as a scale bar are not trusted (${scaleResult.step})`);
+  // A key read as "01" and "2": a misread key gets no mark parts, though the drawing's marks would match.
+  const mixed = [{ mark: "01", label: "Aorta" }, ...legend.slice(1)];
+  const mixedSvg = numbered.replace(`x="100" y="100">1<`, `x="100" y="100">01<`);
+  const mBuilt = await buildStrokePlan(await sharp(Buffer.from(mixedSvg)).png().toBuffer());
+  const mixedResult = await locateReferencePictureParts({ ...input(), plan: mBuilt.plan, picturePng: mBuilt.picturePng, labels: mixed.map((e) => e.label), legend: mixed, fetchImpl: async () => svgResponse(mixedSvg) });
+  check(mixedResult.parts.length === 0 && mixedResult.step.includes("mixes"), `a key mixing "01" and "2" marks gets no mark parts (${mixedResult.step})`);
 
   // Failure paths: none of them stores a part, none throws, except the caller's own abort.
   const wide = { ...plan, width: plan.width, height: Math.round(plan.height * 0.8) };
@@ -336,12 +352,41 @@ async function hostileChecks(): Promise<void> {
   const chars = doc(Array.from({ length: 400 }, (_, i) => `<text x="10" y="${i}">${"w".repeat(190)}</text>`).join(""));
   check((await readSvgText(chars, SHEET)) === null, "a file with more than 60,000 characters of text is declined");
 
+  // Style matching and text layout under a full sheet: 2,000 rules against one element naming 300,000 classes
+  // (898 ms at a stretch when every element scanned every rule), and against one text of 80,000 empty tspans
+  // (561 ms; layout never yielded). Each must hold the loop under 20 ms: best of two runs, so one garbage
+  // collection pause does not fail it.
+  const rules = (from: number) => `<style>${Array.from({ length: 2_000 }, (_, i) => `.r${from + i}{font-size:${10 + (i % 5)}px}`).join("")}</style>`;
+  const stretch = async (svg: string) => {
+    const runs = [await timed(() => readSvgText(svg, SHEET)), await timed(() => readSvgText(svg, SHEET))];
+    return { value: runs[1]!.value, ms: Math.min(...runs.map((r) => r.ms)), stallMs: Math.min(...runs.map((r) => r.stallMs)) };
+  };
+  const classBomb = await stretch(doc(`${rules(0)}<g class="${Array.from({ length: 300_000 }, () => "zz").join(" ")}">${label}</g><text x="40" y="200" class="r1 r1 r2" font-size="28">Apex</text>`));
+  check(classBomb.stallMs < 20 && classBomb.value?.unplaced.includes("Aorta") && classBomb.value.lines.length === 1, `an element naming 300,000 classes is printed, not boxed, and holds the loop ${classBomb.stallMs.toFixed(0)} ms at most (${classBomb.ms.toFixed(0)} ms)`);
+  const apex = classBomb.value?.lines.find((line) => line.words[0]?.text === "Apex");
+  check(apex && near(apex.words[0]!.box.height, 12 * 0.98, 0.6), "repeated classes count once, and each class's rule still applies in sheet order (.r2 after .r1)");
+  const tspanBomb = await stretch(doc(`${rules(1_000)}<text x="10" y="20" font-size="10">${`<tspan x="1" y="2"/>`.repeat(80_000)}</text>${label}`));
+  check(tspanBomb.stallMs < 20 && tspanBomb.value?.lines.length === 1, `a text of 80,000 empty tspans holds the loop ${tspanBomb.stallMs.toFixed(0)} ms at most (${tspanBomb.ms.toFixed(0)} ms)`);
+  const crowded = await readSvgText(doc(`<text x="10" y="20">Aorta${`<tspan dx="0"/>`.repeat(201)}</text>`), SHEET);
+  check(crowded && crowded.lines.length === 0 && crowded.unplaced.includes("Aorta"), "a text of more parts than a label has characters is printed, not boxed (it still counts as a copy)");
+  const fewer = await readSvgText(doc(`<text x="10" y="20">Aorta${`<tspan dx="0"/>`.repeat(199)}</text>`), SHEET);
+  check(fewer?.lines[0]?.words[0]?.text === "Aorta", "a text just under the part ceiling still reads");
+
   // The joiner and the matcher on their own: line joining is near linear, matching has a step budget.
   const pieces: TextLine[] = Array.from({ length: 20_000 }, (_, i) => L(i, w(String(i), i * 10, (i % 50) * 20)));
   const started = performance.now();
   const joined = joinLines(pieces);
   const joinMs = performance.now() - started;
   check(joined.length === 20_000 && joinMs < 150, `20,000 separate pieces join in near linear time (${joinMs.toFixed(0)} ms)`);
+  // Pieces that all overlap across the page never leave the active list: 3,000 of them took 26 to 40 ms.
+  const overlapping: TextLine[] = Array.from({ length: SVG_MAX_TEXTS }, (_, i) => L(i, w(`w${i}`, 0, i * 20, 400, 10)));
+  const overlapStart = performance.now();
+  let joinRefused = false;
+  try { joinLines(overlapping); } catch { joinRefused = true; }
+  const overlapMs = performance.now() - overlapStart;
+  check(joinRefused && overlapMs < 20, `3,000 pieces overlapping across the page give up within the join budget (${overlapMs.toFixed(0)} ms)`);
+  const column: TextLine[] = Array.from({ length: 300 }, (_, i) => L(i, w(`w${i}`, 0, i * 20, 400, 10)));
+  check(joinLines(column).length === 300, "a column of 300 labels still joins within the budget");
   const stack: TextLine[] = Array.from({ length: 3_000 }, (_, i) => L(i, w("a", 10, i * 0.5, 8, 10)));
   const matchStart = performance.now();
   let refused = false;
