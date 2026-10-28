@@ -72,6 +72,7 @@ import {
 } from "../../lib/board/boardLayout";
 import {
   doubtFigureRefFor,
+  doubtFigureTurnScene,
   doubtPageRecord,
   doubtSegment,
   inheritedTeachingContext,
@@ -165,16 +166,13 @@ import {
   snapshotPresentation,
   type DoubtFigureDrawn,
 } from "../../lib/turn/doubtFigurePlan";
-import { swapFigureIn } from "../../lib/scene/figureSwap";
-// LANE D SHIM: at integration import these from figureSwap.ts, doubtTurn.ts and pageFigureSync.ts.
 import {
   consumedDeferredIds,
-  doubtFigureTurnScene,
   returnFigureToZone,
   returnPageFigure,
-  storedFigurePresentation,
-  type PausedLessonRequestWithReturn,
-} from "../../lib/turn/doubtFigureLaneDShim";
+  swapFigureIn,
+} from "../../lib/scene/figureSwap";
+import { storedFigurePresentation } from "../../lib/replay/pageFigureSync";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   chemistryRefusesPlannerFigure,
@@ -2027,10 +2025,10 @@ export function useQuestionHandler(
           page.figureTurnId = returned ? zoneStash.turnId : null;
           page.figureDrawn = returned !== null;
           figureReturned = returned !== null;
-        } else if ((resume as PausedLessonRequestWithReturn).returnsFigure) {
+        } else if (resume.returnsFigure) {
           // After a reload there is no stash: the stored turn whose figure the
           // resume returns is redrawn with the marks earlier turns released.
-          const back = (resume as PausedLessonRequestWithReturn).returnsFigure!;
+          const back = resume.returnsFigure!;
           const source = back.turnId ? storedTurnsRef.current.find((turn) => turn.id === back.turnId) ?? null : null;
           const wb = whiteboardRef.current;
           const result = wb
@@ -2072,7 +2070,7 @@ export function useQuestionHandler(
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!rebuildingCodeIntro && !activeDiagram && !zoneStash && !(resume as PausedLessonRequestWithReturn).returnsFigure &&
+        if (!rebuildingCodeIntro && !activeDiagram && !zoneStash && !resume.returnsFigure &&
           resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,

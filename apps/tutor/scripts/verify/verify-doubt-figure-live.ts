@@ -25,8 +25,8 @@ import {
   sameFigureAsZone,
   type DoubtFigurePlanners,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
-// LANE D SHIM: swap for figureSwap.ts and doubtTurn.ts at integration.
-import { consumedDeferredIds, doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtFigureLaneDShim";
+import { consumedDeferredIds } from "../../features/tutor-session/lib/scene/figureSwap";
+import { doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
