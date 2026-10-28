@@ -5,6 +5,8 @@ import { generatePicture, resolveImageProvider, type ImageProviderConfig } from 
 import { writePictureQuery } from "./pictureQuery";
 import { downloadPicture, rankCandidates, searchCommons, type PictureCandidate } from "./wikimediaSearch";
 import { buildStrokePlan } from "./strokePlan";
+import { locateReferencePictureParts } from "./partLocator";
+import { resolveReferencePicturePartFocusEnabled } from "@/lib/scene/diagramStrategy.server";
 import * as store from "./pictureStore";
 
 /**
@@ -68,6 +70,8 @@ export interface FindPictureDeps {
   imageProvider?: ImageProviderConfig | null;
   store?: Pick<typeof store, "readQueryCache" | "writeQueryCache" | "saveReferencePicture" | "findPictureBySourceKey">;
   strokePlan?: typeof buildStrokePlan;
+  /** Where the picture's names are printed; any failure stores the picture without parts. */
+  locateParts?: typeof locateReferencePictureParts;
   /**
    * Called before each judge round (0, 1) and before a generation, so the
    * caller can extend its reservation; false stops the search there.
@@ -311,6 +315,18 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
   // Checked on the thumbnail's size before acceptance; the plan keeps its
   // aspect, so this holds unless the planner changed shape.
   if (legend && !referencePictureLayout({ plan, legend })) throw new Error("the key does not fit beside the planned picture");
+  // Parts are located and stored whatever the flag says, so turning part
+  // focus on needs no re-judging; the store serves them only with it on.
+  const located = await (deps.locateParts ?? locateReferencePictureParts)({
+    candidate: candidate ? { mime: candidate.mime, ...(candidate.originalUrl ? { originalUrl: candidate.originalUrl } : {}) } : null,
+    plan,
+    picturePng: built.picturePng,
+    labels,
+    legend,
+    signal: deps.signal,
+    fetchImpl: deps.fetchImpl,
+  });
+  if (resolveReferencePicturePartFocusEnabled()) steps.push(`parts: ${located.step}`);
   const id = store.pictureIdFor(sourceKey);
   return db.saveReferencePicture({
     sourceKey,
@@ -330,6 +346,7 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
       shows: accepted.verdict.shows,
       labels,
       ...(legend ? { legend } : {}),
+      ...(located.parts.length ? { parts: located.parts } : {}),
       plan: { width: plan.width, height: plan.height, outlineLengthPx: plan.outline.lengthPx, fillLengthPx: plan.fill.lengthPx },
     },
   });

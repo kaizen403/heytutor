@@ -20,6 +20,11 @@ export interface PictureCandidate {
   title: string;
   pageUrl: string;
   imageUrl: string;
+  /**
+   * The original file: for an SVG, the drawing with its text still text, which
+   * is where the part locator reads where each label is printed.
+   */
+  originalUrl?: string;
   width: number;
   height: number;
   mime: string;
@@ -54,7 +59,7 @@ interface CommonsPage {
   title?: string;
   index?: number;
   imageinfo?: Array<{
-    thumburl?: string; thumbwidth?: number; thumbheight?: number;
+    url?: string; thumburl?: string; thumbwidth?: number; thumbheight?: number;
     width?: number; height?: number; mime?: string; descriptionurl?: string;
     extmetadata?: Record<string, { value?: unknown } | undefined>;
   }>;
@@ -84,6 +89,7 @@ export function candidateFromPage(page: CommonsPage): PictureCandidate | null {
     title,
     pageUrl: info.descriptionurl ?? `https://commons.wikimedia.org/wiki/${encodeURIComponent(title.replace(/ /g, "_"))}`,
     imageUrl: info.thumburl,
+    ...(info.url ? { originalUrl: info.url } : {}),
     width,
     height,
     mime,
@@ -125,6 +131,22 @@ export function rankCandidates(candidates: readonly PictureCandidate[]): Picture
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * One Commons file's original URL and type, for a picture stored before the
+ * original was kept (the part locator's backfill). Null when Commons does not
+ * answer with a file.
+ */
+export async function commonsFileInfo(title: string, options: { signal?: AbortSignal; fetchImpl?: FetchLike } = {}): Promise<{ mime: string; originalUrl: string } | null> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const params = new URLSearchParams({ action: "query", format: "json", formatversion: "2", titles: title, prop: "imageinfo", iiprop: "url|mime" });
+  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000);
+  const response = await fetchImpl(`${COMMONS_API}?${params}`, { signal, headers: { "User-Agent": WIKIMEDIA_USER_AGENT, "Api-User-Agent": WIKIMEDIA_USER_AGENT }, cache: "no-store" });
+  if (!response.ok) return null;
+  const body = (await response.json()) as { query?: { pages?: CommonsPage[] } };
+  const info = body.query?.pages?.[0]?.imageinfo?.[0];
+  return info?.url && info.mime ? { mime: info.mime, originalUrl: info.url } : null;
+}
 
 /**
  * Search Commons with every query at once and interleave their results, best
