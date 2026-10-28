@@ -96,6 +96,16 @@ export interface BoardPageRecord {
    * null when this tab did not see the figure drawn (a restored board).
    */
   figureTurnId?: string | null;
+  /**
+   * Set while a doubt's own figure stands in the zone: the lesson figure it
+   * replaced, returned when the lesson resumes (DIAGRAM_DOUBT_FIGURES).
+   * `presentation` is what returnPageFigure redraws.
+   */
+  zoneStash?: {
+    diagram: import("@heytutor/drawing").VerifiedDiagram;
+    presentation: { diagram: import("@heytutor/drawing").VerifiedDiagram; introSegments: import("@heytutor/drawing").TutorSegment[] };
+    turnId: string | null;
+  } | null;
   /** The turn teaching on this page now, or the last one that did. */
   turn: {
     kind: PageTurnKind;
