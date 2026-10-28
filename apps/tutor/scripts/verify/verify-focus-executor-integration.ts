@@ -9,6 +9,7 @@ import ts from "typescript";
 import type Konva from "konva";
 import {
   REFERENCE_PICTURE_ZONE,
+  emphasisEllipsePath,
   rectPath,
   referencePictureLayout,
   referencePictureLegendEntryRect,
@@ -19,6 +20,7 @@ import {
 } from "@heytutor/drawing";
 import { PICTURE_CARD_PADDING_PX } from "@heytutor/whiteboard";
 import { pictureFocusHole, pictureTextRingPath } from "../../features/tutor-session/lib/board/pictureFocus";
+import { MAX_PINNED_MARKS_PER_PAGE } from "../../features/tutor-session/lib/board/pinnedMarks";
 import { buildReferencePicturePresentation } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
 import { clearSpotlight, type SpotlightSpec } from "../../features/tutor-session/lib/board/spotlight";
 import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
@@ -483,7 +485,113 @@ async function baselineParity(ref: string): Promise<void> {
   }
 }
 
+/**
+ * `[FOCUS:id|keep]` through the real executor and the real board: one ring
+ * per named part, from the verified anchor alone (the command's own params
+ * are junk and must be ignored), at duration 0 on a seek, never past the page
+ * cap, never on a code lesson board, never on a reference picture part, and
+ * gone after a page turn.
+ */
+function pinNodes(board: ReturnType<typeof mountTestWhiteboard>): Konva.Path[] {
+  return board.getDrawLayer()!.find((node: Konva.Node) => node.getAttr("htInk") === "pin") as Konva.Path[];
+}
+async function runKeep(
+  f: ReturnType<typeof fixture>,
+  id: string,
+  options: { seek?: boolean; scheduled?: string[] } = {},
+): Promise<void> {
+  const command: DrawCommand = {
+    // A model can put anything in params; a kept ring must never read them.
+    type: "FOCUS", params: [111, 222, 333, 444], text: id, semanticRef: { entityId: id },
+    charPosition: 0, narrationBefore: "",
+  };
+  let settled = false;
+  const job = f.executor.executeCommandWithCancel(command, {
+    ...(options.scheduled ? f.schedule(options.scheduled) : {}),
+    ...(options.seek ? { durationScale: 0 } : {}),
+    isCancelled: () => false,
+  }).then(() => { settled = true; });
+  await flush();
+  for (let elapsed = 0; !settled && elapsed < 8000; elapsed += 160) await f.advance(160);
+  assert(settled, `${id}: focus finishes`);
+  await job;
+}
+async function keptRingCases() {
+  const expectedB = emphasisEllipsePath(712, 212, 56, 56);
+  for (const mode of ["unscheduled", "scheduled", "seek"] as const) {
+    const f = fixture();
+    try {
+      await runKeep(f, "B|pulse|keep", { seek: mode === "seek", scheduled: mode === "scheduled" ? ["B"] : undefined });
+      const pins = pinNodes(f.board);
+      console.log(JSON.stringify({ case: "kept-ring", mode, pins: pins.length, pinnedInkCount: f.board.pinnedInkCount() }));
+      assert.equal(pins.length, 1, `${mode}: B|pulse|keep leaves exactly one kept ring`);
+      assert.equal(pins[0]!.data(), expectedB, `${mode}: the ring is compactPulseBox of the verified anchor B`);
+      assert.equal(pins[0]!.dash().length, 0, `${mode}: the kept ring is fully drawn`);
+      await runKeep(f, "B|keep", { seek: mode === "seek" });
+      assert.equal(pinNodes(f.board).length, 1, `${mode}: a second keep on B adds no second ring`);
+      await f.board.eraseWorkInk(0);
+      assert.equal(pinNodes(f.board).length, 0, `${mode}: a page turn takes the ring away`);
+      await runKeep(f, "B|keep", { seek: mode === "seek" });
+      assert.equal(pinNodes(f.board).length, 1, `${mode}: after a page turn B can be ringed again`);
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  }
+  {
+    const f = fixture();
+    // C is a point: its ring is the point's own compact box, from its own command.
+    f.diagram.commands.push({ type: "DRAW_POINT", params: [940, 340, 4], semanticRef: { entityId: "C" } });
+    try {
+      await runKeep(f, "B|keep");
+      await runKeep(f, "C|keep");
+      const paths = pinNodes(f.board).map((node) => node.data());
+      assert.deepEqual(paths, [expectedB, emphasisEllipsePath(928, 328, 24, 24)],
+        "each ring comes from its own anchor and its own commands");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  }
+  {
+    const many: VerifiedDiagram = verifiedDiagram();
+    for (const id of ["D", "E", "F"]) {
+      const x = id === "D" ? 500 : id === "E" ? 600 : 800;
+      many.anchors.push({ id, labels: [id], x, y: 450, width: 60, height: 60 });
+      many.commands.push({ type: "DRAW_LINE", params: [x, 450, x + 60, 510], semanticRef: { entityId: id } });
+    }
+    const f = fixture(many);
+    let transientRings = 0;
+    const nativeAnnotation = f.board.drawAnnotation;
+    f.board.drawAnnotation = (kind, pathData, duration, options) => {
+      if (kind === "circle_around" && options?.transient) transientRings += 1;
+      return nativeAnnotation(kind, pathData, duration, options);
+    };
+    try {
+      for (const id of ["B", "C", "D"]) await runKeep(f, `${id}|keep`);
+      assert.equal(pinNodes(f.board).length, MAX_PINNED_MARKS_PER_PAGE, "three keeps leave three rings");
+      transientRings = 0;
+      await runKeep(f, "E|keep");
+      assert.equal(pinNodes(f.board).length, MAX_PINNED_MARKS_PER_PAGE, "a fourth keep on the page is not pinned");
+      assert.equal(transientRings, 1, "a fourth keep draws as a transient pulse");
+      await runKeep(f, "F|keep", { seek: true });
+      assert.equal(pinNodes(f.board).length, MAX_PINNED_MARKS_PER_PAGE, "the cap holds on a seek too");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  }
+  for (const seek of [false, true]) {
+    const f = fixture();
+    f.diagram.layout = "code_lesson";
+    try {
+      await runKeep(f, "B|keep", { seek });
+      assert.equal(pinNodes(f.board).length, 0, `code lesson board (seek ${seek}): never a kept ring`);
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  }
+  {
+    const f = fixture(pictureDiagram());
+    try {
+      await runKeep(f, "R1|keep");
+      await runKeep(f, "reference_picture.key.1|keep", { seek: true });
+      assert.equal(pinNodes(f.board).length, 0, "a reference picture part never holds a kept ring in v1");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  }
+}
+
 const cases: Record<string, () => Promise<void>> = {
+  "kept-ring": keptRingCases,
   "picture-part-focus": pictureFocusCases,
   "picture-part-focus-built": builtPictureFocusCase,
   "successor-release": () => ownershipCase("successor-release"),

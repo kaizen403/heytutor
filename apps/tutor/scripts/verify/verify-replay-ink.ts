@@ -98,7 +98,12 @@ assert.ok(/if \(durationScale <= 0\.05\) \{\s*const frame = frames\.advance\(\)/
 assert.equal((focusBranch.match(/inheritCommandInk\(command,/g) ?? []).length, 2, "scheduled and ordinary FOCUS children inherit ink");
 assert.equal((annotateBranch.match(/inheritCommandInk\(command,/g) ?? []).length, 1, "ANNOTATE children inherit ink");
 assert.doesNotMatch(replay, /command\.type === "PAUSE" \|\| command\.type === "FOCUS"/, "seek must release permanent FOCUS children");
-assert.match(focusBranch, /if \(isSeekCatchUp\) break;/, "seek skips transient FOCUS gestures after releasing permanent ink");
+// A seek lands kept `|keep` rings (permanent ink) and then skips every transient gesture.
+assert.match(
+  focusBranch,
+  /if \(isSeekCatchUp\) \{\s*(?:\/\/[^\n]*\s*)*await drawKeptFocusRings\([^)]*\);\s*break;\s*\}/,
+  "seek skips transient FOCUS gestures after releasing permanent ink",
+);
 
 async function verifyActualHandwritingForwarding() {
   const requireApp = createRequire(new URL("../../package.json", import.meta.url));

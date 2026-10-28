@@ -93,6 +93,7 @@ import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
 import { awaitReferencePicture } from "../lib/board/referencePictureAssets";
+import { compactPulseBox, erasePinnedInkOf, pinnedInkCountOf, pinnedMarksFor, PINNED_MARK_DRAW_MS } from "../lib/board/pinnedMarks";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -204,6 +205,8 @@ export function useCommandExecution({
   // How many marker walks this board has run. It rotates the route so two
   // steps about the same frame do not repeat the same two moves.
   const pointBeatsRef = useRef(0);
+  // Verified parts holding a kept FOCUS ring on this page (pinnedMarks.ts).
+  const pinnedTargetsRef = useRef<Set<string>>(new Set());
   const resolveAnnotationTarget = useCallback(
     (
       command: DrawCommand,
@@ -394,6 +397,47 @@ export function useCommandExecution({
         inkSettings,
         shouldCancel: commandCancelled,
       });
+      // `[FOCUS:id|keep]`: after the trace or spotlight, a ring stays on each
+      // named verified part while the page is up. Geometry comes only from
+      // the verified anchor (pinnedMarks.ts). A seek draws it at duration 0.
+      const drawKeptFocusRings = async (
+        focusCommand: DrawCommand,
+        targets: readonly VerifiedDiagramAnchor[],
+        diagram: VerifiedDiagram,
+        codeLessonActive: boolean,
+      ): Promise<boolean> => {
+        const pinsOnPage = pinnedInkCountOf(wb);
+        // Every ring went with the page (a page turn, CLEAR or FRAME erase).
+        if (pinsOnPage === 0) pinnedTargetsRef.current.clear();
+        const plan = pinnedMarksFor({
+          command: focusCommand,
+          targets,
+          diagram,
+          targetCommands: focusTraceCommands(diagram, new Set(targets.map((target) => target.id))),
+          codeLessonActive,
+          pinsOnPage,
+          alreadyPinned: pinnedTargetsRef.current,
+        });
+        const ringMs = isSeekCatchUp ? 0 : PINNED_MARK_DRAW_MS;
+        for (const mark of plan.pins) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, ringMs, { strokeWidth: 1.1, pinned: true });
+          if (!commandCancelled()) pinnedTargetsRef.current.add(mark.targetId);
+        }
+        if (isSeekCatchUp) return commandCancelled();
+        for (const mark of plan.overflow) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, 260, { strokeWidth: 1.1, transient: true });
+        }
+        if (plan.pins.length > 0 || plan.overflow.length > 0) {
+          turnTelemetryRef.current?.mark("verified-focus-kept", {
+            target_id: plan.pins.map((mark) => mark.targetId).join(","),
+            pinned_count: plan.pins.length,
+            overflow_count: plan.overflow.length,
+          });
+        }
+        return commandCancelled();
+      };
 
       let command = rawCommand;
       const activeDiagram = activeVerifiedDiagramRef.current;
@@ -982,6 +1026,7 @@ export function useCommandExecution({
           if (durationScale <= 0.05) {
             const frame = frames.advance();
             if (frame) {
+              erasePinnedInkOf(wb);
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
@@ -1005,6 +1050,7 @@ export function useCommandExecution({
 
           const next = frames.advance();
           if (!next) break;
+          erasePinnedInkOf(wb);
           // The redraw has to land with the sentence that introduces it. Split
           // the spoken window across the figure's commands: each one can only
           // be made quicker than its natural scene pace, never slower, so a
@@ -1315,6 +1361,7 @@ export function useCommandExecution({
               },
             );
             if (scheduleCancelled) return;
+            if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
             wb.setCursorState("thinking");
             turnTelemetryRef.current?.mark("verified-focus-complete", {
               target_id: targets.map((target) => target.id).join(","),
@@ -1348,7 +1395,12 @@ export function useCommandExecution({
               },
             );
           }
-          if (isSeekCatchUp) break;
+          if (isSeekCatchUp) {
+            // A seek or restore lands the kept rings at once, before it skips
+            // every watched gesture.
+            await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive);
+            break;
+          }
           // Tracing rectangle outlines with the marker looks like scribbling
           // on a DSA figure. Code lessons only dim everything except the named
           // cells — the figure itself stays the explanation.
@@ -1517,6 +1569,7 @@ export function useCommandExecution({
             },
           );
           if (focusCancelled) return;
+          if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
           if (codeLessonActive && !isSeekCatchUp && durationScale > 0.05) {
             // The veil is down. A tagged step still runs a minute of speech
             // about the figure, and the pen used to spend all of it parked
@@ -2029,21 +2082,6 @@ function scheduledFocusTargets(
     ));
   }
   return targets;
-}
-
-function compactPulseBox(
-  target: { x: number; y: number; width: number; height: number },
-  commands: VerifiedDiagramCommand[],
-): { x: number; y: number; width: number; height: number } {
-  const point = commands.find((command) => command.type === "DRAW_POINT");
-  if (point && [point.params[0], point.params[1]].every(Number.isFinite)) {
-    return { x: point.params[0]! - 12, y: point.params[1]! - 12, width: 24, height: 24 };
-  }
-  const cx = target.x + target.width / 2;
-  const cy = target.y + target.height / 2;
-  const width = Math.min(Math.max(target.width + 10, 22), 56);
-  const height = Math.min(Math.max(target.height + 10, 22), 56);
-  return { x: cx - width / 2, y: cy - height / 2, width, height };
 }
 
 const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([
