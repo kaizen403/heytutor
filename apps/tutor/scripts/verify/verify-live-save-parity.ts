@@ -138,7 +138,11 @@ async function main(): Promise<void> {
   const lab = readFileSync(join(__dirname, "../lecture-lab/lecturePipeline.ts"), "utf8");
   assert(lab.includes("selectProductionScene(sceneSelectionInput)") && lab.includes("const sceneDocument = selected?.sceneDocument ?? null;"), "the lab commits only the same shared selection result");
   const persistence = readFileSync(join(__dirname, "../../lib/scene/turnScenePersistence.ts"), "utf8");
-  assert(persistence.includes("sceneSaveAdmissionFailure({ document, question, turnPlan, tier })"), "the save runs the shared check");
+  // The question is the scene's own: the turn's, or for a doubt that drew its
+  // own figure, the lesson question composed with the doubt.
+  assert(persistence.includes("sceneSaveAdmissionFailure({ document, question: sceneQuestion, turnPlan, tier })") &&
+    /const sceneQuestion = doubtFigure && doubtContinuation\s*\? composeDoubtFigureQuestion\(doubtContinuation\.lessonQuestion, question\)\s*: question;/.test(persistence),
+    "the save runs the shared check on the scene's question");
   checks += 2;
   console.log(`live/save parity verified: ${CASES.length} figures, ${checks} checks`);
 }
