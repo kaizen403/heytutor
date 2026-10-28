@@ -40,6 +40,12 @@ import { lectureExportCacheKey } from "../../lib/lecture-export/lectureExportFra
 import { LECTURE_EXPORT_PLAYBACK_RATE } from "../../lib/lecture-export/lectureExportSpeed";
 import { resumePageRecord, type PersistedTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { resolveVerifiedDiagramFocusTargets, type VerifiedDiagram } from "@heytutor/drawing";
+import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
+import { DOUBT_FIGURE_REF_VERSION, doubtFigureRefArtifacts } from "../../lib/boards/doubtFigureRef";
+import { bindPageFigureLoader, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
+import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -372,6 +378,76 @@ async function main(): Promise<void> {
     assert(
       !storedTurnContinuesBoard(freshTurn) && freshTurn.sceneArtifacts === null,
       "a live lesson is a page of its own, exactly as before",
+    );
+  }
+
+  // --- a saved doubt's pointing replays against the lesson's figure ---------
+  // The doubt names the lesson turn whose figure it pointed at; the server
+  // keeps its FOCUS only when it resolves on that figure. Replay keeps the
+  // lesson's figure active through the doubt (the sync guard checked below),
+  // so the saved FOCUS traces the same part it traced live.
+  {
+    const fixture = await checkpointSceneFixture();
+    const lessonId = "11111111-1111-4111-8111-111111111111";
+    const lessonSaved = await canonicalizeTurnSceneMetadata(fixture.metadata);
+    assert(lessonSaved.ok, "the figure lesson saves");
+    const figureLesson: StoredTurn = {
+      id: lessonId, orderIndex: 0, question: fixture.question, rawResponse: "The sum is five.", speedMultiplier: 1, traceId: null,
+      ...lessonSaved.value,
+      segments: [epochSegment(), ...lessonSaved.value.segments.map((segment, index) => ({
+        id: `lesson-${index}`, orderIndex: index + 1, narration: segment.narration, spokenText: segment.spokenText,
+        command: segment.command as StoredSegment["command"], audioUrl: null, durationMs: 900, timings: null,
+      }))],
+    };
+    const focus: DrawCommand = { type: "FOCUS", params: [], text: "start_value", charPosition: 0, narrationBefore: "" };
+    const loaderTurn = (turn: StoredTurn): PageFigureTurn => ({ ...turn, boardId: "b1", userId: "u1" });
+    const doubtSaved = await canonicalizeTurnSceneMetadata({
+      question: "Doubt: why does it start at 2?",
+      visualStatus: "text_only",
+      sceneArtifacts: {
+        ...boardContinuationArtifacts(fixture.question),
+        ...doubtFigureRefArtifacts({ schemaVersion: DOUBT_FIGURE_REF_VERSION, turnId: lessonId, kind: "verified_scene" }),
+      },
+      segments: [{ orderIndex: 0, narration: "It starts at two.", spokenText: "It starts at two.",
+        command: serializeSegmentCommands([focus], { trustedDiagramGeometry: false }) }],
+    }, {
+      loadPageFigure: bindPageFigureLoader({ boardId: "b1", userId: "u1", turnId: null }, {
+        store: {
+          findTurn: async (id) => (id === lessonId ? loaderTurn(figureLesson) : null),
+          turnsBetween: async () => [],
+        },
+      }),
+    });
+    assert(doubtSaved.ok, "the pointed doubt saves");
+    const pointedDoubt: StoredTurn = {
+      id: "22222222-2222-4222-8222-222222222222", orderIndex: 1, question: "Doubt: why does it start at 2?",
+      rawResponse: "It starts at two.", speedMultiplier: 1, traceId: null, ...doubtSaved.value,
+      segments: doubtSaved.value.segments.map((segment, index) => ({
+        id: `doubt-${index}`, orderIndex: index, narration: segment.narration, spokenText: segment.spokenText,
+        command: segment.command as StoredSegment["command"], audioUrl: null, durationMs: 900, timings: null,
+      })),
+    };
+    assert(storedTurnContinuesBoard(pointedDoubt), "the pointed doubt continues the lesson's page");
+    const replayTurns = [figureLesson, pointedDoubt];
+    const replay = buildReplayTimeline(replayTurns);
+    const doubtCues = replay.cues.filter((cue) => cue.turnIndex === 1);
+    const doubtFocus = doubtCues.flatMap((cue) => cue.commands).filter((command) => command.type === "FOCUS");
+    assert(doubtFocus.some((command) => command.text === "start_value"), "the saved doubt's FOCUS reaches the replay timeline");
+    // The replay sync rule: a continuing turn keeps the figure the page has.
+    let active: VerifiedDiagram | null = null;
+    const activeAt: (VerifiedDiagram | null)[] = replayTurns.map((turn) => {
+      if (!storedTurnContinuesBoard(turn)) active = restoreVerifiedDiagramFromTurn(turn);
+      return active;
+    });
+    assert(activeAt[1] !== null && activeAt[1] === activeAt[0], "replay keeps the lesson's figure active through the doubt");
+    assert(
+      doubtFocus.every((command) => resolveVerifiedDiagramFocusTargets(command, activeAt[1]).length > 0),
+      "every saved doubt FOCUS resolves against the lesson's figure in replay",
+    );
+    assert(
+      restoreVerifiedDiagramFromTurn(pointedDoubt) === null &&
+        doubtFocus.every((command) => resolveVerifiedDiagramFocusTargets(command, null).length === 0),
+      "rebuilt from the doubt itself there is no figure: only the continuation guard keeps the pointing alive",
     );
   }
 
