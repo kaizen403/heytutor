@@ -19,7 +19,7 @@ import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/c
 import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "@/features/tutor-session/lib/scene/restoreReferencePicture";
-import { preloadReferencePicturesForTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS } from "@/features/tutor-session/lib/scene/referencePicturePreload";
+import { ExportPictureMissingError, preloadReferencePicturesForTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS } from "@/features/tutor-session/lib/scene/referencePicturePreload";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
@@ -307,7 +307,7 @@ export async function exportLectureMp4(options: {
     // in these turns is fetched before the first frame is drawn, or the
     // export stops rather than record narration over a missing picture.
     const { missing } = await preloadReferencePicturesForTurns(pageTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS);
-    if (missing.length > 0) throw new Error(`A picture in this lesson did not load (${missing.length}); try the download again.`);
+    if (missing.length > 0) throw new ExportPictureMissingError(missing.length);
     options.whiteboard.setTimeSource(options.clock.source);
     options.whiteboard.setAnimationSpeed(1);
     await options.whiteboard.clearBoard(0);

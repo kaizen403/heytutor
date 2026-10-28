@@ -5,7 +5,7 @@ import { generatePicture, resolveImageProvider, type ImageProviderConfig } from 
 import { writePictureQuery } from "./pictureQuery";
 import { downloadPicture, rankCandidates, searchCommons, type PictureCandidate } from "./wikimediaSearch";
 import { buildStrokePlan } from "./strokePlan";
-import { ProviderRefusedError } from "./providerErrors";
+import { neverReachedProvider, ProviderRefusedError } from "./providerErrors";
 import * as store from "./pictureStore";
 
 /**
@@ -41,19 +41,22 @@ export function createPictureSpend(): PictureSpend {
 }
 
 /**
- * Count a provider call while it runs. Only a provider's error status
- * (nothing generated) releases it. A call that timed out, was cut off by an
- * abort, lost its connection or returned an unreadable reply stays counted:
- * it was dispatched and may be billed, so it is charged at its ceiling.
+ * Count a provider call while it runs. A call whose signal is already aborted
+ * is never sent and never counted. Once sent, only a provider's error status
+ * (nothing generated) or a connect-phase failure (never reached it) releases
+ * it; a call that timed out, was cut off by an abort, lost its connection
+ * mid-request or returned an unreadable reply may be billed and is charged at
+ * its ceiling.
  */
-async function tracked<T>(spend: PictureSpend, lane: PictureUsage["lane"], run: () => Promise<T>): Promise<T> {
+async function tracked<T>(spend: PictureSpend, lane: PictureUsage["lane"], run: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  signal?.throwIfAborted();
   spend.inFlight[lane]++;
   try {
     const result = await run();
     spend.inFlight[lane]--;
     return result;
   } catch (error) {
-    if (error instanceof ProviderRefusedError) spend.inFlight[lane]--;
+    if (error instanceof ProviderRefusedError || neverReachedProvider(error)) spend.inFlight[lane]--;
     throw error;
   }
 }
@@ -125,7 +128,7 @@ export async function findReferencePicture(question: string, subject: string | u
   const db = deps.store ?? store;
   const decline = (reason: string): FindPictureOutcome => ({ status: "declined", reason, steps });
 
-  const written = await tracked(spend, "query", () => writePictureQuery(question, { apiKey: deps.apiKey, subject, signal: deps.signal, fetchImpl: deps.fetchImpl }));
+  const written = await tracked(spend, "query", () => writePictureQuery(question, { apiKey: deps.apiKey, subject, signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
   spend.usages.push({ lane: "query", model: written.model, usage: written.usage });
   const query = written.query;
   if (!query) return decline("query_unreadable");
@@ -241,7 +244,7 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
         const judged = await judgePicture({ mustShow, origin: "wikimedia", title: candidate.title, description: candidate.description, imageDataUrl }, options);
         spend.usages.push({ lane: "judge", model: judged.model, usage: judged.usage });
         return judged;
-      }),
+      }, deps.signal),
       factCheck(mustShow, imageDataUrl, context, candidate.description),
     ]);
     const judged: Judged = { candidate, bytes, verdict: result.verdict, factCheck: fact, origin: "wikimedia", order };
@@ -262,7 +265,7 @@ async function factCheck(mustShow: string, imageDataUrl: string, context: Contex
       const result = await factCheckPicture({ mustShow, imageDataUrl, ...(description ? { description } : {}) }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl });
       spend.usages.push({ lane: "judge", model: result.model, usage: result.usage });
       return result;
-    });
+    }, deps.signal);
     return checked.result;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
@@ -273,7 +276,7 @@ async function factCheck(mustShow: string, imageDataUrl: string, context: Contex
 async function judgeGenerated(provider: ImageProviderConfig, context: Context): Promise<Judged | null> {
   const { deps, spend, steps, mustShow } = context;
   try {
-    const { bytes } = await tracked(spend, "generate", () => generatePicture(mustShow, provider, { signal: deps.signal, fetchImpl: deps.fetchImpl }));
+    const { bytes } = await tracked(spend, "generate", () => generatePicture(mustShow, provider, { signal: deps.signal, fetchImpl: deps.fetchImpl }), deps.signal);
     spend.usages.push({ lane: "generate", model: provider.model, usage: null });
     const imageDataUrl = await judgeDataUrl(bytes);
     const [result, fact] = await Promise.all([
@@ -281,7 +284,7 @@ async function judgeGenerated(provider: ImageProviderConfig, context: Context): 
         const judged = await judgePicture({ mustShow, origin: "generated", imageDataUrl }, { apiKey: deps.apiKey, signal: deps.signal, fetchImpl: deps.fetchImpl });
         spend.usages.push({ lane: "judge", model: judged.model, usage: judged.usage });
         return judged;
-      }),
+      }, deps.signal),
       factCheck(mustShow, imageDataUrl, context),
     ]);
     const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };

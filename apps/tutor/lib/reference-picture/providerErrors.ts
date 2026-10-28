@@ -10,3 +10,15 @@ export class ProviderRefusedError extends Error {
     this.name = "ProviderRefusedError";
   }
 }
+
+/**
+ * Connect-phase failures: DNS or the TCP connect failed, so the request never
+ * reached the provider and cannot have been billed. A reset or socket error
+ * mid-request can come after the body was sent and stays charged.
+ */
+const NEVER_REACHED_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "UND_ERR_CONNECT_TIMEOUT"]);
+
+export function neverReachedProvider(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return error instanceof TypeError && typeof cause?.code === "string" && NEVER_REACHED_CODES.has(cause.code);
+}

@@ -38,6 +38,14 @@ export async function preloadReferencePictureWithin(
  */
 export const REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS = 30_000;
 
+/** An export stopped because a picture it must draw did not load; its message is shown to the student. */
+export class ExportPictureMissingError extends Error {
+  constructor(readonly missing: number) {
+    super("A picture in this lesson did not load. Check your connection and try the download again.");
+    this.name = "ExportPictureMissingError";
+  }
+}
+
 /**
  * Preload every picture a set of stored turns will draw, in parallel, and
  * name the ones that did not arrive in time. Live replay and restore draw
