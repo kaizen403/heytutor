@@ -2,6 +2,7 @@ import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { pageFigureAt } from "@/lib/boards/pageFigure";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
@@ -232,6 +233,14 @@ export function buildLecturePlayerTimeline(
           restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
           installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
             restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
+        } else if (turn) {
+          // A doubt's own figure swaps in and the resume returns the lesson's.
+          const figure = pageFigureAt(turns, cue.turnIndex);
+          if (figure.swapIn || figure.returnsLesson) {
+            const source = figure.sourceIndex === null ? undefined : turns[figure.sourceIndex];
+            installedDiagram = Boolean(source &&
+              (restoreVerifiedDiagramFromTurn(source) ?? restoreReferencePictureFromTurn(source)));
+          }
         }
         previousTurn = cue.turnIndex;
       }

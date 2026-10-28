@@ -38,6 +38,7 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
@@ -698,6 +699,27 @@ export function useBoardSession({
             setActiveVerifiedDiagram?.(diagram);
             if (fbdPhaseStartedRef) {
               fbdPhaseStartedRef.current = Boolean(diagram);
+            }
+          } else {
+            // A doubt's own figure swaps in; the resume returns the lesson's,
+            // with the marks earlier turns released (pageFigureAt).
+            const figure = await syncStoredPageFigure({
+              turns,
+              turnIndex,
+              whiteboard: whiteboardRef.current,
+              executeCommand: executeCommandRef.current,
+              shouldCancel: inkStale,
+            });
+            if (figure.changed) {
+              if (figure.cancelled) return;
+              turnDiagram = figure.diagram;
+              if (activeVerifiedDiagramRef) {
+                activeVerifiedDiagramRef.current = figure.diagram;
+              }
+              setActiveVerifiedDiagram?.(figure.diagram);
+              if (fbdPhaseStartedRef) {
+                fbdPhaseStartedRef.current = Boolean(figure.diagram);
+              }
             }
           }
 

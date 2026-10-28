@@ -1,5 +1,6 @@
 "use client";
 
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import {
   useCallback,
   useEffect,
@@ -409,7 +410,23 @@ export function useLecturePlayer({
         return false;
       lastSyncedTurnRef.current = turnIndex;
       const turn = storedTurnsRef.current[turnIndex];
-      if (turn && storedTurnContinuesBoard(turn)) return true;
+      if (turn && storedTurnContinuesBoard(turn)) {
+        // A doubt's own figure swaps in; the resume returns the lesson's.
+        const figure = await syncStoredPageFigure({
+          turns: storedTurnsRef.current,
+          turnIndex,
+          whiteboard: playerBoardRef.current,
+          layout: boardLayoutRef.current,
+          executeCommand: executeRef.current,
+          shouldCancel,
+        });
+        if (figure.changed) {
+          if (figure.cancelled) return false;
+          diagramRef.current = figure.diagram;
+          fbdStartedRef.current = Boolean(figure.diagram);
+        }
+        return true;
+      }
       questionRef.current = turn?.question ?? "";
       const controller = controllerRef.current!;
       const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
@@ -424,7 +441,7 @@ export function useLecturePlayer({
       fbdStartedRef.current = Boolean(diagram);
       return true;
     },
-    [storedTurnsRef],
+    [storedTurnsRef, boardLayoutRef],
   );
 
   const publishCueText = useCallback((cues: readonly ReplayCue[], index: number) => {

@@ -358,6 +358,12 @@ export interface PausedLessonRequest {
    * figure is not stored twice. Only set when `figureDrawn`.
    */
   remainingIntro?: readonly TutorSegment[];
+  /**
+   * A reloaded board whose zone holds a doubt's own figure: the stored turn
+   * whose figure the resume returns (`turnId` null: the zone empties) and the
+   * ids earlier turns released on it. The live board uses `zoneStash`.
+   */
+  returnsFigure?: { turnId: string | null; consumedIds: string[] };
 }
 
 /**

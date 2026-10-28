@@ -16,6 +16,7 @@ import {
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { pageTurnsEndingAt, storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import { notesPdfSectionsFromStoredTurns, notesPdfSlideImages } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
@@ -171,12 +172,26 @@ export function useReplay({
    * the intro still draws from stored ink and the pen never traces after.
    */
   const syncReplayTurn = useCallback(
-    (turnIndex: number) => {
+    async (turnIndex: number, shouldCancel: () => boolean = () => false): Promise<void> => {
       const turn = storedTurnsRef.current[turnIndex];
       // A doubt answered on the lesson's page keeps that page's figure, code
       // panel and walk-through. Rebuilding them here would drop the figure
-      // its FOCUS points at, or send the frames back to the first one.
+      // its FOCUS points at, or send the frames back to the first one. A
+      // doubt that drew its own figure swaps it in, and the resume brings
+      // the lesson's back (pageFigureAt).
       if (turn && storedTurnContinuesBoard(turn)) {
+        const figure = await syncStoredPageFigure({
+          turns: storedTurnsRef.current,
+          turnIndex,
+          whiteboard: whiteboardRef.current,
+          executeCommand,
+          shouldCancel,
+        });
+        if (figure.changed && !figure.cancelled) {
+          if (activeVerifiedDiagramRef) activeVerifiedDiagramRef.current = figure.diagram;
+          setActiveVerifiedDiagram?.(figure.diagram);
+          if (fbdPhaseStartedRef) fbdPhaseStartedRef.current = Boolean(figure.diagram);
+        }
         return;
       }
       const controller = codeLessonControllerRef?.current;
@@ -206,6 +221,8 @@ export function useReplay({
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
+      whiteboardRef,
+      executeCommand,
     ],
   );
 
@@ -370,7 +387,7 @@ export function useReplay({
       // turn being rendered; TYPE below then reveals its blocks instantly.
       let syncedTurnIndex = cues.length > 0 ? cues[0]!.turnIndex : -1;
       if (syncedTurnIndex >= 0) {
-        syncReplayTurn(syncedTurnIndex);
+        await syncReplayTurn(syncedTurnIndex, () => !isCurrentReplay());
       }
 
       // Render all completed commands instantly — no animation during seek.
@@ -386,7 +403,7 @@ export function useReplay({
             whiteboard: wb, resetBoardLayout, shouldCancel: () => !isCurrentReplay(),
           })) return;
           syncedTurnIndex = cue.turnIndex;
-          syncReplayTurn(syncedTurnIndex);
+          await syncReplayTurn(syncedTurnIndex, () => !isCurrentReplay());
         }
 
         const partialCount =
@@ -748,7 +765,7 @@ export function useReplay({
               shouldCancel: () => cancelRef.current || generation !== replayGenerationRef.current,
             })) return;
             syncedTurnIndex = cue.turnIndex;
-            syncReplayTurn(syncedTurnIndex);
+            await syncReplayTurn(syncedTurnIndex, () => cancelRef.current || generation !== replayGenerationRef.current);
           }
           const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;

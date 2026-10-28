@@ -15,7 +15,7 @@
  */
 import { parseFocusSpec, parseStoredSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "./boardsClient";
-import { storedTurnContinuesBoard } from "./boardContinuation";
+import { BOARD_CONTINUATION_VERSION, storedTurnContinuesBoard } from "./boardContinuation";
 import { doubtFigureOf } from "./doubtFigure";
 
 type PageFigureTurn = Pick<StoredTurn, "sceneArtifacts" | "segments" | "sceneDocument" | "visualStatus"> &
@@ -108,4 +108,25 @@ export function pageFigureAt(
     }
   }
   return { sourceIndex: source, swapIn, returnsLesson, consumedIds };
+}
+
+/**
+ * What a resume after the last saved turn must bring back: the opener's
+ * figure and the ids its earlier turns released, when a doubt's own figure
+ * stands in the zone. Null when the zone already holds the lesson's figure.
+ * A reloaded board has no live zone stash; this is its stash.
+ */
+export function lessonFigureReturnAfter(
+  turns: readonly PageFigureTurn[],
+): { sourceIndex: number | null; consumedIds: string[] } | null {
+  if (turns.length === 0) return null;
+  const resume: PageFigureTurn = {
+    kind: "resume",
+    sceneArtifacts: { boardContinuation: { schemaVersion: BOARD_CONTINUATION_VERSION, lessonQuestion: "" } },
+    segments: [],
+    sceneDocument: null,
+    visualStatus: "text_only",
+  };
+  const at = pageFigureAt([...turns, resume], turns.length);
+  return at.returnsLesson ? { sourceIndex: at.sourceIndex, consumedIds: at.consumedIds } : null;
 }

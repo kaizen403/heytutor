@@ -32,6 +32,8 @@ import {
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { doubtFigureOf } from "@/lib/boards/doubtFigure";
+import { lessonFigureReturnAfter } from "@/lib/boards/pageFigure";
 
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
@@ -177,10 +179,16 @@ export function lessonRecoveryFromStoredTurns(
     solverProjection = resumeStateSolverProjection(source.resumeState);
   }
 
-  // Restore stamps every trusted figure stroke of the page: that figure is drawn.
-  const figureDrawn = page.some((turn) =>
+  // Restore stamps every trusted figure stroke of the page: that figure is
+  // drawn. A doubt's own figure is not the lesson's, so only the lesson's
+  // turns count; the resume brings the lesson's figure back (returnsFigure).
+  const figureDrawn = page.some((turn) => doubtFigureOf(turn.sceneArtifacts) === null &&
     turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
   );
+  const figureReturn = lessonFigureReturnAfter(page);
+  const returnsFigure = figureReturn
+    ? { turnId: figureReturn.sourceIndex === null ? null : page[figureReturn.sourceIndex]!.id, consumedIds: figureReturn.consumedIds }
+    : null;
   // Normalize only the blank saved page epoch for explicitly marked, unplanned
   // openings. Narrated CLEAR, other ink and unknown commands stay substantive.
   const openingRows = chain.flatMap(orderedSegments).filter((segment) => {
@@ -223,6 +231,7 @@ export function lessonRecoveryFromStoredTurns(
     scene: source ? turnScene(source) : null,
     figureDrawn,
     codeLesson,
+    ...(returnsFigure ? { returnsFigure } : {}),
     lessonBoardRows: chain.flatMap(writtenRows),
     ...(lastNarration ? { interruptedStep: lastNarration } : {}),
   } };

@@ -14,6 +14,7 @@ import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "@/features/tutor-session/lib/replay/pageFigureSync";
 import { buildReplayTimeline, type ReplayCue } from "@/lib/replay/replayTimeline";
 import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/completeReplayDiagram";
 import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
@@ -354,6 +355,20 @@ export async function exportLectureMp4(options: {
           activeDiagram = turn.visualStatus === "validated"
             ? restoreVerifiedDiagramFromTurn(turn)
             : restoreReferencePictureFromTurn(turn);
+        } else {
+          // A doubt's own figure swaps in; the resume returns the lesson's,
+          // with the marks earlier turns released (pageFigureAt).
+          const figure = await syncStoredPageFigure({
+            turns: pageTurns,
+            turnIndex: cue.turnIndex,
+            whiteboard: options.whiteboard,
+            executeCommand: options.executeCommand,
+            shouldCancel: drawShouldCancel,
+          });
+          if (figure.changed) {
+            if (figure.cancelled) return;
+            activeDiagram = figure.diagram;
+          }
         }
         syncedTurnIndex = cue.turnIndex;
         options.onTurnStart?.(turn, activeDiagram);

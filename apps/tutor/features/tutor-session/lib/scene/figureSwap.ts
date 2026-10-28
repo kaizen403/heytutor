@@ -37,10 +37,13 @@ export type FigureSwapExecuteCommand = (
 
 type ZoneBoard = Pick<WhiteboardHandle, "eraseSceneInk"> & Partial<Pick<WhiteboardHandle, "erasePinnedInk">>;
 
-/** Scene ink, kept rings and the figure's rects leave; the work column stays. */
-async function clearZone(
+/**
+ * Scene ink, kept rings and the figure's rects leave; the work column stays.
+ * Replay surfaces that place nothing by layout pass a null layout.
+ */
+export async function clearFigureZone(
   wb: ZoneBoard,
-  layout: BoardLayoutState,
+  layout: BoardLayoutState | null,
   shouldCancel: () => boolean,
 ): Promise<boolean> {
   if (shouldCancel()) return false;
@@ -49,7 +52,7 @@ async function clearZone(
   if (typeof wb.erasePinnedInk === "function") wb.erasePinnedInk();
   await wb.eraseSceneInk(0, shouldCancel);
   if (shouldCancel()) return false;
-  dropDiagramRects(layout);
+  if (layout) dropDiagramRects(layout);
   return true;
 }
 
@@ -65,7 +68,7 @@ export async function swapFigureIn(
   opts: { shouldCancel?: () => boolean } = {},
 ): Promise<boolean> {
   void next;
-  return clearZone(wb, layout, () => Boolean(opts.shouldCancel?.()));
+  return clearFigureZone(wb, layout, () => Boolean(opts.shouldCancel?.()));
 }
 
 /**
@@ -119,22 +122,44 @@ export async function returnPageFigure(
   consumedIds: readonly string[],
   opts: { shouldCancel?: () => boolean; executeCommand?: FigureSwapExecuteCommand } = {},
 ): Promise<VerifiedDiagram | null> {
+  if (!opts.executeCommand) return null;
+  const result = await returnFigureToZone(wb, layout, presentation, consumedIds, {
+    shouldCancel: opts.shouldCancel, executeCommand: opts.executeCommand,
+  });
+  return result.cancelled ? null : result.diagram;
+}
+
+/**
+ * returnPageFigure for the replay, restore and export boards: no layout to
+ * keep, and a figure whose diagram could not be rebuilt still gets its stored
+ * intro ink back (with nothing for FOCUS to resolve).
+ */
+export async function returnFigureToZone(
+  wb: ZoneBoard,
+  layout: BoardLayoutState | null,
+  presentation: { diagram: VerifiedDiagram | null; introSegments: readonly TutorSegment[] },
+  consumedIds: readonly string[],
+  opts: { shouldCancel?: () => boolean; executeCommand: FigureSwapExecuteCommand },
+): Promise<{ cancelled: boolean; diagram: VerifiedDiagram | null }> {
   const shouldCancel = () => Boolean(opts.shouldCancel?.());
-  const executeCommand = opts.executeCommand;
-  if (!executeCommand || shouldCancel()) return null;
-  const diagram = structuredClone(presentation.diagram);
-  const released = takeDeferredAnnotations(diagram, { entityIds: releasedEntityIds(diagram, consumedIds) });
-  if (!await clearZone(wb, layout, shouldCancel)) return null;
+  const { executeCommand } = opts;
+  const cancelled = { cancelled: true, diagram: null };
+  if (shouldCancel()) return cancelled;
+  const diagram = presentation.diagram ? structuredClone(presentation.diagram) : null;
+  const released = diagram
+    ? takeDeferredAnnotations(diagram, { entityIds: releasedEntityIds(diagram, consumedIds) })
+    : [];
+  if (!await clearFigureZone(wb, layout, shouldCancel)) return cancelled;
   const stamp = { durationScale: 0, trustedDiagramGeometry: true, applyLayout: false, isCancelled: shouldCancel };
   for (const segment of presentation.introSegments) {
     for (const command of getSegmentCommands(segment)) {
-      if (shouldCancel()) return null;
+      if (shouldCancel()) return cancelled;
       await executeCommand(command, stamp);
     }
   }
   for (const command of released) {
-    if (shouldCancel()) return null;
+    if (shouldCancel()) return cancelled;
     await executeCommand(verifiedDiagramCommandToDrawCommand(command), { ...stamp, inkPace: "scene" });
   }
-  return shouldCancel() ? null : diagram;
+  return shouldCancel() ? cancelled : { cancelled: false, diagram };
 }

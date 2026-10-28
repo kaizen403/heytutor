@@ -11,6 +11,7 @@ import type { InkPace } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { storedPageFigureChange } from "../lib/replay/pageFigureSync";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { lecturePageCacheKey } from "@/lib/lecture-export/canExportLectureMp4";
 import {
@@ -409,6 +410,10 @@ export function useLectureExport({
               else controller.reset();
               restoreDsaFrames(controller, turn, plan);
               diagramRef.current = controller.frames.current()?.presentation.diagram ?? diagram;
+            } else if (storedPageFigureChange(turns, turns.indexOf(turn)).kind !== "keep") {
+              // The export swapped a doubt's own figure in, or returned the
+              // lesson's on its resume: point FOCUS at the figure it drew.
+              diagramRef.current = diagram;
             }
             hasStartedTurn = true;
             fbdStartedRef.current = Boolean(diagramRef.current);
