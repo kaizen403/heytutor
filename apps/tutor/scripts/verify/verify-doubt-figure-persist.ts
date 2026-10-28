@@ -6,9 +6,13 @@
  * Mutations this gate catches (brief section 3, phase 2 gate table):
  * (a) the server checks the scene's source question against Turn.question;
  * (b) insertMissing goes back to `continuation === null`;
- * (c) the lesson's figure is returned rebuilt fresh, without consumedIds.
+ * (c) the lesson's figure is returned rebuilt fresh, without consumedIds;
+ * (d) a stored surface rebuilds or source checks a doubt figure on its title
+ *     instead of `storedTurnSceneQuestion` (restore, sourceCheckedStoredTurn,
+ *     the page figure loader).
  */
 import { readFileSync } from "node:fs";
+import { compileSceneDocument, validateSceneDocument, validateTurnPlanV3, type SceneDocument } from "@heytutor/scene-engine";
 import { resolve } from "node:path";
 import {
   isStoredCommandTrustedGeometry,
@@ -17,7 +21,13 @@ import {
   type DrawCommand,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
-import { doubtFigureOf, composeDoubtFigureQuestion } from "../../lib/boards/doubtFigure";
+import { doubtFigureArtifacts, doubtFigureOf, composeDoubtFigureQuestion, storedTurnSceneQuestion } from "../../lib/boards/doubtFigure";
+import type { StoredTurn } from "../../lib/boards/boardsClient";
+import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
+import { bindPageFigureLoader, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { selectProductionScene, type ProductionSceneSelectionInput } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import electrolysis from "./fixtures/recorded-electrolysis-given-replay.json";
 import { boardContinuationArtifacts, boardContinuationOf, storedTurnContinuesBoard } from "../../lib/boards/boardContinuation";
 import { lessonFigureReturnAfter, pageFigureAt } from "../../lib/boards/pageFigure";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
@@ -39,7 +49,7 @@ import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSav
 import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
-import { DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, teachingRow } from "./fixtures/doubtFigureScene";
+import { DOUBT_FIGURE_TURN_ID, DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, sceneMetadataOn, teachingRow } from "./fixtures/doubtFigureScene";
 
 let checks = 0;
 function assert(condition: unknown, message: string): asserts condition {
@@ -71,6 +81,120 @@ const layoutWithFigure = (): BoardLayoutState => ({
 });
 
 const labelsOf = (drawn: readonly Drawn[]) => drawn.filter((entry) => entry.type === "LABEL").map((entry) => entry.text);
+
+
+/** What the presentation a FOCUS resolves against holds: its parts and what it withholds. */
+function pointable(diagram: VerifiedDiagram): string {
+  return JSON.stringify({ anchors: diagram.anchors, deferred: diagram.deferredAnnotations ?? [] });
+}
+
+/** The live doubt figure presentation, as doubtFigurePlan builds it on the composed question. */
+function livePresentation(sceneDocument: unknown, sceneArtifacts: unknown, composed: string): VerifiedDiagram {
+  const document = validateSceneDocument(sceneDocument).document as SceneDocument;
+  const compiled = compileSceneDocument(document);
+  assert(compiled.ok && compiled.renderScene, "the doubt figure compiles");
+  const turnPlan = validateTurnPlanV3((sceneArtifacts as Record<string, unknown>).turnPlan, composed).plan;
+  assert(turnPlan, "the doubt figure's plan validates on the composed question");
+  return buildVerifiedDiagramPresentation(document, compiled.renderScene, { originalQuestion: composed, turnPlan }).diagram;
+}
+
+function storedRow(id: string, orderIndex: number, question: string, saved: { sceneDocument: unknown; sceneEngineVersion: string | null; validationReport: unknown; visualStatus: string; sceneArtifacts: unknown; segments: ReadonlyArray<{ narration: string; spokenText?: string | null; command: unknown }> }, kind: StoredTurn["kind"], opensOnClear: boolean): StoredTurn {
+  const lead = opensOnClear
+    ? [{ id: `${id}-clear`, orderIndex: 0, narration: "", spokenText: "", command: { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" }, audioUrl: null, durationMs: 50, timings: null }]
+    : [];
+  return {
+    id, orderIndex, question, rawResponse: question, speedMultiplier: 1, traceId: null,
+    sceneDocument: saved.sceneDocument, sceneEngineVersion: saved.sceneEngineVersion, validationReport: saved.validationReport,
+    visualStatus: saved.visualStatus, sceneArtifacts: saved.sceneArtifacts, kind, status: "complete",
+    segments: [...lead, ...saved.segments.map((segment, index) => ({
+      id: `${id}-${index}`, orderIndex: lead.length + index, narration: segment.narration, spokenText: segment.spokenText ?? segment.narration,
+      command: segment.command, audioUrl: null, durationMs: 900, timings: null,
+    }))],
+  } as unknown as StoredTurn;
+}
+
+/**
+ * (d) The stored doubt figure rebuilds to exactly the live presentation, and a
+ * source checked family (point line: its validator reads the question text)
+ * survives the stored source check and the server's page figure loader.
+ */
+async function storedDoubtFigureMatchesLive(): Promise<void> {
+  const submitted = structuredClone(JSON.parse(readFileSync(
+    resolve(import.meta.dirname, "fixtures/point-line/annotation-link-positive.json"), "utf8")).submitted);
+  const lessonQuestion: string = submitted.question;
+  const title = "Doubt: why is the foot on the perpendicular?";
+  const composed = composeDoubtFigureQuestion(lessonQuestion, title);
+  const lessonSaved = await canonicalizeTurnSceneMetadata(submitted);
+  assert(lessonSaved.ok, `the point line lesson saves: ${lessonSaved.ok ? "" : lessonSaved.error}`);
+  const doubtSaved = await canonicalizeTurnSceneMetadata({
+    ...sceneMetadataOn(submitted, composed, { ...boardContinuationArtifacts(lessonQuestion), ...doubtFigureArtifacts(LESSON_TURN_ID) },
+      [teachingRow(0, "The foot is where the perpendicular meets the line.", [])]),
+    question: title,
+  }, { kind: "doubt", doubtFiguresEnabled: true });
+  assert(doubtSaved.ok, `a point line doubt figure saves on the composed question: ${doubtSaved.ok ? "" : doubtSaved.error}`);
+  const lessonRow = storedRow(LESSON_TURN_ID, 0, lessonQuestion, lessonSaved.value, "lesson", true);
+  const doubtRow = storedRow(DOUBT_FIGURE_TURN_ID, 1, title, doubtSaved.value, "doubt", false);
+  assert(storedTurnSceneQuestion(doubtRow) === composed && storedTurnSceneQuestion(lessonRow) === lessonQuestion,
+    "the scene question of a stored doubt figure is the composed one; of a lesson, its own");
+  const plainDoubt = { ...doubtRow, sceneArtifacts: boardContinuationArtifacts(lessonQuestion) };
+  assert(storedTurnSceneQuestion(plainDoubt) === title, "a doubt without its own figure keeps its title");
+
+  const checked = sourceCheckedStoredTurn(doubtRow);
+  assert(checked === doubtRow && checked.visualStatus === "validated",
+    "a source checked doubt figure survives the stored source check (replay and reload keep its figure)");
+  const live = livePresentation(doubtRow.sceneDocument, doubtRow.sceneArtifacts, composed);
+  const restored = restoreVerifiedPresentationFromTurn(doubtRow);
+  assert(restored, "the stored point line doubt figure restores");
+  assert(pointable(restored.diagram) === pointable(live),
+    "the restored doubt figure has the live anchors and the live withheld set");
+
+  // The page figure loader: a second doubt pointing at the first doubt's figure.
+  const asLoaderRow = (turn: StoredTurn): PageFigureTurn => ({
+    id: turn.id, boardId: "b1", userId: "u1", orderIndex: turn.orderIndex, question: turn.question,
+    visualStatus: turn.visualStatus, sceneDocument: turn.sceneDocument, sceneArtifacts: turn.sceneArtifacts,
+    segments: turn.segments.map((segment) => ({ orderIndex: segment.orderIndex, command: segment.command })),
+  });
+  const rows = [asLoaderRow(lessonRow), asLoaderRow(doubtRow)];
+  const loader = bindPageFigureLoader({ boardId: "b1", userId: "u1", turnId: null }, {
+    store: {
+      findTurn: async (id) => rows.find((row) => row.id === id) ?? null,
+      turnsBetween: async (_board, after, before) => rows.filter((row) => row.orderIndex > after && (before === null || row.orderIndex < before)),
+    },
+  });
+  const loaded = await loader({ schemaVersion: "doubt-figure-ref/v1", turnId: DOUBT_FIGURE_TURN_ID, kind: "verified_scene" }, { lessonQuestion });
+  assert(loaded && pointable(loaded) === pointable(live),
+    "a second doubt pointing at the doubt's figure resolves it on the server, as live drew it");
+
+  // A figure whose opening letters a source given only with the plan: the
+  // recorded electrolysis current. Rebuilt on the title the plan would not
+  // validate, the current would be withheld and a FOCUS in replay would
+  // letter a label live already drew.
+  const recorded = structuredClone(electrolysis.input) as unknown as ProductionSceneSelectionInput & {
+    turnPlan: { question: string }; problemIR: { question: string };
+  };
+  const chemTitle = "Doubt: why does the current set the mass?";
+  const chemComposed = composeDoubtFigureQuestion(recorded.question, chemTitle);
+  const onComposed = { ...recorded, question: chemComposed,
+    turnPlan: { ...recorded.turnPlan, question: chemComposed }, problemIR: { ...recorded.problemIR, question: chemComposed } };
+  const turnPlan = validateTurnPlanV3(onComposed.turnPlan, chemComposed).plan;
+  assert(turnPlan, "the electrolysis plan validates on the composed question");
+  const selected = selectProductionScene({ ...onComposed, turnPlan } as ProductionSceneSelectionInput).representation;
+  assert(selected, "the electrolysis figure is selected on the composed question");
+  const chemLive = buildVerifiedDiagramPresentation(selected.sceneDocument, selected.renderScene, { originalQuestion: chemComposed, turnPlan }).diagram;
+  const chemSaved = await canonicalizeTurnSceneMetadata({
+    question: chemTitle, sceneDocument: selected.sceneDocument, visualStatus: "validated", segments: [],
+    sceneArtifacts: {
+      schemaVersion: "scene-artifacts/v3", turnPlan, problemIR: onComposed.problemIR, solverResult: electrolysis.input.solverAuthority.solverResult,
+      representationTier: selected.tier, nonMetric: selected.nonMetric, candidates: [], figureSource: selected.figureSource, diagramResultStatus: "ready",
+      ...boardContinuationArtifacts(recorded.question), ...doubtFigureArtifacts(LESSON_TURN_ID),
+    },
+  }, { kind: "doubt", doubtFiguresEnabled: true });
+  assert(chemSaved.ok, `the electrolysis doubt figure saves: ${chemSaved.ok ? "" : chemSaved.error}`);
+  const chemRow = storedRow(DOUBT_FIGURE_TURN_ID, 1, chemTitle, chemSaved.value, "doubt", false);
+  const chemRestored = restoreVerifiedPresentationFromTurn(sourceCheckedStoredTurn(chemRow));
+  assert(chemRestored && pointable(chemRestored.diagram) === pointable(chemLive),
+    "the restored electrolysis doubt figure withholds exactly what live withheld (the source given current is not withheld again)");
+}
 
 async function main(): Promise<void> {
   const fixture = await doubtFigurePageFixture();
@@ -225,11 +349,15 @@ async function main(): Promise<void> {
   }
 
   // --- the replay, restore and export step through the stored page ----------
+  await storedDoubtFigureMatchesLive();
   {
     const { wb, events, drawn, executeCommand } = board();
     const swap = await syncStoredPageFigure({ turns, turnIndex: 1, whiteboard: wb, executeCommand, shouldCancel: () => false });
     assert(swap.changed && !swap.cancelled && swap.diagram !== null && events.includes("eraseSceneInk:0") && drawn.length === 0,
       "at the doubt figure the zone clears and its own figure is installed (its stored intro draws it)");
+    // The replayed doubt figure is the one live drew, not one rebuilt on the title.
+    assert(pointable(swap.diagram) === pointable(livePresentation(doubtFigureTurn.sceneDocument, doubtFigureTurn.sceneArtifacts, composed)),
+      "replay installs the doubt figure with the live anchors and the live withheld set");
     const keep = await syncStoredPageFigure({ turns, turnIndex: 2, whiteboard: wb, executeCommand, shouldCancel: () => false });
     assert(!keep.changed, "a plain doubt keeps the zone");
     const back = await syncStoredPageFigure({ turns, turnIndex: 3, whiteboard: wb, executeCommand, shouldCancel: () => false });

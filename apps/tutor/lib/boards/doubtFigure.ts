@@ -11,6 +11,7 @@
  * The scene's source question is the composed question below, never the
  * doubt's title, so the client plans on exactly the text the server checks.
  */
+import { boardContinuationOf } from "./boardContinuation";
 
 export const DOUBT_FIGURE_VERSION = "doubt-figure/v1" as const;
 
@@ -48,6 +49,21 @@ export function doubtFigureArtifacts(replacedTurnId: string | null): { doubtFigu
  */
 export function composeDoubtFigureQuestion(lessonQuestion: string, doubtTitle: string): string {
   return `${lessonQuestion.trim()}\n\nStudent's doubt: ${doubtTitle.replace(/^Doubt:\s*/, "").trim()}`;
+}
+
+/**
+ * The question a stored turn's scene was planned and checked on. A doubt that
+ * drew its own figure is stored under its title, but the server checked its
+ * scene against the composed question (`turnScenePersistence.ts`, the same
+ * two markers), so every stored surface that rebuilds or source checks that
+ * scene must read the composed question too. Any other turn: Turn.question.
+ */
+export function storedTurnSceneQuestion<Q extends string | undefined>(turn: { question?: Q; sceneArtifacts?: unknown }): Q | string {
+  const question = turn.question as Q;
+  if (typeof question !== "string" || !question.trim()) return question;
+  const continuation = boardContinuationOf(turn.sceneArtifacts);
+  if (!continuation?.lessonQuestion || !doubtFigureOf(turn.sceneArtifacts)) return question;
+  return composeDoubtFigureQuestion(continuation.lessonQuestion, question.trim());
 }
 
 /** DIAGRAM_DOUBT_FIGURES, off unless exactly "on". Server side only. */

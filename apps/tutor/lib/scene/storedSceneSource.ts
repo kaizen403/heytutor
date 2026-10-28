@@ -1,13 +1,15 @@
 import { validateCoordinateDistanceSourceInputs, validateMatrixSourceBinding, validatePointLineSourceInputs, validateSectionPointSourceInputs, validateRelativeMotionSourceInputs, validateUniformCircularSourceInputs, validateSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import { isBlockedVerifiedDiagramCommand, isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
 
 export function storedTurnSourceIssues(document: SceneDocument, turn: Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) {
   const artifacts = turn.sceneArtifacts;
   const plan = artifacts && typeof artifacts === "object"
     ? Object.getOwnPropertyDescriptor(artifacts, "turnPlan")?.value
     : undefined;
-  const question = turn.question ?? document.source.question;
+  // A doubt figure's scene was checked on the composed question, not its title.
+  const question = storedTurnSceneQuestion(turn) ?? document.source.question;
   const issues = [
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
