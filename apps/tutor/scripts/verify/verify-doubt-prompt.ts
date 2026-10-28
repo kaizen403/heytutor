@@ -338,6 +338,8 @@ for (const [label, prompt] of Object.entries(variants)) {
       ["false", { ...overrides, doubtPointing: false }],
       ["false with cells", { ...overrides, doubtPointing: false, codeFrameCells: CELLS }],
     ];
+    // DIAGRAM_DOUBT_FIGURES off (absent or false) adds nothing either.
+    offs.push(["figures false", { ...overrides, doubtFigureDrawn: false }]);
     for (const [how, variant] of offs) {
       const got = digest(buildDoubtTeachingPrompt(input(variant)));
       assert(got.system === expected[name]!.system, `${name} (flag ${how}): the doubt system prompt must be byte-identical to main`);
@@ -395,6 +397,26 @@ for (const [label, prompt] of Object.entries(variants)) {
     assert(!block.includes("[FOCUS:entity_id|keep]"), `code ${label}: a code board is never offered a kept ring`);
     assert(!block.includes("never [FOCUS] in this turn") && !block.includes("Do not point at it with [FOCUS]"), `code ${label}: the old no-FOCUS rule is replaced`);
     assert(!/[—–]/.test(block), `code ${label}: no dash punctuation`);
+  }
+}
+
+// 12. DIAGRAM_DOUBT_FIGURES: a doubt that drew its own figure is told a new
+// figure replaced the lesson's and to point at its parts. Only on a figure
+// board; with no figure or on a code board the flag changes nothing.
+{
+  const drawn = buildDoubtTeachingPrompt(input({ diagramPromptAddon: figureAddon, doubtFigureDrawn: true }));
+  assert(drawn.systemPrompt.includes("A new figure, drawn for this doubt, replaced the lesson's figure on the right."),
+    "the doubt is told its own figure replaced the lesson's");
+  assert(drawn.systemPrompt.includes("point at its parts with [FOCUS:entity_id]"), "the doubt points at the new figure's parts");
+  assert(!drawn.systemPrompt.includes("The board is exactly as they left it, and everything on it stays where it is."),
+    "a doubt with its own figure is not told the whole board is unchanged");
+  assert(!/[\u2014\u2013]/.test(drawn.systemPrompt), "the new wording carries no dash punctuation");
+  const plain = buildDoubtTeachingPrompt(input({ diagramPromptAddon: figureAddon }));
+  assert(!plain.systemPrompt.includes("drawn for this doubt"), "a doubt pointing at the lesson's figure is not told of a new one");
+  for (const overrides of [{}, { codePanelShowing: true, codeLessonBoard: true, codePanelText: CODE, diagramPromptAddon: codeLessonAddon }] as Partial<DoubtTeachingPromptInput>[]) {
+    const off = buildDoubtTeachingPrompt(input(overrides));
+    const on = buildDoubtTeachingPrompt(input({ ...overrides, doubtFigureDrawn: true }));
+    assert(on.systemPrompt === off.systemPrompt, "with no figure board, the doubt figure flag changes nothing");
   }
 }
 

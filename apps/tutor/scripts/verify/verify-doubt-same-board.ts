@@ -662,13 +662,24 @@ function between(source: string, file: string, start: string, end: string): stri
   // Comment lines may sit between the guard and the pipeline's first statement.
   assert(
     /\} else if \(!doubt && !resume\) \{(?:\s*\/\/[^\n]*)*\s*const recentConversation/.test(handler),
-    "a doubt never runs the planning pipeline again",
+    "a doubt never runs the lesson's planning pipeline again",
   );
+  // A doubt plans only on need, and only with DIAGRAM_DOUBT_FIGURES granted:
+  // every planner call a doubt can make sits inside the guarded block.
+  assert(handler.includes("const doubtFiguresGranted = billed.doubtFigures === true;"), "the doubt figure flag is the turn's begin-turn grant");
+  const doubtPlan = between(handler, file, "if (doubt && doubtFiguresGranted) {\n        // doubt-figure-plan:begin", "// doubt-figure-plan:end");
+  assert(/if \(need\.decision === "new_figure"\) \{[\s\S]*planDoubtFigure\(/.test(doubtPlan), "a doubt plans a figure only when the need check says new_figure");
+  const outsidePlan = handler.replace(doubtPlan, "");
+  const lessonPipeline = between(outsidePlan, file, "} else if (!doubt && !resume) {", "if (doubt) {\n        turnPlan = inherited?.turnPlan ?? null;");
+  const rest = outsidePlan.replace(lessonPipeline, "");
+  assert(!/planTurnV3\(|planAndSolveProblemV1\(|planDoubtFigure\(|requestDoubtFigureNeed\(/.test(rest),
+    "flag off, a doubt runs no planner call: none sits outside the lesson pipeline and the guarded doubt block");
   assert(handler.includes("buildDoubtTeachingPrompt("), "a doubt is taught under the doubt prompt");
   assert(handler.includes("buildResumeTeachingPrompt("), "the rest of the lesson continues under the resume prompt");
   assert(handler.includes("offerPausedLessonResume("), "a finished doubt offers to continue the paused lesson");
   assert(handler.includes("clearPausedLesson("), "a fresh question drops the paused lecture");
-  assert(handler.includes("revealDeferredAnnotations: !doubt"), "a doubt does not reveal what the stopped lesson had not reached");
+  assert(handler.includes("revealDeferredAnnotations: !doubt || doubtFigure !== null,"),
+    "a doubt does not reveal what the stopped lesson had not reached; only its own figure's withheld labels end with it");
   // The stopped turn is saved by its own Stop (progressive save), not by the
   // doubt: a doubt refused by billing used to lose the lesson it stopped.
   assert(!handler.includes("partialTurnSave"), "the doubt no longer saves the stopped turn itself");
