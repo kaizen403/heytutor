@@ -111,6 +111,11 @@ EOF
   sudo systemctl daemon-reload
 fi
 
+# Before the switch, so requests during this deploy's stop and start wait for
+# the new server instead of failing. Does nothing once applied.
+sudo bash "$ROOT/deploy/aws/caddy-hold-restarts.sh" ||
+  echo "WARNING: caddy-hold-restarts.sh failed; requests during this restart may see 502." >&2
+
 if [ -f /etc/systemd/system/heytutor.service ]; then
   echo "==> switch heytutor.service to $TUTOR_RELEASE"
   sudo node "$ROOT/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"

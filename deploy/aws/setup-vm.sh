@@ -100,10 +100,10 @@ ${HOSTNAME_FQDN} {
     Permissions-Policy "camera=(), geolocation=(), microphone=(self), payment=(), usb=()"
   }
   # Next.js owns the per-response nonce CSP. Do not replace it in the proxy.
-  @turn_upload path /api/boards/*/turns
+  @turn_upload path /api/boards/*/turns /api/boards/*/turns/*
   @speech_upload path /api/stt
   @question_upload path /api/extract-question
-  @small_body not path /api/boards/*/turns /api/stt /api/extract-question
+  @small_body not path /api/boards/*/turns /api/boards/*/turns/* /api/stt /api/extract-question
   request_body @turn_upload {
     max_size 36MiB
   }
@@ -116,7 +116,14 @@ ${HOSTNAME_FQDN} {
   request_body @small_body {
     max_size 512KiB
   }
-  reverse_proxy 127.0.0.1:3000
+  reverse_proxy 127.0.0.1:3000 {
+    # A deploy stops the old server (it drains for up to 60 s with its
+    # listener closed) before the new one starts. Hold requests until it
+    # is up instead of answering 502. A refused connection is always safe
+    # to retry. (deploy/aws/caddy-hold-restarts.sh)
+    lb_try_duration 90s
+    lb_try_interval 250ms
+  }
 }
 EOF
 
