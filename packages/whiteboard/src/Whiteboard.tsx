@@ -224,6 +224,11 @@ export interface AnnotationOptions {
   shouldCancel?: () => boolean;
   /** Stop a transient at its current nib position and fade without holding the pen. */
   shouldStop?: () => boolean;
+  /**
+   * A kept FOCUS ring: never transient, tagged `"pin"` so a page turn,
+   * `erasePinnedInk` or `eraseSceneInk` removes it while the figure stays.
+   */
+  pinned?: true;
 }
 
 export interface ShapeDrawOptions {
@@ -346,6 +351,10 @@ export interface WhiteboardHandle {
    * and leaves those tails on the board.
    */
   eraseWorkInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
+  /** Remove every kept FOCUS ring at once. The figure and the work stay. */
+  erasePinnedInk: () => void;
+  /** Wipe the figure zone ink: scene strokes and kept rings. Work ink stays. */
+  eraseSceneInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
   /** Split diagram vector lines that pass through a label emphasis region. */
   punchDiagramLineGapsInRect: (
     rect: { x: number; y: number; width: number; height: number },
@@ -2212,7 +2221,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             styleForCommand(options.inkSettings),
           ),
         );
-        tagBoardInk(path, boardInkKindAt(path.getClientRect().x));
+        const pinned = options.pinned === true && !options.transient;
+        tagBoardInk(path, pinned ? "pin" : boardInkKindAt(path.getClientRect().x));
         const totalLength = Math.max(path.getLength(), 1);
 
         path.dash([totalLength]);
@@ -3134,6 +3144,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // tails sitting in the figure.
         destroyTaggedInk(completedNodesRef.current, "work");
         destroyTaggedInk(animNodesRef.current, "work");
+        // A kept ring belongs to the page: it goes when the page turns.
+        destroyTaggedInk(completedNodesRef.current, "pin");
+        destroyTaggedInk(animNodesRef.current, "pin");
         drawLayer.batchDraw();
         animLayer.batchDraw();
         highlightLayer?.batchDraw();
@@ -3160,6 +3173,64 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         if (!isCancelled()) updateCursorState(previousCursorState);
       },
       [animateOver, destroyTaggedInk, flyCursorTo, setCursorViewSafely, updateCursorState],
+    );
+
+    const erasePinnedInk = useCallback((): void => {
+      destroyTaggedInk(completedNodesRef.current, "pin");
+      destroyTaggedInk(animNodesRef.current, "pin");
+      drawLayerRef.current?.batchDraw();
+      animLayerRef.current?.batchDraw();
+    }, [destroyTaggedInk]);
+
+    const eraseSceneInk = useCallback(
+      async (duration: number, shouldCancel?: () => boolean): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const drawLayer = drawLayerRef.current;
+        const animLayer = animLayerRef.current;
+        const cursorLayer = cursorLayerRef.current;
+        const highlightLayer = highlightLayerRef.current;
+
+        if (!drawLayer || !animLayer || !cursorLayer || isCancelled()) {
+          return;
+        }
+
+        // Untagged nodes predate the tag and sit in the figure; they go too.
+        const isSceneInk = (node: Konva.Node): boolean => {
+          const kind = node.getAttr(BOARD_INK_ATTR) as BoardInkKind | undefined;
+          return kind === undefined || kind === "scene" || kind === "pin";
+        };
+        for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+          nodes.forEach((node) => {
+            if (!isSceneInk(node)) return;
+            node.destroy();
+            nodes.delete(node);
+            drawTransactionsRef.current.detach(node);
+          });
+        }
+        drawLayer.batchDraw();
+        animLayer.batchDraw();
+        highlightLayer?.batchDraw();
+
+        if (duration <= 0) {
+          return;
+        }
+
+        const previousCursorState = activeCursorStateRef.current;
+        updateCursorState("erasing");
+        const x = DIAGRAM_ZONE.x;
+        const regionWidth = DIAGRAM_ZONE.width;
+        const targetY = DIAGRAM_ZONE.y + DIAGRAM_ZONE.height / 2;
+        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800), undefined, isCancelled, ownership);
+        if (isCancelled()) return;
+        const sweepDuration = Math.max(duration * 0.7, 100);
+        await animateOver(sweepDuration, (progress) => {
+          setCursorViewSafely(x + regionWidth * progress, targetY, 0, 1);
+          cursorLayer.batchDraw();
+        }, isCancelled);
+        if (!isCancelled()) updateCursorState(previousCursorState);
+      },
+      [animateOver, flyCursorTo, setCursorViewSafely, updateCursorState],
     );
 
     const clearBoard = useCallback(
@@ -3798,6 +3869,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         setSpotlight,
         eraseRegion,
         eraseWorkInk,
+        erasePinnedInk,
+        eraseSceneInk,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
         setCursorState: updateCursorState,
@@ -3873,7 +3946,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
