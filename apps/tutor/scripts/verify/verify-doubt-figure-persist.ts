@@ -26,7 +26,7 @@ import {
 import { doubtFigureArtifacts, doubtFigureOf, composeDoubtFigureQuestion, storedTurnSceneQuestion } from "../../lib/boards/doubtFigure";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
-import { bindPageFigureLoader, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
+import { bindDoubtFigurePageCheck, bindPageFigureLoader, memoryPageFigureStore, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { selectProductionScene, type ProductionSceneSelectionInput } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import electrolysis from "./fixtures/recorded-electrolysis-given-replay.json";
@@ -51,7 +51,7 @@ import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSav
 import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
-import { DOUBT_FIGURE_TURN_ID, DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, sceneMetadataOn, teachingRow } from "./fixtures/doubtFigureScene";
+import { DOUBT_FIGURE_TURN_ID, DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, doubtPageCheck, pageRowsOf, sceneMetadataOn, stored, teachingRow } from "./fixtures/doubtFigureScene";
 
 let checks = 0;
 function assert(condition: unknown, message: string): asserts condition {
@@ -84,6 +84,19 @@ const layoutWithFigure = (): BoardLayoutState => ({
 
 const labelsOf = (drawn: readonly Drawn[]) => drawn.filter((entry) => entry.type === "LABEL").map((entry) => entry.text);
 
+
+/** A doubt figure the server did not admit: saved as the text doubt, words kept, figure and pointing gone. */
+function savedAsText(saved: Awaited<ReturnType<typeof canonicalizeTurnSceneMetadata>>, why: string): void {
+  assert(saved.ok, `${why}: the doubt's words still save (${saved.ok ? "" : saved.code})`);
+  const value = saved.value;
+  assert(value.visualStatus === "text_only" && value.sceneDocument === null, `${why}: saved as text, with no scene`);
+  assert(doubtFigureOf(value.sceneArtifacts) === null && boardContinuationOf(value.sceneArtifacts) !== null,
+    `${why}: no doubt figure marker, still on the lesson's page`);
+  assert(!value.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)), `${why}: none of the figure's ink`);
+  assert(!value.segments.some((segment) => parseStoredSegmentCommands(segment.command).some((command) => command.type === "FOCUS" || command.type === "ANNOTATE")),
+    `${why}: no pointing at a figure that is not saved`);
+  assert(value.segments.some((segment) => segment.narration.trim().length > 0), `${why}: the doubt's words are kept`);
+}
 
 /** What the presentation a FOCUS resolves against holds: its parts and what it withholds. */
 function pointable(diagram: VerifiedDiagram): string {
@@ -132,7 +145,8 @@ async function storedDoubtFigureMatchesLive(): Promise<void> {
     ...sceneMetadataOn(submitted, composed, { ...boardContinuationArtifacts(lessonQuestion), ...doubtFigureArtifacts(LESSON_TURN_ID) },
       [teachingRow(0, "The foot is where the perpendicular meets the line.", [])]),
     question: title,
-  }, { kind: "doubt", doubtFiguresEnabled: true });
+  }, { kind: "doubt", doubtFiguresEnabled: true,
+    checkDoubtFigurePage: doubtPageCheck([storedRow(LESSON_TURN_ID, 0, lessonQuestion, lessonSaved.value, "lesson", true)]) });
   assert(doubtSaved.ok, `a point line doubt figure saves on the composed question: ${doubtSaved.ok ? "" : doubtSaved.error}`);
   const lessonRow = storedRow(LESSON_TURN_ID, 0, lessonQuestion, lessonSaved.value, "lesson", true);
   const doubtRow = storedRow(DOUBT_FIGURE_TURN_ID, 1, title, doubtSaved.value, "doubt", false);
@@ -158,10 +172,7 @@ async function storedDoubtFigureMatchesLive(): Promise<void> {
   });
   const rows = [asLoaderRow(lessonRow), asLoaderRow(doubtRow)];
   const loader = bindPageFigureLoader({ boardId: "b1", userId: "u1", turnId: null }, {
-    store: {
-      findTurn: async (id) => rows.find((row) => row.id === id) ?? null,
-      turnsBetween: async (_board, after, before) => rows.filter((row) => row.orderIndex > after && (before === null || row.orderIndex < before)),
-    },
+    store: memoryPageFigureStore(rows),
   });
   const loaded = await loader({ schemaVersion: "doubt-figure-ref/v1", turnId: DOUBT_FIGURE_TURN_ID, kind: "verified_scene" }, { lessonQuestion });
   assert(loaded && pointable(loaded) === pointable(live),
@@ -190,7 +201,9 @@ async function storedDoubtFigureMatchesLive(): Promise<void> {
       representationTier: selected.tier, nonMetric: selected.nonMetric, candidates: [], figureSource: selected.figureSource, diagramResultStatus: "ready",
       ...boardContinuationArtifacts(recorded.question), ...doubtFigureArtifacts(LESSON_TURN_ID),
     },
-  }, { kind: "doubt", doubtFiguresEnabled: true });
+  }, { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck([storedRow(LESSON_TURN_ID, 0, recorded.question, {
+    sceneDocument: selected.sceneDocument, sceneEngineVersion: null, validationReport: null, visualStatus: "validated", sceneArtifacts: null, segments: [],
+  }, "lesson", true)]) });
   assert(chemSaved.ok, `the electrolysis doubt figure saves: ${chemSaved.ok ? "" : chemSaved.error}`);
   const chemRow = storedRow(DOUBT_FIGURE_TURN_ID, 1, chemTitle, chemSaved.value, "doubt", false);
   const chemRestored = restoreVerifiedPresentationFromTurn(sourceCheckedStoredTurn(chemRow));
@@ -279,15 +292,59 @@ async function main(): Promise<void> {
     const unpaged = await canonicalizeTurnSceneMetadata(offPage, { kind: "doubt", doubtFiguresEnabled: true });
     assert(!unpaged.ok && unpaged.code === "scene_doubt_figure_invalid", "a doubt figure needs the lesson's page");
     const forged = fixture.doubtMetadata(fixture.doubtSegments, boardContinuationArtifacts("Some other lesson."));
-    const wrongPage = await canonicalizeTurnSceneMetadata({ ...forged, question: DOUBT_TITLE }, { kind: "doubt", doubtFiguresEnabled: true });
-    assert(!wrongPage.ok && (wrongPage.code === "scene_source_question_mismatch" || wrongPage.code === "scene_turn_plan_invalid"),
-      "the source question is recomputed from the page's lesson, so another lesson's scene is refused");
+    const wrongPage = await canonicalizeTurnSceneMetadata({ ...forged, question: DOUBT_TITLE }, { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: fixture.pageCheck });
+    savedAsText(wrongPage, "a doubt figure naming another lesson than its stored page's");
+  }
+  {
+    // S4: the doubt figure must belong to the stored page of its lesson.
+    const metadata = { ...fixture.doubtMetadata(fixture.doubtSegments), question: DOUBT_TITLE };
+    const admit = (check: Parameters<typeof canonicalizeTurnSceneMetadata>[1]) =>
+      canonicalizeTurnSceneMetadata(structuredClone(metadata), { kind: "doubt", doubtFiguresEnabled: true, ...check });
+    const lessonRow = lessonTurn;
+    const otherOpener = stored("55555555-5555-4555-8555-555555555555", 1, "A different lesson.", {
+      sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
+      segments: [teachingRow(0, "Something else.", [])],
+    }, { opensOnClear: true, kind: "lesson" });
+    const validOn = (saved: Awaited<ReturnType<typeof admit>>, message: string) =>
+      assert(saved.ok && saved.value.visualStatus === "validated" && doubtFigureOf(saved.value.sceneArtifacts) !== null, message);
+    validOn(await admit({ checkDoubtFigurePage: fixture.pageCheck }), "the lesson's own page admits its doubt figure");
+    savedAsText(await admit({}), "a save route that binds no page check");
+    savedAsText(await admit({ checkDoubtFigurePage: bindDoubtFigurePageCheck({ boardId: "b1", userId: "u1", turnId: null },
+      { store: memoryPageFigureStore(pageRowsOf([lessonRow], "u2")) }) }), "a page owned by another user");
+    savedAsText(await admit({ checkDoubtFigurePage: bindDoubtFigurePageCheck({ boardId: "b2", userId: "u1", turnId: null },
+      { store: memoryPageFigureStore(pageRowsOf([lessonRow])) }) }), "a lesson on another board");
+    savedAsText(await admit({ checkDoubtFigurePage: doubtPageCheck([lessonRow, otherOpener]) }),
+      "a lesson behind a later page opener");
+    validOn(await admit({ checkDoubtFigurePage: doubtPageCheck([lessonRow], "66666666-6666-4666-8666-666666666666") }),
+      "a doubt whose row is not written yet is compared with the end of the board");
+    const foreignRow = { ...pageRowsOf([{ ...lessonRow, id: "77777777-7777-4777-8777-777777777777", orderIndex: 5 }])[0]!, boardId: "b9" };
+    savedAsText(await admit({ checkDoubtFigurePage: bindDoubtFigurePageCheck({ boardId: "b1", userId: "u1", turnId: foreignRow.id },
+      { store: memoryPageFigureStore([...pageRowsOf([lessonRow]), foreignRow]) }) }), "a doubt row id from another board");
+    const marked = (replacedTurnId: string | null) => ({
+      ...fixture.doubtMetadata(fixture.doubtSegments, doubtFigureArtifacts(replacedTurnId)), question: DOUBT_TITLE,
+    });
+    const withMarker = (replacedTurnId: string | null, turns: StoredTurn[]) =>
+      canonicalizeTurnSceneMetadata(marked(replacedTurnId), { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck(turns) });
+    validOn(await withMarker(null, [lessonRow]), "an empty replaced figure on the lesson's page is admitted");
+    savedAsText(await withMarker("88888888-8888-4888-8888-888888888888", [lessonRow]), "a replaced figure that is not on the board");
+    savedAsText(await canonicalizeTurnSceneMetadata(marked(null), { kind: "doubt", doubtFiguresEnabled: true,
+      checkDoubtFigurePage: bindDoubtFigurePageCheck({ boardId: "b1", userId: "u1", turnId: null },
+        { store: memoryPageFigureStore(pageRowsOf([lessonRow], "u2")) }) }), "an empty replaced figure on a page another user opened");
+    const earlierPage = { ...lessonRow, id: "99999999-9999-4999-8999-999999999999", orderIndex: 0 };
+    const laterLesson = { ...lessonRow, orderIndex: 1 };
+    savedAsText(await withMarker(earlierPage.id, [earlierPage, laterLesson]), "a replaced figure on an earlier page");
+    savedAsText(await withMarker(DOUBT_FIGURE_TURN_ID, [lessonRow, { ...doubtFigureTurn, orderIndex: 1 }]),
+      "a replaced figure that is itself a doubt figure");
+    savedAsText(await withMarker(plainDoubt.id, [lessonRow, { ...plainDoubt, orderIndex: 1 }]),
+      "a replaced turn on the page with no figure of its own");
+    validOn(await withMarker(LESSON_TURN_ID, [lessonRow, { ...doubtFigureTurn, orderIndex: 1 }, { ...plainDoubt, orderIndex: 2 }]),
+      "a second doubt figure on the page names the lesson's figure, still the stash");
   }
   {
     // (b) A doubt figure is new on the page: its intro rows are inserted when missing.
     const words = [teachingRow(0, "Three more lands on five.", [])];
     const saved = await canonicalizeTurnSceneMetadata(
-      { ...fixture.doubtMetadata(words), question: DOUBT_TITLE }, { kind: "doubt", doubtFiguresEnabled: true });
+      { ...fixture.doubtMetadata(words), question: DOUBT_TITLE }, { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: fixture.pageCheck });
     assert(saved.ok, `a doubt figure saved without its intro rows still saves: ${saved.ok ? "" : saved.error}`);
     const intro = saved.value.segments.filter((segment) => isStoredCommandTrustedGeometry(segment.command));
     assert(intro.length > 0, "the server inserts the doubt figure's missing intro rows");

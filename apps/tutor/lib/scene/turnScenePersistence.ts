@@ -46,7 +46,7 @@ import {
   type DoubtFigureMarker,
 } from "@/lib/boards/doubtFigure";
 import type { TurnKind } from "@/lib/boards/turnStatus";
-import type { PageFigureLoader } from "@/lib/scene/pageFigureLoader";
+import type { DoubtFigurePageCheck, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
 import type { DiagramSubject } from "@heytutor/tutor-core";
@@ -173,6 +173,11 @@ export async function canonicalizeTurnSceneMetadata(
     loadReferencePicture?: ReferencePictureLoader;
     /** Bound by the save route to this turn's board, owner and id. */
     loadPageFigure?: PageFigureLoader;
+    /**
+     * Bound by the save route like `loadPageFigure`: does a doubt figure
+     * belong to its page's lesson. Absent, no doubt figure is admitted.
+     */
+    checkDoubtFigurePage?: DoubtFigurePageCheck;
     /** The saved turn's kind; a doubt figure is admitted on a doubt only. */
     kind?: TurnKind;
     /** DIAGRAM_DOUBT_FIGURES at save time; read from the environment when absent. */
@@ -317,6 +322,20 @@ export async function canonicalizeTurnSceneMetadata(
     }
   }
   const doubtFigure = submittedDoubtFigure && doubtContinuation ? submittedDoubtFigure : null;
+  // The composed question comes from the client's lesson question: it is
+  // admitted only when the stored page really is that lesson's. A figure that
+  // is not keeps the doubt's words, as text on the lesson's page.
+  if (doubtFigure && doubtContinuation) {
+    let onPage = false;
+    try {
+      onPage = options.checkDoubtFigurePage
+        ? await options.checkDoubtFigurePage(doubtFigure, { lessonQuestion: doubtContinuation.lessonQuestion })
+        : false;
+    } catch {
+      onPage = false;
+    }
+    if (!onPage) return doubtFigureAsText(submittedMetadata, doubtContinuation, options);
+  }
   const sceneQuestion = doubtFigure && doubtContinuation
     ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, question)
     : question;
@@ -692,6 +711,31 @@ function mergeServerDiagramIntro(
     merged.splice(insertAt, 0, ...missing);
   }
   return merged.map((segment, orderIndex) => ({ ...segment, orderIndex }));
+}
+
+/**
+ * A doubt figure the server will not admit, saved as the text doubt it would
+ * have been without a figure: the words stay on the lesson's page, the
+ * figure's ink and its marker go, and with them any FOCUS or ANNOTATE on it.
+ */
+async function doubtFigureAsText(
+  submitted: SubmittedTurnSceneMetadata,
+  continuation: NonNullable<ReturnType<typeof boardContinuationOf>>,
+  options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
+): Promise<TurnScenePersistenceResult> {
+  const segments = submitted.segments.map((segment) => {
+    if (segment.command == null) return segment;
+    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
+    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
+  return canonicalizeTurnSceneMetadata({
+    ...submitted,
+    visualStatus: "text_only",
+    sceneDocument: null,
+    sceneArtifacts: { boardContinuation: continuation },
+    segments,
+  }, { ...options, loadPageFigure: undefined });
 }
 
 function minimalFailureArtifacts(

@@ -14,6 +14,7 @@ import {
   canonicalizeTurnSceneMetadata,
   type SubmittedTurnSceneMetadata,
 } from "../../../lib/scene/turnScenePersistence";
+import { bindDoubtFigurePageCheck, memoryPageFigureStore, type PageFigureTurn } from "../../../lib/scene/pageFigureLoader";
 import { checkpointSceneFixture } from "./checkpointScene";
 
 export const LESSON_TURN_ID = "11111111-1111-4111-8111-111111111111";
@@ -49,7 +50,21 @@ export function sceneMetadataOn(
   return { ...clone, sceneArtifacts: { ...clone.sceneArtifacts, ...extraArtifacts }, segments };
 }
 
-function stored(
+/** Stored turns as the server's page reads see them, on board b1 of user u1. */
+export function pageRowsOf(turns: readonly StoredTurn[], userId = "u1"): PageFigureTurn[] {
+  return turns.map((turn) => ({
+    id: turn.id, boardId: "b1", userId, orderIndex: turn.orderIndex, question: turn.question,
+    visualStatus: turn.visualStatus, sceneDocument: turn.sceneDocument, sceneArtifacts: turn.sceneArtifacts,
+    segments: turn.segments.map((segment) => ({ orderIndex: segment.orderIndex, command: segment.command })),
+  }));
+}
+
+/** The real doubt figure page check over these stored turns, for a doubt with no row yet. */
+export function doubtPageCheck(turns: readonly StoredTurn[], turnId: string | null = null) {
+  return bindDoubtFigurePageCheck({ boardId: "b1", userId: "u1", turnId }, { store: memoryPageFigureStore(pageRowsOf(turns)) });
+}
+
+export function stored(
   id: string,
   orderIndex: number,
   question: string,
@@ -102,7 +117,10 @@ export async function doubtFigurePageFixture() {
     ...lesson.metadata.segments,
     teachingRow(lesson.metadata.segments.length, "Three more lands on five.", [focus("sum_value")]),
   ];
-  const doubtSaved = await canonicalizeTurnSceneMetadata(doubtMetadata(doubtSegments), { kind: "doubt", doubtFiguresEnabled: true });
+  const lessonTurn = stored(LESSON_TURN_ID, 0, lesson.question, lessonSaved.value, { opensOnClear: true, kind: "lesson" });
+  // The server's page check reads the lesson already saved on the board.
+  const pageCheck = doubtPageCheck([lessonTurn]);
+  const doubtSaved = await canonicalizeTurnSceneMetadata(doubtMetadata(doubtSegments), { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: pageCheck });
   assert(doubtSaved.ok, `the doubt figure saves: ${doubtSaved.ok ? "" : doubtSaved.error}`);
 
   const resumeSaved = await canonicalizeTurnSceneMetadata({
@@ -112,7 +130,6 @@ export async function doubtFigurePageFixture() {
   }, { kind: "resume" });
   assert(resumeSaved.ok, `the resume saves: ${resumeSaved.ok ? "" : resumeSaved.error}`);
 
-  const lessonTurn = stored(LESSON_TURN_ID, 0, lesson.question, lessonSaved.value, { opensOnClear: true, kind: "lesson" });
   const doubtFigureTurn = stored(DOUBT_FIGURE_TURN_ID, 1, DOUBT_TITLE, doubtSaved.value, { opensOnClear: false, kind: "doubt" });
   const plainDoubt: StoredTurn = {
     ...stored("33333333-3333-4333-8333-333333333333", 2, "Doubt: and then?", {
@@ -127,6 +144,7 @@ export async function doubtFigurePageFixture() {
     composed,
     doubtMetadata,
     doubtSegments,
+    pageCheck,
     turns: [lessonTurn, doubtFigureTurn, plainDoubt, resumeTurn],
   };
 }

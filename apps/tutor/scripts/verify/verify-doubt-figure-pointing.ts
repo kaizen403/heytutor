@@ -38,6 +38,7 @@ import {
 } from "../../lib/scene/turnScenePersistence";
 import {
   bindPageFigureLoader,
+  memoryPageFigureStore,
   type PageFigureLoader,
   type PageFigureStore,
   type PageFigureTurn,
@@ -110,12 +111,7 @@ const loaderReturning = (figure: VerifiedDiagram | null): PageFigureLoader => as
   figure ? structuredClone(figure) : null;
 
 function memoryStore(turns: PageFigureTurn[]): PageFigureStore {
-  return {
-    findTurn: async (id) => turns.find((turn) => turn.id === id) ?? null,
-    turnsBetween: async (boardId, after, before) => turns
-      .filter((turn) => turn.boardId === boardId && turn.orderIndex > after && (before === null || turn.orderIndex < before))
-      .sort((a, b) => a.orderIndex - b.orderIndex),
-  };
+  return memoryPageFigureStore(turns);
 }
 
 function openerSegment(): PageFigureTurn["segments"][number] {

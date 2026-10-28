@@ -14,6 +14,11 @@
  * 2. Every turn strictly between the two continues the board: no page opener.
  * 3. The referenced turn's page question is the doubt's lesson question.
  * 4. The referenced row holds a figure of the kind the reference claims.
+ *
+ * A doubt that drew its own figure (`doubtFigure.ts`) is checked against the
+ * same page by `bindDoubtFigurePageCheck`: the page the doubt continues opens
+ * on a turn of the doubt's lesson question, and the figure the marker says it
+ * replaced is a figure on that page.
  */
 import {
   type ReferencePictureRecord,
@@ -25,6 +30,7 @@ import {
 } from "@/lib/boards/boardContinuation";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import type { DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
+import { doubtFigureOf, type DoubtFigureMarker } from "@/lib/boards/doubtFigure";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { restoreVerifiedPresentationFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { resolveDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
@@ -58,6 +64,9 @@ export interface PageFigureTurn {
   segments: { orderIndex: number; command: unknown }[];
 }
 
+/** The fields the page walk reads: whether each turn continues the page, and its question. */
+export type PageWalkTurn = Pick<PageFigureTurn, "id" | "boardId" | "userId" | "orderIndex" | "question" | "sceneArtifacts" | "segments">;
+
 /** A page this long is not one a doubt points across; a longer read resolves null. */
 export const PAGE_FIGURE_MAX_TURNS_BETWEEN = 200;
 
@@ -68,7 +77,12 @@ export interface PageFigureStore {
    * Turns on the board, any owner, with `after < orderIndex` (and `< before`
    * when given), in board order, at most `PAGE_FIGURE_MAX_TURNS_BETWEEN + 1`.
    */
-  turnsBetween(boardId: string, after: number, before: number | null): Promise<PageFigureTurn[]>;
+  turnsBetween(boardId: string, after: number, before: number | null): Promise<PageWalkTurn[]>;
+  /**
+   * Turns on the board, any owner, with `orderIndex < before` (every turn
+   * when null), newest first, at most `PAGE_FIGURE_MAX_TURNS_BETWEEN + 2`.
+   */
+  turnsBefore(boardId: string, before: number | null): Promise<PageWalkTurn[]>;
 }
 
 export interface PageFigureContext {
@@ -79,7 +93,7 @@ export interface PageFigureContext {
 }
 
 /** The continuation reads only the marker and the first segment. */
-function asContinuationTurn(turn: PageFigureTurn): Pick<StoredTurn, "question" | "sceneArtifacts" | "segments"> {
+function asContinuationTurn(turn: PageWalkTurn): Pick<StoredTurn, "question" | "sceneArtifacts" | "segments"> {
   return turn as unknown as Pick<StoredTurn, "question" | "sceneArtifacts" | "segments">;
 }
 
@@ -174,6 +188,53 @@ export function bindPageFigureLoader(
   };
 }
 
+/** Whether a doubt that drew its own figure belongs to its page's lesson. */
+export type DoubtFigurePageCheck = (marker: DoubtFigureMarker, page: PageFigureRequest) => Promise<boolean>;
+
+/**
+ * The page rules for a doubt figure, bound to one save. True only when:
+ * 1. the newest turn before the doubt that opens a page (every turn after it
+ *    continues the board) is the user's, and its page question is the
+ *    doubt's lesson question;
+ * 2. `replacedTurnId`, when set, is a turn on that page, the user's, with a
+ *    validated scene of its own, and not itself a doubt figure (a doubt only
+ *    ever stashes the lesson's figure).
+ * Never throws: any failure is false.
+ */
+export function bindDoubtFigurePageCheck(
+  context: PageFigureContext,
+  deps: { store: PageFigureStore },
+): DoubtFigurePageCheck {
+  return async (marker, page) => {
+    try {
+      const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
+      if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return false;
+      const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
+      const continuing: PageWalkTurn[] = [];
+      let opener: PageWalkTurn | null = null;
+      for (const turn of earlier) {
+        if (turn.id === context.turnId) continue;
+        if (!storedTurnContinuesBoard(asContinuationTurn(turn))) {
+          opener = turn;
+          break;
+        }
+        continuing.push(turn);
+        if (continuing.length > PAGE_FIGURE_MAX_TURNS_BETWEEN) return false;
+      }
+      if (!opener || opener.boardId !== context.boardId || opener.userId !== context.userId) return false;
+      if (normalizedQuestion(storedTurnPageQuestion(asContinuationTurn(opener))) !== normalizedQuestion(page.lessonQuestion)) return false;
+      if (marker.replacedTurnId === null) return true;
+      if (![opener, ...continuing].some((turn) => turn.id === marker.replacedTurnId)) return false;
+      const replaced = await deps.store.findTurn(marker.replacedTurnId);
+      if (!replaced || replaced.boardId !== context.boardId || replaced.userId !== context.userId) return false;
+      if (doubtFigureOf(replaced.sceneArtifacts)) return false;
+      return replaced.visualStatus === "validated" && replaced.sceneDocument != null;
+    } catch {
+      return false;
+    }
+  };
+}
+
 const PAGE_FIGURE_TURN_SELECT = {
   id: true,
   boardId: true,
@@ -186,14 +247,40 @@ const PAGE_FIGURE_TURN_SELECT = {
   segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const }, take: 1 },
 } as const;
 
+/** The page walk: no scene document, which can be large, on each of up to 200 rows. */
+const PAGE_WALK_TURN_SELECT = {
+  id: true,
+  boardId: true,
+  userId: true,
+  orderIndex: true,
+  question: true,
+  sceneArtifacts: true,
+  segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const }, take: 1 },
+} as const;
+
+/** The same reads over rows in memory, for the gates. */
+export function memoryPageFigureStore(turns: readonly PageFigureTurn[]): PageFigureStore {
+  const sorted = [...turns].sort((a, b) => a.orderIndex - b.orderIndex);
+  return {
+    findTurn: async (id) => sorted.find((turn) => turn.id === id) ?? null,
+    turnsBetween: async (boardId, after, before) => sorted
+      .filter((turn) => turn.boardId === boardId && turn.orderIndex > after && (before === null || turn.orderIndex < before))
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 1),
+    turnsBefore: async (boardId, before) => sorted
+      .filter((turn) => turn.boardId === boardId && (before === null || turn.orderIndex < before))
+      .reverse()
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2),
+  };
+}
+
 /** The Prisma reads, for the save routes. */
 export function prismaPageFigureStore(db: {
   turn: {
     findFirst(args: { where: { id: string }; select: typeof PAGE_FIGURE_TURN_SELECT }): Promise<unknown>;
     findMany(args: {
-      where: { boardId: string; orderIndex: { gt: number; lt?: number } };
-      select: typeof PAGE_FIGURE_TURN_SELECT;
-      orderBy: { orderIndex: "asc" };
+      where: { boardId: string; orderIndex?: { gt?: number; lt?: number } };
+      select: typeof PAGE_WALK_TURN_SELECT;
+      orderBy: { orderIndex: "asc" | "desc" };
       take: number;
     }): Promise<unknown[]>;
   };
@@ -204,10 +291,17 @@ export function prismaPageFigureStore(db: {
     turnsBetween: async (boardId, after, before) =>
       (await db.turn.findMany({
         where: { boardId, orderIndex: before === null ? { gt: after } : { gt: after, lt: before } },
-        select: PAGE_FIGURE_TURN_SELECT,
+        select: PAGE_WALK_TURN_SELECT,
         orderBy: { orderIndex: "asc" },
         take: PAGE_FIGURE_MAX_TURNS_BETWEEN + 1,
-      })) as PageFigureTurn[],
+      })) as PageWalkTurn[],
+    turnsBefore: async (boardId, before) =>
+      (await db.turn.findMany({
+        where: before === null ? { boardId } : { boardId, orderIndex: { lt: before } },
+        select: PAGE_WALK_TURN_SELECT,
+        orderBy: { orderIndex: "desc" },
+        take: PAGE_FIGURE_MAX_TURNS_BETWEEN + 2,
+      })) as PageWalkTurn[],
   };
 }
 
@@ -217,4 +311,12 @@ export function pageFigureLoaderFor(
   db: Parameters<typeof prismaPageFigureStore>[0],
 ): PageFigureLoader {
   return bindPageFigureLoader(context, { store: prismaPageFigureStore(db) });
+}
+
+/** The production doubt figure page check for one save. */
+export function doubtFigurePageCheckFor(
+  context: PageFigureContext,
+  db: Parameters<typeof prismaPageFigureStore>[0],
+): DoubtFigurePageCheck {
+  return bindDoubtFigurePageCheck(context, { store: prismaPageFigureStore(db) });
 }

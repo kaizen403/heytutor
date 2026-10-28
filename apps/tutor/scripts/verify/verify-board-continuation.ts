@@ -417,6 +417,7 @@ async function main(): Promise<void> {
         store: {
           findTurn: async (id) => (id === lessonId ? loaderTurn(figureLesson) : null),
           turnsBetween: async () => [],
+          turnsBefore: async () => [],
         },
       }),
     });
