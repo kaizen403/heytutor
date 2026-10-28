@@ -27,6 +27,8 @@ export {
   resolveWorkAreaRow,
   resolveVerifiedDiagramFocusTargets,
   focusEmphasisOf,
+  focusKeepsMark,
+  withoutFocusKeep,
   takeDeferredAnnotations,
   remainingDeferredAnnotations,
   peekDeferredAnnotation,

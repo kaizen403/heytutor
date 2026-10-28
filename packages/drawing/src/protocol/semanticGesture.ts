@@ -6,6 +6,8 @@ export type FocusEmphasis = "trace" | "spotlight" | "pulse";
 export interface SemanticFocusSpec {
   targetIds: string[];
   emphasis: FocusEmphasis;
+  /** `|keep`: after its emphasis the target keeps a ring while the page is up. */
+  keep: boolean;
 }
 
 export type WorkRowSelector =
@@ -31,16 +33,56 @@ const EMPHASIS_ALIASES: Record<string, FocusEmphasis> = {
   group: "trace",
 };
 
+/**
+ * `[FOCUS:<id>(,<id>)*(|<modifier>)*]`. Modifiers are a list in any order and
+ * any case: the first emphasis modifier wins, `keep` combines with any
+ * emphasis, and an unknown modifier is ignored.
+ */
 export function parseFocusSpec(raw: string | undefined): SemanticFocusSpec {
   const trimmed = (raw ?? "").trim();
-  if (!trimmed) return { targetIds: [], emphasis: "trace" };
-  const [idsPart, emphasisPart] = trimmed.split("|", 2);
+  if (!trimmed) return { targetIds: [], emphasis: "trace", keep: false };
+  const [idsPart, ...modifierParts] = trimmed.split("|");
   const targetIds = (idsPart ?? "")
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
-  const emphasis = EMPHASIS_ALIASES[(emphasisPart ?? "").trim().toLowerCase()] ?? "trace";
-  return { targetIds, emphasis };
+  let emphasis: FocusEmphasis | null = null;
+  let keep = false;
+  for (const part of modifierParts) {
+    const modifier = part.trim().toLowerCase();
+    if (modifier === "keep") {
+      keep = true;
+      continue;
+    }
+    if (emphasis === null && EMPHASIS_ALIASES[modifier]) emphasis = EMPHASIS_ALIASES[modifier]!;
+  }
+  return { targetIds, emphasis: emphasis ?? "trace", keep };
+}
+
+function focusSpecText(command: DrawCommand): string | undefined {
+  return command.semanticRef?.entityId ?? command.text;
+}
+
+/** A FOCUS that asks its target to keep a ring after the emphasis. */
+export function focusKeepsMark(command: DrawCommand): boolean {
+  return command.type === "FOCUS" && parseFocusSpec(focusSpecText(command)).keep;
+}
+
+function withoutKeepModifier(raw: string): string {
+  const [idsPart, ...modifierParts] = raw.split("|");
+  const kept = modifierParts.filter((part) => part.trim().toLowerCase() !== "keep");
+  return [idsPart ?? "", ...kept].join("|");
+}
+
+/** Same command with `keep` removed from its text or semanticRef.entityId. */
+export function withoutFocusKeep(command: DrawCommand): DrawCommand {
+  if (!focusKeepsMark(command)) return command;
+  const next: DrawCommand = { ...command };
+  if (typeof command.text === "string") next.text = withoutKeepModifier(command.text);
+  if (command.semanticRef && typeof command.semanticRef.entityId === "string") {
+    next.semanticRef = { ...command.semanticRef, entityId: withoutKeepModifier(command.semanticRef.entityId) };
+  }
+  return next;
 }
 
 export function parseWorkRowSelector(raw: string | undefined): WorkRowSelector | null {
