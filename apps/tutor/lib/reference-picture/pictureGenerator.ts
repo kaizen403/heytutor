@@ -9,6 +9,7 @@
  * A generated picture carries no text: image models garble labels. It passes
  * the same judge as a Commons picture, with a stricter rule (no letters).
  */
+import { ProviderRefusedError } from "./providerErrors";
 
 export interface ImageProviderConfig {
   url: string;
@@ -47,7 +48,7 @@ export async function generatePicture(mustShow: string, provider: ImageProviderC
   });
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Image generation upstream ${response.status}`);
+    throw new ProviderRefusedError(`Image generation upstream ${response.status}`, response.status);
   }
   const data = (await response.json()) as { data?: { b64_json?: string }[] };
   const b64 = data.data?.[0]?.b64_json;

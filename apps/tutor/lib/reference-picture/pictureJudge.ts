@@ -7,6 +7,7 @@ import {
   normalizeReferencePictureLabels,
 } from "@heytutor/drawing";
 import { FIREWORKS_CHAT_URL } from "@/lib/llm/llmProvider";
+import { ProviderRefusedError } from "./providerErrors";
 
 /**
  * The vision check every reference picture must pass before it reaches the
@@ -237,7 +238,7 @@ export async function judgePicture(input: PictureJudgeInput, options: { apiKey: 
   });
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Picture judge upstream ${response.status} from ${model}`);
+    throw new ProviderRefusedError(`Picture judge upstream ${response.status} from ${model}`, response.status);
   }
   const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
   const content = data.choices?.[0]?.message?.content;
@@ -320,7 +321,7 @@ export async function factCheckPicture(input: Pick<PictureJudgeInput, "mustShow"
   });
   if (!response.ok) {
     await response.body?.cancel();
-    throw new Error(`Picture fact check upstream ${response.status} from ${model}`);
+    throw new ProviderRefusedError(`Picture fact check upstream ${response.status} from ${model}`, response.status);
   }
   const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[]; usage?: unknown };
   const content = data.choices?.[0]?.message?.content;

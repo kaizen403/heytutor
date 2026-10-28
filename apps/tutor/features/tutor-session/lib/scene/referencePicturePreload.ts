@@ -31,12 +31,33 @@ export async function preloadReferencePictureWithin(
   }
 }
 
-/** Preload every picture a set of stored turns will draw, in parallel. */
+/**
+ * An MP4 export may wait this long for its pictures: it runs on a virtual
+ * clock that never waits for the network, so a picture not here before the
+ * first frame would be drawn late against its cue or not at all.
+ */
+export const REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS = 30_000;
+
+/**
+ * Preload every picture a set of stored turns will draw, in parallel, and
+ * name the ones that did not arrive in time. Live replay and restore draw
+ * whatever the board can; an export refuses to start without them.
+ */
 export async function preloadReferencePicturesForTurns(
   turns: Parameters<typeof referencePictureIdsOfTurns>[0],
   timeoutMs = REFERENCE_PICTURE_PRELOAD_TIMEOUT_MS,
-): Promise<void> {
-  const ids = referencePictureIdsOfTurns(turns);
-  if (ids.length === 0) return;
-  await Promise.all(ids.map((id) => preloadReferencePictureWithin(id, timeoutMs)));
+  preload?: (id: string) => Promise<unknown>,
+): Promise<{ missing: string[] }> {
+  return preloadReferencePictureIds(referencePictureIdsOfTurns(turns), timeoutMs, preload);
+}
+
+/** Preload pictures by id in parallel; name the ones not here within `timeoutMs`. */
+export async function preloadReferencePictureIds(
+  ids: readonly string[],
+  timeoutMs = REFERENCE_PICTURE_PRELOAD_TIMEOUT_MS,
+  preload?: (id: string) => Promise<unknown>,
+): Promise<{ missing: string[] }> {
+  if (ids.length === 0) return { missing: [] };
+  const ready = await Promise.all(ids.map((id) => preloadReferencePictureWithin(id, timeoutMs, undefined, preload)));
+  return { missing: ids.filter((_, i) => !ready[i]) };
 }
