@@ -154,7 +154,7 @@ async function main(): Promise<void> {
     row(3, "The starting value.", [command("ANNOTATE", "start_value")]),
     row(4, "Both together.", [command("FOCUS", "start_value,add_three|pulse|keep")]),
   ]);
-  const kept = await canonicalizeTurnSceneMetadata(structuredClone(pointed), { loadPageFigure: loaderReturning(lessonFigure) });
+  const kept = await canonicalizeTurnSceneMetadata(structuredClone(pointed), { loadPageFigure: loaderReturning(lessonFigure), doubtPointingEnabled: true });
   check(kept.ok, `a doubt with an unknown ANNOTATE target saves (no 400): ${kept.ok ? "" : kept.error}`);
   if (kept.ok) {
     const commands = savedCommands(kept.value.segments);
@@ -171,6 +171,21 @@ async function main(): Promise<void> {
     check(!(artifacts?.failureTelemetry as Record<string, unknown> | undefined)?.pointsAtFigureStatus, "a resolved reference records no unresolved status");
   }
 
+  // DIAGRAM_DOUBT_POINTING off: the live filter strips kept rings and
+  // ANNOTATE, so a save carrying them came from a modified client.
+  for (const [label, options] of [["the flag off", { doubtPointingEnabled: false }], ["the flag read from the environment", {}]] as const) {
+    const off = await canonicalizeTurnSceneMetadata(structuredClone(pointed), { loadPageFigure: loaderReturning(lessonFigure), ...options });
+    check(off.ok, `${label}: a doubt with kept rings and ANNOTATE still saves`);
+    if (off.ok) {
+      const commands = savedCommands(off.value.segments);
+      check(targets(commands, "ANNOTATE").length === 0, `${label}: no ANNOTATE is saved on a doubt`);
+      check(targets(commands, "FOCUS").includes("start_value"), `${label}: a plain FOCUS on the figure is kept`);
+      check(targets(commands, "FOCUS").some((target) => target.startsWith("start_value,add_three")) &&
+        targets(commands, "FOCUS").every((target) => !/\|\s*keep\b/i.test(target)), `${label}: a kept ring is saved as a plain FOCUS`);
+      check(off.value.segments.length === 5 && off.value.segments.every((segment) => segment.narration.length > 0), `${label}: every row keeps its words`);
+    }
+  }
+
   // An answer label held until the lesson ends is never lettered by a doubt.
   const withheld: VerifiedDiagram = structuredClone(lessonFigure);
   withheld.deferredAnnotations = [
@@ -179,7 +194,7 @@ async function main(): Promise<void> {
   ];
   const answerAsk = await canonicalizeTurnSceneMetadata(
     doubtMetadata(lessonQuestion, ref("verified_scene"), [row(0, "What is the sum?", [command("ANNOTATE", "sum_value")])]),
-    { loadPageFigure: loaderReturning(withheld) },
+    { loadPageFigure: loaderReturning(withheld), doubtPointingEnabled: true },
   );
   check(answerAsk.ok, "a doubt naming an answer label still saves");
   if (answerAsk.ok) {

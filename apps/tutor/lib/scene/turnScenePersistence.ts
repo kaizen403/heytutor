@@ -24,6 +24,7 @@ import {
   getSegmentCommands,
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
+  withoutFocusKeep,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
@@ -47,6 +48,7 @@ import {
 } from "@/lib/boards/doubtFigure";
 import type { TurnKind } from "@/lib/boards/turnStatus";
 import type { DoubtFigurePageCheck, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
+import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
 import type { DiagramSubject } from "@heytutor/tutor-core";
@@ -182,6 +184,8 @@ export async function canonicalizeTurnSceneMetadata(
     kind?: TurnKind;
     /** DIAGRAM_DOUBT_FIGURES at save time; read from the environment when absent. */
     doubtFiguresEnabled?: boolean;
+    /** DIAGRAM_DOUBT_POINTING at save time; read from the environment when absent. */
+    doubtPointingEnabled?: boolean;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -234,14 +238,20 @@ export async function canonicalizeTurnSceneMetadata(
         pageFigure = null;
       }
     }
+    // With DIAGRAM_DOUBT_POINTING off the live doubt filter strips kept rings
+    // and ANNOTATE, so only a modified client sends them: they are not saved.
+    const doubtRows = (options.kind === "doubt" || (options.kind === undefined && pointsAtFigure !== null)) &&
+      !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
+      ? withoutFlaggedDoubtPointing(picture.segments)
+      : picture.segments;
     const teachingCommands = pointsAtFigure
       ? canonicalizeTeachingCommands(
-          picture.segments,
+          doubtRows,
           pageFigure ? doubtCheckDiagram(pageFigure, pointsAtFigure.kind) : null,
           codeLesson,
           { kind: pointsAtFigure.kind },
         )
-      : canonicalizeTeachingCommands(picture.segments, picture.diagram, codeLesson);
+      : canonicalizeTeachingCommands(doubtRows, picture.diagram, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
@@ -486,7 +496,9 @@ export async function canonicalizeTurnSceneMetadata(
     { insertMissing: continuation === null || doubtFigure !== null },
   );
   const teachingCommands = canonicalizeTeachingCommands(
-    persistSegments,
+    doubtFigure && !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
+      ? withoutFlaggedDoubtPointing(persistSegments)
+      : persistSegments,
     expectedPresentation.diagram,
     codeLesson,
   );
@@ -713,6 +725,23 @@ function mergeServerDiagramIntro(
     merged.splice(insertAt, 0, ...missing);
   }
   return merged.map((segment, orderIndex) => ({ ...segment, orderIndex }));
+}
+
+/**
+ * A doubt's rows as the live filter leaves them with DIAGRAM_DOUBT_POINTING
+ * off: plain FOCUS stays, a kept ring becomes a plain FOCUS, ANNOTATE goes.
+ * Trusted figure rows are untouched.
+ */
+function withoutFlaggedDoubtPointing(segments: SubmittedTurnSegment[]): SubmittedTurnSegment[] {
+  return segments.map((segment) => {
+    if (segment.command == null || isStoredCommandTrustedGeometry(segment.command)) return segment;
+    const commands = parseStoredSegmentCommands(segment.command);
+    if (!commands.some((command) => command.type === "ANNOTATE" || command.type === "FOCUS")) return segment;
+    const kept = commands
+      .filter((command) => command.type !== "ANNOTATE")
+      .map((command) => command.type === "FOCUS" ? withoutFocusKeep(command) : command);
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
 }
 
 /**

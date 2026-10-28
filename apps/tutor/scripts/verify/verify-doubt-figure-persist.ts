@@ -298,6 +298,32 @@ async function main(): Promise<void> {
     savedAsText(wrongPage, "a doubt figure naming another lesson than its stored page's");
   }
   {
+    // DIAGRAM_DOUBT_POINTING off: a doubt figure's rows keep plain FOCUS only.
+    const extra = teachingRow(fixture.doubtSegments.length, "Keep that ring and name the start.", [
+      { type: "FOCUS", params: [], text: "sum_value|keep", charPosition: 0, narrationBefore: "" },
+      { type: "ANNOTATE", params: [], text: "start_value", charPosition: 0, narrationBefore: "" },
+    ]);
+    const metadata = { ...fixture.doubtMetadata([...fixture.doubtSegments, extra]), question: DOUBT_TITLE };
+    const pointingOf = async (doubtPointingEnabled: boolean | undefined) => {
+      const saved = await canonicalizeTurnSceneMetadata(structuredClone(metadata), {
+        kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: fixture.pageCheck,
+        ...(doubtPointingEnabled === undefined ? {} : { doubtPointingEnabled }),
+      });
+      assert(saved.ok && saved.value.visualStatus === "validated", `the doubt figure with pointing saves: ${saved.ok ? "" : saved.error}`);
+      return saved.value.segments.flatMap((segment) => isStoredCommandTrustedGeometry(segment.command) ? [] : parseStoredSegmentCommands(segment.command))
+        .filter((command) => command.type === "FOCUS" || command.type === "ANNOTATE")
+        .map((command) => `${command.type}:${command.semanticRef?.entityId ?? command.text}`);
+    };
+    const on = await pointingOf(true);
+    assert(on.includes("FOCUS:sum_value|keep") && on.some((entry) => entry.startsWith("ANNOTATE:")),
+      `with the pointing flag on the kept ring and ANNOTATE are saved (${on.join()})`);
+    for (const flag of [false, undefined]) {
+      const off = await pointingOf(flag);
+      assert(!off.some((entry) => entry.startsWith("ANNOTATE:")) && !off.some((entry) => /\|\s*keep/i.test(entry)) && off.includes("FOCUS:sum_value"),
+        `with the pointing flag ${flag === false ? "off" : "unset"} only plain FOCUS is saved (${off.join()})`);
+    }
+  }
+  {
     // S4: the doubt figure must belong to the stored page of its lesson.
     const metadata = { ...fixture.doubtMetadata(fixture.doubtSegments), question: DOUBT_TITLE };
     const admit = (check: Parameters<typeof canonicalizeTurnSceneMetadata>[1]) =>
