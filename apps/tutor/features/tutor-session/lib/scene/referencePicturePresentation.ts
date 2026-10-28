@@ -19,6 +19,7 @@ import {
   legendMarkKey,
   parseReferencePictureLegend,
   parseReferencePictureParts,
+  referencePictureKeyId,
   referencePictureLayout,
   referencePictureLegendEntryRect,
   referencePicturePartBoardRect,
@@ -209,9 +210,13 @@ function legendList(legend: readonly ReferencePictureLegendEntry[]): string {
   return legend.map((entry) => `${entry.mark} = ${entry.label}`).join("; ");
 }
 
-/** Focus target ids of a numbered picture's key entry `index` (0 based): the target, its row and its mark on the drawing. */
-export function referencePictureKeyIds(index: number): { target: string; row: string; mark: string } {
-  const target = `${REFERENCE_PICTURE_ENTITY_ID}.key.${index + 1}`;
+/**
+ * Focus target ids of a numbered picture's key entry, named by its printed
+ * mark (never its place in the key, which skips and reorders): the target,
+ * its row and its mark on the drawing.
+ */
+export function referencePictureKeyIds(mark: string): { target: string; row: string; mark: string } {
+  const target = referencePictureKeyId(mark);
   return { target, row: `${target}.row`, mark: `${target}.mark` };
 }
 
@@ -277,10 +282,11 @@ function samePlacement(a: PicturePlacement, b: PicturePlacement): boolean {
  * - A located printed label: one anchor, `reference_picture.part.<n>`, on
  *   its printed text. It carries the label for the spoken inference only
  *   when the label is distinctive.
- * - A numbered picture's key entry i: the group `reference_picture.key.<i+1>`
- *   of the mark on the drawing (when it was located) then the key row the
- *   pen wrote, so the pen goes to "3" and then to "3 Loop of Henle". Key rows
- *   are computed from the record, so every entry is pointable.
+ * - A numbered picture's key entry: the group `reference_picture.key.<mark>`
+ *   (the printed mark, so "part 4" is `key.4` even on a key that skips 3) of
+ *   the mark on the drawing (when it was located) then the key row the pen
+ *   wrote, so the pen goes to "3" and then to "3 Loop of Henle". Key rows are
+ *   computed from the record, so every entry is pointable.
  */
 export function referencePictureFocusTargets(
   picture: Pick<StoredReferencePicture, "legend" | "partFocus">,
@@ -310,7 +316,7 @@ export function referencePictureFocusTargets(
     legend.forEach((entry, index) => {
       const row = referencePictureLegendEntryRect(layout.legend!, index);
       if (!row) return;
-      const ids = referencePictureKeyIds(index);
+      const ids = referencePictureKeyIds(entry.mark);
       const mark = focus.parts.find((part) => part.mark !== undefined && legendMarkKey(part.mark) === legendMarkKey(entry.mark));
       const members: string[] = [];
       if (mark) {

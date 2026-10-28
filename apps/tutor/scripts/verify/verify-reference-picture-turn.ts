@@ -8,6 +8,8 @@
  *
  *   npx tsx scripts/verify/verify-reference-picture-turn.ts
  */
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   REFERENCE_PICTURE_ZONE,
   getSegmentCommands,
@@ -55,6 +57,18 @@ import {
 } from "../../lib/scene/turnScenePersistence";
 import { recordForPartFocus, sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 import type { RecordedSegmentPayload, StoredTurn } from "../../lib/boards/boardsClient";
+
+/**
+ * The presentation at 15b35dab0, the commit before part focus, for a
+ * labelled and a numbered record that both carry parts. Part focus off must
+ * give exactly this: the prompt, the diagram and the stored artifact.
+ */
+interface PartFocusOffSnapshot {
+  cases: { name: string; record: ReferencePictureRecord; promptAddon: string; diagram: unknown; stored: unknown }[];
+}
+const PART_FOCUS_OFF: PartFocusOffSnapshot = JSON.parse(
+  readFileSync(fileURLToPath(new URL("./fixtures/reference-picture-part-focus-off.json", import.meta.url)), "utf8"),
+);
 
 let failures = 0;
 let checks = 0;
@@ -432,8 +446,8 @@ const PART_RECORD: ReferencePictureRecord = {
     { id: "reference_picture.part.3", label: "Input", box: { x: 500, y: 300, width: 60, height: 20 }, source: "svg" },
     { id: "reference_picture.part.4", label: "A", box: { x: 600, y: 400, width: 14, height: 20 }, source: "ocr" },
     // Not a judged label, and a box off the picture: both dropped alone.
-    { id: "reference_picture.part.5", label: "Cache", box: { x: 10, y: 10, width: 40, height: 20 }, source: "svg" },
-    { id: "reference_picture.part.6", label: "Program counter", box: { x: 990, y: 10, width: 40, height: 20 }, source: "svg" },
+    { id: "reference_picture.part.6", label: "Cache", box: { x: 10, y: 10, width: 40, height: 20 }, source: "svg" },
+    { id: "reference_picture.part.5", label: "Program counter", box: { x: 990, y: 10, width: 40, height: 20 }, source: "svg" },
   ],
 };
 const KEYED_RECORD: ReferencePictureRecord = {
@@ -445,8 +459,9 @@ const KEYED_RECORD: ReferencePictureRecord = {
   legend: [{ mark: "1", label: "Glomerulus" }, { mark: "2", label: "Proximal tubule" }, { mark: "3", label: "Loop of Henle" }],
   parts: [
     { id: "reference_picture.part.1", label: "Glomerulus", mark: "1", box: { x: 200, y: 120, width: 12, height: 18 }, source: "svg" },
-    { id: "reference_picture.part.2", label: "Loop of Henle", mark: "3", box: { x: 420, y: 500, width: 12, height: 18 }, source: "svg" },
-    { id: "reference_picture.part.3", label: "Cortex", box: { x: 700, y: 60, width: 70, height: 20 }, source: "svg" },
+    // Part ids follow the name's place in labels, not the order located.
+    { id: "reference_picture.part.3", label: "Loop of Henle", mark: "3", box: { x: 420, y: 500, width: 12, height: 18 }, source: "svg" },
+    { id: "reference_picture.part.4", label: "Cortex", box: { x: 700, y: 60, width: 70, height: 20 }, source: "svg" },
   ],
 };
 const withoutParts = (record: ReferencePictureRecord): ReferencePictureRecord => {
@@ -521,12 +536,65 @@ async function partFocusChecks(): Promise<void> {
   check(mark3 && mark3.x === mark3Rect.x && mark3.y === mark3Rect.y, "key: the mark anchor is the located mark");
   const resolved = resolveVerifiedDiagramFocusTargets(focusCommand("reference_picture.key.3"), keyedDiagram).map((anchor) => anchor.id);
   check(JSON.stringify(resolved) === '["reference_picture.key.3.mark","reference_picture.key.3.row"]', "key: the group resolves mark first, then the row");
-  check(keyedDiagram.anchors.every((anchor) => anchor.labels.length === 0 || anchor.id === "reference_picture.part.3"), "key: key targets carry no spoken labels");
-  check(anchorIds(keyedDiagram).includes("reference_picture.part.3"), "key: a printed name on a numbered picture is its own part");
+  check(keyedDiagram.anchors.every((anchor) => anchor.labels.length === 0 || anchor.id === "reference_picture.part.4"), "key: key targets carry no spoken labels");
+  check(anchorIds(keyedDiagram).includes("reference_picture.part.4"), "key: a printed name on a numbered picture is its own part");
   check(keyed.promptAddon.includes("part 3, the loop of Henle = [FOCUS:reference_picture.key.3]") && keyed.promptAddon.includes("part 2, the proximal tubule = [FOCUS:reference_picture.key.2]"), "key: the prompt lists every key entry with its tag");
-  check(!anchorIds(keyedDiagram).some((id) => /^reference_picture\.part\.[12]$/.test(id)), "key: a mark is not offered twice as a part");
+  check(!anchorIds(keyedDiagram).some((id) => /^reference_picture\.part\.[123]$/.test(id)), "key: a mark is not offered twice as a part");
   const unlocated = buildReferencePicturePresentation(withoutParts(KEYED_RECORD), { partFocus: true });
   check(unlocated.diagram.groups?.length === 3 && unlocated.stored.partFocus?.parts.length === 0, "key: with nothing located every key row is still pointable");
+
+  // Key targets are named by the printed mark, never the entry's place: on a
+  // key that skips 3, "part 4" is key.4 and rings mark 4's row; key.3 is
+  // refused, live and on save.
+  const gappedRecord = PART_FOCUS_OFF.cases.find((entry) => entry.name === "numbered")!.record;
+  const gapped = buildReferencePicturePresentation(gappedRecord, { partFocus: true });
+  const gappedLayout = referencePictureLayout(gappedRecord)!;
+  const rectOf = (anchor: { x: number; y: number; width: number; height: number } | null | undefined) =>
+    anchor ? JSON.stringify({ x: anchor.x, y: anchor.y, width: anchor.width, height: anchor.height }) : "none";
+  const resolvedIds = (diagram: Parameters<typeof resolveVerifiedDiagramFocusTargets>[1], id: string) =>
+    resolveVerifiedDiagramFocusTargets(focusCommand(id), diagram).map((anchor) => anchor.id);
+  check(JSON.stringify(gapped.diagram.groups?.map((group) => group.id)) === '["reference_picture.key.1","reference_picture.key.2","reference_picture.key.4","reference_picture.key.5"]', "gapped key: one target per printed mark (1, 2, 4, 5)");
+  check(JSON.stringify(resolvedIds(gapped.diagram, "reference_picture.key.4")) === '["reference_picture.key.4.mark","reference_picture.key.4.row"]', "gapped key: key.4 is mark 4 then its row");
+  const gappedRow4 = gapped.diagram.anchors.find((anchor) => anchor.id === "reference_picture.key.4.row");
+  check(rectOf(gappedRow4) === rectOf(referencePictureLegendEntryRect(gappedLayout.legend!, 2)), "gapped key: key.4 rings the row of mark 4 (the third entry), not mark 5's");
+  check(rectOf(gapped.diagram.anchors.find((anchor) => anchor.id === "reference_picture.key.5.row")) === rectOf(referencePictureLegendEntryRect(gappedLayout.legend!, 3)), "gapped key: key.5 rings the row of mark 5");
+  const gappedMark4 = gapped.diagram.anchors.find((anchor) => anchor.id === "reference_picture.key.4.mark");
+  check(rectOf(gappedMark4) === rectOf(referencePicturePartBoardRect(gappedRecord.parts!.find((part) => part.mark === "4")!, gappedLayout.picture, gappedRecord.plan)), "gapped key: key.4's mark anchor is the located mark 4");
+  check(gapped.promptAddon.includes("part 4, the loop of Henle = [FOCUS:reference_picture.key.4]") && gapped.promptAddon.includes("part 5, the collecting duct = [FOCUS:reference_picture.key.5]") && !gapped.promptAddon.includes("reference_picture.key.3"), "gapped key: the prompt pairs each spoken mark with its own id");
+  check(resolvedIds(gapped.diagram, "reference_picture.key.3").length === 0 && !pointsAtReferencePicture(focusCommand("reference_picture.key.3"), referencePicturePointables(gapped.stored)), "gapped key: key.3 resolves to nothing and the save filter refuses it");
+  check(prepareVerifiedLessonSegments([{ narration: "And part 3.", command: focusCommand("reference_picture.key.3"), commands: [focusCommand("reference_picture.key.3")] }], gapped.diagram).blockedCommandCount === 1, "gapped key: a live key.3 is blocked");
+  check(pointsAtReferencePicture(focusCommand("reference_picture.key.4"), referencePicturePointables(gapped.stored)), "gapped key: the save filter keeps key.4");
+  const reordered: ReferencePictureRecord = {
+    ...withoutParts(gappedRecord),
+    labels: ["Collecting duct", "Glomerulus", "Loop of Henle"],
+    legend: [{ mark: "5", label: "Collecting duct" }, { mark: "1", label: "Glomerulus" }, { mark: "3", label: "Loop of Henle" }],
+  };
+  const reorderedOn = buildReferencePicturePresentation(reordered, { partFocus: true });
+  const reorderedLayout = referencePictureLayout(reordered)!;
+  check(["5", "1", "3"].every((mark, index) => rectOf(reorderedOn.diagram.anchors.find((anchor) => anchor.id === `reference_picture.key.${mark}.row`)) === rectOf(referencePictureLegendEntryRect(reorderedLayout.legend!, index))), "reordered key (5, 1, 3): each key.<mark> rings its own row");
+  check(resolvedIds(reorderedOn.diagram, "reference_picture.key.2").length === 0 && reorderedOn.promptAddon.includes("part 5, the collecting duct = [FOCUS:reference_picture.key.5]"), "reordered key: key.2 resolves to nothing, mark 5 is key.5");
+  // An artifact saved with an older numbering loses those parts, never points them elsewhere.
+  const renumbered = readStoredReferencePicture({ referencePicture: { ...on.stored, partFocus: { ...on.stored.partFocus!, parts: on.stored.partFocus!.parts.map((part) => part.label === "Input" ? { ...part, id: "reference_picture.part.4" } : part) } } });
+  check(renumbered?.partFocus?.parts.length === 3 && !renumbered.partFocus.parts.some((part) => part.label === "Input"), "artifact: a part whose id is not its label's place is dropped");
+
+  // Part focus off is the pre-branch presentation, frozen at 15b35dab0.
+  for (const snapshot of PART_FOCUS_OFF.cases) {
+    check(snapshot.record.parts && parseReferencePictureRecord(JSON.parse(JSON.stringify(snapshot.record)))?.parts?.length === snapshot.record.parts.length, `snapshot ${snapshot.name}: the record's parts are all valid, so off really ignores them`);
+    for (const [how, built] of [
+      ["default", buildReferencePicturePresentation(snapshot.record)],
+      ["partFocus false", buildReferencePicturePresentation(snapshot.record, { partFocus: false })],
+      ["server stripped", buildReferencePicturePresentation(recordForPartFocus(snapshot.record, false))],
+    ] as const) {
+      check(built.promptAddon === snapshot.promptAddon, `snapshot ${snapshot.name} (${how}): the prompt addon is the pre-branch text`);
+      check(JSON.stringify(built.diagram) === JSON.stringify(snapshot.diagram), `snapshot ${snapshot.name} (${how}): the diagram is the pre-branch diagram`);
+      check(JSON.stringify(built.stored) === JSON.stringify(snapshot.stored), `snapshot ${snapshot.name} (${how}): the stored artifact is the pre-branch artifact`);
+      const rebuilt = referencePictureDiagram(built.stored, built.diagram.commands, built.diagram.reveals);
+      check(JSON.stringify(rebuilt) === JSON.stringify(snapshot.diagram), `snapshot ${snapshot.name} (${how}): referencePictureDiagram rebuilds the pre-branch diagram`);
+    }
+  }
+  const labelledSnapshot = PART_FOCUS_OFF.cases.find((entry) => entry.name === "labelled")!;
+  const strippedOn = buildReferencePicturePresentation(recordForPartFocus(labelledSnapshot.record, false), { partFocus: true });
+  check(strippedOn.promptAddon === labelledSnapshot.promptAddon && JSON.stringify(strippedOn.diagram) === JSON.stringify(labelledSnapshot.diagram), "snapshot labelled: part focus on with no parts and no key is the pre-branch presentation");
 
   // A placement the record's layout does not give: no part targets at all.
   const shifted = getSegmentCommands(on.introSegments[0]!).map((command) => ({ type: command.type, params: [command.params[0]! + 30, ...command.params.slice(1)], text: command.text }));

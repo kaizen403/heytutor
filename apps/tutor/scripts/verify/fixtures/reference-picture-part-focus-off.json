@@ -1,0 +1,378 @@
+{
+  "source": "git 15b35dab0, the commit before part focus; written by .context/part-focus/snap/make-snapshot.ts",
+  "cases": [
+    {
+      "name": "labelled",
+      "record": {
+        "source": "wikimedia",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "artist": "LadyofHats",
+        "width": 2000,
+        "height": 1280,
+        "plan": {
+          "width": 1000,
+          "height": 640,
+          "outlineLengthPx": 5000,
+          "fillLengthPx": 20000
+        },
+        "id": "rp_00112233445566778899aabb",
+        "title": "File:Von Neumann architecture.svg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Von_Neumann_architecture.svg",
+        "imageUrl": "/api/reference-picture/rp_00112233445566778899aabb/image",
+        "planUrl": "/api/reference-picture/rp_00112233445566778899aabb/plan",
+        "shows": "A labelled diagram of a simple CPU with its registers.",
+        "labels": [
+          "Accumulator",
+          "R1",
+          "Input",
+          "A",
+          "Program counter"
+        ],
+        "parts": [
+          {
+            "id": "reference_picture.part.1",
+            "label": "Accumulator",
+            "box": {
+              "x": 100,
+              "y": 100,
+              "width": 120,
+              "height": 22
+            },
+            "source": "svg"
+          },
+          {
+            "id": "reference_picture.part.2",
+            "label": "R1",
+            "box": {
+              "x": 300,
+              "y": 200,
+              "width": 28,
+              "height": 20
+            },
+            "source": "svg"
+          },
+          {
+            "id": "reference_picture.part.3",
+            "label": "Input",
+            "box": {
+              "x": 500,
+              "y": 300,
+              "width": 60,
+              "height": 20
+            },
+            "source": "svg"
+          },
+          {
+            "id": "reference_picture.part.5",
+            "label": "Program counter",
+            "box": {
+              "x": 700,
+              "y": 40,
+              "width": 150,
+              "height": 20
+            },
+            "source": "svg"
+          }
+        ]
+      },
+      "promptAddon": "BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW\nThe right of the board shows a real diagram from Wikimedia Commons. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.\nWhat it shows: A labelled diagram of a simple CPU with its registers..\nLabels printed on it, as read by a checker: \"Accumulator\", \"R1\", \"Input\", \"A\", \"Program counter\".\nRefer to a labelled part by its printed name. Never name, describe or point at a part that is not in that list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.\nNever emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:reference_picture] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.\nWRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line.",
+      "diagram": {
+        "id": "reference_picture",
+        "name": "reference picture rp_00112233445566778899aabb",
+        "commands": [
+          {
+            "type": "DRAW_PICTURE",
+            "params": [
+              410,
+              118,
+              750,
+              480,
+              0,
+              3750
+            ],
+            "text": "rp_00112233445566778899aabb",
+            "semanticRef": {
+              "entityId": "reference_picture",
+              "primitiveId": "reference_picture.outline"
+            }
+          },
+          {
+            "type": "DRAW_PICTURE",
+            "params": [
+              410,
+              118,
+              750,
+              480,
+              1,
+              15000
+            ],
+            "text": "rp_00112233445566778899aabb",
+            "semanticRef": {
+              "entityId": "reference_picture",
+              "primitiveId": "reference_picture.fill"
+            }
+          }
+        ],
+        "anchors": [
+          {
+            "id": "reference_picture",
+            "labels": [],
+            "x": 410,
+            "y": 118,
+            "width": 750,
+            "height": 480
+          }
+        ],
+        "reveals": [
+          {
+            "narration": "Here is a labelled diagram of a simple CPU with its registers.",
+            "commandIndices": [
+              0
+            ],
+            "kind": "reveal",
+            "targetId": "reference_picture"
+          },
+          {
+            "narration": "Let me colour it in.",
+            "commandIndices": [
+              1
+            ],
+            "kind": "reveal",
+            "targetId": "reference_picture"
+          }
+        ],
+        "promptAddon": "BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW\nThe right of the board shows a real diagram from Wikimedia Commons. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.\nWhat it shows: A labelled diagram of a simple CPU with its registers..\nLabels printed on it, as read by a checker: \"Accumulator\", \"R1\", \"Input\", \"A\", \"Program counter\".\nRefer to a labelled part by its printed name. Never name, describe or point at a part that is not in that list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.\nNever emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:reference_picture] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.\nWRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line."
+      },
+      "stored": {
+        "id": "rp_00112233445566778899aabb",
+        "source": "wikimedia",
+        "title": "File:Von Neumann architecture.svg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Von_Neumann_architecture.svg",
+        "license": "CC BY-SA 4.0",
+        "artist": "LadyofHats",
+        "shows": "A labelled diagram of a simple CPU with its registers.",
+        "labels": [
+          "Accumulator",
+          "R1",
+          "Input",
+          "A",
+          "Program counter"
+        ],
+        "credit": "LadyofHats, CC BY-SA 4.0, via Wikimedia Commons"
+      }
+    },
+    {
+      "name": "numbered",
+      "record": {
+        "source": "wikimedia",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+        "artist": "LadyofHats",
+        "width": 2000,
+        "height": 1280,
+        "plan": {
+          "width": 1000,
+          "height": 640,
+          "outlineLengthPx": 5000,
+          "fillLengthPx": 20000
+        },
+        "id": "rp_aabbccddeeff00112233aabb",
+        "title": "File:Kidney nephron numbered.svg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Kidney_nephron_numbered.svg",
+        "imageUrl": "/api/reference-picture/rp_aabbccddeeff00112233aabb/image",
+        "planUrl": "/api/reference-picture/rp_aabbccddeeff00112233aabb/plan",
+        "shows": "A numbered diagram of a nephron.",
+        "labels": [
+          "Glomerulus",
+          "Proximal tubule",
+          "Loop of Henle",
+          "Collecting duct",
+          "Cortex"
+        ],
+        "legend": [
+          {
+            "mark": "1",
+            "label": "Glomerulus"
+          },
+          {
+            "mark": "2",
+            "label": "Proximal tubule"
+          },
+          {
+            "mark": "4",
+            "label": "Loop of Henle"
+          },
+          {
+            "mark": "5",
+            "label": "Collecting duct"
+          }
+        ],
+        "parts": [
+          {
+            "id": "reference_picture.part.1",
+            "label": "Glomerulus",
+            "mark": "1",
+            "box": {
+              "x": 200,
+              "y": 120,
+              "width": 12,
+              "height": 18
+            },
+            "source": "svg"
+          },
+          {
+            "id": "reference_picture.part.3",
+            "label": "Loop of Henle",
+            "mark": "4",
+            "box": {
+              "x": 420,
+              "y": 500,
+              "width": 12,
+              "height": 18
+            },
+            "source": "svg"
+          },
+          {
+            "id": "reference_picture.part.5",
+            "label": "Cortex",
+            "box": {
+              "x": 700,
+              "y": 60,
+              "width": 70,
+              "height": 20
+            },
+            "source": "svg"
+          }
+        ]
+      },
+      "promptAddon": "BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW\nThe right of the board shows a real diagram from Wikimedia Commons. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.\nWhat it shows: A numbered diagram of a nephron..\nIts parts are marked with numbers, and the runtime has written the key beside the picture, checked against what each mark points at: 1 = Glomerulus; 2 = Proximal tubule; 4 = Loop of Henle; 5 = Collecting duct.\nNames printed on it, as read by a checker: \"Cortex\".\nWhen you talk about a marked part, say its number and its name together, for example \"part 1, the glomerulus\", so the student can find it on the picture. Never name, describe or point at a part that is not in the key or printed on it, never use a mark the key does not list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.\nNever emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:reference_picture] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.\nWRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line.",
+      "diagram": {
+        "id": "reference_picture",
+        "name": "reference picture rp_aabbccddeeff00112233aabb",
+        "commands": [
+          {
+            "type": "DRAW_PICTURE",
+            "params": [
+              410,
+              173,
+              579,
+              371,
+              0,
+              2895
+            ],
+            "text": "rp_aabbccddeeff00112233aabb",
+            "semanticRef": {
+              "entityId": "reference_picture",
+              "primitiveId": "reference_picture.outline"
+            }
+          },
+          {
+            "type": "DRAW_PICTURE",
+            "params": [
+              410,
+              173,
+              579,
+              371,
+              1,
+              11580
+            ],
+            "text": "rp_aabbccddeeff00112233aabb",
+            "semanticRef": {
+              "entityId": "reference_picture",
+              "primitiveId": "reference_picture.fill"
+            }
+          },
+          {
+            "type": "DRAW_PICTURE",
+            "params": [
+              410,
+              173,
+              579,
+              371,
+              2,
+              5730
+            ],
+            "text": "rp_aabbccddeeff00112233aabb",
+            "semanticRef": {
+              "entityId": "reference_picture",
+              "primitiveId": "reference_picture.legend"
+            }
+          }
+        ],
+        "anchors": [
+          {
+            "id": "reference_picture",
+            "labels": [],
+            "x": 410,
+            "y": 173,
+            "width": 579,
+            "height": 371
+          }
+        ],
+        "reveals": [
+          {
+            "narration": "Here is a numbered diagram of A numbered diagram of a nephron.",
+            "commandIndices": [
+              0
+            ],
+            "kind": "reveal",
+            "targetId": "reference_picture"
+          },
+          {
+            "narration": "Let me colour it in.",
+            "commandIndices": [
+              1
+            ],
+            "kind": "reveal",
+            "targetId": "reference_picture"
+          },
+          {
+            "narration": "The key beside it names each numbered part.",
+            "commandIndices": [
+              2
+            ],
+            "kind": "reveal",
+            "targetId": "reference_picture"
+          }
+        ],
+        "promptAddon": "BOARD STATE: A REFERENCE PICTURE, NOT A FIGURE YOU DREW\nThe right of the board shows a real diagram from Wikimedia Commons. The runtime has already drawn it in. It is a reference picture, not a validated figure: it carries no measurements, scale or computed values.\nWhat it shows: A numbered diagram of a nephron..\nIts parts are marked with numbers, and the runtime has written the key beside the picture, checked against what each mark points at: 1 = Glomerulus; 2 = Proximal tubule; 4 = Loop of Henle; 5 = Collecting duct.\nNames printed on it, as read by a checker: \"Cortex\".\nWhen you talk about a marked part, say its number and its name together, for example \"part 1, the glomerulus\", so the student can find it on the picture. Never name, describe or point at a part that is not in the key or printed on it, never use a mark the key does not list, and never claim the picture shows a value, arrow or direction it does not label. If the picture does not fit what this question asks, say so in one plain sentence and teach in words.\nNever emit DRAW_*, LABEL, DIMENSION, ARROW, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, SCRIBBLE, ANNOTATE, ERASE or CLEAR tags. [FOCUS:reference_picture] may point at the whole picture, at most once in a step, inside the sentence that talks about it; there is no other focus target and no part of the picture can be focused on its own.\nWRITE the left work column as the student notebook: names, definitions, relations and results (x below 360). Every step writes a short board line."
+      },
+      "stored": {
+        "id": "rp_aabbccddeeff00112233aabb",
+        "source": "wikimedia",
+        "title": "File:Kidney nephron numbered.svg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Kidney_nephron_numbered.svg",
+        "license": "CC BY-SA 4.0",
+        "artist": "LadyofHats",
+        "shows": "A numbered diagram of a nephron.",
+        "labels": [
+          "Glomerulus",
+          "Proximal tubule",
+          "Loop of Henle",
+          "Collecting duct",
+          "Cortex"
+        ],
+        "legend": [
+          {
+            "mark": "1",
+            "label": "Glomerulus"
+          },
+          {
+            "mark": "2",
+            "label": "Proximal tubule"
+          },
+          {
+            "mark": "4",
+            "label": "Loop of Henle"
+          },
+          {
+            "mark": "5",
+            "label": "Collecting duct"
+          }
+        ],
+        "credit": "LadyofHats, CC BY-SA 4.0, via Wikimedia Commons"
+      }
+    }
+  ]
+}

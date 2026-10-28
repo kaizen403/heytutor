@@ -430,11 +430,12 @@ async function builtPictureFocusCase(): Promise<void> {
   const record: ReferencePictureRecord = {
     id: "rp_000000000000000000000002", source: "wikimedia", title: "File:Kidney.svg", pageUrl: null,
     license: "CC BY-SA 4.0", licenseUrl: null, artist: "Someone", imageUrl: "/x.png", planUrl: "/x.json",
-    width: 960, height: 760, shows: "a kidney and nephron", labels: ["Renal pelvis"],
-    legend: [{ mark: "1", label: "Renal cortex" }, { mark: "2", label: "Medulla" }],
+    width: 960, height: 760, shows: "a kidney and nephron", labels: ["Renal cortex", "Medulla", "Renal pelvis"],
+    // Marks skip 2 and 3: the key target is named by the printed mark.
+    legend: [{ mark: "1", label: "Renal cortex" }, { mark: "4", label: "Medulla" }],
     parts: [
-      { id: "reference_picture.part.1", label: "Renal pelvis", box: { x: 300, y: 200, width: 96, height: 14 }, source: "svg" },
-      { id: "reference_picture.part.2", label: "Medulla", mark: "2", box: { x: 120, y: 340, width: 9, height: 13 }, source: "svg" },
+      { id: "reference_picture.part.3", label: "Renal pelvis", box: { x: 300, y: 200, width: 96, height: 14 }, source: "svg" },
+      { id: "reference_picture.part.2", label: "Medulla", mark: "4", box: { x: 120, y: 340, width: 9, height: 13 }, source: "svg" },
     ],
     plan: { width: 760, height: 600, outlineLengthPx: 4000, fillLengthPx: 4000 },
   };
@@ -443,17 +444,17 @@ async function builtPictureFocusCase(): Promise<void> {
   const partRect = referencePicturePartBoardRect(record.parts![0]!, layout.picture, record.plan);
   const markRect = referencePicturePartBoardRect(record.parts![1]!, layout.picture, record.plan);
   const rowRect = referencePictureLegendEntryRect(layout.legend!, 1)!;
-  const part = await runFocus(diagram, "reference_picture.part.1|spotlight", ["reference_picture.part.1"]);
+  const part = await runFocus(diagram, "reference_picture.part.3|spotlight", ["reference_picture.part.3"]);
   assert.deepEqual(part.flatMap((event) => event.kind === "trace" ? [event.path] : []), [pictureTextRingPath(partRect).path],
     "the built part anchor is ringed where the pencil drew its text");
-  const key = await runFocus(diagram, "reference_picture.key.2|spotlight", ["reference_picture.key.2"]);
+  const key = await runFocus(diagram, "reference_picture.key.4|spotlight", ["reference_picture.key.4"]);
   assert.deepEqual(key.flatMap((event) => event.kind === "trace" ? [event.path] : []),
     [pictureTextRingPath(markRect).path, pictureTextRingPath(rowRect).path], "the built key entry: its mark, then its row");
   const veil = key.find((event) => event.kind === "spotlight" && event.veil);
   assert(veil?.kind === "spotlight");
   assert.deepEqual(veil.veil, zoneOf(REFERENCE_PICTURE_ZONE), "the built key entry veils the picture zone");
   const off = buildReferencePicturePresentation(record, { partFocus: false }).diagram;
-  const offFocus = await runFocus(off, "reference_picture.part.1|spotlight", ["reference_picture.part.1"]);
+  const offFocus = await runFocus(off, "reference_picture.part.3|spotlight", ["reference_picture.part.3"]);
   assert.equal(offFocus.length, 0, "with part focus off a part id draws nothing");
   console.log(JSON.stringify({ case: "picture-part-focus-built", anchors: diagram.anchors.map((anchor) => anchor.id) }));
 }

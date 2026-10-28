@@ -45,6 +45,7 @@ import {
   BOARD_TYPE_SCALE,
   snapToBoardTypeScale,
   WORK_CONTINUATION_INDENT,
+  isReferencePicturePartFocusId,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -73,7 +74,6 @@ import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
 import {
   focusVeilZone,
-  isReferencePictureFocusId,
   pictureFocusHole,
   pictureFocusUnionHole,
   pictureTextPulsePath,
@@ -1459,7 +1459,7 @@ export function useCommandExecution({
               const tracePaths = targetCommands
                 .map(verifiedCommandTracePath)
                 .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
-              const fallbacks = targets.map((target) => isReferencePictureFocusId(target.id)
+              const fallbacks = targets.map((target) => isReferencePicturePartFocusId(target.id)
                 ? pictureTextRingPath(target)
                 : {
                     path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
@@ -1502,7 +1502,7 @@ export function useCommandExecution({
                 const pulse = compactPulseBox(target, targetCommands);
                 await drawAnnotation(
                   "circle_around",
-                  isReferencePictureFocusId(target.id)
+                  isReferencePicturePartFocusId(target.id)
                     ? pictureTextPulsePath(target).path
                     : emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
                   260,
@@ -1965,7 +1965,7 @@ function scheduledFocusTargets(
   ): ScheduledFocusTarget => {
     const ids = new Set(anchors.map((anchor) => anchor.id));
     const rects = anchors.map(({ x, y, width, height }) => ({ x, y, width, height }));
-    if (anchors.every((anchor) => isReferencePictureFocusId(anchor.id))) {
+    if (anchors.every((anchor) => isReferencePicturePartFocusId(anchor.id))) {
       // A picture part owns no ink: the pen rings its printed text, one ring
       // per anchor in order (a key entry's mark, then its row), and the
       // spotlight follows it from ring to ring.
