@@ -130,6 +130,7 @@ import {
 } from "./pictureReveal";
 import {
   PictureImage,
+  boardPictureDrawable,
   freeCanvas,
   holdPictureLineWork,
   passCanvas,
@@ -1537,6 +1538,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const animLayer = animLayerRef.current;
         if (!drawLayer || !animLayer || isCancelled()) return;
         if (!(placement.width > 0 && placement.height > 0 && picture.plan.width > 0 && picture.plan.height > 0)) return;
+        // A released picture whose keyed canvas was freed draws nothing (a 0x0
+        // canvas would throw); the asset store loads a fresh one on demand.
+        if (!boardPictureDrawable(picture)) return;
 
         const activity: PenActivity = "draw";
         const key = `${picture.id}@${Math.round(placement.x)},${Math.round(placement.y)},${Math.round(placement.width)},${Math.round(placement.height)}`;

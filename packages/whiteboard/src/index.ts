@@ -17,7 +17,7 @@ export {
   PICTURE_PASS_MS,
   resolvePicturePassMs,
 } from "./pictureReveal";
-export { BLEND_PAPER_MIN_LUMA, blendPictureIntoBoard, boardPictureInUse, keyPaperToAlpha, releaseBoardPicture } from "./pictureCanvases";
+export { BLEND_PAPER_MAX_CHROMA, BLEND_PAPER_MIN_LUMA, blendPictureIntoBoard, boardPictureDrawable, boardPictureInUse, keyPaperToAlpha, paperBlends, releaseBoardPicture } from "./pictureCanvases";
 export { BOARD_INK_ATTR, boardInkKindAt, type BoardInkKind } from "./inkKind";
 export {
   createVirtualWhiteboardClock,

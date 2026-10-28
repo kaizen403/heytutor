@@ -67,7 +67,7 @@ import {
 } from "../src/pictureReveal";
 import { INK_SPEED_PX_PER_MS } from "../src/penMotion";
 import * as pictureCanvases from "../src/pictureCanvases";
-import { BLEND_PAPER_MIN_LUMA, keyPaperToAlpha } from "../src/pictureCanvases";
+import { BLEND_PAPER_MIN_LUMA, boardPictureDrawable, keyPaperToAlpha, paperBlends } from "../src/pictureCanvases";
 import type { BoardPicture, WhiteboardHandle } from "../src/Whiteboard";
 import { createVirtualWhiteboardClock } from "../src/whiteboardClock";
 import { getTestWhiteboardRefs, mountTestWhiteboard, unmountTestWhiteboard } from "./whiteboardTestHarness";
@@ -353,6 +353,17 @@ async function verifyBlend(): Promise<void> {
   assert.deepEqual([over(red[0]!, red[3]!), over(red[1]!, red[3]!), over(red[2]!, red[3]!)], [220, 40, 40], "colour laid back over white gives the original");
   assert.equal(px[19], 0, "near-white paper noise keys out");
   assert.ok(BLEND_PAPER_MIN_LUMA > 150 && BLEND_PAPER_MIN_LUMA < 230, "only light paper is keyed");
+  assert.ok(paperBlends("#ffffff") && paperBlends("#f4f4f2"), "white and near-white paper blend");
+  for (const tinted of ["#b0d0f0", "#ffc0c0", "#ffd5ba", "#808080", "#1f2c50"]) assert.ok(!paperBlends(tinted), `tinted or dark paper ${tinted} keeps its card`);
+  // A keyed picture released with nothing showing it is freed, and never drawn again.
+  const keyed = Konva.Util.createCanvasElement();
+  keyed.width = 40; keyed.height = 30;
+  pictureCanvases.markKeyedPictureForTest(keyed);
+  const released = { image: keyed, inkMask: Konva.Util.createCanvasElement() };
+  assert.ok(boardPictureDrawable(released), "a live keyed picture draws");
+  pictureCanvases.releaseBoardPicture(released);
+  assert.equal(keyed.width, 0, "releasing a keyed picture nothing shows frees its canvas");
+  assert.ok(!boardPictureDrawable(released), "a freed keyed picture is never drawn");
 
   const { board, run } = driveBoard();
   const picture: BoardPicture = { ...makePicture(Konva.Util.createCanvasElement(), Konva.Util.createCanvasElement()), blended: true };

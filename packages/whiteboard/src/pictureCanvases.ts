@@ -65,12 +65,34 @@ function canvasesOf(picture: PictureSources): PictureCanvases {
   return entry;
 }
 
-function freeIdleLineWork(entry: PictureCanvases): void {
+function freeIdleLineWork(entry: PictureCanvases, picture?: PictureSources): void {
   for (const [size, lineWork] of entry.lineWork) {
     if (lineWork.holds > 0) continue;
     freeCanvas(lineWork.canvas);
     entry.lineWork.delete(size);
   }
+  // A keyed picture is a canvas the board made: once retired and shown nowhere,
+  // free it now rather than leave Safari counting it until the collector runs.
+  if (picture && entry.retired && entry.nodes === 0 && entry.lineWork.size === 0 && keyedPictures.has(picture.image as HTMLCanvasElement)) {
+    keyedPictures.delete(picture.image as HTMLCanvasElement);
+    freedPictures.add(picture.image as HTMLCanvasElement);
+    freeCanvas(picture.image as HTMLCanvasElement);
+  }
+}
+
+/** Canvases made by `blendPictureIntoBoard`, which the board frees on release. */
+const keyedPictures = new WeakSet<HTMLCanvasElement>();
+/** Keyed canvases already freed: drawing one would throw on its 0x0 size. */
+const freedPictures = new WeakSet<object>();
+
+/** False once a released picture's keyed canvas was freed: it must not be drawn again. */
+export function boardPictureDrawable(picture: PictureSources): boolean {
+  return !freedPictures.has(picture.image as object);
+}
+
+/** Test hook: register a canvas as keyed, as `blendPictureIntoBoard` does. */
+export function markKeyedPictureForTest(canvas: HTMLCanvasElement): void {
+  keyedPictures.add(canvas);
 }
 
 /** A canvas of `width` x `height` device px, for one pass to own. */
@@ -171,7 +193,7 @@ function leaveBoard(picture: PictureSources): void {
   const entry = pictures.get(picture);
   if (!entry) return;
   entry.nodes = Math.max(0, entry.nodes - 1);
-  if (entry.retired && entry.nodes === 0) freeIdleLineWork(entry);
+  if (entry.retired && entry.nodes === 0) freeIdleLineWork(entry, picture);
 }
 
 /** Whether any board still shows the picture or holds its line work. */
@@ -192,7 +214,7 @@ export function boardPictureInUse(picture: PictureSources): boolean {
 export function releaseBoardPicture(picture: PictureSources): void {
   const entry = canvasesOf(picture);
   entry.retired = true;
-  freeIdleLineWork(entry);
+  freeIdleLineWork(entry, picture);
 }
 
 /**
@@ -200,7 +222,13 @@ export function releaseBoardPicture(picture: PictureSources): void {
  * picture blends into the board; darker paper (a grey film still, a coloured
  * plate) keeps its card, since removing it would eat the picture itself.
  */
-export const BLEND_PAPER_MIN_LUMA = 180;
+export const BLEND_PAPER_MIN_LUMA = 200;
+/**
+ * Only near-neutral paper is keyed: colour to alpha is faithful only when the
+ * new background matches the old paper, and on tinted paper (light blue,
+ * pink) colour-coded parts would come out wrong on the board.
+ */
+export const BLEND_PAPER_MAX_CHROMA = 24;
 /** Alpha this small after keying is paper noise (JPEG ringing, scan grain). */
 const BLEND_NOISE_ALPHA = 10;
 
@@ -208,6 +236,14 @@ export function paperLuma(paper: string): number {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(paper);
   if (!m) return 0;
   return 0.299 * parseInt(m[1]!, 16) + 0.587 * parseInt(m[2]!, 16) + 0.114 * parseInt(m[3]!, 16);
+}
+
+/** Whether a picture with this paper blends into the board: light and near neutral. */
+export function paperBlends(paper: string): boolean {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(paper);
+  if (!m) return false;
+  const rgb = [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)];
+  return paperLuma(paper) >= BLEND_PAPER_MIN_LUMA && Math.max(...rgb) - Math.min(...rgb) <= BLEND_PAPER_MAX_CHROMA;
 }
 
 /**
@@ -247,18 +283,19 @@ export function keyPaperToAlpha(data: Uint8ClampedArray, paper: readonly [number
  */
 export function blendPictureIntoBoard(image: CanvasImageSource & { width: number; height: number }, paper: string): { image: CanvasImageSource; blended: boolean } {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(paper);
-  if (!m || paperLuma(paper) < BLEND_PAPER_MIN_LUMA) return { image, blended: false };
+  if (!m || !paperBlends(paper)) return { image, blended: false };
   const width = "naturalWidth" in image ? (image as HTMLImageElement).naturalWidth : image.width;
   const height = "naturalHeight" in image ? (image as HTMLImageElement).naturalHeight : image.height;
   if (!(width > 0 && height > 0)) return { image, blended: false };
   const canvas = Konva.Util.createCanvasElement();
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return { image, blended: false };
   ctx.drawImage(image, 0, 0, width, height);
   const pixels = ctx.getImageData(0, 0, width, height);
   keyPaperToAlpha(pixels.data, [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)]);
   ctx.putImageData(pixels, 0, 0);
+  keyedPictures.add(canvas);
   return { image: canvas, blended: true };
 }
