@@ -86,6 +86,17 @@ import {
 } from "../../features/tutor-session/lib/board/boardMarking";
 import { buildDoubtPrompt, doubtTurnTitle } from "../../features/tutor-session/lib/input/askDoubt";
 import { buildDoubtPointingPolicy, doubtActiveFigure } from "../../features/tutor-session/lib/turn/doubtPointing";
+import {
+  DOUBT_FIGURE_BUDGET_MS,
+  doubtFigureNeedInput,
+  doubtFigureNeedSkip,
+  planDoubtFigure,
+  requestDoubtFigureNeed,
+  type DoubtFigureDrawn,
+  type DoubtFigurePlanners,
+} from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+import type { DoubtFigureNeedInput, DoubtFigureNeedResult } from "../../lib/llm/doubtFigureNeed";
+import { planAndSolveProblemV1, planTurnV3 } from "@heytutor/tutor-core";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../features/tutor-session/lib/turn/streamedFocusFold";
@@ -408,12 +419,69 @@ function markFor(probe: DoubtProbe, layout: BoardLayoutState, figure: VerifiedDi
   return { id: `mark-${probe.id}`, gesture: "circle", points: [{ x, y }, { x: x + width, y: y + height }], bounds: hit.rect, target, targets: [target] };
 }
 
+/** How the figures arm reaches the dev server: the need route and both planners. */
+export interface DoubtFigurePlanning {
+  need: (body: DoubtFigureNeedInput, traceId: string) => Promise<DoubtFigureNeedResult>;
+  planners: (traceId: string) => DoubtFigurePlanners;
+}
+
+/** Against the dev server, through the lab's budgeted fetch. The server must run DIAGRAM_DOUBT_FIGURES=on. */
+function liveFigurePlanning(options: Pick<Options, "origin" | "model">): DoubtFigurePlanning {
+  const proxyUrl = `${options.origin}/api/chat`;
+  const fastMode = options.model === "fast";
+  return {
+    need: (body, traceId) => requestDoubtFigureNeed({ url: `${options.origin}/api/doubt-figure-need`, body, traceId }),
+    planners: (traceId) => ({
+      planTurn: (question, run) => planTurnV3(question, { proxyUrl, traceId, signal: run.signal, timeoutMs: run.timeoutMs, fastMode }),
+      planAuthority: (question, run) => planAndSolveProblemV1(question, null, { proxyUrl, traceId, signal: run.signal, timeoutMs: run.timeoutMs, fastMode }),
+    }),
+  };
+}
+
+/** The live doubt figure path: skip rules, need check, plan inside the budget. */
+async function planLabDoubtFigure(input: {
+  probe: DoubtProbe;
+  lesson: LessonRecord;
+  zoneFigure: LessonRecord["diagram"];
+  codeBoard: boolean;
+  traceId: string;
+  startedAt: number;
+  markedFigureIds: string[];
+  figurePlanning?: DoubtFigurePlanning;
+}): Promise<{ drawn: DoubtFigureDrawn | null; summary: string }> {
+  const skip = doubtFigureNeedSkip({
+    granted: true, codeBoard: input.codeBoard, markedFigureIds: input.markedFigureIds,
+    zoneFigure: input.zoneFigure, zoneReturnable: Boolean(input.zoneFigure),
+  });
+  if (skip) return { drawn: null, summary: `point (${skip})` };
+  if (!input.figurePlanning) return { drawn: null, summary: "not planned (no server)" };
+  const title = doubtTurnTitle(input.probe.doubt);
+  const need = await input.figurePlanning.need(
+    doubtFigureNeedInput({ lessonQuestion: input.lesson.lessonQuestion, doubtTitle: title, zoneFigure: input.zoneFigure }),
+    input.traceId,
+  );
+  if (need.decision !== "new_figure") return { drawn: null, summary: `point (${need.reason || "need check"})` };
+  const outcome = await planDoubtFigure({
+    lessonQuestion: input.lesson.lessonQuestion,
+    doubtTitle: title,
+    zoneFigure: input.zoneFigure,
+    deadlineAt: input.startedAt + DOUBT_FIGURE_BUDGET_MS,
+    signal: new AbortController().signal,
+    planners: input.figurePlanning.planners(input.traceId),
+  });
+  return outcome.status === "drawn"
+    ? { drawn: outcome, summary: `${outcome.representation.family ?? "figure"} (${outcome.representation.tier}) in ${outcome.elapsedMs} ms` }
+    : { drawn: null, summary: `miss (${outcome.reason}) in ${outcome.elapsedMs} ms` };
+}
+
 export async function runDoubt(
   probe: DoubtProbe,
   lesson: LessonRecord,
   arm: DoubtArm,
   stream: TeachingStream,
   options: Pick<Options, "familiarity" | "model">,
+  /** The figures arm's need check and planners; absent (dry run) it plans nothing. */
+  figurePlanning?: DoubtFigurePlanning,
 ): Promise<DoubtRecord> {
   const startedAt = Date.now();
   const traceId = randomUUID();
@@ -422,8 +490,18 @@ export async function runDoubt(
   const codeBoard = lesson.kind === "dsa";
   const zoneFigure = lesson.diagram;
   const codeFigureVisible = codeBoard && Boolean(zoneFigure) && verifiedDiagramHasDrawableInk(zoneFigure!);
+  const preLayout = boardLayoutFor(lesson);
+  const earlyMark = markFor(probe, preLayout, zoneFigure);
+  // Phase 2, as live: the need check, then the doubt's own figure on "new_figure".
+  const figureRun = doubtFigures
+    ? await planLabDoubtFigure({ probe, lesson, zoneFigure, codeBoard, traceId, startedAt, figurePlanning,
+        markedFigureIds: earlyMark?.target.entityId ? [earlyMark.target.entityId] : [] })
+    : null;
+  const doubtFigure = figureRun?.drawn ?? null;
   // The live helpers: a code board points at its frame only with the flag.
-  const activeDiagram = doubtActiveFigure({ granted: doubtPointing, codeBoard, codeFigureVisible, zoneFigure });
+  const activeDiagram = doubtFigure
+    ? doubtFigure.presentation.diagram
+    : doubtActiveFigure({ granted: doubtPointing, codeBoard, codeFigureVisible, zoneFigure });
   const frameIds = lesson.dsa?.frameIds ?? [];
   const policy: DoubtPointingPolicy = buildDoubtPointingPolicy({
     granted: doubtPointing,
@@ -431,7 +509,7 @@ export async function runDoubt(
     codeBoard,
     frameIds,
   });
-  const layout = boardLayoutFor(lesson);
+  const layout = preLayout;
   const room = workColumnRoom(layout, Boolean(zoneFigure) && !codeBoard);
   const boardRows = workColumnRows(layout);
   const fastMode = options.model === "fast";
@@ -448,8 +526,8 @@ export async function runDoubt(
     codePanelText: null,
     codeLessonBoard: codeBoard,
     codeFigureVisible,
-    turnPlan: lesson.turnPlan,
-    solverProjection: lesson.solverProjection,
+    turnPlan: doubtFigure ? doubtFigure.turnPlan : lesson.turnPlan,
+    solverProjection: doubtFigure ? doubtFigure.authority?.projection ?? null : lesson.solverProjection,
     familiarity: options.familiarity,
     fastMode,
     teachingNote: "",
@@ -457,7 +535,7 @@ export async function runDoubt(
     alwaysStateLawFirst: false,
     narrationLanguage: "english" as const,
     doubtPointing,
-    doubtFigures,
+    ...(doubtFigure ? { doubtFigureDrawn: true } : {}),
     ...(codeBoard && doubtPointing && activeDiagram ? {
       codeFrameCells: activeDiagram.anchors
         .filter((anchor) => anchor.id.trim() && !frameIds.map((id) => id.toLowerCase()).includes(anchor.id.toLowerCase()))
@@ -466,7 +544,7 @@ export async function runDoubt(
   };
   const teachingPrompt = buildDoubtTeachingPrompt(promptInput as DoubtTeachingPromptInput);
 
-  const mark = markFor(probe, layout, zoneFigure);
+  const mark = earlyMark;
   const userPrompt = mark
     ? buildMarkedDoubtPrompt([mark], probe.doubt, lesson.lessonQuestion)
     : buildDoubtPrompt(probe.doubt || "explain this part again", lesson.lessonQuestion);
@@ -480,7 +558,9 @@ export async function runDoubt(
   const evidence: DoubtEvidence = {
     probeId: probe.id, arm, figurePresent: Boolean(zoneFigure), pointed: [], liveFocusIds: [], liveAnnotateIds: [],
     savedFocusIds: [], savedAnnotateIds: [], saveOk: false, saveError: null, pointsAtFigureUnresolved: false,
-    newFigure: doubtFigures ? { drawn: false, summary: null } : null, ttftMs: null, error: null,
+    newFigure: doubtFigures
+      ? { drawn: doubtFigure !== null, summary: figureRun?.summary ?? null }
+      : null, ttftMs: null, error: null,
   };
   const record: DoubtRecord = {
     probeId: probe.id, arm, lessonKey: lesson.key, grants: { doubtPointing, doubtFigures }, traceId, userPrompt,
@@ -997,7 +1077,7 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
         return;
       }
       for (const arm of options.arms) {
-        const record = await runDoubt(probe, lesson, arm, stream, options);
+        const record = await runDoubt(probe, lesson, arm, stream, options, arm === "figures" ? liveFigurePlanning(options) : undefined);
         record.planner = await ledger.usageTracker.finishAsync(record.traceId);
         if (ledger.deniedTraces.has(record.traceId)) {
           untested.push(`${probe.id}|${arm}`);
