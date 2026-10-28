@@ -17,7 +17,7 @@ import {
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
-import { pageFigureAt } from "@/lib/boards/pageFigure";
+import { pageFigureAt, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
 import type { BoardLayoutState } from "../../types";
 import { clearFigureZone, returnFigureToZone, type FigureSwapExecuteCommand } from "../scene/figureSwap";
 import { restoreReferencePictureFromTurn } from "../scene/restoreReferencePicture";
@@ -32,6 +32,9 @@ export type StoredPageFigureChange =
 export function storedPageFigureChange(turns: readonly StoredTurn[], turnIndex: number): StoredPageFigureChange {
   const turn = turns[turnIndex];
   if (!turn || turnIndex === 0 || !storedTurnContinuesBoard(turn)) return { kind: "keep" };
+  // Only a doubt figure swaps and only a resume returns: every other
+  // crossing keeps the zone without reparsing the whole page (replay, seek).
+  if (!storedTurnSwapsFigureIn(turn) && turn.kind !== "resume") return { kind: "keep" };
   const at = pageFigureAt(turns, turnIndex);
   if (at.swapIn) return { kind: "swap", sourceIndex: turnIndex };
   if (at.returnsLesson) return { kind: "return", sourceIndex: at.sourceIndex, consumedIds: at.consumedIds };

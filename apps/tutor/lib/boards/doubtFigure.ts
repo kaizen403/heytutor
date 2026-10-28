@@ -20,7 +20,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 /** sceneArtifacts.doubtFigure on a doubt that drew its own figure in the zone. */
 export interface DoubtFigureMarker {
   schemaVersion: typeof DOUBT_FIGURE_VERSION;
-  /** Turn.id of the figure it replaced in the zone; null when the zone was empty. */
+  /**
+   * Turn.id of the lesson figure it replaced in the zone. Null when the tab
+   * did not know which turn drew that figure (a restored board): a doubt
+   * figure always replaces a figure, never an empty zone.
+   */
   replacedTurnId: string | null;
 }
 
