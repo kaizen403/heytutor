@@ -98,8 +98,53 @@ fails; a verified figure that wins aborts it. For subjects with no engine the
 request is the whole wait before teaching. The turn waits up to 25 s past
 scene planning. Two runtime beats introduce the
 picture ("Here is a labelled diagram of ..." then "Let me colour it in."), and
-the prompt addon lists the judge's labels, forbids drawing tags and allows only
-`[FOCUS:reference_picture]`.
+the prompt addon lists the judge's labels, forbids drawing tags and allows
+`[FOCUS:reference_picture]`, plus the located parts when part focus is on
+(see Pointing at parts).
+
+## Pointing at parts
+
+Off unless `REFERENCE_PICTURE_PART_FOCUS=on` (on top of the picture flag). With
+it on, "now look at register R1" brings the pen to "R1" printed on the picture,
+rings it, and rests there for the sentence, as `[FOCUS:id]` does on a verified
+figure. Off, prompts, anchors, saves and board events are exactly as before.
+
+- **Where a label is** (`partLocator*.ts`, at store time): the original Commons
+  SVG's own text (transforms, tspans, `<switch>`, stylesheet, hidden text) is
+  boxed and mapped onto the stroke plan; the SVG's aspect must match the plan's
+  within 1.5%. A judged name gets a part only when it is printed in exactly one
+  place and the box sits on printed ink. 4 s budget; any failure stores no parts
+  and the picture still shows. `parseReferencePictureParts` validates parts
+  everywhere. Store reads drop `parts` when the flag is off.
+- **Not OCR:** reading the raster was measured and not shipped. On raster-only
+  pictures it pointed at the wrong copy of a repeated name, and a worker took
+  3 to 4 s and 1.2 GB to start. A pointer on the wrong part is a false mark.
+- **Targets** (`referencePicturePresentation.ts`): each located label is
+  `reference_picture.part.<n>` on its printed text. Each key entry of a numbered
+  picture is the group `reference_picture.key.<n>`: the mark on the drawing when
+  located, then the key row (always exact, from `referencePictureLayout`). The
+  prompt lists them (`"R1" = [FOCUS:reference_picture.part.2]`). A spoken name
+  infers a focus only for distinctive labels (two or more characters, not a bare
+  number, not all common words). If the saved rows and the record disagree on
+  where the picture sits, only the whole picture is pointable.
+- **Saving:** the server builds the allowed targets from its own record and
+  flag, so a forged artifact cannot add parts; any other FOCUS is dropped and
+  its words kept. The artifact carries `partFocus: { plan, parts }` so replay,
+  seek and MP4 export point the same way.
+- **Board** (`lib/board/pictureFocus.ts`): a circle round a mark, a flat loop
+  round a word or key row, 3 px clear of the text; the spotlight veils the
+  picture zone and its hole moves from the mark to the key row.
+- **Backfill:** `scripts/live/reference-picture-locate-parts.ts` (dry run by
+  default, `--write`).
+- **Lab:** `--reference-picture-part-focus`, with the dev server's flag on.
+
+Measured 28 Oct 2026 on library and topical Commons SVGs: 84 of 86 judged
+names whose labels are live text located, 0 wrong boxes by eye on the contact
+sheets (the two misses are a "Nucleus" printed twice). Across all 12 judged
+library pictures coverage is 39% (84 of 218 names): five SVGs have their text
+converted to outlines, including the common Heart diagram-en, and get no parts.
+Locating takes under 20 ms of CPU (never more than 10 ms at a stretch) plus the
+SVG fetch, median 0.23 s.
 
 ## Analytics
 
