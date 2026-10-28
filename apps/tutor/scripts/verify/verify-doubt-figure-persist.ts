@@ -15,8 +15,10 @@ import { readFileSync } from "node:fs";
 import { compileSceneDocument, validateSceneDocument, validateTurnPlanV3, type SceneDocument } from "@heytutor/scene-engine";
 import { resolve } from "node:path";
 import {
+  getSegmentCommands,
   isStoredCommandTrustedGeometry,
   parseStoredSegmentCommands,
+  serializeSegmentCommands,
   takeDeferredAnnotations,
   type DrawCommand,
   type VerifiedDiagram,
@@ -37,7 +39,7 @@ import {
   returnPageFigure,
   swapFigureIn,
 } from "../../features/tutor-session/lib/scene/figureSwap";
-import { syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
+import { storedFigurePresentation, syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import {
   doubtFigureTurnScene,
@@ -196,6 +198,39 @@ async function storedDoubtFigureMatchesLive(): Promise<void> {
     "the restored electrolysis doubt figure withholds exactly what live withheld (the source given current is not withheld again)");
 }
 
+/**
+ * A Stop cut the lesson's intro short, a doubt drew its own figure, then
+ * Continue. Live returns the whole stashed intro (returnZoneStash); replay
+ * and restore return the opener's stored intro rows. They agree because the
+ * stopped lesson's save holds the whole figure: the server inserts the intro
+ * rows the lesson did not draw.
+ */
+async function stoppedIntroReturnMatchesReplay(): Promise<void> {
+  const fixture = resolve(import.meta.dirname, "fixtures/recorded-intro/vt-graph-car-p4c-t5.scene.json");
+  const submittedDocument = JSON.parse(readFileSync(fixture, "utf8"));
+  submittedDocument.source.representationTier = "qualitative_verified";
+  submittedDocument.source.nonMetric = true;
+  const question: string = submittedDocument.source.question;
+  const document = validateSceneDocument(submittedDocument).document as SceneDocument;
+  const compiled = compileSceneDocument(document);
+  assert(compiled.ok && compiled.renderScene, "the recorded velocity time graph compiles");
+  const live = buildVerifiedDiagramPresentation(document, compiled.renderScene, { originalQuestion: question });
+  assert(live.introSegments.length >= 2, "the lesson's intro has beats a Stop can cut");
+  const first = live.introSegments[0]!;
+  const stopped = await canonicalizeTurnSceneMetadata({
+    question, sceneDocument: submittedDocument, visualStatus: "validated",
+    sceneArtifacts: { schemaVersion: "scene-artifacts/v3", representationTier: "qualitative_verified", nonMetric: true, candidates: [], diagramResultStatus: "ready" },
+    // Stop landed after the first beat: only that beat's row was drawn and held.
+    segments: [{ orderIndex: 0, narration: first.narration, spokenText: first.narration,
+      command: serializeSegmentCommands(getSegmentCommands(first), { trustedDiagramGeometry: true }) }],
+  });
+  assert(stopped.ok, `a lesson stopped after one intro beat saves: ${stopped.ok ? "" : stopped.error}`);
+  const row = storedRow(LESSON_TURN_ID, 0, question, stopped.value, "lesson", true);
+  const commands = (segments: readonly Parameters<typeof getSegmentCommands>[0][]) => JSON.stringify(segments.flatMap(getSegmentCommands));
+  assert(commands(storedFigurePresentation(row).introSegments) === commands(live.introSegments),
+    "what replay returns at the resume (the stopped lesson's stored intro) is the whole intro live returns from the stash");
+}
+
 async function main(): Promise<void> {
   const fixture = await doubtFigurePageFixture();
   const { lesson, composed } = fixture;
@@ -350,6 +385,7 @@ async function main(): Promise<void> {
 
   // --- the replay, restore and export step through the stored page ----------
   await storedDoubtFigureMatchesLive();
+  await stoppedIntroReturnMatchesReplay();
   {
     const { wb, events, drawn, executeCommand } = board();
     const swap = await syncStoredPageFigure({ turns, turnIndex: 1, whiteboard: wb, executeCommand, shouldCancel: () => false });
