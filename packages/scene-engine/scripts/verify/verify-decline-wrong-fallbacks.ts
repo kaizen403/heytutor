@@ -221,7 +221,8 @@ check("a rod swinging about a pivot", () => {
   assert.notEqual(synthesizeLastResortScene({ question })?.family, "circuit_network", "its emf is no circuit");
 });
 check("a magnet and an iron nail is no induction figure", () => {
-  for (const question of ["A magnet is pushed towards an iron nail on a table. Explain what happens.", "A bar magnet attracts an iron nail. Explain the induced magnetism."]) {
+  for (const question of ["A magnet is pushed towards an iron nail on a table. Explain what happens.", "A bar magnet attracts an iron nail. Explain the induced magnetism.",
+    "A magnet is pushed slowly towards an iron nail on a horizontal table. Explain what happens.", "A magnet is pushed towards a second magnet. Explain the repulsion."]) {
     for (const hints of [faraday, { ...faraday, plannerArchetype: "faraday_induction" }]) {
       assert.notEqual(detectArchetype(question, hints)?.id, "faraday_induction", `${question}: no coil, no induction`);
       assert.notEqual(detectArchetype(question, hints)?.id, "blocks_contact", `${question}: nor a block on a surface`);
@@ -236,6 +237,7 @@ check("a magnet and an iron nail is no induction figure", () => {
 for (const question of [
   "A solenoid of 500 turns per metre carries a current of 2 A. Mark the direction of the current and the field.",
   "A long solenoid has 1000 turns per metre and carries 3 A. The direction of the current is anticlockwise when viewed from the left. Find the field.",
+  "A long solenoid has 1000 turns per metre and carries 3 A clockwise as seen from the left. Mark the direction of the current and find the magnetic flux.",
 ]) {
   check(`solenoid keeps its figure: ${question}`, () => {
     assert.equal(detectArchetype(question, faraday)?.id, "solenoid_field", `${question}: no induced current is asked`);
