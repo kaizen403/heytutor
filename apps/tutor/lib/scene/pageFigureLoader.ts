@@ -158,6 +158,39 @@ function dsaFrameFigure(turn: PageFigureTurn, frameIndex: number | undefined): V
 }
 
 /**
+ * Rebuilt figures by referenced turn. A doubt checkpoints many times against
+ * the same lesson figure; its compile and presentation are reused while the
+ * referenced row is unchanged (the fingerprint is the row's question, status
+ * and scene), and every caller gets its own copy.
+ */
+const FIGURE_CACHE_LIMIT = 64;
+const figureCache = new Map<string, { fingerprint: string; diagram: VerifiedDiagram | null }>();
+const figureCacheStats = { builds: 0, hits: 0 };
+
+/** Builds and hits of the figure cache, for the gates. */
+export function pageFigureCacheStats(): { builds: number; hits: number } {
+  return { ...figureCacheStats };
+}
+
+function cachedFigure(ref: DoubtFigureRef, turn: PageFigureTurn, build: () => VerifiedDiagram | null): VerifiedDiagram | null {
+  const key = `${ref.kind}:${ref.frameIndex ?? ""}:${turn.id}`;
+  const fingerprint = JSON.stringify([turn.question, turn.visualStatus, turn.sceneDocument, turn.sceneArtifacts]);
+  const cached = figureCache.get(key);
+  let diagram: VerifiedDiagram | null;
+  if (cached && cached.fingerprint === fingerprint) {
+    figureCacheStats.hits += 1;
+    diagram = cached.diagram;
+  } else {
+    figureCacheStats.builds += 1;
+    diagram = build();
+    figureCache.delete(key);
+    figureCache.set(key, { fingerprint, diagram });
+    while (figureCache.size > FIGURE_CACHE_LIMIT) figureCache.delete(figureCache.keys().next().value!);
+  }
+  return diagram ? structuredClone(diagram) : null;
+}
+
+/**
  * The loader for one doubt save. Never throws: any failure is null, and null
  * only ever costs the doubt its pointing.
  */
@@ -179,8 +212,8 @@ export function bindPageFigureLoader(
       if (between.some((turn) => !storedTurnContinuesBoard(asContinuationTurn(turn)))) return null;
       const pageQuestion = storedTurnPageQuestion(asContinuationTurn(target));
       if (normalizedQuestion(pageQuestion) !== normalizedQuestion(page.lessonQuestion)) return null;
-      if (ref.kind === "verified_scene") return sceneFigure(target);
-      if (ref.kind === "dsa_frame") return dsaFrameFigure(target, ref.frameIndex);
+      if (ref.kind === "verified_scene") return cachedFigure(ref, target, () => sceneFigure(target));
+      if (ref.kind === "dsa_frame") return cachedFigure(ref, target, () => dsaFrameFigure(target, ref.frameIndex));
       return await pictureFigure(target, deps.loadReferencePicture);
     } catch {
       return null;

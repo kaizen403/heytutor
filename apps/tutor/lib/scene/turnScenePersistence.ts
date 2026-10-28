@@ -230,20 +230,24 @@ export async function canonicalizeTurnSceneMetadata(
     const pointsAtFigure = pageContinuation && !referencePictureIdOf(metadata.sceneArtifacts)
       ? doubtFigureRefOf(metadata.sceneArtifacts)
       : null;
-    let pageFigure: VerifiedDiagram | null = null;
-    if (pointsAtFigure && pageContinuation && options.loadPageFigure) {
-      try {
-        pageFigure = await options.loadPageFigure(pointsAtFigure, { lessonQuestion: pageContinuation.lessonQuestion });
-      } catch {
-        pageFigure = null;
-      }
-    }
     // With DIAGRAM_DOUBT_POINTING off the live doubt filter strips kept rings
     // and ANNOTATE, so only a modified client sends them: they are not saved.
     const doubtRows = (options.kind === "doubt" || (options.kind === undefined && pointsAtFigure !== null)) &&
       !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
       ? withoutFlaggedDoubtPointing(picture.segments)
       : picture.segments;
+    let pageFigure: VerifiedDiagram | null = null;
+    // The figure is rebuilt only for rows that point at it: most doubt
+    // checkpoints carry words alone and need no compile.
+    const pointing = doubtRows.some((segment) => segment.command != null && !isStoredCommandTrustedGeometry(segment.command) &&
+      parseStoredSegmentCommands(segment.command).some((command) => SCENE_POINTING_COMMANDS.has(command.type)));
+    if (pointsAtFigure && pageContinuation && options.loadPageFigure && pointing) {
+      try {
+        pageFigure = await options.loadPageFigure(pointsAtFigure, { lessonQuestion: pageContinuation.lessonQuestion });
+      } catch {
+        pageFigure = null;
+      }
+    }
     const teachingCommands = pointsAtFigure
       ? canonicalizeTeachingCommands(
           doubtRows,
@@ -260,7 +264,7 @@ export async function canonicalizeTurnSceneMetadata(
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
     const completion = validatedCompletion(metadata.sceneArtifacts);
     const readTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);
-    const failureTelemetry: PersistedSceneArtifacts["failureTelemetry"] = pointsAtFigure && !pageFigure
+    const failureTelemetry: PersistedSceneArtifacts["failureTelemetry"] = pointsAtFigure && pointing && !pageFigure
       ? { ...(readTelemetry ?? { subject: "unknown" }), pointsAtFigureStatus: "unresolved" }
       : readTelemetry;
     // A doubt is saved text-only, and without this its marker went with the

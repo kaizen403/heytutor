@@ -39,6 +39,7 @@ import {
 import {
   bindPageFigureLoader,
   memoryPageFigureStore,
+  pageFigureCacheStats,
   type PageFigureLoader,
   type PageFigureStore,
   type PageFigureTurn,
@@ -364,6 +365,27 @@ async function main(): Promise<void> {
   check(endToEnd.ok && targets(savedCommands(endToEnd.value.segments), "FOCUS").length === 0, "end to end: another user's figure lends the doubt no pointing");
   const endToEndOk = await canonicalizeTurnSceneMetadata(structuredClone(pointed), { loadPageFigure: load([lessonRow]) });
   check(endToEndOk.ok && targets(savedCommands(endToEndOk.value.segments), "FOCUS").includes("start_value"), "end to end: the owner's figure keeps the doubt's pointing");
+
+  // Checkpoint cost: words alone never load the figure; a repeated checkpoint
+  // of the same doubt reuses the rebuilt figure while the row is unchanged.
+  {
+    let loads = 0;
+    const counting: PageFigureLoader = async (...args) => { loads += 1; return load([lessonRow])(...args); };
+    const words = doubtMetadata(lessonQuestion, ref("verified_scene"), [row(0, "It starts at two.", [write("start = 2")])]);
+    const wordsOnly = await canonicalizeTurnSceneMetadata(words, { loadPageFigure: counting });
+    check(wordsOnly.ok && loads === 0, "a doubt checkpoint with no FOCUS or ANNOTATE never loads the figure");
+    check(wordsOnly.ok && !(wordsOnly.value.sceneArtifacts as Record<string, unknown> | null)?.failureTelemetry,
+      "a doubt with nothing to point records no unresolved reference");
+    const before = pageFigureCacheStats();
+    const first = await load([lessonRow])(ref("verified_scene"), page);
+    const second = await load([lessonRow])(ref("verified_scene"), page);
+    const after = pageFigureCacheStats();
+    check(first !== null && JSON.stringify(first) === JSON.stringify(second) && first !== second,
+      "a repeated load returns the same figure, each caller its own copy");
+    check(after.builds - before.builds <= 1 && after.hits - before.hits >= 1, "a repeated checkpoint reuses the rebuilt figure");
+    const changed = await load([{ ...lessonRow, question: `${lessonRow.question} ` , sceneArtifacts: structuredClone(lessonRow.sceneArtifacts) }])(ref("verified_scene"), page);
+    check(pageFigureCacheStats().builds === after.builds + 1 && changed !== null, "a changed row is rebuilt, never served stale");
+  }
 
   // -------------------------------------------------------------------------
   // Live filter: doubtSegment with a policy.
