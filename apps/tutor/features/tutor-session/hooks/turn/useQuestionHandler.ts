@@ -47,9 +47,6 @@ import {
   synthesizeDsaScene,
   isChemistryQuestion,
   isChemistrySceneFamily,
-  applySectionFormulaAuthority,
-  applySourceQuantityAuthority,
-  reconcileTurnPlanWithSolver,
   type RenderScene,
   type SceneArtifactsV3,
   type FigureSource,
@@ -154,7 +151,11 @@ import {
   settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
-import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
+import {
+  applyDeterministicSourceAuthority as applySharedSourceAuthority,
+  reconcilePlanWithAuthority,
+  selectFastFigure,
+} from "../../lib/turn/doubtFigurePlan";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   chemistryRefusesPlannerFigure,
@@ -1399,39 +1400,9 @@ export function useQuestionHandler(
             request: { ...gate.request, ...(pickedIds.length > 0 ? { diagramExampleIds: pickedIds } : {}) },
           };
         };
-        const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 => {
-          // Section-formula stems: the point's coordinates (or the asked ratio)
-          // are solved exactly from the stated endpoints, and an inconsistent or
-          // singular stem withdraws every derived number.
-          const sectionAuthority = applySectionFormulaAuthority(question, sourcePlan);
-          if (sectionAuthority) {
-            sourcePlan = sectionAuthority.plan;
-            tutorDebug("planner", "section formula authority", {
-              status: sectionAuthority.reading.status,
-              issue_codes: sectionAuthority.issues.map((issue) => issue.code),
-            });
-          }
-
-          // Topics whose quantities the engine recomputes from the stem (a
-          // stated resistor circuit, a uniform circular state) check the plan
-          // before each final gate: a value whose symbol binds without doubt to a
-          // recomputed quantity is corrected, any other value is left as
-          // written, and a conflict that cannot be bound makes that topic's
-          // figure decline. Scene validation and the teaching prompt both read
-          // the corrected plan, so no stale scalar reaches the narration.
-          const sourceAuthority = applySourceQuantityAuthority(sourcePlan, authority?.problemIR ?? null, question);
-          if (sourceAuthority.outcomes.length > 0) {
-            sourcePlan = sourceAuthority.plan;
-            tutorDebug("planner", "source quantity authority", {
-              topics: sourceAuthority.outcomes.map((outcome) => outcome.topic),
-              corrections: sourceAuthority.outcomes.flatMap((outcome) => outcome.corrections.map((correction) => `${correction.symbol}: ${correction.previous} -> ${correction.corrected}`)),
-              decline_figure: sourceAuthority.outcomes.filter((outcome) => outcome.declineFigure).map((outcome) => outcome.topic),
-              issue_codes: sourceAuthority.outcomes.flatMap((outcome) => outcome.issueCodes),
-            });
-          }
-
-          return sourcePlan;
-        };
+        // Shared with a doubt that draws its own figure (`lib/turn/doubtFigurePlan`).
+        const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 =>
+          applySharedSourceAuthority(question, sourcePlan, authority);
         // Also run when the turn has no numeric ProblemIR request. The overlap
         // callback repeats this on final IR before deriving any final gate.
         turnPlan = applyDeterministicSourceAuthority(turnPlan, null);
@@ -1477,12 +1448,8 @@ export function useQuestionHandler(
           selectionOrder: (gate) => gate.diagramStrategy.selectionOrder,
           deriveGate: deriveSceneGate,
           applyAuthority: (planToReconcile, authority) => {
-            const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
-              planToReconcile,
-              authority.problemIR,
-              authority.solverResult,
-            ), authority);
-            const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
+            const { turnPlan: reconciledPlan, authority: refreshedAuthority } =
+              reconcilePlanWithAuthority(question, planToReconcile, authority);
             const authorityAudit = refreshedAuthority.audit;
             if (authorityAudit.status !== "contradiction") prepareOriginalOpening(reconciledPlan);
             tutorDebug("planner", "solver authority audit", {
@@ -1540,10 +1507,10 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastFigure({
             question,
             turnPlan: planningTurnPlan,
-            problemIR: authority?.problemIR ?? null,
+            authority,
             families: gate.sceneCapabilities.families,
           }), undefined, phase),
           planScene: (gate, planningTurnPlan, run) => {
