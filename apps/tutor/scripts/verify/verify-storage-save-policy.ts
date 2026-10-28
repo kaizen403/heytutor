@@ -145,7 +145,7 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
     "@/lib/boards/boardContinuation": boardContinuation,
     "@/lib/boards/doubtFigureRef": doubtFigureRef,
-    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null },
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row) =>
