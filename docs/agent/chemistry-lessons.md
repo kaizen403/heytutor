@@ -179,8 +179,51 @@ the product row, so new phrasings go into the gate's lone row list. Naming
 SN1 or SN2 alone is not a mechanism ask, and neither is a reactivity
 comparison ("more reactive towards SN1", "order of", "arrange"): those keep
 their structure rows.
-SN1, SN2 and E2 mechanism asks decline until the planner example species
-(#303) can bind them; the arrow operator already runs them.
+### SN1, SN2 and E2 from the plan's example reactions
+
+A topic ask that names a mechanism and no species ("Teach me SN1 and SN2
+reactions ... with examples") has nothing to compute. The planner may name
+one example per class in `exampleReactions: [{mechanism, equation}]`
+(`contractsV3.ts`, at most two, distinct classes; a malformed entry is
+refused, never repaired). `buildPlanExampleDocument` reads them first, so
+the #303 recheck, save admission and the teaching hand off
+(`source.exampleSpecies`) carry them unchanged.
+
+- `planReaction.ts`: a chemistry question that names no species
+  (`questionNamesSpecies` now ignores SN1, SN2, E1 and E2, which the formula
+  parser read as sulfur and nitrogen), names one or two of SN1, SN2 and E2,
+  and has exactly one example for each named class and none other. The
+  question is read closed: every word must be an ask or teaching word that
+  puts no condition on the species or outcome; one failing example declines
+  the whole figure.
+- `substitution.ts`:
+  - SN2 on a methyl or primary haloalkane (two arrows, one step) with a bare
+    halide or an O⁻ or S⁻ anion that carries only C and H; a branched
+    alkoxide only on a methyl carbon, and no hydroxide or alkoxide on a beta
+    branched primary carbon (E2 competes).
+  - SN1 on a tertiary carbon with no neighbour that could shift onto the
+    cation and no stereocentre: ionisation, capture by water or a primary
+    alcohol, and proton transfer to a second molecule of the same solvent
+    (the halide as the base is uphill and declines, so the equation is
+    written with the solvent twice).
+  - E2 with hydroxide or an alkoxide where every beta site gives the same
+    alkene (three arrows); on a primary halide only a tertiary alkoxide,
+    since an unhindered base mostly substitutes there.
+  The equation's reactants must be the operator's inputs and its products
+  exactly what the arrows give.
+- `substitutionFigure.ts`: one row per reaction, each step a reveal group;
+  the SN2 transition state dashes exactly the forming and breaking bonds and
+  carries δ⁻ on the nucleophile and the leaving group, and the product shows
+  inversion. Every panel's label charges add up to the total. Titles and
+  caption say "example".
+- The teaching prompt names the drawn equations (`planExampleTeachingAddon`),
+  so the narration and the work area use the board's examples.
+- The plan quantity audit no longer reads a group count written straight
+  after a closing bracket (`(CH_3)_3C`) as a measured value (it read three
+  coulombs); `x_2m`, `T_300K` and `λ_500 nm` are still read.
+- A malformed `exampleReactions` list is dropped, not repaired, and never
+  rejects the plan.
+- Gate `verify-chemistry-substitution` (in `gates.d` and `verify:chemistry`).
 
 ## The subject test
 
@@ -217,6 +260,7 @@ pnpm verify:chemistry
 |---|---|---|
 | `verify-chemistry-subject` | scene-engine | hand stems in both directions; shared figures kept; a bank sweep with loose thresholds (the bank's subject labels are noisy) |
 | `verify-chemistry-families` | scene-engine | every family's probes through the registry and the real family path; physics stems never reach a chemistry family |
+| `verify-chemistry-substitution` | scene-engine | SN2, SN1 and E2 operator rules and refusals, the plan example question reader, the figure, a mutant per guard with exact red sets |
 | `verify-chemistry-mechanism` | scene-engine | arrow bookkeeping refusals, SN2 and SN1 charges, the cyclic eliminations and their substrate rules, the source binding, guards and demotions, narration, textbook layouts, no lone product row for the listed mechanism asks; a mutant per guard, each turning exactly its own rows red |
 | `verify-chemistry-notation` | drawing | the script rewrite, wired into `normalizeStrokeText` |
 | `verify-chemistry-lane` | tutor | subject offered, addon keyed off the question, exact planner skipped, figure named to the tutor |
