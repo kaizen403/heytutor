@@ -38,6 +38,14 @@ import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/w
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 import { doubtFigureRefOf, type DoubtFigureKind, type DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
+import {
+  composeDoubtFigureQuestion,
+  doubtFigureArtifacts,
+  doubtFigureOf,
+  resolveDoubtFiguresEnabled,
+  type DoubtFigureMarker,
+} from "@/lib/boards/doubtFigure";
+import type { TurnKind } from "@/lib/boards/turnStatus";
 import type { PageFigureLoader } from "@/lib/scene/pageFigureLoader";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
@@ -98,6 +106,8 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   failureTelemetry?: FailedTurnTelemetry & { pointsAtFigureStatus?: "unresolved" };
   /** A doubt on that page: the earlier turn whose figure it pointed at. */
   pointsAtFigure?: DoubtFigureRef;
+  /** A doubt that drew its own figure in the zone (DIAGRAM_DOUBT_FIGURES). */
+  doubtFigure?: DoubtFigureMarker;
   /** A text only turn that drew a stored reference picture: the server's own summary. */
   referencePicture?: StoredReferencePicture;
   /** How this turn's reference picture attempt ended (telemetry only). */
@@ -127,7 +137,8 @@ export type TurnSceneRejectionCode =
   | "scene_point_line_solver_quantity_mismatch" | "scene_solver_artifacts_incomplete"
   | "scene_problem_ir_invalid" | "scene_solver_result_invalid" | "scene_solver_recomputation_failed"
   | "scene_solver_values_mismatch" | "scene_solver_plan_contradiction"
-  | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed";
+  | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed"
+  | "scene_doubt_figure_invalid" | "scene_doubt_figure_disabled";
 
 type TurnSceneFailure = { ok: false; error: string; code?: TurnSceneRejectionCode };
 
@@ -162,6 +173,10 @@ export async function canonicalizeTurnSceneMetadata(
     loadReferencePicture?: ReferencePictureLoader;
     /** Bound by the save route to this turn's board, owner and id. */
     loadPageFigure?: PageFigureLoader;
+    /** The saved turn's kind; a doubt figure is admitted on a doubt only. */
+    kind?: TurnKind;
+    /** DIAGRAM_DOUBT_FIGURES at save time; read from the environment when absent. */
+    doubtFiguresEnabled?: boolean;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -288,7 +303,25 @@ export async function canonicalizeTurnSceneMetadata(
     return failure("scene_non_metric_mismatch", "representation tier and nonMetric flag disagree");
   }
 
-  const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
+  // A doubt that drew its own figure was planned and verified on the lesson
+  // question composed with the doubt, never on its title. Every scene check
+  // below reads that recomputed question; Turn.question stays the title.
+  const submittedDoubtFigure = doubtFigureOf(metadata.sceneArtifacts);
+  const doubtContinuation = boardContinuationOf(metadata.sceneArtifacts);
+  if (isRecord(metadata.sceneArtifacts) && metadata.sceneArtifacts.doubtFigure !== undefined) {
+    if (!submittedDoubtFigure || options.kind !== "doubt" || !doubtContinuation?.lessonQuestion) {
+      return failure("scene_doubt_figure_invalid", "a doubt figure needs a doubt turn on its lesson's page");
+    }
+    if (!(options.doubtFiguresEnabled ?? resolveDoubtFiguresEnabled())) {
+      return failure("scene_doubt_figure_disabled", "doubt figures are off");
+    }
+  }
+  const doubtFigure = submittedDoubtFigure && doubtContinuation ? submittedDoubtFigure : null;
+  const sceneQuestion = doubtFigure && doubtContinuation
+    ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, question)
+    : question;
+
+  const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, sceneQuestion);
   const turnPlan = planResult.plan;
   if (tier === "exact_verified" && !turnPlan) {
     // A plan is one source of exact numbers, not the only one. When every
@@ -328,7 +361,7 @@ export async function canonicalizeTurnSceneMetadata(
     if (document.visualDecision.mode !== "scene") {
       return failure("scene_representation_not_scene", "accepted representation persisted as text-only");
     }
-    if (!sourceQuestionMatches(document, question)) {
+    if (!sourceQuestionMatches(document, sceneQuestion)) {
       return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
     }
     const declaredTier = document.source.representationTier;
@@ -356,7 +389,7 @@ export async function canonicalizeTurnSceneMetadata(
       return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
     }
     document = canonicalTeachingFamily(structural.document);
-    if (!sourceQuestionMatches(document, question)) {
+    if (!sourceQuestionMatches(document, sceneQuestion)) {
       return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
     }
     // Both checks below reconcile the scene against the plan. A stem-grounded
@@ -384,10 +417,10 @@ export async function canonicalizeTurnSceneMetadata(
   // A missing optional plan is safe for an exact native source graph; an
   // explicitly invalid plan must not silently gain that legacy allowance.
   if (!turnPlan && metadata.sceneArtifacts.turnPlan != null
-    && certifyVseprSourceDocument(document, question, null).status !== "not_applicable") {
+    && certifyVseprSourceDocument(document, sceneQuestion, null).status !== "not_applicable") {
     return failure("scene_turn_plan_invalid", `native VSEPR scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
   }
-  const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
+  const admissionFailure = sceneSaveAdmissionFailure({ document, question: sceneQuestion, turnPlan, tier });
   if (admissionFailure) return failure("scene_admission_failed", admissionFailure);
 
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
@@ -404,7 +437,7 @@ export async function canonicalizeTurnSceneMetadata(
     document,
     renderScene,
     {
-      originalQuestion: question,
+      originalQuestion: sceneQuestion,
       ...(turnPlan ? { turnPlan } : {}),
       ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
       ...(narrationLanguage ? { narrationLanguage } : {}),
@@ -428,7 +461,8 @@ export async function canonicalizeTurnSceneMetadata(
   const persistSegments = mergeServerDiagramIntro(
     canonicalReferencePictureRows(metadata.segments, null, { pictureTurn: false }).segments,
     expectedPresentation.introSegments,
-    { insertMissing: continuation === null },
+    // A doubt's own figure is new on the page: its intro is inserted when missing.
+    { insertMissing: continuation === null || doubtFigure !== null },
   );
   const teachingCommands = canonicalizeTeachingCommands(
     persistSegments,
@@ -437,7 +471,7 @@ export async function canonicalizeTurnSceneMetadata(
   );
   if (!teachingCommands.ok) return teachingCommands;
 
-  const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, question);
+  const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, sceneQuestion);
   if (!solver.ok) return solver;
   for (const construction of document.constructions) {
     if (construction.operator !== "point_line_distance") continue;
@@ -531,6 +565,7 @@ export async function canonicalizeTurnSceneMetadata(
             ...canonicalArtifacts,
             ...(codeLesson ? { codeLesson } : {}),
             ...(continuation ? { boardContinuation: continuation } : {}),
+            ...(doubtFigure ? doubtFigureArtifacts(doubtFigure.replacedTurnId) : {}),
           }
         : canonicalArtifacts,
       segments: teachingCommands.segments,

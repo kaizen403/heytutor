@@ -44,6 +44,8 @@ import {
   type DoubtPointingPolicy,
 } from "@/lib/boards/doubtFigureRef";
 
+import { doubtFigureArtifacts, doubtFigureOf } from "@/lib/boards/doubtFigure";
+
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
 import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
@@ -168,6 +170,52 @@ export function doubtTurnScene(
         }
       : diagramStrategy ? { diagramStrategy } : null,
   };
+}
+
+/**
+ * A doubt that drew its own figure (DIAGRAM_DOUBT_FIGURES) is saved as its own
+ * validated scene, on the lesson's page: the scene the doubt planned and
+ * verified on the composed question, plus the continuation marker and the
+ * doubt figure marker naming the figure it replaced. It points at its own
+ * figure, so no `pointsAtFigure` rides with it. Lane C sets the doubt record's
+ * `turn.scene` to this once the doubt's figure is selected.
+ */
+export function doubtFigureTurnScene(
+  scene: PersistedTurnScene,
+  lessonQuestion: string,
+  replacedTurnId: string | null,
+): PersistedTurnScene {
+  const artifacts = isRecord(scene.sceneArtifacts) ? { ...scene.sceneArtifacts } : {};
+  delete artifacts.pointsAtFigure;
+  return {
+    ...scene,
+    sceneArtifacts: {
+      ...artifacts,
+      ...boardContinuationArtifacts(lessonQuestion),
+      ...doubtFigureArtifacts(replacedTurnId),
+    },
+  };
+}
+
+/** The doubt's own validated figure scene, when the record holds one. */
+export function doubtOwnFigureScene(record: Pick<BoardPageRecord, "turn"> | null | undefined): PersistedTurnScene | null {
+  const scene = record?.turn.kind === "doubt" && record.turn.continuesBoard ? record.turn.scene : null;
+  if (!scene || scene.visualStatus !== "validated" || !scene.sceneDocument) return null;
+  if (!doubtFigureOf(scene.sceneArtifacts) || !boardContinuationOf(scene.sceneArtifacts)) return null;
+  return scene;
+}
+
+/**
+ * The scene a doubt with its own figure is saved with. Its figure is saved
+ * only once its intro committed (`figureDrawn`, set by enqueueVerifiedIntro
+ * after the swap cleared it); before that the doubt is text on the page,
+ * pointing at nothing, since the zone stood empty.
+ */
+export function doubtFigureSaveScene(record: BoardPageRecord, textOnly = false): PersistedTurnScene | null {
+  const scene = doubtOwnFigureScene(record);
+  if (!scene) return null;
+  if (record.figureDrawn && !textOnly) return scene;
+  return doubtTurnScene(record.lessonQuestion, true, undefined, null);
 }
 
 export function doubtPageRecord(input: {
@@ -378,7 +426,9 @@ export function pausedLessonFromPage(
     turnPlan: record.turnPlan,
     solverProjection: record.solverProjection,
     scene: record.turn.kind === "lesson" ? record.turn.scene : null,
-    figureDrawn: record.figureDrawn,
+    // A doubt's own figure is not the lesson's: the lesson's was drawn when
+    // the doubt stashed it from the zone.
+    figureDrawn: doubtOwnFigureScene(record) ? Boolean(record.zoneStash) : record.figureDrawn,
     codeLesson,
   };
 }
@@ -601,6 +651,8 @@ function planOnlyArtifacts(artifacts: unknown): unknown | null {
  * never saw.
  */
 export function partialTurnScene(record: BoardPageRecord): PersistedTurnScene {
+  const doubtFigure = doubtFigureSaveScene(record);
+  if (doubtFigure) return doubtFigure;
   if (record.turn.kind === "doubt") {
     return doubtTurnScene(
       record.lessonQuestion,

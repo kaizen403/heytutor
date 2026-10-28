@@ -40,6 +40,7 @@ import {
 } from "@/lib/boards/boardsClient";
 import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import {
+  doubtFigureSaveScene,
   doubtTurnScene,
   partialTurnScene,
   partialTurnSegments,
@@ -311,6 +312,9 @@ function baseLiveTurnScene(input: {
   textOnly: boolean;
 }): PersistedTurnScene {
   const { page } = input;
+  // A doubt that drew its own figure is its own validated scene on the page.
+  const doubtFigure = page && !input.opensPage ? doubtFigureSaveScene(page, input.textOnly) : null;
+  if (doubtFigure) return doubtFigure;
   if (input.kind === "doubt" || page?.turn.kind === "doubt") {
     // The figure the doubt pointed at rides only on a doubt that kept the page.
     const pointsAtFigure = page?.turn.kind === "doubt" ? doubtFigureRefOf(page.turn.scene?.sceneArtifacts) : null;
