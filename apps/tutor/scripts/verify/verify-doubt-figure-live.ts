@@ -8,9 +8,11 @@
  *   the 20 s budget falls back; a plan with unchecked numbers draws nothing.
  * Source (useQuestionHandler, both slice anchors guarded):
  *   flag off and "point" run no planner; the stash is set before swapFigureIn;
- *   the swapped figure's intro is the one the lesson enqueues; a resume calls
- *   returnPageFigure before it reads the zone's figure.
- * figureSwap.ts is never executed here (lane D fills its bodies).
+ *   the swapped figure's intro is the one the lesson enqueues; a resume
+ *   returns the lesson's figure before it reads the zone's figure, and empties
+ *   the zone's ref before the return awaits.
+ * Behaviour (returnZoneStash): the stash leaves the page records only once the
+ * lesson's figure is back; a Stop or doubt mid return, or no board, keeps it.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -25,7 +27,9 @@ import {
   sameFigureAsZone,
   type DoubtFigurePlanners,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
-import { consumedDeferredIds } from "../../features/tutor-session/lib/scene/figureSwap";
+import { consumedDeferredIds, returnZoneStash, type ZoneStash } from "../../features/tutor-session/lib/scene/figureSwap";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
+import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -163,7 +167,45 @@ async function main(): Promise<void> {
     assert.deepEqual(consumedDeferredIds(fresh, live), ["a"], "only the marks the student already saw come back drawn");
   }
 
-  // 8. The live turn, from source.
+  // 8. The resume's return of the stash: cleared only once the figure is back.
+  {
+    const line: DrawCommand = { type: "DRAW_LINE", params: [500, 200, 600, 200], charPosition: 0, narrationBefore: "" };
+    const lessonFigure = { id: "verified_scene", anchors: [], deferredAnnotations: [] } as unknown as VerifiedDiagram;
+    const stash: ZoneStash = {
+      diagram: lessonFigure,
+      presentation: { diagram: lessonFigure, introSegments: [{ narration: "", command: null, commands: [line, line, line], verifiedDiagramIntro: true }] },
+      turnId: "11111111-1111-4111-8111-111111111111",
+    };
+    const wb = { eraseSceneInk: async () => {}, erasePinnedInk: () => {} } as unknown as WhiteboardHandle;
+    const layout = { rects: [], nextY: 120 } as unknown as Parameters<typeof returnZoneStash>[1];
+    const records = () => [{ zoneStash: stash as ZoneStash | null }, { zoneStash: null as ZoneStash | null }];
+
+    // Stop (or a doubt) after the first stamped command.
+    let cancelled = false;
+    let stamped = 0;
+    const stopped = records();
+    const cut = await returnZoneStash(wb, layout, stash, stopped, {
+      shouldCancel: () => cancelled,
+      executeCommand: async () => { stamped += 1; cancelled = true; },
+    });
+    assert.equal(cut, null, "a return cancelled mid stamp returns no figure");
+    assert(stamped >= 1, "the cancel landed while the return was stamping");
+    assert(stopped.every((record) => record.zoneStash === stash),
+      "a cancelled return keeps the stash on the doubt's record and on the resume's, for the next Continue");
+    const noBoard = records();
+    assert.equal(await returnZoneStash(null, layout, stash, noBoard, { executeCommand: async () => {} }), null, "no board returns no figure");
+    assert(noBoard.every((record) => record.zoneStash === stash), "no board keeps the stash");
+    const done = records();
+    let whole = 0;
+    const back = await returnZoneStash(wb, layout, stash, done, { shouldCancel: () => false, executeCommand: async () => { whole += 1; } });
+    // Replay stamps the stopped lesson's stored rows, which the server
+    // completed (verify-doubt-figure-persist), so live returns every beat too.
+    assert.equal(whole, 3, "a whole return stamps every beat of the stashed intro, as replay does");
+    assert(back && back !== lessonFigure, "a whole return resolves a copy of the lesson's figure");
+    assert(done.every((record) => record.zoneStash === null), "a whole return clears the stash on both records");
+  }
+
+  // 9. The live turn, from source.
   {
     const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
     const handler = read(file);
@@ -189,13 +231,19 @@ async function main(): Promise<void> {
     assert(swap.indexOf("page.zoneStash = previousStash;") > swapCall, "a refused swap leaves the stash as it was");
 
     const resume = between(handler, file, "} else if (resume) {", "diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram)");
-    const returnCall = resume.indexOf("await returnPageFigure(");
+    const returnCall = resume.indexOf("await returnZoneStash(");
     const refRead = resume.indexOf("activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;");
     assert(returnCall >= 0, "a resume with a zone stash returns the lesson's figure");
     assert(refRead > returnCall, "the resume returns the lesson's figure before it reads the zone's ref");
-    assert(/pageRecord!\.zoneStash = null;\s*page\.zoneStash = null;/.test(resume), "the stash is cleared once returned");
-    assert(/consumedDeferredIds\(zoneStash\.presentation\.diagram, zoneStash\.diagram\),\s*\{ shouldCancel: \(\) => !isCurrentTurn\(\), executeCommand: executeCommandWithCancel \}/.test(resume),
-      "the return gets the pristine presentation, the live consumed ids and the board's executor");
+    // The stash is cleared by returnZoneStash after a whole return (behaviour
+    // above), never by the resume before it awaits.
+    assert(!/zoneStash = null/.test(resume), "the resume never clears the stash itself, before or after the return");
+    const stashReturn = resume.indexOf("await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],");
+    assert(stashReturn >= 0, "the resume returns the stash through returnZoneStash, holding it on the doubt's record and its own");
+    assert(resume.indexOf("{ shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });", stashReturn) > stashReturn,
+      "the return gets the board's executor and the turn's cancel");
+    const refCleared = resume.indexOf("activeVerifiedDiagramRef.current = null;");
+    assert(refCleared >= 0 && refCleared < stashReturn, "the zone's ref is emptied before the return awaits, so a cancel never leaves it on the doubt's figure");
     const reload = resume.indexOf("returnFigureToZone(");
     assert(reload > returnCall && refRead > reload, "after a reload, returnsFigure redraws the stored figure before the ref is read");
     assert(resume.includes("source ? storedFigurePresentation(source) : { diagram: null, introSegments: [] }"), "the stored turn's own figure ink comes back");

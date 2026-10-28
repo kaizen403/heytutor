@@ -163,3 +163,39 @@ export async function returnFigureToZone(
   }
   return shouldCancel() ? cancelled : { cancelled: false, diagram };
 }
+
+/** The lesson figure a doubt's own figure stashed (`BoardPageRecord.zoneStash`). */
+export interface ZoneStash {
+  diagram: VerifiedDiagram;
+  presentation: { diagram: VerifiedDiagram; introSegments: TutorSegment[] };
+  turnId: string | null;
+}
+
+/**
+ * The live resume's return of a stashed lesson figure. Every record in
+ * `holders` keeps the stash until the figure is back whole, and only then is
+ * it cleared: a Stop or a doubt while the return stamps leaves the stash
+ * where the next turn reads it, so the next Continue returns the lesson's
+ * figure again instead of pointing at the doubt's.
+ *
+ * The whole stashed intro comes back. A Stop that cut the lesson's intro
+ * short still saved the whole figure (the server inserts the intro rows the
+ * stopped lesson did not draw), so replay and restore stamp the whole figure
+ * at this resume too.
+ */
+export async function returnZoneStash(
+  wb: WhiteboardHandle | null,
+  layout: BoardLayoutState,
+  stash: ZoneStash,
+  holders: ReadonlyArray<{ zoneStash?: ZoneStash | null } | null | undefined>,
+  opts: { shouldCancel?: () => boolean; executeCommand?: FigureSwapExecuteCommand },
+): Promise<VerifiedDiagram | null> {
+  for (const holder of holders) if (holder) holder.zoneStash = stash;
+  const returned = wb
+    ? await returnPageFigure(wb, layout, stash.presentation, consumedDeferredIds(stash.presentation.diagram, stash.diagram), opts)
+    : null;
+  if (returned) {
+    for (const holder of holders) if (holder && holder.zoneStash === stash) holder.zoneStash = null;
+  }
+  return returned;
+}

@@ -167,9 +167,8 @@ import {
   type DoubtFigureDrawn,
 } from "../../lib/turn/doubtFigurePlan";
 import {
-  consumedDeferredIds,
   returnFigureToZone,
-  returnPageFigure,
+  returnZoneStash,
   swapFigureIn,
 } from "../../lib/scene/figureSwap";
 import { storedFigurePresentation } from "../../lib/replay/pageFigureSync";
@@ -2002,14 +2001,14 @@ export function useQuestionHandler(
         // whole, with the marks the student already saw, before reading it.
         const zoneStash = pageRecord?.boardId === sessionId ? pageRecord.zoneStash ?? null : null;
         if (zoneStash) {
-          pageRecord!.zoneStash = null;
-          page.zoneStash = null;
-          const wb = whiteboardRef.current;
-          const returned = wb
-            ? await returnPageFigure(wb, boardLayoutRef.current, zoneStash.presentation,
-                consumedDeferredIds(zoneStash.presentation.diagram, zoneStash.diagram),
-                { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel })
-            : null;
+          // The zone is about to be erased: nothing may point at the doubt's
+          // figure from here. A cancelled return leaves the ref empty and the
+          // stash on both records, so the next Continue returns it again.
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
+          zonePresentationRef.current = null;
+          const returned = await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],
+            { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });
           throwIfTurnCancelled();
           activeVerifiedDiagramRef.current = returned;
           setActiveVerifiedDiagram?.(returned);
@@ -2030,6 +2029,9 @@ export function useQuestionHandler(
           // resume returns is redrawn with the marks earlier turns released.
           const back = resume.returnsFigure!;
           const source = back.turnId ? storedTurnsRef.current.find((turn) => turn.id === back.turnId) ?? null : null;
+          // As above: the doubt's figure is about to leave the zone.
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
           const wb = whiteboardRef.current;
           const result = wb
             ? await returnFigureToZone(wb, boardLayoutRef.current,
