@@ -5,6 +5,7 @@ import { generatePicture, resolveImageProvider, type ImageProviderConfig } from 
 import { writePictureQuery } from "./pictureQuery";
 import { downloadPicture, rankCandidates, searchCommons, type PictureCandidate } from "./wikimediaSearch";
 import { buildStrokePlan } from "./strokePlan";
+import { neverReachedProvider, ProviderRefusedError } from "./providerErrors";
 import * as store from "./pictureStore";
 
 /**
@@ -40,18 +41,22 @@ export function createPictureSpend(): PictureSpend {
 }
 
 /**
- * Count a provider call while it runs. A call cut off by an abort stays
- * counted: it was dispatched and may be billed. An upstream error response
- * (no completion) is not.
+ * Count a provider call while it runs. A call whose signal is already aborted
+ * is never sent and never counted. Once sent, only a provider's error status
+ * (nothing generated) or a connect-phase failure (never reached it) releases
+ * it; a call that timed out, was cut off by an abort, lost its connection
+ * mid-request or returned an unreadable reply may be billed and is charged at
+ * its ceiling.
  */
 async function tracked<T>(spend: PictureSpend, lane: PictureUsage["lane"], run: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  signal?.throwIfAborted();
   spend.inFlight[lane]++;
   try {
     const result = await run();
     spend.inFlight[lane]--;
     return result;
   } catch (error) {
-    if (!signal?.aborted) spend.inFlight[lane]--;
+    if (error instanceof ProviderRefusedError || neverReachedProvider(error)) spend.inFlight[lane]--;
     throw error;
   }
 }
@@ -242,6 +247,9 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
       }, deps.signal),
       factCheck(mustShow, imageDataUrl, context, candidate.description),
     ]);
+    // A fact check that failed (timeout, provider error) is no verdict: the
+    // candidate counts as unjudged, so an outage is never cached as a decline.
+    if (!fact) { steps.push(`judge ${candidate.title}: fact check failed, not judged`); return null; }
     const judged: Judged = { candidate, bytes, verdict: result.verdict, factCheck: fact, origin: "wikimedia", order };
     steps.push(`judge ${candidate.title}: ${verdictStep(judged)}`);
     return judged;
@@ -252,8 +260,12 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
   }
 }
 
-/** The fact check for one picture; a failed or unreadable check rejects it. */
-async function factCheck(mustShow: string, imageDataUrl: string, context: Context, description?: string): Promise<FactCheckResult> {
+/**
+ * The fact check for one picture. An unreadable reply is a completed check
+ * that rejects the picture; a failed call (timeout, provider error) is null,
+ * which leaves the picture unjudged rather than rejected.
+ */
+async function factCheck(mustShow: string, imageDataUrl: string, context: Context, description?: string): Promise<FactCheckResult | null> {
   const { deps, spend } = context;
   try {
     const checked = await tracked(spend, "judge", async () => {
@@ -264,7 +276,7 @@ async function factCheck(mustShow: string, imageDataUrl: string, context: Contex
     return checked.result;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
-    return UNREAD_FACT_CHECK;
+    return null;
   }
 }
 
@@ -282,7 +294,7 @@ async function judgeGenerated(provider: ImageProviderConfig, context: Context): 
       }, deps.signal),
       factCheck(mustShow, imageDataUrl, context),
     ]);
-    const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
+    const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact ?? UNREAD_FACT_CHECK, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
     steps.push(`judge generated: ${verdictStep(judged)}`);
     return judged;
   } catch (error) {
