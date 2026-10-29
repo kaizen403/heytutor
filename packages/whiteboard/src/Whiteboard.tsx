@@ -21,8 +21,6 @@ import {
   DIAGRAM_ZONE,
   MAX_BOARD_FONT_SIZE,
   MIN_BOARD_FONT_SIZE,
-  REFERENCE_PICTURE_CREDIT_Y,
-  REFERENCE_PICTURE_ZONE,
   WORK_ZONE,
   type DrawCommandInkSettings,
   type PicturePass,
@@ -285,7 +283,10 @@ export interface BoardPicture {
   /** The plan's ink mask: opaque where the picture has line work. */
   inkMask: CanvasImageSource;
   plan: Pick<ReferencePicturePlan, "width" | "height" | "paper" | "outline" | "fill">;
-  /** `referencePictureCredit(record)`, set under the card once the fill lands. */
+  /**
+   * `referencePictureCredit(record)`. Kept with the lesson for attribution;
+   * the owner asked (29 Oct 2026) that nothing be written under the picture.
+   */
   credit: string;
   /**
    * A numbered picture's key, from the server record. The legend pass writes
@@ -310,7 +311,7 @@ export interface WhiteboardHandle {
   /**
    * One reveal pass of a reference picture at `placement`. The outline pass
    * lays the paper card first and traces the line work; the fill pass sweeps
-   * the colour in and sets the credit under the card; a numbered picture's
+   * the colour in; a numbered picture's
    * legend pass writes its key in pen beside the card. `duration <= 0` lands
    * the pass's finished state at once (seek, restore). The pass's time is
    * clamped into `PICTURE_PASS_MS` whatever is asked.
@@ -523,14 +524,9 @@ const THINKING_FLOURISH_EVERY = 4;
 const HIDDEN_PATH_DATA = "M 0 0";
 /** Konva attr naming the picture (id and placement) a card group belongs to. */
 const PICTURE_GROUP_ATTR = "htReferencePicture";
-/** Konva attr naming a child's role in its group: card, outline, fill, credit, legend. */
+/** Konva attr naming a child's role in its group: card, outline, fill, legend. */
 const PICTURE_PART_ATTR = "htReferencePicturePart";
 const PICTURE_CARD_RADIUS_PX = 6;
-/** The credit is metadata, set small and quiet, not lettered by the pen. */
-const PICTURE_CREDIT_FONT_PX = 11;
-const PICTURE_CREDIT_GAP_PX = 6;
-const PICTURE_CREDIT_COLOR = "#857560";
-const PICTURE_CREDIT_FONT = "Inter, system-ui, -apple-system, Helvetica, Arial, sans-serif";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -1545,7 +1541,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     /**
      * One pass of a reference picture. Everything the picture puts on the
      * board lives in one group at the bottom of the draw layer: the card, the
-     * outline, the fill and the credit. One group is what lets a wipe or a
+     * outline, the fill and a numbered picture's key. One group is what lets a wipe or a
      * page clear take the picture away whole, and the bottom is what keeps
      * later ink readable on top of it.
      *
@@ -1604,8 +1600,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             y: placement.y - PICTURE_CARD_PADDING_PX,
             width: placement.width + PICTURE_CARD_PADDING_PX * 2,
             height: placement.height + PICTURE_CARD_PADDING_PX * 2,
-            // A blended picture keeps the card's bounds (erase, FOCUS and the
-            // credit are placed by it) but draws nothing: the board shows through.
+            // A blended picture keeps the card's bounds (erase and FOCUS are
+            // placed by it) but draws nothing: the board shows through.
             ...(picture.blended
               ? { fill: "rgba(0,0,0,0)" }
               : { fill: picture.plan.paper, shadowColor: "#3A2E1F", shadowBlur: 6, shadowOffsetY: 1, shadowOpacity: 0.16 }),
@@ -1670,34 +1666,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           }
           return node.showPicture(picture, image, hold);
         };
-        const setCredit = (group: Konva.Group): void => {
-          const credit = picture.credit.trim();
-          if (!credit || partOf(group, "credit")) return;
-          const cardBottom = placement.y + placement.height + PICTURE_CARD_PADDING_PX;
-          // Under the card, and never lower than the contract's credit line.
-          const baseline = Math.min(REFERENCE_PICTURE_CREDIT_Y, cardBottom + PICTURE_CREDIT_GAP_PX + PICTURE_CREDIT_FONT_PX);
-          const creditWidth = REFERENCE_PICTURE_ZONE.width;
-          const centre = placement.x + placement.width / 2;
-          const text = new Konva.Text({
-            text: credit,
-            x: clamp(centre - creditWidth / 2, 0, Math.max(width - creditWidth, 0)),
-            y: baseline - PICTURE_CREDIT_FONT_PX,
-            width: creditWidth,
-            align: "center",
-            fontSize: PICTURE_CREDIT_FONT_PX,
-            fontFamily: PICTURE_CREDIT_FONT,
-            fill: PICTURE_CREDIT_COLOR,
-            wrap: "none",
-            ellipsis: true,
-            listening: false,
-            perfectDrawEnabled: false,
-          });
-          text.setAttr(PICTURE_PART_ATTR, "credit");
-          group.add(text);
-          ownChild(text);
-        };
-        // The finished pass on its card, and the credit under a fill. A pass
-        // already on the card (a re-land) is kept and no second copy is added.
+        // The finished pass on its card. A pass already on the card (a
+        // re-land) is kept and no second copy is added.
         const landPass = (group: Konva.Group, node?: PictureImage): void => {
           if (partOf(group, pass)) {
             if (node) { node.destroy(); drawTransactionsRef.current.detach(node); }
@@ -1708,7 +1678,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             group.add(finished);
             ownChild(finished);
           }
-          if (pass === "fill") setCredit(group);
         };
 
         /**
@@ -1998,7 +1967,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         tagBoardInk,
         trackNode,
         untrackNode,
-        width,
       ],
     );
 

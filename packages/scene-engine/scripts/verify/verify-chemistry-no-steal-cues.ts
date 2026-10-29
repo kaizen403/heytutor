@@ -479,6 +479,22 @@ for (const values of [
     if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
   });
   for (const question of [
+    "Sketch the distribution of kinetic energies for electrons emitted from a metal sample.",
+    "Sketch the distribution of energies in the visible spectrum of a sample of white light.",
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
+    "Sketch the distribution of energies of alpha particles emitted.",
+    "A reaction is started by ultraviolet radiation. Sketch the distribution of molecular energies at two temperatures and mark the activation energy.",
+    "Draw the distribution of kinetic energies for an exothermic process at two temperatures.",
+    "Sketch the distribution of kinetic energies of ions in a plasma at two temperatures and mark the activation energy.",
+    "Sketch the distribution of energies and show the energy barrier.",
+    "Plot the distribution of energies and the Gibbs energy for ΔH = 40 kJ/mol and ΔS = 120 J/K/mol and find when it is spontaneous.",
+    "Using Maxwell's equations, sketch the distribution of energy of charged particles in a field.",
+    "Sketch the distribution of energies of beta particles emitted in beta decay.",
+    "Sketch the distribution of energies of cosmic ray particles.",
+    "Sketch the distribution of energy in a standing electromagnetic wave.",
+    "Sketch the distribution of energy for a photon gas at two temperatures.",
+    "Draw the distribution of molecular speeds in a star's corona plasma.",
     "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
     "Write Maxwell's equations and show how they predict the speed of light.",
     "State the Maxwell right-hand thumb rule and use it to find the field direction.",
@@ -504,6 +520,21 @@ for (const values of [
     "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
   ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
   for (const question of [
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
+  ]) check(`declined distribution keeps main's route, no figure: ${question}`, () => {
+    assert.equal(isChemistryQuestion(question), true, "left main's chemistry route");
+    assert.equal(synthesizeFamilyScene({ question }), null, "another family drew it");
+  });
+  for (const question of [
+    "Sketch the distribution of molecular speeds for a light gas at two temperatures.",
+    "Sketch the distribution of speeds of nitrogen at 300 K and 600 K.",
+    "Explain, using the distribution of energies, why increasing the temperature increases the rate of reaction.",
+    "Use the distribution of energies to explain how a catalyst increases the rate of a reaction.",
+    "Sketch the distribution of energies in a sample and show the effect of adding a catalyst.",
+    "Explain using the Boltzmann distribution why raising the temperature speeds up a redox reaction in which electrons are transferred.",
+    "Sketch the distribution of speeds for helium atoms at 300 K.",
+    "Sketch the distribution of molecular speeds of nitrogen at 300 K and 600 K.",
     "Sketch Maxwell's normalized distribution for an ideal gas at two temperatures.",
     "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
     "Draw the Maxwell speed distribution and mark the most probable speed.",

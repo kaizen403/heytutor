@@ -27,8 +27,13 @@ text and pass the same judge.
    ("must show") and 2 to 4 Commons search phrases, or says no picture helps
    (calculations, essays). A deterministic guard (`questionSpecificFigure`)
    then declines any graph, circuit, ray, force or chart topic whose question
-   states numbers: that figure is the question's own, a stock picture would
-   carry other values, and the verified engine draws it or the lesson is text.
+   states numbers, reading those figure words in the topic and in the question
+   itself. It also declines a motion, circular motion, projectile, incline, lens
+   or mirror setup when the question states a measured value (a number with a
+   unit, so "3 laws", "10 marks" and "3D" do not count), even when the topic
+   leaves out the figure word. That figure is the question's own, a stock
+   picture would carry other values, and the verified engine draws it or the
+   lesson is text.
 2. `wikimediaSearch.ts`: Commons search, filtered to CC0, public domain, CC BY
    and CC BY-SA; drops translated files by title suffix, tiny or extreme
    aspect files; ranks drawings and English files above scans.
@@ -81,8 +86,10 @@ passes from it; a missing record strips the picture and keeps the words.
 `DRAW_PICTURE` params are `[x, y, w, h, pass, boardLengthPx]`, `text` the id.
 `Whiteboard.drawPicture` lays a paper card in the picture's paper colour, the
 pencil traces the outline strokes revealing only the ink mask, then sweeps the
-fill strokes revealing the colour, then swaps in the exact picture and writes
-the credit line. A numbered picture has a third pass: the pen writes its key
+fill strokes revealing the colour, then swaps in the exact picture. Nothing is
+written under it: the owner removed the credit line from the board on 29 Oct
+2026. The credit (`referencePictureCredit`) is still stored with the record and
+the lesson. A numbered picture has a third pass: the pen writes its key
 ("1 Renal cortex", ...) in a column beside the card at figure label size,
 wrapping rather than shrinking; `referencePictureLayout(record)` places picture
 and key, and declines a key that would leave the picture under 240 px. Outline 4 to 14 s, fill 2 to 7 s at 1x, paced by stroke

@@ -1,15 +1,15 @@
 /**
  * Reference pictures on the board: a stored picture is laid on a paper card,
  * traced by the pencil along its outline strokes, swept in along its fill
- * strokes, and credited under the card.
+ * strokes, with nothing written under it (no credit line).
  *
  * What has to hold, and what each group below proves:
  *   - a seek or restore (duration 0) lands the finished picture at once: card,
- *     picture and credit, under any later ink;
+ *     and picture, under any later ink, with no credit line;
  *   - a watched pass is drawn by the pencil, card first, visiting the plan's
  *     strokes in the plan's order, painting through the right source;
  *   - a cancelled, rolled back or aborted pass leaves nothing behind;
- *   - CLEAR, an animated clear and an erase take card, picture and credit away
+ *   - CLEAR, an animated clear and an erase take card and picture away
  *     together, never one without the others;
  *   - a numbered picture's key is written by the pen beside the card, inside
  *     the zone and clear of the picture, lands at once on a seek, and goes
@@ -35,7 +35,6 @@ import ts from "typescript";
 import * as drawing from "@heytutor/drawing";
 import {
   DRAW_COMMAND_TYPES,
-  REFERENCE_PICTURE_CREDIT_Y,
   REFERENCE_PICTURE_ZONE,
   fitPicture,
   isBlockedVerifiedDiagramCommand,
@@ -370,7 +369,7 @@ async function verifyBlend(): Promise<void> {
   await run(board.drawPicture(picture, PLACEMENT, "outline", 0));
   await run(board.drawPicture(picture, PLACEMENT, "fill", 0));
   const group = pictureGroup(board);
-  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit"], "a blended picture lands the same parts");
+  assert.deepEqual(parts(group), ["card", "outline", "fill"], "a blended picture lands the same parts");
   const card = group!.getChildren()[0] as Konva.Rect;
   assert.equal(card.fill(), "rgba(0,0,0,0)", "a blended picture's card draws no paper");
   assert.ok(!card.shadowColor() && !card.hasShadow(), "and casts no shadow");
@@ -402,7 +401,7 @@ async function verifyBoard(): Promise<void> {
   await run(board.drawPicture(picture, PLACEMENT, "fill", 0));
   let group = pictureGroup(board);
   assert.ok(group, "an instant draw lays the picture's group");
-  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit"], "card, line work, picture and credit, in that order");
+  assert.deepEqual(parts(group), ["card", "outline", "fill"], "card, line work and picture, in that order");
   assert.equal(group!.getZIndex(), 0, "the picture sits under ink drawn before it");
   const card = group!.getChildren()[0] as Konva.Rect;
   assert.equal(card.fill(), picture.plan.paper);
@@ -415,9 +414,9 @@ async function verifyBoard(): Promise<void> {
   const draws = outlineSource.filter((call) => call.name === "drawImage" || call.name === "set:globalCompositeOperation");
   assert.deepEqual(draws.map((call) => call.args[0]),
     [picture.image, "destination-in", picture.inkMask, "source-over"], "the outline is the picture through its ink mask");
-  const credit = group!.getChildren()[3] as Konva.Text;
-  assert.equal(credit.text(), "Test Artist, CC BY-SA 4.0, via Wikimedia Commons");
-  assert.ok(credit.y() + credit.fontSize() <= REFERENCE_PICTURE_CREDIT_Y + 0.01 && credit.y() >= card.y() + card.height(), "the credit sits under the card");
+  // The owner asked (29 Oct 2026) that nothing be written under the picture:
+  // no text node anywhere in its group, the credit included.
+  assert.equal(group!.find("Text").length, 0, "no credit or other text under the picture");
   assert.equal(group!.getAttr("htInk"), "scene");
   assert.equal(instrumentRef!.current, "pencil", "even an instant picture is the pencil's");
   await run(board.drawShape("M 900 320 L 1000 320", 0));
@@ -425,14 +424,14 @@ async function verifyBoard(): Promise<void> {
 
   // 2. CLEAR takes all of it.
   await board.clearBoard();
-  assert.equal(pictureNodes(board).length, 0, "CLEAR removes card, picture and credit");
+  assert.equal(pictureNodes(board).length, 0, "CLEAR removes card and picture");
 
   // 3. An animated clear and an erase take it whole, never in pieces.
   await run(board.drawPicture(picture, PLACEMENT, "outline", 0));
   await run(board.drawPicture(picture, PLACEMENT, "fill", 0));
   await run(board.clearBoard(1_200), () => {
     const count = pictureNodes(board).length;
-    assert.ok(count === 0 || count === 5, `a sweep must not split the picture (saw ${count} nodes)`);
+    assert.ok(count === 0 || count === 4, `a sweep must not split the picture (saw ${count} nodes)`);
   });
   assert.equal(pictureNodes(board).length, 0);
   await run(board.drawPicture(picture, PLACEMENT, "outline", 0));
@@ -501,18 +500,18 @@ async function verifyBoard(): Promise<void> {
   const drawnMs = outlineMs - outlineSwapMs;
   assert.ok(drawnMs >= outlineBudget - 16 && drawnMs <= outlineBudget + 48, `the outline took ${drawnMs} ms, budget ${outlineBudget}`);
   group = pictureGroup(board);
-  assert.deepEqual(parts(group), ["card", "outline"], "after the outline pass: the card and the line work, no credit yet");
+  assert.deepEqual(parts(group), ["card", "outline"], "after the outline pass: the card and the line work");
   assert.equal(board.getAnimLayer()!.getChildren((node) => Boolean(node.getAttr("htReferencePicturePart"))).length, 0,
     "the reveal leaves the anim layer when it lands");
 
-  // 5. A watched fill: the same card, no swap, the picture and its credit.
+  // 5. A watched fill: the same card, no swap, the picture, with no credit.
   let fillSwap = false;
   const fillMs = await run(board.drawPicture(picture, PLACEMENT, "fill", 1), () => {
     fillSwap ||= instrumentRef!.current !== "pencil";
   });
   assert.ok(!fillSwap, "the fill keeps the pencil already in hand");
   assert.equal(pictureGroup(board), group, "the fill lands on the card the outline laid");
-  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit"]);
+  assert.deepEqual(parts(group), ["card", "outline", "fill"]);
   assert.equal((group!.getChildren()[2] as Konva.Image).image(), picture.image, "the finished fill is the picture itself");
   assert.ok(fillMs >= PICTURE_PASS_MS.fill.minMs - 16 && fillMs <= PICTURE_PASS_MS.fill.maxMs + 48, `fill took ${fillMs} ms`);
   assert.ok(Math.hypot(cursor.x() - (PLACEMENT.x + FILL_STROKES[5]![2]! * SCALE), cursor.y() - (PLACEMENT.y + FILL_STROKES[5]![3]! * SCALE)) < 1e-6,
@@ -538,7 +537,7 @@ async function verifyBoard(): Promise<void> {
   assert.equal(pictureNodes(board).length, 0, "a rolled back beat leaves no card, reveal or picture");
   await run(board.drawPicture(picture, PLACEMENT, "outline", 0));
   await run(board.drawPicture(picture, PLACEMENT, "fill", 0));
-  assert.equal(pictureNodes(board).length, 5);
+  assert.equal(pictureNodes(board).length, 4);
   board.abortDrawTransaction(transaction);
   board.finishAbortedDrawTransaction(transaction);
   assert.equal(pictureNodes(board).length, 0, "an aborted intro takes the whole picture");
@@ -577,7 +576,7 @@ async function verifyLegend(): Promise<void> {
   const canvasesBefore = recorded.length;
   await landAll(0);
   const group = pictureGroup(board);
-  assert.deepEqual(parts(group), ["card", "outline", "fill", "credit", "legend"], "the key lands last, inside the picture's group");
+  assert.deepEqual(parts(group), ["card", "outline", "fill", "legend"], "the key lands last, inside the picture's group");
   const legend = legendOf(board)!;
   assert.ok(glyphs(legend).length >= KEY.map((entry) => entry.mark + entry.label).join("").replace(/\s+/g, "").length, "every character of the key is written");
   assert.ok(glyphs(legend).every(isWritten), "an instant key is fully written");
@@ -633,7 +632,7 @@ async function verifyLegend(): Promise<void> {
   const budget = resolvePicturePassMs({ pass: "legend", lengthPx: key.inkLengthPx, requestedMs: 1 });
   const drawnMs = watchedMs - swapMs;
   assert.ok(drawnMs >= budget - 16 && drawnMs <= budget + 48 && budget >= PICTURE_PASS_MS.legend.minMs && budget <= PICTURE_PASS_MS.legend.maxMs, `the key took ${drawnMs} ms, budget ${budget}`);
-  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit", "legend"], "the watched key lands in the picture's group");
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "legend"], "the watched key lands in the picture's group");
   assert.ok(glyphs(legendOf(board)).every(isWritten), "every stroke of the landed key is written in full");
   assert.equal(board.getAnimLayer()!.getChildren((node) => Boolean(node.getAttr("htReferencePicturePart"))).length, 0, "the key leaves the anim layer when it lands");
 
@@ -646,7 +645,7 @@ async function verifyLegend(): Promise<void> {
   for (let i = 0; i < 80; i++) await step();
   cancelled = true;
   await run(cancelledJob);
-  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "a cancelled key leaves the picture and no half key");
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill"], "a cancelled key leaves the picture and no half key");
   assert.equal(board.getAnimLayer()!.getChildren((node) => Boolean(node.getAttr("htReferencePicturePart"))).length, 0);
   const transaction = board.beginDrawTransaction();
   const savepoint = board.createDrawSavepoint(transaction);
@@ -655,11 +654,11 @@ async function verifyLegend(): Promise<void> {
   board.cancelDrawSavepoint(transaction, savepoint);
   await run(beat);
   board.rollbackDrawSavepoint(transaction, savepoint);
-  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "a rolled back key beat keeps the picture it was written beside");
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill"], "a rolled back key beat keeps the picture it was written beside");
   const landed = board.createDrawSavepoint(transaction);
   await run(board.drawPicture(keyed, KEYED_PLACEMENT, "legend", 0));
   board.rollbackDrawSavepoint(transaction, landed);
-  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "rolling back a landed key removes only the key");
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill"], "rolling back a landed key removes only the key");
   board.abortDrawTransaction(transaction);
   board.finishAbortedDrawTransaction(transaction);
 
@@ -721,7 +720,7 @@ async function verifyCanvasMemory(): Promise<void> {
   // 2. Fifty re-lands on the card already down add no copies and no canvases.
   from = recorded.length;
   for (let reland = 0; reland < 50; reland++) await land(picture);
-  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill", "credit"], "a re-land keeps one of each part");
+  assert.deepEqual(parts(pictureGroup(board)), ["card", "outline", "fill"], "a re-land keeps one of each part");
   assert.equal(recorded.slice(from).filter((entry) => isLineWork(entry.canvas)).length, 0, "a re-land builds nothing");
   assert.ok(pictureCanvases.boardPictureInUse(picture));
 
@@ -979,7 +978,7 @@ runWhiteboardVerifier(async () => {
   await verifyCanvasMemory();
   await verifyAssetCache();
   console.log(
-    "verify-reference-picture: seeks land card, picture and credit; the pencil traces the outline in the plan's order " +
+    "verify-reference-picture: seeks land card and picture with no credit; the pencil traces the outline in the plan's order " +
       "on a card already down; cancel, rollback, abort, clear and erase leave nothing or everything; 50 seeks build the " +
       "line work once and every pass canvas is zeroed when it lands or is taken away; the asset cache stays bounded, " +
       "spares pictures on the board and revokes its blob URLs; a numbered picture's key is written by the pen beside the card, " +
