@@ -107,11 +107,27 @@ for (const [question, plain] of [
     }
   });
 }
+// An induced current's direction asked in other words declines the solenoid.
+for (const question of [
+  "A solenoid sits in an increasing magnetic field. A current of 2 A is induced. Find its direction.",
+  "A solenoid in a decreasing field: the induced current has magnitude 2 A. Which way does it flow?",
+  "A solenoid sits in an increasing field; 2 A flows; find whether the current is clockwise.",
+  "A changing magnetic field passes through a solenoid. State the direction of the 3 A current induced.",
+  "Two coils: the primary has 2 A clockwise and is switched off. Find the direction of the current in the solenoid.",
+]) {
+  check(`solenoid declines: ${question}`, () => {
+    assert.equal(detectArchetype(question, {}), null, `${question}: an asked induced direction is not drawn`);
+    assert.equal(synthesizeFamilyScene({ question }), null, `${question}: no family stand in`);
+  });
+}
 // A solenoid that carries its own current keeps its figure when the stem
 // asks to show that current's direction; only an induced current is asked.
 for (const question of [
   "A long solenoid has 1000 turns per metre and carries 3 A. Find B and show the direction of the current.",
   "A solenoid carries current. Show the direction of the current and the field lines inside.",
+  // A direction the stem states is given, whatever verb supplies it.
+  "A solenoid of 500 turns per metre is in an increasing external magnetic field. The current is 2 A anticlockwise as seen from the left. Mark the direction of the current and draw its field.",
+  "A long solenoid has 1000 turns per metre. A battery supplies a steady current of 2 A clockwise as seen from the left. Mark the direction of the current and explain how increasing the number of turns changes the field.",
 ]) {
   check(`solenoid draws: ${question}`, () => {
     assert.equal(detectArchetype(question, {})?.id, "solenoid_field", `${question}: a given current keeps the solenoid`);
@@ -265,6 +281,15 @@ check("a magnet and an iron nail is no induction figure", () => {
     "a magnet's pull on blocks in contact keeps the blocks");
   assert.equal(detectArchetype("Two blocks of 2 kg and 3 kg are in contact on a smooth surface. The magnet is pushed against block A with 10 N. Find the contact force.", {})?.id, "blocks_contact",
     "a magnet pushing two blocks in contact keeps the blocks, not a pulley");
+  // Two magnets mounted on blocks that repel or attract each other are not
+  // blocks in contact; the refusal declines the figure outright.
+  for (const question of [
+    "Two bar magnets on wooden blocks repel each other with a force of 10 N on a horizontal table. Explain the repulsion.",
+    "Two magnets fixed to blocks of 2 kg each attract each other on a smooth horizontal table with a force of 6 N.",
+  ]) {
+    assert.equal(detectArchetype(question, {}), null, `${question}: magnets repelling are not touching blocks`);
+    assert.equal(synthesizeFamilyScene({ question }), null, `${question}: no family stand in`);
+  }
 });
 // A stated or marked current is not an asked induced direction: the solenoid keeps its figure.
 for (const question of [
