@@ -12,6 +12,7 @@ import { readRadiationSource } from "../../physics/radiationSource";
 import { readApertureSource, readYoungRepresentationRequest } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
+import { CM_PER_UNIT, namesSeveralOpticalElements, type OpticsLengthUnit } from "../opticsSource";
 import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
@@ -34,7 +35,28 @@ function dimClearance(envelope: number, h: number): number {
   return Math.max(1.4 * h, 0.4 * envelope, 9.5);
 }
 
+/**
+ * What a lens or mirror figure needs before it may draw: words and signs
+ * that agree on the element's kind, a single element (a two-lens stem drawn
+ * as one lens is a different figure), and a scale the board can show (an
+ * object 800 focal lengths away is a dot on the axis). Lengths stay in
+ * centimetres; `unit` is the stated unit every value and span is written in.
+ */
+function opticsFrame(context: GeneratorContext): { unit: OpticsLengthUnit; display: (cm: number) => number } | null {
+  if (text(context, "conflict")) return null;
+  if (namesSeveralOpticalElements(context.question)) return null;
+  const stated = text(context, "unit", "cm");
+  const unit: OpticsLengthUnit = stated === "mm" || stated === "m" ? stated : "cm";
+  return { unit, display: (cm: number) => cm / CM_PER_UNIT[unit] };
+}
+
+/** Largest distance on the axis over the smallest of u and f the board can still draw legibly. */
+const MAX_AXIS_SPREAD = 30;
+
 function sphericalMirror(context: GeneratorContext) {
+  const frame = opticsFrame(context);
+  if (!frame) return null;
+  const { unit, display } = frame;
   const kind = text(context, "kind", "concave");
   const uMag = Math.abs(num(context, "u", 30));
   const fMag = Math.abs(num(context, "f", 10));
@@ -44,6 +66,7 @@ function sphericalMirror(context: GeneratorContext) {
   const f = kind === "concave" ? -fMag : fMag;
   const v = 1 / (1 / f - 1 / u);
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
+  if (Math.max(uMag, Math.abs(v), 2 * fMag) / Math.min(uMag, fMag) > MAX_AXIS_SPREAD) return null;
   const m = -v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
   const imageHeight = m * h;
@@ -51,9 +74,9 @@ function sphericalMirror(context: GeneratorContext) {
   const centreX = kind === "concave" ? -R : R;
   const focusX = centreX / 2;
   const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula`, "spherical_mirror");
-  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
-  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
-  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
+  if (grounded(context, "u")) scene.quantity("u", "u", display(u), unit);
+  if (grounded(context, "f")) scene.quantity("f", "f", display(f), unit);
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit);
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -101,10 +124,10 @@ function sphericalMirror(context: GeneratorContext) {
   const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
   scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
+  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(display(uMag), unit)}` : "u");
   scene.helper("dim_f_a", { x: focusX, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.helper("dim_f_b", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(fMag, "cm")}` : "f");
+  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(display(fMag), unit)}` : "f");
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
   scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);
@@ -121,6 +144,9 @@ function sphericalMirror(context: GeneratorContext) {
 }
 
 function thinLens(context: GeneratorContext) {
+  const frame = opticsFrame(context);
+  if (!frame) return null;
+  const { unit, display } = frame;
   const kind = text(context, "kind", "convex");
   const uMag = Math.abs(num(context, "u", 20));
   const fMag = Math.abs(num(context, "f", 15));
@@ -129,12 +155,13 @@ function thinLens(context: GeneratorContext) {
   const f = kind === "convex" ? fMag : -fMag;
   const v = 1 / (1 / f + 1 / u);
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
+  if (Math.max(uMag, Math.abs(v), 2 * fMag) / Math.min(uMag, fMag) > MAX_AXIS_SPREAD) return null;
   const m = v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
   const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula`, "thin_lens");
-  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
-  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
-  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
+  if (grounded(context, "u")) scene.quantity("u", "u", display(u), unit);
+  if (grounded(context, "f")) scene.quantity("f", "f", display(f), unit);
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit);
   const imageHeight = m * h;
   const leftmost = Math.min(u, v, -2 * fMag) - 0.15 * uMag;
   const rightmost = Math.max(v, 2 * fMag) + 0.15 * uMag;
@@ -184,10 +211,10 @@ function thinLens(context: GeneratorContext) {
   const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
   scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
+  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(display(uMag), unit)}` : "u");
   scene.helper("dim_v_a", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.helper("dim_v_b", { x: v, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_v", "dim_v_a", "dim_v_b", "image distance", grounded(context, "u") && grounded(context, "f") ? `v=${withUnit(Math.abs(v), "cm")}` : "v");
+  scene.dimension("dim_v", "dim_v_a", "dim_v_b", "image distance", grounded(context, "u") && grounded(context, "f") ? `v=${withUnit(display(Math.abs(v)), unit)}` : "v");
   scene.assert("centre_on_axis", "on", ["O", "axis"]);
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
