@@ -160,6 +160,7 @@ import {
   doubtFigureNeedInput,
   doubtFigureNeedSkip,
   doubtFigurePlannedScene,
+  lessonFigureIdInZone,
   planDoubtFigure,
   reconcilePlanWithAuthority,
   requestDoubtFigureNeed,
@@ -719,6 +720,12 @@ export function useQuestionHandler(
             storedTurns: storedTurnsRef.current,
             activeDiagram: activeVerifiedDiagramRef.current,
             codeLessonFrameIndex: doubtFrames?.getSet() ? doubtFrames.currentIndex() : null,
+            // doubt-lesson-figure:begin
+            // A lesson's later figure in the zone (live after an advance, or
+            // rebuilt by a restore): the save names it, and the server
+            // rebuilds that figure from the lesson's stored row.
+            lessonFigureId: lessonFigureIdInZone(lessonFiguresRef?.current?.views() ?? [], activeVerifiedDiagramRef.current),
+            // doubt-lesson-figure:end
           })
         : null;
       const doubtRecordInput = doubt

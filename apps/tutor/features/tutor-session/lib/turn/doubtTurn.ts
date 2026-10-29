@@ -45,6 +45,7 @@ import {
 } from "@/lib/boards/doubtFigureRef";
 
 import { doubtFigureArtifacts, doubtFigureOf } from "@/lib/boards/doubtFigure";
+import type { LessonFigureId } from "@/lib/boards/lessonFigures";
 
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
@@ -288,6 +289,8 @@ export function doubtFigureRefFor(input: {
   storedTurns: readonly StoredTurn[];
   activeDiagram: VerifiedDiagram | null;
   codeLessonFrameIndex: number | null;
+  /** `lessonFigureIdInZone`: the lesson's later figure in the zone, or null for its own figure. */
+  lessonFigureId?: LessonFigureId | null;
 }): DoubtFigureRef | null {
   if (input.afterReplay || !input.figureOnPage || !input.activeDiagram) return null;
   const kind = activeFigureKind(input.activeDiagram);
@@ -302,6 +305,7 @@ export function doubtFigureRefFor(input: {
     turnId,
     kind,
     ...(frameIndex !== undefined ? { frameIndex } : {}),
+    ...(kind === "verified_scene" && input.lessonFigureId ? { figureId: input.lessonFigureId } : {}),
   }));
   const record = input.record?.boardId === input.boardId ? input.record : null;
   if (record?.figureTurnId) return build(record.figureTurnId);

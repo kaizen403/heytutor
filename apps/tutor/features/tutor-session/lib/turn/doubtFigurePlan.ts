@@ -41,6 +41,7 @@ import { DIAGRAM_ZONE } from "../../constants";
 import type { BoardLayoutState } from "../../types";
 import { storedLessonFigurePresentation } from "../replay/pageFigureSync";
 import type { PageFigureId } from "@/lib/boards/pageFigure";
+import type { LessonFigureId } from "@/lib/boards/lessonFigures";
 import { EMPTY_ZONE_STASH, releasedEntityIds, type ZoneStash } from "../scene/figureSwap";
 import { isReferencePictureDiagram } from "../scene/referencePicturePresentation";
 import {
@@ -343,6 +344,21 @@ export function figureFingerprint(diagram: Pick<VerifiedDiagram, "anchors" | "co
     .map((command) => command.text!.trim())
     .sort();
   return JSON.stringify({ anchors, labels });
+}
+
+/**
+ * Which of a lesson's later figures (DIAGRAM_LESSON_FIGURES) is in the zone:
+ * the view whose parts and labels equal the board's active diagram, or null
+ * (figure 1, a doubt's own figure, or no sequence). Read the same way live
+ * and after a restore, where the zone holds a rebuilt copy of the view.
+ */
+export function lessonFigureIdInZone(
+  views: readonly { id: LessonFigureId; diagram: Pick<VerifiedDiagram, "anchors" | "commands"> }[],
+  active: Pick<VerifiedDiagram, "anchors" | "commands"> | null,
+): LessonFigureId | null {
+  if (!active || views.length === 0) return null;
+  const zone = figureFingerprint(active);
+  return views.find((view) => figureFingerprint(view.diagram) === zone)?.id ?? null;
 }
 
 /** A figure equal to the one in the zone would only redraw it. */
