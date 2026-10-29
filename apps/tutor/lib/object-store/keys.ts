@@ -135,6 +135,9 @@ export function isOwnedTurnStorageObjectKey(
 /** Deletion is bounded to a board, turn, validated upload attempt, or user image. */
 export function isSafeObjectDeletionPrefix(prefix: string): boolean {
   if (prefix.includes("..") || prefix.trim() !== prefix) return false;
+  // The whole card picture folder is never one deletion; one board's folder is.
+  if (prefix === "images/thumbnails/") return false;
+  if (/^images\/thumbnails\/[A-Za-z0-9._-]{1,128}\/$/.test(prefix)) return true;
   if (/^(?:lectures|images)\/[A-Za-z0-9._-]{1,128}\/$/.test(prefix)) return true;
   // The object parser already owns both the legacy turn folder and the exact
   // 12-character attempt grammar. A sentinel file validates only that folder.
@@ -142,4 +145,22 @@ export function isSafeObjectDeletionPrefix(prefix: string): boolean {
     return isSafeObjectKey(`${prefix}0.mp3`);
   }
   return prefix.startsWith("images/") && !prefix.endsWith("/") && isSafeObjectKey(prefix);
+}
+
+/**
+ * A board's Community card picture. Under `images/` because the bucket policy
+ * grants the app `images/*` and `lectures/*` only. Never under `lectures/`:
+ * storage measurement and board cleanup LIST that prefix and charge what they
+ * find. The three part path is deliberate: it does not match the question
+ * photo grammar, so the media routes can never serve it; only the thumbnail
+ * route reads it, and only while the board is on Community.
+ */
+export function boardThumbnailKey(boardId: string): string | null {
+  return /^[A-Za-z0-9._-]{1,128}$/.test(boardId) && !boardId.includes("..") ? `images/thumbnails/${boardId}/card.webp` : null;
+}
+
+/** The folder holding a board's card picture: what a durable deletion job removes. */
+export function boardThumbnailPrefix(boardId: string): string | null {
+  const key = boardThumbnailKey(boardId);
+  return key ? key.slice(0, key.lastIndexOf("/") + 1) : null;
 }

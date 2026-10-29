@@ -28,6 +28,8 @@ model User {
   /// Fast UI cache only. Monthly millicents ledger is usage authority.
   planId                String?                @map("plan_id")
   remainingPct          Int?                   @map("remaining_pct")
+  /// Public name on Community boards. Null shows a safe default, never the account name of a minor.
+  handle                String?                @unique
   boards                Board[]
   turns                 Turn[]
   chatMessages          BoardChatMessage[]
@@ -151,14 +153,28 @@ model Board {
   pinnedAt     DateTime?          @map("pinned_at") @db.Timestamptz(6)
   /// Archived boards leave the list without being deleted.
   archivedAt   DateTime?          @map("archived_at") @db.Timestamptz(6)
+  /// public | private. New boards are public; boards made before Community stay private.
+  visibility   String             @default("public")
+  /// Set by an admin: the board leaves Community whatever its visibility.
+  communityHiddenAt DateTime?     @map("community_hidden_at") @db.Timestamptz(6)
+  /// Set by an admin: the board shows under Featured.
+  featuredAt   DateTime?          @map("featured_at") @db.Timestamptz(6)
+  viewCount    Int                @default(0) @map("view_count")
+  remixCount   Int                @default(0) @map("remix_count")
+  /// The Community board this one was copied from. No foreign key: the copy outlives its source.
+  remixedFromBoardId String?      @map("remixed_from_board_id")
+  /// When the owner's tab last uploaded the card picture; null means none yet.
+  thumbnailAt  DateTime?          @map("thumbnail_at") @db.Timestamptz(6)
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   turns        Turn[]
   chatMessages BoardChatMessage[]
+  reports      CommunityReport[]
 
   @@index([userId], map: "boards_user_id_idx")
   @@index([userId, archivedAt, pinnedAt], map: "boards_user_id_archived_at_pinned_at_idx")
+  @@index([visibility, communityHiddenAt, updatedAt], map: "boards_community_idx")
   @@map("boards")
 }
 
@@ -324,6 +340,20 @@ model ObjectDeletionJob {
 
   @@index([nextAttemptAt])
   @@map("object_deletion_jobs")
+}
+
+/// A visitor flagged a Community board. Admins read these and may hide the board.
+model CommunityReport {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId    String   @map("board_id")
+  /// Null for a visitor who was not signed in.
+  reporterId String?  @map("reporter_id")
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  board      Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt], map: "community_reports_board_id_created_at_idx")
+  @@map("community_reports")
 }
 
 /// Reference pictures (default-off tier, DIAGRAM_REFERENCE_PICTURE). One row per

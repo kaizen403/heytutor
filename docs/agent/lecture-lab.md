@@ -352,12 +352,13 @@ strict policy reads. Set `DIAGRAM_YIELD_POLICY` on the CLI
 to match production; the lab reads it from its own environment.
 
 The route bills its own reservation and returns no usage, so every request
-reserves $0.40 before dispatch (the query plus two rounds of three Ember-1
-judges at the route's own ceilings, $0.379; $0.13 more when an image provider
-is configured) and settles to it. Only a refusal before the route reserves (a
-4xx, `missing_key`) is a proved zero. Ready answers that cost a cent still
-charge $0.40, and so does an early request a verified figure aborts, so the
-ledger overstates picture spend by design.
+reserves $0.80 before dispatch (`LAB_REFERENCE_PICTURE_BASE_RESERVATION_USD`,
+above the route's own ceiling of about $0.38 for the query plus two rounds of
+three Ember-1 judges; $0.20 more when an image provider is configured) and
+settles to it. Only a refusal before the route reserves (a 4xx, `missing_key`)
+is a proved zero. Ready answers that cost a cent still charge $0.80, and so
+does an early request a verified figure aborts, so the ledger overstates
+picture spend by design.
 
 Each row records `referencePicture` (attempted, speculative, status, reason,
 subject, `startedAtMs`, `requestMs`, `waitMs` past scene planning, the route's

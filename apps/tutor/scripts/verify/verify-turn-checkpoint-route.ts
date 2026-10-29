@@ -294,6 +294,8 @@ const boardRoute = load("app/api/boards/[boardId]/route.ts", {
   "@/lib/boards/storageQuota": { withUserStorageLock: (_id: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run) },
   "@/lib/object-store/keys": keys,
   "@/lib/boards/turnStatus": turnStatus,
+  "@/lib/community/publicBoard": { isCommunityVisibility: (value: unknown) => value === "public" || value === "private" },
+  "@/lib/object-store/s3": { deleteBoardThumbnail: async () => {} },
 });
 async function freshOrder(boardId = "board-a"): Promise<string[]> {
   const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}`), { params: Promise.resolve({ boardId }) });
