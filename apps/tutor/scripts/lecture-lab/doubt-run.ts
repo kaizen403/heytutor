@@ -809,7 +809,8 @@ async function runDryRun(options: Options, probes: readonly DoubtProbe[]): Promi
   }
 
   // Rough ceilings for the cap, not a budget: the cap reserves each request's worst case live.
-  const lessonUsd = 0.08;
+  // Measured on doubts-01 (29 Oct 2026, K3 Fast): about $0.30 to $0.45 per lesson.
+  const lessonUsd = 0.4;
   const doubtUsd = 0.02;
   const pictureUsd = labReferencePicturePolicy().reservationUsd;
   const estimate = paidLessons.length * lessonUsd + pictureLessons * pictureUsd + probes.length * options.arms.length * doubtUsd;
@@ -1102,7 +1103,6 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
   printSummary(summary);
   const final = ledger.spendCap.summary(records.length, probes.length * options.arms.length);
   console.log(`\nspend: $${final.chargedUsd.toFixed(4)} charged (conservative), $${final.knownUsageUsd.toFixed(4)} measured, cap $${final.maxUsd.toFixed(2)}${final.stoppedForBudget ? ", STOPPED FOR BUDGET" : ""}; ${untested.length} untested`);
-  if (options.arms.includes("figures")) console.log("figures arm: the doubt figure path (phase 2) is not in this build; new figure grades read none until it lands");
 }
 
 function runRegrade(options: Options, probes: readonly DoubtProbe[]): void {
