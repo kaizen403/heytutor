@@ -1,1 +1,2 @@
 tsx scripts/verify/verify-doubt-figure-persist.ts
+tsx scripts/verify/verify-page-figure-sources.ts

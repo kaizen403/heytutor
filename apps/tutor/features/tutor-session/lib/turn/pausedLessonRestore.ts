@@ -33,7 +33,7 @@ import {
 } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { doubtFigureOf } from "@/lib/boards/doubtFigure";
-import { lessonFigureReturnAfter } from "@/lib/boards/pageFigure";
+import { lessonFigureReturnAfter, lessonFigureSourceAt } from "@/lib/boards/pageFigure";
 
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
@@ -186,6 +186,11 @@ export function lessonRecoveryFromStoredTurns(
     turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
   );
   const figureReturn = lessonFigureReturnAfter(page);
+  // The lesson's figure is the opener's, or (a Stop or doubt before its first
+  // beat saved the opener as text only) the resume's that drew it. Continue
+  // restores that scene; the opener stays the plan source.
+  const figureIndex = lessonFigureSourceAt(page, page.length - 1);
+  const figureTurn = figureIndex !== null && storedTurnContinuesBoard(page[figureIndex]!) ? page[figureIndex]! : source;
   const returnsFigure = figureReturn
     ? { turnId: figureReturn.sourceIndex === null ? null : page[figureReturn.sourceIndex]!.id, consumedIds: figureReturn.consumedIds }
     : null;
@@ -228,7 +233,7 @@ export function lessonRecoveryFromStoredTurns(
     lessonQuestion,
     turnPlan,
     solverProjection,
-    scene: source ? turnScene(source) : null,
+    scene: figureTurn ? turnScene(figureTurn) : null,
     figureDrawn,
     codeLesson,
     ...(returnsFigure ? { returnsFigure } : {}),
