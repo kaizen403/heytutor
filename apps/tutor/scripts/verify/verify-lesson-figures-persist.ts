@@ -186,11 +186,10 @@ async function main(): Promise<void> {
   });
   await check("collision/turn-figure-part-named-like-a-cue-drops-every-figure", () => {
     const first = firstAdmitted.presentation.diagram;
-    const plan = validateTurnPlanV3(turn.sceneArtifacts.turnPlan, LESSON).plan;
-    const clean = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, turnPlan: plan, first });
+    const clean = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, lessonPlan: turn.sceneArtifacts.turnPlan, first });
     assert.deepEqual([...clean.diagrams.keys()], ["figure_2"], "a clean figure 1 admits figure 2");
     const colliding = { ...first, anchors: [...first.anchors, { ...first.anchors[0]!, id: "figure_2" }] };
-    const admitted = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, turnPlan: plan, first: colliding });
+    const admitted = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, lessonPlan: turn.sceneArtifacts.turnPlan, first: colliding });
     assert.deepEqual([...admitted.diagrams.keys()], [], "figure 1 with a part named figure_2: no later figure");
     assert.deepEqual(admitted.droppedFigureIds, ["figure_2"]);
   });

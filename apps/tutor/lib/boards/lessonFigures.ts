@@ -18,7 +18,9 @@
 import {
   describeSceneFamily,
   isSceneVisualFamily,
+  validateTurnPlanV3,
   type SceneVisualFamily,
+  type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import type { RepresentationTier } from "@/features/tutor-session/lib/scene/representationFallback";
 
@@ -133,6 +135,37 @@ export function lessonFiguresOf(sceneArtifacts: unknown): LessonFiguresArtifact 
  */
 export function composeLessonFigureQuestion(lessonQuestion: string, view: SceneVisualFamily): string {
   return `${lessonQuestion.trim()}\n\nFigure: ${describeSceneFamily(view)}`;
+}
+
+/** What figure k is planned, admitted and restored on: its question and its plan. */
+export interface LessonFigureSceneInput {
+  /** The composed question (`composeLessonFigureQuestion`). */
+  question: string;
+  /** The lesson's plan restamped to `question` and validated on it, or null. */
+  turnPlan: TurnPlanV3 | null;
+  /** A plan was stored at all: a plan that fails validation never gains the no-plan allowances. */
+  planSubmitted: boolean;
+  planIssues: ReadonlyArray<{ code?: string; path?: string; message: string }>;
+}
+
+/**
+ * The one derivation of figure k's question and plan (review F5). The live
+ * plan (`planLessonFigures`), the server admission (`admitLessonFigures`, also
+ * behind the page figure loader) and every restore (`restoreLessonFigureViews`)
+ * call this with the lesson's question, the lesson's own plan as stored (the
+ * reconciled plan live, `sceneArtifacts.turnPlan` after) and the view, so all
+ * three check and present figure k on the same bytes. Nothing else touches the
+ * plan: no source authority pass on one side only. The plan's own `figures`
+ * entries never travel into a figure's plan.
+ */
+export function lessonFigureSceneInput(lessonQuestion: string, lessonPlan: unknown, view: SceneVisualFamily): LessonFigureSceneInput {
+  const question = composeLessonFigureQuestion(lessonQuestion, view);
+  if (lessonPlan == null) return { question, turnPlan: null, planSubmitted: false, planIssues: [] };
+  if (!isRecord(lessonPlan)) return { question, turnPlan: null, planSubmitted: true, planIssues: [{ message: "the lesson plan is not an object" }] };
+  const restamped: Record<string, unknown> = { ...lessonPlan, question };
+  delete restamped.figures;
+  const result = validateTurnPlanV3(restamped, question);
+  return { question, turnPlan: result.plan ?? null, planSubmitted: true, planIssues: result.issues };
 }
 
 /** DIAGRAM_LESSON_FIGURES, off unless exactly "on". Server side only. */

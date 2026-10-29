@@ -3,3 +3,4 @@ tsx scripts/verify/verify-lesson-figures-plan.ts
 tsx scripts/verify/verify-lesson-figures-persist.ts
 tsx scripts/verify/verify-lesson-figures-live.ts
 tsx scripts/verify/verify-lesson-figures-replay.ts
+tsx scripts/verify/verify-lesson-figures-parity.ts

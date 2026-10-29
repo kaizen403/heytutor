@@ -14,7 +14,6 @@
  */
 import { createHash } from "node:crypto";
 import {
-  validateTurnPlanV3,
   archetypeProvenance,
   certifyVseprSourceDocument,
   chemistryTeachingFamilyId,
@@ -32,8 +31,8 @@ import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import {
   LESSON_FIGURES_VERSION,
-  composeLessonFigureQuestion,
   figureCollidesWithAdvanceIds,
+  lessonFigureSceneInput,
   type LessonFigureId,
   type LessonFiguresArtifact,
   type StoredLessonFigure,
@@ -248,7 +247,8 @@ export interface AdmittedLessonFigures {
 /**
  * Admit each later figure as the turn's own figure is admitted: on the lesson
  * question composed with its view, with the lesson's plan restamped to that
- * question and validated on it. A figure that fails is dropped (fail soft, as
+ * question and validated on it (`lessonFigureSceneInput`, shared with the live
+ * plan and every restore). A figure that fails is dropped (fail soft, as
  * a stale FOCUS is); the rest of the save is unchanged. A figure with a part
  * named like an advance cue (`figure_1` to `figure_3`) is dropped too, and
  * every figure when the turn's own figure `first` has one (`id_collision`, as
@@ -256,7 +256,13 @@ export interface AdmittedLessonFigures {
  */
 export function admitLessonFigures(
   stored: LessonFiguresArtifact,
-  input: { lessonQuestion: string; turnPlan: TurnPlanV3 | null; narrationLanguage?: NarrationLanguage; first?: VerifiedDiagram },
+  input: {
+    lessonQuestion: string;
+    /** The lesson's plan as stored (`sceneArtifacts.turnPlan`), unvalidated: `lessonFigureSceneInput` restamps it. */
+    lessonPlan: unknown;
+    narrationLanguage?: NarrationLanguage;
+    first?: VerifiedDiagram;
+  },
 ): AdmittedLessonFigures {
   const admitted: StoredLessonFigure[] = [];
   const diagrams = new Map<LessonFigureId, VerifiedDiagram>();
@@ -267,18 +273,15 @@ export function admitLessonFigures(
       droppedFigureIds.push(figure.id);
       continue;
     }
-    const sceneQuestion = composeLessonFigureQuestion(input.lessonQuestion, figure.view);
-    const planResult = input.turnPlan
-      ? validateTurnPlanV3({ ...input.turnPlan, question: sceneQuestion }, sceneQuestion)
-      : null;
+    const scene = lessonFigureSceneInput(input.lessonQuestion, input.lessonPlan, figure.view);
     const result = admitStoredScene({
       sceneDocument: figure.sceneDocument,
-      sceneQuestion,
-      turnPlan: planResult?.plan ?? null,
+      sceneQuestion: scene.question,
+      turnPlan: scene.turnPlan,
       submittedTier: figure.tier,
       ...(input.narrationLanguage ? { narrationLanguage: input.narrationLanguage } : {}),
-      planSubmitted: input.turnPlan !== null,
-      planIssues: planResult?.issues ?? [],
+      planSubmitted: scene.planSubmitted,
+      planIssues: scene.planIssues,
     });
     if (!result.ok || figureCollidesWithAdvanceIds(result.presentation.diagram)) {
       droppedFigureIds.push(figure.id);

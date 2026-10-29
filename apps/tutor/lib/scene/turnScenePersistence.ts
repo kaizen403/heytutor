@@ -406,7 +406,7 @@ export async function canonicalizeTurnSceneMetadata(
   const submittedLessonFigures = lessonFiguresOf(metadata.sceneArtifacts);
   const lessonFigures = submittedLessonFigures && !doubtFigure && !codeLesson &&
     (options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
-    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, turnPlan, narrationLanguage, first: expectedPresentation.diagram })
+    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, lessonPlan: metadata.sceneArtifacts.turnPlan, narrationLanguage, first: expectedPresentation.diagram })
     : null;
   // lesson-figures:end
   // lesson-figure-resume-start:begin

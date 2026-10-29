@@ -7,23 +7,20 @@
  * figure's document (the server's own admitted copy) and its view id;
  * the figure is checked and compiled again on the lesson question composed
  * with that view, with the lesson's plan restamped to it, exactly as the
- * server admitted it (`admitLessonFigures`). A figure whose document was not
+ * server admitted it (`admitLessonFigures`; both derive question and plan
+ * with `lessonFigureSceneInput`, as the live plan does). A figure whose document was not
  * planned on that composed question is dropped, never drawn.
  *
  * Replay, restore, export and the lecture player commit the sequence at the
  * page's lesson source, so a stored `[FOCUS:figure_k]` runs through the same
  * executor branch it ran through live.
  */
-import {
-  compileSceneDocument,
-  validateSceneDocument,
-  validateTurnPlanV3,
-} from "@heytutor/scene-engine";
+import { compileSceneDocument, validateSceneDocument } from "@heytutor/scene-engine";
 import { isStoredCommandTrustedGeometry, verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
-import { composeLessonFigureQuestion, isLessonFigureAdvanceId, lessonFiguresOf } from "@/lib/boards/lessonFigures";
+import { figureCollidesWithAdvanceIds, isLessonFigureAdvanceId, lessonFigureSceneInput, lessonFiguresOf } from "@/lib/boards/lessonFigures";
 import type { PageFigureId } from "@/lib/boards/pageFigure";
 import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import type { LessonFigureSequence, PlannedLessonFigureView } from "./lessonFigureSequence";
@@ -64,7 +61,7 @@ export function restoreLessonFigureViews(
   const views: PlannedLessonFigureView[] = [];
   for (const figure of artifact.figures) {
     try {
-      const question = composeLessonFigureQuestion(lessonQuestion, figure.view);
+      const { question, turnPlan: plan } = lessonFigureSceneInput(lessonQuestion, rawPlan, figure.view);
       const structural = validateSceneDocument(figure.sceneDocument);
       const document = structural.document;
       if (!document || document.visualDecision.mode !== "scene") continue;
@@ -74,16 +71,14 @@ export function restoreLessonFigureViews(
       if (storedTurnSourceIssues(document, { question }).some((issue) => issue.severity === "fatal")) continue;
       const compiled = compileSceneDocument(document, {});
       if (!compiled.ok || !compiled.renderScene) continue;
-      const plan = rawPlan && typeof rawPlan === "object"
-        ? validateTurnPlanV3({ ...(rawPlan as Record<string, unknown>), question }, question).plan
-        : null;
       const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene, {
         originalQuestion: question,
         ...(language ? { narrationLanguage: language } : {}),
         ...(plan ? { turnPlan: plan } : {}),
         ...(figure.family ? { figureFamily: figure.family } : {}),
       });
-      if (!verifiedDiagramHasDrawableInk(presentation.diagram)) continue;
+      // As the server drops it (`admitLessonFigures`): a part named like a cue.
+      if (!verifiedDiagramHasDrawableInk(presentation.diagram) || figureCollidesWithAdvanceIds(presentation.diagram)) continue;
       views.push({ id: figure.id, diagram: presentation.diagram, introSegments: presentation.introSegments, family: figure.family });
     } catch {
       continue;
@@ -110,7 +105,7 @@ export function restoreLessonFigures(
   if (!turn || !lessonFiguresOf(turn.sceneArtifacts)) return;
   if (turn.visualStatus !== undefined && turn.visualStatus !== "validated") return;
   const first = restoreVerifiedPresentationFromTurn(turn, narrationLanguage);
-  if (!first || first.diagram.layout === "code_lesson") return;
+  if (!first || first.diagram.layout === "code_lesson" || figureCollidesWithAdvanceIds(first.diagram)) return;
   const views = restoreLessonFigureViews(turn, narrationLanguage);
   if (views.length === 0) return;
   sequence.commit({ diagram: first.diagram, introSegments: first.introSegments }, views);

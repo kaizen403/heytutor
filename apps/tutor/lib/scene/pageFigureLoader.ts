@@ -39,7 +39,6 @@ import { doubtFigureOf, storedTurnSceneQuestion, type DoubtFigureMarker } from "
 import { LESSON_FIGURES_VERSION, lessonFiguresOf, type LessonFigureId } from "@/lib/boards/lessonFigures";
 import { pageFigureAt, type PageFigureAt, type PageFigureId, type PageFigureTurn as ZoneTurn } from "@/lib/boards/pageFigure";
 import { admitLessonFigures } from "@/lib/scene/sceneAdmission";
-import { validateTurnPlanV3 } from "@heytutor/scene-engine";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { restoreVerifiedPresentationFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { resolveDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
@@ -179,13 +178,12 @@ function lessonFigure(turn: PageFigureTurn, figureId: LessonFigureId): VerifiedD
   if (!figure) return null;
   const lessonQuestion = storedTurnSceneQuestion(turn);
   if (typeof lessonQuestion !== "string" || !lessonQuestion.trim()) return null;
-  const rawPlan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
+  const lessonPlan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
     ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "turnPlan")?.value
     : undefined;
-  const turnPlan = rawPlan == null ? null : validateTurnPlanV3(rawPlan, lessonQuestion).plan;
   const admitted = admitLessonFigures(
     { schemaVersion: LESSON_FIGURES_VERSION, figures: [figure] },
-    { lessonQuestion, turnPlan },
+    { lessonQuestion, lessonPlan },
   );
   return admitted.diagrams.get(figure.id) ?? null;
 }

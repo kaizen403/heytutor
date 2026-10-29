@@ -7,8 +7,9 @@
  * chemistry families, archetypes), exactly as a doubt figure is:
  *
  * 1. the lesson's reconciled plan is restamped to the question composed from
- *    the lesson question and the engine's own name for the view
- *    (`composeLessonFigureQuestion`); no planner word is in it;
+ *    the lesson question and the engine's own name for the view, exactly as
+ *    the server and every restore derive it (`lessonFigureSceneInput`); no
+ *    planner word is in it, and no pass runs here that they do not run;
  * 2. `selectFastFigure` then the lesson's own admission (`selectProductionScene`,
  *    fast_family only) choose and check the figure, which must be of the
  *    picked kind.
@@ -24,8 +25,8 @@ import type { NarrationLanguage, ProblemAuthorityV1Response } from "@heytutor/tu
 import { verifiedDiagramHasDrawableInk, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import {
   LESSON_FIGURES_VERSION,
-  composeLessonFigureQuestion,
   figureCollidesWithAdvanceIds,
+  lessonFigureSceneInput,
   lessonFigureAsksOf,
   type LessonFigureAsk,
   type LessonFigureId,
@@ -35,7 +36,7 @@ import { isReferencePictureDiagram } from "../scene/referencePicturePresentation
 import type { SelectedRepresentation } from "../scene/representationFallback";
 import { deriveSceneGate, selectProductionScene } from "../scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../scene/verifiedScenePresentation";
-import { applyDeterministicSourceAuthority, figureFingerprint, selectFastFigure } from "./doubtFigurePlan";
+import { figureFingerprint, selectFastFigure } from "./doubtFigurePlan";
 
 export interface PlannedLessonFigure {
   ask: LessonFigureAsk;
@@ -121,9 +122,10 @@ function planOne(
   input: Parameters<typeof planLessonFigures>[0],
   ask: LessonFigureAsk,
 ): PlannedLessonFigure | { reason: LessonFigureMissReason } {
-  const question = composeLessonFigureQuestion(input.lessonQuestion, ask.view);
-  const restamped = withoutPlanFigures({ ...input.turnPlan, question });
-  const turnPlan = applyDeterministicSourceAuthority(question, restamped, input.authority, () => {});
+  // The same question and plan the server admits and every restore rebuilds
+  // figure k on (review F5): the lesson's own reconciled plan, restamped.
+  const { question, turnPlan } = lessonFigureSceneInput(input.lessonQuestion, input.turnPlan, ask.view);
+  if (!turnPlan) return { reason: "no_fast_figure" };
   const problemIR = input.authority?.problemIR ?? null;
   const gate = deriveSceneGate({ question, turnPlan, problemIR, conversationContext: "" });
   const families = [...new Set([ask.view, ...gate.sceneCapabilities.families, ...input.families])];
@@ -152,14 +154,6 @@ function planOne(
   });
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return { reason: "no_fast_figure" };
   return { ask, question, turnPlan, representation, presentation };
-}
-
-/** The plan's own `figures` entries never travel into a figure's plan. */
-function withoutPlanFigures(plan: TurnPlanV3): TurnPlanV3 {
-  if (!Object.hasOwn(plan, "figures")) return plan;
-  const copy = { ...plan } as TurnPlanV3 & { figures?: unknown };
-  delete copy.figures;
-  return copy;
 }
 
 /** sceneArtifacts.lessonFigures for the lesson turn: the documents only; the server rebuilds the rest. */
