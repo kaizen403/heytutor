@@ -15,12 +15,30 @@
  * - new figure: right / wrong / none when needed / drawn when not needed;
  * - saved equals live: every live FOCUS id survives the save round trip.
  */
+import { LESSON_FIGURE_IDS, isLessonFigureAsk, type LessonFigureAsk, type LessonFigureId } from "../../lib/boards/lessonFigures";
 import { normalizeDiagramLabel } from "./judging";
 
-export const DOUBT_PROBE_LANES = ["physics_maths", "chemistry", "dsa", "reference_picture", "control"] as const;
+export const DOUBT_PROBE_LANES = [
+  "physics_maths", "chemistry", "dsa", "reference_picture", "control",
+  // doubts-v2 (round 2): a figure on an empty zone, over a picture, after a resume drew the lesson's, later lesson figures.
+  "empty_zone", "picture_swap", "resume_drawn", "lesson_figures",
+] as const;
 export type DoubtProbeLane = (typeof DOUBT_PROBE_LANES)[number];
-export const DOUBT_ARMS = ["today", "pointing", "figures"] as const;
+/** `lesson-figures`: the lesson runs with the planner's later-figures addon (DIAGRAM_LESSON_FIGURES), then the figures doubt. */
+export const DOUBT_ARMS = ["today", "pointing", "figures", "lesson-figures"] as const;
 export type DoubtArm = (typeof DOUBT_ARMS)[number];
+
+/** Lanes whose rows are checked offline only ($0): the zone sequence and the precheck. */
+export const OFFLINE_LANES: readonly DoubtProbeLane[] = ["resume_drawn"];
+
+/** Whether a row runs in an arm: the lesson-figures arm is the lesson_figures lane's, every other arm the other lanes'. */
+export function armAppliesTo(probe: Pick<DoubtProbe, "lane" | "offlineOnly">, arm: DoubtArm): boolean {
+  if (probe.offlineOnly) return false;
+  return arm === "lesson-figures" ? probe.lane === "lesson_figures" : probe.lane !== "lesson_figures";
+}
+
+/** What stands in the diagram zone, by whose figure it is. */
+export type ZoneSide = "empty" | "lesson" | "doubt" | "picture" | "other";
 
 export interface DoubtProbe {
   id: string;
@@ -37,7 +55,17 @@ export interface DoubtProbe {
   dsaFrame: number | null;
   /** The lesson needs the reference picture tier (no verified figure is expected). */
   referencePicture: boolean;
+  /** lesson_figures: the later views a teacher would add, in words (no numbers), injected as the plan's asks. */
+  lessonFigureAsks: LessonFigureAsk[];
+  /** Checked offline only ($0): never sent to a paid round. */
+  offlineOnly: boolean;
   expect: {
+    /** What the lesson's own figure should be, from the subject: drawn, none (text only), or a picture. Null: not stated. */
+    lessonFigure: "drawn" | "none" | "picture" | null;
+    /** What the zone holds after the lesson's resume, live and stored. Null: not checked. */
+    zoneAfterResume: "empty" | "lesson" | "picture" | null;
+    /** lesson_figures: what each later figure should show, one per ask. */
+    figures: string[];
     /** The part to point at, in words, or null when no pointing is needed. */
     point: string | null;
     /** Marks a teacher would write on that part: labels, symbols, or names. */
@@ -111,6 +139,27 @@ export function parseDoubtProbes(text: string): DoubtProbe[] {
     if (typeof inScope !== "boolean") throw new Error(`${where}: newFigureInScope must be boolean`);
     if (!inScope && newFigure === null) throw new Error(`${where}: newFigureInScope false needs a newFigure`);
     if (lane === "control" && (point !== null || newFigure !== null)) throw new Error(`${where}: a control expects neither`);
+    const lessonFigure = raw.expect.lessonFigure ?? null;
+    if (lessonFigure !== null && lessonFigure !== "drawn" && lessonFigure !== "none" && lessonFigure !== "picture") {
+      throw new Error(`${where}: expect.lessonFigure must be drawn, none, picture or null`);
+    }
+    const zoneAfterResume = raw.expect.zoneAfterResume ?? null;
+    if (zoneAfterResume !== null && zoneAfterResume !== "empty" && zoneAfterResume !== "lesson" && zoneAfterResume !== "picture") {
+      throw new Error(`${where}: expect.zoneAfterResume must be empty, lesson, picture or null`);
+    }
+    const figures = stringList(raw.expect.figures, `${where} expect.figures`);
+    const asksRaw = raw.lessonFigureAsks === undefined ? [] : raw.lessonFigureAsks;
+    if (!Array.isArray(asksRaw)) throw new Error(`${where}: lessonFigureAsks must be a list`);
+    const lessonFigureAsks = asksRaw.map((entry, at): LessonFigureAsk => {
+      const id = LESSON_FIGURE_IDS[at];
+      if (!id || !isRecord(entry) || entry.id !== id || !isLessonFigureAsk(entry.ask)) {
+        throw new Error(`${where}: lessonFigureAsks[${at}] must be { id: "${id ?? "none"}", ask: words only }`);
+      }
+      return { id: id as LessonFigureId, ask: (entry.ask as string).trim() };
+    });
+    if ((lane === "lesson_figures") !== (lessonFigureAsks.length > 0)) throw new Error(`${where}: lessonFigureAsks belong to the lesson_figures lane only, and it needs them`);
+    if (figures.length !== lessonFigureAsks.length) throw new Error(`${where}: expect.figures needs one entry per ask`);
+    if (raw.offlineOnly !== undefined && typeof raw.offlineOnly !== "boolean") throw new Error(`${where}: offlineOnly must be boolean`);
     probes.push({
       id,
       lane,
@@ -119,8 +168,10 @@ export function parseDoubtProbes(text: string): DoubtProbe[] {
       mark,
       markTerms,
       dsaFrame: typeof raw.dsaFrame === "number" ? raw.dsaFrame : null,
-      referencePicture: raw.referencePicture === true || lane === "reference_picture",
-      expect: { point, pointTerms, newFigure, newFigureInScope: inScope },
+      referencePicture: raw.referencePicture === true || lane === "reference_picture" || lane === "picture_swap",
+      lessonFigureAsks,
+      offlineOnly: raw.offlineOnly === true || OFFLINE_LANES.includes(lane),
+      expect: { lessonFigure, zoneAfterResume, figures, point, pointTerms, newFigure, newFigureInScope: inScope },
     });
   });
   return probes;
@@ -156,6 +207,84 @@ export interface DoubtEvidence {
   newFigure: { drawn: boolean; summary: string | null } | null;
   ttftMs: number | null;
   error: string | null;
+  /** The zone across the page's turns, live against stored (`doubt-zone.ts`). Absent on older rounds. */
+  zone?: ZoneEvidence | null;
+  /** lesson-figures arm: the lesson's later figures and its advance cues. */
+  lessonFigures?: LessonFiguresEvidence | null;
+}
+
+/** The zone after each turn of a page sequence such as [lesson, doubt, resume, plain doubt]. */
+export interface ZoneEvidence {
+  sequence: string;
+  live: ZoneSide[];
+  /** What `pageFigureAt` reads for each turn (replay, restore, export). */
+  stored: ZoneSide[];
+  /** What `syncStoredPageFigure` left in the zone, turn by turn on a fake whiteboard. */
+  replay?: ZoneSide[];
+  /** Per turn, the zone figure's fingerprint is the same live, stored and replayed. */
+  storedEqualsLive: boolean;
+  /** The zone once the lesson's resume ran (the last turn's view). */
+  afterResume: { live: ZoneSide; stored: ZoneSide };
+  /** A doubt figure was drawn where work ink already reached the zone. */
+  drawnOverInk: boolean;
+  error: string | null;
+}
+
+export type ZoneGrade = "ok" | "doubt_left_on_board" | "wrong_zone" | "stored_differs" | "drawn_over_ink" | "error" | "not_checked";
+
+/** Zone after the resume: what the row expects, live and stored the same, never a doubt's figure left behind. */
+export function gradeZone(probe: Pick<DoubtProbe, "expect">, zone: ZoneEvidence | null | undefined): { grade: ZoneGrade; reasons: string[] } {
+  if (!zone) return { grade: "not_checked", reasons: [] };
+  if (zone.error) return { grade: "error", reasons: [`zone check failed: ${zone.error}`] };
+  if (zone.drawnOverInk) return { grade: "drawn_over_ink", reasons: ["the doubt's figure was drawn over work ink"] };
+  if (!zone.storedEqualsLive) {
+    return { grade: "stored_differs", reasons: [`zone live ${zone.live.join(">")} but stored ${zone.stored.join(">")} (${zone.sequence})`] };
+  }
+  const expected = probe.expect.zoneAfterResume;
+  if (expected === null) return { grade: "ok", reasons: [] };
+  const { live, stored } = zone.afterResume;
+  if (live === "doubt" || stored === "doubt") {
+    return { grade: "doubt_left_on_board", reasons: [`the resume left the doubt's figure in the zone (expected ${expected})`] };
+  }
+  if (live !== expected || stored !== expected) return { grade: "wrong_zone", reasons: [`zone after resume ${live}/${stored}, expected ${expected}`] };
+  return { grade: "ok", reasons: [] };
+}
+
+/** The lesson's later figures as the lesson-figures arm saw them. */
+export interface LessonFiguresEvidence {
+  asks: LessonFigureAsk[];
+  drawn: Array<{ id: LessonFigureId; family: string | null; tier: string | null; parts: string[] }>;
+  misses: Array<{ id: LessonFigureId; reason: string }>;
+  /** Advance cues the teaching spoke, in order. */
+  advances: LessonFigureId[];
+  /** FOCUS ids spoken while figure k stood in the zone that resolved on figure k, and those that did not. */
+  pointedOn: Partial<Record<LessonFigureId, string[]>>;
+  unresolvedOn: Partial<Record<LessonFigureId, string[]>>;
+}
+
+export type LessonFigureGrade =
+  | "right" | "wrong"
+  /** Drawn and advanced to with a pointer after it; waits for a judge. */
+  | "drawn_unjudged"
+  /** No figure for the ask: allowed (never wrong), counted. */
+  | "none"
+  /** Drawn but the teaching never advanced to it. */
+  | "drawn_not_advanced"
+  /** Advanced, then no FOCUS landed on figure k's parts (the preparation cursor missed). */
+  | "advance_without_pointer";
+
+export function gradeLessonFigures(
+  probe: Pick<DoubtProbe, "lessonFigureAsks">,
+  evidence: LessonFiguresEvidence | null | undefined,
+  judged?: "right" | "wrong",
+): Array<{ id: LessonFigureId; grade: LessonFigureGrade }> {
+  if (!evidence) return [];
+  return probe.lessonFigureAsks.map(({ id }) => {
+    if (!evidence.drawn.some((figure) => figure.id === id)) return { id, grade: "none" as const };
+    if (!evidence.advances.includes(id)) return { id, grade: "drawn_not_advanced" as const };
+    if ((evidence.pointedOn[id] ?? []).length === 0) return { id, grade: "advance_without_pointer" as const };
+    return { id, grade: judged ?? "drawn_unjudged" };
+  });
 }
 
 export type PointingGrade =
@@ -184,6 +313,8 @@ export interface DoubtJudgment {
   arm: DoubtArm;
   pointing?: "right_part" | "wrong_part" | "no_pointer";
   newFigure?: "right" | "wrong";
+  /** The lesson's later figures (lesson-figures arm), judged together. */
+  extraFigures?: "right" | "wrong";
   /** "right": every kept ring the rule flagged is on a part the doubt is about. */
   pins?: "right" | "wrong";
   by: string;
@@ -202,6 +333,8 @@ export interface DoubtGrade {
   lostFocusIds: string[];
   /** ANNOTATE the server dropped; reported, not part of the bar (a withheld answer is dropped by design). */
   lostAnnotateIds: string[];
+  zone: ZoneGrade;
+  lessonFigures: Array<{ id: LessonFigureId; grade: LessonFigureGrade }>;
   needsHuman: boolean;
   judgedBy: string | null;
   reasons: string[];
@@ -298,6 +431,12 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
   if (lostFocusIds.length > 0) reasons.push(`save dropped FOCUS ${lostFocusIds.join(", ")}`);
   if (evidence.pointsAtFigureUnresolved) reasons.push("the server could not resolve pointsAtFigure");
 
+  const zone = gradeZone(probe, evidence.zone);
+  reasons.push(...zone.reasons);
+  const lessonFigures = gradeLessonFigures(probe, evidence.lessonFigures, judgment?.extraFigures);
+  if (!judgment && lessonFigures.some((entry) => entry.grade === "drawn_unjudged")) needsHuman = true;
+  for (const entry of lessonFigures) if (entry.grade !== "drawn_unjudged" && entry.grade !== "right") reasons.push(`${entry.id}: ${entry.grade}`);
+
   return {
     probeId: probe.id,
     arm: evidence.arm,
@@ -308,6 +447,8 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
     savedEqualsLive,
     lostFocusIds,
     lostAnnotateIds,
+    zone: zone.grade,
+    lessonFigures,
     needsHuman,
     judgedBy,
     reasons,
@@ -338,6 +479,8 @@ export interface DoubtArmSummary {
   wrongParts: number;
   wrongPins: number;
   savedEqualsLive: { rows: number; equal: number; rate: number | null };
+  zone: Record<string, number>;
+  lessonFigures: Record<string, number>;
   /** p50 time to first word, doubts that drew no figure. */
   ttftP50Ms: number | null;
   needsHuman: number;
@@ -345,6 +488,8 @@ export interface DoubtArmSummary {
     noWrongFigures: boolean;
     noWrongPins: boolean;
     savedEqualsLiveAll: boolean;
+    /** Every checked row: the zone stored equals live, and no doubt figure left behind or drawn over ink. */
+    zoneAll: boolean | null;
     /** Null when there is no baseline arm in the round. */
     ttftWithinHalfSecond: boolean | null;
   };
@@ -376,7 +521,9 @@ export function summarizeDoubtGrades(
       if (grade.pointing === "no_pointer") lane.noPointer += 1;
       byLane[grade.lane] = lane;
     }
-    const wrongFigures = ok.filter((grade) => grade.newFigure === "wrong" || grade.newFigure === "drawn_out_of_scope").length;
+    const wrongFigures = ok.filter((grade) => grade.newFigure === "wrong" || grade.newFigure === "drawn_out_of_scope").length +
+      ok.reduce((sum, grade) => sum + (grade.lessonFigures ?? []).filter((entry) => entry.grade === "wrong").length, 0);
+    const zoneChecked = ok.filter((grade) => grade.zone !== undefined && grade.zone !== "not_checked");
     const wrongPins = ok.reduce((sum, grade) => sum + grade.wrongPins.length, 0);
     const equal = ok.filter((grade) => grade.savedEqualsLive).length;
     const ttftP50Ms = ttftFor(arm);
@@ -391,12 +538,15 @@ export function summarizeDoubtGrades(
       wrongParts: ok.filter((grade) => grade.pointing === "wrong_part").length,
       wrongPins,
       savedEqualsLive: { rows: ok.length, equal, rate: ok.length > 0 ? equal / ok.length : null },
+      zone: countBy(zoneChecked.map((grade) => grade.zone)),
+      lessonFigures: countBy(ok.flatMap((grade) => (grade.lessonFigures ?? []).map((entry) => entry.grade))),
       ttftP50Ms,
       needsHuman: ok.filter((grade) => grade.needsHuman).length,
       bar: {
         noWrongFigures: wrongFigures === 0,
         noWrongPins: wrongPins === 0,
         savedEqualsLiveAll: ok.length > 0 && equal === ok.length,
+        zoneAll: zoneChecked.length === 0 ? null : zoneChecked.every((grade) => grade.zone === "ok"),
         ttftWithinHalfSecond: arm === baselineArm || baseline === null || ttftP50Ms === null
           ? null
           : ttftP50Ms - baseline <= 500,
@@ -417,9 +567,10 @@ export function parseDoubtJudgments(text: string): Map<string, DoubtJudgment> {
     if (raw.pointing !== undefined && !["right_part", "wrong_part", "no_pointer"].includes(raw.pointing)) throw new Error(`${where}: bad pointing verdict`);
     if (raw.newFigure !== undefined && !["right", "wrong"].includes(raw.newFigure)) throw new Error(`${where}: bad newFigure verdict`);
     if (raw.pins !== undefined && !["right", "wrong"].includes(raw.pins)) throw new Error(`${where}: bad pins verdict`);
+    if (raw.extraFigures !== undefined && !["right", "wrong"].includes(raw.extraFigures)) throw new Error(`${where}: bad extraFigures verdict`);
     if (typeof raw.by !== "string" || !raw.by.trim()) throw new Error(`${where}: by is required`);
     out.set(judgmentKey(raw.id, raw.arm as DoubtArm), {
-      id: raw.id, arm: raw.arm as DoubtArm, pointing: raw.pointing, newFigure: raw.newFigure, pins: raw.pins,
+      id: raw.id, arm: raw.arm as DoubtArm, pointing: raw.pointing, newFigure: raw.newFigure, pins: raw.pins, extraFigures: raw.extraFigures,
       by: raw.by, reason: typeof raw.reason === "string" ? raw.reason : "",
     });
   });
@@ -446,8 +597,13 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
     markTerms: [],
     dsaFrame: null,
     referencePicture: false,
+    lessonFigureAsks: [],
+    offlineOnly: false,
     ...overrides,
-    expect: { point: "the normal reaction", pointTerms: ["N", "normal"], newFigure: null, newFigureInScope: true, ...overrides.expect },
+    expect: {
+      lessonFigure: null, zoneAfterResume: null, figures: [],
+      point: "the normal reaction", pointTerms: ["N", "normal"], newFigure: null, newFigureInScope: true, ...overrides.expect,
+    },
   });
   const evidence = (overrides: Partial<DoubtEvidence> = {}): DoubtEvidence => ({
     probeId: "incline-normal",
@@ -541,6 +697,47 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   const slow = summarizeDoubtGrades(grades, rows.map((row) => row.arm === "pointing" ? { ...row, ttftMs: 2000 } : row));
   check(slow.find((arm) => arm.arm === "pointing")!.bar.ttftWithinHalfSecond === false, "900 ms slower fails the bar");
 
+  // Zone after the resume (doubts-v2 empty_zone, picture_swap, resume_drawn).
+  const emptyZoneRow = probe({ lane: "empty_zone", expect: { point: null, pointTerms: [], newFigure: "the block's forces", zoneAfterResume: "empty" } });
+  const zone = (afterLive: ZoneSide, afterStored: ZoneSide, overrides: Partial<ZoneEvidence> = {}): ZoneEvidence => ({
+    sequence: "L text, D fig, R", live: ["empty", "doubt", afterLive], stored: ["empty", "doubt", afterStored],
+    storedEqualsLive: afterLive === afterStored, afterResume: { live: afterLive, stored: afterStored }, drawnOverInk: false, error: null,
+    ...overrides,
+  });
+  check(gradeZone(emptyZoneRow, zone("empty", "empty")).grade === "ok", "an empty zone back to empty after the resume is ok");
+  // The lane 7 mutation: a doubt figure the resume left on an empty-zone board must never grade ok.
+  check(gradeZone(emptyZoneRow, zone("doubt", "doubt")).grade === "doubt_left_on_board", "a doubt figure the resume left on an empty zone is not ok");
+  check(gradeDoubt(emptyZoneRow, evidence({ zone: zone("doubt", "doubt") })).zone === "doubt_left_on_board", "gradeDoubt carries the zone grade");
+  check(gradeZone(emptyZoneRow, zone("empty", "doubt")).grade === "stored_differs", "stored not equal to live fails first");
+  check(gradeZone(emptyZoneRow, zone("empty", "empty", { drawnOverInk: true })).grade === "drawn_over_ink", "a figure over ink fails");
+  check(gradeZone(probe({ expect: { zoneAfterResume: "lesson" } }), zone("empty", "empty")).grade === "wrong_zone", "a lesson figure that never came back is the wrong zone");
+  check(gradeZone(emptyZoneRow, null).grade === "not_checked", "no zone evidence is not checked");
+  const zoneRows: DoubtEvidence[] = [
+    evidence({ probeId: "z1", arm: "figures", zone: zone("empty", "empty") }),
+    evidence({ probeId: "z2", arm: "figures", zone: zone("doubt", "doubt") }),
+  ];
+  const zoneSummary = summarizeDoubtGrades(zoneRows.map((row) => gradeDoubt({ ...emptyZoneRow, id: row.probeId }, row)), zoneRows)[0]!;
+  check(zoneSummary.bar.zoneAll === false && zoneSummary.zone.doubt_left_on_board === 1, "a doubt left on the board fails the zone bar");
+
+  // Later lesson figures (lesson-figures arm).
+  const figuresRow = probe({ lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", ask: "velocity time graph of the motion" }],
+    expect: { point: null, pointTerms: [], figures: ["the velocity time graph"] } });
+  const extra = (overrides: Partial<LessonFiguresEvidence> = {}): LessonFiguresEvidence => ({
+    asks: figuresRow.lessonFigureAsks, drawn: [{ id: "figure_2", family: "graph", tier: "exact_verified", parts: ["curve"] }],
+    misses: [], advances: ["figure_2"], pointedOn: { figure_2: ["curve"] }, unresolvedOn: {}, ...overrides,
+  });
+  check(gradeLessonFigures(figuresRow, extra())[0]?.grade === "drawn_unjudged", "a drawn, advanced, pointed figure waits for a judge");
+  check(gradeLessonFigures(figuresRow, extra({ drawn: [], advances: [] }))[0]?.grade === "none", "no extra figure is none, never wrong");
+  check(gradeLessonFigures(figuresRow, extra({ advances: [] }))[0]?.grade === "drawn_not_advanced", "drawn but never advanced to");
+  check(gradeLessonFigures(figuresRow, extra({ pointedOn: {} }))[0]?.grade === "advance_without_pointer", "an advance with no pointer after it");
+  const extraEvidence = evidence({ arm: "lesson-figures", lessonFigures: extra() });
+  const judgedExtra = gradeDoubt(figuresRow, extraEvidence, { id: "incline-normal", arm: "lesson-figures", extraFigures: "wrong", by: "human", reason: "" });
+  check(judgedExtra.lessonFigures[0]?.grade === "wrong" && summarizeDoubtGrades([judgedExtra], [extraEvidence])[0]!.wrongFigures === 1,
+  "a judged wrong extra figure counts as a wrong figure");
+  check(armAppliesTo(figuresRow, "lesson-figures") && !armAppliesTo(figuresRow, "figures") && !armAppliesTo(emptyZoneRow, "lesson-figures"),
+    "the lesson-figures arm runs the lesson_figures lane only");
+  check(!armAppliesTo({ lane: "resume_drawn", offlineOnly: true }, "figures"), "an offline row runs in no paid arm");
+
   // Probe parsing.
   const line = (value: unknown) => JSON.stringify(value);
   const base = { id: "a-b", lane: "physics_maths", lessonQuestion: "q", doubt: "d", expect: { point: null, newFigure: null } };
@@ -561,6 +758,18 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   rejects({ ...base, lane: "control", expect: { point: null, newFigure: "x" } }, "a control expecting a figure");
   rejects({ ...base, doubt: "" }, "an empty unmarked doubt");
   rejects({ ...base, dsaFrame: 2 }, "a DSA frame on a non DSA row");
+  const figuresBase = { ...base, lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", ask: "free body diagram of the block" }],
+    expect: { point: null, newFigure: null, figures: ["the forces on the block"], lessonFigure: "drawn" } };
+  const parsedFigures = parseDoubtProbes(line(figuresBase))[0]!;
+  check(parsedFigures.lessonFigureAsks[0]?.ask === "free body diagram of the block" && parsedFigures.expect.lessonFigure === "drawn",
+    "a lesson_figures row parses its asks");
+  check(parseDoubtProbes(line({ ...base, lane: "resume_drawn" }))[0]!.offlineOnly, "a resume_drawn row is offline only");
+  check(parseDoubtProbes(line({ ...base, lane: "picture_swap" }))[0]!.referencePicture, "a picture_swap row runs the picture tier");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_2", ask: "graph for 3 seconds" }] }, "an ask with a digit");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_3", ask: "free body diagram" }] }, "asks out of id order");
+  rejects({ ...figuresBase, expect: { ...figuresBase.expect, figures: [] } }, "an ask without its expected figure");
+  rejects({ ...base, lessonFigureAsks: figuresBase.lessonFigureAsks, expect: { ...base.expect, figures: ["x"] } }, "asks outside the lesson_figures lane");
+  rejects({ ...base, expect: { ...base.expect, zoneAfterResume: "doubt" } }, "a zone that leaves the doubt's figure");
   try {
     parseDoubtProbes(`${line(base)}\n${line(base)}`);
     failures.push("parse should reject a duplicate id");

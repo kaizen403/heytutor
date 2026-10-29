@@ -25,7 +25,11 @@
  *
  * Arms (`--arms`, default `today,pointing`): `today` grants nothing; `pointing`
  * grants DIAGRAM_DOUBT_POINTING to the turn (lane B's begin-turn
- * `doubtPointing`); `figures` also grants DIAGRAM_DOUBT_FIGURES (phase 2). The
+ * `doubtPointing`); `figures` also grants DIAGRAM_DOUBT_FIGURES (phase 2);
+ * `lesson-figures` runs the lesson_figures lane's lesson with the planner's
+ * later-figures addon (DIAGRAM_LESSON_FIGURES), then the figures doubt. The
+ * figures arms record the doubt figure's planner documents in
+ * `doubts/<id>-<arm>-figures.json`; `--figure-plans <round>` replays them. The
  * grants are built by the lab, as live builds them from begin-turn, so they are
  * harmless against a server that knows neither flag.
  *
@@ -35,6 +39,10 @@
  *   pnpm exec tsx scripts/lecture-lab/doubt-run.ts --dry-run
  *   # synthetic checks of doubtGrade
  *   pnpm exec tsx scripts/lecture-lab/doubt-run.ts --check
+ *   # $0: does each row's lesson figure and doubt (or later) figure draw offline, on recorded plans?
+ *   pnpm exec tsx scripts/lecture-lab/doubt-run.ts --precheck --probes ../../data/doubt-probes/doubts-v2.jsonl --lessons .lecture-lab/doubts-01 --replay-runs <lab dirs>
+ *   # $0: the zone across [lesson, doubt, resume] live against stored, on the precheck's figures
+ *   pnpm exec tsx scripts/lecture-lab/doubt-run.ts --zone-check --probes ../../data/doubt-probes/doubts-v2.jsonl --replay-runs <lab dirs>
  *   # the paid round: both arms, live --max-usd cap
  *   caffeinate -i pnpm exec tsx scripts/lecture-lab/doubt-run.ts --max-usd 5 --concurrency 2 --out .lecture-lab/doubts-01
  *   # regrade a finished round with judgments.jsonl, no model calls
@@ -65,19 +73,14 @@ import {
 } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { DOUBT_FIGURE_REF_VERSION, type DoubtPointingPolicy } from "../../lib/boards/doubtFigureRef";
+import { LESSON_FIGURE_IDS, isLessonFigureAdvanceId, type LessonFigureId } from "../../lib/boards/lessonFigures";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { buildLabModelProfile, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { LECTURE_LAB_STANDARD_MODEL_HEADER } from "../../lib/billing/flags";
-import { MAX_LLM_CONTINUATIONS, TEXT_LAYOUT } from "../../features/tutor-session/constants";
-import type { BoardLayoutState, BoardTextRect } from "../../features/tutor-session/types";
-import {
-  findWorkTextSlot,
-  withWorkRowIdentity,
-  workColumnMaxWidth,
-  workColumnRoom,
-  workColumnRows,
-} from "../../features/tutor-session/lib/board/boardLayout";
+import { MAX_LLM_CONTINUATIONS } from "../../features/tutor-session/constants";
+import { workColumnRoom, workColumnRows } from "../../features/tutor-session/lib/board/boardLayout";
+import type { BoardLayoutState } from "../../features/tutor-session/types";
 import {
   buildMarkedDoubtPrompt,
   collectMarkCandidates,
@@ -92,6 +95,8 @@ import {
   doubtFigureNeedSkip,
   planDoubtFigure,
   requestDoubtFigureNeed,
+  figureFingerprint,
+  zoneInkOccupied,
   type DoubtFigureDrawn,
   type DoubtFigurePlanners,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
@@ -125,8 +130,24 @@ import {
 } from "./run";
 import type { LectureRun } from "./lecturePipeline";
 import {
+  FIGURE_PLANS_VERSION,
+  boardLayoutFor,
+  loadFigurePlans,
+  precheckSourceFrom,
+  loadPrecheckSources,
+  precheckRow,
+  recordedPlanners,
+  replayLessonFigure,
+  type DoubtFigurePlansRecord,
+  type PrecheckRow,
+  type PrecheckSource,
+} from "./doubt-precheck";
+import { zoneSequence, type ZoneFigure, type ZoneSequenceKind } from "./doubt-zone";
+import {
   DOUBT_ARMS,
   DOUBT_PROBE_LANES,
+  armAppliesTo,
+  gradeZone,
   doubtGradeSelfCheck,
   gradeDoubt,
   judgmentKey,
@@ -139,7 +160,9 @@ import {
   type DoubtGrade,
   type DoubtProbe,
   type DoubtProbeLane,
+  type LessonFiguresEvidence,
   type PointedPart,
+  type ZoneEvidence,
 } from "./doubtGrade";
 
 // ---------------------------------------------------------------------------
@@ -171,11 +194,19 @@ interface Options {
   dryRun: boolean;
   check: boolean;
   regrade: string | null;
+  /** $0: lesson and doubt figures offline on recorded plans. */
+  precheck: boolean;
+  /** $0: the zone sequence check on the precheck's figures. */
+  zoneCheck: boolean;
+  /** Lecture-lab dirs whose run JSONs (with figureReplayInputs) the precheck may replay a lesson from. */
+  replayRuns: string[];
+  /** A prior round whose recorded doubt figure planner documents replace the figure planners ($0). */
+  figurePlans: string | null;
 }
 
 function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
-  const booleans = new Set(["dry-run", "check", "figure-only-lessons", "reference-picture-part-focus", "doubt-pointing", "doubt-figures"]);
+  const booleans = new Set(["dry-run", "check", "precheck", "zone-check", "figure-only-lessons", "reference-picture-part-focus", "doubt-pointing", "doubt-figures"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index]!;
     if (!token.startsWith("--")) continue;
@@ -236,6 +267,10 @@ function parseOptions(argv: string[]): Options {
     dryRun: flags.get("dry-run") === "true",
     check: flags.get("check") === "true",
     regrade: flags.get("regrade") ?? null,
+    precheck: flags.get("precheck") === "true",
+    zoneCheck: flags.get("zone-check") === "true",
+    replayRuns: list("replay-runs") ?? [],
+    figurePlans: flags.get("figure-plans") ?? null,
   };
 }
 
@@ -279,10 +314,15 @@ interface LessonRecord {
     svg: string | null;
   };
   planner: LectureRun["planner"] | null;
+  /** The live selection input and authority (lane 7): ProblemIR included, so a precheck replays the lesson at $0. */
+  figureReplayInputs?: LectureRun["figureReplayInputs"] | null;
+  /** lesson-figures arm: the asks, the later figures drawn (with their diagrams), the misses. */
+  lessonFigures?: LectureRun["lessonFigures"] | null;
 }
 
-function lessonKey(probe: DoubtProbe, options: Pick<Options, "referencePicturePartFocus" | "figureOnlyLessons" | "model" | "productionStrictSubjects">): string {
+function lessonKey(probe: DoubtProbe, options: Pick<Options, "referencePicturePartFocus" | "figureOnlyLessons" | "model" | "productionStrictSubjects">, arm?: DoubtArm): string {
   const identity = JSON.stringify({
+    ...(arm === "lesson-figures" ? { lessonFigures: true } : {}),
     q: probe.lessonQuestion,
     picture: probe.referencePicture,
     partFocus: options.referencePicturePartFocus,
@@ -319,31 +359,6 @@ function dsaLesson(probe: DoubtProbe, key: string): LessonRecord {
   };
 }
 
-/** Lay the lesson's rows out with the live slot finder; a full page turns, as live. */
-function boardLayoutFor(lesson: LessonRecord): BoardLayoutState {
-  const diagramActive = Boolean(lesson.diagram) && lesson.kind !== "dsa";
-  let layout: BoardLayoutState = { rects: [], nextY: TEXT_LAYOUT.topY };
-  for (const text of lesson.rows) {
-    const place = (): boolean => {
-      const width = workColumnMaxWidth(layout, diagramActive);
-      const slot = findWorkTextSlot({
-        layout, requestedX: TEXT_LAYOUT.marginX, requestedY: layout.nextY, width,
-        height: TEXT_LAYOUT.textHeight, diagramActive, sequential: true, runtimeOwnsX: true,
-      });
-      if (!slot) return false;
-      const rect: BoardTextRect = withWorkRowIdentity(layout, { x: slot.x, y: slot.y, width, height: TEXT_LAYOUT.textHeight, text });
-      layout.rects.push(rect);
-      layout.nextY = Math.max(layout.nextY, slot.y + TEXT_LAYOUT.lineHeight);
-      return true;
-    };
-    if (!place()) {
-      layout = { rects: [], nextY: TEXT_LAYOUT.topY };
-      place();
-    }
-  }
-  return layout;
-}
-
 // ---------------------------------------------------------------------------
 // The doubt
 // ---------------------------------------------------------------------------
@@ -375,6 +390,8 @@ interface DoubtRecord {
   evidence: DoubtEvidence;
   planner: LectureRun["planner"] | null;
   elapsedMs: number;
+  /** The figures arms: the doubt figure's need and planner documents (written to their own file). */
+  figurePlans?: DoubtFigurePlansRecord | null;
 }
 
 function focusModifiers(command: DrawCommand): string[] {
@@ -438,6 +455,34 @@ function liveFigurePlanning(options: Pick<Options, "origin" | "model">): DoubtFi
   };
 }
 
+/** Every answer the figure planning gave, written down as it comes, for `--figure-plans` replays. */
+function recordingPlanning(base: DoubtFigurePlanning, sink: DoubtFigurePlansRecord): DoubtFigurePlanning {
+  return {
+    need: async (body, traceId) => (sink.need = await base.need(body, traceId)),
+    planners: (traceId) => {
+      const planners = base.planners(traceId);
+      return {
+        planTurn: async (question, run) => {
+          sink.question = question;
+          return (sink.planTurn = await planners.planTurn(question, run));
+        },
+        planAuthority: async (question, run) => {
+          sink.question = question;
+          return (sink.planAuthority = await planners.planAuthority(question, run));
+        },
+      };
+    },
+  };
+}
+
+/** A recorded doubt's need and planner documents, answered again at $0. */
+function replayedPlanning(record: DoubtFigurePlansRecord): DoubtFigurePlanning {
+  return {
+    need: async () => record.need ?? { decision: "point", reason: "need not recorded" },
+    planners: () => recordedPlanners(null, record),
+  };
+}
+
 /** The live doubt figure path: skip rules, need check, plan inside the budget. */
 async function planLabDoubtFigure(input: {
   probe: DoubtProbe;
@@ -447,13 +492,16 @@ async function planLabDoubtFigure(input: {
   traceId: string;
   startedAt: number;
   markedFigureIds: string[];
+  /** The board the lesson left: an empty zone takes a figure only when no work row reaches it. */
+  layout: ReturnType<typeof boardLayoutFor>;
   figurePlanning?: DoubtFigurePlanning;
 }): Promise<{ drawn: DoubtFigureDrawn | null; summary: string }> {
+  // As live: a doubt continues the lesson's page, so no figure there is an empty zone.
+  const zoneEmpty = !input.zoneFigure;
   const skip = doubtFigureNeedSkip({
     granted: true, codeBoard: input.codeBoard, markedFigureIds: input.markedFigureIds,
     zoneFigure: input.zoneFigure, zoneReturnable: Boolean(input.zoneFigure),
-    // The lab has no board layout to check an empty zone against (lane 7).
-    zoneEmpty: false, zoneOccupied: false,
+    zoneEmpty, zoneOccupied: zoneEmpty && zoneInkOccupied(input.layout),
   });
   if (skip) return { drawn: null, summary: `point (${skip})` };
   if (!input.figurePlanning) return { drawn: null, summary: "not planned (no server)" };
@@ -476,6 +524,64 @@ async function planLabDoubtFigure(input: {
     : { drawn: null, summary: `miss (${outcome.reason}) in ${outcome.elapsedMs} ms` };
 }
 
+/** The lesson's later figures and its advance cues, read from what its teaching said (lesson-figures arm). */
+function lessonFiguresEvidenceOf(lesson: LessonRecord): { evidence: LessonFiguresEvidence; zone: VerifiedDiagram | null } | null {
+  const later = lesson.lessonFigures;
+  if (!later) return null;
+  const evidence: LessonFiguresEvidence = {
+    asks: later.asks,
+    drawn: later.figures.map((figure) => ({ id: figure.id, family: figure.family, tier: figure.tier, parts: figure.diagram.anchors.map((anchor) => anchor.id) })),
+    misses: later.misses, advances: [], pointedOn: {}, unresolvedOn: {},
+  };
+  const parsed: TutorSegment[] = [];
+  const parser = new IncrementalTagParser({ onSegmentReady: (segment) => parsed.push(segment) });
+  parser.push(repairLectureMarkup(lesson.lessonResponse));
+  parser.flush();
+  let zone: VerifiedDiagram | null = null;
+  let zoneId: LessonFigureId | null = null;
+  for (const command of parsed.flatMap((segment) => getSegmentCommands(segment))) {
+    if (command.type !== "FOCUS") continue;
+    const targets = targetIds(command);
+    const next = targets.length === 1 && isLessonFigureAdvanceId(targets[0]!) ? later.figures.find((figure) => figure.id === targets[0]) : undefined;
+    // Forward only, as the live sequence and the server cursor.
+    if (next && (zoneId === null || LESSON_FIGURE_IDS.indexOf(next.id) > LESSON_FIGURE_IDS.indexOf(zoneId))) {
+      evidence.advances.push(next.id);
+      zone = next.diagram;
+      zoneId = next.id;
+      continue;
+    }
+    if (!zone || !zoneId) continue;
+    const resolved = resolveVerifiedDiagramFocusTargets(command, zone).map((anchor) => anchor.id);
+    (evidence.pointedOn[zoneId] ??= []).push(...resolved);
+    const missed = targets.filter((id) => !resolved.some((anchorId) => anchorId.toLowerCase() === id.toLowerCase()));
+    if (missed.length) (evidence.unresolvedOn[zoneId] ??= []).push(...missed);
+  }
+  return { evidence, zone };
+}
+
+/** The lesson's figure as the precheck rebuilds it from the recorded selection input; null for a picture or an old record. */
+function lessonZoneFigure(lesson: LessonRecord): ZoneFigure | null | "differs" {
+  if (lesson.kind !== "scene" || !lesson.figureReplayInputs) return null;
+  const source = precheckSourceFrom(`lessons/${lesson.key}.json`, lesson);
+  if (!source) return null;
+  const replay = replayLessonFigure(source);
+  if (!replay.representation || !replay.presentation) return "differs";
+  if (lesson.diagram && figureFingerprint(replay.presentation.diagram) !== figureFingerprint(lesson.diagram)) return "differs";
+  return { question: source.question, turnPlan: source.turnPlan, authority: source.authority, representation: replay.representation, presentation: replay.presentation };
+}
+
+async function labZoneEvidence(probe: DoubtProbe, lesson: LessonRecord, doubt: DoubtFigureDrawn, title: string): Promise<ZoneEvidence | null> {
+  if (lesson.kind === "picture" || lesson.kind === "dsa") return null;
+  const zoneLesson = lesson.diagram ? lessonZoneFigure(lesson) : null;
+  if (zoneLesson === "differs") {
+    return { sequence: "L fig, D fig, R, D plain", live: [], stored: [], storedEqualsLive: false, afterResume: { live: "other", stored: "other" },
+      drawnOverInk: false, error: "the lesson figure rebuilt from its recorded selection differs from the live one" };
+  }
+  if (lesson.diagram && !zoneLesson) return null;
+  const kind: ZoneSequenceKind = zoneLesson ? "swap" : "empty_zone";
+  return zoneSequence({ kind, lessonQuestion: lesson.lessonQuestion, doubtTitle: title, lesson: zoneLesson, doubt, rows: lesson.rows });
+}
+
 export async function runDoubt(
   probe: DoubtProbe,
   lesson: LessonRecord,
@@ -488,15 +594,21 @@ export async function runDoubt(
   const startedAt = Date.now();
   const traceId = randomUUID();
   const doubtPointing = arm !== "today";
-  const doubtFigures = arm === "figures";
+  const doubtFigures = arm === "figures" || arm === "lesson-figures";
   const codeBoard = lesson.kind === "dsa";
-  const zoneFigure = lesson.diagram;
+  // lesson-figures: the lesson may have advanced; the doubt meets the figure its teaching left in the zone.
+  const laterFigures = arm === "lesson-figures" ? lessonFiguresEvidenceOf(lesson) : null;
+  const zoneFigure = laterFigures?.zone ?? lesson.diagram;
   const codeFigureVisible = codeBoard && Boolean(zoneFigure) && verifiedDiagramHasDrawableInk(zoneFigure!);
   const preLayout = boardLayoutFor(lesson);
   const earlyMark = markFor(probe, preLayout, zoneFigure);
   // Phase 2, as live: the need check, then the doubt's own figure on "new_figure".
+  const figurePlans: DoubtFigurePlansRecord | null = doubtFigures && figurePlanning
+    ? { schemaVersion: FIGURE_PLANS_VERSION, probeId: probe.id, arm, need: null, question: null, planTurn: null, planAuthority: null }
+    : null;
   const figureRun = doubtFigures
-    ? await planLabDoubtFigure({ probe, lesson, zoneFigure, codeBoard, traceId, startedAt, figurePlanning,
+    ? await planLabDoubtFigure({ probe, lesson, zoneFigure, codeBoard, traceId, startedAt, layout: preLayout,
+        figurePlanning: figurePlanning && figurePlans ? recordingPlanning(figurePlanning, figurePlans) : figurePlanning,
         markedFigureIds: earlyMark?.target.entityId ? [earlyMark.target.entityId] : [] })
     : null;
   const doubtFigure = figureRun?.drawn ?? null;
@@ -563,12 +675,15 @@ export async function runDoubt(
     newFigure: doubtFigures
       ? { drawn: doubtFigure !== null, summary: figureRun?.summary ?? null }
       : null, ttftMs: null, error: null,
+    ...(laterFigures ? { lessonFigures: laterFigures.evidence } : {}),
   };
+  // The zone across [lesson, this doubt, resume], live against stored, at $0 from the saves.
+  if (doubtFigure && arm === "figures") evidence.zone = await labZoneEvidence(probe, lesson, doubtFigure, title);
   const record: DoubtRecord = {
     probeId: probe.id, arm, lessonKey: lesson.key, grants: { doubtPointing, doubtFigures }, traceId, userPrompt,
     systemPromptChars: teachingPrompt.systemPrompt.length,
     mark: { asked: probe.mark, placed: Boolean(mark), summary: mark ? summarizeMarks([mark]) : null },
-    rawText: "", continuations: 0, segments: [], evidence, planner: null, elapsedMs: 0,
+    rawText: "", continuations: 0, segments: [], evidence, planner: null, elapsedMs: 0, figurePlans,
   };
 
   try {
@@ -780,6 +895,114 @@ function scriptedStream(diagram: VerifiedDiagram | null): TeachingStream {
   });
 }
 
+// Rough ceilings for the cap, not a budget: the cap reserves each request's worst case live.
+// Measured on doubts-01 (29 Oct 2026, K3 Fast): about $0.30 to $0.45 per lesson.
+const LESSON_USD = 0.4;
+const DOUBT_USD = 0.02;
+
+/** What a round over these rows would pay for: distinct lessons per arm (a recorded one is $0), pictures, doubts. */
+function roundEstimate(options: Options, probes: readonly DoubtProbe[]) {
+  const keys = new Map<string, DoubtProbe[]>();
+  let doubts = 0;
+  for (const probe of probes) {
+    for (const arm of options.arms.filter((entry) => armAppliesTo(probe, entry))) {
+      doubts += 1;
+      if (probe.lane === "dsa") continue;
+      const key = lessonKey(probe, options, arm);
+      if (!keys.get(key)?.includes(probe)) keys.set(key, [...(keys.get(key) ?? []), probe]);
+    }
+  }
+  const lessonsDir = options.lessons ? resolve(options.lessons, "lessons") : null;
+  const recorded = lessonsDir && existsSync(lessonsDir) ? new Set(readdirSync(lessonsDir).map((name) => name.replace(/\.json$/, ""))) : new Set<string>();
+  const paid = [...keys.keys()].filter((key) => !recorded.has(key));
+  const pictures = paid.filter((key) => keys.get(key)![0]!.referencePicture).length;
+  const pictureUsd = labReferencePicturePolicy().reservationUsd;
+  const usd = paid.length * LESSON_USD + pictures * pictureUsd + doubts * DOUBT_USD;
+  return {
+    usd, recorded, lessons: keys.size, reused: keys.size - paid.length, paidLessons: paid.length,
+    offline: probes.filter((probe) => probe.offlineOnly).length,
+    shared: [...keys].filter(([, rows]) => rows.length > 1).map(([key, rows]) => [key, rows.map((row) => row.id)] as const),
+    line: `${paid.length} lessons x ~$${LESSON_USD} + ${pictures} picture reservations x $${pictureUsd.toFixed(2)} + ${doubts} doubts x ~$${DOUBT_USD} = ~$${usd.toFixed(2)}`,
+  };
+}
+
+async function precheckRows(options: Options, probes: readonly DoubtProbe[]): Promise<PrecheckRow[]> {
+  const sources = loadPrecheckSources(options.lessons ? [options.lessons] : [], options.replayRuns);
+  const plans = loadFigurePlans(options.figurePlans);
+  const rows: PrecheckRow[] = [];
+  for (const probe of probes) rows.push(await precheckRow(probe, sources, plans));
+  return rows;
+}
+
+const cell = (value: string) => value.replace(/\|/g, "/").replace(/\s+/g, " ").trim();
+
+function expectedOf(probe: DoubtProbe): string {
+  const lesson = probe.expect.lessonFigure ? `lesson ${probe.expect.lessonFigure}` : "lesson ?";
+  const doubt = probe.lane === "lesson_figures" ? `later: ${probe.expect.figures.join("; ")}`
+    : probe.expect.newFigure ? `${probe.expect.newFigureInScope ? "doubt figure" : "no figure (out of scope)"}: ${probe.expect.newFigure}`
+    : probe.expect.point ? `point: ${probe.expect.point}` : "text only";
+  return `${lesson}; ${doubt}${probe.expect.zoneAfterResume ? `; zone after resume ${probe.expect.zoneAfterResume}` : ""}`;
+}
+
+/** The precheck table (markdown) and the round estimate for the rows a paid round may take. */
+function printPrecheck(options: Options, rows: readonly PrecheckRow[]): void {
+  console.log("\n| row | lane | lesson figure | doubt or later figure | expected | IR | paid round |");
+  console.log("|---|---|---|---|---|---|---|");
+  for (const row of rows) {
+    const ir = !row.source ? "no plan" : row.irUnknown ? "IR unknown" : row.source.selection?.problemIR ? "IR" : "no IR needed";
+    const paid = row.probe.offlineOnly ? `offline ($0)${row.matches ? "" : `: ${row.why}`}` : row.matches ? `yes (${row.why})` : `no: ${row.why}`;
+    console.log(`| ${row.probe.id} | ${row.probe.lane} | ${cell(`${row.lesson.check.status} ${row.lesson.check.detail}`)} | ${cell(`${row.doubt.status} ${row.doubt.detail}`)} | ${cell(expectedOf(row.probe))} | ${ir} | ${cell(paid)} |`);
+  }
+  const eligible = rows.filter((row) => row.matches && !row.probe.offlineOnly).map((row) => row.probe);
+  const estimate = roundEstimate(options, eligible);
+  console.log(`\nprecheck: ${eligible.length} of ${rows.filter((row) => !row.probe.offlineOnly).length} paid rows eligible; ${rows.filter((row) => row.irUnknown).length} IR unknown; arms ${options.arms.join(",")}: ${estimate.line}`);
+}
+
+async function runPrecheck(options: Options, probes: readonly DoubtProbe[]): Promise<void> {
+  printPrecheck(options, await precheckRows(options, probes));
+}
+
+/** The precheck row's lesson figure as the zone check saves it. */
+function zoneLessonOf(row: PrecheckRow): ZoneFigure | null {
+  if (!row.source || !row.lesson.representation || !row.lesson.presentation) return null;
+  return { question: row.source.question, turnPlan: row.source.turnPlan, authority: row.source.authority,
+    representation: row.lesson.representation, presentation: row.lesson.presentation };
+}
+
+/** Which page sequences a row's offline figures can play. */
+function zoneKindsOf(row: PrecheckRow): ZoneSequenceKind[] {
+  const lesson = zoneLessonOf(row) !== null;
+  if (row.probe.lane === "lesson_figures") return lesson && (row.extra?.figures.length ?? 0) > 0 ? ["lesson_advance"] : [];
+  if (row.probe.lane === "resume_drawn") return lesson ? ["resume_drawn"] : [];
+  if (!row.doubtDrawn) return [];
+  return [lesson ? "swap" : "empty_zone"];
+}
+
+/** $0: every row whose figures draw offline, played live and stored; red on any difference. */
+async function runZoneCheck(options: Options, probes: readonly DoubtProbe[]): Promise<void> {
+  const rows = await precheckRows(options, probes);
+  let played = 0;
+  let failures = 0;
+  console.log("| row | sequence | live | stored | replay | stored equals live | zone grade |");
+  console.log("|---|---|---|---|---|---|---|");
+  for (const row of rows) {
+    for (const kind of zoneKindsOf(row)) {
+      const zone = await zoneSequence({
+        kind, lessonQuestion: row.probe.lessonQuestion, doubtTitle: doubtTurnTitle(row.probe.doubt),
+        lesson: zoneLessonOf(row), doubt: row.doubtDrawn, extra: row.extra?.figures[0] ?? null, rows: row.source?.rows ?? [],
+      });
+      const grade = gradeZone(row.probe, zone);
+      played += 1;
+      const failed = zone.error !== null || !zone.storedEqualsLive || grade.grade === "doubt_left_on_board" || grade.grade === "drawn_over_ink";
+      if (failed) failures += 1;
+      console.log(`| ${row.probe.id} | ${zone.sequence} | ${zone.live.join(" > ")} | ${zone.stored.join(" > ")} | ${(zone.replay ?? []).join(" > ")} | ${zone.storedEqualsLive ? "yes" : "NO"} | ${grade.grade}${zone.error ? ` (${cell(zone.error)})` : ""} |`);
+    }
+  }
+  const skipped = rows.filter((row) => zoneKindsOf(row).length === 0).map((row) => row.probe.id);
+  console.log(`\nzone check: ${played} sequences, ${failures} failed; ${skipped.length} rows with no offline figure to play${skipped.length ? ` (${skipped.join(", ")})` : ""}`);
+  if (failures > 0 || played === 0) process.exitCode = 1;
+}
+
 async function runDryRun(options: Options, probes: readonly DoubtProbe[]): Promise<void> {
   const byLane = new Map<string, DoubtProbe[]>();
   for (const probe of probes) byLane.set(probe.lane, [...(byLane.get(probe.lane) ?? []), probe]);
@@ -791,32 +1014,24 @@ async function runDryRun(options: Options, probes: readonly DoubtProbe[]): Promi
     console.log(`  ${lane.padEnd(18)} ${String(rows.length).padStart(2)} rows: ${point} point, ${figure} new figure, ${rows.length - point - figure} neither, ${marked} marked`);
   }
 
-  const keys = new Map<string, DoubtProbe[]>();
-  for (const probe of probes) {
-    if (probe.lane === "dsa") continue;
-    const key = lessonKey(probe, options);
-    keys.set(key, [...(keys.get(key) ?? []), probe]);
-  }
-  const recorded = options.lessons ? new Set(readdirSync(resolve(options.lessons, "lessons")).map((name) => name.replace(/\.json$/, ""))) : new Set<string>();
-  const paidLessons = [...keys.keys()].filter((key) => !recorded.has(key));
-  const pictureLessons = paidLessons.filter((key) => keys.get(key)![0]!.referencePicture).length;
-  console.log(`\nlessons: ${keys.size} distinct paid lessons for ${probes.filter((probe) => probe.lane !== "dsa").length} rows (${keys.size - paidLessons.length} reused from --lessons), DSA lessons offline at $0`);
-  for (const [key, rows] of keys) if (rows.length > 1) console.log(`  shared: ${key} by ${rows.map((row) => row.id).join(", ")}`);
+  const estimate = roundEstimate(options, probes);
+  console.log(`\nlessons: ${estimate.lessons} distinct lessons (${estimate.reused} reused from --lessons, ${estimate.paidLessons} paid), ${estimate.offline} offline rows, DSA lessons offline at $0`);
+  for (const [key, rows] of estimate.shared) console.log(`  shared: ${key} by ${rows.join(", ")}`);
 
   console.log("\nplan:");
   for (const probe of probes) {
-    const lesson = probe.lane === "dsa" ? "dsa frames" : recorded.has(lessonKey(probe, options)) ? "recorded" : probe.referencePicture ? "paid + picture" : "paid";
+    const arms = options.arms.filter((arm) => armAppliesTo(probe, arm));
+    const lesson = probe.offlineOnly ? "offline" : probe.lane === "dsa" ? "dsa frames"
+      : arms.every((arm) => estimate.recorded.has(lessonKey(probe, options, arm))) ? "recorded" : probe.referencePicture ? "paid + picture" : "paid";
     const expect = probe.expect.point ? `point: ${probe.expect.point}` : probe.expect.newFigure ? `new figure${probe.expect.newFigureInScope ? "" : " (out of scope)"}: ${probe.expect.newFigure}` : "no figure change";
-    console.log(`  ${probe.id.padEnd(34)} ${probe.lane.padEnd(17)} lesson ${lesson.padEnd(15)} ${probe.mark ? `mark ${probe.mark} ` : ""}${expect}`);
+    console.log(`  ${probe.id.padEnd(34)} ${probe.lane.padEnd(17)} lesson ${lesson.padEnd(15)} arms ${arms.join(",") || "none"} ${probe.mark ? `mark ${probe.mark} ` : ""}${expect}`);
   }
+  console.log(`\nestimate: ${estimate.line}; live cap --max-usd $${options.maxUsd.toFixed(2)}`);
 
-  // Rough ceilings for the cap, not a budget: the cap reserves each request's worst case live.
-  // Measured on doubts-01 (29 Oct 2026, K3 Fast): about $0.30 to $0.45 per lesson.
-  const lessonUsd = 0.4;
-  const doubtUsd = 0.02;
-  const pictureUsd = labReferencePicturePolicy().reservationUsd;
-  const estimate = paidLessons.length * lessonUsd + pictureLessons * pictureUsd + probes.length * options.arms.length * doubtUsd;
-  console.log(`\nestimate: ${paidLessons.length} lessons x ~$${lessonUsd} + ${pictureLessons} picture reservations x $${pictureUsd.toFixed(2)} + ${probes.length * options.arms.length} doubts x ~$${doubtUsd} = ~$${estimate.toFixed(2)}; live cap --max-usd $${options.maxUsd.toFixed(2)}`);
+  // The $0 precheck: what each row's figures do on recorded plans today.
+  const checked = await precheckRows(options, probes);
+  if (checked.some((row) => row.source)) printPrecheck(options, checked);
+  else console.log("\nprecheck: no recorded plan for any row (pass --lessons and --replay-runs)");
 
   console.log("\noffline smoke (scripted answers, no model, no server):");
   const smokeRows: { probe: DoubtProbe; lesson: LessonRecord }[] = [];
@@ -838,8 +1053,8 @@ async function runDryRun(options: Options, probes: readonly DoubtProbe[]): Promi
   } as Parameters<typeof restoreVerifiedPresentationFromTurn>[0]);
   const fixtureProbe: DoubtProbe = {
     id: "fixture-number-line", lane: "physics_maths", lessonQuestion: fixture.question, doubt: "Why does the arrow start here?",
-    mark: null, markTerms: [], dsaFrame: null, referencePicture: false,
-    expect: { point: "the starting value", pointTerms: ["start", "2"], newFigure: null, newFigureInScope: true },
+    mark: null, markTerms: [], dsaFrame: null, referencePicture: false, lessonFigureAsks: [], offlineOnly: false,
+    expect: { lessonFigure: "drawn", zoneAfterResume: null, figures: [], point: "the starting value", pointTerms: ["start", "2"], newFigure: null, newFigureInScope: true },
   };
   smokeRows.push({ probe: fixtureProbe, lesson: {
     schemaVersion: LESSON_RECORD_VERSION, key: "fixture", lessonQuestion: fixture.question, kind: "scene",
@@ -967,7 +1182,7 @@ function installBudgetedFetch(input: {
   return { spendCap, usageTracker, deniedTraces, writeCheckpoint, restore: () => { globalThis.fetch = nativeFetch; } };
 }
 
-async function paidLesson(probe: DoubtProbe, key: string, options: Options, cookie: string, ledger: Ledger, outDir: string): Promise<LessonRecord> {
+async function paidLesson(probe: DoubtProbe, key: string, options: Options, cookie: string, ledger: Ledger, outDir: string, arm: DoubtArm): Promise<LessonRecord> {
   const { runLecture } = await import("./lecturePipeline");
   const traceId = randomUUID();
   let diagram: VerifiedDiagram | null = null;
@@ -976,6 +1191,7 @@ async function paidLesson(probe: DoubtProbe, key: string, options: Options, cook
     probeId: `doubt-lesson|${key}`, figureOnly: options.figureOnlyLessons,
     productionStrictSubjects: options.productionStrictSubjects, spendMode: "conservative",
     referencePicture: probe.referencePicture, referencePicturePartFocus: options.referencePicturePartFocus,
+    lessonFigures: arm === "lesson-figures",
     onPresentation: (presentation) => { diagram = presentation.diagram; },
   });
   const planner = await ledger.usageTracker.finishAsync(traceId);
@@ -1003,6 +1219,8 @@ async function paidLesson(probe: DoubtProbe, key: string, options: Options, cook
     summary: { committed: run.diagram.committed, figureSource: run.diagram.figureSource ?? null, family: run.diagram.family,
       referencePicture: run.referencePicture?.status ?? null, error: run.error, svg },
     planner,
+    figureReplayInputs: run.figureReplayInputs ?? null,
+    lessonFigures: run.lessonFigures ?? null,
   };
 }
 
@@ -1050,12 +1268,12 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
     }
   }
   const pending = new Map<string, Promise<LessonRecord>>();
-  const lessonFor = (probe: DoubtProbe): Promise<LessonRecord> => {
-    const key = probe.lane === "dsa" ? `dsa-${labArtifactSlug(probe.id)}` : lessonKey(probe, options);
+  const lessonFor = (probe: DoubtProbe, arm: DoubtArm): Promise<LessonRecord> => {
+    const key = probe.lane === "dsa" ? `dsa-${labArtifactSlug(probe.id)}` : lessonKey(probe, options, arm);
     const existing = pending.get(key);
     if (existing) return existing;
     const made = (async () => {
-      const lesson = probe.lane === "dsa" ? dsaLesson(probe, key) : recorded.get(key) ?? await paidLesson(probe, key, options, cookie, ledger, outDir);
+      const lesson = probe.lane === "dsa" ? dsaLesson(probe, key) : recorded.get(key) ?? await paidLesson(probe, key, options, cookie, ledger, outDir, arm);
       writeFileSync(`${outDir}/lessons/${key}.json`, `${JSON.stringify(lesson, null, 1)}\n`);
       return lesson;
     })();
@@ -1063,24 +1281,28 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
     return made;
   };
 
+  const recordedPlans = loadFigurePlans(options.figurePlans);
+  const plannedDoubts = probes.reduce((sum, probe) => sum + options.arms.filter((arm) => armAppliesTo(probe, arm)).length, 0);
   console.log(`doubt lab: ${probes.length} rows x arms ${options.arms.join(", ")}, concurrency ${options.concurrency}, live cap $${options.maxUsd.toFixed(2)}, model ${options.model} -> ${options.out}`);
   const records: DoubtRecord[] = [];
   const untested: string[] = [];
-  const spend = () => ({ ...ledger.spendCap.summary(records.length, probes.length * options.arms.length), untested });
+  const spend = () => ({ ...ledger.spendCap.summary(records.length, plannedDoubts), untested });
   let done = 0;
   try {
     await runBudgetedLabRows(probes, options.concurrency, ledger.spendCap, async (probe) => {
-      let lesson: LessonRecord;
-      try {
-        lesson = await lessonFor(probe);
-      } catch (error) {
-        if (!(error instanceof BudgetStop)) throw error;
-        untested.push(probe.id);
-        console.log(`budget ended before ${probe.id}; untested`);
-        return;
-      }
-      for (const arm of options.arms) {
-        const record = await runDoubt(probe, lesson, arm, stream, options, arm === "figures" ? liveFigurePlanning(options) : undefined);
+      for (const arm of options.arms.filter((entry) => armAppliesTo(probe, entry))) {
+        let lesson: LessonRecord;
+        try {
+          lesson = await lessonFor(probe, arm);
+        } catch (error) {
+          if (!(error instanceof BudgetStop)) throw error;
+          untested.push(`${probe.id}|${arm}`);
+          console.log(`budget ended before ${probe.id} (${arm}); untested`);
+          continue;
+        }
+        const replay = recordedPlans.get(`${probe.id}|${arm}`);
+        const planning = arm === "figures" || arm === "lesson-figures" ? replay ? replayedPlanning(replay) : liveFigurePlanning(options) : undefined;
+        const record = await runDoubt(probe, lesson, arm, stream, options, planning);
         record.planner = await ledger.usageTracker.finishAsync(record.traceId);
         if (ledger.deniedTraces.has(record.traceId)) {
           untested.push(`${probe.id}|${arm}`);
@@ -1089,7 +1311,9 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
         }
         records.push(record);
         const slug = `${labArtifactSlug(probe.id)}-${arm}`;
-        writeFileSync(`${outDir}/doubts/${slug}.json`, `${JSON.stringify(record, null, 1)}\n`);
+        // The figure planner documents go to their own file: `--figure-plans` replays them at $0.
+        if (record.figurePlans) writeFileSync(`${outDir}/doubts/${slug}-figures.json`, `${JSON.stringify(record.figurePlans, null, 1)}\n`);
+        writeFileSync(`${outDir}/doubts/${slug}.json`, `${JSON.stringify({ ...record, figurePlans: undefined }, null, 1)}\n`);
         const grade = gradeDoubt(probe, record.evidence);
         writeFileSync(`${outDir}/transcripts/${slug}.md`, transcript(probe, lesson, record, grade));
         done += 1;
@@ -1103,13 +1327,13 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
   }
   const summary = writeReports(outDir, probes, records, spend());
   printSummary(summary);
-  const final = ledger.spendCap.summary(records.length, probes.length * options.arms.length);
+  const final = ledger.spendCap.summary(records.length, plannedDoubts);
   console.log(`\nspend: $${final.chargedUsd.toFixed(4)} charged (conservative), $${final.knownUsageUsd.toFixed(4)} measured, cap $${final.maxUsd.toFixed(2)}${final.stoppedForBudget ? ", STOPPED FOR BUDGET" : ""}; ${untested.length} untested`);
 }
 
 function runRegrade(options: Options, probes: readonly DoubtProbe[]): void {
   const dir = resolve(process.cwd(), options.regrade!);
-  const records = readdirSync(`${dir}/doubts`).filter((name) => name.endsWith(".json"))
+  const records = readdirSync(`${dir}/doubts`).filter((name) => name.endsWith(".json") && !name.endsWith("-figures.json"))
     .map((name) => JSON.parse(readFileSync(`${dir}/doubts/${name}`, "utf8")) as DoubtRecord);
   const spend = existsSync(`${dir}/summary.json`) ? (JSON.parse(readFileSync(`${dir}/summary.json`, "utf8")) as { spend?: unknown }).spend : null;
   printSummary(writeReports(dir, probes, records, spend));
@@ -1119,9 +1343,13 @@ async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   if (options.check) return runCheck();
   const probes = loadProbes(options);
+  if (options.precheck) return runPrecheck(options, probes);
+  if (options.zoneCheck) return runZoneCheck(options, probes);
   if (options.dryRun) return runDryRun(options, probes);
   if (options.regrade) return runRegrade(options, probes);
-  return runPaidRound(options, probes);
+  const offline = probes.filter((probe) => probe.offlineOnly).map((probe) => probe.id);
+  if (offline.length > 0) console.log(`offline rows skipped by the paid round ($0, --zone-check): ${offline.join(", ")}`);
+  return runPaidRound(options, probes.filter((probe) => !probe.offlineOnly));
 }
 
 if (process.argv[1]?.endsWith("doubt-run.ts")) {
