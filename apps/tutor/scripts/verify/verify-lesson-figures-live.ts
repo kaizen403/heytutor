@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import ts from "typescript";
 import type Konva from "konva";
-import { getSegmentCommands, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
+import { getSegmentCommands, prepareVerifiedLessonSegments, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import incline from "./fixtures/lesson-figures-incline-plan.json";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
@@ -26,6 +26,7 @@ import { planLessonFigures } from "../../features/tutor-session/lib/turn/lessonF
 import {
   LessonFigureSequence,
   lessonFigureIntroCommands,
+  prepareLessonFigureSegments,
   type LessonFigurePresentation,
   type PlannedLessonFigureView,
 } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
@@ -276,8 +277,104 @@ async function executorChecks(): Promise<void> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Preparation cursor: segments are checked against the figure each cue moves
+// to, not the figure on screen when the response streams.
+// ---------------------------------------------------------------------------
+
+const SOURCE_ROOT = fileURLToPath(new URL("../../features/tutor-session/", import.meta.url));
+const stripComments = (raw: string) => raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+function anchoredSlice(file: string, name: string): string {
+  const source = readFileSync(path.join(SOURCE_ROOT, file), "utf8");
+  const begin = source.indexOf(`// ${name}:begin`);
+  const end = source.indexOf(`// ${name}:end`, begin);
+  assert(begin >= 0, `slice anchor: ${name}:begin in ${file}`);
+  assert(end > begin, `slice anchor: ${name}:end after its begin in ${file}`);
+  assert.equal(source.indexOf(`// ${name}:begin`, begin + 1), -1, `one ${name}:begin in ${file}`);
+  return stripComments(source.slice(begin, end));
+}
+
+const focus = (id: string, at = 0): DrawCommand => ({
+  type: "FOCUS", params: [], text: id, semanticRef: { entityId: id }, charPosition: at, narrationBefore: "",
+});
+const write = (text: string, at = 0): DrawCommand => ({ type: "WRITE", params: [40, 200], text, charPosition: at, narrationBefore: "" });
+const segment = (narration: string, commands: DrawCommand[]): TutorSegment => ({ narration, command: commands[0] ?? null, commands });
+const keptIds = (segments: readonly TutorSegment[]) => segments.flatMap(getSegmentCommands)
+  .map((command) => command.type === "FOCUS" ? command.semanticRef?.entityId ?? command.text ?? "" : command.type);
+
+async function preparationChecks(): Promise<void> {
+  const figureOneIds = new Set(first.diagram.anchors.map((anchor) => anchor.id));
+  const part = view2.diagram.anchors.find((anchor) => !figureOneIds.has(anchor.id))?.id;
+  assert(part, "figure 2 has a part figure 1 does not");
+  const figureOnePart = first.diagram.anchors.find((anchor) => !view2.diagram.anchors.some((other) => other.id === anchor.id))!.id;
+
+  await check("prepare/after-the-advance-keeps-figure-2-parts", () => {
+    const run = [
+      segment("Now look at the forces on the block.", [focus("figure_2")]),
+      segment("This one acts along the slope.", [focus(part)]),
+    ];
+    const cues: string[] = [];
+    assert.deepEqual(keptIds(prepareLessonFigureSegments(run, first.diagram, committed([view2]), cues).segments), ["figure_2", part]);
+    assert.deepEqual(cues, ["figure_2"], "the cursor moved");
+  });
+  await check("prepare/before-the-advance-filters-figure-2-parts", () => {
+    const run = [
+      segment("This one acts along the slope.", [focus(part)]),
+      segment("Now look at the forces on the block.", [focus("figure_2")]),
+      segment("Back to the line.", [focus(figureOnePart)]),
+    ];
+    const prepared = prepareLessonFigureSegments(run, first.diagram, committed([view2]), []);
+    assert.deepEqual(keptIds(prepared.segments), ["figure_2"], "figure 2's part before the cue and figure 1's after it are filtered");
+    assert.equal(prepared.blockedCommandCount, 2, "the advance itself is never counted as blocked");
+  });
+  await check("prepare/streamed-one-at-a-time", () => {
+    const sequence = committed([view2]);
+    const cues: string[] = [];
+    const streamed = [
+      segment("First the line.", [write("y = 2x + 1"), focus(figureOnePart)]),
+      segment("Now look at the forces on the block.", [focus("figure_2")]),
+      segment("This one acts along the slope.", [focus(part)]),
+      segment("Again the forces.", [focus("figure_2")]),
+    ].flatMap((one) => prepareLessonFigureSegments([one], first.diagram, sequence, cues).segments);
+    assert.deepEqual(keptIds(streamed), ["WRITE", figureOnePart, "figure_2", part], "the cursor carries across calls; a repeat cue is filtered");
+    assert.equal(sequence.currentId(), "figure_1", "preparation never moves the playback cursor");
+  });
+  await check("prepare/advance-runs-first-in-its-sentence", () => {
+    const prepared = prepareLessonFigureSegments([
+      segment("Here the slope force acts on the block.", [focus(part, 5), focus("figure_2", 20)]),
+    ], first.diagram, committed([view2]), []);
+    assert.deepEqual(keptIds(prepared.segments), ["figure_2", part], "the sentence's other commands resolve on the figure it moves to");
+    const bare = prepareLessonFigureSegments([segment("", [focus("figure_2")])], first.diagram, committed([view2]), []);
+    assert.deepEqual(keptIds(bare.segments), ["figure_2"], "a cue with no words still moves");
+  });
+  await check("prepare/no-sequence-is-byte-identical", () => {
+    const run = [
+      segment("First the line.", [write("y = 2x + 1"), focus(figureOnePart)]),
+      segment("Now look at the forces on the block.", [focus("figure_2")]),
+      segment("This one acts along the slope.", [focus(part)]),
+    ];
+    const reference = JSON.stringify(prepareVerifiedLessonSegments(structuredClone(run), first.diagram));
+    assert.equal(JSON.stringify(prepareLessonFigureSegments(structuredClone(run), first.diagram, null, [])), reference, "flag off: no sequence");
+    assert.equal(JSON.stringify(prepareLessonFigureSegments(structuredClone(run), first.diagram, new LessonFigureSequence(), [])), reference, "no later figure: the same bytes");
+  });
+  await check("prepare/both-call-sites-use-the-cursor", () => {
+    const stream = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-prepare");
+    assert(/const lessonFigurePrep = !doubt && !resume && !codeLesson && lessonFiguresRef\?\.current\?\.active\(\)/.test(stream), "the stream prepares with the lesson's sequence only on a lesson turn");
+    assert(/prepareLessonFigureSegments\(\[bufferedSegment\], activeDiagram, lessonFigurePrep, lessonFigureCues\)/.test(stream), "the stream prepares each segment through the cursor");
+    assert(!/prepareVerifiedLessonSegments\(/.test(stream), "never against the static diagram");
+    const batch = anchoredSlice("hooks/turn/useTurnControl.ts", "lesson-figures-prepare");
+    assert(/prepareLessonFigureSegments\(rawLlmSegments, activeDiagram, options\?\.lessonFigures \?\? null, \[\]\)/.test(batch), "the batch path prepares through the cursor");
+    assert(!/prepareVerifiedLessonSegments\(/.test(batch), "never against the static diagram");
+    const uqh = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useQuestionHandler.ts"), "utf8"));
+    assert(/errorQuestion: question, lessonFigures: lessonFigurePrep \}/.test(uqh), "the batch call passes the same sequence");
+    assert(!/prepareVerifiedLessonSegments\(/.test(uqh), "uQH prepares nothing against the static diagram");
+    assert(/lessonFigureCues\.length = 0;/.test(anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-retry")), "a startup retry starts the cursor again");
+  });
+}
+
 async function main(): Promise<void> {
   await sequenceChecks();
+  await preparationChecks();
   await executorChecks();
   console.log(`verify-lesson-figures-live: ${passed} checks passed`);
 }

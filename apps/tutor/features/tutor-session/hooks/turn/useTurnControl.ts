@@ -9,10 +9,10 @@ import {
   type TutorSegment,
   buildLessonSegments,
   lessonNarrationText,
-  prepareVerifiedLessonSegments,
   peekDeferredAnnotation,
   acknowledgeDeferredAnnotation,
 } from "@heytutor/drawing";
+import { prepareLessonFigureSegments, type LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
 import { compactConversationHistory, tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
 import {
   summarizeSegmentsForTrace,
@@ -649,7 +649,12 @@ export function useTurnControl(
       liveEnqueued = false,
       turnGeneration = turnGenerationRef.current,
       givenSegments: TutorSegment[] = [],
-      options?: { revealDeferredAnnotations?: boolean; errorQuestion?: string },
+      options?: {
+        revealDeferredAnnotations?: boolean;
+        errorQuestion?: string;
+        /** The lesson's later figures: segments are prepared against the figure each cue moves to. */
+        lessonFigures?: LessonFigureSequence | null;
+      },
     ) => {
       if (turnGeneration !== turnGenerationRef.current) {
         return;
@@ -670,7 +675,9 @@ export function useTurnControl(
 
       const activeDiagram = activeVerifiedDiagramRef.current;
       const rawLlmSegments = buildLessonSegments(responseText);
-      const preparedLlmSegments = prepareVerifiedLessonSegments(rawLlmSegments, activeDiagram);
+      // lesson-figures-prepare:begin
+      const preparedLlmSegments = prepareLessonFigureSegments(rawLlmSegments, activeDiagram, options?.lessonFigures ?? null, []);
+      // lesson-figures-prepare:end
       // During a code lesson the teaching stream may only narrate, gesture,
       // and reveal committed blocks; [TYPE] tags resolve to their exact code.
       const codeLessonState = codeLessonControllerRef?.current?.getState();

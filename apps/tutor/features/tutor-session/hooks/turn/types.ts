@@ -321,6 +321,8 @@ export type TurnControlApi = {
       revealDeferredAnnotations?: boolean;
       /** What an empty-response error names, so a retry asks this same turn again. */
       errorQuestion?: string;
+      /** The lesson's later figures: segments are prepared against the figure each cue moves to. */
+      lessonFigures?: LessonFigureSequence | null;
     },
   ) => Promise<void>;
   stopTurn: (options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void;

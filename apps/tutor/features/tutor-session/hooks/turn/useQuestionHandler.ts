@@ -3,7 +3,6 @@ import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
-  prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
   scheduleFrame,
@@ -120,6 +119,7 @@ import {
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
+import { LessonFigureSequence, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
@@ -339,6 +339,7 @@ export function useQuestionHandler(
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     codeLessonControllerRef,
+    lessonFiguresRef,
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
@@ -2779,12 +2780,20 @@ export function useQuestionHandler(
           }
         };
 
+        // lesson-figures-prepare:begin
+        // Preparation runs ahead of playback: a sentence after [FOCUS:figure_2]
+        // is checked against figure 2 here, long before the executor draws it.
+        const lessonFigurePrep = !doubt && !resume && !codeLesson && lessonFiguresRef?.current?.active()
+          ? lessonFiguresRef.current
+          : null;
+        const lessonFigureCues: string[] = [];
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
           // A resumed lecture must not queue its opening figure until a
           // spoken-and-written step passes the ink gate. Otherwise an intro
           // can keep drawing after a no-ink resume reports failure.
-          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+          const prepared = prepareLessonFigureSegments([bufferedSegment], activeDiagram, lessonFigurePrep, lessonFigureCues);
+          // lesson-figures-prepare:end
           const ready = focusFold.take(prepared.segments, { lessonStarted: usableTeachingStepReceived });
           queuePreparedSegments(ready, prepared);
           bufferedSegment = null;
@@ -3000,6 +3009,10 @@ export function useQuestionHandler(
               resumeInkGate?.reset();
               conductor = createTurnConductor();
               focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
+              // lesson-figures-retry:begin
+              // Nothing played: the retried response moves through the figures from figure 1 again.
+              lessonFigureCues.length = 0;
+              // lesson-figures-retry:end
             }
             continue;
           }
@@ -3198,7 +3211,8 @@ export function useQuestionHandler(
           // The stopped lesson's withheld labels belong to the part of it the
           // student has not reached yet; a doubt must not reveal them.
           // A doubt's own figure keeps them too: replay never flushes a doubt.
-          { revealDeferredAnnotations: !doubt, errorQuestion: question },
+          // lesson-figures-batch: the same preparation cursor as the stream.
+          { revealDeferredAnnotations: !doubt, errorQuestion: question, lessonFigures: lessonFigurePrep },
         ), isCurrentTurn);
 
         const finalNarration =
