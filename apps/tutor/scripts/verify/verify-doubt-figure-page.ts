@@ -454,6 +454,15 @@ async function main(): Promise<void> {
     "surfaces/the lecture player's work pages follow the same page turns");
   }
 
+  // A new question while the doubt page is up: both pages become notes pages before the clear.
+  {
+    const notes = anchored("features/tutor-session/hooks/useBoardLayout.ts", "doubt-page-notes");
+    assert(/if \(returnLessonPage\(wb, null, \{ capture: captureNotesEpoch, narration: narrationSinceEpochRef \}\)\) \{\s*captureNotesEpoch\(\);/.test(notes),
+      "notes/a new question captures the doubt page, then the held lesson page, before it clears");
+    const layoutFile = readFileSync(resolve(root, "features/tutor-session/hooks/useBoardLayout.ts"), "utf8");
+    assert(at(layoutFile, "// doubt-page-notes:end") < at(layoutFile, "if (wb) await wb.clearBoard();"), "notes/before the clear drops the held page");
+  }
+
   void resumeOf;
   console.log(`verify-doubt-figure-page: ${checks} checks passed`);
 }

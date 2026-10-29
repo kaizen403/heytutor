@@ -468,6 +468,7 @@ export function useLectureExport({
       }
     })();
   }, [
+    boardLayoutRef,
     dispatch,
     enabled,
     executeCommandWithCancel,
