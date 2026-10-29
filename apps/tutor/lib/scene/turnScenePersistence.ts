@@ -48,7 +48,7 @@ import {
   type DoubtFigureMarker,
 } from "@/lib/boards/doubtFigure";
 import type { TurnKind } from "@/lib/boards/turnStatus";
-import type { DoubtFigurePageCheck, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
+import type { DoubtFigurePageCheck, LessonFigureStartLoader, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
 import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
@@ -175,6 +175,12 @@ export async function canonicalizeTurnSceneMetadata(
     doubtPointingEnabled?: boolean;
     /** DIAGRAM_LESSON_FIGURES at save time; read from the environment when absent. */
     lessonFiguresEnabled?: boolean;
+    /**
+     * Bound by the save route like `loadPageFigure`: the lesson figure the
+     * stored page had reached, which a resume's teaching starts on. Absent, a
+     * resume starts on figure 1.
+     */
+    lessonFigureStart?: LessonFigureStartLoader;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -240,7 +246,10 @@ export async function canonicalizeTurnSceneMetadata(
       parseStoredSegmentCommands(segment.command).some((command) => SCENE_POINTING_COMMANDS.has(command.type)));
     if (pointsAtFigure && pageContinuation && options.loadPageFigure && pointing) {
       try {
-        pageFigure = await options.loadPageFigure(pointsAtFigure, { lessonQuestion: pageContinuation.lessonQuestion });
+        pageFigure = await options.loadPageFigure(pointsAtFigure, {
+          lessonQuestion: pageContinuation.lessonQuestion,
+          ...((options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled()) ? { lessonFigures: true as const } : {}),
+        });
       } catch {
         pageFigure = null;
       }
@@ -397,9 +406,24 @@ export async function canonicalizeTurnSceneMetadata(
   const submittedLessonFigures = lessonFiguresOf(metadata.sceneArtifacts);
   const lessonFigures = submittedLessonFigures && !doubtFigure && !codeLesson &&
     (options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
-    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, turnPlan, narrationLanguage })
+    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, turnPlan, narrationLanguage, first: expectedPresentation.diagram })
     : null;
   // lesson-figures:end
+  // lesson-figure-resume-start:begin
+  // A resume teaches on the figure the page had reached (live reads the zone),
+  // so its cursor starts there, not on figure 1: its FOCUS on figure k's parts
+  // are checked against figure k, as replay resolves them (`pageFigureAt`).
+  let resumeStart: LessonFigureId | null = null;
+  if (lessonFigures && continuation && options.kind === "resume" && options.lessonFigureStart) {
+    let reached: string = "figure_1";
+    try {
+      reached = await options.lessonFigureStart();
+    } catch {
+      reached = "figure_1";
+    }
+    resumeStart = isLessonFigureAdvanceId(reached) && lessonFigures.diagrams.has(reached) ? reached : null;
+  }
+  // lesson-figure-resume-start:end
   const teachingCommands = canonicalizeTeachingCommands(
     doubtFigure && !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
       ? withoutFlaggedDoubtPointing(persistSegments)
@@ -408,6 +432,7 @@ export async function canonicalizeTurnSceneMetadata(
     codeLesson,
     null,
     lessonFigures?.diagrams ?? null,
+    resumeStart,
   );
   if (!teachingCommands.ok) return teachingCommands;
 
@@ -836,11 +861,14 @@ function canonicalizeTeachingCommands(
    * advance to a figure not admitted is filtered like any stale FOCUS.
    */
   lessonFigures: ReadonlyMap<LessonFigureId, VerifiedDiagram> | null = null,
+  /** A resume's starting figure: the one the page had reached (one of `lessonFigures`). */
+  startFigure: LessonFigureId | null = null,
 ): { ok: true; segments: SubmittedTurnSegment[] } | TurnSceneFailure {
   const canonical: SubmittedTurnSegment[] = [];
   // lesson-figure-cursor:begin
-  let checkDiagram = diagram;
-  let figureIndex = -1;
+  const start = startFigure && lessonFigures?.get(startFigure) ? startFigure : null;
+  let checkDiagram = start ? lessonFigures!.get(start)! : diagram;
+  let figureIndex = start ? LESSON_FIGURE_IDS.indexOf(start) : -1;
   const advanceOf = (candidate: DrawCommand): LessonFigureId | null => {
     if (!lessonFigures || candidate.type !== "FOCUS") return null;
     const spec = parseFocusSpec(candidate.semanticRef?.entityId ?? candidate.text);

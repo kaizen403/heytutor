@@ -24,6 +24,15 @@
  * (i) the figure cache key drops `figureId` (figure 2 is served for figure 1);
  * (j) the canonicalizer keeps `figureId` with the flag off;
  * (k) uQH `doubt-lesson-figure` drops the zone's figure id.
+ *
+ * Lane 8a (round 2 review):
+ * (l) F3: the loader skips the `page-figure-reached` walk (a doubt naming
+ *     figure 2 on a page that never advanced keeps its FOCUS);
+ * (m) F3: the walk ignores the source turn (a figure named on L while a
+ *     doubt's own figure holds the zone resolves);
+ * (n) F1: the canonicalizer drops the resume start (`resumeStart` null): a
+ *     resume's FOCUS on a figure 2 part after the advance is filtered;
+ * (o) F1: the start loader names figure 1 always.
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
@@ -41,7 +50,7 @@ import { composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure }
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { DOUBT_FIGURE_REF_VERSION, doubtFigureRefArtifacts, type DoubtFigureRef } from "../../lib/boards/doubtFigureRef";
-import { bindPageFigureLoader, memoryPageFigureStore, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
+import { bindLessonFigureStart, bindPageFigureLoader, memoryPageFigureStore, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { doubtFigureRefFor } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { lessonFigureReturnAfter, pageFigureAt, storedTurnFocusIds } from "../../lib/boards/pageFigure";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
@@ -513,25 +522,39 @@ async function resumeChecks(): Promise<void> {
 const BOARD = "b0000000-0000-4000-8000-000000000000";
 const OWNER = "user-lesson-figures";
 
+/** A stored turn as the database holds it: every row, its kind. */
+function boardRow(turn: StoredTurn, orderIndex: number): PageFigureTurn {
+  return {
+    id: turn.id, boardId: BOARD, userId: OWNER, orderIndex, question: turn.question, visualStatus: turn.visualStatus,
+    sceneDocument: turn.sceneDocument, sceneArtifacts: turn.sceneArtifacts, kind: turn.kind ?? null,
+    segments: turn.segments.map((segment) => ({ orderIndex: segment.orderIndex, command: segment.command })),
+  };
+}
+
+/** L as saved by a Stop before its advance cue: every row before `[FOCUS:figure_2]`. */
+function beforeTheAdvance(L: StoredTurn): StoredTurn {
+  const cue = L.segments.findIndex((segment) => parseStoredSegmentCommands(segment.command)
+    .some((command) => command.type === "FOCUS" && command.text === "figure_2"));
+  assert(cue > 0, "L saved its advance cue");
+  return { ...L, segments: L.segments.slice(0, cue) };
+}
+
 async function doubtRefChecks(): Promise<void> {
   const on = await lessonFiguresPage(true);
   const L = on.turns[0]!;
-  const lessonRow: PageFigureTurn = {
-    id: L.id, boardId: BOARD, userId: OWNER, orderIndex: 0, question: L.question, visualStatus: L.visualStatus,
-    sceneDocument: L.sceneDocument, sceneArtifacts: L.sceneArtifacts,
-    segments: L.segments.slice(0, 1).map((segment) => ({ orderIndex: segment.orderIndex, command: segment.command })),
-  };
-  const loadPageFigure = bindPageFigureLoader({ boardId: BOARD, userId: OWNER, turnId: null }, { store: memoryPageFigureStore([lessonRow]) });
+  const lessonRow = boardRow(L, 0);
+  const loaderOn = (rows: PageFigureTurn[]) => bindPageFigureLoader({ boardId: BOARD, userId: OWNER, turnId: null }, { store: memoryPageFigureStore(rows) });
+  const loadPageFigure = loaderOn([lessonRow]);
   const ref = (figureId?: "figure_2" | "figure_3"): DoubtFigureRef => ({
     schemaVersion: DOUBT_FIGURE_REF_VERSION, turnId: L_ID, kind: "verified_scene", ...(figureId ? { figureId } : {}),
   });
-  const save = (pointsAt: DoubtFigureRef, flag = true) => canonicalizeTurnSceneMetadata({
+  const save = (pointsAt: DoubtFigureRef, flag = true, loader = loadPageFigure, target = on.secondToo) => canonicalizeTurnSceneMetadata({
     question: "Doubt: what is that force?",
     sceneDocument: null,
     visualStatus: "text_only",
     sceneArtifacts: { ...boardContinuationArtifacts(LESSON), ...doubtFigureRefArtifacts(pointsAt) },
-    segments: [row(0, "That force is this one.", [focus(on.secondToo)])],
-  }, { kind: "doubt", loadPageFigure, doubtPointingEnabled: true, lessonFiguresEnabled: flag });
+    segments: [row(0, "That force is this one.", [focus(target)])],
+  }, { kind: "doubt", loadPageFigure: loader, doubtPointingEnabled: true, lessonFiguresEnabled: flag });
   const focusTargets = (segments: SubmittedTurnSceneMetadata["segments"]) => segments
     .flatMap((segment) => parseStoredSegmentCommands(segment.command))
     .filter((command) => command.type === "FOCUS").map((command) => command.text ?? "");
@@ -547,12 +570,49 @@ async function doubtRefChecks(): Promise<void> {
     assert(!unresolved(saved.value), "the reference resolved");
   });
   await check("doubt-ref/figure-1-reference-filters-figure-2-parts", async () => {
-    // Same lesson turn, no figure id: checked on figure 1, whose parts these are not.
+    // Same lesson turn, no figure id: the page had reached figure 2, so figure 1 is refused.
     const saved = await save(ref());
     assert(saved.ok);
     assert.deepEqual(focusTargets(saved.value.segments), [], "a figure 2 part is not on figure 1");
     assert.equal(saved.value.segments[0]!.narration, "That force is this one.", "the words stay");
     assert(!("figureId" in (artifactsOf(saved.value).pointsAtFigure as Record<string, unknown>)));
+    assert(unresolved(saved.value), "figure 1 is not the figure the page had reached");
+  });
+  // page-figure-reached (review F3): the figure named must be the one the stored page reached.
+  await check("doubt-ref/figure-2-before-the-advance-is-refused", async () => {
+    const early = loaderOn([boardRow(beforeTheAdvance(L), 0)]);
+    const saved = await save(ref("figure_2"), true, early);
+    assert(saved.ok, "a figure the page never reached never fails the save");
+    assert.deepEqual(focusTargets(saved.value.segments), [], "figure 2's part is filtered: the stored page is still on figure 1");
+    assert(unresolved(saved.value), "recorded as unresolved");
+    const honest = await save(ref(), true, early, on.firstOnly);
+    assert(honest.ok);
+    assert.deepEqual(focusTargets(honest.value.segments), [on.firstOnly], "before the advance, figure 1 is the zone's figure and its part is kept");
+    assert(!unresolved(honest.value));
+  });
+  await check("doubt-ref/another-turns-figure-in-the-zone-is-refused", async () => {
+    // D drew its own figure after L: L's figure 2 is stashed, not in the zone.
+    const D = on.turns[2]!;
+    const swapped = loaderOn([lessonRow, boardRow(on.turns[1]!, 1), boardRow(D, 2)]);
+    const saved = await save(ref("figure_2"), true, swapped);
+    assert(saved.ok);
+    assert.deepEqual(focusTargets(saved.value.segments), [], "L is not the zone's source while D's figure stands there");
+    assert(unresolved(saved.value));
+    // D's own figure is a figure 1: naming L's figure 1 instead is refused on the source alone.
+    const figureOne = await save(ref(), true, swapped, on.firstOnly);
+    assert(figureOne.ok);
+    assert.deepEqual(focusTargets(figureOne.value.segments), [], "L's figure 1 is not in the zone either");
+    assert(unresolved(figureOne.value));
+    const later = await save(ref("figure_2"), true, loaderOn([lessonRow, boardRow(on.turns[1]!, 1)]));
+    assert(later.ok);
+    assert.deepEqual(focusTargets(later.value.segments), [on.secondToo], "after a plain doubt L's figure 2 still holds the zone");
+  });
+  await check("doubt-ref/flag-off-skips-the-walk", async () => {
+    // Flag off with no figure id: today's check on figure 1, with no walk (no unresolved for a kept figure 1 part).
+    const saved = await save(ref(), false, loadPageFigure, on.firstOnly);
+    assert(saved.ok);
+    assert.deepEqual(focusTargets(saved.value.segments), [on.firstOnly], "flag off: figure 1, as before lane 8a");
+    assert(!unresolved(saved.value));
   });
   await check("doubt-ref/forged-figure-id-is-refused", async () => {
     // figure_3 is a well formed id the stored artifact does not list.
@@ -582,11 +642,110 @@ async function doubtRefChecks(): Promise<void> {
     assert.deepEqual(pointed, ref("figure_2"), "the doubt names L and figure 2");
     assert.deepEqual(doubtFigureRefFor({ ...input, activeDiagram: figure1, lessonFigureId: null }), ref(), "figure 1: today's reference");
   });
+  await check("loader/page-figure-reached-anchors", () => {
+    const slice = anchoredServerSlice("lib/scene/pageFigureLoader.ts", "page-figure-reached");
+    assert(/storedPageZone\(context, deps\.store, \{ kind: "doubt" \}\)/.test(slice), "the loader walks the stored page with the doubt appended");
+    assert(/zone\.turnIds\[zone\.at\.sourceIndex\] !== target\.id/.test(slice), "the zone's source must be the turn named");
+    assert(/zone\.at\.figureId !== \(figureId \?\? "figure_1"\)/.test(slice), "and its figure the figure named");
+  });
   await check("uqh/doubt-names-the-zone-figure", () => {
     const slice = anchoredSlice("hooks/turn/useQuestionHandler.ts", "doubt-lesson-figure");
     assert(/lessonFigureId: lessonFigureIdInZone\(lessonFiguresRef\?\.current\?\.views\(\) \?\? \[\], activeVerifiedDiagramRef\.current\)/.test(slice),
       "the doubt's reference reads the figure in the zone");
   });
+}
+
+/**
+ * Review F1: a resume after the advance, saved the way live builds it (no cue,
+ * no LATER FIGURES, a FOCUS on a figure 2 part), keeps that FOCUS: its cursor
+ * starts on the figure the stored page had reached.
+ */
+async function resumeStartChecks(): Promise<void> {
+  const on = await lessonFiguresPage(true);
+  const L = on.turns[0]!;
+  const artifact = { schemaVersion: "lesson-figures/v1", figures: [on.figure] };
+  const resumeId = "a6666666-6666-4666-8666-666666666666";
+  const saveResume = async (rows: PageFigureTurn[], options: { flag?: boolean; bound?: boolean; target?: string } = {}) => {
+    const store = memoryPageFigureStore(rows);
+    const context = { boardId: BOARD, userId: OWNER, turnId: null };
+    const metadata = lessonMetadata([row(0, "So this force acts on the body.", [focus(options.target ?? on.secondOnly)])], {
+      lessonFigures: artifact, ...boardContinuationArtifacts(LESSON),
+    });
+    return canonicalizeTurnSceneMetadata(metadata, {
+      kind: "resume",
+      lessonFiguresEnabled: options.flag ?? true,
+      ...(options.bound === false ? {} : { lessonFigureStart: bindLessonFigureStart(context, { store }) }),
+    });
+  };
+  const kept = (value: { segments: SubmittedTurnSceneMetadata["segments"] }) => value.segments
+    .filter((segment) => !isStoredCommandTrustedGeometry(segment.command))
+    .flatMap((segment) => parseStoredSegmentCommands(segment.command))
+    .filter((command) => command.type === "FOCUS").map((command) => command.text ?? "");
+
+  await check("resume-start/after-the-advance-keeps-figure-2-focus", async () => {
+    const start = await bindLessonFigureStart({ boardId: BOARD, userId: OWNER, turnId: null }, { store: memoryPageFigureStore([boardRow(L, 0)]) })();
+    assert.equal(start, "figure_2", "the stored page reached figure 2");
+    const saved = await saveResume([boardRow(L, 0)]);
+    assert(saved.ok, `the resume saves: ${saved.ok ? "" : saved.error}`);
+    assert.deepEqual(kept(saved.value), [on.secondOnly], "the resume's FOCUS on a figure 2 part is kept");
+    // Replay resolves it against the same figure: pageFigureAt puts figure 2 in the zone at R.
+    const R = stored(resumeId, 1, LESSON, { ...saved.value, sceneArtifacts: saved.value.sceneArtifacts as StoredTurn["sceneArtifacts"] }, { opensOnClear: false, kind: "resume" });
+    assert.equal(pageFigureAt([L, R], 1).figureId, "figure_2");
+  });
+  await check("resume-start/after-a-doubt-figure-returns-figure-2", async () => {
+    const rows = on.turns.slice(0, 3).map((turn, index) => boardRow(turn, index));
+    const saved = await saveResume(rows);
+    assert(saved.ok);
+    assert.deepEqual(kept(saved.value), [on.secondOnly], "the resume returns figure 2 and points at it");
+  });
+  await check("resume-start/before-the-advance-stays-on-figure-1", async () => {
+    const saved = await saveResume([boardRow(beforeTheAdvance(L), 0)]);
+    assert(saved.ok);
+    assert.deepEqual(kept(saved.value), [], "the page never reached figure 2: its part is filtered");
+    const one = await saveResume([boardRow(beforeTheAdvance(L), 0)], { target: on.firstOnly });
+    assert(one.ok);
+    assert.deepEqual(kept(one.value), [on.firstOnly], "figure 1's part is kept");
+  });
+  await check("resume-start/a-cue-in-the-resume-still-moves-forward-only", async () => {
+    // On figure 2 already, a figure_2 cue is a repeat: filtered as a stale FOCUS.
+    const store = memoryPageFigureStore([boardRow(L, 0)]);
+    const saved = await canonicalizeTurnSceneMetadata(lessonMetadata([
+      row(0, "Again the forces.", [focus("figure_2")]),
+      row(1, "This one.", [focus(on.secondOnly)]),
+    ], { lessonFigures: artifact, ...boardContinuationArtifacts(LESSON) }), {
+      kind: "resume", lessonFiguresEnabled: true,
+      lessonFigureStart: bindLessonFigureStart({ boardId: BOARD, userId: OWNER, turnId: null }, { store }),
+    });
+    assert(saved.ok);
+    assert.deepEqual(kept(saved.value), [on.secondOnly], "the repeat cue is filtered, figure 2's part is kept");
+  });
+  await check("resume-start/flag-off-and-unbound-start-on-figure-1", async () => {
+    const off = await saveResume([boardRow(L, 0)], { flag: false });
+    assert(off.ok);
+    assert.deepEqual(kept(off.value), [], "flag off: the artifact is stripped and the resume is checked on figure 1");
+    const unbound = await saveResume([boardRow(L, 0)], { bound: false });
+    assert(unbound.ok);
+    assert.deepEqual(kept(unbound.value), [], "no start loader (the legacy one shot route): figure 1");
+  });
+  await check("resume-start/server-anchors", () => {
+    const slice = anchoredServerSlice("lib/scene/turnScenePersistence.ts", "lesson-figure-resume-start");
+    assert(/options\.kind === "resume" && options\.lessonFigureStart/.test(slice), "only a resume asks for its start");
+    assert(/reached = await options\.lessonFigureStart\(\)/.test(slice));
+    const checkpoint = readFileSync(path.join(APP_ROOT, "lib/boards/turnCheckpoint.ts"), "utf8");
+    assert.equal(checkpoint.split("lessonFigureStart, kind: turnKind }").length - 1, 2, "both checkpoint canonicalizations pass the start");
+  });
+}
+
+const APP_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+function anchoredServerSlice(file: string, name: string): string {
+  const source = readFileSync(path.join(APP_ROOT, file), "utf8");
+  const begin = source.indexOf(`// ${name}:begin\n`);
+  const end = source.indexOf(`// ${name}:end\n`, begin);
+  assert(begin >= 0, `slice anchor: ${name}:begin in ${file}`);
+  assert(end > begin, `slice anchor: ${name}:end after its begin in ${file}`);
+  assert.equal(source.split(`// ${name}:begin`).length, 2, `one ${name}:begin in ${file}`);
+  assert.equal(source.split(`// ${name}:end`).length, 2, `one ${name}:end in ${file}`);
+  return stripComments(source.slice(begin, end));
 }
 
 async function main(): Promise<void> {
@@ -595,6 +754,7 @@ async function main(): Promise<void> {
   await restoreChecks();
   await boardRestoreChecks();
   await doubtRefChecks();
+  await resumeStartChecks();
   console.log(`verify-lesson-figures-replay: ${passed} checks passed`);
 }
 

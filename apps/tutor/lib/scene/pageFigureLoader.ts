@@ -14,6 +14,10 @@
  * 2. Every turn strictly between the two continues the board: no page opener.
  * 3. The referenced turn's page question is the doubt's lesson question.
  * 4. The referenced row holds a figure of the kind the reference claims.
+ * 5. On a lesson with later figures (DIAGRAM_LESSON_FIGURES), the figure named
+ *    is the one the stored page had reached: `pageFigureAt` over the page's
+ *    stored turns, with the doubt appended, puts that turn and that figure in
+ *    the zone (`storedPageZone`).
  *
  * A doubt that drew its own figure (`doubtFigure.ts`) is checked against the
  * same page by `bindDoubtFigurePageCheck`: the page the doubt continues opens
@@ -25,6 +29,7 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import {
+  BOARD_CONTINUATION_VERSION,
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
@@ -32,6 +37,7 @@ import type { StoredTurn } from "@/lib/boards/boardsClient";
 import type { DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
 import { doubtFigureOf, storedTurnSceneQuestion, type DoubtFigureMarker } from "@/lib/boards/doubtFigure";
 import { LESSON_FIGURES_VERSION, lessonFiguresOf, type LessonFigureId } from "@/lib/boards/lessonFigures";
+import { pageFigureAt, type PageFigureAt, type PageFigureId, type PageFigureTurn as ZoneTurn } from "@/lib/boards/pageFigure";
 import { admitLessonFigures } from "@/lib/scene/sceneAdmission";
 import { validateTurnPlanV3 } from "@heytutor/scene-engine";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
@@ -48,6 +54,12 @@ import type { ReferencePictureLoader } from "@/lib/scene/referencePicturePersist
 export interface PageFigureRequest {
   /** `boardContinuation.lessonQuestion` of the doubt. */
   lessonQuestion: string;
+  /**
+   * DIAGRAM_LESSON_FIGURES at save time, set only when on. A lesson with later
+   * figures may have moved past figure 1, so the figure named must be the one
+   * the stored page had reached (`pageFigureAt`).
+   */
+  lessonFigures?: true;
 }
 
 /** Bound by the save route to the doubt's board, owner and turn id. */
@@ -65,7 +77,12 @@ export interface PageFigureTurn {
   sceneArtifacts: unknown;
   /** At least the first segment by orderIndex: it says whether the turn opened a page. */
   segments: { orderIndex: number; command: unknown }[];
+  /** The turn's kind; read by the zone walk only (`pageTurns`). */
+  kind?: string | null;
 }
+
+/** A page turn as the zone walk reads it: every row's command, the kind, the status. No scene document. */
+export type PageZoneTurn = Pick<PageFigureTurn, "id" | "boardId" | "userId" | "orderIndex" | "question" | "visualStatus" | "sceneArtifacts" | "segments" | "kind">;
 
 /** The fields the page walk reads: whether each turn continues the page, and its question. */
 export type PageWalkTurn = Pick<PageFigureTurn, "id" | "boardId" | "userId" | "orderIndex" | "question" | "sceneArtifacts" | "segments">;
@@ -86,6 +103,13 @@ export interface PageFigureStore {
    * when null), newest first, at most `PAGE_FIGURE_MAX_TURNS_BETWEEN + 2`.
    */
   turnsBefore(boardId: string, before: number | null): Promise<PageWalkTurn[]>;
+  /**
+   * Turns on the board, any owner, with `from <= orderIndex` (and `< before`
+   * when given), in board order, with every row, at most
+   * `PAGE_FIGURE_MAX_TURNS_BETWEEN + 2`. Absent, no zone walk can run and a
+   * figure that needs one is refused.
+   */
+  pageTurns?(boardId: string, from: number, before: number | null): Promise<PageZoneTurn[]>;
 }
 
 export interface PageFigureContext {
@@ -186,6 +210,85 @@ function dsaFrameFigure(turn: PageFigureTurn, frameIndex: number | undefined): V
 }
 
 /**
+ * The zone a turn appended after the stored page's last turn starts on: the
+ * same `pageFigureAt` replay, restore and export run, over the page's stored
+ * turns (the saved turn's own row excluded) with `next` appended. `turnIds`
+ * maps the walk's indexes to turn ids. Null when the page cannot be read.
+ *
+ * A validated row always stores its scene document (the canonicalizer writes
+ * one), so the walk reads the status and never loads the documents.
+ */
+export async function storedPageZone(
+  context: PageFigureContext,
+  store: PageFigureStore,
+  next: { kind: "doubt" | "resume" },
+): Promise<{ turnIds: string[]; at: PageFigureAt } | null> {
+  if (!store.pageTurns) return null;
+  const self = context.turnId ? await store.findTurn(context.turnId) : null;
+  if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return null;
+  const before = self?.orderIndex ?? null;
+  const earlier = (await store.turnsBefore(context.boardId, before)).filter((turn) => turn.id !== context.turnId);
+  let opener: PageWalkTurn | null = null;
+  for (const [index, turn] of earlier.entries()) {
+    if (index > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
+    if (!storedTurnContinuesBoard(asContinuationTurn(turn))) {
+      opener = turn;
+      break;
+    }
+  }
+  // Every stored turn continues the board: the oldest one opened it.
+  if (!opener) {
+    if (earlier.length > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
+    opener = earlier.at(-1) ?? null;
+  }
+  if (!opener) return null;
+  const page = (await store.pageTurns(context.boardId, opener.orderIndex, before))
+    .filter((turn) => turn.id !== context.turnId && turn.boardId === context.boardId);
+  if (page.length === 0 || page.length > PAGE_FIGURE_MAX_TURNS_BETWEEN + 1 || page[0]!.id !== opener.id) return null;
+  const turns: ZoneTurn[] = page.map((turn) => ({
+    kind: (turn.kind ?? undefined) as ZoneTurn["kind"],
+    sceneArtifacts: turn.sceneArtifacts as ZoneTurn["sceneArtifacts"],
+    segments: turn.segments as unknown as ZoneTurn["segments"],
+    sceneDocument: turn.visualStatus === "validated" ? {} as ZoneTurn["sceneDocument"] : null,
+    visualStatus: turn.visualStatus as ZoneTurn["visualStatus"],
+  }));
+  turns.push({
+    kind: next.kind,
+    sceneArtifacts: { boardContinuation: { schemaVersion: BOARD_CONTINUATION_VERSION, lessonQuestion: "" } } as ZoneTurn["sceneArtifacts"],
+    segments: [],
+    sceneDocument: null,
+    visualStatus: "text_only",
+  });
+  return { turnIds: page.map((turn) => turn.id), at: pageFigureAt(turns, turns.length - 1) };
+}
+
+/**
+ * Which of the lesson's figures a resume saved now starts on: the figure the
+ * stored page had reached (`pageFigureAt` with a resume appended), so its
+ * teaching is checked against the figure live taught it on. Bound by the save
+ * route; "figure_1" when the page cannot be read or no turn lists later figures.
+ */
+export type LessonFigureStartLoader = () => Promise<PageFigureId>;
+
+export function bindLessonFigureStart(
+  context: PageFigureContext,
+  deps: { store: PageFigureStore },
+): LessonFigureStartLoader {
+  return async () => {
+    try {
+      const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
+      const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
+      // Most pages have no later figure: no full read for them.
+      if (!earlier.some((turn) => turn.id !== context.turnId && lessonFiguresOf(turn.sceneArtifacts))) return "figure_1";
+      const zone = await storedPageZone(context, deps.store, { kind: "resume" });
+      return zone?.at.figureId ?? "figure_1";
+    } catch {
+      return "figure_1";
+    }
+  };
+}
+
+/**
  * Rebuilt figures by referenced turn. A doubt checkpoints many times against
  * the same lesson figure; its compile and presentation are reused while the
  * referenced row is unchanged (the fingerprint is the row's question, status
@@ -242,6 +345,15 @@ export function bindPageFigureLoader(
       if (normalizedQuestion(pageQuestion) !== normalizedQuestion(page.lessonQuestion)) return null;
       if (ref.kind === "verified_scene") {
         const figureId = ref.figureId;
+        // page-figure-reached:begin
+        // A lesson with later figures: the figure named must be the one the
+        // stored page had reached when the doubt was asked, on the turn named.
+        if (figureId !== undefined || (page.lessonFigures === true && lessonFiguresOf(target.sceneArtifacts))) {
+          const zone = await storedPageZone(context, deps.store, { kind: "doubt" });
+          if (!zone || zone.at.sourceIndex === null || zone.turnIds[zone.at.sourceIndex] !== target.id) return null;
+          if (zone.at.figureId !== (figureId ?? "figure_1")) return null;
+        }
+        // page-figure-reached:end
         return cachedFigure(ref, target, () => figureId ? lessonFigure(target, figureId) : sceneFigure(target));
       }
       if (ref.kind === "dsa_frame") return cachedFigure(ref, target, () => dsaFrameFigure(target, ref.frameIndex));
@@ -325,6 +437,19 @@ const PAGE_WALK_TURN_SELECT = {
   segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const }, take: 1 },
 } as const;
 
+/** The zone walk: every row's command and the kind, still no scene document. */
+const PAGE_ZONE_TURN_SELECT = {
+  id: true,
+  boardId: true,
+  userId: true,
+  orderIndex: true,
+  question: true,
+  kind: true,
+  visualStatus: true,
+  sceneArtifacts: true,
+  segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const } },
+} as const;
+
 /** The same reads over rows in memory, for the gates. */
 export function memoryPageFigureStore(turns: readonly PageFigureTurn[]): PageFigureStore {
   const sorted = [...turns].sort((a, b) => a.orderIndex - b.orderIndex);
@@ -337,6 +462,13 @@ export function memoryPageFigureStore(turns: readonly PageFigureTurn[]): PageFig
       .filter((turn) => turn.boardId === boardId && (before === null || turn.orderIndex < before))
       .reverse()
       .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2),
+    pageTurns: async (boardId, from, before) => sorted
+      .filter((turn) => turn.boardId === boardId && turn.orderIndex >= from && (before === null || turn.orderIndex < before))
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2)
+      .map((turn) => ({
+        id: turn.id, boardId: turn.boardId, userId: turn.userId, orderIndex: turn.orderIndex, question: turn.question,
+        visualStatus: turn.visualStatus, sceneArtifacts: turn.sceneArtifacts, segments: turn.segments, kind: turn.kind ?? null,
+      })),
   };
 }
 
@@ -345,8 +477,8 @@ export function prismaPageFigureStore(db: {
   turn: {
     findFirst(args: { where: { id: string }; select: typeof PAGE_FIGURE_TURN_SELECT }): Promise<unknown>;
     findMany(args: {
-      where: { boardId: string; orderIndex?: { gt?: number; lt?: number } };
-      select: typeof PAGE_WALK_TURN_SELECT;
+      where: { boardId: string; orderIndex?: { gt?: number; gte?: number; lt?: number } };
+      select: typeof PAGE_WALK_TURN_SELECT | typeof PAGE_ZONE_TURN_SELECT;
       orderBy: { orderIndex: "asc" | "desc" };
       take: number;
     }): Promise<unknown[]>;
@@ -369,6 +501,13 @@ export function prismaPageFigureStore(db: {
         orderBy: { orderIndex: "desc" },
         take: PAGE_FIGURE_MAX_TURNS_BETWEEN + 2,
       })) as PageWalkTurn[],
+    pageTurns: async (boardId, from, before) =>
+      (await db.turn.findMany({
+        where: { boardId, orderIndex: before === null ? { gte: from } : { gte: from, lt: before } },
+        select: PAGE_ZONE_TURN_SELECT,
+        orderBy: { orderIndex: "asc" },
+        take: PAGE_FIGURE_MAX_TURNS_BETWEEN + 2,
+      })) as PageZoneTurn[],
   };
 }
 
@@ -378,6 +517,14 @@ export function pageFigureLoaderFor(
   db: Parameters<typeof prismaPageFigureStore>[0],
 ): PageFigureLoader {
   return bindPageFigureLoader(context, { store: prismaPageFigureStore(db) });
+}
+
+/** The production lesson figure start for one resume save. */
+export function lessonFigureStartFor(
+  context: PageFigureContext,
+  db: Parameters<typeof prismaPageFigureStore>[0],
+): LessonFigureStartLoader {
+  return bindLessonFigureStart(context, { store: prismaPageFigureStore(db) });
 }
 
 /** The production doubt figure page check for one save. */
