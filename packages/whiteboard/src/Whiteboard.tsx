@@ -21,7 +21,6 @@ import {
   DIAGRAM_ZONE,
   MAX_BOARD_FONT_SIZE,
   MIN_BOARD_FONT_SIZE,
-  REFERENCE_PICTURE_ZONE,
   WORK_ZONE,
   type DrawCommandInkSettings,
   type PicturePass,
@@ -1925,7 +1924,6 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         tagBoardInk,
         trackNode,
         untrackNode,
-        width,
       ],
     );
 

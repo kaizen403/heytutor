@@ -35,7 +35,6 @@ import ts from "typescript";
 import * as drawing from "@heytutor/drawing";
 import {
   DRAW_COMMAND_TYPES,
-  REFERENCE_PICTURE_CREDIT_Y,
   REFERENCE_PICTURE_ZONE,
   fitPicture,
   isBlockedVerifiedDiagramCommand,

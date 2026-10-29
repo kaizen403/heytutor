@@ -63,10 +63,11 @@ export interface ReferencePicturePlan {
 /**
  * Where a picture may sit on the 1200x700 board: the right of the board,
  * taller than the verified diagram zone so a labelled diagram stays legible,
- * with room under it for the credit line.
+ * with room under it. Nothing is written in that room: the credit line under
+ * the picture was removed from the board on 29 Oct 2026.
  */
 export const REFERENCE_PICTURE_ZONE = { x: 410, y: 118, width: 750, height: 480 } as const;
-/** Baseline y of the credit line, under the zone. */
+/** Where the credit line's baseline sat under the zone; the board no longer draws it. */
 export const REFERENCE_PICTURE_CREDIT_Y = 616;
 
 /**
