@@ -55,9 +55,10 @@ described in rule 5.
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 | DSA worked examples (LeetCode) | `packages/scene-engine/src/dsa/` — simulators, `traceToScene`, `familyTeaching` |
 | DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
-| Admin panel (overview / users / logs / fails) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
+| Admin panel (overview / users / logs / fails / community) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
 | Test playground (syllabus lectures) | `apps/tutor/app/admin/playground/page.tsx` + `features/admin/AdminPlayground.tsx` |
 | Finished-lecture playback bar (seek, speed, chapters) | `apps/tutor/features/tutor-session/hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx` + `lib/replay/lecturePlayer.ts` |
+| Community (public boards, remix) | `apps/tutor/lib/community/` (`publicBoard.ts` privacy whitelist, `queries.ts`, `remix.ts`) + `features/community/`; moderation in `/admin/community`; gate `verify-community-privacy.ts` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
 
 ## Agent Guidelines

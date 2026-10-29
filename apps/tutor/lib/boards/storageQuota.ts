@@ -155,6 +155,20 @@ export async function reserveStorageBytes(userId: string, bytes: number): Promis
   });
 }
 
+/**
+ * Charge `bytes` and run `run` in the same locked transaction, so a copy that
+ * lands rows lands its charge with them. Used by a Community remix; never do
+ * object-store I/O inside `run`.
+ */
+export async function withAdmittedStorageBytes<T>(userId: string, bytes: number, run: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  return withMeasuredStorageLock(userId, bytes, async (tx) => {
+    const storage = await storageRow(tx, userId);
+    checkBytes(storage.reservedBytes, bytes);
+    await tx.userStorage.update({ where: { userId }, data: { reservedBytes: { increment: BigInt(bytes) } } });
+    return run(tx);
+  });
+}
+
 export async function releaseStorageBytes(userId: string, bytes: bigint | number): Promise<void> {
   if (BigInt(bytes) <= 0n) return;
   await withUserStorageLock(userId, async (tx) => {
