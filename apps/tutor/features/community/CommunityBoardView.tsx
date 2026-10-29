@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TutorSessionShell } from "@/features/tutor-session/TutorSessionShell";
+import { TutorSessionShell, type TutorSessionExportApi } from "@/features/tutor-session/TutorSessionShell";
 import { boardPath } from "@/features/tutor-session/lib/board/boardRoute";
 import { SiteButton } from "@/components/ui/site-button";
 import { updateBoard } from "@/lib/boards/boardsClient";
@@ -41,6 +41,9 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [madePrivate, setMadePrivate] = useState(false);
+  // The shell's replay, for lessons without recorded audio: they have no
+  // playback bar, and this page hides the header that normally offers Replay.
+  const [sessionApi, setSessionApi] = useState<TutorSessionExportApi | null>(null);
 
   // One read serves both the header and the player, so the board is fetched
   // once. Started lazily, in the browser only: during the server render there
@@ -158,6 +161,11 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
               {remixing ? "Remixing" : "Remix"}
             </SiteButton>
           )}
+          {sessionApi?.canReplay && !sessionApi.isReplaying ? (
+            <SiteButton size="sm" variant="ghost" onClick={() => void sessionApi.replayLecture()}>
+              Replay
+            </SiteButton>
+          ) : null}
           <SiteButton size="sm" variant="ghost" onClick={share}>
             Share
           </SiteButton>
@@ -194,7 +202,7 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
         ) : null}
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <TutorSessionShell key={boardId} sessionId={boardId} variant="community" readBoard={readBoard} />
+        <TutorSessionShell key={boardId} sessionId={boardId} variant="community" readBoard={readBoard} onExportApi={setSessionApi} />
       </div>
     </div>
   );

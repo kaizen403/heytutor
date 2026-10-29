@@ -19,6 +19,8 @@ export function LibraryScreen() {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  /** Boards with a visibility save in flight; their toggle waits, so saves cannot land out of order. */
+  const [savingVisibility, setSavingVisibility] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
     void fetchBoards().then((list) => setBoards(sortBoards(list)));
@@ -130,13 +132,21 @@ export function LibraryScreen() {
                 </SiteButton>
                 <SiteButton
                   size="xs"
+                  disabled={savingVisibility.has(board.id)}
                   onClick={() => {
+                    if (savingVisibility.has(board.id)) return;
+                    setSavingVisibility((current) => new Set(current).add(board.id));
                     const next = board.visibility === "public" ? "private" : "public";
                     setBoards((current) =>
                       current.map((entry) => (entry.id === board.id ? { ...entry, visibility: next } : entry)),
                     );
                     // A failed save must not leave a board looking private while it stays public.
                     void updateBoard(board.id, { visibility: next }).then((updated) => {
+                      setSavingVisibility((current) => {
+                        const rest = new Set(current);
+                        rest.delete(board.id);
+                        return rest;
+                      });
                       if (!updated) {
                         setBoards((current) =>
                           current.map((entry) => (entry.id === board.id ? { ...entry, visibility: board.visibility } : entry)),

@@ -1757,6 +1757,10 @@ export function TutorSessionShell({
   // stay in the visible pane, not at the corner of the scrolled board.
   const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
 
+  const thumbnailPublishable = useCallback(
+    () => storedTurnsRef.current.every((turn) => (turn.persistedStatus ?? turn.status ?? "complete") !== "live"),
+    [storedTurnsRef],
+  );
   useBoardThumbnail({
     enabled:
       variant === "full" &&
@@ -1769,6 +1773,7 @@ export function TutorSessionShell({
     boardId: sessionId,
     turnCount: storedTurnsCount,
     whiteboardRef,
+    publishable: thumbnailPublishable,
   });
 
   if (isHeadless) {

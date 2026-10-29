@@ -1,6 +1,5 @@
 import {
   CopyObjectCommand,
-  DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -233,19 +232,6 @@ export async function getBoardThumbnail(boardId: string): Promise<StoredObjectBo
     return { body: body.transformToWebStream() as ReadableStream<Uint8Array>, contentType: "image/webp" };
   } catch {
     return null;
-  }
-}
-
-/** Best effort: an orphaned picture is never served, because its route needs the board row. */
-export async function deleteBoardThumbnail(boardId: string): Promise<void> {
-  const key = boardThumbnailKey(boardId);
-  const config = getObjectStoreConfig();
-  const client = getClient();
-  if (!key || !config || !client) return;
-  try {
-    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }), { abortSignal: AbortSignal.timeout(10_000) });
-  } catch (error) {
-    console.error("[community] thumbnail delete failed", error);
   }
 }
 

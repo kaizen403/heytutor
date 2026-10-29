@@ -140,7 +140,9 @@ export async function remixCommunityBoard(sourceBoardId: string, userId: string)
           id: boardId,
           userId,
           title: source.title,
-          preview: source.preview,
+          // From the copied turns, never the source's preview: a live turn the
+          // copy leaves out may already have written its question there.
+          preview: rows[rows.length - 1]!.turn.question.slice(0, 2000),
           // A copy stays off Community until its owner shares it, so the
           // gallery does not fill with duplicates of one lesson.
           visibility: "private",

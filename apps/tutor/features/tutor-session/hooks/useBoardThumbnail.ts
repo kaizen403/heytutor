@@ -36,13 +36,21 @@ export function useBoardThumbnail(input: {
   boardId: string;
   turnCount: number;
   whiteboardRef: RefObject<WhiteboardHandle | null>;
+  /**
+   * Asked when the picture is about to be taken: whether every saved turn on
+   * the board is one Community may show. A turn still marked live is drawn on
+   * the owner's restored page but hidden from Community, so it must not reach
+   * the public card either.
+   */
+  publishable: () => boolean;
 }): void {
-  const { enabled, boardId, turnCount, whiteboardRef } = input;
+  const { enabled, boardId, turnCount, whiteboardRef, publishable } = input;
   useEffect(() => {
     if (!enabled || !boardId || turnCount < 1) return;
     if (lastUploadedTurnCount(boardId) >= turnCount) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
+      if (!publishable()) return;
       const frame = whiteboardRef.current?.captureFrame({ pixelRatio: 1, hideCursor: true });
       if (!frame || cancelled) return;
       const canvas = document.createElement("canvas");
@@ -69,5 +77,5 @@ export function useBoardThumbnail(input: {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [enabled, boardId, turnCount, whiteboardRef]);
+  }, [enabled, boardId, turnCount, whiteboardRef, publishable]);
 }

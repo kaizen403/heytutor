@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchBoards, updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
 import { sortBoards, withArchived, withPinned, withVisibility, type BoardEntry } from "@/lib/boards/types";
@@ -55,13 +55,18 @@ export function AccountAppShell({ children }: { children: ReactNode }) {
     void updateBoard(id, { archived: next });
   }, [boards]);
 
+  // Boards with a visibility save in flight: a second toggle waits, so two
+  // saves can never land out of order and leave the server public.
+  const savingVisibility = useRef(new Set<string>());
   const onToggleVisibility = useCallback((id: string) => {
     const board = boards.find((entry) => entry.id === id);
-    if (!board) return;
+    if (!board || savingVisibility.current.has(id)) return;
+    savingVisibility.current.add(id);
     const next = board.visibility === "public" ? "private" : "public";
     setBoards((current) => current.map((entry) => (entry.id === id ? withVisibility(entry, next) : entry)));
     // A failed save must not leave a board looking private while it stays public.
     void updateBoard(id, { visibility: next }).then((updated) => {
+      savingVisibility.current.delete(id);
       if (!updated) setBoards((current) => current.map((entry) => (entry.id === id ? withVisibility(entry, board.visibility === "public" ? "public" : "private") : entry)));
     });
   }, [boards]);

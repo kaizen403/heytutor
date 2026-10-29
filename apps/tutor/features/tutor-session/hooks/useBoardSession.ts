@@ -363,14 +363,23 @@ export function useBoardSession({
     [boards, applyBoardPatch],
   );
 
+  // Boards with a visibility save in flight: a second toggle waits, so two
+  // saves can never land out of order and leave the server public.
+  const savingVisibilityRef = useRef(new Set<string>());
   const toggleVisibilityBoard = useCallback(
     (id: string) => {
       const board = boards.find((b) => b.id === id);
-      if (!board) return;
+      if (!board || savingVisibilityRef.current.has(id)) return;
       const visibility = board.visibility === "public" ? "private" : "public";
-      applyBoardPatch(id, (b) => withVisibility(b, visibility), { visibility });
+      const previous = board.visibility === "public" ? "public" : "private";
+      savingVisibilityRef.current.add(id);
+      setBoards((current) => current.map((b) => (b.id === id ? withVisibility(b, visibility) : b)));
+      void updateBoard(id, { visibility }).then((updated) => {
+        savingVisibilityRef.current.delete(id);
+        setBoards((current) => current.map((b) => (b.id === id ? (updated ? { ...b, ...updated } : withVisibility(b, previous)) : b)));
+      });
     },
-    [boards, applyBoardPatch],
+    [boards],
   );
 
   const renameBoard = useCallback(

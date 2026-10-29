@@ -21,7 +21,7 @@ import {
   toCommunityTurn,
 } from "../../lib/community/publicBoard";
 import { communityBoardWhere } from "../../lib/community/queries";
-import { boardThumbnailKey, parseStoredObjectKey } from "../../lib/object-store/keys";
+import { boardThumbnailKey, boardThumbnailPrefix, isSafeObjectDeletionPrefix, parseStoredObjectKey } from "../../lib/object-store/keys";
 import { isAuthPublicPath } from "../../lib/auth/publicPaths";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
 import { claimRemixSlot, communityReports, communityViews, releaseRemixSlot, resetCommunityGuardsForTests } from "../../lib/community/abuseGuards";
@@ -203,6 +203,20 @@ assert(/userId != null && options\.isAdmin != null && await options\.isAdmin\(\)
 const hiddenWhere = read("lib", "community", "queries.ts");
 assert(/function hiddenForAdminWhere[\s\S]{0,200}delete where\.communityHiddenAt;\s*return where;/.test(hiddenWhere), "the admin preview relaxes more than the hide");
 
+// 11. Second Greptile round: copied preview, card picture eligibility, ordered visibility saves, durable picture cleanup.
+assert(/preview: rows\[rows\.length - 1\]!\.turn\.question/.test(remix) && !/preview: source\.preview/.test(remix), "a remix copies the source preview a hidden live turn may have written");
+const shell = read("features", "tutor-session", "TutorSessionShell.tsx");
+assert(/storedTurnsRef\.current\.every\(\(turn\) => \(turn\.persistedStatus \?\? turn\.status \?\? "complete"\) !== "live"\)/.test(shell), "a card picture can capture a live turn");
+const thumbHook = read("features", "tutor-session", "hooks", "useBoardThumbnail.ts");
+assert(thumbHook.indexOf("if (!publishable()) return;") > 0 && thumbHook.indexOf("if (!publishable()) return;") < thumbHook.indexOf("captureFrame("), "the card picture is taken before eligibility is checked");
+for (const [file, guard] of [[["features", "account", "LibraryScreen.tsx"], "savingVisibility.has(board.id)"], [["features", "app-shell", "AccountAppShell.tsx"], "savingVisibility.current.has(id)"], [["features", "tutor-session", "hooks", "useBoardSession.ts"], "savingVisibilityRef.current.has(id)"]] as const) {
+  assert(read(...file).includes(guard), `${file.join("/")} lets two visibility saves race`);
+}
+assert(boardThumbnailPrefix("board-1") === "images/thumbnails/board-1/" && isSafeObjectDeletionPrefix("images/thumbnails/board-1/"), "a card picture has no durable deletion scope");
+assert(!isSafeObjectDeletionPrefix("images/thumbnails/"), "one deletion job can erase every card picture");
+assert(/thumbnail_at[\s\S]{0,600}objectDeletionJob\.createMany\(\{ data: \[\{ id: crypto\.randomUUID\(\), prefix: thumbnailPrefix/.test(read("app", "api", "boards", "[boardId]", "route.ts")), "board deletion strands its card picture");
+assert(/boardThumbnailPrefix\(board\.id\)[\s\S]{0,120}enqueueObjectDeletion\(\{ prefix: thumbnailPrefix, userId \}, tx\)/.test(read("lib", "auth", "deleteAccount.ts")), "account deletion strands card pictures");
+
 // 8. Boards made before Community stay private; new ones are public, except staff boards.
 const migration = read("prisma", "migrations", "25_community", "migration.sql");
 const addPrivate = migration.indexOf(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'private'`);
@@ -211,4 +225,4 @@ assert(addPrivate >= 0 && thenPublic > addPrivate, "existing boards would be pub
 const createRoute = read("app", "api", "boards", "route.ts");
 assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
 
-console.log("community privacy: 10 gates passed");
+console.log("community privacy: 11 gates passed");
