@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-turn-scene-admission-refactor.ts
