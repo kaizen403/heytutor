@@ -379,6 +379,14 @@ export interface WhiteboardHandle {
   returnHeldPage: () => { meta: unknown } | null;
   /** A page is held for `returnHeldPage`. */
   hasHeldPage: () => boolean;
+  /**
+   * Snapshot the held page as `returnHeldPage` would put it back (cursor
+   * excluded, as `captureSnapshot`), with its meta, and leave the board and
+   * the held page exactly as they were. Null when no page is held or the
+   * stage is not mounted. Download notes reads the lesson page with it while
+   * a doubt page is up.
+   */
+  captureHeldPageSnapshot: (pixelRatio?: number) => { snapshotDataUrl: string; meta: unknown } | null;
   /** Split diagram vector lines that pass through a label emphasis region. */
   punchDiagramLineGapsInRect: (
     rect: { x: number; y: number; width: number; height: number },
@@ -3344,6 +3352,45 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       return { meta: held.meta };
     }, [clearTrackedNodes, destroySpotlights, redrawLayers]);
 
+    const captureHeldPageSnapshot = useCallback((pixelRatio: number = 2): { snapshotDataUrl: string; meta: unknown } | null => {
+      const held = heldPageRef.current;
+      const stage = drawLayerRef.current?.getStage();
+      if (!held || !stage) return null;
+      // Take the shown page off as returnHeldPage erases it, put the held one
+      // back as it returns it, snapshot, then undo both in reverse. Synchronous:
+      // no frame is drawn in between.
+      const shown: Array<{ node: Konva.Node; parent: Konva.Container; index: number }> = [];
+      for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+        nodes.forEach((node) => {
+          const parent = node.getParent();
+          if (parent) shown.push({ node, parent, index: node.zIndex() });
+        });
+      }
+      for (const entry of shown) entry.node.remove();
+      const spotlights = spotlightNodesRef.current.map((node) => ({ node, visible: node.visible() }));
+      for (const entry of spotlights) entry.node.visible(false);
+      const cursorLayer = cursorLayerRef.current;
+      const hideCursor = shouldHideCursorForCapture("snapshot");
+      const cursorWasVisible = cursorLayer ? cursorLayer.visible() : false;
+      if (cursorLayer && hideCursor) cursorLayer.visible(false);
+      const back = [...held.entries].sort((a, b) => a.index - b.index);
+      try {
+        for (const entry of back) {
+          entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+          entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        }
+        return { snapshotDataUrl: stage.toDataURL({ pixelRatio }), meta: held.meta };
+      } finally {
+        for (const entry of back) entry.node.remove();
+        for (const entry of [...shown].sort((a, b) => a.index - b.index)) {
+          entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+          entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        }
+        for (const entry of spotlights) entry.node.visible(entry.visible);
+        if (cursorLayer && hideCursor) cursorLayer.visible(cursorWasVisible);
+      }
+    }, []);
+
     const clearBoard = useCallback(
       async (duration?: number): Promise<void> => {
         drawTransactionsRef.current.clear();
@@ -3989,6 +4036,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         holdPage,
         returnHeldPage,
         hasHeldPage: () => heldPageRef.current !== null,
+        captureHeldPageSnapshot,
         pinnedInkCount,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
@@ -4065,7 +4113,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, holdPage, returnHeldPage, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, holdPage, returnHeldPage, captureHeldPageSnapshot, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (

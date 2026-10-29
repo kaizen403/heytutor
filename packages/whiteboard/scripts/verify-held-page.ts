@@ -11,7 +11,13 @@
  *   - a second hold while a page is held blanks the board and keeps the
  *     first page (one level: the lesson's page);
  *   - `clearBoard` drops a held page, so a new question never gets it back;
- *   - returned ink is tracked again: a page turn erase takes the work rows.
+ *   - returned ink is tracked again: a page turn erase takes the work rows;
+ *   - `captureHeldPageSnapshot` (lane 10, Download notes on the doubt page)
+ *     snapshots the held page exactly as `returnHeldPage` puts it back, and
+ *     leaves the doubt page and the hold untouched.
+ *
+ * Mutations (lane 10): the capture snapshots the shown page; the capture
+ * leaves the held page on the board; the capture drops the shown page.
  *
  * Run: pnpm exec tsx scripts/verify-held-page.ts
  */
@@ -101,6 +107,18 @@ async function main(): Promise<void> {
     await run(board.drawShape("M 650 400 L 950 400", 0));
     check(inkCount(board) > 0, "the doubt page draws on the blank board");
 
+    // The harness canvas encodes nothing: the snapshot is the stage's node list at the moment of capture.
+    const stage = board.getDrawLayer()!.getStage()!;
+    stage.toDataURL = (() => JSON.stringify(pageShape(board))) as typeof stage.toDataURL;
+    const doubtShape = JSON.stringify(pageShape(board));
+    const doubtInk = inkCount(board);
+    const shot = board.captureHeldPageSnapshot();
+    check(shot !== null && shot.snapshotDataUrl === JSON.stringify(lesson),
+      "capture held: the snapshot is the lesson page as it will come back, not the doubt page");
+    check(shot !== null && (shot.meta as { layout: string }).layout === "lesson", "capture held: the held page's meta rides with it");
+    check(JSON.stringify(pageShape(board)) === doubtShape && inkCount(board) === doubtInk && board.hasHeldPage(),
+      "capture held: the doubt page stays on the board and the lesson page stays held");
+
     const back = board.returnHeldPage();
     check(back !== null && (back.meta as { layout: string }).layout === "lesson", "return: the held page's meta comes back");
     check(!board.hasHeldPage(), "return: nothing is held after");
@@ -109,6 +127,7 @@ async function main(): Promise<void> {
     check(inkCount(board) === lessonInk, "return: the same ink count as before the hold");
     check(board.pinnedInkCount() === 1, "return: the lesson's kept ring is back");
     check(board.returnHeldPage() === null, "a second return has nothing to return");
+    check(board.captureHeldPageSnapshot() === null, "capture held: nothing held, no snapshot");
 
     // Returned ink is tracked again: a work page turn takes the rows.
     await run(board.eraseWorkInk(0));
