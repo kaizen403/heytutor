@@ -91,6 +91,12 @@ for (const question of [
   }
 }
 check: {
+  // A two body claim on one car changing speed declines; it does not draw two cars.
+  const one = "A car changes speed from 10 m/s to 20 m/s while continuing in the same direction on a straight road.";
+  assert.equal(detectArchetype(one, { plannerArchetype: "relative_motion_line" }), null, "a relative motion claim needs two bodies");
+  checks += 1;
+}
+check: {
   const level = "A car accelerates along a level road from rest at 2 m/s^2. Find its speed after 5 s.";
   assert.equal(detectArchetype(level, {}), null, "a refused circle lead declines, no runner up");
   checks += 1;
