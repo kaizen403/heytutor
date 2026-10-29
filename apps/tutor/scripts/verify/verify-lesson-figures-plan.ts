@@ -12,6 +12,11 @@
  * (e) the entry's words are kept and composed into the figure's question
  *     (the round 1 design);
  * (f) the selector draws another kind than the one picked and it is kept.
+ *
+ * Lane 10 (round 3 review S3): every archetype's slots read the same on the
+ * lesson question and on each composed question. Mutations: (g) the composed
+ * question adds a state phrase ("on a frictionless surface at 45 degrees");
+ * (h) a family's engine phrase gains a state word.
  */
 import assert from "node:assert/strict";
 import {
@@ -23,7 +28,7 @@ import {
   withChemistryExampleAddon,
   type TurnPlannerV3Options,
 } from "@heytutor/tutor-core";
-import { SCENE_VISUAL_FAMILIES, describeSceneFamily, validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { ARCHETYPE_IDS, SCENE_VISUAL_FAMILIES, describeSceneFamily, detectArchetype, validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import incline from "./fixtures/lesson-figures-incline-plan.json";
 import circle from "./fixtures/replay/circle-s3-turn.json";
@@ -55,8 +60,29 @@ async function check(name: string, run: () => void | Promise<void>): Promise<voi
 
 const asks = (figures: unknown) => lessonFigureAsksOf({ schemaVersion: "turn-plan/v3", figures });
 
-/** Words the stem readers act on (archetypes/detect.ts cue and veto vocabularies): state, not view. */
-const STATE_CUE = /\b(?:rough|frictionless|smooth|upwards?|downwards?|vertical(?:ly)?|horizontal(?:ly)?|thrown|dropped|incline[sd]?|slope|pulley|hanging|projectile|banked|circular|orbit|lossless|ideal|at rest)\b/i;
+/**
+ * Words the stem readers act on (archetypes/detect.ts cue and veto
+ * vocabularies): state, not view. A hand list, extended in lane 10 with the
+ * state words of the detector's vetoes (spring, lift, elevator, conical,
+ * whirled, satellite, ladder, hinged, river, boat, rain). The real path is
+ * checked by "f4/stem-readers-read-the-same-state" below.
+ */
+const STATE_CUE = /\b(?:rough|frictionless|smooth|upwards?|downwards?|vertical(?:ly)?|horizontal(?:ly)?|thrown|dropped|incline[sd]?|slope|pulley|hanging|hang|projectile|banked|circular|orbit|lossless|ideal|at rest|springs?|lift|elevator|conical|whirled|satellite|ladder|hinged|river|boat|rain)\b/i;
+
+/**
+ * Stems whose situation a stem reader reads (archetypes/detect.ts): a surface,
+ * a friction, a direction, a string, an angle. Each must detect an archetype
+ * on its own, so the parity below runs through a real reader.
+ */
+const READER_STEMS = [
+  incline.turnPlan.question,
+  "A 5 kg block rests on a rough incline of 30 degrees with coefficient of friction 0.2. Find its acceleration.",
+  "A 2 kg stone tied to a 1.5 m string is whirled in a horizontal circle at 4 m/s. Find the tension in the string.",
+  "A ball is thrown at 20 m/s at 30 degrees above the horizontal. Find its range.",
+  "Two blocks of 3 kg and 5 kg are connected by a light string over a frictionless pulley. Find the acceleration.",
+  "A simple pendulum of length 1 m is released from 10 degrees. Find its period.",
+  "An object is placed 30 cm in front of a convex lens of focal length 10 cm. Find the image distance.",
+];
 /** The words a planner might have written in round 1 (review F4); none is in the incline stem. */
 const PLANNER_WORDS = /\b(?:smooth|frictionless|upwards?)\b/i;
 
@@ -115,6 +141,39 @@ async function askChecks(): Promise<void> {
       assert(!STATE_CUE.test(added), `${family}: "${added.trim()}"`);
       assert(!/\p{Nd}/u.test(added), `${family}: no digit`);
     }
+  });
+  await check("f4/stem-readers-read-the-same-state", () => {
+    // Review round 3 S3, on the real path: figure k's question is the lesson
+    // question with the view's phrase. For every archetype the detector knows,
+    // forced as the planner forces it, the slots it reads (values and where
+    // each came from) must be the same on the lesson question and on every
+    // composed question. A phrase may make an archetype decline (a view's own
+    // word vetoes it: honest), but it may never supply or change a slot.
+    // Covers detectArchetype's slot readers and vetoes, not cue scoring
+    // (which the view steers by design) nor inferSceneCapabilities (whose
+    // families the view is meant to change).
+    const forced = (question: string, id: string) => {
+      const match = detectArchetype(question, { plannerArchetype: id });
+      // A slot that copies the whole question (e.g. phases) carries the
+      // view's phrase by construction; compare it as the question itself.
+      return match && match.evidence[0] === "planner archetype" ? JSON.stringify({ slots: match.slots, sources: match.sources }).split(JSON.stringify(question.replace(/\s+/g, " ").trim()).slice(1, -1)).join("<question>") : null;
+    };
+    let compared = 0;
+    for (const stem of READER_STEMS) {
+      assert(detectArchetype(stem) !== null, `a reader reads the fixture stem: ${stem.slice(0, 60)}`);
+      const own = new Map(ARCHETYPE_IDS.map((id) => [id, forced(stem, id)] as const));
+      for (const family of SCENE_VISUAL_FAMILIES) {
+        const composed = composeLessonFigureQuestion(stem, family);
+        for (const id of ARCHETYPE_IDS) {
+          const before = own.get(id) ?? null;
+          const after = forced(composed, id);
+          if (after === null) continue;
+          assert.equal(after, before, `${family} on "${stem.slice(0, 40)}": ${id} reads ${before === null ? "a slot the lesson question lacks" : "different state"}`);
+          compared += 1;
+        }
+      }
+    }
+    assert(compared > SCENE_VISUAL_FAMILIES.length * READER_STEMS.length, `the parity compared real reads (${compared})`);
   });
   await check("flag", () => {
     assert.equal(resolveLessonFiguresEnabled({}), false);
