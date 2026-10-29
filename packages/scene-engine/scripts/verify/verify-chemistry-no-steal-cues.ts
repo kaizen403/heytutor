@@ -484,6 +484,12 @@ for (const values of [
     "Sketch the distribution of energies of particles in a radioactive sample.",
     "Sketch the distribution of energies of collision products in a particle accelerator.",
     "Sketch the distribution of energies of alpha particles emitted.",
+    "A reaction is started by ultraviolet radiation. Sketch the distribution of molecular energies at two temperatures and mark the activation energy.",
+    "Draw the distribution of kinetic energies for an exothermic process at two temperatures.",
+    "Sketch the distribution of kinetic energies of ions in a plasma at two temperatures and mark the activation energy.",
+    "Sketch the distribution of energies and show the energy barrier.",
+    "Plot the distribution of energies and the Gibbs energy for ΔH = 40 kJ/mol and ΔS = 120 J/K/mol and find when it is spontaneous.",
+    "Using Maxwell's equations, sketch the distribution of energy of charged particles in a field.",
     "Sketch the distribution of energies of beta particles emitted in beta decay.",
     "Sketch the distribution of energies of cosmic ray particles.",
     "Sketch the distribution of energy in a standing electromagnetic wave.",
@@ -513,6 +519,13 @@ for (const values of [
     "Sketch Maxwell's law for a gas at 300 K and 600 K and mark the activation energy.",
     "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
   ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
+  for (const question of [
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
+  ]) check(`declined distribution keeps main's route, no figure: ${question}`, () => {
+    assert.equal(isChemistryQuestion(question), true, "left main's chemistry route");
+    assert.equal(synthesizeFamilyScene({ question }), null, "another family drew it");
+  });
   for (const question of [
     "Sketch the distribution of molecular speeds for a light gas at two temperatures.",
     "Sketch the distribution of speeds of nitrogen at 300 K and 600 K.",
