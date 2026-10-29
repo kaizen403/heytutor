@@ -3380,18 +3380,23 @@ function relocateObstructedDimensions(
     const maxOffset = Math.hypot(viewport.width, viewport.height);
     const preferredSign = Math.sign(offset) || 1;
     let replacement: RenderPrimitive[] | undefined;
-    for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
-      for (const sign of [preferredSign, -preferredSign]) {
-        const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);
-        const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
-        const boundsIssues: SceneIssue[] = [];
-        assertDimensionViewport(candidate, transformPlan, boundsIssues);
-        if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink) || crowded(candidateBar)) continue;
-        if (!labelClears(candidate)) continue;
-        replacement = candidate;
-        dimensionLanes.set(bar.entityId, amount * sign);
-        break;
+    // A lane that keeps a label lane is preferred; when the view has none, the
+    // bar keeps the first clear lane as before rather than failing the figure.
+    for (const keepLabelLane of [true, false]) {
+      for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
+        for (const sign of [preferredSign, -preferredSign]) {
+          const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);
+          const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
+          const boundsIssues: SceneIssue[] = [];
+          assertDimensionViewport(candidate, transformPlan, boundsIssues);
+          if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink) || (keepLabelLane && crowded(candidateBar))) continue;
+          if (!labelClears(candidate)) continue;
+          replacement = candidate;
+          dimensionLanes.set(bar.entityId, amount * sign);
+          break;
+        }
       }
+      if (replacement) break;
     }
     if (!replacement) {
       issues.push({ code: "dimension_overlap_unresolved", message: `Dimension ${bar.entityId} cannot clear the verified figure and keep its labels in view`, severity: "fatal", entityIds: [bar.entityId] });
