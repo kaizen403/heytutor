@@ -191,7 +191,8 @@ export async function canonicalizeTurnSceneMetadata(
   }
   const metadata: SubmittedTurnSceneMetadata = {
     ...submittedMetadata,
-    sceneArtifacts: freshPageOnDoubtOnly(submittedMetadata.sceneArtifacts, options.kind),
+    sceneArtifacts: freshPageOnDoubtOnly(submittedMetadata.sceneArtifacts, options.kind,
+      () => options.doubtFiguresEnabled ?? resolveDoubtFiguresEnabled()),
     sceneDocument: withoutLegacyTeachingNotes(submittedMetadata.sceneDocument),
     segments: submittedMetadata.segments.map((segment) => ({
       ...segment,
@@ -679,11 +680,14 @@ function withoutFlaggedDoubtPointing(segments: SubmittedTurnSegment[]): Submitte
  * Only a doubt turns a fresh page (DIAGRAM_DOUBT_FIGURES, lane 9): the marker
  * is dropped from any other turn. On a doubt it is kept whatever becomes of
  * the doubt's figure: the student saw the page turn, and the doubt's rows
- * were laid out on the blank page, never over the lesson's.
+ * were laid out on the blank page, never over the lesson's. With the flag off
+ * it is dropped from every turn (review round 3 S2), so flag off saves
+ * today's bytes whatever a client sends.
  */
-function freshPageOnDoubtOnly(sceneArtifacts: unknown, kind: TurnKind | undefined): unknown {
-  if (kind === "doubt" || !isRecord(sceneArtifacts) || !isRecord(sceneArtifacts.boardContinuation) ||
+function freshPageOnDoubtOnly(sceneArtifacts: unknown, kind: TurnKind | undefined, enabled: () => boolean): unknown {
+  if (!isRecord(sceneArtifacts) || !isRecord(sceneArtifacts.boardContinuation) ||
     !("freshPage" in sceneArtifacts.boardContinuation)) return sceneArtifacts;
+  if (kind === "doubt" && enabled()) return sceneArtifacts;
   const continuation: Record<string, unknown> = { ...sceneArtifacts.boardContinuation };
   delete continuation.freshPage;
   return { ...sceneArtifacts, boardContinuation: continuation };

@@ -19,7 +19,8 @@
  * (both anchors of every slice guarded):
  *   need/       an occupied empty zone asks the need check only with freshPage;
  *   record/     the marker's bytes, and off equals absent;
- *   server/     freshPage kept on a doubt (validated, or refused as text), dropped elsewhere;
+ *   server/     freshPage kept on a doubt (validated, or refused as text), dropped elsewhere
+ *               and, with the flag off, on every turn (lane 10, S2);
  *   save/       the live save writes it only for the doubt that turned the page;
  *   derive/     hold and return over [L, D fresh, D2, R, D3 fresh, R2];
  *   surfaces/   live, sequential replay and seek catch up show the same page and layout at every turn;
@@ -57,7 +58,8 @@
  * closeDoubtPageForNotes does not capture the returned lesson page; every new
  * anchor's begin and end renamed (":ended" included); (s1) the live save
  * drops a stopped doubt with no row that turned a page, and (s1b) keeps every
- * empty stopped doubt.
+ * empty stopped doubt; (s2) the server keeps freshPage on a doubt with
+ * DIAGRAM_DOUBT_FIGURES off, and (s2b) drops it with the flag on.
  *
  * Run: pnpm exec tsx scripts/verify/verify-doubt-figure-page.ts
  */
@@ -247,15 +249,27 @@ async function main(): Promise<void> {
     doubtFigureOf(freshSaved.value.sceneArtifacts)?.replacedTurnId === null &&
     boardContinuationOf(freshSaved.value.sceneArtifacts)?.freshPage === true,
   `server/a doubt figure on a fresh page saves validated with freshPage kept (mutation b): ${freshSaved.ok ? "" : freshSaved.error}`);
-  const refusedSaved = await canonicalizeTurnSceneMetadata(freshDoubtMetadata(),
+  const flagOff = await canonicalizeTurnSceneMetadata(freshDoubtMetadata(),
     { kind: "doubt", doubtFiguresEnabled: false, checkDoubtFigurePage: doubtPageCheck([textLesson]) });
+  const flagOffPlain = await canonicalizeTurnSceneMetadata(
+    fixture.doubtMetadata(fixture.doubtSegments, { ...doubtFigureArtifacts(null), ...boardContinuationArtifacts(lesson.question) }),
+    { kind: "doubt", doubtFiguresEnabled: false, checkDoubtFigurePage: doubtPageCheck([textLesson]) });
+  assert(flagOff.ok && flagOffPlain.ok && flagOff.value.visualStatus === "text_only" &&
+    boardContinuationOf(flagOff.value.sceneArtifacts)?.freshPage === undefined &&
+    JSON.stringify(flagOff.value) === JSON.stringify(flagOffPlain.value),
+  "server/flag off: freshPage is dropped and the save is byte identical to the same doubt without it, whatever the client sent (S2, mutation s2)");
+  const textFresh = await canonicalizeTurnSceneMetadata({
+    question: DOUBT_TITLE, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only",
+    sceneArtifacts: freshMarker, segments: [teachingRow(0, "Why.", [writeAt("why", 142)])],
+  }, { kind: "doubt", doubtFiguresEnabled: false });
+  assert(textFresh.ok && boardContinuationOf(textFresh.value.sceneArtifacts) !== null &&
+    boardContinuationOf(textFresh.value.sceneArtifacts)?.freshPage === undefined,
+  "server/flag off: a text doubt carrying freshPage keeps its marker without it (S2)");
+  const refusedSaved = await canonicalizeTurnSceneMetadata(freshDoubtMetadata(),
+    { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: async () => false });
   assert(refusedSaved.ok && refusedSaved.value.visualStatus === "text_only" &&
     boardContinuationOf(refusedSaved.value.sceneArtifacts)?.freshPage === true,
-  "server/a figure refused at save keeps its page turn: its rows were laid out on the blank page");
-  const offPage = await canonicalizeTurnSceneMetadata(freshDoubtMetadata(),
-    { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: async () => false });
-  assert(offPage.ok && offPage.value.visualStatus === "text_only" && boardContinuationOf(offPage.value.sceneArtifacts)?.freshPage === true,
-    "server/a figure off its page keeps the page turn too");
+  "server/flag on, a figure refused at save (off its page) keeps its page turn: its rows were laid out on the blank page");
   const textResumeSaved = await canonicalizeTurnSceneMetadata({
     question: lesson.question, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only",
     sceneArtifacts: freshMarker, segments: [teachingRow(0, "Back to it.", [writeAt("so 2 + 3", 190)])],
