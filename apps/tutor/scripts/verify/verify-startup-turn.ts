@@ -600,7 +600,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         },
       });
     }
-    const observeControl: Pick<TurnControlApi, "finishLectureUi" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText" | "offerPausedLessonResume" | "clearPausedLesson"> = {
+    const observeControl: Pick<TurnControlApi, "finishLectureUi" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText" | "offerPausedLessonResume" | "clearPausedLesson" | "hasPausedLesson"> = {
       ...control,
       enqueueSegment(segment, generation) { record("enqueue", segment); control.enqueueSegment(segment, generation); },
       enqueueVerifiedIntro(segments, generation) { record("enqueue-intro", segments); control.enqueueVerifiedIntro(segments, generation); },
