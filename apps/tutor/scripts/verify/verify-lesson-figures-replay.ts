@@ -33,6 +33,11 @@
  * (n) F1: the canonicalizer drops the resume start (`resumeStart` null): a
  *     resume's FOCUS on a figure 2 part after the advance is filtered;
  * (o) F1: the start loader names figure 1 always.
+ *
+ * Lane 10 (round 3 review):
+ * (p) M1: `restoreLessonFigures` moves to figure k with `advanceTo` (pending),
+ *     so the next doubt's lesson-figure-finish erases and redraws figure k;
+ * (q) M1: `seekTo` leaves the figure pending.
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
@@ -60,7 +65,7 @@ import { admitStoredScene } from "../../lib/scene/sceneAdmission";
 import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import { storedPageZoneStash } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
-import { LessonFigureSequence, lessonFigureIntroCommands } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
+import { LessonFigureSequence, finishLessonFigureAdvance, lessonFigureIntroCommands } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
 import { restoreLessonFigureViews, restoreLessonFigures } from "../../features/tutor-session/lib/scene/restoreLessonFigures";
 import { storedLessonFigurePresentation, storedPageFigureChange, syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
 import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
@@ -282,6 +287,8 @@ async function restoreChecks(): Promise<void> {
     assert(sequence.active() && sequence.currentId() === "figure_1");
     restoreLessonFigures(sequence, L, undefined, "figure_2");
     assert.equal(sequence.currentId(), "figure_2", "a return commits at the figure it returns");
+    // Round 3 M1: the surface stands figure 2 whole itself; nothing is left for a later turn to finish.
+    assert.equal(sequence.pendingIntro(), null, "a restore at figure 2 leaves no pending advance");
     restoreLessonFigures(sequence, off.turns[0]);
     assert(!sequence.active(), "flag off: no artifact, no sequence");
   });
@@ -307,6 +314,36 @@ async function restoreChecks(): Promise<void> {
     const intro = lessonFigureIntroCommands({ diagram: figure2.diagram!, introSegments: figure2.introSegments });
     assert.deepEqual(drawn.slice(0, intro.length).map((command) => command.type), intro.map((command) => command.type), "figure 2's intro is stamped back");
     assert.equal(sequence.currentId(), "figure_2", "the sequence is at figure 2 after the return");
+  });
+  await check("m1/labels-survive-restore-then-doubt", async () => {
+    // Round 3 M1: a reload restores R (figure 2 back with whatever L's rows
+    // released on it), then the student asks a doubt. uQH's lesson-figure-finish runs
+    // finishLessonFigureAdvance on any pending figure: it must find none, so
+    // nothing is erased and nothing redrawn without those labels.
+    const R = 3;
+    const events: string[] = [];
+    const drawn: DrawCommand[] = [];
+    const wb = {
+      eraseSceneInk: async (duration: number) => { events.push(`eraseSceneInk:${duration}`); },
+      erasePinnedInk: () => { events.push("erasePinnedInk"); },
+    } as unknown as WhiteboardHandle;
+    const sequence = new LessonFigureSequence();
+    const result = await syncStoredPageFigure({
+      turns: on.turns, turnIndex: R, whiteboard: wb, shouldCancel: () => false, lessonFigures: sequence,
+      executeCommand: async (command) => { drawn.push(command); },
+    });
+    assert(result.changed && !result.cancelled && sequence.currentId() === "figure_2");
+    const figure2 = storedLessonFigurePresentation(L, "figure_2");
+    const intro = lessonFigureIntroCommands({ diagram: figure2.diagram!, introSegments: figure2.introSegments });
+    // This fixture's figure 2 withholds no label, so the check proves the zone's
+    // ink (released labels and kept rings included) is never touched again,
+    // rather than counting labels.
+    assert(drawn.length >= intro.length && drawn.length > 0, "the return stamped figure 2");
+    const restored = { events: [...events], drawn: drawn.map((command) => JSON.stringify(command)) };
+    const finished = await finishLessonFigureAdvance(wb, null, sequence, { executeCommand: async (command) => { drawn.push(command); } });
+    assert.equal(finished, null, "the doubt after the restore finishes nothing");
+    assert.deepEqual(events, restored.events, "no erase after the restore");
+    assert.deepEqual(drawn.map((command) => JSON.stringify(command)), restored.drawn, "the released labels stay; nothing is redrawn");
   });
   await check("sync/flag-off-returns-figure-1", async () => {
     const change = storedPageFigureChange(off.turns, 3);

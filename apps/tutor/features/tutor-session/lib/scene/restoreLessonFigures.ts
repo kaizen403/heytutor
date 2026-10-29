@@ -109,5 +109,6 @@ export function restoreLessonFigures(
   const views = restoreLessonFigureViews(turn, narrationLanguage);
   if (views.length === 0) return;
   sequence.commit({ diagram: first.diagram, introSegments: first.introSegments }, views);
-  if (isLessonFigureAdvanceId(at)) sequence.advanceTo(at);
+  // The surface draws figure `at` whole itself: a seek, never a pending advance (round 3 M1).
+  if (isLessonFigureAdvanceId(at)) sequence.seekTo(at);
 }

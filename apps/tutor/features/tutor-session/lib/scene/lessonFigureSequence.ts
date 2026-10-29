@@ -136,6 +136,20 @@ export class LessonFigureSequence {
     return view;
   }
 
+  /**
+   * Review round 3 M1: a stored surface (restore, replay, a resume's return)
+   * stands figure `id` whole in the zone itself, so the cursor moves there with
+   * nothing pending: no later doubt or resume may redraw it (which would drop
+   * the labels its rows released). Forward only, as `advanceTo`.
+   */
+  seekTo(id: LessonFigureId): PlannedLessonFigureView | null {
+    if (!this.first || !this.has(id) || indexOf(id) <= this.index) return null;
+    const view = this.rest.find((candidate) => candidate.id === id)!;
+    this.index = indexOf(id);
+    this.pending = null;
+    return view;
+  }
+
   /** Why `advanceTo(id)` refuses now, or null when it would advance. */
   refusalOf(id: LessonFigureId): LessonFigureRefusal | null {
     if (!this.first) return "no_sequence";
