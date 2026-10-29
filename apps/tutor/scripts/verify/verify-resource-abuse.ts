@@ -75,8 +75,12 @@ const tx = {
       for (const [prefix, job] of deletionJobs) if (job.id === where.id) deletionJobs.delete(prefix);
     },
   },
+  // Board creation asks whether the owner is staff; the fixture owner is not.
+  admin: { findUnique: async () => null },
   board: {
-    findFirst: async ({ where }: { where: { id?: string } } = { where: {} }) => where.id && where.id !== boardId ? null : board,
+    // A Community read asks for a public board; the fixture board is private.
+    findFirst: async ({ where }: { where: { id?: string; visibility?: string } } = { where: {} }) =>
+      (where.id && where.id !== boardId) || where.visibility === "public" ? null : board,
     findUnique: async () => board,
     findMany: async ({ take, skip = 0 }: { take?: number; skip?: number } = {}) => scenario === "list" ? boardRows.slice(skip, take === undefined ? undefined : skip + take) : [board],
     count: async () => scenario === "board-limit" ? 4_000_000 : 0,
@@ -154,6 +158,10 @@ mock.module(modulePath("lib/object-store/s3.ts"), {
       });
     },
     deletePrefix: async () => undefined,
+    deleteBoardThumbnail: async () => undefined,
+    putBoardThumbnail: async () => false,
+    getBoardThumbnail: async () => null,
+    copyLectureObject: async () => false,
     deleteObject: async () => undefined,
     deleteObjects: async () => undefined,
     boardAudioPrefix: (id: string) => `boards/${id}/`,

@@ -9,6 +9,11 @@ const IP_RATE_LIMITS = {
   account: { limit: 60, windowMs: WINDOW_MS },
   billing: { limit: 60, windowMs: WINDOW_MS },
   boards: { limit: 180, windowMs: WINDOW_MS },
+  // Public and unauthenticated; a gallery page loads up to 24 card pictures.
+  community: { limit: 240, windowMs: WINDOW_MS },
+  // Community clips play signed out. A lesson is about 30 clips, and a class
+  // behind one school address may watch at once; owners are not limited here.
+  publicMedia: { limit: 600, windowMs: WINDOW_MS },
   trace: { limit: 90, windowMs: WINDOW_MS },
   suggestions: { limit: 30, windowMs: WINDOW_MS },
   // Shared school NATs can burst. Still bounds an open tunnel.
@@ -62,6 +67,7 @@ export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
   // Provider delivery IPs are shared; signed webhooks retain their retry path.
   if (pathname.startsWith("/api/billing/") && !pathname.endsWith("/webhook")) return "billing";
   if (pathname === "/api/boards" || pathname.startsWith("/api/boards/")) return "boards";
+  if (pathname === "/api/community" || pathname.startsWith("/api/community/")) return "community";
   if (pathname === "/api/trace" || pathname.startsWith("/api/trace/")) return "trace";
   if (pathname === "/api/home-suggestions") return "suggestions";
   if (["/api/chat", "/api/stt", "/api/tts/stream", "/api/tts/ws-ticket", "/api/extract-question", "/api/visual-need", "/api/dsa-teaching-policy", "/api/board-name"].includes(pathname)) return "paid";

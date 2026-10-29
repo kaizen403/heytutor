@@ -313,6 +313,7 @@ function shellMarkup(options: {
     "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: {}, close: noop, halt: noop }) },
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
+    "./hooks/useBoardThumbnail": { useBoardThumbnail: noop },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },
   };
   const shellFile = path.join(appRoot, "features/tutor-session/TutorSessionShell.tsx");
