@@ -176,7 +176,7 @@ import {
   swapFigureIn,
   type ZoneStash,
 } from "../../lib/scene/figureSwap";
-import { storedFigurePresentation } from "../../lib/replay/pageFigureSync";
+import { storedLessonFigurePresentation } from "../../lib/replay/pageFigureSync";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   chemistryRefusesPlannerFigure,
@@ -2066,6 +2066,7 @@ export function useQuestionHandler(
             zonePresentationRef.current = null;
           }
           page.figureTurnId = returned ? zoneStash.turnId : null;
+          page.lessonFigureId = returned && zoneStash.diagram ? zoneStash.figureId ?? null : null;
           page.figureDrawn = returned !== null;
           figureReturned = returned !== null;
         } else if (resume.returnsFigure) {
@@ -2079,7 +2080,8 @@ export function useQuestionHandler(
           const wb = whiteboardRef.current;
           const result = wb
             ? await returnFigureToZone(wb, boardLayoutRef.current,
-                source ? storedFigurePresentation(source) : { diagram: null, introSegments: [] },
+                // The lesson's later figure it had moved to, not figure 1 (lesson figures).
+                source ? storedLessonFigurePresentation(source, back.figureId ?? "figure_1") : { diagram: null, introSegments: [] },
                 back.consumedIds, { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel })
             : { cancelled: false, diagram: null };
           throwIfTurnCancelled();
@@ -2094,6 +2096,7 @@ export function useQuestionHandler(
           }
           zonePresentationRef.current = null;
           page.figureTurnId = returned ? back.turnId : null;
+          page.lessonFigureId = returned ? back.figureId ?? null : null;
           page.figureDrawn = returned !== null;
           figureReturned = returned !== null;
         }

@@ -14,7 +14,9 @@
  * (a) return figure_1: `pageFigureAt` returns the lesson at figure_1 on a resume;
  * (b) `restoreLessonFigures` not called in `useBoardSession` (board restore);
  * (c) ignore the advance in `lecturePlayer` (a return installs figure 1's state);
- * (d) rebuild figure k on `Turn.question` instead of the composed question.
+ * (d) rebuild figure k on `Turn.question` instead of the composed question;
+ * (e) uQH `doubt-figure-return` returns figure 1 after a reload;
+ * (f) `pausedLessonRestore` drops `returnsFigure.figureId`.
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
@@ -36,6 +38,8 @@ import { deriveSceneGate } from "../../features/tutor-session/lib/scene/producti
 import { figureFingerprint, selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { stored } from "./fixtures/doubtFigureScene";
 import { admitStoredScene } from "../../lib/scene/sceneAdmission";
+import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
+import { storedPageZoneStash } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { LessonFigureSequence, lessonFigureIntroCommands } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
 import { restoreLessonFigureViews, restoreLessonFigures } from "../../features/tutor-session/lib/scene/restoreLessonFigures";
@@ -446,8 +450,54 @@ async function boardRestoreChecks(): Promise<void> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Continue after a reload: the resume returns figure 2, live and stored alike.
+// ---------------------------------------------------------------------------
+
+async function resumeChecks(): Promise<void> {
+  const on = await lessonFiguresPage(true);
+  const off = await lessonFiguresPage(false);
+  const stoppedAt = (turns: StoredTurn[], lastLesson: number) => turns.map((turn, index) => index === lastLesson
+    ? { ...turn, status: "stopped" as const, persistedStatus: "stopped" as const }
+    : { ...turn, persistedStatus: "complete" as const });
+
+  await check("paused/returns-figure-2", () => {
+    const recovery = lessonRecoveryFromStoredTurns(stoppedAt(on.turns.slice(0, 3), 0), { boardId: "b1", ownerState: "inactive" });
+    assert(recovery?.kind === "continue", "the stopped lesson under a doubt figure can Continue");
+    const back = recovery.request.returnsFigure;
+    assert(back, "Continue returns the lesson's figure");
+    assert.equal(back.turnId, on.turns[0]!.id);
+    assert.equal(back.figureId, "figure_2", "the figure the lesson had moved to");
+    assert.deepEqual(back.consumedIds, [on.secondOnly, on.secondToo], "only what was released on figure 2");
+  });
+  await check("paused/flag-off-has-no-figure-id", () => {
+    const recovery = lessonRecoveryFromStoredTurns(stoppedAt(off.turns.slice(0, 3), 0), { boardId: "b1", ownerState: "inactive" });
+    assert(recovery?.kind === "continue" && recovery.request.returnsFigure);
+    assert(!("figureId" in recovery.request.returnsFigure), "flag off: the request keeps its old shape");
+  });
+  await check("stash/restored-board-reads-figure-2", () => {
+    const L = on.turns[0]!;
+    const figure2 = storedLessonFigurePresentation(L, "figure_2").diagram!;
+    // A doubt after a reload with figure 2 in the zone stashes figure 2, not figure 1.
+    const live = storedPageZoneStash(on.turns.slice(0, 2), figure2);
+    assert(live && live.diagram && live.figureId === "figure_2", "figure 2 in the zone is stashed as figure 2");
+    // With a doubt's own figure in the zone, the stash is the figure the resume returns.
+    const doubtZone = storedLessonFigurePresentation(on.turns[2]!, "figure_1").diagram!;
+    const swapped = storedPageZoneStash(on.turns.slice(0, 3), doubtZone);
+    assert(swapped && swapped.presentation && swapped.figureId === "figure_2");
+    assert.deepEqual(ids(swapped.presentation.diagram), ids(figure2), "the stash holds figure 2");
+  });
+  await check("uqh/return-after-a-reload-reads-the-figure-id", () => {
+    const slice = anchoredSlice("hooks/turn/useQuestionHandler.ts", "doubt-figure-return");
+    assert(/storedLessonFigurePresentation\(source, back\.figureId \?\? "figure_1"\)/.test(slice), "the reload return draws the figure the lesson had moved to");
+    assert(!/storedFigurePresentation\(/.test(slice), "never figure 1 alone");
+    assert(/page\.lessonFigureId = returned \? back\.figureId \?\? null : null;/.test(slice), "the page remembers it");
+  });
+}
+
 async function main(): Promise<void> {
   await pageFigureChecks();
+  await resumeChecks();
   await restoreChecks();
   await boardRestoreChecks();
   console.log(`verify-lesson-figures-replay: ${passed} checks passed`);

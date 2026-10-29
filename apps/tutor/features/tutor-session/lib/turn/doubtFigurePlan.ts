@@ -39,7 +39,8 @@ import { composeDoubtFigureQuestion } from "@/lib/boards/doubtFigure";
 import { lessonFigureReturnAfter, pageFigureAt, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
 import { DIAGRAM_ZONE } from "../../constants";
 import type { BoardLayoutState } from "../../types";
-import { storedFigurePresentation } from "../replay/pageFigureSync";
+import { storedLessonFigurePresentation } from "../replay/pageFigureSync";
+import type { PageFigureId } from "@/lib/boards/pageFigure";
 import { EMPTY_ZONE_STASH, releasedEntityIds, type ZoneStash } from "../scene/figureSwap";
 import { isReferencePictureDiagram } from "../scene/referencePicturePresentation";
 import {
@@ -208,11 +209,14 @@ export function zoneInkOccupied(layout: BoardLayoutState): boolean {
  * `consumedDeferredIds(presentation.diagram, live)` is what it released. Null
  * when the stored figure is not the one in the zone.
  */
-export function storedZoneStash(live: VerifiedDiagram, source: StoredTurn): ZoneStash | null {
-  const presentation = storedFigurePresentation(source);
+export function storedZoneStash(live: VerifiedDiagram, source: StoredTurn, figureId: PageFigureId = "figure_1"): ZoneStash | null {
+  const presentation = storedLessonFigurePresentation(source, figureId);
   if (!presentation.diagram || presentation.introSegments.length === 0) return null;
   if (figureFingerprint(presentation.diagram) !== figureFingerprint(live)) return null;
-  return { diagram: live, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: source.id };
+  return {
+    diagram: live, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: source.id,
+    ...(figureId !== "figure_1" ? { figureId } : {}),
+  };
 }
 
 /**
@@ -236,18 +240,21 @@ function readStoredPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDia
   const at = pageFigureAt(turns, turns.length - 1);
   if (at.sourceIndex === null) return null;
   const source = turns[at.sourceIndex]!;
-  if (!storedTurnSwapsFigureIn(source)) return storedZoneStash(live, source);
-  const zone = storedFigurePresentation(source).diagram;
+  if (!storedTurnSwapsFigureIn(source)) return storedZoneStash(live, source, at.figureId);
+  const zone = storedLessonFigurePresentation(source, "figure_1").diagram;
   if (!zone || figureFingerprint(zone) !== figureFingerprint(live)) return null;
   const back = lessonFigureReturnAfter(turns);
   if (!back) return null;
   if (back.sourceIndex === null) return { ...EMPTY_ZONE_STASH };
   const lesson = turns[back.sourceIndex]!;
-  const presentation = storedFigurePresentation(lesson);
+  const presentation = storedLessonFigurePresentation(lesson, back.figureId);
   if (!presentation.diagram || presentation.introSegments.length === 0) return null;
   const diagram = structuredClone(presentation.diagram);
   takeDeferredAnnotations(diagram, { entityIds: releasedEntityIds(diagram, back.consumedIds) });
-  return { diagram, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: lesson.id };
+  return {
+    diagram, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: lesson.id,
+    ...(back.figureId !== "figure_1" ? { figureId: back.figureId } : {}),
+  };
 }
 
 /** The need check body: what the zone's figure shows, by part. A picture's family is `reference_picture`. */

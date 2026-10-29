@@ -308,7 +308,8 @@ async function main(): Promise<void> {
     assert(refCleared >= 0 && refCleared < stashReturn, "the zone's ref is emptied before the return awaits, so a cancel never leaves it on the doubt's figure");
     const reload = resume.indexOf("returnFigureToZone(");
     assert(reload > returnCall && refRead > reload, "after a reload, returnsFigure redraws the stored figure before the ref is read");
-    assert(resume.includes("source ? storedFigurePresentation(source) : { diagram: null, introSegments: [] }"), "the stored turn's own figure ink comes back");
+    // Lane 6: figure 1's stored ink, or the lesson's later figure it had moved to.
+    assert(resume.includes('source ? storedLessonFigurePresentation(source, back.figureId ?? "figure_1") : { diagram: null, introSegments: [] }'), "the stored turn's own figure ink comes back");
     assert(swap.includes("page.figureDrawn = false;"), "the swap clears figureDrawn; enqueueVerifiedIntro sets it on commit");
     assert(swap.includes("page.turn.scene = doubtFigureTurnScene(doubtFigurePlannedScene(drawn), page.lessonQuestion, page.zoneStash?.turnId ?? null);"),
       "the doubt row is its own scene, planned on the composed question, marked with the stashed figure");

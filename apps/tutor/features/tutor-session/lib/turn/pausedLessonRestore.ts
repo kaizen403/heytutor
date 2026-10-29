@@ -192,7 +192,12 @@ export function lessonRecoveryFromStoredTurns(
   const figureIndex = lessonFigureSourceAt(page, page.length - 1);
   const figureTurn = figureIndex !== null && storedTurnContinuesBoard(page[figureIndex]!) ? page[figureIndex]! : source;
   const returnsFigure = figureReturn
-    ? { turnId: figureReturn.sourceIndex === null ? null : page[figureReturn.sourceIndex]!.id, consumedIds: figureReturn.consumedIds }
+    ? {
+        turnId: figureReturn.sourceIndex === null ? null : page[figureReturn.sourceIndex]!.id,
+        consumedIds: figureReturn.consumedIds,
+        // The lesson's later figure it had moved to before the doubt (lesson figures).
+        ...(figureReturn.figureId !== "figure_1" ? { figureId: figureReturn.figureId } : {}),
+      }
     : null;
   // Normalize only the blank saved page epoch for explicitly marked, unplanned
   // openings. Narrated CLEAR, other ink and unknown commands stay substantive.

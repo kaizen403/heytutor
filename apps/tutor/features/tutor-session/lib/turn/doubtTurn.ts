@@ -365,7 +365,7 @@ export interface PausedLessonRequest {
    * whose figure the resume returns (`turnId` null: the zone empties) and the
    * ids earlier turns released on it. The live board uses `zoneStash`.
    */
-  returnsFigure?: { turnId: string | null; consumedIds: string[] };
+  returnsFigure?: { turnId: string | null; consumedIds: string[]; figureId?: import("@/lib/boards/lessonFigures").LessonFigureId };
 }
 
 /**
