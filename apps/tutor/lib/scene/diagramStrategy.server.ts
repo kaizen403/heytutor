@@ -53,3 +53,8 @@ export function resolveDiagramStrategyAssignment(
 export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY) {
   return parseDiagramYieldPolicy(raw);
 }
+
+/** Kill switch for strict drawing the owning optics archetype: `OPTICS_ARCHETYPE_IN_STRICT=off` turns it off; default on. */
+export function resolveOpticsArchetypeInStrict(raw = process.env.OPTICS_ARCHETYPE_IN_STRICT): boolean {
+  return (raw ?? "").trim().toLowerCase() !== "off";
+}

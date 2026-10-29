@@ -1,7 +1,7 @@
 import { beginTurnFromRequest } from "@/lib/billing/gate";
 import { billingResponse } from "@/lib/billing/errors";
 import { cacheUsageOnUser } from "@/lib/billing/ledger";
-import { resolveDiagramStrictSubjects, resolveDiagramYieldPolicy } from "@/lib/scene/diagramStrategy.server";
+import { resolveDiagramStrictSubjects, resolveDiagramYieldPolicy, resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
 
 export async function POST(request: Request): Promise<Response> {
   const startedAt = Date.now();
@@ -29,5 +29,6 @@ export async function POST(request: Request): Promise<Response> {
     diagramStrategy: result.diagramStrategy,
     diagramStrictSubjects: resolveDiagramStrictSubjects(),
     diagramYieldPolicy: resolveDiagramYieldPolicy(),
+    opticsArchetypeInStrict: resolveOpticsArchetypeInStrict(),
   });
 }

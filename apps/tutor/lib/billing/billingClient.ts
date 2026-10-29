@@ -25,6 +25,8 @@ export interface BeginTurnOk {
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
   diagramYieldPolicy?: DiagramYieldPolicy;
+  /** False only when the server set OPTICS_ARCHETYPE_IN_STRICT=off. */
+  opticsArchetypeInStrict?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -226,6 +228,7 @@ async function beginTurnOnce(input: {
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
+    opticsArchetypeInStrict: payload.opticsArchetypeInStrict !== false,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };
