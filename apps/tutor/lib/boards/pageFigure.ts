@@ -12,13 +12,18 @@
  * pointed at the figure now in the zone. Replaying them through
  * `takeDeferredAnnotations` on a freshly built presentation gives the deferred
  * state the live object had, so a returned figure never letters a label twice.
+ *
+ * The lesson's figure is not always the opener's. A Stop or doubt before the
+ * figure's first beat saves the opener as text only, and the resume draws the
+ * whole figure from its own trusted rows. That resume installs the lesson's
+ * figure (`installsLesson`) and is its source from then on.
  */
-import { parseFocusSpec, parseStoredSegmentCommands } from "@heytutor/drawing";
+import { isStoredCommandTrustedGeometry, parseFocusSpec, parseStoredSegmentCommands } from "@heytutor/drawing";
 import type { StoredTurn } from "./boardsClient";
 import { BOARD_CONTINUATION_VERSION, storedTurnContinuesBoard } from "./boardContinuation";
 import { doubtFigureOf } from "./doubtFigure";
 
-type PageFigureTurn = Pick<StoredTurn, "sceneArtifacts" | "segments" | "sceneDocument" | "visualStatus"> &
+export type PageFigureTurn = Pick<StoredTurn, "sceneArtifacts" | "segments" | "sceneDocument" | "visualStatus"> &
   Partial<Pick<StoredTurn, "kind">>;
 
 export interface PageFigureAt {
@@ -26,8 +31,10 @@ export interface PageFigureAt {
   sourceIndex: number | null;
   /** turns[index] draws its own figure: the zone must be cleared before its intro. */
   swapIn: boolean;
-  /** turns[index] is a resume that brings the opener's figure back into the zone. */
+  /** turns[index] is a resume that brings the lesson's figure back into the zone. */
   returnsLesson: boolean;
+  /** turns[index] is a resume whose own rows draw the lesson's figure: it becomes the figure's source. */
+  installsLesson: boolean;
   /** FOCUS / ANNOTATE targets earlier turns released on that figure, in first use order. */
   consumedIds: string[];
 }
@@ -40,6 +47,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function opensWithFigure(turn: PageFigureTurn): boolean {
   if (turn.visualStatus === "validated" && turn.sceneDocument) return true;
   return isRecord(turn.sceneArtifacts) && isRecord(turn.sceneArtifacts.referencePicture);
+}
+
+/** A turn carries the lesson's figure: a validated scene or a stored reference picture. */
+function hasLessonFigure(turn: PageFigureTurn): boolean {
+  return opensWithFigure(turn);
+}
+
+/**
+ * A turn of the lesson (opener or resume, never a doubt) whose saved rows drew
+ * the lesson's figure. A resume only counts when its own trusted rows drew it:
+ * every resume carries the lesson's scene, but only the one that first drew
+ * the figure (its opener was saved text only) has the ink.
+ */
+export function storedTurnDrawsLessonFigure(turn: PageFigureTurn, isOpener: boolean): boolean {
+  if (isOpener) return opensWithFigure(turn);
+  return turn.kind === "resume" &&
+    doubtFigureOf(turn.sceneArtifacts) === null &&
+    hasLessonFigure(turn) &&
+    turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command));
 }
 
 /** A continuation that drew its own verified figure in the zone. */
@@ -66,35 +92,47 @@ export function storedTurnFocusIds(turn: Pick<StoredTurn, "segments">): string[]
   return ids;
 }
 
-/** Which stored turn's figure is in the zone while turns[index] plays. */
-export function pageFigureAt(
-  turns: readonly PageFigureTurn[],
-  index: number,
-): { sourceIndex: number | null; swapIn: boolean; returnsLesson: boolean; consumedIds: string[] } {
-  if (!Number.isInteger(index) || index < 0 || index >= turns.length) {
-    return { sourceIndex: null, swapIn: false, returnsLesson: false, consumedIds: [] };
-  }
+/** Index of the turn that opened the page turns[index] is on. */
+function pageOpenerIndex(turns: readonly PageFigureTurn[], index: number): number {
   let opener = index;
   while (opener > 0 && storedTurnContinuesBoard(turns[opener]!)) opener -= 1;
-  const openerSource = opensWithFigure(turns[opener]!) ? opener : null;
+  return opener;
+}
 
-  // The zone's source while each turn of the page plays, opener first.
+/** Which stored turn's figure is in the zone while turns[index] plays. */
+export function pageFigureAt(turns: readonly PageFigureTurn[], index: number): PageFigureAt {
+  if (!Number.isInteger(index) || index < 0 || index >= turns.length) {
+    return { sourceIndex: null, swapIn: false, returnsLesson: false, installsLesson: false, consumedIds: [] };
+  }
+  const opener = pageOpenerIndex(turns, index);
+  const openerSource = storedTurnDrawsLessonFigure(turns[opener]!, true) ? opener : null;
+
+  // The zone's source while each turn of the page plays, opener first. The
+  // lesson's source starts at the opener and moves to a resume that drew it.
   let source: number | null = openerSource;
+  let lessonSource: number | null = openerSource;
   const sourceDuring: Array<number | null> = [source];
   let swapIn = false;
   let returnsLesson = false;
+  let installsLesson = false;
   for (let at = opener + 1; at <= index; at += 1) {
     const turn = turns[at]!;
     const before = source;
+    let installs = false;
     if (storedTurnSwapsFigureIn(turn)) {
       source = at;
+    } else if (storedTurnDrawsLessonFigure(turn, false)) {
+      lessonSource = at;
+      source = at;
+      installs = true;
     } else if (turn.kind === "resume") {
-      source = openerSource;
+      source = lessonSource;
     }
     sourceDuring.push(source);
     if (at === index) {
-      swapIn = source === at;
-      returnsLesson = !swapIn && turn.kind === "resume" && before !== source;
+      installsLesson = installs;
+      swapIn = !installs && source === at;
+      returnsLesson = !swapIn && !installs && turn.kind === "resume" && before !== source;
     }
   }
 
@@ -107,12 +145,25 @@ export function pageFigureAt(
       }
     }
   }
-  return { sourceIndex: source, swapIn, returnsLesson, consumedIds };
+  return { sourceIndex: source, swapIn, returnsLesson, installsLesson, consumedIds };
 }
 
 /**
- * What a resume after the last saved turn must bring back: the opener's
- * figure and the ids its earlier turns released, when a doubt's own figure
+ * Index of the newest lesson-owned turn in [opener, upTo] whose rows drew the
+ * lesson's figure, or null when no lesson turn of the page drew it.
+ */
+export function lessonFigureSourceAt(turns: readonly PageFigureTurn[], upTo: number): number | null {
+  if (!Number.isInteger(upTo) || upTo < 0 || upTo >= turns.length) return null;
+  const opener = pageOpenerIndex(turns, upTo);
+  for (let at = upTo; at > opener; at -= 1) {
+    if (storedTurnDrawsLessonFigure(turns[at]!, false)) return at;
+  }
+  return storedTurnDrawsLessonFigure(turns[opener]!, true) ? opener : null;
+}
+
+/**
+ * What a resume after the last saved turn must bring back: the lesson's
+ * figure (the opener's, or the resume's that drew it) and the ids its earlier turns released, when a doubt's own figure
  * stands in the zone. Null when the zone already holds the lesson's figure.
  * A reloaded board has no live zone stash; this is its stash.
  */

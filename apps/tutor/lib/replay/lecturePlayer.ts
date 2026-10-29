@@ -234,9 +234,10 @@ export function buildLecturePlayerTimeline(
           installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
             restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
         } else if (turn) {
-          // A doubt's own figure swaps in and the resume returns the lesson's.
+          // A doubt's own figure swaps in and the resume returns the lesson's,
+          // or installs it when the resume's own rows drew it first.
           const figure = pageFigureAt(turns, cue.turnIndex);
-          if (figure.swapIn || figure.returnsLesson) {
+          if (figure.swapIn || figure.returnsLesson || figure.installsLesson) {
             const source = figure.sourceIndex === null ? undefined : turns[figure.sourceIndex];
             installedDiagram = Boolean(source &&
               (restoreVerifiedDiagramFromTurn(source) ?? restoreReferencePictureFromTurn(source)));

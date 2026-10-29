@@ -23,11 +23,17 @@ import { clearFigureZone, returnFigureToZone, type FigureSwapExecuteCommand } fr
 import { restoreReferencePictureFromTurn } from "../scene/restoreReferencePicture";
 import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
 
-/** What a continuation does to the zone: nothing, its own figure in, or the lesson's back. */
+/**
+ * What a continuation does to the zone: nothing, its own figure in, the
+ * lesson's back, or (a resume whose own rows draw the lesson's figure) the
+ * lesson's installed for the first time. `clearFirst`: a doubt's figure stands
+ * in the zone and must leave before the resume's rows draw.
+ */
 export type StoredPageFigureChange =
   | { kind: "keep" }
   | { kind: "swap"; sourceIndex: number }
-  | { kind: "return"; sourceIndex: number | null; consumedIds: string[] };
+  | { kind: "return"; sourceIndex: number | null; consumedIds: string[] }
+  | { kind: "install"; sourceIndex: number; clearFirst: boolean };
 
 export function storedPageFigureChange(turns: readonly StoredTurn[], turnIndex: number): StoredPageFigureChange {
   const turn = turns[turnIndex];
@@ -37,6 +43,9 @@ export function storedPageFigureChange(turns: readonly StoredTurn[], turnIndex: 
   if (!storedTurnSwapsFigureIn(turn) && turn.kind !== "resume") return { kind: "keep" };
   const at = pageFigureAt(turns, turnIndex);
   if (at.swapIn) return { kind: "swap", sourceIndex: turnIndex };
+  if (at.installsLesson) {
+    return { kind: "install", sourceIndex: turnIndex, clearFirst: pageFigureAt(turns, turnIndex - 1).sourceIndex !== null };
+  }
   if (at.returnsLesson) return { kind: "return", sourceIndex: at.sourceIndex, consumedIds: at.consumedIds };
   return { kind: "keep" };
 }
@@ -68,8 +77,11 @@ export function storedFigurePresentation(turn: StoredTurn): {
  * Bring the zone to what turns[turnIndex] plays under. `changed: false` keeps
  * the page's figure and its live deferred state, as before. On a swap the zone
  * is cleared and the turn's own figure installed (its stored intro draws it).
- * On a return the opener's figure is stamped back with the marks earlier turns
- * released, and resolves with that deferred state.
+ * On a return the lesson's figure is stamped back with the marks earlier turns
+ * released, and resolves with that deferred state. On an install the turn's
+ * own stored rows draw the lesson's figure, so nothing is stamped: the zone is
+ * cleared only when a doubt's figure stands in it, and the diagram is resolved
+ * before those rows play so FOCUS has a target.
  */
 export async function syncStoredPageFigure(input: {
   turns: readonly StoredTurn[];
@@ -86,6 +98,10 @@ export async function syncStoredPageFigure(input: {
   const layout = input.layout ?? null;
   if (change.kind === "swap") {
     const cleared = await clearFigureZone(wb, layout, input.shouldCancel);
+    return { changed: true, cancelled: !cleared, diagram: cleared ? storedTurnFigureDiagram(input.turns[change.sourceIndex]) : null };
+  }
+  if (change.kind === "install") {
+    const cleared = change.clearFirst ? await clearFigureZone(wb, layout, input.shouldCancel) : !input.shouldCancel();
     return { changed: true, cancelled: !cleared, diagram: cleared ? storedTurnFigureDiagram(input.turns[change.sourceIndex]) : null };
   }
   const source = change.sourceIndex === null ? undefined : input.turns[change.sourceIndex];
