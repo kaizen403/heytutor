@@ -7,7 +7,7 @@
  * without the artifact keep today's bytes.
  *
  * Fixture: the recorded circle lesson, with figure 2 the fast selector's
- * figure for "free body diagram of the body" on the composed question (as
+ * figure for the view "vector_diagram" on the composed question (as
  * the lane 4 persist gate), saved through the real server canonicalizer.
  *
  * Mutations this gate catches (brief lane 6 table):
@@ -46,7 +46,7 @@ import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSe
 import circle from "./fixtures/replay/circle-s3-turn.json";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
-import { composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure } from "../../lib/boards/lessonFigures";
+import { LESSON_FIGURES_VERSION, composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure } from "../../lib/boards/lessonFigures";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { DOUBT_FIGURE_REF_VERSION, doubtFigureRefArtifacts, type DoubtFigureRef } from "../../lib/boards/doubtFigureRef";
@@ -93,8 +93,9 @@ const recorded = circle.turn as unknown as {
   segments: Array<{ orderIndex: number; narration: string; spokenText?: string; command: unknown }>;
 };
 const LESSON = recorded.question;
-const ASK = "free body diagram of the body";
-const COMPOSED = composeLessonFigureQuestion(LESSON, ASK);
+/** A closed view the engine draws on this lesson as a figure other than figure 1 (the client would refuse it as not a lesson family; the server checks truth only). */
+const VIEW = "vector_diagram" as const;
+const COMPOSED = composeLessonFigureQuestion(LESSON, VIEW);
 const L_ID = "a1111111-1111-4111-8111-111111111111";
 const P_ID = "a2222222-2222-4222-8222-222222222222";
 const D_ID = "a3333333-3333-4333-8333-333333333333";
@@ -103,9 +104,9 @@ const R_ID = "a4444444-4444-4444-8444-444444444444";
 function figureTwo(): StoredLessonFigure {
   const plan = validateTurnPlanV3({ ...recorded.sceneArtifacts.turnPlan, question: COMPOSED }, COMPOSED).plan!;
   const gate = deriveSceneGate({ question: COMPOSED, turnPlan: plan, problemIR: null, conversationContext: "" });
-  const fast = selectFastFigure({ question: COMPOSED, turnPlan: plan, authority: null, families: gate.sceneCapabilities.families });
-  assert(fast, "the fast selector draws figure 2 on the composed question");
-  return { id: "figure_2", ask: ASK, sceneDocument: fast.sceneDocument, tier: fast.tier, family: fast.family ?? null, figureSource: "fast_family" };
+  const fast = selectFastFigure({ question: COMPOSED, turnPlan: plan, authority: null, families: [VIEW, ...gate.sceneCapabilities.families] });
+  assert(fast && fast.family === VIEW, "the fast selector draws figure 2, of the picked view, on the composed question");
+  return { id: "figure_2", view: VIEW, sceneDocument: fast.sceneDocument, tier: fast.tier, family: VIEW, figureSource: "fast_family" };
 }
 
 function baseRows(): SubmittedTurnSceneMetadata["segments"] {
@@ -136,7 +137,7 @@ export interface LessonFiguresPage {
 /** The page, flag on (the artifact kept) or off (stripped at save). */
 export async function lessonFiguresPage(flag: boolean): Promise<LessonFiguresPage> {
   const figure = figureTwo();
-  const artifact = { schemaVersion: "lesson-figures/v1", figures: [figure] };
+  const artifact = { schemaVersion: LESSON_FIGURES_VERSION, figures: [figure] };
   const probe = await canonicalizeTurnSceneMetadata(lessonMetadata(baseRows(), { lessonFigures: artifact }), { lessonFiguresEnabled: true });
   assert(probe.ok, `the probe lesson saves: ${probe.ok ? "" : probe.error}`);
   // Part ids from the server's own admission, independent of the client rebuild under test.
@@ -663,7 +664,7 @@ async function doubtRefChecks(): Promise<void> {
 async function resumeStartChecks(): Promise<void> {
   const on = await lessonFiguresPage(true);
   const L = on.turns[0]!;
-  const artifact = { schemaVersion: "lesson-figures/v1", figures: [on.figure] };
+  const artifact = { schemaVersion: LESSON_FIGURES_VERSION, figures: [on.figure] };
   const resumeId = "a6666666-6666-4666-8666-666666666666";
   const saveResume = async (rows: PageFigureTurn[], options: { flag?: boolean; bound?: boolean; target?: string } = {}) => {
     const store = memoryPageFigureStore(rows);

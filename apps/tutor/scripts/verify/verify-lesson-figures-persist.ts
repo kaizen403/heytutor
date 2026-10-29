@@ -7,10 +7,11 @@
  * moves every later check to figure 2, forward only.
  *
  * The figure here is a recorded circle lesson's, with figure 2 the fast
- * selector's figure for the ask "free body diagram of the body". The client
- * refuses that pairing (not a family the lesson reads, see the plan gate);
- * the server's job is truth, not relevance, and the pairing gives figure 2
- * parts figure 1 does not have, which the cursor checks need.
+ * selector's figure for the view "vector_diagram" (the engine's own phrase,
+ * never planner words). The client refuses that pairing (not a family the
+ * lesson reads, see the plan gate); the server's job is truth, not
+ * relevance, and the pairing gives figure 2 parts figure 1 does not have,
+ * which the cursor checks need.
  *
  * Mutations this gate catches (brief lane 4 table):
  * (d) accept Turn.question as a lesson figure's scene question;
@@ -28,7 +29,7 @@ import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand 
 import circle from "./fixtures/replay/circle-s3-turn.json";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { admitLessonFigures, admitStoredScene } from "../../lib/scene/sceneAdmission";
-import { composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure } from "../../lib/boards/lessonFigures";
+import { LESSON_FIGURES_VERSION, composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure } from "../../lib/boards/lessonFigures";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { stripSceneInk } from "../../lib/boards/turnCheckpoint";
@@ -61,15 +62,16 @@ const turn = circle.turn as unknown as {
   segments: Array<{ orderIndex: number; narration: string; spokenText?: string; command: unknown }>;
 };
 const LESSON = turn.question;
-const ASK = "free body diagram of the body";
-const COMPOSED = composeLessonFigureQuestion(LESSON, ASK);
+/** A closed view the engine draws on this lesson as a figure other than figure 1 (the client would refuse it as not a lesson family; the server checks truth only). */
+const VIEW = "vector_diagram" as const;
+const COMPOSED = composeLessonFigureQuestion(LESSON, VIEW);
 
 function figureTwo(): StoredLessonFigure {
   const plan = validateTurnPlanV3({ ...turn.sceneArtifacts.turnPlan, question: COMPOSED }, COMPOSED).plan!;
   const gate = deriveSceneGate({ question: COMPOSED, turnPlan: plan, problemIR: null, conversationContext: "" });
-  const fast = selectFastFigure({ question: COMPOSED, turnPlan: plan, authority: null, families: gate.sceneCapabilities.families });
-  assert(fast, "the fast selector draws figure 2 on the composed question");
-  return { id: "figure_2", ask: ASK, sceneDocument: fast.sceneDocument, tier: fast.tier, family: fast.family ?? null, figureSource: "fast_family" };
+  const fast = selectFastFigure({ question: COMPOSED, turnPlan: plan, authority: null, families: [VIEW, ...gate.sceneCapabilities.families] });
+  assert(fast && fast.family === VIEW, "the fast selector draws figure 2, of the picked view, on the composed question");
+  return { id: "figure_2", view: VIEW, sceneDocument: fast.sceneDocument, tier: fast.tier, family: VIEW, figureSource: "fast_family" };
 }
 
 function lessonMetadata(segments: SubmittedTurnSceneMetadata["segments"], extra: Record<string, unknown> = {}): SubmittedTurnSceneMetadata {
@@ -96,7 +98,7 @@ function focusIdsOf(segments: Array<{ narration: string; command: unknown }>, na
 
 async function main(): Promise<void> {
   const figure = figureTwo();
-  const artifact = { schemaVersion: "lesson-figures/v1", figures: [figure] };
+  const artifact = { schemaVersion: LESSON_FIGURES_VERSION, figures: [figure] };
   const firstAdmitted = admitStoredScene({ sceneDocument: turn.sceneDocument, sceneQuestion: LESSON, turnPlan: validateTurnPlanV3(turn.sceneArtifacts.turnPlan, LESSON).plan, submittedTier: turn.sceneArtifacts.representationTier });
   assert(firstAdmitted.ok, "figure 1 admits");
   const secondAdmitted = admitStoredScene({ sceneDocument: figure.sceneDocument, sceneQuestion: COMPOSED, turnPlan: validateTurnPlanV3({ ...turn.sceneArtifacts.turnPlan, question: COMPOSED }, COMPOSED).plan, submittedTier: figure.tier });
@@ -208,10 +210,11 @@ async function main(): Promise<void> {
   });
   await check("malformed/stripped-whole", async () => {
     for (const bad of [
-      { ...artifact, figures: [{ ...figure, ask: "graph for 5 seconds" }] },
+      { ...artifact, figures: [{ ...figure, view: "free body diagram of the block", family: "free body diagram of the block" }] },
+      { ...artifact, figures: [{ ...figure, family: "contact_body" }] },
       { ...artifact, figures: [figure, { ...figure, id: "figure_3" }, { ...figure, id: "figure_3" }] },
       { ...artifact, figures: [{ ...figure, id: "figure_4" }] },
-      { ...artifact, schemaVersion: "lesson-figures/v2" },
+      { ...artifact, schemaVersion: "lesson-figures/v1" },
     ]) {
       const saved = await canonicalizeTurnSceneMetadata(lessonMetadata(teaching, { lessonFigures: bad }), { lessonFiguresEnabled: true });
       assert(saved.ok);

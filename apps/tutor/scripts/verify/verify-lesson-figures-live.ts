@@ -61,7 +61,7 @@ async function check(name: string, run: () => void | Promise<void>): Promise<voi
 
 // ---------------------------------------------------------------------------
 // Fixtures: a real figure 1 (the line y = 2x + 1) and a real figure 2 planned
-// by planLessonFigures (the incline's free body diagram), as lane 4 gates them.
+// by planLessonFigures (the incline's contact body view), as lane 4 gates them.
 // ---------------------------------------------------------------------------
 
 function fastPresentation(plan: TurnPlanV3): { presentation: LessonFigurePresentation; families: string[] } {
@@ -85,7 +85,7 @@ const first = fastPresentation(LINE_PLAN).presentation;
 const planned = planLessonFigures({
   lessonQuestion: inclinePlan.question, turnPlan: inclinePlan, authority: null, families: lesson.families,
   first: first.diagram, narrationLanguage: "english", deadlineAt: Date.now() + 60_000,
-  asks: [{ id: "figure_2", ask: "free body diagram of the block" }],
+  asks: [{ id: "figure_2", view: "contact_body" }],
 });
 assert.equal(planned.figures.length, 1, `figure 2 draws: ${JSON.stringify(planned.misses)}`);
 const view2: PlannedLessonFigureView = {

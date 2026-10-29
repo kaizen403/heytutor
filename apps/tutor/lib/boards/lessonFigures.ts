@@ -1,32 +1,42 @@
 /**
  * Later figures inside one lesson (DIAGRAM_LESSON_FIGURES, phase 3).
  *
- * The planner may name up to two later views of the same situation in words
- * (`plan.figures`, an unknown key validateTurnPlanV3 passes through). Each is
- * drawn only by the engine's own fast selector, on the lesson question
- * composed with the ask and on the lesson's own plan and authority; the
- * teaching moves to it with `[FOCUS:figure_2]`, forward only.
+ * The planner may pick up to two later views of the same situation
+ * (`plan.figures`, an unknown key validateTurnPlanV3 passes through). A view
+ * is one figure kind id from a closed list the engine reads from the question
+ * (`turnPlanV3LessonFiguresAddon`), never words of the model's own: the
+ * figure's source question is the lesson question plus the engine's own name
+ * for that kind (`composeLessonFigureQuestion`), so no planner word ("smooth",
+ * "upward", a species) can become source truth (rules 4 and 5). Each figure
+ * is drawn only by the engine's own fast selector, on that composed question
+ * and on the lesson's own plan; the teaching moves to it with
+ * `[FOCUS:figure_2]`, forward only.
  *
- * An ask is words only. With no digit (and no number word) in it, no number
- * can reach a later figure except through the lesson's authority (rule 4).
  * A malformed list is dropped whole, never repaired, and never rejects the
- * plan, as exampleReactions is.
+ * plan, as exampleReactions is. Any other key in an entry is never read.
  */
+import {
+  describeSceneFamily,
+  isSceneVisualFamily,
+  type SceneVisualFamily,
+} from "@heytutor/scene-engine";
 import type { RepresentationTier } from "@/features/tutor-session/lib/scene/representationFallback";
 
-export const LESSON_FIGURES_VERSION = "lesson-figures/v1" as const;
+export const LESSON_FIGURES_VERSION = "lesson-figures/v2" as const;
 export const LESSON_FIGURE_IDS = ["figure_2", "figure_3"] as const;
 export type LessonFigureId = (typeof LESSON_FIGURE_IDS)[number];
 
 export interface LessonFigureAsk {
   id: LessonFigureId;
-  ask: string;
+  /** A figure kind id from the engine's closed list; never free text. */
+  view: SceneVisualFamily;
 }
 
 export interface StoredLessonFigure extends LessonFigureAsk {
   sceneDocument: unknown;
   tier: RepresentationTier;
-  family: string | null;
+  /** The family the selector drew: always the picked view. */
+  family: SceneVisualFamily;
   figureSource: "fast_family";
 }
 
@@ -37,9 +47,6 @@ export interface LessonFiguresArtifact {
 }
 
 const MAX_FIGURES = LESSON_FIGURE_IDS.length;
-const ASK_MIN = 3;
-const ASK_MAX = 80;
-const NUMBER_WORD = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|half|quarter|double|twice|thrice|triple)\b/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -58,12 +65,9 @@ export function figureCollidesWithAdvanceIds(diagram: { anchors: ReadonlyArray<{
   return diagram.anchors.some((anchor) => ADVANCE_ID_SHAPE.test(anchor.id.trim().toLowerCase()));
 }
 
-/** A later figure's ask: plain words naming the view, 3 to 80 characters, no number in any form. */
-export function isLessonFigureAsk(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const ask = value.trim();
-  return ask.length >= ASK_MIN && ask.length <= ASK_MAX &&
-    !/\p{Nd}/u.test(ask) && !/[[\]:]/.test(ask) && !/[\p{Cc}\p{Cf}]/u.test(ask) && !NUMBER_WORD.test(ask);
+/** A later figure's view: one figure kind id from the engine's closed list, nothing else. */
+export function isLessonFigureView(value: unknown): value is SceneVisualFamily {
+  return typeof value === "string" && isSceneVisualFamily(value);
 }
 
 /** At most two entries, ids unique and ascending (figure_2 before figure_3). */
@@ -84,10 +88,11 @@ export function lessonFigureAsksOf(plan: unknown): LessonFigureAsk[] {
   if (!isRecord(plan) || !Array.isArray(plan.figures)) return [];
   const entries = plan.figures as unknown[];
   if (!wellFormedIds(entries)) return [];
-  if (!entries.every((entry) => isRecord(entry) && isLessonFigureAsk(entry.ask))) return [];
+  if (!entries.every((entry) => isRecord(entry) && isLessonFigureView(entry.view))) return [];
+  // Only the id and the view are read: any words beside them are dropped here.
   return entries.map((entry) => {
     const record = entry as Record<string, unknown>;
-    return { id: record.id as LessonFigureId, ask: (record.ask as string).trim() };
+    return { id: record.id as LessonFigureId, view: record.view as SceneVisualFamily };
   });
 }
 
@@ -105,15 +110,15 @@ export function lessonFiguresOf(sceneArtifacts: unknown): LessonFiguresArtifact 
   const figures: StoredLessonFigure[] = [];
   for (const entry of entries) {
     const record = entry as Record<string, unknown>;
-    if (!isLessonFigureAsk(record.ask) || !isRecord(record.sceneDocument) || !isTier(record.tier)) return null;
-    if (record.family !== null && typeof record.family !== "string") return null;
+    if (!isLessonFigureView(record.view) || !isRecord(record.sceneDocument) || !isTier(record.tier)) return null;
+    if (record.family !== record.view) return null;
     if (record.figureSource !== "fast_family") return null;
     figures.push({
       id: record.id as LessonFigureId,
-      ask: record.ask.trim(),
+      view: record.view,
       sceneDocument: record.sceneDocument,
       tier: record.tier,
-      family: record.family as string | null,
+      family: record.view,
       figureSource: "fast_family",
     });
   }
@@ -121,12 +126,13 @@ export function lessonFiguresOf(sceneArtifacts: unknown): LessonFiguresArtifact 
 }
 
 /**
- * The question figure k is planned and checked on. Deterministic: the client
- * plans on it and the server recomputes it. It contains the lesson question
- * whole, so every given the lesson states is still stated.
+ * The question figure k is planned and checked on: the lesson question whole,
+ * then the engine's own name for the picked view. Deterministic: the client
+ * plans on it and the server and every restore recompute it from the stored
+ * view id. No planner word is ever part of it.
  */
-export function composeLessonFigureQuestion(lessonQuestion: string, ask: string): string {
-  return `${lessonQuestion.trim()}\n\nFigure: ${ask.trim()}`;
+export function composeLessonFigureQuestion(lessonQuestion: string, view: SceneVisualFamily): string {
+  return `${lessonQuestion.trim()}\n\nFigure: ${describeSceneFamily(view)}`;
 }
 
 /** DIAGRAM_LESSON_FIGURES, off unless exactly "on". Server side only. */

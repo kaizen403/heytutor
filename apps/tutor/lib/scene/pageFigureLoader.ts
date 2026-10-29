@@ -168,7 +168,7 @@ function sceneFigure(turn: PageFigureTurn): VerifiedDiagram | null {
 /**
  * A lesson's later figure (DIAGRAM_LESSON_FIGURES), rebuilt from the
  * referenced turn's own stored artifact exactly as the save admitted it
- * (`admitLessonFigures`): on the lesson question composed with its ask, with
+ * (`admitLessonFigures`): on the lesson question composed with its view, with
  * the lesson's plan restamped to that question. The doubt only names the id;
  * an id the stored artifact does not list, or a figure that no longer admits,
  * is null.

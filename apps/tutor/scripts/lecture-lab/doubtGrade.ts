@@ -15,7 +15,7 @@
  * - new figure: right / wrong / none when needed / drawn when not needed;
  * - saved equals live: every live FOCUS id survives the save round trip.
  */
-import { LESSON_FIGURE_IDS, isLessonFigureAsk, type LessonFigureAsk, type LessonFigureId } from "../../lib/boards/lessonFigures";
+import { LESSON_FIGURE_IDS, isLessonFigureView, type LessonFigureAsk, type LessonFigureId } from "../../lib/boards/lessonFigures";
 import { normalizeDiagramLabel } from "./judging";
 
 export const DOUBT_PROBE_LANES = [
@@ -55,7 +55,7 @@ export interface DoubtProbe {
   dsaFrame: number | null;
   /** The lesson needs the reference picture tier (no verified figure is expected). */
   referencePicture: boolean;
-  /** lesson_figures: the later views a teacher would add, in words (no numbers), injected as the plan's asks. */
+  /** lesson_figures: the later views a teacher would pick (figure kind ids from the engine's closed list), injected as the plan's figures. */
   lessonFigureAsks: LessonFigureAsk[];
   /** Checked offline only ($0): never sent to a paid round. */
   offlineOnly: boolean;
@@ -152,10 +152,10 @@ export function parseDoubtProbes(text: string): DoubtProbe[] {
     if (!Array.isArray(asksRaw)) throw new Error(`${where}: lessonFigureAsks must be a list`);
     const lessonFigureAsks = asksRaw.map((entry, at): LessonFigureAsk => {
       const id = LESSON_FIGURE_IDS[at];
-      if (!id || !isRecord(entry) || entry.id !== id || !isLessonFigureAsk(entry.ask)) {
-        throw new Error(`${where}: lessonFigureAsks[${at}] must be { id: "${id ?? "none"}", ask: words only }`);
+      if (!id || !isRecord(entry) || entry.id !== id || !isLessonFigureView(entry.view) || Object.keys(entry).length !== 2) {
+        throw new Error(`${where}: lessonFigureAsks[${at}] must be { id: "${id ?? "none"}", view: a figure kind id } and nothing else`);
       }
-      return { id: id as LessonFigureId, ask: (entry.ask as string).trim() };
+      return { id: id as LessonFigureId, view: entry.view };
     });
     if ((lane === "lesson_figures") !== (lessonFigureAsks.length > 0)) throw new Error(`${where}: lessonFigureAsks belong to the lesson_figures lane only, and it needs them`);
     if (figures.length !== lessonFigureAsks.length) throw new Error(`${where}: expect.figures needs one entry per ask`);
@@ -720,7 +720,7 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   check(zoneSummary.bar.zoneAll === false && zoneSummary.zone.doubt_left_on_board === 1, "a doubt left on the board fails the zone bar");
 
   // Later lesson figures (lesson-figures arm).
-  const figuresRow = probe({ lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", ask: "velocity time graph of the motion" }],
+  const figuresRow = probe({ lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", view: "state_plot" }],
     expect: { point: null, pointTerms: [], figures: ["the velocity time graph"] } });
   const extra = (overrides: Partial<LessonFiguresEvidence> = {}): LessonFiguresEvidence => ({
     asks: figuresRow.lessonFigureAsks, drawn: [{ id: "figure_2", family: "graph", tier: "exact_verified", parts: ["curve"] }],
@@ -758,15 +758,17 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   rejects({ ...base, lane: "control", expect: { point: null, newFigure: "x" } }, "a control expecting a figure");
   rejects({ ...base, doubt: "" }, "an empty unmarked doubt");
   rejects({ ...base, dsaFrame: 2 }, "a DSA frame on a non DSA row");
-  const figuresBase = { ...base, lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", ask: "free body diagram of the block" }],
+  const figuresBase = { ...base, lane: "lesson_figures", lessonFigureAsks: [{ id: "figure_2", view: "contact_body" }],
     expect: { point: null, newFigure: null, figures: ["the forces on the block"], lessonFigure: "drawn" } };
   const parsedFigures = parseDoubtProbes(line(figuresBase))[0]!;
-  check(parsedFigures.lessonFigureAsks[0]?.ask === "free body diagram of the block" && parsedFigures.expect.lessonFigure === "drawn",
+  check(parsedFigures.lessonFigureAsks[0]?.view === "contact_body" && parsedFigures.expect.lessonFigure === "drawn",
     "a lesson_figures row parses its asks");
   check(parseDoubtProbes(line({ ...base, lane: "resume_drawn" }))[0]!.offlineOnly, "a resume_drawn row is offline only");
   check(parseDoubtProbes(line({ ...base, lane: "picture_swap" }))[0]!.referencePicture, "a picture_swap row runs the picture tier");
-  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_2", ask: "graph for 3 seconds" }] }, "an ask with a digit");
-  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_3", ask: "free body diagram" }] }, "asks out of id order");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_2", ask: "free body diagram of the block" }] }, "an ask in words");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_2", view: "contact_body", ask: "on a smooth incline" }] }, "words beside a view");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_2", view: "free body diagram" }] }, "a view outside the closed list");
+  rejects({ ...figuresBase, lessonFigureAsks: [{ id: "figure_3", view: "contact_body" }] }, "asks out of id order");
   rejects({ ...figuresBase, expect: { ...figuresBase.expect, figures: [] } }, "an ask without its expected figure");
   rejects({ ...base, lessonFigureAsks: figuresBase.lessonFigureAsks, expect: { ...base.expect, figures: ["x"] } }, "asks outside the lesson_figures lane");
   rejects({ ...base, expect: { ...base.expect, zoneAfterResume: "doubt" } }, "a zone that leaves the doubt's figure");

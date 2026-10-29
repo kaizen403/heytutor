@@ -247,7 +247,7 @@ export interface AdmittedLessonFigures {
 
 /**
  * Admit each later figure as the turn's own figure is admitted: on the lesson
- * question composed with its ask, with the lesson's plan restamped to that
+ * question composed with its view, with the lesson's plan restamped to that
  * question and validated on it. A figure that fails is dropped (fail soft, as
  * a stale FOCUS is); the rest of the save is unchanged. A figure with a part
  * named like an advance cue (`figure_1` to `figure_3`) is dropped too, and
@@ -267,7 +267,7 @@ export function admitLessonFigures(
       droppedFigureIds.push(figure.id);
       continue;
     }
-    const sceneQuestion = composeLessonFigureQuestion(input.lessonQuestion, figure.ask);
+    const sceneQuestion = composeLessonFigureQuestion(input.lessonQuestion, figure.view);
     const planResult = input.turnPlan
       ? validateTurnPlanV3({ ...input.turnPlan, question: sceneQuestion }, sceneQuestion)
       : null;

@@ -202,10 +202,10 @@ export interface LectureRun {
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
-  /** RunLectureOptions.lessonFigures: the plan's later-figure asks and what the engine drew of them. */
+  /** RunLectureOptions.lessonFigures: the plan's picked later views and what the engine drew of them. */
   lessonFigures?: {
     asks: LessonFigureAsk[];
-    figures: Array<{ id: LessonFigureId; ask: string; family: string | null; tier: string; diagram: VerifiedDiagram }>;
+    figures: Array<{ id: LessonFigureId; view: string; family: string | null; tier: string; diagram: VerifiedDiagram }>;
     misses: Array<{ id: LessonFigureId; reason: string }>;
   } | null;
   productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
@@ -965,7 +965,7 @@ export async function runLecture(
       laterFigures = views.map(laterFigurePromptOf);
       run.lessonFigures = {
         asks: lessonFigureAsksOf(turnPlan),
-        figures: planned.figures.map((figure) => ({ id: figure.ask.id, ask: figure.ask.ask, family: figure.representation.family ?? null,
+        figures: planned.figures.map((figure) => ({ id: figure.ask.id, view: figure.ask.view, family: figure.representation.family ?? null,
           tier: figure.representation.tier, diagram: figure.presentation.diagram })),
         misses: planned.misses,
       };

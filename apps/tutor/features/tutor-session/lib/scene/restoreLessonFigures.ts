@@ -4,9 +4,9 @@
  *
  * Figure k has no trusted rows: like a worked example's frames it is rebuilt
  * from what was saved on every surface. The lesson turn stores each later
- * figure's document (the server's own admitted copy) and its words-only ask;
+ * figure's document (the server's own admitted copy) and its view id;
  * the figure is checked and compiled again on the lesson question composed
- * with that ask, with the lesson's plan restamped to it, exactly as the
+ * with that view, with the lesson's plan restamped to it, exactly as the
  * server admitted it (`admitLessonFigures`). A figure whose document was not
  * planned on that composed question is dropped, never drawn.
  *
@@ -64,7 +64,7 @@ export function restoreLessonFigureViews(
   const views: PlannedLessonFigureView[] = [];
   for (const figure of artifact.figures) {
     try {
-      const question = composeLessonFigureQuestion(lessonQuestion, figure.ask);
+      const question = composeLessonFigureQuestion(lessonQuestion, figure.view);
       const structural = validateSceneDocument(figure.sceneDocument);
       const document = structural.document;
       if (!document || document.visualDecision.mode !== "scene") continue;
