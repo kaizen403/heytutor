@@ -227,6 +227,14 @@ interface CueSet {
   vetoes?: readonly RegExp[];
   /** Every one of these must match for the figure to be eligible at all. */
   requires?: readonly RegExp[];
+  /**
+   * Wording that makes this figure a stand in for another body. Unlike a veto,
+   * a refusal never hands the turn on: when this set leads, the whole
+   * deterministic figure declines, runner up and families included.
+   */
+  refuses?: readonly RegExp[];
+  /** The stem must match each of these, or a lead by this set declines the figure. */
+  refusesUnless?: readonly RegExp[];
   /** Minimum score to be eligible. Default 2. */
   minScore?: number;
   /** Fill slots from the plan and stem. */
@@ -397,7 +405,8 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
+    refuses: [
       // A body turning about a pivot falls as a rotation, not a free fall;
       // the Earth's rotation or a swinging crane beside a dropped ball is not.
       /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?|discs?|disks?|wheels?|rings?|cylinders?)\b[^.]{0,40}?(?<!\b(?:without|no|not)\s)\b(?:rotat|swing)\w*|\baxles?\b|\b(?:about|around)\s+(?:a|the|its)\s+(?:fixed\s+)?(?:horizontal\s+)?(?:axis|support)\b/i],
@@ -576,12 +585,14 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     vetoes: [
       /\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i,
+    ],
+    refuses: [
       // A body spinning in place travels round no circle.
       /\b(?:about|around)\s+(?:its|their)\s+(?:own\s+)?(?:axis|axes|axle|centre|center|diameter)\b|\bown\s+axis\b|\bspin(?:s|ning)?\b|\brotational\s+(?:kinetic|energy|inertia)\b|\bmoment\s+of\s+inertia\b/i,
     ],
     // The figure is a body going round a circle. A car moving along a level
     // road names no circle, so the stem must say it turns.
-    requires: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],
+    refusesUnless: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");
@@ -1674,6 +1685,10 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
   return { set, score, strongest, evidence };
 }
 
+function refusesLead(set: CueSet, stem: string): boolean {
+  return Boolean(set.refuses?.some((pattern) => pattern.test(stem)) || set.refusesUnless?.some((pattern) => !pattern.test(stem)));
+}
+
 function fillSlots(set: CueSet, stem: string, plan: readonly PlanQuantity[]): SlotBag {
   const bag = emptyBag();
   set.extract?.(stem, plan, bag);
@@ -1714,6 +1729,31 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
 }
 
 /**
+ * True when the archetype that leads this stem is refused by its own wording
+ * (a straight road under a circle, a pivoted rod under free fall). Callers
+ * decline the whole deterministic figure, so no runner up or family takes
+ * the turn.
+ */
+export function refusedArchetypeLead(question: string, hints?: DetectionHints): boolean {
+  const stem = prepareStem(question);
+  if (!stem) return false;
+  const plan = collectPlanQuantities(hints?.turnPlan);
+  const bonus = structureBonus(hints);
+  const scored = CUE_SETS
+    .map((set) => scoreCueSet(set, stem, bonus))
+    .filter((item): item is Scored => item !== null)
+    .filter((item) => item.score >= (item.set.minScore ?? 2))
+    .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
+  for (const [index, candidate] of scored.entries()) {
+    if (!requiredSlotsPresent(candidate.set.id, fillSlots(candidate.set, stem, plan))) continue;
+    const next = scored[index + 1] ?? null;
+    if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) return false;
+    return refusesLead(candidate.set, stem);
+  }
+  return false;
+}
+
+/**
  * Decide the archetype for a question. Returns null when no figure clears the
  * evidence bar — callers then fall back or teach text-only, which is the
  * honest outcome for a stem the catalog does not describe.
@@ -1726,7 +1766,8 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
-    if (set && !set.vetoes?.some((veto) => veto.test(stem)) && !set.requires?.some((requirement) => !requirement.test(stem))) {
+    if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+      if (refusesLead(set, stem)) return null;
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
@@ -1768,6 +1809,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) {
       return null;
     }
+    if (refusesLead(candidate.set, stem)) return null;
     return {
       id: candidate.set.id,
       slots: bag.values,

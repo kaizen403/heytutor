@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { detectArchetype } from "../../src/archetypes/detect";
+import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 
 // Two mechanics archetypes drew a figure the stem never described. A car
 // moving along a level road got a car going round a circle, because "level
@@ -66,6 +67,32 @@ for (const question of [
   "A disc is dropped without rotation from a height of 20 m. Find its speed before it reaches the ground.",
 ]) {
   assert.equal(detectArchetype(question, {})?.id, "free_fall", `${question}: a dropped body keeps free fall`);
+  checks += 1;
+}
+// A refused lead declines the whole deterministic figure. The runner up, a
+// family and the last resort schematic must not take the turn instead.
+const plans: Record<string, unknown> = {
+  plain: undefined,
+  torque: { schemaVersion: "turn-plan/v3", givens: [], unknowns: [], derived: [], qualitativeClaims: [], assumptions: [], lawIds: ["torque about the pivot", "conservation of energy"] },
+  kinematics: { schemaVersion: "turn-plan/v3", givens: [], unknowns: [], derived: [], qualitativeClaims: [], assumptions: [], lawIds: ["equations of uniformly accelerated motion", "relative velocity"] },
+};
+for (const question of [
+  "A car moves on a level road with constant speed. Draw its x-t graph.",
+  "A car accelerates along a level road from rest at 2 m/s^2. Find its speed after 5 s.",
+  "A car travels on a straight level road at 20 m/s and brakes to rest in 40 m. Find the deceleration.",
+  "A rod pivoted at one end is released from horizontal. Find its angular speed at the bottom.",
+  "A uniform rod of length 2 m is released from horizontal and swings about a horizontal axis through one end.",
+]) {
+  for (const [name, turnPlan] of Object.entries(plans)) {
+    const input = { question, turnPlan: turnPlan ? { ...(turnPlan as object), question } : undefined };
+    assert.equal(synthesizeFamilyScene(input), null, `${question} (${name} plan): the family path declines a refused lead`);
+    assert.equal(synthesizeLastResortScene(input), null, `${question} (${name} plan): the last resort declines a refused lead`);
+    checks += 1;
+  }
+}
+check: {
+  const level = "A car accelerates along a level road from rest at 2 m/s^2. Find its speed after 5 s.";
+  assert.equal(detectArchetype(level, {}), null, "a refused circle lead declines, no runner up");
   checks += 1;
 }
 console.log(`verify-mechanics-stand-ins: ${checks} checks passed`);
