@@ -25,6 +25,12 @@ export interface TurnPlannerV3Options {
   fastMode?: boolean;
   /** Optional policy metadata on the existing call; off preserves prompt bytes. */
   classifySubject?: boolean;
+  /**
+   * DIAGRAM_LESSON_FIGURES granted for this turn: the plan call may name up
+   * to two later figures of the same situation. Absent or false keeps the
+   * prompt bytes; the audit call never sees it.
+   */
+  lessonFigures?: boolean;
   /** Content-free, completion-only diagnostics; observer failures never affect admission. */
   onRequestOutcome?: (outcome: TurnPlanRequestOutcome) => void;
 }
@@ -265,8 +271,8 @@ async function requestTurnPlanV3(
           {
             role: "system",
             content: options.classifySubject
-              ? `${withChemistryExampleAddon(systemPrompt, question)}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
-              : withChemistryExampleAddon(systemPrompt, question),
+              ? `${withLessonFiguresAddon(withChemistryExampleAddon(systemPrompt, question), options.lessonFigures === true && phase === "plan")}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
+              : withLessonFiguresAddon(withChemistryExampleAddon(systemPrompt, question), options.lessonFigures === true && phase === "plan"),
           },
           {
             role: "user",
@@ -1191,6 +1197,18 @@ Optional key exampleReactions: [{mechanism,equation}], mechanism one of SN1, SN2
 
 export function withChemistryExampleAddon(systemPrompt: string, question: string): string {
   return isChemistryQuestion(question) ? `${systemPrompt}\n\n${TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON}` : systemPrompt;
+}
+
+/**
+ * Shown only when the turn was granted DIAGRAM_LESSON_FIGURES, so every other
+ * prompt keeps its bytes. The planner names a later view in words only; the
+ * engine's own selector draws it from the lesson's plan and authority.
+ */
+export const TURN_PLAN_V3_LESSON_FIGURES_ADDON = `LESSON FIGURES
+Optional key figures: [{id,ask}], id "figure_2" then "figure_3". Use it only when teaching this question needs a second view of the same situation that one figure cannot show (for example the free body diagram, then the velocity time graph). ask names the view in plain words, no numbers, at most 80 characters. Otherwise omit figures.`;
+
+export function withLessonFiguresAddon(systemPrompt: string, enabled: boolean): string {
+  return enabled ? `${systemPrompt}\n\n${TURN_PLAN_V3_LESSON_FIGURES_ADDON}` : systemPrompt;
 }
 
 export const TURN_PLAN_V3_VISUAL_GROUNDING =
