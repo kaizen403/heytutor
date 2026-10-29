@@ -62,6 +62,13 @@ function between(source: string, file: string, start: string, end: string): stri
   return source.slice(from, to + end.length);
 }
 
+/** Index of `needle`, asserted present: an order check on a missing string (-1) must never pass (review N2). */
+function at(haystack: string, needle: string, from = 0): number {
+  const index = haystack.indexOf(needle, from);
+  assert(index >= 0, `present in the slice: ${needle.slice(0, 72)}`);
+  return index;
+}
+
 type Drawn = { type: string; text: string | undefined };
 
 function board() {
@@ -241,14 +248,14 @@ async function main(): Promise<void> {
     const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
     const handler = readFileSync(resolve(root, file), "utf8");
     const back = between(handler, file, "// doubt-figure-return:begin", "// doubt-figure-return:end");
-    const stashReturn = back.indexOf("const stashReturn = await returnZoneStash(");
-    const emptied = back.indexOf("zoneEmptied = !stashReturn.cancelled && zoneStash.diagram === null;");
+    const stashReturn = at(back, "const stashReturn = await returnZoneStash(");
+    const emptied = at(back, "zoneEmptied = !stashReturn.cancelled && zoneStash.diagram === null;");
     assert(back.includes("let zoneEmptied = false;") && stashReturn >= 0 && emptied > stashReturn,
       "the live resume notes an empty return only after it resolved uncancelled");
-    assert(back.indexOf("zoneEmptied = !result.cancelled && back.turnId === null && billed.doubtFigures === true;") > back.indexOf("returnFigureToZone("),
+    assert(at(back, "zoneEmptied = !result.cancelled && back.turnId === null && billed.doubtFigures === true;") > at(back, "returnFigureToZone("),
       "after a reload, a return with no stored source empties the zone too (flag on only)");
     const restore = between(handler, file, "// doubt-figure-restore:begin", "// doubt-figure-restore:end");
-    assert(handler.indexOf("// doubt-figure-return:end") < handler.indexOf("// doubt-figure-restore:begin"), "the restore follows the return");
+    assert(at(handler, "// doubt-figure-return:end") < at(handler, "// doubt-figure-restore:begin"), "the restore follows the return");
     assert(restore.includes("const zoneHeld = Boolean(zoneStash || resume.returnsFigure) && !zoneEmptied;"),
       "an emptied zone is not held by a returned figure");
     assert(/if \(!rebuildingCodeIntro && !activeDiagram && !zoneHeld &&\s*resume\.scene\?\.sceneDocument\) \{/.test(restore),

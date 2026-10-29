@@ -47,6 +47,13 @@ function between(source: string, file: string, start: string, end: string): stri
   return source.slice(from, to + end.length);
 }
 
+/** Index of `needle`, asserted present: an order check on a missing string (-1) must never pass (review N2). */
+function at(haystack: string, needle: string, from = 0): number {
+  const index = haystack.indexOf(needle, from);
+  assert(index >= 0, `present in the slice: ${needle.slice(0, 72)}`);
+  return index;
+}
+
 const lessonQuestion = "Derive the formula for the range of a projectile on level ground.";
 const doubtTitle = "Doubt: show me the path when it is launched higher";
 const composed = composeDoubtFigureQuestion(lessonQuestion, doubtTitle);
@@ -241,12 +248,12 @@ async function main(): Promise<void> {
     const handler = read(file);
     const plan = between(handler, file, "if (doubt && doubtFiguresGranted) {\n        // doubt-figure-plan:begin", "// doubt-figure-plan:end");
     assert(handler.includes("const doubtFiguresGranted = billed.doubtFigures === true;"), "flag off is the begin-turn grant");
-    const askIndex = plan.indexOf("requestDoubtFigureNeed(");
-    const skipIndex = plan.indexOf("const need = skip\n          ? { decision: \"point\" as const, reason: skip }");
+    const askIndex = at(plan, "requestDoubtFigureNeed(");
+    const skipIndex = at(plan, "const need = skip\n          ? { decision: \"point\" as const, reason: skip }");
     assert(skipIndex >= 0 && askIndex > skipIndex, "a skipped need check answers point without asking");
-    const onNeed = plan.indexOf("if (need.decision === \"new_figure\") {");
-    assert(onNeed > askIndex && plan.indexOf("planDoubtFigure(") > onNeed, "only new_figure plans; point runs no planner");
-    assert(plan.indexOf("doubtFigureHoldingSegment(") > onNeed && plan.indexOf("doubtFigureHoldingSegment(") < plan.indexOf("planDoubtFigure("),
+    const onNeed = at(plan, "if (need.decision === \"new_figure\") {");
+    assert(onNeed > askIndex && at(plan, "planDoubtFigure(") > onNeed, "only new_figure plans; point runs no planner");
+    assert(at(plan, "doubtFigureHoldingSegment(") > onNeed && at(plan, "doubtFigureHoldingSegment(") < at(plan, "planDoubtFigure("),
       "the holding line is spoken once, before the figure plans");
     assert(/deadlineAt: doubtStartedAt \+ DOUBT_FIGURE_BUDGET_MS/.test(plan), "the budget runs from the doubt's start");
     assert(!/planScene|requestReferencePicture|selectProductionScene\(\{[^}]*candidateValidation/.test(plan),
@@ -259,54 +266,54 @@ async function main(): Promise<void> {
     assert(pictureZone.includes("rememberZonePresentation(picture, billed.doubtFigures === true);"),
       "a shown reference picture is remembered as the zone's presentation, under the doubt figures grant");
     const pictureInstall = between(handler, file, "referencePictureShown = picture.stored;", "setActiveVerifiedDiagram?.(activeDiagram);");
-    const pictureActive = pictureInstall.indexOf("activeDiagram = picture.diagram;");
-    const pictureRemember = pictureInstall.indexOf("// reference-picture-zone:begin");
-    const pictureRef = pictureInstall.indexOf("activeVerifiedDiagramRef.current = activeDiagram;");
+    const pictureActive = at(pictureInstall, "activeDiagram = picture.diagram;");
+    const pictureRemember = at(pictureInstall, "// reference-picture-zone:begin");
+    const pictureRef = at(pictureInstall, "activeVerifiedDiagramRef.current = activeDiagram;");
     assert(pictureActive >= 0 && pictureRemember > pictureActive && pictureRef > pictureRemember,
       "the snapshot's live object is the picture diagram the zone's ref then holds");
-    const stashSet = swap.indexOf("page.zoneStash = stash;");
-    const swapCall = swap.indexOf("await swapFigureIn(");
+    const stashSet = at(swap, "page.zoneStash = stash;");
+    const swapCall = at(swap, "await swapFigureIn(");
     assert(stashSet >= 0 && swapCall > stashSet, "the zone's figure is stashed on the page before the zone is cleared");
-    assert(swap.indexOf("sceneV2IntroSegments = drawn.presentation.introSegments;") > swapCall,
+    assert(at(swap, "sceneV2IntroSegments = drawn.presentation.introSegments;") > swapCall,
       "the swapped figure's intro is the one the lesson's enqueueVerifiedIntro draws");
-    assert(swap.indexOf("page.zoneStash = previousStash;") > swapCall, "a refused swap leaves the stash as it was");
+    assert(at(swap, "page.zoneStash = previousStash;") > swapCall, "a refused swap leaves the stash as it was");
 
     // An empty zone and a restored board (lane 2), inside the same anchors.
     assert(plan.includes("const zoneEmpty = !zoneFigure && !codeBoard && Boolean(doubtPage?.continuesBoard);"),
       "an empty zone is one with no figure, no code board, on the lesson's page");
     assert(plan.includes("zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),"),
       "the occupancy guard reads the board's layout, on an empty zone only");
-    const liveStash = plan.indexOf("(zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot");
-    const storedStash = plan.indexOf("(zoneFigure && !codeBoard ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)");
-    const emptyStash = plan.indexOf("(zoneEmpty ? { ...EMPTY_ZONE_STASH } : null)");
-    assert(plan.indexOf("page.zoneStash") >= 0 && plan.indexOf("page.zoneStash") < liveStash && liveStash < storedStash && storedStash < emptyStash,
+    const liveStash = at(plan, "(zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot");
+    const storedStash = at(plan, "(zoneFigure && !codeBoard ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)");
+    const emptyStash = at(plan, "(zoneEmpty ? { ...EMPTY_ZONE_STASH } : null)");
+    assert(at(plan, "page.zoneStash") >= 0 && at(plan, "page.zoneStash") < liveStash && liveStash < storedStash && storedStash < emptyStash,
       "the stash is the page's, else the live snapshot, else the stored turns (restored board), else the empty zone");
     assert(plan.includes("zoneReturnable: zoneStash !== null,"), "a zone is returnable exactly when a stash could be built");
-    assert(plan.indexOf("doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;") > plan.indexOf("doubtFigureNeedSkip("),
+    assert(at(plan, "doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;") > at(plan, "doubtFigureNeedSkip("),
       "the plan hands its stash, with the zone it read, to the swap");
     assert(/zone: zoneFigure \? \(isReferencePictureDiagram\(zoneFigure\) \? "picture" : "figure"\) : "empty",/.test(plan),
       "the need telemetry names the zone kind");
     assert(swap.includes(": doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);"),
       "the plan's stash is used only for the zone it was read against");
-    const inkFree = swap.indexOf("const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);");
+    const inkFree = at(swap, "const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);");
     assert(inkFree >= 0 && inkFree < swapCall && swap.includes("const cleared = wb && stash && inkFree"),
       "an empty zone is checked for ink again before the swap clears it");
 
     const resume = between(handler, file, "} else if (resume) {", "diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram)");
-    const returnCall = resume.indexOf("await returnZoneStash(");
-    const refRead = resume.indexOf("activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;");
+    const returnCall = at(resume, "await returnZoneStash(");
+    const refRead = at(resume, "activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;");
     assert(returnCall >= 0, "a resume with a zone stash returns the lesson's figure");
     assert(refRead > returnCall, "the resume returns the lesson's figure before it reads the zone's ref");
     // The stash is cleared by returnZoneStash after a whole return (behaviour
     // above), never by the resume before it awaits.
     assert(!/zoneStash = null/.test(resume), "the resume never clears the stash itself, before or after the return");
-    const stashReturn = resume.indexOf("await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],");
+    const stashReturn = at(resume, "await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],");
     assert(stashReturn >= 0, "the resume returns the stash through returnZoneStash, holding it on the doubt's record and its own");
-    assert(resume.indexOf("{ shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });", stashReturn) > stashReturn,
+    assert(at(resume, "{ shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });", stashReturn) > stashReturn,
       "the return gets the board's executor and the turn's cancel");
-    const refCleared = resume.indexOf("activeVerifiedDiagramRef.current = null;");
+    const refCleared = at(resume, "activeVerifiedDiagramRef.current = null;");
     assert(refCleared >= 0 && refCleared < stashReturn, "the zone's ref is emptied before the return awaits, so a cancel never leaves it on the doubt's figure");
-    const reload = resume.indexOf("returnFigureToZone(");
+    const reload = at(resume, "returnFigureToZone(");
     assert(reload > returnCall && refRead > reload, "after a reload, returnsFigure redraws the stored figure before the ref is read");
     // Lane 6: figure 1's stored ink, or the lesson's later figure it had moved to.
     assert(resume.includes('source ? storedLessonFigurePresentation(source, back.figureId ?? "figure_1") : { diagram: null, introSegments: [] }'), "the stored turn's own figure ink comes back");
