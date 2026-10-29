@@ -69,7 +69,7 @@ import {
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "@/features/tutor-session/lib/scene/diagramGeneration";
-import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "@/features/tutor-session/lib/scene/blockFlowReview";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, blockFlowRestateBudgetMs, reviewBlockFlowScene, withRestatedProcess } from "@/features/tutor-session/lib/scene/blockFlowReview";
 import {
   runScenePlanningOverlap,
   type SpeculationAbortReason,
@@ -643,6 +643,7 @@ export async function runLecture(
     // Match live: an eligible lesson whose plan states no process may have one restated.
     const restated = await withRestatedProcess({
       question, turnPlan, eligible: blockFlowEligible,
+      budgetMs: blockFlowRestateBudgetMs(scenePlannerDeadlineMs - (Date.now() - plannerStartedAt)),
       options: { proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, fastMode, traceId },
     });
     run.diagram.restatedProcess = { asked: restated.asked, restated: restated.restated, steps: restated.steps, stepChecks: restated.stepChecks };

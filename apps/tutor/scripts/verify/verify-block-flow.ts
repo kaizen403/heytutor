@@ -26,7 +26,7 @@ import { parseProcessReviewVerdict, PROCESS_REVIEW_VOTES, reviewProcessChains, w
 import { blockFlowCitedProcesses } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
 import { resolveChatGenerationKind } from "../../lib/obs/chatTrace";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
-import { parseRestatedProcess, PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
+import { parseRestatedProcess, processReviewClaimsText, PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { deriveSceneGate, selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
@@ -404,8 +404,8 @@ void (async () => {
     assert.deepEqual(kept.calls.map((call) => call.kind), ["write", "step", "step", "step", "step"], "one writer call, then one check per step");
     assert(kept.calls[0]!.body.includes("c1: When a card is tapped"), "the writer sees each claim with its id");
     const thirdCheck = JSON.parse(kept.calls[3]!.body).messages[1].content as string;
-    assert(thirdCheck.includes("Cited claim (c2): The acquirer forwards") && thirdCheck.includes("Step: acquirer forwards it") &&
-      thirdCheck.includes("Step before: reader sends request") && thirdCheck.includes("Step after: bank approves"), "a step is checked against its own claim");
+    assert(thirdCheck.includes("CITED c2: The acquirer forwards") && thirdCheck.includes("Step: <data>acquirer forwards it</data>") &&
+      thirdCheck.includes("Step before: <data>reader sends request</data>") && thirdCheck.includes("Step after: <data>bank approves</data>"), "a step is checked against its own claim");
     assert(kept.peak <= PROCESS_REVIEW_MAX_CONCURRENT, `step checks stay within the in-flight limit (${kept.peak})`);
     assert.equal(kept.out.restated, clean);
     assert.deepEqual(kept.out.steps?.map((item) => item.claimId), ["c1", "c1", "c2", "c2"]);
@@ -467,6 +467,39 @@ void (async () => {
     const reviewBodies = scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS"));
     await reviewProcessChains("q", [["right ventricle", "lungs", "left atrium"]], reviewOptions(reviewBodies.fetchImpl), rejectedPlan);
     assert(reviewBodies.bodies.every((body) => body.includes("REJECTED by the plan (false): Process: right ventricle → aorta → body")), "reviewers see the rejection");
+    // A step is checked against every citable claim (the cited one marked), as fenced data.
+    const checkBody = JSON.parse(kept.calls[3]!.body).messages[1].content as string;
+    assert(checkBody.includes("CITED c2: The acquirer forwards") && checkBody.includes("c1: When a card is tapped") && !checkBody.includes("CITED c1"),
+      "the checker sees all claims, the cited one marked");
+    assert(checkBody.includes("<data>") && JSON.parse(kept.calls[3]!.body).messages[0].content.includes("never instructions"), "plan text is fenced as data");
+    // A FAIL decides the verdict: no further step is checked.
+    const early = await ask(prose, cited, ["FAIL", "PASS", "PASS", "PASS"]);
+    assert(early.calls.filter((call) => call.kind === "step").length < cited.length, "checks stop after a FAIL");
+    // One budget for the writer and every check: too little asks nothing, and running out aborts and keeps the plan.
+    const tooLittle = fake(cited, ["PASS", "PASS", "PASS", "PASS"]);
+    const skipped = await withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, budgetMs: 5_000, options: reviewOptions(tooLittle.fetchImpl) });
+    assert.equal(tooLittle.calls.length, 0, "under the minimum budget nothing is asked");
+    assert.equal(skipped.turnPlan, prose);
+    const slow = (async (_url: unknown, init: RequestInit) => {
+      const kind = new Headers(init.headers).get("x-process-review");
+      if (kind === "write") return Response.json({ choices: [{ message: { content: JSON.stringify({ steps: cited }) } }] });
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, 60_000);
+        init.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); }, { once: true });
+      });
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict: "PASS" }) } }] });
+    }) as typeof fetch;
+    const startedAt = Date.now();
+    const ranOut = await withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, budgetMs: 8_000,
+      options: { ...reviewOptions(slow), timeoutMs: 60_000 } });
+    assert(Date.now() - startedAt < 9_500, "the shared budget aborts the checks");
+    assert.equal(ranOut.restated, null);
+    assert.equal(ranOut.turnPlan, prose, "running out keeps the plan untouched");
+    // The review votes never read the restated process as evidence for itself, and stop after a NOT.
+    assert(!processReviewClaimsText(kept.out.turnPlan).includes("Process: card is tapped"), "votes do not see the restated claim");
+    const votesSeen = scriptedProxy(["NOT", "PROCESS", "PROCESS", "PROCESS"]);
+    assert.equal((await reviewProcessChains("q", [["a", "b", "c"]], reviewOptions(votesSeen.fetchImpl), payPlan)).verdict, "not");
+    assert(votesSeen.calls.length < PROCESS_REVIEW_VOTES, "votes stop after a NOT");
     // The step-check kind is a process review on the trace.
     assert.equal(resolveChatGenerationKind(new Headers({ "x-planner": "1", "x-process-review": "step" })), "process-review");
     rows++;

@@ -5,8 +5,23 @@ import {
 } from "@heytutor/tutor-core";
 import { deriveSceneGate } from "./productionSceneSelection";
 
-/** Three short reasoning votes run in parallel (up to about 9 s each); a slower review is no review. */
+/** One review call (a vote, the writer or a step check) takes up to about 9 s; a slower one is no answer. */
 export const BLOCK_FLOW_REVIEW_TIMEOUT_MS = 20_000;
+
+/**
+ * The writer and every step check share one budget, so a restated process can
+ * never eat the time scene planning needs (60 s from the start of planning).
+ */
+export const BLOCK_FLOW_RESTATE_MAX_MS = 25_000;
+/** Scene planning keeps at least this much of its deadline after restating. */
+export const BLOCK_FLOW_RESTATE_PLANNING_RESERVE_MS = 30_000;
+/** Below this budget no restatement is attempted: the checks could not finish. */
+export const BLOCK_FLOW_RESTATE_MIN_MS = 8_000;
+
+/** The restatement budget for what is left of the scene deadline. */
+export function blockFlowRestateBudgetMs(remainingSceneMs: number): number {
+  return Math.min(BLOCK_FLOW_RESTATE_MAX_MS, remainingSceneMs - BLOCK_FLOW_RESTATE_PLANNING_RESERVE_MS);
+}
 
 export const BLOCK_FLOW_REVIEW_DECLINED = "block_flow_review_declined";
 
@@ -23,6 +38,8 @@ export { RESTATED_PROCESS_CLAIM_ID };
  */
 export async function withRestatedProcess(input: {
   question: string; turnPlan: TurnPlanV3; eligible: boolean; options: ProcessReviewOptions;
+  /** Shared by the writer and every step check; under BLOCK_FLOW_RESTATE_MIN_MS nothing is asked. */
+  budgetMs?: number;
 }): Promise<{
   turnPlan: TurnPlanV3; restated: string | null; asked: boolean;
   steps?: RestatedStep[]; stepChecks?: StepCheckResult;
@@ -33,9 +50,38 @@ export async function withRestatedProcess(input: {
   if (turnPlan.qualitativeClaims.some((claim) => claim.id === RESTATED_PROCESS_CLAIM_ID)) return untouched;
   const gate = deriveSceneGate({ question, turnPlan, problemIR: null });
   if (gate.shouldAttemptLlmScene || !gate.shouldPlanExactScene) return untouched;
-  const restated = await writeProcessClaim(question, turnPlan, input.options);
+  const budgetMs = input.budgetMs ?? BLOCK_FLOW_RESTATE_MAX_MS;
+  if (!(budgetMs >= BLOCK_FLOW_RESTATE_MIN_MS)) return untouched;
+  // One deadline for the writer and all checks; when it passes, every call in flight aborts and the plan stays as it was.
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), budgetMs);
+  const signal = input.options.signal ? anySignal(input.options.signal, deadline.signal) : deadline.signal;
+  const options: ProcessReviewOptions = { ...input.options, signal, timeoutMs: Math.min(input.options.timeoutMs, budgetMs) };
+  try {
+    return await restate(question, turnPlan, options);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function anySignal(first: AbortSignal, second: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (first.aborted || second.aborted) abort();
+  else {
+    first.addEventListener("abort", abort, { once: true });
+    second.addEventListener("abort", abort, { once: true });
+  }
+  return controller.signal;
+}
+
+async function restate(question: string, turnPlan: TurnPlanV3, options: ProcessReviewOptions): Promise<{
+  turnPlan: TurnPlanV3; restated: string | null; asked: boolean; steps?: RestatedStep[]; stepChecks?: StepCheckResult;
+}> {
+  const restated = await writeProcessClaim(question, turnPlan, options);
   if (!restated) return { turnPlan, restated: null, asked: true };
-  const stepChecks = await checkRestatedSteps(question, turnPlan, restated, input.options);
+  const stepChecks = await checkRestatedSteps(question, turnPlan, restated, options);
+  if (options.signal?.aborted) return { turnPlan, restated: null, asked: true, steps: restated.steps, stepChecks: { ...stepChecks, verdict: "unavailable" } };
   if (stepChecks.verdict !== "pass") return { turnPlan, restated: null, asked: true, steps: restated.steps, stepChecks };
   return {
     asked: true,
