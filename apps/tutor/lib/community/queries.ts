@@ -5,7 +5,7 @@ import { inferBoardSubject } from "@/lib/account/progress";
 import { parseStoredObjectKey } from "@/lib/object-store/keys";
 import type { SubjectId } from "@/lib/account/types";
 import {
-  COMMUNITY_AGE_BANDS,
+  COMMUNITY_MIN_LESSON_MS,
   communityAuthor,
   communitySubject,
   communityThumbnailUrl,
@@ -19,17 +19,42 @@ export const COMMUNITY_PAGE_SIZE = 24;
 const COMMUNITY_TURN_PAGE_SIZE = 10;
 
 /**
- * A board a stranger may see: public, not hidden by an admin, its owner not a
- * child, and at least one finished lesson with steps on it.
+ * A lesson good enough to list a board for: finished or stopped, it drew a
+ * figure (a verified diagram from any engine, or a kept reference picture), and it
+ * spoke for at least a minute.
+ */
+export const COMMUNITY_LESSON_WHERE = {
+  status: { in: ["complete", "stopped"] },
+  lessonMs: { gte: COMMUNITY_MIN_LESSON_MS },
+  OR: [
+    { visualStatus: "validated" },
+    // A kept picture row is always the server's trusted envelope
+    // ({ commands: [...], trustedDiagramGeometry: true }); the browser's
+    // own DRAW_PICTURE is dropped before it is stored.
+    {
+      segments: {
+        some: {
+          AND: [
+            { command: { path: ["commands"], array_contains: [{ type: "DRAW_PICTURE" }] } },
+            { command: { path: ["trustedDiagramGeometry"], equals: true } },
+          ],
+        },
+      },
+    },
+  ],
+} satisfies Prisma.TurnWhereInput;
+
+/**
+ * A board a stranger may see: public, not hidden by an admin, and holding at
+ * least one lesson that passes COMMUNITY_LESSON_WHERE. Age does not gate it;
+ * a minor's card still shows "Accelute student" unless they chose a name.
  */
 export function communityBoardWhere(extra: Prisma.BoardWhereInput = {}): Prisma.BoardWhereInput {
   return {
     ...extra,
     visibility: "public",
     communityHiddenAt: null,
-    // An account that never told us its age band is treated like a child's.
-    user: { ageBand: { in: COMMUNITY_AGE_BANDS } },
-    turns: { some: { status: "complete", segments: { some: {} } } },
+    turns: { some: COMMUNITY_LESSON_WHERE },
   };
 }
 
@@ -43,9 +68,9 @@ const CARD_SELECT = {
   featuredAt: true,
   thumbnailAt: true,
   user: { select: { handle: true, name: true, ageBand: true } },
-  // The first lesson a stranger can actually watch, not a failed or live one.
+  // The first lesson that earned the board its place, not a failed or live one.
   turns: {
-    where: { status: { in: ["complete", "stopped"] }, segments: { some: {} } },
+    where: COMMUNITY_LESSON_WHERE,
     orderBy: { orderIndex: "asc" },
     take: 1,
     select: { question: true },
