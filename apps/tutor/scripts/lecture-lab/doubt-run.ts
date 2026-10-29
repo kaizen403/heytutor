@@ -502,6 +502,8 @@ async function planLabDoubtFigure(input: {
     granted: true, codeBoard: input.codeBoard, markedFigureIds: input.markedFigureIds,
     zoneFigure: input.zoneFigure, zoneReturnable: Boolean(input.zoneFigure),
     zoneEmpty, zoneOccupied: zoneEmpty && zoneInkOccupied(input.layout),
+    // Lane 9: lesson rows in the zone turn a fresh page for the figure, as live.
+    freshPage: true,
   });
   if (skip) return { drawn: null, summary: `point (${skip})` };
   if (!input.figurePlanning) return { drawn: null, summary: "not planned (no server)" };
@@ -977,7 +979,8 @@ function zoneKindsOf(row: PrecheckRow): ZoneSequenceKind[] {
   if (row.probe.lane === "lesson_figures") return lesson && (row.extra?.figures.length ?? 0) > 0 ? ["lesson_advance"] : [];
   if (row.probe.lane === "resume_drawn") return lesson ? ["resume_drawn", ...(row.doubtDrawn ? ["swap" as const] : [])] : [];
   if (!row.doubtDrawn) return [];
-  return [lesson ? "swap" : "empty_zone"];
+  // An empty zone also plays with the lesson's text at full width: the doubt's figure turns a fresh page (lane 9).
+  return lesson ? ["swap"] : ["empty_zone", "fresh_page"];
 }
 
 /** $0: every row whose figures draw offline, played live and stored; red on any difference. */
@@ -985,8 +988,8 @@ async function runZoneCheck(options: Options, probes: readonly DoubtProbe[]): Pr
   const rows = await precheckRows(options, probes);
   let played = 0;
   let failures = 0;
-  console.log("| row | sequence | live | stored | replay | stored equals live | zone grade |");
-  console.log("|---|---|---|---|---|---|---|");
+  console.log("| row | sequence | live | stored | replay | pages live / stored | stored equals live | zone grade |");
+  console.log("|---|---|---|---|---|---|---|---|");
   for (const row of rows) {
     for (const kind of zoneKindsOf(row)) {
       const zone = await zoneSequence({
@@ -995,9 +998,11 @@ async function runZoneCheck(options: Options, probes: readonly DoubtProbe[]): Pr
       });
       const grade = gradeZone(row.probe, zone);
       played += 1;
-      const failed = zone.error !== null || !zone.storedEqualsLive || grade.grade === "doubt_left_on_board" || grade.grade === "drawn_over_ink";
+      const failed = zone.error !== null || !zone.storedEqualsLive || grade.grade === "doubt_left_on_board" || grade.grade === "drawn_over_ink" ||
+        grade.grade === "lesson_page_lost" || grade.grade === "stored_differs";
       if (failed) failures += 1;
-      console.log(`| ${row.probe.id} | ${zone.sequence} | ${zone.live.join(" > ")} | ${zone.stored.join(" > ")} | ${(zone.replay ?? []).join(" > ")} | ${zone.storedEqualsLive ? "yes" : "NO"} | ${grade.grade}${zone.error ? ` (${cell(zone.error)})` : ""} |`);
+      const pages = zone.pages ? `${zone.pages.live.join(" > ")} / ${zone.pages.stored.join(" > ")}` : "";
+      console.log(`| ${row.probe.id} | ${zone.sequence} | ${zone.live.join(" > ")} | ${zone.stored.join(" > ")} | ${(zone.replay ?? []).join(" > ")} | ${pages} | ${zone.storedEqualsLive ? "yes" : "NO"} | ${grade.grade}${zone.error ? ` (${cell(zone.error)})` : ""} |`);
     }
   }
   const skipped = rows.filter((row) => zoneKindsOf(row).length === 0).map((row) => `${row.probe.id}${row.lesson.check.status === "picture" ? " (picture)" : ""}`);

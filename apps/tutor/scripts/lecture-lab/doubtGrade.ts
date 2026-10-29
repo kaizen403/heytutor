@@ -39,6 +39,8 @@ export function armAppliesTo(probe: Pick<DoubtProbe, "lane" | "offlineOnly">, ar
 
 /** What stands in the diagram zone, by whose figure it is. */
 export type ZoneSide = "empty" | "lesson" | "doubt" | "picture" | "other";
+/** Which page the board shows after a turn: the lesson's, or a doubt's fresh page (lane 9). */
+export type PageSide = "lesson" | "doubt";
 
 export interface DoubtProbe {
   id: string;
@@ -227,10 +229,17 @@ export interface ZoneEvidence {
   afterResume: { live: ZoneSide; stored: ZoneSide };
   /** A doubt figure was drawn where work ink already reached the zone. */
   drawnOverInk: boolean;
+  /**
+   * The page after each turn (lane 9): a doubt figure over lesson text turns
+   * a fresh page and the resume returns the lesson's. Live (the hook's calls)
+   * against stored (`syncStoredPageFigure` on a board that holds pages).
+   * Absent on older rounds.
+   */
+  pages?: { live: PageSide[]; stored: PageSide[]; afterResume: { live: PageSide; stored: PageSide } };
   error: string | null;
 }
 
-export type ZoneGrade = "ok" | "doubt_left_on_board" | "wrong_zone" | "stored_differs" | "drawn_over_ink" | "error" | "not_checked";
+export type ZoneGrade = "ok" | "doubt_left_on_board" | "wrong_zone" | "stored_differs" | "drawn_over_ink" | "lesson_page_lost" | "error" | "not_checked";
 
 /** Zone after the resume: what the row expects, live and stored the same, never a doubt's figure left behind. */
 export function gradeZone(probe: Pick<DoubtProbe, "expect">, zone: ZoneEvidence | null | undefined): { grade: ZoneGrade; reasons: string[] } {
@@ -239,6 +248,12 @@ export function gradeZone(probe: Pick<DoubtProbe, "expect">, zone: ZoneEvidence 
   if (zone.drawnOverInk) return { grade: "drawn_over_ink", reasons: ["the doubt's figure was drawn over work ink"] };
   if (!zone.storedEqualsLive) {
     return { grade: "stored_differs", reasons: [`zone live ${zone.live.join(">")} but stored ${zone.stored.join(">")} (${zone.sequence})`] };
+  }
+  if (zone.pages && zone.pages.live.join(">") !== zone.pages.stored.join(">")) {
+    return { grade: "stored_differs", reasons: [`pages live ${zone.pages.live.join(">")} but stored ${zone.pages.stored.join(">")} (${zone.sequence})`] };
+  }
+  if (zone.pages && (zone.pages.afterResume.live !== "lesson" || zone.pages.afterResume.stored !== "lesson")) {
+    return { grade: "lesson_page_lost", reasons: [`the resume left the doubt's page on the board (${zone.pages.afterResume.live}/${zone.pages.afterResume.stored})`] };
   }
   const expected = probe.expect.zoneAfterResume;
   if (expected === null) return { grade: "ok", reasons: [] };
@@ -712,6 +727,15 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   check(gradeZone(emptyZoneRow, zone("empty", "empty", { drawnOverInk: true })).grade === "drawn_over_ink", "a figure over ink fails");
   check(gradeZone(probe({ expect: { zoneAfterResume: "lesson" } }), zone("empty", "empty")).grade === "wrong_zone", "a lesson figure that never came back is the wrong zone");
   check(gradeZone(emptyZoneRow, null).grade === "not_checked", "no zone evidence is not checked");
+  // Lane 9: lesson rows reach the zone, so the doubt's figure takes a fresh page and the resume returns the lesson's.
+  const pages = (live: PageSide[], stored: PageSide[]) => ({ live, stored, afterResume: { live: live[2]!, stored: stored[2]! } });
+  const freshZone = (live: PageSide[], stored: PageSide[]) => zone("empty", "empty", { sequence: "L text, D fig (fresh page), R", pages: pages(live, stored) });
+  check(gradeZone(emptyZoneRow, freshZone(["lesson", "doubt", "lesson"], ["lesson", "doubt", "lesson"])).grade === "ok",
+    "a fresh page doubt whose resume returns the lesson page is ok");
+  check(gradeZone(emptyZoneRow, freshZone(["lesson", "doubt", "doubt"], ["lesson", "doubt", "doubt"])).grade === "lesson_page_lost",
+    "a doubt page the resume left on the board is not ok");
+  check(gradeZone(emptyZoneRow, freshZone(["lesson", "doubt", "lesson"], ["lesson", "lesson", "lesson"])).grade === "stored_differs",
+    "a page turn live but not stored fails");
   const zoneRows: DoubtEvidence[] = [
     evidence({ probeId: "z1", arm: "figures", zone: zone("empty", "empty") }),
     evidence({ probeId: "z2", arm: "figures", zone: zone("doubt", "doubt") }),

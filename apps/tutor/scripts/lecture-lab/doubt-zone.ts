@@ -15,6 +15,11 @@
  * Per turn the zone figure's `figureFingerprint` must agree across all three.
  * The figures are the precheck's: engine output on recorded plans, never
  * written by hand.
+ *
+ * Lane 9: when the lesson's rows reach the empty zone, the doubt's figure
+ * turns a fresh page (live `turnDoubtPage`, saved as `freshPage`) and the
+ * resume returns the lesson's page. The page after each turn is compared
+ * live against what `syncStoredPageFigure` holds and returns.
  */
 import { getSegmentCommands, serializeSegmentCommands, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
@@ -22,9 +27,11 @@ import type { ProblemAuthorityV1Response } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
+import { returnLessonPage, turnDoubtPage } from "../../features/tutor-session/lib/board/doubtPage";
 import { pageFigureAt } from "../../lib/boards/pageFigure";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
+import { BOARD_WIDTH, TEXT_LAYOUT } from "../../features/tutor-session/constants";
 import { EMPTY_ZONE_STASH, returnZoneStash, type ZoneStash } from "../../features/tutor-session/lib/scene/figureSwap";
 import type { SelectedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { storedLessonFigurePresentation, syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
@@ -38,7 +45,7 @@ import {
 import { doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { lessonFiguresArtifact, type PlannedLessonFigure } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
 import { doubtPageCheck, stored, teachingRow } from "../verify/fixtures/doubtFigureScene";
-import type { ZoneEvidence, ZoneSide } from "./doubtGrade";
+import type { PageSide, ZoneEvidence, ZoneSide } from "./doubtGrade";
 import { boardLayoutFor } from "./doubt-precheck";
 
 /** A verified figure as the lab planned it: what the client saves and what the zone shows. */
@@ -50,10 +57,11 @@ export interface ZoneFigure {
   presentation: { diagram: VerifiedDiagram; introSegments: TutorSegment[] };
 }
 
-export type ZoneSequenceKind = "empty_zone" | "swap" | "resume_drawn" | "lesson_advance";
+export type ZoneSequenceKind = "empty_zone" | "fresh_page" | "swap" | "resume_drawn" | "lesson_advance";
 
 export const ZONE_SEQUENCES: Record<ZoneSequenceKind, string> = {
   empty_zone: "L text, D fig, R, D plain",
+  fresh_page: "L text at full width, D fig, R, D plain",
   swap: "L fig, D fig, R, D plain",
   resume_drawn: "L text, R1 draws, D fig, R2, D plain",
   lesson_advance: "L fig + advance figure_2, D plain, R, D plain",
@@ -92,9 +100,17 @@ async function save(metadata: SubmittedTurnSceneMetadata, options: Parameters<ty
   return saved.value;
 }
 
-function fakeBoard(): { wb: WhiteboardHandle; executeCommand: () => Promise<void> } {
-  const wb = { eraseSceneInk: async () => {}, erasePinnedInk: () => {} } as unknown as WhiteboardHandle;
-  return { wb, executeCommand: async () => {} };
+/** A board that holds one page, as the whiteboard does (`holdPage`): `page()` is the page it shows. */
+function fakeBoard(): { wb: WhiteboardHandle; executeCommand: () => Promise<void>; page: () => PageSide } {
+  let held = false;
+  let showing: PageSide = "lesson";
+  const wb = {
+    eraseSceneInk: async () => {}, erasePinnedInk: () => {},
+    holdPage: () => { held = true; showing = "doubt"; },
+    returnHeldPage: () => { if (!held) return null; held = false; showing = "lesson"; return { meta: null }; },
+    hasHeldPage: () => held,
+  } as unknown as WhiteboardHandle;
+  return { wb, executeCommand: async () => {}, page: () => showing };
 }
 
 const fingerprint = (diagram: VerifiedDiagram | null | undefined) => diagram ? figureFingerprint(diagram) : "";
@@ -121,7 +137,7 @@ export async function zoneSequence(input: {
     const lessonOpensWithFigure = kind === "swap" || kind === "lesson_advance";
     if ((lessonOpensWithFigure || kind === "resume_drawn") && !lesson) throw new Error(`${kind} needs a lesson figure`);
     if (kind === "lesson_advance" && !input.extra) throw new Error("lesson_advance needs figure_2");
-    if (kind === "empty_zone" && !doubt) throw new Error("empty_zone needs a doubt figure");
+    if ((kind === "empty_zone" || kind === "fresh_page") && !doubt) throw new Error(`${kind} needs a doubt figure`);
     const continuation = boardContinuationArtifacts(lessonQuestion);
     const turns: StoredTurn[] = [];
     const push = (id: string, question: string, saved: Awaited<ReturnType<typeof save>>, opts: { opensOnClear: boolean; kind: StoredTurn["kind"] }) => {
@@ -134,6 +150,12 @@ export async function zoneSequence(input: {
     let liveZoneTurnId: string | null = null;
     let stash: ZoneStash | null = null;
     const layout: BoardLayoutState = boardLayoutFor({ rows: input.rows, diagram: lessonOpensWithFigure ? lesson!.presentation.diagram : null, kind: "scene" });
+    // fresh_page: the same lesson with a row wrapped at full board width, as
+    // round 2 measured every live text only lesson (lane 9).
+    if (kind === "fresh_page") {
+      layout.rects.push({ x: TEXT_LAYOUT.marginX, y: layout.nextY, width: BOARD_WIDTH - 2 * TEXT_LAYOUT.marginX, height: TEXT_LAYOUT.textHeight, text: "full width row" });
+      layout.nextY += TEXT_LAYOUT.lineHeight;
+    }
     const freshLesson = () => structuredClone(lesson!.presentation);
 
     // The opener.
@@ -166,16 +188,27 @@ export async function zoneSequence(input: {
     const doubtId = IDS[turns.length]!;
     const skip = doubt ? doubtFigureNeedSkip({
       granted: true, codeBoard: false, markedFigureIds: [], zoneFigure: liveZone, zoneReturnable: Boolean(liveZone),
-      zoneEmpty: !liveZone, zoneOccupied: !liveZone && zoneInkOccupied(layout),
+      zoneEmpty: !liveZone, zoneOccupied: !liveZone && zoneInkOccupied(layout), freshPage: true,
     }) : "plain";
     if (!doubt || skip) evidence.sequence = evidence.sequence.replace("D fig", `D plain${doubt ? ` (skip ${skip})` : ""}`);
+    // The live hook's board: a fresh page when the lesson's rows reach the empty zone.
+    const liveBoard = fakeBoard();
+    const livePages: PageSide[] = [];
+    for (let at = 0; at < turns.length; at += 1) livePages.push(liveBoard.page());
+    let freshPage = false;
     if (doubt && !skip) {
-      evidence.drawnOverInk = !liveZone && zoneInkOccupied(layout);
+      freshPage = !liveZone && zoneInkOccupied(layout) && turnDoubtPage(liveBoard.wb, { rects: [...layout.rects], nextY: layout.nextY });
+      if (freshPage) evidence.sequence = evidence.sequence.replace("D fig", "D fig (fresh page)");
+      evidence.drawnOverInk = !liveZone && zoneInkOccupied(layout) && !freshPage;
       stash = liveZone
         ? { diagram: liveZone, presentation: kind === "lesson_advance"
           ? structuredClone(input.extra!.presentation) : freshLesson(), turnId: liveZoneTurnId, ...(kind === "lesson_advance" ? { figureId: "figure_2" as const } : {}) }
         : { ...EMPTY_ZONE_STASH };
-      const scene = doubtFigureTurnScene(doubtFigurePlannedScene(doubt), lessonQuestion, liveZoneTurnId);
+      const planned = doubtFigureTurnScene(doubtFigurePlannedScene(doubt), lessonQuestion, liveZoneTurnId);
+      // The live save marks the page turn on the doubt's continuation (liveTurnScene).
+      const scene = freshPage
+        ? { ...planned, sceneArtifacts: { ...(planned.sceneArtifacts as Record<string, unknown>), ...boardContinuationArtifacts(lessonQuestion, { freshPage: true }) } }
+        : planned;
       const doubtFigure: ZoneFigure = { question: doubt.question, turnPlan: doubt.turnPlan, authority: doubt.authority,
         representation: doubt.representation, presentation: doubt.presentation };
       const metadata = sceneMetadata(doubtFigure, doubtTitle, scene.sceneArtifacts as Record<string, unknown>, [teachingRow(0, "See this.", [write("note")])]);
@@ -185,14 +218,18 @@ export async function zoneSequence(input: {
       push(doubtId, doubtTitle, await save(textMetadata(doubtTitle, continuation, [teachingRow(0, "See this.", [write("note")])]), { kind: "doubt" }, "the plain doubt"), { opensOnClear: false, kind: "doubt" });
     }
     liveZones.push(liveZone);
+    livePages.push(liveBoard.page());
 
     // The resume: the stash comes back (or the zone empties), as live returns it.
-    const resumeMetadata = lesson && kind !== "empty_zone"
+    const resumeMetadata = lesson && kind !== "empty_zone" && kind !== "fresh_page"
       ? sceneMetadata(lesson, lessonQuestion, continuation, [teachingRow(0, "Back to the lesson.", [write("then")])])
       : textMetadata(lessonQuestion, continuation, [teachingRow(0, "Back to the lesson.", [write("then")])]);
     // A resume after the figure was drawn carries the scene but not its trusted rows.
     if (resumeMetadata.visualStatus === "validated") resumeMetadata.segments = [teachingRow(0, "Back to the lesson.", [write("then")])];
     push(IDS[turns.length]!, lessonQuestion, await save(resumeMetadata, { kind: "resume" }, "the resume"), { opensOnClear: false, kind: "resume" });
+    // The resume returns the lesson's page first, before any zone return (uQH doubt-fresh-page-return).
+    const pageReturned = returnLessonPage(liveBoard.wb, null);
+    if (pageReturned) stash = null;
     if (stash) {
       const board = fakeBoard();
       const back = await returnZoneStash(board.wb, { rects: [...layout.rects], nextY: layout.nextY }, stash, [], { shouldCancel: () => false, executeCommand: board.executeCommand });
@@ -200,11 +237,16 @@ export async function zoneSequence(input: {
       liveZone = back.diagram;
       stash = null;
     }
+    // The page came back with the lesson's zone, empty: the doubt's figure left with its page.
+    if (pageReturned) liveZone = null;
     liveZones.push(liveZone);
+    livePages.push(liveBoard.page());
+    const resumeIndex = livePages.length - 1;
 
     // A plain doubt after the resume observes the zone the resume left.
     push(IDS[turns.length]!, "Doubt: and then?", await save(textMetadata("Doubt: and then?", continuation, [teachingRow(0, "Then.", [write("then")])]), { kind: "doubt" }, "the last doubt"), { opensOnClear: false, kind: "doubt" });
     liveZones.push(liveZone);
+    livePages.push(liveBoard.page());
 
     // Stored: what every surface reads, and what syncStoredPageFigure does turn by turn.
     const storedZones = turns.map((_, index) => {
@@ -212,6 +254,7 @@ export async function zoneSequence(input: {
       return at.sourceIndex === null ? null : storedLessonFigurePresentation(turns[at.sourceIndex]!, at.figureId).diagram;
     });
     const replayZones: Array<VerifiedDiagram | null> = [];
+    const replayPages: PageSide[] = [];
     const board = fakeBoard();
     let replayZone: VerifiedDiagram | null = storedZones[0] ?? null;
     for (let index = 0; index < turns.length; index += 1) {
@@ -223,7 +266,9 @@ export async function zoneSequence(input: {
         if (!synced.changed && at.figureId !== "figure_1" && at.sourceIndex !== null) replayZone = storedLessonFigurePresentation(turns[at.sourceIndex]!, at.figureId).diagram;
       }
       replayZones.push(replayZone);
+      replayPages.push(board.page());
     }
+    evidence.pages = { live: livePages, stored: replayPages, afterResume: { live: livePages[resumeIndex]!, stored: replayPages[resumeIndex]! } };
 
     const sideOf = (diagram: VerifiedDiagram | null): ZoneSide => {
       if (!diagram) return "empty";

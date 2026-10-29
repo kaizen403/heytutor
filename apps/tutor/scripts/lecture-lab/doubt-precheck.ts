@@ -363,7 +363,10 @@ export async function precheckRow(
     const skip = picture ? null : doubtFigureNeedSkip({
       granted: true, codeBoard: false, markedFigureIds: [], zoneFigure,
       zoneReturnable: Boolean(zoneFigure), zoneEmpty: !zoneFigure, zoneOccupied: !zoneFigure && zoneInkOccupied(layout),
+      // Lane 9: lesson rows in the zone turn a fresh page for the doubt's figure, as live.
+      freshPage: true,
     });
+    const freshPage = !picture && !zoneFigure && zoneInkOccupied(layout);
     const plans = figurePlans.get(`${probe.id}|figures`) ?? figurePlans.get(`${probe.id}|lesson-figures`) ?? null;
     if (skip) {
       doubt = { status: "none", detail: `skip ${skip}` };
@@ -381,7 +384,7 @@ export async function precheckRow(
       const authorityRecorded = plans ? plans.planAuthority !== null : Boolean(source?.authority);
       if (outcome.status === "drawn") {
         doubtDrawn = outcome;
-        doubt = { status: "drawn", detail: `${outcome.representation.family ?? "?"}/${outcome.representation.tier} (${via}${plans?.need ? "" : ", need assumed"}${picture ? ", over the picture" : ""})` };
+        doubt = { status: "drawn", detail: `${outcome.representation.family ?? "?"}/${outcome.representation.tier} (${via}${plans?.need ? "" : ", need assumed"}${picture ? ", over the picture" : ""}${freshPage ? ", fresh page" : ""})` };
       } else if (outcome.reason === "numeric_authority_unavailable" && !authorityRecorded) {
         // Live, the doubt's own planAuthority answers; the record has no ProblemIR to stand in for it.
         doubt = { status: "unknown", detail: `needs ProblemIR, none recorded (${via})` };
@@ -403,14 +406,15 @@ export function matchExpectation(probe: DoubtProbe, lesson: FigureCheck, doubt: 
   if (wantLesson === "none" && lesson.status !== "none") problems.push(`lesson figure ${lesson.status}, expected none`);
   if (wantLesson === "picture" && lesson.status !== "picture") problems.push(`lesson figure ${lesson.status}, expected a picture`);
   const wantsDoubtFigure = probe.expect.newFigure !== null && probe.expect.newFigureInScope;
-  // Work ink reaches the empty zone: the live skip refuses before any planner, whatever the record lacks.
-  const occupied = doubt.status === "none" && doubt.detail === "skip zone_occupied";
+  // Work ink reaches the empty zone (lane 9): the doubt's figure turns a fresh page, never a refusal.
+  if (doubt.status === "none" && doubt.detail === "skip zone_occupied") problems.push("refused zone_occupied, expected a fresh page");
+  const freshPage = doubt.status === "drawn" && doubt.detail.includes("fresh page");
   if (probe.lane === "lesson_figures" && doubt.status !== "drawn") problems.push("no later figure draws offline");
-  else if (probe.lane !== "lesson_figures" && wantsDoubtFigure && doubt.status !== "drawn" && !occupied) {
+  else if (probe.lane !== "lesson_figures" && wantsDoubtFigure && doubt.status !== "drawn") {
     problems.push(`doubt figure ${doubt.status}, expected drawn`);
   }
-  const textOnly = (wantLesson !== "drawn" && !wantsDoubtFigure && probe.lane !== "lesson_figures") || (occupied && wantLesson !== "drawn");
+  const textOnly = wantLesson !== "drawn" && !wantsDoubtFigure && probe.lane !== "lesson_figures";
   if (irUnknown && !textOnly) problems.push("IR unknown");
   if (probe.offlineOnly) return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : "offline row ($0)" };
-  return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : occupied ? "zone occupied: the doubt must refuse" : textOnly ? "expects text only" : "draws as expected" };
+  return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : freshPage ? "draws on a fresh page as expected" : textOnly ? "expects text only" : "draws as expected" };
 }
