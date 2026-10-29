@@ -119,7 +119,8 @@ import {
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
-import { LessonFigureSequence, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
+import { laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
+import { lessonFiguresArtifact, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
@@ -873,8 +874,13 @@ export function useQuestionHandler(
         diagramSubject?: import("@heytutor/tutor-core").DiagramSubject;
         referencePicture?: StoredReferencePicture;
         referencePictureOutcome?: ReferencePictureOutcome;
+        lessonFigures?: import("@/lib/boards/lessonFigures").LessonFiguresArtifact;
       }) | null = null;
       let representationTier: RepresentationTier | null = null;
+      // lesson-figures-state:begin
+      // The lesson's own scene families, read by its gate (lesson figures only).
+      let lessonSceneFamilies: readonly string[] = [];
+      // lesson-figures-state:end
       let representationNonMetric = false;
       let representationReason: string | null = null;
       let representationFamily: string | null = null;
@@ -1316,6 +1322,10 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            // lesson-figures-ask:begin
+            // The plan may name later views in words; off, the prompt is byte-identical.
+            lessonFigures: billed.lessonFigures === true && !doubt && !resume && !dsaClassification.isDsa,
+            // lesson-figures-ask:end
             onRequestOutcome: (outcome) => {
               if (outcome.code === "accepted") turnPlanAdmitted = true;
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
@@ -1594,6 +1604,9 @@ export function useQuestionHandler(
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+        // lesson-figures-families:begin
+        lessonSceneFamilies = sceneCapabilities.families;
+        // lesson-figures-families:end
         if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
@@ -1983,7 +1996,7 @@ export function useQuestionHandler(
           const zoneEntry = zoneLive && zonePresentationRef.current?.live === zoneLive ? zonePresentationRef.current : null;
           // The plan's stash (an empty zone, a restored board) only for the zone it was read against.
           const stash: ZoneStash | null = page.zoneStash ?? (zoneLive && zoneEntry
-            ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null }
+            ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null, ...(page.lessonFigureId ? { figureId: page.lessonFigureId } : {}) }
             : doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);
           const previousStash = page.zoneStash ?? null;
           page.zoneStash = stash;
@@ -2195,6 +2208,55 @@ export function useQuestionHandler(
           sceneArtifacts: codeLesson && sceneArtifacts ? { ...sceneArtifacts, codeLesson } : sceneArtifacts,
         };
       }
+
+      // lesson-figures-plan:begin
+      // A lesson's later figures (DIAGRAM_LESSON_FIGURES). A new lesson drops
+      // the last lesson's; then, granted and only once figure 1 drew, each
+      // view the plan named is drawn offline by the engine's fast selector
+      // from this lesson's reconciled plan and authority. No LLM call.
+      let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
+      if (!doubt && !resume) lessonFiguresRef?.current?.reset();
+      if (
+        billed.lessonFigures === true && !doubt && !resume && !codeLesson &&
+        turnPlan && activeDiagram && sceneV2IntroSegments && diagramSource === "verified_scene" &&
+        lessonFiguresRef?.current
+      ) {
+        const firstFigure = { diagram: activeDiagram, introSegments: sceneV2IntroSegments };
+        const lessonPlanned = planLessonFigures({
+          lessonQuestion: question,
+          turnPlan,
+          authority: problemAuthority,
+          families: lessonSceneFamilies,
+          first: activeDiagram,
+          narrationLanguage: turnNarrationLanguage,
+          deadlineAt: plannerStartedAt + SCENE_PLANNER_DEADLINE_MS,
+        });
+        const views = lessonPlanned.figures.map((figure) => ({
+          id: figure.ask.id,
+          diagram: figure.presentation.diagram,
+          introSegments: figure.presentation.introSegments,
+          family: figure.representation.family ?? null,
+        }));
+        tel.mark("lesson-figures-planned", {
+          figure_ids: views.map((view) => view.id).join(","),
+          misses: lessonPlanned.misses.map((miss) => `${miss.id}:${miss.reason}`).join(","),
+        });
+        if (views.length > 0) {
+          const lessonPage = page;
+          lessonFiguresRef.current.commit(firstFigure, views, {
+            // A doubt's own figure in the zone: never draw over it.
+            mayAdvance: () => !lessonPage.zoneStash,
+            onAdvanced: (view) => {
+              rememberZonePresentation(view, billed.doubtFigures === true);
+              lessonPage.lessonFigureId = view.id;
+            },
+          });
+          laterFigures = views.map(laterFigurePromptOf);
+          if (sceneArtifacts) sceneArtifacts = { ...sceneArtifacts, lessonFigures: lessonFiguresArtifact(lessonPlanned.figures) };
+          if (page.turn.scene) page.turn.scene = { ...page.turn.scene, sceneArtifacts };
+        }
+      }
+      // lesson-figures-plan:end
 
       plannerSpan.end({
         source: diagramSource,
@@ -2496,6 +2558,8 @@ export function useQuestionHandler(
             alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
             narrationLanguage,
             earlyOpeningAcknowledgement: earlyOpeningStarted,
+            // lesson-figures-prompt: absent when no later figure drew (bytes unchanged).
+            ...(laterFigures.length > 0 ? { laterFigures } : {}),
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {

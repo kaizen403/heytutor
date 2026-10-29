@@ -175,6 +175,8 @@ export type ZoneStash =
     diagram: VerifiedDiagram;
     presentation: { diagram: VerifiedDiagram; introSegments: TutorSegment[] };
     turnId: string | null;
+    /** The lesson's later figure this is (DIAGRAM_LESSON_FIGURES); absent for figure 1. */
+    figureId?: import("@/lib/boards/lessonFigures").LessonFigureId;
   }
   | { diagram: null; presentation: null; turnId: null };
 

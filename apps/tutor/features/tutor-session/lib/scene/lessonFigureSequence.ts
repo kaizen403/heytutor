@@ -24,6 +24,8 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import { LESSON_FIGURE_IDS, isLessonFigureAdvanceId, type LessonFigureId } from "@/lib/boards/lessonFigures";
+import { describeSceneFamily } from "@heytutor/scene-engine";
+import type { LaterFigurePrompt } from "../turn/turnTeachingPrompt";
 
 export interface LessonFigurePresentation {
   diagram: VerifiedDiagram;
@@ -139,6 +141,25 @@ export class LessonFigureSequence {
 /** Figure k's intro ink: exactly the commands its intro beats draw (withheld labels stay withheld). */
 export function lessonFigureIntroCommands(view: LessonFigurePresentation): DrawCommand[] {
   return view.introSegments.flatMap(getSegmentCommands);
+}
+
+/**
+ * The prompt's view of a later figure: its id, its kind, and each part's id
+ * with the label its intro draws on it. Withheld labels (answers among them)
+ * are not drawn by the intro, so they are never listed. No geometry.
+ */
+export function laterFigurePromptOf(view: PlannedLessonFigureView): LaterFigurePrompt {
+  const drawnLabels = new Map<string, string>();
+  for (const command of lessonFigureIntroCommands(view)) {
+    const id = command.semanticRef?.entityId;
+    const text = command.text?.trim();
+    if (command.type === "LABEL" && id && text && !drawnLabels.has(id)) drawnLabels.set(id, text);
+  }
+  return {
+    id: view.id,
+    kind: view.family ? `a ${describeSceneFamily(view.family)} figure` : null,
+    parts: view.diagram.anchors.map((anchor) => ({ id: anchor.id, label: drawnLabels.get(anchor.id) ?? null })),
+  };
 }
 
 /**

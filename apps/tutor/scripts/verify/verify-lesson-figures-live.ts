@@ -25,11 +25,13 @@ import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFig
 import { planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
 import {
   LessonFigureSequence,
+  laterFigurePromptOf,
   lessonFigureIntroCommands,
   prepareLessonFigureSegments,
   type LessonFigurePresentation,
   type PlannedLessonFigureView,
 } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
+import { buildTurnTeachingPrompt, laterFiguresPromptAddon } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 import { createVirtualWhiteboardClock } from "../../../../packages/whiteboard/src/whiteboardClock";
@@ -286,11 +288,13 @@ const SOURCE_ROOT = fileURLToPath(new URL("../../features/tutor-session/", impor
 const stripComments = (raw: string) => raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
 function anchoredSlice(file: string, name: string): string {
   const source = readFileSync(path.join(SOURCE_ROOT, file), "utf8");
-  const begin = source.indexOf(`// ${name}:begin`);
-  const end = source.indexOf(`// ${name}:end`, begin);
+  // Whole anchor lines only: "// x:end" must not match "// x:ended".
+  const begin = source.indexOf(`// ${name}:begin\n`);
+  const end = source.indexOf(`// ${name}:end\n`, begin);
   assert(begin >= 0, `slice anchor: ${name}:begin in ${file}`);
   assert(end > begin, `slice anchor: ${name}:end after its begin in ${file}`);
-  assert.equal(source.indexOf(`// ${name}:begin`, begin + 1), -1, `one ${name}:begin in ${file}`);
+  assert.equal(source.split(`// ${name}:begin`).length, 2, `one ${name}:begin in ${file}`);
+  assert.equal(source.split(`// ${name}:end`).length, 2, `one ${name}:end in ${file}`);
   return stripComments(source.slice(begin, end));
 }
 
@@ -372,9 +376,72 @@ async function preparationChecks(): Promise<void> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Prompt: ids, kinds, part ids and drawn labels; never geometry.
+// ---------------------------------------------------------------------------
+
+async function promptChecks(): Promise<void> {
+  const base = {
+    question: inclinePlan!.question,
+    diagramPromptAddon: first.diagram.promptAddon,
+    turnPlan: inclinePlan!,
+    solverProjection: null,
+    codeLesson: null,
+    isDsa: false,
+    familiarity: "normal" as const,
+    fastMode: false,
+  };
+  const off = buildTurnTeachingPrompt(base);
+  await check("prompt/flag-off-same-bytes", () => {
+    assert.equal(JSON.stringify(buildTurnTeachingPrompt({ ...base, laterFigures: [] })), JSON.stringify(off), "no later figures: the same bytes");
+    assert.equal(laterFiguresPromptAddon(undefined), "");
+    assert(!off.systemPrompt.includes("LATER FIGURES") && !off.systemPrompt.includes("figure_2"));
+  });
+  const view = laterFigurePromptOf(view2);
+  const on = buildTurnTeachingPrompt({ ...base, laterFigures: [view] });
+  await check("prompt/lists-ids-and-parts", () => {
+    assert.deepEqual(Object.keys(view).sort(), ["id", "kind", "parts"], "the prompt view carries no geometry field");
+    assert(view.parts.every((part) => Object.keys(part).sort().join() === "id,label"), "a part is its id and its drawn label only");
+    assert.deepEqual(view.parts.map((part) => part.id), view2.diagram.anchors.map((anchor) => anchor.id));
+    assert(view.parts.some((part) => part.label), "drawn labels are named");
+    const block = laterFiguresPromptAddon([view]);
+    assert(on.systemPrompt.includes(block) && on.continuationPrompt.includes(block), "the block reaches both prompts");
+    assert(block.includes("figure_2") && /\[FOCUS:figure_k\] in the sentence that moves to it/.test(block) && /never go back/i.test(block));
+    for (const anchor of view2.diagram.anchors) {
+      assert(block.includes(`[FOCUS:${anchor.id}]`), `part ${anchor.id} is listed`);
+      for (const value of [anchor.x, anchor.y, anchor.width, anchor.height]) {
+        assert(!block.includes(String(value)), `no coordinate (${value}) of ${anchor.id} is printed`);
+      }
+    }
+    assert(!/\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(block), "no coordinate pair");
+    const withheld = new Set((view2.diagram.deferredAnnotations ?? []).flatMap((entry) => entry.commands.map((command) => command.text?.trim()).filter(Boolean)));
+    assert(view.parts.every((part) => !part.label || !withheld.has(part.label) || lessonFigureIntroCommands(view2).some((command) => command.text?.trim() === part.label)),
+      "a withheld label is never listed");
+  });
+  await check("prompt/uqh-plans-only-on-a-granted-lesson", () => {
+    const plan = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-plan");
+    const guard = plan.indexOf("billed.lessonFigures === true && !doubt && !resume && !codeLesson");
+    assert(guard >= 0, "planning is guarded by the grant, no doubt, no resume, no code lesson");
+    assert(plan.indexOf("planLessonFigures(") > guard, "planLessonFigures runs under that guard");
+    assert(/if \(!doubt && !resume\) lessonFiguresRef\?\.current\?\.reset\(\);/.test(plan), "every new lesson drops the last lesson's figures");
+    assert(/families: lessonSceneFamilies/.test(plan), "the lesson's own scene families");
+    assert(/deadlineAt: plannerStartedAt \+ SCENE_PLANNER_DEADLINE_MS/.test(plan), "the scene deadline");
+    assert(/lessonFigures: lessonFiguresArtifact\(lessonPlanned\.figures\)/.test(plan), "the artifact is stored");
+    assert(/mayAdvance: \(\) => !lessonPage\.zoneStash/.test(plan), "a doubt's figure in the zone refuses an advance");
+    assert(/rememberZonePresentation\(view, billed\.doubtFigures === true\)/.test(plan), "the advance is the zone's figure for a later doubt");
+    const uqh = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useQuestionHandler.ts"), "utf8"));
+    assert.equal(uqh.split("planLessonFigures(").length - 1, 1, "planLessonFigures is called in one place");
+    const ask = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-ask");
+    assert(/lessonFigures: billed\.lessonFigures === true && !doubt && !resume && !dsaClassification\.isDsa/.test(ask), "the planner is asked for figures only on a granted lesson");
+    assert(/lessonSceneFamilies = sceneCapabilities\.families;/.test(anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-families")));
+    assert(/\.\.\.\(laterFigures\.length > 0 \? \{ laterFigures \} : \{\}\)/.test(uqh), "the prompt gets the block only when a figure drew");
+  });
+}
+
 async function main(): Promise<void> {
   await sequenceChecks();
   await preparationChecks();
+  await promptChecks();
   await executorChecks();
   console.log(`verify-lesson-figures-live: ${passed} checks passed`);
 }

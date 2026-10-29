@@ -105,6 +105,11 @@ export interface BoardPageRecord {
    * zone stood empty, and the resume clears it again.
    */
   zoneStash?: import("../scene/figureSwap").ZoneStash | null;
+  /**
+   * The lesson's later figure in the zone (DIAGRAM_LESSON_FIGURES), set when
+   * `[FOCUS:figure_k]` drew it; absent while figure 1 stands.
+   */
+  lessonFigureId?: import("@/lib/boards/lessonFigures").LessonFigureId | null;
   /** The turn teaching on this page now, or the last one that did. */
   turn: {
     kind: PageTurnKind;

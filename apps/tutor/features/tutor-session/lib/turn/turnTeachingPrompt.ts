@@ -87,6 +87,41 @@ export interface TurnTeachingPromptInput {
   narrationLanguage?: NarrationLanguage;
   /** The runtime spoke only its safe acknowledgement, not question framing. */
   earlyOpeningAcknowledgement?: boolean;
+  /**
+   * The lesson's later verified figures (DIAGRAM_LESSON_FIGURES), in order.
+   * Absent or empty leaves the prompt bytes unchanged.
+   */
+  laterFigures?: readonly LaterFigurePrompt[];
+}
+
+/** What the teaching stream may know of a later figure: its id, its kind, its parts. Never geometry. */
+export interface LaterFigurePrompt {
+  id: string;
+  /** A plain description of the figure's family, or null. */
+  kind: string | null;
+  /** Each part's focus id and the label drawn on it (null when it has none). */
+  parts: ReadonlyArray<{ id: string; label: string | null }>;
+}
+
+/**
+ * The LATER FIGURES block: ids, kinds and part ids with their drawn labels.
+ * The figures are already verified and compiled; the teaching stream only
+ * names the moment the lesson moves to one.
+ */
+export function laterFiguresPromptAddon(figures: readonly LaterFigurePrompt[] | undefined): string {
+  if (!figures || figures.length === 0) return "";
+  const lines = figures.map((figure) => {
+    const parts = figure.parts
+      .map((part) => part.label ? `"${part.label}" = [FOCUS:${part.id}]` : `[FOCUS:${part.id}]`)
+      .join(", ");
+    return `- ${figure.id}${figure.kind ? ` (${figure.kind})` : ""}: parts ${parts || "none"}`;
+  });
+  return [
+    "LATER FIGURES",
+    "The runtime has already verified and compiled these further views of this same situation. The figure on the board now is figure 1.",
+    ...lines,
+    "When the lesson needs one, write [FOCUS:figure_k] in the sentence that moves to it, at the start of that sentence; the runtime clears the figure area and draws it there. After that point, FOCUS only at its parts, by the ids listed for it, and never at figure 1's parts again. Never go back to an earlier figure, and never name a figure that is not listed. Do not describe drawing it; say what it shows.",
+  ].join("\n");
 }
 
 export interface TurnTeachingPrompt {
@@ -935,6 +970,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
       ? dsaOpeningPromptAddon(givenSegments.length > 0, input.codeLessonIncludeCode)
       : runtimeGivenAddon,
     diagramPromptAddon,
+    codeLesson ? "" : laterFiguresPromptAddon(input.laterFigures),
     codeLesson
       ? codeLessonPromptAddon(codeLesson, {
           frames: input.codeLessonFrames,
