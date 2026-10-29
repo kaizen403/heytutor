@@ -120,7 +120,7 @@ import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
 import { finishLessonFigureAdvance, laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
-import { lessonFiguresArtifact, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
+import { lessonFiguresArtifact, lessonFiguresMayPlan, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
@@ -2255,9 +2255,11 @@ export function useQuestionHandler(
       let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
       if (!doubt && !resume) lessonFiguresRef?.current?.reset();
       if (
-        billed.lessonFigures === true && !doubt && !resume && !codeLesson &&
-        turnPlan && activeDiagram && sceneV2IntroSegments && diagramSource === "verified_scene" &&
-        lessonFiguresRef?.current
+        lessonFiguresMayPlan({
+          granted: billed.lessonFigures === true, doubt: Boolean(doubt), resume: Boolean(resume),
+          codeLesson: Boolean(codeLesson), diagramSource,
+        }) &&
+        turnPlan && activeDiagram && sceneV2IntroSegments && lessonFiguresRef?.current
       ) {
         const firstFigure = { diagram: activeDiagram, introSegments: sceneV2IntroSegments };
         const lessonPlanned = planLessonFigures({

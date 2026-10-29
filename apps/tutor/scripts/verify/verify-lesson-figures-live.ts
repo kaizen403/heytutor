@@ -16,6 +16,10 @@
  * (i) savesCommand keeps a cue the cursor never reached;
  * (j) the live save's cut row ignores savesCommand;
  * (k) the refused advance is recorded without its reason.
+ *
+ * Lane 8b (round 2 review N1):
+ * (l) the lab's lesson-figures arm keeps its own condition (no verified scene check);
+ * (m) lessonFiguresMayPlan stops checking that figure 1 is a verified scene.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -24,13 +28,13 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import ts from "typescript";
 import type Konva from "konva";
-import { getSegmentCommands, prepareVerifiedLessonSegments, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
+import { REFERENCE_PICTURE_ENTITY_ID, getSegmentCommands, prepareVerifiedLessonSegments, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import incline from "./fixtures/lesson-figures-incline-plan.json";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
-import { planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
+import { lessonDiagramSourceOf, lessonFiguresMayPlan, planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
 import {
   LessonFigureSequence,
   finishLessonFigureAdvance,
@@ -589,8 +593,11 @@ async function promptChecks(): Promise<void> {
   });
   await check("prompt/uqh-plans-only-on-a-granted-lesson", () => {
     const plan = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-plan");
-    const guard = plan.indexOf("billed.lessonFigures === true && !doubt && !resume && !codeLesson");
-    assert(guard >= 0, "planning is guarded by the grant, no doubt, no resume, no code lesson");
+    const guard = plan.indexOf(`lessonFiguresMayPlan({
+          granted: billed.lessonFigures === true, doubt: Boolean(doubt), resume: Boolean(resume),
+          codeLesson: Boolean(codeLesson), diagramSource,
+        })`);
+    assert(guard >= 0, "planning is guarded by the shared condition: the grant, no doubt, no resume, no code lesson, a verified scene");
     assert(plan.indexOf("planLessonFigures(") > guard, "planLessonFigures runs under that guard");
     assert(/if \(!doubt && !resume\) lessonFiguresRef\?\.current\?\.reset\(\);/.test(plan), "every new lesson drops the last lesson's figures");
     assert(/families: lessonSceneFamilies/.test(plan), "the lesson's own scene families");
@@ -604,6 +611,43 @@ async function promptChecks(): Promise<void> {
     assert(/lessonFigures: billed\.lessonFigures === true && !doubt && !resume && !dsaClassification\.isDsa/.test(ask), "the planner is asked for figures only on a granted lesson");
     assert(/lessonSceneFamilies = sceneCapabilities\.families;/.test(anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-families")));
     assert(/\.\.\.\(laterFigures\.length > 0 \? \{ laterFigures \} : \{\}\)/.test(uqh), "the prompt gets the block only when a figure drew");
+  });
+}
+
+/** Review N1: the lab plans later figures under the live condition itself. */
+async function labConditionChecks(): Promise<void> {
+  await check("n1/the-shared-condition", () => {
+    const open = { granted: true, doubt: false, resume: false, codeLesson: false, diagramSource: "verified_scene" as const };
+    assert.equal(lessonFiguresMayPlan(open), true);
+    for (const [name, closed] of [
+      ["not granted", { ...open, granted: false }], ["a doubt", { ...open, doubt: true }], ["a resume", { ...open, resume: true }],
+      ["a code lesson", { ...open, codeLesson: true }], ["a picture", { ...open, diagramSource: "reference_picture" as const }],
+      ["no figure", { ...open, diagramSource: "none" as const }],
+    ] as const) assert.equal(lessonFiguresMayPlan(closed), false, name);
+    assert.equal(lessonDiagramSourceOf(null), "none");
+    assert.equal(lessonDiagramSourceOf(first.diagram), "verified_scene");
+    assert.equal(lessonDiagramSourceOf({ ...first.diagram, id: REFERENCE_PICTURE_ENTITY_ID }), "reference_picture", "a picture in the zone");
+  });
+  await check("n1/lab-arm-reads-the-live-condition", () => {
+    const labFile = path.join(SOURCE_ROOT, "../../scripts/lecture-lab/lecturePipeline.ts");
+    const source = readFileSync(labFile, "utf8");
+    const begin = source.indexOf("// lesson-figures-arm:begin\n");
+    const end = source.indexOf("// lesson-figures-arm:end\n", begin);
+    assert(begin >= 0, "slice anchor: lesson-figures-arm:begin in lecturePipeline.ts");
+    assert(end > begin, "slice anchor: lesson-figures-arm:end after its begin in lecturePipeline.ts");
+    assert.equal(source.split("// lesson-figures-arm:begin").length, 2);
+    assert.equal(source.split("// lesson-figures-arm:end").length, 2);
+    const arm = stripComments(source.slice(begin, end));
+    const guard = arm.indexOf(`lessonFiguresMayPlan({
+        granted: options.lessonFigures === true, doubt: false, resume: false,
+        codeLesson: dsaClassification.isDsa, diagramSource: lessonDiagramSourceOf(activeDiagram),
+      })`);
+    assert(guard >= 0, "the lab's arm is guarded by the live condition, figure 1's source read as live reads it");
+    assert(arm.indexOf("planLessonFigures(") > guard, "planLessonFigures runs under it");
+    assert.equal(arm.split("planLessonFigures(").length - 1, 1);
+    assert(/narrationLanguage: options\.narrationLanguage \?\? "english"/.test(arm), "the turn's narration language, English by default as live");
+    const lab = stripComments(source);
+    assert.equal(lab.split("planLessonFigures(").length - 1, 1, "the lab plans later figures in one place");
   });
 }
 
@@ -638,6 +682,7 @@ async function main(): Promise<void> {
   await promptChecks();
   await executorChecks();
   await finishSourceChecks();
+  await labConditionChecks();
   console.log(`verify-lesson-figures-live: ${passed} checks passed`);
 }
 

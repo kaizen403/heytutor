@@ -60,6 +60,29 @@ export interface LessonFigurePlanResult {
 /** A part named like an advance cue would make `[FOCUS:figure_2]` ambiguous (shared with the server). */
 const collidesWithAdvanceIds = figureCollidesWithAdvanceIds;
 
+/** What figure 1 is when a lesson's later figures would be planned. */
+export type LessonDiagramSource = "verified_scene" | "reference_picture" | "none";
+
+export function lessonDiagramSourceOf(diagram: VerifiedDiagram | null | undefined): LessonDiagramSource {
+  return diagram ? (isReferencePictureDiagram(diagram) ? "reference_picture" : "verified_scene") : "none";
+}
+
+/**
+ * Whether a turn plans its later figures: the one condition the live turn
+ * (uQH anchor lesson-figures-plan) and the lecture lab both read (review N1).
+ * Granted, a new lesson (no doubt, no resume), no code lesson, and figure 1
+ * is a verified scene (a reference picture or no figure takes none).
+ */
+export function lessonFiguresMayPlan(input: {
+  granted: boolean;
+  doubt: boolean;
+  resume: boolean;
+  codeLesson: boolean;
+  diagramSource: LessonDiagramSource;
+}): boolean {
+  return input.granted && !input.doubt && !input.resume && !input.codeLesson && input.diagramSource === "verified_scene";
+}
+
 export function planLessonFigures(input: {
   lessonQuestion: string;
   /** The lesson's reconciled plan (after reconcilePlanWithAuthority), validated on the lesson question. */

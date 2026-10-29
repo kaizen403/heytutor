@@ -75,7 +75,7 @@ import {
   type SpeculationAbortReason,
 } from "@/features/tutor-session/lib/scene/planningOverlap";
 import { buildTurnTeachingPrompt, figureExampleSpeciesOf } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
-import { planLessonFigures } from "@/features/tutor-session/lib/turn/lessonFigurePlan";
+import { lessonDiagramSourceOf, lessonFiguresMayPlan, planLessonFigures } from "@/features/tutor-session/lib/turn/lessonFigurePlan";
 import { laterFigurePromptOf } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
 import { lessonFigureAsksOf, type LessonFigureAsk, type LessonFigureId } from "@/lib/boards/lessonFigures";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
@@ -949,10 +949,21 @@ export async function runLecture(
       plannerDeclined: run.diagram.plannerDeclined,
     });
 
-    // As uQH's lesson-figures-plan anchor: once figure 1 drew, each view the plan
-    // named is drawn offline by the fast selector from the reconciled plan.
+    // lesson-figures-arm:begin
+    // The live condition itself (uQH anchor lesson-figures-plan): once figure 1
+    // drew as a verified scene, each view the plan picked is drawn offline by
+    // the fast selector from the reconciled plan. The lab has no doubt or
+    // resume turn here, and a DSA lesson is its code lesson. The narration
+    // language is the turn's, English unless the lab replays Hinglish (live:
+    // narrationLanguageForVoice).
     let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
-    if (options.lessonFigures === true && !dsaClassification.isDsa && activeDiagram && presentation) {
+    if (
+      lessonFiguresMayPlan({
+        granted: options.lessonFigures === true, doubt: false, resume: false,
+        codeLesson: dsaClassification.isDsa, diagramSource: lessonDiagramSourceOf(activeDiagram),
+      }) &&
+      activeDiagram && presentation
+    ) {
       const planned = planLessonFigures({
         lessonQuestion: question, turnPlan, authority: problemAuthority, families: sceneCapabilities.families,
         first: activeDiagram, narrationLanguage: options.narrationLanguage ?? "english",
@@ -972,6 +983,7 @@ export async function runLecture(
     } else if (options.lessonFigures === true) {
       run.lessonFigures = { asks: lessonFigureAsksOf(turnPlan), figures: [], misses: [] };
     }
+    // lesson-figures-arm:end
 
     // The live text only point. A shown picture takes the figure's slot for the
     // prompt and the marker, but every engine field above stays text only.
