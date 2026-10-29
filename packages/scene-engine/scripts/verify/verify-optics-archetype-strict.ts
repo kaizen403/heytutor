@@ -16,6 +16,7 @@ import {
   type SceneDocument,
 } from "../../src";
 import { OPTICS_ARCHETYPE_FIXTURES, type OpticsFixture } from "./fixtures/optics-archetype-strict";
+import { checkOpticsSpanLayout } from "../lib/opticsSpanLayout";
 
 const CM = { cm: 1, mm: 0.1, m: 100 } as const;
 const close = (actual: number, expected: number, what: string) =>
@@ -44,11 +45,57 @@ function plan(rows: Array<[string, number, string | null]>) {
   };
 }
 
+/**
+ * Measured spans: u, f and v each get one dimension bar whose ends are the
+ * element centre and the figure's own object, focus or image point, whose
+ * text is the hand value in the question's unit, and which the compiled
+ * layout keeps clear of the rays, the element, the other spans and labels.
+ */
+function assertSpans(id: string, draw: Draw, document: SceneDocument, renderScene: Parameters<typeof checkOpticsSpanLayout>[1]) {
+  const lens = draw.archetype === "thin_lens";
+  const element = lens ? "O" : "P";
+  const expected = cartesian(draw);
+  const text = (key: string, value: number) => `${key}=${Number(value.toPrecision(3))} ${draw.unit}`;
+  const spans = [
+    { id: "dim_u", key: "u", text: text("u", draw.u), element, point: "O_base", x: expected.u },
+    { id: "dim_f", key: "f", text: text("f", draw.f), element, point: lens ? (draw.kind === "convex" ? "F2" : "F1") : "F", x: expected.f },
+    { id: "dim_v", key: "v", text: text("v", draw.v), element, point: "I_base", x: expected.v },
+  ];
+  const dimensions = document.entities.filter((entity) => entity.kind === "dimension");
+  assert.deepEqual(dimensions.map((entity) => entity.id).sort(), ["dim_f", "dim_u", "dim_v"], `${id}: u, f and v spans`);
+  for (const span of spans) {
+    assert.equal(dimensions.find((entity) => entity.id === span.id)?.label, span.text, `${id}: ${span.key} span text`);
+    const make = document.constructions.find((construction) => construction.operator === "dimension" && construction.outputs.includes(span.id));
+    assert.equal(make?.inputs.start, span.element, `${id}: ${span.key} span starts at the element`);
+    assert.equal(make?.inputs.end, span.point, `${id}: ${span.key} span ends at ${span.point}`);
+    const end = document.constructions.find((construction) => construction.operator === "point" && construction.outputs.includes(span.point))?.inputs;
+    const start = document.constructions.find((construction) => construction.operator === "point" && construction.outputs.includes(span.element))?.inputs;
+    // World lengths are centimetres, Cartesian, element at the origin: the span ends where the value says, on its side.
+    close(Number(end?.x), span.x * CM[draw.unit], `${id}: ${span.key} span end x`);
+    assert.equal(Number(end?.y), 0, `${id}: ${span.key} span end is on the axis`);
+    assert.deepEqual([start?.x, start?.y], [0, 0], `${id}: ${span.key} span starts at the element centre`);
+  }
+  const layout = checkOpticsSpanLayout(document, renderScene, spans);
+  assert.deepEqual(layout.problems, [], `${id}: span layout`);
+}
+
+/** A value read from neither the question nor the plan gets no span; v needs both u and f. */
+function assertSpansOnlyForVerifiedValues(id: string, document: SceneDocument, sources: Record<string, string>) {
+  if (!["thin_lens", "spherical_mirror"].includes(String(document.source.archetype))) return;
+  const read = (key: string) => sources[key] === "stem" || sources[key] === "plan";
+  const verified = { u: read("u"), f: read("f"), v: read("u") && read("f") };
+  for (const [key, ok] of Object.entries(verified)) {
+    const span = document.entities.find((entity) => entity.id === `dim_${key}`);
+    assert.equal(Boolean(span), ok, `${id}: ${key} span ${ok ? "drawn for a verified value" : "absent for an unverified value"}`);
+  }
+}
+
 let drawn = 0;
 let declined = 0;
 for (const fixture of OPTICS_ARCHETYPE_FIXTURES) {
   const attempt = attemptArchetypeScene({ question: fixture.question });
   const document = attempt.scene?.document;
+  if (attempt.scene && attempt.match) assertSpansOnlyForVerifiedValues(fixture.id, attempt.scene.document, attempt.match.sources);
   if ("decline" in fixture) {
     declined++;
     if (fixture.decline === "elements") assert.ok(namesSeveralOpticalElements(fixture.question), `${fixture.id}: two elements are named`);
@@ -77,6 +124,7 @@ for (const fixture of OPTICS_ARCHETYPE_FIXTURES) {
   const spans = document.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.label ?? "");
   assert.ok(spans.includes(`u=${Number(draw.u.toPrecision(3))} ${draw.unit}`), `${fixture.id}: u span ${JSON.stringify(spans)}`);
   for (const span of spans) assert.match(span, new RegExp(`^[ufv](?:=\\d+(?:\\.\\d+)? ${draw.unit})?$`), `${fixture.id}: span ${span} speaks the question's unit`);
+  assertSpans(fixture.id, draw, document, attempt.scene!.renderScene);
   const eligibility = opticsArchetypeStrictEligibility(fixture.question, document);
   assert.ok(eligibility.eligible, `${fixture.id}: strict eligible (${eligibility.reason})`);
 
@@ -184,6 +232,19 @@ for (const [question, u, f] of [
   close(quantity(doc, "f").value, f, `${question} f`);
 }
 assert.equal(attemptArchetypeScene({ question: "A concave mirror forms a real image 60 cm in front of it. Find the focal length." }).match?.slots.u, undefined, "an image distance is never read as u");
+
+// A stock value draws no span: only the stated value is measured, and v (solved from both) is not.
+for (const [question, spans] of [
+  ["A convex lens has focal length 10 cm. Draw the ray diagram.", ["f=10 cm"]],
+  ["An object is 20 cm from a convex lens. Draw the ray diagram.", ["u=20 cm"]],
+  ["Draw the ray diagram for a concave mirror of focal length 15 cm.", ["f=15 cm"]],
+  ["An object is placed 30 cm in front of a concave mirror. Draw the ray diagram.", ["u=30 cm"]],
+] as const) {
+  const attempt = attemptArchetypeScene({ question });
+  assert.ok(attempt.scene && attempt.match, `${question}: draws`);
+  assert.deepEqual(attempt.scene.document.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.label), spans, `${question}: spans`);
+  assertSpansOnlyForVerifiedValues(question, attempt.scene.document, attempt.match.sources);
+}
 
 // Element counting: one element stays one.
 for (const single of ["A convex lens has focal length 10 cm. An object is 30 cm from the lens.", "A magnifying glass of power +17.5 D forms the final image at the near point, 25 cm from the eye.", "A concave mirror of focal length 15 cm forms an image of an object 20 cm in front of it."]) {

@@ -25,15 +25,45 @@ function extendAway(from: Vec2, through: Vec2, length: number): Vec2 {
   return { x: from.x + (dx / norm) * length, y: from.y + (dy / norm) * length };
 }
 
+type AxisSpanKey = "u" | "v" | "f";
+
 /**
- * Keep measurement bars out of the principal-ray corridor. A bar between F
- * and P at a fraction of the object height is slashed by the through-F ray,
- * and stacking both bars under the figure then parks `u=…` on top of `f=…`.
+ * Measured spans along the principal axis, drawn like an engineering
+ * dimension: one `dimension` per verified value whose two endpoints ARE the
+ * figure's own points (object foot, image foot, focus, and the pole or
+ * optical centre), so the bar measures exactly the distance the geometry was
+ * built from and its witnesses rise from those points. The compiler stacks
+ * the bars in lanes clear of the rays, the element and each other.
+ *
+ * The text comes from the same signed Cartesian value that placed the point
+ * (one source of truth), written as a magnitude in the question's unit with
+ * the board's number format (`fmt`, 3 significant figures, "u=30 cm" as
+ * `valueLabel` writes givens). The sign is carried by the span itself: it
+ * runs from the element to the side the point is on, so a virtual image's v
+ * span runs behind a mirror or in front of a lens. The save check
+ * (opticsArchetypePlanAgreement) reads span texts the same way: it refuses a
+ * negative shown value and compares the shown magnitude with |value|.
+ *
+ * A value that is not verified (not read from the question or the plan, or v
+ * solved from two read values) gets no span: never a stock value.
  */
-function dimClearance(envelope: number, h: number): number {
-  // Compiler lane offset + DIMENSION ink offset eat ~44px (~6 world units).
-  return Math.max(1.4 * h, 0.4 * envelope, 9.5);
+function axisSpans(
+  scene: SceneBuilder,
+  display: (cm: number) => number,
+  unit: OpticsLengthUnit,
+  spans: ReadonlyArray<{ key: AxisSpanKey; verified: boolean; element: string; point: string; value: number; role: string }>,
+): Record<AxisSpanKey, string | null> {
+  const ids: Record<AxisSpanKey, string | null> = { u: null, v: null, f: null };
+  for (const span of spans) {
+    if (!span.verified || !Number.isFinite(span.value) || span.value === 0) continue;
+    const id = `dim_${span.key}`;
+    scene.dimension(id, span.element, span.point, span.role, `${span.key}=${withUnit(display(Math.abs(span.value)), unit)}`);
+    ids[span.key] = id;
+  }
+  return ids;
 }
+
+const present = (...ids: Array<string | null>): string[] => ids.filter((id): id is string => id !== null);
 
 /**
  * What a lens or mirror figure needs before it may draw: words and signs
@@ -120,14 +150,12 @@ function sphericalMirror(context: GeneratorContext) {
     scene.segment("ray2_ext", "M2", "I_tip", "virtual extension behind the mirror");
     scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext"], true);
   }
-  const rayTop = Math.max(h, imageHeight, ray1Far?.y ?? h, ray2Far?.y ?? h);
-  const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
-  scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(display(uMag), unit)}` : "u");
-  scene.helper("dim_f_a", { x: focusX, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.helper("dim_f_b", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(display(fMag), unit)}` : "f");
+  const solved = grounded(context, "u") && grounded(context, "f");
+  const spans = axisSpans(scene, display, unit, [
+    { key: "u", verified: grounded(context, "u"), element: "P", point: "O_base", value: u, role: "object distance" },
+    { key: "f", verified: grounded(context, "f"), element: "P", point: "F", value: f, role: "focal length" },
+    { key: "v", verified: solved, element: "P", point: "I_base", value: v, role: "image distance" },
+  ]);
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
   scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);
@@ -137,9 +165,9 @@ function sphericalMirror(context: GeneratorContext) {
     scene.assert("image_distance", "distance_ratio", ["P", "I_base", "P", "O_base"], Number((Math.abs(v) / uMag).toFixed(6)));
   }
   scene.labelled("P", "F", "C", "O_base", "I_base");
-  scene.group("setup", ["axis", "P", "C", "F", "mirror", "O_base", "object", "dim_u", "dim_f"], "the mirror, its pole, focus and centre, and the object");
-  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v < 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
-  scene.group("image_group", ["I_base", "image"], `the ${v < 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
+  scene.group("setup", ["axis", "P", "C", "F", "mirror", "O_base", "object", ...present(spans.u)], "the mirror, its pole, focus and centre, and the object");
+  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v < 0 ? [] : ["ray1_ext", "ray2_ext"]), ...present(spans.f)], "two principal rays locate the image", ["setup"]);
+  scene.group("image_group", ["I_base", "image", ...present(spans.v)], `the ${v < 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
   return scene.build();
 }
 
@@ -207,14 +235,14 @@ function thinLens(context: GeneratorContext) {
     scene.segment("ray2_ext", "O", "I_tip", "virtual extension");
     scene.assert("extensions_meet", "converges", ["ray1_ext", "ray2_ext"], true);
   }
-  const rayTop = Math.max(h, imageHeight, ray1Far?.y ?? h, ray2Far?.y ?? h);
-  const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
-  scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(display(uMag), unit)}` : "u");
-  scene.helper("dim_v_a", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.helper("dim_v_b", { x: v, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_v", "dim_v_a", "dim_v_b", "image distance", grounded(context, "u") && grounded(context, "f") ? `v=${withUnit(display(Math.abs(v)), unit)}` : "v");
+  const solved = grounded(context, "u") && grounded(context, "f");
+  // f runs to the focus the drawn refracted ray uses: F' behind a converging
+  // lens, F in front of a diverging one (its ray leaves as if from F).
+  const spans = axisSpans(scene, display, unit, [
+    { key: "u", verified: grounded(context, "u"), element: "O", point: "O_base", value: u, role: "object distance" },
+    { key: "f", verified: grounded(context, "f"), element: "O", point: kind === "convex" ? "F2" : "F1", value: f, role: "focal length" },
+    { key: "v", verified: solved, element: "O", point: "I_base", value: v, role: "image distance" },
+  ]);
   scene.assert("centre_on_axis", "on", ["O", "axis"]);
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
@@ -224,9 +252,9 @@ function thinLens(context: GeneratorContext) {
     scene.assert("focal_ratio", "distance_ratio", ["O", "F2", "O", "O_base"], Number((fMag / uMag).toFixed(6)));
   }
   scene.labelled("O", "F1", "F2", "O_base", "I_base");
-  scene.group("setup", ["axis", "O", "lens", "F1", "F2", "O_base", "object", "dim_u"], "the lens, its foci and the object");
-  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v > 0 ? [] : ["ray1_ext", "ray2_ext"])], "two principal rays locate the image", ["setup"]);
-  scene.group("image_group", ["I_base", "image", "dim_v"], `the ${v > 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
+  scene.group("setup", ["axis", "O", "lens", "F1", "F2", "O_base", "object", ...present(spans.u)], "the lens, its foci and the object");
+  scene.group("rays", ["ray1_in", "ray2_in", "ray1_out", "ray2_out", ...(v > 0 ? [] : ["ray1_ext", "ray2_ext"]), ...present(spans.f)], "two principal rays locate the image", ["setup"]);
+  scene.group("image_group", ["I_base", "image", ...present(spans.v)], `the ${v > 0 ? "real, inverted" : "virtual, erect"} image`, ["rays"]);
   return scene.build();
 }
 

@@ -3373,7 +3373,10 @@ function relocateObstructedDimensions(
       return canPlaceSingleLabel(owner, [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
         { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
-    if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
+    const labelWidth = (entityId: string): number => measureTextWidth(dimensionLabelText(document, entityId) ?? "", fontHeightPx) + paddingPx * 2;
+    const crowded = (candidateBar: RenderPrimitive): boolean => Boolean(text) &&
+      dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
+    if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
     const preferredSign = Math.sign(offset) || 1;
     let replacement: RenderPrimitive[] | undefined;
@@ -3383,7 +3386,7 @@ function relocateObstructedDimensions(
         const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
         const boundsIssues: SceneIssue[] = [];
         assertDimensionViewport(candidate, transformPlan, boundsIssues);
-        if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink)) continue;
+        if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink) || crowded(candidateBar)) continue;
         if (!labelClears(candidate)) continue;
         replacement = candidate;
         dimensionLanes.set(bar.entityId, amount * sign);
@@ -3401,6 +3404,42 @@ function relocateObstructedDimensions(
     changed = true;
   }
   return changed;
+}
+
+/** A dimension's text sits on the far side of its own bar. When a labelled
+ * bar is stacked inside a longer labelled bar's stretch, closer than a label
+ * lane, the inner text can neither fit between the bars nor slide along to
+ * a stretch the outer bar leaves open, so the label engine parks it beyond
+ * the outer bar, where it reads as the outer bar's value. Relocated bars
+ * keep the lane the compiler already gives labelled bars stacked inside one
+ * group. */
+function dimensionLabelLaneCrowded(bar: RenderPrimitive, labelledOthers: RenderPrimitive[], labelWidth: (entityId: string) => number): boolean {
+  const [start, end] = bar.points;
+  const measured = bar.provenance?.measuredStart as RenderPoint | undefined;
+  if (!start || !end || !measured) return false;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (length < EPSILON) return false;
+  const ux = (end.x - start.x) / length;
+  const uy = (end.y - start.y) / length;
+  // Signed distance from the measured line, along the bar's normal.
+  const offset = (point: RenderPoint) => (point.x - measured.x) * uy - (point.y - measured.y) * ux;
+  const project = (point: RenderPoint) => (point.x - start.x) * ux + (point.y - start.y) * uy;
+  const own = offset(start);
+  return labelledOthers.some((other) => {
+    if (other.kind !== "dimension" || other.provenance?.measurementRole !== "bar") return false;
+    const [a, b] = other.points;
+    if (!a || !b) return false;
+    // Parallel bars on the same side of the measured line, closer than a label lane.
+    if (Math.abs((b.x - a.x) * uy - (b.y - a.y) * ux) > 1e-6 * Math.max(1, Math.hypot(b.x - a.x, b.y - a.y))) return false;
+    const theirs = offset(a);
+    if (Math.sign(theirs) !== Math.sign(own) || Math.abs(theirs - own) < EPSILON || Math.abs(theirs - own) >= DIMENSION_LABEL_LANE_PX) return false;
+    const [low, high] = [project(a), project(b)].sort((first, second) => first - second) as [number, number];
+    // Inner bar stretch [innerLow, innerHigh]; the outer bar covers [outerLow, outerHigh].
+    const ownInner = Math.abs(own) < Math.abs(theirs);
+    const [innerLow, innerHigh, outerLow, outerHigh] = ownInner ? [0, length, low, high] : [low, high, 0, length];
+    const room = Math.max(Math.min(outerLow, innerHigh) - innerLow, innerHigh - Math.max(outerHigh, innerLow));
+    return room < labelWidth(ownInner ? bar.entityId : other.entityId);
+  });
 }
 
 function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boolean {
