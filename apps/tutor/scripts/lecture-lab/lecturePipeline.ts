@@ -776,8 +776,10 @@ export async function runLecture(
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
           !chemistryRefusesPlannerFigure(classifiedSubject, source)),
-        // Mirrors the live begin-turn switch (OPTICS_ARCHETYPE_IN_STRICT=off turns it off).
-        admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype(planning.gate.diagramStrategy) && resolveOpticsArchetypeInStrict(),
+        // The lab selects in its own process and never calls begin-turn, so it reads the
+        // server's switch from the lab's env with the server's resolver: off unless the
+        // lab runs with OPTICS_ARCHETYPE_IN_STRICT=on (match the dev server's env).
+        admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype({ ...planning.gate.diagramStrategy, opticsArchetypeInStrict: resolveOpticsArchetypeInStrict() }),
       },
     };
     run.figureReplayInputs = structuredClone({

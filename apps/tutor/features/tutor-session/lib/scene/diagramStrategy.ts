@@ -11,9 +11,9 @@ export interface DiagramStrategyContext {
   subject?: DiagramSubject;
   strictSubjects?: readonly DiagramSubject[];
   /**
-   * Server kill switch `OPTICS_ARCHETYPE_IN_STRICT=off` (default on), sent
-   * with begin-turn. False keeps strict from drawing the owning optics
-   * archetype; undefined means on.
+   * Server switch `OPTICS_ARCHETYPE_IN_STRICT=on` (default off), sent with
+   * begin-turn. Only true lets strict draw the owning optics archetype;
+   * false or undefined (an older server) means off.
    */
   opticsArchetypeInStrict?: boolean;
 }
@@ -107,7 +107,7 @@ export function chemistryRefusesPlannerFigure(subject: DiagramSubject | undefine
  * draws archetypes.
  */
 export function strictAdmitsOwningOpticsArchetype(decision: DiagramStrategyDecision): boolean {
-  return decision.strategy === "strict" && decision.opticsArchetypeInStrict !== false;
+  return decision.strategy === "strict" && decision.opticsArchetypeInStrict === true;
 }
 
 /** Independently compiled complete linear source programs and verified recovery remain available in strict. */

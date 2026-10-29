@@ -5,7 +5,8 @@
  * (planner_optics_on_archetype_stem). It may then draw that archetype as
  * `optics_archetype`, only when it is exact, its u, f and kind are read from
  * the question, the question names one element, and the save check agrees.
- * OPTICS_ARCHETYPE_IN_STRICT=off turns it off. A planner cannot pass the
+ * Off by default: only OPTICS_ARCHETYPE_IN_STRICT=on turns it on, and with it
+ * off strict selects exactly as main did. A planner cannot pass the
  * archetype rule by writing `source.archetype`.
  */
 import assert from "node:assert/strict";
@@ -19,6 +20,10 @@ import {
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { resolveOpticsArchetypeInStrict } from "../../lib/scene/diagramStrategy.server";
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
+import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { getSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { OPTICS_ARCHETYPE_FIXTURES } from "../../../../packages/scene-engine/scripts/verify/fixtures/optics-archetype-strict";
 
 function turnPlan(question: string, rows: Array<[string, number, string | null]>): TurnPlanV3 {
@@ -45,15 +50,22 @@ function plannerDocument(question: string): Record<string, unknown> {
   return asPlannerDocument(attemptArchetypeScene({ question })!.scene!.document);
 }
 
-const strict = decideDiagramStrategy({ assignedStrategy: "strict", chemistryLane: false, codeLesson: false, dsa: false, doubt: false, subject: "physics" });
-const strictOff = decideDiagramStrategy({ assignedStrategy: "strict", chemistryLane: false, codeLesson: false, dsa: false, doubt: false, subject: "physics", opticsArchetypeInStrict: false });
-const current = decideDiagramStrategy({ assignedStrategy: "current", chemistryLane: false, codeLesson: false, dsa: false, doubt: false, subject: "physics" });
-assert.equal(strictAdmitsOwningOpticsArchetype(strict), true, "strict admits by default");
-assert.equal(strictAdmitsOwningOpticsArchetype(strictOff), false, "the kill switch turns it off");
+const strictContext = { assignedStrategy: "strict", chemistryLane: false, codeLesson: false, dsa: false, doubt: false, subject: "physics" } as const;
+const strictDefault = decideDiagramStrategy(strictContext);
+const strict = decideDiagramStrategy({ ...strictContext, opticsArchetypeInStrict: true });
+const strictOff = decideDiagramStrategy({ ...strictContext, opticsArchetypeInStrict: false });
+const current = decideDiagramStrategy({ assignedStrategy: "current", chemistryLane: false, codeLesson: false, dsa: false, doubt: false, subject: "physics", opticsArchetypeInStrict: true });
+assert.equal(strictAdmitsOwningOpticsArchetype(strictDefault), false, "strict does not admit by default (an older server sends nothing)");
+assert.equal(strictAdmitsOwningOpticsArchetype(strict), true, "an explicit on admits");
+assert.equal(strictAdmitsOwningOpticsArchetype(strictOff), false, "an explicit off does not");
 assert.equal(strictAdmitsOwningOpticsArchetype(current), false, "the current lane already draws archetypes");
-assert.equal(resolveOpticsArchetypeInStrict(undefined), true);
-assert.equal(resolveOpticsArchetypeInStrict(" OFF "), false);
-assert.equal(resolveOpticsArchetypeInStrict("on"), true);
+// The server switch: off unless the env says exactly on.
+assert.equal(resolveOpticsArchetypeInStrict(undefined), false, "unset is off");
+assert.equal(resolveOpticsArchetypeInStrict(""), false, "empty is off");
+assert.equal(resolveOpticsArchetypeInStrict(" OFF "), false, "off is off");
+assert.equal(resolveOpticsArchetypeInStrict("1"), false, "anything but on is off");
+assert.equal(resolveOpticsArchetypeInStrict("on"), true, "on is on");
+assert.equal(resolveOpticsArchetypeInStrict(" ON "), true, "on is read case blind");
 assert.ok((FIGURE_SOURCES as readonly string[]).includes("optics_archetype"));
 assert.equal(diagramStrategyAllowsFigureSource(strict, "archetype"), false, "strict still suppresses every other archetype");
 
@@ -84,7 +96,8 @@ assert.match(drawn.reason, /strict_optics_archetype_owner/);
 assert.deepEqual(quantities(drawn.representation!.sceneDocument), { u: "-75 cm", f: "-50 cm", v: "-30 cm" });
 assert.equal(drawn.droppedCandidate?.replacedBy, "optics_archetype");
 
-// The kill switch, and the current lane, are unchanged.
+// Default off and explicit off select as main did; the current lane is unchanged.
+assert.equal(select(q36, q36Plan, strictDefault).representation, null, "with the switch unset strict draws nothing");
 assert.equal(select(q36, q36Plan, strictOff).representation, null, "OPTICS_ARCHETYPE_IN_STRICT=off draws nothing");
 assert.notEqual(select(q36, q36Plan, current).representation?.figureSource, "optics_archetype");
 
@@ -111,9 +124,37 @@ for (const id of ["q23", "q24", "q116", "q84"]) {
   assert.equal(scene.scene, null, `${id}: no one-lens figure for two lenses`);
 }
 const q49 = fixture("q49").question;
-const bench = select(q49, turnPlan(q49, [["u", 36, "cm"], ["f", 20, "cm"], ["v", 45, "cm"]]), strict, asPlannerDocument(attemptArchetypeScene({ question: q49, turnPlan: turnPlan(q49, [["u", 36, "cm"], ["f", 20, "cm"]]) }).scene!.document));
-assert.equal(bench.droppedCandidate?.code, "planner_optics_on_archetype_stem");
+// The bench moves the image pin, so the engine declines the stem outright now.
+assert.equal(attemptArchetypeScene({ question: q49, turnPlan: turnPlan(q49, [["u", 36, "cm"], ["f", 20, "cm"]]) }).scene, null, "q49: no one-position figure for a bench search");
+const benchCandidate = asPlannerDocument(attemptArchetypeScene({ question: q36 }).scene!.document);
+const bench = select(q49, turnPlan(q49, [["u", 36, "cm"], ["f", 20, "cm"], ["v", 45, "cm"]]), strict, benchCandidate);
 assert.notEqual(bench.representation?.figureSource, "optics_archetype", "q49: optical bench marks are not stated distances");
+
+// One plain configuration only, read from the question: strict never draws these.
+for (const question of [
+  "A converging lens of focal length 20 cm is immersed in water. An object is placed 30 cm from the lens. Find the image.",
+  "An object is 30 cm from a convex lens of focal length 20 cm. A glass slab 3 cm thick is placed between the lens and the image. Find the final image.",
+  "An object is placed 30 cm from a convex lens of focal length 20 cm. The object is then moved to 15 cm from the lens. Find both images.",
+  "A screen is placed 90 cm from an object. A converging lens of focal length 20 cm forms a sharp image on the screen. Find the position of the lens.",
+  "A convex lens of focal length 10 forms an image of an object 30 cm from the lens. Find the image distance.",
+  "A concave mirror of focal length 20 cm forms an image at a distance of 60 cm from the mirror. Find the object distance.",
+]) {
+  const scene = attemptArchetypeScene({ question, turnPlan: turnPlan(question, [["u", 30, "cm"], ["f", 20, "cm"]]) }).scene;
+  if (!scene) continue;
+  const chosen = select(question, turnPlan(question, [["u", 30, "cm"], ["f", 20, "cm"]]), strict, asPlannerDocument(scene.document));
+  assert.notEqual(chosen.representation?.figureSource, "optics_archetype", `strict does not draw: ${question}`);
+}
+// A mirror called converging is concave: strict draws it concave (v = -15 cm for u = 30 cm, f = 10 cm).
+const converging = "An object is placed 30 cm in front of a converging mirror of focal length 10 cm. Find the image.";
+const convergingDrawn = select(converging, turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"]]));
+assert.equal(convergingDrawn.representation?.figureSource, "optics_archetype", convergingDrawn.reason);
+assert.deepEqual(quantities(convergingDrawn.representation!.sceneDocument), { u: "-30 cm", f: "-10 cm", v: "-15 cm" });
+// A plan length the check cannot assign (d_obj is aliased; x1 and D are not) refuses the figure.
+assert.equal(sceneSaveAdmissionFailure({ document: convergingDrawn.representation!.sceneDocument, question: converging, turnPlan: turnPlan(converging, [["d_obj", 30, "cm"], ["f", 10, "cm"]]), tier: "exact_verified" }), null, "d_obj is the object distance");
+for (const id of ["x1", "D", "u_1", "d_img"]) {
+  const failure = sceneSaveAdmissionFailure({ document: convergingDrawn.representation!.sceneDocument, question: converging, turnPlan: turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"], [id, 45, "cm"]]), tier: "exact_verified" });
+  assert.match(failure ?? "", /optics_plan_disagreement/, `a plan row ${id} = 45 cm is never left unchecked`);
+}
 
 // The save check by itself: honest plans in other units and conventions agree.
 const engine = drawn.representation!.sceneDocument;
@@ -141,4 +182,31 @@ assert.equal("exactGrounding" in labelled.source, false);
 const selfLabelled = select(q36, q36Plan, strict, labelled as unknown as Record<string, unknown>);
 assert.equal(selfLabelled.droppedCandidate?.code, "planner_optics_on_archetype_stem", "a self-labelled planner figure is still dropped");
 
-console.log("verify-optics-archetype-strict-selection: strict draws the owning optics archetype only under the narrow rule; kill switch, save check and self-label hole hold");
+// Save and reopen: a lesson whose figure source is optics_archetype keeps that source and restores.
+async function saveAndReopen(): Promise<void> {
+  const representation = convergingDrawn.representation!;
+  const presentation = buildVerifiedDiagramPresentation(representation.sceneDocument, representation.renderScene);
+  const submitted: SubmittedTurnSceneMetadata = {
+    question: converging,
+    sceneDocument: representation.sceneDocument,
+    validationReport: representation.validationReport,
+    visualStatus: "validated",
+    sceneArtifacts: {
+      schemaVersion: "scene-artifacts/v3", turnPlan: turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"]]), representationTier: representation.tier, nonMetric: representation.nonMetric,
+      figureSource: "optics_archetype", candidates: [], diagramResultStatus: "ready",
+    } as never,
+    segments: presentation.introSegments.map((segment, orderIndex) => ({
+      orderIndex, narration: segment.narration, spokenText: segment.narration,
+      command: serializeSegmentCommands(getSegmentCommands(segment), { trustedDiagramGeometry: true }),
+    })),
+  };
+  const saved = await canonicalizeTurnSceneMetadata(submitted);
+  assert.ok(saved.ok, `an optics_archetype turn saves: ${saved.ok ? "" : saved.error}`);
+  assert.equal((saved.value.sceneArtifacts as { figureSource?: string } | null)?.figureSource, "optics_archetype", "the figure source survives the save");
+  assert.ok(restoreVerifiedPresentationFromTurn({ question: converging, sceneDocument: saved.value.sceneDocument, sceneArtifacts: saved.value.sceneArtifacts }), "the saved figure reopens");
+}
+
+void saveAndReopen().then(() => console.log("verify-optics-archetype-strict-selection: strict draws the owning optics archetype only under the narrow rule and only when switched on; save check, configuration declines, self-label hole and save and reopen hold"), (error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
