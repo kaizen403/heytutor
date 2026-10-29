@@ -971,9 +971,11 @@ function zoneLessonOf(row: PrecheckRow): ZoneFigure | null {
 
 /** Which page sequences a row's offline figures can play. */
 function zoneKindsOf(row: PrecheckRow): ZoneSequenceKind[] {
+  // A picture lesson's zone needs the stored picture (lane 3's persist gate plays [picture L, D fig, R]).
+  if (row.lesson.check.status === "picture") return [];
   const lesson = zoneLessonOf(row) !== null;
   if (row.probe.lane === "lesson_figures") return lesson && (row.extra?.figures.length ?? 0) > 0 ? ["lesson_advance"] : [];
-  if (row.probe.lane === "resume_drawn") return lesson ? ["resume_drawn"] : [];
+  if (row.probe.lane === "resume_drawn") return lesson ? ["resume_drawn", ...(row.doubtDrawn ? ["swap" as const] : [])] : [];
   if (!row.doubtDrawn) return [];
   return [lesson ? "swap" : "empty_zone"];
 }
@@ -998,7 +1000,7 @@ async function runZoneCheck(options: Options, probes: readonly DoubtProbe[]): Pr
       console.log(`| ${row.probe.id} | ${zone.sequence} | ${zone.live.join(" > ")} | ${zone.stored.join(" > ")} | ${(zone.replay ?? []).join(" > ")} | ${zone.storedEqualsLive ? "yes" : "NO"} | ${grade.grade}${zone.error ? ` (${cell(zone.error)})` : ""} |`);
     }
   }
-  const skipped = rows.filter((row) => zoneKindsOf(row).length === 0).map((row) => row.probe.id);
+  const skipped = rows.filter((row) => zoneKindsOf(row).length === 0).map((row) => `${row.probe.id}${row.lesson.check.status === "picture" ? " (picture)" : ""}`);
   console.log(`\nzone check: ${played} sequences, ${failures} failed; ${skipped.length} rows with no offline figure to play${skipped.length ? ` (${skipped.join(", ")})` : ""}`);
   if (failures > 0 || played === 0) process.exitCode = 1;
 }

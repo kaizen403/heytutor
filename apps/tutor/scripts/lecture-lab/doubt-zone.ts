@@ -168,6 +168,7 @@ export async function zoneSequence(input: {
       granted: true, codeBoard: false, markedFigureIds: [], zoneFigure: liveZone, zoneReturnable: Boolean(liveZone),
       zoneEmpty: !liveZone, zoneOccupied: !liveZone && zoneInkOccupied(layout),
     }) : "plain";
+    if (!doubt || skip) evidence.sequence = evidence.sequence.replace("D fig", `D plain${doubt ? ` (skip ${skip})` : ""}`);
     if (doubt && !skip) {
       evidence.drawnOverInk = !liveZone && zoneInkOccupied(layout);
       stash = liveZone

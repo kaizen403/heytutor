@@ -24,9 +24,9 @@ import { join, resolve } from "node:path";
 import { verifiedDiagramHasDrawableInk, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { normalizeTutorQuestion, type ProblemAuthorityV1Response, type TurnPlanV3Response } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { TEXT_LAYOUT } from "../../features/tutor-session/constants";
+import { TEXT_LAYOUT, WORK_ROW_FONT_SIZE } from "../../features/tutor-session/constants";
 import type { BoardLayoutState, BoardTextRect } from "../../features/tutor-session/types";
-import { findWorkTextSlot, withWorkRowIdentity, workColumnMaxWidth } from "../../features/tutor-session/lib/board/boardLayout";
+import { estimateBoardTextWidthAtSize, findWorkTextSlot, withWorkRowIdentity } from "../../features/tutor-session/lib/board/boardLayout";
 import { doubtTurnTitle } from "../../features/tutor-session/lib/input/askDoubt";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { deriveSceneGate, selectProductionScene, type ProductionSceneSelectionInput } from "../../features/tutor-session/lib/scene/productionSceneSelection";
@@ -35,6 +35,7 @@ import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/l
 import {
   DOUBT_FIGURE_BUDGET_MS,
   doubtFigureNeedSkip,
+  figureFingerprint,
   planDoubtFigure,
   selectFastFigure,
   zoneInkOccupied,
@@ -49,19 +50,26 @@ import type { DoubtProbe } from "./doubtGrade";
 // The board a lesson leaves (shared with doubt-run)
 // ---------------------------------------------------------------------------
 
-/** Lay the lesson's rows out with the live slot finder; a full page turns, as live. */
+/**
+ * Lay the lesson's rows out with the live slot finder; a full page turns, as
+ * live. Each row is as wide as its text (`estimateBoardTextWidthAtSize`,
+ * capped by the column), as `useBoardLayout` reserves it: with no figure the
+ * column runs to the board's edge, and only a long row reaches the zone.
+ */
 export function boardLayoutFor(lesson: { rows: readonly string[]; diagram: VerifiedDiagram | null; kind: string }): BoardLayoutState {
   const diagramActive = Boolean(lesson.diagram) && lesson.kind !== "dsa";
   let layout: BoardLayoutState = { rects: [], nextY: TEXT_LAYOUT.topY };
   for (const text of lesson.rows) {
     const place = (): boolean => {
-      const width = workColumnMaxWidth(layout, diagramActive);
+      const width = estimateBoardTextWidthAtSize(text, WORK_ROW_FONT_SIZE);
       const slot = findWorkTextSlot({
         layout, requestedX: TEXT_LAYOUT.marginX, requestedY: layout.nextY, width,
         height: TEXT_LAYOUT.textHeight, diagramActive, sequential: true, runtimeOwnsX: true,
       });
       if (!slot) return false;
-      const rect: BoardTextRect = withWorkRowIdentity(layout, { x: slot.x, y: slot.y, width, height: TEXT_LAYOUT.textHeight, text });
+      const rect: BoardTextRect = withWorkRowIdentity(layout, {
+        x: slot.x, y: slot.y, width: Math.min(width, slot.maxWidth), height: TEXT_LAYOUT.textHeight, text,
+      });
       layout.rects.push(rect);
       layout.nextY = Math.max(layout.nextY, slot.y + TEXT_LAYOUT.lineHeight);
       return true;
@@ -104,6 +112,10 @@ export interface PrecheckSource {
   /** ProblemIR was recorded (present, or known not attempted). */
   irKnown: boolean;
   rows: string[];
+  /** A doubt-lab lesson is reused as recorded: what its zone held when it ended. */
+  recorded: { kind: string; diagram: VerifiedDiagram | null } | null;
+  /** A lecture run's reference picture outcome (shown, unavailable...), when it ran the picture tier. */
+  picture: string | null;
 }
 
 interface ReplayInputs {
@@ -134,6 +146,8 @@ export function precheckSourceFrom(path: string, raw: unknown): PrecheckSource |
       turnPlan: (inputs?.selection.turnPlan ?? raw.turnPlan) as TurnPlanV3,
       selection: inputs?.selection ?? null, authority: inputs ? authorityOf(inputs) : null,
       irKnown: inputs !== null, rows: Array.isArray(raw.rows) ? raw.rows as string[] : [],
+      recorded: { kind: String(raw.kind), diagram: (raw.diagram ?? null) as VerifiedDiagram | null },
+      picture: isRecord(raw.summary) && typeof raw.summary.referencePicture === "string" ? raw.summary.referencePicture : null,
     };
   }
   if (inputs && typeof raw.question === "string") {
@@ -144,6 +158,8 @@ export function precheckSourceFrom(path: string, raw: unknown): PrecheckSource |
       turnPlan: inputs.selection.turnPlan, selection: inputs.selection, authority: authorityOf(inputs), irKnown: true,
       rows: [...(Array.isArray(raw.givenRows) ? raw.givenRows as string[] : []),
         ...writes.map((write) => write.text ?? "").filter((text) => text.trim().length > 0)],
+      recorded: null,
+      picture: isRecord(raw.referencePicture) && typeof raw.referencePicture.status === "string" ? raw.referencePicture.status : null,
     };
   }
   return null;
@@ -297,9 +313,19 @@ function lessonCheckFor(probe: DoubtProbe, source: PrecheckSource | null): Lesso
   }
   if (!source) return NO_LESSON;
   const replay = replayLessonFigure(source);
+  // A recorded doubt-lab lesson is reused as it is: its zone is what it recorded, whatever a replay draws today.
+  if (source.recorded) {
+    const { kind, diagram } = source.recorded;
+    if (!diagram) return { ...NO_LESSON, check: { status: "none", detail: `recorded ${kind}, zone empty (reused at $0)` } };
+    if (replay.presentation && figureFingerprint(replay.presentation.diagram) === figureFingerprint(diagram)) {
+      return { ...replay, check: { ...replay.check, detail: `${replay.check.detail} (recorded, reused at $0)` } };
+    }
+    return { ...NO_LESSON, check: { status: kind === "picture" ? "picture" : "drawn", detail: `recorded ${kind} (reused at $0; not rebuilt offline)` },
+      presentation: { diagram, introSegments: [] } };
+  }
   // As live: the picture tier runs only at the text only point.
   if (probe.referencePicture && replay.check.status === "none") {
-    return { ...replay, check: { status: "picture", detail: "verified none; picture tier not checked offline (Commons + judge)" } };
+    return { ...replay, check: { status: "picture", detail: `verified none; picture ${source.picture ? `${source.picture} in the recording` : "not recorded"} (not checked offline)` } };
   }
   return replay;
 }
@@ -331,15 +357,15 @@ export async function precheckRow(
         : { status: "none", detail: extra.misses.map((miss) => `${miss.id}:${miss.reason}`).join(", ") || "no asks" };
     }
   } else if (probe.lane !== "dsa") {
+    // Live, a shown picture stands in the zone: swappable and returnable, never the same figure as a verified one.
+    const picture = lesson.check.status === "picture";
     const layout = boardLayoutFor({ rows: source?.rows ?? [], diagram: zoneFigure, kind: "scene" });
-    const skip = doubtFigureNeedSkip({
+    const skip = picture ? null : doubtFigureNeedSkip({
       granted: true, codeBoard: false, markedFigureIds: [], zoneFigure,
       zoneReturnable: Boolean(zoneFigure), zoneEmpty: !zoneFigure, zoneOccupied: !zoneFigure && zoneInkOccupied(layout),
     });
     const plans = figurePlans.get(`${probe.id}|figures`) ?? figurePlans.get(`${probe.id}|lesson-figures`) ?? null;
-    if (lesson.check.status === "picture") {
-      doubt = { status: "unknown", detail: "zone holds a picture only live; doubt figure not checked offline" };
-    } else if (skip) {
+    if (skip) {
       doubt = { status: "none", detail: `skip ${skip}` };
     } else if (!source && !plans) {
       doubt = { status: "unknown", detail: "no recorded plan" };
@@ -352,9 +378,13 @@ export async function precheckRow(
         planners: recordedPlanners(source, plans), debug: () => {},
       });
       const via = plans ? "recorded doubt plans" : "lesson plan restamped";
+      const authorityRecorded = plans ? plans.planAuthority !== null : Boolean(source?.authority);
       if (outcome.status === "drawn") {
         doubtDrawn = outcome;
-        doubt = { status: "drawn", detail: `${outcome.representation.family ?? "?"}/${outcome.representation.tier} (${via}${plans?.need ? "" : ", need assumed"})` };
+        doubt = { status: "drawn", detail: `${outcome.representation.family ?? "?"}/${outcome.representation.tier} (${via}${plans?.need ? "" : ", need assumed"}${picture ? ", over the picture" : ""})` };
+      } else if (outcome.reason === "numeric_authority_unavailable" && !authorityRecorded) {
+        // Live, the doubt's own planAuthority answers; the record has no ProblemIR to stand in for it.
+        doubt = { status: "unknown", detail: `needs ProblemIR, none recorded (${via})` };
       } else {
         doubt = { status: "none", detail: `${outcome.reason} (${via})` };
       }
@@ -373,12 +403,14 @@ export function matchExpectation(probe: DoubtProbe, lesson: FigureCheck, doubt: 
   if (wantLesson === "none" && lesson.status !== "none") problems.push(`lesson figure ${lesson.status}, expected none`);
   if (wantLesson === "picture" && lesson.status !== "picture") problems.push(`lesson figure ${lesson.status}, expected a picture`);
   const wantsDoubtFigure = probe.expect.newFigure !== null && probe.expect.newFigureInScope;
+  // Work ink reaches the empty zone: the live skip refuses before any planner, whatever the record lacks.
+  const occupied = doubt.status === "none" && doubt.detail === "skip zone_occupied";
   if (probe.lane === "lesson_figures" && doubt.status !== "drawn") problems.push("no later figure draws offline");
-  else if (probe.lane !== "lesson_figures" && wantsDoubtFigure && doubt.status !== "drawn" && !(lesson.status === "picture" && doubt.status === "unknown")) {
+  else if (probe.lane !== "lesson_figures" && wantsDoubtFigure && doubt.status !== "drawn" && !occupied) {
     problems.push(`doubt figure ${doubt.status}, expected drawn`);
   }
-  const textOnly = wantLesson !== "drawn" && !wantsDoubtFigure && probe.lane !== "lesson_figures";
+  const textOnly = (wantLesson !== "drawn" && !wantsDoubtFigure && probe.lane !== "lesson_figures") || (occupied && wantLesson !== "drawn");
   if (irUnknown && !textOnly) problems.push("IR unknown");
   if (probe.offlineOnly) return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : "offline row ($0)" };
-  return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : textOnly ? "expects text only" : "draws as expected" };
+  return { matches: problems.length === 0, why: problems.length ? problems.join("; ") : occupied ? "zone occupied: the doubt must refuse" : textOnly ? "expects text only" : "draws as expected" };
 }
