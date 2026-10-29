@@ -18,6 +18,8 @@
  * with the whiteboard's hold semantics, plus source slices of the live hook
  * (both anchors of every slice guarded):
  *   need/       an occupied empty zone asks the need check only with freshPage;
+ *               after a finished lesson (no Continue waits) no figure and no
+ *               page turn: the doubt answers on the lesson's page;
  *   record/     the marker's bytes, and off equals absent;
  *   server/     freshPage kept on a doubt (validated, or refused as text), dropped elsewhere
  *               and, with the flag off, on every turn (lane 10, S2);
@@ -48,7 +50,9 @@
  * (h) the return to an empty lesson zone erases the zone after the page came back;
  * (i) turnDoubtPage keeps the lesson's layout on the fresh page;
  * (j) the uQH return reads the zone stash before returning the page;
- * (k) the uQH swap turns a page with a figure in the zone.
+ * (k) the uQH swap turns a page with a figure in the zone;
+ * (l) doubtFigureNeedSkip ignores lessonResumable, or uQH does not pass
+ *     `hasPausedLesson()`, or it does not read this board's paused lesson.
  * Lane 10:
  * (n1) the restore's page step gets no notes; (n2) the restore's page reset
  * gets no notes, and (n2b) resetReplayPageAtTurn ignores them; (n3) the
@@ -219,6 +223,22 @@ async function main(): Promise<void> {
       "need/flag off: no figure and no page turn, whatever freshPage says");
     assert(doubtFigureNeedSkip({ ...empty, codeBoard: true, zoneOccupied: occupied, freshPage: true }) === "code_board",
       "need/a code board never turns a page");
+    // A finished lesson has no Continue to bring its figure or page back.
+    const zoneFigure = { id: "verified_scene", anchors: [] } as unknown as Parameters<typeof doubtFigureNeedSkip>[0]["zoneFigure"];
+    const onFigure = { ...empty, zoneFigure, zoneReturnable: true, zoneEmpty: false, zoneOccupied: false };
+    for (const [name, input] of [
+      ["an occupied empty zone (fresh page)", { ...empty, zoneOccupied: occupied, freshPage: true }],
+      ["a free empty zone", { ...empty, zoneOccupied: false, freshPage: true }],
+      ["a returnable figure (swap)", onFigure],
+    ] as const) {
+      assert(doubtFigureNeedSkip({ ...input, lessonResumable: false }) === "lesson_finished",
+        `need/after a finished lesson, ${name}: no figure and no page turn (mutation l)`);
+      assert(doubtFigureNeedSkip({ ...input, lessonResumable: true }) === doubtFigureNeedSkip(input) &&
+        doubtFigureNeedSkip(input) === null,
+        `need/with a paused lesson, ${name}: asked as before`);
+      assert(doubtFigureNeedSkip({ ...input, granted: false, lessonResumable: false }) === "flag_off",
+        `need/flag off, ${name}: flag_off as before`);
+    }
   }
 
   // --- record/ ------------------------------------------------------------
@@ -447,6 +467,12 @@ async function main(): Promise<void> {
     const plan = between(handler, file, "// doubt-figure-plan:begin", "// doubt-figure-plan:end");
     assert(/zoneOccupied: zoneEmpty && zoneInkOccupied\(boardLayoutRef\.current\),\s*\/\/[^\n]*\n\s*freshPage: true,/.test(plan),
       "live/the plan asks the need check over lesson rows (freshPage)");
+    assert(/const skip = doubtFigureNeedSkip\(\{[^}]*\n\s*lessonResumable: hasPausedLesson\(\),\n\s*\}\);/.test(plan),
+      "live/the need check knows whether a Continue waits (mutation l)");
+    const controlFile = "features/tutor-session/hooks/turn/useTurnControl.ts";
+    const control = readFileSync(resolve(root, controlFile), "utf8");
+    assert(/const hasPausedLesson = useCallback\(\s*\(\): boolean => Boolean\(sessionId\) && pausedLessonRef\.current\?\.boardId === sessionId,/.test(control),
+      "live/hasPausedLesson reads this board's paused lesson (mutation l)");
     const gated = between(handler, file, "if (doubt && doubtFiguresGranted) {", "// doubt-figure-plan:begin");
     assert(gated.length < 200, "live/the plan, and so every page turn, runs only with DIAGRAM_DOUBT_FIGURES granted");
     const swap = between(handler, file, "// doubt-figure-swap:begin", "// doubt-figure-swap:end");

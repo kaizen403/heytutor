@@ -343,6 +343,12 @@ export type TurnControlApi = {
   offerPausedLessonResume: (resume?: PausedLessonRequest) => void;
   /** Drop a paused lecture: a fresh question, or a board change. */
   clearPausedLesson: () => void;
+  /**
+   * A paused lesson on this board waits for Continue. A doubt figure or a
+   * fresh page hides the lesson's figure or page until that resume, so with
+   * none (the lesson finished) the doubt answers on the lesson's page.
+   */
+  hasPausedLesson: () => boolean;
   /** True while a stopped lesson on this board can continue. */
   pausedLessonOffer: boolean;
   /** Why it stopped ("stop" or "doubt"), for the bar's copy; null with no offer. */

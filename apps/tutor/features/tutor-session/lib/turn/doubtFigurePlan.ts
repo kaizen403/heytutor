@@ -181,9 +181,17 @@ export function doubtFigureNeedSkip(input: {
   zoneOccupied: boolean;
   /** An occupied empty zone turns a fresh page instead of refusing (lane 9). */
   freshPage?: boolean;
+  /**
+   * A paused lesson waits for Continue (`hasPausedLesson`). The swap and the
+   * fresh page hide the lesson's figure or page until that resume; false (the
+   * lesson finished) skips, and the doubt answers on the lesson's page.
+   * Undefined is not known (the lab) and does not skip.
+   */
+  lessonResumable?: boolean;
 }): string | null {
   if (!input.granted) return "flag_off";
   if (input.codeBoard) return "code_board";
+  if (input.lessonResumable === false) return "lesson_finished";
   const marked = new Set(input.markedFigureIds.map((id) => id.trim().toLowerCase()).filter(Boolean));
   if (marked.size > 0 && input.zoneFigure?.anchors.some((anchor) => marked.has(anchor.id.trim().toLowerCase()))) {
     return "marked_figure_part";

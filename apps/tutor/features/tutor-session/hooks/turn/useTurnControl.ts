@@ -1520,6 +1520,11 @@ export function useTurnControl(
     setEarlyLessonRestartOfferState(null);
   }, []);
 
+  const hasPausedLesson = useCallback(
+    (): boolean => Boolean(sessionId) && pausedLessonRef.current?.boardId === sessionId,
+    [sessionId],
+  );
+
   const offerPausedLessonResume = useCallback((resume?: PausedLessonRequest) => {
     if (resume) pausedLessonRef.current = resume;
     const pending = pausedLessonRef.current;
@@ -1780,6 +1785,7 @@ export function useTurnControl(
     flushPausedLesson,
     offerPausedLessonResume,
     clearPausedLesson,
+    hasPausedLesson,
     restorePausedLesson,
     restartEarlyLesson,
     earlyLessonRestartOffer: earlyLessonRestartOfferState?.boardId === sessionId && phase === "idle" && !isReplaying,

@@ -306,6 +306,7 @@ export function useQuestionHandler(
     | "enqueueVerifiedIntro"
     | "processResponseText"
     | "offerPausedLessonResume"
+    | "hasPausedLesson"
     | "clearPausedLesson"
   >,
 ) {
@@ -387,6 +388,7 @@ export function useQuestionHandler(
     enqueueVerifiedIntro,
     processResponseText,
     offerPausedLessonResume,
+    hasPausedLesson,
     clearPausedLesson,
   } = turnControl;
 
@@ -1926,6 +1928,9 @@ export function useQuestionHandler(
           zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),
           // Then the figure takes a fresh page, and the lesson's page comes back on its resume (lane 9).
           freshPage: true,
+          // Only a resume brings the lesson's figure or page back: after a
+          // finished lesson the doubt answers on the lesson's page.
+          lessonResumable: hasPausedLesson(),
         });
         doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;
         const need = skip
@@ -3551,6 +3556,7 @@ export function useQuestionHandler(
       revokeUnreferencedReplayBlobUrls,
       finishLectureUi,
       offerPausedLessonResume,
+      hasPausedLesson,
       clearPausedLesson,
       ensureTTSClient,
       whiteboardRef,
