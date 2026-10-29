@@ -241,6 +241,8 @@ export interface AdmittedLessonFigures {
   artifact: LessonFiguresArtifact & { droppedFigureIds?: LessonFigureId[] };
   /** Each admitted figure's diagram, for the teaching cursor. */
   diagrams: ReadonlyMap<LessonFigureId, VerifiedDiagram>;
+  /** Each admitted figure's whole presentation (diagram and intro), as restore rebuilds it. */
+  presentations: ReadonlyMap<LessonFigureId, VerifiedDiagramPresentation>;
   droppedFigureIds: LessonFigureId[];
 }
 
@@ -266,6 +268,7 @@ export function admitLessonFigures(
 ): AdmittedLessonFigures {
   const admitted: StoredLessonFigure[] = [];
   const diagrams = new Map<LessonFigureId, VerifiedDiagram>();
+  const presentations = new Map<LessonFigureId, VerifiedDiagramPresentation>();
   const droppedFigureIds: LessonFigureId[] = [];
   const firstCollides = input.first !== undefined && figureCollidesWithAdvanceIds(input.first);
   for (const figure of stored.figures) {
@@ -289,6 +292,7 @@ export function admitLessonFigures(
     }
     admitted.push({ ...figure, sceneDocument: result.document, tier: result.tier });
     diagrams.set(figure.id, result.presentation.diagram);
+    presentations.set(figure.id, result.presentation);
   }
   return {
     artifact: {
@@ -297,6 +301,7 @@ export function admitLessonFigures(
       ...(droppedFigureIds.length > 0 ? { droppedFigureIds } : {}),
     },
     diagrams,
+    presentations,
     droppedFigureIds,
   };
 }

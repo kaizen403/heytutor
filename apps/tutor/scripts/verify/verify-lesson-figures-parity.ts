@@ -60,7 +60,7 @@ function ink(diagram: VerifiedDiagram, intro?: readonly TutorSegment[]): unknown
   return JSON.parse(JSON.stringify({
     anchors: diagram.anchors,
     commands: diagram.commands,
-    ...(intro ? { intro: intro.map((segment) => ({ narration: segment.narration, command: segment.command ?? null })) } : {}),
+    ...(intro ? { intro } : {}),
   }));
 }
 
@@ -211,9 +211,9 @@ async function parity(fixture: Fixture): Promise<void> {
     });
     await check(`${fixture.name}/${id}/same-ink-everywhere`, () => {
       const liveInk = ink(figure.presentation.diagram, figure.presentation.introSegments);
-      const serverDiagram = server.diagrams.get(id);
-      assert(serverDiagram, "the server's diagram");
-      assert.deepEqual(ink(serverDiagram), ink(figure.presentation.diagram), "live parts and ink equal the server's");
+      const serverPresentation = server.presentations.get(id);
+      assert(serverPresentation && server.diagrams.get(id) === serverPresentation.diagram, "the server's presentation");
+      assert.deepEqual(ink(serverPresentation.diagram, serverPresentation.introSegments), liveInk, "live parts, ink and intro equal the server's");
       const view = views.find((candidate) => candidate.id === id);
       assert(view, "the restored view");
       assert.deepEqual(ink(view.diagram, view.introSegments), liveInk, "restore's parts, ink and intro equal live's");
