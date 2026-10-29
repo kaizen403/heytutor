@@ -658,6 +658,8 @@ export function useBoardSession({
         let restoredCodeComplete = false;
         let turnDiagram: VerifiedDiagram | null = null;
         const inkStale = () => isStale() || ink.cancelled;
+        // Notes pages split at a doubt's fresh page and its return, as live.
+        const restoreNotes = { capture: captureNotesEpoch, narration: narrationSinceEpochRef };
         // Fetch every reference picture at once rather than one per turn as
         // the stamp loop reaches it; the executor still waits for its own.
         await preloadReferencePicturesForTurns(turns);
@@ -666,21 +668,17 @@ export function useBoardSession({
           if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
           if (restoredInk && !continuesPage) {
+            // doubt-page-restore-reset:begin
             if (!await resetReplayPageAtTurn({
               turn, previousTurnIndex: turnIndex - 1, turnIndex,
               whiteboard: whiteboardRef.current, resetBoardLayout,
-              shouldCancel: inkStale, capturePreviousPage: captureNotesEpoch,
+              shouldCancel: inkStale, capturePreviousPage: captureNotesEpoch, notes: restoreNotes,
             })) return;
+            // doubt-page-restore-reset:end
             restoredInk = false;
           }
           liveQuestionRef.current = storedTurnPageQuestion(turn);
           const turnNarration = lessonNarrationText(turn.rawResponse);
-          narrationSinceEpochRef.current = continuesPage
-            ? [narrationSinceEpochRef.current, turnNarration]
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .join(" ")
-            : turnNarration;
 
           // A DSA turn's TYPE commands reveal blocks of this plan; committing
           // it first also brings the code panel back for the restored board.
@@ -724,6 +722,9 @@ export function useBoardSession({
               executeCommand: executeCommandRef.current,
               shouldCancel: inkStale,
               lessonFigures: lessonFiguresRef?.current,
+              // doubt-page-restore-sync:begin
+              notes: restoreNotes,
+              // doubt-page-restore-sync:end
             });
             if (figure.changed) {
               if (figure.cancelled) return;
@@ -737,6 +738,17 @@ export function useBoardSession({
               }
             }
           }
+
+          // doubt-page-restore-narration:begin
+          // After the page step, as live: a held lesson page keeps its own
+          // narration and the doubt page's starts empty (review round 3 M2).
+          narrationSinceEpochRef.current = continuesPage
+            ? [narrationSinceEpochRef.current, turnNarration]
+                .map((part) => part.trim())
+                .filter(Boolean)
+                .join(" ")
+            : turnNarration;
+          // doubt-page-restore-narration:end
 
           const figureBefore = lessonFiguresRef?.current?.currentId() ?? "figure_1";
           for (const segment of turn.segments) {

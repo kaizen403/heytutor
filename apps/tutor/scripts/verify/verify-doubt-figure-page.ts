@@ -25,7 +25,14 @@
  *   surfaces/   live, sequential replay and seek catch up show the same page and layout at every turn;
  *   zone/       the server zone walk (F3) and the client reference after the return see the lesson's zone;
  *   restore/    a reload on the doubt page holds the lesson page, and Continue returns it whole;
- *   live/       the uQH swap and return anchors.
+ *   live/       the uQH swap and return anchors;
+ *   notes/      (lane 10, review round 3 M2 and N5) Download notes, live and
+ *               after a reload, keep the same pages for [L, D fresh] on the
+ *               doubt page, [L, D fresh, R], [L, D fresh, R, L2] and
+ *               [L, D fresh, L2]; the held lesson page is a notes page while
+ *               the doubt page is up; the holding line is the doubt page's.
+ *
+ * Anchor comments are matched as whole lines (round 3 N2).
  *
  * Mutations this gate catches (each red, then green after revert):
  * (a) doubtFigureNeedSkip ignores freshPage;
@@ -39,6 +46,14 @@
  * (i) turnDoubtPage keeps the lesson's layout on the fresh page;
  * (j) the uQH return reads the zone stash before returning the page;
  * (k) the uQH swap turns a page with a figure in the zone.
+ * Lane 10:
+ * (n1) the restore's page step gets no notes; (n2) the restore's page reset
+ * gets no notes, and (n2b) resetReplayPageAtTurn ignores them; (n3) the
+ * restore sets the turn's narration before the page step; (n4) Download notes
+ * skips the held page, and (n4b) heldLessonNotesPage returns nothing; (n5)
+ * turnDoubtPage ignores the turn start, and (n5b) uQH passes none; (n6)
+ * closeDoubtPageForNotes does not capture the returned lesson page; every new
+ * anchor's begin and end renamed (":ended" included).
  *
  * Run: pnpm exec tsx scripts/verify/verify-doubt-figure-page.ts
  */
@@ -53,13 +68,16 @@ import {
   boardContinuationOf,
   storedFreshPageOpen,
   storedPageTurnAt,
+  storedTurnContinuesBoard,
+  storedTurnPageQuestion,
 } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts, doubtFigureOf } from "../../lib/boards/doubtFigure";
 import { pageFigureAt } from "../../lib/boards/pageFigure";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { memoryPageFigureStore, storedPageZone, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
-import { returnLessonPage, turnDoubtPage } from "../../features/tutor-session/lib/board/doubtPage";
+import { closeDoubtPageForNotes, heldLessonNotesPage, returnLessonPage, turnDoubtPage } from "../../features/tutor-session/lib/board/doubtPage";
+import { resetReplayPageAtTurn } from "../../features/tutor-session/lib/replay/replayPageBoundary";
 import { doubtFigureNeedSkip, zoneInkOccupied } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { doubtFigureRefFor, doubtFigureTurnScene, doubtPageRecord, type PersistedTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
@@ -74,7 +92,11 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const root = resolve(import.meta.dirname, "../..");
-function between(source: string, file: string, start: string, end: string): string {
+/** An anchor comment is matched as a whole line: "// x:end" never matches "// x:ended" (review round 3 N2). */
+const wholeLine = (anchor: string) => /^\/\/ [\w-]+:(begin|end)$/.test(anchor) ? `${anchor}\n` : anchor;
+function between(source: string, file: string, startAnchor: string, endAnchor: string): string {
+  const start = wholeLine(startAnchor);
+  const end = wholeLine(endAnchor);
   const from = source.indexOf(start);
   assert(from >= 0, `${file}: start anchor "${start}" is gone. Repoint this gate; do not relax it.`);
   const to = source.indexOf(end, from + start.length);
@@ -123,6 +145,9 @@ function pageBoard() {
     },
     hasHeldPage: () => held !== null,
     clearBoard: async () => { ink = []; held = null; },
+    // A snapshot is the page's ink list (verify-held-page gates the real capture).
+    captureSnapshot: () => JSON.stringify(ink),
+    captureHeldPageSnapshot: () => held ? { snapshotDataUrl: JSON.stringify(held.ink), meta: held.meta } : null,
   };
   return {
     wb: wb as unknown as WhiteboardHandle,
@@ -457,14 +482,183 @@ async function main(): Promise<void> {
   // A new question while the doubt page is up: both pages become notes pages before the clear.
   {
     const notes = anchored("features/tutor-session/hooks/useBoardLayout.ts", "doubt-page-notes");
-    assert(/if \(returnLessonPage\(wb, null, \{ capture: captureNotesEpoch, narration: narrationSinceEpochRef \}\)\) \{\s*captureNotesEpoch\(\);/.test(notes),
-      "notes/a new question captures the doubt page, then the held lesson page, before it clears");
+    assert(/if \(!closeDoubtPageForNotes\(wb, \{ capture: captureNotesEpoch, narration: narrationSinceEpochRef \}\) &&\s*wb && boardLayoutRef\.current\.rects\.length > 0\) \{\s*captureNotesEpoch\(\);/.test(notes),
+      "notes/a new question captures the doubt page, then the held lesson page, before it clears (closeDoubtPageForNotes, modelled in notes/)");
     const layoutFile = readFileSync(resolve(root, "features/tutor-session/hooks/useBoardLayout.ts"), "utf8");
     assert(at(layoutFile, "// doubt-page-notes:end") < at(layoutFile, "if (wb) await wb.clearBoard();"), "notes/before the clear drops the held page");
   }
 
+  await notesChecks(fixture, textLesson, D, R);
+
   void resumeOf;
   console.log(`verify-doubt-figure-page: ${checks} checks passed`);
+}
+
+// --- notes/ (review round 3 M2, N5) ---------------------------------------
+type NotesPage = { question: string; snapshot: string; narration: string };
+/** What a turn says, the same text for live and restore (the restore reads it from rawResponse). */
+const said = (turn: StoredTurn) => turn.segments.map((segment) => segment.narration.trim()).filter(Boolean).join(" ");
+const HOLDING_LINE = "Let me draw that for you.";
+
+/** The notes epoch every surface shares: captureNotesEpoch, collectNotesSlides. */
+function notesEpoch(board: ReturnType<typeof pageBoard>) {
+  const pages: NotesPage[] = [];
+  const narration = { current: "" };
+  const question = { current: "" };
+  const capture = () => {
+    pages.push({ question: question.current, snapshot: board.wb.captureSnapshot(2)!, narration: narration.current });
+    narration.current = "";
+    return true;
+  };
+  /** Download notes now: earlier pages, the page on screen, then a held lesson page (useReplay collectNotesSlides). */
+  const collect = (): NotesPage[] => {
+    const out = [...pages, { question: question.current, snapshot: board.wb.captureSnapshot(2)!, narration: narration.current }];
+    const held = heldLessonNotesPage(board.wb, 2);
+    if (held) out.push({ question: question.current, snapshot: held.snapshotDataUrl, narration: held.narration });
+    return out;
+  };
+  return { pages, narration, question, capture, collect, notes: { capture, narration } };
+}
+
+/** Live, as the hooks run it: uQH (epoch, hold with the turn start, return) and useBoardLayout beginBoardEpoch. */
+async function liveNotes(turns: readonly StoredTurn[]): Promise<NotesPage[]> {
+  const board = pageBoard();
+  const layout: BoardLayoutState = { rects: [], nextY: 0 };
+  const epoch = notesEpoch(board);
+  for (const turn of turns) {
+    const continues = storedTurnContinuesBoard(turn);
+    if (!continues) {
+      // beginBoardEpoch
+      if (!closeDoubtPageForNotes(board.wb, epoch.notes) && layout.rects.length > 0) epoch.capture();
+      epoch.narration.current = "";
+      await board.wb.clearBoard();
+      layout.rects = [];
+      layout.nextY = 0;
+    }
+    epoch.question.current = storedTurnPageQuestion(turn);
+    const turnStart = epoch.narration.current;
+    const fresh = turn.kind === "doubt" && boardContinuationOf(turn.sceneArtifacts)?.freshPage === true;
+    if (fresh) {
+      // The holding line is spoken (and counted) before the page turns.
+      epoch.narration.current = [epoch.narration.current, HOLDING_LINE].filter(Boolean).join(" ");
+      assert(turnDoubtPage(board.wb, layout, { ...epoch.notes, turnStart }), "notes/live turns the page");
+    }
+    if (turn.kind === "resume") returnLessonPage(board.wb, layout, epoch.notes);
+    board.draw(turn, layout);
+    epoch.narration.current = [epoch.narration.current, said(turn)].filter(Boolean).join(" ");
+  }
+  return epoch.collect();
+}
+
+/** After a reload, as useBoardSession's restore loop runs it (real resetReplayPageAtTurn and syncStoredPageFigure). */
+async function restoredNotes(turns: readonly StoredTurn[]): Promise<NotesPage[]> {
+  const board = pageBoard();
+  const layout: BoardLayoutState = { rects: [], nextY: 0 };
+  const epoch = notesEpoch(board);
+  let restoredInk = false;
+  for (const [turnIndex, turn] of turns.entries()) {
+    const continuesPage = storedTurnContinuesBoard(turn);
+    if (restoredInk && !continuesPage) {
+      assert(await resetReplayPageAtTurn({
+        turn, previousTurnIndex: turnIndex - 1, turnIndex, whiteboard: board.wb,
+        resetBoardLayout: () => { layout.rects = []; layout.nextY = 0; },
+        shouldCancel: () => false, capturePreviousPage: epoch.capture, notes: epoch.notes,
+      }), "notes/the restore's page reset runs");
+      restoredInk = false;
+    }
+    epoch.question.current = storedTurnPageQuestion(turn);
+    if (continuesPage) {
+      await syncStoredPageFigure({
+        turns, turnIndex, whiteboard: board.wb, layout, executeCommand: async () => {}, shouldCancel: () => false, notes: epoch.notes,
+      });
+    }
+    epoch.narration.current = continuesPage
+      ? [epoch.narration.current, said(turn)].map((part) => part.trim()).filter(Boolean).join(" ")
+      : said(turn);
+    board.draw(turn, layout);
+    restoredInk = true;
+  }
+  return epoch.collect();
+}
+
+async function notesChecks(
+  fixture: Awaited<ReturnType<typeof doubtFigurePageFixture>>,
+  L: StoredTurn,
+  D: StoredTurn,
+  R: StoredTurn,
+): Promise<void> {
+  const L2 = stored("99999999-9999-4999-8999-999999999999", 9, "A new question: what is 7 x 8?", {
+    sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
+    segments: [teachingRow(0, "Seven eights.", [writeAt("7 x 8 = 56", 142)])],
+  }, { opensOnClear: true, kind: "lesson" });
+  const shape = (pages: NotesPage[]) => pages.map((page) => `${page.question} | ${page.snapshot}`);
+  const lessonInk = JSON.stringify(pageBoard().ink());
+  void lessonInk; void fixture;
+
+  const scenarios: Array<[string, StoredTurn[], number]> = [
+    ["[L, D fresh] Download on the doubt page", [L, D], 2],
+    ["[L, D fresh, R] Download after Continue", [L, D, R], 2],
+    ["[L, D fresh, R, L2] lesson, doubt page, resume, new question", [L, D, R, L2], 3],
+    ["[L, D fresh, L2] lesson, doubt page, new question", [L, D, L2], 3],
+  ];
+  for (const [name, turns, count] of scenarios) {
+    const live = await liveNotes(turns);
+    const restored = await restoredNotes(turns);
+    assert(live.length === count, `notes/${name}: live keeps ${count} pages, got ${live.length}: ${JSON.stringify(shape(live))}`);
+    assert(JSON.stringify(shape(restored)) === JSON.stringify(shape(live)),
+      `notes/${name}: restored notes equal live notes, page for page (mutations n1 to n4): ${JSON.stringify(shape(restored))} vs ${JSON.stringify(shape(live))}`);
+    const lessonPage = (pages: NotesPage[]) => pages.find((page) => page.snapshot.includes(`work:`) && !page.snapshot.includes(`scene:${D.id}`) && !page.snapshot.includes("7 x 8"));
+    assert(lessonPage(live) && lessonPage(restored), `notes/${name}: the lesson page is a notes page, live and restored`);
+    const doubtPage = (pages: NotesPage[]) => pages.find((page) => page.snapshot.includes(`scene:${D.id}`));
+    assert(doubtPage(live) && doubtPage(restored), `notes/${name}: the doubt page is a notes page, live and restored`);
+    assert(lessonPage(live)!.narration === lessonPage(restored)!.narration,
+      `notes/${name}: the lesson page carries the same narration live and restored: ${JSON.stringify(lessonPage(live)!.narration)} vs ${JSON.stringify(lessonPage(restored)!.narration)}`);
+    assert(!lessonPage(live)!.narration.includes(HOLDING_LINE) && doubtPage(live)!.narration.includes(HOLDING_LINE),
+      `notes/${name}: the doubt's holding line is filed under the doubt page, not the lesson's (N5)`);
+    assert(shape(live).indexOf(`${doubtPage(live)!.question} | ${doubtPage(live)!.snapshot}`) < shape(live).indexOf(`${lessonPage(live)!.question} | ${lessonPage(live)!.snapshot}`),
+      `notes/${name}: the doubt page comes before the lesson page, as the return captures them`);
+  }
+  // Off equals absent: a page with no marker gives the notes it gave before.
+  {
+    const lane2 = fixture.turns;
+    const live = await liveNotes(lane2);
+    const restored = await restoredNotes(lane2);
+    // (Zone swaps are not modelled live here, so only the pages are compared, not their ink.)
+    const questions = (pages: NotesPage[]) => JSON.stringify(pages.map((page) => page.question));
+    assert(questions(restored) === questions(live) && live.length === 1 && restored.length === 1,
+      `notes/a page with no marker is one notes page, live and restored (off equals absent): ${JSON.stringify(shape(live))} vs ${JSON.stringify(shape(restored))}`);
+  }
+
+  // The hooks call what the models above call.
+  {
+    const session = readFileSync(resolve(root, "features/tutor-session/hooks/useBoardSession.ts"), "utf8");
+    const reset = anchored("features/tutor-session/hooks/useBoardSession.ts", "doubt-page-restore-reset");
+    assert(reset.includes("capturePreviousPage: captureNotesEpoch, notes: restoreNotes,"), "notes/the restore's page reset gets the notes epoch (mutation n2)");
+    const sync = anchored("features/tutor-session/hooks/useBoardSession.ts", "doubt-page-restore-sync");
+    assert(sync.includes("notes: restoreNotes,"), "notes/the restore's page step gets the notes epoch (mutation n1)");
+    assert(session.includes("const restoreNotes = { capture: captureNotesEpoch, narration: narrationSinceEpochRef };"), "notes/the restore's notes are the shell's epoch");
+    const narration = anchored("features/tutor-session/hooks/useBoardSession.ts", "doubt-page-restore-narration");
+    assert(/narrationSinceEpochRef\.current = continuesPage\s*\?\s*\[narrationSinceEpochRef\.current, turnNarration\]/.test(narration),
+      "notes/the restore appends the turn's narration in the narration anchor");
+    assert(at(session, "// doubt-page-restore-sync:end") < at(session, "// doubt-page-restore-narration:begin"),
+      "notes/the turn's narration is set after the page step, as live (mutation n3)");
+    assert(session.split("narrationSinceEpochRef.current = continuesPage").length === 2, "notes/one narration assignment in the loop");
+    const boundary = anchored("features/tutor-session/lib/replay/replayPageBoundary.ts", "doubt-page-restore-notes");
+    assert(boundary.includes("if (!(options.notes && closeDoubtPageForNotes(options.whiteboard, options.notes))) options.capturePreviousPage?.();"),
+      "notes/a stored page reset closes a doubt page before it captures");
+    const replay = readFileSync(resolve(root, "features/tutor-session/hooks/useReplay.ts"), "utf8");
+    const held = anchored("features/tutor-session/hooks/useReplay.ts", "doubt-page-held-notes");
+    assert(held.includes("const held = heldLessonNotesPage(wb, 2);") && held.includes("snapshotDataUrl: held.snapshotDataUrl,"),
+      "notes/Download notes reads the held lesson page (mutation n4)");
+    assert(at(replay, "const finalSnapshot = wb.captureSnapshot(2);") < at(replay, "// doubt-page-held-notes:begin") &&
+      at(replay, "// doubt-page-held-notes:end") < at(replay, "const sections = notesPdfSectionsFromStoredTurns(storedTurns, epochs);"),
+    "notes/the held page follows the page on screen, before the sections are built");
+    const handler = readFileSync(resolve(root, "features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
+    const fresh = anchored("features/tutor-session/hooks/turn/useQuestionHandler.ts", "doubt-fresh-page");
+    assert(fresh.includes("turnStart: notesNarrationAtTurnStart"), "notes/the live hold files the doubt's own words under the doubt page (N5, mutation n5)");
+    assert(at(handler, "const notesNarrationAtTurnStart = narrationSinceEpochRef?.current ?? \"\";") < at(handler, "enqueueSegment(doubtFigureHoldingSegment("),
+      "notes/the turn start is read before the holding line is spoken");
+  }
 }
 
 main().catch((error: unknown) => {

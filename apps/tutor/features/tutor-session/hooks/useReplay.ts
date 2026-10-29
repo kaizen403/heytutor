@@ -49,6 +49,7 @@ import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePi
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import type { BoardLayoutState, TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
+import { heldLessonNotesPage } from "../lib/board/doubtPage";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
 import type { ExecuteCommandOptions } from "./turn/types";
 import { completeReplayDiagramTurn } from "../lib/replay/completeReplayDiagram";
@@ -900,6 +901,21 @@ export function useReplay({
         timestampMs: Date.now(),
       });
     }
+    // doubt-page-held-notes:begin
+    // A doubt's fresh page is up with the lesson's page held (review round 3
+    // M2): the lesson page is a notes page too, after the doubt page, as the
+    // return or a new question will capture them.
+    const held = heldLessonNotesPage(wb, 2);
+    if (held) {
+      epochs.push({
+        index: epochs.length,
+        question: liveQuestionRef.current,
+        snapshotDataUrl: held.snapshotDataUrl,
+        narrationText: held.narration,
+        timestampMs: Date.now(),
+      });
+    }
+    // doubt-page-held-notes:end
     // Stored turns are the authority: restore loads every saved turn into the
     // ref, so the click needs no round trip and works offline. Epochs only
     // supply board images captured this session.

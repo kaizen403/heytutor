@@ -737,6 +737,8 @@ export function useQuestionHandler(
         : resume
           ? resume.lessonQuestion
           : question;
+      // What the notes page held so far; a fresh page files this turn's own words under the doubt page (round 3 N5).
+      const notesNarrationAtTurnStart = narrationSinceEpochRef?.current ?? "";
       // The figure in the zone while the doubt teaches, named on its save so
       // the server can check the doubt's pointing against it (lane A).
       const doubtFrames = codeLessonControllerRef?.current?.getActivePlan()
@@ -2048,7 +2050,9 @@ export function useQuestionHandler(
           const turnsPage = !inkFree && stash !== null && stash.diagram === null &&
             Boolean(doubtPage?.continuesBoard) && isCurrentTurn();
           const freshPage = turnsPage && turnDoubtPage(wb, boardLayoutRef.current,
-            captureNotesEpoch && narrationSinceEpochRef ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef } : null);
+            captureNotesEpoch && narrationSinceEpochRef
+              ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef, turnStart: notesNarrationAtTurnStart }
+              : null);
           if (freshPage) {
             page.turnedFreshPage = true;
             tel.mark("doubt-figure-page", { page: "fresh" });
