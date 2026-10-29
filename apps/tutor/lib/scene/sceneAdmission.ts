@@ -14,6 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import {
+  validateTurnPlanV3,
   archetypeProvenance,
   certifyVseprSourceDocument,
   chemistryTeachingFamilyId,
@@ -24,11 +25,18 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import type { VerifiedDiagramPresentation } from "@heytutor/drawing";
+import type { VerifiedDiagram, VerifiedDiagramPresentation } from "@heytutor/drawing";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
+import {
+  LESSON_FIGURES_VERSION,
+  composeLessonFigureQuestion,
+  type LessonFigureId,
+  type LessonFiguresArtifact,
+  type StoredLessonFigure,
+} from "@/lib/boards/lessonFigures";
 
 export type AdmittedRepresentationTier = "exact_verified" | "qualitative_verified" | "question_representation";
 
@@ -225,6 +233,60 @@ function admitUncached(input: StoredSceneAdmissionInput): StoredSceneAdmission {
     },
   );
   return { ok: true, document, compiled: { report, renderScene }, presentation, tier };
+}
+
+/** A lesson turn's later figures, each admitted on its own composed question. */
+export interface AdmittedLessonFigures {
+  /** The canonical artifact to persist: admitted figures only, server documents. */
+  artifact: LessonFiguresArtifact & { droppedFigureIds?: LessonFigureId[] };
+  /** Each admitted figure's diagram, for the teaching cursor. */
+  diagrams: ReadonlyMap<LessonFigureId, VerifiedDiagram>;
+  droppedFigureIds: LessonFigureId[];
+}
+
+/**
+ * Admit each later figure as the turn's own figure is admitted: on the lesson
+ * question composed with its ask, with the lesson's plan restamped to that
+ * question and validated on it. A figure that fails is dropped (fail soft, as
+ * a stale FOCUS is); the rest of the save is unchanged.
+ */
+export function admitLessonFigures(
+  stored: LessonFiguresArtifact,
+  input: { lessonQuestion: string; turnPlan: TurnPlanV3 | null; narrationLanguage?: NarrationLanguage },
+): AdmittedLessonFigures {
+  const admitted: StoredLessonFigure[] = [];
+  const diagrams = new Map<LessonFigureId, VerifiedDiagram>();
+  const droppedFigureIds: LessonFigureId[] = [];
+  for (const figure of stored.figures) {
+    const sceneQuestion = composeLessonFigureQuestion(input.lessonQuestion, figure.ask);
+    const planResult = input.turnPlan
+      ? validateTurnPlanV3({ ...input.turnPlan, question: sceneQuestion }, sceneQuestion)
+      : null;
+    const result = admitStoredScene({
+      sceneDocument: figure.sceneDocument,
+      sceneQuestion,
+      turnPlan: planResult?.plan ?? null,
+      submittedTier: figure.tier,
+      ...(input.narrationLanguage ? { narrationLanguage: input.narrationLanguage } : {}),
+      planSubmitted: input.turnPlan !== null,
+      planIssues: planResult?.issues ?? [],
+    });
+    if (!result.ok) {
+      droppedFigureIds.push(figure.id);
+      continue;
+    }
+    admitted.push({ ...figure, sceneDocument: result.document, tier: result.tier });
+    diagrams.set(figure.id, result.presentation.diagram);
+  }
+  return {
+    artifact: {
+      schemaVersion: LESSON_FIGURES_VERSION,
+      figures: admitted,
+      ...(droppedFigureIds.length > 0 ? { droppedFigureIds } : {}),
+    },
+    diagrams,
+    droppedFigureIds,
+  };
 }
 
 export function isDsaSceneDocument(document: SceneDocument): boolean {

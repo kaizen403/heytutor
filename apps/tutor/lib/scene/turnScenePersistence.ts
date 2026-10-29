@@ -19,6 +19,7 @@ import {
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
   withoutFocusKeep,
+  parseFocusSpec,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
@@ -26,7 +27,15 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
-import { admitStoredScene, isRepresentationTier, withoutLegacyTeachingNotes } from "@/lib/scene/sceneAdmission";
+import { admitLessonFigures, admitStoredScene, isRepresentationTier, withoutLegacyTeachingNotes } from "@/lib/scene/sceneAdmission";
+import {
+  isLessonFigureAdvanceId,
+  lessonFiguresOf,
+  resolveLessonFiguresEnabled,
+  LESSON_FIGURE_IDS,
+  type LessonFigureId,
+  type LessonFiguresArtifact,
+} from "@/lib/boards/lessonFigures";
 import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/workTextPresentation";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
@@ -104,6 +113,8 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   doubtFigure?: DoubtFigureMarker;
   /** A text only turn that drew a stored reference picture: the server's own summary. */
   referencePicture?: StoredReferencePicture;
+  /** A lesson's later figures (DIAGRAM_LESSON_FIGURES), each admitted on its own composed question. */
+  lessonFigures?: LessonFiguresArtifact & { droppedFigureIds?: LessonFigureId[] };
   /** How this turn's reference picture attempt ended (telemetry only). */
   referencePictureOutcome?: ReferencePictureOutcome;
 };
@@ -162,6 +173,8 @@ export async function canonicalizeTurnSceneMetadata(
     doubtFiguresEnabled?: boolean;
     /** DIAGRAM_DOUBT_POINTING at save time; read from the environment when absent. */
     doubtPointingEnabled?: boolean;
+    /** DIAGRAM_LESSON_FIGURES at save time; read from the environment when absent. */
+    lessonFiguresEnabled?: boolean;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -369,12 +382,24 @@ export async function canonicalizeTurnSceneMetadata(
     // A doubt's own figure is new on the page: its intro is inserted when missing.
     { insertMissing: continuation === null || doubtFigure !== null },
   );
+  // lesson-figures:begin
+  // A lesson's later figures are admitted one by one on their own composed
+  // questions; a figure that fails is dropped. Off at save time, or on a doubt
+  // figure or a code lesson, the artifact is stripped and nothing else changes.
+  const submittedLessonFigures = lessonFiguresOf(metadata.sceneArtifacts);
+  const lessonFigures = submittedLessonFigures && !doubtFigure && !codeLesson &&
+    (options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
+    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, turnPlan, narrationLanguage })
+    : null;
+  // lesson-figures:end
   const teachingCommands = canonicalizeTeachingCommands(
     doubtFigure && !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
       ? withoutFlaggedDoubtPointing(persistSegments)
       : persistSegments,
     expectedPresentation.diagram,
     codeLesson,
+    null,
+    lessonFigures?.diagrams ?? null,
   );
   if (!teachingCommands.ok) return teachingCommands;
 
@@ -467,12 +492,13 @@ export async function canonicalizeTurnSceneMetadata(
       sceneEngineVersion: SCENE_ENGINE_VERSION,
       validationReport: report,
       visualStatus: "validated",
-      sceneArtifacts: codeLesson || continuation
+      sceneArtifacts: codeLesson || continuation || lessonFigures
         ? {
             ...canonicalArtifacts,
             ...(codeLesson ? { codeLesson } : {}),
             ...(continuation ? { boardContinuation: continuation } : {}),
             ...(doubtFigure ? doubtFigureArtifacts(doubtFigure.replacedTurnId) : {}),
+            ...(lessonFigures ? { lessonFigures: lessonFigures.artifact } : {}),
           }
         : canonicalArtifacts,
       segments: teachingCommands.segments,
@@ -796,8 +822,25 @@ function canonicalizeTeachingCommands(
   codeLesson: CodeLessonPlan | null = null,
   /** A doubt that names its page's figure: `diagram` is that figure, or null when it did not load. */
   doubt: { kind: DoubtFigureKind } | null = null,
+  /**
+   * A lesson's admitted later figures. A kept `[FOCUS:figure_k]` moves the
+   * check diagram to figure k for every later command, forward only; an
+   * advance to a figure not admitted is filtered like any stale FOCUS.
+   */
+  lessonFigures: ReadonlyMap<LessonFigureId, VerifiedDiagram> | null = null,
 ): { ok: true; segments: SubmittedTurnSegment[] } | TurnSceneFailure {
   const canonical: SubmittedTurnSegment[] = [];
+  // lesson-figure-cursor:begin
+  let checkDiagram = diagram;
+  let figureIndex = -1;
+  const advanceOf = (candidate: DrawCommand): LessonFigureId | null => {
+    if (!lessonFigures || candidate.type !== "FOCUS") return null;
+    const spec = parseFocusSpec(candidate.semanticRef?.entityId ?? candidate.text);
+    const target = spec.targetIds.length === 1 ? spec.targetIds[0]!.trim() : "";
+    if (!isLessonFigureAdvanceId(target) || !lessonFigures.has(target)) return null;
+    return LESSON_FIGURE_IDS.indexOf(target) > figureIndex ? target : null;
+  };
+  // lesson-figure-cursor:end
 
   for (const [segmentIndex, segment] of segments.entries()) {
     if (segment.command == null || isStoredCommandTrustedGeometry(segment.command)) {
@@ -851,15 +894,26 @@ function canonicalizeTeachingCommands(
       // filter, so one stale id cannot drop the whole recording. Genuine
       // diagram ink (DRAW_*, LABEL, ERASE, …) and unknown ANNOTATE targets
       // still hard-fail below.
-      const allowed = safeCommands.filter((candidate) =>
-        doubt && SCENE_POINTING_COMMANDS.has(candidate.type)
-          ? keepsDoubtPointing(candidate, diagram, doubt.kind)
-          : candidate.type !== "FOCUS" || !isBlockedVerifiedDiagramCommand(candidate, diagram));
+      // lesson-figure-advance:begin
+      const advances = new Set<DrawCommand>();
+      const allowed = safeCommands.filter((candidate) => {
+        const advance = advanceOf(candidate);
+        if (advance) {
+          advances.add(candidate);
+          figureIndex = LESSON_FIGURE_IDS.indexOf(advance);
+          checkDiagram = lessonFigures!.get(advance)!;
+          return true;
+        }
+        return doubt && SCENE_POINTING_COMMANDS.has(candidate.type)
+          ? keepsDoubtPointing(candidate, checkDiagram, doubt.kind)
+          : candidate.type !== "FOCUS" || !isBlockedVerifiedDiagramCommand(candidate, checkDiagram);
+      });
       if (
         safeCommands.length === 0 ||
         normalized.length + allowed.length > 16 ||
-        allowed.some((candidate) => isBlockedVerifiedDiagramCommand(candidate, diagram))
+        allowed.some((candidate) => !advances.has(candidate) && isBlockedVerifiedDiagramCommand(candidate, checkDiagram))
       ) {
+      // lesson-figure-advance:end
         const type = isRecord(command) && typeof command.type === "string"
           ? command.type
           : "unknown";
