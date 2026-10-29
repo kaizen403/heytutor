@@ -116,7 +116,7 @@ mock.module(resolve(root, "lib/object-store/s3.ts"), { namedExports: { deletePre
     job.attempts++;
     job.nextAttemptAt = new Date(now.getTime() + 600_000);
   }
-} } });
+}, deleteBoardThumbnail: async () => {} } });
 mock.module(resolve(root, "lib/auth/abuseIdentity.ts"), { namedExports: { retainIdentityUsage: async () => { retained = true; } } });
 mock.module(resolve(root, "lib/billing/grant.ts"), { namedExports: { releaseTurnGrant: () => { grantRevoked = true; } } });
 mock.module(resolve(root, "lib/tts/wsTicket.ts"), { namedExports: { revokeWsTickets: () => { ticketRevoked = true; } } });

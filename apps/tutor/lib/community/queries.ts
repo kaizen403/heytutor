@@ -5,7 +5,7 @@ import { inferBoardSubject } from "@/lib/account/progress";
 import { parseStoredObjectKey } from "@/lib/object-store/keys";
 import type { SubjectId } from "@/lib/account/types";
 import {
-  COMMUNITY_EXCLUDED_AGE_BAND,
+  COMMUNITY_AGE_BANDS,
   communityAuthor,
   communitySubject,
   communityThumbnailUrl,
@@ -27,7 +27,8 @@ export function communityBoardWhere(extra: Prisma.BoardWhereInput = {}): Prisma.
     ...extra,
     visibility: "public",
     communityHiddenAt: null,
-    user: { OR: [{ ageBand: null }, { ageBand: { not: COMMUNITY_EXCLUDED_AGE_BAND } }] },
+    // An account that never told us its age band is treated like a child's.
+    user: { ageBand: { in: COMMUNITY_AGE_BANDS } },
     turns: { some: { status: "complete", segments: { some: {} } } },
   };
 }
@@ -73,10 +74,8 @@ function searchWhere(query: string): Prisma.BoardWhereInput {
   const needle = query.trim().slice(0, 100);
   if (!needle) return {};
   return {
-    OR: [
-      { title: { contains: needle, mode: "insensitive" } },
-      { preview: { contains: needle, mode: "insensitive" } },
-    ],
+    // Titles only: the preview can hold the question of a turn Community hides.
+    title: { contains: needle, mode: "insensitive" },
   };
 }
 

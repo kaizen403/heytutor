@@ -46,7 +46,7 @@ function withSecurityHeaders(response: NextResponse, nonce?: string): NextRespon
 }
 
 function rateLimitResponse(request: NextRequest): NextResponse | null {
-  const bucket = rateLimitBucketForPath(request.nextUrl.pathname, { signedIn: hasAuthSessionCookie(request) });
+  const bucket = rateLimitBucketForPath(request.nextUrl.pathname);
   if (!bucket) return null;
   const ip = clientIpFromForwarded(
     request.headers.get("x-forwarded-for") ?? undefined,

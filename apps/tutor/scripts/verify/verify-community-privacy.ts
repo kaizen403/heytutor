@@ -126,7 +126,7 @@ assert(communitySceneArtifacts(null) === null, "empty scene artifacts changed sh
 const where = communityBoardWhere({ id: "b" }) as Record<string, unknown>;
 assert(where.visibility === "public", "private boards are readable");
 assert(where.communityHiddenAt === null, "boards an admin hid are readable");
-assert(JSON.stringify(where.user).includes("under_13"), "boards of under 13 accounts are readable");
+assert(JSON.stringify(where.user) === JSON.stringify({ ageBand: { in: ["13_17", "18_plus"] } }), "boards of under 13 or unknown age accounts are readable");
 assert(JSON.stringify(where.turns).includes('"complete"'), "boards with no finished lesson are listed");
 const overridden = communityBoardWhere({ visibility: "private", communityHiddenAt: new Date() } as never) as Record<string, unknown>;
 assert(overridden.visibility === "public" && overridden.communityHiddenAt === null, "a caller's filter can widen the public set");
@@ -170,9 +170,17 @@ assert(/if \(foreign && !detail\)/.test(session) && /!draft && !foreign\) \{\s*f
 for (const route of [["app", "api", "admin", "community", "route.ts"], ["app", "api", "admin", "community", "[boardId]", "route.ts"]]) {
   assert(/const denied = await requireAdminRequest\(\);\s*if \(denied\) return denied;/.test(read(...route)), `${route.join("/")} is open to non admins`);
 }
-assert(rateLimitBucketForPath("/api/media", { signedIn: false }) === "publicMedia", "signed out media reads are not rate limited");
-assert(rateLimitBucketForPath("/api/lecture-audio", { signedIn: false }) === "publicMedia", "signed out audio reads are not rate limited");
+for (const route of [["app", "api", "media", "route.ts"], ["app", "api", "lecture-audio", "route.ts"]]) {
+  const source = read(...route);
+  const limit = source.indexOf("publicMediaRateLimit(request)");
+  const serve = source.indexOf("serveUserObject(userId");
+  assert(/if \(!userId\) \{\s*const limited = publicMediaRateLimit\(request\);\s*if \(limited\) return limited;/.test(source) && limit > 0 && limit < serve,
+    `${route.join("/")} serves signed out clips without the per address limit`);
+}
 assert(rateLimitBucketForPath("/api/media") === null, "owners' media reads became rate limited");
+assert(!/searchWhere[\s\S]{0,400}preview: \{ contains/.test(queries), "gallery search reads the hidden turn preview");
+const boardClient = read("lib", "boards", "boardsClient.ts");
+assert(/export async function updateBoard[\s\S]{0,700}\} catch \{\s*return null;/.test(boardClient), "a dropped connection makes Make private look saved");
 assert(!read("app", "api", "community", "[boardId]", "route.ts").includes("recordCommunityView"), "every board read counts as a view");
 
 // 8. Boards made before Community stay private; new ones are public, except staff boards.

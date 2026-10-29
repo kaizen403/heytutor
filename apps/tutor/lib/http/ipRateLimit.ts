@@ -61,8 +61,7 @@ export function clientIpFromForwarded(
   return hops[hops.length - 1] || remote || "unknown";
 }
 
-export function rateLimitBucketForPath(pathname: string, options: { signedIn?: boolean } = {}): IpRateBucket | null {
-  if (options.signedIn === false && (pathname === "/api/media" || pathname === "/api/lecture-audio")) return "publicMedia";
+export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
   if (pathname === "/api/auth" || pathname.startsWith("/api/auth/")) return "auth";
   if (pathname === "/api/account" || pathname.startsWith("/api/account/")) return "account";
   // Provider delivery IPs are shared; signed webhooks retain their retry path.

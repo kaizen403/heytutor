@@ -1,6 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { canReadCommunityObject } from "@/lib/community/queries";
+import { clientIpFromForwarded, consumeIpRateLimit } from "@/lib/http/ipRateLimit";
+
+/**
+ * Signed out media reads are Community clips, so they are rate limited per
+ * address. Decided after the session is verified, not from the presence of
+ * a cookie, which anyone can forge. Owners are never limited here.
+ */
+export function publicMediaRateLimit(request: Request): Response | null {
+  const ip = clientIpFromForwarded(
+    request.headers.get("x-forwarded-for") ?? undefined,
+    request.headers.get("x-real-ip") ?? undefined,
+  );
+  const consumed = consumeIpRateLimit({ ip, bucket: "publicMedia" });
+  if (consumed.ok) return null;
+  const response = NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  response.headers.set("retry-after", String(consumed.retryAfterSec));
+  return response;
+}
 import { parseStoredObjectKey } from "./keys";
 import { contentDispositionForKey, contentTypeForStoredKey } from "./safeContentType";
 import { getObject } from "./s3";

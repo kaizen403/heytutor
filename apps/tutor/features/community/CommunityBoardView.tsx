@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { TutorSessionShell } from "@/features/tutor-session/TutorSessionShell";
@@ -42,11 +42,19 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
   const [notice, setNotice] = useState<Notice>(null);
   const [madePrivate, setMadePrivate] = useState(false);
 
-  // One read serves both the header and the player, so the board is fetched once.
-  const read = useMemo(() => fetchCommunityBoard(boardId), [boardId]);
+  // One read serves both the header and the player, so the board is fetched
+  // once. Started lazily, in the browser only: during the server render there
+  // is no origin for the relative API URL.
+  const readRef = useRef<{ boardId: string; promise: ReturnType<typeof fetchCommunityBoard> } | null>(null);
+  const read = useCallback(() => {
+    if (readRef.current?.boardId !== boardId) {
+      readRef.current = { boardId, promise: fetchCommunityBoard(boardId).catch(() => null) };
+    }
+    return readRef.current.promise;
+  }, [boardId]);
   useEffect(() => {
     let cancelled = false;
-    void read.then((result) => {
+    void read().then((result) => {
       if (cancelled) return;
       if (result) {
         setHeader(result.board);
@@ -58,7 +66,7 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
     };
   }, [read, boardId]);
   const readBoard = useCallback(
-    async (id: string): Promise<{ turns: StoredTurn[] } | null> => (id === boardId ? read : fetchCommunityBoard(id)),
+    async (id: string): Promise<{ turns: StoredTurn[] } | null> => (id === boardId ? read() : fetchCommunityBoard(id).catch(() => null)),
     [boardId, read],
   );
 

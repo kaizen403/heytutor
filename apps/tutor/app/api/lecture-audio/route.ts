@@ -4,13 +4,17 @@ import { isAllowedLectureAudioSource } from "@/lib/lecture-export/lectureAudioUr
 import { getObjectStoreConfig } from "@/lib/object-store/config";
 import { parseStoredObjectKey } from "@/lib/object-store/keys";
 import { mediaKeyFromUrl } from "@/lib/object-store/mediaUrl";
-import { serveUserObject } from "@/lib/object-store/serveMedia";
+import { publicMediaRateLimit, serveUserObject } from "@/lib/object-store/serveMedia";
 
 const UPSTREAM_MS = 8_000;
 
 export async function GET(request: Request) {
   // Signed out is allowed: Community clips are public. The object check decides.
   const userId = await getUserId();
+  if (!userId) {
+    const limited = publicMediaRateLimit(request);
+    if (limited) return limited;
+  }
 
   const params = new URL(request.url).searchParams;
   const keyParam = params.get("key")?.trim() ?? "";
