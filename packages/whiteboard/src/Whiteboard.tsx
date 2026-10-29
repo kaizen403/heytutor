@@ -299,6 +299,12 @@ export interface PictureDrawOptions {
   shouldCancel?: () => boolean;
 }
 
+/** A page lifted off the board whole by `holdPage`. */
+interface HeldPage {
+  entries: Array<{ node: Konva.Node; parent: Konva.Container; index: number; tracked: "completed" | "anim" }>;
+  meta: unknown;
+}
+
 export interface WhiteboardHandle {
   drawShape: (pathData: string, duration: number, options?: ShapeDrawOptions) => Promise<void>;
   /**
@@ -357,6 +363,22 @@ export interface WhiteboardHandle {
   pinnedInkCount: () => number;
   /** Wipe the figure zone ink: scene strokes and kept rings. Work ink stays. */
   eraseSceneInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
+  /**
+   * Lift the whole page off the board and keep it: every stroke is held, not
+   * destroyed, and the board is left blank (a doubt's fresh page). One page
+   * is held at most: a hold while one is held erases the board and keeps the
+   * page already held, with its meta. `meta` rides with the page for the
+   * caller (its layout). `clearBoard` drops a held page. Call between
+   * commands, never while a stroke is drawing.
+   */
+  holdPage: (meta?: unknown) => void;
+  /**
+   * Erase the board and put the held page back exactly as it was held, in
+   * its order. Resolves the page's meta, or null when no page is held.
+   */
+  returnHeldPage: () => { meta: unknown } | null;
+  /** A page is held for `returnHeldPage`. */
+  hasHeldPage: () => boolean;
   /** Split diagram vector lines that pass through a label emphasis region. */
   punchDiagramLineGapsInRect: (
     rect: { x: number; y: number; width: number; height: number },
@@ -591,6 +613,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const animationCleanupsRef = useRef<Set<() => void>>(new Set());
     const completedNodesRef = useRef<Set<Konva.Node>>(new Set());
     const animNodesRef = useRef<Set<Konva.Node>>(new Set());
+    /** The page `holdPage` lifted off the board: each stroke, where it stood, and the caller's meta. */
+    const heldPageRef = useRef<HeldPage | null>(null);
     const drawTransactionsRef = useRef(new DrawTransactionRegistry<Konva.Node>());
     const strokeLengthCacheRef = useRef<Map<string, number>>(new Map());
     /**
@@ -3256,9 +3280,77 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       [animateOver, flyCursorTo, setCursorViewSafely, updateCursorState],
     );
 
+    const destroySpotlights = useCallback((): void => {
+      for (const node of spotlightNodesRef.current) {
+        node.destroy();
+        drawTransactionsRef.current.detach(node);
+      }
+      spotlightNodesRef.current = [];
+    }, []);
+
+    const redrawLayers = useCallback((): void => {
+      drawLayerRef.current?.batchDraw();
+      animLayerRef.current?.batchDraw();
+      highlightLayerRef.current?.batchDraw();
+      spotlightLayerRef.current?.batchDraw();
+      cursorLayerRef.current?.batchDraw();
+    }, []);
+
+    const holdPage = useCallback((meta?: unknown): void => {
+      if (!drawLayerRef.current || !animLayerRef.current) return;
+      if (heldPageRef.current) {
+        // One level: the page already held (the lesson's) stays held; what
+        // stands on the board now goes.
+        clearTrackedNodes(animNodesRef.current);
+        clearTrackedNodes(completedNodesRef.current);
+      } else {
+        const entries: HeldPage["entries"] = [];
+        for (const [tracked, nodes] of [["completed", completedNodesRef.current], ["anim", animNodesRef.current]] as const) {
+          nodes.forEach((node) => {
+            const parent = node.getParent();
+            if (parent) entries.push({ node, parent, index: node.zIndex(), tracked });
+            else node.destroy();
+          });
+        }
+        for (const entry of entries) {
+          entry.node.remove();
+          // Held ink is past ink: no beat's rollback may reach it.
+          drawTransactionsRef.current.detach(entry.node);
+        }
+        completedNodesRef.current.clear();
+        animNodesRef.current.clear();
+        heldPageRef.current = { entries, meta };
+      }
+      destroySpotlights();
+      previousPaceScaleRef.current = null;
+      redrawLayers();
+    }, [clearTrackedNodes, destroySpotlights, redrawLayers]);
+
+    const returnHeldPage = useCallback((): { meta: unknown } | null => {
+      const held = heldPageRef.current;
+      if (!held) return null;
+      heldPageRef.current = null;
+      clearTrackedNodes(animNodesRef.current);
+      clearTrackedNodes(completedNodesRef.current);
+      destroySpotlights();
+      // Back in the order they stood: ascending index per parent restores it.
+      for (const entry of [...held.entries].sort((a, b) => a.index - b.index)) {
+        entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+        entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        (entry.tracked === "completed" ? completedNodesRef.current : animNodesRef.current).add(entry.node);
+      }
+      previousPaceScaleRef.current = null;
+      redrawLayers();
+      return { meta: held.meta };
+    }, [clearTrackedNodes, destroySpotlights, redrawLayers]);
+
     const clearBoard = useCallback(
       async (duration?: number): Promise<void> => {
         drawTransactionsRef.current.clear();
+        // A new page abandons a held one.
+        const held = heldPageRef.current;
+        heldPageRef.current = null;
+        held?.entries.forEach((entry) => entry.node.destroy());
         const ownership = drawTransactionsRef.current.capture();
         const isCancelled = (): boolean => drawTransactionsRef.current.isCancelled(ownership);
         const drawLayer = drawLayerRef.current;
@@ -3894,6 +3986,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         eraseWorkInk,
         erasePinnedInk,
         eraseSceneInk,
+        holdPage,
+        returnHeldPage,
+        hasHeldPage: () => heldPageRef.current !== null,
         pinnedInkCount,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
@@ -3970,7 +4065,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, holdPage, returnHeldPage, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (
