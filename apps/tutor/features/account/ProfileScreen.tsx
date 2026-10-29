@@ -23,6 +23,8 @@ export function ProfileScreen() {
   const [learningNote, setLearningNote] = useState("");
   const [saved, setSaved] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [handleStatus, setHandleStatus] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     void fetch("/api/account/me")
@@ -32,6 +34,7 @@ export function ProfileScreen() {
           setProfile(data.profile);
           setName(data.profile.name ?? "");
           setLearningNote(data.profile.learningNote ?? "");
+          setHandle(data.profile.handle ?? "");
           setImageFailed(false);
         }
         if (data.snapshot) setSnapshot(data.snapshot);
@@ -50,10 +53,27 @@ export function ProfileScreen() {
     }
   };
 
+  const saveHandle = async () => {
+    setHandleStatus(null);
+    const response = await fetch("/api/account/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ handle: handle.trim() }),
+    });
+    const data = (await response.json().catch(() => ({}))) as { profile?: AccountProfile; error?: string };
+    if (response.ok && data.profile) {
+      setProfile(data.profile);
+      setHandle(data.profile.handle ?? "");
+      setHandleStatus({ tone: "ok", text: data.profile.handle ? `Your boards show as @${data.profile.handle}.` : "Your boards show the default Community name." });
+      return;
+    }
+    setHandleStatus({ tone: "error", text: data.error ?? "That did not save. Try again." });
+  };
+
   return (
     <AccountPageFrame
       title="Profile"
-      subtitle="This is your student page, not a public profile."
+      subtitle="Your student page. Only your Community name and the boards you share are public."
       actions={
         <SiteButton size="sm" onClick={() => router.push("/settings")}>
           Open settings
@@ -113,6 +133,32 @@ export function ProfileScreen() {
         <SiteButton className="mt-3" variant="ice" size="sm" onClick={() => void save()}>
           {saved ? "Saved" : "Save profile"}
         </SiteButton>
+      </AccountCard>
+
+      <AccountCard title="Community name" className="mt-4">
+        <p className="text-xs text-[rgba(237,237,235,0.55)]">
+          The name under your boards on Community. Without one,{" "}
+          {profile?.ageBand === "18_plus" ? "your first name is shown" : "they show as Accelute student"}. Your email and photo are never shown.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-[rgba(237,237,235,0.55)]">@</span>
+          <input
+            value={handle}
+            onChange={(event) => setHandle(event.target.value)}
+            maxLength={24}
+            placeholder="your_name"
+            aria-label="Community name"
+            className="min-w-[12rem] flex-1 rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.22)] px-3 py-2 text-sm text-frost outline-none focus:border-sky-500"
+          />
+          <SiteButton variant="ice" size="sm" onClick={() => void saveHandle()}>
+            Save name
+          </SiteButton>
+        </div>
+        {handleStatus ? (
+          <p className={`mt-2 text-xs ${handleStatus.tone === "error" ? "text-red-300" : "text-sky-200"}`} role="status">
+            {handleStatus.text}
+          </p>
+        ) : null}
       </AccountCard>
 
       <div className="mt-4 grid gap-3 md:grid-cols-4">

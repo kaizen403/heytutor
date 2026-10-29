@@ -64,12 +64,15 @@ A new kind of file with no row in "Where new files go" gets its row first.
   queries and wire payloads → `apps/tutor/lib/admin/`. Account screens
   (login, onboarding, library, profile, progress, settings, usage) →
   `apps/tutor/features/account/`; the signed-in shell →
-  `apps/tutor/features/app-shell/`.
+  `apps/tutor/features/app-shell/`. Community (the public gallery, its
+  cards, and the read only lesson viewer at `/community/[boardId]`) →
+  `apps/tutor/features/community/`; its server reads, privacy filter and
+  remix → `apps/tutor/lib/community/`.
 - App helper → `apps/tutor/lib/<domain>/`, not `features/` and not a new file
   at `lib/` root unless it is a tiny cross-cutting util (`auth.ts`,
   `authDisabled.ts`, `utils.ts`, `site.ts`, `cookies.ts`). Domains already in
   use: `account/`, `admin/`, `auth/`, `billing/`, `boards/`, `client/`,
-  `code-lesson/` (persist parse), `code-render/`, `crypto/`, `db/`, `http/`,
+  `code-lesson/` (persist parse), `code-render/`, `community/`, `crypto/`, `db/`, `http/`,
   `lecture-export/`, `llm/`, `object-store/`, `obs/`, `replay/`, `scene/`,
   `tts/`.
 - Check → `scripts/verify/verify-<kebab-name>.ts` next to the package that
@@ -135,6 +138,7 @@ apps/tutor/
     (session)/                 home board + /c/[sessionId]
     (account)/                 library, profile, progress, settings, usage
     login/  onboarding/        sign-in and first-run pages
+    community/                 public gallery + /community/[boardId] viewer
     admin/                     (panel)/ admin panel + playground/
     api/                       route handlers (no business logic dumps)
   components/
@@ -150,13 +154,14 @@ apps/tutor/
       sessionCapabilities.ts
   features/account/            account screens
   features/app-shell/          signed-in shell
+  features/community/          Community gallery, cards, read only viewer
   features/admin/              admin panel + syllabus playground
-    nav/  analytics/  users/  turns/  shared/
+    nav/  analytics/  users/  turns/  community/  shared/
     AdminPlayground.tsx        full-bleed playground (/admin/playground)
     components/  hooks/  lib/  playground internals
   lib/                         app-wide helpers grouped by domain
     account/  admin/  auth/  billing/  boards/  client/  code-lesson/
-    code-render/  crypto/  db/  http/  lecture-export/  llm/  object-store/
+    code-render/  community/  crypto/  db/  http/  lecture-export/  llm/  object-store/
     obs/  replay/  scene/  tts/
   scripts/
     dev.ts

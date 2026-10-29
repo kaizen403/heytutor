@@ -203,6 +203,8 @@ export type AccountProfile = {
   ageBand: AgeBand | null;
   guardianEmail: string | null;
   learningNote: string | null;
+  /** Community name, without the @. Null shows the default Community label. */
+  handle: string | null;
   createdAt: string;
 };
 

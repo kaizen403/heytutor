@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchBoards, updateBoard, deleteBoardApi } from "@/lib/boards/boardsClient";
-import { sortBoards, withArchived, withPinned, type BoardEntry } from "@/lib/boards/types";
+import { sortBoards, withArchived, withPinned, withVisibility, type BoardEntry } from "@/lib/boards/types";
 import { boardPath } from "@/features/tutor-session/lib/board/boardRoute";
 import { AppShell } from "./AppShell";
 import { toShellProfile, useAccountMe } from "./useAccountMe";
@@ -55,6 +55,17 @@ export function AccountAppShell({ children }: { children: ReactNode }) {
     void updateBoard(id, { archived: next });
   }, [boards]);
 
+  const onToggleVisibility = useCallback((id: string) => {
+    const board = boards.find((entry) => entry.id === id);
+    if (!board) return;
+    const next = board.visibility === "public" ? "private" : "public";
+    setBoards((current) => current.map((entry) => (entry.id === id ? withVisibility(entry, next) : entry)));
+    // A failed save must not leave a board looking private while it stays public.
+    void updateBoard(id, { visibility: next }).then((updated) => {
+      if (!updated) setBoards((current) => current.map((entry) => (entry.id === id ? withVisibility(entry, board.visibility === "public" ? "public" : "private") : entry)));
+    });
+  }, [boards]);
+
   const onRename = useCallback((id: string, title: string) => {
     setBoards((current) => current.map((entry) => (entry.id === id ? { ...entry, title } : entry)));
     void updateBoard(id, { title });
@@ -70,6 +81,7 @@ export function AccountAppShell({ children }: { children: ReactNode }) {
       onDelete={onDelete}
       onTogglePin={onTogglePin}
       onToggleArchive={onToggleArchive}
+      onToggleVisibility={onToggleVisibility}
       onRename={onRename}
       profile={toShellProfile(me?.profile)}
     >

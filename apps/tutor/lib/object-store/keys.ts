@@ -143,3 +143,15 @@ export function isSafeObjectDeletionPrefix(prefix: string): boolean {
   }
   return prefix.startsWith("images/") && !prefix.endsWith("/") && isSafeObjectKey(prefix);
 }
+
+/**
+ * A board's Community card picture. Under `images/` because the bucket policy
+ * grants the app `images/*` and `lectures/*` only. Never under `lectures/`:
+ * storage measurement and board cleanup LIST that prefix and charge what they
+ * find. The three part path is deliberate: it does not match the question
+ * photo grammar, so the media routes can never serve it; only the thumbnail
+ * route reads it, and only while the board is on Community.
+ */
+export function boardThumbnailKey(boardId: string): string | null {
+  return /^[A-Za-z0-9._-]{1,128}$/.test(boardId) && !boardId.includes("..") ? `images/thumbnails/${boardId}/card.webp` : null;
+}

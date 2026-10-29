@@ -49,6 +49,11 @@ async function readBoundedBytes(request: Request, maxBytes: number): Promise<Uin
   }
 }
 
+/** Raw bytes, counted the same way. For small binary uploads such as a card picture. */
+export async function readBoundedBody(request: Request, maxBytes: number): Promise<Uint8Array<ArrayBuffer>> {
+  return readBoundedBytes(request, maxBytes);
+}
+
 export async function readBoundedText(request: Request, maxBytes = MAX_JSON_BODY_BYTES): Promise<string> {
   const bytes = await readBoundedBytes(request, maxBytes);
   try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }

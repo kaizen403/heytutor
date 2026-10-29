@@ -5,6 +5,8 @@ import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardDeletionStorageBytes, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 import { boardAudioPrefix } from "@/lib/object-store/keys";
 import { effectiveTurnStatus, isTurnKind, isTurnStatus } from "@/lib/boards/turnStatus";
+import { isCommunityVisibility } from "@/lib/community/publicBoard";
+import { deleteBoardThumbnail } from "@/lib/object-store/s3";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -69,6 +71,7 @@ export async function GET(request: Request, context: RouteContext) {
       title: board.title,
       preview: board.preview,
       createdAt: board.createdAt.getTime(),
+      visibility: board.visibility,
     },
     turns: turnRows.map((turn) => ({
       id: turn.id,
@@ -124,6 +127,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     preview?: string;
     pinned?: boolean;
     archived?: boolean;
+    visibility?: string;
   } = {};
   try {
     body = await readBoundedJson(request, 16 * 1024);
@@ -136,12 +140,16 @@ export async function PATCH(request: Request, context: RouteContext) {
     (body.preview !== undefined && (typeof body.preview !== "string" || body.preview.length > MAX_BOARD_PREVIEW_CHARS))) {
     return NextResponse.json({ error: "board title or preview exceeds its field limit" }, { status: 400 });
   }
+  if (body.visibility !== undefined && !isCommunityVisibility(body.visibility)) {
+    return NextResponse.json({ error: "visibility must be public or private" }, { status: 400 });
+  }
 
   const data: {
     title?: string;
     preview?: string;
     pinnedAt?: Date | null;
     archivedAt?: Date | null;
+    visibility?: string;
     updatedAt: Date;
   } = {
     updatedAt: new Date(),
@@ -166,6 +174,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.archivedAt = body.archived ? (board.archivedAt ?? new Date()) : null;
   }
 
+  if (isCommunityVisibility(body.visibility)) {
+    data.visibility = body.visibility;
+  }
+
   const updated = await prisma.board.update({
     where: { id: boardId },
     data,
@@ -179,6 +191,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       createdAt: updated.createdAt.getTime(),
       pinnedAt: updated.pinnedAt?.getTime() ?? null,
       archivedAt: updated.archivedAt?.getTime() ?? null,
+      visibility: updated.visibility,
     },
   });
 }
@@ -240,6 +253,7 @@ export async function DELETE(request: Request, context: RouteContext) {
         return NextResponse.json({ error: "not found" }, { status: 404 });
       }
     }
+    await deleteBoardThumbnail(boardId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { canReadCommunityObject } from "@/lib/community/queries";
 import { parseStoredObjectKey } from "./keys";
 import { contentDispositionForKey, contentTypeForStoredKey } from "./safeContentType";
 import { getObject } from "./s3";
@@ -24,8 +25,13 @@ async function userCanReadObject(userId: string, key: string): Promise<boolean> 
   return turn != null;
 }
 
-export async function serveUserObject(userId: string, key: string): Promise<Response> {
-  if (!(await userCanReadObject(userId, key))) {
+/**
+ * The owner reads their own objects. Anyone, signed in or not, may also play
+ * the lecture clips of a board Community shows; nothing else is public.
+ */
+export async function serveUserObject(userId: string | null, key: string): Promise<Response> {
+  const owned = userId != null && await userCanReadObject(userId, key);
+  if (!owned && !(await canReadCommunityObject(key))) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

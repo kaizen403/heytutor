@@ -43,7 +43,7 @@ export function LibraryScreen() {
   return (
     <AccountPageFrame
       title="Library"
-      subtitle="Every board on this account. Search, pin, archive, or delete. Exports you already made stay on the device that downloaded them."
+      subtitle="Every board on this account. Search, pin, archive, share to Community, or delete. New boards are shared to Community unless you make them private. Exports you already made stay on the device that downloaded them."
       actions={
         <SiteButton variant="ice" size="sm" onClick={() => router.push("/")}>
           New board
@@ -97,6 +97,7 @@ export function LibraryScreen() {
                   {new Date(board.createdAt).toLocaleDateString()}
                   {board.pinnedAt ? " · Pinned" : ""}
                   {board.archivedAt ? " · Archived" : ""}
+                  {board.visibility === "public" ? " · On Community" : " · Private"}
                 </p>
               </button>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -126,6 +127,26 @@ export function LibraryScreen() {
                   }}
                 >
                   {board.archivedAt ? "Unarchive" : "Archive"}
+                </SiteButton>
+                <SiteButton
+                  size="xs"
+                  onClick={() => {
+                    const next = board.visibility === "public" ? "private" : "public";
+                    setBoards((current) =>
+                      current.map((entry) => (entry.id === board.id ? { ...entry, visibility: next } : entry)),
+                    );
+                    // A failed save must not leave a board looking private while it stays public.
+                    void updateBoard(board.id, { visibility: next }).then((updated) => {
+                      if (!updated) {
+                        setBoards((current) =>
+                          current.map((entry) => (entry.id === board.id ? { ...entry, visibility: board.visibility } : entry)),
+                        );
+                        window.alert("That change did not save. Try again.");
+                      }
+                    });
+                  }}
+                >
+                  {board.visibility === "public" ? "Make private" : "Share to Community"}
                 </SiteButton>
                 <SiteButton
                   size="xs"

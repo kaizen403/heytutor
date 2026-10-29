@@ -155,7 +155,7 @@ export async function fetchBoardDetail(boardId: string, options?: { signal?: Abo
 
 export async function updateBoard(
   boardId: string,
-  patch: { title?: string; preview?: string; pinned?: boolean; archived?: boolean },
+  patch: { title?: string; preview?: string; pinned?: boolean; archived?: boolean; visibility?: "public" | "private" },
 ): Promise<BoardEntry | null> {
   const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), {
     method: "PATCH",
