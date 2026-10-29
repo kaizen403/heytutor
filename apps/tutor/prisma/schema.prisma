@@ -224,6 +224,8 @@ model Turn {
   checkpointSeq      Int       @default(0) @map("checkpoint_seq")
   /// Metadata bytes already charged, so growth charges only the delta.
   metadataBytes      BigInt    @default(0) @map("metadata_bytes")
+  /// Spoken length: each audio clip once. Community lists lessons of a minute or more.
+  lessonMs           Int       @default(0) @map("lesson_ms")
   /// Pre-canonical rows plus their audio refs; null once complete.
   submittedSegments  Json?     @map("submitted_segments")
   /// Opaque data a later Continue needs (for example solverProjection).

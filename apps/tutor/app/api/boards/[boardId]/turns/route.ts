@@ -1,3 +1,4 @@
+import { lessonMsOf } from "@/lib/community/publicBoard";
 import { Prisma, type Turn, type Segment } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
@@ -306,6 +307,11 @@ export async function POST(request: Request, context: RouteContext) {
             userId,
             idempotencyKey,
             orderIndex,
+            lessonMs: lessonMsOf(segmentMeta.map((segment) => ({
+              orderIndex: segment.orderIndex,
+              audioRef: segment.sourceOrderIndex ?? segment.orderIndex,
+              durationMs: segment.durationMs,
+            }))),
             question: metadata.question,
             storageBytes: BigInt(retainedBytes),
             metadataBytes: BigInt(retainedMetadataBytes),

@@ -19,8 +19,10 @@ import {
   normalizeCommunityHandle,
   communitySceneArtifacts,
   toCommunityTurn,
+  COMMUNITY_MIN_LESSON_MS,
+  lessonMsOf,
 } from "../../lib/community/publicBoard";
-import { communityBoardWhere } from "../../lib/community/queries";
+import { COMMUNITY_LESSON_WHERE, communityBoardWhere } from "../../lib/community/queries";
 import { boardThumbnailKey, boardThumbnailPrefix, isSafeObjectDeletionPrefix, parseStoredObjectKey } from "../../lib/object-store/keys";
 import { isAuthPublicPath } from "../../lib/auth/publicPaths";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
@@ -127,8 +129,15 @@ assert(communitySceneArtifacts(null) === null, "empty scene artifacts changed sh
 const where = communityBoardWhere({ id: "b" }) as Record<string, unknown>;
 assert(where.visibility === "public", "private boards are readable");
 assert(where.communityHiddenAt === null, "boards an admin hid are readable");
-assert(JSON.stringify(where.user) === JSON.stringify({ ageBand: { in: ["13_17", "18_plus"] } }), "boards of under 13 or unknown age accounts are readable");
-assert(JSON.stringify(where.turns).includes('"complete"'), "boards with no finished lesson are listed");
+// Age does not gate a board; a minor's name is still masked (group 3).
+assert(where.user === undefined, "the owner's age gates the board again");
+assert(JSON.stringify(where.turns) === JSON.stringify({ some: COMMUNITY_LESSON_WHERE }), "a board is listed without a lesson that passes the bar");
+const bar = JSON.stringify(COMMUNITY_LESSON_WHERE);
+assert(JSON.stringify(COMMUNITY_LESSON_WHERE.status) === JSON.stringify({ in: ["complete", "stopped"] }), "a live or failed lesson can list a board");
+assert(COMMUNITY_LESSON_WHERE.lessonMs.gte === 60_000 && COMMUNITY_MIN_LESSON_MS === 60_000, "a lesson under a minute can list a board");
+assert(bar.includes('{"visualStatus":"validated"}') && bar.includes('"DRAW_PICTURE"') && Array.isArray(COMMUNITY_LESSON_WHERE.OR) && COMMUNITY_LESSON_WHERE.OR.length === 2,
+  "a lesson with no figure can list a board");
+assert(/turns: \{\s*where: COMMUNITY_LESSON_WHERE,/.test(read("lib", "community", "queries.ts")), "a card shows a lesson that did not earn the board its place");
 const overridden = communityBoardWhere({ visibility: "private", communityHiddenAt: new Date() } as never) as Record<string, unknown>;
 assert(overridden.visibility === "public" && overridden.communityHiddenAt === null, "a caller's filter can widen the public set");
 
@@ -217,12 +226,29 @@ assert(!isSafeObjectDeletionPrefix("images/thumbnails/"), "one deletion job can 
 assert(/thumbnail_at[\s\S]{0,600}objectDeletionJob\.createMany\(\{ data: \[\{ id: crypto\.randomUUID\(\), prefix: thumbnailPrefix/.test(read("app", "api", "boards", "[boardId]", "route.ts")), "board deletion strands its card picture");
 assert(/boardThumbnailPrefix\(board\.id\)[\s\S]{0,120}enqueueObjectDeletion\(\{ prefix: thumbnailPrefix, userId \}, tx\)/.test(read("lib", "auth", "deleteAccount.ts")), "account deletion strands card pictures");
 
-// 8. Boards made before Community stay private; new ones are public, except staff boards.
+// 8. Every board is public, the ones made before Community too, except staff boards.
 const migration = read("prisma", "migrations", "26_community", "migration.sql");
-const addPrivate = migration.indexOf(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'private'`);
-const thenPublic = migration.indexOf(`ALTER COLUMN "visibility" SET DEFAULT 'public'`);
-assert(addPrivate >= 0 && thenPublic > addPrivate, "existing boards would be published by the migration");
+assert(migration.includes(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'public'`), "existing boards are not public");
+assert(/UPDATE "boards" b SET "visibility" = 'private'\s+FROM "users" u\s+WHERE u\."id" = b\."user_id"\s+AND lower\(trim\(u\."email"\)\) IN \(SELECT lower\(trim\("email"\)\) FROM "admins"\);/.test(migration),
+  "existing staff boards are published by the migration");
 const createRoute = read("app", "api", "boards", "route.ts");
 assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
 
-console.log("community privacy: 11 gates passed");
+// 12. Lesson length: each clip once, the same in every save path and in the backfill.
+assert(lessonMsOf([]) === 0, "an empty lesson has a length");
+assert(lessonMsOf([{ orderIndex: 0, durationMs: 30_000 }, { orderIndex: 1, durationMs: 31_000 }]) === 61_000, "clip lengths are not summed");
+assert(lessonMsOf([{ orderIndex: 0, audioRef: 0, durationMs: 40_000 }, { orderIndex: 1, audioRef: 0, durationMs: 40_000 }, { orderIndex: 2, audioRef: 2, durationMs: 5_000 }]) === 45_000,
+  "rows that replay one clip count it twice");
+assert(lessonMsOf([{ orderIndex: 0, audioRef: 0, durationMs: 10_000 }, { orderIndex: 1, audioRef: 0, durationMs: 25_000 }]) === 25_000, "a shared clip is not counted at its longest");
+assert(lessonMsOf([{ orderIndex: 0, durationMs: null }, { orderIndex: 1, durationMs: -5 }, { orderIndex: 2, durationMs: Number.NaN }, { orderIndex: 3, durationMs: 1_000 }]) === 1_000,
+  "a missing or bad duration adds to the length");
+assert(/lessonMs: lessonMsOf\(segmentMeta\.map\(\(segment\) => \(\{\s*orderIndex: segment\.orderIndex,\s*audioRef: segment\.sourceOrderIndex \?\? segment\.orderIndex,\s*durationMs: segment\.durationMs,/.test(read("app", "api", "boards", "[boardId]", "turns", "route.ts")),
+  "a saved lesson keeps no length");
+assert(/status: finalStatus,\s*lessonMs: lessonMsOf\(segmentValues\),/.test(read("lib", "boards", "turnCheckpoint.ts")), "a checkpoint save keeps a stale length");
+assert(/lessonMs: turn\.lessonMs,/.test(read("lib", "community", "remix.ts")), "a remix loses the lesson length");
+assert(/ADD COLUMN IF NOT EXISTS "lesson_ms" INTEGER NOT NULL DEFAULT 0;/.test(migration)
+  && /MAX\(GREATEST\(COALESCE\("duration_ms", 0\), 0\)\)::BIGINT AS "clip_ms"/.test(migration)
+  && /GROUP BY "turn_id", COALESCE\("audio_ref", "order_index"\)/.test(migration),
+  "older lessons are measured differently from new saves");
+
+console.log("community privacy: 12 gates passed");

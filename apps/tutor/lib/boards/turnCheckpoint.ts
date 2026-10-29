@@ -20,6 +20,7 @@
  * intent covers that folder only, so abandoning a retry never deletes a clip
  * an earlier checkpoint committed.
  */
+import { lessonMsOf } from "@/lib/community/publicBoard";
 import { Prisma, type Segment, type Turn } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { rejectTurnSave, type SaveRejectionCode } from "@/lib/boards/turnSaveRejection";
@@ -873,6 +874,7 @@ async function applyCheckpoint(
             visualStatus: canonical.value.visualStatus,
             sceneArtifacts: nullableJson(canonical.value.sceneArtifacts),
             status: finalStatus,
+            lessonMs: lessonMsOf(segmentValues),
             checkpointSeq: seq,
             submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (heldCheckpoint(held, sceneSeq) as unknown as Prisma.InputJsonValue),
             resumeState: nullableJson(resumeState),

@@ -25,6 +25,7 @@ import * as sceneEngine from "@heytutor/scene-engine";
 import * as requestBody from "../../lib/http/requestBody";
 import * as keys from "../../lib/object-store/keys";
 import * as turnStatus from "../../lib/boards/turnStatus";
+import { lessonMsOf } from "../../lib/community/publicBoard";
 import * as turnSaveRejection from "../../lib/boards/turnSaveRejection";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
@@ -278,6 +279,7 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,
+  "@/lib/community/publicBoard": { lessonMsOf },
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
 });
 const client = load("lib/boards/boardsClient.ts", {
@@ -285,6 +287,7 @@ const client = load("lib/boards/boardsClient.ts", {
   "@heytutor/tutor-core": { speechAudioMimeType: () => "audio/mpeg", resolveApiUrl: (url: string) => `https://example.test${url}` },
   "@/lib/boards/boardTitle": { finalizeBoardTitle: () => "title" },
   "@/lib/boards/turnStatus": turnStatus,
+  "@/lib/community/publicBoard": { lessonMsOf },
 });
 const boardRoute = load("app/api/boards/[boardId]/route.ts", {
   "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },

@@ -22,8 +22,25 @@ export function parseCommunitySort(value: unknown): CommunitySort {
   return value === "featured" || value === "new" ? value : "trending";
 }
 
-/** Only these age bands appear on Community. Under 13 and unknown never do. */
-export const COMMUNITY_AGE_BANDS = ["13_17", "18_plus"];
+/** Community lists a lesson only after it has spoken for at least this long. */
+export const COMMUNITY_MIN_LESSON_MS = 60_000;
+
+/**
+ * Spoken length of a saved lesson, stored as `turns.lesson_ms`. Each audio
+ * clip counts once: rows that replay one clip count its longest duration.
+ * Migration 26_community computes the same sum for older turns.
+ */
+export function lessonMsOf(segments: ReadonlyArray<{ orderIndex: number; audioRef?: number | null; durationMs?: number | null }>): number {
+  const clips = new Map<number, number>();
+  for (const segment of segments) {
+    const key = segment.audioRef ?? segment.orderIndex;
+    const ms = typeof segment.durationMs === "number" && Number.isFinite(segment.durationMs) && segment.durationMs > 0 ? segment.durationMs : 0;
+    clips.set(key, Math.max(clips.get(key) ?? 0, ms));
+  }
+  let total = 0;
+  for (const ms of clips.values()) total += ms;
+  return Math.min(Math.round(total), 2_147_483_647);
+}
 
 export const COMMUNITY_HANDLE = /^[a-z0-9](?:[a-z0-9_]{1,22})[a-z0-9]$/;
 

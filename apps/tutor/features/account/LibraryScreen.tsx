@@ -45,7 +45,7 @@ export function LibraryScreen() {
   return (
     <AccountPageFrame
       title="Library"
-      subtitle="Every board on this account. Search, pin, archive, share to Community, or delete. New boards are shared to Community unless you make them private. Exports you already made stay on the device that downloaded them."
+      subtitle="Every board on this account. Search, pin, archive, share to Community, or delete. Boards are shared to Community unless you make them private, and one appears there once a lesson on it draws a figure and runs for a minute. Exports you already made stay on the device that downloaded them."
       actions={
         <SiteButton variant="ice" size="sm" onClick={() => router.push("/")}>
           New board
