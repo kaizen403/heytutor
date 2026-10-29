@@ -230,6 +230,14 @@ interface CueSet {
   vetoes?: readonly StemTest[];
   /** Every one of these must match for the figure to be eligible at all. */
   requires?: readonly RegExp[];
+  /**
+   * Wording that makes this figure a stand in for another body. Unlike a veto,
+   * a refusal never hands the turn on: when this set leads, the whole
+   * deterministic figure declines, runner up and families included.
+   */
+  refuses?: readonly StemTest[];
+  /** The stem must match each of these, or a lead by this set declines the figure. */
+  refusesUnless?: readonly RegExp[];
   /** Minimum score to be eligible. Default 2. */
   minScore?: number;
   /** Fill slots from the plan and stem. */
@@ -469,7 +477,11 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i,
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
+    refuses: [
+      // A body turning about a pivot falls as a rotation, not a free fall;
+      // the Earth's rotation or a swinging crane beside a dropped ball is not.
+      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?|discs?|disks?|wheels?|rings?|cylinders?)\b[^.]{0,40}?(?<!\b(?:without|no|not)\s)\b(?:rotat|swing)\w*|\baxles?\b|\b(?:about|around)\s+(?:a|the|its)\s+(?:fixed\s+)?(?:horizontal\s+)?(?:axis|support)\b/i,
       // A magnet falling through a coil or ring is an induction question.
       /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?|tubes?|pipes?)\b|\b(?:coils?|rings?|solenoids?|tubes?|pipes?)\b[^.]{0,60}\bmagnets?\b|\binduc\w*|\blenz\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
@@ -544,7 +556,8 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // A magnet beside a coil, ring or solenoid is an induction setup, never a
     // block on a surface.
-    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i, /\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
+    vetoes: [/\b(?:incline|pulley|hang|spring|lift|elevator)\b/i],
+    refuses: [/\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
       // A magnet moved towards a nail, iron, a pin or a compass is magnetism,
       // not a block on a surface; a magnet pushing a block is still a block.
       /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:\w+\s+){0,2}?(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|magnets?)\b|^(?![\s\S]*\bblocks?\b)[\s\S]*\bmagnets?\b[^.]{0,60}\b(?:repul\w*|repel\w*|attract\w*)/i],
@@ -650,7 +663,16 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:car|cyclist|vehicle|particle|stone)\b/i, 1],
       [/\bradius\b/i, 1],
     ],
-    vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
+    vetoes: [
+      /\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i,
+    ],
+    refuses: [
+      // A body spinning in place travels round no circle.
+      /\b(?:about|around)\s+(?:its|their)\s+(?:own\s+)?(?:axis|axes|axle|centre|center|diameter)\b|\bown\s+axis\b|\bspin(?:s|ning)?\b|\brotational\s+(?:kinetic|energy|inertia)\b|\bmoment\s+of\s+inertia\b/i,
+    ],
+    // The figure is a body going round a circle. A car moving along a level
+    // road names no circle, so the stem must say it turns.
+    refusesUnless: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");
@@ -905,7 +927,7 @@ const CUE_SETS: readonly CueSet[] = [
     // magnet) is the induced current too, even without "induced"; a solenoid
     // that carries a stated current is not asking for an induced one, but a
     // bare magnitude ("the current has magnitude 2 A") gives no direction.
-    vetoes: [INDUCED_CURRENT_DIRECTION, { test: (stem) => ASKED_CURRENT_DIRECTION.test(stem) && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|induc\w*|magnets?)\b/i.test(stem)
+    refuses: [INDUCED_CURRENT_DIRECTION, { test: (stem) => ASKED_CURRENT_DIRECTION.test(stem) && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|induc\w*|magnets?)\b/i.test(stem)
       && !/\bcarr(?:y|ies|ying)\s+(?:a\s+)?(?:(?:steady|constant)\s+)?(?:current\s+(?:of\s+)?)?\d/.test(stem) }],
     extract: (stem, plan, bag) => {
       setSlot(bag, "turns", planNumber(plan, ["n", "turns", "turnspermetre"]), "plan");
@@ -951,8 +973,8 @@ const CUE_SETS: readonly CueSet[] = [
     // The figure is a straight conductor moving through the field. A loop or
     // coil has an induced emf too, and so does a magnet pushed into one, but
     // neither has that conductor to draw; nor does a rod turning about an end.
-    requires: [/\b(?:rods?|bars?|(?<!(?:coil|loop|turns|ring) of )wires?|conductors?|axles?|(?:movable|moving|sliding) arms?)\b/i],
-    vetoes: [TURNING_CONDUCTOR, /\bmagnet\b[^.]{0,60}\b(?:coil|solenoid|loop|ring)\b|\b(?:coil|solenoid|loop|ring)\b[^.]{0,60}\bmagnet\b/i],
+    refusesUnless: [/\b(?:rods?|bars?|(?<!(?:coil|loop|turns|ring) of )wires?|conductors?|axles?|(?:movable|moving|sliding) arms?)\b/i],
+    refuses: [TURNING_CONDUCTOR, /\bmagnet\b[^.]{0,60}\b(?:coil|solenoid|loop|ring)\b|\b(?:coil|solenoid|loop|ring)\b[^.]{0,60}\bmagnet\b/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "length", planNumber(plan, ["l", "length"]), "plan");
       const rodMetres = firstNumberWithUnit(stem, UNIT.metre);
@@ -974,7 +996,8 @@ const CUE_SETS: readonly CueSet[] = [
     ],
     // A coil and a resistor with a moving magnet is an induction setup; a
     // resistor network drawn without the magnet would stand in for it.
-    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i, /\bmagnets?\b|\binduced\b|\binduction\b|\blenz\b|\bfaraday\b/i],
+    vetoes: [/\b(?:kirchhoff|two loops?|loop rule|junction rule|wheatstone|met(?:er|re) bridge|potentiometer|capacitor|galvanometer)\b/i],
+    refuses: [/\bmagnets?\b|\binduced\b|\binduction\b|\blenz\b|\bfaraday\b/i],
     extract: (fullStem, plan, bag) => {
       // "Find the potential difference across the 6 Ω resistor" names a
       // resistor already stated; it is not one more resistor.
@@ -1554,19 +1577,21 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "faraday_induction",
     cues: [[/\bfaraday\b/i, 4], [/\belectromagnetic induction\b/i, 4], [/\b(?:magnet|coil)\b[^.]{0,40}\b(?:moved|moving|pushed|pulled|brought|withdrawn)\b/i, 3], [/\binduced (?:current|emf)\b/i, 2], [/\blenz\b/i, 2]],
-    // The figure is a magnet pushed into a coil, so the stem must name one of
-    // them or the law the figure shows; an induced emf alone may be a wire
+    // The figure is a magnet pushed into a coil, so the stem must name the
+    // magnet or the law the figure shows (a coil whose flux changes names no
+    // magnet, and the figure would invent one); an induced emf alone may be a wire
     // moving through a field. A loop or coil turning in a field is a
-    // generator, and this figure would stand in for it.
-    // and a conductor the magnet acts on, or the law itself: a magnet beside
-    // an iron nail is magnetism, not induction.
-    requires: [
-      /\b(?:magnets?|(?:north|south|[NS])[- ]pole|coils?|solenoids?|lenz|faraday|electromagnetic induction)\b/i,
+    // generator, and this figure would stand in for it. It also needs a
+    // conductor the magnet acts on, or the law itself: a magnet beside an
+    // iron nail is magnetism, not induction.
+    refusesUnless: [
+      /\b(?:magnets?|(?:north|south|[NS])[- ]pole|lenz|faraday|electromagnetic induction)\b/i,
       /\b(?:coils?|loops?|rings?|solenoids?|galvanometer|wires?|conductors?|lenz|faraday|electromagnetic induction|induced\s+(?:currents?|emfs?))\b/i,
     ],
     // The figure does not derive the induced current's direction (the coil's
     // winding is not drawn), so a stem that asks for it gets no figure.
-    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i, TURNING_CONDUCTOR, ASKED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],
+    vetoes: [/\bself[- ]?inductance\b|\bmutual[- ]?inductance\b/i, /\bmotional emf\b/i, /\btransformer\b/i],
+    refuses: [TURNING_CONDUCTOR, ASKED_CURRENT_DIRECTION, ...MAGNET_COIL_CONTRADICTIONS, ...OTHER_INDUCTION_SETUPS],
     extract: () => undefined,
   },
   {
@@ -1770,6 +1795,10 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
   return { set, score, strongest, evidence };
 }
 
+function refusesLead(set: CueSet, stem: string): boolean {
+  return Boolean(set.refuses?.some((pattern) => pattern.test(stem)) || set.refusesUnless?.some((pattern) => !pattern.test(stem)));
+}
+
 function fillSlots(set: CueSet, stem: string, plan: readonly PlanQuantity[]): SlotBag {
   const bag = emptyBag();
   set.extract?.(stem, plan, bag);
@@ -1810,6 +1839,31 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
 }
 
 /**
+ * True when the archetype that leads this stem is refused by its own wording
+ * (a straight road under a circle, a pivoted rod under free fall). Callers
+ * decline the whole deterministic figure, so no runner up or family takes
+ * the turn.
+ */
+export function refusedArchetypeLead(question: string, hints?: DetectionHints): boolean {
+  const stem = prepareStem(question);
+  if (!stem) return false;
+  const plan = collectPlanQuantities(hints?.turnPlan);
+  const bonus = structureBonus(hints);
+  const scored = CUE_SETS
+    .map((set) => scoreCueSet(set, stem, bonus))
+    .filter((item): item is Scored => item !== null)
+    .filter((item) => item.score >= (item.set.minScore ?? 2))
+    .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
+  for (const [index, candidate] of scored.entries()) {
+    if (!requiredSlotsPresent(candidate.set.id, fillSlots(candidate.set, stem, plan))) continue;
+    const next = scored[index + 1] ?? null;
+    if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) return false;
+    return refusesLead(candidate.set, stem);
+  }
+  return false;
+}
+
+/**
  * Decide the archetype for a question. Returns null when no figure clears the
  * evidence bar — callers then fall back or teach text-only, which is the
  * honest outcome for a stem the catalog does not describe.
@@ -1823,7 +1877,8 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
-    if (set && !set.vetoes?.some((veto) => veto.test(stem)) && !set.requires?.some((requirement) => !requirement.test(stem))) {
+    if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+      if (refusesLead(set, stem)) return null;
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
@@ -1865,6 +1920,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) {
       return null;
     }
+    if (refusesLead(candidate.set, stem)) return null;
     return {
       id: candidate.set.id,
       slots: bag.values,

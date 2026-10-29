@@ -64,7 +64,7 @@ import { extractCircleSource, findStatedCurves, type StatedCurve } from "./state
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
-import { contradictedMagnetCoil, detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
+import { contradictedMagnetCoil, detectArchetype, lawOnlyArchetypeLead, refusedArchetypeLead } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
@@ -183,6 +183,8 @@ function synthesizeFromFamilies(
   if (lawOnlyArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
   // A magnet and coil stem that contradicts the only figure for it gets none.
   if (contradictedMagnetCoil(question)) return null;
+  // A lead refused by its own wording declines here too, not the next figure.
+  if (refusedArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
   const youngRequest=readYoungRepresentationRequest(question);
   if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;
@@ -3471,6 +3473,11 @@ function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): bo
   const speeds = riverCrossingSpeeds(question);
   if (speeds.status === "unstated") return false;
   if (speeds.status !== "bound") return true;
+  // Stated speeds the plan does not name would fall back to the stock 5:2 sketch.
+  if (variant === "along_stream" && !riverSpeeds(quantities).sourced) return true;
+  // A boat no faster than the current moving along the stream: the archetype declines it, and main
+  // never drew this sketch for it, so it declines here too (decline only).
+  if (variant === "along_stream" && speeds.vb <= speeds.vc) return true;
   if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
   if (speeds.vb > speeds.vc) return false;
   return variant === "two_triangles" || riverShortestPathAsked(question);
