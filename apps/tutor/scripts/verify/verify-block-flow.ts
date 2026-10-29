@@ -26,7 +26,7 @@ import { parseProcessReviewVerdict, PROCESS_REVIEW_VOTES, reviewProcessChains, w
 import { blockFlowCitedProcesses } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
 import { resolveChatGenerationKind } from "../../lib/obs/chatTrace";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
-import { PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
+import { parseRestatedProcess, PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { deriveSceneGate, selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
@@ -449,6 +449,10 @@ void (async () => {
       assert.equal(failed.out.stepChecks?.verdict, verdict, label);
     }
     assert.equal(await writeProcessClaim("q", prose, reviewOptions((async () => new Response("no", { status: 500 })) as typeof fetch)), null, "a failed call");
+    // A restated process is never evidence for another restatement.
+    const alreadyRestated = plan([...prose.qualitativeClaims, { ...claim(RESTATED_PROCESS_CLAIM_ID, clean), expected: true }], "optional");
+    assert.equal(parseRestatedProcess(JSON.stringify({ steps: [{ step: "card is tapped", claim: RESTATED_PROCESS_CLAIM_ID }, ...cited.slice(1)] }), alreadyRestated), null, "a restated claim is not citable");
+    assert.notEqual(parseRestatedProcess(JSON.stringify({ steps: cited }), alreadyRestated), null, "the plan's own claims stay citable");
     // A route the plan rejects never reaches the writer, never comes back true, and reviewers see it marked.
     const rejectedPlan = plan([
       { ...claim("c1", "Process: right ventricle → aorta → body"), expected: false },
