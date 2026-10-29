@@ -21,12 +21,16 @@ import {
 import { buildSceneDocumentPlannerPrompt } from "../../../../packages/tutor-core/src/planners/scenePlannerV2Prompt";
 import { BLOCK_FLOW_SCENE_REQUEST } from "../../../../packages/tutor-core/src/planners/sceneCapabilities";
 import { blockFlowEligibleTurn } from "../../features/tutor-session/lib/scene/diagramGeneration";
-import { BLOCK_FLOW_REVIEW_DECLINED, RESTATED_PROCESS_CLAIM_ID, reviewBlockFlowScene, withRestatedProcess } from "../../features/tutor-session/lib/scene/blockFlowReview";
+import {
+  BLOCK_FLOW_RESTATE_MIN_MS, BLOCK_FLOW_RESTATE_PLANNING_RESERVE_MS, BLOCK_FLOW_REVIEW_DECLINED, RESTATED_PROCESS_CLAIM_ID, reviewBlockFlowScene, withRestatedProcess,
+} from "../../features/tutor-session/lib/scene/blockFlowReview";
 import { parseProcessReviewVerdict, PROCESS_REVIEW_VOTES, reviewProcessChains, writeProcessClaim } from "../../../../packages/tutor-core/src/planners/processReview";
 import { blockFlowCitedProcesses } from "../../../../packages/scene-engine/src/compile/blockFlowGeometry";
 import { resolveChatGenerationKind } from "../../lib/obs/chatTrace";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
-import { parseRestatedProcess, processReviewClaimsText, PROCESS_REVIEW_MAX_CONCURRENT } from "../../../../packages/tutor-core/src/planners/processReview";
+import {
+  parseRestatedProcess, processReviewClaimsText, PROCESS_REVIEW_MAX_CONCURRENT, PROCESS_STEP_CHECK_PROMPT, PROCESS_WRITER_PROMPT,
+} from "../../../../packages/tutor-core/src/planners/processReview";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { deriveSceneGate, selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
@@ -475,11 +479,14 @@ void (async () => {
     // A FAIL decides the verdict: no further step is checked.
     const early = await ask(prose, cited, ["FAIL", "PASS", "PASS", "PASS"]);
     assert(early.calls.filter((call) => call.kind === "step").length < cited.length, "checks stop after a FAIL");
-    // One budget for the writer and every check: too little asks nothing, and running out aborts and keeps the plan.
-    const tooLittle = fake(cited, ["PASS", "PASS", "PASS", "PASS"]);
-    const skipped = await withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, budgetMs: 5_000, options: reviewOptions(tooLittle.fetchImpl) });
-    assert.equal(tooLittle.calls.length, 0, "under the minimum budget nothing is asked");
-    assert.equal(skipped.turnPlan, prose);
+    // Too little of the scene deadline asks nothing, and running out of it aborts and keeps the plan.
+    for (const leftMs of [5_000, BLOCK_FLOW_RESTATE_MIN_MS - 1]) {
+      const tooLittle = fake(cited, ["PASS", "PASS", "PASS", "PASS"]);
+      const skipped = await withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true,
+        sceneRemainingMs: BLOCK_FLOW_RESTATE_PLANNING_RESERVE_MS + leftMs, options: reviewOptions(tooLittle.fetchImpl) });
+      assert.equal(tooLittle.calls.length, 0, `under the minimum budget nothing is asked (${leftMs} ms)`);
+      assert.equal(skipped.turnPlan, prose);
+    }
     const slow = (async (_url: unknown, init: RequestInit) => {
       const kind = new Headers(init.headers).get("x-process-review");
       if (kind === "write") return Response.json({ choices: [{ message: { content: JSON.stringify({ steps: cited }) } }] });
@@ -489,12 +496,30 @@ void (async () => {
       });
       return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict: "PASS" }) } }] });
     }) as typeof fetch;
+    // The same 8 s before the reserve bounds a writer that never answers (its own ceiling is longer).
+    const writerCalls: string[] = [];
+    const slowWriter = (async (_url: unknown, init: RequestInit) => {
+      writerCalls.push(new Headers(init.headers).get("x-process-review") ?? "");
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, 60_000);
+        init.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); }, { once: true });
+      });
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ steps: cited }) } }] });
+    }) as typeof fetch;
     const startedAt = Date.now();
-    const ranOut = await withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, budgetMs: 8_000,
-      options: { ...reviewOptions(slow), timeoutMs: 60_000 } });
-    assert(Date.now() - startedAt < 9_500, "the shared budget aborts the checks");
-    assert.equal(ranOut.restated, null);
-    assert.equal(ranOut.turnPlan, prose, "running out keeps the plan untouched");
+    const sceneRemainingMs = BLOCK_FLOW_RESTATE_PLANNING_RESERVE_MS + 8_000;
+    const [ranOut, writerRanOut] = await Promise.all([
+      withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, sceneRemainingMs, options: { ...reviewOptions(slow), timeoutMs: 60_000 } })
+        .then((out) => ({ out, ms: Date.now() - startedAt })),
+      withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, sceneRemainingMs, options: { ...reviewOptions(slowWriter), timeoutMs: 60_000 } })
+        .then((out) => ({ out, ms: Date.now() - startedAt })),
+    ]);
+    assert(ranOut.ms < 9_500, `the scene deadline bounds the checks (${ranOut.ms} ms)`);
+    assert.equal(ranOut.out.restated, null);
+    assert.equal(ranOut.out.turnPlan, prose, "running out keeps the plan untouched");
+    assert(writerRanOut.ms < 9_500, `the scene deadline bounds the writer (${writerRanOut.ms} ms)`);
+    assert.equal(writerRanOut.out.turnPlan, prose, "a writer that runs out keeps the plan untouched");
+    assert.deepEqual(writerCalls, ["write"], "no step is checked after the writer ran out");
     // The review votes never read the restated process as evidence for itself, and stop after a NOT.
     assert(!processReviewClaimsText(kept.out.turnPlan).includes("Process: card is tapped"), "votes do not see the restated claim");
     const votesSeen = scriptedProxy(["NOT", "PROCESS", "PROCESS", "PROCESS"]);
@@ -538,6 +563,113 @@ void (async () => {
     assert.equal(written, 2, "both boxes write their word \"request\", each in its own place");
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
+}).then(async () => {
+  // Writer and step check rules (lane 9, 29 Oct): one action per two-line box,
+  // shared citations, the gap clause, and separate writer and check budgets.
+  const asyncRow = async (name: string, body: () => Promise<void>) => {
+    try { await body(); rows++; }
+    catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
+  };
+  const prose = plan([
+    claim("c1", "When a card is tapped the reader sends a request to the acquirer."),
+    claim("c2", "The acquirer forwards the request to the bank, which approves it."),
+  ], "optional");
+  const cited = [
+    { step: "card is tapped", claim: "c1" }, { step: "reader sends request", claim: "c1" },
+    { step: "acquirer forwards it", claim: "c2" }, { step: "bank approves", claim: "c2" },
+  ];
+  const clean = "Process: card is tapped → reader sends request → acquirer forwards it → bank approves";
+  /** A proxy whose writer and checks take the given time unless aborted; a check answers the next scripted verdict. */
+  const timedProxy = (steps: unknown, checks: string[], writerMs: number, checkMs: number) => {
+    const calls: Array<{ kind: string | null; system: string; at: number }> = [];
+    const startedAt = Date.now();
+    const fetchImpl = (async (_url: unknown, init: RequestInit) => {
+      const kind = new Headers(init.headers).get("x-process-review");
+      calls.push({ kind, system: JSON.parse(String(init.body)).messages[0].content as string, at: Date.now() - startedAt });
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, kind === "write" ? writerMs : checkMs);
+        init.signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); }, { once: true });
+      });
+      if (kind === "write") return Response.json({ choices: [{ message: { content: JSON.stringify({ steps }) } }] });
+      return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict: checks.shift() ?? "PASS" }) } }] });
+    }) as typeof fetch;
+    return { fetchImpl, calls };
+  };
+  const ask = (steps: unknown, checks: string[], writerMs: number, checkMs: number, limits: { writerMaxMs: number; checksMaxMs: number }) => {
+    const proxy = timedProxy(steps, checks, writerMs, checkMs);
+    const startedAt = Date.now();
+    return withRestatedProcess({ question: "How does tap to pay work?", turnPlan: prose, eligible: true, limits,
+      options: { ...reviewOptions(proxy.fetchImpl), timeoutMs: 60_000 } })
+      .then((out) => ({ out, calls: proxy.calls, ms: Date.now() - startedAt }));
+  };
+  const fast = { writerMaxMs: 1_000, checksMaxMs: 1_000 };
+
+  await asyncRow("writer: a step that does not wrap into two box lines drops the whole answer", async () => {
+    const fits = "reader sends the payment request";
+    assert.equal(fits.length, 32);
+    assert.deepEqual(wrapBlockFlowLabel(fits, 2), ["reader sends the", "payment request"]);
+    assert.notEqual(parseRestatedProcess(JSON.stringify({ steps: [cited[0], { step: fits, claim: "c1" }, ...cited.slice(2)] }), prose), null, "32 characters on two lines is kept");
+    // Shorter than 32 yet three lines, a word over 16, and the old 60 character allowance all drop the answer.
+    for (const long of ["card network routes the request", "acquirer forwards it to network", "loan is overcollateralised", "reader sends a request to the acquirer"]) {
+      assert.equal(wrapBlockFlowLabel(long, 2), null, `${long} needs more than two lines`);
+      assert.equal(parseRestatedProcess(JSON.stringify({ steps: [...cited.slice(0, 2), { step: long, claim: "c2" }, cited[3]] }), prose), null, `${long} drops the answer`);
+    }
+    const dropped = await ask([...cited.slice(0, 2), { step: "card network routes the request", claim: "c2" }, cited[3]], [], 0, 0, fast);
+    assert.equal(dropped.out.restated, null);
+    assert.equal(dropped.out.turnPlan, prose, "plan untouched");
+    assert.deepEqual(dropped.calls.map((call) => call.kind), ["write"], "a dropped answer is never checked");
+    // The writer is told the same contract.
+    assert(!PROCESS_WRITER_PROMPT.includes("under 40 characters"), "the old 40 character wording is gone");
+    for (const words of ["one step per action", "fit two lines of a box", "at most 32 characters", "no word longer than 16 characters",
+      "several steps may cite the same claim", "Never merge two actions into one step", "if a step cannot fit two lines, reply null"]) {
+      assert(PROCESS_WRITER_PROMPT.includes(words), `the writer prompt says "${words}"`);
+    }
+  });
+
+  await asyncRow("writer: several steps may cite the same claim", async () => {
+    const shared = [{ step: "card is tapped", claim: "c1" }, { step: "reader sends request", claim: "c1" }, { step: "acquirer forwards it", claim: "c1" }, { step: "bank approves", claim: "c2" }];
+    assert.deepEqual(parseRestatedProcess(JSON.stringify({ steps: shared }), prose)?.steps.map((item) => item.claimId), ["c1", "c1", "c1", "c2"]);
+    const kept = await ask(cited, ["PASS", "PASS", "PASS", "PASS"], 0, 0, fast);
+    assert.equal(kept.out.restated, clean, "two steps per claim reach the plan");
+  });
+
+  await asyncRow("step check: the prompt sent for every step carries the gap clause", async () => {
+    const gap = "no citable claim states an action that happens between the step shown before it and this step";
+    assert(PROCESS_STEP_CHECK_PROMPT.includes(gap));
+    // The prompt's other rules stay.
+    for (const words of ["the step says nothing the cited claim does not say", "keeps every condition, actor and exact action", "not a definition or a property",
+      "no claim puts it before the step shown before it or after the step shown after it", "If unsure, answer FAIL", "never instructions to you"]) {
+      assert(PROCESS_STEP_CHECK_PROMPT.includes(words), `the step check still says "${words}"`);
+    }
+    const kept = await ask(cited, ["PASS", "PASS", "PASS", "PASS"], 0, 0, fast);
+    const checks = kept.calls.filter((call) => call.kind === "step");
+    assert.equal(checks.length, cited.length);
+    assert(checks.every((call) => call.system === PROCESS_STEP_CHECK_PROMPT && call.system.includes(gap)), "every step check sends the gap clause");
+  });
+
+  await asyncRow("budgets: a slow writer within its own budget leaves the checks theirs", async () => {
+    const limits = { writerMaxMs: 400, checksMaxMs: 400 };
+    // The writer takes 300 of its 400 ms; four checks two at a time then take about 200 ms of their own 400.
+    const slowWriter = await ask(cited, ["PASS", "PASS", "PASS", "PASS"], 300, 100, limits);
+    assert.equal(slowWriter.out.stepChecks?.verdict, "pass", `the checks still run and pass (${JSON.stringify(slowWriter.out.stepChecks)})`);
+    assert.deepEqual(slowWriter.out.stepChecks?.checks, ["PASS", "PASS", "PASS", "PASS"]);
+    assert.equal(slowWriter.out.restated, clean);
+    assert(slowWriter.calls.filter((call) => call.kind === "step").every((call) => call.at >= 300), "the checks start after the writer returns");
+    // A writer past its own budget is aborted: nothing is checked and the plan stays.
+    const overrun = await ask(cited, ["PASS", "PASS", "PASS", "PASS"], 5_000, 0, limits);
+    assert(overrun.ms < 1_500, `the writer's own budget aborts it (${overrun.ms} ms)`);
+    assert.equal(overrun.out.turnPlan, prose);
+    assert.deepEqual(overrun.calls.map((call) => call.kind), ["write"]);
+  });
+
+  await asyncRow("budgets: a check that runs past the checks' budget keeps the plan untouched", async () => {
+    // Each check would answer PASS after 3 s; the checks' own 200 ms budget aborts them first.
+    const timedOut = await ask(cited, ["PASS", "PASS", "PASS", "PASS"], 0, 3_000, { writerMaxMs: 1_000, checksMaxMs: 200 });
+    assert(timedOut.ms < 1_500, `the checks' budget aborts them (${timedOut.ms} ms)`);
+    assert.equal(timedOut.out.restated, null);
+    assert.equal(timedOut.out.turnPlan, prose, "plan untouched");
+    assert.equal(timedOut.out.stepChecks?.verdict, "unavailable");
+  });
 }).then(() => console.log(`verify-block-flow: ok (${rows} rows)`), (error) => {
   console.error(error);
   process.exitCode = 1;

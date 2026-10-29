@@ -171,7 +171,7 @@ import {
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
-import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, blockFlowRestateBudgetMs, reviewBlockFlowScene, withRestatedProcess } from "../../lib/scene/blockFlowReview";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "../../lib/scene/blockFlowReview";
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
@@ -1422,7 +1422,7 @@ export function useQuestionHandler(
         if (turnPlan) {
           const restated = await withRestatedProcess({
             question, turnPlan, eligible: blockFlowEligible,
-            budgetMs: blockFlowRestateBudgetMs(SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt)),
+            sceneRemainingMs: SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
             options: {
               proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
               fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,

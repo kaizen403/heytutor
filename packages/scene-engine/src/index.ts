@@ -9,7 +9,7 @@ export * from "./compile/matrixSourceBinding";
 export { validatePvSourceBinding } from "./compile/pvSourceBinding";
 export { validateFluidApparatusSourceInputs, fluidApparatusRefusals } from "./compile/fluidApparatusGeometry";
 export { buildLinearSourceDocument, readLinearSystemSource } from "./compile/linearRegionSource";
-export { blockFlowChain, blockFlowCitedProcesses, blockFlowGroundingIssues, planStatesChain } from "./compile/blockFlowGeometry";
+export { blockFlowChain, blockFlowCitedProcesses, blockFlowGroundingIssues, planStatesChain, wrapBlockFlowLabel } from "./compile/blockFlowGeometry";
 export { validateLinearSourcePlan } from "./compile/linearSourceAgreement";
 export * from "./compile/annotationMarks";
 export * from "./compile/sceneAnnotations";
