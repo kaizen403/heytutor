@@ -16,12 +16,12 @@
 import {
   emphasisEllipsePath,
   focusKeepsMark,
+  isReferencePicturePartFocusId,
   type DrawCommand,
   type VerifiedDiagram,
   type VerifiedDiagramAnchor,
   type VerifiedDiagramCommand,
 } from "@heytutor/drawing";
-import { isReferencePictureFocusId } from "./pictureFocus";
 
 export const MAX_PINNED_MARKS_PER_PAGE = 3;
 /** A kept ring is drawn at about the pace of a pulse. A seek draws it at 0. */
@@ -80,7 +80,7 @@ export function pinnedMarksFor(input: {
   const plan: PinnedMarkPlan = { pins: [], overflow: [] };
   let standing = Math.max(0, input.pinsOnPage);
   for (const target of targets) {
-    if (isReferencePictureFocusId(target.id)) continue;
+    if (isReferencePicturePartFocusId(target.id)) continue;
     if (input.alreadyPinned?.has(target.id)) continue;
     const own = input.targetCommands.filter((candidate) => candidate.semanticRef?.entityId === target.id);
     const box = compactPulseBox(target, own);
