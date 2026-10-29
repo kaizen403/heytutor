@@ -149,8 +149,10 @@ for (const question of [
 }
 // A mirror called converging is concave: strict draws it concave (v = -15 cm for u = 30 cm, f = 10 cm).
 const converging = "An object is placed 30 cm in front of a converging mirror of focal length 10 cm. Find the image.";
-const convergingDrawn = select(converging, turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"]]));
+const convergingDrawn = select(converging, turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"], ["v", 15, "cm"]]));
 assert.equal(convergingDrawn.representation?.figureSource, "optics_archetype", convergingDrawn.reason);
+// Kind, u and f fix v, so a plan with no image distance row leaves nothing to catch a misread kind: strict declines.
+assert.notEqual(select(converging, turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"]])).representation?.figureSource, "optics_archetype", "strict needs the plan's image distance row");
 assert.deepEqual(quantities(convergingDrawn.representation!.sceneDocument), { u: "-30 cm", f: "-10 cm", v: "-15 cm" });
 // A plan length the check cannot assign (d_obj is aliased; x1 and D are not) refuses the figure.
 assert.equal(sceneSaveAdmissionFailure({ document: convergingDrawn.representation!.sceneDocument, question: converging, turnPlan: turnPlan(converging, [["d_obj", 30, "cm"], ["f", 10, "cm"]]), tier: "exact_verified" }), null, "d_obj is the object distance");

@@ -327,6 +327,9 @@ function planRoleBindingIssue(values: FigureValues, turnPlan: unknown): string |
   for (const { row, cm } of focal) {
     if (cm === null || !agree(values.f, cm)) return `the plan's ${row.id} is not the figure's focal length`;
   }
+  // Kind, u and f fix v, so the plan's own v row is the only check on a
+  // misread kind or an unusual configuration: strict needs one.
+  if (vRows.length === 0) return "the plan gives no image distance row";
   for (const row of vRows) {
     const cm = length(row);
     if (cm === null || values.v === null || !agree(values.v, cm)) return `the plan's ${row.id} is not the figure's v`;

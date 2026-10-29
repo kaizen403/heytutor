@@ -300,8 +300,10 @@ export function opticsConfigurationIssue(question: string): string | null {
   // Nothing but a second body sits between the element and its image.
   if (/\b(?:inserted|introduced|interposed)\b|\bbetween\s+(?:the\s+)?(?:lens|mirror)\s+and\s+(?:the\s+)?(?:image|screen)\b|\bbetween\s+(?:the\s+)?(?:image|screen)\s+and\s+(?:the\s+)?(?:lens|mirror)\b/i.test(stem)) return "a second body between the element and the image";
   if (/\b(?:immersed|immersion|submerged|dipped)\b/i.test(stem)) return "an element immersed in a medium";
+  if (/\bsilver(?:ed|ing)\b|\bhemispher\w*/i.test(stem)) return "a silvered or curved second surface";
+  if (/\b(?:filled\s+with|containing|contains|full\s+of)\s+(?:\w+\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol)\b|\b(?:beaker|tank|vessel|pond|pool)\b/i.test(stem)) return "a medium other than air";
   if (/\b(?:in|into|under|inside)\s+(?:a\s+|the\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol|benzene|kerosene|medium)\b|\bglass\s+medium\b|\b(?:water|oil|liquid)\s+(?:of|with)\s+refractive\s+index\b|\brefractive\s+index\s+of\s+(?:the\s+)?(?:surround\w*|medium|liquid|water|oil)\b|\bsurrounding\s+medium\b/i.test(stem)) return "a medium other than air";
-  if (/\b(?:is|was|then|now|gets?|being)\s+(?:\w+\s+)?(?:moved|shifted|displaced|brought|pushed|pulled)\b|\bmoved\s+(?:to|towards?|away|closer|by|through)\b|\b(?:second|new|two|both|other)\s+positions?\b/i.test(stem)) return "an object or element in more than one position";
+  if (/\b(?:is|was|then|now|gets?|being)\s+(?:\w+\s+)?(?:moved|shifted|displaced|brought|pushed|pulled)\b|\bmoved\s+(?:to|towards?|away|closer|by|through)\b|\b(?:second|new|two|both|other)\s+positions?\b|\b(?:second|another|two|both)\s+(?:objects?|pins?|candles?|images?)\b/i.test(stem)) return "an object or element in more than one position";
   // A second situation: "if the object is then placed", "now the object is placed", "replaced by another".
   if (/\b(?:then|now|later|next|again|subsequently)\b[^.?!;]{0,40}?\b(?:placed|kept|put|positioned|located|replaced|changed|reversed|turned)\b|\bis\s+then\b|\breplaced\s+(?:by|with)\b|\banother\b|\binstead\b/i.test(stem)) return "an object or element in more than one position";
   if (/\bdisplacement\s+method\b|\bconjugate\b/i.test(stem)) return "the displacement method";

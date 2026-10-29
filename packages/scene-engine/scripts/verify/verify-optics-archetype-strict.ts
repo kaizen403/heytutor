@@ -399,9 +399,20 @@ for (const question of [
   "A convex lens of focal length 20 cm images an object 30 cm away; it is replaced by another of focal length 10 cm.",
   "An object 10 cm beyond F of a concave mirror of focal length 20 cm forms an image.",
   "An object is 10 cm from the principal focus of a convex lens of focal length 20 cm.",
+  "The curved surface of a plano-convex lens of focal length 40 cm is silvered. An object is placed 30 cm in front of it.",
+  "A convex lens of focal length 20 cm has a glass hemisphere placed after it. An object is 30 cm from the lens. Find the final image.",
+  "An object pin is 30 cm from a convex lens of focal length 20 cm and a second pin 10 cm from the lens. Draw both images.",
+  "A coin lies at the bottom of a beaker filled with water. A convex lens of focal length 20 cm is held 30 cm above the coin.",
 ]) {
   assert.ok(opticsConfigurationIssue(question), `not one plain configuration: ${question}`);
   assert.equal(attemptArchetypeScene({ question }).scene, null, `no figure: ${question}`);
+}
+{
+  // Kind, u and f fix v: without the plan's own v row nothing checks a misread kind, so strict declines.
+  const question = "A candle is placed 30 cm from a convex lens of focal length 20 cm. Find the image.";
+  const doc = attemptArchetypeScene({ question }).scene!.document;
+  assert.equal(opticsArchetypeStrictEligibility(question, doc, plan([["u", 30, "cm"], ["f", 20, "cm"]])).eligible, false, "strict needs the plan's own image distance row");
+  assert.equal(opticsArchetypeStrictEligibility(question, doc, figurePlan(doc)).eligible, true, "with the plan's v row strict may draw");
 }
 assert.equal(attemptArchetypeScene({ question: "An object is 10 cm from the mirror's focus." }).match?.slots.u, undefined, "a distance from the focus is not u");
 assert.equal(attemptArchetypeScene({ question: "An object is 10 cm from the focus of the lens." }).match?.slots.u, undefined, "a distance from the lens's focus is not u");
