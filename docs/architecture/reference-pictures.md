@@ -27,8 +27,13 @@ text and pass the same judge.
    ("must show") and 2 to 4 Commons search phrases, or says no picture helps
    (calculations, essays). A deterministic guard (`questionSpecificFigure`)
    then declines any graph, circuit, ray, force or chart topic whose question
-   states numbers: that figure is the question's own, a stock picture would
-   carry other values, and the verified engine draws it or the lesson is text.
+   states numbers, reading those figure words in the topic and in the question
+   itself. It also declines a motion, circular motion, projectile, incline, lens
+   or mirror setup when the question states a measured value (a number with a
+   unit, so "3 laws", "10 marks" and "3D" do not count), even when the topic
+   leaves out the figure word. That figure is the question's own, a stock
+   picture would carry other values, and the verified engine draws it or the
+   lesson is text.
 2. `wikimediaSearch.ts`: Commons search, filtered to CC0, public domain, CC BY
    and CC BY-SA; drops translated files by title suffix, tiny or extreme
    aspect files; ranks drawings and English files above scans.

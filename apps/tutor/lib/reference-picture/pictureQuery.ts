@@ -52,8 +52,20 @@ export function queryRequestBody(question: string, subject: string | undefined, 
  */
 const QUESTION_SPECIFIC_TOPIC = /\b(graph|plot|curve|circuit|ray diagram|free[- ]body|force diagram|trajectory|number line|histogram|bar chart|pie chart)s?\b/i;
 
+/**
+ * A motion, circular motion, projectile, incline, lens or mirror setup whose
+ * question states a measured value is the question's own figure too, even
+ * when the topic the cheap model wrote leaves out the figure word.
+ */
+const VALUE_SETUP = /\b(projectiles?|projected|trajector(?:y|ies)|inclined?(?: planes?)?|slopes?|ramps?|circular|centripetal|banked|lens(?:es)?|mirrors?|velocit(?:y|ies)|speeds?|accelerat\w*|decelerat\w*|retard\w*|kinematics|free[- ]fall|uniform(?:ly)? accelerated)\b/i;
+// A number with a unit. Single letter units must end the word, so "10 marks",
+// "3 sides" and "2 gametes" state no value; a bare D (dioptre) needs a space
+// or a decimal, so "3D view" does not either.
+const MEASURED_VALUE = /(?<![\w.])-?\d+(?:\.\d+)?(?:\s*[x×]\s*10\^?-?\d+)?\s*(?:m\/s|m\s*s(?:\^?-[12]|⁻[¹²])|km\/h(?:r)?|kmph|rpm|cm|mm|km|kg|Hz|rad(?:ians?)?|rev(?:olutions?)?|deg(?:rees?)?|dioptres?|diopters?|m|s|g|N|J|W|°)(?![A-Za-z])|(?<![\w.])-?\d+(?:\.\d+)?\s+D(?![A-Za-z])|(?<![\w.])-?\d+\.\d+D(?![A-Za-z])/;
+
 export function questionSpecificFigure(question: string, mustShow: string): boolean {
-  return QUESTION_SPECIFIC_TOPIC.test(mustShow) && /\d/.test(question);
+  if (/\d/.test(question) && (QUESTION_SPECIFIC_TOPIC.test(mustShow) || QUESTION_SPECIFIC_TOPIC.test(question))) return true;
+  return VALUE_SETUP.test(`${question} ${mustShow}`) && MEASURED_VALUE.test(question);
 }
 
 export function parsePictureQuery(text: string): PictureQuery | null {
