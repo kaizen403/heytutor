@@ -230,8 +230,8 @@ export type DoubtFigurePageCheck = (marker: DoubtFigureMarker, page: PageFigureR
  *    continues the board) is the user's, and its page question is the
  *    doubt's lesson question;
  * 2. `replacedTurnId`, when set, is a turn on that page, the user's, with a
- *    validated scene of its own, and not itself a doubt figure (a doubt only
- *    ever stashes the lesson's figure).
+ *    validated scene or a reference picture of its own, and not itself a
+ *    doubt figure (a doubt only ever stashes the lesson's figure).
  * Never throws: any failure is false.
  */
 export function bindDoubtFigurePageCheck(
@@ -261,7 +261,10 @@ export function bindDoubtFigurePageCheck(
       const replaced = await deps.store.findTurn(marker.replacedTurnId);
       if (!replaced || replaced.boardId !== context.boardId || replaced.userId !== context.userId) return false;
       if (doubtFigureOf(replaced.sceneArtifacts)) return false;
-      return replaced.visualStatus === "validated" && replaced.sceneDocument != null;
+      // A validated scene, or a reference picture (saved text only, its rows
+      // rebuilt from the record on save): both are figures a resume returns.
+      return (replaced.visualStatus === "validated" && replaced.sceneDocument != null) ||
+        referencePictureIdOf(replaced.sceneArtifacts) !== null;
     } catch {
       return false;
     }

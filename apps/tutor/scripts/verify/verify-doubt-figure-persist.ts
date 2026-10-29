@@ -51,6 +51,8 @@ import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSav
 import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
+import type { ReferencePictureRecord } from "@heytutor/drawing";
+import { buildReferencePicturePresentation, isReferencePictureDiagram } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
 import { DOUBT_FIGURE_TURN_ID, DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, doubtPageCheck, pageRowsOf, sceneMetadataOn, stored, teachingRow } from "./fixtures/doubtFigureScene";
 
 let checks = 0;
@@ -242,6 +244,97 @@ async function stoppedIntroReturnMatchesReplay(): Promise<void> {
   const commands = (segments: readonly Parameters<typeof getSegmentCommands>[0][]) => JSON.stringify(segments.flatMap(getSegmentCommands));
   assert(commands(storedFigurePresentation(row).introSegments) === commands(live.introSegments),
     "what replay returns at the resume (the stopped lesson's stored intro) is the whole intro live returns from the stash");
+}
+
+const PICTURE_TURN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const PICTURE_RECORD: ReferencePictureRecord = {
+  id: "rp_0123456789abcdef01234567",
+  source: "wikimedia",
+  title: "File:Number line.svg",
+  pageUrl: "https://commons.wikimedia.org/wiki/File:Number_line.svg",
+  license: "CC BY-SA 4.0",
+  licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+  artist: "Test Artist",
+  imageUrl: "/api/reference-picture/rp_0123456789abcdef01234567/image",
+  planUrl: "/api/reference-picture/rp_0123456789abcdef01234567/plan",
+  width: 2000,
+  height: 1280,
+  shows: "A number line from zero to ten.",
+  labels: ["0", "5", "10"],
+  plan: { width: 1000, height: 640, outlineLengthPx: 5_000, fillLengthPx: 20_000 },
+};
+
+/**
+ * Lane 3: a doubt figure over a reference picture. The picture opener is saved
+ * text only with `referencePicture` and its two trusted DRAW_PICTURE rows
+ * (rebuilt by the server from the record). The server admits a doubt figure
+ * naming it, still refuses one naming a picture on another page, and every
+ * stored surface returns the same picture at the resume.
+ */
+async function doubtFigureOverPicture(fixture: Awaited<ReturnType<typeof doubtFigurePageFixture>>): Promise<void> {
+  const picture = buildReferencePicturePresentation(PICTURE_RECORD);
+  const trustedRow = (orderIndex: number, segment: (typeof picture.introSegments)[number]) => ({
+    orderIndex, narration: segment.narration, spokenText: segment.narration,
+    command: serializeSegmentCommands(getSegmentCommands(segment), { trustedDiagramGeometry: true }),
+  });
+  const pictureSaved = await canonicalizeTurnSceneMetadata({
+    question: fixture.lesson.question,
+    visualStatus: "text_only",
+    sceneArtifacts: {
+      schemaVersion: "scene-artifacts/v3", turnPlan: null, figureSource: "text_only", diagramResultStatus: "text_only",
+      referencePicture: picture.stored,
+      referencePictureOutcome: { attempted: true, status: "shown", reason: null, ms: 9_000, speculative: true },
+    },
+    segments: [
+      trustedRow(0, picture.introSegments[0]!),
+      trustedRow(1, picture.introSegments[1]!),
+      teachingRow(2, "Look at the whole line.", [{ type: "FOCUS", params: [], text: "reference_picture", charPosition: 0, narrationBefore: "" }]),
+    ],
+  }, { loadReferencePicture: async (id) => (id === PICTURE_RECORD.id ? PICTURE_RECORD : null) });
+  assert(pictureSaved.ok && pictureSaved.value.visualStatus === "text_only" &&
+    pictureSaved.value.sceneArtifacts?.referencePicture?.id === PICTURE_RECORD.id,
+    `the picture opener saves text only with its picture (${pictureSaved.ok ? "" : pictureSaved.error})`);
+  const pictureTurn = stored(PICTURE_TURN_ID, 0, fixture.lesson.question, pictureSaved.value, { opensOnClear: true, kind: "lesson" });
+
+  // The server: the picture opener is a figure a doubt may stash.
+  const marked = { ...fixture.doubtMetadata(fixture.doubtSegments, doubtFigureArtifacts(PICTURE_TURN_ID)), question: DOUBT_TITLE };
+  const admitOn = (turns: StoredTurn[]) => canonicalizeTurnSceneMetadata(structuredClone(marked),
+    { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck(turns) });
+  const admitted = await admitOn([pictureTurn]);
+  assert(admitted.ok && admitted.value.visualStatus === "validated" &&
+    doubtFigureOf(admitted.value.sceneArtifacts)?.replacedTurnId === PICTURE_TURN_ID,
+    `a doubt figure naming the picture opener on its page is admitted (${admitted.ok ? admitted.value.visualStatus : admitted.code})`);
+  const laterLesson = { ...fixture.turns[0]!, orderIndex: 1 };
+  savedAsText(await admitOn([pictureTurn, laterLesson]), "a doubt figure naming a picture on an earlier page");
+  savedAsText(await canonicalizeTurnSceneMetadata(structuredClone(marked), { kind: "doubt", doubtFiguresEnabled: false, checkDoubtFigurePage: doubtPageCheck([pictureTurn]) }),
+    "a doubt figure over a picture with the flag off at save time");
+  const unpictured = { ...pictureTurn, sceneArtifacts: { ...(pictureTurn.sceneArtifacts as Record<string, unknown>), referencePicture: undefined } };
+  savedAsText(await admitOn([unpictured]), "a doubt figure naming a text only opener with no picture");
+
+  // The stored page: [picture L, D fig, R]. D swaps the picture out, R returns it.
+  if (!admitted.ok) return;
+  const doubtTurn = stored(DOUBT_FIGURE_TURN_ID, 1, DOUBT_TITLE, admitted.value, { opensOnClear: false, kind: "doubt" });
+  const resumeTurn: StoredTurn = stored("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", 2, fixture.lesson.question, {
+    sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only",
+    sceneArtifacts: boardContinuationArtifacts(fixture.lesson.question),
+    segments: [teachingRow(0, "Back to the picture.", [])],
+  }, { opensOnClear: false, kind: "resume" });
+  const turns = [pictureTurn, doubtTurn, resumeTurn];
+  const at = pageFigureAt(turns, 2);
+  assert(pageFigureAt(turns, 1).swapIn && at.sourceIndex === 0 && at.returnsLesson, "the resume returns the picture opener's figure");
+  const { wb, events, drawn, executeCommand } = board();
+  const swap = await syncStoredPageFigure({ turns, turnIndex: 1, whiteboard: wb, executeCommand, shouldCancel: () => false });
+  assert(swap.changed && !swap.cancelled && swap.diagram && !isReferencePictureDiagram(swap.diagram) && events.includes("eraseSceneInk:0"),
+    "at the doubt the picture leaves the zone and the doubt's figure is installed");
+  const back = await syncStoredPageFigure({ turns, turnIndex: 2, whiteboard: wb, executeCommand, shouldCancel: () => false });
+  const pictures = drawn.filter((entry) => entry.type === "DRAW_PICTURE");
+  assert(back.changed && !back.cancelled && back.diagram && isReferencePictureDiagram(back.diagram),
+    "at the resume the picture diagram is back in the zone");
+  assert(pictures.length === 2 && pictures.every((entry) => entry.text === PICTURE_RECORD.id && entry.durationScale === 0 && entry.trusted) &&
+    drawn.length === pictures.length,
+    `the resume stamps the opener's own DRAW_PICTURE rows at once, nothing else (${drawn.map((entry) => entry.type).join()})`);
+  assert(JSON.stringify(back.diagram.anchors) === JSON.stringify(storedFigurePresentation(pictureTurn).diagram?.anchors),
+    "the returned picture points exactly as the stored opener does");
 }
 
 async function main(): Promise<void> {
@@ -471,6 +564,7 @@ async function main(): Promise<void> {
   // --- the replay, restore and export step through the stored page ----------
   await storedDoubtFigureMatchesLive();
   await stoppedIntroReturnMatchesReplay();
+  await doubtFigureOverPicture(fixture);
   {
     const { wb, events, drawn, executeCommand } = board();
     const swap = await syncStoredPageFigure({ turns, turnIndex: 1, whiteboard: wb, executeCommand, shouldCancel: () => false });
