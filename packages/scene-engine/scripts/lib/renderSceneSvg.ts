@@ -46,7 +46,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
   // Honour the marks the DSA builder sets, or a rejected edge and a live
   // window review as ordinary ink and the gate images say less than the board.
   const provenance = primitive.provenance as
-    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown; fillOnly?: unknown; pointStyle?: unknown; fontPx?: unknown; linearSolution?: unknown; labelBounds?: { x: number; y: number; width: number; height: number } }
+    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown; fillOnly?: unknown; pointStyle?: unknown; fontPx?: unknown; linearSolution?: unknown; labelPad?: unknown; labelBounds?: { x: number; y: number; width: number; height: number } }
     | undefined;
   const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
   const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
