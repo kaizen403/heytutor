@@ -1,0 +1,8278 @@
+{
+ "schemaVersion": "saved-production-scenes/v1",
+ "rows": [
+  {
+   "id": "waves-two-axes",
+   "question": "For IGCSE physics, give an overview of the types of wave motion, how waves are described, and the wave equation.",
+   "productionSource": "planner",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "fast_family:analytic_curve",
+    "current_unclassified": "fast_family:analytic_curve"
+   },
+   "drawing": {
+    "current": {
+     "labels": [
+      "compression",
+      "oscillation",
+      "oscillation",
+      "rarefaction",
+      "transverse",
+      "v"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 41,
+      "point": 84,
+      "polyline": 1,
+      "vector": 3
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "compression",
+      "oscillation",
+      "oscillation",
+      "rarefaction",
+      "transverse",
+      "v"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 41,
+      "point": 84,
+      "polyline": 1,
+      "vector": 3
+     }
+    }
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "wave_equation",
+     "frequency_period_relation",
+     "wave_classification"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "For IGCSE physics, give an overview of the types of wave motion, how waves are described, and the wave equation.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "m/s",
+      "symbol": "v"
+     },
+     {
+      "id": "u2",
+      "unit": "Hz",
+      "symbol": "f"
+     },
+     {
+      "id": "u3",
+      "unit": "m",
+      "symbol": "λ"
+     }
+    ],
+    "assumptions": [
+     "IGCSE-level treatment only",
+     "Waves are described qualitatively with standard definitions",
+     "No numerical values are provided, so no numerical answers are required",
+     "Standard SI units are used"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Wave motion transfers energy without transferring matter.",
+      "expected": "Energy moves through the medium or space while the particles of the medium oscillate about fixed positions.",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c2",
+      "claim": "The two main types of wave motion are transverse and longitudinal.",
+      "expected": "In transverse waves, oscillations are perpendicular to the direction of energy transfer; in longitudinal waves, oscillations are parallel to the direction of energy transfer.",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c3",
+      "claim": "Examples of transverse waves include light waves, water ripples, and waves on a rope.",
+      "expected": "These waves have crests and troughs.",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c4",
+      "claim": "Examples of longitudinal waves include sound waves and compression waves in a slinky spring.",
+      "expected": "These waves have compressions and rarefactions.",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c5",
+      "claim": "Key wave terms are amplitude, wavelength, frequency, period, and wave speed.",
+      "expected": "Amplitude is maximum displacement from rest position; wavelength is distance between consecutive corresponding points; frequency is number of waves per second; period is time for one complete oscillation; wave speed is distance travelled by the wave per second.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2",
+       "u3"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "The wave equation links speed, frequency, and wavelength.",
+      "expected": "v = fλ, where v is wave speed in m/s, f is frequency in Hz, and λ is wavelength in m.",
+      "relatedQuantityIds": [
+       "u1",
+       "u2",
+       "u3"
+      ]
+     },
+     {
+      "id": "c7",
+      "claim": "Frequency and period are reciprocals.",
+      "expected": "f = 1/T and T = 1/f, where T is the period in seconds.",
+      "relatedQuantityIds": [
+       "u2"
+      ]
+     },
+     {
+      "id": "c8",
+      "claim": "Waves can be reflected, refracted, and diffracted.",
+      "expected": "Reflection is bouncing off a surface; refraction is bending due to change in speed; diffraction is spreading around obstacles or through gaps.",
+      "relatedQuantityIds": []
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "For IGCSE physics, give an overview of the types of wave motion, how waves are described, and the wave equation.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "axesT",
+      "kind": "axes",
+      "role": "transverse axes",
+      "label": "y-x"
+     },
+     {
+      "id": "twave",
+      "kind": "polyline",
+      "role": "transverse wave"
+     },
+     {
+      "id": "crest",
+      "kind": "point",
+      "role": "crest",
+      "label": "crest"
+     },
+     {
+      "id": "trough",
+      "kind": "point",
+      "role": "trough",
+      "label": "trough"
+     },
+     {
+      "id": "crestFoot",
+      "kind": "point",
+      "role": "crest foot"
+     },
+     {
+      "id": "amp",
+      "kind": "dimension",
+      "role": "amplitude",
+      "label": "A"
+     },
+     {
+      "id": "lamA",
+      "kind": "point",
+      "role": "wavelength start"
+     },
+     {
+      "id": "lamB",
+      "kind": "point",
+      "role": "wavelength end"
+     },
+     {
+      "id": "lam",
+      "kind": "dimension",
+      "role": "wavelength",
+      "label": "λ"
+     },
+     {
+      "id": "axesL",
+      "kind": "axes",
+      "role": "longitudinal axes",
+      "label": "y-x"
+     },
+     {
+      "id": "lwave",
+      "kind": "polyline",
+      "role": "longitudinal wave"
+     },
+     {
+      "id": "comp",
+      "kind": "point",
+      "role": "compression",
+      "label": "compression"
+     },
+     {
+      "id": "rare",
+      "kind": "point",
+      "role": "rarefaction",
+      "label": "rarefaction"
+     },
+     {
+      "id": "lamLA",
+      "kind": "point",
+      "role": "wavelength start"
+     },
+     {
+      "id": "lamLB",
+      "kind": "point",
+      "role": "wavelength end"
+     },
+     {
+      "id": "lamL",
+      "kind": "dimension",
+      "role": "wavelength",
+      "label": "λ"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "crest_on_twave",
+      "entities": [
+       "twave"
+      ],
+      "expected": {
+       "x": 1,
+       "y": 1.6
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "trough_on_twave",
+      "entities": [
+       "twave"
+      ],
+      "expected": {
+       "x": 3,
+       "y": -1.6
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "comp_on_lwave",
+      "entities": [
+       "lwave"
+      ],
+      "expected": {
+       "x": 1,
+       "y": 1.6
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "rare_on_lwave",
+      "entities": [
+       "lwave"
+      ],
+      "expected": {
+       "x": 3,
+       "y": -1.6
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "label_lam",
+      "entities": [
+       "lam"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_lamL",
+      "entities": [
+       "lamL"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_crest",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "crest"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_trough",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "trough"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_comp",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "comp"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_rare",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "rare"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "n1",
+      "kind": "narration",
+      "text": "Transverse wave: oscillations are perpendicular to the direction of energy transfer, forming crests and troughs (for example light, water ripples, waves on a rope).",
+      "targetIds": [
+       "twave"
+      ]
+     },
+     {
+      "id": "n2",
+      "kind": "narration",
+      "text": "Longitudinal wave: oscillations are parallel to the direction of energy transfer, forming compressions and rarefactions (for example sound, a slinky spring).",
+      "targetIds": [
+       "lwave"
+      ]
+     },
+     {
+      "id": "n3",
+      "kind": "narration",
+      "text": "Amplitude A is the maximum displacement from the rest position; wavelength λ is the distance between consecutive corresponding points.",
+      "targetIds": [
+       "amp",
+       "lam"
+      ]
+     },
+     {
+      "id": "n4",
+      "kind": "narration",
+      "text": "Wave motion transfers energy without transferring matter; the wave equation is v = fλ, with frequency f in Hz, period T = 1/f, and wave speed v in m/s.",
+      "targetIds": [
+       "twave",
+       "lwave"
+      ]
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "transverse",
+      "dependsOn": [],
+      "entityIds": [
+       "axesT",
+       "twave",
+       "crest",
+       "trough",
+       "crestFoot",
+       "amp",
+       "lamA",
+       "lamB",
+       "lam",
+       "comp",
+       "rare"
+      ],
+      "narrationCue": "transverse wave with crest, trough, amplitude and wavelength"
+     },
+     {
+      "id": "longitudinal",
+      "dependsOn": [
+       "transverse"
+      ],
+      "entityIds": [
+       "axesL",
+       "lwave",
+       "comp",
+       "rare",
+       "lamLA",
+       "lamLB",
+       "lamL"
+      ],
+      "narrationCue": "longitudinal wave with compression, rarefaction and wavelength"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axesT",
+      "inputs": {
+       "xMax": 8.6,
+       "xMin": -0.4,
+       "yMax": 2.6,
+       "yMin": -2.6
+      },
+      "outputs": [
+       "axesT"
+      ],
+      "operator": "axes"
+     },
+     {
+      "id": "make_twave",
+      "inputs": {
+       "xMax": 8,
+       "xMin": 0,
+       "samples": 97,
+       "variable": "x",
+       "expression": "1.6*sin(1.5707963267948966*x)"
+      },
+      "outputs": [
+       "twave"
+      ],
+      "operator": "function_curve"
+     },
+     {
+      "id": "make_crest",
+      "inputs": {
+       "at": 1,
+       "curve": "twave"
+      },
+      "outputs": [
+       "crest"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_trough",
+      "inputs": {
+       "at": 3,
+       "curve": "twave"
+      },
+      "outputs": [
+       "trough"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_crestFoot",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "crestFoot"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_amp",
+      "inputs": {
+       "end": "crest",
+       "start": "crestFoot"
+      },
+      "outputs": [
+       "amp"
+      ],
+      "operator": "dimension"
+     },
+     {
+      "id": "make_lamA",
+      "inputs": {
+       "at": 1,
+       "curve": "twave"
+      },
+      "outputs": [
+       "lamA"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_lamB",
+      "inputs": {
+       "at": 5,
+       "curve": "twave"
+      },
+      "outputs": [
+       "lamB"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_lam",
+      "inputs": {
+       "end": "lamB",
+       "start": "lamA"
+      },
+      "outputs": [
+       "lam"
+      ],
+      "operator": "dimension"
+     },
+     {
+      "id": "make_axesL",
+      "inputs": {
+       "xMax": 8.6,
+       "xMin": -0.4,
+       "yMax": 2.6,
+       "yMin": -2.6
+      },
+      "outputs": [
+       "axesL"
+      ],
+      "operator": "axes"
+     },
+     {
+      "id": "make_lwave",
+      "inputs": {
+       "xMax": 8,
+       "xMin": 0,
+       "samples": 97,
+       "variable": "x",
+       "expression": "1.6*sin(1.5707963267948966*x)"
+      },
+      "outputs": [
+       "lwave"
+      ],
+      "operator": "function_curve"
+     },
+     {
+      "id": "make_comp",
+      "inputs": {
+       "at": 1,
+       "curve": "lwave"
+      },
+      "outputs": [
+       "comp"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_rare",
+      "inputs": {
+       "at": 3,
+       "curve": "lwave"
+      },
+      "outputs": [
+       "rare"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_lamLA",
+      "inputs": {
+       "at": 1,
+       "curve": "lwave"
+      },
+      "outputs": [
+       "lamLA"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_lamLB",
+      "inputs": {
+       "at": 5,
+       "curve": "lwave"
+      },
+      "outputs": [
+       "lamLB"
+      ],
+      "operator": "curve_anchor"
+     },
+     {
+      "id": "make_lamL",
+      "inputs": {
+       "end": "lamLB",
+       "start": "lamLA"
+      },
+      "outputs": [
+       "lamL"
+      ],
+      "operator": "dimension"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "side-by-side transverse and longitudinal wave profiles with crest, trough, compression, and rarefaction marked; qualitative IGCSE overview, no numerical data"
+    },
+    "teachingTimeline": [
+     {
+      "id": "timeline_1",
+      "action": "reveal",
+      "targetId": "transverse",
+      "dependsOn": [],
+      "narration": "A wave transfers energy without transferring matter. In a transverse wave the oscillations are perpendicular to the energy transfer, giving crests and troughs.",
+      "targetIds": [
+       "transverse"
+      ],
+      "narrationIntent": "A wave transfers energy without transferring matter. In a transverse wave the oscillations are perpendicular to the energy transfer, giving crests and troughs."
+     },
+     {
+      "id": "timeline_2",
+      "action": "annotate",
+      "targetId": "amp",
+      "dependsOn": [],
+      "narration": "Amplitude A is the maximum displacement from rest; wavelength λ is the distance between consecutive corresponding points, such as crest to crest.",
+      "targetIds": [
+       "amp",
+       "lam"
+      ],
+      "narrationIntent": "Amplitude A is the maximum displacement from rest; wavelength λ is the distance between consecutive corresponding points, such as crest to crest."
+     },
+     {
+      "id": "timeline_3",
+      "action": "reveal",
+      "targetId": "longitudinal",
+      "dependsOn": [],
+      "narration": "In a longitudinal wave the oscillations are parallel to the energy transfer, giving compressions and rarefactions, as in sound.",
+      "targetIds": [
+       "longitudinal"
+      ],
+      "narrationIntent": "In a longitudinal wave the oscillations are parallel to the energy transfer, giving compressions and rarefactions, as in sound."
+     },
+     {
+      "id": "timeline_4",
+      "action": "annotate",
+      "targetId": "lamL",
+      "dependsOn": [],
+      "narration": "The wavelength is again the distance between consecutive corresponding points, here compression to compression.",
+      "targetIds": [
+       "lamL"
+      ],
+      "narrationIntent": "The wavelength is again the distance between consecutive corresponding points, here compression to compression."
+     },
+     {
+      "id": "timeline_5",
+      "action": "annotate",
+      "targetId": "twave",
+      "dependsOn": [],
+      "narration": "Frequency f is the number of waves per second, period T = 1/f, and the wave equation links them: v = fλ.",
+      "targetIds": [
+       "twave",
+       "lwave"
+      ],
+      "narrationIntent": "Frequency f is the number of waves per second, period T = 1/f, and the wave equation links them: v = fλ."
+     }
+    ],
+    "requiredEntityIds": [
+     "axesT",
+     "twave",
+     "crest",
+     "trough",
+     "crestFoot",
+     "amp",
+     "lamA",
+     "lamB",
+     "lam",
+     "axesL",
+     "lwave",
+     "comp",
+     "rare",
+     "lamLA",
+     "lamLB",
+     "lamL"
+    ]
+   }
+  },
+  {
+   "id": "maxwell-thumb-rule",
+   "question": "Explain Maxwell's right hand thumb rule and how to find the direction in questions on this topic.",
+   "productionSource": "chemistry_family",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "chemistry_family:chem_thermo",
+    "current": "chemistry_family:chem_thermo",
+    "current_unclassified": "chemistry_family:chem_thermo"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    },
+    "current": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "E_a",
+      "T_1",
+      "T_2",
+      "fraction",
+      "kinetic energy"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 1,
+      "polyline": 2
+     }
+    }
+   },
+   "open": {
+    "strict": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
+    "current": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
+    "current_unclassified": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "Maxwell right-hand thumb rule",
+     "Biot-Savart law",
+     "Ampere circuital law",
+     "Clock rule for polarity of a current loop"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Explain Maxwell's right hand thumb rule and how to find the direction in questions on this topic.",
+    "unknowns": [],
+    "assumptions": [
+     "Conventional current direction (positive charge flow) is used, not electron flow",
+     "Magnetic field around a long straight conductor forms concentric circles in planes perpendicular to the wire",
+     "Field direction reverses when current direction reverses",
+     "Out of page is denoted by a dot and into the page by a cross"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Maxwell's right-hand thumb rule: grasp a current-carrying conductor with the right hand so the thumb points in the direction of conventional current; the curled fingers give the direction of the magnetic field lines around the conductor.",
+      "expected": "B circles the wire; fingers curl in B direction when thumb is along I"
+     },
+     {
+      "id": "c2",
+      "claim": "Straight wire, current flowing upward: viewed from above, the magnetic field is anticlockwise; viewed from below, it is clockwise.",
+      "expected": "Anticlockwise from above, clockwise from below"
+     },
+     {
+      "id": "c3",
+      "claim": "Straight wire, current flowing downward: viewed from above, the magnetic field is clockwise; viewed from below, it is anticlockwise.",
+      "expected": "Clockwise from above, anticlockwise from below"
+     },
+     {
+      "id": "c4",
+      "claim": "Horizontal wire with current flowing left to right: at a point above the wire the field points out of the page (toward observer); at a point below the wire it points into the page.",
+      "expected": "Above wire: out of page; below wire: into page"
+     },
+     {
+      "id": "c5",
+      "claim": "Horizontal wire with current flowing right to left: at a point above the wire the field points into the page; at a point below the wire it points out of the page.",
+      "expected": "Above wire: into page; below wire: out of page"
+     },
+     {
+      "id": "c6",
+      "claim": "Wire perpendicular to the page with current flowing into the page (cross): the magnetic field lines are clockwise circles in the plane of the page.",
+      "expected": "Clockwise field for current into page"
+     },
+     {
+      "id": "c7",
+      "claim": "Wire perpendicular to the page with current flowing out of the page (dot): the magnetic field lines are anticlockwise circles in the plane of the page.",
+      "expected": "Anticlockwise field for current out of page"
+     },
+     {
+      "id": "c8",
+      "claim": "Circular loop or solenoid: if the current appears anticlockwise from a face, that face acts as a north pole; if clockwise, it acts as a south pole (clock rule).",
+      "expected": "Anticlockwise face = N pole; clockwise face = S pole"
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain Maxwell's right hand thumb rule and how to find the direction in questions on this topic.",
+     "archetype": "chem_thermo",
+     "chemistryFamily": "chem_thermo",
+     "synthesizedFamily": true
+    },
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "distribution axes"
+     },
+     {
+      "id": "x_title",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "kinetic energy",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "y_title",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "fraction",
+      "provenance": {
+       "pinLabel": true
+      }
+     },
+     {
+      "id": "t1",
+      "kind": "polyline",
+      "role": "distribution at the lower temperature",
+      "label": "T_1"
+     },
+     {
+      "id": "t2",
+      "kind": "polyline",
+      "role": "distribution at the higher temperature",
+      "label": "T_2"
+     },
+     {
+      "id": "ea_line",
+      "kind": "segment",
+      "role": "activation energy threshold",
+      "label": "E_a",
+      "provenance": {
+       "dashed": true
+      }
+     },
+     {
+      "id": "x_title_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "y_title_p",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "ea_foot",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "ea_top",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "label_t1",
+      "entities": [
+       "t1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_t2",
+      "entities": [
+       "t2"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "t1_peak",
+      "entities": [
+       "t1"
+      ],
+      "expected": {
+       "x": 1,
+       "y": 0.735759
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "t2_peak",
+      "entities": [
+       "t2"
+      ],
+      "expected": {
+       "x": 1.414214,
+       "y": 0.520255
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "label_ea_line",
+      "entities": [
+       "ea_line"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "figure_caption",
+      "kind": "callout",
+      "text": "Raising the temperature from T_1 to T_2 flattens and broadens the curve. The fraction of molecules with energy above E_a (the area to the right of the dashed line) grows sharply, which is why the rate rises so fast with temperature.",
+      "targetIds": []
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "axes",
+       "x_title",
+       "y_title",
+       "t1",
+       "t2",
+       "ea_line"
+      ],
+      "narrationCue": "Maxwell Boltzmann distribution at two temperatures"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "inputs": {
+       "xMax": 4.9,
+       "xMin": -0.2,
+       "yMax": 1.1,
+       "yMin": -0.1
+      },
+      "outputs": [
+       "axes"
+      ],
+      "operator": "axes"
+     },
+     {
+      "id": "make_x_title_p",
+      "inputs": {
+       "x": 4.35,
+       "y": -0.14,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "x_title_p"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_x_title",
+      "inputs": {
+       "text": "kinetic energy",
+       "target": "x_title_p"
+      },
+      "outputs": [
+       "x_title"
+      ],
+      "operator": "label"
+     },
+     {
+      "id": "make_y_title_p",
+      "inputs": {
+       "x": 0.9,
+       "y": 1.02,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "y_title_p"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_y_title",
+      "inputs": {
+       "text": "fraction",
+       "target": "y_title_p"
+      },
+      "outputs": [
+       "y_title"
+      ],
+      "operator": "label"
+     },
+     {
+      "id": "make_t1",
+      "inputs": {
+       "xMax": 4.6,
+       "xMin": 0,
+       "samples": 97,
+       "variable": "x",
+       "expression": "2*x^2*exp(-x^2)"
+      },
+      "outputs": [
+       "t1"
+      ],
+      "operator": "function_curve"
+     },
+     {
+      "id": "make_t2",
+      "inputs": {
+       "xMax": 4.6,
+       "xMin": 0,
+       "samples": 97,
+       "variable": "x",
+       "expression": "0.7071*x^2*exp(-x^2/2)"
+      },
+      "outputs": [
+       "t2"
+      ],
+      "operator": "function_curve"
+     },
+     {
+      "id": "make_ea_foot",
+      "inputs": {
+       "x": 2.3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ea_foot"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_ea_top",
+      "inputs": {
+       "x": 2.3,
+       "y": 0.62,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ea_top"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_ea_line",
+      "inputs": {
+       "end": "ea_top",
+       "start": "ea_foot"
+      },
+      "outputs": [
+       "ea_line"
+      ],
+      "operator": "segment"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Maxwell Boltzmann distribution at two temperatures"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_setup",
+      "action": "reveal",
+      "targetId": "setup",
+      "dependsOn": [],
+      "narrationIntent": "Maxwell Boltzmann distribution at two temperatures"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "x_title",
+     "y_title",
+     "t1",
+     "t2",
+     "ea_line"
+    ]
+   }
+  },
+  {
+   "id": "photoelectric-levels",
+   "question": "Explain the photoelectric effect (threshold frequency, work function) and the wavelength of a photon.",
+   "productionSource": "planner",
+   "productionVerdict": "partial",
+   "expect": {
+    "strict": "planner:",
+    "current": "fast_family:energy_level",
+    "current_unclassified": "fast_family:energy_level"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "0",
+      "E",
+      "K",
+      "hf",
+      "hf",
+      "φ"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 1,
+      "vector": 2
+     }
+    },
+    "current": {
+     "labels": [
+      "E (eV)",
+      "K",
+      "hν",
+      "hν",
+      "if hν > φ",
+      "φ",
+      "φ",
+      "φ not given"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 5,
+      "vector": 3
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "E (eV)",
+      "K",
+      "hν",
+      "hν",
+      "if hν > φ",
+      "φ",
+      "φ",
+      "φ not given"
+     ],
+     "marks": {
+      "axes": 1,
+      "line": 2,
+      "point": 5,
+      "vector": 3
+     }
+    }
+   },
+   "open": {
+    "strict": "the E axis title floats off its axis (lane 1 axes title, parked); the work function label left the K gap with #314",
+    "current": "the E axis title floats off its axis (lane 1 axes title, parked); φ left the K gap for the axis side with #314",
+    "current_unclassified": "same photoelectric figure (lane 1 axes title, parked)"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "photon_energy_planck_relation",
+     "photoelectric_threshold_condition",
+     "wave_speed_relation"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Explain the photoelectric effect (threshold frequency, work function) and the wavelength of a photon.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "Hz",
+      "symbol": "f0"
+     },
+     {
+      "id": "u2",
+      "unit": "J",
+      "symbol": "phi"
+     },
+     {
+      "id": "u3",
+      "unit": "m",
+      "symbol": "lambda"
+     }
+    ],
+    "assumptions": [
+     "The surface is in vacuum or air so photon speed is taken as c.",
+     "A single photon interacts with a single electron.",
+     "No numerical values for work function, threshold frequency, or wavelength were provided, so only symbolic relations can be stated."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Threshold frequency is the minimum photon frequency needed to eject an electron from a given material.",
+      "expected": "f0 = phi / h",
+      "relatedEntityHints": [
+       "metal surface",
+       "incident photon"
+      ],
+      "relatedQuantityIds": [
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Work function is the minimum energy needed to liberate an electron from the material.",
+      "expected": "phi = h f0",
+      "relatedEntityHints": [
+       "metal surface"
+      ],
+      "relatedQuantityIds": [
+       "u2",
+       "u1"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Photon wavelength is related to its frequency by the wave speed in vacuum.",
+      "expected": "lambda = c / f",
+      "relatedEntityHints": [
+       "incident photon"
+      ],
+      "relatedQuantityIds": [
+       "u3"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "At threshold, the photon wavelength is the longest wavelength that can cause photoemission.",
+      "expected": "lambda0 = c / f0 = h c / phi",
+      "relatedEntityHints": [
+       "incident photon",
+       "metal surface"
+      ],
+      "relatedQuantityIds": [
+       "u3",
+       "u1",
+       "u2"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "If the photon frequency is below the threshold frequency, no photoelectrons are emitted regardless of intensity.",
+      "expected": "No emission when f < f0; emission possible when f >= f0.",
+      "relatedEntityHints": [
+       "incident light",
+       "emitted electron"
+      ],
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain the photoelectric effect (threshold frequency, work function) and the wavelength of a photon.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "energy axis",
+      "label": "E"
+     },
+     {
+      "id": "zero",
+      "kind": "point",
+      "role": "zero of energy",
+      "label": "0"
+     },
+     {
+      "id": "phi_top",
+      "kind": "point",
+      "role": "work function mark"
+     },
+     {
+      "id": "E_top",
+      "kind": "point",
+      "role": "photon energy mark"
+     },
+     {
+      "id": "phi_bar_end",
+      "kind": "point",
+      "role": "work function line end"
+     },
+     {
+      "id": "phi_level",
+      "kind": "segment",
+      "role": "work function line",
+      "label": "φ"
+     },
+     {
+      "id": "E_bar_end",
+      "kind": "point",
+      "role": "photon energy line end"
+     },
+     {
+      "id": "E_level",
+      "kind": "segment",
+      "role": "photon energy line",
+      "label": "hf"
+     },
+     {
+      "id": "photon_base",
+      "kind": "point",
+      "role": "photon arrow base"
+     },
+     {
+      "id": "photon_tip",
+      "kind": "point",
+      "role": "photon arrow tip"
+     },
+     {
+      "id": "photon",
+      "kind": "vector",
+      "role": "photon",
+      "label": "hf"
+     },
+     {
+      "id": "k_base",
+      "kind": "point",
+      "role": "kinetic energy base"
+     },
+     {
+      "id": "k_tip",
+      "kind": "point",
+      "role": "kinetic energy tip"
+     },
+     {
+      "id": "kinetic",
+      "kind": "vector",
+      "role": "kinetic energy",
+      "label": "K"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "levels_parallel",
+      "entities": [
+       "phi_level",
+       "E_level"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "parallel"
+     },
+     {
+      "id": "label_phi_level",
+      "entities": [
+       "phi_level"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_E_level",
+      "entities": [
+       "E_level"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_photon",
+      "entities": [
+       "photon"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_kinetic",
+      "entities": [
+       "kinetic"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_zero",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "zero"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "narrate_setup",
+      "kind": "narration",
+      "text": "Energy balance for photoemission: a photon of energy hf strikes the metal; φ is the work function, the minimum energy needed to liberate an electron. The threshold frequency is f0 = φ/h. Any excess appears as kinetic energy K = hf − φ, so emission requires f ≥ f0. The photon wavelength follows from λ = c/f, and at threshold λ0 = c/f0 is the longest wavelength that can eject an electron.",
+      "targetIds": [
+       "axes",
+       "phi_level",
+       "E_level",
+       "photon",
+       "kinetic"
+      ],
+      "placementIntent": "below"
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "axes",
+       "zero",
+       "phi_top",
+       "E_top",
+       "phi_bar_end",
+       "phi_level",
+       "E_bar_end",
+       "E_level",
+       "photon_base",
+       "photon_tip",
+       "photon",
+       "k_base",
+       "k_tip",
+       "kinetic"
+      ],
+      "narrationCue": "Symbolic photoelectric energy balance: photon energy hf, work function φ, and kinetic energy K on one energy axis."
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "inputs": {
+       "xMax": 4,
+       "xMin": -0.5,
+       "yMax": 3.75,
+       "yMin": -0.6
+      },
+      "outputs": [
+       "axes"
+      ],
+      "operator": "axes"
+     },
+     {
+      "id": "make_zero",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "zero"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_phi_top",
+      "inputs": {
+       "x": 0,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "phi_top"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_E_top",
+      "inputs": {
+       "x": 0,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "E_top"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_phi_bar_end",
+      "inputs": {
+       "x": 1.4,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "phi_bar_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_phi_level",
+      "inputs": {
+       "end": "phi_bar_end",
+       "start": "phi_top"
+      },
+      "outputs": [
+       "phi_level"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_E_bar_end",
+      "inputs": {
+       "x": 1.4,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "E_bar_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_E_level",
+      "inputs": {
+       "end": "E_bar_end",
+       "start": "E_top"
+      },
+      "outputs": [
+       "E_level"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_photon_base",
+      "inputs": {
+       "x": 2.2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "photon_base"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_photon_tip",
+      "inputs": {
+       "x": 2.2,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "photon_tip"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_photon",
+      "inputs": {
+       "end": "photon_tip",
+       "start": "photon_base"
+      },
+      "outputs": [
+       "photon"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_k_base",
+      "inputs": {
+       "x": 3.1,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "k_base"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_k_tip",
+      "inputs": {
+       "x": 3.1,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "k_tip"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_kinetic",
+      "inputs": {
+       "end": "k_tip",
+       "start": "k_base"
+      },
+      "outputs": [
+       "kinetic"
+      ],
+      "operator": "vector"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Symbolic photoelectric energy-balance level diagram: energy axis, work function level, photon energy level, and kinetic energy remainder; no numerical values are given, so all levels are symbolic."
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "axes",
+     "zero",
+     "phi_top",
+     "E_top",
+     "phi_bar_end",
+     "phi_level",
+     "E_bar_end",
+     "E_level",
+     "photon_base",
+     "photon_tip",
+     "photon",
+     "k_base",
+     "k_tip",
+     "kinetic"
+    ]
+   }
+  },
+  {
+   "id": "solenoid-field",
+   "question": "How does a current carrying solenoid produce its magnetic field? Explain.",
+   "productionSource": "planner",
+   "productionVerdict": "partial",
+   "expect": {
+    "strict": "planner:",
+    "current": "fast_family:point_field",
+    "current_unclassified": "fast_family:point_field"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "B",
+      "I",
+      "axis",
+      "solenoid"
+     ],
+     "marks": {
+      "line": 7,
+      "point": 4,
+      "polyline": 3,
+      "rectangle": 1,
+      "vector": 1
+     }
+    },
+    "current": {
+     "labels": [
+      "B",
+      "I",
+      "n"
+     ],
+     "marks": {
+      "line": 11,
+      "point": 4,
+      "rectangle": 1,
+      "vector": 4
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "B",
+      "I",
+      "n"
+     ],
+     "marks": {
+      "line": 11,
+      "point": 4,
+      "rectangle": 1,
+      "vector": 4
+     }
+    }
+   },
+   "open": {
+    "strict": "partial: one turn arrow and B along the axis, no field pattern (lane 6)",
+    "current": "partial: the I arrow runs along the axis as if current flowed down the solenoid (lane 6)",
+    "current_unclassified": "same solenoid figure (lane 6)"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "Ampère's law",
+     "Magnetic field of an ideal solenoid"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "How does a current carrying solenoid produce its magnetic field? Explain.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "T",
+      "symbol": "B"
+     }
+    ],
+    "assumptions": [
+     "The solenoid is long compared with its radius.",
+     "The solenoid is tightly wound.",
+     "The current is steady.",
+     "The core is air or vacuum so μ = μ0."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "The magnetic field inside a long solenoid is uniform and directed along its axis.",
+      "expected": "B = μ0 n I",
+      "relatedEntityHints": [
+       "solenoid",
+       "axis"
+      ],
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The field outside an ideal long solenoid is approximately zero.",
+      "expected": "B_out ≈ 0",
+      "relatedEntityHints": [
+       "exterior region"
+      ],
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "The field strength increases with turns per unit length n and current I.",
+      "expected": "B ∝ n I",
+      "relatedEntityHints": [
+       "coil turns",
+       "current"
+      ],
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "How does a current carrying solenoid produce its magnetic field? Explain.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "axis_start",
+      "kind": "point",
+      "role": "axis endpoint"
+     },
+     {
+      "id": "axis_end",
+      "kind": "point",
+      "role": "axis endpoint"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "axis",
+      "label": "axis"
+     },
+     {
+      "id": "solenoid_body",
+      "kind": "rectangle",
+      "role": "solenoid",
+      "label": "solenoid"
+     },
+     {
+      "id": "s_p0",
+      "kind": "point",
+      "role": "solenoid corner"
+     },
+     {
+      "id": "s_p1",
+      "kind": "point",
+      "role": "solenoid corner"
+     },
+     {
+      "id": "s_p2",
+      "kind": "point",
+      "role": "solenoid corner"
+     },
+     {
+      "id": "s_p3",
+      "kind": "point",
+      "role": "solenoid corner"
+     },
+     {
+      "id": "turn1",
+      "kind": "segment",
+      "role": "turn"
+     },
+     {
+      "id": "turn2",
+      "kind": "segment",
+      "role": "turn"
+     },
+     {
+      "id": "turn3",
+      "kind": "segment",
+      "role": "turn"
+     },
+     {
+      "id": "t1a",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "t1b",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "t2a",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "t2b",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "t3a",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "t3b",
+      "kind": "point",
+      "role": "turn endpoint"
+     },
+     {
+      "id": "B_start",
+      "kind": "point",
+      "role": "field vector anchor"
+     },
+     {
+      "id": "B_end",
+      "kind": "point",
+      "role": "field vector tip"
+     },
+     {
+      "id": "B_axial",
+      "kind": "vector",
+      "role": "axial field",
+      "label": "B"
+     },
+     {
+      "id": "I_mark",
+      "kind": "sign_badge",
+      "role": "current sense",
+      "label": "I"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "b_parallel_axis",
+      "entities": [
+       "B_axial",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "parallel"
+     },
+     {
+      "id": "label_solenoid",
+      "entities": [
+       "solenoid_body"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_axis",
+      "entities": [
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_B",
+      "entities": [
+       "B_axial"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "narrate_setup",
+      "kind": "narration",
+      "text": "A long, tightly wound solenoid carrying steady current I; the interior field B is uniform and directed along the axis.",
+      "targetIds": [
+       "solenoid_body",
+       "B_axial"
+      ]
+     },
+     {
+      "id": "turns_hint",
+      "kind": "equal_tick",
+      "style": {
+       "count": 1,
+       "transient": false
+      },
+      "targetIds": [
+       "turn1",
+       "turn2",
+       "turn3"
+      ]
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "axis_start",
+       "axis_end",
+       "axis",
+       "s_p0",
+       "s_p1",
+       "s_p2",
+       "s_p3",
+       "solenoid_body",
+       "t1a",
+       "t1b",
+       "turn1",
+       "t2a",
+       "t2b",
+       "turn2",
+       "t3a",
+       "t3b",
+       "turn3",
+       "B_start",
+       "B_end",
+       "B_axial",
+       "I_mark"
+      ],
+      "narrationCue": "A long solenoid with evenly spaced turns, its axis, and the uniform axial field B inside."
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axis_start",
+      "inputs": {
+       "x": -4,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "axis_start"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_axis_end",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "axis_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_axis",
+      "inputs": {
+       "end": "axis_end",
+       "start": "axis_start"
+      },
+      "outputs": [
+       "axis"
+      ],
+      "operator": "line"
+     },
+     {
+      "id": "make_s_p0",
+      "inputs": {
+       "x": -3,
+       "y": -1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "s_p0"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_s_p1",
+      "inputs": {
+       "x": 3,
+       "y": -1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "s_p1"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_s_p2",
+      "inputs": {
+       "x": 3,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "s_p2"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_s_p3",
+      "inputs": {
+       "x": -3,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "s_p3"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_solenoid_body",
+      "inputs": {
+       "points": [
+        "s_p0",
+        "s_p1",
+        "s_p2",
+        "s_p3"
+       ]
+      },
+      "outputs": [
+       "solenoid_body"
+      ],
+      "operator": "polygon"
+     },
+     {
+      "id": "make_t1a",
+      "inputs": {
+       "x": -2,
+       "y": -1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t1a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_t1b",
+      "inputs": {
+       "x": -2,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t1b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_turn1",
+      "inputs": {
+       "end": "t1b",
+       "start": "t1a"
+      },
+      "outputs": [
+       "turn1"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_t2a",
+      "inputs": {
+       "x": 0,
+       "y": -1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t2a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_t2b",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t2b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_turn2",
+      "inputs": {
+       "end": "t2b",
+       "start": "t2a"
+      },
+      "outputs": [
+       "turn2"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_t3a",
+      "inputs": {
+       "x": 2,
+       "y": -1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t3a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_t3b",
+      "inputs": {
+       "x": 2,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "t3b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_turn3",
+      "inputs": {
+       "end": "t3b",
+       "start": "t3a"
+      },
+      "outputs": [
+       "turn3"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_B_start",
+      "inputs": {
+       "x": -1,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "B_start"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_B_end",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "B_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_B_axial",
+      "inputs": {
+       "end": "B_end",
+       "start": "B_start",
+       "direction": [
+        2,
+        0
+       ]
+      },
+      "outputs": [
+       "B_axial"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_I_mark",
+      "inputs": {
+       "at": 0.5,
+       "sense": "positive",
+       "target": "turn2"
+      },
+      "outputs": [
+       "I_mark"
+      ],
+      "operator": "sign_badge"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Symbolic long solenoid with its axial field: a named class with no stated member gets one generic nondegenerate member; no measurements are given, so the scene is qualitative and non-metric."
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "axis",
+     "solenoid_body",
+     "turn1",
+     "turn2",
+     "turn3",
+     "B_axial",
+     "I_mark",
+     "axis_start",
+     "axis_end",
+     "s_p0",
+     "s_p1",
+     "s_p2",
+     "s_p3",
+     "t1a",
+     "t1b",
+     "t2a",
+     "t2b",
+     "t3a",
+     "t3b",
+     "B_start",
+     "B_end"
+    ]
+   }
+  },
+  {
+   "id": "marketing-boxes",
+   "question": "Explain marketing information systems and the network of research agencies and data sources.",
+   "productionSource": "fast_family",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "subject": "other",
+    "question": "Explain marketing information systems and the network of research agencies and data sources.",
+    "unknowns": [],
+    "assumptions": [
+     "The question is a conceptual/expository prompt in marketing (business studies), not a numerical problem.",
+     "Standard textbook frameworks (Kotler & Armstrong) are used for MkIS components and research supplier taxonomy.",
+     "No specific company, dataset, or numeric values are provided, so no quantities are computed."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "A Marketing Information System (MkIS) is a structured, ongoing process of gathering, analyzing, storing, and distributing marketing data to support managerial decision-making.",
+      "expected": "MkIS = people + equipment + procedures to collect, sort, analyze, evaluate, and distribute needed, timely, and accurate information to marketing decision makers (Kotler's definition).",
+      "relatedEntityHints": [
+       "Marketing Information System",
+       "MkIS"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "The four core subsystems of an MkIS are internal records, marketing intelligence, marketing research, and marketing decision support/analysis.",
+      "expected": "Internal records (orders, sales, invoices, inventory); Marketing intelligence (everyday environmental scanning); Marketing research (systematic project-based studies); Marketing decision support system (statistical tools, models, databases).",
+      "relatedEntityHints": [
+       "internal records",
+       "marketing intelligence",
+       "marketing research",
+       "MDSS"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "The research agency ecosystem ranges from full-service suppliers to highly specialized limited-service providers.",
+      "expected": "Full-service agencies (e.g., Nielsen, Kantar, Ipsos, GfK) handle end-to-end projects; limited-service agencies specialize: field service/data collection firms, coding and data-entry, analytical services, branded product/syndicated services, online panel providers.",
+      "relatedEntityHints": [
+       "full-service agency",
+       "limited-service agency",
+       "field service",
+       "syndicated service"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "Data sources divide into internal vs external, and primary vs secondary, with secondary data further split into syndicated, government, and commercial sources.",
+      "expected": "Internal: sales records, CRM, loyalty data. External secondary: government census/statistics, trade publications, syndicated services (scanner data, audience ratings). Primary: surveys, experiments, observation, focus groups collected for the specific problem.",
+      "relatedEntityHints": [
+       "primary data",
+       "secondary data",
+       "syndicated data",
+       "internal data"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "The MkIS and the research ecosystem interact: the MkIS defines information needs, commissions or buys from agencies, and integrates external data with internal records for decisions.",
+      "expected": "Flow: managers define information needs -> MkIS develops information from internal records, intelligence, and commissioned research -> analyzes -> distributes to decision makers -> feedback loop.",
+      "relatedEntityHints": [
+       "information needs",
+       "data integration",
+       "decision support"
+      ]
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain marketing information systems and the network of research agencies and data sources.",
+     "nonMetric": true,
+     "conceptSchematic": true,
+     "synthesizedFamily": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "sys_a",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "A"
+     },
+     {
+      "id": "sys_b",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "B"
+     },
+     {
+      "id": "sys_c",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "C"
+     },
+     {
+      "id": "contact_1",
+      "kind": "segment",
+      "role": "thermal contact"
+     },
+     {
+      "id": "contact_2",
+      "kind": "segment",
+      "role": "thermal contact"
+     },
+     {
+      "id": "sys_a_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "sys_b_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "sys_c_c",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "sys_a_exists",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_a",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "sys_b_exists",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_b",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "sys_c_exists",
+      "entities": [
+       "sys_c"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_c",
+      "entities": [
+       "sys_c"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "contact_1_exists",
+      "entities": [
+       "contact_1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "contact_2_exists",
+      "entities": [
+       "contact_2"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     }
+    ],
+    "quantities": [],
+    "annotations": [],
+    "revealGroups": [
+     {
+      "id": "zeroth_law",
+      "dependsOn": [],
+      "entityIds": [
+       "sys_a",
+       "sys_b",
+       "sys_c",
+       "contact_1",
+       "contact_2"
+      ],
+      "narrationCue": "systems in thermal contact"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_sys_a_c",
+      "inputs": {
+       "x": -2.2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_a_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_a",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_a_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_a"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_sys_b_c",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_b_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_b",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_b_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_b"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_sys_c_c",
+      "inputs": {
+       "x": 2.2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_c_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_c",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_c_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_c"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_contact_1",
+      "inputs": {
+       "end": "sys_b_c",
+       "start": "sys_a_c"
+      },
+      "outputs": [
+       "contact_1"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_contact_2",
+      "inputs": {
+       "end": "sys_c_c",
+       "start": "sys_b_c"
+      },
+      "outputs": [
+       "contact_2"
+      ],
+      "operator": "segment"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "qualitative teaching schematic from the turn plan's named systems and flows"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_zeroth_law",
+      "action": "reveal",
+      "targetId": "zeroth_law",
+      "dependsOn": [],
+      "narrationIntent": "systems in thermal contact"
+     }
+    ],
+    "requiredEntityIds": [
+     "sys_a",
+     "sys_b",
+     "sys_c",
+     "contact_1",
+     "contact_2"
+    ]
+   }
+  },
+  {
+   "id": "life-processes-boxes",
+   "question": "Class 10 science: explain life processes in detail with notes, diagrams, definitions and a summary.",
+   "productionSource": "fast_family",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "Photosynthesis equation",
+     "Aerobic respiration equation",
+     "Anaerobic respiration in muscles/yeast",
+     "Transpiration pull theory",
+     "Double circulation pathway",
+     "Counter-current mechanism in nephron"
+    ],
+    "derived": [],
+    "subject": "biology",
+    "question": "Class 10 science: explain life processes in detail with notes, diagrams, definitions and a summary.",
+    "unknowns": [],
+    "assumptions": [
+     "CBSE Class 10 Science syllabus (NCERT) for 2027 includes Life Processes chapter with competency-based questions (case studies, assertion-reason, diagram identification).",
+     "Diagrams required: cross-section of leaf, human digestive system, respiratory system, heart structure, nephron structure, and excretory system.",
+     "Flashcards should cover definitions (e.g., peristalsis, translocation, dialysis), differences (e.g., arteries vs veins, xylem vs phloem), and function-organ matching.",
+     "Competency-based questions test application of concepts to real-life scenarios (e.g., why athletes have higher breathing rates, why dialysis is needed)."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Life processes are the essential maintenance functions of living organisms: nutrition, respiration, transportation, and excretion.",
+      "expected": "Nutrition (autotrophic via photosynthesis: 6CO2 + 6H2O -> C6H12O6 + 6O2; heterotrophic in animals), Respiration (aerobic/anaerobic breakdown of glucose to release ATP), Transportation (xylem/phloem in plants; heart-blood-vessels in humans), Excretion (removal of metabolic wastes like urea, CO2).",
+      "relatedEntityHints": [
+       "chloroplast",
+       "mitochondria",
+       "nephron",
+       "alveoli"
+      ],
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c2",
+      "claim": "Human digestive system pathway and enzyme action.",
+      "expected": "Mouth (salivary amylase) -> Oesophagus -> Stomach (HCl, pepsin) -> Small intestine (complete digestion via bile, pancreatic juice, intestinal juice; absorption by villi) -> Large intestine (water absorption) -> Anus.",
+      "relatedEntityHints": [
+       "villi",
+       "stomach",
+       "small intestine"
+      ],
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c3",
+      "claim": "Human respiratory mechanism and gas exchange.",
+      "expected": "Nostrils -> Trachea -> Bronchi -> Bronchioles -> Alveoli (site of gas exchange). Breathing involves diaphragm and rib muscles. Oxygen binds to haemoglobin in RBCs.",
+      "relatedEntityHints": [
+       "alveoli",
+       "diaphragm",
+       "trachea"
+      ],
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c4",
+      "claim": "Double circulation in humans and plant transport systems.",
+      "expected": "Human heart has 4 chambers (2 atria, 2 ventricles) preventing mixing of oxygenated/deoxygenated blood. Plants use xylem (water/minerals via transpiration pull) and phloem (food via translocation using ATP).",
+      "relatedEntityHints": [
+       "heart",
+       "xylem",
+       "phloem",
+       "capillaries"
+      ],
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c5",
+      "claim": "Excretion in humans (urinary system) and plants.",
+      "expected": "Nephrons in kidneys filter blood (glomerular filtration), reabsorb useful substances, and secrete wastes to form urine. Plants excrete via stomata (O2, water vapor), shedding leaves, or storing wastes in vacuoles/bark.",
+      "relatedEntityHints": [
+       "nephron",
+       "glomerulus",
+       "stomata"
+      ],
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c6",
+      "claim": "Competency-based focus for CBSE 2027: application, analysis, and diagram-based questions.",
+      "expected": "Emphasis on interpreting experimental data (e.g., photosynthesis rate vs light intensity), identifying structures in diagrams, and explaining physiological consequences of system failures (e.g., blocked artery, kidney failure).",
+      "relatedEntityHints": [
+       "experimental setup",
+       "flow chart",
+       "cross-section diagram"
+      ],
+      "relatedQuantityIds": []
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Class 10 science: explain life processes in detail with notes, diagrams, definitions and a summary.",
+     "nonMetric": true,
+     "conceptSchematic": true,
+     "synthesizedFamily": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "sys_a",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "A"
+     },
+     {
+      "id": "sys_b",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "B"
+     },
+     {
+      "id": "sys_c",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "C"
+     },
+     {
+      "id": "contact_1",
+      "kind": "segment",
+      "role": "thermal contact"
+     },
+     {
+      "id": "contact_2",
+      "kind": "segment",
+      "role": "thermal contact"
+     },
+     {
+      "id": "sys_a_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "sys_b_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "sys_c_c",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "sys_a_exists",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_a",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "sys_b_exists",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_b",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "sys_c_exists",
+      "entities": [
+       "sys_c"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_c",
+      "entities": [
+       "sys_c"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "contact_1_exists",
+      "entities": [
+       "contact_1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "contact_2_exists",
+      "entities": [
+       "contact_2"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     }
+    ],
+    "quantities": [],
+    "annotations": [],
+    "revealGroups": [
+     {
+      "id": "zeroth_law",
+      "dependsOn": [],
+      "entityIds": [
+       "sys_a",
+       "sys_b",
+       "sys_c",
+       "contact_1",
+       "contact_2"
+      ],
+      "narrationCue": "systems in thermal contact"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_sys_a_c",
+      "inputs": {
+       "x": -2.2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_a_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_a",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_a_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_a"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_sys_b_c",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_b_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_b",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_b_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_b"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_sys_c_c",
+      "inputs": {
+       "x": 2.2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_c_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_c",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_c_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_c"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_contact_1",
+      "inputs": {
+       "end": "sys_b_c",
+       "start": "sys_a_c"
+      },
+      "outputs": [
+       "contact_1"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_contact_2",
+      "inputs": {
+       "end": "sys_c_c",
+       "start": "sys_b_c"
+      },
+      "outputs": [
+       "contact_2"
+      ],
+      "operator": "segment"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "qualitative teaching schematic from the turn plan's named systems and flows"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_zeroth_law",
+      "action": "reveal",
+      "targetId": "zeroth_law",
+      "dependsOn": [],
+      "narrationIntent": "systems in thermal contact"
+     }
+    ],
+    "requiredEntityIds": [
+     "sys_a",
+     "sys_b",
+     "sys_c",
+     "contact_1",
+     "contact_2"
+    ]
+   }
+  },
+  {
+   "id": "aviation-meteorology-boxes",
+   "question": "Teach me the first chapter of meteorology for aviation.",
+   "productionSource": "fast_family",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "subject": "other",
+    "question": "Teach me the first chapter of meteorology for aviation.",
+    "unknowns": [],
+    "assumptions": [
+     "Chapter 1 refers to an introductory aviation metrology textbook or syllabus.",
+     "The user wants a teaching explanation rather than a numerical problem solution."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Metrology is the science of measurement, and in aviation it ensures that aircraft components, instruments, and systems are measured accurately for safety and performance.",
+      "expected": "Metrology = science of measurement; critical in aviation for safety, reliability, and compliance with standards."
+     },
+     {
+      "id": "c2",
+      "claim": "Chapter 1 of aviation metrology typically introduces the importance of measurement, units, and standards.",
+      "expected": "Key topics: definition of metrology, SI units, measurement standards, traceability, and calibration."
+     },
+     {
+      "id": "c3",
+      "claim": "In aviation, precise measurements are required for aircraft dimensions, fuel quantity, pressure, temperature, and navigation systems.",
+      "expected": "Examples: altimeters, airspeed indicators, fuel gauges, and engine instruments all rely on accurate metrology."
+     },
+     {
+      "id": "c4",
+      "claim": "Traceability ensures that measurements can be linked back to national or international standards through an unbroken chain of calibrations.",
+      "expected": "Traceability chain: working instrument → calibration lab → national standard → international standard."
+     },
+     {
+      "id": "c5",
+      "claim": "Calibration is the process of comparing a measuring instrument against a known standard to determine and correct any deviation.",
+      "expected": "Calibration ensures accuracy and reliability of aviation instruments."
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": {
+    "id": "problem",
+    "facts": [
+     {
+      "id": "fTeach",
+      "kind": "requested",
+      "evidence": {
+       "end": 46,
+       "quote": "Teach me the first chapter of meteorology for aviation.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Teach metrology chapter 1 aviation"
+     }
+    ],
+    "entities": [],
+    "question": "Teach me the first chapter of meteorology for aviation.",
+    "constraints": [],
+    "expressions": [],
+    "schemaVersion": "problem-ir/v1",
+    "solveRequests": [],
+    "representationIntents": []
+   },
+   "candidate": {
+    "source": {
+     "question": "Teach me the first chapter of meteorology for aviation.",
+     "nonMetric": true,
+     "conceptSchematic": true,
+     "synthesizedFamily": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "sys_a",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "A"
+     },
+     {
+      "id": "sys_b",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "B"
+     },
+     {
+      "id": "contact_1",
+      "kind": "segment",
+      "role": "thermal contact"
+     },
+     {
+      "id": "sys_a_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "sys_b_c",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "sys_a_exists",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_a",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "sys_b_exists",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_b",
+      "entities": [
+       "sys_b"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "contact_1_exists",
+      "entities": [
+       "contact_1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     }
+    ],
+    "quantities": [],
+    "annotations": [],
+    "revealGroups": [
+     {
+      "id": "zeroth_law",
+      "dependsOn": [],
+      "entityIds": [
+       "sys_a",
+       "sys_b",
+       "contact_1"
+      ],
+      "narrationCue": "systems in thermal contact"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_sys_a_c",
+      "inputs": {
+       "x": -1.6,
+       "y": 1.8,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_a_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_a",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_a_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_a"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_sys_b_c",
+      "inputs": {
+       "x": 1.6,
+       "y": 1.8,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_b_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_b",
+      "inputs": {
+       "width": 1.5,
+       "center": "sys_b_c",
+       "height": 0.95
+      },
+      "outputs": [
+       "sys_b"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_contact_1",
+      "inputs": {
+       "end": "sys_b_c",
+       "start": "sys_a_c"
+      },
+      "outputs": [
+       "contact_1"
+      ],
+      "operator": "segment"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "qualitative teaching schematic from the turn plan's named systems and flows"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_zeroth_law",
+      "action": "reveal",
+      "targetId": "zeroth_law",
+      "dependsOn": [],
+      "narrationIntent": "systems in thermal contact"
+     }
+    ],
+    "requiredEntityIds": [
+     "sys_a",
+     "sys_b",
+     "contact_1"
+    ]
+   }
+  },
+  {
+   "id": "chem-thermodynamics-box",
+   "question": "Explain thermodynamics for JEE chemistry.",
+   "productionSource": "fast_family",
+   "productionVerdict": "misleading",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "First Law of Thermodynamics",
+     "Second Law of Thermodynamics",
+     "Hess's Law",
+     "Gibbs Free Energy",
+     "Ideal Gas Law"
+    ],
+    "derived": [],
+    "subject": "chemistry",
+    "question": "Explain thermodynamics for JEE chemistry.",
+    "unknowns": [],
+    "assumptions": [
+     "Focus on JEE Main/Advanced syllabus: basic concepts, laws, calculations.",
+     "No specific numerical problem provided; explanation is conceptual."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Thermodynamics studies energy transformations in chemical and physical processes, focusing on macroscopic properties like temperature, pressure, and volume.",
+      "expected": "Core concepts include system, surroundings, state functions, and path functions."
+     },
+     {
+      "id": "c2",
+      "claim": "The First Law of Thermodynamics states that energy is conserved; the change in internal energy (ΔU) of a system equals heat added (q) minus work done by the system (w).",
+      "expected": "ΔU = q - w (for expansion work, w = PΔV)."
+     },
+     {
+      "id": "c3",
+      "claim": "Enthalpy (H) is a state function defined as H = U + PV, useful for constant-pressure processes.",
+      "expected": "ΔH = q_p (heat at constant pressure)."
+     },
+     {
+      "id": "c4",
+      "claim": "Entropy (S) measures disorder; the Second Law states that the entropy of the universe increases for spontaneous processes.",
+      "expected": "ΔS_universe > 0 for spontaneous processes."
+     },
+     {
+      "id": "c5",
+      "claim": "Gibbs free energy (G) determines spontaneity at constant temperature and pressure: ΔG = ΔH - TΔS.",
+      "expected": "ΔG < 0 for spontaneous, ΔG = 0 at equilibrium, ΔG > 0 for non-spontaneous."
+     },
+     {
+      "id": "c6",
+      "claim": "Hess's Law: The total enthalpy change for a reaction is the same, regardless of the pathway.",
+      "expected": "ΔH_total = ΣΔH_steps."
+     },
+     {
+      "id": "c7",
+      "claim": "For ideal gases, internal energy depends only on temperature; isothermal processes have ΔU = 0.",
+      "expected": "q = w for isothermal expansion/compression."
+     },
+     {
+      "id": "c8",
+      "claim": "Calorimetry measures heat changes; q = mcΔT for sensible heat, q = nΔH for phase changes.",
+      "expected": "Use specific heat capacity (c) or molar heat capacity."
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain thermodynamics for JEE chemistry.",
+     "nonMetric": true,
+     "conceptSchematic": true,
+     "synthesizedFamily": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "sys_a",
+      "kind": "rectangle",
+      "role": "system",
+      "label": "U"
+     },
+     {
+      "id": "heat_q",
+      "kind": "vector",
+      "role": "heat",
+      "label": "Q"
+     },
+     {
+      "id": "work_w",
+      "kind": "vector",
+      "role": "work",
+      "label": "W"
+     },
+     {
+      "id": "sys_a_c",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "heat_q_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "heat_q_e",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "work_w_s",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "work_w_e",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "sys_a_exists",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_sys_a",
+      "entities": [
+       "sys_a"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "heat_q_exists",
+      "entities": [
+       "heat_q"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_heat_q",
+      "entities": [
+       "heat_q"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "work_w_exists",
+      "entities": [
+       "work_w"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "exists"
+     },
+     {
+      "id": "label_work_w",
+      "entities": [
+       "work_w"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [],
+    "revealGroups": [
+     {
+      "id": "first_law",
+      "dependsOn": [],
+      "entityIds": [
+       "sys_a",
+       "heat_q",
+       "work_w"
+      ],
+      "narrationCue": "heat Q into the system and work W leaving it"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_sys_a_c",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "sys_a_c"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_sys_a",
+      "inputs": {
+       "width": 2.1,
+       "center": "sys_a_c",
+       "height": 1.2
+      },
+      "outputs": [
+       "sys_a"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "make_heat_q_s",
+      "inputs": {
+       "x": -2.7,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "heat_q_s"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_heat_q_e",
+      "inputs": {
+       "x": -1.15,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "heat_q_e"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_heat_q",
+      "inputs": {
+       "end": "heat_q_e",
+       "start": "heat_q_s"
+      },
+      "outputs": [
+       "heat_q"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_work_w_s",
+      "inputs": {
+       "x": 0,
+       "y": 0.7,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "work_w_s"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_work_w_e",
+      "inputs": {
+       "x": 0,
+       "y": 1.7,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "work_w_e"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_work_w",
+      "inputs": {
+       "end": "work_w_e",
+       "start": "work_w_s"
+      },
+      "outputs": [
+       "work_w"
+      ],
+      "operator": "vector"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "qualitative teaching schematic from the turn plan's named systems and flows"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_first_law",
+      "action": "reveal",
+      "targetId": "first_law",
+      "dependsOn": [],
+      "narrationIntent": "heat Q into the system and work W leaving it"
+     }
+    ],
+    "requiredEntityIds": [
+     "sys_a",
+     "heat_q",
+     "work_w"
+    ]
+   }
+  },
+  {
+   "id": "emitter-follower-two-cells",
+   "question": "Explain the voltage gain of an emitter follower in detail.",
+   "productionSource": "fast_family",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "small-signal analysis",
+     "hybrid-pi model",
+     "Kirchhoff voltage law",
+     "transistor current relations"
+    ],
+    "derived": [],
+    "subject": "electronics",
+    "question": "Explain the voltage gain of an emitter follower in detail.",
+    "unknowns": [
+     {
+      "id": "Av",
+      "unit": "V/V",
+      "symbol": "A_v"
+     }
+    ],
+    "assumptions": [
+     "BJT in active region",
+     "small-signal operation",
+     "mid-band frequencies (capacitors shorted)",
+     "R_E is emitter resistor",
+     "β >> 1",
+     "r_π = β/g_m"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Voltage gain expression",
+      "expected": "A_v = (β+1)R_E / (r_π + (β+1)R_E) ≈ 1",
+      "relatedEntityHints": [
+       "emitter follower",
+       "common collector"
+      ],
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Gain is slightly less than unity",
+      "expected": "0 < A_v < 1, typically 0.95–0.99",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Phase relationship",
+      "expected": "Output follows input (0° phase shift, non-inverting)",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "High input impedance",
+      "expected": "Z_in ≈ (β+1)(r_e + R_E)",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "Low output impedance",
+      "expected": "Z_out ≈ r_e + R_S/(β+1)",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "Current gain",
+      "expected": "A_i ≈ β+1 (high current gain despite unity voltage gain)",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c7",
+      "claim": "Power gain",
+      "expected": "A_p = A_v × A_i ≈ β+1 (moderate power gain)",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     },
+     {
+      "id": "c8",
+      "claim": "Applications",
+      "expected": "Buffer amplifier, impedance matching, driving low-impedance loads",
+      "relatedQuantityIds": [
+       "Av"
+      ]
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain the voltage gain of an emitter follower in detail.",
+     "archetype": "two_loop_network",
+     "slotSources": {},
+     "exactGrounding": null,
+     "synthesizedFamily": true
+    },
+    "entities": [
+     {
+      "id": "n_tl",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "n_tc",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "n_tr",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "n_bl",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "n_bc",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "n_br",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "r1",
+      "kind": "component",
+      "role": "resistor",
+      "label": "R1"
+     },
+     {
+      "id": "r2",
+      "kind": "component",
+      "role": "resistor",
+      "label": "R2"
+     },
+     {
+      "id": "r3",
+      "kind": "component",
+      "role": "resistor",
+      "label": "R3"
+     },
+     {
+      "id": "v1",
+      "kind": "component",
+      "role": "source",
+      "label": "E1"
+     },
+     {
+      "id": "v2",
+      "kind": "component",
+      "role": "source",
+      "label": "E2"
+     },
+     {
+      "id": "w_bl",
+      "kind": "connector",
+      "role": "return path"
+     },
+     {
+      "id": "w_br",
+      "kind": "connector",
+      "role": "return path"
+     },
+     {
+      "id": "i1_at",
+      "kind": "point",
+      "role": "current label anchor"
+     },
+     {
+      "id": "i2_at",
+      "kind": "point",
+      "role": "current label anchor"
+     },
+     {
+      "id": "i3_at",
+      "kind": "point",
+      "role": "current label anchor"
+     },
+     {
+      "id": "I1",
+      "kind": "vector",
+      "role": "current in the left loop",
+      "label": "I1"
+     },
+     {
+      "id": "I2",
+      "kind": "vector",
+      "role": "current in the right loop",
+      "label": "I2"
+     },
+     {
+      "id": "I3",
+      "kind": "vector",
+      "role": "current in the shared branch",
+      "label": "I3"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "left_loop",
+      "entities": [
+       "v1",
+       "r1",
+       "r3"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "path"
+     },
+     {
+      "id": "right_loop",
+      "entities": [
+       "v2",
+       "r2",
+       "r3"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "path"
+     },
+     {
+      "id": "return_connected",
+      "entities": [
+       "w_bl",
+       "w_br"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "connected"
+     },
+     {
+      "id": "label_r1",
+      "entities": [
+       "r1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_v1",
+      "entities": [
+       "v1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "current_sense",
+      "kind": "sense",
+      "targetIds": [
+       "r3"
+      ]
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "network",
+      "dependsOn": [],
+      "entityIds": [
+       "n_tl",
+       "n_tc",
+       "n_tr",
+       "n_bl",
+       "n_bc",
+       "n_br",
+       "r1",
+       "r2",
+       "r3",
+       "v1",
+       "v2",
+       "w_bl",
+       "w_br"
+      ],
+      "narrationCue": "two loops sharing the middle branch"
+     },
+     {
+      "id": "currents",
+      "dependsOn": [
+       "network"
+      ],
+      "entityIds": [
+       "i1_at",
+       "i2_at",
+       "i3_at",
+       "I1",
+       "I2",
+       "I3"
+      ],
+      "narrationCue": "one current per branch"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_n_tl",
+      "inputs": {
+       "x": 0,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_tl"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_n_tc",
+      "inputs": {
+       "x": 3,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_tc"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_n_tr",
+      "inputs": {
+       "x": 6,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_tr"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_n_bl",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_bl"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_n_bc",
+      "inputs": {
+       "x": 3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_bc"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_n_br",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "n_br"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_r1",
+      "inputs": {
+       "end": "n_tc",
+       "start": "n_tl",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "r1"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_r2",
+      "inputs": {
+       "end": "n_tr",
+       "start": "n_tc",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "r2"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_r3",
+      "inputs": {
+       "end": "n_bc",
+       "start": "n_tc",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "r3"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_v1",
+      "inputs": {
+       "end": "n_tl",
+       "start": "n_bl",
+       "symbol": "battery"
+      },
+      "outputs": [
+       "v1"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_v2",
+      "inputs": {
+       "end": "n_tr",
+       "start": "n_br",
+       "symbol": "battery"
+      },
+      "outputs": [
+       "v2"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_w_bl",
+      "inputs": {
+       "end": "n_bc",
+       "start": "n_bl"
+      },
+      "outputs": [
+       "w_bl"
+      ],
+      "operator": "connect"
+     },
+     {
+      "id": "make_w_br",
+      "inputs": {
+       "end": "n_br",
+       "start": "n_bc"
+      },
+      "outputs": [
+       "w_br"
+      ],
+      "operator": "connect"
+     },
+     {
+      "id": "make_i1_at",
+      "inputs": {
+       "x": 1.2,
+       "y": 2.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "i1_at"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_i2_at",
+      "inputs": {
+       "x": 4.8,
+       "y": 2.6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "i2_at"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_i3_at",
+      "inputs": {
+       "x": 3.6,
+       "y": 1.2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "i3_at"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_I1",
+      "inputs": {
+       "start": "i1_at",
+       "length": 0.7,
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "I1"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_I2",
+      "inputs": {
+       "start": "i2_at",
+       "length": 0.7,
+       "direction": [
+        -1,
+        0
+       ]
+      },
+      "outputs": [
+       "I2"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_I3",
+      "inputs": {
+       "start": "i3_at",
+       "length": 0.7,
+       "direction": [
+        0,
+        -1
+       ]
+      },
+      "outputs": [
+       "I3"
+      ],
+      "operator": "vector"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "two-loop network: two sources with a shared middle branch"
+    },
+    "teachingTimeline": [
+     {
+      "id": "reveal_network",
+      "action": "reveal",
+      "targetId": "network",
+      "dependsOn": [],
+      "narrationIntent": "two loops sharing the middle branch"
+     },
+     {
+      "id": "reveal_currents",
+      "action": "reveal",
+      "targetId": "currents",
+      "dependsOn": [
+       "reveal_network"
+      ],
+      "narrationIntent": "one current per branch"
+     }
+    ],
+    "requiredEntityIds": [
+     "n_tl",
+     "n_tc",
+     "n_tr",
+     "n_bl",
+     "n_bc",
+     "n_br",
+     "r1",
+     "r2",
+     "r3",
+     "v1",
+     "v2",
+     "w_bl",
+     "w_br",
+     "i1_at",
+     "i2_at",
+     "i3_at",
+     "I1",
+     "I2",
+     "I3"
+    ]
+   }
+  },
+  {
+   "id": "electricity-basics-current",
+   "question": "Explain the class 10 electricity chapter from the basics, simply enough for a child.",
+   "productionSource": "planner",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "Ohm's law",
+     "Joule's law of heating",
+     "Series and parallel resistance rules",
+     "Electric power relations",
+     "Kirchhoff's current idea (charge conservation)"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Explain the class 10 electricity chapter from the basics, simply enough for a child.",
+    "unknowns": [],
+    "assumptions": [
+     "Class 10 CBSE/NCERT Electricity chapter scope: current, potential difference, Ohm's law, resistance, resistivity, series/parallel circuits, heating effect, electric power",
+     "Explanation uses simple water-pipe analogy suitable for a child",
+     "Conventional current direction (positive to negative) is used as per NCERT"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Electricity is the flow of tiny charged particles called electrons through a conductor, like water flowing through a pipe",
+      "expected": "Current is the rate of flow of electric charge: I = Q/t, measured in amperes (A)"
+     },
+     {
+      "id": "c2",
+      "claim": "Voltage (potential difference) is the push that makes electrons move, like water pressure in a pipe",
+      "expected": "V = W/Q, measured in volts (V); 1 volt = 1 joule per coulomb"
+     },
+     {
+      "id": "c3",
+      "claim": "Resistance opposes the flow of current, like a narrow section in a water pipe",
+      "expected": "R = V/I (Ohm's law), measured in ohms; depends on length, area, material, temperature"
+     },
+     {
+      "id": "c4",
+      "claim": "Ohm's law connects voltage, current and resistance in a simple relation",
+      "expected": "V = IR; current is directly proportional to voltage at constant temperature"
+     },
+     {
+      "id": "c5",
+      "claim": "Resistors in series add up; in parallel the reciprocal adds up",
+      "expected": "Series: R = R1+R2+R3; Parallel: 1/R = 1/R1+1/R2+1/R3"
+     },
+     {
+      "id": "c6",
+      "claim": "Electric power is the rate at which electrical energy is used",
+      "expected": "P = VI = I²R = V²/R, measured in watts (W); 1 kWh = 3.6 × 10⁶ J is the commercial unit"
+     },
+     {
+      "id": "c7",
+      "claim": "Heating effect of current: conductors heat up when current flows, used in heaters and fuses",
+      "expected": "Heat H = I²Rt (Joule's law of heating)"
+     },
+     {
+      "id": "c8",
+      "claim": "A complete circuit needs a source (cell/battery), a path (wires), and usually a load (bulb) and a switch; current flows from positive to negative terminal outside the cell (conventional current)",
+      "expected": "Circuit components: cell, battery, resistor, ammeter (series), voltmeter (parallel), switch, rheostat"
+     }
+    ],
+    "visualRequirement": "optional"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain the class 10 electricity chapter from the basics, simply enough for a child.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified",
+     "circuitTopologyRepaired": true
+    },
+    "entities": [
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "corner"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "corner"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "corner"
+     },
+     {
+      "id": "D",
+      "kind": "point",
+      "role": "corner"
+     },
+     {
+      "id": "cell",
+      "kind": "component",
+      "role": "source",
+      "label": "Cell"
+     },
+     {
+      "id": "switch",
+      "kind": "component",
+      "role": "switch",
+      "label": "Switch"
+     },
+     {
+      "id": "resistor",
+      "kind": "component",
+      "role": "resistor",
+      "label": "R"
+     },
+     {
+      "id": "wire1",
+      "kind": "connector",
+      "role": "wire"
+     },
+     {
+      "id": "current",
+      "kind": "sign_badge",
+      "role": "current direction",
+      "label": "I"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "circuit_closed",
+      "entities": [
+       "cell",
+       "switch",
+       "resistor"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "connected"
+     },
+     {
+      "id": "label_cell",
+      "entities": [
+       "cell"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_switch",
+      "entities": [
+       "switch"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_resistor",
+      "entities": [
+       "resistor"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_current",
+      "entities": [
+       "current"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "cell",
+       "wire1",
+       "resistor",
+       "switch",
+       "current"
+      ],
+      "narrationCue": "A simple closed loop: cell pushes charge, wires guide it, switch controls it, resistor uses it"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_A",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "A"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_B",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "B"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_C",
+      "inputs": {
+       "x": 4,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "C"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_D",
+      "inputs": {
+       "x": 0,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "D"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_cell",
+      "inputs": {
+       "end": "A",
+       "start": "D",
+       "symbol": "cell"
+      },
+      "outputs": [
+       "cell"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_wire1",
+      "inputs": {
+       "end": "B",
+       "start": "A"
+      },
+      "outputs": [
+       "wire1"
+      ],
+      "operator": "connect"
+     },
+     {
+      "id": "make_resistor",
+      "inputs": {
+       "end": "C",
+       "start": "B",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "resistor"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_switch",
+      "inputs": {
+       "end": "D",
+       "start": "C",
+       "state": "closed",
+       "symbol": "switch"
+      },
+      "outputs": [
+       "switch"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_current",
+      "inputs": {
+       "at": 0.5,
+       "sense": "positive",
+       "target": "wire1"
+      },
+      "outputs": [
+       "current"
+      ],
+      "operator": "sign_badge"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Simple closed circuit with a cell, switch, and resistor to show the basic parts of an electric circuit for a class 10 introduction"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "cell",
+     "switch",
+     "resistor",
+     "wire1",
+     "current"
+    ]
+   }
+  },
+  {
+   "id": "wheatstone-glyphs",
+   "question": "Explain the Wheatstone bridge with calculations.",
+   "productionSource": "planner",
+   "productionVerdict": "wrong",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [
+     {
+      "id": "g1",
+      "unit": "ohm",
+      "value": 10,
+      "symbol": "R1",
+      "provenance": "given",
+      "sourceText": "Assumed arm resistance for numerical illustration"
+     },
+     {
+      "id": "g2",
+      "unit": "ohm",
+      "value": 20,
+      "symbol": "R2",
+      "provenance": "given",
+      "sourceText": "Assumed arm resistance for numerical illustration"
+     },
+     {
+      "id": "g3",
+      "unit": "ohm",
+      "value": 30,
+      "symbol": "R3",
+      "provenance": "given",
+      "sourceText": "Assumed arm resistance for numerical illustration"
+     },
+     {
+      "id": "g4",
+      "unit": "V",
+      "value": 12,
+      "symbol": "Vs",
+      "provenance": "given",
+      "sourceText": "Assumed supply voltage for numerical illustration"
+     }
+    ],
+    "lawIds": [
+     "Ohm's law",
+     "Kirchhoff's voltage law",
+     "Kirchhoff's current law",
+     "Wheatstone bridge balance condition",
+     "series voltage divider"
+    ],
+    "derived": [
+     {
+      "id": "u1",
+      "unit": "ohm",
+      "value": 60,
+      "symbol": "R4",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3"
+      ],
+      "provenance": "derived",
+      "sourceText": "R4 = R2*R3/R1 = 20*30/10 = 60"
+     },
+     {
+      "id": "u2",
+      "unit": "V",
+      "value": 0,
+      "symbol": "Vg",
+      "dependsOn": [
+       "g1",
+       "g2",
+       "g3",
+       "u1",
+       "g4"
+      ],
+      "provenance": "derived",
+      "sourceText": "Vg = Vs*(R3/(R1+R3) - R4/(R2+R4)) = 12*(30/40 - 60/80) = 0"
+     },
+     {
+      "id": "u3",
+      "unit": "A",
+      "value": 0.3,
+      "symbol": "I1",
+      "dependsOn": [
+       "g1",
+       "g3",
+       "g4"
+      ],
+      "provenance": "derived",
+      "sourceText": "I1 = Vs/(R1+R3) = 12/40 = 0.3"
+     },
+     {
+      "id": "u4",
+      "unit": "A",
+      "value": 0.15,
+      "symbol": "I2",
+      "dependsOn": [
+       "g2",
+       "u1",
+       "g4"
+      ],
+      "provenance": "derived",
+      "sourceText": "I2 = Vs/(R2+R4) = 12/80 = 0.15"
+     }
+    ],
+    "subject": "physics",
+    "question": "Explain the Wheatstone bridge with calculations.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "ohm",
+      "symbol": "R4"
+     },
+     {
+      "id": "u2",
+      "unit": "V",
+      "symbol": "Vg"
+     },
+     {
+      "id": "u3",
+      "unit": "A",
+      "symbol": "I1"
+     },
+     {
+      "id": "u4",
+      "unit": "A",
+      "symbol": "I2"
+     }
+    ],
+    "assumptions": [
+     "Resistor and supply values are illustrative, not from the prompt",
+     "Ideal galvanometer with negligible loading at balance",
+     "Resistors are ohmic and temperature-stable",
+     "Supply is an ideal DC voltage source"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "A Wheatstone bridge has four resistive arms in a diamond, a supply across one diagonal, and a galvanometer across the other.",
+      "expected": "Four-arm bridge topology with source diagonal and detector diagonal",
+      "relatedEntityHints": [
+       "resistors",
+       "galvanometer",
+       "supply"
+      ],
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3",
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "At balance the galvanometer current is zero, so the two midpoints are at equal potential.",
+      "expected": "Vg = 0 and Ig = 0 at balance",
+      "relatedEntityHints": [
+       "galvanometer",
+       "midpoints"
+      ],
+      "relatedQuantityIds": [
+       "u2"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Balance condition is the ratio equality R1/R2 = R3/R4, equivalently R1*R4 = R2*R3.",
+      "expected": "R1/R2 = R3/R4",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3",
+       "u1"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "With the illustrative values 10, 20, 30 ohm, the unknown fourth arm computes to 60 ohm.",
+      "expected": "R4 = R2*R3/R1 = 60 ohm",
+      "relatedQuantityIds": [
+       "g1",
+       "g2",
+       "g3",
+       "u1"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "With a 12 V supply the branch currents at balance are 0.3 A and 0.2 A, and the galvanometer voltage is exactly zero.",
+      "expected": "I1 = 0.3 A, I2 = 0.2 A, Vg = 0 V",
+      "relatedQuantityIds": [
+       "u2",
+       "u3",
+       "u4",
+       "g4"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "If R4 differs from the balance value, the midpoint potentials differ and the galvanometer deflects; sign of deflection indicates whether R4 is high or low.",
+      "expected": "Vg = Vs*(R3/(R1+R3) - R4/(R2+R4)) nonzero off balance",
+      "relatedEntityHints": [
+       "galvanometer"
+      ],
+      "relatedQuantityIds": [
+       "u2",
+       "u1"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": {
+    "id": "problem",
+    "facts": [
+     {
+      "id": "fExplain",
+      "kind": "requested",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Explain the Wheatstone bridge with calculations"
+     },
+     {
+      "id": "fR1",
+      "kind": "assumption",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Arm resistance R1 is 10 ohm"
+     },
+     {
+      "id": "fR2",
+      "kind": "assumption",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Arm resistance R2 is 20 ohm"
+     },
+     {
+      "id": "fR3",
+      "kind": "assumption",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Arm resistance R3 is 30 ohm"
+     },
+     {
+      "id": "fVs",
+      "kind": "assumption",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Supply voltage is 12 V"
+     },
+     {
+      "id": "fR4",
+      "kind": "requested",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Find unknown fourth arm resistance"
+     },
+     {
+      "id": "fVg",
+      "kind": "requested",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Find galvanometer voltage"
+     },
+     {
+      "id": "fI1",
+      "kind": "requested",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Find branch current I1"
+     },
+     {
+      "id": "fI2",
+      "kind": "requested",
+      "evidence": {
+       "end": 44,
+       "quote": "Explain the Wheatstone bridge with calculations.",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Find branch current I2"
+     }
+    ],
+    "entities": [
+     {
+      "id": "r1",
+      "kind": "component",
+      "label": "R1",
+      "evidenceFactIds": [
+       "fR1"
+      ]
+     },
+     {
+      "id": "r2",
+      "kind": "component",
+      "label": "R2",
+      "evidenceFactIds": [
+       "fR2"
+      ]
+     },
+     {
+      "id": "r3",
+      "kind": "component",
+      "label": "R3",
+      "evidenceFactIds": [
+       "fR3"
+      ]
+     },
+     {
+      "id": "r4",
+      "kind": "component",
+      "label": "R4",
+      "evidenceFactIds": [
+       "fR4"
+      ]
+     },
+     {
+      "id": "galv",
+      "kind": "component",
+      "label": "galvanometer",
+      "evidenceFactIds": [
+       "fVg"
+      ]
+     },
+     {
+      "id": "supply",
+      "kind": "component",
+      "label": "supply",
+      "evidenceFactIds": [
+       "fVs"
+      ]
+     }
+    ],
+    "question": "Explain the Wheatstone bridge with calculations.",
+    "constraints": [],
+    "expressions": [
+     {
+      "id": "eR4",
+      "root": {
+       "kind": "binary",
+       "left": {
+        "kind": "binary",
+        "left": {
+         "kind": "number",
+         "value": 20
+        },
+        "right": {
+         "kind": "number",
+         "value": 30
+        },
+        "operator": "*"
+       },
+       "right": {
+        "kind": "number",
+        "value": 10
+       },
+       "operator": "/"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fR1",
+       "fR2",
+       "fR3"
+      ]
+     },
+     {
+      "id": "eVg",
+      "root": {
+       "kind": "binary",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "binary",
+        "left": {
+         "kind": "binary",
+         "left": {
+          "kind": "number",
+          "value": 30
+         },
+         "right": {
+          "kind": "binary",
+          "left": {
+           "kind": "number",
+           "value": 10
+          },
+          "right": {
+           "kind": "number",
+           "value": 30
+          },
+          "operator": "+"
+         },
+         "operator": "/"
+        },
+        "right": {
+         "kind": "binary",
+         "left": {
+          "kind": "number",
+          "value": 60
+         },
+         "right": {
+          "kind": "binary",
+          "left": {
+           "kind": "number",
+           "value": 20
+          },
+          "right": {
+           "kind": "number",
+           "value": 60
+          },
+          "operator": "+"
+         },
+         "operator": "/"
+        },
+        "operator": "-"
+       },
+       "operator": "*"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fR1",
+       "fR2",
+       "fR3",
+       "fVs"
+      ]
+     },
+     {
+      "id": "eI1",
+      "root": {
+       "kind": "binary",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "binary",
+        "left": {
+         "kind": "number",
+         "value": 10
+        },
+        "right": {
+         "kind": "number",
+         "value": 30
+        },
+        "operator": "+"
+       },
+       "operator": "/"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fR1",
+       "fR3",
+       "fVs"
+      ]
+     },
+     {
+      "id": "eI2",
+      "root": {
+       "kind": "binary",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "binary",
+        "left": {
+         "kind": "number",
+         "value": 20
+        },
+        "right": {
+         "kind": "number",
+         "value": 60
+        },
+        "operator": "+"
+       },
+       "operator": "/"
+      },
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fR2",
+       "fVs"
+      ]
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "solveRequests": [
+     {
+      "id": "sR4",
+      "kind": "evaluate",
+      "expressionId": "eR4",
+      "resultBinding": {
+       "unit": "ohm",
+       "symbol": "R4",
+       "evidenceFactIds": [
+        "fR4"
+       ],
+       "turnPlanQuantityId": "u1"
+      }
+     },
+     {
+      "id": "sVg",
+      "kind": "evaluate",
+      "expressionId": "eVg",
+      "resultBinding": {
+       "unit": "V",
+       "symbol": "Vg",
+       "evidenceFactIds": [
+        "fVg"
+       ],
+       "turnPlanQuantityId": "u2"
+      }
+     },
+     {
+      "id": "sI1",
+      "kind": "evaluate",
+      "expressionId": "eI1",
+      "resultBinding": {
+       "unit": "A",
+       "symbol": "I1",
+       "evidenceFactIds": [
+        "fI1"
+       ],
+       "turnPlanQuantityId": "u3"
+      }
+     },
+     {
+      "id": "sI2",
+      "kind": "evaluate",
+      "expressionId": "eI2",
+      "resultBinding": {
+       "unit": "A",
+       "symbol": "I2",
+       "evidenceFactIds": [
+        "fI2"
+       ],
+       "turnPlanQuantityId": "u4"
+      }
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iBridge",
+      "kind": "network",
+      "entityIds": [
+       "r1",
+       "r2",
+       "r3",
+       "r4",
+       "galv",
+       "supply"
+      ],
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     }
+    ]
+   },
+   "candidate": {
+    "source": {
+     "question": "Explain the Wheatstone bridge with calculations.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified",
+     "circuitTopologyRepaired": true
+    },
+    "entities": [
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "D",
+      "kind": "point",
+      "role": "node"
+     },
+     {
+      "id": "R1",
+      "kind": "component",
+      "role": "bridge arm",
+      "label": "R1 = 10 Ω"
+     },
+     {
+      "id": "R2",
+      "kind": "component",
+      "role": "bridge arm",
+      "label": "R2 = 20 Ω"
+     },
+     {
+      "id": "R3",
+      "kind": "component",
+      "role": "bridge arm",
+      "label": "R3 = 30 Ω"
+     },
+     {
+      "id": "R4",
+      "kind": "component",
+      "role": "bridge arm",
+      "label": "R4 = ?"
+     },
+     {
+      "id": "G",
+      "kind": "component",
+      "role": "galvanometer",
+      "label": "G"
+     },
+     {
+      "id": "Vs",
+      "kind": "component",
+      "role": "source",
+      "label": "Vs = 12 V"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "upper_path",
+      "entities": [
+       "R1",
+       "R2"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "path"
+     },
+     {
+      "id": "lower_path",
+      "entities": [
+       "R3",
+       "R4"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "path"
+     },
+     {
+      "id": "galvanometer_bridges",
+      "entities": [
+       "G",
+       "R1",
+       "R2",
+       "R3",
+       "R4"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "connected"
+     },
+     {
+      "id": "label_R1",
+      "entities": [
+       "R1"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_G",
+      "entities": [
+       "G"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_Vs",
+      "entities": [
+       "Vs"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [
+     {
+      "id": "g1",
+      "unit": "ohm",
+      "value": 10,
+      "symbol": "R1"
+     },
+     {
+      "id": "g2",
+      "unit": "ohm",
+      "value": 20,
+      "symbol": "R2"
+     },
+     {
+      "id": "g3",
+      "unit": "ohm",
+      "value": 30,
+      "symbol": "R3"
+     },
+     {
+      "id": "g4",
+      "unit": "V",
+      "value": 12,
+      "symbol": "Vs"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "narration_setup",
+      "kind": "narration",
+      "text": "Wheatstone bridge: four resistive arms in a diamond configuration with supply across one diagonal and galvanometer across the other.",
+      "targetIds": [
+       "R1",
+       "R2",
+       "R3",
+       "R4",
+       "G",
+       "Vs"
+      ],
+      "placementIntent": "below"
+     },
+     {
+      "id": "narration_balance",
+      "kind": "narration",
+      "text": "At balance, galvanometer current is zero and R1/R2 = R3/R4.",
+      "targetIds": [
+       "G"
+      ],
+      "placementIntent": "right"
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "R1",
+       "R2",
+       "R3",
+       "R4",
+       "G",
+       "Vs"
+      ],
+      "narrationCue": "Wheatstone bridge with four arms, galvanometer detector, and supply"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_A",
+      "inputs": {
+       "x": 0,
+       "y": 2,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "A"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_B",
+      "inputs": {
+       "x": 2,
+       "y": 4,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "B"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_C",
+      "inputs": {
+       "x": 4,
+       "y": 2,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "C"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_D",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "D"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_R1",
+      "inputs": {
+       "end": "B",
+       "start": "A",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "R1"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_R2",
+      "inputs": {
+       "end": "C",
+       "start": "B",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "R2"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_R3",
+      "inputs": {
+       "end": "D",
+       "start": "A",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "R3"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_R4",
+      "inputs": {
+       "end": "C",
+       "start": "D",
+       "symbol": "resistor"
+      },
+      "outputs": [
+       "R4"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_G",
+      "inputs": {
+       "end": "D",
+       "start": "B",
+       "symbol": "galvanometer"
+      },
+      "outputs": [
+       "G"
+      ],
+      "operator": "symbol"
+     },
+     {
+      "id": "make_Vs",
+      "inputs": {
+       "end": "C",
+       "start": "A",
+       "symbol": "battery"
+      },
+      "outputs": [
+       "Vs"
+      ],
+      "operator": "symbol"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Wheatstone bridge with four resistive arms in a diamond, supply across one diagonal, galvanometer across the other, showing setup with given values"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "R1",
+     "R2",
+     "R3",
+     "R4",
+     "G",
+     "Vs"
+    ]
+   }
+  },
+  {
+   "id": "archimedes-stacked-forces",
+   "question": "Derive Archimedes' principle and explain it simply.",
+   "productionSource": "planner",
+   "productionVerdict": "misleading",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "archimedes_principle",
+     "fluid_pressure_depth_relation",
+     "newtons_second_law"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Derive Archimedes' principle and explain it simply.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "N",
+      "symbol": "F_b"
+     }
+    ],
+    "assumptions": [
+     "The fluid is incompressible and has uniform density.",
+     "The object is fully submerged in the fluid.",
+     "The fluid is in a state of hydrostatic equilibrium.",
+     "Gravitational acceleration 'g' is constant.",
+     "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Archimedes' Principle states that the upward buoyant force on a submerged object equals the weight of the fluid it displaces.",
+      "expected": "F_b = ρ * V * g",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Derivation Step 1: Pressure in a fluid increases with depth. The pressure at the bottom of a submerged object is greater than the pressure at the top.",
+      "expected": "P_bottom > P_top",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c3",
+      "claim": "Derivation Step 2: This pressure difference creates a net upward force. The upward force from the bottom is stronger than the downward force from the top.",
+      "expected": "F_net = F_up - F_down",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "Derivation Step 3: This net upward force is exactly equal to the weight of the fluid that would occupy the object's volume.",
+      "expected": "F_b = Weight of displaced fluid = m_fluid * g = (ρ * V) * g",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "Simple Explanation: Imagine a bucket of water. When you put an object in, it pushes some water out of the way. The water pushes back with a force equal to the weight of the water that was pushed aside. This push is the buoyant force.",
+      "expected": "Buoyant Force = Weight of displaced water",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Derive Archimedes' principle and explain it simply.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "fluid_region",
+      "kind": "polygon",
+      "role": "fluid body"
+     },
+     {
+      "id": "obj_center",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "obj_body",
+      "kind": "rectangle",
+      "role": "submerged object",
+      "label": "object"
+     },
+     {
+      "id": "top_anchor",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "bottom_anchor",
+      "kind": "point",
+      "role": "helper point"
+     },
+     {
+      "id": "f_down",
+      "kind": "vector",
+      "role": "force on top face",
+      "label": "F_down"
+     },
+     {
+      "id": "f_up",
+      "kind": "vector",
+      "role": "force on bottom face",
+      "label": "F_up"
+     },
+     {
+      "id": "f_buoyant",
+      "kind": "vector",
+      "role": "net buoyant force",
+      "label": "F_b"
+     },
+     {
+      "id": "fluid_label",
+      "kind": "label",
+      "role": "direction marker",
+      "label": "fluid"
+     },
+     {
+      "id": "fluid_p1",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "fluid_p2",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "fluid_p3",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "fluid_p4",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "a1",
+      "entities": [
+       "obj_center",
+       "fluid_region"
+      ],
+      "expected": true,
+      "severity": "warning",
+      "predicate": "on"
+     },
+     {
+      "id": "a2",
+      "entities": [
+       "f_down",
+       "f_up"
+      ],
+      "expected": true,
+      "severity": "warning",
+      "predicate": "opposite_direction"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "n1",
+      "kind": "narration",
+      "text": "Pressure grows with depth, so the push on the bottom face exceeds the push on the top face.",
+      "targetIds": [
+       "f_down",
+       "f_up"
+      ],
+      "placementIntent": "below"
+     },
+     {
+      "id": "n2",
+      "kind": "narration",
+      "text": "The net upward push is the buoyant force F_b, equal to the weight of the displaced fluid: F_b = rho * V * g.",
+      "targetIds": [
+       "f_buoyant"
+      ],
+      "placementIntent": "right"
+     },
+     {
+      "id": "n3",
+      "kind": "narration",
+      "text": "The object pushes fluid aside; the fluid pushes back with the weight of the displaced fluid.",
+      "targetIds": [
+       "obj_body"
+      ],
+      "placementIntent": "above"
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "g1",
+      "dependsOn": [],
+      "entityIds": [
+       "fluid_region",
+       "fluid_label",
+       "obj_center",
+       "obj_body",
+       "top_anchor",
+       "bottom_anchor",
+       "f_down",
+       "f_up",
+       "f_buoyant"
+      ],
+      "narrationCue": "reveal scene"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "c_fluid",
+      "inputs": {
+       "points": [
+        "fluid_p1",
+        "fluid_p2",
+        "fluid_p3",
+        "fluid_p4"
+       ]
+      },
+      "outputs": [
+       "fluid_region"
+      ],
+      "operator": "polygon"
+     },
+     {
+      "id": "c_fluid_p1",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "fluid_p1"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fluid_p2",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "fluid_p2"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fluid_p3",
+      "inputs": {
+       "x": 6,
+       "y": 4,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "fluid_p3"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fluid_p4",
+      "inputs": {
+       "x": 0,
+       "y": 4,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "fluid_p4"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_obj_center",
+      "inputs": {
+       "x": 3,
+       "y": 2,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "obj_center"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_obj",
+      "inputs": {
+       "width": 1.6,
+       "center": "obj_center",
+       "height": 1.2
+      },
+      "outputs": [
+       "obj_body"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "c_top_anchor",
+      "inputs": {
+       "x": 3,
+       "y": 2.6,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "top_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_bottom_anchor",
+      "inputs": {
+       "x": 3,
+       "y": 1.4,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "bottom_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_f_down",
+      "inputs": {
+       "start": "top_anchor",
+       "length": 0.7,
+       "direction": [
+        0,
+        -1
+       ]
+      },
+      "outputs": [
+       "f_down"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c_f_up",
+      "inputs": {
+       "start": "bottom_anchor",
+       "length": 1.1,
+       "direction": [
+        0,
+        1
+       ]
+      },
+      "outputs": [
+       "f_up"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c_f_buoyant",
+      "inputs": {
+       "start": "obj_center",
+       "length": 0.5,
+       "direction": [
+        0,
+        1
+       ]
+      },
+      "outputs": [
+       "f_buoyant"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c_fluid_label",
+      "inputs": {
+       "text": "fluid",
+       "target": "fluid_region"
+      },
+      "outputs": [
+       "fluid_label"
+      ],
+      "operator": "label"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "planner visual decision"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "fluid_region",
+     "obj_body",
+     "f_down",
+     "f_up",
+     "f_buoyant",
+     "obj_center",
+     "fluid_label",
+     "top_anchor",
+     "bottom_anchor"
+    ]
+   }
+  },
+  {
+   "id": "archimedes-net-force",
+   "question": "Derive Archimedes' principle and explain it simply.",
+   "productionSource": "planner",
+   "productionVerdict": "misleading",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "archimedes_principle",
+     "fluid_pressure_depth_relation",
+     "newtons_second_law"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Derive Archimedes' principle and explain it simply.",
+    "unknowns": [
+     {
+      "id": "u1",
+      "unit": "N",
+      "symbol": "F_B"
+     }
+    ],
+    "assumptions": [
+     "The fluid is incompressible and at rest.",
+     "The object is fully or partially submerged.",
+     "Gravitational field is uniform.",
+     "Surface tension effects are neglected."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Archimedes' Principle states that any object completely or partially submerged in a fluid is buoyed up by a force equal to the weight of the fluid displaced by the object.",
+      "expected": "F_B = Weight of displaced fluid",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Derivation Step 1: Consider a submerged object. The fluid exerts pressure on all surfaces of the object.",
+      "expected": "Pressure acts perpendicular to the surface.",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c3",
+      "claim": "Derivation Step 2: Pressure in a fluid increases with depth (P = ρ_f * g * h). Therefore, the pressure at the bottom of the object is greater than the pressure at the top.",
+      "expected": "P_bottom > P_top",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c4",
+      "claim": "Derivation Step 3: This pressure difference results in a net upward force. The upward force on the bottom surface is greater than the downward force on the top surface.",
+      "expected": "F_upward > F_downward",
+      "relatedQuantityIds": []
+     },
+     {
+      "id": "c5",
+      "claim": "Derivation Step 4: The net upward force (buoyant force) is equal to the weight of the volume of fluid that the object occupies (displaces).",
+      "expected": "F_B = (mass of displaced fluid) * g = (ρ_f * V_sub) * g",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "Easy Explanation: Imagine a bucket of water. When you put an object in, some water spills out. The weight of that spilled water is exactly how much lighter the object feels inside the water. The water pushes up on the object with a force equal to the weight of the water it pushed aside.",
+      "expected": "Buoyancy is the 'kickback' from the displaced fluid.",
+      "relatedQuantityIds": [
+       "u1"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Derive Archimedes' principle and explain it simply.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "tank",
+      "kind": "rectangle",
+      "role": "container",
+      "label": "Tank"
+     },
+     {
+      "id": "fluid",
+      "kind": "rectangle",
+      "role": "fluid",
+      "label": "Fluid"
+     },
+     {
+      "id": "obj",
+      "kind": "rectangle",
+      "role": "submerged object",
+      "label": "Object"
+     },
+     {
+      "id": "p_top",
+      "kind": "point",
+      "role": "top surface point"
+     },
+     {
+      "id": "p_bot",
+      "kind": "point",
+      "role": "bottom surface point"
+     },
+     {
+      "id": "f_down",
+      "kind": "vector",
+      "role": "downward force",
+      "label": "F_top"
+     },
+     {
+      "id": "f_up",
+      "kind": "vector",
+      "role": "upward force",
+      "label": "F_bottom"
+     },
+     {
+      "id": "f_net",
+      "kind": "vector",
+      "role": "buoyant force",
+      "label": "F_B"
+     },
+     {
+      "id": "disp",
+      "kind": "rectangle",
+      "role": "displaced fluid",
+      "label": "Displaced fluid"
+     },
+     {
+      "id": "w_disp",
+      "kind": "vector",
+      "role": "weight of displaced fluid",
+      "label": "W_disp"
+     },
+     {
+      "id": "tank_center_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "fluid_center_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "obj_center_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "f_down_start_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "f_up_start_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "f_net_start_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "disp_center_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "w_disp_start_anchor",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "a1",
+      "entities": [
+       "f_down",
+       "f_up"
+      ],
+      "expected": true,
+      "severity": "warning",
+      "predicate": "opposite_direction"
+     },
+     {
+      "id": "a2",
+      "entities": [
+       "f_net",
+       "w_disp"
+      ],
+      "expected": true,
+      "severity": "warning",
+      "predicate": "opposite_direction"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "n1",
+      "kind": "narration",
+      "text": "Fluid pressure pushes on every face of the submerged object, perpendicular to each surface.",
+      "targetIds": [
+       "obj"
+      ],
+      "placementIntent": "above"
+     },
+     {
+      "id": "n2",
+      "kind": "narration",
+      "text": "Pressure grows with depth, so the upward push on the deeper bottom face beats the downward push on the top face.",
+      "targetIds": [
+       "f_up",
+       "f_down"
+      ],
+      "placementIntent": "left"
+     },
+     {
+      "id": "n3",
+      "kind": "narration",
+      "text": "The net upward force is the buoyant force F_B.",
+      "targetIds": [
+       "f_net"
+      ],
+      "placementIntent": "right"
+     },
+     {
+      "id": "n4",
+      "kind": "narration",
+      "text": "F_B equals the weight of the displaced fluid: F_B = rho_f * V_sub * g. The water pushed aside is exactly how much lighter the object feels.",
+      "targetIds": [
+       "disp",
+       "w_disp"
+      ],
+      "placementIntent": "right"
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "g1",
+      "dependsOn": [],
+      "entityIds": [
+       "tank",
+       "fluid",
+       "obj",
+       "p_top",
+       "p_bot",
+       "f_down",
+       "f_up",
+       "f_net",
+       "disp",
+       "w_disp"
+      ],
+      "narrationCue": "reveal scene"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "construct_tank_center_anchor",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "tank_center_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_tank",
+      "inputs": {
+       "width": 6,
+       "center": "tank_center_anchor",
+       "height": 4
+      },
+      "outputs": [
+       "tank"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "construct_fluid_center_anchor",
+      "inputs": {
+       "x": 0,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "fluid_center_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fluid",
+      "inputs": {
+       "width": 5.6,
+       "center": "fluid_center_anchor",
+       "height": 3
+      },
+      "outputs": [
+       "fluid"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "construct_obj_center_anchor",
+      "inputs": {
+       "x": 0,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "obj_center_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_obj",
+      "inputs": {
+       "width": 1.6,
+       "center": "obj_center_anchor",
+       "height": 1.6
+      },
+      "outputs": [
+       "obj"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "c_ptop",
+      "inputs": {
+       "x": 0,
+       "y": 0.3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_top"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_pbot",
+      "inputs": {
+       "x": 0,
+       "y": -1.3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p_bot"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "construct_f_down_start_anchor",
+      "inputs": {
+       "x": 0,
+       "y": 0.3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f_down_start_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fdown",
+      "inputs": {
+       "start": "f_down_start_anchor",
+       "length": 0.8,
+       "direction": [
+        0,
+        -1
+       ]
+      },
+      "outputs": [
+       "f_down"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "construct_f_up_start_anchor",
+      "inputs": {
+       "x": 0,
+       "y": -1.3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f_up_start_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fup",
+      "inputs": {
+       "start": "f_up_start_anchor",
+       "length": 1.4,
+       "direction": [
+        0,
+        1
+       ]
+      },
+      "outputs": [
+       "f_up"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "construct_f_net_start_anchor",
+      "inputs": {
+       "x": 0,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f_net_start_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_fnet",
+      "inputs": {
+       "start": "f_net_start_anchor",
+       "length": 0.6,
+       "direction": [
+        0,
+        1
+       ]
+      },
+      "outputs": [
+       "f_net"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "construct_disp_center_anchor",
+      "inputs": {
+       "x": 4.5,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "disp_center_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_disp",
+      "inputs": {
+       "width": 1.6,
+       "center": "disp_center_anchor",
+       "height": 1.6
+      },
+      "outputs": [
+       "disp"
+      ],
+      "operator": "rectangle"
+     },
+     {
+      "id": "construct_w_disp_start_anchor",
+      "inputs": {
+       "x": 4.5,
+       "y": -0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "w_disp_start_anchor"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c_wdisp",
+      "inputs": {
+       "start": "w_disp_start_anchor",
+       "length": 0.6,
+       "direction": [
+        0,
+        -1
+       ]
+      },
+      "outputs": [
+       "w_disp"
+      ],
+      "operator": "vector"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "planner visual decision"
+    },
+    "teachingTimeline": [
+     {
+      "id": "timeline_1",
+      "note": "Setup: an object submerged in a fluid at rest.",
+      "step": 1,
+      "action": "reveal",
+      "targetId": "tank",
+      "dependsOn": [],
+      "targetIds": [
+       "tank",
+       "fluid",
+       "obj"
+      ],
+      "narrationIntent": "reveal tank"
+     },
+     {
+      "id": "timeline_2",
+      "note": "Pressure acts on all surfaces; it is larger at greater depth, so the bottom push exceeds the top push.",
+      "step": 2,
+      "action": "reveal",
+      "targetId": "p_top",
+      "dependsOn": [],
+      "targetIds": [
+       "p_top",
+       "p_bot",
+       "f_down",
+       "f_up"
+      ],
+      "narrationIntent": "reveal p_top"
+     },
+     {
+      "id": "timeline_3",
+      "note": "The pressure difference gives a net upward buoyant force F_B.",
+      "step": 3,
+      "action": "reveal",
+      "targetId": "f_net",
+      "dependsOn": [],
+      "targetIds": [
+       "f_net"
+      ],
+      "narrationIntent": "reveal f_net"
+     },
+     {
+      "id": "timeline_4",
+      "note": "F_B equals the weight of the displaced fluid, F_B = rho_f * V_sub * g — the spilled water's weight is how much lighter the object feels.",
+      "step": 4,
+      "action": "reveal",
+      "targetId": "disp",
+      "dependsOn": [],
+      "targetIds": [
+       "disp",
+       "w_disp"
+      ],
+      "narrationIntent": "reveal disp"
+     }
+    ],
+    "requiredEntityIds": [
+     "tank",
+     "fluid",
+     "obj",
+     "f_down",
+     "f_up",
+     "f_net",
+     "disp",
+     "w_disp",
+     "p_top",
+     "p_bot"
+    ]
+   }
+  },
+  {
+   "id": "hydraulic-press-arrows",
+   "question": "Explain the hydraulic press using Pascal's law, with a diagram and a simple explanation.",
+   "productionSource": "planner",
+   "productionVerdict": "misleading",
+   "expect": {
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "pascals-law",
+     "pressure-definition-P=F/A",
+     "conservation-of-energy"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Explain the hydraulic press using Pascal's law, with a diagram and a simple explanation.",
+    "unknowns": [],
+    "assumptions": [
+     "Liquid is incompressible and enclosed",
+     "Friction and weight of pistons are neglected (ideal press)",
+     "Both pistons are at the same height so no hydrostatic height correction"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Pascal's law: pressure applied to an enclosed fluid is transmitted equally and undiminished in all directions throughout the fluid.",
+      "expected": "P = F/A is the same at every point in the confined liquid, so pressure under the small piston equals pressure under the large piston."
+     },
+     {
+      "id": "c2",
+      "claim": "A hydraulic press has two connected cylinders of different cross-sectional areas filled with liquid, each fitted with a piston.",
+      "expected": "A small force F1 on the small piston (area A1) creates pressure P = F1/A1; this same pressure acts on the large piston (area A2), giving output force F2 = P*A2 = F1*(A2/A1).",
+      "relatedEntityHints": [
+       "small piston",
+       "large piston",
+       "liquid",
+       "connecting pipe"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Because A2 > A1, the output force F2 is greater than the applied force F1; the press is a force multiplier.",
+      "expected": "Mechanical advantage = F2/F1 = A2/A1 > 1."
+     },
+     {
+      "id": "c4",
+      "claim": "Energy is conserved: the small piston moves through a much larger distance than the large piston rises.",
+      "expected": "F1*d1 = F2*d2 (ideal, no friction), so d2 = d1*(A1/A2); force is gained at the cost of distance."
+     },
+     {
+      "id": "c5",
+      "claim": "Diagram should show two connected cylinders (narrow on left, wide on right), liquid inside, a small downward force on the small piston and a large upward force lifting a load on the large piston, with labels F1, A1, F2, A2 and equal-pressure arrows in the fluid.",
+      "expected": "Annotated sketch: small piston pushed down, pressure transmitted through liquid, large piston pushed up with load.",
+      "relatedEntityHints": [
+       "small piston",
+       "large piston",
+       "load",
+       "liquid reservoir"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain the hydraulic press using Pascal's law, with a diagram and a simple explanation.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "cyl_small",
+      "kind": "polyline",
+      "role": "solid projection",
+      "label": "small cylinder"
+     },
+     {
+      "id": "cyl_large",
+      "kind": "polyline",
+      "role": "solid projection",
+      "label": "large cylinder"
+     },
+     {
+      "id": "pipe",
+      "kind": "polyline",
+      "role": "solid projection",
+      "label": "connecting pipe"
+     },
+     {
+      "id": "piston_small",
+      "kind": "polyline",
+      "role": "solid cross section",
+      "label": "small piston"
+     },
+     {
+      "id": "piston_large",
+      "kind": "polyline",
+      "role": "solid cross section",
+      "label": "large piston"
+     },
+     {
+      "id": "fluid_small",
+      "kind": "polyline",
+      "role": "solid cross section"
+     },
+     {
+      "id": "fluid_large",
+      "kind": "polyline",
+      "role": "solid cross section"
+     },
+     {
+      "id": "fluid_pipe",
+      "kind": "polyline",
+      "role": "solid cross section"
+     },
+     {
+      "id": "force1",
+      "kind": "vector",
+      "role": "vector",
+      "label": "F1"
+     },
+     {
+      "id": "force2",
+      "kind": "vector",
+      "role": "vector",
+      "label": "F2"
+     },
+     {
+      "id": "pressure_arrow1",
+      "kind": "vector",
+      "role": "vector"
+     },
+     {
+      "id": "pressure_arrow2",
+      "kind": "vector",
+      "role": "vector"
+     },
+     {
+      "id": "pressure_arrow3",
+      "kind": "vector",
+      "role": "vector"
+     },
+     {
+      "id": "pressure_arrow4",
+      "kind": "vector",
+      "role": "vector"
+     },
+     {
+      "id": "load",
+      "kind": "rectangle",
+      "role": "rectangle",
+      "label": "load"
+     },
+     {
+      "id": "p_small_bottom",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_large_bottom",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pipe_left",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_force1_start",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_force1_end",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_force2_start",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_force2_end",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure1",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure2",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure3",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure4",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure5",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure6",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure7",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_pressure8",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "p_load_center",
+      "kind": "point",
+      "role": "construction helper"
+     }
+    ],
+    "relations": [],
+    "assertions": [],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "a1",
+      "kind": "label",
+      "text": "area A1",
+      "targetIds": [
+       "piston_small"
+      ]
+     },
+     {
+      "id": "a2",
+      "kind": "label",
+      "text": "area A2",
+      "targetIds": [
+       "piston_large"
+      ]
+     },
+     {
+      "id": "a3",
+      "kind": "label",
+      "text": "liquid",
+      "targetIds": [
+       "fluid_pipe"
+      ]
+     },
+     {
+      "id": "a4",
+      "kind": "label",
+      "text": "P",
+      "targetIds": [
+       "pressure_arrow1"
+      ]
+     },
+     {
+      "id": "a5",
+      "kind": "label",
+      "text": "P",
+      "targetIds": [
+       "pressure_arrow3"
+      ]
+     },
+     {
+      "id": "a6",
+      "kind": "narration",
+      "text": "Pascal's law: pressure applied to the enclosed liquid is transmitted equally and undiminished in all directions, so the pressure under the small piston equals the pressure under the large piston.",
+      "targetIds": [
+       "cyl_small",
+       "cyl_large",
+       "pipe"
+      ]
+     },
+     {
+      "id": "a7",
+      "kind": "narration",
+      "text": "A small force F1 on the small piston creates pressure P = F1/A1; the same pressure acts on the large piston, giving F2 = P*A2 = F1*(A2/A1). Since A2 > A1, the press multiplies force.",
+      "targetIds": [
+       "force1",
+       "force2"
+      ]
+     },
+     {
+      "id": "a8",
+      "kind": "narration",
+      "text": "Energy is conserved: the small piston moves down through a much larger distance than the large piston rises, so force is gained at the cost of distance.",
+      "targetIds": [
+       "piston_small",
+       "piston_large"
+      ]
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "g1",
+      "dependsOn": [],
+      "entityIds": [
+       "cyl_small",
+       "cyl_large",
+       "pipe",
+       "piston_small",
+       "piston_large",
+       "fluid_small",
+       "fluid_large",
+       "fluid_pipe",
+       "force1",
+       "force2",
+       "pressure_arrow1",
+       "pressure_arrow2",
+       "pressure_arrow3",
+       "pressure_arrow4",
+       "load"
+      ],
+      "narrationCue": "reveal scene"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "c1",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_small_bottom"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c3",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_large_bottom"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c5",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pipe_left"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c7",
+      "inputs": {
+       "axis": "vertical",
+       "kind": "cylinder",
+       "center": "p_small_bottom",
+       "height": 4,
+       "radius": 1
+      },
+      "outputs": [
+       "cyl_small"
+      ],
+      "operator": "solid_projection"
+     },
+     {
+      "id": "c8",
+      "inputs": {
+       "axis": "vertical",
+       "kind": "cylinder",
+       "center": "p_large_bottom",
+       "height": 4,
+       "radius": 2
+      },
+      "outputs": [
+       "cyl_large"
+      ],
+      "operator": "solid_projection"
+     },
+     {
+      "id": "c9",
+      "inputs": {
+       "axis": "horizontal",
+       "kind": "cylinder",
+       "center": "p_pipe_left",
+       "height": 4,
+       "radius": 0.4
+      },
+      "outputs": [
+       "pipe"
+      ],
+      "operator": "solid_projection"
+     },
+     {
+      "id": "c10",
+      "inputs": {
+       "at": 0.75,
+       "solid": "cyl_small"
+      },
+      "outputs": [
+       "piston_small"
+      ],
+      "operator": "solid_cross_section"
+     },
+     {
+      "id": "c11",
+      "inputs": {
+       "at": 0.5,
+       "solid": "cyl_large"
+      },
+      "outputs": [
+       "piston_large"
+      ],
+      "operator": "solid_cross_section"
+     },
+     {
+      "id": "c12",
+      "inputs": {
+       "at": 0.4,
+       "solid": "cyl_small"
+      },
+      "outputs": [
+       "fluid_small"
+      ],
+      "operator": "solid_cross_section"
+     },
+     {
+      "id": "c13",
+      "inputs": {
+       "at": 0.25,
+       "solid": "cyl_large"
+      },
+      "outputs": [
+       "fluid_large"
+      ],
+      "operator": "solid_cross_section"
+     },
+     {
+      "id": "c14",
+      "inputs": {
+       "at": 0.5,
+       "solid": "pipe"
+      },
+      "outputs": [
+       "fluid_pipe"
+      ],
+      "operator": "solid_cross_section"
+     },
+     {
+      "id": "c17",
+      "inputs": {
+       "x": 0,
+       "y": 6,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_force1_start"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c18",
+      "inputs": {
+       "x": 0,
+       "y": 4.5,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_force1_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c19",
+      "inputs": {
+       "x": 6,
+       "y": 2.5,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_force2_start"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c20",
+      "inputs": {
+       "x": 6,
+       "y": 4.5,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_force2_end"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c21",
+      "inputs": {
+       "end": "p_force1_end",
+       "start": "p_force1_start"
+      },
+      "outputs": [
+       "force1"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c22",
+      "inputs": {
+       "end": "p_force2_end",
+       "start": "p_force2_start"
+      },
+      "outputs": [
+       "force2"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c23",
+      "inputs": {
+       "x": 0,
+       "y": 2,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure1"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c24",
+      "inputs": {
+       "x": 0.8,
+       "y": 2,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure2"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c25",
+      "inputs": {
+       "end": "p_pressure2",
+       "start": "p_pressure1"
+      },
+      "outputs": [
+       "pressure_arrow1"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c26",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure3"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c27",
+      "inputs": {
+       "x": 3,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure4"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c28",
+      "inputs": {
+       "end": "p_pressure4",
+       "start": "p_pressure3"
+      },
+      "outputs": [
+       "pressure_arrow2"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c29",
+      "inputs": {
+       "x": 5,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure5"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c30",
+      "inputs": {
+       "x": 5.8,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure6"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c31",
+      "inputs": {
+       "end": "p_pressure6",
+       "start": "p_pressure5"
+      },
+      "outputs": [
+       "pressure_arrow3"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c32",
+      "inputs": {
+       "x": 6,
+       "y": 1,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure7"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c33",
+      "inputs": {
+       "x": 6,
+       "y": 1.8,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_pressure8"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c34",
+      "inputs": {
+       "end": "p_pressure8",
+       "start": "p_pressure7"
+      },
+      "outputs": [
+       "pressure_arrow4"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "c35",
+      "inputs": {
+       "x": 6,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "p_load_center"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "c36",
+      "inputs": {
+       "width": 2,
+       "center": "p_load_center",
+       "height": 1
+      },
+      "outputs": [
+       "load"
+      ],
+      "operator": "rectangle"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "planner visual decision"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "cyl_small",
+     "cyl_large",
+     "pipe",
+     "piston_small",
+     "piston_large",
+     "force1",
+     "force2",
+     "load",
+     "fluid_small",
+     "fluid_large",
+     "fluid_pipe",
+     "pressure_arrow1",
+     "pressure_arrow2",
+     "pressure_arrow3",
+     "pressure_arrow4"
+    ]
+   }
+  },
+  {
+   "id": "projectile-range",
+   "question": "Derive the range of a projectile launched on level ground, and show why 45° gives the largest range.",
+   "productionSource": "planner",
+   "productionVerdict": "right",
+   "expect": {
+    "strict": "planner:",
+    "current": "planner:",
+    "current_unclassified": "planner:"
+   },
+   "drawing": {
+    "strict": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    },
+    "current": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "A",
+      "B",
+      "O",
+      "R",
+      "level ground",
+      "trajectory",
+      "u",
+      "θ"
+     ],
+     "marks": {
+      "arc": 1,
+      "dimension": 1,
+      "line": 5,
+      "point": 4,
+      "polyline": 1,
+      "vector": 1
+     }
+    }
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "kinematics_constant_acceleration",
+     "projectile_motion_independence_of_axes",
+     "trig_double_angle_identity",
+     "sine_function_maximum",
+     "second_derivative_test"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Derive the range of a projectile launched on level ground, and show why 45° gives the largest range.",
+    "unknowns": [
+     {
+      "id": "R",
+      "unit": "m",
+      "symbol": "R"
+     },
+     {
+      "id": "thetaMax",
+      "unit": "°",
+      "symbol": "θ_max"
+     }
+    ],
+    "assumptions": [
+     "Level ground: launch and landing at same height",
+     "Uniform gravitational field g acting vertically downward",
+     "No air resistance",
+     "Initial speed u and launch angle θ are the only parameters; u, g fixed when maximising over θ",
+     "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "Resolve initial velocity u at angle θ into components: ux = u cosθ (constant), uy = u sinθ (decelerated by g).",
+      "expected": "ux = u cosθ; uy = u sinθ",
+      "relatedQuantityIds": [
+       "R"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "Time of flight from vertical motion: y = u sinθ·t − ½gt² = 0 gives t = 0 (launch) or t = 2u sinθ/g (landing).",
+      "expected": "T = 2u sinθ / g",
+      "relatedQuantityIds": [
+       "R"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "Range is horizontal speed times flight time: R = u cosθ · 2u sinθ/g.",
+      "expected": "R = (2u² sinθ cosθ)/g",
+      "relatedQuantityIds": [
+       "R"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "Apply the double-angle identity 2 sinθ cosθ = sin 2θ to obtain the standard range formula.",
+      "expected": "R = u² sin(2θ) / g",
+      "relatedQuantityIds": [
+       "R"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "For fixed u and g, R is maximised when sin(2θ) is maximised; sin(2θ) ≤ 1 with equality when 2θ = 90°.",
+      "expected": "sin(2θ) = 1 ⟹ θ = 45°",
+      "relatedQuantityIds": [
+       "thetaMax"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "Maximum range value at θ = 45°: R_max = u²/g.",
+      "expected": "R_max = u²/g",
+      "relatedQuantityIds": [
+       "R",
+       "thetaMax"
+      ]
+     },
+     {
+      "id": "c7",
+      "claim": "Calculus check: dR/dθ = (2u²/g)cos(2θ) = 0 gives θ = 45°, and d²R/dθ² = −(4u²/g)sin(2θ) < 0 there, confirming a maximum.",
+      "expected": "dR/dθ = 0 at θ = 45°; second derivative negative",
+      "relatedQuantityIds": [
+       "thetaMax"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": {
+    "id": "problem",
+    "facts": [
+     {
+      "id": "fDerive",
+      "kind": "requested",
+      "evidence": {
+       "end": 48,
+       "quote": "Derive the range of a projectile",
+       "start": 0,
+       "source": "question"
+      },
+      "statement": "Derive formula for projectile range"
+     },
+     {
+      "id": "fLevel",
+      "kind": "assumption",
+      "evidence": {
+       "end": 64,
+       "quote": "on level ground",
+       "start": 49,
+       "source": "question"
+      },
+      "statement": "Launch and landing at same height"
+     },
+     {
+      "id": "fMax",
+      "kind": "requested",
+      "evidence": {
+       "end": 106,
+       "quote": "show why 45° gives the largest range",
+       "start": 70,
+       "source": "question"
+      },
+      "statement": "Show 45 degrees gives maximum range"
+     }
+    ],
+    "entities": [
+     {
+      "id": "proj",
+      "kind": "body",
+      "label": "projectile",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     },
+     {
+      "id": "path",
+      "kind": "curve",
+      "label": "trajectory",
+      "evidenceFactIds": [
+       "fDerive",
+       "fLevel"
+      ]
+     },
+     {
+      "id": "ground",
+      "kind": "line",
+      "label": "level ground",
+      "evidenceFactIds": [
+       "fLevel"
+      ]
+     }
+    ],
+    "question": "Derive the range of a projectile launched on level ground, and show why 45° gives the largest range.",
+    "constraints": [
+     {
+      "id": "cLaunch",
+      "kind": "incident",
+      "entityIds": [
+       "proj",
+       "ground"
+      ],
+      "evidenceFactIds": [
+       "fLevel"
+      ]
+     },
+     {
+      "id": "cPath",
+      "kind": "incident",
+      "entityIds": [
+       "path",
+       "ground"
+      ],
+      "evidenceFactIds": [
+       "fLevel"
+      ]
+     }
+    ],
+    "expressions": [],
+    "schemaVersion": "problem-ir/v1",
+    "solveRequests": [],
+    "representationIntents": [
+     {
+      "id": "iTraj",
+      "kind": "graph",
+      "entityIds": [
+       "proj",
+       "path",
+       "ground"
+      ],
+      "evidenceFactIds": [
+       "fDerive",
+       "fLevel",
+       "fMax"
+      ]
+     }
+    ]
+   },
+   "candidate": {
+    "source": {
+     "question": "Derive the range of a projectile launched on level ground, and show why 45° gives the largest range.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "ground_a",
+      "kind": "point",
+      "role": "level ground end"
+     },
+     {
+      "id": "ground_b",
+      "kind": "point",
+      "role": "level ground end"
+     },
+     {
+      "id": "ground",
+      "kind": "segment",
+      "role": "level ground",
+      "label": "level ground"
+     },
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "launch point",
+      "label": "O"
+     },
+     {
+      "id": "trajectory",
+      "kind": "polyline",
+      "role": "parabolic trajectory",
+      "label": "trajectory"
+     },
+     {
+      "id": "apex",
+      "kind": "point",
+      "role": "highest point",
+      "label": "A"
+     },
+     {
+      "id": "landing",
+      "kind": "point",
+      "role": "landing point",
+      "label": "B"
+     },
+     {
+      "id": "aim",
+      "kind": "point",
+      "role": "launch direction"
+     },
+     {
+      "id": "velocity",
+      "kind": "vector",
+      "role": "launch velocity",
+      "label": "u"
+     },
+     {
+      "id": "aim_h",
+      "kind": "point",
+      "role": "horizontal reference end"
+     },
+     {
+      "id": "horizontal",
+      "kind": "segment",
+      "role": "horizontal reference"
+     },
+     {
+      "id": "angle",
+      "kind": "angle_mark",
+      "role": "launch angle",
+      "label": "θ"
+     },
+     {
+      "id": "dim_R",
+      "kind": "dimension",
+      "role": "horizontal range",
+      "label": "R"
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "launch_on_path",
+      "entities": [
+       "O",
+       "trajectory"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "on"
+     },
+     {
+      "id": "landing_on_path",
+      "entities": [
+       "landing",
+       "trajectory"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "on"
+     },
+     {
+      "id": "apex_on_path",
+      "entities": [
+       "trajectory"
+      ],
+      "expected": {
+       "x": 5,
+       "y": 2.5
+      },
+      "severity": "fatal",
+      "predicate": "function_value"
+     },
+     {
+      "id": "launch_angle",
+      "entities": [
+       "velocity",
+       "horizontal"
+      ],
+      "expected": {
+       "unit": "degree",
+       "value": 45
+      },
+      "severity": "fatal",
+      "predicate": "angle_between"
+     },
+     {
+      "id": "label_velocity",
+      "entities": [
+       "velocity"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "label_landing",
+      "entities": [
+       "landing"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_O",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "O"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_apex",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "apex"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     },
+     {
+      "id": "assert_label_landing",
+      "reason": "student-facing points must stay labeled",
+      "entities": [
+       "landing"
+      ],
+      "expected": true,
+      "severity": "fatal",
+      "predicate": "label_attached"
+     }
+    ],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "narrate_setup",
+      "kind": "narration",
+      "text": "Resolve u into u cosθ horizontally and u sinθ vertically; only the vertical part is decelerated by g.",
+      "targetIds": [
+       "velocity",
+       "angle"
+      ]
+     },
+     {
+      "id": "narrate_time",
+      "kind": "narration",
+      "text": "Vertical motion y = u sinθ·t − ½gt² = 0 gives flight time T = 2u sinθ/g, so R = u cosθ·T = u² sin(2θ)/g.",
+      "targetIds": [
+       "trajectory",
+       "landing"
+      ]
+     },
+     {
+      "id": "narrate_max",
+      "kind": "narration",
+      "text": "For fixed u and g, R is greatest when sin(2θ) = 1, i.e. 2θ = 90°, so θ = 45° and R_max = u²/g.",
+      "targetIds": [
+       "dim_R"
+      ]
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "ground_a",
+       "ground_b",
+       "ground",
+       "O",
+       "aim",
+       "velocity",
+       "aim_h",
+       "horizontal",
+       "angle",
+       "apex",
+       "landing"
+      ],
+      "narrationCue": "the launch: speed u at angle θ above level ground"
+     },
+     {
+      "id": "path",
+      "dependsOn": [
+       "setup"
+      ],
+      "entityIds": [
+       "trajectory",
+       "apex",
+       "landing",
+       "dim_R"
+      ],
+      "narrationCue": "the parabolic flight from O to B, spanning range R"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_ground_a",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ground_a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_ground_b",
+      "inputs": {
+       "x": 14,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ground_b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_ground",
+      "inputs": {
+       "end": "ground_b",
+       "start": "ground_a"
+      },
+      "outputs": [
+       "ground"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_O",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_trajectory",
+      "inputs": {
+       "xMax": 10,
+       "xMin": 0,
+       "samples": 81,
+       "variable": "x",
+       "expression": "x-0.1*x^2"
+      },
+      "outputs": [
+       "trajectory"
+      ],
+      "operator": "function_curve"
+     },
+     {
+      "id": "make_apex",
+      "inputs": {
+       "x": 5,
+       "y": 2.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "apex"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_landing",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "landing"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_aim",
+      "inputs": {
+       "x": 3,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "aim"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_velocity",
+      "inputs": {
+       "end": "aim",
+       "start": "O"
+      },
+      "outputs": [
+       "velocity"
+      ],
+      "operator": "vector"
+     },
+     {
+      "id": "make_aim_h",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "aim_h"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_horizontal",
+      "inputs": {
+       "end": "aim_h",
+       "start": "O"
+      },
+      "outputs": [
+       "horizontal"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_angle",
+      "inputs": {
+       "a": "velocity",
+       "b": "horizontal",
+       "radius": 1.6,
+       "vertex": "O"
+      },
+      "outputs": [
+       "angle"
+      ],
+      "operator": "angle_mark"
+     },
+     {
+      "id": "make_dim_R",
+      "inputs": {
+       "end": "landing",
+       "start": "O"
+      },
+      "outputs": [
+       "dim_R"
+      ],
+      "operator": "dimension"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Symbolic projectile on level ground: one generic nondegenerate launch at angle θ with speed u; normalized world literals prove shape only, not data."
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "ground_a",
+     "ground_b",
+     "ground",
+     "O",
+     "trajectory",
+     "apex",
+     "landing",
+     "aim",
+     "velocity",
+     "aim_h",
+     "horizontal",
+     "angle",
+     "dim_R"
+    ]
+   }
+  },
+  {
+   "id": "intrinsic-semiconductor",
+   "question": "Explain what an intrinsic semiconductor is.",
+   "productionSource": "planner",
+   "productionVerdict": "right",
+   "expect": {
+    "strict": "none",
+    "current": "fast_family:energy_level",
+    "current_unclassified": "fast_family:energy_level"
+   },
+   "drawing": {
+    "current": {
+     "labels": [
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ev",
+      "Ev",
+      "Ev",
+      "Ev",
+      "conductor",
+      "semiconductor"
+     ],
+     "marks": {
+      "line": 5,
+      "point": 2
+     }
+    },
+    "current_unclassified": {
+     "labels": [
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ec",
+      "Ev",
+      "Ev",
+      "Ev",
+      "Ev",
+      "conductor",
+      "semiconductor"
+     ],
+     "marks": {
+      "line": 5,
+      "point": 2
+     }
+    }
+   },
+   "open": {
+    "current": "energy_level draws the conductor with a band gap and doubles the Ec and Ev labels (lane 1, energy_level band figure in synthesize/familyScene.ts)",
+    "current_unclassified": "same band figure (lane 1, energy_level band figure)"
+   },
+   "turnPlan": {
+    "givens": [],
+    "lawIds": [
+     "band theory of solids",
+     "Fermi-Dirac statistics",
+     "mass action law (n·p = ni²)",
+     "charge neutrality in intrinsic semiconductors"
+    ],
+    "derived": [],
+    "subject": "physics",
+    "question": "Explain what an intrinsic semiconductor is.",
+    "unknowns": [],
+    "assumptions": [
+     "Standard band theory model applies",
+     "Material is a crystalline Group IV element (Si or Ge)",
+     "No external fields or impurities present",
+     "Thermal equilibrium conditions"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+     {
+      "id": "c1",
+      "claim": "An intrinsic semiconductor is a pure semiconductor material (e.g., silicon or germanium) without any significant doping impurities.",
+      "expected": "Pure Si or Ge crystal with no added pentavalent or trivalent impurities.",
+      "relatedEntityHints": [
+       "silicon",
+       "germanium"
+      ]
+     },
+     {
+      "id": "c2",
+      "claim": "At absolute zero (0 K), intrinsic semiconductors behave as perfect insulators because the valence band is completely full and the conduction band is completely empty.",
+      "expected": "No free charge carriers available for conduction at 0 K.",
+      "relatedEntityHints": [
+       "valence band",
+       "conduction band"
+      ]
+     },
+     {
+      "id": "c3",
+      "claim": "At room temperature, thermal energy excites some electrons from the valence band to the conduction band, creating electron-hole pairs.",
+      "expected": "Each electron that jumps to the conduction band leaves behind a hole in the valence band.",
+      "relatedEntityHints": [
+       "electron-hole pair",
+       "thermal excitation"
+      ]
+     },
+     {
+      "id": "c4",
+      "claim": "In an intrinsic semiconductor, the number of free electrons in the conduction band equals the number of holes in the valence band (n = p = ni).",
+      "expected": "Electron concentration equals hole concentration, both equal to the intrinsic carrier concentration ni.",
+      "relatedEntityHints": [
+       "intrinsic carrier concentration"
+      ]
+     },
+     {
+      "id": "c5",
+      "claim": "The band gap of an intrinsic semiconductor is small (~1 eV); for silicon it is about 1.1 eV and for germanium about 0.7 eV.",
+      "expected": "Small forbidden energy gap allows thermal excitation of electrons at room temperature.",
+      "relatedEntityHints": [
+       "band gap",
+       "silicon",
+       "germanium"
+      ]
+     },
+     {
+      "id": "c6",
+      "claim": "Conductivity of intrinsic semiconductors increases with temperature because more electron-hole pairs are generated thermally.",
+      "expected": "Higher temperature leads to more carriers crossing the band gap, increasing conductivity (negative temperature coefficient of resistance).",
+      "relatedEntityHints": [
+       "temperature dependence",
+       "conductivity"
+      ]
+     },
+     {
+      "id": "c7",
+      "claim": "Current in an intrinsic semiconductor is due to both electrons in the conduction band and holes in the valence band.",
+      "expected": "Total current = electron current + hole current; both carrier types contribute to conduction.",
+      "relatedEntityHints": [
+       "electron current",
+       "hole current"
+      ]
+     },
+     {
+      "id": "c8",
+      "claim": "The Fermi level in an intrinsic semiconductor lies approximately at the middle of the band gap.",
+      "expected": "EF ≈ (EC + EV)/2 because electron and hole concentrations are equal.",
+      "relatedEntityHints": [
+       "Fermi level",
+       "band diagram"
+      ]
+     }
+    ],
+    "visualRequirement": "required"
+   },
+   "problemIR": null,
+   "candidate": {
+    "source": {
+     "question": "Explain what an intrinsic semiconductor is.",
+     "nonMetric": true,
+     "representationTier": "qualitative_verified"
+    },
+    "entities": [
+     {
+      "id": "vb_a",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "vb_b",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "valence_band",
+      "kind": "segment",
+      "role": "energy level",
+      "label": "Valence band"
+     },
+     {
+      "id": "cb_a",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "cb_b",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "conduction_band",
+      "kind": "segment",
+      "role": "energy level",
+      "label": "Conduction band"
+     },
+     {
+      "id": "ef_a",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "ef_b",
+      "kind": "point",
+      "role": "level display anchor"
+     },
+     {
+      "id": "fermi_level",
+      "kind": "segment",
+      "role": "energy level",
+      "label": "Fermi level"
+     },
+     {
+      "id": "vb_mid",
+      "kind": "point",
+      "role": "relation display anchor"
+     },
+     {
+      "id": "cb_mid",
+      "kind": "point",
+      "role": "relation display anchor"
+     },
+     {
+      "id": "thermal_excitation",
+      "kind": "vector",
+      "role": "representative electron-hole pair generation"
+     }
+    ],
+    "relations": [],
+    "assertions": [],
+    "quantities": [],
+    "annotations": [
+     {
+      "id": "excitation_callout",
+      "kind": "callout",
+      "text": "Thermal excitation creates one electron-hole pair",
+      "targetIds": [
+       "thermal_excitation"
+      ]
+     },
+     {
+      "id": "carrier_balance_caption",
+      "kind": "narration",
+      "text": "Intrinsic: n = p = ni; Fermi level near mid-gap",
+      "targetIds": []
+     },
+     {
+      "id": "ordinal_caption",
+      "kind": "callout",
+      "text": "Ordinal level relation; not to scale",
+      "targetIds": []
+     }
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "dependsOn": [],
+      "entityIds": [
+       "vb_a",
+       "vb_b",
+       "valence_band",
+       "cb_a",
+       "cb_b",
+       "conduction_band",
+       "ef_a",
+       "ef_b",
+       "fermi_level",
+       "vb_mid",
+       "cb_mid",
+       "thermal_excitation"
+      ],
+      "narrationCue": "Stacked band levels for a pure semiconductor: valence band below, conduction band above, Fermi level near mid-gap, with one representative thermally excited electron-hole pair."
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_vb_a",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "vb_a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_vb_b",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "vb_b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_valence_band",
+      "inputs": {
+       "end": "vb_b",
+       "start": "vb_a"
+      },
+      "outputs": [
+       "valence_band"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_cb_a",
+      "inputs": {
+       "x": 0,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "cb_a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_cb_b",
+      "inputs": {
+       "x": 4,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "cb_b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_conduction_band",
+      "inputs": {
+       "end": "cb_b",
+       "start": "cb_a"
+      },
+      "outputs": [
+       "conduction_band"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_ef_a",
+      "inputs": {
+       "x": 0,
+       "y": 1.5,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "ef_a"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_ef_b",
+      "inputs": {
+       "x": 4,
+       "y": 1.5,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "ef_b"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_fermi_level",
+      "inputs": {
+       "end": "ef_b",
+       "start": "ef_a"
+      },
+      "outputs": [
+       "fermi_level"
+      ],
+      "operator": "segment"
+     },
+     {
+      "id": "make_vb_mid",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "vb_mid"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_cb_mid",
+      "inputs": {
+       "x": 2,
+       "y": 3,
+       "coordinateSpace": "layout"
+      },
+      "outputs": [
+       "cb_mid"
+      ],
+      "operator": "point"
+     },
+     {
+      "id": "make_thermal_excitation",
+      "inputs": {
+       "end": "cb_mid",
+       "start": "vb_mid"
+      },
+      "outputs": [
+       "thermal_excitation"
+      ],
+      "operator": "vector"
+     }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Qualitative band diagram for an intrinsic semiconductor: valence band, conduction band, mid-gap Fermi level, and one representative thermally excited electron-hole pair. Ordinal level display only, not an energy-spacing scale."
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+     "vb_a",
+     "vb_b",
+     "valence_band",
+     "cb_a",
+     "cb_b",
+     "conduction_band",
+     "ef_a",
+     "ef_b",
+     "fermi_level",
+     "vb_mid",
+     "cb_mid",
+     "thermal_excitation"
+    ]
+   }
+  }
+ ]
+}

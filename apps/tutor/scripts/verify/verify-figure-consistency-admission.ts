@@ -12,7 +12,7 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { FAILED_TURN_ISSUE_CODES } from "../../lib/obs/failedTurnTelemetry";
 import { validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
-const CODES = ["component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap", "vector_without_label", "region_label_in_nested_body"];
+const CODES = ["component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap", "vector_without_label", "region_label_in_nested_body", "axes_frames_overlap"];
 const question = "Draw a cell driving a current through a resistor.";
 const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
 function loop(sense: string): Record<string, unknown> {
