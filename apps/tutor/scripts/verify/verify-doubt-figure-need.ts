@@ -24,6 +24,8 @@ import {
   zoneInkOccupied,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { DIAGRAM_ZONE } from "../../features/tutor-session/constants";
+import { buildReferencePicturePresentation } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
+import partFocusFixture from "./fixtures/reference-picture-part-focus-off.json";
 
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
@@ -135,6 +137,35 @@ async function main(): Promise<void> {
     assert(parseDoubtFigureNeedInput(emptyBody), "an empty zone's body passes the route's validation");
     assert(buildDoubtFigureNeedMessages(emptyBody)[1]!.content.includes("Figure on the board:\n(no figure on the board)"),
       "the model is told the board has no figure");
+  }
+
+  // 3c. A reference picture in the zone (lane 3): swapped like a verified
+  // figure when it can be stashed, pointed at otherwise; the need check reads
+  // it as family reference_picture with its pointable parts.
+  {
+    const record = partFocusFixture.cases[0]!.record as Parameters<typeof buildReferencePicturePresentation>[0];
+    for (const partFocus of [false, true]) {
+      const picture = buildReferencePicturePresentation(record, { partFocus }).diagram as VerifiedDiagram;
+      const onPicture = {
+        granted: true, codeBoard: false, markedFigureIds: [] as string[], zoneFigure: picture as VerifiedDiagram | null,
+        zoneReturnable: true, zoneEmpty: false, zoneOccupied: false,
+      };
+      assert.equal(doubtFigureNeedSkip(onPicture), null, `a picture with a stash asks the need check (part focus ${partFocus})`);
+      assert.equal(doubtFigureNeedSkip({ ...onPicture, zoneReturnable: false }), "zone_not_returnable", "a picture with no stash is pointed at");
+      assert.equal(doubtFigureNeedSkip({ ...onPicture, granted: false }), "flag_off", "flag off a picture is pointed at, as before");
+      assert.equal(doubtFigureNeedSkip({ ...onPicture, codeBoard: true }), "code_board", "a code board comes first");
+      assert.equal(doubtFigureNeedSkip({ ...onPicture, markedFigureIds: [picture.anchors.at(-1)!.id] }), "marked_figure_part",
+        "a ring on a picture part is a question about that part");
+      assert.equal(doubtFigureNeedSkip({ ...onPicture, zoneFigure: { ...picture, id: "some_other_figure" } as unknown as VerifiedDiagram }), "zone_not_returnable",
+        "a zone figure that is neither a verified scene nor a picture is never swapped");
+      const pictureBody = doubtFigureNeedInput({ lessonQuestion: "Explain the parts of a cell.", doubtTitle: "Doubt: show me osmosis", zoneFigure: picture });
+      assert.equal(pictureBody.figure.family, "reference_picture", "a picture's need body names its family");
+      assert.deepEqual(pictureBody.figure.parts.map((part) => part.id), picture.anchors.map((anchor) => anchor.id),
+        "the need body lists the picture's pointable parts");
+      assert.equal(pictureBody.figure.parts.length > 1, partFocus, "part focus on lists each part; off, the whole picture only");
+      assert(parseDoubtFigureNeedInput(pictureBody), "a picture's need body passes the route's validation");
+    }
+    assert.equal(body.figure.family, null, "a verified scene's body still sends no family unless given one");
   }
 
   // 4. The classifier's input and output: parts, never keywords.

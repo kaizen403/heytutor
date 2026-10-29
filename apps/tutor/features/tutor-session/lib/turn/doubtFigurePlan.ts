@@ -13,7 +13,8 @@
  *    20 s budget, planning on the composed question (planTurnV3 and ProblemIR
  *    in parallel), the fast tier only (hand coded families, chemistry
  *    families, archetypes), and the refusal of a figure equal to the one
- *    already in the zone. No LLM scene planner and no reference picture.
+ *    already in the zone. No LLM scene planner, and never a reference picture
+ *    of its own (it may swap one out of the zone).
  *
  * Every miss teaches on the figure that is already drawn.
  */
@@ -40,6 +41,7 @@ import { DIAGRAM_ZONE } from "../../constants";
 import type { BoardLayoutState } from "../../types";
 import { storedFigurePresentation } from "../replay/pageFigureSync";
 import { EMPTY_ZONE_STASH, releasedEntityIds, type ZoneStash } from "../scene/figureSwap";
+import { isReferencePictureDiagram } from "../scene/referencePicturePresentation";
 import {
   DOUBT_FIGURE_NEED_DEADLINE_MS,
   pointDecision,
@@ -159,8 +161,8 @@ export function doubtFigureHoldingSegment(language: NarrationLanguage = "english
 /**
  * Why a doubt answers "point" without asking, or null when the need check runs.
  * A ring on a figure part is a question about that part. A code board's new
- * figures are out of scope in v1. A verified figure in the zone can be swapped
- * only when it can be stashed and returned; a reference picture is pointed at.
+ * figures are out of scope in v1. A verified figure or a reference picture in
+ * the zone can be swapped only when it can be stashed and returned.
  * An empty zone (`zoneEmpty`: no figure, the doubt continues the page) takes a
  * figure only when no work row reaches it (`zoneOccupied`): never draw over ink.
  */
@@ -180,7 +182,9 @@ export function doubtFigureNeedSkip(input: {
     return "marked_figure_part";
   }
   if (!input.zoneFigure && input.zoneEmpty) return input.zoneOccupied ? "zone_occupied" : null;
-  if (!input.zoneFigure || input.zoneFigure.id !== "verified_scene" || !input.zoneReturnable) return "zone_not_returnable";
+  const swappable = input.zoneFigure !== null &&
+    (input.zoneFigure.id === "verified_scene" || isReferencePictureDiagram(input.zoneFigure));
+  if (!swappable || !input.zoneReturnable) return "zone_not_returnable";
   return null;
 }
 
@@ -246,7 +250,7 @@ function readStoredPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDia
   return { diagram, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: lesson.id };
 }
 
-/** The need check body: what the zone's figure shows, by part. */
+/** The need check body: what the zone's figure shows, by part. A picture's family is `reference_picture`. */
 export function doubtFigureNeedInput(input: {
   lessonQuestion: string;
   doubtTitle: string;
@@ -257,7 +261,7 @@ export function doubtFigureNeedInput(input: {
     lessonQuestion: input.lessonQuestion,
     doubt: input.doubtTitle.replace(/^Doubt:\s*/, "").trim() || input.doubtTitle,
     figure: {
-      family: input.zoneFamily ?? null,
+      family: input.zoneFamily ?? (isReferencePictureDiagram(input.zoneFigure) ? "reference_picture" : null),
       parts: (input.zoneFigure?.anchors ?? []).slice(0, 80).map((anchor) => ({
         id: anchor.id.slice(0, 80),
         labels: anchor.labels.filter((label) => label.trim()).slice(0, 6).map((label) => label.slice(0, 80)),

@@ -13,6 +13,8 @@
  *   the zone's ref before the return awaits.
  * Behaviour (returnZoneStash): the stash leaves the page records only once the
  * lesson's figure is back; a Stop or doubt mid return, or no board, keeps it.
+ * A reference picture (lane 3) is snapshotted where it installs
+ * (`reference-picture-zone`) and returns as the same picture, parts and all.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -31,6 +33,9 @@ import { consumedDeferredIds, returnZoneStash, type ZoneStash } from "../../feat
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { doubtFigureTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { snapshotPresentation } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+import { buildReferencePicturePresentation, isReferencePictureDiagram } from "../../features/tutor-session/lib/scene/referencePicturePresentation";
+import partFocusFixture from "./fixtures/reference-picture-part-focus-off.json";
 
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
@@ -206,6 +211,30 @@ async function main(): Promise<void> {
     assert(done.every((record) => record.zoneStash === null), "a whole return clears the stash on both records");
   }
 
+  // 8b. A stashed reference picture comes back as the same picture: its own
+  // DRAW_PICTURE passes stamped at once, and the anchors (part focus on or
+  // off) it was presented with, so FOCUS after the resume points as before.
+  for (const testCase of partFocusFixture.cases) {
+    const record = testCase.record as Parameters<typeof buildReferencePicturePresentation>[0];
+    for (const partFocus of [false, true]) {
+      const picture = buildReferencePicturePresentation(record, { partFocus });
+      const snapshot = snapshotPresentation(picture);
+      assert(snapshot, `a picture presentation can be snapshotted (${testCase.name}, part focus ${partFocus})`);
+      const stash: ZoneStash = { diagram: picture.diagram, presentation: snapshot, turnId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" };
+      const wb = { eraseSceneInk: async () => {}, erasePinnedInk: () => {} } as unknown as WhiteboardHandle;
+      const stamped: Array<{ type: string; text?: string; durationScale?: number }> = [];
+      const back = await returnZoneStash(wb, { rects: [], nextY: 120 } as unknown as Parameters<typeof returnZoneStash>[1], stash, [], {
+        shouldCancel: () => false,
+        executeCommand: async (command, options) => { stamped.push({ type: command.type, text: command.text, durationScale: options?.durationScale }); },
+      });
+      assert(!back.cancelled && back.diagram && isReferencePictureDiagram(back.diagram), "the resume returns a picture diagram");
+      assert.deepEqual(back.diagram.anchors, picture.diagram.anchors, "the returned picture has the anchors it was presented with");
+      assert.equal(stamped.length, picture.introSegments.length, "every picture pass is stamped back, and nothing else");
+      assert(stamped.every((entry) => entry.type === "DRAW_PICTURE" && entry.text === record.id && entry.durationScale === 0),
+        "the stored picture's own passes land at once");
+    }
+  }
+
   // 9. The live turn, from source.
   {
     const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
@@ -224,6 +253,17 @@ async function main(): Promise<void> {
       "no LLM scene planner and no reference picture in a doubt");
 
     const swap = between(handler, file, "// doubt-figure-swap:begin", "// doubt-figure-swap:end");
+
+    // Lane 3: the picture is snapshotted where it installs, on the object the zone holds.
+    const pictureZone = between(handler, file, "// reference-picture-zone:begin", "// reference-picture-zone:end");
+    assert(pictureZone.includes("rememberZonePresentation(picture, billed.doubtFigures === true);"),
+      "a shown reference picture is remembered as the zone's presentation, under the doubt figures grant");
+    const pictureInstall = between(handler, file, "referencePictureShown = picture.stored;", "setActiveVerifiedDiagram?.(activeDiagram);");
+    const pictureActive = pictureInstall.indexOf("activeDiagram = picture.diagram;");
+    const pictureRemember = pictureInstall.indexOf("// reference-picture-zone:begin");
+    const pictureRef = pictureInstall.indexOf("activeVerifiedDiagramRef.current = activeDiagram;");
+    assert(pictureActive >= 0 && pictureRemember > pictureActive && pictureRef > pictureRemember,
+      "the snapshot's live object is the picture diagram the zone's ref then holds");
     const stashSet = swap.indexOf("page.zoneStash = stash;");
     const swapCall = swap.indexOf("await swapFigureIn(");
     assert(stashSet >= 0 && swapCall > stashSet, "the zone's figure is stashed on the page before the zone is cleared");

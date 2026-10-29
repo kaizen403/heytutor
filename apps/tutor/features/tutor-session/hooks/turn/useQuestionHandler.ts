@@ -2340,6 +2340,11 @@ export function useQuestionHandler(
           activeDiagram = picture.diagram;
           sceneV2IntroSegments = picture.introSegments;
           diagramSource = "reference_picture";
+          // reference-picture-zone:begin
+          // A doubt may swap the picture out for its own figure: keep it as
+          // presented so the resume can return it (DIAGRAM_DOUBT_FIGURES).
+          rememberZonePresentation(picture, billed.doubtFigures === true);
+          // reference-picture-zone:end
           activeVerifiedDiagramRef.current = activeDiagram;
           setActiveVerifiedDiagram?.(activeDiagram);
         }
