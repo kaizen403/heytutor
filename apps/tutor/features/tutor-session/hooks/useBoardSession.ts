@@ -44,6 +44,8 @@ import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCom
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
+import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import { completeStoredTurnDiagram } from "../lib/replay/completeReplayDiagram";
 import type { TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
@@ -686,6 +688,10 @@ export function useBoardSession({
         let restoredCodeComplete = false;
         let turnDiagram: VerifiedDiagram | null = null;
         const inkStale = () => isStale() || ink.cancelled;
+        // Fetch every reference picture at once rather than one per turn as
+        // the stamp loop reaches it; the executor still waits for its own.
+        await preloadReferencePicturesForTurns(turns);
+        if (inkStale()) return;
         for (const [turnIndex, turn] of turns.entries()) {
           if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
@@ -723,7 +729,8 @@ export function useBoardSession({
             if (controller) restoreDsaFrames(controller, turn, codeLesson);
             const diagram =
               controller?.frames.current()?.presentation.diagram
-              ?? restoreVerifiedDiagramFromTurn(turn);
+              ?? restoreVerifiedDiagramFromTurn(turn)
+              ?? restoreReferencePictureFromTurn(turn);
             turnDiagram = diagram;
             if (activeVerifiedDiagramRef) {
               activeVerifiedDiagramRef.current = diagram;

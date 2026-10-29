@@ -5,6 +5,7 @@ import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "@/features/tutor-session/lib/scene/restoreReferencePicture";
 import {
   recordedLectureWorkPages,
   type LectureWorkPage,
@@ -229,7 +230,7 @@ export function buildLecturePlayerTimeline(
         if (turn && !storedTurnContinuesBoard(turn)) {
           restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
           installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
-            restoreVerifiedDiagramFromTurn(turn));
+            restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
         }
         previousTurn = cue.turnIndex;
       }

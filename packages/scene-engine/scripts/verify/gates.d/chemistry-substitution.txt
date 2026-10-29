@@ -1,0 +1,2 @@
+# Lane 4 phase 2: SN2, SN1 and E2 from the plan's example reaction (rows plus mutants; each mutant must turn exactly its own rows red)
+tsx scripts/verify/verify-chemistry-substitution.ts

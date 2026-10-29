@@ -218,7 +218,7 @@ assert(/thumbnail_at[\s\S]{0,600}objectDeletionJob\.createMany\(\{ data: \[\{ id
 assert(/boardThumbnailPrefix\(board\.id\)[\s\S]{0,120}enqueueObjectDeletion\(\{ prefix: thumbnailPrefix, userId \}, tx\)/.test(read("lib", "auth", "deleteAccount.ts")), "account deletion strands card pictures");
 
 // 8. Boards made before Community stay private; new ones are public, except staff boards.
-const migration = read("prisma", "migrations", "25_community", "migration.sql");
+const migration = read("prisma", "migrations", "26_community", "migration.sql");
 const addPrivate = migration.indexOf(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'private'`);
 const thenPublic = migration.indexOf(`ALTER COLUMN "visibility" SET DEFAULT 'public'`);
 assert(addPrivate >= 0 && thenPublic > addPrivate, "existing boards would be published by the migration");

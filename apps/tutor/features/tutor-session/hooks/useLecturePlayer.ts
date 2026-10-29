@@ -61,6 +61,8 @@ import { BOARD_HEIGHT, BOARD_WIDTH, DSA_CODE_PANEL_RECT } from "../constants";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
+import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import {
   completeReplayDiagramTurn,
   drawReplayDiagramTimeline,
@@ -416,7 +418,8 @@ export function useLecturePlayer({
       restoreDsaFrames(controller, turn, plan);
       const diagram =
         controller.frames.current()?.presentation.diagram ??
-        restoreVerifiedDiagramFromTurn(turn);
+        restoreVerifiedDiagramFromTurn(turn) ??
+        restoreReferencePictureFromTurn(turn);
       diagramRef.current = diagram;
       fbdStartedRef.current = Boolean(diagram);
       return true;
@@ -800,6 +803,10 @@ export function useLecturePlayer({
       void (async () => {
         const ready = await waitForWhiteboard(playerBoardRef);
         if (activation !== activationRef.current || !activeRef.current) return;
+        // The virtual clock never waits for the network, and every seek
+        // rebuilds from it: a reference picture's pixels come first.
+        await preloadReferencePicturesForTurns(storedTurnsRef.current);
+        if (activation !== activationRef.current || !activeRef.current) return;
         const wb = playerBoardRef.current;
         const clock = clockRef.current;
         if (!ready || !wb || !clock) {
@@ -814,7 +821,7 @@ export function useLecturePlayer({
         requestSeek(ms, play);
       })();
     },
-    [requestSeek, setPlayerStatus, store],
+    [requestSeek, setPlayerStatus, store, storedTurnsRef],
   );
 
   const start = useCallback(

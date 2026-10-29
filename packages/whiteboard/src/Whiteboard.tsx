@@ -14,13 +14,21 @@ import {
   resolveWriteWaitClockMs,
   shouldReleaseAudioPositionWait,
   textToStrokePaths,
+  textToStrokePathsSync,
+  referencePictureLayout,
   snapToBoardTypeScale,
   BOARD_TYPE_SCALE,
   DIAGRAM_ZONE,
   MAX_BOARD_FONT_SIZE,
   MIN_BOARD_FONT_SIZE,
+  REFERENCE_PICTURE_CREDIT_Y,
+  REFERENCE_PICTURE_ZONE,
   WORK_ZONE,
   type DrawCommandInkSettings,
+  type PicturePass,
+  type PicturePlacement,
+  type ReferencePictureLegendEntry,
+  type ReferencePicturePlan,
 } from "@heytutor/drawing";
 import {
   DEFAULT_WHITEBOARD_TIME_SOURCE,
@@ -107,6 +115,28 @@ import {
   type PenActivity,
 } from "./instruments";
 import { BOARD_INK_ATTR, boardInkKindAt, type BoardInkKind } from "./inkKind";
+import {
+  PICTURE_CARD_FADE_MS,
+  PICTURE_CARD_PADDING_PX,
+  boardPictureStrokes,
+  pictureFrameAt,
+  pictureRevealSpans,
+  pictureStrokeFromPoints,
+  pictureStrokeSpan,
+  planPictureTimeline,
+  resolvePicturePassMs,
+  type PictureRevealMark,
+  type PictureStrokePath,
+} from "./pictureReveal";
+import {
+  PictureImage,
+  boardPictureDrawable,
+  freeCanvas,
+  holdPictureLineWork,
+  passCanvas,
+  releasePictureLineWork,
+  type PictureHold,
+} from "./pictureCanvases";
 
 export interface WhiteboardProps {
   width?: number;
@@ -231,8 +261,56 @@ export interface ShapeDrawOptions {
   shouldCancel?: () => boolean;
 }
 
+/**
+ * A stored reference picture, decoded and ready to draw. The caller resolves
+ * the id to its server record and assets; the board never fetches. Both
+ * images must be same-origin (or data URLs) so snapshots and export frames
+ * stay readable.
+ */
+export interface BoardPicture {
+  /** Server-minted picture id. A later pass finds the card an earlier one laid by it. */
+  id: string;
+  /** The full picture, any size with the plan's aspect. */
+  image: CanvasImageSource;
+  /**
+   * The picture's paper was keyed to transparent (`blendPictureIntoBoard`),
+   * so it lies on the board with no card: no white box, no shadow.
+   */
+  blended?: boolean;
+  /** The plan's ink mask: opaque where the picture has line work. */
+  inkMask: CanvasImageSource;
+  plan: Pick<ReferencePicturePlan, "width" | "height" | "paper" | "outline" | "fill">;
+  /** `referencePictureCredit(record)`, set under the card once the fill lands. */
+  credit: string;
+  /**
+   * A numbered picture's key, from the server record. The legend pass writes
+   * it in pen beside the card, where `referencePictureLayout` puts it.
+   */
+  legend?: readonly ReferencePictureLegendEntry[];
+}
+
+export interface PictureDrawOptions {
+  /** Allows the owner to abort stale work between animation frames. */
+  shouldCancel?: () => boolean;
+}
+
 export interface WhiteboardHandle {
   drawShape: (pathData: string, duration: number, options?: ShapeDrawOptions) => Promise<void>;
+  /**
+   * One reveal pass of a reference picture at `placement`. The outline pass
+   * lays the paper card first and traces the line work; the fill pass sweeps
+   * the colour in and sets the credit under the card; a numbered picture's
+   * legend pass writes its key in pen beside the card. `duration <= 0` lands
+   * the pass's finished state at once (seek, restore). The pass's time is
+   * clamped into `PICTURE_PASS_MS` whatever is asked.
+   */
+  drawPicture: (
+    picture: BoardPicture,
+    placement: PicturePlacement,
+    pass: PicturePass,
+    duration: number,
+    options?: PictureDrawOptions,
+  ) => Promise<void>;
   drawAnnotation: (
     kind: AnnotationKind,
     pathData: string,
@@ -402,6 +480,16 @@ const SCRATCH_OPACITY = 0.32;
 const SCRATCH_STROKE_WIDTH = 1.5;
 const THINKING_FLOURISH_EVERY = 4;
 const HIDDEN_PATH_DATA = "M 0 0";
+/** Konva attr naming the picture (id and placement) a card group belongs to. */
+const PICTURE_GROUP_ATTR = "htReferencePicture";
+/** Konva attr naming a child's role in its group: card, outline, fill, credit, legend. */
+const PICTURE_PART_ATTR = "htReferencePicturePart";
+const PICTURE_CARD_RADIUS_PX = 6;
+/** The credit is metadata, set small and quiet, not lettered by the pen. */
+const PICTURE_CREDIT_FONT_PX = 11;
+const PICTURE_CREDIT_GAP_PX = 6;
+const PICTURE_CREDIT_COLOR = "#857560";
+const PICTURE_CREDIT_FONT = "Inter, system-ui, -apple-system, Helvetica, Arial, sans-serif";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -1408,6 +1496,466 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         tagBoardInk,
         trackNode,
         untrackNode,
+      ],
+    );
+
+    /**
+     * One pass of a reference picture. Everything the picture puts on the
+     * board lives in one group at the bottom of the draw layer: the card, the
+     * outline, the fill and the credit. One group is what lets a wipe or a
+     * page clear take the picture away whole, and the bottom is what keeps
+     * later ink readable on top of it.
+     *
+     * The pass is revealed through an offscreen canvas shown by a Konva.Image
+     * on the anim layer. Each frame strokes only the newly covered stretch of
+     * the plan's strokes, with a pattern of the source (the picture through
+     * its ink mask for the outline, the whole picture for the fill), so the
+     * brush paints the picture's own pixels and nothing else. At the end the
+     * reveal is replaced by the exact finished picture, so no brush gap
+     * survives into the lesson.
+     *
+     * Canvas memory (see pictureCanvases.ts): the line work is built once per
+     * picture and pixel size and shared by every land, since a seek re-lands
+     * every page at duration 0; the reveal and the fill's scaled source are
+     * the pass's own and are freed when it ends, and every picture node lets
+     * go of what it shows when CLEAR, an erase or a rollback destroys it.
+     */
+    const drawPicture = useCallback(
+      async (
+        picture: BoardPicture,
+        placement: PicturePlacement,
+        pass: PicturePass,
+        duration: number,
+        options?: PictureDrawOptions,
+      ): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(options?.shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const released = (): boolean => drawTransactionsRef.current.status(ownership) === "released";
+        // Children are owned by this command for rollback; only the group is
+        // board content the wipes and clears walk.
+        const ownChild = (node: Konva.Node): boolean => drawTransactionsRef.current.track(node, ownership);
+        const drawLayer = drawLayerRef.current;
+        const animLayer = animLayerRef.current;
+        if (!drawLayer || !animLayer || isCancelled()) return;
+        if (!(placement.width > 0 && placement.height > 0 && picture.plan.width > 0 && picture.plan.height > 0)) return;
+        // A released picture whose keyed canvas was freed draws nothing (a 0x0
+        // canvas would throw); the asset store loads a fresh one on demand.
+        if (!boardPictureDrawable(picture)) return;
+
+        const activity: PenActivity = "draw";
+        const key = `${picture.id}@${Math.round(placement.x)},${Math.round(placement.y)},${Math.round(placement.width)},${Math.round(placement.height)}`;
+        const ratio = Math.min(Math.max(pixelRatioRef.current || 1, 1), 2);
+        const canvasWidth = Math.max(1, Math.round(placement.width * ratio));
+        const canvasHeight = Math.max(1, Math.round(placement.height * ratio));
+        const partOf = (group: Konva.Group, part: string): Konva.Node | undefined =>
+          group.getChildren((node) => node.getAttr(PICTURE_PART_ATTR) === part)[0];
+
+        const findGroup = (): Konva.Group | undefined =>
+          drawLayer.getChildren((node) => node.getAttr(PICTURE_GROUP_ATTR) === key)[0] as Konva.Group | undefined;
+        const layCard = (opacity: number): { group: Konva.Group; card: Konva.Rect } | null => {
+          const group = new Konva.Group({ listening: false });
+          group.setAttr(PICTURE_GROUP_ATTR, key);
+          tagBoardInk(group, "scene");
+          const card = new Konva.Rect({
+            x: placement.x - PICTURE_CARD_PADDING_PX,
+            y: placement.y - PICTURE_CARD_PADDING_PX,
+            width: placement.width + PICTURE_CARD_PADDING_PX * 2,
+            height: placement.height + PICTURE_CARD_PADDING_PX * 2,
+            // A blended picture keeps the card's bounds (erase, FOCUS and the
+            // credit are placed by it) but draws nothing: the board shows through.
+            ...(picture.blended
+              ? { fill: "rgba(0,0,0,0)" }
+              : { fill: picture.plan.paper, shadowColor: "#3A2E1F", shadowBlur: 6, shadowOffsetY: 1, shadowOpacity: 0.16 }),
+            cornerRadius: PICTURE_CARD_RADIUS_PX,
+            opacity,
+            listening: false,
+            perfectDrawEnabled: false,
+          });
+          card.setAttr(PICTURE_PART_ATTR, "card");
+          group.add(card);
+          drawLayer.add(group);
+          if (!trackNode(group, completedNodesRef.current, ownership)) return null;
+          group.moveToBottom();
+          return { group, card };
+        };
+        const discardGroup = (group: Konva.Group): void => {
+          if (released()) return;
+          group.destroy(); untrackNode(group, completedNodesRef.current); drawTransactionsRef.current.detach(group);
+        };
+        const lineWork = (): HTMLCanvasElement => holdPictureLineWork(picture, canvasWidth, canvasHeight);
+        // What the pass's brush paints from: the shared line work (one hold,
+        // dropped by `dropSource`), or for the fill a scaled copy it owns.
+        const passSource = (): HTMLCanvasElement => {
+          if (pass === "outline") return lineWork();
+          const canvas = passCanvas(canvasWidth, canvasHeight);
+          const context = canvas.getContext("2d");
+          if (context) {
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = "high";
+            context.drawImage(picture.image, 0, 0, canvasWidth, canvasHeight);
+          }
+          return canvas;
+        };
+        const dropSource = (source: HTMLCanvasElement): void => {
+          if (pass === "outline") releasePictureLineWork(picture, source);
+          else freeCanvas(source);
+        };
+        // The finished pass: the shared line work, or the picture itself.
+        const finishedImage = (): [CanvasImageSource, PictureHold] =>
+          pass === "outline" ? [lineWork(), "line-work"] : [picture.image, "picture"];
+        const pictureNode = (image: CanvasImageSource, hold: PictureHold): PictureImage => {
+          const node = new PictureImage({
+            image: undefined,
+            x: placement.x,
+            y: placement.y,
+            width: placement.width,
+            height: placement.height,
+            listening: false,
+            perfectDrawEnabled: false,
+          });
+          node.setAttr(PICTURE_PART_ATTR, pass);
+          if (pass === "outline" && picture.blended) {
+            // A blended picture's fill holds every line too, and its edges are
+            // part transparent: drawn under the landed fill, the outline would
+            // double them (alpha a becomes 1 - (1 - a)^2, labels go bold). It
+            // draws only until a fill lands beside it, checked from the node
+            // tree at draw time, so rollback, seek and erase need no bookkeeping.
+            node.sceneFunc((context, shape) => {
+              if (shape.getParent()?.getChildren((sibling) => sibling.getAttr(PICTURE_PART_ATTR) === "fill").length) return;
+              (shape as PictureImage)._sceneFunc(context);
+            });
+          }
+          return node.showPicture(picture, image, hold);
+        };
+        const setCredit = (group: Konva.Group): void => {
+          const credit = picture.credit.trim();
+          if (!credit || partOf(group, "credit")) return;
+          const cardBottom = placement.y + placement.height + PICTURE_CARD_PADDING_PX;
+          // Under the card, and never lower than the contract's credit line.
+          const baseline = Math.min(REFERENCE_PICTURE_CREDIT_Y, cardBottom + PICTURE_CREDIT_GAP_PX + PICTURE_CREDIT_FONT_PX);
+          const creditWidth = REFERENCE_PICTURE_ZONE.width;
+          const centre = placement.x + placement.width / 2;
+          const text = new Konva.Text({
+            text: credit,
+            x: clamp(centre - creditWidth / 2, 0, Math.max(width - creditWidth, 0)),
+            y: baseline - PICTURE_CREDIT_FONT_PX,
+            width: creditWidth,
+            align: "center",
+            fontSize: PICTURE_CREDIT_FONT_PX,
+            fontFamily: PICTURE_CREDIT_FONT,
+            fill: PICTURE_CREDIT_COLOR,
+            wrap: "none",
+            ellipsis: true,
+            listening: false,
+            perfectDrawEnabled: false,
+          });
+          text.setAttr(PICTURE_PART_ATTR, "credit");
+          group.add(text);
+          ownChild(text);
+        };
+        // The finished pass on its card, and the credit under a fill. A pass
+        // already on the card (a re-land) is kept and no second copy is added.
+        const landPass = (group: Konva.Group, node?: PictureImage): void => {
+          if (partOf(group, pass)) {
+            if (node) { node.destroy(); drawTransactionsRef.current.detach(node); }
+          } else if (node) {
+            node.moveTo(group);
+          } else {
+            const finished = pictureNode(...finishedImage());
+            group.add(finished);
+            ownChild(finished);
+          }
+          if (pass === "fill") setCredit(group);
+        };
+
+        /**
+         * The key of a numbered picture: words, so the pen writes it, beside
+         * the card in the column `referencePictureLayout` gives this record.
+         * One tween walks every glyph stroke of every row with the picture
+         * pass's own timeline (the hand's lifts included), so a key of
+         * hundreds of strokes costs no chained frames. It lands in the
+         * picture's group, so CLEAR, an erase or a rollback takes it with the
+         * picture. A placement the layout does not give writes nothing: the
+         * key can never be written over the picture.
+         */
+        const writePictureLegend = async (): Promise<void> => {
+          const layout = picture.legend?.length ? referencePictureLayout({ plan: picture.plan, legend: picture.legend }) : null;
+          const legend = layout?.legend;
+          if (!layout || !legend) return;
+          const fitted = layout.picture;
+          if (Math.max(Math.abs(fitted.x - placement.x), Math.abs(fitted.y - placement.y), Math.abs(fitted.width - placement.width), Math.abs(fitted.height - placement.height)) > 1) return;
+          const writing: PenActivity = "write";
+          const existing = findGroup();
+          if (existing && partOf(existing, "legend")) return;
+
+          if (duration > 0) {
+            await equipInstrumentFor(writing, false, isCancelled, ownership);
+            if (isCancelled()) return;
+          } else {
+            applyInstrument(instrumentForActivity(writing));
+          }
+          const before = findGroup();
+          const laid = before ? null : layCard(1);
+          const group = before ?? laid?.group;
+          if (!group || partOf(group, "legend")) return;
+          const style = styleForCommand();
+          const ink = new Konva.Group({ listening: false });
+          ink.setAttr(PICTURE_PART_ATTR, "legend");
+          // Glyph strokes in writing order, each with the polyline the nib
+          // follows; a glyph with no stroke data is a text node shown when
+          // the pen reaches the stroke after it.
+          const strokes: Array<{ node: Konva.Path; length: number; path: PictureStrokePath }> = [];
+          const stamps: Array<{ node: Konva.Text; at: number }> = [];
+          for (const run of legend.runs) {
+            for (const charPath of textToStrokePathsSync(run.text, run.x, run.y, legend.fontSize)) {
+              if (charPath.strokes.length === 0) {
+                if (!charPath.char.trim()) continue;
+                const stamp = new Konva.Text({
+                  text: charPath.char, x: charPath.x, y: charPath.y, fontFamily: "Caveat, cursive",
+                  fontSize: charPath.fontSize ?? legend.fontSize, fill: style.color, opacity: style.opacity,
+                  listening: false, visible: duration <= 0,
+                });
+                ink.add(stamp);
+                stamps.push({ node: stamp, at: strokes.length });
+                continue;
+              }
+              for (const stroke of charPath.strokes) {
+                const node = new Konva.Path(inkPathConfig(stroke.pathData, stroke.width, style));
+                ink.add(node);
+                if (duration <= 0) continue;
+                const cacheKey = `${stroke.width}:${stroke.pathData}`;
+                let length = strokeLengthCacheRef.current.get(cacheKey);
+                if (length === undefined) {
+                  length = Math.max(node.getLength(), 1);
+                  if (strokeLengthCacheRef.current.size > 4000) strokeLengthCacheRef.current.clear();
+                  strokeLengthCacheRef.current.set(cacheKey, length);
+                }
+                let samples = strokeSampleCacheRef.current.get(stroke.pathData);
+                if (!samples) {
+                  samples = sampleKonvaPath(node, length);
+                  if (strokeSampleCacheRef.current.size > 4000) strokeSampleCacheRef.current.clear();
+                  strokeSampleCacheRef.current.set(stroke.pathData, samples);
+                }
+                const path = pictureStrokeFromPoints(samples);
+                if (!path) continue;
+                node.dash([length]);
+                node.dashOffset(length);
+                strokes.push({ node, length, path });
+              }
+            }
+          }
+
+          if (duration <= 0 || strokes.length === 0) {
+            for (const stamp of stamps) stamp.node.visible(true);
+            for (const { node } of strokes) node.dashEnabled(false);
+            group.add(ink);
+            ownChild(ink);
+            drawLayer.batchDraw();
+            return;
+          }
+
+          const totalMs = resolvePicturePassMs({ pass, lengthPx: legend.inkLengthPx, requestedMs: duration });
+          const timeline = planPictureTimeline({
+            pass,
+            strokes: strokes.map((stroke) => stroke.path),
+            brushPx: 0,
+            from: { x: cursorViewRef.current.x, y: cursorViewRef.current.y },
+            totalMs,
+          });
+          animLayer.add(ink);
+          if (!trackNode(ink, animNodesRef.current, ownership)) {
+            ink.destroy();
+            if (laid) discardGroup(laid.group);
+            return;
+          }
+          // Strokes before `done` are written in full; a stamp shows once the
+          // pen has reached the stroke after it.
+          let done = 0;
+          let stamped = 0;
+          let hint = 0;
+          const writeTo = (stroke: number, arcPx: number): void => {
+            for (; done < Math.min(stroke, strokes.length); done++) strokes[done]!.node.dashEnabled(false);
+            const current = strokes[stroke];
+            if (current) current.node.dashOffset(current.length * (1 - Math.min(arcPx / current.path.length, 1)));
+            for (; stamped < stamps.length && stamps[stamped]!.at <= stroke; stamped++) stamps[stamped]!.node.visible(true);
+          };
+          markCursorActivity();
+          await animateOver(timeline.totalMs, (progress) => {
+            const frame = pictureFrameAt(timeline, progress * timeline.totalMs, hint);
+            hint = frame.segment;
+            writeTo(frame.stroke, frame.arcPx);
+            if (frame.painting) moveNib(frame.nib.x, frame.nib.y, writing);
+            else hoverNib(frame.nib.x, frame.nib.y, writing, frame.lift);
+            animLayer.batchDraw();
+          }, isCancelled);
+
+          if (isCancelled()) {
+            // As a cancelled picture pass: a keep-visible commit keeps what is
+            // written; otherwise the half-written key goes.
+            if (!released()) {
+              ink.destroy(); untrackNode(ink, animNodesRef.current); drawTransactionsRef.current.detach(ink);
+              if (laid) discardGroup(laid.group);
+            }
+            animLayer.batchDraw();
+            drawLayer.batchDraw();
+            return;
+          }
+          untrackNode(ink, animNodesRef.current);
+          if (!group.getLayer()) {
+            // Erased or cleared under the pen: there is no card to write beside.
+            ink.destroy(); drawTransactionsRef.current.detach(ink);
+            animLayer.batchDraw();
+            return;
+          }
+          writeTo(strokes.length, 0);
+          for (const stamp of stamps) stamp.node.visible(true);
+          ink.moveTo(group);
+          animLayer.batchDraw();
+          drawLayer.batchDraw();
+        };
+
+        if (pass === "legend") {
+          await writePictureLegend();
+          return;
+        }
+
+        if (duration <= 0) {
+          applyInstrument(instrumentForActivity(activity));
+          const group = findGroup() ?? layCard(1)?.group;
+          if (!group) return;
+          landPass(group);
+          drawLayer.batchDraw();
+          return;
+        }
+
+        await equipInstrumentFor(activity, false, isCancelled, ownership);
+        if (isCancelled()) return;
+
+        const existing = findGroup();
+        const laid = existing ? null : layCard(0);
+        const group = existing ?? laid?.group;
+        if (!group) return;
+        const card = laid?.card ?? null;
+        const planPass = picture.plan[pass];
+        const scale = placement.width / picture.plan.width;
+        const strokes = boardPictureStrokes(planPass, picture.plan, placement);
+        if (strokes.length === 0) {
+          // Nothing for the pencil to follow: the pass is its finished state.
+          card?.opacity(1);
+          landPass(group);
+          drawLayer.batchDraw();
+          return;
+        }
+        const totalMs = resolvePicturePassMs({ pass, lengthPx: planPass.lengthPx * scale, requestedMs: duration });
+        const timeline = planPictureTimeline({
+          pass,
+          strokes,
+          brushPx: planPass.brushPx * scale,
+          from: { x: cursorViewRef.current.x, y: cursorViewRef.current.y },
+          totalMs,
+          leadInMs: card ? PICTURE_CARD_FADE_MS : 0,
+        });
+
+        const source = passSource();
+        const reveal = passCanvas(canvasWidth, canvasHeight);
+        const context = reveal.getContext("2d");
+        const pattern = context?.createPattern(source, "no-repeat") ?? null;
+        // The node owns the reveal from here: destroying it frees the canvas.
+        const node = pictureNode(reveal, "pass");
+        animLayer.add(node);
+        if (!trackNode(node, animNodesRef.current, ownership)) {
+          dropSource(source);
+          if (laid) discardGroup(laid.group);
+          return;
+        }
+        animLayer.batchDraw();
+
+        const kx = canvasWidth / placement.width;
+        const ky = canvasHeight / placement.height;
+        const brushCanvasPx = planPass.brushPx * scale * kx;
+        let revealed: PictureRevealMark = { stroke: 0, arcPx: 0 };
+        let hint = 0;
+        const paintTo = (mark: PictureRevealMark): void => {
+          const spans = pictureRevealSpans(timeline.strokes, revealed, mark);
+          revealed = { stroke: mark.stroke, arcPx: mark.arcPx };
+          if (!context || !pattern || spans.length === 0) return;
+          context.save();
+          context.strokeStyle = pattern;
+          context.lineWidth = brushCanvasPx;
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.beginPath();
+          for (const span of spans) {
+            const points = pictureStrokeSpan(timeline.strokes[span.stroke]!, span.fromArcPx, span.toArcPx);
+            context.moveTo((points[0]! - placement.x) * kx, (points[1]! - placement.y) * ky);
+            for (let i = 2; i + 1 < points.length; i += 2) {
+              context.lineTo((points[i]! - placement.x) * kx, (points[i + 1]! - placement.y) * ky);
+            }
+          }
+          context.stroke();
+          context.restore();
+        };
+
+        markCursorActivity();
+        let cardFading = card !== null;
+        await animateOver(timeline.totalMs, (progress) => {
+          const ms = progress * timeline.totalMs;
+          if (card && cardFading) {
+            const fade = clamp(ms / PICTURE_CARD_FADE_MS, 0, 1);
+            card.opacity(smoothstep(fade));
+            cardFading = fade < 1;
+            drawLayer.batchDraw();
+          }
+          const frame = pictureFrameAt(timeline, ms, hint);
+          hint = frame.segment;
+          paintTo(frame);
+          if (frame.painting) moveNib(frame.nib.x, frame.nib.y, activity);
+          else hoverNib(frame.nib.x, frame.nib.y, activity, frame.lift);
+          animLayer.batchDraw();
+        }, isCancelled);
+
+        if (isCancelled()) {
+          // A keep-visible commit keeps what is already painted, as drawShape
+          // does; the partial reveal is then freed when its node is destroyed.
+          if (!released()) {
+            node.destroy(); untrackNode(node, animNodesRef.current); drawTransactionsRef.current.detach(node);
+            if (laid) discardGroup(laid.group);
+          }
+          dropSource(source);
+          animLayer.batchDraw();
+          drawLayer.batchDraw();
+          return;
+        }
+
+        if (!group.getLayer()) {
+          // Erased or cleared under the pencil: there is no card to land on.
+          node.destroy(); untrackNode(node, animNodesRef.current); drawTransactionsRef.current.detach(node);
+          dropSource(source);
+          animLayer.batchDraw();
+          return;
+        }
+        card?.opacity(1);
+        // The exact finished pass, not the brush's approximation of it. The
+        // swap frees the reveal canvas, so the card keeps no pass canvas.
+        node.showPicture(picture, ...finishedImage());
+        dropSource(source);
+        untrackNode(node, animNodesRef.current);
+        landPass(group, node);
+        animLayer.batchDraw();
+        drawLayer.batchDraw();
+      },
+      [
+        animateOver,
+        applyInstrument,
+        equipInstrumentFor,
+        hoverNib,
+        markCursorActivity,
+        moveNib,
+        styleForCommand,
+        tagBoardInk,
+        trackNode,
+        untrackNode,
+        width,
       ],
     );
 
@@ -3254,6 +3802,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       ref,
       () => ({
         drawShape,
+        drawPicture,
         drawAnnotation,
         writeText,
         clearBoard,
@@ -3335,7 +3884,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (

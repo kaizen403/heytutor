@@ -1,0 +1,400 @@
+{
+ "note": "Maxwell routing oracle: what origin/main 70c493df9 drew for each stem. The head may only decline relative to it.",
+ "rows": [
+  {
+   "stem": "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "State the Maxwell right-hand thumb rule and use it to find the field direction.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Write Maxwell's equations and show how they predict the speed of light.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Using Maxwell's equations, find the field of a spherical charge distribution.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "A Maxwell bridge measures an unknown inductance. Find L at balance.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Using Maxwell's equations, sketch the energy distribution of a standing electromagnetic wave.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Use Maxwell's energy density to sketch the field energy along a plane wave.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the distribution of energy in a standing electromagnetic wave.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution of beta particles emitted in beta decay.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the kinetic energy distribution of beta particles.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the emitted particles in beta decay.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of alpha particles emitted in a decay.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of an electron gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution in the electron gas of a metal.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of particles in a Fermi gas.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of atoms in a Bose Einstein condensate.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of a photon gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the distribution of energy for a photon gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the particle energy distribution in a plasma at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of radiation in a gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of a wave in a gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of sound in a gas.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Using Maxwell's equations, sketch the energy distribution of charged particles in a field.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution of a gas of photons in a cavity at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the gas giant's atmosphere layers.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the particles in a photon gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the atoms in a Fermi gas.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution in a mixture of radiation in a gas.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of beta particles in a gas during beta decay.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the alpha particles of a gas source.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Draw the Maxwell speed distribution and mark the most probable speed.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch two normalized Maxwell distributions for the same gas.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "For a Maxwell gas, sketch the distribution of molecular speed at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the distribution of energy for an ideal gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution in a real diatomic gas at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the distribution of energy among the particles of an ideal gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution in a mixture of ideal gases at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of an ideal gas for two different temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Plot the energy distribution of an ideal gas as a function of energy at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of neutrons in a nuclear reactor at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the energy distribution of free electrons in a metal at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the kinetic energy distribution of cosmic ray particles.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the distribution of molecular speeds in a star's corona plasma.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution of phonons in a crystal.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Plot the speed distribution of stars in a galaxy.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the distribution of income among households.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Using Maxwell's equations, draw the energy distribution of electromagnetic waves in a gas-filled cavity.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Draw the Maxwell bridge circuit and its balance condition.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Explain Maxwell's corkscrew rule with a diagram.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the energy distribution of electrons emitted in beta decay.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the spectral energy distribution of black body radiation at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the Fermi Dirac distribution at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the Bose Einstein distribution at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of electrons as a gas in a metal at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the energy distribution of particles in a plasma at two temperatures.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of a gas for a laser cavity.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the distribution of photon energies in a gas discharge tube.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the energy distribution of the neutrons as a function of energy.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Plot the speed distribution of particles among the electrons of a metal.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the energy distribution of a mixture of photons and electrons.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch how the gas pressure varies with height for an ideal gas in a column.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Sketch the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Draw the distribution of kinetic energies of gas molecules at two temperatures and mark the activation energy.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the distribution of molecular energies for a monatomic ideal gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Explain with a Maxwell Boltzmann curve why rate increases with temperature.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Draw the distribution of energy for an ideal gas at two temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Sketch the distribution of molecular speeds for nitrogen gas at 300 K and 600 K.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Show the speed distribution of the molecules of a gas as a function of temperature.",
+   "mainDraws": false,
+   "mainChemistry": false
+  },
+  {
+   "stem": "Draw the Maxwell distribution for an ideal gas for two different temperatures.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Explain Maxwell's demon and why it does not violate the second law.",
+   "mainDraws": true,
+   "mainChemistry": true
+  },
+  {
+   "stem": "Derive the Maxwell relations from the thermodynamic potentials.",
+   "mainDraws": true,
+   "mainChemistry": true
+  }
+ ]
+}

@@ -47,6 +47,21 @@ function thresholdHasReactionOwner(stem: string): boolean {
     || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
 }
 
+/**
+ * Maxwell also names the thumb rule, the equations, the bridge and the demon.
+ * The name routes here only beside the curve itself: Maxwell Boltzmann,
+ * Maxwell naming a distribution or curve, or Maxwell beside a speed
+ * distribution or a named molecular speed. Every branch needs "maxwell", so
+ * this only ever declines what the bare name drew.
+ */
+function namesMaxwellDistribution(stem: string): boolean {
+  if (!/maxwell/.test(stem)) return false;
+  return /maxwell[\s-]*boltzmann/.test(stem)
+    || /maxwell(?:ian|'s|\u2019s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic|normali[sz]ed|probability|two|the)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)
+    || /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/.test(stem)
+    || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
+}
+
 function classifyThermoStem(question: string): ThermoKind | null {
   const stem = chemStem(question);
   if (FIGURE_ABSENT.test(stem)) return null;
@@ -57,13 +72,17 @@ function classifyThermoStem(question: string): ThermoKind | null {
     return "born_haber";
   }
   if (
-    /maxwell|boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
+    namesMaxwellDistribution(stem) ||
+    /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
     (/fraction\s+of\s+(?:the\s+)?molecules/.test(stem) && /energy/.test(stem)) ||
     /effect\s+of\s+temperature\s+on\s+(?:the\s+)?(?:rate|reaction\s+rate)/.test(stem) ||
     /molecules\s+(?:having|with|possessing)\s+(?:kinetic\s+)?energy\s+(?:greater|more|higher|larger)\s+than/.test(stem)
   ) {
     return "maxwell";
   }
+  // A stem that names Maxwell but not the distribution never reaches the
+  // other thermo figures: main returned "maxwell" for it, so this only declines.
+  if (/maxwell/.test(stem)) return null;
   const gibbsSource = readGibbsEnergies(question);
   const hasDeltaH = gibbsSource !== null || readEnthalpyChange(question) !== null;
   const hasDeltaS = gibbsSource !== null || readEntropyChange(question) !== null;

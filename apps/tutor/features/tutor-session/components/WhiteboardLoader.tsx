@@ -1,8 +1,17 @@
 import dynamic from "next/dynamic";
+import { reloadOnceForMissingChunk } from "@/lib/client/staleBuild";
 import { BoardBootSpinner } from "./BoardBootSpinner";
 
 export const Whiteboard = dynamic(
-  () => import("@heytutor/whiteboard").then((mod) => mod.Whiteboard),
+  () =>
+    import("@heytutor/whiteboard")
+      .then((mod) => mod.Whiteboard)
+      .catch((error: unknown) => {
+        // A deploy deletes the previous build's chunks: a tab opened before it
+        // reloads once into the current build instead of loading forever.
+        if (reloadOnceForMissingChunk(error)) return new Promise<never>(() => {});
+        throw error;
+      }),
   {
     ssr: false,
     loading: () => (

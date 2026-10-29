@@ -144,3 +144,46 @@ export function reloadStaleTabForQuestion(question: string, deps: {
   location.assign(url);
   return true;
 }
+
+const CHUNK_RELOAD_KEY = "heytutor:missing-chunk-reload";
+
+/**
+ * A lazily loaded chunk that is no longer on the server. Every deploy builds a
+ * new set of chunk files, so a tab opened before it asks for names that are
+ * gone: the whiteboard's own chunk then never arrives and the board sat on
+ * "loading the board" until a hard reload (production, 28 Oct 2026).
+ */
+export function isMissingChunkError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { name, message } = error as { name?: unknown; message?: unknown };
+  if (name === "ChunkLoadError") return true;
+  return typeof message === "string" &&
+    /Loading (?:CSS )?chunk \S+ failed|Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(message);
+}
+
+/**
+ * Reload once when a chunk is missing, so the tab picks up the current build.
+ * Once per page build: if the reloaded page fails the same way, it shows the
+ * error instead of reloading in a loop. Anything else (another error, no
+ * storage to remember the attempt) returns false and the error is shown.
+ */
+export function reloadOnceForMissingChunk(error: unknown, deps: {
+  clientBuildId?: string;
+  location?: { reload(): void };
+  storage?: Pick<Storage, "getItem" | "setItem">;
+} = {}): boolean {
+  if (!isMissingChunkError(error)) return false;
+  const location = deps.location ?? (typeof window === "undefined" ? undefined : window.location);
+  if (!location) return false;
+  let storage = deps.storage;
+  try { storage ??= window.sessionStorage; } catch { return false; }
+  const mark = (deps.clientBuildId ?? CLIENT_BUILD_ID) || "unknown-build";
+  try {
+    if (storage.getItem(CHUNK_RELOAD_KEY) === mark) return false;
+    storage.setItem(CHUNK_RELOAD_KEY, mark);
+  } catch {
+    return false;
+  }
+  location.reload();
+  return true;
+}
