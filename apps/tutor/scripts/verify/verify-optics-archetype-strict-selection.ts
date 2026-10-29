@@ -14,7 +14,8 @@ import {
   FIGURE_SOURCES, TURN_PLAN_V3_VERSION, attemptArchetypeScene, type SceneDocument, type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import { normalizeSceneDocumentModelOutput } from "@heytutor/tutor-core";
-import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { deriveSceneGate, selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import {
   decideDiagramStrategy, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype,
 } from "../../features/tutor-session/lib/scene/diagramStrategy";
@@ -24,7 +25,7 @@ import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { getSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
-import { OPTICS_ARCHETYPE_FIXTURES } from "../../../../packages/scene-engine/scripts/verify/fixtures/optics-archetype-strict";
+import { OPTICS_ARCHETYPE_FIXTURES, REVIEW2_FIXTURES } from "../../../../packages/scene-engine/scripts/verify/fixtures/optics-archetype-strict";
 
 function turnPlan(question: string, rows: Array<[string, number, string | null]>): TurnPlanV3 {
   return {
@@ -105,7 +106,9 @@ assert.notEqual(select(q36, q36Plan, current).representation?.figureSource, "opt
 const wrongPlan = turnPlan(q36, [["P", -2, "D"], ["u", -75, "cm"], ["v", 150, "cm"]]);
 const refused = select(q36, wrongPlan);
 assert.equal(refused.representation, null, "a plan image distance that disagrees refuses");
-assert.match(refused.saveFailure ?? "", /optics_plan_disagreement/);
+// Strict's role binding refuses it first; the save check refuses the same figure on its own.
+assert.match(refused.strictOpticsAdmission?.reason ?? "", /is not the figure's v/);
+assert.match(sceneSaveAdmissionFailure({ document: drawn.representation!.sceneDocument, question: q36, turnPlan: wrongPlan, tier: "exact_verified" }) ?? "", /optics_plan_disagreement/);
 
 // q107 and a metre stem: unit and kind from the question.
 const q107 = fixture("q107").question;
@@ -182,6 +185,43 @@ assert.equal("exactGrounding" in labelled.source, false);
 const selfLabelled = select(q36, q36Plan, strict, labelled as unknown as Record<string, unknown>);
 assert.equal(selfLabelled.droppedCandidate?.code, "planner_optics_on_archetype_stem", "a self-labelled planner figure is still dropped");
 
+// Review 2: every input that drew a wrong figure with strict on, through the production selection,
+// strict on and the current lane (its fast figure first, as live). Strict never draws the lens or
+// mirror archetype for them; any lens or mirror figure either lane draws is exactly the hand truth.
+const lensOrMirror = (document: SceneDocument | undefined) => ["thin_lens", "spherical_mirror"].includes(String(document?.source.archetype));
+let review2Plans = 0;
+for (const fixture of REVIEW2_FIXTURES) {
+  for (const rows of fixture.plans) {
+    review2Plans++;
+    const plan = turnPlan(fixture.question, rows);
+    const engine = attemptArchetypeScene({ question: fixture.question, turnPlan: plan }).scene?.document ?? attemptArchetypeScene({ question: fixture.question }).scene?.document;
+    const candidate = engine ? asPlannerDocument(engine) : plannerDocument(q36);
+    const strictChoice = select(fixture.question, plan, strict, candidate);
+    assert.notEqual(strictChoice.representation?.figureSource, "optics_archetype", `${fixture.id} ${JSON.stringify(rows)}: strict does not draw the archetype (${strictChoice.strictOpticsAdmission?.reason ?? strictChoice.reason})`);
+    const gate = deriveSceneGate({ question: fixture.question, turnPlan: plan, problemIR: null, blockFlowEligible: false });
+    const fast = gate.shouldPlanExactScene ? selectFastVerifiedRepresentation({ question: fixture.question, turnPlan: plan, problemIR: null, families: gate.sceneCapabilities.families }) : null;
+    const currentChoice = selectProductionScene({
+      question: fixture.question, turnPlan: plan, problemIR: null, sceneCapabilities: gate.sceneCapabilities, blockFlowEligible: false,
+      ...(fast ? { fastRepresentation: fast } : { candidate }), exactFigureSource: "planner", solverAuthorityBlocked: false, requiredRetryEnabled: false,
+      policy: { preferPlanner: false, allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(current, source)), admitOwningOpticsArchetype: false },
+    });
+    for (const [lane, choice] of [["strict", strictChoice], ["current", currentChoice]] as const) {
+      const document = choice.representation?.sceneDocument;
+      if (!document || !lensOrMirror(document)) continue;
+      const truth = fixture.truth;
+      assert.ok(truth, `${fixture.id} ${lane}: no lens or mirror figure for ${JSON.stringify(rows)} (${choice.reason})`);
+      const lens = truth.archetype === "thin_lens";
+      const f = lens ? (truth.kind === "convex" ? truth.f : -truth.f) : (truth.kind === "concave" ? -truth.f : truth.f);
+      const v = lens ? (truth.real ? truth.v : -truth.v) : (truth.real ? -truth.v : truth.v);
+      assert.deepEqual(quantities(document), { u: `${-truth.u} cm`, f: `${f} cm`, v: `${v} cm` }, `${fixture.id} ${lane}: the figure drawn is the truth`);
+    }
+  }
+}
+// Strict binds by role: the converging mirror plan with a role-free length (x1 = 15 cm = |v|) or without its focal row declines.
+for (const rows of [[["u", 30, "cm"], ["f", 10, "cm"], ["x1", 15, "cm"]], [["u", 30, "cm"], ["v", 15, "cm"]]] as Array<Array<[string, number, string | null]>>) {
+  assert.notEqual(select(converging, turnPlan(converging, rows)).representation?.figureSource, "optics_archetype", `strict declines for ${JSON.stringify(rows)}`);
+}
+
 // Save and reopen: a lesson whose figure source is optics_archetype keeps that source and restores.
 async function saveAndReopen(): Promise<void> {
   const representation = convergingDrawn.representation!;
@@ -206,7 +246,7 @@ async function saveAndReopen(): Promise<void> {
   assert.ok(restoreVerifiedPresentationFromTurn({ question: converging, sceneDocument: saved.value.sceneDocument, sceneArtifacts: saved.value.sceneArtifacts }), "the saved figure reopens");
 }
 
-void saveAndReopen().then(() => console.log("verify-optics-archetype-strict-selection: strict draws the owning optics archetype only under the narrow rule and only when switched on; save check, configuration declines, self-label hole and save and reopen hold"), (error) => {
+void saveAndReopen().then(() => console.log(`verify-optics-archetype-strict-selection: strict draws the owning optics archetype only under the narrow rule and only when switched on; role binding, ${review2Plans} review 2 input plans in strict and current, save check, configuration declines, self-label hole and save and reopen hold`), (error) => {
   console.error(error);
   process.exitCode = 1;
 });

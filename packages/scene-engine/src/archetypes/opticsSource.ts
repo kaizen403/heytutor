@@ -23,6 +23,8 @@ export interface StatedLength {
   /** Signed value in centimetres. */
   cm: number;
   unit: OpticsLengthUnit;
+  /** Where the stem states it (index of the match), when read from a stem. */
+  at?: number;
 }
 
 const LENGTH_UNIT = String.raw`cm|mm|metres?|meters?|m`;
@@ -36,11 +38,11 @@ export function lengthUnitKey(raw: unknown): OpticsLengthUnit | null {
   return null;
 }
 
-function stated(raw: string, unit: string): StatedLength | null {
+function stated(raw: string, unit: string, at?: number): StatedLength | null {
   const value = parseStemNumber(raw);
   const key = lengthUnitKey(unit);
   if (value === null || key === null) return null;
-  return { cm: value * CM_PER_UNIT[key], unit: key };
+  return at === undefined ? { cm: value * CM_PER_UNIT[key], unit: key } : { cm: value * CM_PER_UNIT[key], unit: key, at };
 }
 
 /** The clause before `index`, back to the last sentence or clause break. */
@@ -53,14 +55,22 @@ function clauseBefore(stem: string, index: number): string {
 }
 
 /**
+ * Bodies that receive the image: a length to one of them is the image
+ * distance, never the object's ("a wall is 30 cm from a concave mirror",
+ * "a photographic film is 5 cm from the lens").
+ */
+const RECEIVER = String.raw`screens?|walls?|films?|papers?|sheets?|cards?|boards?|detectors?|plates?|sensors?|retinas?|ground[\s-]glass`;
+
+/**
  * The last role noun a clause names: whose distance a length there is. A
- * screen is where the image forms, so a length in a screen clause is never
- * the object's.
+ * screen, wall, film, card or other receiver is where the image forms, so a
+ * length in such a clause is never the object's.
  */
 function lastRoleNoun(clause: string): "image" | "object" | null {
-  const nouns = [...clause.matchAll(/\b(image|object|screen)s?\b/gi)];
+  const nouns = [...clause.matchAll(new RegExp(String.raw`\b(images?|objects?|${RECEIVER})\b`, "gi"))];
   const last = nouns[nouns.length - 1]?.[1]?.toLowerCase();
-  return last === "image" || last === "screen" ? "image" : last === "object" ? "object" : null;
+  if (last === undefined) return null;
+  return /^objects?$/.test(last) ? "object" : "image";
 }
 
 /**
@@ -69,14 +79,14 @@ function lastRoleNoun(clause: string): "image" | "object" | null {
  * or "it". A length measured from a screen, an object, a wall or any other
  * body is not the object distance.
  */
-const ELEMENT_ANCHOR = /^\s*(?:it\b|(?:(?:the|a|an|this|that|its|their)\s+)?(?:(?!(?:screen|object|wall|image|candle|eye|observer|source|lamp|bulb|pin|slit|card)\b)[\w'+-]+\s+){0,3}?(?:lens|mirror|pole|optic(?:al)?\s+cent(?:re|er)|vertex|magnifier|magnifying\s+glass)\b)/i;
+const ELEMENT_ANCHOR = new RegExp(String.raw`^\s*(?:it\b|(?:(?:the|a|an|this|that|its|their)\s+)?(?:(?!(?:object|image|candle|eye|observer|source|lamp|bulb|pin|slit|${RECEIVER}|focus|foci|focal|principal|centre|center|curvature|point)\b)[\w'+-]+\s+){0,3}?(?:lens|mirror|pole|optic(?:al)?\s+cent(?:re|er)|vertex|magnifier|magnifying\s+glass)\b(?!['’]s?\s+(?:principal\s+|first\s+|second\s+)?(?:focus|foci|focal|centre|center|axis)))`, "i");
 
 function anchoredAtElement(rest: string): boolean {
   return ELEMENT_ANCHOR.test(rest);
 }
 
 /** Bodies a lens or mirror may be measured from that are not the object it images. */
-const NOT_THE_OBJECT = /\b(?:screen|wall|image|eye|observer|film|retina|sensor|plate|slab|block|floor|ground|ceiling|table|lens|lenses|mirror|mirrors|focus|pole|centre|center|axis|source of light|light source)\b/i;
+const NOT_THE_OBJECT = new RegExp(String.raw`\b(?:${RECEIVER}|image|eye|observer|camera|photographic|slab|block|cube|floor|ground|ceiling|table|lens|lenses|mirror|mirrors|focus|pole|centre|center|axis|source of light|light source)\b`, "i");
 
 /**
  * The element is the clause's subject ("holds a converging lens ... at 12 cm
@@ -109,21 +119,41 @@ function lengthsBefore(stem: string, phrase: RegExp): StatedLength[] {
     const ownSide = /\bto its left$/i.test(match[0]) && !/^\s*of\b/i.test(stem.slice(at + match[0].length));
     const rest = stem.slice(at + match[0].length);
     if (!ownSide && !anchoredAtElement(rest) && !elementToObject(clauseBefore(stem, at), rest)) return [];
-    return [stated(match[1]!, match[2]!)].filter((item): item is StatedLength => item !== null);
+    return [stated(match[1]!, match[2]!, at)].filter((item): item is StatedLength => item !== null);
   });
 }
 
 /**
- * The first "<phrase> ... <number> <unit>" outside an image or screen
- * clause. `anchored` also asks the length to be measured from the element
- * ("placed at 20 cm from the lens", or a bare "object at 20 cm." in a stem
- * with no screen or wall to measure from); a role named by the phrase itself
- * ("object distance of 20 cm", "focal length 10 cm") needs no anchor.
+ * The words between a named role and its number ("focal length of the lens
+ * is 10 cm") belong to that role only when they stay in one clause and name
+ * no other quantity: a sentence end, a semicolon or comma, a condition ("if",
+ * "when", "and"), another symbol's assignment ("v = 60 cm") or another role
+ * noun means the number is someone else's. The role's own symbol ("focal
+ * length f = 10 cm") may be assigned.
  */
-function lengthAfter(stem: string, phrase: RegExp, options: { roleGuard?: boolean; anchored?: boolean } = {}): StatedLength | null {
-  const pattern = new RegExp(`(?:${phrase.source})[^0-9\\-]{0,24}${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b`, "gi");
+function gapCrossesRole(gap: string, ownSymbol: string | null): boolean {
+  let rest = ` ${gap} `;
+  if (ownSymbol) rest = rest.replace(new RegExp(String.raw`[\s(]\(?\s*(?:${ownSymbol})\s*\)?\s*(?=[=:\s])`), " ");
+  rest = rest.replace(/^\s*[=:]/, " ");
+  return /[.;,?!=:]/.test(rest)
+    || /\b(?:if|when|whenever|where|while|whereas|and|but|then|so|given|images?|objects?|screens?|walls?|distances?|height|tall|power|radius|curvature|magnification|focal)\b/i.test(rest)
+    // A lone symbol other than the article "a" ("... v 60 cm") is another quantity.
+    || /(?:^|\s)(?![aA](?:\s|$))[a-zA-Z](?=\s|$)/.test(rest);
+}
+
+/**
+ * The first "<phrase> ... <number> <unit>" outside an image or screen
+ * clause, with the words between staying in the phrase's own role
+ * (`gapCrossesRole`). `anchored` also asks the length to be measured from the
+ * element ("placed at 20 cm from the lens", or a bare "object at 20 cm." in a
+ * stem with no screen or wall to measure from); a role named by the phrase
+ * itself ("object distance of 20 cm", "focal length 10 cm") needs no anchor.
+ */
+function lengthAfter(stem: string, phrase: RegExp, options: { roleGuard?: boolean; anchored?: boolean; symbol?: string } = {}): StatedLength | null {
+  const pattern = new RegExp(`(?:${phrase.source})([^0-9\\-]{0,24})${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b`, "gi");
   for (const match of stem.matchAll(pattern)) {
     const at = match.index ?? 0;
+    if (gapCrossesRole(match[1]!, options.symbol ?? null)) continue;
     const numberAt = at + match[0].search(/[0-9+.]/);
     if (options.roleGuard && lastRoleNoun(clauseBefore(stem, numberAt)) === "image") continue;
     if (options.anchored) {
@@ -131,19 +161,21 @@ function lengthAfter(stem: string, phrase: RegExp, options: { roleGuard?: boolea
       // other body to measure from; never "at 20 cm from the screen".
       const rest = stem.slice(at + match[0].length);
       const away = /^\s*(?:away\s+)?(?:from|in front of|before|to (?:the|its) left of)\b/i.exec(rest);
-      const anchored = away ? anchoredAtElement(rest.slice(away[0].length)) : /^\s*(?:[.,;:)]|$)/.test(rest) && !/\b(?:screen|wall)\b/i.test(stem);
+      const anchored = away ? anchoredAtElement(rest.slice(away[0].length)) : /^\s*(?:[.,;:)]|$)/.test(rest) && !RECEIVER_IN_STEM.test(stem);
       if (!anchored) continue;
     }
-    const length = stated(match[1]!, match[2]!);
+    const length = stated(match[2]!, match[3]!, numberAt);
     if (length) return length;
   }
   return null;
 }
 
+const RECEIVER_IN_STEM = new RegExp(String.raw`\b(?:${RECEIVER})\b`, "i");
+
 function symbolLength(stem: string, symbol: RegExp): StatedLength | null {
   const pattern = new RegExp(`(?:^|[^a-z])(?:${symbol.source})\\s*[=:]\\s*\\+?${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b`, "i");
   const match = pattern.exec(stem);
-  return match ? stated(match[1]!, match[2]!) : null;
+  return match ? stated(match[1]!, match[2]!, match.index) : null;
 }
 
 /**
@@ -151,10 +183,14 @@ function symbolLength(stem: string, symbol: RegExp): StatedLength | null {
  * said centimetres, so the value is never stem sourced: it may not be shown,
  * and it keeps strict from drawing (`unitless` slots, see extractOpticsSlots).
  */
-function unitlessAfter(stem: string, phrase: RegExp): number | null {
-  const pattern = new RegExp(`(?:${phrase.source})[^0-9\\-]{0,24}${STEM_NUMBER}(?!\\s*(?:${LENGTH_UNIT}|D|dioptres?|diopters?|centimet(?:re|er)s?|millimet(?:re|er)s?)\\b)(?!\\s*[%°×x*^/])`, "i");
-  const match = pattern.exec(stem);
-  return match ? parseStemNumber(match[1]!) : null;
+function unitlessAfter(stem: string, phrase: RegExp, symbol: string | null): number | null {
+  const pattern = new RegExp(`(?:${phrase.source})([^0-9\\-]{0,24})${STEM_NUMBER}(?!\\s*(?:${LENGTH_UNIT}|D|dioptres?|diopters?|centimet(?:re|er)s?|millimet(?:re|er)s?)\\b)(?!\\s*[%°×x*^/])`, "gi");
+  for (const match of stem.matchAll(pattern)) {
+    if (gapCrossesRole(match[1]!, symbol)) continue;
+    const value = parseStemNumber(match[2]!);
+    if (value !== null) return value;
+  }
+  return null;
 }
 
 /** Phrases that name the object distance by its role: no anchor needed. */
@@ -173,7 +209,7 @@ function heldOver(stem: string): StatedLength | null {
   for (const match of stem.matchAll(pattern)) {
     const clause = clauseBefore(stem, match.index ?? 0);
     if (!/\b(?:lens|magnifier|magnifying glass|mirror)\b/i.test(clause) || lastRoleNoun(clause) !== null) continue;
-    const length = stated(match[1]!, match[2]!);
+    const length = stated(match[1]!, match[2]!, match.index ?? 0);
     if (length) return length;
   }
   return null;
@@ -184,38 +220,70 @@ function heldOver(stem: string): StatedLength | null {
  * ends there and the stem has no screen or wall it could be measured from.
  */
 function objectPlacedAway(stem: string): StatedLength | null {
-  if (/\b(?:screen|wall)\b/i.test(stem)) return null;
+  if (RECEIVER_IN_STEM.test(stem)) return null;
   const pattern = new RegExp(`\\bobject\\s+(?:is\\s+)?(?:placed|kept|located|positioned)\\s+${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b\\s*away\\s*(?=[.,;:)]|$)`, "gi");
   for (const match of stem.matchAll(pattern)) {
     if (lastRoleNoun(clauseBefore(stem, (match.index ?? 0) + match[0].indexOf(match[1]!))) === "image") continue;
-    const length = stated(match[1]!, match[2]!);
+    const length = stated(match[1]!, match[2]!, match.index ?? 0);
     if (length) return length;
   }
   return null;
 }
 
 export function objectDistanceFromStem(stem: string): StatedLength | null {
-  return lengthsBefore(stem, AWAY_FROM)[0]
+  return objectDistanceReading(stem)?.length ?? null;
+}
+
+/** The stem's object distance and how it was read: by a phrase around a number, or by the symbol u. */
+function objectDistanceReading(stem: string): { length: StatedLength; bySymbol: boolean } | null {
+  const phrase = lengthsBefore(stem, AWAY_FROM)[0]
     ?? heldOver(stem)
-    ?? lengthAfter(stem, OBJECT_DISTANCE_NAMED, { roleGuard: true })
+    ?? lengthAfter(stem, OBJECT_DISTANCE_NAMED, { roleGuard: true, symbol: "u" })
     ?? lengthAfter(stem, OBJECT_PLACEMENT, { roleGuard: true, anchored: true })
-    ?? objectPlacedAway(stem)
-    ?? symbolLength(stem, /u/);
+    ?? objectPlacedAway(stem);
+  if (phrase) return { length: phrase, bySymbol: false };
+  const symbol = symbolLength(stem, /u/);
+  return symbol ? { length: symbol, bySymbol: true } : null;
+}
+
+/** Things a lens or mirror images: a u clause must name one ("a candle stands 36 cm from the lens"). */
+const OBJECT_NOUN = /\b(?:objects?|candles?|pins?|flames?|arrows?|letters?|stamps?|toys?|persons?|people|man|men|woman|women|boy|girl|child|lamps?|needles?|bulbs?|sources?|coins?|insects?|ants?|bugs?|flies|fly|pencils?|pens?|rods?|sticks?|matchsticks?|trees?|buildings?|towers?|cars?|vans?|trucks?|lorry|lorries|buses|bus|bikes?|bicycles?|cyclists?|motorcycles?|ships?|boats?|vehicles?|customers?|shoppers?|students?|signs?|posters?|charts?|pictures?|photos?|photographs?|flowers?|plants?|animals?|cats?|dogs?|faces?|nose|print|page|text|book|newspaper|word|words|specimen|slide|ball|bottle|statue|bird|star|sun|moon|he|she|his|her)\b/i;
+
+/**
+ * Whether the stem's object distance is bound to the object by its own
+ * words: read from the symbol u, or from a clause that names the thing
+ * imaged (an object, candle, pin, stamp, lamp ...). A length in a clause
+ * that names no such thing ("a wall is 30 cm from a concave mirror") is
+ * someone's distance, not certainly the object's. Null when the stem states
+ * no object distance.
+ */
+export function objectDistanceNamesObject(question: string): boolean | null {
+  const stem = question.replace(/[\u2013\u2014\u2212]/g, "-").replace(/\s+/g, " ");
+  const reading = objectDistanceReading(stem);
+  if (!reading) return null;
+  if (reading.bySymbol) return true;
+  const at = reading.length.at ?? 0;
+  const after = stem.slice(at);
+  const end = after.search(/[.;?!](?!\d)/);
+  const before = stem.slice(0, at);
+  const sentenceStart = Math.max(...[...before.matchAll(/[.;?!](?!\d)/g)].map((match) => match.index! + 1), 0);
+  const clause = before.slice(sentenceStart) + (end < 0 ? after : after.slice(0, end));
+  return OBJECT_NOUN.test(clause) && lastRoleNoun(clauseBefore(stem, at)) !== "image";
 }
 
 export function focalLengthFromStem(stem: string): StatedLength | null {
-  return lengthAfter(stem, FOCAL_LENGTH) ?? symbolLength(stem, /f/);
+  return lengthAfter(stem, FOCAL_LENGTH, { symbol: "f" }) ?? symbolLength(stem, /f/);
 }
 
 export function radiusOfCurvatureFromStem(stem: string): StatedLength | null {
-  return lengthAfter(stem, RADIUS_OF_CURVATURE) ?? symbolLength(stem, /R/);
+  return lengthAfter(stem, RADIUS_OF_CURVATURE, { symbol: "R" }) ?? symbolLength(stem, /R/);
 }
 
 /** The roles the stem names with a bare number and no unit ("focal length 10"). */
 function unitlessRoles(stem: string): Set<"u" | "f"> {
   const roles = new Set<"u" | "f">();
-  if (unitlessAfter(stem, OBJECT_DISTANCE_NAMED) !== null || unitlessAfter(stem, OBJECT_PLACEMENT) !== null) roles.add("u");
-  if (unitlessAfter(stem, FOCAL_LENGTH) !== null || unitlessAfter(stem, RADIUS_OF_CURVATURE) !== null) roles.add("f");
+  if (unitlessAfter(stem, OBJECT_DISTANCE_NAMED, "u") !== null || unitlessAfter(stem, OBJECT_PLACEMENT, null) !== null) roles.add("u");
+  if (unitlessAfter(stem, FOCAL_LENGTH, "f") !== null || unitlessAfter(stem, RADIUS_OF_CURVATURE, "R") !== null) roles.add("f");
   return roles;
 }
 
@@ -228,11 +296,19 @@ function unitlessRoles(stem: string): Set<"u" | "f"> {
  */
 export function opticsConfigurationIssue(question: string): string | null {
   const stem = question.replace(/[\u2013\u2014\u2212]/g, "-").replace(/\s+/g, " ");
-  if (/\b(?:slabs?|blocks?|plates?\s+of\s+glass|glass\s+plates?)\b/i.test(stem)) return "a slab or block in the path";
+  if (/\b(?:slabs?|blocks?|cubes?|prisms?|plates?\s+of\s+glass|glass\s+(?:plates?|spheres?))\b/i.test(stem)) return "a slab or block in the path";
+  // Nothing but a second body sits between the element and its image.
+  if (/\b(?:inserted|introduced|interposed)\b|\bbetween\s+(?:the\s+)?(?:lens|mirror)\s+and\s+(?:the\s+)?(?:image|screen)\b|\bbetween\s+(?:the\s+)?(?:image|screen)\s+and\s+(?:the\s+)?(?:lens|mirror)\b/i.test(stem)) return "a second body between the element and the image";
   if (/\b(?:immersed|immersion|submerged|dipped)\b/i.test(stem)) return "an element immersed in a medium";
   if (/\b(?:in|into|under|inside)\s+(?:a\s+|the\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol|benzene|kerosene|medium)\b|\bglass\s+medium\b|\b(?:water|oil|liquid)\s+(?:of|with)\s+refractive\s+index\b|\brefractive\s+index\s+of\s+(?:the\s+)?(?:surround\w*|medium|liquid|water|oil)\b|\bsurrounding\s+medium\b/i.test(stem)) return "a medium other than air";
   if (/\b(?:is|was|then|now|gets?|being)\s+(?:\w+\s+)?(?:moved|shifted|displaced|brought|pushed|pulled)\b|\bmoved\s+(?:to|towards?|away|closer|by|through)\b|\b(?:second|new|two|both|other)\s+positions?\b/i.test(stem)) return "an object or element in more than one position";
+  // A second situation: "if the object is then placed", "now the object is placed", "replaced by another".
+  if (/\b(?:then|now|later|next|again|subsequently)\b[^.?!;]{0,40}?\b(?:placed|kept|put|positioned|located|replaced|changed|reversed|turned)\b|\bis\s+then\b|\breplaced\s+(?:by|with)\b|\banother\b|\binstead\b/i.test(stem)) return "an object or element in more than one position";
   if (/\bdisplacement\s+method\b|\bconjugate\b/i.test(stem)) return "the displacement method";
+  // A distance from the focus or the centre of curvature (Newton's form) is not u.
+  if (/\d\s*(?:cm|mm|m)\b/.test(stem) && (
+    /\b(?:from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+|its\s+|a\s+)?(?:[\w'’]+\s+)?(?:principal\s+|first\s+|second\s+)?(?:focus|foci|focal\s+point|cent(?:re|er)\s+of\s+curvature)\b/i.test(stem)
+    || /\b(?:from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+)?(?:2F|F|C|F1|F2|2F1|2F2)(?![\w'’])/.test(stem))) return "a distance measured from the focus or the centre of curvature";
   const separation = new RegExp(`${STEM_NUMBER}\\s*(?:${LENGTH_UNIT})\\b\\s*(?:away\\s+)?(?:from|apart\\s+from)\\s+(?:the\\s+|a\\s+|an\\s+|its\\s+)?(?:[\\w-]+\\s+){0,2}?(?:screen|wall|object|candle|flame|source|lamp|bulb)\\b`, "i");
   if (/\b(?:screen|wall)\b/i.test(stem) && (separation.test(stem) || /\bbetween\s+(?:the\s+)?(?:[\w-]+\s+)?(?:object|candle|flame|source|lamp|bulb)\s+and\s+(?:the\s+)?(?:screen|wall)\b|\bbetween\s+(?:the\s+)?(?:screen|wall)\s+and\s+(?:the\s+)?(?:object|candle|flame|source|lamp|bulb)\b/i.test(stem))) {
     return "an object to screen separation";
@@ -247,6 +323,102 @@ export function powersFromStem(stem: string): number[] {
     const value = parseStemNumber(match[2]!);
     return value === null || value === 0 ? [] : [value];
   });
+}
+
+/**
+ * Every image distance the stem states: "v = 60 cm", "image distance of
+ * 60 cm", a length in a clause whose role noun is the image or a receiver
+ * ("its image is 60 cm in front of the mirror", "a wall is 30 cm from a
+ * concave mirror"), or the element held a length from a receiver ("held 30 cm
+ * from a sheet of white paper"). A height, a focal length or radius in that
+ * clause, and a length measured from anything but the element, are not.
+ */
+export interface StatedImageDistance extends StatedLength {
+  /** The side the stem names: in front of or behind a mirror, the object's side or the other side of a lens. */
+  side?: "front" | "behind" | "same" | "other";
+}
+
+function imageSide(rest: string): StatedImageDistance["side"] {
+  const clause = rest.split(/[.;,?!](?!\d)/)[0] ?? "";
+  if (/^\s*(?:away\s+)?in front of\b/i.test(clause)) return "front";
+  if (/^\s*(?:away\s+)?behind\b/i.test(clause)) return "behind";
+  if (/\bsame side\b/i.test(clause)) return "same";
+  if (/\b(?:other|opposite|far)\s+side\b/i.test(clause)) return "other";
+  return undefined;
+}
+
+export function imageDistancesFromStem(question: string): StatedImageDistance[] {
+  const stem = question.replace(/[\u2013\u2014\u2212]/g, "-").replace(/\s+/g, " ");
+  const found: StatedImageDistance[] = [];
+  for (const match of stem.matchAll(new RegExp(`(?:^|[^A-Za-z_])v\\s*[=:]\\s*\\+?${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b`, "g"))) {
+    const length = stated(match[1]!, match[2]!, match.index ?? 0);
+    if (length) found.push(length);
+  }
+  const named = lengthAfter(stem, /image distance(?: of| is| =)?/, { symbol: "v" });
+  if (named) found.push(named);
+  const receiver = new RegExp(String.raw`^\s*(?:away\s+)?(?:from|in front of|behind|before)\s+(?:(?:the|a|an|its)\s+)?(?:[\w'-]+\s+){0,2}?(?:${RECEIVER})\b`, "i");
+  for (const match of stem.matchAll(new RegExp(`${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b`, "gi"))) {
+    const at = match.index ?? 0;
+    const clause = clauseBefore(stem, at);
+    const rest = stem.slice(at + match[0].length);
+    if (/^\s*(?:tall|high|long|wide|thick|deep|in\s+(?:height|size|length|width|diameter)|across|apart|squared|\^|²)/i.test(rest)) continue;
+    const role = lastRoleNoun(clause);
+    let image = false;
+    if (role === "image") {
+      const nouns = [...clause.matchAll(new RegExp(String.raw`\b(?:images?|${RECEIVER})\b`, "gi"))];
+      const last = nouns[nouns.length - 1]!;
+      // The words after the noun, past any earlier length ("formed by a lens of focal length 10 cm is").
+      const tail = clause.slice((last.index ?? 0) + last[0].length).replace(new RegExp(String.raw`^.*\d\s*(?:${LENGTH_UNIT}|D)\b`, "i"), "");
+      if (/\b(?:focal|radius|curvature|power|tall|high|height|size|wide|width|long|thick|thickness|magnif\w*|times)\b/i.test(tail)) continue;
+      const away = /^\s*(?:away\s+)?(?:from|in front of|behind|before|to (?:the|its) (?:left|right) of)\s+/i.exec(rest);
+      image = !away || anchoredAtElement(rest.slice(away[0].length));
+    } else if (role === null && /\b(?:lens|mirror|magnifier|magnifying glass)\b/i.test(clause) && receiver.test(rest)) {
+      image = true;
+    }
+    if (!image) continue;
+    const length = stated(match[1]!, match[2]!, at);
+    const side = imageSide(rest);
+    if (length && !found.some((item) => item.at === at)) found.push(side ? { ...length, side } : length);
+  }
+  return found;
+}
+
+export interface StatedImageNature {
+  real?: boolean;
+  inverted?: boolean;
+  magnified?: boolean;
+}
+
+/**
+ * The image's nature as the stem states it (real or virtual, inverted or
+ * erect, magnified or diminished). A sentence that asks or negates
+ * ("whether", "or", "not", a question mark) states nothing, and a pair whose
+ * both words are stated says nothing.
+ */
+export function imageNatureFromStem(question: string): StatedImageNature {
+  const stem = question.replace(/[\u2013\u2014\u2212]/g, "-").replace(/\s+/g, " ").replace(/\breal[\s-]+is[\s-]+positive\b/gi, " ");
+  const sentences = (stem.match(/[^.;!?]+(?:[.;!?](?!\d)|$)/g) ?? []).filter((sentence) => !/\b(?:not|never|no|neither|nor|whether|or)\b|n't\b|\?/i.test(sentence));
+  // The word describes the image only when the nearest role noun is the image
+  // ("a real image", "the image is erect"), never the object ("stands upright").
+  const says = (word: RegExp) => sentences.some((sentence) => [...sentence.matchAll(new RegExp(word.source, "gi"))].some((match) => {
+    const at = match.index ?? 0;
+    const nouns = [...sentence.matchAll(/\b(images?|objects?)\b/gi)];
+    const nearest = nouns.sort((a, b) => Math.abs((a.index ?? 0) - at) - Math.abs((b.index ?? 0) - at))[0];
+    return nearest !== undefined && /^image/i.test(nearest[1]!);
+  }));
+  const pair = (yes: RegExp, no: RegExp): boolean | undefined => {
+    const a = says(yes);
+    const b = says(no);
+    return a === b ? undefined : a;
+  };
+  const nature: StatedImageNature = {};
+  const real = pair(/\breal\b/i, /\bvirtual\b/i);
+  const inverted = pair(/\binverted\b/i, /\b(?:erect|upright)\b/i);
+  const magnified = pair(/\b(?:magnified|enlarged)\b/i, /\bdiminished\b/i);
+  if (real !== undefined) nature.real = real;
+  if (inverted !== undefined) nature.inverted = inverted;
+  if (magnified !== undefined) nature.magnified = magnified;
+  return nature;
 }
 
 const ELEMENT_NOUN = String.raw`(?:lens(?:es)?|mirrors?)`;

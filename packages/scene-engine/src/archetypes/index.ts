@@ -30,7 +30,7 @@ export { checkPictureContract, metricAssertions, METRIC_PROOF_PREDICATES } from 
 export { detectArchetype, lawOnlyArchetypeLead, rankArchetypes, type ArchetypeMatch, type DetectionHints } from "./detect";
 export { resolveTier, tierForForeignDocument, type RepresentationTier, type TierDecision } from "./tier";
 export { collectPlanQuantities, type PlanQuantity, type SlotSource } from "./slots";
-export { namesSeveralOpticalElements, opticsConfigurationIssue } from "./opticsSource";
+export { imageDistancesFromStem, imageNatureFromStem, namesSeveralOpticalElements, objectDistanceNamesObject, opticsConfigurationIssue } from "./opticsSource";
 export { opticsArchetypeOf, opticsArchetypePlanAgreement, opticsArchetypeStrictEligibility, OPTICS_ARCHETYPES, type OpticsArchetype, type OpticsPlanAgreement, type OpticsStrictEligibility } from "./opticsAdmission";
 
 export interface ArchetypeSceneInput {

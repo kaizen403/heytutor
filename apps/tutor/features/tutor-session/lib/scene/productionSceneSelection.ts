@@ -346,20 +346,23 @@ export const STRICT_OPTICS_ARCHETYPE_REASON = "strict_optics_archetype_owner";
  * of these holds: the planner figure was dropped by
  * `planner_optics_on_archetype_stem`; the selected figure is that archetype
  * at `exact_verified`; the question alone selects it with u, f and the kind
- * stated there (no stock value) and names exactly one optical element. The
+ * stated there (no stock value) and names exactly one optical element; the
+ * plan binds u and the focal length by role, with no other plan length; and
+ * the image distance and nature the question states are the figure's. The
  * save check still runs after this and refuses any plan disagreement.
  */
 export function strictOpticsArchetypeAdmission(
   selected: SelectedRepresentation,
   question: string,
   exactDecline: { code: string } | null | undefined,
+  turnPlan: TurnPlanV3,
 ): { admitted: boolean; reason: string } {
   if (exactDecline?.code !== "planner_optics_on_archetype_stem") return { admitted: false, reason: "the planner figure was not dropped by the optics archetype rule" };
   if (selected.figureSource !== "archetype") return { admitted: false, reason: `the selected figure is ${selected.figureSource}, not the archetype` };
   if (selected.tier !== "exact_verified") return { admitted: false, reason: `the archetype figure is ${selected.tier}` };
   const owner = detectArchetype(question)?.id;
   if (owner !== selected.sceneDocument.source.archetype) return { admitted: false, reason: "the archetype does not own the stem" };
-  const eligibility = opticsArchetypeStrictEligibility(question, selected.sceneDocument);
+  const eligibility = opticsArchetypeStrictEligibility(question, selected.sceneDocument, turnPlan);
   return eligibility.eligible ? { admitted: true, reason: `${STRICT_OPTICS_ARCHETYPE_REASON}: ${eligibility.reason}` } : { admitted: false, reason: eligibility.reason };
 }
 
@@ -815,7 +818,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const policySourceAllowed = input.policy?.allowedFigureSources === undefined ||
       input.policy.allowedFigureSources.includes(selected.figureSource);
     const strictOpticsAdmission = !policySourceAllowed && input.policy?.admitOwningOpticsArchetype === true && !input.fastRepresentation
-      ? strictOpticsArchetypeAdmission(selected, question, explained?.exactDecline) : undefined;
+      ? strictOpticsArchetypeAdmission(selected, question, explained?.exactDecline, turnPlan) : undefined;
     if (strictOpticsAdmission?.admitted) {
       selected = { ...selected, figureSource: "optics_archetype", reason: `${strictOpticsAdmission.reason}; ${selected.reason}` };
     }

@@ -167,3 +167,69 @@ export const OPTICS_ARCHETYPE_FIXTURES: readonly OpticsFixture[] = [
   { id: "n_unitless_u", question: "A concave mirror has a focal length of 15 cm. The object distance is 40. Find the image distance.",
     decline: "unitless" },
 ];
+
+/**
+ * Review 2 (PR #369, 30 Oct 2026): the exact inputs that drew a wrong figure
+ * with strict on, each with recorded-shape plans and the truth worked by
+ * hand (lens 1/v − 1/u = 1/f, mirror 1/v + 1/u = 1/f, magnitudes). Neither
+ * strict nor the current lane may draw a lens or mirror figure for them
+ * unless it is exactly the truth; `strict` says whether strict may draw at
+ * all (every row here declines: no focal row, no object noun, a role-free
+ * plan length, or not one plain configuration).
+ *
+ * F1: the image distance read as the focal length ("Find focal length.
+ *     Image is 60 cm ...", "if v = 60 cm"). Truth f = 20, real image 60 cm in front.
+ * F2: a wall, film, card, paper, board or detector distance read as u.
+ *     Truth swaps them back: the receiver distance is v.
+ * F3: Newton's form x_o, x_i = f²/x_o matching 2f by membership.
+ * F4: a glass cube between, a second position, a replaced lens, u from the focus.
+ */
+export interface Review2Fixture {
+  id: string;
+  question: string;
+  plans: Array<Array<[string, number, string | null]>>;
+  truth: { archetype: "thin_lens" | "spherical_mirror"; kind: "convex" | "concave"; u: number; f: number; v: number; real: boolean } | null;
+  decline?: "configuration";
+}
+
+export const REVIEW2_FIXTURES: readonly Review2Fixture[] = [
+  { id: "r2_f1_focal_from_image", question: "Find focal length. Image is 60 cm in front of a concave mirror; object 30 cm from it.",
+    plans: [[["u", 30, "cm"], ["v", 60, "cm"]]],
+    truth: { archetype: "spherical_mirror", kind: "concave", u: 30, f: 20, v: 60, real: true } },
+  { id: "r2_f1_focal_if_v", question: "A concave mirror gives a real image. An object is placed 30 cm in front of it. Find the focal length if v = 60 cm.",
+    plans: [[["u", 30, "cm"], ["v", 60, "cm"]]],
+    truth: { archetype: "spherical_mirror", kind: "concave", u: 30, f: 20, v: 60, real: true } },
+  { id: "r2_f2_wall", question: "A wall is 30 cm from a concave mirror of focal length 10 cm. Where must a candle be placed so that its image forms on the wall?",
+    plans: [[["f", 10, "cm"]], [["f", 10, "cm"], ["d_wall", 30, "cm"], ["d_candle", 15, "cm"]]],
+    truth: { archetype: "spherical_mirror", kind: "concave", u: 15, f: 10, v: 30, real: true } },
+  { id: "r2_f2_film", question: "A photographic film is 5 cm from a convex lens of focal length 4 cm. How far away is the object that is in focus?",
+    plans: [[["f", 4, "cm"], ["d_film", 5, "cm"]], [["f", 4, "cm"], ["D", 5, "cm"], ["x", 20, "cm"]]],
+    truth: { archetype: "thin_lens", kind: "convex", u: 20, f: 4, v: 5, real: true } },
+  { id: "r2_f2_card", question: "A white card held 30 cm from a convex lens of focal length 10 cm receives a sharp image of a lamp. How far is the lamp from the lens?",
+    plans: [[["f", 10, "cm"], ["L", 30, "cm"], ["x", 15, "cm"]]],
+    truth: { archetype: "thin_lens", kind: "convex", u: 15, f: 10, v: 30, real: true } },
+  { id: "r2_f2_paper", question: "A convex lens of focal length 10 cm is held 30 cm from a sheet of white paper, on which it forms a sharp image of a lamp. How far is the lamp from the lens?",
+    plans: [[["f", 10, "cm"]], [["f", 10, "cm"], ["d_paper", 30, "cm"], ["d_lamp", 15, "cm"]]],
+    truth: { archetype: "thin_lens", kind: "convex", u: 15, f: 10, v: 30, real: true } },
+  { id: "r2_f2_board", question: "A white board is 40 cm from a concave mirror of focal length 15 cm. Where must an object be placed so that a sharp image forms on the board?",
+    plans: [[["f", 15, "cm"], ["d", 40, "cm"], ["x", 24, "cm"]]],
+    truth: { archetype: "spherical_mirror", kind: "concave", u: 24, f: 15, v: 40, real: true } },
+  { id: "r2_f2_detector", question: "A detector is 30 cm from a convex lens of focal length 10 cm. Where must a point source be placed so that its image falls on the detector?",
+    plans: [[["f", 10, "cm"]], [["f", 10, "cm"], ["d", 30, "cm"]], [["u", 30, "cm"], ["f", 10, "cm"]]],
+    truth: { archetype: "thin_lens", kind: "convex", u: 15, f: 10, v: 30, real: true } },
+  { id: "r2_f3_newton", question: "An object is 10 cm from the focus of a concave mirror of focal length 20 cm. Find the image.",
+    plans: [[["x_o", 10, "cm"], ["f", 20, "cm"], ["x_i", 40, "cm"]], [["u", 10, "cm"], ["f", 20, "cm"]]],
+    truth: { archetype: "spherical_mirror", kind: "concave", u: 30, f: 20, v: 60, real: true }, decline: "configuration" },
+  { id: "r2_f4_cube", question: "An object is placed 30 cm from a convex lens of focal length 20 cm. A glass cube of side 3 cm is placed between the lens and the image. Find the final image position.",
+    plans: [[["u", 30, "cm"], ["f", 20, "cm"]]], truth: null, decline: "configuration" },
+  { id: "r2_f4_then_placed", question: "An object is placed 30 cm from a concave mirror of focal length 20 cm. If the object is then placed 15 cm from the mirror, find the new image.",
+    plans: [[["u", 30, "cm"], ["f", 20, "cm"]]], truth: null, decline: "configuration" },
+  { id: "r2_f4_now_placed", question: "An object is 30 cm from a convex lens of focal length 20 cm. Now the object is placed 10 cm from the lens. Find the image.",
+    plans: [[["u", 30, "cm"], ["f", 20, "cm"]]], truth: null, decline: "configuration" },
+  { id: "r2_f4_replaced", question: "A convex lens of focal length 20 cm forms an image of an object placed 30 cm from the lens. The lens is replaced by another of focal length 10 cm. Find the new image.",
+    plans: [[["u", 30, "cm"], ["f", 20, "cm"]]], truth: null, decline: "configuration" },
+  { id: "r2_f4_from_focus", question: "Object 10 cm from the mirror's focus. The concave mirror has focal length 20 cm. Find the image.",
+    // 10 cm on either side of F: u = 30 cm (v = 60) or u = 10 cm (virtual, v = 20); the stem does not say which.
+    plans: [[["u", 10, "cm"], ["f", 20, "cm"]], [["x", 10, "cm"], ["f", 20, "cm"]]],
+    truth: null, decline: "configuration" },
+];
