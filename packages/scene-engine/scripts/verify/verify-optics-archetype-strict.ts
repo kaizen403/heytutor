@@ -172,6 +172,19 @@ if (q29Stem) assert.ok(opticsArchetypePlanAgreement(q29Stem.document, plan([["f"
 const q49 = OPTICS_ARCHETYPE_FIXTURES.find((fixture) => fixture.id === "q49")!;
 assert.notEqual(attemptArchetypeScene({ question: q49.question }).match?.slots.u, 2.4, "q49: a height above the axis is not u");
 
+// Mixed units draw in centimetres, converted exactly; a placement after "an image of an object" is the object's.
+for (const [question, u, f] of [
+  ["An object is placed 0.2 m from a concave mirror of focal length 10 cm. Draw the ray diagram.", -20, -10],
+  ["An object is placed 300 mm from a convex lens of focal length 10 cm. Draw the ray diagram.", -30, 10],
+  ["A convex lens of focal length 10 cm forms an image of an object placed 15 cm away. Draw the ray diagram.", -15, 10],
+] as const) {
+  const doc = attemptArchetypeScene({ question }).scene!.document;
+  assert.equal(quantity(doc, "u").unit, "cm", question);
+  close(quantity(doc, "u").value, u, `${question} u`);
+  close(quantity(doc, "f").value, f, `${question} f`);
+}
+assert.equal(attemptArchetypeScene({ question: "A concave mirror forms a real image 60 cm in front of it. Find the focal length." }).match?.slots.u, undefined, "an image distance is never read as u");
+
 // Element counting: one element stays one.
 for (const single of ["A convex lens has focal length 10 cm. An object is 30 cm from the lens.", "A magnifying glass of power +17.5 D forms the final image at the near point, 25 cm from the eye.", "A concave mirror of focal length 15 cm forms an image of an object 20 cm in front of it."]) {
   assert.equal(namesSeveralOpticalElements(single), false, single);

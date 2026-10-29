@@ -50,15 +50,23 @@ function clauseBefore(stem: string, index: number): string {
   return before.slice(cut + 1);
 }
 
+/** The last of "image" and "object" a clause names: whose distance a length there is. */
+function lastRoleNoun(clause: string): "image" | "object" | null {
+  const nouns = [...clause.matchAll(/\b(image|object)s?\b/gi)];
+  const last = nouns[nouns.length - 1]?.[1]?.toLowerCase();
+  return last === "image" || last === "object" ? last : null;
+}
+
 /**
  * Every "<number> <unit> <phrase>" in the stem ("30 cm in front of"), with
- * a sign written as "+" allowed. A length in a clause about the image is
- * the image distance, never the object's.
+ * a sign written as "+" allowed. A length in a clause whose last role noun
+ * is the image ("its image is 60 cm in front of") is the image distance,
+ * never the object's ("forms an image of an object placed 15 cm away" is).
  */
 function lengthsBefore(stem: string, phrase: RegExp): StatedLength[] {
   const pattern = new RegExp(`${STEM_NUMBER}\\s*(${LENGTH_UNIT})\\b\\s*(?:${phrase.source})`, "gi");
   return [...stem.matchAll(pattern)].flatMap((match) =>
-    /\bimages?\b/i.test(clauseBefore(stem, match.index ?? 0)) ? [] : [stated(match[1]!, match[2]!)].filter((item): item is StatedLength => item !== null));
+    lastRoleNoun(clauseBefore(stem, match.index ?? 0)) === "image" ? [] : [stated(match[1]!, match[2]!)].filter((item): item is StatedLength => item !== null));
 }
 
 function lengthAfter(stem: string, phrase: RegExp): StatedLength | null {
@@ -248,7 +256,10 @@ export function extractOpticsSlots(stem: string, plan: readonly PlanQuantity[], 
 
   // The figure speaks the question's unit: the object distance's, else the
   // focal length's or radius's, else the plan's.
-  const unit = stemU?.unit ?? stemF?.unit ?? stemR?.unit ?? planU?.unit ?? planF?.unit ?? "cm";
+  // A stem that mixes units ("0.2 m from a mirror of focal length 10 cm")
+  // is drawn in centimetres, every value converted exactly.
+  const stemUnits = new Set([stemU?.unit, stemF?.unit ?? stemR?.unit].filter((unit): unit is OpticsLengthUnit => unit !== undefined));
+  const unit = stemUnits.size > 1 ? "cm" : stemU?.unit ?? stemF?.unit ?? stemR?.unit ?? planU?.unit ?? planF?.unit ?? "cm";
   setSlot(bag, "unit", unit, stemU || stemF || stemR ? "stem" : planU || planF ? "plan" : "default");
   if (conflict) setSlot(bag, "conflict", conflict, "stem");
 }
