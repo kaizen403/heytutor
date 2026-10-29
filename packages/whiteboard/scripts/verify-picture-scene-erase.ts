@@ -6,7 +6,7 @@
  * What has to hold, at a swap (0 ms) and at a watched erase:
  *   - after `drawPicture`, `eraseSceneInk` leaves no `htReferencePicture`
  *     group and no `htReferencePicturePart` node anywhere on the stage: card,
- *     line work, picture, credit and a numbered picture's key all go;
+ *     line work, picture and a numbered picture's key all go;
  *   - the picture group is figure ink (`htInk` "scene"), never work ink;
  *   - every work row survives, and a figure line drawn beside it goes too;
  *   - a picture drawn back at once after the erase (the resume's return) is
@@ -119,7 +119,7 @@ async function main(): Promise<void> {
       const groups = pictureGroups(board);
       assert.equal(groups.length, 1, `${label}: the picture lays one group`);
       const partCount = pictureNodes(board).length - 1;
-      assert.ok(partCount >= (keyed ? 5 : 4), `${label}: card, line work, picture, credit${keyed ? " and key" : ""} are on the board (${partCount})`);
+      assert.ok(partCount >= (keyed ? 4 : 3), `${label}: card, line work, picture${keyed ? " and key" : ""} are on the board (${partCount})`);
       const work = inkCount(board, "work");
       assert.ok(work > 0, `${label}: the work rows are on the board`);
 
