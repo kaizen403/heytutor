@@ -61,8 +61,21 @@ assert.equal(strictAdmitsOwningOpticsArchetype(strictDefault), false, "strict do
 assert.equal(strictAdmitsOwningOpticsArchetype(strict), true, "an explicit on admits");
 assert.equal(strictAdmitsOwningOpticsArchetype(strictOff), false, "an explicit off does not");
 assert.equal(strictAdmitsOwningOpticsArchetype(current), false, "the current lane already draws archetypes");
-// The server switch: off unless the env says exactly on.
-assert.equal(resolveOpticsArchetypeInStrict(undefined), false, "unset is off");
+// The server switch: off unless the env says exactly on. The gate holds whatever the shell sets:
+// the variable is cleared for the unset case and restored after.
+{
+  const saved = process.env.OPTICS_ARCHETYPE_IN_STRICT;
+  try {
+    delete process.env.OPTICS_ARCHETYPE_IN_STRICT;
+    assert.equal(resolveOpticsArchetypeInStrict(), false, "unset is off");
+    assert.equal(resolveOpticsArchetypeInStrict(undefined), false, "an undefined value with the variable unset is off");
+    process.env.OPTICS_ARCHETYPE_IN_STRICT = "on";
+    assert.equal(resolveOpticsArchetypeInStrict(), true, "the variable set to on reads on");
+  } finally {
+    if (saved === undefined) delete process.env.OPTICS_ARCHETYPE_IN_STRICT;
+    else process.env.OPTICS_ARCHETYPE_IN_STRICT = saved;
+  }
+}
 assert.equal(resolveOpticsArchetypeInStrict(""), false, "empty is off");
 assert.equal(resolveOpticsArchetypeInStrict(" OFF "), false, "off is off");
 assert.equal(resolveOpticsArchetypeInStrict("1"), false, "anything but on is off");
