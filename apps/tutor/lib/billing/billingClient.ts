@@ -33,6 +33,8 @@ export interface BeginTurnOk {
   doubtPointing?: boolean;
   /** Default off (`DIAGRAM_DOUBT_FIGURES`): a doubt that needs a new figure plans, verifies and draws one. */
   doubtFigures?: boolean;
+  /** Default off (`DIAGRAM_LESSON_FIGURES`): a lesson may move to up to two later verified figures. */
+  lessonFigures?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -238,6 +240,7 @@ async function beginTurnOnce(input: {
     referencePicturePartFocus: payload.referencePicturePartFocus === true,
     doubtPointing: payload.doubtPointing === true,
     doubtFigures: payload.doubtFigures === true,
+    lessonFigures: payload.lessonFigures === true,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

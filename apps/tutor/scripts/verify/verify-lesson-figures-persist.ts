@@ -15,7 +15,8 @@
  * Mutations this gate catches (brief lane 4 table):
  * (d) accept Turn.question as a lesson figure's scene question;
  * (e) check every segment against figure 1 (no cursor);
- * (f) skip the strip when the flag is off.
+ * (f) skip the strip when the flag is off;
+ * (g) the begin-turn grant defaults to on (any payload value but true grants).
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
@@ -29,6 +30,9 @@ import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { stripSceneInk } from "../../lib/boards/turnCheckpoint";
 import { resumeTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { beginTurn } from "../../lib/billing/billingClient";
 import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 
 let passed = 0;
@@ -214,6 +218,28 @@ async function main(): Promise<void> {
   await check("checkpoint/strip-keeps-advance-cues", () => {
     const rows = [{ orderIndex: 0, narration: "Now the second figure.", spokenText: "Now the second figure.", command: serializeSegmentCommands([focus("figure_2")]) }];
     assert.deepEqual(stripSceneInk(rows, { keepPointing: true }), rows, "an advance cue is a lesson FOCUS, kept with pointing");
+  });
+
+  await check("grant/begin-turn-route", () => {
+    const route = readFileSync(join(__dirname, "../../app/api/billing/begin-turn/route.ts"), "utf8");
+    assert(route.includes("    lessonFigures: resolveLessonFiguresEnabled(),\n"), "begin-turn grants DIAGRAM_LESSON_FIGURES per turn");
+  });
+  await check("grant/client-reads-true-only", async () => {
+    const original = globalThis.fetch;
+    const granted = async (payload: Record<string, unknown>) => {
+      globalThis.fetch = (async () => new Response(JSON.stringify({ remainingPct: 50, planId: "free", diagramStrategy: "current", ...payload }), { status: 200 })) as typeof fetch;
+      try {
+        const result = await beginTurn({ traceId: "11111111-1111-4111-8111-111111111111", kind: "lesson" as never, ownsTurn: () => true, timeoutMs: 2000 });
+        assert(result.ok, "begin-turn answers");
+        return result.lessonFigures;
+      } finally {
+        globalThis.fetch = original;
+      }
+    };
+    assert.equal(await granted({ lessonFigures: true }), true);
+    for (const value of [undefined, false, "on", 1, "true"]) {
+      assert.equal(await granted(value === undefined ? {} : { lessonFigures: value }), false, `payload ${JSON.stringify(value)} grants nothing`);
+    }
   });
 
   console.log(`verify-lesson-figures-persist: ${passed} checks passed`);
