@@ -949,6 +949,7 @@ export function TutorSessionShell({
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
+    boardLayoutRef,
   });
 
   // Page load clock only: the first loaded board of this document. Declared
@@ -1055,6 +1056,7 @@ export function TutorSessionShell({
     clearCancelTimers,
     resetBoardLayout,
     beginBoardEpoch,
+    captureNotesEpoch,
     reserveTextCommandPlacements,
     persistTurnForReplay,
     registerReplayBlobUrl,
@@ -1215,6 +1217,7 @@ export function TutorSessionShell({
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
     whiteboardRef,
+    boardLayoutRef,
     cancelRef,
     speedRef,
     isPausedRef,

@@ -50,6 +50,7 @@ import {
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
 import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
+import { boardContinuationArtifacts, boardContinuationOf } from "@/lib/boards/boardContinuation";
 import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 // ---------------------------------------------------------------------------
@@ -293,7 +294,7 @@ export function liveTurnScene(input: {
   status: TurnStatus;
   textOnly: boolean;
 }): PersistedTurnScene {
-  const scene = baseLiveTurnScene(input);
+  const scene = withDoubtFreshPage(baseLiveTurnScene(input), input);
   const failureTelemetry = readFailedTurnTelemetry(input.page?.failureTelemetry);
   if (!failureTelemetry) return scene;
   return {
@@ -304,6 +305,25 @@ export function liveTurnScene(input: {
     },
   };
 }
+
+// doubt-fresh-page-save:begin
+/**
+ * A doubt that turned a fresh page for its figure (lane 9) says so on its
+ * continuation marker, so every stored surface holds the lesson's page at it
+ * and returns the page at the lesson's resume. Every other save is unchanged.
+ */
+function withDoubtFreshPage(scene: PersistedTurnScene, input: { page: BoardPageRecord | null; opensPage: boolean }): PersistedTurnScene {
+  const artifacts = scene.sceneArtifacts;
+  if (!input.page?.turnedFreshPage || input.page.turn.kind !== "doubt" || input.opensPage) return scene;
+  if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)) return scene;
+  const continuation = boardContinuationOf(artifacts);
+  if (!continuation) return scene;
+  return {
+    ...scene,
+    sceneArtifacts: { ...artifacts, ...boardContinuationArtifacts(continuation.lessonQuestion, { freshPage: true }) },
+  };
+}
+// doubt-fresh-page-save:end
 
 function baseLiveTurnScene(input: {
   page: BoardPageRecord | null;

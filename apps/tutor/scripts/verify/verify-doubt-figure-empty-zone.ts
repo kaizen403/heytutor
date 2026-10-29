@@ -250,7 +250,7 @@ async function main(): Promise<void> {
     const back = between(handler, file, "// doubt-figure-return:begin", "// doubt-figure-return:end");
     const stashReturn = at(back, "const stashReturn = await returnZoneStash(");
     const emptied = at(back, "zoneEmptied = !stashReturn.cancelled && zoneStash.diagram === null;");
-    assert(back.includes("let zoneEmptied = false;") && stashReturn >= 0 && emptied > stashReturn,
+    assert(back.includes("let zoneEmptied = pageReturned;") && stashReturn >= 0 && emptied > stashReturn,
       "the live resume notes an empty return only after it resolved uncancelled");
     assert(at(back, "zoneEmptied = !result.cancelled && back.turnId === null && billed.doubtFigures === true;") > at(back, "returnFigureToZone("),
       "after a reload, a return with no stored source empties the zone too (flag on only)");

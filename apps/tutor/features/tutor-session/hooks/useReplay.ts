@@ -47,7 +47,7 @@ import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
-import type { TutorPhase } from "../types";
+import type { BoardLayoutState, TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
 import type { ExecuteCommandOptions } from "./turn/types";
@@ -84,6 +84,8 @@ export type UseReplayParams = {
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
+  /** The board's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  boardLayoutRef?: RefObject<BoardLayoutState>;
   replayGenerationRef: RefObject<number>;
   replayCueRef: RefObject<ReplayCue | null>;
   ttsClientRef: RefObject<TTSClient | null>;
@@ -170,6 +172,7 @@ export function useReplay({
   pauseTurn,
   resumeTurn,
   settleBoardRestore,
+  boardLayoutRef,
 }: UseReplayParams) {
   /**
    * Point the code panel and the verified diagram at the turn whose cues are
@@ -189,6 +192,7 @@ export function useReplay({
           turns: storedTurnsRef.current,
           turnIndex,
           whiteboard: whiteboardRef.current,
+          layout: boardLayoutRef?.current ?? null,
           executeCommand,
           shouldCancel,
           lessonFigures: lessonFiguresRef?.current,
@@ -231,6 +235,7 @@ export function useReplay({
       fbdPhaseStartedRef,
       whiteboardRef,
       executeCommand,
+      boardLayoutRef,
     ],
   );
 

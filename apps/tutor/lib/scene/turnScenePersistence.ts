@@ -191,6 +191,7 @@ export async function canonicalizeTurnSceneMetadata(
   }
   const metadata: SubmittedTurnSceneMetadata = {
     ...submittedMetadata,
+    sceneArtifacts: freshPageOnDoubtOnly(submittedMetadata.sceneArtifacts, options.kind),
     sceneDocument: withoutLegacyTeachingNotes(submittedMetadata.sceneDocument),
     segments: submittedMetadata.segments.map((segment) => ({
       ...segment,
@@ -672,6 +673,22 @@ function withoutFlaggedDoubtPointing(segments: SubmittedTurnSegment[]): Submitte
     return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
   });
 }
+
+// doubt-fresh-page:begin
+/**
+ * Only a doubt turns a fresh page (DIAGRAM_DOUBT_FIGURES, lane 9): the marker
+ * is dropped from any other turn. On a doubt it is kept whatever becomes of
+ * the doubt's figure: the student saw the page turn, and the doubt's rows
+ * were laid out on the blank page, never over the lesson's.
+ */
+function freshPageOnDoubtOnly(sceneArtifacts: unknown, kind: TurnKind | undefined): unknown {
+  if (kind === "doubt" || !isRecord(sceneArtifacts) || !isRecord(sceneArtifacts.boardContinuation) ||
+    !("freshPage" in sceneArtifacts.boardContinuation)) return sceneArtifacts;
+  const continuation: Record<string, unknown> = { ...sceneArtifacts.boardContinuation };
+  delete continuation.freshPage;
+  return { ...sceneArtifacts, boardContinuation: continuation };
+}
+// doubt-fresh-page:end
 
 /**
  * A doubt figure the server will not admit, saved as the text doubt it would

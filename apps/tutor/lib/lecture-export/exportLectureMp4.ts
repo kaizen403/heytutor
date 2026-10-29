@@ -13,6 +13,7 @@ import type { VirtualWhiteboardClock } from "@heytutor/whiteboard";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import type { BoardLayoutState } from "@/features/tutor-session/types";
 import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { syncStoredPageFigure } from "@/features/tutor-session/lib/replay/pageFigureSync";
 import type { LessonFigureSequence } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
@@ -228,6 +229,8 @@ export async function exportLectureMp4(options: {
   /** FRAME can replace the figure after turn start; completion follows it. */
   getDiagram?: () => VerifiedDiagram | null;
   resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
+  /** The executor's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  getLayout?: () => BoardLayoutState | null;
   /** The executor's lesson figure sequence: exported `[FOCUS:figure_k]` cues advance it. */
   lessonFigures?: LessonFigureSequence | null;
 }): Promise<LectureExportResult> {
@@ -373,6 +376,7 @@ export async function exportLectureMp4(options: {
             turns: pageTurns,
             turnIndex: cue.turnIndex,
             whiteboard: options.whiteboard,
+            layout: options.getLayout?.() ?? null,
             executeCommand: options.executeCommand,
             shouldCancel: drawShouldCancel,
             lessonFigures: options.lessonFigures,

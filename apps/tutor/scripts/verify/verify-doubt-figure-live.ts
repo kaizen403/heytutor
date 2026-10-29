@@ -296,7 +296,7 @@ async function main(): Promise<void> {
     assert(swap.includes(": doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);"),
       "the plan's stash is used only for the zone it was read against");
     const inkFree = at(swap, "const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);");
-    assert(inkFree >= 0 && inkFree < swapCall && swap.includes("const cleared = wb && stash && inkFree"),
+    assert(inkFree >= 0 && inkFree < swapCall && swap.includes("const cleared = wb && stash && (inkFree || freshPage)"),
       "an empty zone is checked for ink again before the swap clears it");
 
     const resume = between(handler, file, "} else if (resume) {", "diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram)");

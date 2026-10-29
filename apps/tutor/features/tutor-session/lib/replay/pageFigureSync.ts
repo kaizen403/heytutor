@@ -16,9 +16,10 @@ import {
 } from "@heytutor/drawing";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { storedPageTurnAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { pageFigureAt, storedTurnSwapsFigureIn, type PageFigureId } from "@/lib/boards/pageFigure";
 import type { BoardLayoutState } from "../../types";
+import { returnLessonPage, turnDoubtPage, type DoubtPageNotes, type PageBoard } from "../board/doubtPage";
 import { clearFigureZone, returnFigureToZone, type FigureSwapExecuteCommand } from "../scene/figureSwap";
 import type { LessonFigureSequence } from "../scene/lessonFigureSequence";
 import { restoreLessonFigureViews, restoreLessonFigures } from "../scene/restoreLessonFigures";
@@ -103,18 +104,39 @@ export function storedLessonFigurePresentation(turn: StoredTurn, id: PageFigureI
  * `lessonFigures`: the surface's own lesson figure sequence. An install
  * commits it from the resume that drew the figure; a return commits it at the
  * figure it returns, so a stored `[FOCUS:figure_k]` after it advances as live.
+ *
+ * A doubt that turned a fresh page (`storedPageTurnAt` "hold") first lifts the
+ * lesson's page off whole, layout included; the lesson's resume ("return")
+ * first puts it back. Both run before the zone step, so the doubt's figure
+ * draws on the blank page and the resume teaches on the lesson's own page.
+ * Returned to an empty lesson zone, nothing is erased: the page came back
+ * whole. `notes`: the surface's notes epoch, when it keeps one.
  */
 export async function syncStoredPageFigure(input: {
   turns: readonly StoredTurn[];
   turnIndex: number;
-  whiteboard: Pick<WhiteboardHandle, "eraseSceneInk"> & Partial<Pick<WhiteboardHandle, "erasePinnedInk">> | null;
+  whiteboard: Pick<WhiteboardHandle, "eraseSceneInk"> & Partial<Pick<WhiteboardHandle, "erasePinnedInk">> & PageBoard | null;
   layout?: BoardLayoutState | null;
   executeCommand: FigureSwapExecuteCommand;
   shouldCancel: () => boolean;
   lessonFigures?: LessonFigureSequence | null;
+  notes?: DoubtPageNotes | null;
 }): Promise<{ changed: false } | { changed: true; cancelled: boolean; diagram: VerifiedDiagram | null }> {
+  // doubt-page-turn:begin
+  const pageTurn = storedPageTurnAt(input.turns, input.turnIndex);
+  if (pageTurn) {
+    if (!input.whiteboard || input.shouldCancel()) return { changed: true, cancelled: true, diagram: null };
+    if (pageTurn === "hold") turnDoubtPage(input.whiteboard, input.layout ?? null, input.notes);
+    else returnLessonPage(input.whiteboard, input.layout ?? null, input.notes);
+  }
+  // doubt-page-turn:end
   const change = storedPageFigureChange(input.turns, input.turnIndex);
-  if (change.kind === "keep") return { changed: false };
+  if (change.kind === "keep") {
+    // A blank doubt page, or the lesson page back with no figure of its own: no figure stands.
+    return pageTurn && pageFigureAt(input.turns, input.turnIndex).sourceIndex === null
+      ? { changed: true, cancelled: false, diagram: null }
+      : { changed: false };
+  }
   const wb = input.whiteboard;
   if (!wb) return { changed: true, cancelled: true, diagram: null };
   const layout = input.layout ?? null;
@@ -130,6 +152,8 @@ export async function syncStoredPageFigure(input: {
   const source = change.sourceIndex === null ? undefined : input.turns[change.sourceIndex];
   if (input.lessonFigures) restoreLessonFigures(input.lessonFigures, source, undefined, change.figureId);
   if (!source) {
+    // The lesson page came back whole with its empty zone: the doubt's figure left with the doubt page.
+    if (pageTurn === "return") return { changed: true, cancelled: input.shouldCancel(), diagram: null };
     const cleared = await clearFigureZone(wb, layout, input.shouldCancel);
     return { changed: true, cancelled: !cleared, diagram: null };
   }

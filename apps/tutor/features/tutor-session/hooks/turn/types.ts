@@ -243,6 +243,8 @@ export type UseTurnLifecycleParams = {
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   beginBoardEpoch: () => Promise<void>;
+  /** Download notes: a doubt's fresh page is a notes page of its own (lane 9). */
+  captureNotesEpoch?: () => boolean;
   reserveTextCommandPlacements: (
     command: DrawCommand,
     options?: { isCancelled?: () => boolean },

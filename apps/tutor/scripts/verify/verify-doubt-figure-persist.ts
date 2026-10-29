@@ -620,7 +620,7 @@ async function main(): Promise<void> {
       ["lib/lecture-export/exportLectureMp4.ts", "onCueStart: async (cue) => {", "options.onTurnStart?.(turn, activeDiagram);",
         /\} else \{[\s\S]*?const figure = await syncStoredPageFigure\(/],
       ["features/tutor-session/hooks/useLectureExport.ts", "onTurnStart: (turn, diagram) => {", "cueBytes: lectureExportCueBytes(source),",
-        /else if \(storedPageFigureChange\(turns, turns\.indexOf\(turn\)\)\.kind !== "keep"\)/],
+        /else if \(storedPageFigureChange\(turns, turns\.indexOf\(turn\)\)\.kind !== "keep"/],
       ["features/tutor-session/hooks/useBoardSession.ts", "const continuesPage = storedTurnContinuesBoard(turn);", "await completeStoredTurnDiagram({",
         /\} else \{[\s\S]*?const figure = await syncStoredPageFigure\(/],
       ["lib/replay/lecturePlayer.ts", "const installedDiagramByTurn = new Map", "workPages: recordedLectureWorkPages(",

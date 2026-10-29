@@ -177,6 +177,7 @@ import {
   swapFigureIn,
   type ZoneStash,
 } from "../../lib/scene/figureSwap";
+import { returnLessonPage, turnDoubtPage } from "../../lib/board/doubtPage";
 import { storedLessonFigurePresentation } from "../../lib/replay/pageFigureSync";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
@@ -365,6 +366,8 @@ export function useQuestionHandler(
     ensureTTSClient,
     executeCommandWithCancel,
     beginBoardEpoch,
+    captureNotesEpoch,
+    narrationSinceEpochRef,
     revokeUnreferencedReplayBlobUrls,
     onComplete,
     onError,
@@ -1919,6 +1922,8 @@ export function useQuestionHandler(
           zoneEmpty,
           // Never draw over ink: a text only row may already reach the zone.
           zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),
+          // Then the figure takes a fresh page, and the lesson's page comes back on its resume (lane 9).
+          freshPage: true,
         });
         doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;
         const need = skip
@@ -2037,7 +2042,19 @@ export function useQuestionHandler(
           page.zoneStash = stash;
           // An empty zone is checked again at the swap: never draw over ink.
           const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);
-          const cleared = wb && stash && inkFree
+          // doubt-fresh-page:begin
+          // The lesson's rows reach the empty zone: the figure takes a fresh
+          // page. The lesson's page is held whole until its resume (lane 9).
+          const turnsPage = !inkFree && stash !== null && stash.diagram === null &&
+            Boolean(doubtPage?.continuesBoard) && isCurrentTurn();
+          const freshPage = turnsPage && turnDoubtPage(wb, boardLayoutRef.current,
+            captureNotesEpoch && narrationSinceEpochRef ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef } : null);
+          if (freshPage) {
+            page.turnedFreshPage = true;
+            tel.mark("doubt-figure-page", { page: "fresh" });
+          }
+          // doubt-fresh-page:end
+          const cleared = wb && stash && (inkFree || freshPage)
             ? await swapFigureIn(wb, boardLayoutRef.current, drawn.presentation.diagram, { shouldCancel: () => !isCurrentTurn() })
             : false;
           throwIfTurnCancelled();
@@ -2075,8 +2092,25 @@ export function useQuestionHandler(
         // whole, with the marks the student already saw, before reading it.
         // A doubt that drew on an empty zone stashed nothing: its figure is
         // cleared and the zone is empty again (`zoneEmptied`), as in replay.
-        const zoneStash = pageRecord?.boardId === sessionId ? pageRecord.zoneStash ?? null : null;
-        let zoneEmptied = false;
+        // doubt-fresh-page-return:begin
+        // A doubt turned a fresh page (lane 9): the lesson's page comes back
+        // whole first, its zone as the lesson left it. The doubt's figure
+        // left with the doubt page, so no zone return follows and the
+        // doubt's empty stash is not read. After a reload the restore held
+        // the page the same way.
+        const pageReturned = returnLessonPage(whiteboardRef.current, boardLayoutRef.current,
+          captureNotesEpoch && narrationSinceEpochRef ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef } : null);
+        if (pageReturned) {
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
+          zonePresentationRef.current = null;
+          page.figureTurnId = null;
+          page.lessonFigureId = null;
+          page.figureDrawn = false;
+        }
+        const zoneStash = pageRecord?.boardId === sessionId && !pageReturned ? pageRecord.zoneStash ?? null : null;
+        let zoneEmptied = pageReturned;
+        // doubt-fresh-page-return:end
         if (zoneStash) {
           // The zone is about to be erased: nothing may point at the doubt's
           // figure from here. A cancelled return leaves the ref empty and the
@@ -2104,7 +2138,7 @@ export function useQuestionHandler(
           page.lessonFigureId = returned && zoneStash.diagram ? zoneStash.figureId ?? null : null;
           page.figureDrawn = returned !== null;
           figureReturned = returned !== null;
-        } else if (resume.returnsFigure) {
+        } else if (resume.returnsFigure && !pageReturned) {
           // After a reload there is no stash: the stored turn whose figure the
           // resume returns is redrawn with the marks earlier turns released.
           const back = resume.returnsFigure!;
@@ -3507,6 +3541,8 @@ export function useQuestionHandler(
       enqueueSegment,
       enqueueVerifiedIntro,
       beginBoardEpoch,
+      captureNotesEpoch,
+      narrationSinceEpochRef,
       boardLoaded,
       revokeUnreferencedReplayBlobUrls,
       finishLectureUi,

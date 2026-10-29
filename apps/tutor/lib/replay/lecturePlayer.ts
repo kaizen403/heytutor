@@ -1,7 +1,7 @@
 import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { storedPageTurnAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { pageFigureAt } from "@/lib/boards/pageFigure";
 import { storedLessonFigurePresentation } from "@/features/tutor-session/lib/replay/pageFigureSync";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
@@ -263,12 +263,18 @@ export function buildLecturePlayerTimeline(
   });
 
   const installedDiagramByTurn = lectureInstalledDiagramByTurn(turns, cues);
+  // A doubt's fresh page and the resume that returns the lesson's (lane 9).
+  const pageTurnByTurn = new Map<number, "hold" | "return">();
+  turns.forEach((_, turnIndex) => {
+    const pageTurn = storedPageTurnAt(turns, turnIndex);
+    if (pageTurn) pageTurnByTurn.set(turnIndex, pageTurn);
+  });
   return {
     cues,
     totalMs,
     chapters,
     pageStartTurnIndex,
-    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn),
+    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn, pageTurnByTurn),
   };
 }
 

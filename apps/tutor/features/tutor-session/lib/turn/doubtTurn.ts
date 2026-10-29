@@ -111,6 +111,13 @@ export interface BoardPageRecord {
    * `[FOCUS:figure_k]` drew it; absent while figure 1 stands.
    */
   lessonFigureId?: import("@/lib/boards/lessonFigures").LessonFigureId | null;
+  /**
+   * This doubt turned a fresh page for its own figure (lane 9): the lesson's
+   * page is held by the whiteboard until the lesson resumes. Saved as
+   * `boardContinuation.freshPage`. Never carried to a later record: a doubt
+   * asked on the doubt page continues that page.
+   */
+  turnedFreshPage?: boolean;
   /** The turn teaching on this page now, or the last one that did. */
   turn: {
     kind: PageTurnKind;

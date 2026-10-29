@@ -49,7 +49,7 @@ import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiag
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import { completeStoredTurnDiagram } from "../lib/replay/completeReplayDiagram";
-import type { TutorPhase } from "../types";
+import type { BoardLayoutState, TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
 import { IDLE_SAVE, type SaveStatus } from "../lib/turn/saveStatus";
@@ -114,6 +114,8 @@ export interface UseBoardSessionParams {
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
+  /** The board's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  boardLayoutRef?: RefObject<BoardLayoutState>;
 }
 
 export function useBoardSession({
@@ -147,6 +149,7 @@ export function useBoardSession({
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
+  boardLayoutRef,
 }: UseBoardSessionParams) {
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
@@ -717,6 +720,7 @@ export function useBoardSession({
               turns,
               turnIndex,
               whiteboard: whiteboardRef.current,
+              layout: boardLayoutRef?.current ?? null,
               executeCommand: executeCommandRef.current,
               shouldCancel: inkStale,
               lessonFigures: lessonFiguresRef?.current,
@@ -834,6 +838,7 @@ export function useBoardSession({
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
+      boardLayoutRef,
     ],
   );
 

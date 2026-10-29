@@ -20,11 +20,17 @@ export interface LectureWorkPage {
   endCommandCount: number;
 }
 
-/** Use the replay layout's own overlap rule to find stored work-page erases. */
+/**
+ * Use the replay layout's own overlap rule to find stored work-page erases.
+ * `pageTurnByTurn` (`storedPageTurnAt`): a doubt's fresh page ends the work
+ * page and starts a blank one; the lesson's resume ends the doubt page and
+ * puts the lesson page's layout back, as the board does.
+ */
 export function recordedLectureWorkPages(
   cues: readonly ReplayCue[],
   pageStartTurnIndex: readonly number[],
   installedDiagramByTurn: ReadonlyMap<number, boolean> = new Map(),
+  pageTurnByTurn: ReadonlyMap<number, "hold" | "return"> = new Map(),
 ): LectureWorkPage[] {
   const pages: LectureWorkPage[] = [];
   let layout: BoardLayoutState = { rects: [], nextY: TEXT_LAYOUT.topY };
@@ -38,6 +44,9 @@ export function recordedLectureWorkPages(
   let startMs = 0;
   let hasWork = false;
   let previous = { endMs: 0, endCueIndex: 0, endCommandCount: 0 };
+  let currentTurn = -1;
+  // The lesson page a doubt's fresh page holds (one level).
+  let held: { layout: BoardLayoutState; visibleWorkBounds: InkBounds[]; fbdStarted: boolean; hasWork: boolean } | null = null;
   const finish = () => {
     if (hasWork) pages.push({ index: pages.length, startMs, ...previous });
     hasWork = false;
@@ -51,7 +60,23 @@ export function recordedLectureWorkPages(
       fbdStarted = installedDiagramByTurn.get(cue.turnIndex) === true;
       openingTurn = opening;
       startMs = cue.startMs;
+      held = null;
+    } else if (cue.turnIndex !== currentTurn) {
+      const pageTurn = pageTurnByTurn.get(cue.turnIndex);
+      if (pageTurn === "hold") {
+        held ??= { layout, visibleWorkBounds, fbdStarted, hasWork };
+        finish();
+        layout = { rects: [], nextY: TEXT_LAYOUT.topY };
+        fbdStarted = installedDiagramByTurn.get(cue.turnIndex) === true;
+        startMs = cue.startMs;
+      } else if (pageTurn === "return" && held) {
+        finish();
+        ({ layout, visibleWorkBounds, fbdStarted, hasWork } = held);
+        held = null;
+        startMs = cue.startMs;
+      }
     }
+    currentTurn = cue.turnIndex;
     cue.commands.forEach((command, commandIndex) => {
       const installedDiagram = installedDiagramByTurn.get(cue.turnIndex) === true;
       if (cue.trustedDiagramGeometry && !fbdStarted && trustedCommandStartsDiagram(command))

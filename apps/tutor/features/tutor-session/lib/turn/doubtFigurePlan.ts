@@ -167,6 +167,9 @@ export function doubtFigureHoldingSegment(language: NarrationLanguage = "english
  * the zone can be swapped only when it can be stashed and returned.
  * An empty zone (`zoneEmpty`: no figure, the doubt continues the page) takes a
  * figure only when no work row reaches it (`zoneOccupied`): never draw over ink.
+ * With `freshPage` (lane 9) a zone the lesson's rows reach is no refusal: the
+ * doubt turns a fresh page for its figure (`turnDoubtPage`) and the lesson's
+ * page comes back on its resume.
  */
 export function doubtFigureNeedSkip(input: {
   granted: boolean;
@@ -176,6 +179,8 @@ export function doubtFigureNeedSkip(input: {
   zoneReturnable: boolean;
   zoneEmpty: boolean;
   zoneOccupied: boolean;
+  /** An occupied empty zone turns a fresh page instead of refusing (lane 9). */
+  freshPage?: boolean;
 }): string | null {
   if (!input.granted) return "flag_off";
   if (input.codeBoard) return "code_board";
@@ -183,7 +188,7 @@ export function doubtFigureNeedSkip(input: {
   if (marked.size > 0 && input.zoneFigure?.anchors.some((anchor) => marked.has(anchor.id.trim().toLowerCase()))) {
     return "marked_figure_part";
   }
-  if (!input.zoneFigure && input.zoneEmpty) return input.zoneOccupied ? "zone_occupied" : null;
+  if (!input.zoneFigure && input.zoneEmpty) return input.zoneOccupied && input.freshPage !== true ? "zone_occupied" : null;
   const swappable = input.zoneFigure !== null &&
     (input.zoneFigure.id === "verified_scene" || isReferencePictureDiagram(input.zoneFigure));
   if (!swappable || !input.zoneReturnable) return "zone_not_returnable";
