@@ -23,6 +23,7 @@ import { resolveOpticsArchetypeInStrict } from "../../lib/scene/diagramStrategy.
 import { sceneSaveAdmissionFailure } from "../../lib/scene/sceneSaveAdmission";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import { answerLabelPrimitiveIds } from "../../features/tutor-session/lib/scene/answerLabelReveal";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { getSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { OPTICS_ARCHETYPE_FIXTURES, REVIEW2_FIXTURES } from "../../../../packages/scene-engine/scripts/verify/fixtures/optics-archetype-strict";
@@ -154,6 +155,34 @@ assert.equal(convergingDrawn.representation?.figureSource, "optics_archetype", c
 // Kind, u and f fix v, so a plan with no image distance row leaves nothing to catch a misread kind: strict declines.
 assert.notEqual(select(converging, turnPlan(converging, [["u", 30, "cm"], ["f", 10, "cm"]])).representation?.figureSource, "optics_archetype", "strict needs the plan's image distance row");
 assert.deepEqual(quantities(convergingDrawn.representation!.sceneDocument), { u: "-30 cm", f: "-10 cm", v: "-15 cm" });
+// Rule 5: the solved image distance is an answer label that waits for teaching; the given u and f are setup.
+// Both lanes, lens and mirror: strict's figure and the current lane's archetype figure.
+for (const [question, rows, spans] of [
+  ["An object is placed 30 cm from a convex lens of focal length 20 cm. Find the image distance.", [["u", 30, "cm"], ["f", 20, "cm"], ["v", 60, "cm"]], { u: "u=30 cm", f: "f=20 cm", v: "v=60 cm" }],
+  ["An object is placed 30 cm in front of a concave mirror of focal length 10 cm. Find the image distance.", [["u", 30, "cm"], ["f", 10, "cm"], ["v", 15, "cm"]], { u: "u=30 cm", f: "f=10 cm", v: "v=15 cm" }],
+] as Array<[string, Array<[string, number, string | null]>, Record<string, string>]>) {
+  const plan = turnPlan(question, rows);
+  const strictPick = select(question, plan).representation;
+  assert.equal(strictPick?.figureSource, "optics_archetype", `strict draws: ${question}`);
+  const archetype = attemptArchetypeScene({ question, turnPlan: plan }).scene!;
+  for (const [lane, document, primitives] of [
+    ["strict", strictPick!.sceneDocument, strictPick!.renderScene.primitives],
+    ["archetype", archetype.document, archetype.renderScene.primitives],
+  ] as const) {
+    assert.equal(document.quantities.find((row) => row.id === "v")?.provenance, "derived", `${lane}: v is solved`);
+    for (const id of ["u", "f"]) assert.notEqual(document.quantities.find((row) => row.id === id)?.provenance, "derived", `${lane}: ${id} is given`);
+    const held = answerLabelPrimitiveIds(document, primitives);
+    for (const [key, text] of Object.entries(spans)) {
+      const label = primitives.find((primitive) => primitive.kind === "label" && primitive.text === text);
+      assert.ok(label, `${lane} ${question}: the ${key} span text ${text} is drawn`);
+      const bar = primitives.filter((primitive) => primitive.entityId === label.entityId && primitive.kind === "dimension");
+      assert.ok(bar.length > 0, `${lane} ${question}: the ${key} span bar is drawn`);
+      for (const primitive of [label, ...bar]) {
+        assert.equal(held.has(primitive.id), key === "v", `${lane} ${question}: ${primitive.id} (${text}) ${key === "v" ? "waits for teaching (answer label)" : "is setup"}`);
+      }
+    }
+  }
+}
 // A plan length the check cannot assign (d_obj is aliased; x1 and D are not) refuses the figure.
 assert.equal(sceneSaveAdmissionFailure({ document: convergingDrawn.representation!.sceneDocument, question: converging, turnPlan: turnPlan(converging, [["d_obj", 30, "cm"], ["f", 10, "cm"]]), tier: "exact_verified" }), null, "d_obj is the object distance");
 for (const id of ["x1", "D", "u_1", "d_img"]) {

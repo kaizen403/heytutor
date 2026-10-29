@@ -127,6 +127,10 @@ for (const fixture of OPTICS_ARCHETYPE_FIXTURES) {
   assert.equal(attempt.scene!.tier, "exact_verified", `${fixture.id}: exact (u ${attempt.match?.slots.u} ${attempt.match?.sources.u})`);
   assert.equal(namesSeveralOpticalElements(fixture.question), false, `${fixture.id}: one element`);
   const expected = cartesian(draw);
+  // Rule 5: the solved v is derived (its span waits for teaching); the given u and f are not.
+  for (const id of ["u", "f", "v"] as const) {
+    assert.equal(document.quantities.find((row) => row.id === id)?.provenance === "derived", id === "v", `${fixture.id}: ${id} ${id === "v" ? "is derived" : "is not derived"}`);
+  }
   for (const id of ["u", "f", "v"] as const) {
     const row = quantity(document, id);
     assert.equal(row.unit, draw.unit, `${fixture.id}: ${id} is written in the question's unit`);

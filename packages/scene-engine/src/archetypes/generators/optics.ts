@@ -110,7 +110,7 @@ function sphericalMirror(context: GeneratorContext) {
   const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula`, "spherical_mirror");
   if (grounded(context, "u")) scene.quantity("u", "u", display(u), unit);
   if (grounded(context, "f")) scene.quantity("f", "f", display(f), unit);
-  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit);
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit, "derived");
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -193,7 +193,7 @@ function thinLens(context: GeneratorContext) {
   const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula`, "thin_lens");
   if (grounded(context, "u")) scene.quantity("u", "u", display(u), unit);
   if (grounded(context, "f")) scene.quantity("f", "f", display(f), unit);
-  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit);
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", display(v), unit, "derived");
   const imageHeight = m * h;
   const leftmost = Math.min(u, v, -2 * fMag) - 0.15 * uMag;
   const rightmost = Math.max(v, 2 * fMag) + 0.15 * uMag;

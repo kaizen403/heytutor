@@ -67,8 +67,9 @@ export class SceneBuilder {
     return this.ids.has(id);
   }
 
-  quantity(id: string, symbol: string, value: number, unit = ""): string {
-    this.quantities.push({ id, symbol, value: round(value, 6), unit });
+  /** `derived` marks a value the figure solved (an answer label waits for teaching); givens stay unmarked. */
+  quantity(id: string, symbol: string, value: number, unit = "", provenance?: "derived"): string {
+    this.quantities.push({ id, symbol, value: round(value, 6), unit, ...(provenance ? { provenance } : {}) });
     return id;
   }
 
