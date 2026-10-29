@@ -21,8 +21,8 @@ import {
   communitySceneArtifacts,
   toCommunityTurn,
   COMMUNITY_MIN_LESSON_MS,
-  lessonMsOf,
 } from "../../lib/community/publicBoard";
+import { lessonMsOf } from "../../lib/boards/turnStatus";
 import { COMMUNITY_LESSON_WHERE, communityBoardWhere } from "../../lib/community/queries";
 import { boardThumbnailKey, boardThumbnailPrefix, isSafeObjectDeletionPrefix, parseStoredObjectKey } from "../../lib/object-store/keys";
 import { isAuthPublicPath } from "../../lib/auth/publicPaths";

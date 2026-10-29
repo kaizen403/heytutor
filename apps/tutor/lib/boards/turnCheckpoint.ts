@@ -20,7 +20,6 @@
  * intent covers that folder only, so abandoning a retry never deletes a clip
  * an earlier checkpoint committed.
  */
-import { lessonMsOf } from "@/lib/community/publicBoard";
 import { Prisma, type Segment, type Turn } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { rejectTurnSave, type SaveRejectionCode } from "@/lib/boards/turnSaveRejection";
@@ -66,6 +65,7 @@ import {
 import {
   isTurnKind,
   isTurnStatus,
+  lessonMsOf,
   nextTurnStatus,
   type TurnKind,
   type TurnStatus,
