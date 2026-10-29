@@ -81,8 +81,10 @@ passes from it; a missing record strips the picture and keeps the words.
 `DRAW_PICTURE` params are `[x, y, w, h, pass, boardLengthPx]`, `text` the id.
 `Whiteboard.drawPicture` lays a paper card in the picture's paper colour, the
 pencil traces the outline strokes revealing only the ink mask, then sweeps the
-fill strokes revealing the colour, then swaps in the exact picture and writes
-the credit line. A numbered picture has a third pass: the pen writes its key
+fill strokes revealing the colour, then swaps in the exact picture. Nothing is
+written under it: the owner removed the credit line from the board on 29 Oct
+2026. The credit (`referencePictureCredit`) is still stored with the record and
+the lesson. A numbered picture has a third pass: the pen writes its key
 ("1 Renal cortex", ...) in a column beside the card at figure label size,
 wrapping rather than shrinking; `referencePictureLayout(record)` places picture
 and key, and declines a key that would leave the picture under 240 px. Outline 4 to 14 s, fill 2 to 7 s at 1x, paced by stroke
