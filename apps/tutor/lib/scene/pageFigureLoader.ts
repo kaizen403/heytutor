@@ -163,7 +163,7 @@ function lessonFigure(turn: PageFigureTurn, figureId: LessonFigureId): VerifiedD
     { schemaVersion: LESSON_FIGURES_VERSION, figures: [figure] },
     { lessonQuestion, turnPlan },
   );
-  return admitted.diagrams.get(figureId) ?? null;
+  return admitted.diagrams.get(figure.id) ?? null;
 }
 
 function dsaFrameFigure(turn: PageFigureTurn, frameIndex: number | undefined): VerifiedDiagram | null {
