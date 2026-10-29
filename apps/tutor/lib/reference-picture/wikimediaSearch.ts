@@ -59,7 +59,7 @@ interface CommonsPage {
   title?: string;
   index?: number;
   imageinfo?: Array<{
-    url?: string; thumburl?: string; thumbwidth?: number; thumbheight?: number;
+    url?: string; thumburl?: string; thumbwidth?: number; thumbheight?: number; timestamp?: string; sha1?: string;
     width?: number; height?: number; mime?: string; descriptionurl?: string;
     extmetadata?: Record<string, { value?: unknown } | undefined>;
   }>;
@@ -132,20 +132,32 @@ export function rankCandidates(candidates: readonly PictureCandidate[]): Picture
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** A Commons file as it is now: its current revision's original, type, upload time and hash. */
+export interface CommonsFileInfo {
+  mime: string;
+  originalUrl: string;
+  /** When the current revision was uploaded (ISO 8601), so a caller can tell it is newer than its stored picture. */
+  timestamp: string | null;
+  sha1: string | null;
+}
+
 /**
  * One Commons file's original URL and type, for a picture stored before the
- * original was kept (the part locator's backfill). Null when Commons does not
- * answer with a file.
+ * original was kept (the part locator's backfill). Commons answers with the
+ * current revision, so the upload time comes too: a file re-uploaded after
+ * the picture was stored may have its labels elsewhere. Null when Commons
+ * does not answer with a file.
  */
-export async function commonsFileInfo(title: string, options: { signal?: AbortSignal; fetchImpl?: FetchLike } = {}): Promise<{ mime: string; originalUrl: string } | null> {
+export async function commonsFileInfo(title: string, options: { signal?: AbortSignal; fetchImpl?: FetchLike } = {}): Promise<CommonsFileInfo | null> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const params = new URLSearchParams({ action: "query", format: "json", formatversion: "2", titles: title, prop: "imageinfo", iiprop: "url|mime" });
+  const params = new URLSearchParams({ action: "query", format: "json", formatversion: "2", titles: title, prop: "imageinfo", iiprop: "url|mime|timestamp|sha1" });
   const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(6000)]) : AbortSignal.timeout(6000);
   const response = await fetchImpl(`${COMMONS_API}?${params}`, { signal, headers: { "User-Agent": WIKIMEDIA_USER_AGENT, "Api-User-Agent": WIKIMEDIA_USER_AGENT }, cache: "no-store" });
   if (!response.ok) return null;
   const body = (await response.json()) as { query?: { pages?: CommonsPage[] } };
   const info = body.query?.pages?.[0]?.imageinfo?.[0];
-  return info?.url && info.mime ? { mime: info.mime, originalUrl: info.url } : null;
+  if (!info?.url || !info.mime) return null;
+  return { mime: info.mime, originalUrl: info.url, timestamp: typeof info.timestamp === "string" ? info.timestamp : null, sha1: typeof info.sha1 === "string" ? info.sha1 : null };
 }
 
 /**

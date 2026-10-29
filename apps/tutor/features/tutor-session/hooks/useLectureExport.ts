@@ -448,7 +448,8 @@ export function useLectureExport({
         if (!current()) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Lecture export failed:", error);
-        fail(VIDEO_FAILED);
+        // A missing picture says so; anything else stays the generic message.
+        fail(error instanceof Error && error.name === "ExportPictureMissingError" ? error.message : VIDEO_FAILED);
       } finally {
         if (current()) {
           clockRef.current = null;

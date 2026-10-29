@@ -1625,6 +1625,17 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             perfectDrawEnabled: false,
           });
           node.setAttr(PICTURE_PART_ATTR, pass);
+          if (pass === "outline" && picture.blended) {
+            // A blended picture's fill holds every line too, and its edges are
+            // part transparent: drawn under the landed fill, the outline would
+            // double them (alpha a becomes 1 - (1 - a)^2, labels go bold). It
+            // draws only until a fill lands beside it, checked from the node
+            // tree at draw time, so rollback, seek and erase need no bookkeeping.
+            node.sceneFunc((context, shape) => {
+              if (shape.getParent()?.getChildren((sibling) => sibling.getAttr(PICTURE_PART_ATTR) === "fill").length) return;
+              (shape as PictureImage)._sceneFunc(context);
+            });
+          }
           return node.showPicture(picture, image, hold);
         };
         const setCredit = (group: Konva.Group): void => {

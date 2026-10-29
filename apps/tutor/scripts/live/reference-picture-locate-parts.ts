@@ -10,7 +10,10 @@
  *
  * Idempotent: a second run finds every row unchanged. A generated picture has
  * no SVG, and the raster reader is not shipped (OCR pointed at the wrong copy
- * of a name on real pictures), so it is skipped.
+ * of a name on real pictures), so it is skipped. So is a row whose Commons
+ * file was re-uploaded after the row was stored (or whose upload time is
+ * unknown): Commons serves only the current revision, whose labels may have
+ * moved, and the stored picture is the older one.
  */
 import { Prisma } from "@prisma/client";
 import { normalizeReferencePictureLabels, parseReferencePictureLegend, parseReferencePicturePlan } from "@heytutor/drawing";
@@ -39,7 +42,7 @@ async function main(): Promise<void> {
   const host = (() => { try { return new URL(process.env.DATABASE_URL ?? "").host; } catch { return "unknown"; } })();
   const rows = await prisma.referencePicture.findMany({
     where: only ? { id: only } : {},
-    select: { id: true, sourceKey: true, source: true, record: true, plan: true, image: true },
+    select: { id: true, sourceKey: true, source: true, record: true, plan: true, image: true, createdAt: true },
     orderBy: { createdAt: "asc" },
     ...(limit ? { take: limit } : {}),
   });
@@ -59,6 +62,12 @@ async function main(): Promise<void> {
     try {
       const file = await commonsFileInfo(title);
       if (!file) { tally.skipped++; console.log(`skip     ${row.id}  ${title}: not on Commons`); continue; }
+      const uploaded = file.timestamp ? Date.parse(file.timestamp) : Number.NaN;
+      if (!Number.isFinite(uploaded) || uploaded > row.createdAt.getTime()) {
+        tally.skipped++;
+        console.log(`skip     ${row.id}  ${title}: Commons revision ${file.timestamp ?? "of unknown date"} is newer than the stored picture (${row.createdAt.toISOString()})`);
+        continue;
+      }
       const located = await locateReferencePictureParts({
         candidate: file,
         plan,

@@ -5,8 +5,9 @@ import { generatePicture, resolveImageProvider, type ImageProviderConfig } from 
 import { writePictureQuery } from "./pictureQuery";
 import { downloadPicture, rankCandidates, searchCommons, type PictureCandidate } from "./wikimediaSearch";
 import { buildStrokePlan } from "./strokePlan";
-import { locateReferencePictureParts } from "./partLocator";
+import { locateReferencePictureParts, PART_LOCATOR_BUDGET_MS, type LocatePartsResult } from "./partLocator";
 import { resolveReferencePicturePartFocusEnabled } from "@/lib/scene/diagramStrategy.server";
+import { neverReachedProvider, ProviderRefusedError } from "./providerErrors";
 import * as store from "./pictureStore";
 
 /**
@@ -42,18 +43,22 @@ export function createPictureSpend(): PictureSpend {
 }
 
 /**
- * Count a provider call while it runs. A call cut off by an abort stays
- * counted: it was dispatched and may be billed. An upstream error response
- * (no completion) is not.
+ * Count a provider call while it runs. A call whose signal is already aborted
+ * is never sent and never counted. Once sent, only a provider's error status
+ * (nothing generated) or a connect-phase failure (never reached it) releases
+ * it; a call that timed out, was cut off by an abort, lost its connection
+ * mid-request or returned an unreadable reply may be billed and is charged at
+ * its ceiling.
  */
 async function tracked<T>(spend: PictureSpend, lane: PictureUsage["lane"], run: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  signal?.throwIfAborted();
   spend.inFlight[lane]++;
   try {
     const result = await run();
     spend.inFlight[lane]--;
     return result;
   } catch (error) {
-    if (!signal?.aborted) spend.inFlight[lane]--;
+    if (error instanceof ProviderRefusedError || neverReachedProvider(error)) spend.inFlight[lane]--;
     throw error;
   }
 }
@@ -72,6 +77,8 @@ export interface FindPictureDeps {
   strokePlan?: typeof buildStrokePlan;
   /** Where the picture's names are printed; any failure stores the picture without parts. */
   locateParts?: typeof locateReferencePictureParts;
+  /** The locator's own time budget (tests shorten it); it never sees `signal`. */
+  locatePartsBudgetMs?: number;
   /**
    * Called before each judge round (0, 1) and before a generation, so the
    * caller can extend its reservation; false stops the search there.
@@ -246,6 +253,9 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
       }, deps.signal),
       factCheck(mustShow, imageDataUrl, context, candidate.description),
     ]);
+    // A fact check that failed (timeout, provider error) is no verdict: the
+    // candidate counts as unjudged, so an outage is never cached as a decline.
+    if (!fact) { steps.push(`judge ${candidate.title}: fact check failed, not judged`); return null; }
     const judged: Judged = { candidate, bytes, verdict: result.verdict, factCheck: fact, origin: "wikimedia", order };
     steps.push(`judge ${candidate.title}: ${verdictStep(judged)}`);
     return judged;
@@ -256,8 +266,12 @@ async function judgeCandidate(candidate: PictureCandidate, order: number, contex
   }
 }
 
-/** The fact check for one picture; a failed or unreadable check rejects it. */
-async function factCheck(mustShow: string, imageDataUrl: string, context: Context, description?: string): Promise<FactCheckResult> {
+/**
+ * The fact check for one picture. An unreadable reply is a completed check
+ * that rejects the picture; a failed call (timeout, provider error) is null,
+ * which leaves the picture unjudged rather than rejected.
+ */
+async function factCheck(mustShow: string, imageDataUrl: string, context: Context, description?: string): Promise<FactCheckResult | null> {
   const { deps, spend } = context;
   try {
     const checked = await tracked(spend, "judge", async () => {
@@ -268,7 +282,7 @@ async function factCheck(mustShow: string, imageDataUrl: string, context: Contex
     return checked.result;
   } catch (error) {
     if (deps.signal?.aborted) throw error;
-    return UNREAD_FACT_CHECK;
+    return null;
   }
 }
 
@@ -286,7 +300,7 @@ async function judgeGenerated(provider: ImageProviderConfig, context: Context): 
       }, deps.signal),
       factCheck(mustShow, imageDataUrl, context),
     ]);
-    const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
+    const judged: Judged = { candidate: null, bytes, verdict: result.verdict, factCheck: fact ?? UNREAD_FACT_CHECK, origin: "generated", order: JUDGED_CANDIDATES * JUDGE_ROUNDS };
     steps.push(`judge generated: ${verdictStep(judged)}`);
     return judged;
   } catch (error) {
@@ -315,18 +329,21 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
   // Checked on the thumbnail's size before acceptance; the plan keeps its
   // aspect, so this holds unless the planner changed shape.
   if (legend && !referencePictureLayout({ plan, legend })) throw new Error("the key does not fit beside the planned picture");
-  // Parts are located and stored whatever the flag says, so turning part
-  // focus on needs no re-judging; the store serves them only with it on.
-  const located = await (deps.locateParts ?? locateReferencePictureParts)({
-    candidate: candidate ? { mime: candidate.mime, ...(candidate.originalUrl ? { originalUrl: candidate.originalUrl } : {}) } : null,
-    plan,
-    picturePng: built.picturePng,
-    labels,
-    legend,
-    signal: deps.signal,
-    fetchImpl: deps.fetchImpl,
-  });
-  if (resolveReferencePicturePartFocusEnabled()) steps.push(`parts: ${located.step}`);
+  // Parts are located only with part focus on, so with it off the store is
+  // exactly what it was (no extra fetch, no extra wait). Pictures stored
+  // while it was off get theirs from the backfill
+  // (scripts/live/reference-picture-locate-parts.ts).
+  const located = resolveReferencePicturePartFocusEnabled()
+    ? await locateStoredParts(deps, {
+      candidate: candidate ? { mime: candidate.mime, ...(candidate.originalUrl ? { originalUrl: candidate.originalUrl } : {}) } : null,
+      plan,
+      picturePng: built.picturePng,
+      labels,
+      legend,
+      fetchImpl: deps.fetchImpl,
+    })
+    : null;
+  if (located) steps.push(`parts: ${located.step}`);
   const id = store.pictureIdFor(sourceKey);
   return db.saveReferencePicture({
     sourceKey,
@@ -346,8 +363,35 @@ async function storeAccepted(accepted: Judged, context: Context, db: NonNullable
       shows: accepted.verdict.shows,
       labels,
       ...(legend ? { legend } : {}),
-      ...(located.parts.length ? { parts: located.parts } : {}),
+      ...(located?.parts.length ? { parts: located.parts } : {}),
       plan: { width: plan.width, height: plan.height, outlineLengthPx: plan.outline.lengthPx, fillLengthPx: plan.fill.lengthPx },
     },
   });
+}
+
+/** How long past its own budget the store waits for a locator before it stores the picture without parts. */
+const LOCATE_GRACE_MS = 500;
+
+/**
+ * Locate a picture's parts for the store. The picture is paid for and
+ * accepted by now, so nothing here may lose it: the locator gets only its
+ * own budget (never the request's signal, so a student pressing Stop
+ * mid-locate still gets the picture stored), and a locator that throws or
+ * hangs past its budget gives no parts.
+ */
+async function locateStoredParts(deps: FindPictureDeps, input: Omit<Parameters<typeof locateReferencePictureParts>[0], "budgetMs">): Promise<LocatePartsResult> {
+  const budgetMs = deps.locatePartsBudgetMs ?? PART_LOCATOR_BUDGET_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<LocatePartsResult>((resolve) => {
+    timer = setTimeout(() => resolve({ parts: [], step: "timed out" }), budgetMs + LOCATE_GRACE_MS);
+  });
+  try {
+    const locate = deps.locateParts ?? locateReferencePictureParts;
+    return await Promise.race([
+      Promise.resolve().then(() => locate({ ...input, budgetMs })).catch((error: unknown) => ({ parts: [], step: `failed: ${error instanceof Error ? error.message : String(error)}` })),
+      late,
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

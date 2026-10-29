@@ -290,7 +290,9 @@ export function blendPictureIntoBoard(image: CanvasImageSource & { width: number
   const canvas = Konva.Util.createCanvasElement();
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  // One readback per picture; willReadFrequently would keep the canvas on the
+  // CPU and slow every later draw of the picture.
+  const ctx = canvas.getContext("2d");
   if (!ctx) return { image, blended: false };
   ctx.drawImage(image, 0, 0, width, height);
   const pixels = ctx.getImageData(0, 0, width, height);

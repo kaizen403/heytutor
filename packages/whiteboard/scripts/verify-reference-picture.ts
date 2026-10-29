@@ -375,6 +375,18 @@ async function verifyBlend(): Promise<void> {
   assert.equal(card.fill(), "rgba(0,0,0,0)", "a blended picture's card draws no paper");
   assert.ok(!card.shadowColor() && !card.hasShadow(), "and casts no shadow");
   assert.ok(card.x() < PLACEMENT.x && card.x() + card.width() > PLACEMENT.x + PLACEMENT.width, "the card still frames the picture for erase and FOCUS");
+  const drawnBy = (node: Konva.Node): number => {
+    let images = 0;
+    const context = new Proxy({}, { get: (_t, key) => (key === "drawImage" ? () => { images++; } : () => {}) });
+    (node as Konva.Shape).getSceneFunc().call(node, context as unknown as Konva.Context, node as Konva.Shape);
+    return images;
+  };
+  const [, outlineNode, fillNode] = group!.getChildren();
+  assert.equal(drawnBy(fillNode!), 1, "the landed fill draws the picture");
+  assert.equal(drawnBy(outlineNode!), 0, "the outline under a landed blended fill draws nothing, so part transparent edges are not doubled");
+  fillNode!.remove();
+  assert.equal(drawnBy(outlineNode!), 1, "with no fill beside it the outline draws again (rollback keeps the lines)");
+  group!.add(fillNode as Konva.Shape);
 }
 
 async function verifyBoard(): Promise<void> {
@@ -922,6 +934,17 @@ async function verifyAssetCache(): Promise<void> {
     assert.ok(isZeroed(lineWorkOnBoard.get(evicted[0]!.id)), "its line work is freed once its group is destroyed");
     assert.ok(onBoard.filter((asset) => asset !== evicted[0]).every((asset) => !isZeroed(lineWorkOnBoard.get(asset.id))),
       "pictures still cached keep their line work for the next seek");
+
+    // An export pins every picture it needs: none is evicted past the limit
+    // until the pin is released, then the cache shrinks back.
+    const pinStore = loadAssetStore();
+    const pinIds = Array.from({ length: limit + 3 }, (_, i) => `rp_${(i + 0x100).toString(16).padStart(24, "0")}`);
+    const release = pinStore.pinReferencePictures(pinIds);
+    for (const id of pinIds) await pinStore.preloadReferencePicture(id);
+    assert.equal(pinIds.filter((id) => pinStore.peekReferencePicture(id)).length, limit + 3, "pinned pictures all stay cached past the limit");
+    release();
+    await pinStore.preloadReferencePicture(`rp_${(0x200).toString(16).padStart(24, "0")}`);
+    assert.ok(pinIds.filter((id) => pinStore.peekReferencePicture(id)).length <= limit, "once unpinned, eviction bounds the cache again");
 
     // A long session: the cache never grows past the limit.
     while (next < ids.length) await preload(ids[next++]!);

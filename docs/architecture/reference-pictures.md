@@ -107,22 +107,29 @@ the prompt addon lists the judge's labels, forbids drawing tags and allows
 Off unless `REFERENCE_PICTURE_PART_FOCUS=on` (on top of the picture flag). With
 it on, "now look at register R1" brings the pen to "R1" printed on the picture,
 rings it, and rests there for the sentence, as `[FOCUS:id]` does on a verified
-figure. Off, prompts, anchors, saves and board events are exactly as before.
+figure. Off, the locator does not run and prompts, anchors, saves and board
+events are exactly as before (`verify-reference-picture-turn.ts` compares them
+with output frozen from the commit before this feature).
 
 - **Where a label is** (`partLocator*.ts`, at store time): the original Commons
   SVG's own text (transforms, tspans, `<switch>`, stylesheet, hidden text) is
   boxed and mapped onto the stroke plan; the SVG's aspect must match the plan's
   within 1.5%. A judged name gets a part only when it is printed in exactly one
-  place and the box sits on printed ink. 4 s budget; any failure stores no parts
-  and the picture still shows. `parseReferencePictureParts` validates parts
+  place, as a whole line (or stacked whole lines, or a line made only of judged
+  names), and the box sits on printed ink. Numbered marks count only as a set.
+  Runs only with the flag on, on its own 4 s budget; it never throws, so a
+  failure, timeout or request abort stores the picture without parts. Scans are
+  linear and entity expansion, text count and length are capped. `parseReferencePictureParts` validates parts
   everywhere. Store reads drop `parts` when the flag is off.
 - **Not OCR:** reading the raster was measured and not shipped. On raster-only
   pictures it pointed at the wrong copy of a repeated name, and a worker took
   3 to 4 s and 1.2 GB to start. A pointer on the wrong part is a false mark.
 - **Targets** (`referencePicturePresentation.ts`): each located label is
-  `reference_picture.part.<n>` on its printed text. Each key entry of a numbered
-  picture is the group `reference_picture.key.<n>`: the mark on the drawing when
-  located, then the key row (always exact, from `referencePictureLayout`). The
+  `reference_picture.part.<n>` on its printed text, n the label's place in
+  `labels` (so a backfill never renumbers a saved lesson's parts). Each key
+  entry of a numbered picture is the group `reference_picture.key.<mark>`, named
+  by its printed mark so "part 4" is `key.4` even on a key that skips 3: the
+  mark on the drawing when located, then the key row (always exact, from `referencePictureLayout`). The
   prompt lists them (`"R1" = [FOCUS:reference_picture.part.2]`). A spoken name
   infers a focus only for distinctive labels (two or more characters, not a bare
   number, not all common words). If the saved rows and the record disagree on

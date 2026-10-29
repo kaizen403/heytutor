@@ -20,7 +20,7 @@ import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/c
 import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "@/features/tutor-session/lib/scene/restoreReferencePicture";
-import { preloadReferencePicturesForTurns } from "@/features/tutor-session/lib/scene/referencePicturePreload";
+import { ExportPictureMissingError, pinReferencePicturesForTurns, preloadReferencePicturesForTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS } from "@/features/tutor-session/lib/scene/referencePicturePreload";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
@@ -299,14 +299,20 @@ export async function exportLectureMp4(options: {
   // Set when the export stops before the drawing does (the tail limit, a
   // failure), so the drawing's waits stop instead of lingering on this clock.
   let abandoned = false;
+  let releasePictures: () => void = () => {};
   try {
     if (audioTrack.channels[0] && audioTrack.channels[0].length > 0) {
       await audioSource.add(pcmToAudioBuffer(audioTrack.channels, audioTrack.sampleRate));
     }
 
     // The export clock never waits for the network: every reference picture
-    // in these turns is fetched before the first frame is drawn.
-    await preloadReferencePicturesForTurns(pageTurns);
+    // in these turns is fetched before the first frame is drawn, or the
+    // export stops rather than record narration over a missing picture.
+    // Pinned first, so a board with more pictures than the cache holds keeps
+    // every one it preloaded until the export ends.
+    releasePictures = pinReferencePicturesForTurns(pageTurns);
+    const { missing } = await preloadReferencePicturesForTurns(pageTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS);
+    if (missing.length > 0) throw new ExportPictureMissingError(missing.length);
     options.whiteboard.setTimeSource(options.clock.source);
     options.whiteboard.setAnimationSpeed(1);
     await options.whiteboard.clearBoard(0);
@@ -524,6 +530,7 @@ export async function exportLectureMp4(options: {
     await output.cancel().catch(() => undefined);
     throw error;
   } finally {
+    releasePictures();
     options.whiteboard.setTimeSource(null);
     options.whiteboard.setAnimationSpeed(1);
   }

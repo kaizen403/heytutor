@@ -473,7 +473,11 @@ function photoelectric(context: GeneratorContext) {
     scene.quantity("Vstop_given", "Vstop", stopping, "V");
     scene.point("stopping_source", { x: 3.4, y: photonValue * 0.6 }, "stated stopping potential", `Vstop=${fmt(stopping)} V`);
   }
-  scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * Math.max(photonValue, phiLevel), "energy axis", "E (eV)");
+  const energyTop = 1.25 * Math.max(photonValue, phiLevel);
+  scene.axes("axes", -0.5, 4, -0.2 * photonValue, energyTop, "energy axis");
+  // The energy axis is titled at its own tip. As the axes entity's label it
+  // named neither axis and was set below the origin, off the axis it names.
+  scene.labelAt("energy_title", { x: 0, y: energyTop }, "energy axis title", "E (eV)");
   scene.point("zero", { x: 0, y: 0 }, "zero of energy");
   scene.point("phi_top", { x: 0, y: phiLevel }, "work function mark", phiGiven ? `φ=${fmt(phiLevel)} eV` : "φ");
   scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", photonGiven ? `hν=${fmt(photonValue)} eV` : "hν");

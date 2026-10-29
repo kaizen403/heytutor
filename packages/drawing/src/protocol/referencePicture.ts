@@ -468,7 +468,11 @@ export function normalizeReferencePictureLabels(raw: unknown): string[] {
  * whole picture. A name with no located part can be said, never pointed at.
  */
 export interface ReferencePicturePart {
-  /** `reference_picture.part.<n>`, n from 1; stable for the record. */
+  /**
+   * `reference_picture.part.<n>`: n is the 1-based position of `label` in the
+   * record's `labels`, so a backfill that locates one more name never
+   * renumbers the others (a lesson saved before it replays the same rings).
+   */
   id: string;
   /** The judged name it answers to: a printed label verbatim, or the key's name for `mark`. */
   label: string;
@@ -488,12 +492,37 @@ const PART_MIN_SIDE_PX = 3;
 /** A label box taller than this share of the picture is a region, not printed text. */
 const PART_MAX_HEIGHT_SHARE = 0.25;
 
-export function referencePicturePartId(index: number): string {
-  return `${REFERENCE_PICTURE_PART_PREFIX}${index + 1}`;
+/** The part id for the name at `labelIndex` (0-based) in the record's `labels`. */
+export function referencePicturePartId(labelIndex: number): string {
+  return `${REFERENCE_PICTURE_PART_PREFIX}${labelIndex + 1}`;
 }
 
 export function isReferencePicturePartId(value: unknown): value is string {
   return typeof value === "string" && PART_ID.test(value.trim().toLowerCase());
+}
+
+/**
+ * A numbered picture's key entry as a focus target, named by its printed mark
+ * (`reference_picture.key.3`, `reference_picture.key.12a`), never by its place
+ * in the list: on a key whose marks skip (1, 2, 4, 5) "part 4" must be
+ * `key.4`, or the model's natural id rings the wrong row. Sub-anchors add
+ * `.mark` (on the drawing) and `.row` (the key row).
+ */
+export const REFERENCE_PICTURE_KEY_PREFIX = "reference_picture.key." as const;
+const KEY_ID = /^reference_picture\.key\.([0-9]{1,2}[a-z]?|[a-z])(?:\.(?:mark|row))?$/;
+
+export function referencePictureKeyId(mark: string): string {
+  return `${REFERENCE_PICTURE_KEY_PREFIX}${legendMarkKey(mark)}`;
+}
+
+/** A key target or one of its sub-anchors. */
+export function isReferencePictureKeyId(value: unknown): value is string {
+  return typeof value === "string" && KEY_ID.test(value.trim().toLowerCase());
+}
+
+/** Any part or key focus id, sub-anchors included (not the whole picture). */
+export function isReferencePicturePartFocusId(value: unknown): value is string {
+  return isReferencePicturePartId(value) || isReferencePictureKeyId(value);
 }
 
 /** Names compare without case or spacing: "R 1" printed, "R1" judged. */
@@ -506,6 +535,7 @@ export function referencePicturePartKey(label: string): string {
  * Unlike the key, a bad part is dropped alone: the picture stays, that part
  * just cannot be pointed at. A part is kept only when its name is one the
  * record already shows (a printed label, or the key name its mark carries),
+ * its id is that name's place in `labels` (`referencePicturePartId`),
  * its box lies on the picture and is the size of printed text, and no other
  * part claims the same name, mark or id.
  */
@@ -516,6 +546,8 @@ export function parseReferencePictureParts(
   if (!Array.isArray(raw)) return [];
   const { width: planW, height: planH } = record.plan;
   const printed = new Map(record.labels.map((label) => [referencePicturePartKey(label), label] as const));
+  const position = new Map<string, number>();
+  record.labels.forEach((label, index) => { if (!position.has(referencePicturePartKey(label))) position.set(referencePicturePartKey(label), index); });
   const keyed = new Map((record.legend ?? []).map((entry) => [legendMarkKey(entry.mark), entry] as const));
   const parts: ReferencePicturePart[] = [];
   const seenIds = new Set<string>();
@@ -546,6 +578,9 @@ export function parseReferencePictureParts(
       label = printed.get(referencePicturePartKey(value.label));
     }
     if (!label || seenNames.has(referencePicturePartKey(label))) continue;
+    // The id is the name's place in `labels`; any other numbering is refused.
+    const index = position.get(referencePicturePartKey(label));
+    if (index === undefined || id !== referencePicturePartId(index)) continue;
     seenIds.add(id);
     seenNames.add(referencePicturePartKey(label));
     if (mark) seenMarks.add(legendMarkKey(mark));

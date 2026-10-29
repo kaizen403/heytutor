@@ -14,16 +14,9 @@
  * part focus is on, so a picture without them, and every verified diagram,
  * keeps its gestures and its veil exactly as before.
  */
-import { REFERENCE_PICTURE_ZONE } from "@heytutor/drawing";
+import { REFERENCE_PICTURE_ZONE, isReferencePicturePartFocusId } from "@heytutor/drawing";
 import type { FocusTracePath } from "./scheduledFocus";
 import type { SpotlightRect } from "./spotlight";
-
-/**
- * `reference_picture.part.<n>` (a printed label), and a numbered picture's
- * `reference_picture.key.<n>` group with its `.mark` and `.row` anchors.
- * The whole picture, `reference_picture`, is not a part.
- */
-const PICTURE_FOCUS_ID = /^reference_picture\.(?:part\.[1-9][0-9]{0,2}|key\.[1-9][0-9]{0,2}(?:\.(?:mark|row))?)$/;
 
 /** Clearance between the text's box and the ring, board px. */
 const RING_CLEARANCE_PX = 3;
@@ -43,10 +36,6 @@ const PULSE_EXTRA_PX = 3;
 /** The spotlight hole clears the ring by this much, so no part of the ring is dimmed. */
 const HOLE_MARGIN_PX = 4;
 const KAPPA = 0.552284749831;
-
-export function isReferencePictureFocusId(id: string): boolean {
-  return PICTURE_FOCUS_ID.test(id.trim().toLowerCase());
-}
 
 const round = (value: number) => Math.round(value * 10) / 10;
 
@@ -123,7 +112,7 @@ export function pictureFocusHole(rect: SpotlightRect): SpotlightRect {
 
 /** One hole round every ring of `rects`, or null unless every target is a picture part. */
 export function pictureFocusUnionHole(targets: ReadonlyArray<SpotlightRect & { id: string }>): SpotlightRect | null {
-  if (targets.length === 0 || !targets.every((target) => isReferencePictureFocusId(target.id))) return null;
+  if (targets.length === 0 || !targets.every((target) => isReferencePicturePartFocusId(target.id))) return null;
   const holes = targets.map(pictureFocusHole);
   const x = Math.min(...holes.map((hole) => hole.x));
   const y = Math.min(...holes.map((hole) => hole.y));
@@ -141,7 +130,7 @@ export function focusVeilZone<T extends SpotlightRect>(
   targets: ReadonlyArray<{ id: string }>,
   fallback: T,
 ): T | SpotlightRect {
-  if (!targets.some((target) => isReferencePictureFocusId(target.id))) return fallback;
+  if (!targets.some((target) => isReferencePicturePartFocusId(target.id))) return fallback;
   const zone = REFERENCE_PICTURE_ZONE;
   return { x: zone.x, y: zone.y, width: zone.width, height: zone.height };
 }

@@ -43,7 +43,7 @@ import {
   type LessonBudget,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
-import { isChemistryQuestion, readPlanExample, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { buildPlanExampleDocument, isChemistryQuestion, readPlanExample, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
 import type { PausedLessonReason } from "./doubtTurn";
@@ -847,6 +847,15 @@ export function figureExampleSpeciesOf(document: unknown): string | null {
  */
 export function planExampleTeachingAddon(question: string, turnPlan: TurnPlanV3 | null, figureExampleSpecies: string | null | undefined): string {
   if (!figureExampleSpecies) return "";
+  // Example reactions (SN1, SN2, E2): the figure is the plan's reactions, rebuilt by the same reader and checked arrows.
+  const reactions = turnPlan?.exampleReactions ?? [];
+  if (reactions.length) {
+    const built = buildPlanExampleDocument(question, turnPlan);
+    if (built.status !== "built" || built.family !== "chem_organic" || built.document.source.exampleSpecies !== figureExampleSpecies) return "";
+    const listed = reactions.map((reaction) => `${reaction.mechanism}: ${reaction.equation.trim()}`).join("; ");
+    return `EXAMPLE REACTIONS TO TEACH WITH
+The question names no species. The board draws these as the worked examples, each with its curly arrows: ${listed}. Say early that they are examples you chose, teach each mechanism step by step on its example, and write those same equations in the work area. Do not switch to another reaction as the main example; a second one only as a brief contrast.`;
+  }
   const reading = readPlanExample(question, turnPlan);
   if (reading.status !== "accepted" || reading.source.formula !== figureExampleSpecies) return "";
   const { formula } = reading.source;

@@ -77,7 +77,9 @@ function remember(asset: ReferencePictureAsset): void {
     let victim: ReferencePictureAsset | undefined;
     let oldest: ReferencePictureAsset | undefined;
     for (const cached of ready.values()) {
-      if (cached === asset) continue;
+      // A pinned picture (an export that needs it) is never evicted; the cache
+      // may run past its limit until the pin is released.
+      if (cached === asset || pins.has(cached.id)) continue;
       oldest ??= cached;
       if (!boardPictureInUse(cached.board)) { victim = cached; break; }
     }
@@ -86,6 +88,28 @@ function remember(asset: ReferencePictureAsset): void {
     ready.delete(evicted.id);
     releaseBoardPicture(evicted.board);
   }
+}
+
+/** Pictures an in-progress export needs, by id, with a count per holder. */
+const pins = new Map<string, number>();
+
+/**
+ * Keep these pictures in the cache until the returned release is called: an
+ * MP4 export preloads every picture before its first frame and must still
+ * find each one when its clock reaches it, even past the cache limit.
+ */
+export function pinReferencePictures(ids: readonly string[]): () => void {
+  for (const id of ids) pins.set(id, (pins.get(id) ?? 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    for (const id of ids) {
+      const left = (pins.get(id) ?? 1) - 1;
+      if (left > 0) pins.set(id, left);
+      else pins.delete(id);
+    }
+  };
 }
 
 async function fetchJson(url: string, signal: AbortSignal): Promise<unknown> {
