@@ -1767,7 +1767,8 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
     if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
-      if (refusesLead(set, stem)) return null;
+      // A claim the stem cannot support declines; it never falls through.
+      if (refusesLead(set, stem) || set.requires?.some((requirement) => !requirement.test(stem))) return null;
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
