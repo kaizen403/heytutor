@@ -11,6 +11,8 @@
  * the words, exactly as before.
  */
 
+import { isLessonFigureAdvanceId, type LessonFigureId } from "@/lib/boards/lessonFigures";
+
 export const DOUBT_FIGURE_REF_VERSION = "doubt-figure-ref/v1" as const;
 export type DoubtFigureKind = "verified_scene" | "reference_picture" | "dsa_frame";
 
@@ -26,6 +28,13 @@ export interface DoubtFigureRef {
   kind: DoubtFigureKind;
   /** dsa_frame only: index into resolveDsaFrames(turn.question, plan.diagramHint, plan).frames. */
   frameIndex?: number;
+  /**
+   * verified_scene only: the lesson's later figure in the zone
+   * (DIAGRAM_LESSON_FIGURES). Absent: the turn's own figure (figure 1). The
+   * server rebuilds it from the referenced turn's stored artifact, never from
+   * this claim; an id the artifact does not list resolves nothing.
+   */
+  figureId?: LessonFigureId;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,6 +55,10 @@ export function doubtFigureRefOf(sceneArtifacts: unknown): DoubtFigureRef | null
     return { schemaVersion: DOUBT_FIGURE_REF_VERSION, turnId: raw.turnId, kind, frameIndex };
   }
   if (raw.frameIndex !== undefined) return null;
+  if (raw.figureId !== undefined) {
+    if (kind !== "verified_scene" || typeof raw.figureId !== "string" || !isLessonFigureAdvanceId(raw.figureId)) return null;
+    return { schemaVersion: DOUBT_FIGURE_REF_VERSION, turnId: raw.turnId, kind, figureId: raw.figureId };
+  }
   return { schemaVersion: DOUBT_FIGURE_REF_VERSION, turnId: raw.turnId, kind: kind as DoubtFigureKind };
 }
 
@@ -57,6 +70,7 @@ export function doubtFigureRefArtifacts(ref: DoubtFigureRef): { pointsAtFigure: 
     kind: ref.kind,
   };
   if (ref.kind === "dsa_frame") pointsAtFigure.frameIndex = ref.frameIndex;
+  if (ref.kind === "verified_scene" && ref.figureId !== undefined) pointsAtFigure.figureId = ref.figureId;
   return { pointsAtFigure };
 }
 

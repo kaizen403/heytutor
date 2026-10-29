@@ -39,7 +39,7 @@ import {
 import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/workTextPresentation";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
-import { doubtFigureRefOf, type DoubtFigureKind, type DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
+import { doubtFigureRefArtifacts, doubtFigureRefOf, type DoubtFigureKind, type DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
 import {
   composeDoubtFigureQuestion,
   doubtFigureArtifacts,
@@ -216,9 +216,17 @@ export async function canonicalizeTurnSceneMetadata(
     // referenced turn's own row; one the server cannot load loses its
     // pointing and keeps its words. The reference never fails a save.
     const pageContinuation = boardContinuationOf(metadata.sceneArtifacts);
-    const pointsAtFigure = pageContinuation && !referencePictureIdOf(metadata.sceneArtifacts)
+    const submittedRef = pageContinuation && !referencePictureIdOf(metadata.sceneArtifacts)
       ? doubtFigureRefOf(metadata.sceneArtifacts)
       : null;
+    // doubt-lesson-figure-ref:begin
+    // A lesson's later figure is named only while DIAGRAM_LESSON_FIGURES is
+    // on at save time; off, the id is stripped and the doubt is checked
+    // against the turn's own figure, as before.
+    const pointsAtFigure = submittedRef?.figureId !== undefined && !(options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
+      ? doubtFigureRefOf(doubtFigureRefArtifacts({ schemaVersion: submittedRef.schemaVersion, turnId: submittedRef.turnId, kind: submittedRef.kind }))
+      : submittedRef;
+    // doubt-lesson-figure-ref:end
     // With DIAGRAM_DOUBT_POINTING off the live doubt filter strips kept rings
     // and ANNOTATE, so only a modified client sends them: they are not saved.
     const doubtRows = (options.kind === "doubt" || (options.kind === undefined && pointsAtFigure !== null)) &&

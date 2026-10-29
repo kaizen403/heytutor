@@ -30,7 +30,10 @@ import {
 } from "@/lib/boards/boardContinuation";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import type { DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
-import { doubtFigureOf, type DoubtFigureMarker } from "@/lib/boards/doubtFigure";
+import { doubtFigureOf, storedTurnSceneQuestion, type DoubtFigureMarker } from "@/lib/boards/doubtFigure";
+import { LESSON_FIGURES_VERSION, lessonFiguresOf, type LessonFigureId } from "@/lib/boards/lessonFigures";
+import { admitLessonFigures } from "@/lib/scene/sceneAdmission";
+import { validateTurnPlanV3 } from "@heytutor/scene-engine";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { restoreVerifiedPresentationFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { resolveDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
@@ -138,6 +141,31 @@ function sceneFigure(turn: PageFigureTurn): VerifiedDiagram | null {
   return presentation.diagram;
 }
 
+/**
+ * A lesson's later figure (DIAGRAM_LESSON_FIGURES), rebuilt from the
+ * referenced turn's own stored artifact exactly as the save admitted it
+ * (`admitLessonFigures`): on the lesson question composed with its ask, with
+ * the lesson's plan restamped to that question. The doubt only names the id;
+ * an id the stored artifact does not list, or a figure that no longer admits,
+ * is null.
+ */
+function lessonFigure(turn: PageFigureTurn, figureId: LessonFigureId): VerifiedDiagram | null {
+  if (turn.visualStatus !== "validated") return null;
+  const figure = lessonFiguresOf(turn.sceneArtifacts)?.figures.find((candidate) => candidate.id === figureId);
+  if (!figure) return null;
+  const lessonQuestion = storedTurnSceneQuestion(turn);
+  if (typeof lessonQuestion !== "string" || !lessonQuestion.trim()) return null;
+  const rawPlan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
+    ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "turnPlan")?.value
+    : undefined;
+  const turnPlan = rawPlan == null ? null : validateTurnPlanV3(rawPlan, lessonQuestion).plan;
+  const admitted = admitLessonFigures(
+    { schemaVersion: LESSON_FIGURES_VERSION, figures: [figure] },
+    { lessonQuestion, turnPlan },
+  );
+  return admitted.diagrams.get(figureId) ?? null;
+}
+
 function dsaFrameFigure(turn: PageFigureTurn, frameIndex: number | undefined): VerifiedDiagram | null {
   if (turn.visualStatus !== "validated" || frameIndex === undefined) return null;
   const presentation = restoreVerifiedPresentationFromTurn({
@@ -173,7 +201,7 @@ export function pageFigureCacheStats(): { builds: number; hits: number } {
 }
 
 function cachedFigure(ref: DoubtFigureRef, turn: PageFigureTurn, build: () => VerifiedDiagram | null): VerifiedDiagram | null {
-  const key = `${ref.kind}:${ref.frameIndex ?? ""}:${turn.id}`;
+  const key = `${ref.kind}:${ref.frameIndex ?? ""}:${ref.figureId ?? ""}:${turn.id}`;
   const fingerprint = JSON.stringify([turn.question, turn.visualStatus, turn.sceneDocument, turn.sceneArtifacts]);
   const cached = figureCache.get(key);
   let diagram: VerifiedDiagram | null;
@@ -212,7 +240,10 @@ export function bindPageFigureLoader(
       if (between.some((turn) => !storedTurnContinuesBoard(asContinuationTurn(turn)))) return null;
       const pageQuestion = storedTurnPageQuestion(asContinuationTurn(target));
       if (normalizedQuestion(pageQuestion) !== normalizedQuestion(page.lessonQuestion)) return null;
-      if (ref.kind === "verified_scene") return cachedFigure(ref, target, () => sceneFigure(target));
+      if (ref.kind === "verified_scene") {
+        const figureId = ref.figureId;
+        return cachedFigure(ref, target, () => figureId ? lessonFigure(target, figureId) : sceneFigure(target));
+      }
       if (ref.kind === "dsa_frame") return cachedFigure(ref, target, () => dsaFrameFigure(target, ref.frameIndex));
       return await pictureFigure(target, deps.loadReferencePicture);
     } catch {
