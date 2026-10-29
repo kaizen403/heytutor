@@ -57,7 +57,9 @@ function axisSpans(
   for (const span of spans) {
     if (!span.verified || !Number.isFinite(span.value) || span.value === 0) continue;
     const id = `dim_${span.key}`;
-    scene.dimension(id, span.element, span.point, span.role, `${span.key}=${withUnit(display(Math.abs(span.value)), unit)}`);
+    // Stacked u, f and v bars share one axis; each keeps a label lane so an
+    // inner span's text is never parked beyond the outer bar.
+    scene.dimension(id, span.element, span.point, span.role, `${span.key}=${withUnit(display(Math.abs(span.value)), unit)}`, { keepLabelLane: true });
     ids[span.key] = id;
   }
   return ids;

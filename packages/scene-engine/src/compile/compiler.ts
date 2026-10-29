@@ -3374,7 +3374,10 @@ function relocateObstructedDimensions(
         { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
     const labelWidth = (entityId: string): number => measureTextWidth(dimensionLabelText(document, entityId) ?? "", fontHeightPx) + paddingPx * 2;
-    const crowded = (candidateBar: RenderPrimitive): boolean => Boolean(text) &&
+    // Only a bar whose builder asked for it (entity provenance keepLabelLane)
+    // keeps a label lane; every other bar takes the first clear lane.
+    const keepsLabelLane = entity?.provenance?.keepLabelLane === true;
+    const crowded = (candidateBar: RenderPrimitive): boolean => keepsLabelLane && Boolean(text) &&
       dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
     if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -3382,7 +3385,7 @@ function relocateObstructedDimensions(
     let replacement: RenderPrimitive[] | undefined;
     // A lane that keeps a label lane is preferred; when the view has none, the
     // bar keeps the first clear lane as before rather than failing the figure.
-    for (const keepLabelLane of [true, false]) {
+    for (const keepLabelLane of keepsLabelLane ? [true, false] : [false]) {
       for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
         for (const sign of [preferredSign, -preferredSign]) {
           const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);

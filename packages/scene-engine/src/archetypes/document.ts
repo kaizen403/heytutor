@@ -361,9 +361,11 @@ export class SceneBuilder {
     );
   }
 
-  dimension(id: string, start: string, end: string, role: string, label?: string): string {
+  /** `keepLabelLane` asks the compiler to keep this bar a label lane clear of
+   * other labelled bars stacked over it (see relocateObstructedDimensions). */
+  dimension(id: string, start: string, end: string, role: string, label?: string, options: { keepLabelLane?: boolean } = {}): string {
     return this.declare(
-      { id, kind: "dimension", role, ...(label ? { label: compact(label) } : {}) },
+      { id, kind: "dimension", role, ...(label ? { label: compact(label) } : {}), ...(options.keepLabelLane === true ? { provenance: { keepLabelLane: true } } : {}) },
       { id: `make_${id}`, operator: "dimension", inputs: { start, end }, outputs: [id] },
     );
   }
