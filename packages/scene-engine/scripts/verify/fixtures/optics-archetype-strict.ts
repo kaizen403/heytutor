@@ -9,7 +9,10 @@
  * A `decline` row is a question the strict policy must not draw as one lens
  * or one mirror: two elements, a scale the board cannot show, or a u or f the
  * question does not state (optical bench marks, coordinates, a value only
- * the planner computed).
+ * the planner computed). A `configuration` decline is a stem that is not one
+ * plain lens or mirror in air with one object position (slab, immersion,
+ * another medium, a moved object, the displacement method, an object to
+ * screen separation); a `unitless` decline states a length with no unit.
  */
 export type OpticsFixture =
   | {
@@ -17,7 +20,7 @@ export type OpticsFixture =
     question: string;
     draw: { archetype: "thin_lens" | "spherical_mirror"; kind: "convex" | "concave"; unit: "cm" | "mm" | "m"; u: number; f: number; v: number; real: boolean; m: number };
   }
-  | { id: string; question: string; decline: "elements" | "scale" | "unstated" | "conflict" };
+  | { id: string; question: string; decline: "elements" | "scale" | "unstated" | "conflict" | "configuration" | "unitless" };
 
 export const OPTICS_ARCHETYPE_FIXTURES: readonly OpticsFixture[] = [
   { id: "q01", question: "An object 2.0 cm tall is placed 8.0 cm from a thin converging lens of focal length 12 cm. Find the position, size and nature of the image.",
@@ -120,4 +123,47 @@ export const OPTICS_ARCHETYPE_FIXTURES: readonly OpticsFixture[] = [
     decline: "conflict" },
   { id: "s_mm_power", question: "An object 3 mm tall is 50 mm from a lens of power +25 D. Find the image distance.",
     draw: { archetype: "thin_lens", kind: "convex", unit: "mm", u: 50, f: 40, v: 200, real: true, m: -4 } },
+  // Kind words (review 1, PR #369): a converging mirror is concave and a diverging mirror convex;
+  // a converging lens is convex and a diverging lens concave. Hand values from the formulas above.
+  // 1/v = 1/10 - 1/30 -> v = 15 cm in front, real, m = -15/30 = -0.5.
+  { id: "w_converging_mirror", question: "An object is placed 30 cm in front of a converging mirror of focal length 10 cm. Find the position and nature of the image.",
+    draw: { archetype: "spherical_mirror", kind: "concave", unit: "cm", u: 30, f: 10, v: 15, real: true, m: -0.5 } },
+  // 1/v = 1/30 + 1/20 -> v = 12 cm behind, virtual, m = +12/20 = 0.6.
+  { id: "w_diverging_mirror", question: "An object is placed 20 cm in front of a diverging mirror of focal length 30 cm. Find the position and nature of the image.",
+    draw: { archetype: "spherical_mirror", kind: "convex", unit: "cm", u: 20, f: 30, v: 12, real: false, m: 0.6 } },
+  // 1/v = 1/16 - 1/24 -> v = 48 cm behind the lens, real, m = -48/24 = -2.
+  { id: "w_converging_lens", question: "A 3.0 cm tall object stands 24 cm from a converging lens of focal length 16 cm. Find the position and nature of the image.",
+    draw: { archetype: "thin_lens", kind: "convex", unit: "cm", u: 24, f: 16, v: 48, real: true, m: -2 } },
+  // 1/v = -1/10 - 1/40 -> v = 8 cm on the object side, virtual, m = 8/40 = 0.2.
+  { id: "w_diverging_lens", question: "An object is placed 40 cm from a diverging lens of focal length 10 cm. Find the position and nature of the image.",
+    draw: { archetype: "thin_lens", kind: "concave", unit: "cm", u: 40, f: 10, v: 8, real: false, m: 0.2 } },
+  // Object distance reader (review 1): an image distance and an object to screen separation are never u.
+  { id: "r_image_distance_of", question: "A concave mirror of focal length 20 cm forms an image at a distance of 60 cm from the mirror. Find the object distance.",
+    decline: "unstated" },
+  { id: "r_object_screen", question: "A screen is placed 90 cm from an object. A converging lens of focal length 20 cm forms a sharp image of the object on the screen. Find the position of the lens.",
+    decline: "configuration" },
+  { id: "r_candle_screen", question: "A candle stands 1.5 m from a screen. A thin convex lens of focal length 0.24 m between them throws a sharp image of the flame on the screen. Where is the lens?",
+    decline: "configuration" },
+  // One configuration only (review 1).
+  { id: "c_slab", question: "An object is 30 cm from a convex lens of focal length 20 cm. A glass slab 3.0 cm thick is placed between the lens and the image. Find the final image position.",
+    decline: "configuration" },
+  { id: "c_block", question: "A concave mirror of focal length 15 cm has a glass block in front of it. An object is placed 40 cm in front of the mirror. Find the image.",
+    decline: "configuration" },
+  { id: "c_immersed", question: "A converging lens of focal length 20 cm in air is immersed in water. An object is placed 30 cm from the lens. Find the image distance.",
+    decline: "configuration" },
+  { id: "c_medium", question: "A convex lens of focal length 20 cm is used in oil of refractive index 1.4. An object is 50 cm from the lens. Find the image.",
+    decline: "configuration" },
+  { id: "c_surroundings", question: "A thin lens of focal length 20 cm is placed so that the refractive index of the surrounding medium is 1.33. An object is 50 cm from the lens. Find the image.",
+    decline: "configuration" },
+  { id: "c_moved", question: "An object is placed 30 cm from a convex lens of focal length 20 cm. The object is then moved to 15 cm from the lens. Find both image positions.",
+    decline: "configuration" },
+  { id: "c_two_positions", question: "A convex lens of focal length 20 cm forms a sharp image for two positions of an object 25 cm and 60 cm from the lens. Compare the images.",
+    decline: "configuration" },
+  { id: "c_displacement", question: "In the displacement method a convex lens of focal length 20 cm is used with an object 30 cm from the lens. Find the image.",
+    decline: "configuration" },
+  // No invented unit (review 1): "focal length 10" with no unit is not 10 cm.
+  { id: "n_unitless_f", question: "A convex lens of focal length 10 forms an image of an object 30 cm from the lens. Find the image distance.",
+    decline: "unitless" },
+  { id: "n_unitless_u", question: "A concave mirror has a focal length of 15 cm. The object distance is 40. Find the image distance.",
+    decline: "unitless" },
 ];

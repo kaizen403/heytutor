@@ -12,7 +12,7 @@ import { readRadiationSource } from "../../physics/radiationSource";
 import { readApertureSource, readYoungRepresentationRequest } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { CM_PER_UNIT, namesSeveralOpticalElements, type OpticsLengthUnit } from "../opticsSource";
+import { CM_PER_UNIT, namesSeveralOpticalElements, opticsConfigurationIssue, type OpticsLengthUnit } from "../opticsSource";
 import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
@@ -70,13 +70,15 @@ const present = (...ids: Array<string | null>): string[] => ids.filter((id): id 
 /**
  * What a lens or mirror figure needs before it may draw: words and signs
  * that agree on the element's kind, a single element (a two-lens stem drawn
- * as one lens is a different figure), and a scale the board can show (an
+ * as one lens is a different figure), one plain configuration in air
+ * (`opticsConfigurationIssue`), and a scale the board can show (an
  * object 800 focal lengths away is a dot on the axis). Lengths stay in
  * centimetres; `unit` is the stated unit every value and span is written in.
  */
 function opticsFrame(context: GeneratorContext): { unit: OpticsLengthUnit; display: (cm: number) => number } | null {
   if (text(context, "conflict")) return null;
   if (namesSeveralOpticalElements(context.question)) return null;
+  if (opticsConfigurationIssue(context.question)) return null;
   const stated = text(context, "unit", "cm");
   const unit: OpticsLengthUnit = stated === "mm" || stated === "m" ? stated : "cm";
   return { unit, display: (cm: number) => cm / CM_PER_UNIT[unit] };

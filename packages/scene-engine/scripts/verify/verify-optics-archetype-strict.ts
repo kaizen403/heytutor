@@ -13,6 +13,7 @@ import {
   namesSeveralOpticalElements,
   opticsArchetypePlanAgreement,
   opticsArchetypeStrictEligibility,
+  opticsConfigurationIssue,
   type SceneDocument,
 } from "../../src";
 import { OPTICS_ARCHETYPE_FIXTURES, type OpticsFixture } from "./fixtures/optics-archetype-strict";
@@ -99,7 +100,9 @@ for (const fixture of OPTICS_ARCHETYPE_FIXTURES) {
   if ("decline" in fixture) {
     declined++;
     if (fixture.decline === "elements") assert.ok(namesSeveralOpticalElements(fixture.question), `${fixture.id}: two elements are named`);
-    if (fixture.decline === "elements" || fixture.decline === "conflict") {
+    if (fixture.decline === "configuration") assert.ok(opticsConfigurationIssue(fixture.question), `${fixture.id}: not one plain configuration`);
+    if (fixture.decline === "unitless") assert.equal(attempt.match?.slots.conflict, "unitless", `${fixture.id}: a length with no unit`);
+    if (["elements", "conflict", "configuration", "unitless"].includes(fixture.decline)) {
       assert.equal(attempt.scene, null, `${fixture.id}: no single lens or mirror figure for a ${fixture.decline} decline`);
     } else if (document) {
       assert.equal(opticsArchetypeStrictEligibility(fixture.question, document).eligible, false, `${fixture.id}: a value the question does not state keeps strict off`);
@@ -110,7 +113,7 @@ for (const fixture of OPTICS_ARCHETYPE_FIXTURES) {
   const { draw } = fixture;
   assert.ok(document, `${fixture.id}: draws (${attempt.declined ?? "no scene"})`);
   assert.equal(attempt.scene!.archetype, draw.archetype, `${fixture.id}: archetype`);
-  assert.equal(attempt.scene!.tier, "exact_verified", `${fixture.id}: exact`);
+  assert.equal(attempt.scene!.tier, "exact_verified", `${fixture.id}: exact (u ${attempt.match?.slots.u} ${attempt.match?.sources.u})`);
   assert.equal(namesSeveralOpticalElements(fixture.question), false, `${fixture.id}: one element`);
   const expected = cartesian(draw);
   for (const id of ["u", "f", "v"] as const) {
@@ -244,6 +247,35 @@ for (const [question, spans] of [
   assert.ok(attempt.scene && attempt.match, `${question}: draws`);
   assert.deepEqual(attempt.scene.document.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.label), spans, `${question}: spans`);
   assertSpansOnlyForVerifiedValues(question, attempt.scene.document, attempt.match.sources);
+}
+
+// The object distance is measured from the element (review 1): never an image distance, never from a
+// screen, an object, a wall or another body.
+for (const question of [
+  "A concave mirror of focal length 20 cm forms an image at a distance of 60 cm from the mirror. Find the object distance.",
+  "A convex lens of focal length 20 cm forms an image at a distance of 60 cm. Find the object distance.",
+  "A screen is placed 90 cm from an object. A converging lens of focal length 20 cm forms a sharp image on the screen.",
+  "A candle stands 1.5 m from a screen. A convex lens of focal length 0.24 m forms an image on it.",
+  "A lamp is 80 cm from the wall. A convex lens of focal length 15 cm is used to form its image.",
+  "The screen is 60 cm from the convex lens of focal length 20 cm. Find where the object is.",
+  "A convex lens of focal length 20 cm forms an image 60 cm away from an object. Find the object distance.",
+]) {
+  assert.equal(attemptArchetypeScene({ question }).match?.slots.u, undefined, `u is not read: ${question}`);
+}
+for (const [question, u] of [
+  ["A stamp collector holds a converging lens of focal length 16 cm at 12 cm from a stamp 0.8 cm wide.", 12],
+  ["An object is placed at a distance of 25 cm from the pole of a concave mirror of focal length 10 cm.", 25],
+  ["Concave mirror, f = 15 cm, object at 20 cm. Locate the image.", 20],
+  ["A convex lens of focal length 10 cm forms an image of an object placed 15 cm away.", 15],
+] as const) {
+  assert.equal(attemptArchetypeScene({ question }).match?.slots.u, u, `u is read: ${question}`);
+}
+// A mirror plan with a power row, or any plan length the check cannot assign, refuses.
+const mirrorFixture = OPTICS_ARCHETYPE_FIXTURES.find((fixture) => fixture.id === "w_converging_mirror")!;
+const mirrorDoc = attemptArchetypeScene({ question: mirrorFixture.question }).scene!.document;
+assert.deepEqual(opticsArchetypePlanAgreement(mirrorDoc, plan([["d_obj", 30, "cm"], ["f", 10, "cm"], ["d_img", 15, "cm"]]), mirrorFixture.question).issues, [], "d_obj and d_img are u and v");
+for (const [id, value, unit] of [["x1", 45, "cm"], ["D", 90, "cm"], ["u_1", 30, "cm"], ["d", 45, null], ["P", 10, "D"], ["separation", 0.45, "m"]] as Array<[string, number, string | null]>) {
+  assert.ok(opticsArchetypePlanAgreement(mirrorDoc, plan([["u", 30, "cm"], ["f", 10, "cm"], [id, value, unit]]), mirrorFixture.question).issues.length > 0, `an unassigned plan row ${id} refuses`);
 }
 
 // Element counting: one element stays one.

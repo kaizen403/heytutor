@@ -23,10 +23,10 @@ import {
   FOCAL_LENGTH_ALIASES,
   IMAGE_DISTANCE_ALIASES,
   OBJECT_DISTANCE_ALIASES,
-  POWER_ALIASES,
   RADIUS_ALIASES,
   lengthUnitKey,
   namesSeveralOpticalElements,
+  opticsConfigurationIssue,
 } from "./opticsSource";
 import { collectPlanQuantities, type PlanQuantity } from "./slots";
 
@@ -85,6 +85,16 @@ function rowsFor(rows: readonly PlanQuantity[], aliases: readonly string[]): Pla
 interface PlanLength { id: string; cm: number; given: boolean }
 
 const MAGNIFICATION_ALIASES = ["m", "magnification", "mag"] as const;
+/** Object and image heights: the figure draws no height value, so they are read and set aside. */
+const HEIGHT_ALIASES = [
+  "h", "ho", "hi", "h1", "h2", "hobj", "himg", "hobject", "himage", "objectheight", "imageheight", "height",
+  "objectsize", "imagesize", "y", "y1", "y2", "yo", "yi",
+] as const;
+const DIOPTRE_UNIT = /^(?:d|dioptres?|diopters?|m\^?-1|1\/m)$/i;
+/** Units of length the plan may write that the figure cannot convert. */
+const OTHER_LENGTH_UNIT = /^(?:km|nm|µm|um|micrometres?|micrometers?|in|inch(?:es)?|ft|feet|foot)$/i;
+/** Ids that name a distance on the axis: short symbols (d, d_obj, u_1, x1, D, s) and distance words. */
+const DISTANCE_ID = /^(?:[udvxsl]|d[\s_-]?[a-z0-9]{1,6}|[uvxs][\s_-]?\d{1,2})$|distance|position|separation|spacing|gap|displacement|length|radius|near\s*point|far\s*point/i;
 const SPAN = /^([ufv])\s*=\s*(-?\d+(?:\.\d+)?)\s*(cm|mm|m)$/;
 
 export interface OpticsPlanAgreement {
@@ -121,13 +131,33 @@ export function opticsArchetypePlanAgreement(
   }).filter((row): row is PlanLength => row !== null);
   const uRows = lengthRows(OBJECT_DISTANCE_ALIASES);
   const vRows = lengthRows(IMAGE_DISTANCE_ALIASES);
+  // Every power row of a one lens question is that lens's power, whatever its id.
+  const powerRows = values.archetype === "thin_lens"
+    ? rows.filter((row) => DIOPTRE_UNIT.test((row.unit ?? "").trim()))
+    : [];
+  for (const row of powerRows) if (row.value === 0) issues.push(`plan ${row.id} is a zero power`);
   const fRows = [
     ...lengthRows(FOCAL_LENGTH_ALIASES),
-    ...(values.archetype === "thin_lens" ? rowsFor(rows, POWER_ALIASES)
-      .filter((row) => row.value !== 0 && /^(?:d|dioptres?|diopters?)$/i.test((row.unit ?? "").trim()))
-      .map((row) => ({ id: row.id, cm: 100 / row.value, given: row.origin === "given" })) : []),
+    ...powerRows.filter((row) => row.value !== 0).map((row) => ({ id: row.id, cm: 100 / row.value, given: row.origin === "given" })),
     ...(values.archetype === "spherical_mirror" ? lengthRows(RADIUS_ALIASES).map((row) => ({ ...row, cm: row.cm / 2 })) : []),
   ];
+  // Fail closed: a plan length this check cannot assign to u, v, f, R or a
+  // height (d_obj, u_1, x1, D, a screen distance, a near point) would leave
+  // the figure unchecked against it, so the figure is refused.
+  const assigned = new Set<PlanQuantity>([
+    ...rowsFor(rows, OBJECT_DISTANCE_ALIASES), ...rowsFor(rows, IMAGE_DISTANCE_ALIASES), ...rowsFor(rows, FOCAL_LENGTH_ALIASES),
+    ...powerRows, ...(values.archetype === "spherical_mirror" ? rowsFor(rows, RADIUS_ALIASES) : []),
+    ...rowsFor(rows, HEIGHT_ALIASES), ...rowsFor(rows, MAGNIFICATION_ALIASES),
+  ]);
+  for (const row of rows) {
+    if (assigned.has(row)) continue;
+    const unit = (row.unit ?? "").trim();
+    const length = lengthUnitKey(unit) !== null || OTHER_LENGTH_UNIT.test(unit);
+    const power = DIOPTRE_UNIT.test(unit);
+    const distanceId = DISTANCE_ID.test(row.id) || DISTANCE_ID.test(row.symbol);
+    const unitlessOrLength = !unit || length || /^(?:none|dimensionless|1)$/i.test(unit);
+    if (length || power || (distanceId && unitlessOrLength)) issues.push(`plan ${row.id} is a length the figure does not check`);
+  }
   const signed = [...uRows, ...vRows, ...fRows].some((row) => row.cm < 0);
   const check = (role: "u" | "f" | "v", figure: number | null, planned: PlanLength[]) => {
     for (const row of planned) {
@@ -228,6 +258,8 @@ export function opticsArchetypeStrictEligibility(question: string, document: Sce
   const values = figureValues(document);
   if (!values) return { eligible: false, reason: "not the engine's lens or mirror figure" };
   if (namesSeveralOpticalElements(question)) return { eligible: false, reason: "the question names more than one optical element" };
+  const configuration = opticsConfigurationIssue(question);
+  if (configuration) return { eligible: false, reason: `the question is not one plain configuration: ${configuration}` };
   const stem = detectArchetype(question);
   if (stem?.id !== values.archetype) return { eligible: false, reason: "the question alone does not select this figure" };
   if (typeof stem.slots.conflict === "string") return { eligible: false, reason: `the question's ${stem.slots.conflict} evidence disagrees` };
