@@ -50,6 +50,14 @@ export function isLessonFigureAdvanceId(id: string): id is LessonFigureId {
   return id === "figure_2" || id === "figure_3";
 }
 
+/** A part named like an advance cue would make `[FOCUS:figure_2]` ambiguous. */
+const ADVANCE_ID_SHAPE = /^figure_[1-3]$/;
+
+/** A figure with a part named like an advance cue. The client plan and the server admission both refuse it (`id_collision`). */
+export function figureCollidesWithAdvanceIds(diagram: { anchors: ReadonlyArray<{ id: string }> }): boolean {
+  return diagram.anchors.some((anchor) => ADVANCE_ID_SHAPE.test(anchor.id.trim().toLowerCase()));
+}
+
 /** A later figure's ask: plain words naming the view, 3 to 80 characters, no number in any form. */
 export function isLessonFigureAsk(value: unknown): value is string {
   if (typeof value !== "string") return false;

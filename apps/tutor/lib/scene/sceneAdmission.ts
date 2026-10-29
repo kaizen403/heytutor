@@ -33,6 +33,7 @@ import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import {
   LESSON_FIGURES_VERSION,
   composeLessonFigureQuestion,
+  figureCollidesWithAdvanceIds,
   type LessonFigureId,
   type LessonFiguresArtifact,
   type StoredLessonFigure,
@@ -248,16 +249,24 @@ export interface AdmittedLessonFigures {
  * Admit each later figure as the turn's own figure is admitted: on the lesson
  * question composed with its ask, with the lesson's plan restamped to that
  * question and validated on it. A figure that fails is dropped (fail soft, as
- * a stale FOCUS is); the rest of the save is unchanged.
+ * a stale FOCUS is); the rest of the save is unchanged. A figure with a part
+ * named like an advance cue (`figure_1` to `figure_3`) is dropped too, and
+ * every figure when the turn's own figure `first` has one (`id_collision`, as
+ * `planLessonFigures` refuses it): `[FOCUS:figure_2]` would name both.
  */
 export function admitLessonFigures(
   stored: LessonFiguresArtifact,
-  input: { lessonQuestion: string; turnPlan: TurnPlanV3 | null; narrationLanguage?: NarrationLanguage },
+  input: { lessonQuestion: string; turnPlan: TurnPlanV3 | null; narrationLanguage?: NarrationLanguage; first?: VerifiedDiagram },
 ): AdmittedLessonFigures {
   const admitted: StoredLessonFigure[] = [];
   const diagrams = new Map<LessonFigureId, VerifiedDiagram>();
   const droppedFigureIds: LessonFigureId[] = [];
+  const firstCollides = input.first !== undefined && figureCollidesWithAdvanceIds(input.first);
   for (const figure of stored.figures) {
+    if (firstCollides) {
+      droppedFigureIds.push(figure.id);
+      continue;
+    }
     const sceneQuestion = composeLessonFigureQuestion(input.lessonQuestion, figure.ask);
     const planResult = input.turnPlan
       ? validateTurnPlanV3({ ...input.turnPlan, question: sceneQuestion }, sceneQuestion)
@@ -271,7 +280,7 @@ export function admitLessonFigures(
       planSubmitted: input.turnPlan !== null,
       planIssues: planResult?.issues ?? [],
     });
-    if (!result.ok) {
+    if (!result.ok || figureCollidesWithAdvanceIds(result.presentation.diagram)) {
       droppedFigureIds.push(figure.id);
       continue;
     }

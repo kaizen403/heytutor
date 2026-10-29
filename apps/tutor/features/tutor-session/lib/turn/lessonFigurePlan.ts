@@ -25,6 +25,7 @@ import { verifiedDiagramHasDrawableInk, type TutorSegment, type VerifiedDiagram 
 import {
   LESSON_FIGURES_VERSION,
   composeLessonFigureQuestion,
+  figureCollidesWithAdvanceIds,
   lessonFigureAsksOf,
   type LessonFigureAsk,
   type LessonFigureId,
@@ -53,12 +54,8 @@ export interface LessonFigurePlanResult {
   misses: Array<{ id: LessonFigureId; reason: LessonFigureMissReason }>;
 }
 
-/** A part named like an advance cue would make `[FOCUS:figure_2]` ambiguous. */
-const ADVANCE_ID_SHAPE = /^figure_[1-3]$/;
-
-function collidesWithAdvanceIds(diagram: Pick<VerifiedDiagram, "anchors">): boolean {
-  return diagram.anchors.some((anchor) => ADVANCE_ID_SHAPE.test(anchor.id.trim().toLowerCase()));
-}
+/** A part named like an advance cue would make `[FOCUS:figure_2]` ambiguous (shared with the server). */
+const collidesWithAdvanceIds = figureCollidesWithAdvanceIds;
 
 export function planLessonFigures(input: {
   lessonQuestion: string;

@@ -17,13 +17,17 @@
  * (e) check every segment against figure 1 (no cursor);
  * (f) skip the strip when the flag is off;
  * (g) the begin-turn grant defaults to on (any payload value but true grants).
+ *
+ * Lane 8a (round 2 review N4):
+ * (h) admitLessonFigures keeps a figure with a part named like a cue;
+ * (i) admitLessonFigures ignores a turn figure with a part named like a cue.
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import circle from "./fixtures/replay/circle-s3-turn.json";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
-import { admitStoredScene } from "../../lib/scene/sceneAdmission";
+import { admitLessonFigures, admitStoredScene } from "../../lib/scene/sceneAdmission";
 import { composeLessonFigureQuestion, lessonFiguresOf, type StoredLessonFigure } from "../../lib/boards/lessonFigures";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
@@ -161,6 +165,32 @@ async function main(): Promise<void> {
     assert.deepEqual(focusIdsOf(forged.value.segments, "Now the second figure."), [], "its advance cue is filtered");
     assert.deepEqual(focusIdsOf(forged.value.segments, "Here is the body."), [], "and the FOCUS on its parts after it");
     assert.deepEqual(focusIdsOf(forged.value.segments, "And the old circle part."), [firstOnly], "figure 1 stays in the zone");
+  });
+
+  // Review N4: a part named like an advance cue makes `[FOCUS:figure_k]` name two things.
+  await check("collision/figure-part-named-like-a-cue-is-dropped", async () => {
+    const renamed = JSON.parse(JSON.stringify(figure.sceneDocument).split(`"${secondOnly}"`).join("\"figure_3\""));
+    const lessonPlan = validateTurnPlanV3({ ...turn.sceneArtifacts.turnPlan, question: COMPOSED }, COMPOSED).plan;
+    const alone = admitStoredScene({ sceneDocument: renamed, sceneQuestion: COMPOSED, turnPlan: lessonPlan, submittedTier: figure.tier });
+    assert(alone.ok, `the renamed figure is otherwise true: ${alone.ok ? "" : alone.message}`);
+    assert(alone.presentation.diagram.anchors.some((anchor) => anchor.id === "figure_3"), "it has a part named figure_3");
+    const saved = await canonicalizeTurnSceneMetadata(
+      lessonMetadata(teaching, { lessonFigures: { ...artifact, figures: [{ ...figure, sceneDocument: renamed }] } }),
+      { lessonFiguresEnabled: true },
+    );
+    assert(saved.ok, "a dropped figure never fails the save");
+    assert.deepEqual(saved.value.sceneArtifacts?.lessonFigures?.droppedFigureIds, ["figure_2"], "dropped as id_collision");
+    assert.deepEqual(focusIdsOf(saved.value.segments, "Now the second figure."), [], "its advance cue is filtered");
+  });
+  await check("collision/turn-figure-part-named-like-a-cue-drops-every-figure", () => {
+    const first = firstAdmitted.presentation.diagram;
+    const plan = validateTurnPlanV3(turn.sceneArtifacts.turnPlan, LESSON).plan;
+    const clean = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, turnPlan: plan, first });
+    assert.deepEqual([...clean.diagrams.keys()], ["figure_2"], "a clean figure 1 admits figure 2");
+    const colliding = { ...first, anchors: [...first.anchors, { ...first.anchors[0]!, id: "figure_2" }] };
+    const admitted = admitLessonFigures(artifact as never, { lessonQuestion: LESSON, turnPlan: plan, first: colliding });
+    assert.deepEqual([...admitted.diagrams.keys()], [], "figure 1 with a part named figure_2: no later figure");
+    assert.deepEqual(admitted.droppedFigureIds, ["figure_2"]);
   });
 
   const without = await canonicalizeTurnSceneMetadata(lessonMetadata(teaching), { lessonFiguresEnabled: false });
