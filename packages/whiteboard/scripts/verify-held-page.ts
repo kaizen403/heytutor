@@ -11,6 +11,9 @@
  *   - a second hold while a page is held blanks the board and keeps the
  *     first page (one level: the lesson's page);
  *   - `clearBoard` drops a held page, so a new question never gets it back;
+ *   - held ink leaves its draw transaction: a rollback or an abort after the
+ *     hold (a doubt beat cut short) destroys none of it, and it comes back
+ *     whole;
  *   - returned ink is tracked again: a page turn erase takes the work rows;
  *   - `captureHeldPageSnapshot` (lane 10, Download notes on the doubt page)
  *     snapshots the held page exactly as `returnHeldPage` puts it back, and
@@ -18,6 +21,7 @@
  *
  * Mutations (lane 10): the capture snapshots the shown page; the capture
  * leaves the held page on the board; the capture drops the shown page.
+ * Mutation: `holdPage` keeps held ink in its transaction (no `detach`).
  *
  * Run: pnpm exec tsx scripts/verify-held-page.ts
  */
@@ -159,6 +163,48 @@ async function main(): Promise<void> {
     await run(board.clearBoard());
     check(!board.hasHeldPage(), "clearBoard drops the held page");
     check(board.returnHeldPage() === null && inkCount(board) === 0, "after clearBoard nothing comes back");
+    unmountTestWhiteboard(board);
+  }
+
+  {
+    // The lesson page is drawn inside an open transaction, then held. A
+    // rollback and an abort of that transaction after the hold must reach
+    // only what was drawn after it.
+    const { board, run } = drive();
+    const transaction = board.beginDrawTransaction();
+    const origin = board.createDrawSavepoint(transaction);
+    await drawLessonPage(board, run);
+    const lesson = pageShape(board);
+    const lessonInk = inkCount(board);
+    const lessonNodes: Konva.Node[] = [];
+    for (const layer of [board.getDrawLayer(), board.getAnimLayer()]) {
+      layer?.find((node: Konva.Node) => node.getAttr(BOARD_INK_ATTR) !== undefined).forEach((node) => { lessonNodes.push(node); });
+    }
+    const destroyed = new Set<Konva.Node>();
+    for (const node of lessonNodes) {
+      const destroy = node.destroy.bind(node);
+      node.destroy = (() => { destroyed.add(node); return destroy(); }) as typeof node.destroy;
+    }
+    check(lessonNodes.length >= 5, `transaction: the lesson page has its ink (${lessonNodes.length} nodes)`);
+
+    board.holdPage({ layout: "lesson" });
+    board.rollbackDrawSavepoint(transaction, origin);
+    check(destroyed.size === 0, `rollback after hold: no held stroke is destroyed (${destroyed.size})`);
+
+    const doubtPoint = board.createDrawSavepoint(transaction);
+    await run(board.writeText("why does it speed up?", 90, 140, 0));
+    board.rollbackDrawSavepoint(transaction, doubtPoint);
+    check(inkCount(board) === 0, "rollback after hold: the doubt beat's own ink goes");
+    await run(board.writeText("why does it speed up?", 90, 140, 0));
+    board.abortDrawTransaction(transaction);
+    board.finishAbortedDrawTransaction(transaction);
+    check(destroyed.size === 0, `abort after hold: no held stroke is destroyed (${destroyed.size})`);
+    check(inkCount(board) === 0, "abort after hold: the doubt page's ink goes");
+
+    const back = board.returnHeldPage();
+    check(back !== null, "transaction: the held page comes back");
+    check(JSON.stringify(pageShape(board)) === JSON.stringify(lesson) && inkCount(board) === lessonInk,
+      "transaction: the lesson page is back node for node after the rollback and the abort");
     unmountTestWhiteboard(board);
   }
 
