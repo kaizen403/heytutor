@@ -39,6 +39,14 @@ for (const [question, mustShow] of [
   ["A ball is dropped from 20 m. Ignore air resistance.", "free fall of a ball"],
   ["A projectile is launched with a speed of 50 m s^-1.", "launch of a ball"],
   ["A particle moves with velocity 2.5m/s for 4 s.", "particle on a line"],
+  // Motion described by its verb, with a topic that names no setup word.
+  ["A ball is dropped from 20 m. Find the time to reach the ground.", "falling ball"],
+  ["A boat crosses a 100 m wide river at 4 m/s while the water flows at 3 m/s.", "boat crossing a river"],
+  ["A stone is thrown up with 15 m/s. Find the maximum height.", "stone thrown upward"],
+  ["A sphere rolls down a 2 m long track without slipping.", "rolling sphere"],
+  // Pasted LaTeX keeps its values.
+  ["An object is placed $20\\,\\text{cm}$ from a convex lens of focal length $10\\,\\text{cm}$.", "image formation by convex lens"],
+  ["A ball is projected at $30^\\circ$ with $20\\,\\mathrm{m\\,s^{-1}}$.", "ball thrown at an angle"],
 ]) expect(true, question, mustShow, "a measured setup is the question's own figure");
 
 // The question names its own figure, whatever topic the model wrote.
@@ -75,6 +83,9 @@ for (const [question, mustShow] of [
   ["Explain centripetal force with 2 examples.", "centripetal force"],
   ["Label the 3 sides of a triangular glass prism.", "triangular prism"],
   ["Explain the apparatus for simple distillation.", "apparatus for simple distillation"],
+  ["Why do leaves fall from trees in autumn?", "leaf fall in autumn"],
+  ["Draw the cross section of a dicot stem 2 mm across.", "cross section of a dicot stem"],
+  ["How do fish swim?", "fish swimming"],
   ["Draw the V-I characteristic of a p-n junction diode", "V-I characteristic graph of a diode"],
 ]) expect(false, question, mustShow, "a concept ask keeps its picture");
 
