@@ -10,6 +10,7 @@
  */
 
 import { readFileSync } from "node:fs";
+import { serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import { join } from "node:path";
 import {
   COMMUNITY_SEGMENT_FIELDS,
@@ -135,8 +136,28 @@ assert(JSON.stringify(where.turns) === JSON.stringify({ some: COMMUNITY_LESSON_W
 const bar = JSON.stringify(COMMUNITY_LESSON_WHERE);
 assert(JSON.stringify(COMMUNITY_LESSON_WHERE.status) === JSON.stringify({ in: ["complete", "stopped"] }), "a live or failed lesson can list a board");
 assert(COMMUNITY_LESSON_WHERE.lessonMs.gte === 60_000 && COMMUNITY_MIN_LESSON_MS === 60_000, "a lesson under a minute can list a board");
-assert(bar.includes('{"visualStatus":"validated"}') && bar.includes('"DRAW_PICTURE"') && Array.isArray(COMMUNITY_LESSON_WHERE.OR) && COMMUNITY_LESSON_WHERE.OR.length === 2,
+assert(bar.includes('{"visualStatus":"validated"}') && Array.isArray(COMMUNITY_LESSON_WHERE.OR) && COMMUNITY_LESSON_WHERE.OR.length === 2,
   "a lesson with no figure can list a board");
+// The picture branch must match the row the server stores, not a shape it never writes.
+const pictureRow = (COMMUNITY_LESSON_WHERE.OR[1] as { segments: { some: { AND: Array<{ command: { path: string[]; array_contains?: unknown[]; equals?: unknown } }> } } }).segments.some.AND;
+function jsonFilterMatches(stored: unknown, filter: { path: string[]; array_contains?: unknown[]; equals?: unknown }): boolean {
+  let value: unknown = stored;
+  for (const key of filter.path) value = value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
+  const contains = (outer: unknown, inner: unknown): boolean => {
+    if (Array.isArray(inner)) return Array.isArray(outer) && inner.every((item) => outer.some((candidate) => contains(candidate, item)));
+    if (inner && typeof inner === "object") return !!outer && typeof outer === "object" && Object.entries(inner).every(([k, v]) => contains((outer as Record<string, unknown>)[k], v));
+    return outer === inner;
+  };
+  if (filter.array_contains) return contains(value, filter.array_contains);
+  return value === filter.equals;
+}
+const pictureCommand = { type: "DRAW_PICTURE", id: "picture-1" } as unknown as DrawCommand;
+const storedPicture = serializeSegmentCommands([pictureCommand], { trustedDiagramGeometry: true });
+const storedPictureWithInk = serializeSegmentCommands([{ type: "CLEAR" } as unknown as DrawCommand, pictureCommand], { trustedDiagramGeometry: true });
+assert(pictureRow.every((part) => jsonFilterMatches(storedPicture, part.command)), "a kept reference picture lesson cannot list a board");
+assert(pictureRow.every((part) => jsonFilterMatches(storedPictureWithInk, part.command)), "a picture beside other ink cannot list a board");
+assert(!pictureRow.every((part) => jsonFilterMatches(serializeSegmentCommands([pictureCommand]), part.command)), "an untrusted browser picture can list a board");
+assert(!pictureRow.every((part) => jsonFilterMatches(serializeSegmentCommands([{ type: "CLEAR" } as unknown as DrawCommand], { trustedDiagramGeometry: true }), part.command)), "trusted ink without a picture counts as a picture");
 assert(/turns: \{\s*where: COMMUNITY_LESSON_WHERE,/.test(read("lib", "community", "queries.ts")), "a card shows a lesson that did not earn the board its place");
 const overridden = communityBoardWhere({ visibility: "private", communityHiddenAt: new Date() } as never) as Record<string, unknown>;
 assert(overridden.visibility === "public" && overridden.communityHiddenAt === null, "a caller's filter can widen the public set");

@@ -20,7 +20,7 @@ const COMMUNITY_TURN_PAGE_SIZE = 10;
 
 /**
  * A lesson good enough to list a board for: finished or stopped, it drew a
- * figure (a verified diagram from any engine, or a reference picture), and it
+ * figure (a verified diagram from any engine, or a kept reference picture), and it
  * spoke for at least a minute.
  */
 export const COMMUNITY_LESSON_WHERE = {
@@ -28,7 +28,19 @@ export const COMMUNITY_LESSON_WHERE = {
   lessonMs: { gte: COMMUNITY_MIN_LESSON_MS },
   OR: [
     { visualStatus: "validated" },
-    { segments: { some: { command: { path: ["type"], equals: "DRAW_PICTURE" } } } },
+    // A kept picture row is always the server's trusted envelope
+    // ({ commands: [...], trustedDiagramGeometry: true }); the browser's
+    // own DRAW_PICTURE is dropped before it is stored.
+    {
+      segments: {
+        some: {
+          AND: [
+            { command: { path: ["commands"], array_contains: [{ type: "DRAW_PICTURE" }] } },
+            { command: { path: ["trustedDiagramGeometry"], equals: true } },
+          ],
+        },
+      },
+    },
   ],
 } satisfies Prisma.TurnWhereInput;
 
