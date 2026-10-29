@@ -88,7 +88,7 @@ const MAGNIFICATION_ALIASES = ["m", "magnification", "mag"] as const;
 /** Object and image heights: the figure draws no height value, so they are read and set aside. */
 const HEIGHT_ALIASES = [
   "h", "ho", "hi", "h1", "h2", "hobj", "himg", "hobject", "himage", "objectheight", "imageheight", "height",
-  "objectsize", "imagesize", "y", "y1", "y2", "yo", "yi",
+  "objectsize", "imagesize", "y", "y1", "y2", "yo", "yi", "w", "wo", "wi", "w1", "w2", "width", "objectwidth", "imagewidth",
 ] as const;
 const DIOPTRE_UNIT = /^(?:d|dioptres?|diopters?|m\^?-1|1\/m)$/i;
 /** Units of length the plan may write that the figure cannot convert. */
@@ -142,8 +142,10 @@ export function opticsArchetypePlanAgreement(
     ...(values.archetype === "spherical_mirror" ? lengthRows(RADIUS_ALIASES).map((row) => ({ ...row, cm: row.cm / 2 })) : []),
   ];
   // Fail closed: a plan length this check cannot assign to u, v, f, R or a
-  // height (d_obj, u_1, x1, D, a screen distance, a near point) would leave
-  // the figure unchecked against it, so the figure is refused.
+  // height by its id (d, x1, u_1, D, a screen distance, a near point) is
+  // still compared: it must be the magnitude of the figure's u, v or f (or
+  // a mirror's 2f), else the figure is refused. A distance id with no unit,
+  // and a power row for a mirror, refuse.
   const assigned = new Set<PlanQuantity>([
     ...rowsFor(rows, OBJECT_DISTANCE_ALIASES), ...rowsFor(rows, IMAGE_DISTANCE_ALIASES), ...rowsFor(rows, FOCAL_LENGTH_ALIASES),
     ...powerRows, ...(values.archetype === "spherical_mirror" ? rowsFor(rows, RADIUS_ALIASES) : []),
@@ -156,7 +158,12 @@ export function opticsArchetypePlanAgreement(
     const power = DIOPTRE_UNIT.test(unit);
     const distanceId = DISTANCE_ID.test(row.id) || DISTANCE_ID.test(row.symbol);
     const unitlessOrLength = !unit || length || /^(?:none|dimensionless|1)$/i.test(unit);
-    if (length || power || (distanceId && unitlessOrLength)) issues.push(`plan ${row.id} is a length the figure does not check`);
+    const lengthUnit = lengthUnitKey(unit);
+    if (lengthUnit) {
+      const cm = row.value * CM_PER_UNIT[lengthUnit];
+      const figureLengths = [values.u, values.v, values.f, values.archetype === "spherical_mirror" && values.f !== null ? 2 * values.f : null];
+      if (!figureLengths.some((figure) => figure !== null && agree(figure, cm))) issues.push(`plan ${row.id} = ${cm} cm is none of the figure's lengths`);
+    } else if (length || power || (distanceId && unitlessOrLength)) issues.push(`plan ${row.id} is a length the figure does not check`);
   }
   const signed = [...uRows, ...vRows, ...fRows].some((row) => row.cm < 0);
   const check = (role: "u" | "f" | "v", figure: number | null, planned: PlanLength[]) => {

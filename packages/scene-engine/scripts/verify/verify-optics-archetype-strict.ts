@@ -274,8 +274,12 @@ for (const [question, u] of [
 const mirrorFixture = OPTICS_ARCHETYPE_FIXTURES.find((fixture) => fixture.id === "w_converging_mirror")!;
 const mirrorDoc = attemptArchetypeScene({ question: mirrorFixture.question }).scene!.document;
 assert.deepEqual(opticsArchetypePlanAgreement(mirrorDoc, plan([["d_obj", 30, "cm"], ["f", 10, "cm"], ["d_img", 15, "cm"]]), mirrorFixture.question).issues, [], "d_obj and d_img are u and v");
-for (const [id, value, unit] of [["x1", 45, "cm"], ["D", 90, "cm"], ["u_1", 30, "cm"], ["d", 45, null], ["P", 10, "D"], ["separation", 0.45, "m"]] as Array<[string, number, string | null]>) {
+// An id the check cannot assign is compared with every figure length: it must be one of them.
+for (const [id, value, unit] of [["x1", 45, "cm"], ["D", 90, "cm"], ["u_1", 35, "cm"], ["d", 45, null], ["P", 10, "D"], ["separation", 0.45, "m"]] as Array<[string, number, string | null]>) {
   assert.ok(opticsArchetypePlanAgreement(mirrorDoc, plan([["u", 30, "cm"], ["f", 10, "cm"], [id, value, unit]]), mirrorFixture.question).issues.length > 0, `an unassigned plan row ${id} refuses`);
+}
+for (const [id, value, unit] of [["d", 30, "cm"], ["x1", 0.15, "m"], ["w", 2, "cm"]] as Array<[string, number, string | null]>) {
+  assert.deepEqual(opticsArchetypePlanAgreement(mirrorDoc, plan([["u", 30, "cm"], ["f", 10, "cm"], [id, value, unit]]), mirrorFixture.question).issues, [], `a plan row ${id} = ${value} ${unit} is one of the figure's lengths or a height`);
 }
 
 // Element counting: one element stays one.
