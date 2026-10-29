@@ -560,7 +560,11 @@ const CUE_SETS: readonly CueSet[] = [
     refuses: [/\bmagnets?\b[^.]{0,60}\b(?:coils?|rings?|solenoids?)\b|\b(?:coils?|rings?|solenoids?)\b[^.]{0,60}\bmagnets?\b/i,
       // A magnet moved towards a nail, iron, a pin or a compass is magnetism,
       // not a block on a surface; a magnet pushing a block is still a block.
-      /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:\w+\s+){0,2}?(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|magnets?)\b|^(?![\s\S]*\bblocks?\b)[\s\S]*\bmagnets?\b[^.]{0,60}\b(?:repul\w*|repel\w*|attract\w*)/i],
+      /\bmagnets?\b[^.]{0,30}\b(?:pushed|pulled|moved|brought)\s+(?:\w+\s+){0,2}?(?:towards?|near|close to)\b[^.]{0,30}\b(?:nails?|iron|steel|pins?|clips?|compass(?:es)?|magnets?)\b/i,
+      // Magnets that attract or repel each other are not blocks in contact,
+      // even mounted on blocks; a magnet pulling or pushing a block still is.
+      { test: (stem) => /\bmagnets?\b[^.]{0,60}\b(?:repul\w*|repel\w*|attract\w*)/i.test(stem)
+        && !/\bmagnets?\s+(?:attracts?|repels?|pulls?|pushes?)\s+(?:the\s+|a\s+)?blocks?\b/i.test(stem) }],
     extract: (stem, plan, bag) => {
       setSlot(bag, "masses", massesOf(stem), "stem");
       setSlot(bag, "force", planNumber(plan, ["f", "force", "appliedforce"]), "plan");
@@ -927,8 +931,16 @@ const CUE_SETS: readonly CueSet[] = [
     // magnet) is the induced current too, even without "induced"; a solenoid
     // that carries a stated current is not asking for an induced one, but a
     // bare magnitude ("the current has magnitude 2 A") gives no direction.
-    refuses: [INDUCED_CURRENT_DIRECTION, { test: (stem) => ASKED_CURRENT_DIRECTION.test(stem) && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|induc\w*|magnets?)\b/i.test(stem)
-      && !/\bcarr(?:y|ies|ying)\s+(?:a\s+)?(?:(?:steady|constant)\s+)?(?:current\s+(?:of\s+)?)?\d/.test(stem) }],
+    // The ask may be worded as "find its direction", "which way does it
+    // flow" or "whether it is clockwise". A second coil (a primary switched
+    // off) makes the solenoid's current an induced one too.
+    refuses: [INDUCED_CURRENT_DIRECTION, /\b(?:two coils|primary|secondary)\b/i, { test: (stem) => (ASKED_CURRENT_DIRECTION.test(stem)
+        || /\bwhich way\b|\b(?:find|determine|state|show|mark|predict|indicate|give|deduce|work out|explain)\b[^.?]{0,40}\b(?:direction|sense|clockwise|anti-?clockwise|whether)\b/i.test(stem))
+      && /\b(?:increas\w*|decreas\w*|chang\w*|varying|vari\w*|induc\w*|magnets?|switch(?:ed|ing)?\s+(?:on|off))\b/i.test(stem)
+      && !/\bcarr(?:y|ies|ying)\s+(?:a\s+)?(?:(?:steady|constant)\s+)?(?:current\s+(?:of\s+)?)?\d/.test(stem)
+      // A current whose direction the stem gives ("2 A clockwise as seen
+      // from the left") is not asked, whatever verb supplies it.
+      && !/\d+(?:\.\d+)?\s*(?:A|mA|amperes?|amps?)\s+(?:\w+\s+){0,2}?(?:clockwise|anti-?clockwise|counter-?clockwise)\b(?!\s+or\b)/.test(stem) }],
     extract: (stem, plan, bag) => {
       setSlot(bag, "turns", planNumber(plan, ["n", "turns", "turnspermetre"]), "plan");
       setSlot(bag, "turns", numberBefore(stem, /turns/), "stem");
