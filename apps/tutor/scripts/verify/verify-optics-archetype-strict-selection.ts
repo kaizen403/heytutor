@@ -124,6 +124,23 @@ assert.equal(refused.representation, null, "a plan image distance that disagrees
 assert.match(refused.strictOpticsAdmission?.reason ?? "", /is not the figure's v/);
 assert.match(sceneSaveAdmissionFailure({ document: drawn.representation!.sceneDocument, question: q36, turnPlan: wrongPlan, tier: "exact_verified" }) ?? "", /optics_plan_disagreement/);
 
+// T1: a power's sign holds in every convention. An unsigned plan with P = +2 D beside the question's
+// -2.0 D names a converging lens: strict refuses it, and so does the save check on its own.
+const q36PlusPlan = turnPlan(q36, [["P", 2, "D"], ["u", 75, "cm"], ["v", 30, "cm"]]);
+const q36Plus = select(q36, q36PlusPlan);
+assert.notEqual(q36Plus.representation?.figureSource, "optics_archetype", "q36: strict refuses a plan P = +2 D");
+assert.match(q36Plus.strictOpticsAdmission?.reason ?? "", /power sign/);
+assert.match(sceneSaveAdmissionFailure({ document: drawn.representation!.sceneDocument, question: q36, turnPlan: q36PlusPlan, tier: "exact_verified" }) ?? "", /optics_plan_disagreement: .*power sign/);
+// T2: "+5 D and focal length -20 cm" contradicts itself: no lane draws a lens for it, whatever the plan.
+{
+  const question = "A lens has power +5 D and focal length -20 cm. An object is placed 30 cm from the lens. Find the image distance.";
+  for (const rows of [[["P", 5, "D"], ["f", 20, "cm"], ["u", 30, "cm"], ["v", 60, "cm"]], [["P", -5, "D"], ["f", -20, "cm"], ["u", 30, "cm"], ["v", -12, "cm"]]] as Array<Array<[string, number, string | null]>>) {
+    const plan = turnPlan(question, rows);
+    assert.equal(attemptArchetypeScene({ question, turnPlan: plan }).scene, null, `T2 ${JSON.stringify(rows)}: the archetype declines`);
+    assert.notEqual(select(question, plan, strict, plannerDocument("An object is placed 30 cm from a lens of power +5 D. Find the image distance.")).representation?.figureSource, "optics_archetype", `T2 ${JSON.stringify(rows)}: strict draws no lens`);
+  }
+}
+
 // q107 and a metre stem: unit and kind from the question.
 const q107 = fixture("q107").question;
 const q107Drawn = select(q107, turnPlan(q107, [["P", -6.25, "D"], ["u", 112, "cm"], ["v", -14, "cm"]]));

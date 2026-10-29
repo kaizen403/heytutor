@@ -30,6 +30,7 @@ import {
   namesSeveralOpticalElements,
   objectDistanceNamesObject,
   opticsConfigurationIssue,
+  statedPowerSign,
 } from "./opticsSource";
 import { collectPlanQuantities, type PlanQuantity } from "./slots";
 
@@ -87,6 +88,18 @@ function rowsFor(rows: readonly PlanQuantity[], aliases: readonly string[]): Pla
 
 interface PlanLength { id: string; cm: number; given: boolean }
 
+/**
+ * A lens power's sign is the same in every sign convention, so a plan power
+ * row must carry the sign the question writes ("-2.0 D" is never P = +2 D),
+ * even in a plan whose lengths are all magnitudes. A bare "2 D" is read as
+ * a magnitude and checks nothing here.
+ */
+function powerSignIssue(question: string, powerRows: readonly PlanQuantity[]): string | null {
+  const stated = statedPowerSign(question);
+  const row = stated === 0 ? undefined : powerRows.find((candidate) => candidate.value !== 0 && Math.sign(candidate.value) !== stated);
+  return row ? `the plan's ${row.id} = ${row.value} D does not carry the question's power sign` : null;
+}
+
 const MAGNIFICATION_ALIASES = ["m", "magnification", "mag"] as const;
 /** Object and image heights: the figure draws no height value, so they are read and set aside. */
 const HEIGHT_ALIASES = [
@@ -139,6 +152,8 @@ export function opticsArchetypePlanAgreement(
     ? rows.filter((row) => DIOPTRE_UNIT.test((row.unit ?? "").trim()))
     : [];
   for (const row of powerRows) if (row.value === 0) issues.push(`plan ${row.id} is a zero power`);
+  const powerSign = powerSignIssue(question, powerRows);
+  if (powerSign) issues.push(powerSign);
   const fRows = [
     ...lengthRows(FOCAL_LENGTH_ALIASES),
     ...powerRows.filter((row) => row.value !== 0).map((row) => ({ id: row.id, cm: 100 / row.value, given: row.origin === "given" })),
@@ -291,7 +306,7 @@ function stemCrossCheck(question: string, values: Pick<FigureValues, "archetype"
  * length bound to no role, so strict declines rather than pass it by a
  * coincidence of values. Null when the binding holds.
  */
-function planRoleBindingIssue(values: FigureValues, turnPlan: unknown): string | null {
+function planRoleBindingIssue(values: FigureValues, turnPlan: unknown, question: string): string | null {
   const rows = collectPlanQuantities(turnPlan);
   const lens = values.archetype === "thin_lens";
   const length = (row: PlanQuantity): number | null => {
@@ -324,6 +339,8 @@ function planRoleBindingIssue(values: FigureValues, turnPlan: unknown): string |
     ...pRows.map((row) => ({ row, cm: row.value === 0 ? null : 100 / row.value })),
   ];
   if (!focal.some(({ row }) => row.origin === "given")) return "the plan gives no focal length, radius or power row";
+  const powerSign = powerSignIssue(question, pRows);
+  if (powerSign) return powerSign;
   for (const { row, cm } of focal) {
     if (cm === null || !agree(values.f, cm)) return `the plan's ${row.id} is not the figure's focal length`;
   }
@@ -370,7 +387,7 @@ export function opticsArchetypeStrictEligibility(question: string, document: Sce
   if ((stem.slots.kind === "concave") !== values.concave) return { eligible: false, reason: "the figure's element kind is not the question's" };
   if (values.v === null) return { eligible: false, reason: "the figure computes no image distance" };
   if (objectDistanceNamesObject(question) !== true) return { eligible: false, reason: "the question's object distance is read from a clause that names no object" };
-  const binding = planRoleBindingIssue(values, turnPlan);
+  const binding = planRoleBindingIssue(values, turnPlan, question);
   if (binding) return { eligible: false, reason: binding };
   const cross = stemCrossCheck(question, values);
   if (cross.length > 0) return { eligible: false, reason: cross[0]! };

@@ -513,6 +513,26 @@ export function planPower(quantities: readonly PlanQuantity[]): number | null {
   return row && row.value !== 0 ? row.value : null;
 }
 
+/** The sign a stem length is written with: -1, +1 for an explicit "+", 0 for a bare magnitude. */
+function writtenSign(stem: string, length: StatedLength): -1 | 0 | 1 {
+  if (length.cm < 0) return -1;
+  return length.at !== undefined && /^[^0-9]{0,8}?\+\s*[0-9.]/.test(stem.slice(length.at)) ? 1 : 0;
+}
+
+/**
+ * The sign the stem writes its lens power with, which no sign convention
+ * changes: -1 for "-2.0 D", +1 for "+5 D", 0 for a bare "5 D" (a magnitude
+ * beside "concave lens" in some books) or no power.
+ */
+export function statedPowerSign(stem: string): -1 | 0 | 1 {
+  const pattern = new RegExp(`(\\+)?${STEM_NUMBER}\\s*(?:D(?![A-Za-z])|[dD]iopt(?:re|er)s?\\b)`, "g");
+  const signs = [...stem.replace(/[\u2212]/g, "-").matchAll(pattern)].map((match) => {
+    const value = parseStemNumber(match[2]!);
+    return value === null || value === 0 ? 0 : value < 0 ? -1 : match[1] ? 1 : 0;
+  }).filter((sign) => sign !== 0);
+  return signs.length > 0 && signs.every((sign) => sign === signs[0]) ? signs[0]! as -1 | 1 : 0;
+}
+
 const same = (first: number, second: number): boolean => Math.abs(first - second) <= 1e-6 * Math.max(1, Math.abs(first), Math.abs(second));
 
 /**
@@ -546,6 +566,9 @@ export function extractOpticsSlots(stem: string, plan: readonly PlanQuantity[], 
   if ((unitless.has("u") && stemU === null) || (unitless.has("f") && stemF === null && stemR === null && powerF === null)) conflict = "unitless";
   if (powers.some((power) => !same(power, powers[0]!))) conflict = "power";
   if (powerF !== null && stemF !== null && !same(Math.abs(powerF), Math.abs(stemF.cm))) conflict = "focal";
+  // A power's sign and a written focal length sign mean the same in every
+  // convention: "+5 D and focal length -20 cm" contradicts itself.
+  if (powerF !== null && stemF !== null && writtenSign(stem, stemF) !== 0 && writtenSign(stem, stemF) !== Math.sign(powerF)) conflict = "focal";
   if (words === "both") conflict ??= "kind";
 
   // Lens kind. A lens focal length or power is negative for a diverging

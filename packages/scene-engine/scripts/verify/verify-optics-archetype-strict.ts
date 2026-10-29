@@ -42,6 +42,8 @@ function cartesian(draw: Draw) {
   return { u: -draw.u, f, v };
 }
 
+const figureQuantities = (document: SceneDocument) => Object.fromEntries(document.quantities.map((row) => [row.id, row.value]));
+
 function plan(rows: Array<[string, number, string | null]>) {
   return {
     givens: rows.filter(([id]) => id !== "v" && id !== "m").map(([id, value, unit]) => ({ id, symbol: id, value, unit })),
@@ -206,6 +208,49 @@ const q36 = OPTICS_ARCHETYPE_FIXTURES.find((fixture) => fixture.id === "q36")!;
 const q36Doc = attemptArchetypeScene({ question: q36.question }).scene!.document;
 assert.deepEqual(opticsArchetypePlanAgreement(q36Doc, plan([["P", -2, "D"], ["u", -75, "cm"], ["v", -30, "cm"]]), q36.question).issues, []);
 assert.ok(opticsArchetypePlanAgreement(q36Doc, plan([["P", 2, "D"], ["u", -75, "cm"], ["v", -30, "cm"]]), q36.question).issues.length > 0, "q36: +2.0 D names the other lens");
+// T1: a power's sign is the same in every convention. An unsigned plan with P = +2 D beside the
+// question's -2.0 D names the other lens: the save check and strict both refuse it.
+{
+  const unsignedWrong = plan([["P", 2, "D"], ["u", 75, "cm"], ["v", 30, "cm"]]);
+  assert.ok(opticsArchetypePlanAgreement(q36Doc, unsignedWrong, q36.question).issues.some((issue) => /power sign/.test(issue)), "q36: an unsigned plan P = +2 D refuses at save");
+  const strictWrong = opticsArchetypeStrictEligibility(q36.question, q36Doc, unsignedWrong);
+  assert.equal(strictWrong.eligible, false, "q36: strict refuses P = +2 D");
+  assert.match(strictWrong.reason, /power sign/);
+  assert.deepEqual(opticsArchetypePlanAgreement(q36Doc, plan([["P", -2, "D"], ["u", 75, "cm"], ["v", -30, "cm"]]), q36.question).issues, [], "q36: a plan with P = -2 D and u as a magnitude agrees");
+  // A bare "2 D" is converging and an unsigned plan P = 2 D agrees with it.
+  const bare = "An object is placed 75 cm from a lens of power 2 D. Find the image distance.";
+  const bareDoc = attemptArchetypeScene({ question: bare }).scene!.document;
+  assert.deepEqual(figureQuantities(bareDoc), { u: -75, f: 50, v: 150 });
+  assert.deepEqual(opticsArchetypePlanAgreement(bareDoc, plan([["P", 2, "D"], ["u", 75, "cm"], ["v", 150, "cm"]]), bare).issues, [], "a bare power with its plan agrees");
+  // An explicit + is a sign too: "+5 D" with a plan P = -5 D refuses.
+  const plus = "An object is placed 30 cm from a lens of power +5 D. Find the image distance.";
+  const plusDoc = attemptArchetypeScene({ question: plus }).scene!.document;
+  assert.deepEqual(figureQuantities(plusDoc), { u: -30, f: 20, v: 60 });
+  assert.ok(opticsArchetypePlanAgreement(plusDoc, plan([["P", -5, "D"], ["u", 30, "cm"], ["v", 60, "cm"]]), plus).issues.some((issue) => /power sign/.test(issue)), "+5 D with a plan P = -5 D refuses");
+}
+// T2: a power and a focal length whose written signs disagree name two lenses: nothing draws.
+for (const question of [
+  "A lens has power +5 D and focal length -20 cm. An object is placed 30 cm from the lens. Find the image distance.",
+  "A lens has power 5 D and focal length -20 cm. An object is placed 30 cm from the lens. Find the image distance.",
+  "A lens of power -5 D has a focal length of +20 cm. An object is placed 30 cm from the lens. Find the image distance.",
+  "A lens with P = +5 D and f = -20 cm has an object placed 30 cm from it. Find the image distance.",
+]) {
+  for (const rows of [undefined, [["P", 5, "D"], ["f", 20, "cm"], ["u", 30, "cm"], ["v", 60, "cm"]], [["P", -5, "D"], ["f", -20, "cm"], ["u", 30, "cm"], ["v", -12, "cm"]]] as Array<Array<[string, number, string | null]> | undefined>) {
+    const attempt = attemptArchetypeScene({ question, ...(rows ? { turnPlan: plan(rows) } : {}) });
+    assert.equal(attempt.match?.slots.conflict, "focal", `the signs conflict: ${question}`);
+    assert.equal(attempt.scene, null, `no figure for a contradictory stem: ${question} ${JSON.stringify(rows ?? null)}`);
+  }
+}
+// A focal length written as a magnitude beside a signed power is no contradiction.
+for (const [question, f] of [
+  ["A lens of power -5 D has a focal length of 20 cm. An object is placed 30 cm from the lens. Find the image distance.", -20],
+  ["A lens has power +5 D and focal length 20 cm. An object is placed 30 cm from the lens. Find the image distance.", 20],
+  ["A lens has power +5 D and focal length +20 cm. An object is placed 30 cm from the lens. Find the image distance.", 20],
+] as Array<[string, number]>) {
+  const doc = attemptArchetypeScene({ question }).scene?.document;
+  assert.ok(doc, `draws: ${question}`);
+  assert.equal(figureQuantities(doc).f, f, question);
+}
 // The old figure: converging, v = 150 cm. It must never agree with the q36 truth.
 const q36Old = structuredClone(q36Doc);
 q36Old.quantities = q36Old.quantities.map((row) => row.id === "f" ? { ...row, value: 50 } : row.id === "v" ? { ...row, value: 150 } : row);
