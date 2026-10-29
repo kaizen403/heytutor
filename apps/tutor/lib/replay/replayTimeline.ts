@@ -4,6 +4,7 @@ import {
   isStoredCommandTrustedGeometry,
 } from "@heytutor/drawing";
 import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
+import { storedPageTurnAt } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 
 export interface ReplayCue {
@@ -47,6 +48,7 @@ export function buildReplayTimeline(turns: StoredTurn[]): ReplayTimeline {
 
   turns.forEach((turn, turnIndex) => {
     const checked = sourceCheckedStoredTurn(turn);
+    const turnCuesFrom = cues.length;
     checked.segments.forEach((segment, segmentIndex) => {
       const narration = segment.narration.trim();
       const commands = storedCodeLessonSegmentCommands(checked, segment);
@@ -76,6 +78,41 @@ export function buildReplayTimeline(turns: StoredTurn[]): ReplayTimeline {
 
       cursorMs = endMs;
     });
+    // A doubt that turned a fresh page (DIAGRAM_DOUBT_FIGURES) and was stopped
+    // before any row is saved with no segments. Every surface turns pages at a
+    // cue's turn, so it gets one silent, inkless cue: replay, seek, the lecture
+    // player and export hold the lesson page there, as live and restore do.
+    // Only a saved `freshPage` marker makes a page turn, so with the flag off
+    // no cue is added.
+    if (cues.length === turnCuesFrom && storedPageTurnAt(turns, turnIndex) !== null) {
+      const durationMs = estimateSegmentDurationMs("", null);
+      const segment: StoredSegment = {
+        id: `${turn.id}:page-turn`,
+        orderIndex: 0,
+        narration: "",
+        spokenText: "",
+        command: null,
+        audioUrl: null,
+        durationMs: null,
+        timings: null,
+      };
+      cues.push({
+        id: `${turnIndex}-page-turn`,
+        turnIndex,
+        segmentIndex: 0,
+        startMs: cursorMs,
+        endMs: cursorMs + durationMs,
+        durationMs,
+        narration: "",
+        commands: [],
+        trustedDiagramGeometry: false,
+        audioUrl: null,
+        durationMsStored: null,
+        timings: null,
+        segment,
+      });
+      cursorMs += durationMs;
+    }
   });
 
   return { cues, totalMs: cursorMs };

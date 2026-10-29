@@ -62,7 +62,8 @@
  * closeDoubtPageForNotes does not capture the returned lesson page; every new
  * anchor's begin and end renamed (":ended" included); (s1) the live save
  * drops a stopped doubt with no row that turned a page, and (s1b) keeps every
- * empty stopped doubt; (s2) the server keeps freshPage on a doubt with
+ * empty stopped doubt; (s3) buildReplayTimeline gives a stopped empty fresh
+ * page doubt no cue; (s2) the server keeps freshPage on a doubt with
  * DIAGRAM_DOUBT_FIGURES off, and (s2b) drops it with the flag on.
  *
  * Run: pnpm exec tsx scripts/verify/verify-doubt-figure-page.ts
@@ -83,6 +84,7 @@ import {
 } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts, doubtFigureOf } from "../../lib/boards/doubtFigure";
 import { pageFigureAt } from "../../lib/boards/pageFigure";
+import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { memoryPageFigureStore, storedPageZone, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
@@ -363,6 +365,23 @@ async function main(): Promise<void> {
     // Off equals absent: the lane 2 page with no marker turns nothing anywhere.
     const lane2 = fixture.turns;
     assert(lane2.every((_, index) => storedPageTurnAt(lane2, index) === null), "derive/a page with no marker turns no page (off equals absent)");
+    // Greptile P1: a fresh page doubt stopped before any row is saved with no
+    // segments (stop/ below). Surfaces turn pages at a cue's turn, so the
+    // replay timeline gives it one silent, inkless cue; otherwise D2 replays
+    // over the lesson page and R returns nothing.
+    const stoppedEmpty = [textLesson, { ...D, segments: [] } as StoredTurn, D2, R];
+    const cueTurns = buildReplayTimeline(stoppedEmpty).cues.map((cue) => cue.turnIndex);
+    assert(JSON.stringify([...new Set(cueTurns)]) === JSON.stringify([0, 1, 2, 3]),
+      `derive/a stopped empty fresh page doubt still gets a cue, so replay holds the page there (mutation s3): ${JSON.stringify(cueTurns)}`);
+    const pageCue = buildReplayTimeline(stoppedEmpty).cues.find((cue) => cue.turnIndex === 1)!;
+    assert(pageCue.commands.length === 0 && pageCue.narration === "" && pageCue.audioUrl === null && pageCue.durationMs > 0,
+      "derive/that cue is silent and draws nothing");
+    const emptyPlain = [textLesson, { ...D2, segments: [] } as StoredTurn, R];
+    const plainCues = buildReplayTimeline(emptyPlain).cues;
+    assert(!plainCues.some((cue) => cue.turnIndex === 1),
+      "derive/an empty turn with no page turn gets no cue, as before (off equals absent)");
+    assert(!buildReplayTimeline(page).cues.some((cue) => cue.id.endsWith("-page-turn")),
+      "derive/a page turn doubt with rows gets no extra cue");
   }
 
   // --- surfaces/ ----------------------------------------------------------
