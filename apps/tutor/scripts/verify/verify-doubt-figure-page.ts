@@ -30,7 +30,9 @@
  *               after a reload, keep the same pages for [L, D fresh] on the
  *               doubt page, [L, D fresh, R], [L, D fresh, R, L2] and
  *               [L, D fresh, L2]; the held lesson page is a notes page while
- *               the doubt page is up; the holding line is the doubt page's.
+ *               the doubt page is up; the holding line is the doubt page's;
+ *   stop/       (lane 10, S1) a doubt stopped after its page turned, before
+ *               any row was shown, is saved with the page turn.
  *
  * Anchor comments are matched as whole lines (round 3 N2).
  *
@@ -53,7 +55,9 @@
  * skips the held page, and (n4b) heldLessonNotesPage returns nothing; (n5)
  * turnDoubtPage ignores the turn start, and (n5b) uQH passes none; (n6)
  * closeDoubtPageForNotes does not capture the returned lesson page; every new
- * anchor's begin and end renamed (":ended" included).
+ * anchor's begin and end renamed (":ended" included); (s1) the live save
+ * drops a stopped doubt with no row that turned a page, and (s1b) keeps every
+ * empty stopped doubt.
  *
  * Run: pnpm exec tsx scripts/verify/verify-doubt-figure-page.ts
  */
@@ -80,7 +84,7 @@ import { closeDoubtPageForNotes, heldLessonNotesPage, returnLessonPage, turnDoub
 import { resetReplayPageAtTurn } from "../../features/tutor-session/lib/replay/replayPageBoundary";
 import { doubtFigureNeedSkip, zoneInkOccupied } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { doubtFigureRefFor, doubtFigureTurnScene, doubtPageRecord, type PersistedTurnScene } from "../../features/tutor-session/lib/turn/doubtTurn";
-import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { LiveTurnSaveRegistry, liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { pausedLessonFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import { DOUBT_FIGURE_TURN_ID, DOUBT_TITLE, LESSON_TURN_ID, doubtFigurePageFixture, doubtPageCheck, stored, teachingRow } from "./fixtures/doubtFigureScene";
@@ -489,6 +493,7 @@ async function main(): Promise<void> {
   }
 
   await notesChecks(fixture, textLesson, D, R);
+  await stopChecks(lesson.question);
 
   void resumeOf;
   console.log(`verify-doubt-figure-page: ${checks} checks passed`);
@@ -659,6 +664,50 @@ async function notesChecks(
     assert(at(handler, "const notesNarrationAtTurnStart = narrationSinceEpochRef?.current ?? \"\";") < at(handler, "enqueueSegment(doubtFigureHoldingSegment("),
       "notes/the turn start is read before the holding line is spoken");
   }
+}
+
+// --- stop/ (review round 3 S1) ---------------------------------------------
+/**
+ * A Stop after the page turned and before any row of the doubt was shown (its
+ * holding line not yet voiced). Live, the lesson page is held and a blank page
+ * is up; the next doubt continues that blank page. So the stored doubt must
+ * hold the page too, even with no row: the page turn is ink the student saw,
+ * as an advance's erase is (F2).
+ */
+async function stopChecks(lessonQuestion: string): Promise<void> {
+  const run = async (turned: boolean) => {
+    const sent: Array<{ status: string; segments: number; freshPage: boolean | undefined; kind: string }> = [];
+    const timers: Array<() => void> = [];
+    let minted = 0;
+    const registry = new LiveTurnSaveRegistry({
+      transport: {
+        checkpoint: async (_board, _turn, input) => {
+          sent.push({ status: input.status, segments: input.segments.length, kind: String(input.kind),
+            freshPage: boardContinuationOf(input.scene?.sceneArtifacts)?.freshPage });
+          return new Promise(() => {});
+        },
+        close: async () => new Promise(() => {}),
+      },
+      setTimer: (callback) => { timers.push(callback); return timers.length; }, clearTimer: () => {},
+      now: () => 1_000, isOnline: () => true, mintId: () => `stop-attempt-${++minted}`,
+    });
+    const owner = {};
+    const page = doubtPageRecord({ boardId: "b-stop", lessonQuestion, title: DOUBT_TITLE, continuesBoard: true,
+      figureDrawn: false, turnPlan: null, solverProjection: null });
+    registry.begin({ owner, generation: 1, boardId: "b-stop", traceId: "stop-trace", kind: "doubt", question: DOUBT_TITLE,
+      preview: lessonQuestion, speedMultiplier: 1, continuesBoard: true, page });
+    // uQH doubt-fresh-page: the page turned, then Stop before any row was shown.
+    if (turned) page.turnedFreshPage = true;
+    registry.closeOwner(owner);
+    for (const fire of timers.splice(0)) fire();
+    await Promise.resolve();
+    return sent;
+  };
+  const turned = await run(true);
+  assert(turned.length === 1 && turned[0]!.status === "stopped" && turned[0]!.segments === 0 && turned[0]!.kind === "doubt" && turned[0]!.freshPage === true,
+    `stop/a doubt stopped after its page turned, with no row shown, still saves the page turn (mutation s1): ${JSON.stringify(turned)}`);
+  const plain = await run(false);
+  assert(plain.length === 0, `stop/an empty doubt that turned no page is dropped as before (off equals absent): ${JSON.stringify(plain)}`);
 }
 
 main().catch((error: unknown) => {

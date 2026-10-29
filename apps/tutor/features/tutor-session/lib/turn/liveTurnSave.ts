@@ -1028,6 +1028,13 @@ export class LiveTurnSaveRegistry {
   private notWorthCreating(turn: LiveTurn, rows: readonly RecordedSegmentPayload[]): boolean {
     if (turn.ackedStatus !== null || rows.some((row) => !isEpochRow(row))) return false;
     if (turn.status !== "live" && readFailedTurnTelemetry(turn.page?.failureTelemetry)?.failed === true) return false;
+    // doubt-fresh-page-kept:begin
+    // Review round 3 S1: a doubt that turned a fresh page (lane 9) showed the
+    // page turn, as an advance's erase is shown (F2). Stopped before any row,
+    // it is still saved, so every stored surface holds the lesson page there
+    // as live does and a later doubt continues the blank page, not the lesson's.
+    if (turn.status !== "live" && turn.kind === "doubt" && turn.page?.turnedFreshPage === true) return false;
+    // doubt-fresh-page-kept:end
     return turn.status === "live" || turn.kind !== "lesson";
   }
 
