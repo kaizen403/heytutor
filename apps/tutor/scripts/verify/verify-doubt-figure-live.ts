@@ -237,7 +237,7 @@ async function main(): Promise<void> {
     assert(plan.includes("zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),"),
       "the occupancy guard reads the board's layout, on an empty zone only");
     const liveStash = plan.indexOf("(zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot");
-    const storedStash = plan.indexOf("(zoneFigure ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)");
+    const storedStash = plan.indexOf("(zoneFigure && !codeBoard ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)");
     const emptyStash = plan.indexOf("(zoneEmpty ? { ...EMPTY_ZONE_STASH } : null)");
     assert(plan.indexOf("page.zoneStash") >= 0 && plan.indexOf("page.zoneStash") < liveStash && liveStash < storedStash && storedStash < emptyStash,
       "the stash is the page's, else the live snapshot, else the stored turns (restored board), else the empty zone");

@@ -1859,7 +1859,7 @@ export function useQuestionHandler(
         // from the stored turns, or none when they do not match the zone.
         const zoneStash: ZoneStash | null = page.zoneStash
           ?? (zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null } : null)
-          ?? (zoneFigure ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)
+          ?? (zoneFigure && !codeBoard ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)
           ?? (zoneEmpty ? { ...EMPTY_ZONE_STASH } : null);
         const skip = doubtFigureNeedSkip({
           granted: doubtFiguresGranted,
@@ -2024,7 +2024,10 @@ export function useQuestionHandler(
         // doubt-figure-return:begin
         // A doubt's own figure stands in the zone: return the lesson's figure
         // whole, with the marks the student already saw, before reading it.
+        // A doubt that drew on an empty zone stashed nothing: its figure is
+        // cleared and the zone is empty again (`zoneEmptied`), as in replay.
         const zoneStash = pageRecord?.boardId === sessionId ? pageRecord.zoneStash ?? null : null;
+        let zoneEmptied = false;
         if (zoneStash) {
           // The zone is about to be erased: nothing may point at the doubt's
           // figure from here. A cancelled return leaves the ref empty and the
@@ -2036,6 +2039,7 @@ export function useQuestionHandler(
             { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });
           throwIfTurnCancelled();
           const returned = stashReturn.diagram;
+          zoneEmptied = !stashReturn.cancelled && zoneStash.diagram === null;
           activeVerifiedDiagramRef.current = returned;
           setActiveVerifiedDiagram?.(returned);
           dropDiagramRects(boardLayoutRef.current);
@@ -2066,6 +2070,8 @@ export function useQuestionHandler(
             : { cancelled: false, diagram: null };
           throwIfTurnCancelled();
           const returned = result.cancelled ? null : result.diagram;
+          // No stored source: the zone is empty again, as after a live empty return.
+          zoneEmptied = !result.cancelled && back.turnId === null && billed.doubtFigures === true;
           activeVerifiedDiagramRef.current = returned;
           setActiveVerifiedDiagram?.(returned);
           dropDiagramRects(boardLayoutRef.current);
@@ -2098,8 +2104,13 @@ export function useQuestionHandler(
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!rebuildingCodeIntro && !activeDiagram && !zoneStash && !resume.returnsFigure &&
+        // doubt-figure-restore:begin
+        // A returned figure holds the zone. An emptied zone is the zone a text
+        // only lesson left: a planned but undrawn lesson figure draws now.
+        const zoneHeld = Boolean(zoneStash || resume.returnsFigure) && !zoneEmptied;
+        if (!rebuildingCodeIntro && !activeDiagram && !zoneHeld &&
           resume.scene?.sceneDocument) {
+          // doubt-figure-restore:end
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
             sceneArtifacts: resume.scene.sceneArtifacts,

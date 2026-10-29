@@ -219,6 +219,15 @@ export function storedZoneStash(live: VerifiedDiagram, source: StoredTurn): Zone
  * released, or the empty zone. Null when storage does not match the zone.
  */
 export function storedPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDiagram): ZoneStash | null {
+  // A doubt never fails on a stored page it cannot read: no stash, it points.
+  try {
+    return readStoredPageZoneStash(turns, live);
+  } catch {
+    return null;
+  }
+}
+
+function readStoredPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDiagram): ZoneStash | null {
   if (turns.length === 0) return null;
   const at = pageFigureAt(turns, turns.length - 1);
   if (at.sourceIndex === null) return null;
