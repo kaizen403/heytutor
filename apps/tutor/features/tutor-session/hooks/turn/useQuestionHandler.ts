@@ -1852,6 +1852,8 @@ export function useQuestionHandler(
           markedFigureIds: doubt.markedFigureIds ?? [],
           zoneFigure,
           zoneReturnable: Boolean(page.zoneStash || zoneEntry),
+          zoneEmpty: false,
+          zoneOccupied: false,
         });
         const need = skip
           ? { decision: "point" as const, reason: skip }
@@ -2007,13 +2009,14 @@ export function useQuestionHandler(
           activeVerifiedDiagramRef.current = null;
           setActiveVerifiedDiagram?.(null);
           zonePresentationRef.current = null;
-          const returned = await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],
+          const stashReturn = await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],
             { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });
           throwIfTurnCancelled();
+          const returned = stashReturn.diagram;
           activeVerifiedDiagramRef.current = returned;
           setActiveVerifiedDiagram?.(returned);
           dropDiagramRects(boardLayoutRef.current);
-          if (returned) {
+          if (returned && zoneStash.presentation) {
             for (const anchor of returned.anchors) {
               registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
             }

@@ -452,6 +452,8 @@ async function planLabDoubtFigure(input: {
   const skip = doubtFigureNeedSkip({
     granted: true, codeBoard: input.codeBoard, markedFigureIds: input.markedFigureIds,
     zoneFigure: input.zoneFigure, zoneReturnable: Boolean(input.zoneFigure),
+    // The lab has no board layout to check an empty zone against (lane 7).
+    zoneEmpty: false, zoneOccupied: false,
   });
   if (skip) return { drawn: null, summary: `point (${skip})` };
   if (!input.figurePlanning) return { drawn: null, summary: "not planned (no server)" };

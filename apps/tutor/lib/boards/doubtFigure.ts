@@ -21,9 +21,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 export interface DoubtFigureMarker {
   schemaVersion: typeof DOUBT_FIGURE_VERSION;
   /**
-   * Turn.id of the lesson figure it replaced in the zone. Null when the tab
-   * did not know which turn drew that figure (a restored board): a doubt
-   * figure always replaces a figure, never an empty zone.
+   * Turn.id of the lesson figure it replaced in the zone. Null when the zone
+   * stood empty (the doubt drew where no figure was, and the lesson's resume
+   * clears it again), or when the tab did not know which turn drew the figure.
    */
   replacedTurnId: string | null;
 }

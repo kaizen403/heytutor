@@ -101,13 +101,10 @@ export interface BoardPageRecord {
   /**
    * Set while a doubt's own figure stands in the zone: the lesson figure it
    * replaced, returned when the lesson resumes (DIAGRAM_DOUBT_FIGURES).
-   * `presentation` is what returnPageFigure redraws.
+   * `presentation` is what returnPageFigure redraws. A null `diagram`: the
+   * zone stood empty, and the resume clears it again.
    */
-  zoneStash?: {
-    diagram: import("@heytutor/drawing").VerifiedDiagram;
-    presentation: { diagram: import("@heytutor/drawing").VerifiedDiagram; introSegments: import("@heytutor/drawing").TutorSegment[] };
-    turnId: string | null;
-  } | null;
+  zoneStash?: import("../scene/figureSwap").ZoneStash | null;
   /** The turn teaching on this page now, or the last one that did. */
   turn: {
     kind: PageTurnKind;
@@ -433,8 +430,9 @@ export function pausedLessonFromPage(
     solverProjection: record.solverProjection,
     scene: record.turn.kind === "lesson" ? record.turn.scene : null,
     // A doubt's own figure is not the lesson's: the lesson's was drawn when
-    // the doubt stashed it from the zone.
-    figureDrawn: doubtOwnFigureScene(record) ? Boolean(record.zoneStash) : record.figureDrawn,
+    // the doubt stashed it from the zone. A doubt that drew on an empty zone
+    // stashed nothing drawn.
+    figureDrawn: doubtOwnFigureScene(record) ? Boolean(record.zoneStash?.diagram) : record.figureDrawn,
     codeLesson,
   };
 }

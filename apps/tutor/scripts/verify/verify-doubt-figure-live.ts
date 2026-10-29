@@ -188,12 +188,13 @@ async function main(): Promise<void> {
       shouldCancel: () => cancelled,
       executeCommand: async () => { stamped += 1; cancelled = true; },
     });
-    assert.equal(cut, null, "a return cancelled mid stamp returns no figure");
+    assert.deepEqual(cut, { cancelled: true, diagram: null }, "a return cancelled mid stamp returns no figure");
     assert(stamped >= 1, "the cancel landed while the return was stamping");
     assert(stopped.every((record) => record.zoneStash === stash),
       "a cancelled return keeps the stash on the doubt's record and on the resume's, for the next Continue");
     const noBoard = records();
-    assert.equal(await returnZoneStash(null, layout, stash, noBoard, { executeCommand: async () => {} }), null, "no board returns no figure");
+    assert.deepEqual(await returnZoneStash(null, layout, stash, noBoard, { executeCommand: async () => {} }), { cancelled: true, diagram: null },
+      "no board returns no figure");
     assert(noBoard.every((record) => record.zoneStash === stash), "no board keeps the stash");
     const done = records();
     let whole = 0;
@@ -201,7 +202,7 @@ async function main(): Promise<void> {
     // Replay stamps the stopped lesson's stored rows, which the server
     // completed (verify-doubt-figure-persist), so live returns every beat too.
     assert.equal(whole, 3, "a whole return stamps every beat of the stashed intro, as replay does");
-    assert(back && back !== lessonFigure, "a whole return resolves a copy of the lesson's figure");
+    assert(!back.cancelled && back.diagram && back.diagram !== lessonFigure, "a whole return resolves a copy of the lesson's figure");
     assert(done.every((record) => record.zoneStash === null), "a whole return clears the stash on both records");
   }
 

@@ -164,12 +164,22 @@ export async function returnFigureToZone(
   return shouldCancel() ? cancelled : { cancelled: false, diagram };
 }
 
-/** The lesson figure a doubt's own figure stashed (`BoardPageRecord.zoneStash`). */
-export interface ZoneStash {
-  diagram: VerifiedDiagram;
-  presentation: { diagram: VerifiedDiagram; introSegments: TutorSegment[] };
-  turnId: string | null;
-}
+/**
+ * What a doubt's own figure replaced in the zone (`BoardPageRecord.zoneStash`):
+ * the lesson figure it stashed, or nothing when the zone stood empty. An
+ * empty stash still returns: the lesson's resume clears the doubt's figure,
+ * as replay does at that resume (`pageFigureAt`, no source).
+ */
+export type ZoneStash =
+  | {
+    diagram: VerifiedDiagram;
+    presentation: { diagram: VerifiedDiagram; introSegments: TutorSegment[] };
+    turnId: string | null;
+  }
+  | { diagram: null; presentation: null; turnId: null };
+
+/** The zone stood empty. Frozen: copy it (`{ ...EMPTY_ZONE_STASH }`) before storing. */
+export const EMPTY_ZONE_STASH: Readonly<ZoneStash> = Object.freeze({ diagram: null, presentation: null, turnId: null });
 
 /**
  * The live resume's return of a stashed lesson figure. Every record in
@@ -182,6 +192,10 @@ export interface ZoneStash {
  * short still saved the whole figure (the server inserts the intro rows the
  * stopped lesson did not draw), so replay and restore stamp the whole figure
  * at this resume too.
+ *
+ * An empty stash only clears the zone: `{ cancelled: false, diagram: null }`
+ * once the doubt's figure is gone. No board, no executor or a cancel resolve
+ * `cancelled: true` and keep the stash.
  */
 export async function returnZoneStash(
   wb: WhiteboardHandle | null,
@@ -189,13 +203,18 @@ export async function returnZoneStash(
   stash: ZoneStash,
   holders: ReadonlyArray<{ zoneStash?: ZoneStash | null } | null | undefined>,
   opts: { shouldCancel?: () => boolean; executeCommand?: FigureSwapExecuteCommand },
-): Promise<VerifiedDiagram | null> {
+): Promise<{ cancelled: boolean; diagram: VerifiedDiagram | null }> {
   for (const holder of holders) if (holder) holder.zoneStash = stash;
-  const returned = wb
-    ? await returnPageFigure(wb, layout, stash.presentation, consumedDeferredIds(stash.presentation.diagram, stash.diagram), opts)
-    : null;
-  if (returned) {
+  const shouldCancel = () => Boolean(opts.shouldCancel?.());
+  let result: { cancelled: boolean; diagram: VerifiedDiagram | null } = { cancelled: true, diagram: null };
+  if (wb && stash.diagram === null) {
+    result = await clearFigureZone(wb, layout, shouldCancel) ? { cancelled: false, diagram: null } : result;
+  } else if (wb && stash.diagram && opts.executeCommand) {
+    result = await returnFigureToZone(wb, layout, stash.presentation,
+      consumedDeferredIds(stash.presentation.diagram, stash.diagram), { shouldCancel, executeCommand: opts.executeCommand });
+  }
+  if (!result.cancelled) {
     for (const holder of holders) if (holder && holder.zoneStash === stash) holder.zoneStash = null;
   }
-  return returned;
+  return result;
 }

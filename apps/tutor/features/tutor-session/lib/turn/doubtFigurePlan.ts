@@ -32,8 +32,14 @@ import {
   type TurnPlanV3Response,
 } from "@heytutor/tutor-core";
 import type { TutorSegment, VerifiedDiagram } from "@heytutor/drawing";
-import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
+import { takeDeferredAnnotations, verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
+import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { composeDoubtFigureQuestion } from "@/lib/boards/doubtFigure";
+import { lessonFigureReturnAfter, pageFigureAt, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
+import { DIAGRAM_ZONE } from "../../constants";
+import type { BoardLayoutState } from "../../types";
+import { storedFigurePresentation } from "../replay/pageFigureSync";
+import { EMPTY_ZONE_STASH, releasedEntityIds, type ZoneStash } from "../scene/figureSwap";
 import {
   DOUBT_FIGURE_NEED_DEADLINE_MS,
   pointDecision,
@@ -153,8 +159,10 @@ export function doubtFigureHoldingSegment(language: NarrationLanguage = "english
 /**
  * Why a doubt answers "point" without asking, or null when the need check runs.
  * A ring on a figure part is a question about that part. A code board's new
- * figures are out of scope in v1. Only a verified figure in the zone can be
- * stashed and returned, so an empty zone or a reference picture is pointed at.
+ * figures are out of scope in v1. A verified figure in the zone can be swapped
+ * only when it can be stashed and returned; a reference picture is pointed at.
+ * An empty zone (`zoneEmpty`: no figure, the doubt continues the page) takes a
+ * figure only when no work row reaches it (`zoneOccupied`): never draw over ink.
  */
 export function doubtFigureNeedSkip(input: {
   granted: boolean;
@@ -162,6 +170,8 @@ export function doubtFigureNeedSkip(input: {
   markedFigureIds: readonly string[];
   zoneFigure: VerifiedDiagram | null;
   zoneReturnable: boolean;
+  zoneEmpty: boolean;
+  zoneOccupied: boolean;
 }): string | null {
   if (!input.granted) return "flag_off";
   if (input.codeBoard) return "code_board";
@@ -169,8 +179,62 @@ export function doubtFigureNeedSkip(input: {
   if (marked.size > 0 && input.zoneFigure?.anchors.some((anchor) => marked.has(anchor.id.trim().toLowerCase()))) {
     return "marked_figure_part";
   }
+  if (!input.zoneFigure && input.zoneEmpty) return input.zoneOccupied ? "zone_occupied" : null;
   if (!input.zoneFigure || input.zoneFigure.id !== "verified_scene" || !input.zoneReturnable) return "zone_not_returnable";
   return null;
+}
+
+/** Clear space a figure keeps from the work column's right edge (workColumnMaxWidth). */
+const ZONE_INK_GAP = 28;
+
+/**
+ * Work ink reaches the diagram zone. With no figure the work column runs to
+ * the board's right margin, so a long row can already sit where a figure
+ * would draw: a row starting left of the zone that ends inside its gap, or
+ * any row inside the zone (with no figure, nothing there is the figure's).
+ */
+export function zoneInkOccupied(layout: BoardLayoutState): boolean {
+  return layout.rects.some((rect) => rect.x >= DIAGRAM_ZONE.x || rect.x + rect.width > DIAGRAM_ZONE.x - ZONE_INK_GAP);
+}
+
+/**
+ * A stash for a zone this tab did not draw (a restored board): the stored
+ * turn whose figure stands in the zone, rebuilt as replay builds it. `live`
+ * is the zone's figure with the marks teaching already released, so
+ * `consumedDeferredIds(presentation.diagram, live)` is what it released. Null
+ * when the stored figure is not the one in the zone.
+ */
+export function storedZoneStash(live: VerifiedDiagram, source: StoredTurn): ZoneStash | null {
+  const presentation = storedFigurePresentation(source);
+  if (!presentation.diagram || presentation.introSegments.length === 0) return null;
+  if (figureFingerprint(presentation.diagram) !== figureFingerprint(live)) return null;
+  return { diagram: live, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: source.id };
+}
+
+/**
+ * The zone stash of a restored board, read from its stored turns: what the
+ * lesson's resume must return. When the lesson's figure is in the zone it is
+ * that figure (storedZoneStash). When a doubt's own figure stands there it is
+ * what that doubt stashed: the lesson's figure with the marks its turns
+ * released, or the empty zone. Null when storage does not match the zone.
+ */
+export function storedPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDiagram): ZoneStash | null {
+  if (turns.length === 0) return null;
+  const at = pageFigureAt(turns, turns.length - 1);
+  if (at.sourceIndex === null) return null;
+  const source = turns[at.sourceIndex]!;
+  if (!storedTurnSwapsFigureIn(source)) return storedZoneStash(live, source);
+  const zone = storedFigurePresentation(source).diagram;
+  if (!zone || figureFingerprint(zone) !== figureFingerprint(live)) return null;
+  const back = lessonFigureReturnAfter(turns);
+  if (!back) return null;
+  if (back.sourceIndex === null) return { ...EMPTY_ZONE_STASH };
+  const lesson = turns[back.sourceIndex]!;
+  const presentation = storedFigurePresentation(lesson);
+  if (!presentation.diagram || presentation.introSegments.length === 0) return null;
+  const diagram = structuredClone(presentation.diagram);
+  takeDeferredAnnotations(diagram, { entityIds: releasedEntityIds(diagram, back.consumedIds) });
+  return { diagram, presentation: { diagram: presentation.diagram, introSegments: presentation.introSegments }, turnId: lesson.id };
 }
 
 /** The need check body: what the zone's figure shows, by part. */

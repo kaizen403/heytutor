@@ -21,7 +21,9 @@ import {
   doubtFigureNeedInput,
   doubtFigureNeedSkip,
   requestDoubtFigureNeed,
+  zoneInkOccupied,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+import { DIAGRAM_ZONE } from "../../features/tutor-session/constants";
 
 const root = resolve(import.meta.dirname, "../..");
 const read = (relative: string) => readFileSync(resolve(root, relative), "utf8");
@@ -80,14 +82,59 @@ async function main(): Promise<void> {
 
   // 3. Skips: a ring on the figure, a code board, the flag off, a zone that cannot be returned.
   {
-    const base = { granted: true, codeBoard: false, markedFigureIds: [] as string[], zoneFigure: figure, zoneReturnable: true };
+    const base = {
+      granted: true, codeBoard: false, markedFigureIds: [] as string[], zoneFigure: figure as VerifiedDiagram | null,
+      zoneReturnable: true, zoneEmpty: false, zoneOccupied: false,
+    };
     assert.equal(doubtFigureNeedSkip(base), null, "a doubt on a returnable verified figure asks the need check");
     assert.equal(doubtFigureNeedSkip({ ...base, markedFigureIds: ["Range"] }), "marked_figure_part", "a mark on a figure anchor skips the call");
     assert.equal(doubtFigureNeedSkip({ ...base, markedFigureIds: ["row_3"] }), null, "a mark on a work row still asks");
     assert.equal(doubtFigureNeedSkip({ ...base, codeBoard: true }), "code_board", "a code board skips the call");
     assert.equal(doubtFigureNeedSkip({ ...base, granted: false }), "flag_off", "flag off skips the call");
     assert.equal(doubtFigureNeedSkip({ ...base, zoneReturnable: false }), "zone_not_returnable", "a figure that cannot be returned is pointed at");
-    assert.equal(doubtFigureNeedSkip({ ...base, zoneFigure: null }), "zone_not_returnable", "an empty zone is not swapped in v1");
+    assert.equal(doubtFigureNeedSkip({ ...base, zoneFigure: null }), "zone_not_returnable",
+      "no figure on a zone that is not an empty page zone (a fresh page, after a replay) is pointed at");
+  }
+
+  // 3b. The skip table with an empty zone: order flag_off, code_board,
+  // marked_figure_part, zone_occupied (only when empty), zone_not_returnable.
+  {
+    const empty = {
+      granted: true, codeBoard: false, markedFigureIds: [] as string[], zoneFigure: null as VerifiedDiagram | null,
+      zoneReturnable: false, zoneEmpty: true, zoneOccupied: false,
+    };
+    const table: Array<[string, Partial<typeof empty>, string | null]> = [
+      ["an empty, unoccupied zone asks the need check", {}, null],
+      ["an empty zone that work ink reaches is refused", { zoneOccupied: true }, "zone_occupied"],
+      ["flag off comes first, even on an occupied empty zone", { granted: false, zoneOccupied: true }, "flag_off"],
+      ["a code board comes before the occupancy check", { codeBoard: true, zoneOccupied: true }, "code_board"],
+      ["a mark on a work row of an empty zone still asks", { markedFigureIds: ["row_3"] }, null],
+      ["an empty zone needs no returnable figure", { zoneReturnable: false }, null],
+      ["occupancy only counts on an empty zone", { zoneFigure: figure, zoneEmpty: false, zoneOccupied: true, zoneReturnable: true }, null],
+      ["a figure in the zone is never treated as empty", { zoneFigure: figure, zoneEmpty: true, zoneOccupied: true, zoneReturnable: false }, "zone_not_returnable"],
+      ["a marked figure part comes before occupancy", { zoneFigure: figure, zoneEmpty: false, markedFigureIds: ["range"], zoneOccupied: true }, "marked_figure_part"],
+      ["no figure and not an empty page zone is pointed at", { zoneEmpty: false }, "zone_not_returnable"],
+    ];
+    for (const [name, overrides, expected] of table) {
+      assert.equal(doubtFigureNeedSkip({ ...empty, ...overrides }), expected, name);
+    }
+
+    // The occupancy guard reads the work column's rows against the zone.
+    const rect = (x: number, width: number) => ({ x, y: 200, width, height: 30 });
+    assert.equal(zoneInkOccupied({ rects: [], nextY: 120 }), false, "an empty page is not occupied");
+    assert.equal(zoneInkOccupied({ rects: [rect(40, 300)], nextY: 240 }), false, "a row that ends short of the zone's gap leaves it free");
+    assert.equal(zoneInkOccupied({ rects: [rect(40, 332)], nextY: 240 }), false, "a row ending exactly at the gap leaves it free");
+    assert.equal(zoneInkOccupied({ rects: [rect(40, 333)], nextY: 240 }), true, "a row reaching into the gap occupies the zone");
+    assert.equal(zoneInkOccupied({ rects: [rect(40, 900)], nextY: 240 }), true, "a long text only row across the zone occupies it");
+    assert.equal(zoneInkOccupied({ rects: [rect(40, 200), rect(DIAGRAM_ZONE.x + 20, 80)], nextY: 240 }), true,
+      "any row inside the zone occupies it, with no figure there to own it");
+
+    // An empty zone's need body: no family, no parts; the prompt says so.
+    const emptyBody = doubtFigureNeedInput({ lessonQuestion: "Explain Newton's third law.", doubtTitle: "Doubt: show me the forces on a book on a table", zoneFigure: null });
+    assert.deepEqual(emptyBody.figure, { family: null, parts: [] }, "an empty zone sends no family and no parts");
+    assert(parseDoubtFigureNeedInput(emptyBody), "an empty zone's body passes the route's validation");
+    assert(buildDoubtFigureNeedMessages(emptyBody)[1]!.content.includes("Figure on the board:\n(no figure on the board)"),
+      "the model is told the board has no figure");
   }
 
   // 4. The classifier's input and output: parts, never keywords.
