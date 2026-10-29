@@ -463,6 +463,57 @@ for (const question of [
   assert.equal(opticsArchetypeStrictEligibility(question, doc, plan([["u", 30, "cm"], ["f", 20, "cm"]])).eligible, false, "strict needs the plan's own image distance row");
   assert.equal(opticsArchetypeStrictEligibility(question, doc, figurePlan(doc)).eligible, true, "with the plan's v row strict may draw");
 }
+// Review 3 over-declines, recovered only where the figure is the hand truth (Cartesian u, f, v in cm):
+// T4 a nature word bound to the object, T6 a position word with no number that u and f confirm,
+// T8 a silvered mirror (not a silvered lens) and an empty beaker as the object.
+for (const [question, truth] of [
+  ["An upright candle stands 30 cm from a convex lens of focal length 20 cm and forms an image. Find its position.", { u: -30, f: 20, v: 60 }],
+  ["An object is placed 30 cm from a convex lens of focal length 20 cm, beyond the focus. Find the image distance.", { u: -30, f: 20, v: 60 }],
+  ["An object is placed 10 cm from a convex lens of focal length 20 cm, within the focus. Find the image distance.", { u: -10, f: 20, v: -20 }],
+  ["An object is placed 50 cm from a concave mirror of focal length 20 cm, beyond the centre of curvature. Find the image distance.", { u: -50, f: -20, v: -33.333333 }],
+  ["A silvered concave mirror of focal length 10 cm has an object 30 cm in front of it. Find the image distance.", { u: -30, f: -10, v: -15 }],
+  ["An empty beaker 6 cm tall stands 30 cm in front of a concave mirror of focal length 10 cm. Find the image distance.", { u: -30, f: -10, v: -15 }],
+] as Array<[string, Record<string, number>]>) {
+  assert.equal(opticsConfigurationIssue(question), null, `one plain configuration: ${question}`);
+  const doc = attemptArchetypeScene({ question }).scene?.document;
+  assert.ok(doc, `draws: ${question}`);
+  assert.deepEqual(figureQuantities(doc), truth, `the hand truth: ${question}`);
+  assert.deepEqual(opticsArchetypePlanAgreement(doc, figurePlan(doc), question).issues, [], `the honest plan agrees: ${question}`);
+}
+assert.equal(opticsArchetypeStrictEligibility("An upright candle stands 30 cm from a convex lens of focal length 20 cm and forms an image. Find its position.",
+  attemptArchetypeScene({ question: "An upright candle stands 30 cm from a convex lens of focal length 20 cm and forms an image. Find its position." }).scene!.document,
+  plan([["u", 30, "cm"], ["f", 20, "cm"], ["v", 60, "cm"]])).eligible, true, "T4: strict draws the upright candle's real image");
+// Still declined: a position word that u and f contradict, a number tied to the focus, a convex mirror's focus,
+// a silvered lens or glass, and a container with a liquid or no word that it is empty.
+for (const question of [
+  "An object is placed 10 cm from a convex lens of focal length 20 cm, beyond the focus. Find the image distance.",
+  "An object is placed 30 cm from a convex lens of focal length 20 cm, within the focus. Find the image distance.",
+  "An object is placed 30 cm from a concave mirror of focal length 20 cm, beyond C. Find the image distance.",
+  "An object is placed beyond the focus of a convex lens of focal length 20 cm, 10 cm from it.",
+  "An object is placed beyond the focus of a convex lens of focal length 5 cm, 10 cm from it.",
+  "An object is placed 30 cm from a convex mirror of focal length 20 cm, beyond the focus. Find the image distance.",
+  "An object is placed 30 cm from a mirror of focal length 20 cm, beyond the focus. Find the image distance.",
+  "An object is placed 30 cm from a convex lens of focal length 20 cm, beyond F2. Find the image distance.",
+  "A silvered convex lens of focal length 20 cm has an object 30 cm in front of it.",
+  "A concave mirror of focal length 10 cm is silvered on its back surface. An object is 30 cm in front of it.",
+  "A silvered concave mirror made of thick glass has focal length 10 cm. An object is 30 cm in front of it.",
+  "An empty beaker is then filled with water. A concave mirror of focal length 10 cm is 30 cm above it.",
+  "A beaker stands 30 cm in front of a concave mirror of focal length 10 cm. Find the image distance.",
+  "A coin lies at the bottom of an empty tank. A convex lens of focal length 20 cm is held 30 cm above the coin.",
+]) {
+  assert.ok(opticsConfigurationIssue(question), `not one plain configuration: ${question}`);
+  assert.equal(attemptArchetypeScene({ question }).scene, null, `no figure: ${question}`);
+}
+// T4: nature words bound to the image are still read; words bound to the object are not.
+for (const [question, nature] of [
+  ["An upright candle stands 30 cm from a convex lens and forms an image.", {}],
+  ["A pin stands erect 20 cm from the lens and the image is inverted.", { inverted: true }],
+  ["A convex lens forms an inverted image of an upright candle.", { inverted: true }],
+  ["The image of the candle is inverted.", { inverted: true }],
+  ["An upright object stands on the axis and forms a virtual erect image.", { real: false, inverted: false }],
+] as Array<[string, Record<string, boolean>]>) {
+  assert.deepEqual(imageNatureFromStem(question), nature, question);
+}
 assert.equal(attemptArchetypeScene({ question: "An object is 10 cm from the mirror's focus." }).match?.slots.u, undefined, "a distance from the focus is not u");
 assert.equal(attemptArchetypeScene({ question: "An object is 10 cm from the focus of the lens." }).match?.slots.u, undefined, "a distance from the lens's focus is not u");
 

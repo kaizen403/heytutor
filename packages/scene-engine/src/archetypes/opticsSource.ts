@@ -300,22 +300,74 @@ export function opticsConfigurationIssue(question: string): string | null {
   // Nothing but a second body sits between the element and its image.
   if (/\b(?:inserted|introduced|interposed)\b|\bbetween\s+(?:the\s+)?(?:lens|mirror)\s+and\s+(?:the\s+)?(?:image|screen)\b|\bbetween\s+(?:the\s+)?(?:image|screen)\s+and\s+(?:the\s+)?(?:lens|mirror)\b/i.test(stem)) return "a second body between the element and the image";
   if (/\b(?:immersed|immersion|submerged|dipped)\b/i.test(stem)) return "an element immersed in a medium";
-  if (/\bsilver(?:ed|ing)\b|\bhemispher\w*/i.test(stem)) return "a silvered or curved second surface";
-  if (/\b(?:filled\s+with|containing|contains|full\s+of)\s+(?:\w+\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol)\b|\b(?:beaker|tank|vessel|pond|pool)\b/i.test(stem)) return "a medium other than air";
+  if (/\bhemispher\w*/i.test(stem) || (/\bsilver(?:ed|ing)\b/i.test(stem) && !silveredMirrorOnly(stem))) return "a silvered or curved second surface";
+  if (/\b(?:filled\s+with|containing|contains|full\s+of)\s+(?:\w+\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol)\b/i.test(stem)) return "a medium other than air";
+  // A container holds a medium unless the stem says it is empty and names no liquid.
+  if (/\b(?:beakers?|tanks?|vessels?|ponds?|pools?)\b/i.test(stem) && !(EMPTY_CONTAINER.test(stem) && !LIQUID.test(stem) && !/\b(?:beakers?|tanks?|vessels?|ponds?|pools?)\b/i.test(stem.replace(EMPTY_CONTAINER_G, " ")))) return "a medium other than air";
   if (/\b(?:in|into|under|inside)\s+(?:a\s+|the\s+)?(?:water|oil|liquid|glycerine|glycerin|alcohol|benzene|kerosene|medium)\b|\bglass\s+medium\b|\b(?:water|oil|liquid)\s+(?:of|with)\s+refractive\s+index\b|\brefractive\s+index\s+of\s+(?:the\s+)?(?:surround\w*|medium|liquid|water|oil)\b|\bsurrounding\s+medium\b/i.test(stem)) return "a medium other than air";
   if (/\b(?:is|was|then|now|gets?|being)\s+(?:\w+\s+)?(?:moved|shifted|displaced|brought|pushed|pulled)\b|\bmoved\s+(?:to|towards?|away|closer|by|through)\b|\b(?:second|new|two|both|other)\s+positions?\b|\b(?:second|another|two|both)\s+(?:objects?|pins?|candles?|images?)\b/i.test(stem)) return "an object or element in more than one position";
   // A second situation: "if the object is then placed", "now the object is placed", "replaced by another".
   if (/\b(?:then|now|later|next|again|subsequently)\b[^.?!;]{0,40}?\b(?:placed|kept|put|positioned|located|replaced|changed|reversed|turned)\b|\bis\s+then\b|\breplaced\s+(?:by|with)\b|\banother\b|\binstead\b/i.test(stem)) return "an object or element in more than one position";
   if (/\bdisplacement\s+method\b|\bconjugate\b/i.test(stem)) return "the displacement method";
   // A distance from the focus or the centre of curvature (Newton's form) is not u.
-  if (/\d\s*(?:cm|mm|m)\b/.test(stem) && (
-    /\b(?:from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+|its\s+|a\s+)?(?:[\w'’]+\s+)?(?:principal\s+|first\s+|second\s+)?(?:focus|foci|focal\s+point|cent(?:re|er)\s+of\s+curvature)\b/i.test(stem)
-    || /\b(?:from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+)?(?:2F|F|C|F1|F2|2F1|2F2)(?![\w'’])/.test(stem))) return "a distance measured from the focus or the centre of curvature";
+  if (/\d\s*(?:cm|mm|m)\b/.test(stem) && focusPhrases(stem).some((phrase) => !positionAgrees(stem, phrase))) return "a distance measured from the focus or the centre of curvature";
   const separation = new RegExp(`${STEM_NUMBER}\\s*(?:${LENGTH_UNIT})\\b\\s*(?:away\\s+)?(?:from|apart\\s+from)\\s+(?:the\\s+|a\\s+|an\\s+|its\\s+)?(?:[\\w-]+\\s+){0,2}?(?:screen|wall|object|candle|flame|source|lamp|bulb)\\b`, "i");
   if (/\b(?:screen|wall)\b/i.test(stem) && (separation.test(stem) || /\bbetween\s+(?:the\s+)?(?:[\w-]+\s+)?(?:object|candle|flame|source|lamp|bulb)\s+and\s+(?:the\s+)?(?:screen|wall)\b|\bbetween\s+(?:the\s+)?(?:screen|wall)\s+and\s+(?:the\s+)?(?:object|candle|flame|source|lamp|bulb)\b/i.test(stem))) {
     return "an object to screen separation";
   }
   return null;
+}
+
+/** "A silvered concave mirror": every silver word names the mirror itself, and no lens, glass or back surface is in the stem. */
+function silveredMirrorOnly(stem: string): boolean {
+  const words = [...stem.matchAll(/\bsilver(?:ed|ing)\b/gi)];
+  return words.every((match) => /^\s+(?:(?:concave|convex|spherical|converging|diverging|curved|parabolic)\s+){0,2}mirror\b/i.test(stem.slice(match.index! + match[0].length)))
+    && !/\b(?:lens(?:es)?|glass|surfaces?|faces?|back|rear|thick|plano[\w-]*|sphere)\b/i.test(stem);
+}
+
+const LIQUID = /\b(?:water|oil|liquid|glycerine|glycerin|alcohol|benzene|kerosene|medium|refractive|filled|full|depth|deep|bottom|immersed|submerged)\b/i;
+const EMPTY_CONTAINER = /\bempty\s+(?:glass\s+)?(?:beakers?|tanks?|vessels?|ponds?|pools?)\b/i;
+const EMPTY_CONTAINER_G = new RegExp(EMPTY_CONTAINER.source, "gi");
+
+interface FocusPhrase { word: string; mark: "focus" | "centre"; at: number; end: number }
+
+/** Every "from / beyond / inside ... the focus (F, 2F, C, centre of curvature)" in the stem. */
+function focusPhrases(stem: string): FocusPhrase[] {
+  const named = /\b(from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+|its\s+|a\s+)?(?:[\w'’]+\s+)?(?:principal\s+|first\s+|second\s+)?(focus|foci|focal\s+point|cent(?:re|er)\s+of\s+curvature)\b/gi;
+  const symbol = /\b(from|beyond|behind|inside|outside|past|before|within)\s+(?:the\s+)?(2F|F|C|F1|F2|2F1|2F2)(?![\w'’])/g;
+  return [...stem.matchAll(named), ...stem.matchAll(symbol)].map((match) => ({
+    word: match[1]!.toLowerCase(),
+    mark: /^(?:cent|C$|2F)/i.test(match[2]!) ? "centre" as const : "focus" as const,
+    at: match.index!,
+    end: match.index! + match[0].length,
+  }));
+}
+
+/**
+ * A position word with no number of its own ("30 cm from a convex lens of
+ * focal length 20 cm, beyond the focus") is not a distance from the focus:
+ * it may stay only when the stem's own u and f put the object there (beyond
+ * means |u| > f, or > 2f for C or 2F; inside or within means less), the
+ * element is a lens or a concave mirror, and no number sits in the
+ * phrase's clause or after it in its sentence. Anything else declines.
+ */
+function positionAgrees(stem: string, phrase: FocusPhrase): boolean {
+  if (!["beyond", "outside", "past", "inside", "within"].includes(phrase.word)) return false;
+  if (/\b(?:F1|F2|2F1|2F2)\b/.test(stem.slice(phrase.at, phrase.end))) return false;
+  const clause = clauseBefore(stem, phrase.at);
+  const sentenceEnd = stem.slice(phrase.end).search(/[.;?!](?!\d)/);
+  const after = sentenceEnd < 0 ? stem.slice(phrase.end) : stem.slice(phrase.end, phrase.end + sentenceEnd);
+  if (/\d/.test(clause) || /\d/.test(after)) return false;
+  if (/\b(?:convex|diverging)\s+mirrors?\b/i.test(stem) || (/\bmirrors?\b/i.test(stem) && !/\b(?:concave|converging)\s+mirrors?\b/i.test(stem))) return false;
+  const u = objectDistanceFromStem(stem);
+  const f = focalLengthFromStem(stem) ?? (() => {
+    const radius = radiusOfCurvatureFromStem(stem);
+    return radius ? { ...radius, cm: radius.cm / 2 } : null;
+  })();
+  if (!u || !f || f.cm === 0) return false;
+  const mark = Math.abs(f.cm) * (phrase.mark === "centre" ? 2 : 1);
+  const beyond = ["beyond", "outside", "past"].includes(phrase.word);
+  return beyond ? Math.abs(u.cm) > mark * (1 + 1e-9) : Math.abs(u.cm) < mark * (1 - 1e-9);
 }
 
 /** Every power in dioptres the stem states ("+5.0 D", "-2.0 dioptre"), signed. */
@@ -404,6 +456,11 @@ export function imageNatureFromStem(question: string): StatedImageNature {
   // ("a real image", "the image is erect"), never the object ("stands upright").
   const says = (word: RegExp) => sentences.some((sentence) => [...sentence.matchAll(new RegExp(word.source, "gi"))].some((match) => {
     const at = match.index ?? 0;
+    // "An upright candle", "a pin stands erect": a word bound to the object describes the object.
+    const rest = sentence.slice(at + match[0].length);
+    if (new RegExp(String.raw`^[\s,]+(?:(?!images?\b)[\w-]+[\s,]+){0,2}?${OBJECT_NOUN.source.slice(2, -2)}\b`, "i").test(rest) &&
+      !/^[\s,]+(?:(?!images?\b)[\w-]+[\s,]+){0,2}?images?\b/i.test(rest)) return false;
+    if (/\b(?:stands?|standing|stood|held|placed|kept|positioned|mounted)\s+$/i.test(sentence.slice(0, at))) return false;
     const nouns = [...sentence.matchAll(/\b(images?|objects?)\b/gi)];
     const nearest = nouns.sort((a, b) => Math.abs((a.index ?? 0) - at) - Math.abs((b.index ?? 0) - at))[0];
     return nearest !== undefined && /^image/i.test(nearest[1]!);
