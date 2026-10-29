@@ -287,6 +287,7 @@ export type UseSegmentRunnerParams = Pick<
   | "reserveTextCommandPlacements"
   | "onSpeechStartupStatus"
   | "onVoiceDegraded"
+  | "lessonFiguresRef"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };

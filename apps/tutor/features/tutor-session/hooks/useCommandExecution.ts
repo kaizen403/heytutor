@@ -490,11 +490,20 @@ export function useCommandExecution({
       const lessonFigures = lessonFiguresRef?.current ?? null;
       const advanceId = lessonFigures?.advanceIdOf(command) ?? null;
       if (lessonFigures && advanceId) {
-        const view = lessonFigures.advanceTo(advanceId);
+        const refusal = lessonFigures.refusalOf(advanceId);
+        const view = refusal === null ? lessonFigures.advanceTo(advanceId) : null;
         if (!view) {
-          turnTelemetryRef.current?.mark("lesson-figure-advance-refused", { figure_id: advanceId });
+          // Review N6: the zone keeps its figure and the row is saved without
+          // this cue (savedCommandFilter), so replay stays where live stayed.
+          const refused = { figure_id: advanceId, reason: refusal ?? "not_held" };
+          turnTelemetryRef.current?.mark("lesson-figure-advance-refused", refused);
+          tutorDebug("draw", "lesson figure advance refused", refused);
           return;
         }
+        // Review F2: from here the lesson is on figure k. The erase is ink the
+        // student sees, so the cue's row is saved with the cue; a Stop part
+        // way leaves figure k pending, finished whole by the next turn.
+        options.onInkStarted?.();
         const advanceScale = options.durationScale ?? 1;
         erasePinnedInkOf(wb);
         const cleared = await clearFigureZone(wb, options.introLayoutCheckpoint?.layout ?? boardLayoutRef.current, commandCancelled);
@@ -518,6 +527,8 @@ export function useCommandExecution({
             ...(stamp ? { durationScale: advanceScale } : share === undefined ? {} : { speechDurationMs: share }),
           });
         }
+        if (commandCancelled()) return;
+        lessonFigures.introDone(view);
         turnTelemetryRef.current?.mark("lesson-figure-advance", {
           figure_id: view.id,
           family: view.family,

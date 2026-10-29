@@ -7,6 +7,13 @@
  * moves to one with `[FOCUS:figure_k]`, forward only. It names a figure; the
  * runtime draws that figure's verified intro, never anything the model wrote.
  *
+ * An advance is one step from the moment it starts (review F2). The cursor
+ * moves and the cue's row counts as shown before the zone is erased, so a
+ * Stop saves the cue; a Stop part way leaves the figure `pendingIntro`, and
+ * the next turn on the page draws it whole first (`finishLessonFigureAdvance`),
+ * as replay stands it. A cue the cursor never reached (Stop before it, or a
+ * refused advance) is not saved (`savedCommandFilter`).
+ *
  * Two cursors read this sequence and they must not be confused:
  * - playback (`advanceTo`), moved by the executor when the cue plays;
  * - preparation (`diagramAfter`), which segment preparation reads while the
@@ -26,6 +33,8 @@ import {
 import { LESSON_FIGURE_IDS, isLessonFigureAdvanceId, type LessonFigureId } from "@/lib/boards/lessonFigures";
 import { describeSceneFamily } from "@heytutor/scene-engine";
 import type { LaterFigurePrompt } from "../turn/turnTeachingPrompt";
+import type { BoardLayoutState } from "../../types";
+import { returnFigureToZone, type FigureSwapExecuteCommand, type ZoneBoard } from "./figureSwap";
 
 export interface LessonFigurePresentation {
   diagram: VerifiedDiagram;
@@ -66,17 +75,23 @@ export function lessonFigureAdvanceOf(
   return indexOf(target) > after ? target : null;
 }
 
+/** Why an advance id was refused (review N6), for telemetry. */
+export type LessonFigureRefusal = "no_sequence" | "not_held" | "not_forward" | "zone_held";
+
 export class LessonFigureSequence {
   private first: LessonFigurePresentation | null = null;
   private rest: PlannedLessonFigureView[] = [];
   private index = -1;
   private hooks: LessonFigureSequenceHooks = {};
+  /** The figure an advance started and has not finished drawing (Stop part way). */
+  private pending: PlannedLessonFigureView | null = null;
 
   commit(first: LessonFigurePresentation, rest: readonly PlannedLessonFigureView[], hooks: LessonFigureSequenceHooks = {}): void {
     this.first = first;
     this.rest = [...rest].sort((a, b) => indexOf(a.id) - indexOf(b.id));
     this.index = -1;
     this.hooks = hooks;
+    this.pending = null;
   }
 
   reset(): void {
@@ -84,6 +99,7 @@ export class LessonFigureSequence {
     this.rest = [];
     this.index = -1;
     this.hooks = {};
+    this.pending = null;
   }
 
   /** A sequence with at least one later figure. */
@@ -108,19 +124,53 @@ export class LessonFigureSequence {
     return this.first ? lessonFigureAdvanceOf(command, (id) => this.has(id), this.index) : null;
   }
 
-  /** Forward only: returns the figure to draw, or null when id is not strictly after the current one. */
+  /**
+   * Forward only: returns the figure to draw, or null when id is not strictly
+   * after the current one. The returned figure is pending until `introDone`.
+   */
   advanceTo(id: LessonFigureId): PlannedLessonFigureView | null {
-    if (!this.first) return null;
-    const view = this.rest.find((candidate) => candidate.id === id);
-    if (!view || indexOf(id) <= this.index) return null;
-    if (this.hooks.mayAdvance && !this.hooks.mayAdvance(id)) return null;
+    if (this.refusalOf(id) !== null) return null;
+    const view = this.rest.find((candidate) => candidate.id === id)!;
     this.index = indexOf(id);
+    this.pending = view;
     return view;
+  }
+
+  /** Why `advanceTo(id)` refuses now, or null when it would advance. */
+  refusalOf(id: LessonFigureId): LessonFigureRefusal | null {
+    if (!this.first) return "no_sequence";
+    if (!this.has(id)) return "not_held";
+    if (indexOf(id) <= this.index) return "not_forward";
+    if (this.hooks.mayAdvance && !this.hooks.mayAdvance(id)) return "zone_held";
+    return null;
   }
 
   /** Tell the page the zone now holds `view`. */
   advanced(view: PlannedLessonFigureView): void {
     this.hooks.onAdvanced?.(view);
+  }
+
+  /** Figure `view`'s intro is whole on the board. */
+  introDone(view: PlannedLessonFigureView): void {
+    if (this.pending === view) this.pending = null;
+  }
+
+  /** The figure an advance started and a Stop left part drawn, or null. */
+  pendingIntro(): PlannedLessonFigureView | null {
+    return this.pending;
+  }
+
+  /**
+   * Whether a played row may be saved with `command`. Only an advance cue the
+   * playback cursor never reached is not: live never moved to that figure, so
+   * replay must not either. Every other command is kept.
+   */
+  savesCommand(command: Pick<DrawCommand, "type" | "text" | "semanticRef">): boolean {
+    if (!this.first || command.type !== "FOCUS") return true;
+    const spec = parseFocusSpec(command.semanticRef?.entityId ?? command.text);
+    const target = spec.targetIds.length === 1 ? spec.targetIds[0]!.trim() : "";
+    if (!isLessonFigureAdvanceId(target) || !this.has(target)) return true;
+    return indexOf(target) <= this.index;
   }
 
   /**
@@ -136,6 +186,40 @@ export class LessonFigureSequence {
     }
     return index < 0 ? this.first.diagram : this.rest.find((view) => indexOf(view.id) === index)!.diagram;
   }
+}
+
+/**
+ * The filter a played row's commands pass before it is saved, or undefined
+ * when no lesson sequence is active (flag off: the row is saved as before).
+ * Read when the row is saved, so a Stop sees the cursor as it stood.
+ */
+export function savedCommandFilter(
+  sequence: LessonFigureSequence | null | undefined,
+): ((command: DrawCommand) => boolean) | undefined {
+  if (!sequence || !sequence.active()) return undefined;
+  return (command) => sequence.savesCommand(command);
+}
+
+/**
+ * Review F2: an advance a Stop cut part way (zone half erased, or figure k
+ * part drawn) is finished before the next turn on the page reads the zone:
+ * figure k returned whole at duration 0, as replay stands it from the saved
+ * cue. Null when nothing is pending, there is no board, or it was cancelled
+ * (it stays pending for the next turn).
+ */
+export async function finishLessonFigureAdvance(
+  wb: ZoneBoard | null,
+  layout: BoardLayoutState | null,
+  sequence: LessonFigureSequence | null | undefined,
+  opts: { shouldCancel?: () => boolean; executeCommand: FigureSwapExecuteCommand },
+): Promise<PlannedLessonFigureView | null> {
+  const view = sequence?.pendingIntro() ?? null;
+  if (!sequence || !view || !wb) return null;
+  const result = await returnFigureToZone(wb, layout, view, [], opts);
+  if (result.cancelled) return null;
+  sequence.advanced(view);
+  sequence.introDone(view);
+  return view;
 }
 
 /** Figure k's intro ink: exactly the commands its intro beats draw (withheld labels stay withheld). */

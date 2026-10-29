@@ -35,7 +35,7 @@ export type FigureSwapExecuteCommand = (
   },
 ) => Promise<void>;
 
-type ZoneBoard = Pick<WhiteboardHandle, "eraseSceneInk"> & Partial<Pick<WhiteboardHandle, "erasePinnedInk">>;
+export type ZoneBoard = Pick<WhiteboardHandle, "eraseSceneInk"> & Partial<Pick<WhiteboardHandle, "erasePinnedInk">>;
 
 /**
  * Scene ink, kept rings and the figure's rects leave; the work column stays.

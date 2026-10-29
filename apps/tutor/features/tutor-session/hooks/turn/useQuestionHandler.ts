@@ -119,7 +119,7 @@ import {
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
-import { laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
+import { finishLessonFigureAdvance, laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
 import { lessonFiguresArtifact, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
@@ -699,6 +699,34 @@ export function useQuestionHandler(
         // A fresh page: nothing a stopped replay left is on the board now.
         boardShowsStoppedReplayRef.current = false;
       }
+      // lesson-figure-finish:begin
+      // A Stop cut a lesson advance part way (review F2): figure 1 half erased
+      // or figure k part drawn, while the saved cue makes replay stand figure
+      // k whole. The doubt or resume on this page draws it whole first, before
+      // anything reads the zone, so live teaches on the figure replay shows.
+      if ((doubt || resume) && lessonFiguresRef?.current?.pendingIntro()) {
+        const finished = await finishLessonFigureAdvance(whiteboardRef.current, boardLayoutRef.current, lessonFiguresRef.current, {
+          shouldCancel: () => !canContinueTurnAfterAsync({
+            turnGeneration,
+            activeTurnGeneration: turnGenerationRef.current,
+            cancelled: cancelRef.current,
+            aborted: abortController.signal.aborted,
+          }),
+          executeCommand: executeCommandWithCancel,
+        });
+        if (turnGeneration !== turnGenerationRef.current) {
+          return;
+        }
+        if (finished) {
+          activeVerifiedDiagramRef.current = finished.diagram;
+          setActiveVerifiedDiagram?.(finished.diagram);
+          for (const anchor of finished.diagram.anchors) {
+            registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+          }
+          tutorDebug("draw", "lesson figure advance finished", { figure_id: finished.id });
+        }
+      }
+      // lesson-figure-finish:end
       // Set after the epoch: the page it captured belongs to the previous
       // question, and a doubt raised meanwhile still names the lesson it stops.
       liveQuestionRef.current = doubt

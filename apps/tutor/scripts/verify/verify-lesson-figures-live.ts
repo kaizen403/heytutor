@@ -8,6 +8,14 @@
  * (c) prepare against the static diagram at either call site;
  * (d) print anchor coordinates in the prompt's LATER FIGURES block;
  * (e) drop `!resume` from the uQH planning condition.
+ *
+ * Lane 8a (round 2 review F2, N6):
+ * (f) the executor does not mark the cue's row shown when the advance starts;
+ * (g) advanceTo leaves nothing pending (a Stop part way is never finished);
+ * (h) uQH `lesson-figure-finish` drops the finish call;
+ * (i) savesCommand keeps a cue the cursor never reached;
+ * (j) the live save's cut row ignores savesCommand;
+ * (k) the refused advance is recorded without its reason.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -25,12 +33,16 @@ import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFig
 import { planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
 import {
   LessonFigureSequence,
+  finishLessonFigureAdvance,
   laterFigurePromptOf,
   lessonFigureIntroCommands,
   prepareLessonFigureSegments,
+  savedCommandFilter,
   type LessonFigurePresentation,
   type PlannedLessonFigureView,
 } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
+import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 import { buildTurnTeachingPrompt, laterFiguresPromptAddon } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
@@ -135,6 +147,33 @@ async function sequenceChecks(): Promise<void> {
     stash = false;
     assert.equal(sequence.advanceTo("figure_2"), view2);
   });
+  await check("sequence/pending-refusal-and-saved-cues", () => {
+    const cue = { type: "FOCUS" as const, text: "figure_2", semanticRef: { entityId: "figure_2" } };
+    const part = { type: "FOCUS" as const, text: view2.diagram.anchors[0]!.id, semanticRef: { entityId: view2.diagram.anchors[0]!.id } };
+    assert.equal(savedCommandFilter(null), undefined, "no sequence: rows are saved as before");
+    assert.equal(savedCommandFilter(new LessonFigureSequence()), undefined, "an inactive sequence: rows are saved as before");
+    let stash = false;
+    const sequence = committed([view2], { mayAdvance: () => !stash });
+    const saves = savedCommandFilter(sequence)!;
+    assert.equal(saves(cue as DrawCommand), false, "a cue the cursor never reached is not saved");
+    assert.equal(saves(part as DrawCommand), true, "any other command is saved");
+    stash = true;
+    assert.equal(sequence.refusalOf("figure_2"), "zone_held");
+    assert.equal(sequence.advanceTo("figure_2"), null);
+    assert.equal(saves(cue as DrawCommand), false, "a refused cue is not saved either");
+    stash = false;
+    assert.equal(sequence.pendingIntro(), null);
+    assert.equal(sequence.advanceTo("figure_2"), view2);
+    assert.equal(sequence.pendingIntro(), view2, "a started advance is pending until its intro is whole");
+    assert.equal(saves(cue as DrawCommand), true, "a started advance is saved");
+    assert.equal(sequence.refusalOf("figure_2"), "not_forward");
+    sequence.introDone(view2);
+    assert.equal(sequence.pendingIntro(), null);
+    sequence.advanceTo("figure_3");
+    assert.equal(sequence.refusalOf("figure_3"), "not_held");
+    sequence.reset();
+    assert.equal(sequence.refusalOf("figure_2"), "no_sequence");
+  });
   await check("sequence/diagram-after", () => {
     const sequence = committed();
     assert.equal(sequence.diagramAfter([]), first.diagram, "before any cue: figure 1");
@@ -181,12 +220,14 @@ function boardFixture(diagram: VerifiedDiagram | null, sequence: LessonFigureSeq
   board.setTimeSource(clock.source);
   const activeVerifiedDiagramRef = ref<VerifiedDiagram | null>(diagram);
   const published: Array<VerifiedDiagram | null> = [];
+  const marks: Array<{ name: string; data: Record<string, unknown> }> = [];
+  const telemetry = { mark: (name: string, data: Record<string, unknown> = {}) => { marks.push({ name, data }); } };
   const executor = hook({
     whiteboardRef: ref(board), cancelRef: ref(false), activeVerifiedDiagramRef,
     fbdPhaseStartedRef: ref(false), fbdPhaseMarkedRef: ref(false),
     boardLayoutRef: ref({ rects: [], nextY: 100 }), inkPaceRef: ref("follow"),
     speedRef: ref(1), adaptiveFactorRef: ref(1), forceSequentialWorkLayoutRef: ref(false),
-    turnTelemetryRef: ref(null), notesEpochsRef: ref([]), narrationSinceEpochRef: ref(""),
+    turnTelemetryRef: ref(telemetry as never), notesEpochsRef: ref([]), narrationSinceEpochRef: ref(""),
     raceWithCancel: async (promise) => promise,
     resolveTextPlacement: async (_command, x, y) => ({ x, y }),
     cancellableDelay: async () => {}, forgetErasedTextRects() {}, resetBoardLayout() {},
@@ -204,6 +245,42 @@ function boardFixture(diagram: VerifiedDiagram | null, sequence: LessonFigureSeq
     assert(settled, `${command.type} ${command.text ?? ""} finishes`);
     await job;
   };
+  /** Run `command` and cancel it (a Stop) once `stopWhen` holds; returns whether onInkStarted fired. */
+  const runUntilStop = async (
+    command: DrawCommand,
+    options: Parameters<typeof executor.executeCommandWithCancel>[1],
+    stopWhen: () => boolean,
+    stop: { cancelled: boolean } = { cancelled: false },
+  ) => {
+    let settled = false;
+    let shown = false;
+    const job = executor.executeCommandWithCancel(command, {
+      ...options, onInkStarted: () => { shown = true; }, isCancelled: () => stop.cancelled,
+    }).then(() => { settled = true; });
+    await flush();
+    for (let elapsed = 0; !settled && elapsed < 60_000; elapsed += 64) {
+      if (!stop.cancelled && stopWhen()) stop.cancelled = true;
+      clock.advance(64); clock.pump(); await flush();
+    }
+    assert(settled, `${command.type} ${command.text ?? ""} stops`);
+    await job;
+    return { shown, stopped: stop.cancelled };
+  };
+  /** The next turn's finish, pumped on the virtual clock. */
+  const finish = async (sequence: LessonFigureSequence) => {
+    let settled = false;
+    let result: PlannedLessonFigureView | null = null;
+    const job = finishLessonFigureAdvance(board, null, sequence, {
+      executeCommand: (next, opts) => executor.executeCommandWithCancel(next, { ...opts }),
+    }).then((value) => { result = value; settled = true; });
+    await flush();
+    for (let elapsed = 0; !settled && elapsed < 60_000; elapsed += 64) {
+      clock.advance(64); clock.pump(); await flush();
+    }
+    assert(settled, "the finish completes");
+    await job;
+    return result as PlannedLessonFigureView | null;
+  };
   const stamp = async (commands: readonly DrawCommand[]) => {
     for (const command of commands) await run(command, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene", durationScale: 0 });
   };
@@ -214,7 +291,7 @@ function boardFixture(diagram: VerifiedDiagram | null, sequence: LessonFigureSeq
   const sceneData = () => new Set(board.getDrawLayer()!.getChildren()
     .filter((node: Konva.Node) => node.getAttrs().htInk === "scene")
     .map((node: Konva.Node) => String(node.getAttr("data"))));
-  return { board, executor, run, stamp, sceneInk, sceneData, activeVerifiedDiagramRef, published };
+  return { board, executor, run, runUntilStop, finish, stamp, sceneInk, sceneData, activeVerifiedDiagramRef, published, marks };
 }
 
 const advanceCue = (id = "figure_2"): DrawCommand => ({
@@ -267,6 +344,98 @@ async function executorChecks(): Promise<void> {
       } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
     });
   }
+  // Review F2: a Stop part way through an advance. The cue's row counts as
+  // shown (saved with the cue, so replay stands figure 2 whole); figure 2 is
+  // pending, and the next turn's finish leaves the zone exactly figure 2.
+  const savedCue = (sequence: LessonFigureSequence, shown: boolean) => {
+    const registry = new LiveTurnSaveRegistry({
+      transport: { checkpoint: () => new Promise(() => {}), close: () => new Promise(() => {}) },
+      setTimer: () => 0, clearTimer: () => {}, now: () => 0, isOnline: () => false, mintId: () => "t1",
+    });
+    const owner = {};
+    const handle = registry.begin({ owner, generation: 1, boardId: "b1", traceId: "tr", kind: "lesson", question: "q", preview: "q", speedMultiplier: 1, continuesBoard: false });
+    const saves = savedCommandFilter(sequence);
+    const prepared = registry.prepareSegment(owner, 1, {
+      orderIndex: 0, narration: "Now the forces.", spokenText: "Now the forces.",
+      command: serializeSegmentCommands([advanceCue(), { ...advanceCue(view2.diagram.anchors[0]!.id) }]), audioBytes: null, durationMs: null, timings: null,
+    }, { intro: false, ...(saves ? { savesCommand: saves } : {}) })!;
+    if (shown) prepared.markShown();
+    registry.captureShown(owner);
+    return handle.submittedRows().flatMap((one) => parseStoredSegmentCommands(one.command))
+      .filter((command) => command.type === "FOCUS").map((command) => command.text ?? "");
+  };
+  for (const at of ["erase", "intro"] as const) {
+    await check(`executor/stop-in-the-${at}-finishes-figure-2`, async () => {
+      const advanced: string[] = [];
+      const sequence = committed([view2], { onAdvanced: (view: PlannedLessonFigureView) => advanced.push(view.id) });
+      const f = boardFixture(first.diagram, sequence);
+      try {
+        await f.stamp(introOf(first));
+        const stop = { cancelled: false };
+        const figureOne = f.sceneInk();
+        if (at === "erase") {
+          // Stop lands inside the zone erase: figure 1 stays, nothing of figure 2 is drawn.
+          const erase = f.board.eraseSceneInk.bind(f.board);
+          f.board.eraseSceneInk = ((duration: number, cancel?: () => boolean) => { stop.cancelled = true; return erase(duration, cancel); }) as typeof f.board.eraseSceneInk;
+        }
+        const drawn = () => [...expectedData].filter((data) => f.sceneData().has(data)).length;
+        const run = await f.runUntilStop(advanceCue(), { speechDurationMs: 4000 },
+          () => at === "intro" && f.activeVerifiedDiagramRef.current === view2.diagram && drawn() > 0, stop);
+        assert(run.stopped, "the Stop landed");
+        assert(run.shown, "the advance marked its row shown before the erase");
+        assert.equal(sequence.pendingIntro(), view2, "figure 2 is pending");
+        assert.equal(sequence.currentId(), "figure_2", "the cursor moved when the advance started");
+        if (at === "intro") {
+          assert(drawn() > 0 && drawn() < expectedData.size, `figure 2 is part drawn (${drawn()} of ${expectedData.size})`);
+        } else {
+          assert.equal(f.activeVerifiedDiagramRef.current, first.diagram, "the zone still reads figure 1");
+          assert.notDeepEqual(f.sceneInk(), expected, "figure 2 is not on the board");
+          assert(figureOne.length > 0);
+        }
+        assert.deepEqual(savedCue(sequence, run.shown), ["figure_2", view2.diagram.anchors[0]!.id], "the cut row is saved with its cue: replay stands figure 2");
+        assert.deepEqual(advanced, at === "erase" ? [] : ["figure_2"], at === "erase" ? "the page was never told" : "the page was told when the zone cleared");
+        const finished = await f.finish(sequence);
+        assert.equal(finished, view2, "the next turn finishes figure 2");
+        assert.deepEqual(f.sceneInk(), expected, "the zone holds exactly figure 2's intro, as replay draws it");
+        assert.equal(sequence.pendingIntro(), null, "nothing pending after the finish");
+        assert.equal(advanced.at(-1), "figure_2", "the page knows figure 2 holds the zone");
+        assert.equal(await f.finish(sequence), null, "a second finish draws nothing");
+      } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+    });
+  }
+  await check("executor/whole-advance-leaves-nothing-pending", async () => {
+    const sequence = committed([view2]);
+    const f = boardFixture(first.diagram, sequence);
+    try {
+      await f.stamp(introOf(first));
+      await f.run(advanceCue(), { durationScale: 0 });
+      assert.equal(sequence.pendingIntro(), null, "an advance drawn whole is done");
+      const before = f.sceneInk();
+      assert.equal(await f.finish(sequence), null);
+      assert.deepEqual(f.sceneInk(), before, "the finish touches nothing");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  });
+  await check("executor/stop-before-the-cue-saves-no-cue", () => {
+    // Voice started (row shown) but the cue never ran: live stays on figure 1, so must the save.
+    assert.deepEqual(savedCue(committed([view2]), true), [view2.diagram.anchors[0]!.id], "the unreached cue is dropped, the rest kept");
+    assert.deepEqual(savedCue(new LessonFigureSequence(), true), ["figure_2", view2.diagram.anchors[0]!.id], "no sequence: the row is saved as before");
+  });
+  // Review N6: a refused advance is recorded with its reason and never saved.
+  await check("executor/refused-advance-is-recorded-and-not-saved", async () => {
+    const sequence = committed([view2], { mayAdvance: () => false });
+    const f = boardFixture(first.diagram, sequence);
+    try {
+      await f.stamp(introOf(first));
+      const before = f.sceneInk();
+      await f.run(advanceCue(), { durationScale: 0 });
+      assert.deepEqual(f.sceneInk(), before, "the zone keeps figure 1");
+      assert.equal(f.activeVerifiedDiagramRef.current, first.diagram);
+      const refused = f.marks.filter((mark) => mark.name === "lesson-figure-advance-refused");
+      assert.deepEqual(refused.map((mark) => mark.data), [{ figure_id: "figure_2", reason: "zone_held" }], "recorded with its reason");
+      assert.equal(sequence.pendingIntro(), null);
+      assert.deepEqual(savedCue(sequence, true), [view2.diagram.anchors[0]!.id], "the refused cue is not saved: replay stays on figure 1");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  });
   await check("executor/no-sequence-is-a-stale-focus", async () => {
     const f = boardFixture(first.diagram, new LessonFigureSequence());
     try {
@@ -438,11 +607,37 @@ async function promptChecks(): Promise<void> {
   });
 }
 
+async function finishSourceChecks(): Promise<void> {
+  await check("source/finish-runs-before-the-zone-is-read", () => {
+    const raw = readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useQuestionHandler.ts"), "utf8");
+    const slice = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figure-finish");
+    assert(/if \(\(doubt \|\| resume\) && lessonFiguresRef\?\.current\?\.pendingIntro\(\)\)/.test(slice), "a doubt or resume finishes a pending advance");
+    assert(/const finished = await finishLessonFigureAdvance\(whiteboardRef\.current, boardLayoutRef\.current, lessonFiguresRef\.current, \{/.test(slice), "through finishLessonFigureAdvance");
+    assert(/if \(finished\) \{/.test(slice), "and the zone is set only from a finished figure");
+    assert(/activeVerifiedDiagramRef\.current = finished\.diagram;/.test(slice), "the zone's figure is the finished one");
+    const finishAt = raw.indexOf("// lesson-figure-finish:begin");
+    const refAt = raw.indexOf("const pointsAtFigure = doubt");
+    const returnAt = raw.indexOf("// doubt-figure-return:begin");
+    assert(finishAt >= 0 && refAt >= 0 && returnAt >= 0, "all three anchors are present");
+    assert(finishAt < refAt && finishAt < returnAt, "the finish runs before the doubt names its figure and before the resume reads the zone");
+  });
+  await check("source/saves-only-reached-cues", () => {
+    const runner = anchoredSlice("hooks/turn/useSegmentRunner.ts", "lesson-figure-saved-cues");
+    assert(/const savesCommand = savedCommandFilter\(lessonFiguresRef\?\.current\);/.test(runner));
+    const raw = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useSegmentRunner.ts"), "utf8"));
+    assert(/\.\.\.\(savesCommand \? \{ savesCommand \} : \{\}\)/.test(raw), "the cut row is saved through the filter");
+    assert(/serializeSegmentCommands\(savesCommand \? segmentCommands\.filter\(savesCommand\) : segmentCommands,/.test(raw), "and the completed row");
+    const cut = anchoredSlice("lib/turn/liveTurnSave.ts", "live-cut-saves-command");
+    assert(/pending\.savesCommand \? parsed\.filter/.test(cut));
+  });
+}
+
 async function main(): Promise<void> {
   await sequenceChecks();
   await preparationChecks();
   await promptChecks();
   await executorChecks();
+  await finishSourceChecks();
   console.log(`verify-lesson-figures-live: ${passed} checks passed`);
 }
 
