@@ -46,6 +46,7 @@ import {
   snapToBoardTypeScale,
   WORK_CONTINUATION_INDENT,
   isReferencePicturePartFocusId,
+  anchorToTextRect,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -93,6 +94,8 @@ import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
 import { awaitReferencePicture } from "../lib/board/referencePictureAssets";
+import { clearFigureZone } from "../lib/scene/figureSwap";
+import { lessonFigureIntroCommands, type LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
 import { compactPulseBox, erasePinnedInkOf, pinnedInkCountOf, pinnedMarksFor, PINNED_MARK_DRAW_MS } from "../lib/board/pinnedMarks";
 
 export interface UseCommandExecutionParams {
@@ -123,6 +126,11 @@ export interface UseCommandExecutionParams {
   adaptiveFactorRef: RefObject<number>;
   /** Set for DSA turns; TYPE commands reveal blocks through it. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /**
+   * A lesson's later figures (DIAGRAM_LESSON_FIGURES). A `[FOCUS:figure_k]`
+   * the sequence holds swaps figure k into the zone, forward only.
+   */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   /**
    * Publishes the diagram currently on the board to React. The label
    * inspector and retrace targets read this state, so a worked-example frame
@@ -165,6 +173,39 @@ function pointWorkRowTargets(
   return targets;
 }
 
+/**
+ * A figure redrawn under one sentence (a worked-example FRAME, a lesson's
+ * `[FOCUS:figure_k]` advance) has to land with that sentence. The spoken
+ * window, less the wipe, is split across the figure's commands: each one can
+ * only be made quicker than its natural scene pace, never slower, so a long
+ * sentence still draws at a readable speed while a short one stops the board
+ * running three seconds past the voice.
+ *
+ * A figure label is part of the sketch, so it is lettered with the
+ * instrument already in hand. Handing it a generous share of the sentence
+ * pushes it over the prose threshold and buys an instrument swap on every
+ * label: fourteen labels spent six seconds swapping pens while the sentence
+ * that introduced the frame ran out. Same rule as the scene-text branch of
+ * `resolveCommandInkBudgetMs`, applied here because a redraw budgets its own
+ * commands.
+ */
+export function figureRedrawBudget(
+  commandCount: number,
+  speechDurationMs: number | undefined,
+  wipeMs: number,
+): (command: { text?: string }) => number | undefined {
+  const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
+  const evenShareMs = drawWindowMs > 0
+    ? Math.max(Math.floor(drawWindowMs / Math.max(commandCount, 1)), SCENE_MIN_MS)
+    : undefined;
+  return (command) => {
+    if (evenShareMs === undefined) return undefined;
+    const text = command.text?.replace(/\s+/g, "") ?? "";
+    if (text.length === 0) return evenShareMs;
+    return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
+  };
+}
+
 export async function eraseWhiteboardRegionIfCurrent(
   whiteboard: Pick<WhiteboardHandle, "eraseRegion">,
   region: { x: number; y: number; width: number; height: number; duration: number },
@@ -199,6 +240,7 @@ export function useCommandExecution({
   inkPaceRef,
   adaptiveFactorRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   setActiveVerifiedDiagram,
   nowMs = wallNowMs,
 }: UseCommandExecutionParams) {
@@ -440,6 +482,50 @@ export function useCommandExecution({
       };
 
       let command = rawCommand;
+      // lesson-figure-advance:begin
+      // `[FOCUS:figure_k]` names a later verified figure of this lesson, not a
+      // part of the one on screen, so it is handled before the part check.
+      // The teaching stream supplies only the id: the ink is figure k's own
+      // compiled intro, drawn as a worked-example FRAME is.
+      const lessonFigures = lessonFiguresRef?.current ?? null;
+      const advanceId = lessonFigures?.advanceIdOf(command) ?? null;
+      if (lessonFigures && advanceId) {
+        const view = lessonFigures.advanceTo(advanceId);
+        if (!view) {
+          turnTelemetryRef.current?.mark("lesson-figure-advance-refused", { figure_id: advanceId });
+          return;
+        }
+        const advanceScale = options.durationScale ?? 1;
+        erasePinnedInkOf(wb);
+        const cleared = await clearFigureZone(wb, options.introLayoutCheckpoint?.layout ?? boardLayoutRef.current, commandCancelled);
+        if (!cleared) return;
+        activeVerifiedDiagramRef.current = view.diagram;
+        setActiveVerifiedDiagram?.(view.diagram);
+        for (const anchor of view.diagram.anchors) registerAnchor(anchorToTextRect(anchor));
+        lessonFigures.advanced(view);
+        const intro = lessonFigureIntroCommands(view);
+        // A restore or a seek stamps; live, the figure lands with its sentence.
+        const stamp = advanceScale <= 0.05;
+        const budgetMs = figureRedrawBudget(intro.length, stamp ? undefined : options.speechDurationMs, 0);
+        for (const next of intro) {
+          if (commandCancelled()) return;
+          const share = budgetMs(next);
+          await executeCommand(inheritCommandInk(command, next), {
+            trustedDiagramGeometry: true,
+            applyLayout: false,
+            isCancelled: commandCancelled,
+            inkPace: "scene",
+            ...(stamp ? { durationScale: advanceScale } : share === undefined ? {} : { speechDurationMs: share }),
+          });
+        }
+        turnTelemetryRef.current?.mark("lesson-figure-advance", {
+          figure_id: view.id,
+          family: view.family,
+          command_count: intro.length,
+        });
+        return;
+      }
+      // lesson-figure-advance:end
       const activeDiagram = activeVerifiedDiagramRef.current;
       const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
       if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
@@ -1057,24 +1143,7 @@ export function useCommandExecution({
           // long sentence still draws at a readable speed while a short one
           // stops the board running three seconds past the voice.
           const wipeMs = 420;
-          const frameCommandCount = Math.max(next.presentation.diagram.commands.length, 1);
-          const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
-          const evenShareMs = drawWindowMs > 0
-            ? Math.max(Math.floor(drawWindowMs / frameCommandCount), SCENE_MIN_MS)
-            : undefined;
-          // A figure label is part of the sketch, so it is lettered with the
-          // instrument already in hand. Handing it a generous share of the
-          // sentence pushes it over the prose threshold and buys an instrument
-          // swap on every label: fourteen labels spent six seconds swapping
-          // pens while the sentence that introduced the frame ran out. Same
-          // rule as the scene-text branch of `resolveCommandInkBudgetMs`,
-          // applied here because a frame redraw budgets its own commands.
-          const frameCommandBudgetMs = (command: { text?: string }): number | undefined => {
-            if (evenShareMs === undefined) return undefined;
-            const text = command.text?.replace(/\s+/g, "") ?? "";
-            if (text.length === 0) return evenShareMs;
-            return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
-          };
+          const frameCommandBudgetMs = figureRedrawBudget(next.presentation.diagram.commands.length, speechDurationMs, wipeMs);
           const wiped = await eraseWhiteboardRegionIfCurrent(
             wb,
             { ...DSA_DIAGRAM_ZONE, duration: wipeMs },
@@ -1836,6 +1905,7 @@ export function useCommandExecution({
       turnTelemetryRef,
       whiteboardRef,
       codeLessonControllerRef,
+      lessonFiguresRef,
       nowMs,
     ],
   );

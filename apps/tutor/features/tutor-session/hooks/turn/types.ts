@@ -11,6 +11,7 @@ import type { TutorSegment } from "@heytutor/drawing";
 import type { FocusTargetSchedule } from "@heytutor/tutor-core";
 import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types";
 import type { CodeLessonController } from "../../lib/code-lesson/codeLessonController";
+import type { LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
 import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
 import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind, PausedLessonReason, PausedLessonRequest } from "../../lib/turn/doubtTurn";
@@ -188,6 +189,8 @@ export type UseTurnLifecycleParams = {
   setActiveVerifiedDiagram?: Dispatch<SetStateAction<VerifiedDiagram | null>>;
   /** Owns the DSA code panel; DSA turns commit their CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** A lesson's later figures (DIAGRAM_LESSON_FIGURES); the executor advances it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null>;
   speedRef: RefObject<number>;

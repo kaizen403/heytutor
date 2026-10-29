@@ -83,6 +83,7 @@ import {
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "./lib/scene/lessonFigureSequence";
 import { useReplay } from "./hooks/useReplay";
 import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
@@ -843,6 +844,9 @@ export function TutorSessionShell({
   // handle) so tutor typing never re-renders the shell per character.
   const [codeLessonController] = useState(() => new CodeLessonController());
   const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+  // A lesson's later figures (DIAGRAM_LESSON_FIGURES), one sequence per page.
+  const [lessonFigureSequence] = useState(() => new LessonFigureSequence());
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(lessonFigureSequence);
   const codeLessonActive = useSyncExternalStore(
     listener => codeLessonController.subscribe(listener),
     () => Boolean(codeLessonController.getActivePlan()),
@@ -869,6 +873,7 @@ export function TutorSessionShell({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     setActiveVerifiedDiagram,
   });
 
@@ -1017,6 +1022,7 @@ export function TutorSessionShell({
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     codeLessonControllerRef,
+    lessonFiguresRef,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
