@@ -15,6 +15,8 @@ import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { syncStoredPageFigure } from "@/features/tutor-session/lib/replay/pageFigureSync";
+import type { LessonFigureSequence } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "@/features/tutor-session/lib/scene/restoreLessonFigures";
 import { buildReplayTimeline, type ReplayCue } from "@/lib/replay/replayTimeline";
 import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/completeReplayDiagram";
 import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
@@ -226,6 +228,8 @@ export async function exportLectureMp4(options: {
   /** FRAME can replace the figure after turn start; completion follows it. */
   getDiagram?: () => VerifiedDiagram | null;
   resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
+  /** The executor's lesson figure sequence: exported `[FOCUS:figure_k]` cues advance it. */
+  lessonFigures?: LessonFigureSequence | null;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
     ? options.pageTurns
@@ -361,6 +365,7 @@ export async function exportLectureMp4(options: {
           activeDiagram = turn.visualStatus === "validated"
             ? restoreVerifiedDiagramFromTurn(turn)
             : restoreReferencePictureFromTurn(turn);
+          if (options.lessonFigures) restoreLessonFigures(options.lessonFigures, turn);
         } else {
           // A doubt's own figure swaps in; the resume returns the lesson's,
           // with the marks earlier turns released (pageFigureAt).
@@ -370,6 +375,7 @@ export async function exportLectureMp4(options: {
             whiteboard: options.whiteboard,
             executeCommand: options.executeCommand,
             shouldCancel: drawShouldCancel,
+            lessonFigures: options.lessonFigures,
           });
           if (figure.changed) {
             if (figure.cancelled) return;

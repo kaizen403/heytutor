@@ -23,7 +23,8 @@ import { isStoredCommandTrustedGeometry, verifiedDiagramHasDrawableInk } from "@
 import type { NarrationLanguage } from "@heytutor/tutor-core";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
-import { composeLessonFigureQuestion, lessonFiguresOf } from "@/lib/boards/lessonFigures";
+import { composeLessonFigureQuestion, isLessonFigureAdvanceId, lessonFiguresOf } from "@/lib/boards/lessonFigures";
+import type { PageFigureId } from "@/lib/boards/pageFigure";
 import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import type { LessonFigureSequence, PlannedLessonFigureView } from "./lessonFigureSequence";
 import { restoreVerifiedPresentationFromTurn } from "./restoreVerifiedDiagram";
@@ -95,12 +96,14 @@ export function restoreLessonFigureViews(
  * Commit a stored lesson's later figures on `sequence`, or reset it. `turn` is
  * the page's lesson source (the opener, or the resume that drew the figure).
  * A turn with no stored later figure, or whose own figure does not rebuild,
- * leaves no sequence: flag off, nothing changes.
+ * leaves no sequence: flag off, nothing changes. `at`: the figure already in
+ * the zone (a resume returning figure k), so only later cues advance.
  */
 export function restoreLessonFigures(
   sequence: LessonFigureSequence | null | undefined,
   turn: LessonFigureTurn | null | undefined,
   narrationLanguage?: NarrationLanguage,
+  at: PageFigureId = "figure_1",
 ): void {
   if (!sequence) return;
   sequence.reset();
@@ -111,4 +114,5 @@ export function restoreLessonFigures(
   const views = restoreLessonFigureViews(turn, narrationLanguage);
   if (views.length === 0) return;
   sequence.commit({ diagram: first.diagram, introSegments: first.introSegments }, views);
+  if (isLessonFigureAdvanceId(at)) sequence.advanceTo(at);
 }

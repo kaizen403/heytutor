@@ -53,6 +53,7 @@ import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 
 const UNSUPPORTED_BROWSER = "This browser cannot make a video. Try Chrome or Edge.";
@@ -152,6 +153,10 @@ export function useLectureExport({
   if (codeLessonControllerRef.current === null) {
     codeLessonControllerRef.current = new CodeLessonController();
   }
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(null);
+  if (lessonFiguresRef.current === null) {
+    lessonFiguresRef.current = new LessonFigureSequence();
+  }
   const telemetryRef = useRef<TurnTelemetry | null>(null);
   const inkPaceRef = useRef<InkPace>("follow");
   const adaptiveFactorRef = useRef(1);
@@ -245,6 +250,7 @@ export function useLectureExport({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     nowMs: exportNowMs,
   });
 
@@ -398,6 +404,7 @@ export function useLectureExport({
           shouldCancel,
           resetBoardLayout,
           getDiagram: () => diagramRef.current,
+          lessonFigures: lessonFiguresRef.current,
           onTurnStart: (turn, diagram) => {
             exportQuestionRef.current = storedTurnPageQuestion(turn);
             // FRAME needs the same persisted walk-through replay uses. A doubt

@@ -42,6 +42,8 @@ import { appendCodeLessonNotesImages } from "@/lib/code-render/codeLessonNotesIm
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import type { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
@@ -73,6 +75,8 @@ export type UseReplayParams = {
   storedTurnsRef: RefObject<StoredTurn[]>;
   /** Replayed DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** The executor's lesson figure sequence: replayed `[FOCUS:figure_k]` cues advance it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   /**
    * FOCUS / ANNOTATE resolve against this. Replay must rebuild it from the
    * stored scene or the intro draws and the pen never traces afterwards.
@@ -131,6 +135,7 @@ export function useReplay({
   replayAudioPreloadRef,
   storedTurnsRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
@@ -186,6 +191,7 @@ export function useReplay({
           whiteboard: whiteboardRef.current,
           executeCommand,
           shouldCancel,
+          lessonFigures: lessonFiguresRef?.current,
         });
         if (figure.changed && !figure.cancelled) {
           if (activeVerifiedDiagramRef) activeVerifiedDiagramRef.current = figure.diagram;
@@ -203,6 +209,7 @@ export function useReplay({
         // frames to advance and the figure freezes on the first one.
         restoreDsaFrames(controller, turn, plan);
       }
+      restoreLessonFigures(lessonFiguresRef?.current, turn);
       const diagram =
         controller?.frames.current()?.presentation.diagram
         ?? restoreVerifiedDiagramFromTurn(turn)
@@ -217,6 +224,7 @@ export function useReplay({
     },
     [
       codeLessonControllerRef,
+      lessonFiguresRef,
       storedTurnsRef,
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,

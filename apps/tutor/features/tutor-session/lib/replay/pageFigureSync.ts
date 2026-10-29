@@ -17,9 +17,11 @@ import {
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
-import { pageFigureAt, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
+import { pageFigureAt, storedTurnSwapsFigureIn, type PageFigureId } from "@/lib/boards/pageFigure";
 import type { BoardLayoutState } from "../../types";
 import { clearFigureZone, returnFigureToZone, type FigureSwapExecuteCommand } from "../scene/figureSwap";
+import type { LessonFigureSequence } from "../scene/lessonFigureSequence";
+import { restoreLessonFigureViews, restoreLessonFigures } from "../scene/restoreLessonFigures";
 import { restoreReferencePictureFromTurn } from "../scene/restoreReferencePicture";
 import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
 
@@ -32,7 +34,7 @@ import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram"
 export type StoredPageFigureChange =
   | { kind: "keep" }
   | { kind: "swap"; sourceIndex: number }
-  | { kind: "return"; sourceIndex: number | null; consumedIds: string[] }
+  | { kind: "return"; sourceIndex: number | null; consumedIds: string[]; figureId: PageFigureId }
   | { kind: "install"; sourceIndex: number; clearFirst: boolean };
 
 export function storedPageFigureChange(turns: readonly StoredTurn[], turnIndex: number): StoredPageFigureChange {
@@ -46,7 +48,7 @@ export function storedPageFigureChange(turns: readonly StoredTurn[], turnIndex: 
   if (at.installsLesson) {
     return { kind: "install", sourceIndex: turnIndex, clearFirst: pageFigureAt(turns, turnIndex - 1).sourceIndex !== null };
   }
-  if (at.returnsLesson) return { kind: "return", sourceIndex: at.sourceIndex, consumedIds: at.consumedIds };
+  if (at.returnsLesson) return { kind: "return", sourceIndex: at.sourceIndex, consumedIds: at.consumedIds, figureId: at.figureId };
   return { kind: "keep" };
 }
 
@@ -74,6 +76,21 @@ export function storedFigurePresentation(turn: StoredTurn): {
 }
 
 /**
+ * One of a stored lesson turn's figures: figure 1 is what the turn drew (its
+ * diagram and saved intro ink); a later figure has no stored rows and is
+ * rebuilt from the turn's lessonFigures artifact on its composed question.
+ * A figure that does not rebuild is no figure.
+ */
+export function storedLessonFigurePresentation(turn: StoredTurn, id: PageFigureId): {
+  diagram: VerifiedDiagram | null;
+  introSegments: TutorSegment[];
+} {
+  if (id === "figure_1") return storedFigurePresentation(turn);
+  const view = restoreLessonFigureViews(turn).find((candidate) => candidate.id === id);
+  return view ? { diagram: view.diagram, introSegments: view.introSegments } : { diagram: null, introSegments: [] };
+}
+
+/**
  * Bring the zone to what turns[turnIndex] plays under. `changed: false` keeps
  * the page's figure and its live deferred state, as before. On a swap the zone
  * is cleared and the turn's own figure installed (its stored intro draws it).
@@ -82,6 +99,10 @@ export function storedFigurePresentation(turn: StoredTurn): {
  * own stored rows draw the lesson's figure, so nothing is stamped: the zone is
  * cleared only when a doubt's figure stands in it, and the diagram is resolved
  * before those rows play so FOCUS has a target.
+ *
+ * `lessonFigures`: the surface's own lesson figure sequence. An install
+ * commits it from the resume that drew the figure; a return commits it at the
+ * figure it returns, so a stored `[FOCUS:figure_k]` after it advances as live.
  */
 export async function syncStoredPageFigure(input: {
   turns: readonly StoredTurn[];
@@ -90,6 +111,7 @@ export async function syncStoredPageFigure(input: {
   layout?: BoardLayoutState | null;
   executeCommand: FigureSwapExecuteCommand;
   shouldCancel: () => boolean;
+  lessonFigures?: LessonFigureSequence | null;
 }): Promise<{ changed: false } | { changed: true; cancelled: boolean; diagram: VerifiedDiagram | null }> {
   const change = storedPageFigureChange(input.turns, input.turnIndex);
   if (change.kind === "keep") return { changed: false };
@@ -101,15 +123,17 @@ export async function syncStoredPageFigure(input: {
     return { changed: true, cancelled: !cleared, diagram: cleared ? storedTurnFigureDiagram(input.turns[change.sourceIndex]) : null };
   }
   if (change.kind === "install") {
+    if (input.lessonFigures) restoreLessonFigures(input.lessonFigures, input.turns[change.sourceIndex]);
     const cleared = change.clearFirst ? await clearFigureZone(wb, layout, input.shouldCancel) : !input.shouldCancel();
     return { changed: true, cancelled: !cleared, diagram: cleared ? storedTurnFigureDiagram(input.turns[change.sourceIndex]) : null };
   }
   const source = change.sourceIndex === null ? undefined : input.turns[change.sourceIndex];
+  if (input.lessonFigures) restoreLessonFigures(input.lessonFigures, source, undefined, change.figureId);
   if (!source) {
     const cleared = await clearFigureZone(wb, layout, input.shouldCancel);
     return { changed: true, cancelled: !cleared, diagram: null };
   }
-  const result = await returnFigureToZone(wb, layout, storedFigurePresentation(source), change.consumedIds, {
+  const result = await returnFigureToZone(wb, layout, storedLessonFigurePresentation(source, change.figureId), change.consumedIds, {
     shouldCancel: input.shouldCancel,
     executeCommand: input.executeCommand,
   });

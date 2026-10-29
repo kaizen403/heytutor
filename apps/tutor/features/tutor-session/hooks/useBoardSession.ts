@@ -43,6 +43,8 @@ import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import type { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
@@ -107,6 +109,8 @@ export interface UseBoardSessionParams {
   skipInkRestoreRef?: RefObject<boolean>;
   /** Restored DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** The executor's lesson figure sequence: restored `[FOCUS:figure_k]` cues advance it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
@@ -139,6 +143,7 @@ export function useBoardSession({
   executeCommand,
   skipInkRestoreRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
@@ -629,6 +634,7 @@ export function useBoardSession({
         if (isStale()) return;
         resetBoardLayout(false, false);
         codeLessonControllerRef?.current?.reset();
+        lessonFiguresRef?.current?.reset();
 
         // The overlay is "loading the board", and it only leaves when this
         // flag flips. Ink after this is the finished page, drawn with no
@@ -688,6 +694,10 @@ export function useBoardSession({
             // The restored board replays this turn's FRAME cues, so it needs the
             // same walk-through the live turn compiled.
             if (controller) restoreDsaFrames(controller, turn, codeLesson);
+            // lesson-figures-restore:begin
+            // Its later figures too, or a stored `[FOCUS:figure_k]` draws nothing.
+            restoreLessonFigures(lessonFiguresRef?.current, turn);
+            // lesson-figures-restore:end
             const diagram =
               controller?.frames.current()?.presentation.diagram
               ?? restoreVerifiedDiagramFromTurn(turn)
@@ -709,6 +719,7 @@ export function useBoardSession({
               whiteboard: whiteboardRef.current,
               executeCommand: executeCommandRef.current,
               shouldCancel: inkStale,
+              lessonFigures: lessonFiguresRef?.current,
             });
             if (figure.changed) {
               if (figure.cancelled) return;
@@ -723,6 +734,7 @@ export function useBoardSession({
             }
           }
 
+          const figureBefore = lessonFiguresRef?.current?.currentId() ?? "figure_1";
           for (const segment of turn.segments) {
             if (inkStale()) return;
 
@@ -751,6 +763,10 @@ export function useBoardSession({
           // Intro + FOCUS reproduce the reveal up to the final teaching beat.
           // Completed live turns then flush every unnamed engine mark; that
           // flush is not a stored teaching segment, so reopen must do it too.
+          // A stored advance moved the zone to a later figure: it is the one finished.
+          if ((lessonFiguresRef?.current?.currentId() ?? "figure_1") !== figureBefore) {
+            turnDiagram = activeVerifiedDiagramRef?.current ?? turnDiagram;
+          }
           await completeStoredTurnDiagram({
             turn,
             diagram: turnDiagram,
@@ -814,6 +830,7 @@ export function useBoardSession({
       setInputInteracted,
       skipInkRestoreRef,
       codeLessonControllerRef,
+      lessonFiguresRef,
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,

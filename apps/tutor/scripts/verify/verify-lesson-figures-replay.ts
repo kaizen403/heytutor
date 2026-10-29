@@ -12,10 +12,19 @@
  *
  * Mutations this gate catches (brief lane 6 table):
  * (a) return figure_1: `pageFigureAt` returns the lesson at figure_1 on a resume;
+ * (b) `restoreLessonFigures` not called in `useBoardSession` (board restore);
+ * (c) ignore the advance in `lecturePlayer` (a return installs figure 1's state);
+ * (d) rebuild figure k on `Turn.question` instead of the composed question.
  */
 import assert from "node:assert/strict";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
-import { serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import ts from "typescript";
+import type Konva from "konva";
+import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand, type VerifiedDiagram } from "@heytutor/drawing";
 import circle from "./fixtures/replay/circle-s3-turn.json";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
@@ -24,8 +33,19 @@ import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { lessonFigureReturnAfter, pageFigureAt, storedTurnFocusIds } from "../../lib/boards/pageFigure";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
-import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+import { figureFingerprint, selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { stored } from "./fixtures/doubtFigureScene";
+import { admitStoredScene } from "../../lib/scene/sceneAdmission";
+import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { LessonFigureSequence, lessonFigureIntroCommands } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
+import { restoreLessonFigureViews, restoreLessonFigures } from "../../features/tutor-session/lib/scene/restoreLessonFigures";
+import { storedLessonFigurePresentation, storedPageFigureChange, syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
+import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
+import { lectureInstalledDiagramByTurn } from "../../lib/replay/lecturePlayer";
+import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
+import type { WhiteboardHandle } from "@heytutor/whiteboard";
+import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
+import { createVirtualWhiteboardClock } from "../../../../packages/whiteboard/src/whiteboardClock";
 
 let passed = 0;
 async function check(name: string, run: () => void | Promise<void>): Promise<void> {
@@ -96,11 +116,15 @@ export async function lessonFiguresPage(flag: boolean): Promise<LessonFiguresPag
   const artifact = { schemaVersion: "lesson-figures/v1", figures: [figure] };
   const probe = await canonicalizeTurnSceneMetadata(lessonMetadata(baseRows(), { lessonFigures: artifact }), { lessonFiguresEnabled: true });
   assert(probe.ok, `the probe lesson saves: ${probe.ok ? "" : probe.error}`);
-  const { restoreLessonFigureViews } = await import("../../features/tutor-session/lib/scene/restoreLessonFigures");
-  const { restoreVerifiedDiagramFromTurn } = await import("../../features/tutor-session/lib/scene/restoreVerifiedDiagram");
-  const probeTurn = stored(L_ID, 0, LESSON, probe.value, { opensOnClear: true, kind: "lesson" });
-  const second = restoreLessonFigureViews(probeTurn)[0]!.diagram;
-  const firstDiagram = restoreVerifiedDiagramFromTurn(probeTurn)!;
+  // Part ids from the server's own admission, independent of the client rebuild under test.
+  const storedFigure = lessonFiguresOf(probe.value.sceneArtifacts)!.figures[0]!;
+  const admitted = admitStoredScene({
+    sceneDocument: storedFigure.sceneDocument, sceneQuestion: COMPOSED, submittedTier: storedFigure.tier,
+    turnPlan: validateTurnPlanV3({ ...recorded.sceneArtifacts.turnPlan, question: COMPOSED }, COMPOSED).plan,
+  });
+  assert(admitted.ok, "figure 2 admits on the composed question");
+  const second = admitted.presentation.diagram;
+  const firstDiagram = restoreVerifiedDiagramFromTurn(stored(L_ID, 0, LESSON, probe.value, { opensOnClear: true, kind: "lesson" }))!;
   const firstIds = new Set(firstDiagram.anchors.map((anchor) => anchor.id));
   const secondIds = second.anchors.map((anchor) => anchor.id).filter((id) => !firstIds.has(id));
   const firstOnly = [...firstIds].find((id) => !second.anchors.some((anchor) => anchor.id === id));
@@ -201,8 +225,231 @@ async function pageFigureChecks(): Promise<void> {
   });
 }
 
+// ---------------------------------------------------------------------------
+// The rebuild, the sync step, the player's install state.
+// ---------------------------------------------------------------------------
+
+const ids = (diagram: VerifiedDiagram | null) => (diagram?.anchors ?? []).map((anchor) => anchor.id).sort();
+
+async function restoreChecks(): Promise<void> {
+  const on = await lessonFiguresPage(true);
+  const off = await lessonFiguresPage(false);
+  const [L] = on.turns as [StoredTurn];
+
+  await check("rebuild/composed-question", () => {
+    const views = restoreLessonFigureViews(L);
+    assert.deepEqual(views.map((view) => view.id), ["figure_2"]);
+    assert.equal(views[0]!.family, on.figure.family);
+    assert(views[0]!.introSegments.length > 0, "figure 2 has intro beats");
+  });
+  await check("rebuild/lesson-question-document-is-dropped", () => {
+    // A figure 2 document whose source question is the lesson's own, not the composed one.
+    const artifacts = structuredClone(L.sceneArtifacts) as unknown as { lessonFigures: { figures: Array<{ sceneDocument: { source: { question: string } } }> } };
+    artifacts.lessonFigures.figures[0]!.sceneDocument.source.question = LESSON;
+    const forged = { ...L, sceneArtifacts: artifacts as unknown as StoredTurn["sceneArtifacts"] };
+    assert.deepEqual(restoreLessonFigureViews(forged), [], "planned on the lesson's own question: never drawn");
+    const sequence = new LessonFigureSequence();
+    restoreLessonFigures(sequence, forged);
+    assert(!sequence.active(), "no sequence from a forged figure");
+  });
+  await check("rebuild/sequence-and-at", () => {
+    const sequence = new LessonFigureSequence();
+    restoreLessonFigures(sequence, L);
+    assert(sequence.active() && sequence.currentId() === "figure_1");
+    restoreLessonFigures(sequence, L, undefined, "figure_2");
+    assert.equal(sequence.currentId(), "figure_2", "a return commits at the figure it returns");
+    restoreLessonFigures(sequence, off.turns[0]);
+    assert(!sequence.active(), "flag off: no artifact, no sequence");
+  });
+  await check("sync/return-draws-figure-2", async () => {
+    const R = 3;
+    const change = storedPageFigureChange(on.turns, R);
+    assert(change.kind === "return" && change.figureId === "figure_2", "R returns figure 2");
+    const drawn: DrawCommand[] = [];
+    const events: string[] = [];
+    const wb = {
+      eraseSceneInk: async (duration: number) => { events.push(`eraseSceneInk:${duration}`); },
+      erasePinnedInk: () => { events.push("erasePinnedInk"); },
+    } as unknown as WhiteboardHandle;
+    const sequence = new LessonFigureSequence();
+    const result = await syncStoredPageFigure({
+      turns: on.turns, turnIndex: R, whiteboard: wb, shouldCancel: () => false, lessonFigures: sequence,
+      executeCommand: async (command) => { drawn.push(command); },
+    });
+    assert(result.changed && !result.cancelled);
+    const figure2 = storedLessonFigurePresentation(L, "figure_2");
+    assert.deepEqual(ids(result.diagram), ids(figure2.diagram), "the zone's diagram is figure 2");
+    assert.equal(figureFingerprint(result.diagram!), figureFingerprint(figure2.diagram!));
+    const intro = lessonFigureIntroCommands({ diagram: figure2.diagram!, introSegments: figure2.introSegments });
+    assert.deepEqual(drawn.slice(0, intro.length).map((command) => command.type), intro.map((command) => command.type), "figure 2's intro is stamped back");
+    assert.equal(sequence.currentId(), "figure_2", "the sequence is at figure 2 after the return");
+  });
+  await check("sync/flag-off-returns-figure-1", async () => {
+    const change = storedPageFigureChange(off.turns, 3);
+    assert(change.kind === "return" && change.figureId === "figure_1");
+    const sequence = new LessonFigureSequence();
+    const wb = { eraseSceneInk: async () => {}, erasePinnedInk: () => {} } as unknown as WhiteboardHandle;
+    const result = await syncStoredPageFigure({
+      turns: off.turns, turnIndex: 3, whiteboard: wb, shouldCancel: () => false, lessonFigures: sequence, executeCommand: async () => {},
+    });
+    assert(result.changed && ids(result.diagram).join() === ids(storedLessonFigurePresentation(off.turns[0]!, "figure_1").diagram).join());
+    assert(!sequence.active());
+  });
+
+  await check("player/installed-after-an-advance", () => {
+    const withErase = (turns: StoredTurn[]) => turns.map((turn, index) => index !== 3 ? turn : {
+      ...turn,
+      segments: [...turn.segments, { ...turn.segments[0]!, id: "erase", orderIndex: 9, narration: "Clean the row.", command: serializeSegmentCommands([{ type: "ERASE", params: [40, 140, 300, 40], charPosition: 0, narrationBefore: "" }], { trustedDiagramGeometry: false }) as StoredTurn["segments"][number]["command"] }],
+    });
+    const turns = withErase(on.turns);
+    const installed = lectureInstalledDiagramByTurn(turns, buildReplayTimeline(turns).cues);
+    assert.deepEqual([0, 1, 2, 3].map((index) => installed.get(index)), [true, true, true, true], "a figure stands in the zone on every turn");
+    // Figure 2 does not rebuild on this client: R returns nothing, as syncTurn does.
+    const artifacts = structuredClone(on.turns[0]!.sceneArtifacts) as unknown as { lessonFigures: { figures: Array<{ sceneDocument: { source: { question: string } } }> } };
+    artifacts.lessonFigures.figures[0]!.sceneDocument.source.question = LESSON;
+    const broken = withErase([{ ...on.turns[0]!, sceneArtifacts: artifacts as unknown as StoredTurn["sceneArtifacts"] }, ...on.turns.slice(1)]);
+    const brokenInstalled = lectureInstalledDiagramByTurn(broken, buildReplayTimeline(broken).cues);
+    assert.equal(brokenInstalled.get(3), false, "R returns figure 2, which is not there: the zone is empty");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Board restore: the real executor over L's stored rows at durationScale 0.
+// ---------------------------------------------------------------------------
+
+const SOURCE_ROOT = fileURLToPath(new URL("../../features/tutor-session/", import.meta.url));
+const EXECUTOR = path.join(SOURCE_ROOT, "hooks/useCommandExecution.ts");
+function loadExecutor(): typeof CommandHook {
+  const requireApp = createRequire(new URL("../../package.json", import.meta.url));
+  const react = { useRef: (current: unknown) => ({ current }), useCallback: (fn: unknown) => fn, useEffect: () => {}, useState: (value: unknown) => [value, () => {}] };
+  const compiled = ts.transpileModule(readFileSync(EXECUTOR, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mod = { exports: {} as { useCommandExecution: typeof CommandHook } };
+  new Function("require", "module", "exports", compiled)((specifier: string) =>
+    specifier === "react" ? react : requireApp(specifier.startsWith(".")
+      ? path.resolve(path.dirname(EXECUTOR), specifier) : specifier), mod, mod.exports);
+  return mod.exports.useCommandExecution;
+}
+const ref = <T>(current: T) => ({ current });
+const flush = async () => {
+  for (let index = 0; index < 40; index++) await Promise.resolve();
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  for (let index = 0; index < 40; index++) await Promise.resolve();
+};
+
+function boardFixture(hook: typeof CommandHook, diagram: VerifiedDiagram | null, sequence: LessonFigureSequence | null) {
+  const board = mountTestWhiteboard();
+  const clock = createVirtualWhiteboardClock();
+  board.setTimeSource(clock.source);
+  const activeVerifiedDiagramRef = ref<VerifiedDiagram | null>(diagram);
+  const executor = hook({
+    whiteboardRef: ref(board), cancelRef: ref(false), activeVerifiedDiagramRef,
+    fbdPhaseStartedRef: ref(Boolean(diagram)), fbdPhaseMarkedRef: ref(false),
+    boardLayoutRef: ref({ rects: [], nextY: 100 }), inkPaceRef: ref("follow"),
+    speedRef: ref(1), adaptiveFactorRef: ref(1), forceSequentialWorkLayoutRef: ref(false),
+    turnTelemetryRef: ref(null), notesEpochsRef: ref([]), narrationSinceEpochRef: ref(""),
+    raceWithCancel: async (promise) => promise,
+    resolveTextPlacement: async (_command, x, y) => ({ x, y }),
+    cancellableDelay: async () => {}, forgetErasedTextRects() {}, resetBoardLayout() {},
+    lessonFiguresRef: ref(sequence),
+    setActiveVerifiedDiagram: () => {},
+    nowMs: clock.source.now,
+  } as Parameters<typeof CommandHook>[0]);
+  const run = async (command: DrawCommand, trustedDiagramGeometry: boolean) => {
+    let settled = false;
+    const job = executor.executeCommandWithCancel(command, {
+      durationScale: 0, applyLayout: false, trustedDiagramGeometry, isCancelled: () => false,
+    }).then(() => { settled = true; });
+    await flush();
+    for (let elapsed = 0; !settled && elapsed < 60_000; elapsed += 64) {
+      clock.advance(64); clock.pump(); await flush();
+    }
+    assert(settled, `${command.type} ${command.text ?? ""} finishes`);
+    await job;
+  };
+  const sceneInk = () => board.getDrawLayer()!.getChildren()
+    .filter((node: Konva.Node) => node.getAttrs().htInk === "scene")
+    .map((node: Konva.Node) => JSON.stringify(node.toObject()))
+    .sort();
+  return { board, run, sceneInk, activeVerifiedDiagramRef };
+}
+
+const stripComments = (raw: string) => raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+function anchoredSlice(file: string, name: string): string {
+  const source = readFileSync(path.join(SOURCE_ROOT, file), "utf8");
+  // Whole anchor lines only: "// x:end" must not match "// x:ended".
+  const begin = source.indexOf(`// ${name}:begin\n`);
+  const end = source.indexOf(`// ${name}:end\n`, begin);
+  assert(begin >= 0, `slice anchor: ${name}:begin in ${file}`);
+  assert(end > begin, `slice anchor: ${name}:end after its begin in ${file}`);
+  assert.equal(source.split(`// ${name}:begin`).length, 2, `one ${name}:begin in ${file}`);
+  assert.equal(source.split(`// ${name}:end`).length, 2, `one ${name}:end in ${file}`);
+  return stripComments(source.slice(begin, end));
+}
+
+async function boardRestoreChecks(): Promise<void> {
+  const on = await lessonFiguresPage(true);
+  const L = on.turns[0]!;
+  const hook = loadExecutor();
+  const sorted = [...L.segments].sort((a, b) => a.orderIndex - b.orderIndex);
+
+  // Expected: figure 2 alone, its intro, then the one part L named on it.
+  const alone = new LessonFigureSequence();
+  restoreLessonFigures(alone, L, undefined, "figure_2");
+  const view = alone.views()[0]!;
+  const expectedBoard = boardFixture(hook, view.diagram, null);
+  let expected: string[];
+  try {
+    for (const command of lessonFigureIntroCommands(view)) await expectedBoard.run(command, true);
+    await expectedBoard.run(focus(on.secondOnly), false);
+    expected = expectedBoard.sceneInk();
+  } finally { expectedBoard.board.cancelAnimations(); await flush(); unmountTestWhiteboard(expectedBoard.board); }
+  assert(expected.length > 0);
+
+  await check("restore/stamped-rows-end-on-figure-2", async () => {
+    // As useBoardSession restores an opener: commit, then every stored row at scale 0.
+    const sequence = new LessonFigureSequence();
+    restoreLessonFigures(sequence, L);
+    const f = boardFixture(hook, storedLessonFigurePresentation(L, "figure_1").diagram, sequence);
+    try {
+      for (const segment of sorted) {
+        const trusted = isStoredCommandTrustedGeometry(segment.command);
+        for (const command of parseStoredSegmentCommands(segment.command)) {
+          if (command.type === "CLEAR") continue;
+          await f.run(command, trusted);
+        }
+      }
+      assert.equal(sequence.currentId(), "figure_2");
+      assert.deepEqual(ids(f.activeVerifiedDiagramRef.current), ids(view.diagram), "figure 2 is the active diagram");
+      assert.deepEqual(f.sceneInk(), expected, "the zone holds figure 2's intro and the part L named on it, nothing of figure 1");
+    } finally { f.board.cancelAnimations(); await flush(); unmountTestWhiteboard(f.board); }
+  });
+  await check("restore/useBoardSession-commits-the-sequence", () => {
+    const slice = anchoredSlice("hooks/useBoardSession.ts", "lesson-figures-restore");
+    assert(/restoreLessonFigures\(lessonFiguresRef\?\.current, turn\)/.test(slice), "the opener commits its later figures");
+    const session = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/useBoardSession.ts"), "utf8"));
+    assert(/lessonFigures: lessonFiguresRef\?\.current,/.test(session), "a continuation's return commits it too");
+  });
+  await check("surfaces/every-sync-point-commits", () => {
+    const read = (file: string) => stripComments(readFileSync(path.join(SOURCE_ROOT, file), "utf8"));
+    const replay = read("hooks/useReplay.ts");
+    assert(/restoreLessonFigures\(lessonFiguresRef\?\.current, turn\)/.test(replay) && /lessonFigures: lessonFiguresRef\?\.current,/.test(replay), "replay");
+    const player = read("hooks/useLecturePlayer.ts");
+    assert(/restoreLessonFigures\(lessonFiguresRef\.current, turn\)/.test(player) && /lessonFigures: lessonFiguresRef\.current,/.test(player) && /\blessonFiguresRef,\n\s*nowMs/.test(player), "player");
+    const exportHook = read("hooks/useLectureExport.ts");
+    assert(/lessonFigures: lessonFiguresRef\.current,/.test(exportHook) && /\blessonFiguresRef,\n\s*nowMs/.test(exportHook), "export hook");
+    const exporter = stripComments(readFileSync(fileURLToPath(new URL("../../lib/lecture-export/exportLectureMp4.ts", import.meta.url)), "utf8"));
+    assert(/restoreLessonFigures\(options\.lessonFigures, turn\)/.test(exporter) && /lessonFigures: options\.lessonFigures,/.test(exporter), "export");
+    const shell = read("TutorSessionShell.tsx");
+    assert.equal(shell.match(/^\s+lessonFiguresRef,$/gm)?.length, 4, "the shell passes its sequence to the executor, uQH, restore and replay");
+  });
+}
+
 async function main(): Promise<void> {
   await pageFigureChecks();
+  await restoreChecks();
+  await boardRestoreChecks();
   console.log(`verify-lesson-figures-replay: ${passed} checks passed`);
 }
 
