@@ -84,8 +84,39 @@ const lenz = "Explain induced emf and current and Lenz's law.";
 check("magnet and coil", () => {
   const question = "A bar magnet is pushed into a coil connected to a galvanometer. Use Lenz's law to explain the deflection.";
   assert.equal(detectArchetype(question, faraday)?.id, "faraday_induction", "a magnet pushed into a coil keeps its figure");
-  assert.equal(detectArchetype(lenz, faraday)?.id, "faraday_induction", "a bare Lenz's law stem gets the magnet and coil, not the rod");
+  // The rod led a bare Lenz stem; refusing it declines, it does not promote
+  // the magnet and coil the stem never names.
+  assert.equal(detectArchetype(lenz, faraday), null, "a bare Lenz's law stem declines, no runner up");
+  assert.equal(synthesizeFamilyScene({ question: lenz, turnPlan: faraday.turnPlan }), null, "a bare Lenz's law stem gets no family figure");
+  assert.equal(synthesizeLastResortScene({ question: lenz, turnPlan: faraday.turnPlan }), null, "a bare Lenz's law stem gets no last resort figure");
 });
+// Main's scoring stays as it was: where the rod led or tied the magnet and
+// coil, the stem declines rather than handing the turn to the runner up.
+for (const [question, plain] of [
+  ["A coil is held stationary and a bar magnet is pushed into it. Explain the induced emf.", "faraday_induction"],
+  ["A magnet moves at 0.5 m/s towards a stationary coil of 200 turns. Explain the induced emf.", "faraday_induction"],
+  // No magnet named: the magnet and coil would invent one.
+  ["A coil of 50 turns has its flux changed from 0.02 Wb to 0.005 Wb in 0.1 s. Find the induced emf.", null],
+] as const) {
+  check(`no runner up: ${question}`, () => {
+    assert.equal(detectArchetype(question, {})?.id ?? null, plain, `${question}: without the law hint main's leader stands`);
+    for (const hints of [faraday]) { // the law hint lets the rod lead or tie
+      assert.equal(detectArchetype(question, hints), null, `${question}: a refused lead declines`);
+      assert.equal(synthesizeFamilyScene({ question, ...hints }), null, `${question}: no family figure`);
+      assert.equal(synthesizeLastResortScene({ question, ...hints }), null, `${question}: no last resort figure`);
+    }
+  });
+}
+// A solenoid that carries its own current keeps its figure when the stem
+// asks to show that current's direction; only an induced current is asked.
+for (const question of [
+  "A long solenoid has 1000 turns per metre and carries 3 A. Find B and show the direction of the current.",
+  "A solenoid carries current. Show the direction of the current and the field lines inside.",
+]) {
+  check(`solenoid draws: ${question}`, () => {
+    assert.equal(detectArchetype(question, {})?.id, "solenoid_field", `${question}: a given current keeps the solenoid`);
+  });
+}
 // The figure draws no winding, so it cannot show which way the induced
 // current flows: a stem that asks for that direction gets no figure.
 for (const question of [

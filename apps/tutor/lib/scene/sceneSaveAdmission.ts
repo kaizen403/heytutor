@@ -20,6 +20,7 @@ import {
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
   validatePvSourceBinding,
+  validateFluidApparatusSourceInputs,
   validateLinearSourcePlan,
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
@@ -161,6 +162,7 @@ export function sceneSaveAdmissionFailure(input: {
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),
     ...validatePvSourceBinding(document, question, turnPlan),
+    ...validateFluidApparatusSourceInputs(document, question, turnPlan),
     // Qualitative scenes need the same declared terminal proof as exact ones.
     // Reuse only closure here; unrelated exact-plan obligations stay tiered.
     ...validateCircuitTerminalClosure(document, question, turnPlan),

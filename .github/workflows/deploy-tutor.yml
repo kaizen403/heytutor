@@ -175,6 +175,7 @@ jobs:
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-teaching-network-recovery.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-completion-integrity.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-failure-classification.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-continuation-fetch-retry.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-segment-speech-ownership.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-stale-tab-reload.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-graceful-shutdown.ts

@@ -326,7 +326,11 @@ const recordedShapes = [
 ];
 for (const text of recordedShapes) assert(resumeChainHasInk(text), `a resumed row in a recorded production shape must reach the board: ${text.slice(0, 60)}`);
 assert(!resumeChainHasInk("[STEP]Summary words only, nothing new to write.[/STEP]"), "a speech only resume still fails the ink gate");
-assert(!resumeChainHasInk("[STEP]Q2 next.[WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]"),
-  "an id and coordinate body is not a row grammar and still fails the ink gate");
+// A row closed by [/WRITE] behind an id or coordinate header is the row the
+// model meant (recorded resumes 3e0b2400, f19b2a50); a bare id still is not.
+assert(resumeChainHasInk("[STEP]Q2 next.[WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]"),
+  "a tag-closed resume row reaches the board");
+assert(!resumeChainHasInk("[STEP]Q2 next.[WRITE:y=541] A board question.[/STEP]"),
+  "an id or coordinate header with no row still fails the ink gate");
 
 console.log("resume ink verification passed");
