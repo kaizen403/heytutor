@@ -1,6 +1,7 @@
 import { blockFlowCitedProcesses, planStatesChain, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
-  reviewProcessChains, writeProcessClaim, type ProcessReviewOptions, type ProcessReviewResult, type SceneCandidateValidation,
+  checkRestatedSteps, RESTATED_PROCESS_CLAIM_ID, reviewProcessChains, writeProcessClaim,
+  type ProcessReviewOptions, type ProcessReviewResult, type RestatedStep, type SceneCandidateValidation, type StepCheckResult,
 } from "@heytutor/tutor-core";
 import { deriveSceneGate } from "./productionSceneSelection";
 
@@ -9,20 +10,23 @@ export const BLOCK_FLOW_REVIEW_TIMEOUT_MS = 20_000;
 
 export const BLOCK_FLOW_REVIEW_DECLINED = "block_flow_review_declined";
 
-/** The id of a restated process claim; never a turn planner id (those are c1, c2, ...). */
-export const RESTATED_PROCESS_CLAIM_ID = "process_restated";
+export { RESTATED_PROCESS_CLAIM_ID };
 
 /**
  * For an eligible "other" lesson that wants a visual, no figure path asks the
  * planner today, and the plan states no process: one short call may restate a
- * process the plan's claims already describe, as one more claim. Anything
- * else returns the plan untouched and makes no call. The restated process is
- * plan text like any claim; a figure drawn from it still faces grounding,
- * layout and the review votes.
+ * process the plan's claims already describe, as one more claim. Each step
+ * cites the claim it restates and is checked on its own against it; any
+ * failed or missing check keeps the plan untouched. Anything else returns the
+ * plan untouched and makes no call. A figure drawn from the restated process
+ * still faces grounding, layout and the review votes.
  */
 export async function withRestatedProcess(input: {
   question: string; turnPlan: TurnPlanV3; eligible: boolean; options: ProcessReviewOptions;
-}): Promise<{ turnPlan: TurnPlanV3; restated: string | null; asked: boolean }> {
+}): Promise<{
+  turnPlan: TurnPlanV3; restated: string | null; asked: boolean;
+  steps?: RestatedStep[]; stepChecks?: StepCheckResult;
+}> {
   const { question, turnPlan } = input;
   const untouched = { turnPlan, restated: null, asked: false };
   if (!input.eligible || turnPlan.visualRequirement === "none" || planStatesChain(turnPlan)) return untouched;
@@ -31,10 +35,14 @@ export async function withRestatedProcess(input: {
   if (gate.shouldAttemptLlmScene || !gate.shouldPlanExactScene) return untouched;
   const restated = await writeProcessClaim(question, turnPlan, input.options);
   if (!restated) return { turnPlan, restated: null, asked: true };
+  const stepChecks = await checkRestatedSteps(question, turnPlan, restated, input.options);
+  if (stepChecks.verdict !== "pass") return { turnPlan, restated: null, asked: true, steps: restated.steps, stepChecks };
   return {
     asked: true,
-    restated,
-    turnPlan: { ...turnPlan, qualitativeClaims: [...turnPlan.qualitativeClaims, { id: RESTATED_PROCESS_CLAIM_ID, claim: restated, expected: true }] },
+    restated: restated.text,
+    steps: restated.steps,
+    stepChecks,
+    turnPlan: { ...turnPlan, qualitativeClaims: [...turnPlan.qualitativeClaims, { id: RESTATED_PROCESS_CLAIM_ID, claim: restated.text, expected: true }] },
   };
 }
 

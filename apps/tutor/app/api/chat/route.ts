@@ -982,8 +982,9 @@ export async function POST(request: Request): Promise<Response> {
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
   const diagramExamplePicker = request.headers.get("x-diagram-example-picker") === "1";
-  // "1" is a review vote, "write" restates a plan's process; both are one short JSON answer.
-  const processReview = !diagramExamplePicker && ["1", "write"].includes(request.headers.get("x-process-review") ?? "");
+  // "1" is a review vote, "write" restates a plan's process, "step" checks one
+  // restated step against its claim; each is one short JSON answer.
+  const processReview = !diagramExamplePicker && ["1", "write", "step"].includes(request.headers.get("x-process-review") ?? "");
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const llm = resolveLlmEndpoint();
   const apiKey = llm.apiKey;

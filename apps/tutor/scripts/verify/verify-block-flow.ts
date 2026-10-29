@@ -367,27 +367,48 @@ void (async () => {
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
 })().then(async () => {
-  const name = "restated process: asked only where a figure could follow, kept only when clean";
+  const name = "restated process: asked only where a figure could follow, every step cites its claim and passes its own check";
   try {
-    /** A writer proxy answering one scripted {"process": ...}. */
-    const writer = (process: unknown) => {
-      const calls: Headers[] = [];
+    /** A proxy that answers the writer with scripted steps and each step check with the next scripted verdict. */
+    const fake = (steps: unknown, checks: string[] = []) => {
+      const calls: Array<{ kind: string | null; body: string }> = [];
+      let inFlight = 0, peak = 0;
       const fetchImpl = (async (_url: unknown, init: RequestInit) => {
-        calls.push(new Headers(init.headers));
-        return Response.json({ choices: [{ message: { content: JSON.stringify({ process }) } }] });
+        const kind = new Headers(init.headers).get("x-process-review");
+        calls.push({ kind, body: String(init.body) });
+        inFlight++; peak = Math.max(peak, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        inFlight--;
+        if (kind === "write") return Response.json({ choices: [{ message: { content: JSON.stringify({ steps }) } }] });
+        const verdict = checks.shift() ?? "fail";
+        if (verdict === "fail") return new Response("upstream", { status: 502 });
+        return Response.json({ choices: [{ message: { content: JSON.stringify({ verdict }) } }] });
       }) as typeof fetch;
-      return { fetchImpl, calls };
+      return { fetchImpl, calls, peak: () => peak };
     };
-    const prose = plan([claim("c1", "When a card is tapped the reader sends a request that the acquirer forwards to the bank.")], "optional");
+    const prose = plan([
+      claim("c1", "When a card is tapped the reader sends a request to the acquirer."),
+      claim("c2", "The acquirer forwards the request to the bank, which approves it."),
+    ], "optional");
+    const cited = [
+      { step: "card is tapped", claim: "c1" }, { step: "reader sends request", claim: "c1" },
+      { step: "acquirer forwards it", claim: "c2" }, { step: "bank approves", claim: "c2" },
+    ];
     const clean = "Process: card is tapped → reader sends request → acquirer forwards it → bank approves";
-    const ask = (turnPlan: TurnPlanV3, process: unknown, eligible = true, question = "How does tap to pay work?") => {
-      const proxy = writer(process);
-      return withRestatedProcess({ question, turnPlan, eligible, options: reviewOptions(proxy.fetchImpl) }).then((out) => ({ out, calls: proxy.calls }));
+    const ask = (turnPlan: TurnPlanV3, steps: unknown, checks: string[] = [], eligible = true, question = "How does tap to pay work?") => {
+      const proxy = fake(steps, checks);
+      return withRestatedProcess({ question, turnPlan, eligible, options: reviewOptions(proxy.fetchImpl) })
+        .then((out) => ({ out, calls: proxy.calls, peak: proxy.peak() }));
     };
-    const kept = await ask(prose, clean);
-    assert.equal(kept.calls.length, 1);
-    assert.equal(kept.calls[0]!.get("x-process-review"), "write");
+    const kept = await ask(prose, cited, ["PASS", "PASS", "PASS", "PASS"]);
+    assert.deepEqual(kept.calls.map((call) => call.kind), ["write", "step", "step", "step", "step"], "one writer call, then one check per step");
+    assert(kept.calls[0]!.body.includes("c1: When a card is tapped"), "the writer sees each claim with its id");
+    const thirdCheck = JSON.parse(kept.calls[3]!.body).messages[1].content as string;
+    assert(thirdCheck.includes("Cited claim (c2): The acquirer forwards") && thirdCheck.includes("Step: acquirer forwards it") &&
+      thirdCheck.includes("Step before: reader sends request") && thirdCheck.includes("Step after: bank approves"), "a step is checked against its own claim");
+    assert(kept.peak <= PROCESS_REVIEW_MAX_CONCURRENT, `step checks stay within the in-flight limit (${kept.peak})`);
     assert.equal(kept.out.restated, clean);
+    assert.deepEqual(kept.out.steps?.map((item) => item.claimId), ["c1", "c1", "c2", "c2"]);
     assert.equal(kept.out.turnPlan.qualitativeClaims.at(-1)?.id, RESTATED_PROCESS_CLAIM_ID);
     assert.equal(planStatesChain(kept.out.turnPlan), true, "the restated process admits the figure");
     for (const [label, turnPlan, eligible, question] of [
@@ -396,18 +417,36 @@ void (async () => {
       ["already a process", payPlan, true, "How does tap to pay work?"],
       ["the planner is asked today", { ...prose, question: "A converging lens of focal length 10 cm forms an image of an object 15 cm away." }, true, "A converging lens of focal length 10 cm forms an image of an object 15 cm away."],
     ] as const) {
-      const none = await ask(turnPlan, clean, eligible, question);
+      const none = await ask(turnPlan, cited, ["PASS", "PASS", "PASS", "PASS"], eligible, question);
       assert.equal(none.calls.length, 0, `${label}: no call`);
       assert.equal(none.out.turnPlan, turnPlan, `${label}: plan untouched`);
     }
-    for (const [label, answer] of [
-      ["no process", null], ["brackets", "Process: mouth (amylase) → stomach → intestine"], ["two steps", "Process: tap → pay"],
-      ["another heading", "Components: records → intelligence → research"], ["a long step", `Process: ${"a".repeat(61)} → b → c`],
-      ["not text", 7],
+    // Writer answers that are never kept, and never checked.
+    const withFalse = plan([...prose.qualitativeClaims, { ...claim("c3", "The terminal prints a receipt first."), expected: false }], "optional");
+    for (const [label, turnPlan, steps] of [
+      ["no process", prose, null],
+      ["two steps", prose, cited.slice(0, 2)],
+      ["a step without a claim", prose, [{ step: "card is tapped" }, ...cited.slice(1)]],
+      ["an unknown claim", prose, [{ step: "card is tapped", claim: "c9" }, ...cited.slice(1)]],
+      ["a claim the plan rejects", withFalse, [{ step: "terminal prints receipt", claim: "c3" }, ...cited.slice(1)]],
+      ["a restated claim cited", prose, [{ step: "card is tapped", claim: RESTATED_PROCESS_CLAIM_ID }, ...cited.slice(1)]],
+      ["brackets", prose, [{ step: "card (or phone) is tapped", claim: "c1" }, ...cited.slice(1)]],
+      ["a long step", prose, [{ step: "a".repeat(61), claim: "c1" }, ...cited.slice(1)]],
+      ["the old one-line answer", prose, "Process: card is tapped → reader sends request → bank approves"],
     ] as const) {
-      const dropped = await ask(prose, answer);
+      const dropped = await ask(turnPlan, steps, ["PASS", "PASS", "PASS", "PASS"]);
       assert.equal(dropped.out.restated, null, `${label} is dropped`);
-      assert.equal(dropped.out.turnPlan, prose, `${label}: plan untouched`);
+      assert.equal(dropped.out.turnPlan, turnPlan, `${label}: plan untouched`);
+      assert(dropped.calls.every((call) => call.kind === "write"), `${label}: no step is checked`);
+    }
+    // One step that fails its own check, or one check with no answer, keeps the plan untouched.
+    for (const [label, checks, verdict] of [
+      ["one FAIL", ["PASS", "FAIL", "PASS", "PASS"], "fail"], ["one unanswered check", ["PASS", "PASS", "fail", "PASS"], "unavailable"],
+    ] as const) {
+      const failed = await ask(prose, cited, [...checks]);
+      assert.equal(failed.out.restated, null, `${label}: dropped`);
+      assert.equal(failed.out.turnPlan, prose, `${label}: plan untouched`);
+      assert.equal(failed.out.stepChecks?.verdict, verdict, label);
     }
     assert.equal(await writeProcessClaim("q", prose, reviewOptions((async () => new Response("no", { status: 500 })) as typeof fetch)), null, "a failed call");
     // A route the plan rejects never reaches the writer, never comes back true, and reviewers see it marked.
@@ -415,19 +454,17 @@ void (async () => {
       { ...claim("c1", "Process: right ventricle → aorta → body"), expected: false },
       claim("c2", "Blood leaves the right ventricle for the lungs, then returns to the left atrium."),
     ], "optional");
-    const bodies: string[] = [];
-    const echo = (async (_url: unknown, init: RequestInit) => {
-      bodies.push(String(init.body));
-      return Response.json({ choices: [{ message: { content: JSON.stringify({ process: "Process: right ventricle → aorta → body" }) } }] });
-    }) as typeof fetch;
-    const out = await withRestatedProcess({ question: "Where does blood go from the right ventricle?", turnPlan: rejectedPlan, eligible: true, options: reviewOptions(echo) });
-    assert.equal(bodies.length, 1, "the writer is asked");
-    assert(!bodies[0]!.includes("aorta"), "the writer never sees the rejected route");
+    const echo = fake([{ step: "right ventricle", claim: "c2" }, { step: "aorta", claim: "c2" }, { step: "body", claim: "c2" }], ["PASS", "PASS", "PASS"]);
+    const out = await withRestatedProcess({ question: "Where does blood go from the right ventricle?", turnPlan: rejectedPlan, eligible: true, options: reviewOptions(echo.fetchImpl) });
+    assert.equal(echo.calls[0]?.kind, "write", "the writer is asked");
+    assert(!echo.calls[0]!.body.includes("aorta"), "the writer never sees the rejected route");
     assert.equal(out.restated, null, "a restated rejected route is dropped");
     assert.equal(out.turnPlan, rejectedPlan, "the plan stays untouched");
     const reviewBodies = scriptedProxy(Array(PROCESS_REVIEW_VOTES).fill("PROCESS"));
     await reviewProcessChains("q", [["right ventricle", "lungs", "left atrium"]], reviewOptions(reviewBodies.fetchImpl), rejectedPlan);
     assert(reviewBodies.bodies.every((body) => body.includes("REJECTED by the plan (false): Process: right ventricle → aorta → body")), "reviewers see the rejection");
+    // The step-check kind is a process review on the trace.
+    assert.equal(resolveChatGenerationKind(new Headers({ "x-planner": "1", "x-process-review": "step" })), "process-review");
     rows++;
   } catch (error) { console.error(`verify-block-flow: FAIL ${name}`); throw error; }
 }).then(async () => {

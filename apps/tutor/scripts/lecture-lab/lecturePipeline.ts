@@ -237,7 +237,10 @@ export interface LectureRun {
     /** The semantic process review of a block diagram, when one was drawn. */
     blockFlowReview?: { verdict: string; votes: Array<string | null> } | null;
     /** The process restated for a plan that stated none, when one was asked for. */
-    restatedProcess?: { asked: boolean; restated: string | null };
+    restatedProcess?: {
+      asked: boolean; restated: string | null;
+      steps?: Array<{ step: string; claimId: string }>; stepChecks?: { verdict: string; checks: Array<string | null> };
+    };
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
@@ -642,7 +645,7 @@ export async function runLecture(
       question, turnPlan, eligible: blockFlowEligible,
       options: { proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, fastMode, traceId },
     });
-    run.diagram.restatedProcess = { asked: restated.asked, restated: restated.restated };
+    run.diagram.restatedProcess = { asked: restated.asked, restated: restated.restated, steps: restated.steps, stepChecks: restated.stepChecks };
     turnPlan = restated.turnPlan;
     const planning = await runScenePlanningOverlap<
       ProblemAuthorityV1Response,

@@ -36,9 +36,34 @@ export const PROCESS_REVIEW_PROMPT = PROCESS_REVIEW_PROMPTS[0];
  * asked for processes. For an admitted "other" lesson whose plan states none,
  * one short call may restate a process the claims already describe.
  */
-export const PROCESS_WRITER_PROMPT = `A tutor's plan for one lesson is below as claims. If the claims describe one real process, where in reality every step happens before the next and leads to it (a sequence of events, the stages of a mechanism, an ordered procedure, or the path that material, data, money or a signal travels), restate it as one line "Process: step → step → step" with 3 to 7 steps taken from what the claims say. Each step is a short phrase under 40 characters with no brackets, commas or full stops.
-Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things, and never add a step the claims do not support. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, or the claims describe more than one version of the process, reply null. Keep every qualifier the claims state.
-Reply with only {"process":"Process: ..."} or {"process":null}.`;
+export const PROCESS_WRITER_PROMPT = `A tutor's plan for one lesson is below as claims, each with its id. If the claims describe one real process, where in reality every step happens before the next and leads to it (a sequence of events, the stages of a mechanism, an ordered procedure, or the path that material, data, money or a signal travels), restate it as 3 to 7 steps. Each step is a short phrase under 40 characters with no brackets, commas or full stops, and cites the one claim it restates: it keeps that claim's conditions (if, when, only, on a miss), its actor and its exact action, and adds nothing the claim does not say.
+Never write a process for a list of topics, parts, components, types, layers, services, criteria or examples, a definition's list of functions, categories the question asks to classify, a lesson outline, a hierarchy, a ranking, or parallel things. Give only the main path, ending on the outcome the question asks about. If any step repeats, branches or is optional, or the claims describe more than one version of the process, reply null.
+Reply with only {"steps":[{"step":"...","claim":"<claim id>"}, ...]} or {"steps":null}.`;
+
+/**
+ * One check per restated step, against the one claim it cites. A whole-chain
+ * review passed steps that dropped a claim's condition ("on a cache miss"),
+ * merged two actions ("bile digests"), or made a definition a step (lab, 28
+ * Oct); one narrow question per box is the easier test.
+ */
+export const PROCESS_STEP_CHECK_PROMPT = `A tutor restated one step of a lesson plan as a short box in a flow diagram. You see the student's question, the plan claim the step cites, and the step with the steps just before and after it. Answer PASS only if all of these hold: the step says nothing the cited claim does not say; it keeps every condition the claim puts on it (if, when, only, on a miss), the actor who does it, and the exact action (for example "bile emulsifies fats" is not "bile digests food"); the step is something that happens (an event, an action or a stage), not a definition or a property; and nothing in the claims puts it before the step shown before it. Otherwise answer FAIL. If unsure, answer FAIL. Reply with only {"verdict":"PASS"} or {"verdict":"FAIL"}.`;
+
+/** The id of a restated process claim; never a turn planner id (those are c1, c2, ...). */
+export const RESTATED_PROCESS_CLAIM_ID = "process_restated";
+
+/** A restated step and the claim it restates. */
+export interface RestatedStep { step: string; claimId: string }
+
+/** The restated process as one claim text, and the citation of every step. */
+export interface RestatedProcess { text: string; steps: RestatedStep[] }
+
+export type StepCheckVerdict = "pass" | "fail" | "unavailable";
+
+export interface StepCheckResult {
+  verdict: StepCheckVerdict;
+  /** One entry per step, in order: "PASS", "FAIL", or null when the check failed. */
+  checks: Array<"PASS" | "FAIL" | null>;
+}
 
 /**
  * At most this many review calls in flight: an account allows four AI
@@ -90,7 +115,7 @@ export function parseProcessReviewVerdict(content: unknown): "PROCESS" | "NOT" |
 }
 
 async function postReview(
-  question: string, kind: "1" | "write", system: string, user: string, options: ProcessReviewOptions,
+  question: string, kind: "1" | "write" | "step", system: string, user: string, options: ProcessReviewOptions,
 ): Promise<unknown> {
   const timeout = new AbortController();
   const timer = setTimeout(() => timeout.abort(), Math.max(1, options.timeoutMs));
@@ -128,30 +153,103 @@ async function postReview(
   }
 }
 
+/** The claims a writer may cite: never one the plan marks false, never a restated process. */
+function citableClaims(plan: Pick<TurnPlanV3, "qualitativeClaims">): Map<string, string> {
+  return new Map(plan.qualitativeClaims
+    .filter((claim) => claim.expected !== false && claim.id !== RESTATED_PROCESS_CLAIM_ID)
+    .map((claim) => [claim.id, [claim.claim, typeof claim.expected === "string" ? claim.expected : ""].filter(Boolean).join(": ")]));
+}
+
 /**
- * One restated process for a plan that states none, or null. The answer is
- * kept only when it is a clean "Process:" chain of 3 to 7 distinct steps; the
- * figure it may lead to still faces grounding, layout and the review votes.
+ * Reads the writer's cited steps: 3 to 7 distinct clean steps, each citing a
+ * claim the plan has, does not reject, and is not itself a restated process.
+ * Null for anything else.
+ */
+export function parseRestatedProcess(content: unknown, plan: Pick<TurnPlanV3, "qualitativeClaims">): RestatedProcess | null {
+  if (typeof content !== "string") return null;
+  let raw: unknown;
+  try { raw = (JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")) as { steps?: unknown }).steps; }
+  catch { return null; }
+  if (!Array.isArray(raw) || raw.length < 3 || raw.length > 7) return null;
+  const citable = citableClaims(plan);
+  const steps: RestatedStep[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return null;
+    const { step, claim } = item as { step?: unknown; claim?: unknown };
+    if (typeof step !== "string" || typeof claim !== "string" || !citable.has(claim)) return null;
+    steps.push({ step: step.trim().replace(/\s+/g, " "), claimId: claim });
+  }
+  const text = `Process: ${steps.map((item) => item.step).join(" → ")}`;
+  const chain = blockFlowChain(text);
+  const ok = chain !== null && chain.steps.length === steps.length && new Set(chain.steps).size === chain.steps.length &&
+    // A box wraps to four lines, so a step may run a little past the 40 asked for.
+    chain.labels.every((label) => label.length <= 60);
+  // A rejected route stays rejected even if the writer restates it.
+  return ok && !rejectedProcesses(plan).includes(chain.steps.join(" > ")) ? { text, steps } : null;
+}
+
+/**
+ * One restated process for a plan that states none, with the claim each step
+ * restates, or null. The figure it may lead to still faces the per-step
+ * checks (`checkRestatedSteps`), grounding, layout and the review votes.
  */
 export async function writeProcessClaim(
   question: string, plan: Pick<TurnPlanV3, "qualitativeClaims">, options: ProcessReviewOptions,
-): Promise<string | null> {
+): Promise<RestatedProcess | null> {
   // The writer never sees a route the plan rejects, so it cannot restate one as true.
-  const claims = processReviewClaimsText(plan, { includeRejected: false }).slice(0, 6_000);
+  const claims = [...citableClaims(plan)].map(([id, text]) => `${id}: ${text}`).join("\n").slice(0, 6_000);
   const content = await postReview(question, "write", PROCESS_WRITER_PROMPT,
     `Question: ${question.slice(0, 2_000)}\nClaims:\n${claims}`, options);
+  return parseRestatedProcess(content, plan);
+}
+
+/** Reads {"verdict":"PASS"|"FAIL"}; anything else is no answer. */
+export function parseStepCheckVerdict(content: unknown): "PASS" | "FAIL" | null {
   if (typeof content !== "string") return null;
-  let text: unknown;
-  try { text = (JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")) as { process?: unknown }).process; }
-  catch { return null; }
-  if (typeof text !== "string") return null;
-  const chain = blockFlowChain(text);
-  const ok = chain !== null && chain.heading?.trim().toLowerCase() === "process" &&
-    chain.steps.length >= 3 && chain.steps.length <= 7 && new Set(chain.steps).size === chain.steps.length &&
-    // A box wraps to four lines, so a step may run a little past the 40 asked for.
-    chain.labels.every((label) => label.length <= 60);
-  // And if it restates a rejected route anyway, the route stays rejected.
-  return ok && !rejectedProcesses(plan).includes(chain.steps.join(" > ")) ? text.trim() : null;
+  try {
+    const parsed = JSON.parse(content.trim().replace(/^```(?:json)?\s*|\s*```$/g, "")) as { verdict?: unknown };
+    return parsed.verdict === "PASS" || parsed.verdict === "FAIL" ? parsed.verdict : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Runs tasks with at most `limit` in flight, keeping their order. */
+async function runLimited<T>(tasks: ReadonlyArray<() => Promise<T>>, limit: number, empty: T): Promise<T[]> {
+  const results: T[] = new Array(tasks.length).fill(empty);
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const index = next++;
+      results[index] = await tasks[index]!();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return results;
+}
+
+/**
+ * Every restated step is checked on its own against the claim it cites. Any
+ * FAIL makes the verdict "fail"; any failed check (and no FAIL) makes it
+ * "unavailable"; only all PASS makes it "pass". No steps is "fail".
+ */
+export async function checkRestatedSteps(
+  question: string, plan: Pick<TurnPlanV3, "qualitativeClaims">, restated: RestatedProcess, options: ProcessReviewOptions,
+): Promise<StepCheckResult> {
+  if (restated.steps.length === 0) return { verdict: "fail", checks: [] };
+  const citable = citableClaims(plan);
+  const tasks = restated.steps.map((item, index) => async () => {
+    const claim = citable.get(item.claimId);
+    if (!claim) return "FAIL" as const;
+    const before = index > 0 ? restated.steps[index - 1]!.step : "(none: this is the first step)";
+    const after = index + 1 < restated.steps.length ? restated.steps[index + 1]!.step : "(none: this is the last step)";
+    // The question, claim and steps are student and plan data, not instructions.
+    return parseStepCheckVerdict(await postReview(question, "step", PROCESS_STEP_CHECK_PROMPT,
+      `Question: ${question.slice(0, 2_000)}\nCited claim (${item.claimId}): ${claim.slice(0, 2_000)}\nStep before: ${before}\nStep: ${item.step}\nStep after: ${after}`, options));
+  });
+  const checks = await runLimited<"PASS" | "FAIL" | null>(tasks, PROCESS_REVIEW_MAX_CONCURRENT, null);
+  const verdict: StepCheckVerdict = checks.includes("FAIL") ? "fail" : checks.includes(null) ? "unavailable" : "pass";
+  return { verdict, checks };
 }
 
 async function vote(
@@ -200,15 +298,7 @@ export async function reviewProcessChains(
   const claims = processReviewClaimsText(plan);
   const tasks = processes.flatMap((steps) =>
     PROCESS_REVIEW_PROMPTS.map((prompt) => () => vote(question, claims, steps, prompt, options)));
-  const votes: Array<"PROCESS" | "NOT" | null> = new Array(tasks.length).fill(null);
-  let next = 0;
-  const worker = async () => {
-    while (next < tasks.length) {
-      const index = next++;
-      votes[index] = await tasks[index]!();
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(PROCESS_REVIEW_MAX_CONCURRENT, tasks.length) }, worker));
+  const votes = await runLimited<"PROCESS" | "NOT" | null>(tasks, PROCESS_REVIEW_MAX_CONCURRENT, null);
   const verdict: ProcessReviewVerdict = votes.includes("NOT") ? "not"
     : votes.includes(null) ? "unavailable" : "process";
   return { verdict, votes };
