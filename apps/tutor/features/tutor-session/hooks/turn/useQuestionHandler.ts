@@ -164,12 +164,16 @@ import {
   requestDoubtFigureNeed,
   selectFastFigure,
   snapshotPresentation,
+  storedPageZoneStash,
+  zoneInkOccupied,
   type DoubtFigureDrawn,
 } from "../../lib/turn/doubtFigurePlan";
 import {
+  EMPTY_ZONE_STASH,
   returnFigureToZone,
   returnZoneStash,
   swapFigureIn,
+  type ZoneStash,
 } from "../../lib/scene/figureSwap";
 import { storedFigurePresentation } from "../../lib/replay/pageFigureSync";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
@@ -1842,19 +1846,32 @@ export function useQuestionHandler(
       // doubt plans nothing and answers on the figure already drawn.
       const doubtFiguresGranted = billed.doubtFigures === true;
       let doubtFigure: DoubtFigureDrawn | null = null;
+      /** What a swap would stash, with the zone figure it was read against (null: empty). */
+      let doubtZoneStash: { zone: import("@heytutor/drawing").VerifiedDiagram | null; stash: ZoneStash } | null = null;
       if (doubt && doubtFiguresGranted) {
         // doubt-figure-plan:begin
         const zoneFigure = doubtPage?.figureOnPage ? activeVerifiedDiagramRef.current : null;
+        const codeBoard = Boolean(codeLessonControllerRef?.current?.getActivePlan());
         const zoneEntry = zoneFigure && zonePresentationRef.current?.live === zoneFigure ? zonePresentationRef.current : null;
+        // No figure, and the doubt writes on the lesson's page: the zone is empty.
+        const zoneEmpty = !zoneFigure && !codeBoard && Boolean(doubtPage?.continuesBoard);
+        // A restored board kept no snapshot of its figure: the stash is read
+        // from the stored turns, or none when they do not match the zone.
+        const zoneStash: ZoneStash | null = page.zoneStash
+          ?? (zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null } : null)
+          ?? (zoneFigure ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)
+          ?? (zoneEmpty ? { ...EMPTY_ZONE_STASH } : null);
         const skip = doubtFigureNeedSkip({
           granted: doubtFiguresGranted,
-          codeBoard: Boolean(codeLessonControllerRef?.current?.getActivePlan()),
+          codeBoard,
           markedFigureIds: doubt.markedFigureIds ?? [],
           zoneFigure,
-          zoneReturnable: Boolean(page.zoneStash || zoneEntry),
-          zoneEmpty: false,
-          zoneOccupied: false,
+          zoneReturnable: zoneStash !== null,
+          zoneEmpty,
+          // Never draw over ink: a text only row may already reach the zone.
+          zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),
         });
+        doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;
         const need = skip
           ? { decision: "point" as const, reason: skip }
           : await awaitCurrentTurn(requestDoubtFigureNeed({
@@ -1864,7 +1881,10 @@ export function useQuestionHandler(
               traceId: turnTraceId,
               sessionId,
             }), isCurrentTurn);
-        tel.mark("doubt-figure-need", { decision: need.decision, skipped: skip !== null, reason: skip ?? undefined });
+        tel.mark("doubt-figure-need", {
+          decision: need.decision, skipped: skip !== null, reason: skip ?? undefined,
+          zone: zoneFigure ? (isReferencePictureDiagram(zoneFigure) ? "picture" : "figure") : "empty",
+        });
         if (need.decision === "new_figure") {
           // One spoken holding line while the figure plans, on the turn's
           // opening beat; planning goes on behind it.
@@ -1960,12 +1980,15 @@ export function useQuestionHandler(
           const wb = whiteboardRef.current;
           const zoneLive = activeVerifiedDiagramRef.current;
           const zoneEntry = zoneLive && zonePresentationRef.current?.live === zoneLive ? zonePresentationRef.current : null;
-          const stash = page.zoneStash ?? (zoneLive && zoneEntry
+          // The plan's stash (an empty zone, a restored board) only for the zone it was read against.
+          const stash: ZoneStash | null = page.zoneStash ?? (zoneLive && zoneEntry
             ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null }
-            : null);
+            : doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);
           const previousStash = page.zoneStash ?? null;
           page.zoneStash = stash;
-          const cleared = wb && stash
+          // An empty zone is checked again at the swap: never draw over ink.
+          const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);
+          const cleared = wb && stash && inkFree
             ? await swapFigureIn(wb, boardLayoutRef.current, drawn.presentation.diagram, { shouldCancel: () => !isCurrentTurn() })
             : false;
           throwIfTurnCancelled();

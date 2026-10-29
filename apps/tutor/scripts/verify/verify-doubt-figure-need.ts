@@ -172,7 +172,8 @@ async function main(): Promise<void> {
     const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
     const plan = between(read(file), file, "if (doubt && doubtFiguresGranted) {\n        // doubt-figure-plan:begin", "// doubt-figure-plan:end");
     assert(/markedFigureIds: doubt\.markedFigureIds \?\? \[\]/.test(plan), "the doubt's marked figure parts reach the skip");
-    assert(/codeBoard: Boolean\(codeLessonControllerRef\?\.current\?\.getActivePlan\(\)\)/.test(plan), "a code board reaches the skip");
+    assert(/const codeBoard = Boolean\(codeLessonControllerRef\?\.current\?\.getActivePlan\(\)\);/.test(plan) &&
+      /doubtFigureNeedSkip\(\{\s*granted: doubtFiguresGranted,\s*codeBoard,/.test(plan), "a code board reaches the skip");
     assert(/const need = skip\s*\? \{ decision: "point" as const, reason: skip \}\s*: await awaitCurrentTurn\(requestDoubtFigureNeed\(/.test(plan),
       "a skip answers point without the call");
     const shell = read("features/tutor-session/TutorSessionShell.tsx");

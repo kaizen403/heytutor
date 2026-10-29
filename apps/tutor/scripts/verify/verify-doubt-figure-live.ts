@@ -231,6 +231,27 @@ async function main(): Promise<void> {
       "the swapped figure's intro is the one the lesson's enqueueVerifiedIntro draws");
     assert(swap.indexOf("page.zoneStash = previousStash;") > swapCall, "a refused swap leaves the stash as it was");
 
+    // An empty zone and a restored board (lane 2), inside the same anchors.
+    assert(plan.includes("const zoneEmpty = !zoneFigure && !codeBoard && Boolean(doubtPage?.continuesBoard);"),
+      "an empty zone is one with no figure, no code board, on the lesson's page");
+    assert(plan.includes("zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),"),
+      "the occupancy guard reads the board's layout, on an empty zone only");
+    const liveStash = plan.indexOf("(zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot");
+    const storedStash = plan.indexOf("(zoneFigure ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)");
+    const emptyStash = plan.indexOf("(zoneEmpty ? { ...EMPTY_ZONE_STASH } : null)");
+    assert(plan.indexOf("page.zoneStash") >= 0 && plan.indexOf("page.zoneStash") < liveStash && liveStash < storedStash && storedStash < emptyStash,
+      "the stash is the page's, else the live snapshot, else the stored turns (restored board), else the empty zone");
+    assert(plan.includes("zoneReturnable: zoneStash !== null,"), "a zone is returnable exactly when a stash could be built");
+    assert(plan.indexOf("doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;") > plan.indexOf("doubtFigureNeedSkip("),
+      "the plan hands its stash, with the zone it read, to the swap");
+    assert(/zone: zoneFigure \? \(isReferencePictureDiagram\(zoneFigure\) \? "picture" : "figure"\) : "empty",/.test(plan),
+      "the need telemetry names the zone kind");
+    assert(swap.includes(": doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);"),
+      "the plan's stash is used only for the zone it was read against");
+    const inkFree = swap.indexOf("const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);");
+    assert(inkFree >= 0 && inkFree < swapCall && swap.includes("const cleared = wb && stash && inkFree"),
+      "an empty zone is checked for ink again before the swap clears it");
+
     const resume = between(handler, file, "} else if (resume) {", "diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram)");
     const returnCall = resume.indexOf("await returnZoneStash(");
     const refRead = resume.indexOf("activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;");
