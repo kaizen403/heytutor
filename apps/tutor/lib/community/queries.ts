@@ -136,9 +136,19 @@ export async function listCommunityBoards(input: { sort: CommunitySort; page: nu
   };
 }
 
-export async function getCommunityBoardCard(boardId: string): Promise<(CommunityCard & { ownerId: string }) | null> {
+/**
+ * The same eligibility minus an admin's hide, for moderation preview only.
+ * Never call this for anyone who has not passed the admin gate.
+ */
+function hiddenForAdminWhere(boardId: string): Prisma.BoardWhereInput {
+  const where = communityBoardWhere({ id: boardId });
+  delete where.communityHiddenAt;
+  return where;
+}
+
+export async function getCommunityBoardCard(boardId: string, options: { adminPreview?: boolean } = {}): Promise<(CommunityCard & { ownerId: string }) | null> {
   const row = await prisma.board.findFirst({
-    where: communityBoardWhere({ id: boardId }),
+    where: options.adminPreview ? hiddenForAdminWhere(boardId) : communityBoardWhere({ id: boardId }),
     select: { ...CARD_SELECT, userId: true },
   });
   return row ? { ...toCard(row), ownerId: row.userId } : null;
@@ -184,10 +194,13 @@ export async function readCommunityTurns(boardId: string, page: number) {
  * Whether anyone, signed in or not, may play this stored object: a lecture
  * clip of a turn Community shows. Question photos are never public.
  */
-export async function canReadCommunityObject(key: string): Promise<boolean> {
+export async function canReadCommunityObject(key: string, options: { adminPreview?: boolean } = {}): Promise<boolean> {
   const parsed = parseStoredObjectKey(key);
   if (!parsed || parsed.kind !== "lecture") return false;
-  const board = await prisma.board.findFirst({ where: communityBoardWhere({ id: parsed.boardId }), select: { id: true } });
+  const board = await prisma.board.findFirst({
+    where: options.adminPreview ? hiddenForAdminWhere(parsed.boardId) : communityBoardWhere({ id: parsed.boardId }),
+    select: { id: true },
+  });
   if (!board) return false;
   const turn = await prisma.turn.findFirst({
     where: { id: parsed.turnId, boardId: parsed.boardId },

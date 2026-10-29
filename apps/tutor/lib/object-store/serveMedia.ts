@@ -47,9 +47,16 @@ async function userCanReadObject(userId: string, key: string): Promise<boolean> 
  * The owner reads their own objects. Anyone, signed in or not, may also play
  * the lecture clips of a board Community shows; nothing else is public.
  */
-export async function serveUserObject(userId: string | null, key: string): Promise<Response> {
+export async function serveUserObject(
+  userId: string | null,
+  key: string,
+  options: { isAdmin?: () => Promise<boolean> } = {},
+): Promise<Response> {
   const owned = userId != null && await userCanReadObject(userId, key);
-  if (!owned && !(await canReadCommunityObject(key))) {
+  const readable = owned || await canReadCommunityObject(key) ||
+    // Moderation preview of a hidden board. Asked last, so an ordinary read never pays for it.
+    (userId != null && options.isAdmin != null && await options.isAdmin() && await canReadCommunityObject(key, { adminPreview: true }));
+  if (!readable) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 

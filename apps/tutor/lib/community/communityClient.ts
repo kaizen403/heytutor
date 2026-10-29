@@ -8,6 +8,8 @@ import type { CommunityCard, CommunitySort } from "./publicBoard";
 export interface CommunityBoardHeader extends CommunityCard {
   preview: string;
   isOwner: boolean;
+  /** An admin is looking at a board hidden from everyone else. */
+  adminPreview?: boolean;
 }
 
 export interface CommunityPage {

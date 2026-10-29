@@ -24,6 +24,7 @@ import { communityBoardWhere } from "../../lib/community/queries";
 import { boardThumbnailKey, parseStoredObjectKey } from "../../lib/object-store/keys";
 import { isAuthPublicPath } from "../../lib/auth/publicPaths";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
+import { claimRemixSlot, communityReports, communityViews, releaseRemixSlot, resetCommunityGuardsForTests } from "../../lib/community/abuseGuards";
 import { sessionCapabilities } from "../../features/tutor-session/lib/sessionCapabilities";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -183,6 +184,25 @@ const boardClient = read("lib", "boards", "boardsClient.ts");
 assert(/export async function updateBoard[\s\S]{0,700}\} catch \{\s*return null;/.test(boardClient), "a dropped connection makes Make private look saved");
 assert(!read("app", "api", "community", "[boardId]", "route.ts").includes("recordCommunityView"), "every board read counts as a view");
 
+// 10. Abuse guards and the admin preview.
+resetCommunityGuardsForTests();
+assert(communityViews.claim("ip:1:b", 0) && !communityViews.claim("ip:1:b", 1_000), "a repeated view inside its window counts again");
+assert(communityViews.claim("ip:1:b", 31 * 60_000), "a view after its window is never counted again");
+assert(communityReports.claim("u:a:b") && !communityReports.claim("u:a:b"), "one reporter can file a board twice");
+assert(claimRemixSlot("u1") && !claimRemixSlot("u1"), "two remixes of one account can copy at once");
+releaseRemixSlot("u1");
+assert(claimRemixSlot("u1"), "a finished remix keeps its account's slot");
+releaseRemixSlot("u1");
+const remixRoute = read("app", "api", "community", "[boardId]", "remix", "route.ts");
+assert(/claimRemixSlot\(userId\)[\s\S]*finally \{\s*releaseRemixSlot\(userId\);/.test(remixRoute), "the remix slot is not released on every path");
+const viewRoute = read("app", "api", "community", "[boardId]", "view", "route.ts");
+assert(/communityViews\.claim\([\s\S]{0,160}\)\) \{\s*recordCommunityView/.test(viewRoute), "views count without the server side visit check");
+const detailRoute = read("app", "api", "community", "[boardId]", "route.ts");
+assert(/if \(!card && \(await requireAdminRequest\(\)\) === null\) \{\s*card = await getCommunityBoardCard\(boardId, \{ adminPreview: true \}\)/.test(detailRoute), "hidden boards are readable without the admin gate");
+assert(/userId != null && options\.isAdmin != null && await options\.isAdmin\(\) && await canReadCommunityObject\(key, \{ adminPreview: true \}\)/.test(serve), "hidden board clips are readable without the admin gate");
+const hiddenWhere = read("lib", "community", "queries.ts");
+assert(/function hiddenForAdminWhere[\s\S]{0,200}delete where\.communityHiddenAt;\s*return where;/.test(hiddenWhere), "the admin preview relaxes more than the hide");
+
 // 8. Boards made before Community stay private; new ones are public, except staff boards.
 const migration = read("prisma", "migrations", "25_community", "migration.sql");
 const addPrivate = migration.indexOf(`ADD COLUMN IF NOT EXISTS "visibility" TEXT NOT NULL DEFAULT 'private'`);
@@ -191,4 +211,4 @@ assert(addPrivate >= 0 && thenPublic > addPrivate, "existing boards would be pub
 const createRoute = read("app", "api", "boards", "route.ts");
 assert(/isAdminEmail\(/.test(createRoute) && /visibility: staff \? "private" : "public"/.test(createRoute), "staff and lab boards are published by default");
 
-console.log("community privacy: 9 gates passed");
+console.log("community privacy: 10 gates passed");

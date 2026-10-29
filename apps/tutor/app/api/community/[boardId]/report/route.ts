@@ -3,6 +3,8 @@ import { getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { communityBoardWhere } from "@/lib/community/queries";
+import { communityReports, visitorKey } from "@/lib/community/abuseGuards";
+import { clientIpFromForwarded } from "@/lib/http/ipRateLimit";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -28,6 +30,15 @@ export async function POST(request: Request, context: RouteContext) {
   if (!board) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
-  await prisma.communityReport.create({ data: { boardId, reporterId: await getUserId(), reason } });
+  // One report per person and board: repeats are acknowledged but not
+  // counted, so one reporter cannot push a board up the moderation queue.
+  const reporterId = await getUserId();
+  if (!communityReports.claim(`${visitorKey(reporterId, request, clientIpFromForwarded)}:${boardId}`)) {
+    return NextResponse.json({ ok: true });
+  }
+  if (reporterId && await prisma.communityReport.findFirst({ where: { boardId, reporterId }, select: { id: true } })) {
+    return NextResponse.json({ ok: true });
+  }
+  await prisma.communityReport.create({ data: { boardId, reporterId, reason } });
   return NextResponse.json({ ok: true });
 }

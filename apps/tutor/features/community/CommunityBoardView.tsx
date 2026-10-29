@@ -182,6 +182,11 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
             </div>
           ) : null}
         </div>
+        {header?.adminPreview ? (
+          <p className="w-full text-xs text-amber-200" role="status">
+            Hidden from Community. Only admins can see this preview.
+          </p>
+        ) : null}
         {notice ? (
           <p className={`w-full text-xs ${notice.tone === "error" ? "text-red-300" : "text-sky-200"}`} role="status">
             {notice.text}
