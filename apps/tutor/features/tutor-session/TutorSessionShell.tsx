@@ -955,8 +955,8 @@ export function TutorSessionShell({
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
-    boardLayoutRef,
     readBoard,
+    boardLayoutRef,
   });
 
   // Page load clock only: the first loaded board of this document. Declared
