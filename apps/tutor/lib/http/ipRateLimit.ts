@@ -16,6 +16,8 @@ const IP_RATE_LIMITS = {
   publicMedia: { limit: 600, windowMs: WINDOW_MS },
   trace: { limit: 90, windowMs: WINDOW_MS },
   suggestions: { limit: 30, windowMs: WINDOW_MS },
+  // Public reference picture assets: three requests a picture, cached immutable.
+  pictures: { limit: 300, windowMs: WINDOW_MS },
   // Shared school NATs can burst. Still bounds an open tunnel.
   sentry: { limit: 120, windowMs: WINDOW_MS },
 } as const;
@@ -70,7 +72,8 @@ export function rateLimitBucketForPath(pathname: string): IpRateBucket | null {
   if (pathname === "/api/community" || pathname.startsWith("/api/community/")) return "community";
   if (pathname === "/api/trace" || pathname.startsWith("/api/trace/")) return "trace";
   if (pathname === "/api/home-suggestions") return "suggestions";
-  if (["/api/chat", "/api/stt", "/api/tts/stream", "/api/tts/ws-ticket", "/api/extract-question", "/api/visual-need", "/api/dsa-teaching-policy", "/api/board-name"].includes(pathname)) return "paid";
+  if (pathname.startsWith("/api/reference-picture/")) return "pictures";
+  if (["/api/chat", "/api/stt", "/api/tts/stream", "/api/tts/ws-ticket", "/api/extract-question", "/api/visual-need", "/api/reference-picture", "/api/dsa-teaching-policy", "/api/board-name"].includes(pathname)) return "paid";
   if (pathname === SENTRY_TUNNEL_PATH || pathname.startsWith(`${SENTRY_TUNNEL_PATH}/`)) return "sentry";
   return null;
 }

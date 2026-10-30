@@ -149,6 +149,22 @@ export function namedCyclicEliminations(question: string): CyclicEliminationKind
   return CYCLIC_NAMES.filter((entry) => question.match(entry.pattern)).map((entry) => entry.kind);
 }
 
+/** The question with every SN1, SN2, E1 or E2 name blanked: "SN2" is a mechanism, not sulfur and nitrogen. */
+export function withoutMechanismNames(text: string): string {
+  return text.replace(new RegExp(MECHANISM_TYPE.source, "g"), (match) => " ".repeat(match.length));
+}
+
+/** The substitution and elimination classes a text names, in any spelling MECHANISM_TYPE reads; E1 is named but has no class. */
+export function mechanismClassesNamed(text: string): Set<"SN1" | "SN2" | "E2"> {
+  const classes = new Set<"SN1" | "SN2" | "E2">();
+  for (const match of text.matchAll(new RegExp(MECHANISM_TYPE.source, "g"))) {
+    const digit = match[0].replace(/¹/, "1").replace(/²/, "2").slice(-1);
+    if (/^[Ss]/.test(match[0])) classes.add(digit === "1" ? "SN1" : "SN2");
+    else if (digit === "2") classes.add("E2");
+  }
+  return classes;
+}
+
 export function isMechanismAsk(question: string): boolean {
   if (namedCyclicEliminations(question).length || MECHANISM_ASK.test(question)) return true;
   if (NAMED_REARRANGEMENT.test(question)) return true;

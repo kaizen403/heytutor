@@ -47,6 +47,37 @@ function thresholdHasReactionOwner(stem: string): boolean {
     || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
 }
 
+/**
+ * Maxwell also names the thumb rule, the equations, the bridge and the demon.
+ * The name routes here only beside the curve itself: Maxwell Boltzmann,
+ * Maxwell naming a distribution or curve, or Maxwell beside a speed
+ * distribution or a named molecular speed. Every branch needs "maxwell", so
+ * this only ever declines what the bare name drew.
+ */
+function namesMaxwellDistribution(stem: string): boolean {
+  if (!/maxwell/.test(stem)) return false;
+  return /maxwell[\s-]*boltzmann/.test(stem)
+    || /maxwell(?:ian|'s|\u2019s)?[\s-]+(?:(?:molecular|speed|velocity|energy|kinetic|normali[sz]ed|probability|two|the)[\s-]+)*(?:distributions?|curves?|graphs?|plots?)\b/.test(stem)
+    || /\b(?:speed|velocity)[\s-]+distributions?\b|\bdistributions?\s+of\s+(?:the\s+)?(?:molecular\s+)?(?:speeds?|velocit(?:y|ies))\b/.test(stem)
+    || /\b(?:most\s+probable|rms|root\s+mean\s+square)\s+speeds?\b/.test(stem);
+}
+
+/**
+ * A distribution of speeds or energies is the molecules' curve only for a
+ * gas of molecules: it needs a molecule, gas, particle, atom, sample or
+ * reaction rate word, and declines photons, radiation, waves, a plasma or
+ * corona, an electron gas, and nuclear, decay or cosmic particles, whose
+ * distributions are other curves. Main matched the bare
+ * phrase; this keeps only part of what it drew.
+ */
+const DISTRIBUTION_PHRASE = /boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/;
+
+function moleculeDistribution(stem: string): boolean {
+  if (!DISTRIBUTION_PHRASE.test(stem)) return false;
+  if (!/\b(?:molecul\w*|gas(?:es)?|maxwell|boltzmann|particles?|atoms?|reactants?|reacting|reactions?|rates?|catalysts?|activation|collisions?|samples?|nitrogen|oxygen|hydrogen|helium|neon|argon|air)\b/.test(stem)) return false;
+  return !/\b(?:photons?|radiation|electromagnetic|waves?|plasma|corona|neutrons?|protons?|phonons?|nuclei|nuclear|stars?|galax\w*|black\s*body|alpha|beta|decay|cosmic|light(?!\s+(?:gas|gases|molecules?|atoms?))|spectrum|spectral|radioactive|accelerator)\b|\belectron\s+gas\b|\b(?:free|conduction)\s+electrons?\b|\belectrons?\s+in\s+(?:a|the)\s+metal\b|\b(?:of|for|among)\s+(?:the\s+)?(?:\w+\s+)?electrons\b|\belectrons?\s+(?:emitted|ejected|released|liberated)\b|\bphotoelectrons?\b|\bmaxwell(?:'s|\u2019s)?\s+equations\b/.test(stem);
+}
+
 function classifyThermoStem(question: string): ThermoKind | null {
   const stem = chemStem(question);
   if (FIGURE_ABSENT.test(stem)) return null;
@@ -57,13 +88,20 @@ function classifyThermoStem(question: string): ThermoKind | null {
     return "born_haber";
   }
   if (
-    /maxwell|boltzmann\s+distribution|distribution\s+of\s+(?:molecular\s+)?(?:speeds|velocities|kinetic\s+energ|energ)/.test(stem) ||
+    namesMaxwellDistribution(stem) ||
+    moleculeDistribution(stem) ||
     (/fraction\s+of\s+(?:the\s+)?molecules/.test(stem) && /energy/.test(stem)) ||
     /effect\s+of\s+temperature\s+on\s+(?:the\s+)?(?:rate|reaction\s+rate)/.test(stem) ||
     /molecules\s+(?:having|with|possessing)\s+(?:kinetic\s+)?energy\s+(?:greater|more|higher|larger)\s+than/.test(stem)
   ) {
     return "maxwell";
   }
+  // A stem that names Maxwell but not the distribution never reaches the
+  // other thermo figures: main returned "maxwell" for it, so this only declines.
+  if (/maxwell/.test(stem)) return null;
+  // Likewise a distribution this declines draws nothing: main returned
+  // "maxwell" for the phrase, so it never reached the figures below.
+  if (DISTRIBUTION_PHRASE.test(stem)) return null;
   const gibbsSource = readGibbsEnergies(question);
   const hasDeltaH = gibbsSource !== null || readEnthalpyChange(question) !== null;
   const hasDeltaS = gibbsSource !== null || readEntropyChange(question) !== null;
@@ -98,7 +136,11 @@ function classifyThermoStem(question: string): ThermoKind | null {
 export function isThermoGraphStem(question: string): boolean {
   if (claimsMeasuredGibbsGraph(question)) return true;
   if (claimsChemicalThermodynamics(question)) return true;
-  return classifyThermoStem(question) !== null;
+  if (classifyThermoStem(question) !== null) return true;
+  // A declined distribution keeps main's chemistry route, so no physics
+  // figure takes it over; the builder still draws nothing for it.
+  const stem = chemStem(question);
+  return !FIGURE_ABSENT.test(stem) && DISTRIBUTION_PHRASE.test(stem);
 }
 
 /* --------------------------------------------------------- number reading */

@@ -70,11 +70,11 @@ jobs:
         # catch a slow but live transfer, so each download attempt is bounded by `timeout`,
         # and later attempts drop the Azure mirror so apt uses the next mirrors in the
         # runner's list. Finished downloads stay in the apt cache between attempts. The step
-        # still fails loudly when the tools cannot be installed.
+        # still fails loudly when the tools cannot be installed. apt keeps the image's own
+        # retry and timeout defaults, which fall through to the next mirror faster.
         timeout-minutes: 10
         run: |
           set -euo pipefail
-          apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
           packages=(ffmpeg postgresql-client)
           mirrors=/etc/apt/apt-mirrors.txt
           azure='azure\.archive\.ubuntu\.com'
@@ -86,8 +86,8 @@ jobs:
               echo "Attempt $attempt: dropping the Azure Ubuntu mirror"
               sudo sed -i "/${azure}/d" "$mirrors"
             fi
-            if sudo timeout --kill-after=10s 45s apt-get "${apt_opts[@]}" update \
-              && sudo timeout --kill-after=10s 120s apt-get "${apt_opts[@]}" install -y \
+            if sudo timeout --kill-after=10s 45s apt-get update \
+              && sudo timeout --kill-after=10s 120s apt-get install -y \
                 --no-install-recommends --download-only "${packages[@]}"; then
               downloaded=true
               break
@@ -98,7 +98,7 @@ jobs:
             echo "::error::Could not download ${packages[*]} in 3 bounded attempts"
             exit 1
           fi
-          sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends "${packages[@]}"
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
           for tool in ffmpeg ffprobe psql; do
             command -v "$tool" >/dev/null || { echo "::error::$tool is missing after install"; exit 1; }
           done
@@ -228,6 +228,7 @@ jobs:
       - name: Security and payment regressions
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
+          python3 deploy/aws/verify-tutor-release.py
           pnpm verify:security
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks

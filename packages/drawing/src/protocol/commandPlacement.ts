@@ -2,6 +2,13 @@ import { getSegmentCommands, type DrawCommand, type TutorSegment } from "./drawi
 import { fitWorkTextCommand } from "../layout/lessonPlanner";
 import type { VerifiedDiagram, VerifiedDiagramAnchor } from "./verifiedDiagram";
 import { resolveVerifiedDiagramFocusTargets } from "./semanticGesture";
+import {
+  REFERENCE_PICTURE_ZONE,
+  isReferencePictureId,
+  parsePictureCommandParams,
+  type PicturePass,
+  type PicturePlacement,
+} from "./referencePicture";
 
 export { resolveVerifiedDiagramFocusTarget } from "./semanticGesture";
 
@@ -47,15 +54,64 @@ export function anchorToTextRect(anchor: VerifiedDiagramAnchor): BoardTextRect {
   };
 }
 
+/** The one entity a reference picture command may name. */
+export const REFERENCE_PICTURE_ENTITY_ID = "reference_picture";
+/** Rounding slack on the zone edges; `fitPicture` rounds to whole px. */
+const REFERENCE_PICTURE_ZONE_SLACK_PX = 1;
+/** Below this a picture is a smudge, not a diagram anyone can read. */
+const REFERENCE_PICTURE_MIN_SIDE_PX = 16;
+
+export interface AdmittedReferencePictureCommand {
+  pictureId: string;
+  placement: PicturePlacement;
+  pass: PicturePass;
+  boardLengthPx: number;
+}
+
+/**
+ * A `DRAW_PICTURE` the board may execute, or null. The teaching stream cannot
+ * emit this type (it is not in `DRAW_COMMAND_TYPES`); this is the check for
+ * everything else that reaches the executor: a runtime command, a persisted
+ * lesson, or a replay. It must name a server-minted picture id, carry the
+ * picture's own entity, parse as `[x, y, w, h, pass, boardLengthPx]`, and sit
+ * inside `REFERENCE_PICTURE_ZONE`. Whether the id names a picture the server
+ * actually stored is settled by the asset fetch, which only succeeds for one.
+ */
+export function admitReferencePictureCommand(command: DrawCommand): AdmittedReferencePictureCommand | null {
+  if (command.type !== "DRAW_PICTURE") return null;
+  if (!isReferencePictureId(command.text)) return null;
+  if (command.semanticRef?.entityId !== REFERENCE_PICTURE_ENTITY_ID) return null;
+  const parsed = parsePictureCommandParams(command.params);
+  if (!parsed) return null;
+  const primitiveId = command.semanticRef.primitiveId;
+  if (primitiveId !== undefined && primitiveId !== `${REFERENCE_PICTURE_ENTITY_ID}.${parsed.pass}`) return null;
+  const { x, y, width, height } = parsed.placement;
+  const zone = REFERENCE_PICTURE_ZONE;
+  const slack = REFERENCE_PICTURE_ZONE_SLACK_PX;
+  const inside =
+    x >= zone.x - slack &&
+    y >= zone.y - slack &&
+    x + width <= zone.x + zone.width + slack &&
+    y + height <= zone.y + zone.height + slack;
+  if (!inside || width < REFERENCE_PICTURE_MIN_SIDE_PX || height < REFERENCE_PICTURE_MIN_SIDE_PX) return null;
+  return { pictureId: command.text, ...parsed };
+}
+
 /**
  * The teaching model never owns structural ink. A verified scene may coexist
  * only with equation writing in the work area, timing pauses, and semantic
  * gestures that resolve to compiler-owned entities or work-area rows.
+ *
+ * `DRAW_PICTURE` is the reference picture tier's own authority, not scene
+ * geometry, and its answer does not depend on `diagram`: the executor asks
+ * with a null diagram too, so a runtime or persisted picture command passes
+ * the same check whether or not a figure is on the board.
  */
 export function isBlockedVerifiedDiagramCommand(
   command: DrawCommand,
   diagram: VerifiedDiagram | null,
 ): boolean {
+  if (command.type === "DRAW_PICTURE") return admitReferencePictureCommand(command) === null;
   if (command.type === "PAUSE") return false;
   if (command.type === "SUPERSEDE") return true;
   if (command.type === "EMPHASIZE") return false;

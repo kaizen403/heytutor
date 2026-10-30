@@ -13,6 +13,7 @@ const sessionRoutes: Array<[string, string]> = [
   ["app/api/chat/route.ts", "requireLessonGrant"],
   ["app/api/dsa-teaching-policy/route.ts", "requireLessonGrant"],
   ["app/api/visual-need/route.ts", "requireLessonGrant"],
+  ["app/api/reference-picture/route.ts", "requireLessonGrant"],
   ["lib/tts/handleTtsRequest.ts", "requireLessonGrant"],
   ["app/api/tts/ws-ticket/route.ts", "requireSpendActor"],
   ["app/api/stt/route.ts", "requireLessonCredits"],

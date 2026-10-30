@@ -224,6 +224,8 @@ model Turn {
   checkpointSeq      Int       @default(0) @map("checkpoint_seq")
   /// Metadata bytes already charged, so growth charges only the delta.
   metadataBytes      BigInt    @default(0) @map("metadata_bytes")
+  /// Spoken length: each audio clip once. Community lists lessons of a minute or more.
+  lessonMs           Int       @default(0) @map("lesson_ms")
   /// Pre-canonical rows plus their audio refs; null once complete.
   submittedSegments  Json?     @map("submitted_segments")
   /// Opaque data a later Continue needs (for example solverProjection).
@@ -354,4 +356,34 @@ model CommunityReport {
 
   @@index([boardId, createdAt], map: "community_reports_board_id_created_at_idx")
   @@map("community_reports")
+}
+
+/// Reference pictures (default-off tier, DIAGRAM_REFERENCE_PICTURE). One row per
+/// picture the judge accepted: the Commons file or generated image, its stroke
+/// plan, and the judge's reading. Shared across users: the content is a free
+/// licence picture, not student data. `id` is the only authority the board,
+/// persistence and replay accept for a DRAW_PICTURE command.
+model ReferencePicture {
+  id        String   @id
+  /// Source identity: the Commons file title, or the generated prompt hash.
+  sourceKey String   @unique @map("source_key")
+  source    String
+  record    Json
+  plan      Json
+  image     Bytes
+  imageType String   @map("image_type")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("reference_pictures")
+}
+
+/// What one "must show" request resolved to, so a repeated topic skips the
+/// search and the paid judge. A null picture is a cached decline.
+model ReferencePictureQuery {
+  queryKey  String   @id @map("query_key")
+  pictureId String?  @map("picture_id")
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("reference_picture_queries")
 }

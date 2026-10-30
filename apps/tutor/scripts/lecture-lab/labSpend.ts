@@ -13,7 +13,7 @@ export interface LabUsageObservation {
 
 export interface LabUnresolvedCall {
   traceId: string | null;
-  kind: "planner" | "teaching" | "picker" | "visual_need" | "checkpoint";
+  kind: "planner" | "teaching" | "picker" | "visual_need" | "reference_picture" | "checkpoint";
   model: string;
   attempts: number;
   allowanceUsd: number;

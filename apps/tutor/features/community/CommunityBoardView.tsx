@@ -202,7 +202,10 @@ export function CommunityBoardView({ boardId }: { boardId: string }) {
         ) : null}
       </header>
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <TutorSessionShell key={boardId} sessionId={boardId} variant="community" readBoard={readBoard} onExportApi={setSessionApi} />
+        {/* A visitor came to watch: the lesson plays from its first step once
+            the board loads. The card click is the gesture that lets the voice
+            start; a link opened cold waits at the start for Play. */}
+        <TutorSessionShell key={boardId} sessionId={boardId} variant="community" readBoard={readBoard} onExportApi={setSessionApi} autoReplay />
       </div>
     </div>
   );

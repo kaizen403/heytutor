@@ -112,6 +112,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   // This fixture supplies a configured, durable object-storage adapter.
   "@/lib/object-store/lectureAudioPersistence": { allowsMetadataOnlyLectureAudio: () => false },
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
+  "@/lib/boards/turnStatus": turnStatus,
   "@/lib/object-store/s3": { uploadAudio: async (key: string, bytes: Uint8Array) => {
     uploads++;
     uploadedAudio.push(Array.from(bytes));
