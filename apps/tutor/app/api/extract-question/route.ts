@@ -16,7 +16,7 @@ import {
   readExtractedContent,
 } from "@/lib/llm/extractQuestion";
 import { resolveFireworksVisionModels } from "@/lib/llm/fireworksModels";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, providerFetch, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
   endLlmGeneration,
   flushInBackground,
@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     let response: Response | null = null;
     for (const [index, candidate] of models.entries()) {
       model = candidate;
-      response = await fetch(llm.url, {
+      response = await providerFetch(llm)(llm.url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,

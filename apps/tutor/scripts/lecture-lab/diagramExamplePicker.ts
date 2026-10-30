@@ -1,6 +1,6 @@
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { resolveCheapFireworksModel } from "../../lib/llm/fireworksModels";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, RELAY_HIDDEN_PROMPT_TOKENS, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import {
@@ -241,6 +241,8 @@ export async function pickDiagramExamples(
         messages: providerBody.messages,
         maxTokens: completionTokenCap(providerBody),
         model,
+        // A relay bills a hidden prompt on most calls.
+        addedInputBytes: endpoint.provider === "openai_compat" ? RELAY_HIDDEN_PROMPT_TOKENS : 0,
       });
       pendingCharged = false;
       const response = await fetchImpl(endpoint.url, {

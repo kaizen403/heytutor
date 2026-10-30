@@ -47,8 +47,12 @@ import {
 } from "@/lib/llm/fireworksModels";
 import {
   completionTokenCap,
+  noteProviderOutcome,
   providerChatBody,
+  providerFetch,
+  providerUnavailableReason,
   readProviderPerf,
+  relayUpstreamKind,
   resolveLlmEndpoint,
   type LlmEndpoint,
 } from "@/lib/llm/llmProvider";
@@ -737,19 +741,20 @@ async function handlePlannerRequest({
       },
       url: llm.url,
       apiKey,
-      // Azure scenes are non-streaming. Keep their initial 30s candidate
+      // Azure and relay scenes are non-streaming. Keep their initial 30s candidate
       // response window intact instead of canceling at 25s to retry late.
       // The existing request/client signals still bound setup and both attempts.
-      attemptTimeoutMs: llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+      attemptTimeoutMs: llm.provider !== "fireworks" && semanticSceneV2 && !diagramExamplePicker
         ? Math.min(30_000, deadlineMs)
         : undefined,
       body,
       fetchImpl: (input, init) => {
         finalAttemptStartedAt = Date.now();
-        return fetch(input, init);
+        return providerFetch(llm)(input, init);
       },
       models: plannerModels,
       signal: boundedSignal,
+      rememberUnavailableModels: llm.provider === "fireworks",
       onRetry: ({ attempt, delayMs, message, model, modelAttempt, status }) => {
         tutorDebug("planner", message ? "provider fetch failed" : "transient provider response", {
           provider: llm.provider,
@@ -771,6 +776,8 @@ async function handlePlannerRequest({
       responseHeadersAt: Date.now(),
     });
 
+    // Success is reported once the body has been read, below.
+    if (!response.ok) noteProviderOutcome(llm, { ok: false, status: response.status });
     tutorDebug("planner", "provider response", {
       provider: llm.provider,
       status: response.status,
@@ -780,7 +787,8 @@ async function handlePlannerRequest({
     });
 
     if (!response.ok) {
-      await response.body?.cancel();
+      // A rejected cancel must not reach the catch below and count this failure twice.
+      await response.body?.cancel().catch(() => undefined);
       endLlmGeneration(turnTrace, {
         output: PUBLIC_CHAT_ERROR,
         metadata: {
@@ -809,11 +817,13 @@ async function handlePlannerRequest({
     }
 
     const jsonBody = await response.text();
+    noteProviderOutcome(llm, { ok: true });
 
     // Trace the planner output (non-streaming, so accumulate at once).
     let returnedTier: "default" | "priority" | undefined;
     try {
       const parsedResponse = JSON.parse(jsonBody) as {
+        id?: unknown;
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
         usage?: unknown;
         perf_metrics?: unknown;
@@ -836,6 +846,8 @@ async function handlePlannerRequest({
           ...timing,
           temperature: body.temperature,
           llm_provider: llm.provider,
+          ...(llm.fallbackReason ? { llm_fallback_reason: llm.fallbackReason } : {}),
+          ...(llm.provider === "openai_compat" ? { relay_upstream: relayUpstreamKind(parsedResponse.id) } : {}),
           planner: true,
           scene_planner_version: turnPlanV3 || problemIRV1 ? undefined : semanticSceneV2 ? 2 : 1,
           turn_planner_version: turnPlanV3 ? 3 : undefined,
@@ -910,6 +922,9 @@ async function handlePlannerRequest({
       (error instanceof DOMException && error.name === "AbortError") ||
       signal.aborted ||
       (error instanceof Error && /abort|deadline|timeout/i.test(error.message));
+    // Every attempt failed to connect or timed out. A client that left or a
+    // planner deadline is not the relay failing.
+    if (!signal.aborted && !deadlineController.signal.aborted) noteProviderOutcome(llm, { ok: false });
     tutorDebug("planner", "proxy error", { message, elapsed_ms: Date.now() - requestStartedAt });
     endLlmGeneration(turnTrace, {
       output: message,
@@ -990,6 +1005,10 @@ export async function POST(request: Request): Promise<Response> {
   const evaluationModelOverride = shouldUseLectureLabStandardModel(request)
     ? llm.deployment ?? DEFAULT_FIREWORKS_MODEL
     : undefined;
+  // 502 as for any upstream failure: the client reads a bare 503 as a billing outage.
+  if (providerUnavailableReason(llm)) {
+    return Response.json({ error: PUBLIC_CHAT_ERROR }, { status: 502, headers: { "x-heytutor-trace-id": traceId } });
+  }
   const mock = !apiKey;
   // A startup retry after a stalled Fast router runs on the standard deployment.
   const teachingRoute: TeachingModelRoute | null = kind === "teaching"
@@ -1105,6 +1124,7 @@ export async function POST(request: Request): Promise<Response> {
   const teachingHedge = isTeachingHedge(request.headers);
   const teachingMetadata: Record<string, unknown> = teachingHedge ? { teaching_hedge: true } : {};
   teachingMetadata.llm_provider = llm.provider;
+  if (llm.fallbackReason) teachingMetadata.llm_fallback_reason = llm.fallbackReason;
   const route = teachingRoute ?? { model: serverModel, alternate: null, fallbackReason: null };
   const markModelFallback = (reason: string) => {
     teachingMetadata.teaching_model_fallback = true;
@@ -1194,6 +1214,7 @@ export async function POST(request: Request): Promise<Response> {
       let failure: TeachingUpstreamFailure | null;
       try {
         const attemptResponse = await fetchTeachingCompletion({
+          fetchImpl: providerFetch(llm),
           url: llm.url,
           signal: requestSignal,
           init: {
@@ -1239,6 +1260,11 @@ export async function POST(request: Request): Promise<Response> {
       await sleepFor(400 * (attempt + 1), undefined, { signal: requestSignal }).catch(() => undefined);
       attempt = next;
     }
+
+    // One report per request: the response that ended the loop, or a connect
+    // failure on every attempt. A student who left reports nothing.
+    if (response) noteProviderOutcome(llm, response.ok ? { ok: true } : { ok: false, status: response.status });
+    else if (!requestSignal.aborted) noteProviderOutcome(llm, { ok: false });
 
     if (!response) {
       throw lastFetchError instanceof Error

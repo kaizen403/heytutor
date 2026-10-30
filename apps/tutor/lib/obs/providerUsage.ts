@@ -38,11 +38,12 @@ function readCachedTokens(usage: Record<string, unknown>): number | undefined {
 
 function readReasoningTokens(usage: Record<string, unknown>): number | undefined {
   const details = usage.completion_tokens_details;
-  return isRecord(details) ? finiteToken(details.reasoning_tokens) : undefined;
+  // One tokens-flow upstream reports reasoning at the top level.
+  return (isRecord(details) ? finiteToken(details.reasoning_tokens) : undefined) ?? finiteToken(usage.reasoning_tokens);
 }
 
 /**
- * Reads a Fireworks or Azure OpenAI chat-completions usage object, including
+ * Reads a Fireworks, Azure OpenAI or relay chat-completions usage object, including
  * cache hits (`prompt_tokens_details.cached_tokens` on Azure) and reasoning
  * tokens when the provider reports them. Gateway evaluation usage is a different shape
  * and is parsed in the evaluation client.
@@ -51,8 +52,8 @@ export function parseProviderUsage(usage: unknown): ParsedProviderUsage {
   if (!isRecord(usage)) {
     return { known: false };
   }
-  const input = finiteToken(usage.prompt_tokens) ?? finiteToken(usage.input);
-  const output = finiteToken(usage.completion_tokens) ?? finiteToken(usage.output);
+  const input = finiteToken(usage.prompt_tokens) ?? finiteToken(usage.input) ?? finiteToken(usage.input_tokens);
+  const output = finiteToken(usage.completion_tokens) ?? finiteToken(usage.output) ?? finiteToken(usage.output_tokens);
   const total =
     finiteToken(usage.total_tokens) ??
     finiteToken(usage.total) ??

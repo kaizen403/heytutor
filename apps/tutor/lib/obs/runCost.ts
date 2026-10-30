@@ -453,7 +453,11 @@ export function snapshotPricing(): {
   tts: Array<{ lane: TtsRateLane; usdPer1kChars: number }>;
 } {
   const models: Array<[LlmRateLane, string]> = [
-    ["gpt-6.1-sol", "gpt-6.1-sol"],
+    // A deployment-style id, so an active relay serving "gpt-6.1-sol" cannot claim this row.
+    ["gpt-6.1-sol", "azure/gpt-6-1-sol"],
+    // Only while the relay is active; otherwise its model id prices as Azure.
+    ...(process.env.LLM_PROVIDER?.trim().toLowerCase() === "openai_compat" && process.env.OPENAI_COMPAT_MODEL?.trim()
+      ? [["openai-compat", process.env.OPENAI_COMPAT_MODEL.trim()] as [LlmRateLane, string]] : []),
     ["kimi-k3-fast", "accounts/fireworks/routers/kimi-k3-fast"],
     ["kimi-k3", "accounts/fireworks/models/kimi-k3"],
     ["deepseek-flash", "accounts/fireworks/models/deepseek-v4p1-flash"],
