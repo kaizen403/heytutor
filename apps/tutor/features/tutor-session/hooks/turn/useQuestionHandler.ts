@@ -153,6 +153,7 @@ import {
   chemistryRefusesPlannerFigure,
   diagramStrategyAllowsFigureSource,
   liveDiagramStrategyDecision,
+  strictAdmitsOwningOpticsArchetype,
   type DiagramStrategy,
 } from "../../lib/scene/diagramStrategy";
 import {
@@ -878,7 +879,7 @@ export function useQuestionHandler(
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
         subject: diagramStrategySubject,
-        strictSubjects: billed.diagramStrictSubjects,
+        strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
         dsa: dsaClassification.isDsa,
@@ -1144,7 +1145,7 @@ export function useQuestionHandler(
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
             subject: diagramStrategySubject,
-            strictSubjects: billed.diagramStrictSubjects,
+            strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict,
             chemistryLane,
             codeLesson: false,
             dsa: dsaClassification.isDsa,
@@ -1362,7 +1363,7 @@ export function useQuestionHandler(
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
-            strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
+            strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
           const pickedIds = diagramStrategy.usePickedExamples && diagramExamplePickerSettled ? diagramExampleIds : [];
@@ -1641,6 +1642,7 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
+            admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype(diagramStrategyDecision),
             // The strategy reads only an accepted plan's subject; a chemistry
             // consensus from rejected plans still refuses planner figures.
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
@@ -1660,6 +1662,9 @@ export function useQuestionHandler(
         }
         if (sceneSelection.reason === "the question asks for no figure") {
           tutorDebug("planner", "no figure asked for, skipping the fallback", { law_ids: turnPlan.lawIds });
+        }
+        if (sceneSelection.strictOpticsAdmission?.admitted) {
+          tutorDebug("planner", "strict drew the owning optics archetype", { reason: sceneSelection.strictOpticsAdmission.reason });
         }
         if (attempted && !sceneSelection.sourceAllowed) {
           tutorDebug("planner", "strict strategy suppressed non-planner representation", {

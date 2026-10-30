@@ -30,6 +30,8 @@ import {
   vseprPlanConflict,
   validateTurnPlanSceneProofs,
   validateCircuitTerminalClosure,
+  opticsArchetypeOf,
+  opticsArchetypePlanAgreement,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -49,6 +51,8 @@ function formatIssues(issues: Array<{ code?: string; path?: string; message: str
 interface EngineDerived {
   quantities: Map<string, { value: unknown; unit: unknown }>;
   texts: Set<string>;
+  /** The regenerated document itself, when one was built. */
+  document?: SceneDocument;
 }
 
 const MEASURED = /(-?\d+(?:\.\d+)?)\s*(ohms?|Ω|volts?|V|amps?|A|mm|cm|km|m\/s\^?2|m\/s|m|deg|degrees?|°|rad|radians?|Hz|N|J|W|kg|s)(?=\s|$|[,;).!?:])/gi;
@@ -78,13 +82,14 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
     return empty;
   }
   if (!fresh) return empty;
+  const regenerated = { ...empty, document: fresh.document };
   const source = fresh.document.source as Record<string, unknown>;
   const slotSources = typeof source.slotSources === "object" && source.slotSources !== null
     ? source.slotSources as Record<string, unknown>
     : null;
-  if (!slotSources) return empty;
+  if (!slotSources) return regenerated;
   const sourced = (id: string): boolean => slotSources[id] === "stem" || slotSources[id] === "plan";
-  if (!fresh.document.quantities.every((quantity) => sourced(quantity.id))) return empty;
+  if (!fresh.document.quantities.every((quantity) => sourced(quantity.id))) return regenerated;
   // This document was regenerated above, never supplied by the caller. These
   // source programs check plan values by physical role before synthesis, then
   // validate the complete computed state. Different roles may share a unit
@@ -106,7 +111,20 @@ function engineDerivedValues(question: string, turnPlan: TurnPlanV3): EngineDeri
     if (values.some((value) => contradicts(value.value, value.unit))) continue;
     texts.add(text);
   }
-  return { quantities, texts };
+  return { quantities, texts, document: fresh.document };
+}
+
+/**
+ * The engine's own lens or mirror figure, regenerated here from the question
+ * and the plan: same archetype, same u, f and v, same span texts. Only that
+ * document is held to the optics agreement; a submitted document that merely
+ * names the archetype is audited as before.
+ */
+function isRegeneratedOpticsFigure(document: SceneDocument, fresh: SceneDocument | undefined): boolean {
+  if (!fresh || !opticsArchetypeOf(document) || opticsArchetypeOf(fresh) !== opticsArchetypeOf(document)) return false;
+  const quantities = (doc: SceneDocument) => JSON.stringify(doc.quantities.map((quantity) => [quantity.id, quantity.value, quantity.unit]).sort());
+  const spans = (doc: SceneDocument) => JSON.stringify(doc.entities.filter((entity) => entity.kind === "dimension").map((entity) => [entity.id, entity.label ?? null]).sort());
+  return quantities(document) === quantities(fresh) && spans(document) === spans(fresh);
 }
 
 /**
@@ -137,12 +155,26 @@ export function sceneSaveAdmissionFailure(input: {
     const derivedByEngine = (): EngineDerived => engine ??= vsepr.status === "certified"
       ? { quantities: new Map(), texts: new Set(vsepr.texts) }
       : engineDerivedValues(question, turnPlan);
+    // The engine's lens or mirror figure: its u, f, v and span texts are
+    // checked against the plan by magnitude after exact unit conversion, with
+    // the plan's own sign convention; any disagreement refuses.
+    let opticsIds = new Set<string>();
+    let opticsTexts = new Set<string>();
+    if (vsepr.status !== "certified" && isRegeneratedOpticsFigure(document, derivedByEngine().document)) {
+      const optics = opticsArchetypePlanAgreement(document, turnPlan, question);
+      if (optics.issues.length > 0) {
+        return `scene quantities disagree with TurnPlanV3: optics_plan_disagreement: ${optics.issues.slice(0, 3).join("; ")}`;
+      }
+      opticsIds = new Set(optics.quantityIds);
+      opticsTexts = new Set(optics.texts);
+    }
     const audited = document.quantities.filter((quantity) => {
+      if (opticsIds.has(quantity.id)) return false;
       if (planIds.has(quantity.id)) return true;
       const fresh = derivedByEngine().quantities.get(quantity.id);
       return !(fresh && fresh.value === quantity.value && unitKey(fresh.unit) === unitKey(quantity.unit));
     });
-    const texts = displayedSceneText(document).filter((text) => !derivedByEngine().texts.has(text));
+    const texts = displayedSceneText(document).filter((text) => !opticsTexts.has(text) && !derivedByEngine().texts.has(text));
     const agreementIssues = validateSceneQuantityAgreement(
       audited,
       turnPlan,

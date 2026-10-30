@@ -5151,6 +5151,9 @@ export const FIGURE_SOURCES = [
   "fast_family",
   "family",
   "archetype",
+  // The engine's own lens or mirror figure, admitted by the strict policy
+  // after it dropped a planner figure for a stem that figure owns.
+  "optics_archetype",
   "chemistry_family",
   "matrix_source",
   "linear_source",

@@ -10,7 +10,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
-  validateProjectileMeasurementPlan,
+  validateProjectileMeasurementPlan, opticsArchetypeStrictEligibility,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -295,7 +295,17 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   /** Constructor-law marks are a separate default-off rollout; explicit input wins over the environment. */
   constructorLawsEnabled?: boolean;
   solverAuthority?: unknown;
-  policy?: { preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[] };
+  policy?: {
+    preferPlanner?: boolean;
+    allowedFigureSources?: readonly FigureSource[];
+    /**
+     * Strict only (`strictAdmitsOwningOpticsArchetype`): when the planner's
+     * optics figure was dropped because the lens or mirror archetype owns the
+     * stem, that archetype may draw as `optics_archetype` under the narrow
+     * rule in `strictOpticsArchetypeAdmission`. Off unless set.
+     */
+    admitOwningOpticsArchetype?: boolean;
+  };
 }
 
 export interface SceneCompletionAdmission {
@@ -324,6 +334,36 @@ export interface ProductionSceneSelection {
    * figure drawn. Null when there was no such candidate or it was drawn.
    */
   droppedCandidate: DroppedSceneCandidate | null;
+  /** Set when strict drew the owning optics archetype in place of a dropped planner figure. */
+  strictOpticsAdmission?: { admitted: boolean; reason: string };
+}
+
+/** The reason code strict records when it draws the owning optics archetype. */
+export const STRICT_OPTICS_ARCHETYPE_REASON = "strict_optics_archetype_owner";
+
+/**
+ * Strict may draw the engine's own lens or mirror figure only when every one
+ * of these holds: the planner figure was dropped by
+ * `planner_optics_on_archetype_stem`; the selected figure is that archetype
+ * at `exact_verified`; the question alone selects it with u, f and the kind
+ * stated there (no stock value) and names exactly one optical element; the
+ * plan binds u and the focal length by role, with no other plan length; and
+ * the image distance and nature the question states are the figure's. The
+ * save check still runs after this and refuses any plan disagreement.
+ */
+export function strictOpticsArchetypeAdmission(
+  selected: SelectedRepresentation,
+  question: string,
+  exactDecline: { code: string } | null | undefined,
+  turnPlan: TurnPlanV3,
+): { admitted: boolean; reason: string } {
+  if (exactDecline?.code !== "planner_optics_on_archetype_stem") return { admitted: false, reason: "the planner figure was not dropped by the optics archetype rule" };
+  if (selected.figureSource !== "archetype") return { admitted: false, reason: `the selected figure is ${selected.figureSource}, not the archetype` };
+  if (selected.tier !== "exact_verified") return { admitted: false, reason: `the archetype figure is ${selected.tier}` };
+  const owner = detectArchetype(question)?.id;
+  if (owner !== selected.sceneDocument.source.archetype) return { admitted: false, reason: "the archetype does not own the stem" };
+  const eligibility = opticsArchetypeStrictEligibility(question, selected.sceneDocument, turnPlan);
+  return eligibility.eligible ? { admitted: true, reason: `${STRICT_OPTICS_ARCHETYPE_REASON}: ${eligibility.reason}` } : { admitted: false, reason: eligibility.reason };
 }
 
 const sameValue = (first: unknown, second: unknown): boolean => JSON.stringify(first) === JSON.stringify(second);
@@ -775,8 +815,14 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
-    const selectedSourceAllowed = input.policy?.allowedFigureSources === undefined ||
+    const policySourceAllowed = input.policy?.allowedFigureSources === undefined ||
       input.policy.allowedFigureSources.includes(selected.figureSource);
+    const strictOpticsAdmission = !policySourceAllowed && input.policy?.admitOwningOpticsArchetype === true && !input.fastRepresentation
+      ? strictOpticsArchetypeAdmission(selected, question, explained?.exactDecline, turnPlan) : undefined;
+    if (strictOpticsAdmission?.admitted) {
+      selected = { ...selected, figureSource: "optics_archetype", reason: `${strictOpticsAdmission.reason}; ${selected.reason}` };
+    }
+    const selectedSourceAllowed = policySourceAllowed || strictOpticsAdmission?.admitted === true;
     const saveFailure = selectedHasInk && selectedSourceAllowed && selected.sceneDocument.visualDecision.mode === "scene"
       ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) : null;
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&
@@ -814,6 +860,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       reason, selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
       droppedCandidate: decline ? { ...decline, replacedBy } : null,
       ...(completion ? { completion } : {}),
+      ...(strictOpticsAdmission ? { strictOpticsAdmission } : {}),
     };
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.
