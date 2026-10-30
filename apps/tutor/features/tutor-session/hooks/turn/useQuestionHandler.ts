@@ -1422,12 +1422,17 @@ export function useQuestionHandler(
         if (turnPlan) {
           const restated = await withRestatedProcess({
             question, turnPlan, eligible: blockFlowEligible,
+            sceneRemainingMs: SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt),
             options: {
               proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
               fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
             },
           });
-          if (restated.asked) tel.mark("block-flow-process-restated", { restated: restated.restated !== null });
+          if (restated.asked) tel.mark("block-flow-process-restated", {
+            restated: restated.restated !== null,
+            step_check_verdict: restated.stepChecks?.verdict ?? null,
+            step_checks: restated.stepChecks?.checks.map((check) => check ?? "none").join(",") ?? null,
+          });
           turnPlan = restated.turnPlan;
         }
         const planning = await runScenePlanningOverlap<

@@ -22,7 +22,7 @@ export function chatGenerationName(kind: ChatGenerationKind): string {
 export function resolveChatGenerationKind(headers: Headers): ChatGenerationKind {
   if (headers.get("x-planner") !== "1") return "teaching";
   if (headers.get("x-diagram-example-picker") === "1") return "diagram-example-picker";
-  if (headers.get("x-process-review") === "1" || headers.get("x-process-review") === "write") return "process-review";
+  if (["1", "write", "step"].includes(headers.get("x-process-review") ?? "")) return "process-review";
   if (headers.get("x-code-lesson-version") === "1") return "code-lesson-v1";
   if (headers.get("x-problem-ir-version") === "1") return "problem-ir-v1";
   if (headers.get("x-turn-planner-version") === "3") return "turn-plan-v3";
