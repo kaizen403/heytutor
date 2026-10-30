@@ -32,6 +32,8 @@ import type { FailedTurnSentryDelivery, PendingFailedTurnSentry } from "../../li
 import * as requestBody from "../../lib/http/requestBody";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as turnStatus from "../../lib/boards/turnStatus";
+import * as boardContinuation from "../../lib/boards/boardContinuation";
+import * as doubtFigureRef from "../../lib/boards/doubtFigureRef";
 import * as turnFilters from "../../lib/admin/turnFilters";
 import * as objectKeys from "../../lib/object-store/keys";
 import * as mediaUrl from "../../lib/object-store/mediaUrl";
@@ -476,6 +478,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       withUserStorageLock: async (_user: string, run: (client: typeof tx) => Promise<unknown>) => run(tx),
     },
     "@/lib/obs/traceOwnership": {},
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/boards/turnStatus": turnStatus,
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: { segments: Array<Record<string, unknown>> }) => ({ ok: true,
@@ -582,6 +585,9 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       withUserStorageLock: async (_user: string, run: (client: typeof tx) => Promise<unknown>) => run(tx),
     },
     "@/lib/obs/traceOwnership": {},
+    "@/lib/boards/boardContinuation": boardContinuation,
+    "@/lib/boards/doubtFigureRef": doubtFigureRef,
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
     "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalizeCheckpoint },
     "@/lib/scene/turnUploadLimits": uploadLimits, "@/lib/boards/turnStatus": turnStatus,

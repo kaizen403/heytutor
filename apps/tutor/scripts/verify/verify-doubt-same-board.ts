@@ -68,6 +68,11 @@ import {
   revealedCodeText,
   textOnlyTurnScene,
 } from "../../features/tutor-session/lib/turn/doubtTurn";
+import { doubtSegment as pointedDoubtSegment } from "../../features/tutor-session/lib/turn/doubtTurn";
+import {
+  buildDoubtPointingPolicy,
+  segmentWithoutFocusKeep,
+} from "../../features/tutor-session/lib/turn/doubtPointing";
 import {
   buildDoubtTeachingPrompt,
   buildResumeTeachingPrompt,
@@ -657,13 +662,24 @@ function between(source: string, file: string, start: string, end: string): stri
   // Comment lines may sit between the guard and the pipeline's first statement.
   assert(
     /\} else if \(!doubt && !resume\) \{(?:\s*\/\/[^\n]*)*\s*const recentConversation/.test(handler),
-    "a doubt never runs the planning pipeline again",
+    "a doubt never runs the lesson's planning pipeline again",
   );
+  // A doubt plans only on need, and only with DIAGRAM_DOUBT_FIGURES granted:
+  // every planner call a doubt can make sits inside the guarded block.
+  assert(handler.includes("const doubtFiguresGranted = billed.doubtFigures === true;"), "the doubt figure flag is the turn's begin-turn grant");
+  const doubtPlan = between(handler, file, "if (doubt && doubtFiguresGranted) {\n        // doubt-figure-plan:begin", "// doubt-figure-plan:end");
+  assert(/if \(need\.decision === "new_figure"\) \{[\s\S]*planDoubtFigure\(/.test(doubtPlan), "a doubt plans a figure only when the need check says new_figure");
+  const outsidePlan = handler.replace(doubtPlan, "");
+  const lessonPipeline = between(outsidePlan, file, "} else if (!doubt && !resume) {", "if (doubt) {\n        turnPlan = inherited?.turnPlan ?? null;");
+  const rest = outsidePlan.replace(lessonPipeline, "");
+  assert(!/planTurnV3\(|planAndSolveProblemV1\(|planDoubtFigure\(|requestDoubtFigureNeed\(/.test(rest),
+    "flag off, a doubt runs no planner call: none sits outside the lesson pipeline and the guarded doubt block");
   assert(handler.includes("buildDoubtTeachingPrompt("), "a doubt is taught under the doubt prompt");
   assert(handler.includes("buildResumeTeachingPrompt("), "the rest of the lesson continues under the resume prompt");
   assert(handler.includes("offerPausedLessonResume("), "a finished doubt offers to continue the paused lesson");
   assert(handler.includes("clearPausedLesson("), "a fresh question drops the paused lecture");
-  assert(handler.includes("revealDeferredAnnotations: !doubt"), "a doubt does not reveal what the stopped lesson had not reached");
+  assert(handler.includes("revealDeferredAnnotations: !doubt,"),
+    "a doubt does not reveal withheld labels at its end, its own figure's included: replay never flushes a doubt");
   // The stopped turn is saved by its own Stop (progressive save), not by the
   // doubt: a doubt refused by billing used to lose the lesson it stopped.
   assert(!handler.includes("partialTurnSave"), "the doubt no longer saves the stopped turn itself");
@@ -835,6 +851,99 @@ function between(source: string, file: string, start: string, end: string): stri
     handler.includes("pendingQuestionOptionsRef.current = options ?"),
     "a doubt queued while the board loads still runs as a doubt",
   );
+}
+
+// ── DIAGRAM_DOUBT_POINTING: the live doubt filter policy ────────────────────
+{
+  const at = (type: DrawCommand["type"], text?: string): DrawCommand => ({
+    type, params: type === "WRITE" ? [90, 336] : [], ...(text ? { text, semanticRef: type === "FOCUS" || type === "ANNOTATE" ? { entityId: text } : undefined } : {}),
+    charPosition: 0, narrationBefore: "",
+  });
+  const figure = {
+    id: "verified_scene", layout: "standard", name: "mirror", promptAddon: "", reveals: [], deferredAnnotations: [],
+    anchors: [
+      { id: "mirror", labels: ["M"], x: 600, y: 200, width: 20, height: 300 },
+      { id: "v", labels: ["v"], x: 700, y: 400, width: 120, height: 20 },
+    ],
+    groups: [{ id: "principal_rays", entityIds: ["mirror", "v"] }],
+    commands: [],
+  } as unknown as Parameters<typeof buildDoubtPointingPolicy>[0]["figure"];
+  const segment: TutorSegment = {
+    narration: "the image distance v is what the mirror sends back",
+    command: at("FOCUS", "mirror,zz|pulse|keep"),
+    commands: [
+      at("FOCUS", "mirror,zz|pulse|keep"), at("FOCUS", "nowhere"), at("ANNOTATE", "v"), at("ANNOTATE", "ghost"),
+      at("WRITE", "v = 60 cm"), at("TYPE"), at("FRAME"),
+    ],
+  };
+  const kinds = (value: TutorSegment | null) => value ? (value.commands ?? [value.command]).map((c) => c ? `${c.type}:${c.text ?? ""}` : "null") : null;
+
+  // Flag off: no policy and a disabled policy are today's filter, exactly.
+  const off = buildDoubtPointingPolicy({ granted: false, figure, codeBoard: false });
+  assert(off.enabled === false && off.figureIds.size === 0, "flag off: the policy is disabled and names nothing");
+  const absent = buildDoubtPointingPolicy({ granted: undefined as unknown as boolean, figure, codeBoard: false });
+  assert(absent.enabled === false, "a begin-turn without the grant leaves pointing off: the policy never defaults to enabled");
+  const today = doubtSegment(segment, { codePanelShowing: false });
+  for (const pointing of [undefined, off, absent]) {
+    assert(JSON.stringify(pointedDoubtSegment(segment, { codePanelShowing: false, pointing })) === JSON.stringify(today),
+      "flag off: doubtSegment with the policy is byte for byte today's filter");
+  }
+  assert(kinds(today)!.join(" ") === "FOCUS:mirror,zz|pulse|keep FOCUS:nowhere WRITE:v = 60 cm",
+    "today's filter (flag off) drops ANNOTATE, TYPE and FRAME and leaves FOCUS to the executor");
+
+  // Flag on, figure board: ANNOTATE on a figure id, FOCUS cut to figure ids, keep kept.
+  const on = buildDoubtPointingPolicy({ granted: true, figure, codeBoard: false });
+  assert(on.enabled && ["mirror", "m", "v", "principal_rays"].every((id) => on.figureIds.has(id)),
+    "flag on: anchor ids, labels and group ids of the figure, lowercased");
+  const pointed = pointedDoubtSegment(segment, { codePanelShowing: false, pointing: on });
+  assert(kinds(pointed)!.join(" ") === "FOCUS:mirror|pulse|keep ANNOTATE:v WRITE:v = 60 cm",
+    "flag on: ANNOTATE on a figure part is allowed, unknown ids drop, keep and pulse survive");
+  assert(pointedDoubtSegment({ narration: "", command: at("ANNOTATE", "ghost") }, { codePanelShowing: false, pointing: on }) === null,
+    "flag on: an ANNOTATE naming no figure part is dropped");
+  const noFigure = buildDoubtPointingPolicy({ granted: true, figure: null, codeBoard: false });
+  assert(kinds(pointedDoubtSegment(segment, { codePanelShowing: false, pointing: noFigure }))!.join(" ") === "WRITE:v = 60 cm",
+    "flag on with no figure in the zone: nothing is pointed at");
+
+  // Flag on, code board: cell FOCUS only, as a spotlight, never keep, never ANNOTATE, never a frame.
+  const frame = {
+    id: "dsa_frame_2", layout: "code_lesson", name: "two sum", promptAddon: "", reveals: [], deferredAnnotations: [], groups: [],
+    anchors: [
+      { id: "cell_0", labels: ["3"], x: 500, y: 300, width: 40, height: 40 },
+      { id: "frame_2", labels: [], x: 400, y: 140, width: 760, height: 500 },
+    ],
+    commands: [],
+  } as unknown as Parameters<typeof buildDoubtPointingPolicy>[0]["figure"];
+  const code = buildDoubtPointingPolicy({ granted: true, figure: frame, codeBoard: true, frameIds: ["frame_1", "frame_2"] });
+  assert(code.codeBoard && code.figureIds.has("cell_0") && !code.figureIds.has("frame_2"), "a code board policy never names a frame");
+  const onCode = pointedDoubtSegment({
+    narration: "this cell holds three",
+    command: at("FOCUS", "cell_0|keep"),
+    commands: [at("FOCUS", "cell_0|keep"), at("FOCUS", "frame_2|spotlight"), at("ANNOTATE", "cell_0")],
+  }, { codePanelShowing: true, pointing: code });
+  assert(kinds(onCode)!.join(" ") === "FOCUS:cell_0|spotlight",
+    "code board: a cell FOCUS is a spotlight without keep; a frame id and ANNOTATE drop");
+
+  // |keep is stripped from every segment the flag did not grant rings to.
+  const stripped = segmentWithoutFocusKeep(segment);
+  assert(kinds(stripped)![0] === "FOCUS:mirror,zz|pulse" && stripped.commands![0]!.semanticRef?.entityId === "mirror,zz|pulse",
+    "segmentWithoutFocusKeep removes keep from text and semanticRef alike");
+  const plain: TutorSegment = { narration: "x", command: at("WRITE", "x") };
+  assert(segmentWithoutFocusKeep(plain) === plain, "a segment without keep is returned untouched");
+
+  // The live handler builds the policy from the turn's grant and strips keep elsewhere.
+  const file = "features/tutor-session/hooks/turn/useQuestionHandler.ts";
+  const handler = between(read(file), file, "const teachQuestion = useCallback(", "return { handleQuestion };");
+  assert(handler.includes("const doubtPointingGranted = billed.doubtPointing === true;"), "the flag is the turn's begin-turn grant, never a default");
+  const policy = between(handler, file, "const doubtPointingPolicy = doubt", "const pagePromptInput = {");
+  assert(/granted: doubtPointingGranted,\s*figure: activeDiagram,\s*codeBoard: codeLessonBoard,\s*frameIds: codeFrameIds,/.test(policy),
+    "the policy is built from the grant, the figure in the zone, the code board and its frame ids");
+  assert(/const keptRingsAllowed = Boolean\(doubtPointingPolicy\?\.enabled && !doubtPointingPolicy\.codeBoard\);/.test(policy),
+    "kept rings only on a doubt the flag granted, never on a code board");
+  const queue = between(handler, file, "const queuePreparedSegments = (", "const hasTeachingContent =");
+  assert(/doubtSegment\(segment, \{[^}]*pointing: doubtPointingPolicy \?\? undefined,/.test(queue), "the live doubt filter applies the policy");
+  assert(queue.includes("const outgoing = keptRingsAllowed ? filtered : filtered.map(segmentWithoutFocusKeep);"),
+    "every other turn has |keep removed before it is drawn or saved");
+  assert(/doubtPointing: doubtPointingGranted,/.test(handler), "the doubt prompt is told the grant");
 }
 
 console.log("doubt same board verification passed");

@@ -16,6 +16,7 @@ import {
 } from "@/lib/replay/replayTimeline";
 import { exportNotesPdf, type NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { pageTurnsEndingAt, storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import { notesPdfSectionsFromStoredTurns, notesPdfSlideImages } from "../lib/notes/notesPdf";
 import type { BoardEntry } from "@/lib/boards/types";
 import type { SettingsState } from "@/features/tutor-session/components/SettingsDrawer";
@@ -41,11 +42,14 @@ import { appendCodeLessonNotesImages } from "@/lib/code-render/codeLessonNotesIm
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import type { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
 import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
-import type { TutorPhase } from "../types";
+import type { BoardLayoutState, TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
+import { heldLessonNotesPage } from "../lib/board/doubtPage";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
 import type { ExecuteCommandOptions } from "./turn/types";
 import { completeReplayDiagramTurn } from "../lib/replay/completeReplayDiagram";
@@ -72,6 +76,8 @@ export type UseReplayParams = {
   storedTurnsRef: RefObject<StoredTurn[]>;
   /** Replayed DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** The executor's lesson figure sequence: replayed `[FOCUS:figure_k]` cues advance it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   /**
    * FOCUS / ANNOTATE resolve against this. Replay must rebuild it from the
    * stored scene or the intro draws and the pen never traces afterwards.
@@ -79,6 +85,8 @@ export type UseReplayParams = {
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
+  /** The board's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  boardLayoutRef?: RefObject<BoardLayoutState>;
   replayGenerationRef: RefObject<number>;
   replayCueRef: RefObject<ReplayCue | null>;
   ttsClientRef: RefObject<TTSClient | null>;
@@ -130,6 +138,7 @@ export function useReplay({
   replayAudioPreloadRef,
   storedTurnsRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
@@ -164,6 +173,7 @@ export function useReplay({
   pauseTurn,
   resumeTurn,
   settleBoardRestore,
+  boardLayoutRef,
 }: UseReplayParams) {
   /**
    * Point the code panel and the verified diagram at the turn whose cues are
@@ -171,12 +181,28 @@ export function useReplay({
    * the intro still draws from stored ink and the pen never traces after.
    */
   const syncReplayTurn = useCallback(
-    (turnIndex: number) => {
+    async (turnIndex: number, shouldCancel: () => boolean = () => false): Promise<void> => {
       const turn = storedTurnsRef.current[turnIndex];
       // A doubt answered on the lesson's page keeps that page's figure, code
       // panel and walk-through. Rebuilding them here would drop the figure
-      // its FOCUS points at, or send the frames back to the first one.
+      // its FOCUS points at, or send the frames back to the first one. A
+      // doubt that drew its own figure swaps it in, and the resume brings
+      // the lesson's back (pageFigureAt).
       if (turn && storedTurnContinuesBoard(turn)) {
+        const figure = await syncStoredPageFigure({
+          turns: storedTurnsRef.current,
+          turnIndex,
+          whiteboard: whiteboardRef.current,
+          layout: boardLayoutRef?.current ?? null,
+          executeCommand,
+          shouldCancel,
+          lessonFigures: lessonFiguresRef?.current,
+        });
+        if (figure.changed && !figure.cancelled) {
+          if (activeVerifiedDiagramRef) activeVerifiedDiagramRef.current = figure.diagram;
+          setActiveVerifiedDiagram?.(figure.diagram);
+          if (fbdPhaseStartedRef) fbdPhaseStartedRef.current = Boolean(figure.diagram);
+        }
         return;
       }
       const controller = codeLessonControllerRef?.current;
@@ -188,6 +214,7 @@ export function useReplay({
         // frames to advance and the figure freezes on the first one.
         restoreDsaFrames(controller, turn, plan);
       }
+      restoreLessonFigures(lessonFiguresRef?.current, turn);
       const diagram =
         controller?.frames.current()?.presentation.diagram
         ?? restoreVerifiedDiagramFromTurn(turn)
@@ -202,10 +229,14 @@ export function useReplay({
     },
     [
       codeLessonControllerRef,
+      lessonFiguresRef,
       storedTurnsRef,
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
+      whiteboardRef,
+      executeCommand,
+      boardLayoutRef,
     ],
   );
 
@@ -370,7 +401,7 @@ export function useReplay({
       // turn being rendered; TYPE below then reveals its blocks instantly.
       let syncedTurnIndex = cues.length > 0 ? cues[0]!.turnIndex : -1;
       if (syncedTurnIndex >= 0) {
-        syncReplayTurn(syncedTurnIndex);
+        await syncReplayTurn(syncedTurnIndex, () => !isCurrentReplay());
       }
 
       // Render all completed commands instantly — no animation during seek.
@@ -386,7 +417,7 @@ export function useReplay({
             whiteboard: wb, resetBoardLayout, shouldCancel: () => !isCurrentReplay(),
           })) return;
           syncedTurnIndex = cue.turnIndex;
-          syncReplayTurn(syncedTurnIndex);
+          await syncReplayTurn(syncedTurnIndex, () => !isCurrentReplay());
         }
 
         const partialCount =
@@ -748,7 +779,7 @@ export function useReplay({
               shouldCancel: () => cancelRef.current || generation !== replayGenerationRef.current,
             })) return;
             syncedTurnIndex = cue.turnIndex;
-            syncReplayTurn(syncedTurnIndex);
+            await syncReplayTurn(syncedTurnIndex, () => cancelRef.current || generation !== replayGenerationRef.current);
           }
           const nextCue = timeline.cues[i + 1];
           const offsetMs = i === found.index ? found.offsetMs : 0;
@@ -870,6 +901,21 @@ export function useReplay({
         timestampMs: Date.now(),
       });
     }
+    // doubt-page-held-notes:begin
+    // A doubt's fresh page is up with the lesson's page held (review round 3
+    // M2): the lesson page is a notes page too, after the doubt page, as the
+    // return or a new question will capture them.
+    const held = heldLessonNotesPage(wb, 2);
+    if (held) {
+      epochs.push({
+        index: epochs.length,
+        question: liveQuestionRef.current,
+        snapshotDataUrl: held.snapshotDataUrl,
+        narrationText: held.narration,
+        timestampMs: Date.now(),
+      });
+    }
+    // doubt-page-held-notes:end
     // Stored turns are the authority: restore loads every saved turn into the
     // ref, so the click needs no round trip and works offline. Epochs only
     // supply board images captured this session.

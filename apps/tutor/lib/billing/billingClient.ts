@@ -29,6 +29,12 @@ export interface BeginTurnOk {
   referencePicture?: boolean;
   /** Default off: the pen may point at a reference picture's located parts and key rows. */
   referencePicturePartFocus?: boolean;
+  /** Default off (`DIAGRAM_DOUBT_POINTING`): a doubt walks, rings and letters the figure on the board. */
+  doubtPointing?: boolean;
+  /** Default off (`DIAGRAM_DOUBT_FIGURES`): a doubt that needs a new figure plans, verifies and draws one. */
+  doubtFigures?: boolean;
+  /** Default off (`DIAGRAM_LESSON_FIGURES`): a lesson may move to up to two later verified figures. */
+  lessonFigures?: boolean;
 }
 
 export interface BeginTurnErr {
@@ -232,6 +238,9 @@ async function beginTurnOnce(input: {
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
     referencePicture: payload.referencePicture === true,
     referencePicturePartFocus: payload.referencePicturePartFocus === true,
+    doubtPointing: payload.doubtPointing === true,
+    doubtFigures: payload.doubtFigures === true,
+    lessonFigures: payload.lessonFigures === true,
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

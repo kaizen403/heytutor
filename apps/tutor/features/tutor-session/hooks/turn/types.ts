@@ -11,6 +11,7 @@ import type { TutorSegment } from "@heytutor/drawing";
 import type { FocusTargetSchedule } from "@heytutor/tutor-core";
 import type { TutorPhase, BoardLayoutState, SegmentPlanStats } from "../../types";
 import type { CodeLessonController } from "../../lib/code-lesson/codeLessonController";
+import type { LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
 import type { SpokenSegmentClock } from "../../lib/code-lesson/codeSpokenSync";
 import type { DoubtTurnRequest } from "../../lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind, PausedLessonReason, PausedLessonRequest } from "../../lib/turn/doubtTurn";
@@ -188,6 +189,8 @@ export type UseTurnLifecycleParams = {
   setActiveVerifiedDiagram?: Dispatch<SetStateAction<VerifiedDiagram | null>>;
   /** Owns the DSA code panel; DSA turns commit their CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** A lesson's later figures (DIAGRAM_LESSON_FIGURES); the executor advances it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   segmentPlanStatsRef: RefObject<SegmentPlanStats>;
   stopTurnRef: RefObject<((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void) | null>;
   speedRef: RefObject<number>;
@@ -240,6 +243,8 @@ export type UseTurnLifecycleParams = {
   clearCancelTimers: () => void;
   resetBoardLayout: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
   beginBoardEpoch: () => Promise<void>;
+  /** Download notes: a doubt's fresh page is a notes page of its own (lane 9). */
+  captureNotesEpoch?: () => boolean;
   reserveTextCommandPlacements: (
     command: DrawCommand,
     options?: { isCancelled?: () => boolean },
@@ -284,6 +289,7 @@ export type UseSegmentRunnerParams = Pick<
   | "reserveTextCommandPlacements"
   | "onSpeechStartupStatus"
   | "onVoiceDegraded"
+  | "lessonFiguresRef"
 > & {
   applyTurnPhase: (next: TutorPhase) => void;
 };
@@ -318,6 +324,8 @@ export type TurnControlApi = {
       revealDeferredAnnotations?: boolean;
       /** What an empty-response error names, so a retry asks this same turn again. */
       errorQuestion?: string;
+      /** The lesson's later figures: segments are prepared against the figure each cue moves to. */
+      lessonFigures?: LessonFigureSequence | null;
     },
   ) => Promise<void>;
   stopTurn: (options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => void;
@@ -335,6 +343,12 @@ export type TurnControlApi = {
   offerPausedLessonResume: (resume?: PausedLessonRequest) => void;
   /** Drop a paused lecture: a fresh question, or a board change. */
   clearPausedLesson: () => void;
+  /**
+   * A paused lesson on this board waits for Continue. A doubt figure or a
+   * fresh page hides the lesson's figure or page until that resume, so with
+   * none (the lesson finished) the doubt answers on the lesson's page.
+   */
+  hasPausedLesson: () => boolean;
   /** True while a stopped lesson on this board can continue. */
   pausedLessonOffer: boolean;
   /** Why it stopped ("stop" or "doubt"), for the bar's copy; null with no offer. */
@@ -354,5 +368,5 @@ export type TurnControlApi = {
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.
    */
-  handleAskDoubt: (question: string, options?: { prompt?: string; title?: string }) => void;
+  handleAskDoubt: (question: string, options?: { prompt?: string; title?: string; markedFigureIds?: readonly string[] }) => void;
 };

@@ -5,7 +5,7 @@ import {
   type TurnPlanV3,
   type TurnPlanValidationIssue,
 } from "@heytutor/scene-engine";
-import { evaluateMathExpression, isChemistryQuestion } from "@heytutor/scene-engine";
+import { describeSceneFamily, evaluateMathExpression, isChemistryQuestion } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
@@ -25,6 +25,13 @@ export interface TurnPlannerV3Options {
   fastMode?: boolean;
   /** Optional policy metadata on the existing call; off preserves prompt bytes. */
   classifySubject?: boolean;
+  /**
+   * DIAGRAM_LESSON_FIGURES granted for this turn: the plan call may pick up
+   * to two later figures of the same situation from a closed list of figure
+   * kinds (`turnPlanV3LessonFiguresAddon`), never in its own words. Absent or false keeps the
+   * prompt bytes; the audit call never sees it.
+   */
+  lessonFigures?: boolean;
   /** Content-free, completion-only diagnostics; observer failures never affect admission. */
   onRequestOutcome?: (outcome: TurnPlanRequestOutcome) => void;
 }
@@ -265,8 +272,8 @@ async function requestTurnPlanV3(
           {
             role: "system",
             content: options.classifySubject
-              ? `${withChemistryExampleAddon(systemPrompt, question)}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
-              : withChemistryExampleAddon(systemPrompt, question),
+              ? `${withLessonFiguresAddon(withChemistryExampleAddon(systemPrompt, question), options.lessonFigures === true && phase === "plan", question)}\n\nAlso return a top-level subject: "maths", "physics", "chemistry", or "other". Classify the question's subject, not the mathematical tools used to solve it. Ambiguous or mixed-subject questions use "other". This is policy metadata, not a diagram instruction.`
+              : withLessonFiguresAddon(withChemistryExampleAddon(systemPrompt, question), options.lessonFigures === true && phase === "plan", question),
           },
           {
             role: "user",
@@ -1191,6 +1198,37 @@ Optional key exampleReactions: [{mechanism,equation}], mechanism one of SN1, SN2
 
 export function withChemistryExampleAddon(systemPrompt: string, question: string): string {
   return isChemistryQuestion(question) ? `${systemPrompt}\n\n${TURN_PLAN_V3_CHEMISTRY_EXAMPLE_ADDON}` : systemPrompt;
+}
+
+/**
+ * The figure kinds the engine reads from this question: the closed list a
+ * later lesson figure is picked from (DIAGRAM_LESSON_FIGURES). The planner
+ * never writes words that reach the figure's source question; it copies one
+ * of these ids, and the figure is composed from the engine's own name for it.
+ */
+export function lessonFigureViewsFor(question: string): string[] {
+  return [...inferSceneCapabilities(question).families];
+}
+
+/**
+ * Shown only when the turn was granted DIAGRAM_LESSON_FIGURES and the engine
+ * reads at least two figure kinds from the question (one kind can only redraw
+ * figure 1), so every other prompt keeps its bytes. Null: no addon.
+ */
+export function turnPlanV3LessonFiguresAddon(question: string): string | null {
+  const views = lessonFigureViewsFor(question);
+  if (views.length < 2) return null;
+  const listed = views.map((view) => {
+    const name = describeSceneFamily(view);
+    return name === view.replace(/_/g, " ") ? view : `${view} (${name})`;
+  }).join(", ");
+  return `LESSON FIGURES
+Optional key figures: [{id,view}], id "figure_2" then "figure_3". Use it only when teaching this question needs a second view of the same situation that one figure cannot show. view is one id from this list, copied exactly: ${listed}. Write nothing else in an entry. Otherwise omit figures.`;
+}
+
+export function withLessonFiguresAddon(systemPrompt: string, enabled: boolean, question: string): string {
+  const addon = enabled ? turnPlanV3LessonFiguresAddon(question) : null;
+  return addon ? `${systemPrompt}\n\n${addon}` : systemPrompt;
 }
 
 export const TURN_PLAN_V3_VISUAL_GROUNDING =

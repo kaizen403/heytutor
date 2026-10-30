@@ -46,6 +46,7 @@ import {
   snapToBoardTypeScale,
   WORK_CONTINUATION_INDENT,
   isReferencePicturePartFocusId,
+  anchorToTextRect,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -93,6 +94,9 @@ import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
 import { awaitReferencePicture } from "../lib/board/referencePictureAssets";
+import { clearFigureZone } from "../lib/scene/figureSwap";
+import { lessonFigureIntroCommands, type LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { compactPulseBox, erasePinnedInkOf, pinnedInkCountOf, pinnedMarksFor, PINNED_MARK_DRAW_MS } from "../lib/board/pinnedMarks";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -122,6 +126,11 @@ export interface UseCommandExecutionParams {
   adaptiveFactorRef: RefObject<number>;
   /** Set for DSA turns; TYPE commands reveal blocks through it. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /**
+   * A lesson's later figures (DIAGRAM_LESSON_FIGURES). A `[FOCUS:figure_k]`
+   * the sequence holds swaps figure k into the zone, forward only.
+   */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   /**
    * Publishes the diagram currently on the board to React. The label
    * inspector and retrace targets read this state, so a worked-example frame
@@ -164,6 +173,39 @@ function pointWorkRowTargets(
   return targets;
 }
 
+/**
+ * A figure redrawn under one sentence (a worked-example FRAME, a lesson's
+ * `[FOCUS:figure_k]` advance) has to land with that sentence. The spoken
+ * window, less the wipe, is split across the figure's commands: each one can
+ * only be made quicker than its natural scene pace, never slower, so a long
+ * sentence still draws at a readable speed while a short one stops the board
+ * running three seconds past the voice.
+ *
+ * A figure label is part of the sketch, so it is lettered with the
+ * instrument already in hand. Handing it a generous share of the sentence
+ * pushes it over the prose threshold and buys an instrument swap on every
+ * label: fourteen labels spent six seconds swapping pens while the sentence
+ * that introduced the frame ran out. Same rule as the scene-text branch of
+ * `resolveCommandInkBudgetMs`, applied here because a redraw budgets its own
+ * commands.
+ */
+export function figureRedrawBudget(
+  commandCount: number,
+  speechDurationMs: number | undefined,
+  wipeMs: number,
+): (command: { text?: string }) => number | undefined {
+  const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
+  const evenShareMs = drawWindowMs > 0
+    ? Math.max(Math.floor(drawWindowMs / Math.max(commandCount, 1)), SCENE_MIN_MS)
+    : undefined;
+  return (command) => {
+    if (evenShareMs === undefined) return undefined;
+    const text = command.text?.replace(/\s+/g, "") ?? "";
+    if (text.length === 0) return evenShareMs;
+    return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
+  };
+}
+
 export async function eraseWhiteboardRegionIfCurrent(
   whiteboard: Pick<WhiteboardHandle, "eraseRegion">,
   region: { x: number; y: number; width: number; height: number; duration: number },
@@ -198,12 +240,15 @@ export function useCommandExecution({
   inkPaceRef,
   adaptiveFactorRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   setActiveVerifiedDiagram,
   nowMs = wallNowMs,
 }: UseCommandExecutionParams) {
   // How many marker walks this board has run. It rotates the route so two
   // steps about the same frame do not repeat the same two moves.
   const pointBeatsRef = useRef(0);
+  // Verified parts holding a kept FOCUS ring on this page (pinnedMarks.ts).
+  const pinnedTargetsRef = useRef<Set<string>>(new Set());
   const resolveAnnotationTarget = useCallback(
     (
       command: DrawCommand,
@@ -394,8 +439,104 @@ export function useCommandExecution({
         inkSettings,
         shouldCancel: commandCancelled,
       });
+      // `[FOCUS:id|keep]`: after the trace or spotlight, a ring stays on each
+      // named verified part while the page is up. Geometry comes only from
+      // the verified anchor (pinnedMarks.ts). A seek draws it at duration 0.
+      const drawKeptFocusRings = async (
+        focusCommand: DrawCommand,
+        targets: readonly VerifiedDiagramAnchor[],
+        diagram: VerifiedDiagram,
+        codeLessonActive: boolean,
+      ): Promise<boolean> => {
+        const pinsOnPage = pinnedInkCountOf(wb);
+        // Every ring went with the page (a page turn, CLEAR or FRAME erase).
+        if (pinsOnPage === 0) pinnedTargetsRef.current.clear();
+        const plan = pinnedMarksFor({
+          command: focusCommand,
+          targets,
+          diagram,
+          targetCommands: focusTraceCommands(diagram, new Set(targets.map((target) => target.id))),
+          codeLessonActive,
+          pinsOnPage,
+          alreadyPinned: pinnedTargetsRef.current,
+        });
+        const ringMs = isSeekCatchUp ? 0 : PINNED_MARK_DRAW_MS;
+        for (const mark of plan.pins) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, ringMs, { strokeWidth: 1.1, pinned: true });
+          if (!commandCancelled()) pinnedTargetsRef.current.add(mark.targetId);
+        }
+        if (isSeekCatchUp) return commandCancelled();
+        for (const mark of plan.overflow) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, 260, { strokeWidth: 1.1, transient: true });
+        }
+        if (plan.pins.length > 0 || plan.overflow.length > 0) {
+          turnTelemetryRef.current?.mark("verified-focus-kept", {
+            target_id: plan.pins.map((mark) => mark.targetId).join(","),
+            pinned_count: plan.pins.length,
+            overflow_count: plan.overflow.length,
+          });
+        }
+        return commandCancelled();
+      };
 
       let command = rawCommand;
+      // lesson-figure-advance:begin
+      // `[FOCUS:figure_k]` names a later verified figure of this lesson, not a
+      // part of the one on screen, so it is handled before the part check.
+      // The teaching stream supplies only the id: the ink is figure k's own
+      // compiled intro, drawn as a worked-example FRAME is.
+      const lessonFigures = lessonFiguresRef?.current ?? null;
+      const advanceId = lessonFigures?.advanceIdOf(command) ?? null;
+      if (lessonFigures && advanceId) {
+        const refusal = lessonFigures.refusalOf(advanceId);
+        const view = refusal === null ? lessonFigures.advanceTo(advanceId) : null;
+        if (!view) {
+          // Review N6: the zone keeps its figure and the row is saved without
+          // this cue (savedCommandFilter), so replay stays where live stayed.
+          const refused = { figure_id: advanceId, reason: refusal ?? "not_held" };
+          turnTelemetryRef.current?.mark("lesson-figure-advance-refused", refused);
+          tutorDebug("draw", "lesson figure advance refused", refused);
+          return;
+        }
+        // Review F2: from here the lesson is on figure k. The erase is ink the
+        // student sees, so the cue's row is saved with the cue; a Stop part
+        // way leaves figure k pending, finished whole by the next turn.
+        options.onInkStarted?.();
+        const advanceScale = options.durationScale ?? 1;
+        erasePinnedInkOf(wb);
+        const cleared = await clearFigureZone(wb, options.introLayoutCheckpoint?.layout ?? boardLayoutRef.current, commandCancelled);
+        if (!cleared) return;
+        activeVerifiedDiagramRef.current = view.diagram;
+        setActiveVerifiedDiagram?.(view.diagram);
+        for (const anchor of view.diagram.anchors) registerAnchor(anchorToTextRect(anchor));
+        lessonFigures.advanced(view);
+        const intro = lessonFigureIntroCommands(view);
+        // A restore or a seek stamps; live, the figure lands with its sentence.
+        const stamp = advanceScale <= 0.05;
+        const budgetMs = figureRedrawBudget(intro.length, stamp ? undefined : options.speechDurationMs, 0);
+        for (const next of intro) {
+          if (commandCancelled()) return;
+          const share = budgetMs(next);
+          await executeCommand(inheritCommandInk(command, next), {
+            trustedDiagramGeometry: true,
+            applyLayout: false,
+            isCancelled: commandCancelled,
+            inkPace: "scene",
+            ...(stamp ? { durationScale: advanceScale } : share === undefined ? {} : { speechDurationMs: share }),
+          });
+        }
+        if (commandCancelled()) return;
+        lessonFigures.introDone(view);
+        turnTelemetryRef.current?.mark("lesson-figure-advance", {
+          figure_id: view.id,
+          family: view.family,
+          command_count: intro.length,
+        });
+        return;
+      }
+      // lesson-figure-advance:end
       const activeDiagram = activeVerifiedDiagramRef.current;
       const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
       if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
@@ -982,6 +1123,7 @@ export function useCommandExecution({
           if (durationScale <= 0.05) {
             const frame = frames.advance();
             if (frame) {
+              erasePinnedInkOf(wb);
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
@@ -1005,30 +1147,14 @@ export function useCommandExecution({
 
           const next = frames.advance();
           if (!next) break;
+          erasePinnedInkOf(wb);
           // The redraw has to land with the sentence that introduces it. Split
           // the spoken window across the figure's commands: each one can only
           // be made quicker than its natural scene pace, never slower, so a
           // long sentence still draws at a readable speed while a short one
           // stops the board running three seconds past the voice.
           const wipeMs = 420;
-          const frameCommandCount = Math.max(next.presentation.diagram.commands.length, 1);
-          const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
-          const evenShareMs = drawWindowMs > 0
-            ? Math.max(Math.floor(drawWindowMs / frameCommandCount), SCENE_MIN_MS)
-            : undefined;
-          // A figure label is part of the sketch, so it is lettered with the
-          // instrument already in hand. Handing it a generous share of the
-          // sentence pushes it over the prose threshold and buys an instrument
-          // swap on every label: fourteen labels spent six seconds swapping
-          // pens while the sentence that introduced the frame ran out. Same
-          // rule as the scene-text branch of `resolveCommandInkBudgetMs`,
-          // applied here because a frame redraw budgets its own commands.
-          const frameCommandBudgetMs = (command: { text?: string }): number | undefined => {
-            if (evenShareMs === undefined) return undefined;
-            const text = command.text?.replace(/\s+/g, "") ?? "";
-            if (text.length === 0) return evenShareMs;
-            return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
-          };
+          const frameCommandBudgetMs = figureRedrawBudget(next.presentation.diagram.commands.length, speechDurationMs, wipeMs);
           const wiped = await eraseWhiteboardRegionIfCurrent(
             wb,
             { ...DSA_DIAGRAM_ZONE, duration: wipeMs },
@@ -1315,6 +1441,7 @@ export function useCommandExecution({
               },
             );
             if (scheduleCancelled) return;
+            if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
             wb.setCursorState("thinking");
             turnTelemetryRef.current?.mark("verified-focus-complete", {
               target_id: targets.map((target) => target.id).join(","),
@@ -1348,7 +1475,12 @@ export function useCommandExecution({
               },
             );
           }
-          if (isSeekCatchUp) break;
+          if (isSeekCatchUp) {
+            // A seek or restore lands the kept rings at once, before it skips
+            // every watched gesture.
+            await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive);
+            break;
+          }
           // Tracing rectangle outlines with the marker looks like scribbling
           // on a DSA figure. Code lessons only dim everything except the named
           // cells — the figure itself stays the explanation.
@@ -1517,6 +1649,7 @@ export function useCommandExecution({
             },
           );
           if (focusCancelled) return;
+          if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
           if (codeLessonActive && !isSeekCatchUp && durationScale > 0.05) {
             // The veil is down. A tagged step still runs a minute of speech
             // about the figure, and the pen used to spend all of it parked
@@ -1783,6 +1916,7 @@ export function useCommandExecution({
       turnTelemetryRef,
       whiteboardRef,
       codeLessonControllerRef,
+      lessonFiguresRef,
       nowMs,
     ],
   );
@@ -2029,21 +2163,6 @@ function scheduledFocusTargets(
     ));
   }
   return targets;
-}
-
-function compactPulseBox(
-  target: { x: number; y: number; width: number; height: number },
-  commands: VerifiedDiagramCommand[],
-): { x: number; y: number; width: number; height: number } {
-  const point = commands.find((command) => command.type === "DRAW_POINT");
-  if (point && [point.params[0], point.params[1]].every(Number.isFinite)) {
-    return { x: point.params[0]! - 12, y: point.params[1]! - 12, width: 24, height: 24 };
-  }
-  const cx = target.x + target.width / 2;
-  const cy = target.y + target.height / 2;
-  const width = Math.min(Math.max(target.width + 10, 22), 56);
-  const height = Math.min(Math.max(target.height + 10, 22), 56);
-  return { x: cx - width / 2, y: cy - height / 2, width, height };
 }
 
 const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([

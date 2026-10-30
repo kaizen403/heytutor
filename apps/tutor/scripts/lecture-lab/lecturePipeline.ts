@@ -75,6 +75,9 @@ import {
   type SpeculationAbortReason,
 } from "@/features/tutor-session/lib/scene/planningOverlap";
 import { buildTurnTeachingPrompt, figureExampleSpeciesOf } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
+import { lessonDiagramSourceOf, lessonFiguresMayPlan, planLessonFigures } from "@/features/tutor-session/lib/turn/lessonFigurePlan";
+import { laterFigurePromptOf } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
+import { lessonFigureAsksOf, type LessonFigureAsk, type LessonFigureId } from "@/lib/boards/lessonFigures";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
@@ -199,6 +202,12 @@ export interface LectureRun {
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
+  /** RunLectureOptions.lessonFigures: the plan's picked later views and what the engine drew of them. */
+  lessonFigures?: {
+    asks: LessonFigureAsk[];
+    figures: Array<{ id: LessonFigureId; view: string; family: string | null; tier: string; diagram: VerifiedDiagram }>;
+    misses: Array<{ id: LessonFigureId; reason: string }>;
+  } | null;
   productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
   /** Only with `--reference-picture`: the live picture tier's outcome, timings and spend. */
   referencePicture?: LabReferencePictureRecord;
@@ -310,6 +319,8 @@ export interface RunLectureOptions {
   onModelCost?: (usd: number) => void;
   /** Replay the live reference picture step (`--reference-picture`); off keeps the lab unchanged. */
   referencePicture?: boolean;
+  /** The planner's later-figures addon and the offline later figures (DIAGRAM_LESSON_FIGURES), as live grants them. */
+  lessonFigures?: boolean;
   /** Build the picture with part focus targets (the live begin-turn `referencePicturePartFocus`). */
   referencePicturePartFocus?: boolean;
   /** The shown picture's pixels, so the runner can save what the student saw. */
@@ -499,6 +510,8 @@ export async function runLecture(
       fastMode,
       traceId,
       classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
+      // As uQH's lesson-figures-ask anchor: never on a DSA lesson.
+      lessonFigures: options.lessonFigures === true && !dsaClassification.isDsa,
       onRequestOutcome: (outcome) => {
         // Late unused peers may report after selection; the saved JSON is a snapshot, not a drain.
         if (run.turnPlanCallOutcomes && run.turnPlanCallOutcomes.length < 3) run.turnPlanCallOutcomes.push(outcome);
@@ -936,6 +949,42 @@ export async function runLecture(
       plannerDeclined: run.diagram.plannerDeclined,
     });
 
+    // lesson-figures-arm:begin
+    // The live condition itself (uQH anchor lesson-figures-plan): once figure 1
+    // drew as a verified scene, each view the plan picked is drawn offline by
+    // the fast selector from the reconciled plan. The lab has no doubt or
+    // resume turn here, and a DSA lesson is its code lesson. The narration
+    // language is the turn's, English unless the lab replays Hinglish (live:
+    // narrationLanguageForVoice).
+    let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
+    if (
+      lessonFiguresMayPlan({
+        granted: options.lessonFigures === true, doubt: false, resume: false,
+        codeLesson: dsaClassification.isDsa, diagramSource: lessonDiagramSourceOf(activeDiagram),
+      }) &&
+      activeDiagram && presentation
+    ) {
+      const planned = planLessonFigures({
+        lessonQuestion: question, turnPlan, authority: problemAuthority, families: sceneCapabilities.families,
+        first: activeDiagram, narrationLanguage: options.narrationLanguage ?? "english",
+        deadlineAt: plannerStartedAt + scenePlannerDeadlineMs,
+      });
+      const views = planned.figures.map((figure) => ({
+        id: figure.ask.id, diagram: figure.presentation.diagram, introSegments: figure.presentation.introSegments,
+        family: figure.representation.family ?? null,
+      }));
+      laterFigures = views.map(laterFigurePromptOf);
+      run.lessonFigures = {
+        asks: lessonFigureAsksOf(turnPlan),
+        figures: planned.figures.map((figure) => ({ id: figure.ask.id, view: figure.ask.view, family: figure.representation.family ?? null,
+          tier: figure.representation.tier, diagram: figure.presentation.diagram })),
+        misses: planned.misses,
+      };
+    } else if (options.lessonFigures === true) {
+      run.lessonFigures = { asks: lessonFigureAsksOf(turnPlan), figures: [], misses: [] };
+    }
+    // lesson-figures-arm:end
+
     // The live text only point. A shown picture takes the figure's slot for the
     // prompt and the marker, but every engine field above stays text only.
     let pictureIntro: TutorSegment[] | null = null;
@@ -977,6 +1026,7 @@ export async function runLecture(
       familiarity,
       fastMode,
       narrationLanguage: options.narrationLanguage,
+      ...(laterFigures.length > 0 ? { laterFigures } : {}),
     });
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.lessonBudget = {

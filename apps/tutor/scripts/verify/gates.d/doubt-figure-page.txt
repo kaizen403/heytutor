@@ -1,0 +1,2 @@
+# Doubt figure on a fresh page over lesson text (figures at any point, lane 9).
+tsx scripts/verify/verify-doubt-figure-page.ts

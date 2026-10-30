@@ -40,6 +40,7 @@ import {
 } from "@/lib/boards/boardsClient";
 import { parseStoredSegmentCommands, serializeSegmentCommands, type DrawCommand } from "@heytutor/drawing";
 import {
+  doubtFigureSaveScene,
   doubtTurnScene,
   partialTurnScene,
   partialTurnSegments,
@@ -48,6 +49,8 @@ import {
   type PersistedTurnScene,
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
+import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
+import { boardContinuationArtifacts, boardContinuationOf } from "@/lib/boards/boardContinuation";
 import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 // ---------------------------------------------------------------------------
@@ -175,6 +178,8 @@ export interface PreparedLiveSegment {
 interface PendingLiveSegment {
   row: RecordedSegmentPayload; intro: boolean; shown: boolean; settled: boolean;
   getTypeShownChars?: (blockId: string) => number;
+  /** Read when a cut row is saved: false drops the command (a lesson advance cue never reached). */
+  savesCommand?: (command: DrawCommand) => boolean;
 }
 
 interface LiveTurn {
@@ -289,7 +294,7 @@ export function liveTurnScene(input: {
   status: TurnStatus;
   textOnly: boolean;
 }): PersistedTurnScene {
-  const scene = baseLiveTurnScene(input);
+  const scene = withDoubtFreshPage(baseLiveTurnScene(input), input);
   const failureTelemetry = readFailedTurnTelemetry(input.page?.failureTelemetry);
   if (!failureTelemetry) return scene;
   return {
@@ -301,6 +306,25 @@ export function liveTurnScene(input: {
   };
 }
 
+// doubt-fresh-page-save:begin
+/**
+ * A doubt that turned a fresh page for its figure (lane 9) says so on its
+ * continuation marker, so every stored surface holds the lesson's page at it
+ * and returns the page at the lesson's resume. Every other save is unchanged.
+ */
+function withDoubtFreshPage(scene: PersistedTurnScene, input: { page: BoardPageRecord | null; opensPage: boolean }): PersistedTurnScene {
+  const artifacts = scene.sceneArtifacts;
+  if (!input.page?.turnedFreshPage || input.page.turn.kind !== "doubt" || input.opensPage) return scene;
+  if (!artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)) return scene;
+  const continuation = boardContinuationOf(artifacts);
+  if (!continuation) return scene;
+  return {
+    ...scene,
+    sceneArtifacts: { ...artifacts, ...boardContinuationArtifacts(continuation.lessonQuestion, { freshPage: true }) },
+  };
+}
+// doubt-fresh-page-save:end
+
 function baseLiveTurnScene(input: {
   page: BoardPageRecord | null;
   kind: TurnKind;
@@ -310,8 +334,13 @@ function baseLiveTurnScene(input: {
   textOnly: boolean;
 }): PersistedTurnScene {
   const { page } = input;
+  // A doubt that drew its own figure is its own validated scene on the page.
+  const doubtFigure = page && !input.opensPage ? doubtFigureSaveScene(page, input.textOnly) : null;
+  if (doubtFigure) return doubtFigure;
   if (input.kind === "doubt" || page?.turn.kind === "doubt") {
-    return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage);
+    // The figure the doubt pointed at rides only on a doubt that kept the page.
+    const pointsAtFigure = page?.turn.kind === "doubt" ? doubtFigureRefOf(page.turn.scene?.sceneArtifacts) : null;
+    return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage, undefined, pointsAtFigure);
   }
   if (!page) return textOnlyTurnScene();
   if (input.textOnly) {
@@ -450,11 +479,14 @@ export class LiveTurnSaveRegistry {
   }
 
   /** Prepared after wrapping/placement; prefetch alone never counts as shown. */
-  prepareSegment(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean; getTypeShownChars?: (blockId: string) => number }): PreparedLiveSegment | null {
+  prepareSegment(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean; getTypeShownChars?: (blockId: string) => number; savesCommand?: (command: DrawCommand) => boolean }): PreparedLiveSegment | null {
     const turn = this.find(owner, generation);
     if (!turn || turn.status !== "live" || turn.final) return null;
     this.capturePending(turn);
-    const pending: PendingLiveSegment = { row, intro: options.intro, shown: false, settled: false, getTypeShownChars: options.getTypeShownChars };
+    const pending: PendingLiveSegment = {
+      row, intro: options.intro, shown: false, settled: false, getTypeShownChars: options.getTypeShownChars,
+      ...(options.savesCommand ? { savesCommand: options.savesCommand } : {}),
+    };
     turn.pendingSegment = pending;
     const settle = (complete: RecordedSegmentPayload | null, generated?: Pick<RecordedSegmentPayload, "audioBytes" | "durationMs" | "timings">): boolean => {
       if (pending.settled || turn.pendingSegment !== pending) return false;
@@ -503,13 +535,23 @@ export class LiveTurnSaveRegistry {
   }
 
   private shownCutRow(pending: PendingLiveSegment): RecordedSegmentPayload {
-    const commands = parseStoredSegmentCommands(pending.row.command).map((command) => {
+    const parsed = parseStoredSegmentCommands(pending.row.command);
+    // live-cut-saves-command:begin
+    // A lesson advance cue the playback cursor never reached is not saved:
+    // live stayed on its figure, so replay must too (review F2).
+    const saved = pending.savesCommand ? parsed.filter((command) => {
+      try { return pending.savesCommand!(command); } catch { return true; }
+    }) : parsed;
+    // live-cut-saves-command:end
+    const commands = saved.map((command) => {
       if (command.type !== "TYPE") return command;
       let count = 0;
       try { count = pending.getTypeShownChars?.(command.semanticRef?.entityId ?? "") ?? 0; } catch { /* No receipt cannot prove typed source. */ }
       return { ...command, shownChars: Number.isSafeInteger(count) ? Math.max(0, Math.min(command.text?.length ?? 0, count)) : 0 };
     });
-    const command = commands.some((entry) => entry.type === "TYPE") ? serializeSegmentCommands(commands) : pending.row.command;
+    const command = commands.some((entry) => entry.type === "TYPE") || saved.length !== parsed.length
+      ? serializeSegmentCommands(commands)
+      : pending.row.command;
     return { ...pending.row, command, audioBytes: null, durationMs: null, timings: null };
   }
 
@@ -542,6 +584,8 @@ export class LiveTurnSaveRegistry {
   figureCommitted(owner: object, generation: number): void {
     const turn = this.find(owner, generation);
     if (!turn) return;
+    // The figure in the zone is this turn's now: a doubt on the page names it.
+    if (turn.page) turn.page.figureTurnId = turn.turnId;
     this.emit();
     this.pump(turn);
   }
@@ -550,6 +594,7 @@ export class LiveTurnSaveRegistry {
   dropIntroRows(owner: object, generation: number): void {
     const turn = this.find(owner, generation);
     if (!turn) return;
+    if (turn.page?.figureTurnId === turn.turnId) turn.page.figureTurnId = null;
     const kept = turn.recorded.slice(0, turn.taken);
     for (const entry of turn.recorded.slice(turn.taken)) {
       if (!entry.intro) kept.push(entry);
@@ -983,6 +1028,13 @@ export class LiveTurnSaveRegistry {
   private notWorthCreating(turn: LiveTurn, rows: readonly RecordedSegmentPayload[]): boolean {
     if (turn.ackedStatus !== null || rows.some((row) => !isEpochRow(row))) return false;
     if (turn.status !== "live" && readFailedTurnTelemetry(turn.page?.failureTelemetry)?.failed === true) return false;
+    // doubt-fresh-page-kept:begin
+    // Review round 3 S1: a doubt that turned a fresh page (lane 9) showed the
+    // page turn, as an advance's erase is shown (F2). Stopped before any row,
+    // it is still saved, so every stored surface holds the lesson page there
+    // as live does and a later doubt continues the blank page, not the lesson's.
+    if (turn.status !== "live" && turn.kind === "doubt" && turn.page?.turnedFreshPage === true) return false;
+    // doubt-fresh-page-kept:end
     return turn.status === "live" || turn.kind !== "lesson";
   }
 

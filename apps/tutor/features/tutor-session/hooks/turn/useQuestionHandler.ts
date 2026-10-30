@@ -3,7 +3,6 @@ import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
-  prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
   scheduleFrame,
@@ -47,9 +46,6 @@ import {
   synthesizeDsaScene,
   isChemistryQuestion,
   isChemistrySceneFamily,
-  applySectionFormulaAuthority,
-  applySourceQuantityAuthority,
-  reconcileTurnPlanWithSolver,
   type RenderScene,
   type SceneArtifactsV3,
   type FigureSource,
@@ -74,6 +70,8 @@ import {
   workColumnRows,
 } from "../../lib/board/boardLayout";
 import {
+  doubtFigureRefFor,
+  doubtFigureTurnScene,
   doubtPageRecord,
   doubtSegment,
   inheritedTeachingContext,
@@ -82,6 +80,12 @@ import {
   resumePageRecord,
   revealedCodeText,
 } from "../../lib/turn/doubtTurn";
+import {
+  buildDoubtPointingPolicy,
+  doubtActiveFigure,
+  doubtCodeFrameCells,
+  segmentWithoutFocusKeep,
+} from "../../lib/turn/doubtPointing";
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
@@ -115,6 +119,8 @@ import {
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
+import { finishLessonFigureAdvance, laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
+import { lessonFiguresArtifact, lessonFiguresMayPlan, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
@@ -147,7 +153,32 @@ import {
   settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
-import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
+import {
+  applyDeterministicSourceAuthority as applySharedSourceAuthority,
+  DOUBT_FIGURE_BUDGET_MS,
+  doubtFigureHoldingSegment,
+  doubtFigureNeedInput,
+  doubtFigureNeedSkip,
+  doubtFigurePlannedScene,
+  lessonFigureIdInZone,
+  planDoubtFigure,
+  reconcilePlanWithAuthority,
+  requestDoubtFigureNeed,
+  selectFastFigure,
+  snapshotPresentation,
+  storedPageZoneStash,
+  zoneInkOccupied,
+  type DoubtFigureDrawn,
+} from "../../lib/turn/doubtFigurePlan";
+import {
+  EMPTY_ZONE_STASH,
+  returnFigureToZone,
+  returnZoneStash,
+  swapFigureIn,
+  type ZoneStash,
+} from "../../lib/scene/figureSwap";
+import { returnLessonPage, turnDoubtPage } from "../../lib/board/doubtPage";
+import { storedLessonFigurePresentation } from "../../lib/replay/pageFigureSync";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
   chemistryRefusesPlannerFigure,
@@ -275,6 +306,7 @@ export function useQuestionHandler(
     | "enqueueVerifiedIntro"
     | "processResponseText"
     | "offerPausedLessonResume"
+    | "hasPausedLesson"
     | "clearPausedLesson"
   >,
 ) {
@@ -311,6 +343,7 @@ export function useQuestionHandler(
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     codeLessonControllerRef,
+    lessonFiguresRef,
     boardLayoutRef,
     turnTelemetryRef,
     speedRef,
@@ -332,7 +365,10 @@ export function useQuestionHandler(
     setNarrationText,
     setCurrentSegmentText,
     ensureTTSClient,
+    executeCommandWithCancel,
     beginBoardEpoch,
+    captureNotesEpoch,
+    narrationSinceEpochRef,
     revokeUnreferencedReplayBlobUrls,
     onComplete,
     onError,
@@ -352,6 +388,7 @@ export function useQuestionHandler(
     enqueueVerifiedIntro,
     processResponseText,
     offerPausedLessonResume,
+    hasPausedLesson,
     clearPausedLesson,
   } = turnControl;
 
@@ -370,6 +407,24 @@ export function useQuestionHandler(
    * is a different visit.
    */
   const queuedAskRef = useRef<{ question: string; startedAt: number; boardId: string | null } | null>(null);
+  /**
+   * The figure in the zone as it was presented, copied before teaching
+   * released any of its withheld marks. A doubt that draws its own figure
+   * stashes this so the lesson's figure can be returned whole on resume
+   * (DIAGRAM_DOUBT_FIGURES). `live` is the object the zone holds.
+   */
+  const zonePresentationRef = useRef<{
+    live: import("@heytutor/drawing").VerifiedDiagram;
+    snapshot: { diagram: import("@heytutor/drawing").VerifiedDiagram; introSegments: TutorSegment[] };
+  } | null>(null);
+  const rememberZonePresentation = (
+    presentation: { diagram: import("@heytutor/drawing").VerifiedDiagram; introSegments: TutorSegment[] } | null,
+    granted: boolean,
+  ) => {
+    // Flag off, nothing is copied: the turn is exactly as before.
+    const snapshot = presentation && granted ? snapshotPresentation(presentation) : null;
+    zonePresentationRef.current = presentation && snapshot ? { live: presentation.diagram, snapshot } : null;
+  };
 
   /**
    * One question, from the Ask click to the end of the turn. `handleQuestion`
@@ -649,6 +704,34 @@ export function useQuestionHandler(
         // A fresh page: nothing a stopped replay left is on the board now.
         boardShowsStoppedReplayRef.current = false;
       }
+      // lesson-figure-finish:begin
+      // A Stop cut a lesson advance part way (review F2): figure 1 half erased
+      // or figure k part drawn, while the saved cue makes replay stand figure
+      // k whole. The doubt or resume on this page draws it whole first, before
+      // anything reads the zone, so live teaches on the figure replay shows.
+      if ((doubt || resume) && lessonFiguresRef?.current?.pendingIntro()) {
+        const finished = await finishLessonFigureAdvance(whiteboardRef.current, boardLayoutRef.current, lessonFiguresRef.current, {
+          shouldCancel: () => !canContinueTurnAfterAsync({
+            turnGeneration,
+            activeTurnGeneration: turnGenerationRef.current,
+            cancelled: cancelRef.current,
+            aborted: abortController.signal.aborted,
+          }),
+          executeCommand: executeCommandWithCancel,
+        });
+        if (turnGeneration !== turnGenerationRef.current) {
+          return;
+        }
+        if (finished) {
+          activeVerifiedDiagramRef.current = finished.diagram;
+          setActiveVerifiedDiagram?.(finished.diagram);
+          for (const anchor of finished.diagram.anchors) {
+            registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+          }
+          tutorDebug("draw", "lesson figure advance finished", { figure_id: finished.id });
+        }
+      }
+      // lesson-figure-finish:end
       // Set after the epoch: the page it captured belongs to the previous
       // question, and a doubt raised meanwhile still names the lesson it stops.
       liveQuestionRef.current = doubt
@@ -656,8 +739,32 @@ export function useQuestionHandler(
         : resume
           ? resume.lessonQuestion
           : question;
-      const page = doubt
-        ? doubtPageRecord({
+      // What the notes page held so far; a fresh page files this turn's own words under the doubt page (round 3 N5).
+      const notesNarrationAtTurnStart = narrationSinceEpochRef?.current ?? "";
+      // The figure in the zone while the doubt teaches, named on its save so
+      // the server can check the doubt's pointing against it (lane A).
+      const doubtFrames = codeLessonControllerRef?.current?.getActivePlan()
+        ? codeLessonControllerRef.current.frames
+        : null;
+      const pointsAtFigure = doubt
+        ? doubtFigureRefFor({
+            record: pageRecord,
+            boardId: sessionId,
+            afterReplay: doubt.afterReplay,
+            figureOnPage: doubtPage?.figureOnPage ?? false,
+            storedTurns: storedTurnsRef.current,
+            activeDiagram: activeVerifiedDiagramRef.current,
+            codeLessonFrameIndex: doubtFrames?.getSet() ? doubtFrames.currentIndex() : null,
+            // doubt-lesson-figure:begin
+            // A lesson's later figure in the zone (live after an advance, or
+            // rebuilt by a restore): the save names it, and the server
+            // rebuilds that figure from the lesson's stored row.
+            lessonFigureId: lessonFigureIdInZone(lessonFiguresRef?.current?.views() ?? [], activeVerifiedDiagramRef.current),
+            // doubt-lesson-figure:end
+          })
+        : null;
+      const doubtRecordInput = doubt
+        ? {
             boardId: sessionId,
             lessonQuestion: doubt.lessonQuestion,
             title: doubt.title,
@@ -665,7 +772,12 @@ export function useQuestionHandler(
             figureDrawn: doubtPage?.figureOnPage ?? false,
             turnPlan: inherited?.turnPlan ?? null,
             solverProjection: inherited?.solverProjection ?? null,
-          })
+            replaces: pageRecord,
+            pointsAtFigure,
+          }
+        : null;
+      const page = doubtRecordInput
+        ? doubtPageRecord(doubtRecordInput)
         : resume
           ? resumePageRecord({
               boardId: sessionId,
@@ -679,6 +791,11 @@ export function useQuestionHandler(
             })
         : lessonPageRecord(sessionId, question);
       boardPageRef.current = page;
+      // A doubt's own figure still stands in the zone: the lesson figure it
+      // replaced stays stashed until the lesson resumes, whatever is asked first.
+      if (doubt && !page.zoneStash && pageRecord?.zoneStash && pageRecord.boardId === page.boardId) {
+        page.zoneStash = pageRecord.zoneStash;
+      }
       const inheritedFailureTelemetry = readFailedTurnTelemetry(
         resume?.scene?.sceneArtifacts && typeof resume.scene.sceneArtifacts === "object"
           ? (resume.scene.sceneArtifacts as Record<string, unknown>).failureTelemetry : undefined,
@@ -799,8 +916,13 @@ export function useQuestionHandler(
         diagramSubject?: import("@heytutor/tutor-core").DiagramSubject;
         referencePicture?: StoredReferencePicture;
         referencePictureOutcome?: ReferencePictureOutcome;
+        lessonFigures?: import("@/lib/boards/lessonFigures").LessonFiguresArtifact;
       }) | null = null;
       let representationTier: RepresentationTier | null = null;
+      // lesson-figures-state:begin
+      // The lesson's own scene families, read by its gate (lesson figures only).
+      let lessonSceneFamilies: readonly string[] = [];
+      // lesson-figures-state:end
       let representationNonMetric = false;
       let representationReason: string | null = null;
       let representationFamily: string | null = null;
@@ -1242,6 +1364,10 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            // lesson-figures-ask:begin
+            // The plan may name later views in words; off, the prompt is byte-identical.
+            lessonFigures: billed.lessonFigures === true && !doubt && !resume && !dsaClassification.isDsa,
+            // lesson-figures-ask:end
             onRequestOutcome: (outcome) => {
               if (outcome.code === "accepted") turnPlanAdmitted = true;
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
@@ -1371,39 +1497,9 @@ export function useQuestionHandler(
             request: { ...gate.request, ...(pickedIds.length > 0 ? { diagramExampleIds: pickedIds } : {}) },
           };
         };
-        const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 => {
-          // Section-formula stems: the point's coordinates (or the asked ratio)
-          // are solved exactly from the stated endpoints, and an inconsistent or
-          // singular stem withdraws every derived number.
-          const sectionAuthority = applySectionFormulaAuthority(question, sourcePlan);
-          if (sectionAuthority) {
-            sourcePlan = sectionAuthority.plan;
-            tutorDebug("planner", "section formula authority", {
-              status: sectionAuthority.reading.status,
-              issue_codes: sectionAuthority.issues.map((issue) => issue.code),
-            });
-          }
-
-          // Topics whose quantities the engine recomputes from the stem (a
-          // stated resistor circuit, a uniform circular state) check the plan
-          // before each final gate: a value whose symbol binds without doubt to a
-          // recomputed quantity is corrected, any other value is left as
-          // written, and a conflict that cannot be bound makes that topic's
-          // figure decline. Scene validation and the teaching prompt both read
-          // the corrected plan, so no stale scalar reaches the narration.
-          const sourceAuthority = applySourceQuantityAuthority(sourcePlan, authority?.problemIR ?? null, question);
-          if (sourceAuthority.outcomes.length > 0) {
-            sourcePlan = sourceAuthority.plan;
-            tutorDebug("planner", "source quantity authority", {
-              topics: sourceAuthority.outcomes.map((outcome) => outcome.topic),
-              corrections: sourceAuthority.outcomes.flatMap((outcome) => outcome.corrections.map((correction) => `${correction.symbol}: ${correction.previous} -> ${correction.corrected}`)),
-              decline_figure: sourceAuthority.outcomes.filter((outcome) => outcome.declineFigure).map((outcome) => outcome.topic),
-              issue_codes: sourceAuthority.outcomes.flatMap((outcome) => outcome.issueCodes),
-            });
-          }
-
-          return sourcePlan;
-        };
+        // Shared with a doubt that draws its own figure (`lib/turn/doubtFigurePlan`).
+        const applyDeterministicSourceAuthority = (sourcePlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null): TurnPlanV3 =>
+          applySharedSourceAuthority(question, sourcePlan, authority);
         // Also run when the turn has no numeric ProblemIR request. The overlap
         // callback repeats this on final IR before deriving any final gate.
         turnPlan = applyDeterministicSourceAuthority(turnPlan, null);
@@ -1449,12 +1545,8 @@ export function useQuestionHandler(
           selectionOrder: (gate) => gate.diagramStrategy.selectionOrder,
           deriveGate: deriveSceneGate,
           applyAuthority: (planToReconcile, authority) => {
-            const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
-              planToReconcile,
-              authority.problemIR,
-              authority.solverResult,
-            ), authority);
-            const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
+            const { turnPlan: reconciledPlan, authority: refreshedAuthority } =
+              reconcilePlanWithAuthority(question, planToReconcile, authority);
             const authorityAudit = refreshedAuthority.audit;
             if (authorityAudit.status !== "contradiction") prepareOriginalOpening(reconciledPlan);
             tutorDebug("planner", "solver authority audit", {
@@ -1512,10 +1604,10 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastFigure({
             question,
             turnPlan: planningTurnPlan,
-            problemIR: authority?.problemIR ?? null,
+            authority,
             families: gate.sceneCapabilities.families,
           }), undefined, phase),
           planScene: (gate, planningTurnPlan, run) => {
@@ -1554,6 +1646,9 @@ export function useQuestionHandler(
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+        // lesson-figures-families:begin
+        lessonSceneFamilies = sceneCapabilities.families;
+        // lesson-figures-families:end
         if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
@@ -1803,10 +1898,101 @@ export function useQuestionHandler(
       if (doubt) {
         turnPlan = inherited?.turnPlan ?? null;
       }
+      // DIAGRAM_DOUBT_FIGURES, granted for this turn by begin-turn. Off, a
+      // doubt plans nothing and answers on the figure already drawn.
+      const doubtFiguresGranted = billed.doubtFigures === true;
+      let doubtFigure: DoubtFigureDrawn | null = null;
+      /** What a swap would stash, with the zone figure it was read against (null: empty). */
+      let doubtZoneStash: { zone: import("@heytutor/drawing").VerifiedDiagram | null; stash: ZoneStash } | null = null;
+      if (doubt && doubtFiguresGranted) {
+        // doubt-figure-plan:begin
+        const zoneFigure = doubtPage?.figureOnPage ? activeVerifiedDiagramRef.current : null;
+        const codeBoard = Boolean(codeLessonControllerRef?.current?.getActivePlan());
+        const zoneEntry = zoneFigure && zonePresentationRef.current?.live === zoneFigure ? zonePresentationRef.current : null;
+        // No figure, and the doubt writes on the lesson's page: the zone is empty.
+        const zoneEmpty = !zoneFigure && !codeBoard && Boolean(doubtPage?.continuesBoard);
+        // A restored board kept no snapshot of its figure: the stash is read
+        // from the stored turns, or none when they do not match the zone.
+        const zoneStash: ZoneStash | null = page.zoneStash
+          ?? (zoneFigure && zoneEntry ? { diagram: zoneFigure, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null } : null)
+          ?? (zoneFigure && !codeBoard ? storedPageZoneStash(storedTurnsRef.current, zoneFigure) : null)
+          ?? (zoneEmpty ? { ...EMPTY_ZONE_STASH } : null);
+        const skip = doubtFigureNeedSkip({
+          granted: doubtFiguresGranted,
+          codeBoard,
+          markedFigureIds: doubt.markedFigureIds ?? [],
+          zoneFigure,
+          zoneReturnable: zoneStash !== null,
+          zoneEmpty,
+          // Never draw over ink: a text only row may already reach the zone.
+          zoneOccupied: zoneEmpty && zoneInkOccupied(boardLayoutRef.current),
+          // Then the figure takes a fresh page, and the lesson's page comes back on its resume (lane 9).
+          freshPage: true,
+          // Only a resume brings the lesson's figure or page back: after a
+          // finished lesson the doubt answers on the lesson's page.
+          lessonResumable: hasPausedLesson(),
+        });
+        doubtZoneStash = zoneStash ? { zone: zoneFigure, stash: zoneStash } : null;
+        const need = skip
+          ? { decision: "point" as const, reason: skip }
+          : await awaitCurrentTurn(requestDoubtFigureNeed({
+              url: resolveApiUrl("/api/doubt-figure-need"),
+              body: doubtFigureNeedInput({ lessonQuestion: doubt.lessonQuestion, doubtTitle: doubt.title, zoneFigure }),
+              signal: abortController.signal,
+              traceId: turnTraceId,
+              sessionId,
+            }), isCurrentTurn);
+        tel.mark("doubt-figure-need", {
+          decision: need.decision, skipped: skip !== null, reason: skip ?? undefined,
+          zone: zoneFigure ? (isReferencePictureDiagram(zoneFigure) ? "picture" : "figure") : "empty",
+        });
+        if (need.decision === "new_figure") {
+          // One spoken holding line while the figure plans, on the turn's
+          // opening beat; planning goes on behind it.
+          enqueueSegment(doubtFigureHoldingSegment(turnNarrationLanguage), turnGeneration);
+          void segmentChainRef.current.then(() => {
+            if (phaseRef.current === "speaking") setPhaseIfCurrent("planning");
+          }, () => {});
+          const doubtStartedAt = Date.now() - Math.max(0, performance.now() - askOrigin);
+          const outcome = await awaitCurrentTurn(planDoubtFigure({
+            lessonQuestion: doubt.lessonQuestion,
+            doubtTitle: doubt.title,
+            zoneFigure,
+            deadlineAt: doubtStartedAt + DOUBT_FIGURE_BUDGET_MS,
+            signal: abortController.signal,
+            narrationLanguage: turnNarrationLanguage,
+            planners: {
+              planTurn: (composed, run) => planTurnV3(composed, {
+                proxyUrl: plannerUrl,
+                sessionId: sessionId ?? undefined,
+                traceId: turnTraceId ?? undefined,
+                signal: run.signal,
+                timeoutMs: Math.min(TURN_PLAN_DEADLINE_MS, run.timeoutMs),
+                fastMode: fastModeRef.current,
+              }),
+              planAuthority: (composed, run) => planAndSolveProblemV1(composed, null, {
+                proxyUrl: plannerUrl,
+                sessionId: sessionId ?? undefined,
+                traceId: turnTraceId ?? undefined,
+                signal: run.signal,
+                timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, run.timeoutMs),
+                fastMode: fastModeRef.current,
+              }),
+            },
+          }), isCurrentTurn);
+          tel.mark("doubt-figure-plan", outcome.status === "drawn"
+            ? { status: "drawn", family: outcome.representation.family ?? null, tier: outcome.representation.tier, elapsed_ms: outcome.elapsedMs }
+            : { status: "miss", reason: outcome.reason, elapsed_ms: outcome.elapsedMs });
+          if (outcome.status === "drawn") doubtFigure = outcome;
+        }
+        // doubt-figure-plan:end
+      }
       throwIfTurnCancelled();
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
       let activeDiagram: import("@heytutor/drawing").VerifiedDiagram | null;
+      /** A resume brought the lesson's figure back from a doubt's zone stash. */
+      let figureReturned = false;
       let diagramSource: "verified_scene" | "reference_picture" | "none";
 
       const presentation = sceneV2RenderScene && sceneV2Document && "visualDecision" in sceneV2Document
@@ -1826,19 +2012,174 @@ export function useQuestionHandler(
       // notebook to write in, and its frames are conducted by a plan this turn
       // does not run: a doubt there teaches in speech and points at nothing.
       const codeLessonBoard = Boolean(doubt && codeLessonControllerRef?.current?.getActivePlan());
+      const codeFigureVisible = Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
+        activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current));
+      // DIAGRAM_DOUBT_POINTING, granted for this turn by begin-turn.
+      const doubtPointingGranted = billed.doubtPointing === true;
+      const codeFrameIds = codeLessonBoard
+        ? (codeLessonControllerRef?.current?.frames.getSet()?.frames.map((frame) => frame.id) ?? [])
+        : [];
       const codePanelShowing =
         Boolean((doubt || resume) && codeLessonControllerRef?.current?.getActivePlan()) &&
         codeLessonControllerRef?.current?.getState().mode !== "hidden";
       if (doubt) {
-        // The doubt answers on the figure already drawn on this page.
-        activeDiagram = codeLessonBoard ? null : activeVerifiedDiagramRef.current;
+        // The doubt answers on the figure already drawn on this page. On a
+        // code board that is the frame on the board, and only with the flag.
+        activeDiagram = doubtActiveFigure({
+          granted: doubtPointingGranted,
+          codeBoard: codeLessonBoard,
+          codeFigureVisible,
+          zoneFigure: activeVerifiedDiagramRef.current,
+        });
         diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram) ? "reference_picture" : "verified_scene") : "none";
+        if (doubtFigure) {
+          // doubt-figure-swap:begin
+          // The doubt drew its own figure. Stash the lesson's on the page
+          // record first (a second doubt keeps the first stash), then clear
+          // the zone and hand the new figure to the lesson's own intro.
+          const drawn: DoubtFigureDrawn = doubtFigure;
+          const wb = whiteboardRef.current;
+          const zoneLive = activeVerifiedDiagramRef.current;
+          const zoneEntry = zoneLive && zonePresentationRef.current?.live === zoneLive ? zonePresentationRef.current : null;
+          // The plan's stash (an empty zone, a restored board) only for the zone it was read against.
+          const stash: ZoneStash | null = page.zoneStash ?? (zoneLive && zoneEntry
+            ? { diagram: zoneLive, presentation: zoneEntry.snapshot, turnId: page.figureTurnId ?? null, ...(page.lessonFigureId ? { figureId: page.lessonFigureId } : {}) }
+            : doubtZoneStash && doubtZoneStash.zone === zoneLive ? doubtZoneStash.stash : null);
+          const previousStash = page.zoneStash ?? null;
+          page.zoneStash = stash;
+          // An empty zone is checked again at the swap: never draw over ink.
+          const inkFree = zoneLive !== null || !zoneInkOccupied(boardLayoutRef.current);
+          // doubt-fresh-page:begin
+          // The lesson's rows reach the empty zone: the figure takes a fresh
+          // page. The lesson's page is held whole until its resume (lane 9).
+          const turnsPage = !inkFree && stash !== null && stash.diagram === null &&
+            Boolean(doubtPage?.continuesBoard) && isCurrentTurn();
+          const freshPage = turnsPage && turnDoubtPage(wb, boardLayoutRef.current,
+            captureNotesEpoch && narrationSinceEpochRef
+              ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef, turnStart: notesNarrationAtTurnStart }
+              : null);
+          if (freshPage) {
+            page.turnedFreshPage = true;
+            tel.mark("doubt-figure-page", { page: "fresh" });
+          }
+          // doubt-fresh-page:end
+          const cleared = wb && stash && (inkFree || freshPage)
+            ? await swapFigureIn(wb, boardLayoutRef.current, drawn.presentation.diagram, { shouldCancel: () => !isCurrentTurn() })
+            : false;
+          throwIfTurnCancelled();
+          if (cleared) {
+            activeDiagram = drawn.presentation.diagram;
+            sceneV2IntroSegments = drawn.presentation.introSegments;
+            diagramSource = "verified_scene";
+            activeVerifiedDiagramRef.current = activeDiagram;
+            setActiveVerifiedDiagram?.(activeDiagram);
+            rememberZonePresentation(drawn.presentation, true);
+            dropDiagramRects(boardLayoutRef.current);
+            for (const anchor of activeDiagram.anchors) {
+              registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+            }
+            // Ink once its intro commits (enqueueVerifiedIntro), as a lesson's.
+            page.figureDrawn = false;
+            // Planned on composeDoubtFigureQuestion; the marker names the stashed lesson figure.
+            page.turn.scene = doubtFigureTurnScene(doubtFigurePlannedScene(drawn), page.lessonQuestion, page.zoneStash?.turnId ?? null);
+            // The figure's numbers came from this plan; the narration reads the same one.
+            turnPlan = drawn.turnPlan;
+          } else {
+            page.zoneStash = previousStash;
+            doubtFigure = null;
+            tel.mark("doubt-figure-plan", { status: "miss", reason: "swap_refused" });
+          }
+          // doubt-figure-swap:end
+        }
       } else if (resume) {
         // Keep the figure the lesson already committed. If the intro never
         // landed, rebuild it from the paused scene so the rest of the lecture
         // still has something to point at. A figure a plain Stop caught before
         // its first beat was planned, not drawn: it is drawn whole now.
-        activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
+        // doubt-figure-return:begin
+        // A doubt's own figure stands in the zone: return the lesson's figure
+        // whole, with the marks the student already saw, before reading it.
+        // A doubt that drew on an empty zone stashed nothing: its figure is
+        // cleared and the zone is empty again (`zoneEmptied`), as in replay.
+        // doubt-fresh-page-return:begin
+        // A doubt turned a fresh page (lane 9): the lesson's page comes back
+        // whole first, its zone as the lesson left it. The doubt's figure
+        // left with the doubt page, so no zone return follows and the
+        // doubt's empty stash is not read. After a reload the restore held
+        // the page the same way.
+        const pageReturned = returnLessonPage(whiteboardRef.current, boardLayoutRef.current,
+          captureNotesEpoch && narrationSinceEpochRef ? { capture: captureNotesEpoch, narration: narrationSinceEpochRef } : null);
+        if (pageReturned) {
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
+          zonePresentationRef.current = null;
+          page.figureTurnId = null;
+          page.lessonFigureId = null;
+          page.figureDrawn = false;
+        }
+        const zoneStash = pageRecord?.boardId === sessionId && !pageReturned ? pageRecord.zoneStash ?? null : null;
+        let zoneEmptied = pageReturned;
+        // doubt-fresh-page-return:end
+        if (zoneStash) {
+          // The zone is about to be erased: nothing may point at the doubt's
+          // figure from here. A cancelled return leaves the ref empty and the
+          // stash on both records, so the next Continue returns it again.
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
+          zonePresentationRef.current = null;
+          const stashReturn = await returnZoneStash(whiteboardRef.current, boardLayoutRef.current, zoneStash, [pageRecord, page],
+            { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel });
+          throwIfTurnCancelled();
+          const returned = stashReturn.diagram;
+          zoneEmptied = !stashReturn.cancelled && zoneStash.diagram === null;
+          activeVerifiedDiagramRef.current = returned;
+          setActiveVerifiedDiagram?.(returned);
+          dropDiagramRects(boardLayoutRef.current);
+          if (returned && zoneStash.presentation) {
+            for (const anchor of returned.anchors) {
+              registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+            }
+            zonePresentationRef.current = { live: returned, snapshot: zoneStash.presentation };
+          } else {
+            zonePresentationRef.current = null;
+          }
+          page.figureTurnId = returned ? zoneStash.turnId : null;
+          page.lessonFigureId = returned && zoneStash.diagram ? zoneStash.figureId ?? null : null;
+          page.figureDrawn = returned !== null;
+          figureReturned = returned !== null;
+        } else if (resume.returnsFigure && !pageReturned) {
+          // After a reload there is no stash: the stored turn whose figure the
+          // resume returns is redrawn with the marks earlier turns released.
+          const back = resume.returnsFigure!;
+          const source = back.turnId ? storedTurnsRef.current.find((turn) => turn.id === back.turnId) ?? null : null;
+          // As above: the doubt's figure is about to leave the zone.
+          activeVerifiedDiagramRef.current = null;
+          setActiveVerifiedDiagram?.(null);
+          const wb = whiteboardRef.current;
+          const result = wb
+            ? await returnFigureToZone(wb, boardLayoutRef.current,
+                // The lesson's later figure it had moved to, not figure 1 (lesson figures).
+                source ? storedLessonFigurePresentation(source, back.figureId ?? "figure_1") : { diagram: null, introSegments: [] },
+                back.consumedIds, { shouldCancel: () => !isCurrentTurn(), executeCommand: executeCommandWithCancel })
+            : { cancelled: false, diagram: null };
+          throwIfTurnCancelled();
+          const returned = result.cancelled ? null : result.diagram;
+          // No stored source: the zone is empty again, as after a live empty return.
+          zoneEmptied = !result.cancelled && back.turnId === null && billed.doubtFigures === true;
+          activeVerifiedDiagramRef.current = returned;
+          setActiveVerifiedDiagram?.(returned);
+          dropDiagramRects(boardLayoutRef.current);
+          for (const anchor of returned?.anchors ?? []) {
+            registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
+          }
+          zonePresentationRef.current = null;
+          page.figureTurnId = returned ? back.turnId : null;
+          page.lessonFigureId = returned ? back.figureId ?? null : null;
+          page.figureDrawn = returned !== null;
+          figureReturned = returned !== null;
+        }
+        // doubt-figure-return:end
+        activeDiagram = figureReturned || resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
         if (rebuildingCodeIntro) {
           activeDiagram = presentation && verifiedDiagramHasDrawableInk(presentation.diagram)
             ? presentation.diagram : null;
@@ -1853,12 +2194,18 @@ export function useQuestionHandler(
             fbdPhaseStartedRef.current = false;
           }
         }
-        if (activeDiagram && !resume.codeLesson && resume.remainingIntro?.length) {
+        if (activeDiagram && !figureReturned && !resume.codeLesson && resume.remainingIntro?.length) {
           // Stop cut the figure off: Continue draws its missing beats first.
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
+        // doubt-figure-restore:begin
+        // A returned figure holds the zone. An emptied zone is the zone a text
+        // only lesson left: a planned but undrawn lesson figure draws now.
+        const zoneHeld = Boolean(zoneStash || resume.returnsFigure) && !zoneEmptied;
+        if (!rebuildingCodeIntro && !activeDiagram && !zoneHeld &&
+          resume.scene?.sceneDocument) {
+          // doubt-figure-restore:end
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
             sceneArtifacts: resume.scene.sceneArtifacts,
@@ -1867,6 +2214,7 @@ export function useQuestionHandler(
           if (restored) {
             activeDiagram = restored.diagram;
             sceneV2IntroSegments = restored.introSegments;
+            rememberZonePresentation(restored, billed.doubtFigures === true);
             activeVerifiedDiagramRef.current = activeDiagram;
             setActiveVerifiedDiagram?.(activeDiagram);
           }
@@ -1880,6 +2228,7 @@ export function useQuestionHandler(
         activeDiagram = presentation.diagram;
         sceneV2IntroSegments = presentation.introSegments;
         diagramSource = "verified_scene";
+        rememberZonePresentation(presentation, billed.doubtFigures === true);
         activeVerifiedDiagramRef.current = activeDiagram;
         // A code lesson writes the problem first. Holding the figure out of
         // React state keeps the label inspector off the board until the
@@ -1940,6 +2289,57 @@ export function useQuestionHandler(
           sceneArtifacts: codeLesson && sceneArtifacts ? { ...sceneArtifacts, codeLesson } : sceneArtifacts,
         };
       }
+
+      // lesson-figures-plan:begin
+      // A lesson's later figures (DIAGRAM_LESSON_FIGURES). A new lesson drops
+      // the last lesson's; then, granted and only once figure 1 drew, each
+      // view the plan named is drawn offline by the engine's fast selector
+      // from this lesson's reconciled plan and authority. No LLM call.
+      let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
+      if (!doubt && !resume) lessonFiguresRef?.current?.reset();
+      if (
+        lessonFiguresMayPlan({
+          granted: billed.lessonFigures === true, doubt: Boolean(doubt), resume: Boolean(resume),
+          codeLesson: Boolean(codeLesson), diagramSource,
+        }) &&
+        turnPlan && activeDiagram && sceneV2IntroSegments && lessonFiguresRef?.current
+      ) {
+        const firstFigure = { diagram: activeDiagram, introSegments: sceneV2IntroSegments };
+        const lessonPlanned = planLessonFigures({
+          lessonQuestion: question,
+          turnPlan,
+          authority: problemAuthority,
+          families: lessonSceneFamilies,
+          first: activeDiagram,
+          narrationLanguage: turnNarrationLanguage,
+          deadlineAt: plannerStartedAt + SCENE_PLANNER_DEADLINE_MS,
+        });
+        const views = lessonPlanned.figures.map((figure) => ({
+          id: figure.ask.id,
+          diagram: figure.presentation.diagram,
+          introSegments: figure.presentation.introSegments,
+          family: figure.representation.family ?? null,
+        }));
+        tel.mark("lesson-figures-planned", {
+          figure_ids: views.map((view) => view.id).join(","),
+          misses: lessonPlanned.misses.map((miss) => `${miss.id}:${miss.reason}`).join(","),
+        });
+        if (views.length > 0) {
+          const lessonPage = page;
+          lessonFiguresRef.current.commit(firstFigure, views, {
+            // A doubt's own figure in the zone: never draw over it.
+            mayAdvance: () => !lessonPage.zoneStash,
+            onAdvanced: (view) => {
+              rememberZonePresentation(view, billed.doubtFigures === true);
+              lessonPage.lessonFigureId = view.id;
+            },
+          });
+          laterFigures = views.map(laterFigurePromptOf);
+          if (sceneArtifacts) sceneArtifacts = { ...sceneArtifacts, lessonFigures: lessonFiguresArtifact(lessonPlanned.figures) };
+          if (page.turn.scene) page.turn.scene = { ...page.turn.scene, sceneArtifacts };
+        }
+      }
+      // lesson-figures-plan:end
 
       plannerSpan.end({
         source: diagramSource,
@@ -2086,6 +2486,11 @@ export function useQuestionHandler(
           activeDiagram = picture.diagram;
           sceneV2IntroSegments = picture.introSegments;
           diagramSource = "reference_picture";
+          // reference-picture-zone:begin
+          // A doubt may swap the picture out for its own figure: keep it as
+          // presented so the resume can return it (DIAGRAM_DOUBT_FIGURES).
+          rememberZonePresentation(picture, billed.doubtFigures === true);
+          // reference-picture-zone:end
           activeVerifiedDiagramRef.current = activeDiagram;
           setActiveVerifiedDiagram?.(activeDiagram);
         }
@@ -2134,6 +2539,18 @@ export function useQuestionHandler(
           )
         : 0;
       const narrationLanguage = turnNarrationLanguage;
+      // What a doubt may point at: the ids of the figure in the zone, cut to
+      // the frame's cells on a code board. Off unless the turn was granted
+      // DIAGRAM_DOUBT_POINTING, and then the live filter is today's.
+      const doubtPointingPolicy = doubt
+        ? buildDoubtPointingPolicy({
+            granted: doubtPointingGranted,
+            figure: activeDiagram,
+            codeBoard: codeLessonBoard,
+            frameIds: codeFrameIds,
+          })
+        : null;
+      const keptRingsAllowed = Boolean(doubtPointingPolicy?.enabled && !doubtPointingPolicy.codeBoard);
       const pagePromptInput = {
         boardRows: workColumnRows(boardLayoutRef.current),
         rowsLeftOnPage: pageRoom?.rowsLeft ?? 0,
@@ -2159,9 +2576,12 @@ export function useQuestionHandler(
             ...pagePromptInput,
             lessonQuestion: doubt.lessonQuestion,
             codeLessonBoard,
-            codeFigureVisible: Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
-              activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current)),
-            solverProjection: inherited?.solverProjection ?? null,
+            codeFigureVisible,
+            solverProjection: doubtFigure ? doubtFigure.authority?.projection ?? null : inherited?.solverProjection ?? null,
+            doubtPointing: doubtPointingGranted,
+            ...(doubtFigure ? { doubtFigureDrawn: true } : {}),
+            figureIsPicture: activeDiagram?.id === "reference_picture",
+            codeFrameCells: codeLessonBoard ? doubtCodeFrameCells(activeDiagram, codeFrameIds) : [],
           })
         : resume
           ? buildResumeTeachingPrompt({
@@ -2221,6 +2641,8 @@ export function useQuestionHandler(
             alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
             narrationLanguage,
             earlyOpeningAcknowledgement: earlyOpeningStarted,
+            // lesson-figures-prompt: absent when no later figure drew (bytes unchanged).
+            ...(laterFigures.length > 0 ? { laterFigures } : {}),
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
@@ -2267,7 +2689,7 @@ export function useQuestionHandler(
       }
       // A doubt's figure has been on the page since the lesson registered it.
       // A resume that kept a drawn figure must not register those anchors again.
-      if (activeDiagram && !codeLesson && !doubt && !(resume && resume.figureDrawn)) {
+      if (activeDiagram && !codeLesson && !doubt && !figureReturned && !(resume && resume.figureDrawn)) {
         for (const anchor of activeDiagram.anchors) {
           registerBoardAnchor(boardLayoutRef.current, anchorToTextRect(anchor));
         }
@@ -2446,15 +2868,20 @@ export function useQuestionHandler(
           // A doubt conducts no code lesson, and beside the code panel it has
           // no notebook: `doubtSegment` keeps its words and only the ink it can
           // put on this page.
-          const outgoing = doubt
+          const filtered = doubt
             ? preparedSegments.flatMap((segment) => {
                 const kept = doubtSegment(segment, {
                   codePanelShowing,
                   boardRows: pagePromptInput.boardRows,
+                  pointing: doubtPointingPolicy ?? undefined,
                 });
                 return kept ? [kept] : [];
               })
             : (resolved?.segments ?? preparedSegments);
+          // A kept ring is drawn live only where the flag offered it: a
+          // doubt on a figure board. Everywhere else `|keep` is removed before
+          // it is drawn or saved.
+          const outgoing = keptRingsAllowed ? filtered : filtered.map(segmentWithoutFocusKeep);
           const hasTeachingContent = outgoing.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration));
           if (!usableTeachingStepReceived && !hasTeachingContent) startupControlSegments.push(...outgoing);
           const queuedSegments = !usableTeachingStepReceived && !hasTeachingContent
@@ -2500,12 +2927,20 @@ export function useQuestionHandler(
           }
         };
 
+        // lesson-figures-prepare:begin
+        // Preparation runs ahead of playback: a sentence after [FOCUS:figure_2]
+        // is checked against figure 2 here, long before the executor draws it.
+        const lessonFigurePrep = !doubt && !resume && !codeLesson && lessonFiguresRef?.current?.active()
+          ? lessonFiguresRef.current
+          : null;
+        const lessonFigureCues: string[] = [];
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
           // A resumed lecture must not queue its opening figure until a
           // spoken-and-written step passes the ink gate. Otherwise an intro
           // can keep drawing after a no-ink resume reports failure.
-          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+          const prepared = prepareLessonFigureSegments([bufferedSegment], activeDiagram, lessonFigurePrep, lessonFigureCues);
+          // lesson-figures-prepare:end
           const ready = focusFold.take(prepared.segments, { lessonStarted: usableTeachingStepReceived });
           queuePreparedSegments(ready, prepared);
           bufferedSegment = null;
@@ -2721,6 +3156,10 @@ export function useQuestionHandler(
               resumeInkGate?.reset();
               conductor = createTurnConductor();
               focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
+              // lesson-figures-retry:begin
+              // Nothing played: the retried response moves through the figures from figure 1 again.
+              lessonFigureCues.length = 0;
+              // lesson-figures-retry:end
             }
             continue;
           }
@@ -2918,7 +3357,9 @@ export function useQuestionHandler(
           givenSegments,
           // The stopped lesson's withheld labels belong to the part of it the
           // student has not reached yet; a doubt must not reveal them.
-          { revealDeferredAnnotations: !doubt, errorQuestion: question },
+          // A doubt's own figure keeps them too: replay never flushes a doubt.
+          // lesson-figures-batch: the same preparation cursor as the stream.
+          { revealDeferredAnnotations: !doubt, errorQuestion: question, lessonFigures: lessonFigurePrep },
         ), isCurrentTurn);
 
         const finalNarration =
@@ -3109,10 +3550,13 @@ export function useQuestionHandler(
       enqueueSegment,
       enqueueVerifiedIntro,
       beginBoardEpoch,
+      captureNotesEpoch,
+      narrationSinceEpochRef,
       boardLoaded,
       revokeUnreferencedReplayBlobUrls,
       finishLectureUi,
       offerPausedLessonResume,
+      hasPausedLesson,
       clearPausedLesson,
       ensureTTSClient,
       whiteboardRef,

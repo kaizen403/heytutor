@@ -1,0 +1,984 @@
+{
+  "cases": {
+    "checkpoint-number-line": {
+      "ok": true,
+      "code": null,
+      "sha": "62fc620f8b2cb6529ef0f8e6b6a2a13bd14fb19a57f06c883f192a8ddc34bb6b"
+    },
+    "checkpoint-number-line/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "3b1afc95a375b1a74b073e3cdf05874b164053f2d29c1d3a405656fbc9986749"
+    },
+    "checkpoint-number-line/tier-flipped": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "checkpoint-number-line/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "checkpoint-number-line/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "checkpoint-number-line/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "checkpoint-number-line/metric-declared": {
+      "ok": true,
+      "code": null,
+      "sha": "62fc620f8b2cb6529ef0f8e6b6a2a13bd14fb19a57f06c883f192a8ddc34bb6b"
+    },
+    "checkpoint-number-line/declared-tier-other": {
+      "ok": true,
+      "code": null,
+      "sha": "4bcb6d2e714d35b26943802e1f20f4d2599d17d48046eafe1efe271864634d27"
+    },
+    "checkpoint-number-line/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "checkpoint-number-line/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "checkpoint-number-line/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "fcbc98df2fe83632677426697ea3e7e3cbee6146a8e2903773adc77aa0ab9583"
+    },
+    "checkpoint-number-line/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "checkpoint-number-line/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "eb3e85dedb11613490f776278f977341fb1c40434cd5ea822dcfe7ab0b41ce70"
+    },
+    "checkpoint-number-line/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "4967ff838ca296b516b9bb333d86ae9756027a7c5101c53f054d10d97d86f539"
+    },
+    "checkpoint-number-line/focus": {
+      "ok": true,
+      "code": null,
+      "sha": "f385b746f936f64e3e367329932b23f97790d94bce20b5362298c0b1e9f2fc1b"
+    },
+    "checkpoint-number-line/focus/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "3b1afc95a375b1a74b073e3cdf05874b164053f2d29c1d3a405656fbc9986749"
+    },
+    "checkpoint-number-line/focus/tier-flipped": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "checkpoint-number-line/focus/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "checkpoint-number-line/focus/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "checkpoint-number-line/focus/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "checkpoint-number-line/focus/metric-declared": {
+      "ok": true,
+      "code": null,
+      "sha": "f385b746f936f64e3e367329932b23f97790d94bce20b5362298c0b1e9f2fc1b"
+    },
+    "checkpoint-number-line/focus/declared-tier-other": {
+      "ok": true,
+      "code": null,
+      "sha": "c738df9186565a8cc9c1899ca8c76b560cd71a5edb7ae0e5560047acdc2d5bdb"
+    },
+    "checkpoint-number-line/focus/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "checkpoint-number-line/focus/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "checkpoint-number-line/focus/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "ddaaf6d750a70f97a31bd18d81a974b4907228cc5e8e7647373559d0cf8f6f72"
+    },
+    "checkpoint-number-line/focus/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "checkpoint-number-line/focus/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "6d22a88512773fbc405af064537c9996089f728641c6e7e2281daedda17f2fbd"
+    },
+    "checkpoint-number-line/focus/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "54f1a75df4686f9f63327508a3183e4297b0c30f1099813a09da071e681e5474"
+    },
+    "doubt-figure": {
+      "ok": true,
+      "code": null,
+      "sha": "03a2e653d4722ebf5aad3d2a14bf4de96535ae60e8a8ba25e954bd49ec3df994"
+    },
+    "doubt-figure/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "3b1afc95a375b1a74b073e3cdf05874b164053f2d29c1d3a405656fbc9986749"
+    },
+    "doubt-figure/tier-flipped": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "doubt-figure/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "doubt-figure/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "doubt-figure/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "doubt-figure/metric-declared": {
+      "ok": true,
+      "code": null,
+      "sha": "03a2e653d4722ebf5aad3d2a14bf4de96535ae60e8a8ba25e954bd49ec3df994"
+    },
+    "doubt-figure/declared-tier-other": {
+      "ok": true,
+      "code": null,
+      "sha": "1ae1d0aa9bc4d0958ba607f87a2fdd4e0a354af233e16e7f9286c1b82319ab4f"
+    },
+    "doubt-figure/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "d43c4d1634a22c17ff36e5e4c5c64d6da4cf206072cf4a3a8764eb10bfe99b70"
+    },
+    "doubt-figure/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "doubt-figure/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "489fcc2d40aaac2fcafabd783a278ef7d9ee248b1bca2a0421d517b3f4820615"
+    },
+    "doubt-figure/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "doubt-figure/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "5ad90f69be20ce95d77f7dce4ac3c15b786954ce743fa8fea125ce09d41e2cfd"
+    },
+    "doubt-figure/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "3b7dea6a31f5016cbdeeb67c35c314f237b844bf8210349a8e6add220193f798"
+    },
+    "answer-label-captures/0": {
+      "ok": true,
+      "code": null,
+      "sha": "3b46e4236f1fcae7b5e59de28f2e9938e4194792472c34dbea7cc607507ee001"
+    },
+    "answer-label-captures/0/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "answer-label-captures/0/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "67e486919b9e15bf8eab9426456b7f93fcbbac425d058dd90a5e82203881530f"
+    },
+    "answer-label-captures/0/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "answer-label-captures/0/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "answer-label-captures/0/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "answer-label-captures/0/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "answer-label-captures/0/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "answer-label-captures/0/plan-invalid": {
+      "ok": false,
+      "code": "scene_solver_artifacts_incomplete",
+      "sha": "8ecb8b2b4e0a5b4bedc52cfeee58f7fa934cb37bbd9b5b863a91d2badc4289d4"
+    },
+    "answer-label-captures/0/plan-absent": {
+      "ok": false,
+      "code": "scene_solver_artifacts_incomplete",
+      "sha": "8ecb8b2b4e0a5b4bedc52cfeee58f7fa934cb37bbd9b5b863a91d2badc4289d4"
+    },
+    "answer-label-captures/0/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "b4f4c341a72e014a39ca7454e5f3dccafc9091ca57155ef191c11be95c19be90"
+    },
+    "answer-label-captures/0/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "answer-label-captures/0/hinglish": {
+      "ok": false,
+      "code": "scene_teaching_command_not_allowed",
+      "sha": "2ec56caa1e4264f6e345f9972f8d8500f6c52086e5d1e8e4787287239305020a"
+    },
+    "answer-label-captures/0/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "750127198bf369954514fd05ccd6e3bfbd7021818e2a092ac4213184e30c4e03"
+    },
+    "answer-label-captures/1": {
+      "ok": true,
+      "code": null,
+      "sha": "96e0bed77e8e7c34a9f9c0df690d1f38f70d9701947fa3511584d7fa78cc3a15"
+    },
+    "answer-label-captures/1/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "answer-label-captures/1/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "46f2976a4755c1ece230399de08bceca5024f0012ea3205af4d0100faab6d48a"
+    },
+    "answer-label-captures/1/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "answer-label-captures/1/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "answer-label-captures/1/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "answer-label-captures/1/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "answer-label-captures/1/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "answer-label-captures/1/plan-invalid": {
+      "ok": false,
+      "code": "scene_solver_artifacts_incomplete",
+      "sha": "8ecb8b2b4e0a5b4bedc52cfeee58f7fa934cb37bbd9b5b863a91d2badc4289d4"
+    },
+    "answer-label-captures/1/plan-absent": {
+      "ok": false,
+      "code": "scene_solver_artifacts_incomplete",
+      "sha": "8ecb8b2b4e0a5b4bedc52cfeee58f7fa934cb37bbd9b5b863a91d2badc4289d4"
+    },
+    "answer-label-captures/1/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "570ce6ff2984cd18adc1d0679507b13d1252adc6a61cebd9d653520d15d86b08"
+    },
+    "answer-label-captures/1/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "answer-label-captures/1/hinglish": {
+      "ok": false,
+      "code": "scene_teaching_command_not_allowed",
+      "sha": "2ec56caa1e4264f6e345f9972f8d8500f6c52086e5d1e8e4787287239305020a"
+    },
+    "answer-label-captures/1/dsa": {
+      "ok": false,
+      "code": "scene_compile_failed",
+      "sha": "f09bf7236359f1d0ed404b05deecaaab9181249b22d95f6b823f457167cb2627"
+    },
+    "replay/circle-s3-turn": {
+      "ok": true,
+      "code": null,
+      "sha": "e46deb13b6e8dc0408d9c94eb87809f8e3765e5188eb25919a1627b7e126709f"
+    },
+    "replay/circle-s3-turn/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "replay/circle-s3-turn/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "bf01aa56c971c01c1160b5b4ed934eb2ced30a8b3bc003ff4320b728c2bcb71e"
+    },
+    "replay/circle-s3-turn/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "replay/circle-s3-turn/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "replay/circle-s3-turn/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "replay/circle-s3-turn/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "replay/circle-s3-turn/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "replay/circle-s3-turn/plan-invalid": {
+      "ok": true,
+      "code": null,
+      "sha": "83ca42ba0720c4c94953a1afa2021bd727ae83cd18ebac682d0c1def12f469fe"
+    },
+    "replay/circle-s3-turn/plan-absent": {
+      "ok": true,
+      "code": null,
+      "sha": "83ca42ba0720c4c94953a1afa2021bd727ae83cd18ebac682d0c1def12f469fe"
+    },
+    "replay/circle-s3-turn/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "761a5bfe26e90f262ca9509796d4ba01d437c2813f1ce61e2f643dd04bb034f4"
+    },
+    "replay/circle-s3-turn/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "replay/circle-s3-turn/hinglish": {
+      "ok": false,
+      "code": "scene_teaching_command_not_allowed",
+      "sha": "2ec56caa1e4264f6e345f9972f8d8500f6c52086e5d1e8e4787287239305020a"
+    },
+    "replay/circle-s3-turn/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "f7f6363470f2d75307e31a289ff13429a3d354f89011cf25fe5616b3437938bd"
+    },
+    "point-line/annotation-link-positive": {
+      "ok": true,
+      "code": null,
+      "sha": "0200b0d6e8ff13837b49eef9feb33e6b9f22f39585923f7fef6dd47986b049f0"
+    },
+    "point-line/annotation-link-positive/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "3b1afc95a375b1a74b073e3cdf05874b164053f2d29c1d3a405656fbc9986749"
+    },
+    "point-line/annotation-link-positive/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "4cdbc11f525c42e5dac62cbbb341fa5b90e11526f62effe5bb19f3c003c6e045"
+    },
+    "point-line/annotation-link-positive/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "point-line/annotation-link-positive/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "point-line/annotation-link-positive/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "point-line/annotation-link-positive/metric-declared": {
+      "ok": true,
+      "code": null,
+      "sha": "2aca17db32a6f2a9a79adbf7096a70294ccb712eee99240eb8573bf2a442ad53"
+    },
+    "point-line/annotation-link-positive/declared-tier-other": {
+      "ok": true,
+      "code": null,
+      "sha": "7f3b90c1995434ff480924674054c8faa691809bcfb6c88287235485f50ee012"
+    },
+    "point-line/annotation-link-positive/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "point-line/annotation-link-positive/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "point-line/annotation-link-positive/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "d07189dd00b3581f3de5285be55b8fcfa1154c13626795ecf5dc6b7ee8770263"
+    },
+    "point-line/annotation-link-positive/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "point-line/annotation-link-positive/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "0200b0d6e8ff13837b49eef9feb33e6b9f22f39585923f7fef6dd47986b049f0"
+    },
+    "point-line/annotation-link-positive/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "41e86268c129bdf1132fb9086bae178f5610eeb32621ac92757b794174e6c81d"
+    },
+    "launch-l20-late-intro": {
+      "ok": true,
+      "code": null,
+      "sha": "6020f6069b0bc63b69e8314d8e382a11242f49f6756ced574dcc632b74f6f5a6"
+    },
+    "launch-l20-late-intro/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "launch-l20-late-intro/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "89d6266114ac4fbf06f8e320cbd69ea7ebb1bd9c143c9655ddd8b896fc533c71"
+    },
+    "launch-l20-late-intro/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "launch-l20-late-intro/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "launch-l20-late-intro/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "launch-l20-late-intro/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "launch-l20-late-intro/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "launch-l20-late-intro/plan-invalid": {
+      "ok": true,
+      "code": null,
+      "sha": "7f08f8007c10c609460d5bc3d4de904afda9f8467b092e8075e8909ca1196b7b"
+    },
+    "launch-l20-late-intro/plan-absent": {
+      "ok": true,
+      "code": null,
+      "sha": "7f08f8007c10c609460d5bc3d4de904afda9f8467b092e8075e8909ca1196b7b"
+    },
+    "launch-l20-late-intro/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "8fe1f88c072d5e82d756c28d604f7a02d787c41d5d2d866a8df8e727dbb13761"
+    },
+    "launch-l20-late-intro/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_admission_failed",
+      "sha": "a0fe2604bd17262d44e4cc2d29a93c243efb5cd1e9ea94d1f2c53184659d5e7b"
+    },
+    "launch-l20-late-intro/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "6020f6069b0bc63b69e8314d8e382a11242f49f6756ced574dcc632b74f6f5a6"
+    },
+    "launch-l20-late-intro/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "6020f6069b0bc63b69e8314d8e382a11242f49f6756ced574dcc632b74f6f5a6"
+    },
+    "w1-ucm-car-jsonb": {
+      "ok": true,
+      "code": null,
+      "sha": "0f047362e51089a3f2e59b7e6b044cc26137ba9c8fa0ae01eaf47d4a431158f6"
+    },
+    "w1-ucm-car-jsonb/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "3b1afc95a375b1a74b073e3cdf05874b164053f2d29c1d3a405656fbc9986749"
+    },
+    "w1-ucm-car-jsonb/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "92b8d0a07ee4a77ca16f22048b77598a296a810ea9f5353e3df30bd5a3292232"
+    },
+    "w1-ucm-car-jsonb/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "w1-ucm-car-jsonb/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "w1-ucm-car-jsonb/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "w1-ucm-car-jsonb/metric-declared": {
+      "ok": true,
+      "code": null,
+      "sha": "2129d55d529ef758024a1ce7661b8740958085b372702326cc1614d34aca67cc"
+    },
+    "w1-ucm-car-jsonb/declared-tier-other": {
+      "ok": true,
+      "code": null,
+      "sha": "ad2693e1c419b3d99fef2b186f0b857cea265937e2c373528397e9508636bdb3"
+    },
+    "w1-ucm-car-jsonb/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "w1-ucm-car-jsonb/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "w1-ucm-car-jsonb/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "93a31d2e8dc9d93a98dc274be456be1d90ecc5acd840508442f32dcc0167dfab"
+    },
+    "w1-ucm-car-jsonb/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_compile_failed",
+      "sha": "6c5960e3a04754bae42b5acab25aa56944bab57038cde6573ff99fbd0b0a67e0"
+    },
+    "w1-ucm-car-jsonb/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "0f047362e51089a3f2e59b7e6b044cc26137ba9c8fa0ae01eaf47d4a431158f6"
+    },
+    "w1-ucm-car-jsonb/dsa": {
+      "ok": false,
+      "code": "scene_compile_failed",
+      "sha": "445e80891e498539bf166987bd4df38d9037c7c2d6e11f0c9f4f93b77b08c937"
+    },
+    "launch-l02-primitive-tour": {
+      "ok": true,
+      "code": null,
+      "sha": "f4d981814693583e4a7a026854361e83270e1f2bd2c3d17ff4797f7f40873aa1"
+    },
+    "launch-l02-primitive-tour/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "launch-l02-primitive-tour/tier-flipped": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "launch-l02-primitive-tour/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "launch-l02-primitive-tour/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "launch-l02-primitive-tour/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "launch-l02-primitive-tour/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "launch-l02-primitive-tour/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "launch-l02-primitive-tour/plan-invalid": {
+      "ok": true,
+      "code": null,
+      "sha": "f4d981814693583e4a7a026854361e83270e1f2bd2c3d17ff4797f7f40873aa1"
+    },
+    "launch-l02-primitive-tour/plan-absent": {
+      "ok": true,
+      "code": null,
+      "sha": "f4d981814693583e4a7a026854361e83270e1f2bd2c3d17ff4797f7f40873aa1"
+    },
+    "launch-l02-primitive-tour/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "f4d981814693583e4a7a026854361e83270e1f2bd2c3d17ff4797f7f40873aa1"
+    },
+    "launch-l02-primitive-tour/document-forged-quantity": {
+      "ok": true,
+      "code": null,
+      "sha": "43913a0137017805ff917858d2df2c558aa146ba3acd5507e6770863fbcdbbe7"
+    },
+    "launch-l02-primitive-tour/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "f4d981814693583e4a7a026854361e83270e1f2bd2c3d17ff4797f7f40873aa1"
+    },
+    "launch-l02-primitive-tour/dsa": {
+      "ok": false,
+      "code": "scene_compile_failed",
+      "sha": "1350ffd3fd6e275e27709cc44327169ae0d32abbe57b3b86e4e0ae5ea18de94e"
+    },
+    "focus-writing/m09": {
+      "ok": true,
+      "code": null,
+      "sha": "c9cbe639b0ca218fe4b1a37b648cdb17d6da2b16e06e650f20145d5d73e208f1"
+    },
+    "focus-writing/m09/question-changed": {
+      "ok": false,
+      "code": "scene_source_question_mismatch",
+      "sha": "5b7a996afc88716aa9eaf7225e6725af753862a51843e6a160b5014d1b734d39"
+    },
+    "focus-writing/m09/tier-flipped": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "focus-writing/m09/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "focus-writing/m09/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "0ee23780e63cd8ac60466f9a9388b107a6617c3cffb6afcb18c35ee6f3f4e9f6"
+    },
+    "focus-writing/m09/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "e237bc3df96235f025537db0f9f71699da1476a4155b9883ae31b3e67d17dfb4"
+    },
+    "focus-writing/m09/metric-declared": {
+      "ok": false,
+      "code": "scene_metric_geometry_outside_exact",
+      "sha": "6bc7949f3f88c75f00cf8007f6f8655e478bf30e272ca5d4264f8266e922436f"
+    },
+    "focus-writing/m09/declared-tier-other": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "focus-writing/m09/plan-invalid": {
+      "ok": true,
+      "code": null,
+      "sha": "c9cbe639b0ca218fe4b1a37b648cdb17d6da2b16e06e650f20145d5d73e208f1"
+    },
+    "focus-writing/m09/plan-absent": {
+      "ok": true,
+      "code": null,
+      "sha": "c9cbe639b0ca218fe4b1a37b648cdb17d6da2b16e06e650f20145d5d73e208f1"
+    },
+    "focus-writing/m09/plan-claims-other": {
+      "ok": true,
+      "code": null,
+      "sha": "c9cbe639b0ca218fe4b1a37b648cdb17d6da2b16e06e650f20145d5d73e208f1"
+    },
+    "focus-writing/m09/document-forged-quantity": {
+      "ok": true,
+      "code": null,
+      "sha": "2b7d49178540858a8905c4148dcaa72494c5d3048c4a6f31e59ca91d352fc1e3"
+    },
+    "focus-writing/m09/hinglish": {
+      "ok": true,
+      "code": null,
+      "sha": "c9cbe639b0ca218fe4b1a37b648cdb17d6da2b16e06e650f20145d5d73e208f1"
+    },
+    "focus-writing/m09/dsa": {
+      "ok": true,
+      "code": null,
+      "sha": "816bf6d3fe8cd0f6f7abe5fcfd4ed4bdb97161995926021d08724b99e528412c"
+    },
+    "youtube-pen/q15": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/tier-flipped": {
+      "ok": true,
+      "code": null,
+      "sha": "934756752b3895f7997733cbdf7be3e4548194b471abc27361886d67c6a5dc34"
+    },
+    "youtube-pen/q15/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "youtube-pen/q15/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "youtube-pen/q15/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "youtube-pen/q15/metric-declared": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/declared-tier-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "youtube-pen/q15/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/plan-claims-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/hinglish": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "youtube-pen/q15/dsa": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/tier-flipped": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/metric-declared": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/declared-tier-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/plan-claims-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/hinglish": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/vt-graph-car-p4c-t5/dsa": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/question-changed": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/tier-flipped": {
+      "ok": false,
+      "code": "scene_document_tier_mismatch",
+      "sha": "3d017d58917529cabf22a8e190cb2ce821112f1895a84dd53b927ff6b02eda04"
+    },
+    "recorded-intro/track-displacement-p1c-t1/tier-unknown": {
+      "ok": false,
+      "code": "scene_representation_tier_invalid",
+      "sha": "88a8177ab70c4b52d47832507c0b53a28246636a2f26eb963e544d9d75310efc"
+    },
+    "recorded-intro/track-displacement-p1c-t1/text-mode": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "06c2f479c3d1146d04d7f1f447c7584b43acc42fe213f8f1051e9576377f8e22"
+    },
+    "recorded-intro/track-displacement-p1c-t1/broken-document": {
+      "ok": false,
+      "code": "scene_document_invalid",
+      "sha": "518f54721d9cffd9ced965c7ebc8c4db84398111e7bb4d27606ac50e657c700f"
+    },
+    "recorded-intro/track-displacement-p1c-t1/metric-declared": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/declared-tier-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/plan-invalid": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "e465be345bbf3d9f1f2befe4948880d98c896344125fb1f9ba418aaba6e01132"
+    },
+    "recorded-intro/track-displacement-p1c-t1/plan-absent": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/plan-claims-other": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/document-forged-quantity": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/hinglish": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    },
+    "recorded-intro/track-displacement-p1c-t1/dsa": {
+      "ok": false,
+      "code": "scene_turn_plan_invalid",
+      "sha": "294e8101afed3d3fb33a9c785dc28917a9f22cbc3754747bd2ac452e2237c1c3"
+    }
+  }
+}

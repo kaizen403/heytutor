@@ -32,6 +32,8 @@ import {
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { doubtFigureOf } from "@/lib/boards/doubtFigure";
+import { lessonFigureReturnAfter, lessonFigureSourceAt } from "@/lib/boards/pageFigure";
 
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
@@ -177,10 +179,26 @@ export function lessonRecoveryFromStoredTurns(
     solverProjection = resumeStateSolverProjection(source.resumeState);
   }
 
-  // Restore stamps every trusted figure stroke of the page: that figure is drawn.
-  const figureDrawn = page.some((turn) =>
+  // Restore stamps every trusted figure stroke of the page: that figure is
+  // drawn. A doubt's own figure is not the lesson's, so only the lesson's
+  // turns count; the resume brings the lesson's figure back (returnsFigure).
+  const figureDrawn = page.some((turn) => doubtFigureOf(turn.sceneArtifacts) === null &&
     turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command)),
   );
+  const figureReturn = lessonFigureReturnAfter(page);
+  // The lesson's figure is the opener's, or (a Stop or doubt before its first
+  // beat saved the opener as text only) the resume's that drew it. Continue
+  // restores that scene; the opener stays the plan source.
+  const figureIndex = lessonFigureSourceAt(page, page.length - 1);
+  const figureTurn = figureIndex !== null && storedTurnContinuesBoard(page[figureIndex]!) ? page[figureIndex]! : source;
+  const returnsFigure = figureReturn
+    ? {
+        turnId: figureReturn.sourceIndex === null ? null : page[figureReturn.sourceIndex]!.id,
+        consumedIds: figureReturn.consumedIds,
+        // The lesson's later figure it had moved to before the doubt (lesson figures).
+        ...(figureReturn.figureId !== "figure_1" ? { figureId: figureReturn.figureId } : {}),
+      }
+    : null;
   // Normalize only the blank saved page epoch for explicitly marked, unplanned
   // openings. Narrated CLEAR, other ink and unknown commands stay substantive.
   const openingRows = chain.flatMap(orderedSegments).filter((segment) => {
@@ -220,9 +238,10 @@ export function lessonRecoveryFromStoredTurns(
     lessonQuestion,
     turnPlan,
     solverProjection,
-    scene: source ? turnScene(source) : null,
+    scene: figureTurn ? turnScene(figureTurn) : null,
     figureDrawn,
     codeLesson,
+    ...(returnsFigure ? { returnsFigure } : {}),
     lessonBoardRows: chain.flatMap(writtenRows),
     ...(lastNarration ? { interruptedStep: lastNarration } : {}),
   } };

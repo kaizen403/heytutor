@@ -217,6 +217,8 @@ export function useLectureRewind({
       liveQuestion: liveQuestionRef.current,
       audioUrlFor: liveAudioUrlFor,
       liveContinuesBoard: page !== null && page.boardId === sessionId && page.turn.continuesBoard,
+      liveFreshPage: page !== null && page.boardId === sessionId && page.turnedFreshPage === true,
+      liveKind: page !== null && page.boardId === sessionId ? page.turn.kind : undefined,
     });
     rewindTurnsRef.current = turns;
     liveEdgeMsRef.current = timeline.totalMs;

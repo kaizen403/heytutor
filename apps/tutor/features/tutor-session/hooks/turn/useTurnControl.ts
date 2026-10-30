@@ -9,10 +9,10 @@ import {
   type TutorSegment,
   buildLessonSegments,
   lessonNarrationText,
-  prepareVerifiedLessonSegments,
   peekDeferredAnnotation,
   acknowledgeDeferredAnnotation,
 } from "@heytutor/drawing";
+import { prepareLessonFigureSegments, type LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
 import { compactConversationHistory, tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
 import {
   summarizeSegmentsForTrace,
@@ -649,7 +649,12 @@ export function useTurnControl(
       liveEnqueued = false,
       turnGeneration = turnGenerationRef.current,
       givenSegments: TutorSegment[] = [],
-      options?: { revealDeferredAnnotations?: boolean; errorQuestion?: string },
+      options?: {
+        revealDeferredAnnotations?: boolean;
+        errorQuestion?: string;
+        /** The lesson's later figures: segments are prepared against the figure each cue moves to. */
+        lessonFigures?: LessonFigureSequence | null;
+      },
     ) => {
       if (turnGeneration !== turnGenerationRef.current) {
         return;
@@ -670,7 +675,9 @@ export function useTurnControl(
 
       const activeDiagram = activeVerifiedDiagramRef.current;
       const rawLlmSegments = buildLessonSegments(responseText);
-      const preparedLlmSegments = prepareVerifiedLessonSegments(rawLlmSegments, activeDiagram);
+      // lesson-figures-prepare:begin
+      const preparedLlmSegments = prepareLessonFigureSegments(rawLlmSegments, activeDiagram, options?.lessonFigures ?? null, []);
+      // lesson-figures-prepare:end
       // During a code lesson the teaching stream may only narrate, gesture,
       // and reveal committed blocks; [TYPE] tags resolve to their exact code.
       const codeLessonState = codeLessonControllerRef?.current?.getState();
@@ -1313,7 +1320,7 @@ export function useTurnControl(
      * hand it over whole, instead of having it wrapped a second time.
      * `options.title` is what the doubt is saved and listed under.
      */
-    (rawDoubt: string, options?: { prompt?: string; title?: string }) => {
+    (rawDoubt: string, options?: { prompt?: string; title?: string; markedFigureIds?: readonly string[] }) => {
       const doubt = rawDoubt.trim();
       const composed = options?.prompt?.trim() ?? "";
       if (!doubt && !composed) {
@@ -1341,6 +1348,7 @@ export function useTurnControl(
         // Over a replay, or over the page a stopped replay left behind, the
         // board is not the last saved page, so the doubt cannot continue it.
         afterReplay: isReplayingRef.current || boardShowsStoppedReplayRef.current,
+        ...(options?.markedFigureIds?.length ? { markedFigureIds: [...options.markedFigureIds] } : {}),
       };
       // Capture the exact lesson before Stop and the doubt replace its page.
       if (!request.afterReplay) captureEarlyLessonRestart("doubt", currentTraceIdRef.current);
@@ -1511,6 +1519,11 @@ export function useTurnControl(
     setPausedLessonOfferState(null);
     setEarlyLessonRestartOfferState(null);
   }, []);
+
+  const hasPausedLesson = useCallback(
+    (): boolean => Boolean(sessionId) && pausedLessonRef.current?.boardId === sessionId,
+    [sessionId],
+  );
 
   const offerPausedLessonResume = useCallback((resume?: PausedLessonRequest) => {
     if (resume) pausedLessonRef.current = resume;
@@ -1772,6 +1785,7 @@ export function useTurnControl(
     flushPausedLesson,
     offerPausedLessonResume,
     clearPausedLesson,
+    hasPausedLesson,
     restorePausedLesson,
     restartEarlyLesson,
     earlyLessonRestartOffer: earlyLessonRestartOfferState?.boardId === sessionId && phase === "idle" && !isReplaying,

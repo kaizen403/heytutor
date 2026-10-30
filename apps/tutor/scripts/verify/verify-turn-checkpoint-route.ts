@@ -35,6 +35,9 @@ import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 import { enrichStoredSegmentsWithReplayAudio, replayAudioBytesForUrl, releaseReplayAudioBytes } from "../../lib/replay/replayTurns";
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
+import * as pageFigureLoader from "../../lib/scene/pageFigureLoader";
+import * as boardContinuation from "../../lib/boards/boardContinuation";
+import * as doubtFigureRef from "../../lib/boards/doubtFigureRef";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -93,7 +96,10 @@ function withSegments(turn: Row | undefined, include: unknown) {
   if (include) copy.segments = segments.filter((s) => s.turnId === turn.id).sort((a, b) => a.orderIndex - b.orderIndex);
   return copy;
 }
-const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("gte" in value ? row[key] >= value.gte : value.in.includes(row[key])) : row[key] === value);
+const range = (actual: number, value: Row) => ("gte" in value ? actual >= value.gte : true) && ("gt" in value ? actual > value.gt : true) && ("lt" in value ? actual < value.lt : true);
+const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("in" in value ? value.in.includes(row[key]) : range(row[key], value)) : row[key] === value);
+/** The page figure loader reads with `select`, segments nested. */
+const segmentsWanted = (args: Row) => Boolean(args.include?.segments ?? args.select?.segments);
 
 function makeClient(): Row {
   return {
@@ -103,8 +109,11 @@ function makeClient(): Row {
       update: async () => ({}),
     },
     turn: {
-      findMany: async ({ where, orderBy, skip = 0, take = 100 }: Row) => turns.filter((t) => matches(t, where)).sort((a, b) => orderBy.orderIndex === "desc" ? b.orderIndex - a.orderIndex : a.orderIndex - b.orderIndex).slice(skip, skip + take).map((t) => ({ ...t })),
-      findFirst: async ({ where, include }: Row) => withSegments(turns.find((t) => matches(t, where)), include),
+      findMany: async (args: Row) => {
+        const { where, orderBy, skip = 0, take = 100 } = args;
+        return turns.filter((t) => matches(t, where)).sort((a, b) => orderBy.orderIndex === "desc" ? b.orderIndex - a.orderIndex : a.orderIndex - b.orderIndex).slice(skip, skip + take).map((t) => withSegments(t, segmentsWanted(args))!);
+      },
+      findFirst: async (args: Row) => withSegments(turns.find((t) => matches(t, args.where)), segmentsWanted(args)),
       count: async ({ where }: Row) => turns.filter((t) => t.boardId === where.boardId).length,
       create: async ({ data }: Row) => {
         if (turns.some((t) => t.id === data.id || (t.boardId === data.boardId && t.orderIndex === data.orderIndex))) {
@@ -174,13 +183,17 @@ const SERVER_INK = drawing.serializeSegmentCommands(
   { trustedDiagramGeometry: true },
 );
 
-const canonicalize = async (meta: Row) => {
+let lastCanonicalizeOptions: Row | undefined;
+const canonicalize = async (meta: Row, options?: Row) => {
   canonicalizeCalls += 1;
-  if (meta.sceneArtifacts?.problemIR) {
+  lastCanonicalizeOptions = options;
+  // A doubt naming its page's figure goes through the real canonicalizer and
+  // the real page figure loader, bound by the route to this in-memory board.
+  if (meta.sceneArtifacts?.problemIR || meta.sceneArtifacts?.pointsAtFigure) {
     await canonicalPause?.();
     // Route data crossed a VM realm; replay its JSON boundary before invoking
     // the real source canonicalizer, whose plain-object check is intentional.
-    return canonicalizeRealScene(JSON.parse(JSON.stringify(meta)));
+    return canonicalizeRealScene(JSON.parse(JSON.stringify(meta)), options);
   }
   if (String(meta.question).includes("REFUSE") || meta.segments.some((s: Row) => s.narration === "REFUSE")) {
     return { ok: false, error: "refused by the stub" };
@@ -276,6 +289,9 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
   "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
+  "@/lib/scene/pageFigureLoader": pageFigureLoader,
+  "@/lib/boards/boardContinuation": boardContinuation,
+  "@/lib/boards/doubtFigureRef": doubtFigureRef,
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
@@ -1100,9 +1116,67 @@ async function main() {
   assert.equal(limits.requestBodyLimitForPath("/api/boards/b/turns"), limits.MAX_TURN_BODY_BYTES);
   assert.equal(limits.requestBodyLimitForPath("/api/boards/b/turns/t/x"), limits.MAX_JSON_BODY_BYTES);
 
+  await doubtPointingSurvivesCheckpoint();
+
   assert.ok(canonicalizeCalls > 0);
   assert.equal(reservations.filter((r) => r.state === "open").length, 0, "every reservation is settled or abandoned");
   console.log("verify-turn-checkpoint-route: create, append, idempotency, order, status, trace, ownership, audio refs, close and late audio verified");
+}
+
+/**
+ * 14. A doubt that names its page's figure keeps its pointing through a
+ * checkpoint: `canonicalRowsFor` must not strip FOCUS and ANNOTATE before the
+ * canonicalizer, which checks them against the lesson's own saved row through
+ * the loader the route binds to this board, owner and turn.
+ */
+async function doubtPointingSurvivesCheckpoint() {
+  const fixture = await checkpointSceneFixture();
+  const board = "board-b";
+  const lesson = crypto.randomUUID();
+  const intro = fixture.metadata.segments.map((segment, index) => ({ ...segment, orderIndex: index + 1 }));
+  const saved = await put(lesson, { ...fixture.metadata, seq: 1, baseCount: 0, kind: "lesson", rawResponse: "The sum is five.",
+    appendSegments: [row(0, "", CLEAR), ...intro] }, {}, board);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.equal(stored(lesson).visualStatus, "validated", "the lesson saves its figure");
+
+  const focus = (text: string) => ({ type: "FOCUS", params: [], text, charPosition: 0, narrationBefore: "" });
+  const annotate = (text: string) => ({ type: "ANNOTATE", params: [], text, charPosition: 0, narrationBefore: "" });
+  const doubtArtifacts = (turnId: string | null) => ({
+    ...boardContinuation.boardContinuationArtifacts(fixture.question),
+    ...(turnId ? doubtFigureRef.doubtFigureRefArtifacts({ schemaVersion: doubtFigureRef.DOUBT_FIGURE_REF_VERSION, turnId, kind: "verified_scene" }) : {}),
+  });
+  const doubtRows = [
+    row(0, "The arrow starts at two.", focus("start_value")),
+    row(1, "Nothing called that here.", annotate("ghost_point")),
+    row(2, "So we add three.", { ...write("2 + 3 = 5") }),
+  ];
+  const savedCommands = (turnId: string) => rowsOf(turnId).flatMap((s) => drawing.parseStoredSegmentCommands(s.command));
+
+  const doubt = crypto.randomUUID();
+  const pointed = await put(doubt, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(lesson), appendSegments: doubtRows }, {}, board);
+  assert.equal(pointed.status, 200, `an unknown ANNOTATE never refuses the doubt: ${JSON.stringify(pointed.body)}`);
+  assert.equal(typeof lastCanonicalizeOptions?.loadPageFigure, "function", "the checkpoint binds the page figure loader");
+  assert.ok(savedCommands(doubt).some((c) => c.type === "FOCUS" && c.text === "start_value"),
+    "a checkpointed doubt keeps FOCUS on the lesson figure (canonicalRowsFor keeps pointing)");
+  assert.ok(!savedCommands(doubt).some((c) => c.type === "ANNOTATE"), "an ANNOTATE on no figure part is filtered");
+  assert.deepEqual(rowsOf(doubt).map((s) => s.narration), doubtRows.map((r) => r.narration), "every doubt row keeps its words");
+  assert.equal(stored(doubt).sceneArtifacts?.pointsAtFigure?.turnId, lesson, "the saved doubt names the figure it pointed at");
+
+  // The same doubt without the reference saves exactly as before: no pointing.
+  const plain = crypto.randomUUID();
+  assert.equal((await put(plain, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(null), appendSegments: doubtRows }, {}, board)).status, 200);
+  assert.ok(!savedCommands(plain).some((c) => c.type === "FOCUS" || c.type === "ANNOTATE"), "without a reference a doubt keeps no pointing");
+
+  // The loader binds this save's owner: a figure row owned by someone else lends nothing.
+  stored(lesson).userId = "bob";
+  const foreign = crypto.randomUUID();
+  assert.equal((await put(foreign, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(lesson), appendSegments: doubtRows }, {}, board)).status, 200);
+  assert.ok(!savedCommands(foreign).some((c) => c.type === "FOCUS"), "another owner's figure lends the doubt no pointing");
+  assert.equal(stored(foreign).sceneArtifacts?.failureTelemetry?.pointsAtFigureStatus, "unresolved", "the unresolved reference is recorded");
+  stored(lesson).userId = userId;
 }
 
 const completionWatchdog = setTimeout(() => {
