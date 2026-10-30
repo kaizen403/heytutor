@@ -40,6 +40,7 @@ interface BoardHistoryProps {
   onDelete?: (id: string) => void;
   onTogglePin?: (id: string) => void;
   onToggleArchive?: (id: string) => void;
+  onToggleVisibility?: (id: string) => void;
   onRename?: (id: string, title: string) => void;
   disabled?: boolean;
   variant?: "sidebar" | "drawer";
@@ -83,6 +84,17 @@ function RenameIcon() {
       strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17z" />
       <path d="M13.5 6.5l4 4" />
+    </svg>
+  );
+}
+
+function CommunityIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17" />
+      <path d="M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5S9.7 5.9 12 3.5z" />
     </svg>
   );
 }
@@ -142,6 +154,7 @@ interface BoardHistoryContentProps {
   onDelete?: (id: string) => void;
   onTogglePin?: (id: string) => void;
   onToggleArchive?: (id: string) => void;
+  onToggleVisibility?: (id: string) => void;
   onRename?: (id: string, title: string) => void;
   disabled?: boolean;
   onToggleCollapse?: () => void;
@@ -250,6 +263,7 @@ function BoardHistoryContent({
   onDelete,
   onTogglePin,
   onToggleArchive,
+  onToggleVisibility,
   onRename,
   disabled = false,
   onToggleCollapse,
@@ -399,6 +413,7 @@ function BoardHistoryContent({
       </div>
 
       <nav className="bh__account-nav" aria-label="Account">
+        <AccountNavLink href="/community" label="Community" onNavigate={onDismiss} />
         <AccountNavLink href="/library" label="Library" onNavigate={onDismiss} />
         <AccountNavLink href="/progress" label="Progress" onNavigate={onDismiss} />
       </nav>
@@ -564,6 +579,20 @@ function BoardHistoryContent({
                       <ArchiveIcon />
                       {board.archivedAt != null ? "Unarchive" : "Archive"}
                     </button>
+                    {onToggleVisibility ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="bh__menu-item"
+                        onClick={() => {
+                          setMenuBoardId(null);
+                          onToggleVisibility(board.id);
+                        }}
+                      >
+                        <CommunityIcon />
+                        {board.visibility === "public" ? "Make private" : "Share to Community"}
+                      </button>
+                    ) : null}
                     {onDelete ? (
                       <button
                         type="button"
@@ -1450,6 +1479,7 @@ export function BoardHistory({
   onDelete,
   onTogglePin,
   onToggleArchive,
+  onToggleVisibility,
   onRename,
   disabled = false,
   variant = "sidebar",
@@ -1602,6 +1632,7 @@ export function BoardHistory({
     onDelete,
     onTogglePin,
     onToggleArchive,
+    onToggleVisibility,
     onRename,
     disabled,
     onToggleCollapse,

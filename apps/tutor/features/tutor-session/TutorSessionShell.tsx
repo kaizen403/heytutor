@@ -1,5 +1,6 @@
 "use client";
 
+import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
   useCallback,
   useEffect,
@@ -85,6 +86,7 @@ import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
 import { LessonFigureSequence } from "./lib/scene/lessonFigureSequence";
 import { useReplay } from "./hooks/useReplay";
+import { useBoardThumbnail } from "./hooks/useBoardThumbnail";
 import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
 import { useLectureExport } from "./hooks/useLectureExport";
@@ -222,6 +224,8 @@ export type TutorSessionShellProps = {
   autoQuestion?: string;
   /** Start stored-turn replay once the board is restored. Used by `/c/{id}?replay=1`. */
   autoReplay?: boolean;
+  /** Read someone else's board instead of the owner's API (Community). Never written to. */
+  readBoard?: (boardId: string) => Promise<{ turns: StoredTurn[] } | null>;
   /** Capture TTS bytes; do not play through speakers. Defaults on for `headless`. */
   muteAudio?: boolean;
   /** Controlled playback rate (admin Watch). Same model as student replay; default 1.25×. */
@@ -318,6 +322,7 @@ export function TutorSessionShell({
   variant = "full",
   autoQuestion,
   autoReplay = false,
+  readBoard,
   muteAudio,
   playbackRate,
   onPlaybackRateChange,
@@ -906,6 +911,7 @@ export function TutorSessionShell({
     deleteBoard,
     togglePinBoard,
     toggleArchiveBoard,
+    toggleVisibilityBoard,
     renameBoard,
     commitDraftBoard,
     ensureTTSClient,
@@ -950,6 +956,7 @@ export function TutorSessionShell({
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
     boardLayoutRef,
+    readBoard,
   });
 
   // Page load clock only: the first loaded board of this document. Declared
@@ -1068,9 +1075,12 @@ export function TutorSessionShell({
   // must be marked restored while empty, or a later Stop's live snapshot would
   // be replaced by the derived one.
   useEffect(() => {
-    if (!boardLoaded) return;
+    // Nothing to continue on a board this viewer cannot teach on (Community),
+    // and its refresh reads the owner's API.
+    if (!boardLoaded || !can.askQuestions) return;
     restorePausedLesson(storedTurnsRef.current);
   }, [
+    can.askQuestions,
     boardLoaded,
     phase,
     isReplaying,
@@ -1758,6 +1768,25 @@ export function TutorSessionShell({
   // A phone board scrolls inside its pane. A held beat's recovery card must
   // stay in the visible pane, not at the corner of the scrolled board.
   const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
+
+  const thumbnailPublishable = useCallback(
+    () => storedTurnsRef.current.every((turn) => (turn.persistedStatus ?? turn.status ?? "complete") !== "live"),
+    [storedTurnsRef],
+  );
+  useBoardThumbnail({
+    enabled:
+      variant === "full" &&
+      !isDraft &&
+      boardLoaded &&
+      phase === "idle" &&
+      !isReplaying &&
+      !rewindActive &&
+      boards.find((board) => board.id === sessionId)?.visibility === "public",
+    boardId: sessionId,
+    turnCount: storedTurnsCount,
+    whiteboardRef,
+    publishable: thumbnailPublishable,
+  });
 
   if (isHeadless) {
     return (
@@ -2662,6 +2691,7 @@ export function TutorSessionShell({
       onDelete={deleteBoard}
       onTogglePin={togglePinBoard}
       onToggleArchive={toggleArchiveBoard}
+      onToggleVisibility={toggleVisibilityBoard}
       onRename={renameBoard}
       disabled={phase !== "idle"}
       profile={toShellProfile(accountMe?.profile)}

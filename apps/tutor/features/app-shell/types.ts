@@ -15,6 +15,8 @@ export type AppShellBoardHandlers = {
   onDelete?: (id: string) => void;
   onTogglePin?: (id: string) => void;
   onToggleArchive?: (id: string) => void;
+  /** Share the board on Community, or take it off. */
+  onToggleVisibility?: (id: string) => void;
   onRename?: (id: string, title: string) => void;
   disabled?: boolean;
 };

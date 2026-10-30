@@ -11,6 +11,16 @@ export interface BoardEntry {
   pinnedAt?: number | null;
   /** When the student archived it. Archived boards leave the default list. */
   archivedAt?: number | null;
+  /** public shows on Community; absent reads as private (an older cached row). */
+  visibility?: "public" | "private";
+}
+
+export function isPublicBoard(board: BoardEntry): boolean {
+  return board.visibility === "public";
+}
+
+export function withVisibility(board: BoardEntry, visibility: "public" | "private"): BoardEntry {
+  return { ...board, visibility };
 }
 
 export function isPinned(board: BoardEntry): boolean {

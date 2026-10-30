@@ -68,6 +68,7 @@ import {
 import {
   isTurnKind,
   isTurnStatus,
+  lessonMsOf,
   nextTurnStatus,
   type TurnKind,
   type TurnStatus,
@@ -902,6 +903,7 @@ async function applyCheckpoint(
             visualStatus: canonical.value.visualStatus,
             sceneArtifacts: nullableJson(canonical.value.sceneArtifacts),
             status: finalStatus,
+            lessonMs: lessonMsOf(segmentValues),
             checkpointSeq: seq,
             submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (heldCheckpoint(held, sceneSeq) as unknown as Prisma.InputJsonValue),
             resumeState: nullableJson(resumeState),

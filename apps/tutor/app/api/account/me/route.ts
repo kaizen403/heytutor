@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+import { COMMUNITY_HANDLE, normalizeCommunityHandle } from "@/lib/community/publicBoard";
 import { NextResponse } from "next/server";
 import { isAuthFailure, requireSessionUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
@@ -44,6 +46,7 @@ export async function PATCH(request: Request) {
     examGoal?: unknown;
     classYear?: unknown;
     subjects?: unknown;
+    handle?: unknown;
   } = {};
   try {
     body = (await request.json()) as typeof body;
@@ -57,6 +60,7 @@ export async function PATCH(request: Request) {
     examGoal?: string;
     classYear?: string;
     subjects?: SubjectId[];
+    handle?: string | null;
   } = {};
   if (typeof body.name === "string") data.name = body.name.trim().slice(0, 80);
   if ("learningNote" in body) data.learningNote = sanitizeTeachingNote(body.learningNote);
@@ -68,11 +72,35 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data,
-    include: { settings: true },
-  });
+  if ("handle" in body) {
+    // Empty clears it back to the default Community label.
+    if (body.handle === null || (typeof body.handle === "string" && !body.handle.trim())) {
+      data.handle = null;
+    } else {
+      const handle = normalizeCommunityHandle(body.handle);
+      if (!handle) {
+        const shaped = COMMUNITY_HANDLE.test(String(body.handle).trim().replace(/^@/, "").toLowerCase());
+        return NextResponse.json(shaped
+          ? { error: "That name is reserved. Pick another.", code: "reserved_handle" }
+          : { error: "Use 3 to 24 letters, digits or underscores, starting and ending with a letter or digit.", code: "invalid_handle" }, { status: 400 });
+      }
+      data.handle = handle;
+    }
+  }
+
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      include: { settings: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "That Community name is taken.", code: "handle_taken" }, { status: 409 });
+    }
+    throw error;
+  }
   return NextResponse.json({
     profile: mapAccountProfile(user),
     settings: mapAccountSettings(user.settings),
