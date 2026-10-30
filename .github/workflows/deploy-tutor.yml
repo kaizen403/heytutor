@@ -229,6 +229,7 @@ jobs:
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
           python3 deploy/aws/verify-tutor-release.py
+          python3 deploy/aws/verify-caddy-hold.py
           pnpm verify:security
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks
