@@ -23,7 +23,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const stems = (file: string, every: number): string[] => readFileSync(resolve(root, `data/diagram-eval/v1/${file}`), "utf8")
   .split("\n").filter(Boolean).map((line) => (JSON.parse(line) as { question: string }).question).filter((_, index) => index % every === 0);
 // Every physics stem, where bodies and surfaces live, and a sample of the other two.
-const questions = [...new Set([...ARCHETYPE_PROBES.map((probe) => probe.question), ...stems("physics.jsonl", 1), ...stems("maths.jsonl", 4), ...stems("chemistry.jsonl", 4)])];
+// One stem hid what `pulley_incline` draws at other angles, so its angle is swept here.
+const angles = Array.from({ length: 16 }, (_, index) => `A 2 kg block on a ${5 + index * 5}° rough incline is connected by a light string over a smooth pulley to a hanging 3 kg block.`);
+const questions = [...new Set([...ARCHETYPE_PROBES.map((probe) => probe.question), ...angles, ...stems("physics.jsonl", 1), ...stems("maths.jsonl", 4), ...stems("chemistry.jsonl", 4)])];
 const plan = (question: string) => ({
   schemaVersion: "turn-plan/v3" as const, question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" as const,
 });

@@ -51,6 +51,16 @@ function scene(question: string, items: Item[], annotations: unknown[] = []): Do
   };
 }
 
+/** Each named group becomes a reveal group of its own, unconnected, so the compiler packs them into separate slots. */
+function grouped(question: string, groups: Record<string, Item[]>): Doc {
+  const doc = scene(question, Object.values(groups).flat()) as { revealGroups: unknown[] };
+  doc.revealGroups = Object.entries(groups).map(([id, items]) => ({ id, dependsOn: [], entityIds: items.map((item) => item.id), narrationCue: id }));
+  return doc as unknown as Doc;
+}
+
+/** A plain link, so a panel's parts are one connected figure. */
+const link = (id: string, start: string, end: string): Item => ({ id, role: "link", kind: "segment", operator: "segment", inputs: { start, end } });
+
 const wedge = (mirror = 1): Item[] => [
   ...seg("incline", "rough inclined plane", [0, 0], [mirror * 4.6, 2.6]),
   ...seg("ground", "horizontal ground", [0, 0], [mirror * 4.6, 0]),
@@ -66,31 +76,36 @@ const refuse: { name: string; code: string; doc: Doc }[] = [
   { name: "the same, wedge rising to the left", code: "body_inside_surface", doc: scene("Block on a rough incline.", [...wedge(-1), ...poly("body", "block", x(-1, UNDER))]) },
   { name: "the same, slope drawn top to foot", code: "body_inside_surface", doc: scene("Block on a rough incline.", [...seg("incline", "inclined plane", [4.6, 2.6], [0, 0]), ...seg("ground", "ground", [0, 0], [4.6, 0]), ...seg("rise", "side", [4.6, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])]) },
   { name: "open slope: only the normal reaction names the free side", code: "body_inside_surface", doc: scene("Block on a slope.", [...seg("slope", "slope", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER]), ...arrow("N", "normal reaction on the block", [2.5, 1.1], [-0.4924, 0.8704], "N")]) },
-  { name: "floor: block hangs under the floor, flush", code: "body_inside_surface", doc: scene("A box on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, -0.5], 1, 1)]) },
-  { name: "floor drawn right to left: block under it, flush", code: "body_inside_surface", doc: scene("A box on a floor.", [...seg("floor", "floor", [6, 0], [0, 0]), ...rect("box", "box", [3, -0.5], 1, 1)]) },
-  { name: "ball under a road, tangent", code: "body_inside_surface", doc: scene("A wheel on a road.", [...seg("road", "road", [0, 0], [8, 0]), ...disc("wheel", "wheel", [3, -0.6], 0.6)]) },
+  { name: "floor: block hangs under the floor, flush", code: "body_inside_surface", doc: scene("A box rests on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, -0.5], 1, 1)]) },
+  { name: "floor drawn right to left: block under it, flush", code: "body_inside_surface", doc: scene("A box rests on a floor.", [...seg("floor", "floor", [6, 0], [0, 0]), ...rect("box", "box", [3, -0.5], 1, 1)]) },
+  { name: "ball under a road, tangent", code: "body_inside_surface", doc: scene("A wheel rolls on a road.", [...seg("road", "road", [0, 0], [8, 0]), ...disc("wheel", "wheel", [3, -0.6], 0.6)]) },
   { name: "the slope runs through the middle of the block", code: "body_straddles_surface", doc: scene("A body slides up a rough plane.", [...wedge(), ...poly("body", "block", [...ACROSS])]) },
-  { name: "floor through the middle of a box", code: "body_straddles_surface", doc: scene("A box on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1)]) },
-  { name: "ball centred on the ground line", code: "body_straddles_surface", doc: scene("A ball on the ground.", [...seg("ground", "ground", [0, 0], [6, 0]), ...disc("ball", "ball", [3, 0], 0.5)]) },
-  { name: "hatched line with no surface word through a box", code: "body_straddles_surface", doc: scene("A box.", [...seg("s", "support line", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1)], [{ id: "h", kind: "hatch", targetIds: ["s"] }]) },
-  { name: "block overlapping a table drawn as a solid", code: "body_inside_surface", doc: scene("A block on a table.", [...rect("table", "table top", [0, -0.5], 6, 1, "table"), ...rect("box", "block", [0, -0.2], 1, 1)]) },
-  { name: "block overlapping a wedge polygon", code: "body_inside_surface", doc: scene("A block on a wedge.", [...poly("wedge", "wedge", [[0, 0], [4.6, 0], [4.6, 2.6]], "M"), ...poly("body", "block", [...UNDER])]) },
+  { name: "floor through the middle of a box", code: "body_straddles_surface", doc: scene("A box rests on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1)]) },
+  { name: "ball centred on the ground line", code: "body_straddles_surface", doc: scene("A ball rests on the ground.", [...seg("ground", "ground", [0, 0], [6, 0]), ...disc("ball", "ball", [3, 0], 0.5)]) },
+  { name: "hatched line with no surface word through a box", code: "body_straddles_surface", doc: scene("A box rests on a support line.", [...seg("s", "support line", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1)], [{ id: "h", kind: "hatch", targetIds: ["s"] }]) },
+  { name: "block overlapping a table drawn as a solid", code: "body_inside_surface", doc: scene("A block rests on a table.", [...rect("table", "table top", [0, -0.5], 6, 1, "table"), ...rect("box", "block", [0, -0.2], 1, 1)]) },
+  { name: "block overlapping a wedge polygon", code: "body_inside_surface", doc: scene("A block rests on a wedge.", [...poly("wedge", "wedge", [[0, 0], [4.6, 0], [4.6, 2.6]], "M"), ...poly("body", "block", [...UNDER])]) },
   { name: "the string to the hanging block runs through the table", code: "string_through_surface", doc: scene("Block A on a table joined over a pulley to B.", [...seg("surface", "horizontal surface", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-1.6, 0.8], [-1.6, -1.4]), ...rect("blockB", "block B", [-1.6, -1.8], 0.8, 0.8, "B")]) },
-  { name: "only the closed triangle names the solid side: a hatched face, no resting word", code: "body_inside_surface", doc: scene("A block.", [...seg("face", "sloping face", [0, 0], [4.6, 2.6]), ...seg("base", "base line", [0, 0], [4.6, 0]), ...seg("back", "back line", [4.6, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])], [{ id: "h", kind: "hatch", targetIds: ["face"] }]) },
-  { name: "only the normal reaction names the free side: a surface with no resting word", code: "body_inside_surface", doc: scene("A block.", [...seg("face", "slanted surface", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER]), ...arrow("N", "normal reaction on the block", [2.5, 1.1], [-0.4924, 0.8704], "N")]) },
+  { name: "only the closed triangle names the solid side: a hatched face, no resting word", code: "body_inside_surface", doc: scene("A block slides on a face.", [...seg("face", "sloping face", [0, 0], [4.6, 2.6]), ...seg("base", "base line", [0, 0], [4.6, 0]), ...seg("back", "back line", [4.6, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])], [{ id: "h", kind: "hatch", targetIds: ["face"] }]) },
+  { name: "only the normal reaction names the free side: a surface with no resting word", code: "body_inside_surface", doc: scene("A block slides on a face.", [...seg("face", "slanted surface", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER]), ...arrow("N", "normal reaction on the block", [2.5, 1.1], [-0.4924, 0.8704], "N")]) },
   { name: "a string well inside the table's end still crosses it", code: "string_through_surface", doc: scene("A block on a table joined over a pulley to B.", [...seg("table", "table", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-0.5, 0.3], [-0.5, -1.2]), ...rect("m", "hanging block", [-0.5, -1.5], 0.6, 0.6, "M")]) },
   { name: "a stem that says as well as does not switch the check off", code: "body_straddles_surface", doc: scene("A block slides on the floor as well as on the slope.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
-  { name: "a level road is a surface", code: "body_straddles_surface", doc: scene("A car on a level road.", [...seg("road", "level road", [0, 0], [8, 0]), ...rect("car", "car", [4, 0], 2, 1)]) },
+  { name: "a level road is a surface", code: "body_straddles_surface", doc: scene("A car moves at speed on a level road.", [...seg("road", "level road", [0, 0], [8, 0]), ...rect("car", "car", [4, 0], 2, 1)]) },
   { name: "a stray normal arrow cannot make the underside free: gravity decides on a slope", code: "body_inside_surface", doc: scene("Block on a slope.", [...seg("slope", "slope", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER]), ...arrow("N", "weight component normal to the plane", [2.5, 1.1], [0.4924, -0.8704], "w")]) },
-  { name: "a block clear of the faces, wholly inside a three line wedge", code: "body_inside_surface", doc: scene("A block on a wedge.", [...wedge(), ...rect("box", "block", [3.4, 0.7], 0.5, 0.5)]) },
-  { name: "a block across a thin table: no corner lies inside the table", code: "body_inside_surface", doc: scene("A block on a table.", [...rect("table", "table", [0, 0], 8, 0.2, "table"), ...rect("box", "block", [0, 0], 1, 2)]) },
+  { name: "a block clear of the faces, wholly inside a three line wedge", code: "body_inside_surface", doc: scene("A block rests on a wedge.", [...wedge(), ...rect("box", "block", [3.4, 0.7], 0.5, 0.5)]) },
+  { name: "a block across a thin table: no corner lies inside the table", code: "body_inside_surface", doc: scene("A block rests on a table.", [...rect("table", "table", [0, 0], 8, 0.2, "table"), ...rect("box", "block", [0, 0], 1, 2)]) },
   { name: "a rope through a thick table between any sample points", code: "string_through_surface", doc: scene("A rope.", [...rect("table", "table", [0, 0], 8, 0.1, "table"), ...seg("rope", "rope", [1, 2], [1, -2])]) },
-  { name: "a wedge of mass M drawn as a polygon is still solid", code: "body_inside_surface", doc: scene("A block on a wedge.", [...poly("wedge", "wedge of mass M", [[0, 0], [4.6, 0], [4.6, 2.6]], "M"), ...rect("box", "block", [3.4, 0.7], 0.5, 0.5)]) },
-  { name: "a polyline ground runs through a block", code: "body_straddles_surface", doc: scene("A block on the ground.", [{ id: "g0", role: "end", kind: "point", at: [0, 0] }, { id: "g1", role: "end", kind: "point", at: [3, 0] }, { id: "g2", role: "end", kind: "point", at: [6, 0] }, { id: "ground", role: "ground", kind: "polyline", operator: "polyline", inputs: { points: ["g0", "g1", "g2"] } }, ...rect("box", "block", [3, 0], 1, 1)]) },
-  { name: "a train across a bridge deck", code: "body_straddles_surface", doc: scene("A train on a bridge.", [...seg("deck", "bridge deck", [0, 0], [10, 0]), ...rect("t", "train", [5, 0], 3, 1)]) },
-  { name: "only the reaction on this body names a wall's free side", code: "body_inside_surface", doc: scene("A block against a wall.", [...seg("wall", "vertical wall", [0, 0], [0, 4]), ...rect("box", "block", [-0.5, 2], 1, 1), ...arrow("N", "normal reaction on the block", [-0.5, 2], [1, 0], "N")]) },
-  { name: "a tall block across a thin table, its centre above the table", code: "body_inside_surface", doc: scene("A block on a table.", [...rect("table", "table", [0, 0], 8, 0.2, "table"), ...rect("box", "block", [0, 0.4], 1, 2)]) },
-  { name: "a rough plane is a surface", code: "body_straddles_surface", doc: scene("A block on a rough plane.", [...seg("p", "rough plane", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
+  { name: "a wedge of mass M drawn as a polygon is still solid", code: "body_inside_surface", doc: scene("A block rests on a wedge.", [...poly("wedge", "wedge of mass M", [[0, 0], [4.6, 0], [4.6, 2.6]], "M"), ...rect("box", "block", [3.4, 0.7], 0.5, 0.5)]) },
+  { name: "a polyline ground runs through a block", code: "body_straddles_surface", doc: scene("A block rests on the ground.", [{ id: "g0", role: "end", kind: "point", at: [0, 0] }, { id: "g1", role: "end", kind: "point", at: [3, 0] }, { id: "g2", role: "end", kind: "point", at: [6, 0] }, { id: "ground", role: "ground", kind: "polyline", operator: "polyline", inputs: { points: ["g0", "g1", "g2"] } }, ...rect("box", "block", [3, 0], 1, 1)]) },
+  { name: "a train across a bridge deck", code: "body_straddles_surface", doc: scene("A train moves at speed on a bridge.", [...seg("deck", "bridge deck", [0, 0], [10, 0]), ...rect("t", "train", [5, 0], 3, 1)]) },
+  { name: "only the reaction on this body names a wall's free side", code: "body_inside_surface", doc: scene("A force holds a block against a wall.", [...seg("wall", "vertical wall", [0, 0], [0, 4]), ...rect("box", "block", [-0.5, 2], 1, 1), ...arrow("N", "normal reaction on the block", [-0.5, 2], [1, 0], "N")]) },
+  { name: "a tall block across a thin table, its centre above the table", code: "body_inside_surface", doc: scene("A block rests on a table.", [...rect("table", "table", [0, 0], 8, 0.2, "table"), ...rect("box", "block", [0, 0.4], 1, 2)]) },
+  { name: "a rough plane is a surface", code: "body_straddles_surface", doc: scene("A block rests on a rough plane.", [...seg("p", "rough plane", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
+  { name: "a force arrow alone is the evidence: no mechanics word in the stem", code: "body_straddles_surface", doc: scene("A box and a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1), ...arrow("W", "weight", [3, 0], [0, -1], "W")]) },
+  { name: "a stem saying well labelled does not switch the check off", code: "body_straddles_surface", doc: scene("Draw a well labelled figure of a block resting on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
+  { name: "a stem saying fixed in position does not switch the check off", code: "body_straddles_surface", doc: scene("A block rests on a floor, fixed in position.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
+  { name: "a role saying well or fixed in does not switch the check off", code: "body_straddles_surface", doc: scene("A block rests on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1), ...seg("mark", "potential well marker fixed in the ceiling", [0, 5], [1, 5])]) },
+  { name: "a wall in two parts in line is one face: the reaction still names its free side", code: "body_inside_surface", doc: scene("A force holds a block against a wall.", [...seg("w1", "vertical wall", [0, 0], [0, 2]), ...seg("w2", "vertical wall", [0, 2], [0, 4]), ...rect("box", "block", [-0.5, 2], 1, 1), ...arrow("N", "normal reaction on the block", [-0.5, 2], [1, 0], "N")]) },
   { name: "rope through a solid table", code: "string_through_surface", doc: scene("A rope.", [...rect("table", "table", [0, -0.5], 6, 1, "table"), ...seg("rope", "rope", [1, 1], [1, -2])]) },
 ];
 
@@ -174,6 +189,24 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "words: a diameter line on the road through a wheel", doc: scene("A wheel.", [...seg("d", "diameter line on the road", [-3, 0], [3, 0]), ...disc("w", "wheel", [0, 0], 1)]) },
   { name: "words: a piston surface running past a cylinder's sides", doc: scene("A piston in a cylinder.", [...rect("cyl", "cylinder", [0, 0], 2, 5), ...seg("p", "piston surface", [-1.5, 0.5], [1.5, 0.5])]) },
   { name: "a rotated block crosses the floor's line only past the floor's end", doc: scene("A block beyond the end of a floor.", [...seg("floor", "floor", [0, 0], [1, 0]), ...poly("body", "block", [[0.5, 2], [1, 2.2], [2.2, -0.8], [1.7, -1]])]) },
+  { name: "a hanging block's corner near only the wedge's extended line", doc: scene("A block on an incline is joined over a pulley to a hanging block.", [...seg("incline", "inclined plane", [0, 0], [3, 3]), ...rect("m", "hanging block", [3.7, 2.8], 0.8, 0.8, "M")]) },
+  { name: "a wide block on a short shelf from above", doc: scene("A block rests on a short shelf.", [...seg("s", "shelf", [2, 0], [3, 0]), ...rect("box", "block", [2.5, 0.5], 4, 1)]) },
+  { name: "panels: a ball on its own ground, against the other panel's floor", doc: grouped("Two cases: a box rests on a floor, and a ball rests on the ground.", { first: [...seg("f", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0.5], 1, 1), link("l1", "f_a", "box_c")], second: [...seg("g", "ground", [0, -0.6], [6, -0.6]), ...disc("b", "ball", [3, 0], 0.6), link("l2", "g_a", "b_c")] }) },
+  { name: "panels: a bob's string, against the other panel's floor", doc: grouped("Two cases: a box rests on a floor, and a bob hangs on a string from a ceiling.", { first: [...seg("f", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0.5], 1, 1), link("l1", "f_a", "box_c")], second: [...seg("c", "ceiling", [1, 2], [5, 2]), ...seg("str", "string", [3, 2], [3, -1.5]), ...disc("b", "bob", [3, -1.8], 0.3), link("l2", "c_a", "str_a"), link("l3", "str_b", "b_c")] }) },
+  { name: "another subject: an amplifier block on a ground line", doc: scene("Draw the amplifier.", [...seg("g", "ground line", [0, 0], [6, 0]), ...rect("a", "amplifier block", [3, 0], 2, 1)]) },
+  { name: "another subject: a data bus through a table row", doc: scene("Draw the memory layout.", [...seg("t", "table", [0, 0], [6, 0]), ...rect("b", "data bus", [3, 0], 2, 1)]) },
+  { name: "another subject: an ore body across the ground", doc: scene("Draw the mine section.", [...seg("g", "ground", [0, 0], [6, 0]), ...rect("o", "ore body", [3, 0], 2, 1)]) },
+  { name: "a ring on a rail is threaded on it", doc: scene("A ring slides on a smooth rail.", [...seg("r", "rail", [0, 0], [6, 0]), ...disc("ring", "ring", [3, 0], 0.4)]) },
+  { name: "a road edge beside a car in a top view", doc: scene("A car turns at speed, top view.", [...seg("e", "road", [0, 0], [6, 0]), ...rect("c", "car", [3, 0], 1, 2)]) },
+  { name: "a far bank through a man", doc: scene("A man swims at speed to the far bank.", [...seg("b", "far bank", [0, 0], [6, 0]), ...rect("m", "man", [3, 0], 1, 1)]) },
+  { name: "a cube cut by an inclined plane", doc: scene("An inclined plane cuts a cube.", [...seg("p", "inclined plane", [0, 0], [4, 3]), ...rect("c", "cube", [2, 1.5], 2, 2)]) },
+  { name: "an attic under a sloping roof: a triangle of air", doc: scene("A load rests in an attic.", [...seg("roof", "sloping roof", [0, 0], [4, 3]), ...seg("f", "ceiling", [0, 0], [4, 0]), ...seg("w", "wall", [4, 0], [4, 3]), ...rect("b", "box", [3, 0.5], 1, 1)]) },
+  { name: "a box between two floors", doc: scene("A box rests between two floors.", [...seg("f1", "floor", [0, 0], [6, 0]), ...seg("f2", "floor", [0, 1], [6, 1]), ...rect("b", "box", [3, 0.5], 1, 1)]) },
+  { name: "a car under a ramp", doc: scene("A car moves at speed under a ramp.", [...seg("r", "ramp", [0, 2], [6, 3]), ...rect("c", "car", [3, 2], 1, 0.98)]) },
+  { name: "Hindi and Hinglish stems naming a well or floating", doc: scene("कुएं में एक डोरी से बंधा पत्थर है, और ball floating hai", [...seg("g", "ground", [-4, 0], [4, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...disc("s", "stone", [0, 0], 0.5)]) },
+  { name: "a stem saying the string passes through the table", doc: scene("The string passes through the table to a hanging mass.", [...seg("t", "table", [-4, 0], [4, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...rect("m", "hanging mass", [0, -2.3], 0.6, 0.6, "M")]) },
+  { name: "a car under a ramp on a pillar: a triangle of air", doc: scene("A car is parked at speed zero under a ramp.", [...seg("r", "ramp", [0, 0], [10, 5]), ...seg("f", "ground", [0, 0], [10, 0]), ...seg("w", "support pillar", [10, 0], [10, 5]), ...rect("c", "car", [7.5, 0.5], 2, 1)]) },
+  { name: "a ball rolling through a gap in a hatched barrier", doc: scene("A ball rolls through a gap in a barrier.", [...seg("b", "barrier", [0, 0], [6, 0]), ...disc("w", "ball", [3, 0], 0.5)], [{ id: "h", kind: "hatch", targetIds: ["b"] }]) },
   { name: "a dot marking a particle on a long slope", doc: scene("A particle on an incline.", [...seg("slope", "slope", [0, 0], [40, 30]), ...disc("p", "particle", [20, 15], 0.3)]) },
   { name: "ball in flight above the ground", doc: scene("A projectile.", [...seg("ground", "ground", [0, 0], [10, 0]), ...disc("ball", "ball", [5, 3], 0.3)]) },
   { name: "plane mirror hatched behind an object", doc: scene("An object in front of a mirror.", [...seg("m", "plane mirror", [0, 0], [0, 4]), ...rect("box", "object", [0, 2], 1, 1)], [{ id: "h", kind: "hatch", targetIds: ["m"] }]) },
@@ -205,8 +238,8 @@ for (const row of refuse) {
   if (!codesOf(row.doc).includes(row.code)) continue;
   const reopened = compileSceneDocument(row.doc as never).report.issues.filter((issue) => CODES.has(issue.code));
   if (reopened.length) failures.push(`SAVED BOARD ${row.name}: a compile without admission options was refused with ${reopened.map((issue) => issue.code).join(",")}`);
+  else passed += 1;
 }
-passed += 1;
 // A refusing check must not throw on a large outline.
 try {
   const many = Array.from({ length: 1000 }, (_, i): Xy => [3 + Math.cos((i * 2 * Math.PI) / 1000), 1.2 + Math.sin((i * 2 * Math.PI) / 1000)]);
@@ -216,5 +249,5 @@ try {
   failures.push(`LARGE OUTLINE threw: ${String(error).slice(0, 100)}`);
 }
 for (const failure of failures) console.error(failure);
-console.log(`verify-contact-truth: ${passed} passed, ${failures.length} failed of ${refuse.length + keep.length + 2}`);
+console.log(`verify-contact-truth: ${passed} passed, ${failures.length} failed`);
 if (failures.length) process.exit(1);
