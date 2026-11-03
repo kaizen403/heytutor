@@ -7,6 +7,11 @@ const OUTCOME_STYLE: Record<TurnOutcome, { bg: string; text: string; border: str
     text: "#9CCBFF",
     border: "rgba(74, 158, 255, 0.32)",
   },
+  picture_shown: {
+    bg: "rgba(155, 142, 196, 0.14)",
+    text: "#C4B8E8",
+    border: "rgba(155, 142, 196, 0.32)",
+  },
   text_only: {
     bg: "rgba(255, 255, 255, 0.06)",
     text: "rgba(237, 237, 235, 0.68)",

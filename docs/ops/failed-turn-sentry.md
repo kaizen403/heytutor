@@ -18,6 +18,11 @@ scan or send failed-turn events even when a production DSN is present.
 Expected no-figure lessons and healthy continuations do not emit failed-turn
 events. Missing historical evidence remains visible as Unverified in All logs.
 
+A lesson that showed a reference picture reports once it ends as
+`area=turn-picture` at info level, so the failure alerts do not count it. An idle
+picture lesson queues nothing, because a turn sends one event: a failure after the
+tab returns still reports as `area=turn-failure`.
+
 ## Delivery and privacy
 
 The event uses fingerprint `turn-failure / stage / code / subject`, with tags
