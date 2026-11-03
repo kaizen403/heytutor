@@ -257,6 +257,7 @@ for (const [why, question, plan, expected] of [
   ["what is to be proved is not a plan's given", "Prove that x = 2.", { givens: [plain("x", 2)] }, []],
   ["what is to be derived is not a plan's given", "Here y = 3. Derive that x = 2.", { givens: [plain("x", 2)] }, ["y = 3"]],
   ["a term with a plain value on its right", "Plot ax^2 + bx + c = 0, with a = 1.", undefined, ["a = 1"]],
+  ["a plan row for a term of an equation", "Plot ax^2 + bx + c = 0, with a = 1.", { givens: [plain("c", 0)] }, ["a = 1"]],
   ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
   ["Hindi after a value is prose", "अगर x = 3 है तो ग्राफ बनाओ", undefined, []],
   ["one Hindi word after a value is prose", "अगर x = 3 है, तो ग्राफ बनाओ", undefined, []],
