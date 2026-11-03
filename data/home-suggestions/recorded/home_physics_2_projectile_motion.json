@@ -1,139 +1,427 @@
 {
  "schemaVersion": "home-suggestion-recording/v1",
  "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
- "recordedFrom": "davao overnight-20261019 selected-documents fda280155dfd3c3c51e7 (provo h3r2-20261010 p1-after)",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_physics_2_projectile_motion.json",
  "judged": {
   "verdict": "right",
-  "by": "lane 2 (salem), render reviewed",
-  "note": "level ground parabola, u at θ, range R"
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "parabola on level ground, u at θ, range R; θ drawn at 45 degrees, harmless here"
  },
  "selection": {
   "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
   "turnPlan": {
    "schemaVersion": "turn-plan/v3",
+   "subject": "physics",
    "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
-   "visualRequirement": "required",
-   "requiresVisualByStem": true,
-   "givens": [
-    {
-     "id": "g1",
-     "symbol": "θ₀",
-     "value": 45,
-     "unit": "deg",
-     "provenance": "given",
-     "sourceText": "45°"
-    }
-   ],
+   "givens": [],
    "unknowns": [
     {
-     "id": "u1",
+     "id": "R",
      "symbol": "R",
      "unit": "m"
     },
     {
-     "id": "u2",
+     "id": "thetaMax",
      "symbol": "θ_max",
-     "unit": "deg"
-    },
-    {
-     "id": "u3",
-     "symbol": "R_max",
-     "unit": "m"
+     "unit": "°"
     }
    ],
-   "derived": [
-    {
-     "id": "u2",
-     "symbol": "θ_max",
-     "value": 45,
-     "unit": "deg"
-    }
-   ],
+   "derived": [],
    "qualitativeClaims": [
     {
      "id": "c1",
-     "expected": "vₓ=u cos θ and vᵧ=u sin θ.",
-     "claim": "vₓ=u cos θ and vᵧ=u sin θ."
+     "claim": "Resolve initial velocity: horizontal component uₓ = u cosθ, vertical component u_y = u sinθ.",
+     "expected": "uₓ = u cosθ; u_y = u sinθ",
+     "relatedQuantityIds": [
+      "R"
+     ]
     },
     {
      "id": "c2",
-     "expected": "From 0=u sin θ·t−gt²/2, the flight time is T=2u sin θ/g.",
-     "claim": "From 0=u sin θ·t−gt²/2, the flight time is T=2u sin θ/g."
+     "claim": "Vertical motion under gravity: time of flight from 0 = u sinθ·T − ½gT², giving T = 2u sinθ/g.",
+     "expected": "T = 2u sinθ / g",
+     "relatedQuantityIds": [
+      "R"
+     ]
     },
     {
      "id": "c3",
-     "expected": "R=(u cos θ)T=u² sin(2θ)/g.",
-     "claim": "R=(u cos θ)T=u² sin(2θ)/g."
+     "claim": "Horizontal motion at constant velocity: R = u cosθ · T = u cosθ · 2u sinθ/g.",
+     "expected": "R = (2u² sinθ cosθ)/g",
+     "relatedQuantityIds": [
+      "R"
+     ]
     },
     {
      "id": "c4",
-     "expected": "Since sin(2θ)≤1 for 0°≤θ≤90°, equality occurs at θ=45°; thus θ_max=45° and R_max=u²/g.",
-     "claim": "Since sin(2θ)≤1 for 0°≤θ≤90°, equality occurs at θ=45°; thus θ_max=45° and R_max=u²/g."
+     "claim": "Apply double-angle identity 2 sinθ cosθ = sin2θ to obtain the range formula.",
+     "expected": "R = u² sin(2θ) / g",
+     "relatedQuantityIds": [
+      "R",
+      "thetaMax"
+     ]
+    },
+    {
+     "id": "c5",
+     "claim": "For fixed u and g, R is maximised when sin(2θ) is maximised; maximum value of sine is 1 at 2θ = 90°, so θ = 45°.",
+     "expected": "R_max = u²/g at θ_max = 45°",
+     "relatedQuantityIds": [
+      "R",
+      "thetaMax"
+     ]
+    },
+    {
+     "id": "c6",
+     "claim": "Calculus check: dR/dθ = (2u²/g)cos(2θ) = 0 gives θ = 45°, and d²R/dθ² = −(4u²/g)sin(2θ) < 0 there, confirming a maximum.",
+     "expected": "dR/dθ = 0 at θ = 45°; second derivative negative",
+     "relatedQuantityIds": [
+      "thetaMax"
+     ]
     }
    ],
    "lawIds": [
-    "constant-acceleration-kinematics",
-    "independent-horizontal-and-vertical-motion",
-    "double-angle-identity",
-    "sine-upper-bound"
+    "projectile-kinematics",
+    "constant-acceleration-equations",
+    "trig-double-angle-identity",
+    "sine-maximum-property",
+    "calculus-optimisation"
    ],
    "assumptions": [
-    "Launch and landing heights are equal.",
-    "Air resistance is negligible.",
-    "Gravitational acceleration g is constant and positive.",
-    "Launch speed u is fixed and positive; 0°≤θ≤90°.",
+    "Level ground: launch and landing at same height",
+    "Negligible air resistance",
+    "Uniform gravitational field g acting vertically downward",
+    "Launch speed u and angle θ are fixed parameters",
+    "Projectile treated as a point mass",
     "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fDerive",
+     "kind": "requested",
+     "statement": "Derive range formula for projectile on level ground",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 64,
+      "quote": "Derive the formula for the range of a projectile on level ground"
+     }
+    },
+    {
+     "id": "fMax",
+     "kind": "requested",
+     "statement": "Show 45 degrees gives maximum range",
+     "evidence": {
+      "source": "question",
+      "start": 70,
+      "end": 106,
+      "quote": "show why 45° gives the maximum range"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "projectile",
+     "kind": "point",
+     "label": "projectile point mass",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    },
+    {
+     "id": "trajectory",
+     "kind": "curve",
+     "label": "parabolic trajectory",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    },
+    {
+     "id": "ground",
+     "kind": "line",
+     "label": "level ground",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    }
+   ],
+   "expressions": [],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iTrajectory",
+     "kind": "graph",
+     "entityIds": [
+      "trajectory",
+      "projectile",
+      "ground"
+     ],
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    }
+   ],
+   "solveRequests": [],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "analytic_curve",
+    "state_plot",
+    "contact_body"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "elastic_profile",
+    "elastic_state",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "function_region",
+    "intersection",
+    "vector_components",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "harmonic_motion",
+    "harmonic_state",
+    "motion_graph",
+    "potential_curve",
+    "projectile_trajectory",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency",
+    "permutation_cycles",
+    "subset_lattice",
+    "set_partition",
+    "set_select",
+    "buoyancy",
+    "polygon",
+    "probability_tree",
+    "pv_process",
+    "polytropic_process",
+    "isochoric_process",
+    "process_state",
+    "rectangle",
+    "circle",
+    "surface_contact",
+    "right_angle_mark",
+    "rotate",
+    "arc",
+    "midpoint",
+    "rotational_motion",
+    "rotational_state",
+    "planar_torque",
+    "gravitational_field",
+    "gravitational_force",
+    "vector_sum",
+    "vector_scale",
+    "vector_projection",
+    "free_body",
+    "coupled_bodies",
+    "vertical_circle",
+    "mechanical_energy_pair",
+    "work_interval",
+    "spring_energy",
+    "collision",
+    "incline_friction",
+    "uniform_circular_motion",
+    "circle_tangent_at"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "on",
+    "function_value",
+    "root",
+    "incident",
+    "perpendicular",
+    "connected",
+    "between",
+    "ordered_along",
+    "opposite_direction",
+    "parallel",
+    "angle_between",
+    "equal_length"
+   ],
+   "planningGuidance": [
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
+    "Use pv_process for named P-V laws: one shared plot, complete states; physical quantity refs or explicitly nonmetric conceptual ratios. Other plots use comparable axis layout spans, not raw SI magnitudes. Grouped counts: histogram (density for unequal widths), frequency_polygon, cumulative_frequency. Conditional outcome branches: probability_tree. Other closed cycles share point IDs. Independent axis scales are display-only.",
+    "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body."
    ]
   },
-  "problemIR": null,
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fDerive",
+      "kind": "requested",
+      "statement": "Derive range formula for projectile on level ground",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 64,
+       "quote": "Derive the formula for the range of a projectile on level ground"
+      }
+     },
+     {
+      "id": "fMax",
+      "kind": "requested",
+      "statement": "Show 45 degrees gives maximum range",
+      "evidence": {
+       "source": "question",
+       "start": 70,
+       "end": 106,
+       "quote": "show why 45° gives the maximum range"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "projectile",
+      "kind": "point",
+      "label": "projectile point mass",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     },
+     {
+      "id": "trajectory",
+      "kind": "curve",
+      "label": "parabolic trajectory",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     },
+     {
+      "id": "ground",
+      "kind": "line",
+      "label": "level ground",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iTrajectory",
+      "kind": "graph",
+      "entityIds": [
+       "trajectory",
+       "projectile",
+       "ground"
+      ],
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     }
+    ],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
   "candidate": {
    "schemaVersion": "scene-document/v2",
-   "visualDecision": "scene",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Symbolic projectile on level ground: launch point, trajectory, launch velocity at angle θ, and level ground are required; no numeric givens, so one generic nondegenerate symbolic setup is shown without derived scalar answers."
+   },
    "source": {
     "question": "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
     "representationTier": "qualitative_verified",
     "nonMetric": true
    },
-   "quantities": [
-    {
-     "id": "g1",
-     "symbol": "θ₀",
-     "value": 45,
-     "unit": "deg",
-     "provenance": "given"
-    },
-    {
-     "id": "u2",
-     "symbol": "θ_max",
-     "value": 45,
-     "unit": "deg",
-     "provenance": "derived"
-    }
-   ],
+   "quantities": [],
    "entities": [
     {
-     "id": "flight",
-     "kind": "polyline",
-     "role": "trajectory"
+     "id": "O",
+     "kind": "point",
+     "role": "launch point",
+     "label": "O"
     },
     {
-     "id": "launch",
+     "id": "G1",
      "kind": "point",
-     "role": "launch point"
-    },
-    {
-     "id": "landing",
-     "kind": "point",
-     "role": "landing point"
+     "role": "ground end"
     },
     {
      "id": "ground",
      "kind": "segment",
-     "role": "ground"
+     "role": "level ground",
+     "label": "level ground"
     },
     {
-     "id": "tip",
-     "kind": "point"
+     "id": "trajectory",
+     "kind": "polyline",
+     "role": "trajectory"
     },
     {
      "id": "velocity",
@@ -142,205 +430,293 @@
      "label": "u"
     },
     {
-     "id": "launchAngle",
+     "id": "aim",
+     "kind": "point",
+     "role": "launch direction"
+    },
+    {
+     "id": "angle",
      "kind": "angle_mark",
+     "role": "launch angle",
      "label": "θ"
     },
     {
-     "id": "range",
+     "id": "apex",
+     "kind": "point",
+     "role": "highest point",
+     "label": "P"
+    },
+    {
+     "id": "landing",
+     "kind": "point",
+     "role": "landing point",
+     "label": "B"
+    },
+    {
+     "id": "dim_R",
      "kind": "dimension",
+     "role": "horizontal range",
      "label": "R"
     }
    ],
    "constructions": [
     {
-     "id": "cFlight",
-     "operator": "parametric_curve",
+     "id": "c_O",
+     "operator": "point",
      "inputs": {
-      "xExpression": "t",
-      "yExpression": "t*(1-t)",
-      "parameter": "t",
-      "tMin": 0,
-      "tMax": 1
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
      },
      "outputs": [
-      "flight"
+      "O"
      ]
     },
     {
-     "id": "cLaunch",
-     "operator": "curve_anchor",
+     "id": "c_G1",
+     "operator": "point",
      "inputs": {
-      "curve": "flight",
-      "at": 0
+      "x": 12,
+      "y": 0,
+      "coordinateSpace": "world"
      },
      "outputs": [
-      "launch"
+      "G1"
      ]
     },
     {
-     "id": "cLanding",
-     "operator": "curve_anchor",
+     "id": "c_ground",
+     "operator": "segment",
      "inputs": {
-      "curve": "flight",
-      "at": 1
+      "start": "O",
+      "end": "G1"
+     },
+     "outputs": [
+      "ground"
+     ]
+    },
+    {
+     "id": "c_trajectory",
+     "operator": "function_curve",
+     "inputs": {
+      "expression": "x-0.1*x^2",
+      "variable": "x",
+      "xMin": 0,
+      "xMax": 10,
+      "samples": 81
+     },
+     "outputs": [
+      "trajectory"
+     ]
+    },
+    {
+     "id": "c_aim",
+     "operator": "point",
+     "inputs": {
+      "x": 3,
+      "y": 3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "aim"
+     ]
+    },
+    {
+     "id": "c_velocity",
+     "operator": "vector",
+     "inputs": {
+      "start": "O",
+      "end": "aim"
+     },
+     "outputs": [
+      "velocity"
+     ]
+    },
+    {
+     "id": "c_angle",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "O",
+      "a": "velocity",
+      "b": "ground",
+      "radius": 2
+     },
+     "outputs": [
+      "angle"
+     ]
+    },
+    {
+     "id": "c_apex",
+     "operator": "point",
+     "inputs": {
+      "x": 5,
+      "y": 2.5,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "apex"
+     ]
+    },
+    {
+     "id": "c_landing",
+     "operator": "point",
+     "inputs": {
+      "x": 10,
+      "y": 0,
+      "coordinateSpace": "world"
      },
      "outputs": [
       "landing"
      ]
     },
     {
-     "id": "cGround",
-     "operator": "segment",
-     "inputs": {
-      "start": "launch",
-      "end": "landing"
-     },
-     "outputs": [
-      "ground"
-     ]
-    },
-    {
-     "id": "cTip",
-     "operator": "point",
-     "inputs": {
-      "x": 0.25,
-      "y": 0.25,
-      "coordinateSpace": "world"
-     },
-     "outputs": [
-      "tip"
-     ]
-    },
-    {
-     "id": "cVelocity",
-     "operator": "vector",
-     "inputs": {
-      "start": "launch",
-      "end": "tip"
-     },
-     "outputs": [
-      "velocity"
-     ]
-    },
-    {
-     "id": "cAngle",
-     "operator": "angle_mark",
-     "inputs": {
-      "vertex": "launch",
-      "a": "ground",
-      "b": "velocity"
-     },
-     "outputs": [
-      "launchAngle"
-     ]
-    },
-    {
-     "id": "cRange",
+     "id": "c_dim_R",
      "operator": "dimension",
      "inputs": {
-      "start": "launch",
+      "start": "O",
       "end": "landing"
      },
      "outputs": [
-      "range"
+      "dim_R"
      ]
     }
    ],
    "relations": [],
    "assertions": [
     {
-     "id": "aLaunch",
+     "id": "launch_on_path",
      "predicate": "on",
      "entities": [
-      "launch",
-      "flight"
+      "O",
+      "trajectory"
      ],
      "expected": true,
-     "severity": "error"
+     "severity": "fatal"
     },
     {
-     "id": "aLanding",
+     "id": "landing_on_path",
      "predicate": "on",
      "entities": [
       "landing",
-      "flight"
+      "trajectory"
      ],
      "expected": true,
-     "severity": "error"
+     "severity": "fatal"
     },
     {
-     "id": "aGround",
+     "id": "landing_on_ground",
      "predicate": "on",
      "entities": [
       "landing",
       "ground"
      ],
      "expected": true,
-     "severity": "error"
+     "severity": "fatal"
+    },
+    {
+     "id": "apex_on_path",
+     "predicate": "function_value",
+     "entities": [
+      "trajectory"
+     ],
+     "expected": {
+      "x": 5,
+      "y": 2.5
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "label_velocity",
+     "predicate": "label_attached",
+     "entities": [
+      "velocity"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_angle",
+     "predicate": "label_attached",
+     "entities": [
+      "angle"
+     ],
+     "expected": true,
+     "severity": "fatal"
     }
    ],
    "annotations": [
     {
-     "id": "components",
+     "id": "narr_setup",
      "kind": "narration",
      "targetIds": [
-      "velocity"
+      "velocity",
+      "angle"
      ],
-     "text": "Resolve the launch speed: vₓ = u cos θ and vᵧ = u sin θ."
+     "text": "Resolve u into u cosθ horizontally and u sinθ vertically.",
+     "placementIntent": "near launch"
     },
     {
-     "id": "flightTime",
+     "id": "narr_range",
      "kind": "narration",
      "targetIds": [
-      "flight"
+      "dim_R"
      ],
-     "text": "At landing, vertical displacement is zero: 0 = u sin θ·T − gT²/2. The nonzero flight time is T = 2u sin θ/g."
-    },
-    {
-     "id": "rangeFormula",
-     "kind": "narration",
-     "targetIds": [
-      "range"
-     ],
-     "text": "Horizontal speed remains u cos θ, so R = (u cos θ)T = u² sin(2θ)/g."
-    },
-    {
-     "id": "maximum",
-     "kind": "narration",
-     "targetIds": [
-      "launchAngle",
-      "range"
-     ],
-     "text": "For fixed u and g, sin(2θ) ≤ 1 on 0° ≤ θ ≤ 90°. Equality holds at θ = 45°, giving θ_max = 45° and R_max = u²/g.",
-     "quantityId": "u2"
+     "text": "R = u² sin(2θ)/g, greatest when sin(2θ)=1, so θ = 45°.",
+     "placementIntent": "below range"
     }
    ],
    "requiredEntityIds": [
-    "launch",
-    "flight",
+    "O",
+    "G1",
+    "ground",
+    "trajectory",
     "velocity",
-    "ground"
+    "aim",
+    "angle",
+    "apex",
+    "landing",
+    "dim_R"
    ],
    "revealGroups": [
     {
      "id": "setup",
      "entityIds": [
-      "flight",
-      "launch",
-      "landing",
+      "O",
+      "G1",
       "ground",
-      "tip",
+      "aim",
       "velocity",
-      "launchAngle",
-      "range"
-     ]
+      "angle"
+     ],
+     "dependsOn": [],
+     "narrationCue": "level ground; launch speed u at angle θ above the horizontal"
+    },
+    {
+     "id": "flight",
+     "entityIds": [
+      "trajectory",
+      "apex",
+      "landing",
+      "dim_R"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "the parabolic flight from O to B, spanning range R"
     }
    ],
-   "teachingTimeline": []
-  },
-  "policy": {
-   "preferPlanner": true
+   "teachingTimeline": [
+    {
+     "group": "setup",
+     "action": "reveal",
+     "narration": "On level ground, the projectile leaves O with speed u at angle θ; resolve u into u cosθ and u sinθ."
+    },
+    {
+     "group": "flight",
+     "action": "reveal",
+     "narration": "Vertical motion gives T = 2u sinθ/g; horizontal motion gives R = u cosθ·T = u² sin(2θ)/g, maximised at θ = 45°."
+    }
+   ]
   },
   "rebuildFamilyFigure": false,
   "yieldPolicy": "verified_parts"
@@ -351,285 +727,107 @@
   "tier": "qualitative_verified",
   "family": null,
   "entityIds": [
-   "flight",
+   "G1",
+   "O",
+   "aim",
+   "angle",
+   "apex",
+   "dim_R",
    "ground",
    "landing",
-   "launch",
-   "launchAngle",
-   "range",
-   "tip",
+   "trajectory",
    "velocity"
   ],
   "texts": [
-   "launchAngle: θ",
-   "range: R",
+   "O: O",
+   "angle: θ",
+   "apex: P",
+   "dim_R: R",
+   "ground: level ground",
+   "landing: B",
    "velocity: u"
   ],
   "marks": [
    {
-    "entityId": "flight",
-    "kind": "polyline",
+    "entityId": "aim",
+    "kind": "point",
     "dashed": false,
+    "points": [
+     [
+      250,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "angle",
+    "kind": "arc",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      250
+     ]
+    ],
+    "radius": 167,
+    "angles": [
+     0,
+     -0.79
+    ]
+   },
+   {
+    "entityId": "apex",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      417,
+      42
+     ]
+    ]
+   },
+   {
+    "entityId": "dim_R",
+    "kind": "dimension",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      306
+     ],
+     [
+      833,
+      306
+     ]
+    ]
+   },
+   {
+    "entityId": "dim_R",
+    "kind": "line",
+    "dashed": true,
     "points": [
      [
       0,
       250
      ],
      [
-      16,
-      235
-     ],
+      0,
+      318
+     ]
+    ]
+   },
+   {
+    "entityId": "dim_R",
+    "kind": "line",
+    "dashed": true,
+    "points": [
      [
-      31,
-      220
-     ],
-     [
-      47,
-      205
-     ],
-     [
-      62,
-      191
-     ],
-     [
-      78,
-      178
-     ],
-     [
-      94,
-      165
-     ],
-     [
-      109,
-      153
-     ],
-     [
-      125,
-      141
-     ],
-     [
-      141,
-      129
-     ],
-     [
-      156,
-      118
-     ],
-     [
-      172,
-      108
-     ],
-     [
-      187,
-      98
-     ],
-     [
-      203,
-      88
-     ],
-     [
-      219,
-      79
-     ],
-     [
-      234,
-      71
-     ],
-     [
-      250,
-      63
-     ],
-     [
-      266,
-      55
-     ],
-     [
-      281,
-      48
-     ],
-     [
-      297,
-      41
-     ],
-     [
-      312,
-      35
-     ],
-     [
-      328,
-      30
-     ],
-     [
-      344,
-      24
-     ],
-     [
-      359,
-      20
-     ],
-     [
-      375,
-      16
-     ],
-     [
-      391,
-      12
-     ],
-     [
-      406,
-      9
-     ],
-     [
-      422,
-      6
-     ],
-     [
-      437,
-      4
-     ],
-     [
-      453,
-      2
-     ],
-     [
-      469,
-      1
-     ],
-     [
-      484,
-      0
-     ],
-     [
-      500,
-      0
-     ],
-     [
-      516,
-      0
-     ],
-     [
-      531,
-      1
-     ],
-     [
-      547,
-      2
-     ],
-     [
-      562,
-      4
-     ],
-     [
-      578,
-      6
-     ],
-     [
-      594,
-      9
-     ],
-     [
-      609,
-      12
-     ],
-     [
-      625,
-      16
-     ],
-     [
-      641,
-      20
-     ],
-     [
-      656,
-      24
-     ],
-     [
-      672,
-      30
-     ],
-     [
-      687,
-      35
-     ],
-     [
-      703,
-      41
-     ],
-     [
-      719,
-      48
-     ],
-     [
-      734,
-      55
-     ],
-     [
-      750,
-      63
-     ],
-     [
-      766,
-      71
-     ],
-     [
-      781,
-      79
-     ],
-     [
-      797,
-      88
-     ],
-     [
-      812,
-      98
-     ],
-     [
-      828,
-      108
-     ],
-     [
-      844,
-      118
-     ],
-     [
-      859,
-      129
-     ],
-     [
-      875,
-      141
-     ],
-     [
-      891,
-      153
-     ],
-     [
-      906,
-      165
-     ],
-     [
-      922,
-      178
-     ],
-     [
-      937,
-      191
-     ],
-     [
-      953,
-      205
-     ],
-     [
-      969,
-      220
-     ],
-     [
-      984,
-      235
-     ],
-     [
-      1000,
+      833,
       250
+     ],
+     [
+      833,
+      318
      ]
     ]
    },
@@ -654,13 +852,13 @@
     "dashed": false,
     "points": [
      [
-      1000,
+      833,
       250
      ]
     ]
    },
    {
-    "entityId": "launch",
+    "entityId": "O",
     "kind": "point",
     "dashed": false,
     "points": [
@@ -671,63 +869,333 @@
     ]
    },
    {
-    "entityId": "launchAngle",
-    "kind": "arc",
+    "entityId": "trajectory",
+    "kind": "polyline",
     "dashed": false,
     "points": [
      [
       0,
       250
-     ]
-    ],
-    "radius": 71,
-    "angles": [
-     -0.79,
-     0
-    ]
-   },
-   {
-    "entityId": "range",
-    "kind": "dimension",
-    "dashed": false,
-    "points": [
-     [
-      0,
-      321
      ],
      [
-      1000,
-      321
-     ]
-    ]
-   },
-   {
-    "entityId": "range",
-    "kind": "line",
-    "dashed": true,
-    "points": [
+      10,
+      240
+     ],
      [
-      0,
+      21,
+      230
+     ],
+     [
+      31,
+      220
+     ],
+     [
+      42,
+      210
+     ],
+     [
+      52,
+      201
+     ],
+     [
+      62,
+      192
+     ],
+     [
+      73,
+      183
+     ],
+     [
+      83,
+      175
+     ],
+     [
+      94,
+      167
+     ],
+     [
+      104,
+      159
+     ],
+     [
+      115,
+      151
+     ],
+     [
+      125,
+      144
+     ],
+     [
+      135,
+      137
+     ],
+     [
+      146,
+      130
+     ],
+     [
+      156,
+      123
+     ],
+     [
+      167,
+      117
+     ],
+     [
+      177,
+      111
+     ],
+     [
+      187,
+      105
+     ],
+     [
+      198,
+      99
+     ],
+     [
+      208,
+      94
+     ],
+     [
+      219,
+      89
+     ],
+     [
+      229,
+      84
+     ],
+     [
+      240,
+      79
+     ],
+     [
+      250,
+      75
+     ],
+     [
+      260,
+      71
+     ],
+     [
+      271,
+      67
+     ],
+     [
+      281,
+      64
+     ],
+     [
+      292,
+      60
+     ],
+     [
+      302,
+      57
+     ],
+     [
+      312,
+      55
+     ],
+     [
+      323,
+      52
+     ],
+     [
+      333,
+      50
+     ],
+     [
+      344,
+      48
+     ],
+     [
+      354,
+      46
+     ],
+     [
+      365,
+      45
+     ],
+     [
+      375,
+      44
+     ],
+     [
+      385,
+      43
+     ],
+     [
+      396,
+      42
+     ],
+     [
+      406,
+      42
+     ],
+     [
+      417,
+      42
+     ],
+     [
+      427,
+      42
+     ],
+     [
+      438,
+      42
+     ],
+     [
+      448,
+      43
+     ],
+     [
+      458,
+      44
+     ],
+     [
+      469,
+      45
+     ],
+     [
+      479,
+      46
+     ],
+     [
+      490,
+      48
+     ],
+     [
+      500,
+      50
+     ],
+     [
+      510,
+      52
+     ],
+     [
+      521,
+      55
+     ],
+     [
+      531,
+      57
+     ],
+     [
+      542,
+      60
+     ],
+     [
+      552,
+      64
+     ],
+     [
+      562,
+      67
+     ],
+     [
+      573,
+      71
+     ],
+     [
+      583,
+      75
+     ],
+     [
+      594,
+      79
+     ],
+     [
+      604,
+      84
+     ],
+     [
+      615,
+      89
+     ],
+     [
+      625,
+      94
+     ],
+     [
+      635,
+      99
+     ],
+     [
+      646,
+      105
+     ],
+     [
+      656,
+      111
+     ],
+     [
+      667,
+      117
+     ],
+     [
+      677,
+      123
+     ],
+     [
+      687,
+      130
+     ],
+     [
+      698,
+      137
+     ],
+     [
+      708,
+      144
+     ],
+     [
+      719,
+      151
+     ],
+     [
+      729,
+      159
+     ],
+     [
+      740,
+      167
+     ],
+     [
+      750,
+      175
+     ],
+     [
+      760,
+      183
+     ],
+     [
+      771,
+      192
+     ],
+     [
+      781,
+      201
+     ],
+     [
+      792,
+      210
+     ],
+     [
+      802,
+      220
+     ],
+     [
+      813,
+      230
+     ],
+     [
+      823,
+      240
+     ],
+     [
+      833,
       250
-     ],
-     [
-      0,
-      336
-     ]
-    ]
-   },
-   {
-    "entityId": "range",
-    "kind": "line",
-    "dashed": true,
-    "points": [
-     [
-      1000,
-      250
-     ],
-     [
-      1000,
-      336
      ]
     ]
    },
@@ -747,6 +1215,6 @@
     ]
    }
   ],
-  "inkHash": "cdd8c6e5e2e3"
+  "inkHash": "5f76dc8b9f28"
  }
 }

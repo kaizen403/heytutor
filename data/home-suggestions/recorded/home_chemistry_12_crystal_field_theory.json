@@ -1,0 +1,603 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_12_crystal_field_theory.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "no drawing asked for; lesson correct; the refusal looks false and is reported separately"
+ },
+ "selection": {
+  "question": "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "chemistry",
+   "question": "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin.",
+   "givens": [],
+   "unknowns": [
+    {
+     "id": "u1",
+     "symbol": "mu_Fe",
+     "unit": "BM"
+    },
+    {
+     "id": "u2",
+     "symbol": "mu_Co",
+     "unit": "BM"
+    }
+   ],
+   "derived": [
+    {
+     "id": "u1",
+     "symbol": "mu_Fe",
+     "value": 1.7320508075688772,
+     "unit": "BM",
+     "provenance": "derived",
+     "dependsOn": [
+      "d1"
+     ],
+     "sourceText": "sqrt(1(1+2)) = sqrt(3) = 1.73205080757 BM"
+    },
+    {
+     "id": "u2",
+     "symbol": "mu_Co",
+     "value": 4.898979485566356,
+     "unit": "BM",
+     "provenance": "derived",
+     "dependsOn": [
+      "d3"
+     ],
+     "sourceText": "sqrt(4(4+2)) = sqrt(24) = 4.89897948557 BM"
+    },
+    {
+     "id": "d1",
+     "symbol": "n_Fe",
+     "value": 1,
+     "provenance": "derived",
+     "dependsOn": [],
+     "sourceText": "d5 low spin t2g^5 eg^0 gives one unpaired electron"
+    },
+    {
+     "id": "d3",
+     "symbol": "n_Co",
+     "value": 4,
+     "provenance": "derived",
+     "dependsOn": [],
+     "sourceText": "d6 high spin t2g^4 eg^2 gives four unpaired electrons"
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "[Fe(CN)6]3- is low spin: strong-field CN- gives large splitting, so d5 pairs up as t2g^5 eg^0 with one unpaired electron.",
+     "expected": "mu = sqrt(n(n+2)) = sqrt(3) = 1.73 BM",
+     "relatedQuantityIds": [
+      "d1",
+      "u1"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "[CoF6]3- is high spin: weak-field F- gives small splitting, so d6 stays as t2g^4 eg^2 with four unpaired electrons.",
+     "expected": "mu = sqrt(n(n+2)) = sqrt(24) = 4.90 BM",
+     "relatedQuantityIds": [
+      "d3",
+      "u2"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "Of the two complexes, [CoF6]3- is the high-spin one.",
+     "expected": "high spin = [CoF6]3-",
+     "relatedQuantityIds": [
+      "d3"
+     ]
+    }
+   ],
+   "lawIds": [
+    "spin-only magnetic moment mu = sqrt(n(n+2)) BM",
+    "crystal field splitting in octahedral complexes",
+    "spectrochemical series: CN- strong field, F- weak field"
+   ],
+   "assumptions": [
+    "Both complexes are octahedral (six monodentate ligands).",
+    "Spin-only formula ignores orbital contribution.",
+    "Removed 2 invalid planner dependency references.",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fAskFe",
+     "kind": "requested",
+     "statement": "spin-only magnetic moment of [Fe(CN)6]3- requested",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 49,
+      "quote": "Find the spin only magnetic moment of [Fe(CN)6]3-"
+     }
+    },
+    {
+     "id": "fAskCo",
+     "kind": "requested",
+     "statement": "spin-only magnetic moment of [CoF6]3- requested",
+     "evidence": {
+      "source": "question",
+      "start": 54,
+      "end": 62,
+      "quote": "[CoF6]3-"
+     }
+    },
+    {
+     "id": "fAskHS",
+     "kind": "requested",
+     "statement": "identify which complex is high spin",
+     "evidence": {
+      "source": "question",
+      "start": 67,
+      "end": 89,
+      "quote": "say which is high spin"
+     }
+    },
+    {
+     "id": "fCN",
+     "kind": "assumption",
+     "statement": "CN- is strong field ligand, low spin d5",
+     "evidence": {
+      "source": "question",
+      "start": 38,
+      "end": 49,
+      "quote": "[Fe(CN)6]3-"
+     }
+    },
+    {
+     "id": "fF",
+     "kind": "assumption",
+     "statement": "F- is weak field ligand, high spin d6",
+     "evidence": {
+      "source": "question",
+      "start": 54,
+      "end": 62,
+      "quote": "[CoF6]3-"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "feComplex",
+     "kind": "other",
+     "label": "[Fe(CN)6]3-",
+     "evidenceFactIds": [
+      "fAskFe",
+      "fCN"
+     ]
+    },
+    {
+     "id": "coComplex",
+     "kind": "other",
+     "label": "[CoF6]3-",
+     "evidenceFactIds": [
+      "fAskCo",
+      "fF"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eMuFe",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fAskFe",
+      "fCN"
+     ],
+     "root": {
+      "kind": "call",
+      "function": "sqrt",
+      "argument": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 1
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 1
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "eMuCo",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fAskCo",
+      "fF"
+     ],
+     "root": {
+      "kind": "call",
+      "function": "sqrt",
+      "argument": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iDorb",
+     "kind": "conceptual",
+     "entityIds": [
+      "feComplex",
+      "coComplex"
+     ],
+     "evidenceFactIds": [
+      "fCN",
+      "fF"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sMuFe",
+     "kind": "evaluate",
+     "expressionId": "eMuFe",
+     "resultBinding": {
+      "turnPlanQuantityId": "u1",
+      "symbol": "mu_Fe",
+      "unit": "BM",
+      "evidenceFactIds": [
+       "fAskFe"
+      ]
+     }
+    },
+    {
+     "id": "sMuCo",
+     "kind": "evaluate",
+     "expressionId": "eMuCo",
+     "resultBinding": {
+      "turnPlanQuantityId": "u2",
+      "symbol": "mu_Co",
+      "unit": "BM",
+      "evidenceFactIds": [
+       "fAskCo"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "chem_cft"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "rectangle"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": [
+    "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fAskFe",
+      "kind": "requested",
+      "statement": "spin-only magnetic moment of [Fe(CN)6]3- requested",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 49,
+       "quote": "Find the spin only magnetic moment of [Fe(CN)6]3-"
+      }
+     },
+     {
+      "id": "fAskCo",
+      "kind": "requested",
+      "statement": "spin-only magnetic moment of [CoF6]3- requested",
+      "evidence": {
+       "source": "question",
+       "start": 54,
+       "end": 62,
+       "quote": "[CoF6]3-"
+      }
+     },
+     {
+      "id": "fAskHS",
+      "kind": "requested",
+      "statement": "identify which complex is high spin",
+      "evidence": {
+       "source": "question",
+       "start": 67,
+       "end": 89,
+       "quote": "say which is high spin"
+      }
+     },
+     {
+      "id": "fCN",
+      "kind": "assumption",
+      "statement": "CN- is strong field ligand, low spin d5",
+      "evidence": {
+       "source": "question",
+       "start": 38,
+       "end": 49,
+       "quote": "[Fe(CN)6]3-"
+      }
+     },
+     {
+      "id": "fF",
+      "kind": "assumption",
+      "statement": "F- is weak field ligand, high spin d6",
+      "evidence": {
+       "source": "question",
+       "start": 54,
+       "end": 62,
+       "quote": "[CoF6]3-"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "feComplex",
+      "kind": "other",
+      "label": "[Fe(CN)6]3-",
+      "evidenceFactIds": [
+       "fAskFe",
+       "fCN"
+      ]
+     },
+     {
+      "id": "coComplex",
+      "kind": "other",
+      "label": "[CoF6]3-",
+      "evidenceFactIds": [
+       "fAskCo",
+       "fF"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eMuFe",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fAskFe",
+       "fCN"
+      ],
+      "root": {
+       "kind": "call",
+       "function": "sqrt",
+       "argument": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 1
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "+",
+         "left": {
+          "kind": "number",
+          "value": 1
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       }
+      }
+     },
+     {
+      "id": "eMuCo",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fAskCo",
+       "fF"
+      ],
+      "root": {
+       "kind": "call",
+       "function": "sqrt",
+       "argument": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "+",
+         "left": {
+          "kind": "number",
+          "value": 4
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iDorb",
+      "kind": "conceptual",
+      "entityIds": [
+       "feComplex",
+       "coComplex"
+      ],
+      "evidenceFactIds": [
+       "fCN",
+       "fF"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sMuFe",
+      "kind": "evaluate",
+      "expressionId": "eMuFe",
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "mu_Fe",
+       "unit": "BM",
+       "evidenceFactIds": [
+        "fAskFe"
+       ]
+      }
+     },
+     {
+      "id": "sMuCo",
+      "kind": "evaluate",
+      "expressionId": "eMuCo",
+      "resultBinding": {
+       "turnPlanQuantityId": "u2",
+       "symbol": "mu_Co",
+       "unit": "BM",
+       "evidenceFactIds": [
+        "fAskCo"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sMuFe",
+      "requestId": "sMuFe",
+      "valueType": "scalar",
+      "approximate": 1.7320508075688772,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sMuCo",
+      "requestId": "sMuCo",
+      "valueType": "scalar",
+      "approximate": 4.898979485566356,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sMuFe",
+      "requestId": "sMuFe",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMuFe"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sMuCo",
+      "requestId": "sMuCo",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMuCo"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

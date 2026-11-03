@@ -13,8 +13,10 @@
  * Personalized cards written by the model per student are not covered: only
  * their shape is gated, in verify-landing-suggestions.
  *
- * `--allow-unjudged` reports cards with no recording instead of failing, for
- * use only until the first judged round lands. Everything else stays strict.
+ * `--allow-unjudged` exempts only the cards in PARTIAL_FIGURES, which drew a
+ * figure judged partial: true, but missing something or hard to read. Each needs
+ * a right figure or to leave the home screen. Any other card without a judged
+ * recording still fails.
  */
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -34,6 +36,12 @@ import {
   type FigureSignature,
   type HomeSuggestionRecording,
 } from "../lecture-lab/homeSuggestionCheck";
+
+const PARTIAL_FIGURES: ReadonlyMap<string, string> = new Map([
+  ["Explain how capacitance changes when a dielectric is inserted between parallel plates.", "the slab cannot be told apart from the plates, and its label sits by the gap arrow"],
+  ["Derive the relation between wave speed, frequency, and wavelength using a traveling wave.", "no direction of travel, and a stray axis label reads as y minus x"],
+  ["Explain what dy/dx means geometrically, then show how to differentiate y = x³ − 4x.", "the geometry is exact, but the curve's equation sits on the tangent line"],
+]);
 
 const failures: string[] = [];
 const unjudged: string[] = [];
@@ -61,7 +69,7 @@ const recordings = new Map<string, HomeSuggestionRecording>();
 for (const row of rows) {
   const path = join(RECORDINGS_DIR, `${labArtifactSlug(row.id)}.json`);
   if (!existsSync(path)) {
-    (allowUnjudged ? unjudged : failures).push(`no judged recording for: ${row.question}`);
+    (allowUnjudged && PARTIAL_FIGURES.has(row.question) ? unjudged : failures).push(`no judged recording for: ${row.question}`);
     continue;
   }
   const recording = JSON.parse(readFileSync(path, "utf8")) as HomeSuggestionRecording;
@@ -79,6 +87,13 @@ for (const row of rows) {
 const known = new Set(rows.map((row) => `${labArtifactSlug(row.id)}.json`));
 for (const file of existsSync(RECORDINGS_DIR) ? readdirSync(RECORDINGS_DIR) : []) {
   if (file.endsWith(".json") && !known.has(file)) failures.push(`recording for a card that no longer shows: ${file}`);
+}
+
+// The partial list only shrinks: every entry is a live card still without a judged figure.
+const shownQuestions = new Set(shown.map((card) => card.question));
+for (const question of PARTIAL_FIGURES.keys()) {
+  if (!shownQuestions.has(question)) failures.push(`partial list names a card that no longer shows: ${question}`);
+  if (recordings.has(question)) failures.push(`partial list names a card that now has a judged recording: ${question}`);
 }
 
 // 3. Today's engine draws exactly what was judged.

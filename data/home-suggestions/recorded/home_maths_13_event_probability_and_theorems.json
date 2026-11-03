@@ -1,0 +1,360 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Two fair dice are rolled. Find the probability that their sum is 8.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_13_event_probability_and_theorems.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "ordered list does the work of a grid"
+ },
+ "selection": {
+  "question": "Two fair dice are rolled. Find the probability that their sum is 8.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "Two fair dice are rolled. Find the probability that their sum is 8.",
+   "givens": [
+    {
+     "id": "g1",
+     "symbol": "n_dice",
+     "value": 2,
+     "unit": "dice",
+     "sourceText": "Two fair dice are rolled",
+     "provenance": "given"
+    },
+    {
+     "id": "g2",
+     "symbol": "sides",
+     "value": 6,
+     "unit": "faces",
+     "sourceText": "standard fair dice",
+     "provenance": "given"
+    },
+    {
+     "id": "g3",
+     "symbol": "target_sum",
+     "value": 8,
+     "sourceText": "sum is 8",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "u1",
+     "symbol": "P_sum8",
+     "unit": "probability"
+    }
+   ],
+   "derived": [
+    {
+     "id": "d3",
+     "symbol": "P_sum8",
+     "value": 0.1389,
+     "sourceText": "5/36 ≈ 0.1389",
+     "provenance": "derived",
+     "dependsOn": [
+      "d1",
+      "d2"
+     ]
+    },
+    {
+     "id": "d1",
+     "symbol": "total_outcomes",
+     "value": 36,
+     "sourceText": "6 × 6 = 36",
+     "provenance": "derived",
+     "dependsOn": [
+      "g1",
+      "g2"
+     ]
+    },
+    {
+     "id": "d2",
+     "symbol": "favorable_outcomes",
+     "value": 5,
+     "sourceText": "(2,6),(3,5),(4,4),(5,3),(6,2) = 5",
+     "provenance": "derived",
+     "dependsOn": [
+      "g3"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Favorable ordered pairs summing to 8",
+     "expected": "(2,6), (3,5), (4,4), (5,3), (6,2)",
+     "relatedQuantityIds": [
+      "d2",
+      "g3"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "Probability as exact fraction",
+     "expected": "P(sum=8) = 5/36",
+     "relatedQuantityIds": [
+      "u1",
+      "d3"
+     ]
+    }
+   ],
+   "lawIds": [
+    "classical_probability",
+    "counting_principle"
+   ],
+   "assumptions": [
+    "Standard six-sided dice",
+    "Dice are fair and independent",
+    "Ordered outcomes (die1, die2) are equally likely"
+   ],
+   "visualRequirement": "none"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fDice",
+     "kind": "given",
+     "statement": "Two fair dice are rolled",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 24,
+      "quote": "Two fair dice are rolled"
+     }
+    },
+    {
+     "id": "fSum",
+     "kind": "given",
+     "statement": "target sum is 8",
+     "evidence": {
+      "source": "question",
+      "start": 58,
+      "end": 66,
+      "quote": "sum is 8"
+     }
+    },
+    {
+     "id": "fProb",
+     "kind": "requested",
+     "statement": "probability that their sum is 8",
+     "evidence": {
+      "source": "question",
+      "start": 26,
+      "end": 66,
+      "quote": "Find the probability that their sum is 8"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "dice",
+     "kind": "other",
+     "label": "two fair dice",
+     "evidenceFactIds": [
+      "fDice"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eProb",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fDice",
+      "fSum"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 5
+      },
+      "right": {
+       "kind": "number",
+       "value": 36
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [],
+   "solveRequests": [
+    {
+     "id": "sProb",
+     "kind": "evaluate",
+     "expressionId": "eProb"
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Two fair dice are rolled. Find the probability that their sum is 8."
+  },
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fDice",
+      "kind": "given",
+      "statement": "Two fair dice are rolled",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 24,
+       "quote": "Two fair dice are rolled"
+      }
+     },
+     {
+      "id": "fSum",
+      "kind": "given",
+      "statement": "target sum is 8",
+      "evidence": {
+       "source": "question",
+       "start": 58,
+       "end": 66,
+       "quote": "sum is 8"
+      }
+     },
+     {
+      "id": "fProb",
+      "kind": "requested",
+      "statement": "probability that their sum is 8",
+      "evidence": {
+       "source": "question",
+       "start": 26,
+       "end": 66,
+       "quote": "Find the probability that their sum is 8"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "dice",
+      "kind": "other",
+      "label": "two fair dice",
+      "evidenceFactIds": [
+       "fDice"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eProb",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fDice",
+       "fSum"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 5
+       },
+       "right": {
+        "kind": "number",
+        "value": 36
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [
+     {
+      "id": "sProb",
+      "kind": "evaluate",
+      "expressionId": "eProb"
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Two fair dice are rolled. Find the probability that their sum is 8."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sProb",
+      "requestId": "sProb",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "5/36"
+      },
+      "approximate": 0.1388888888888889,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sProb",
+      "requestId": "sProb",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eProb"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

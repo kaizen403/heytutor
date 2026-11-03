@@ -492,9 +492,12 @@ that card again, look at the render, and record it again, or replace the card
 with one the lab proves draws a right figure. A card is chosen only because the
 general engine already draws it right; never add a template for one.
 
-The gate is registered with `--allow-unjudged`, which reports a card with no
-recording instead of failing, only until the first judged round lands. That
-round's PR removes the flag.
+The gate is registered with `--allow-unjudged`, which exempts only the cards in
+its `PARTIAL_FIGURES` list: they drew a figure that is true but missing something
+or hard to read. Any other card with no recording still fails. An entry leaves
+the list when its card draws a figure judged right, or leaves the home screen.
+Each card ran once for its recording, so a recording proves what today's engine
+does with that planner document, not that a fresh planner run draws it again.
 
 ## The DSA lane
 

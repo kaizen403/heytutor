@@ -1,0 +1,498 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Derive the energy of an electron in the nth Bohr orbit of hydrogen.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_2_hydrogen_spectrum_and_bohr_model.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "derivation does not ask for a drawing"
+ },
+ "selection": {
+  "question": "Derive the energy of an electron in the nth Bohr orbit of hydrogen.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "physics",
+   "question": "Derive the energy of an electron in the nth Bohr orbit of hydrogen.",
+   "givens": [
+    {
+     "id": "g1",
+     "symbol": "m",
+     "value": 9.1093837e-31,
+     "unit": "kg",
+     "sourceText": "electron mass",
+     "provenance": "given"
+    },
+    {
+     "id": "g2",
+     "symbol": "e",
+     "value": 1.602176634e-19,
+     "unit": "C",
+     "sourceText": "elementary charge",
+     "provenance": "given"
+    },
+    {
+     "id": "g3",
+     "symbol": "h",
+     "value": 6.62607015e-34,
+     "unit": "J s",
+     "sourceText": "Planck constant",
+     "provenance": "given"
+    },
+    {
+     "id": "g4",
+     "symbol": "eps0",
+     "value": 8.8541878128e-12,
+     "unit": "F/m",
+     "sourceText": "vacuum permittivity",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "u1",
+     "symbol": "E_n",
+     "unit": "J"
+    },
+    {
+     "id": "u2",
+     "symbol": "E_n_eV",
+     "unit": "eV"
+    }
+   ],
+   "derived": [
+    {
+     "id": "d1",
+     "symbol": "E_1",
+     "value": -2.1798724e-18,
+     "unit": "J",
+     "sign": "negative",
+     "sourceText": "E_1 = -m e^4 / (8 eps0^2 h^2) = -(9.1093837e-31)(1.602176634e-19)^4 / (8 (8.8541878128e-12)^2 (6.62607015e-34)^2)",
+     "provenance": "derived",
+     "dependsOn": [
+      "g1",
+      "g2",
+      "g3",
+      "g4"
+     ]
+    },
+    {
+     "id": "d2",
+     "symbol": "E_1_eV",
+     "value": -13.605693365766562,
+     "unit": "eV",
+     "sign": "negative",
+     "sourceText": "E_1 / e = -2.1798724e-18 / 1.602176634e-19 = -13.6056933658 eV",
+     "provenance": "derived",
+     "dependsOn": [
+      "d1",
+      "g2"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Centripetal force is supplied by Coulomb attraction: m v^2 / r = (1/(4 pi eps0)) e^2 / r^2.",
+     "expected": "m v^2 / r = e^2 / (4 pi eps0 r^2)",
+     "relatedQuantityIds": [
+      "g1",
+      "g2",
+      "g4"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "Bohr quantisation of angular momentum: m v r = n h / (2 pi) = n hbar.",
+     "expected": "m v r = n hbar",
+     "relatedQuantityIds": [
+      "g1",
+      "g3"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "Solving the two equations gives the orbit radius r_n = eps0 h^2 n^2 / (pi m e^2) = n^2 a_0, with a_0 = 5.29e-11 m.",
+     "expected": "r_n = n^2 a_0",
+     "relatedQuantityIds": [
+      "g1",
+      "g2",
+      "g3",
+      "g4"
+     ]
+    },
+    {
+     "id": "c4",
+     "claim": "Total energy is kinetic plus potential: E = (1/2) m v^2 - e^2/(4 pi eps0 r); the virial relation gives E = -e^2/(8 pi eps0 r), half the potential energy.",
+     "expected": "E_n = -e^2 / (8 pi eps0 r_n)",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c5",
+     "claim": "Substituting r_n yields the Bohr energy levels E_n = -m e^4 / (8 eps0^2 h^2 n^2) = -13.6 eV / n^2.",
+     "expected": "E_n = -m e^4 / (8 eps0^2 h^2) * 1/n^2 = -13.605693 eV / n^2",
+     "relatedQuantityIds": [
+      "u1",
+      "u2",
+      "d1",
+      "d2"
+     ]
+    },
+    {
+     "id": "c6",
+     "claim": "The negative sign means the electron is bound; energy rises toward zero as n increases and ionisation from level n requires +13.6 eV/n^2.",
+     "expected": "E_n < 0, E_n -> 0 as n -> infinity",
+     "relatedQuantityIds": [
+      "u1",
+      "d2"
+     ]
+    }
+   ],
+   "lawIds": [
+    "Coulomb's law",
+    "Newton's second law for circular motion (centripetal force)",
+    "Bohr angular momentum quantisation",
+    "classical kinetic and potential energy",
+    "virial relation for Coulomb orbits"
+   ],
+   "assumptions": [
+    "Non-relativistic electron in circular orbit",
+    "Nucleus infinitely massive and fixed (no reduced-mass correction)",
+    "Hydrogen atom: single electron, nuclear charge +e",
+    "Electrostatics in vacuum with permittivity eps0",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fDerive",
+     "kind": "requested",
+     "statement": "derive energy of electron in nth Bohr orbit",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 67,
+      "quote": "Derive the energy of an electron in the nth Bohr orbit of hydrogen."
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "electron",
+     "kind": "body",
+     "label": "electron",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    },
+    {
+     "id": "nucleus",
+     "kind": "point",
+     "label": "hydrogen nucleus",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    },
+    {
+     "id": "orbit",
+     "kind": "curve",
+     "label": "nth Bohr orbit",
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    }
+   ],
+   "expressions": [],
+   "constraints": [
+    {
+     "id": "cOrbit",
+     "kind": "incident",
+     "entityIds": [
+      "electron",
+      "orbit"
+     ],
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    }
+   ],
+   "representationIntents": [
+    {
+     "id": "iOrbit",
+     "kind": "conceptual",
+     "entityIds": [
+      "electron",
+      "nucleus",
+      "orbit"
+     ],
+     "evidenceFactIds": [
+      "fDerive"
+     ]
+    }
+   ],
+   "solveRequests": [],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Derive the energy of an electron in the nth Bohr orbit of hydrogen."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "chem_orbital"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "elastic_profile",
+    "elastic_state",
+    "rectangle",
+    "circle",
+    "vector_components",
+    "surface_contact",
+    "right_angle_mark",
+    "rotate",
+    "arc",
+    "midpoint",
+    "rotational_motion",
+    "rotational_state",
+    "planar_torque",
+    "harmonic_motion",
+    "harmonic_state",
+    "gravitational_field",
+    "gravitational_force",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "vector_sum",
+    "vector_scale",
+    "vector_projection",
+    "free_body",
+    "coupled_bodies",
+    "vertical_circle",
+    "mechanical_energy_pair",
+    "work_interval",
+    "spring_energy",
+    "potential_curve",
+    "collision",
+    "incline_friction",
+    "uniform_circular_motion",
+    "projectile_trajectory",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "function_region",
+    "intersection",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "motion_graph",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency",
+    "electric_field",
+    "field_components",
+    "coulomb_pair",
+    "point_charge_field",
+    "field_lines",
+    "dipole_field",
+    "dipole_torque",
+    "equipotential",
+    "dipole_energy",
+    "line_charge_field",
+    "gauss_flux",
+    "wire_field",
+    "loop_field",
+    "magnetic_force",
+    "magnetic_components",
+    "current_element_field",
+    "conductor_force",
+    "parallel_wire_force",
+    "magnetic_dipole_field",
+    "solenoid_field",
+    "loop_torque",
+    "galvanometer",
+    "bar_magnet",
+    "cyclotron"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "perpendicular",
+    "opposite_direction",
+    "connected",
+    "parallel",
+    "angle_between",
+    "on",
+    "equal_length",
+    "function_value",
+    "root",
+    "incident",
+    "between",
+    "collinear",
+    "distance_ratio",
+    "ordered_along"
+   ],
+   "planningGuidance": [
+    "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
+    "Place each named charge or current-carrying wire as a point or line. Field and force vectors share those IDs. Compute point-charge fields with electric_field and field_components; schematic mode expresses direction, SI mode requires explicit consistent length and charge units. Uniform line charges use line_charge_field; spherical Gauss flux uses gauss_flux; straight-wire and loop-center B fields use wire_field and loop_field with their explicit current sign conventions. Use current_element_field for a wire, arc, or loop field, conductor_force for I L cross B, loop_torque for I(A cross B), cyclotron for mv/(|q|B), and solenoid_field, magnetic_dipole_field, galvanometer, or bar_magnet only with explicit source values. Circular field geometry around a wire is a circle, not a guessed arc family. Prove collinearity, opposite directions, or perpendicularity named by the question.",
+    "Draw energy or stopping-potential as an axis-aligned level diagram. Semiconductor topics reuse the same stacked levels: valence and conduction bands, optional donor/acceptor levels, and a p–n depletion region as adjacent regions on one axis. Transitions are segments or vectors between shared level IDs. Do not invent a circuit or a ray path for a photoelectric/Bohr energy balance; a device I–V curve is a state plot.",
+    "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fDerive",
+      "kind": "requested",
+      "statement": "derive energy of electron in nth Bohr orbit",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 67,
+       "quote": "Derive the energy of an electron in the nth Bohr orbit of hydrogen."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "electron",
+      "kind": "body",
+      "label": "electron",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     },
+     {
+      "id": "nucleus",
+      "kind": "point",
+      "label": "hydrogen nucleus",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     },
+     {
+      "id": "orbit",
+      "kind": "curve",
+      "label": "nth Bohr orbit",
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [
+     {
+      "id": "cOrbit",
+      "kind": "incident",
+      "entityIds": [
+       "electron",
+       "orbit"
+      ],
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     }
+    ],
+    "representationIntents": [
+     {
+      "id": "iOrbit",
+      "kind": "conceptual",
+      "entityIds": [
+       "electron",
+       "nucleus",
+       "orbit"
+      ],
+      "evidenceFactIds": [
+       "fDerive"
+      ]
+     }
+    ],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Derive the energy of an electron in the nth Bohr orbit of hydrogen."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "planner",
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace",
+    "verified_recovery"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}
