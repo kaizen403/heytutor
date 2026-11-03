@@ -208,11 +208,22 @@ assert(
   firstFallback.length === 5 && nextFallback.length === 5,
   "fallback always fills five cards",
 );
+// Physics has 5 measured cards, and any 4 of 5 share at least 3. Restore "no card
+// in common" when physics is back to 8 measured cards.
 assert(
-  firstFallback.every(
-    (card) => !nextFallback.some((next) => next.question === card.question),
+  firstFallback.filter((card) =>
+    nextFallback.some((next) => next.question === card.question),
+  ).length <= 3,
+  "the first two fallback reloads must each show new cards",
+);
+assert(
+  fallbackHomeSuggestions(["maths"], 0).every(
+    (card) =>
+      !fallbackHomeSuggestions(["maths"], 1).some(
+        (next) => next.question === card.question,
+      ),
   ),
-  "the first two fallback reloads show different cards",
+  "a subject with 8 measured cards shows no card twice across two reloads",
 );
 
 const samplePacks = Array.from(
