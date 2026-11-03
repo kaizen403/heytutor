@@ -856,9 +856,13 @@ const NITROPHENOL_PAIR_ASKS: readonly RegExp[] = [
   new RegExp(String.raw`^${ASK_NUMBERING}${ORTHO_ISOMER}\s+is\s+(?:steam\s+volatile|volatile)\s+(?:but|and|while|whereas)\s+${PARA_ISOMER}\s+is\s+not[.,]?\s+${ISOMER_EXPLAIN}$`),
 ];
 
-/** Every spelling, for the guards a hyphen must not skip. `hydrogenBondAsked` stays literal, so the Lewis cue does not widen. */
+/**
+ * Every spelling, for the guards a hyphen must not skip. `hydrogenBondAsked` stays
+ * literal, so the Lewis cue does not widen. "H-bond" must stand alone: "C-H bond"
+ * and "O-H bond" are covalent bonds, and those stems keep their figures.
+ */
 export function mentionsHydrogenBond(stem: string): boolean {
-  return /hydrogen[\s-]*bond|\bh[\s-]bond/.test(stem);
+  return /hydrogen[\s-]*bond|(?:^|[\s(])h-bond/.test(stem);
 }
 
 /**

@@ -9,6 +9,7 @@
  */
 import assert from "node:assert/strict";
 import "../../src/chemistry/families";
+import { mentionsHydrogenBond } from "../../src/chemistry/bondingFigures";
 import { buildLewisScene } from "../../src/chemistry/lewis";
 import { parseFormula } from "../../src/chemistry/formula";
 import { isChemistryQuestion, inferChemistryFamilies } from "../../src/chemistry/router";
@@ -447,6 +448,23 @@ for (const [question, family] of [
   ["Draw the structure of 2,4-dinitrophenol and explain its hydrogen bonding.", "chem_organic"],
 ] as const) {
   check(`keeps its own figure: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, family));
+}
+// A covalent bond to hydrogen is not a hydrogen bond: "C-H bond" must not trip any guard.
+check("covalent X-H bonds are not hydrogen bond asks", () => {
+  for (const stem of ["sigma c-h bonds in ethene", "the o-h bond in ethanol", "n-h bonds in methanamine", "s-h bond", "h-h bond in h2", "c-h bond"]) {
+    assert.equal(mentionsHydrogenBond(stem), false, stem);
+  }
+  for (const stem of ["h-bond in water", "an h-bond", "(h-bond)", "hydrogen-bond", "hydrogen bond", "hydrogen bonding"]) {
+    assert.equal(mentionsHydrogenBond(stem), true, stem);
+  }
+});
+for (const [question, family] of [
+  ["How many hyperconjugation structures involving C-H bonds can be written for the tert-butyl carbocation, (CH3)3C+, and for propene, CH3-CH=CH2? Which of the two is stabilised more by hyperconjugation?", "chem_organic"],
+  ["How many O-H bonds does ethanol have? Draw its structure.", "chem_organic"],
+  ["How many sigma C-H bonds does ethene have? Draw its structure.", "chem_organic"],
+  ["lewis structure of water showing its O-H bonds", "chem_lewis"],
+] as const) {
+  check(`an X-H bond keeps its figure: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, family));
 }
 check("declined asks keep their chemistry route and family inference", () => {
   const question = "Energy profile of hydrogen bond formation in water";
