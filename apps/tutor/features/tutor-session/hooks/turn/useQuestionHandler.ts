@@ -2023,15 +2023,15 @@ export function useQuestionHandler(
         const waitStartedAt = Date.now();
         if (!referencePicturePending) startReferencePicture(false);
         const pending = referencePicturePending!;
-        // Saved before the wait: Stop or a closed tab saves the turn before this
-        // code can run again, so only this tells a stop during the wait apart.
+        // On the page before the wait: Stop saves the turn before this code can
+        // run again, so only this tells a stop during the wait apart.
         page.turn.scene = page.turn.scene ? {
           ...page.turn.scene,
           sceneArtifacts: {
             ...sceneArtifacts,
             referencePictureOutcome: {
               attempted: true, status: "skipped", reason: "wait_in_progress",
-              ms: waitStartedAt - pending.startedAt, speculative: pending.speculative,
+              ms: Math.max(0, waitStartedAt - pending.startedAt), speculative: pending.speculative,
             } satisfies ReferencePictureOutcome,
           },
         } : page.turn.scene;

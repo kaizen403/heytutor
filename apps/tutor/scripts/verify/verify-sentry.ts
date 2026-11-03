@@ -245,6 +245,7 @@ function matchesWhere(row: FixtureTurn, where: Record<string, unknown>): boolean
     if (key === "sceneArtifacts" && expected !== null && typeof expected === "object" && "path" in expected && Array.isArray(expected.path)) {
       const value = expected.path.reduce((current: unknown, part: string) => current !== null && typeof current === "object"
         ? (current as Record<string, unknown>)[part] : undefined, actual);
+      if ("string_starts_with" in expected) return typeof value === "string" && value.startsWith(String(expected.string_starts_with));
       if ("equals" in expected && expected.equals === Prisma.AnyNull) return value === undefined || value === null;
       return "equals" in expected && value === expected.equals;
     }

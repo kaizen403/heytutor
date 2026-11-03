@@ -10,6 +10,8 @@
  */
 import { readFileSync } from "node:fs";
 import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
+import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import type { BoardPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { fileURLToPath } from "node:url";
 import {
   REFERENCE_PICTURE_ZONE,
@@ -280,6 +282,21 @@ async function main(): Promise<void> {
       check(failure.code === "candidate_invalid", `outcome after save, ${name}: the engine's reason survives`);
       check(saved.value.sceneArtifacts?.figureSource === "text_only" && saved.value.sceneArtifacts?.diagramResultStatus === "text_only", `outcome after save, ${name}: engine metrics stay text only`);
     }
+  }
+
+  // Stop during the picture wait: the page's in progress record reaches the save
+  // and survives it, and it is no picture.
+  const waitOutcome = { attempted: true, status: "skipped", reason: "wait_in_progress", ms: 0, speculative: false };
+  const stoppedPage = { turn: { kind: "lesson", scene: { sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: { ...artifacts(refused), referencePicture: undefined, referencePictureOutcome: waitOutcome } } }, figureDrawn: false, lessonQuestion: QUESTION } as unknown as BoardPageRecord;
+  const stoppedScene = liveTurnScene({ page: stoppedPage, kind: "lesson", preview: QUESTION, opensPage: true, status: "stopped", textOnly: false });
+  const stoppedSave = await canonicalizeTurnSceneMetadata(
+    { question: QUESTION, visualStatus: stoppedScene.visualStatus, sceneArtifacts: stoppedScene.sceneArtifacts, segments: [] },
+    { loadReferencePicture: loader },
+  );
+  check(stoppedSave.ok, `stop during the wait: save succeeds (${stoppedSave.ok ? "" : stoppedSave.error})`);
+  if (stoppedSave.ok) {
+    check((stoppedSave.value.sceneArtifacts as Record<string, { reason?: string }> | null)?.referencePictureOutcome?.reason === "wait_in_progress", "stop during the wait: the record is saved");
+    check(!stoppedSave.value.sceneArtifacts?.referencePicture, "stop during the wait: no picture is claimed");
   }
 
   // A resume under a picture an earlier turn drew: no passes of its own, so

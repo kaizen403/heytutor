@@ -263,6 +263,24 @@ async function main(): Promise<void> {
     }
     receipts.push("real Postgres keeps rows with no picture in the failed feed and drops only a stored picture over a figure refusal");
 
+    // A picture lesson whose tab vanished still gets its own report, and the
+    // lesson beside it with no picture still gets its failure report.
+    const abandonedAt = new Date();
+    const abandoned = await Promise.all([{ referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" } }, { degradation: { reason: "candidate_invalid" } }].map(async (sceneArtifacts, index) => {
+      const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex + index, question: "Synthetic abandoned lesson",
+        rawResponse: "Synthetic", status: "live", visualStatus: "text_only", sceneArtifacts,
+        segments: { create: { orderIndex: 0, narration: "Synthetic", spokenText: "Synthetic" } } } });
+      await db.$executeRaw`UPDATE turns SET updated_at = ${new Date(abandonedAt.getTime() - 5 * 60_000)} WHERE id = ${row.id}::uuid`;
+      return row.id;
+    }));
+    orderIndex += abandoned.length;
+    await reporter.queueAbandonedFailedTurns(abandonedAt, { env: fixtureEnvironment, startedAt: new Date(abandonedAt.getTime() - 60 * 60_000) });
+    const [abandonedPicture, abandonedFailure] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
+    assert.equal((abandonedPicture!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn picture shown", "an abandoned picture lesson is reported as a picture");
+    assert.equal((abandonedFailure!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "an abandoned lesson with no picture is still a failure");
+    await db.turn.deleteMany({ where: { id: { in: abandoned } } });
+    receipts.push("abandoned picture lessons queue their own report on real Postgres");
+
     // Legacy save paths could persist a completed, verified diagram without any
     // teaching rows. Its diagram status must not make the outbox strand it.
     const emptyComplete = await db.turn.create({ data: {

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { failedTurnWhere } from "../../lib/admin/turnFilters";
+import { FAILED_TURN_STAGES } from "../../lib/obs/failedTurnTelemetry";
 import { classifyOutcome } from "../../lib/admin/outcome";
 import { Prisma } from "@prisma/client";
-import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
+import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, engineRefusalReason, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
 
 type Fixture = TurnFailureInput & { name: string; expected: "failed" | "healthy" | "unverified" | "pending" | "picture_shown" };
 const narrative = [{ narration: "Synthetic teaching." }];
@@ -44,6 +46,12 @@ const fixtures: Fixture[] = [
   { name: "shown picture does not excuse an empty lesson", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, degradation: { reason: "candidate_invalid" } }, segments: [] },
   { name: "the browser saying shown is not a picture", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { referencePictureOutcome: picture.referencePictureOutcome, degradation: { reason: "candidate_invalid" } }, segments: narrative },
   { name: "a declined picture leaves the failure", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { referencePictureOutcome: { attempted: true, status: "declined", reason: "no_match", ms: 4_000, speculative: true }, degradation: { reason: "candidate_invalid" } }, segments: narrative },
+  { name: "an answered telemetry code does not hide an unanswered reason", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { code: "candidate_invalid" }, degradation: { reason: "solver_contradiction" } }, segments: narrative },
+  { name: "a planner request lost under a shown picture", expected: "picture_shown", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { stage: "scene_planner", code: "provider_error" } }, segments: narrative },
+  { name: "a plan request lost under a shown picture", expected: "picture_shown", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { stage: "turn_plan", code: "transport_error" } }, segments: narrative },
+  { name: "a teaching transport code under a shown picture still fails", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { stage: "teaching", code: "transport_error" } }, segments: narrative },
+  { name: "a transport code with no stage under a shown picture still fails", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { code: "provider_error" } }, segments: narrative },
+  { name: "a planner request lost with no picture still fails", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { failureTelemetry: { stage: "scene_planner", code: "provider_error" } }, segments: narrative },
   { name: "a retry required figure with no picture still fails", expected: "failed", visualStatus: "retry_required", status: "complete", sceneArtifacts: { referencePictureOutcome: { attempted: true, status: "skipped", reason: "wait_in_progress", ms: 0, speculative: false } }, segments: narrative },
 ];
 
@@ -103,6 +111,33 @@ for (const code of CONFIRMED_TURN_FAILURE_CODES) {
   assert.equal(matches(fixture, predicate), !answered, `${code} under a shown picture: query and classifier agree`);
   if (answered) assert.equal(classifyTurnFailure(fixture).code, code, `${code}: the engine's reason survives for its own report`);
 }
+// The engine's reason counts stay as they were, with or without a picture.
+assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { ...picture, degradation: { reason: "candidate_invalid" } } })), "candidate_invalid");
+assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { degradation: { reason: "candidate_invalid" } } })), "candidate_invalid");
+assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: picture })), null, "a picture with no refusal adds no reason");
+assert(readFileSync(new URL("../../lib/admin/overviewDistributions.ts", import.meta.url), "utf8").includes("const reason = engineRefusalReason(failure);"), "the overview counts through the same rule");
+// Every combination of code, stage and reason: the query and the classifier agree.
+assert.equal(classifyTurnFailure({ visualStatus: "retry_required", status: "complete", sceneArtifacts: picture, segments: narrative }).code, "required_visual_unavailable", "a required figure keeps its code in the picture report");
+let grid = 0;
+for (const telemetryCode of [undefined, ...CONFIRMED_TURN_FAILURE_CODES]) {
+  for (const stage of [undefined, ...FAILED_TURN_STAGES]) {
+    for (const reason of [undefined, ...CONFIRMED_TURN_FAILURE_CODES]) {
+      for (const shown of [false, true]) {
+        for (const visualStatus of ["text_only", "retry_required"]) {
+          const sceneArtifacts = {
+            ...(shown ? { referencePicture: picture.referencePicture } : {}),
+            ...(telemetryCode || stage ? { failureTelemetry: { ...(telemetryCode ? { code: telemetryCode } : {}), ...(stage ? { stage } : {}) } } : {}),
+            ...(reason ? { degradation: { reason } } : {}),
+          };
+          const row = { visualStatus, status: "complete", segments: narrative, sceneArtifacts };
+          assert.equal(matches(row, predicate), classifyTurnFailure(row).classification === "failed", `query and classifier: ${JSON.stringify(sceneArtifacts)} ${visualStatus}`);
+          grid++;
+        }
+      }
+    }
+  }
+}
+assert(grid > 10_000, "the grid really ran");
 for (const code of ["not_needed", "continuation", "unrecorded", "unknown"]) assert(!(CONFIRMED_TURN_FAILURE_CODES as readonly string[]).includes(code));
 const windowed = failedTurnWhere(new Date("2026-10-01T00:00:00.000Z"));
 assert(Array.isArray(windowed.AND) && windowed.AND.length === 2, "the time window cannot replace the failure predicate");

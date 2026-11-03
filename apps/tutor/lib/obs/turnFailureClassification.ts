@@ -20,6 +20,13 @@ export const PICTURE_ANSWERED_FAILURE_CODES = [
   "turn_plan_rejected", "problem_ir_invalid", "scene_planner_invalid", "planner_deadline", "planner_declined",
   "fallback_suppressed", "scene_relevance_rejected", "valid_candidate_dropped",
 ] as const satisfies readonly ConfirmedTurnFailureCode[];
+/**
+ * A request that failed while planning the figure. The teaching path marks its
+ * own transport and provider errors `failed: true` or stage `teaching`, so at
+ * these stages the code says only that the figure was lost.
+ */
+export const PICTURE_ANSWERED_REQUEST_CODES = ["transport_error", "provider_error"] as const satisfies readonly ConfirmedTurnFailureCode[];
+export const PICTURE_ANSWERED_REQUEST_STAGES = ["turn_plan", "scene_planner"] as const;
 
 export interface TurnFailureInput {
   visualStatus?: string | null;
@@ -43,6 +50,15 @@ function record(value: unknown): Record<string, unknown> {
 function confirmedCode(value: unknown): ConfirmedTurnFailureCode | null {
   return typeof value === "string" && (CONFIRMED_TURN_FAILURE_CODES as readonly string[]).includes(value)
     ? value as ConfirmedTurnFailureCode : null;
+}
+
+/**
+ * The reason an engine metric counts for this turn. A shown picture keeps the
+ * engine's refusal: to the engine that lesson is still text only.
+ */
+export function engineRefusalReason(failure: TurnFailureClassification): TurnFailureClassification["code"] | "unrecorded" | null {
+  if (failure.classification === "failed") return failure.code ?? "unrecorded";
+  return failure.classification === "picture_shown" ? failure.code : null;
 }
 
 /**
@@ -71,10 +87,13 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
     const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
     // Only the server writes `referencePicture`, and only after rebuilding the
     // picture's ink from its record. The browser's own outcome is not evidence.
-    if (typeof record(artifacts.referencePicture).id === "string" &&
-      [confirmedCode(telemetry.code), confirmedCode(record(artifacts.degradation).reason)]
-        .every((value) => value === null || (PICTURE_ANSWERED_FAILURE_CODES as readonly string[]).includes(value))) {
-      return verdict("picture_shown", code);
+    const telemetryCode = confirmedCode(telemetry.code);
+    const degradationReason = confirmedCode(record(artifacts.degradation).reason);
+    const answered = (value: ConfirmedTurnFailureCode | null) => value === null || (PICTURE_ANSWERED_FAILURE_CODES as readonly string[]).includes(value);
+    const answeredRequest = (PICTURE_ANSWERED_REQUEST_CODES as readonly (string | null)[]).includes(telemetryCode) &&
+      (PICTURE_ANSWERED_REQUEST_STAGES as readonly unknown[]).includes(telemetry.stage);
+    if (typeof record(artifacts.referencePicture).id === "string" && (answered(telemetryCode) || answeredRequest) && answered(degradationReason)) {
+      return verdict("picture_shown", code ?? (input.visualStatus === "retry_required" ? "required_visual_unavailable" : null));
     }
     // The planner may skip a figure the plan did not require, or the engine
     // may have no figure tools for the subject. That taught lesson is the
