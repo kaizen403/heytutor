@@ -138,24 +138,24 @@ refused("right value against a false chain", { source: "I = 12 V/(12/11) = 99 A"
 refusedOr("false value, true chain", { source: "I = 12 V/(12/11) = 11 A", value: 99, unit: "A", givens: VOLTS }, 11);
 
 // A comma before a new statement ends the one before it.
-refusedOr("next quantity after a comma", { source: "x = 23375, SP = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
-refusedOr("words as the next head", { source: "x = 23375, selling price = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
+refusedOr("next quantity after a comma", { source: "x = 18000, SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
+refusedOr("words as the next head", { source: "x = 18000, selling price = 0.9 × 18000 = 16200", value: 18000 }, 18000);
 refusedOr("three statements", { source: "v = 3, t = 2, d = 3 × 2 = 6", value: 6, symbol: "d" }, 6);
 refusedOr("own arithmetic first", { source: "x = 3 × 4 = 12, y = 12 + 1 = 13", value: 12 }, 12);
 refusedOr("false own arithmetic first", { source: "x = 3 × 4 = 13, y = 13 + 1 = 14", value: 13 }, 12);
 refusedOr("a false value before another statement", { source: "x = 3 × 4 = 13, y = 5 + 1 = 6", value: 13 }, 12);
-refusedOr("connector and", { source: "x = 23375 and SP = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
-refusedOr("connector so", { source: "x = 23375 so SP = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
-refusedOr("connector where", { source: "x = 23375 where SP = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
-refusedOr("sentence end", { source: "x = 23375. SP = 0.9 × 23375 = 21037.5", value: 23375 }, 23375);
+refusedOr("connector and", { source: "x = 18000 and SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
+refusedOr("connector so", { source: "x = 18000 so SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
+refusedOr("connector where", { source: "x = 18000 where SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
+refusedOr("sentence end", { source: "x = 18000. SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
 stays("an implicit product is not a new name", { source: "x = 3 SP = 12", value: 12, givens: [["SP", 4]] });
-stays("equations then the value", { source: "0.9x = 1.1y and x + y = 42500, so x = 23375", value: 23375 });
-refused("declared value against its statement", { source: "x = 23375, SP = 0.9 × 23375 = 21037.5", value: 99 });
+stays("equations then the value", { source: "0.9x = 1.1y and x + y = 40000, so x = 22000", value: 22000 });
+refused("declared value against its statement", { source: "x = 18000, SP = 0.9 × 18000 = 16200", value: 99 });
 refusedOr("declared value against its arithmetic", { source: "x = 3 × 4 = 12, y = 1", value: 13 }, 12);
-stays("thousands comma", { source: "x = 42,500 × 11/20 = 23,375", value: 23375 });
+stays("thousands comma", { source: "x = 40,000 × 11/20 = 22,000", value: 22000 });
 stays("comma inside a function", { source: "x = max(2, y = 3) = 3", value: 3 });
 stays("coordinates", { source: "P = (2, 3), Q = (4, 5), d = 2 + 2 = 4", value: 4 });
-refusedOr("a list of answers says nothing about either", { source: "x = 23375, y = 0.9 × 23375 = 21037.5, x = 21037.5", value: 23375 }, 23375);
+refusedOr("a list of answers says nothing about either", { source: "x = 18000, y = 0.9 × 18000 = 16200, x = 16200", value: 18000 }, 18000);
 stays("roots joined by and", { source: "x = 2 and x = 3", value: 3 });
 stays("roots joined by a comma", { source: "x = 2, x = 3", value: 3 });
 stays("times joined by and", { source: "t = 2 s and t = 6 s", value: 6, unit: "s" });
