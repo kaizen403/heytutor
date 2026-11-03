@@ -312,6 +312,14 @@ const DECLINES: readonly string[] = [
   "Hydrogen-bond between ethanol and water",
   // Hafnium, whatever case it loses later.
   "Does Hf form hydrogen bonds?",
+  // Both isomers named, so only the pair guards can refuse these.
+  "Compare hydrogen bonding in the o-nitrophenol anion and the p-nitrophenol anion.",
+  "Compare hydrogen bonding in o-nitrophenolate and p-nitrophenolate.",
+  "Hydrogen bonding in the conjugate bases of o-nitrophenol and p-nitrophenol.",
+  "Compare hydrogen bonding in 4-chloro-o-nitrophenol and 4-chloro-p-nitrophenol.",
+  "Compare hydrogen bonding in 5-methyl o-nitrophenol and 3-methyl p-nitrophenol.",
+  "Draw the hydrogen bonds of o-nitrophenol and p-nitrophenol with water.",
+  "Show the hydrogen bond between water and o-nitrophenol, and between water and p-nitrophenol.",
   // Nitrophenol asks that figure would answer wrongly.
   "Can p-nitrophenol molecules form hydrogen bonds with each other?",
   "Does p-nitrophenol form hydrogen bonds?",
