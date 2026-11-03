@@ -387,7 +387,8 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   if (trimmed.endsWith("(") && /(?:^|\s)\($/.test(trimmed)) return true;
   if (/[+\-*/^×·(=)\]]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
   // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
-  const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
+  // Nor does a new line: what ends the last line does not multiply this one.
+  const last = /\s$/.test(before) && !/\n\s*$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
   // "sin² x" and "log2 x" are functions too.
   // A word with a digit or a subscript is a symbol too: "m_1 a = 10".
   return !last || !(last.length === 1 || /[\p{N}_]/u.test(last) || MATH_WORD.test(last));
@@ -484,11 +485,11 @@ function statedQuantities(question: string): StatedQuantity[] {
     const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
     // A compound unit may be spaced ("10 N m", "1.08 g mL^-1"): read all of it.
     const spacedUnits: string[] = [];
-    // A unit ends with its line, and before the next assignment's symbol.
+    // A unit ends with its line.
     const unitWords = /^[^\S\n]/.test(after) ? (after.split("\n")[0] ?? "").trimStart().split(/\s+/) : [];
-    for (const [index, word] of unitWords.entries()) {
+    for (const word of unitWords) {
       const bare = word.replace(/[.,;:)]+$/, "");
-      if (!isUnitText(bare) || unitWords[index + 1]?.startsWith("=")) break;
+      if (!isUnitText(bare)) break;
       spacedUnits.push(bare);
       if (bare !== word) break;
     }
