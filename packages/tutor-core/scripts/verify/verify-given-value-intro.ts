@@ -1,5 +1,6 @@
 import { WORK_ZONE, measureTextWidth, workRowFontSize } from "@heytutor/drawing";
 import {
+  boardNumber,
   buildGivenValueSegments,
   collectQuestionGivens,
   givenValuesPromptAddon,
@@ -10,7 +11,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const mirrorQuestion =
-  "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.";
+  "Concave mirror, f = 15 cm, u = 20 cm. Locate the image and draw the ray diagram.";
 const mirrorPlan = {
   givens: [
     { id: "f", symbol: "f", value: 15, unit: "cm", provenance: "given", sourceText: "f = 15 cm" },
@@ -19,41 +20,17 @@ const mirrorPlan = {
   unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
 };
 const mirrorGivens = collectQuestionGivens(mirrorQuestion, mirrorPlan);
-const oxidationQuestion =
-  "In NaCl, sodium has valence 1 and oxidation state +1. Oxidation state is not formal charge.";
-const oxidationPlan = {
-  givens: [
-    { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText: "1" },
-    { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText: "+1" },
-  ],
-};
-const oxidationGivens = collectQuestionGivens(oxidationQuestion, oxidationPlan);
-assert(
-  oxidationGivens.some((given) => given.board === "valence(Na) = 1"),
-  "valence stays an unsigned count",
-);
-assert(
-  oxidationGivens.some((given) => given.board === "ox(Na,NaCl) = +1"),
-  "an oxidation state stated as +1 must keep the sign",
-);
-
-// Equal numbers in a shared source sentence still belong to separate givens.
+// A plus the question wrote stays on the number, and an unsigned count stays
+// unsigned. Equal numbers in a shared source belong to separate givens.
+assert(boardNumber(1, "1", ["valence(Na)"]) === "1", "valence stays an unsigned count");
+assert(boardNumber(1, "+1", ["ox(Na,NaCl)"]) === "+1", "an oxidation state stated as +1 must keep the sign");
 for (const sourceText of [
   "sodium has valence 1 and oxidation state +1",
   "sodium has oxidation state +1 and valence 1",
 ]) {
-  const givens = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
-    givens: [
-      { id: "valence_Na", symbol: "valence(Na)", value: 1, unit: "", provenance: "given", sourceText },
-      { id: "ox_Na", symbol: "ox(Na,NaCl)", value: 1, unit: "", provenance: "given", sourceText },
-    ],
-  });
-  assert(givens.some((given) => given.board === "valence(Na) = 1"), `${sourceText}: valence remains unsigned`);
-  assert(givens.some((given) => given.board === "ox(Na,NaCl) = +1"), `${sourceText}: oxidation state retains its own plus`);
-  const labeled = collectQuestionGivens(`${sourceText}. Find the oxidation state.`, {
-    givens: [{ id: "q", symbol: "q", label: "oxidation state", value: 1, provenance: "given", sourceText }],
-  });
-  assert(labeled.some((given) => given.board === "q = +1"), `${sourceText}: a source label identifies the given's own occurrence`);
+  assert(boardNumber(1, sourceText, ["valence(Na)", "valence_Na"]) === "1", `${sourceText}: valence remains unsigned`);
+  assert(boardNumber(1, sourceText, ["ox(Na,NaCl)", "ox_Na"]) === "+1", `${sourceText}: oxidation state retains its own plus`);
+  assert(boardNumber(1, sourceText, ["oxidation state", "q"]) === "+1", `${sourceText}: a source label identifies the given's own occurrence`);
 }
 
 assert(mirrorGivens.some((given) => given.board === "f = 15 cm"), "mirror focal length was not listed as given");
@@ -162,7 +139,7 @@ const substringTrap = collectQuestionGivens("What is momentum in physics", {
 assert(substringTrap.length === 0, "a symbol found inside a word is not a stated given");
 
 // An assumed constant is not a given even in a question that does state values.
-const withConstant = collectQuestionGivens("A 2 kg block is pushed. Find the acceleration.", {
+const withConstant = collectQuestionGivens("A block with m = 2 kg is pushed. Find the acceleration.", {
   givens: [
     { id: "m", symbol: "m", value: 2, unit: "kg", provenance: "given", sourceText: "2 kg block" },
     { id: "g", symbol: "g", value: 9.8, unit: "m/s^2", provenance: "given", sourceText: "gravity" },
@@ -174,14 +151,14 @@ assert(
   "9.8 is nowhere in the question, so it is an assumption, not a given",
 );
 
-// Unit normalisation must not read as invention: "20 cm" in the question and
-// 0.2 m in the plan are one stated fact.
+// The plan's normalised 0.2 m is the question's 20 cm, but it is not what the
+// question wrote: rows are the question's own words.
 const rescaled = collectQuestionGivens("An object sits at 20 cm from the lens. Find the image.", {
   givens: [{ id: "u", symbol: "u", value: 0.2, unit: "m", provenance: "given", sourceText: "20 cm" }],
 });
 assert(
-  rescaled.some((g) => g.symbol === "u"),
-  "a stated value normalised to SI must still count as given",
+  !rescaled.some((g) => g.symbol === "u"),
+  "a value normalised to SI is not the question's own statement",
 );
 
 // A concept lesson opens on the idea, not on a list of numbers.
@@ -203,28 +180,71 @@ for (const conceptual of [
 // Without this case the value check alone carries every concept assertion above
 // and the skip could be deleted unnoticed.
 const conceptWithNumber = collectQuestionGivens(
-  "Explain Newton's second law using a 2 kg block as an example",
-  { givens: [{ id: "m", symbol: "m", value: 2, unit: "kg", provenance: "given", sourceText: "2 kg block" }] },
+  "Explain Newton's second law using m = 2 kg as an example",
+  { givens: [{ id: "m", symbol: "m", value: 2, unit: "kg", provenance: "given", sourceText: "m = 2 kg" }] },
 );
 assert(
   conceptWithNumber.length === 0,
   `an explain request opens on the idea, not a Given list, got: ${conceptWithNumber.map((g) => g.board).join(", ")}`,
 );
 
-// A row claims the question stated this value as this quantity. Recorded home
-// suggestion cards, 3 Nov 2026 (lane 2 round): a term of an equation, a stem
-// fragment, and plan symbols over a vector's components all reached the board.
+// A row claims the question stated this. Recorded home suggestion cards, 3 Nov
+// 2026 (lane 2 round): a term of an equation, a stem fragment, and plan symbols
+// over a vector's components all reached the board. A plan row is now written
+// only when the question literally says that symbol equals that value with its
+// unit. Losing "m = 2 kg" from "A 2 kg block" is the accepted cost.
 const boardRows = (question: string, plan?: { givens: unknown[]; unknowns?: unknown[] }) =>
   collectQuestionGivens(question, plan).map((given) => given.board);
 const plain = (symbol: string, value: number, unit = "") => ({ id: symbol, symbol, value, unit, provenance: "given", sourceText: String(value) });
 for (const [why, question, plan, expected] of [
+  // The recorded cards.
   ["a term of an equation is not a given", "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square.", { givens: [plain("c", 0)] }, []],
   ["a limit and its stem fragment are not givens", "Derive the area under y = x^2 from x = 0 to x = 2 using integration.", { givens: [plain("b", 2)] }, []],
   ["a tuple's numbers are not a plan's a, b and c", "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them.", { givens: [plain("a", 3), plain("b", 4), plain("c", 1)] }, []],
-  ["an exponent is not a given", "Find the middle term in the expansion of (x + y)^6.", { givens: [plain("n", 6)] }, []],
-  ["a coefficient is not a given", "Let a = i + 2j and b = 2i - j. Find a + b.", { givens: [plain("a_y", 2), plain("b_x", 2)] }, ["a = i + 2j", "b = 2i - j"]],
+  // An unnamed number is never a plan symbol's value.
+  ["an unnamed mass", "A 2 kg mass moves at 3 m/s. Find its momentum.", { givens: [plain("m", 2, "kg"), plain("v", 3, "m/s")] }, []],
+  ["a plain count", "An AP has first term 3 and common difference 5. Find the sum.", { givens: [plain("a", 3), plain("d", 5)] }, []],
+  ["a rescaled value", "A 20 cm rod. Find its mass.", { givens: [plain("L", 0.2, "m")] }, []],
+  ["a percent", "A reaction is 50% complete. Find the time.", { givens: [plain("x", 0.5)] }, []],
+  ["a count with its noun", "A 40-turn coil is used. Find the flux.", { givens: [plain("N", 40)] }, []],
+  ["a bare exponent", "Find the middle term in the expansion of (x + y)^6.", { givens: [plain("n", 6)] }, []],
+  ["part of a mixed time", "The trip takes 3 min 58 s. Find the speed.", { givens: [plain("t_min", 3, "min")] }, []],
+  ["a coordinate", "Join A(1, 2) to B(4, 8). Find the slope.", { givens: [plain("x_A", 1)] }, []],
+  // The symbol must be this symbol.
   ["a number held by another symbol is not this one", "The circle has r = 4 and passes through the origin. Find its area.", { givens: [plain("q", 4)] }, ["r = 4"]],
-  ["a term of an inequality is not a constant", "Plot -3x + 6 > 0 on a number line.", { givens: [plain("constant", 6)] }, []],
+  ["M is not m", "Here M = 3 kg, at rest.", { givens: [plain("m", 3, "kg")] }, []],
+  ["R_2 is not R_1", "Here R_2 = 10 Ω, at rest.", { givens: [plain("R_1", 10, "Ω")] }, []],
+  ["R is not R_1", "Here R = 10 Ω, at rest.", { givens: [plain("R_1", 10, "Ω")] }, []],
+  ["y at a point is not y", "Here y(0) = 4 holds.", { givens: [plain("y", 4)] }, []],
+  ["a label is not the symbol", "The speed = 3 m/s here.", { givens: [{ ...plain("v", 3, "m/s"), label: "speed" }] }, []],
+  ["an id is not a symbol", "A ball moves with g2 = 2 m/s, then stops.", { givens: [{ id: "g2", symbol: "gravity_component_long", value: 2, unit: "m/s", provenance: "given" }] }, []],
+  ["no symbol, no row", "Here v = 2 m/s, then it stops.", { givens: [{ id: "v", value: 2, unit: "m/s", provenance: "given" }] }, []],
+  // The value must be the whole value.
+  ["a sum on the right", "Take x = 3 + y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a glued difference on the right", "Take x = 3-y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a difference on the right", "Take x = 3 - y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a factor on the right", "Take x = 3(y + 1), then plot.", { givens: [plain("x", 3)] }, []],
+  ["a product on the right", "Take x = 3 y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a function on the right", "Take x = 3 sin y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a chain", "Take x = 3 = y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a bound after it", "Take x = 3 < y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a glued coefficient", "Take x = 3i, then plot.", { givens: [plain("x", 3)] }, []],
+  ["an ordinal", "Take n = 12th, then plot.", { givens: [plain("n", 12)] }, []],
+  ["a sign is part of the value", "A body sits at x = -3 m.", { givens: [plain("x", 3, "m")] }, []],
+  ["a Unicode minus too", "A body sits at x = −3 m.", { givens: [plain("x", 3, "m")] }, []],
+  ["an en dash too", "A charge has q = –3 C.", { givens: [plain("q", 3, "C")] }, []],
+  // The unit must be this unit.
+  ["speed is not acceleration", "A car has a = 3 m/s.", { givens: [plain("a", 3, "m/s²")] }, []],
+  ["minutes are not seconds", "Wait with t = 5 min.", { givens: [plain("t", 5, "s")] }, []],
+  ["degrees are not metres", "The value h = 60°.", { givens: [plain("h", 60, "m")] }, []],
+  ["millimolar is not molar", "A solution has c = 5 mM.", { givens: [plain("c", 5, "M")] }, []],
+  ["kmph is not m/s", "A car has v = 72 kmph.", { givens: [plain("v", 72, "m/s")] }, []],
+  ["a torque is not a force", "A torque has F = 10 N m.", { givens: [plain("F", 10, "N")] }, []],
+  ["a unit the plan left off", "Here n = 2 kg, at rest.", { givens: [plain("n", 2)] }, []],
+  ["a unit the question left off", "Here x = 3, at rest.", { givens: [plain("x", 3, "m")] }, []],
+  ["a different size", "A rod has L = 20 cm.", { givens: [plain("L", 2, "cm")] }, []],
+  ["the same length in metres", "A rod has L = 20 cm.", { givens: [plain("L", 0.2, "m")] }, []],
+  // Rows read from the question.
   ["a function's argument is not a given", "If sin x = 1/2, plot x.", undefined, []],
   ["a product's last symbol is not a given", "Take m a = 10, then plot.", undefined, []],
   ["a coefficient's symbol is not a given", "Take 3 x = 12, then plot.", undefined, []],
@@ -232,73 +252,39 @@ for (const [why, question, plan, expected] of [
   ["a squared function", "Take sin² x = 1, then plot.", undefined, []],
   ["a based logarithm", "Take log2 x = 3, then plot.", undefined, []],
   ["a glued factor", "Take 2π r = 10, then plot.", undefined, []],
-  ["limits with units", "Move between x = 0 m and x = 2 m, then stop.", undefined, []],
-  ["answer options are not given", "Which is correct? (A) v = 5 m/s (B) v = 7 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
-  ["named options are not given", "Pick one. Options: T1 = T2, T1 = 2.", undefined, []],
-  ["a spaced subtraction term", "Plot 4 - x here.", { givens: [plain("d", 4)] }, []],
-  ["a spaced coefficient of a function", "Plot 3 sin x here.", { givens: [plain("a", 3)] }, []],
-  ["a spaced coefficient of a symbol", "Plot 3 x here.", { givens: [plain("a", 3)] }, []],
-  ["a number on the left of an equation", "Graph 9 = 2x + y here.", { givens: [plain("c", 9)] }, []],
-  ["not equal is a bound", "Take x ≠ 9 here.", { givens: [plain("c", 9)] }, []],
-  ["an id is not a symbol", "A ball moves at 2 m/s.", { givens: [{ id: "g2", symbol: "gravity_component_long", value: 2, unit: "m/s", provenance: "given" }] }, []],
-  ["no symbol, no row", "A ball moves at 2 m/s.", { givens: [{ id: "v", value: 2, unit: "m/s", provenance: "given" }] }, []],
-  ["a number is not a symbol", "A ball of 3 kg.", { givens: [plain("3h", 3, "kg")] }, []],
-  ["an en dash is a minus", "A charge of –3 C is used.", { givens: [plain("q", 3, "C")] }, []],
-  ["millimolar is not molar", "A 5 mM solution is used.", { givens: [plain("c", 5, "M")] }, []],
-  ["kmph is not m/s", "A car at 72 kmph.", { givens: [plain("v", 72, "m/s")] }, []],
-  ["a torque is not a force", "A torque of 10 N m acts.", { givens: [plain("F", 10, "N")] }, []],
-  ["y at a point is not y", "Here y(0) = 4 holds.", { givens: [plain("y", 4)] }, []],
   ["limits with and", "Integrate between x = 0 and x = 2.", undefined, []],
+  ["limits with and, different symbols", "Integrate between x = 0 and y = 2.", undefined, []],
+  ["limits with units", "Move between x = 0 m and y = 2 m, then stop.", undefined, []],
+  ["a limit with a plain value", "Integrate y from x = 0 to x = 2.", undefined, []],
   ["what is to be proved is not given", "Prove that x = 2.", undefined, []],
+  ["a term with a plain value on its right", "Plot ax^2 + bx + c = 0, with a = 1.", undefined, ["a = 1"]],
+  ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
   ["Hindi after a value is prose", "अगर x = 3 है तो ग्राफ बनाओ", undefined, []],
   ["one Hindi word after a value is prose", "अगर x = 3 है, तो ग्राफ बनाओ", undefined, []],
-  ["a subtraction is not a negative value", "Plot x - 3 here.", { givens: [plain("a", -3)] }, []],
-  ["a percent is not a length", "A 50% rise is seen.", { givens: [plain("x", 0.5, "m")] }, []],
   ["an equation inside a sentence", "Note that 2x + 3 = 7 holds.", undefined, []],
-  ["limits with and, different symbols", "Integrate between x = 0 and y = 2.", undefined, []],
   ["a place in words is prose", "If y = 0 at the top, plot it.", undefined, []],
-  ["angle brackets are a vector", "Take <3, 4> as the vector.", { givens: [plain("a", 3), plain("b", 4)] }, []],
-  ["a bound is not a value", "Graph 2x + y <= 9 here.", { givens: [plain("c", 9)] }, []],
-  ["a bound with a sign", "Graph 2x + y ≤ 9 here.", { givens: [plain("c", 9)] }, []],
-  ["a factor is not a value", "Here 3(x + 1) = 12 holds.", { givens: [plain("a", 3)] }, []],
-  ["a sign is part of the value", "A body sits at x = -3 m.", { givens: [plain("x", 3, "m")] }, []],
-  ["a Unicode minus too", "A body sits at x = −3 m.", { givens: [plain("v", 3, "m")] }, ["x = −3 m"]],
-  ["speed is not acceleration", "A car moves at 3 m/s.", { givens: [plain("a", 3, "m/s²")] }, []],
-  ["minutes are not seconds", "Wait 5 min for it.", { givens: [plain("t", 5, "s")] }, []],
-  ["degrees are not metres", "The angle is 60°.", { givens: [plain("h", 60, "m")] }, []],
-  ["a rescale keeps the size", "A 20 cm rod rests.", { givens: [plain("L", 2, "cm")] }, []],
-  ["M is not m", "Here M = 3 kg, at rest.", { givens: [plain("m", 3, "kg")] }, []],
-  ["R_2 is not R_1", "Here R_2 = 10 Ω, at rest.", { givens: [plain("R_1", 10, "Ω")] }, []],
-  ["a number beside a unit of another kind is another quantity", "A 2 kg mass moves at 3 m/s. Find its momentum.", { givens: [plain("t", 2, "s"), plain("m", 2, "kg"), plain("v", 3, "m/s")] }, ["m = 2 kg", "v = 3 m/s"]],
-  ["a unitless plan row is not the value with a unit", "A 2 kg mass rests. Find its weight.", { givens: [plain("n", 2)] }, []],
-  ["an ordinal is not a given", "Find the 12th term of the sequence.", { givens: [plain("n", 12)] }, []],
-  ["an identifier's digit is not a given", "A flask holds SF4 at room temperature. Find the pressure.", { givens: [plain("x", 4)] }, []],
-  ["a term with a plain value on its right", "Plot ax^2 + bx + c = 0, with a = 1.", undefined, ["a = 1"]],
-  ["a limit with a plain value", "Integrate y from x = 0 to x = 2.", undefined, []],
-  ["a coefficient the plan quotes", "A force 3i acts on a body.", { givens: [{ ...plain("a", 3), sourceText: "3i" }] }, []],
-  ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
-  // Right rows stay.
-  ["a stated value with its unit", "Concave mirror, f = 15 cm, object at 20 cm. Locate the image.", { givens: [plain("f", 15, "cm"), plain("u", 20, "cm")] }, ["f = 15 cm", "u = 20 cm"]],
-  ["a unit written another way", "A wave moves at 2 m/s^2 past a 12 ohm load. Find the time.", { givens: [plain("a", 2, "m/s²"), plain("R", 12, "Ω")] }, ["a = 2 m/s²", "R = 12 Ω"]],
-  ["a superscript and a caret", "An area of 4 m^2 is used.", { givens: [plain("A", 4, "m²")] }, ["A = 4 m²"]],
-  ["a rescaled unit", "A 20 cm rod. Find its mass.", { givens: [plain("L", 0.2, "m")] }, ["L = 0.2 m"]],
-  ["a percent read as a fraction", "A reaction is 50% complete. Find the time.", { givens: [plain("x", 0.5)] }, ["x = 0.5"]],
-  ["a count with its noun", "A 40-turn coil is used. Find the flux.", { givens: [plain("N", 40)] }, ["N = 40"]],
-  ["a glued unit", "A 20cm rod and a 9V cell. Find the current.", { givens: [plain("L", 20, "cm"), plain("V", 9, "V")] }, ["L = 20 cm", "V = 9 V"]],
-  ["a plain count", "An AP has first term 3 and common difference 5. Find the sum.", { givens: [plain("a", 3), plain("d", 5)] }, ["a = 3", "d = 5"]],
+  ["answer options are not given", "Which is correct? (A) v = 5 m/s (B) v = 7 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
+  ["named options are not given", "Pick one. Options: T1 = T2, T1 = 2.", undefined, []],
+  // Right rows stay: the question's own words.
+  ["a stated value with its unit", "Concave mirror, f = 15 cm, object at 20 cm. Locate the image.", { givens: [plain("f", 15, "cm"), plain("u", 20, "cm")] }, ["f = 15 cm"]],
+  ["a unit written another way", "Here a = 2 m/s^2, R = 12 ohm. Find the time.", { givens: [plain("a", 2, "m/s²"), plain("R", 12, "Ω")] }, ["a = 2 m/s²", "R = 12 Ω"]],
+  ["a caret and a superscript", "Here A = 4 m^2, at rest.", { givens: [plain("A", 4, "m²")] }, ["A = 4 m²"]],
+  ["a glued unit", "Here L = 20cm, V = 9V. Find the current.", { givens: [plain("L", 20, "cm"), plain("V", 9, "V")] }, ["L = 20 cm", "V = 9 V"]],
   ["a question's own symbol for its value", "Take g = 10 m/s^2. Find the time.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
-  ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
-  ["a spaced compound unit", "A torque of 10 N m acts.", { givens: [plain("M_t", 10, "N m")] }, ["M_t = 10 N m"]],
-  ["a part label is not options", "(a) A 2 kg mass rests. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
   ["an aside in brackets", "A ball falls (g = 10 m/s^2) here.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
-  ["degrees in words", "An angle of 30 degrees is used.", { givens: [plain("A", 30, "°")] }, ["A = 30 °"]],
-  ["moles in words", "Take 2 moles of gas.", { givens: [plain("n", 2, "mol")] }, ["n = 2 mol"]],
-  ["a glued Celsius", "Heat water at 40°C here.", { givens: [plain("T", 40, "°C")] }, ["T = 40 °C"]],
-  ["a glued molarity", "Take a 0.1M solution.", { givens: [plain("c", 0.1, "M")] }, ["c = 0.1 M"]],
-  ["a unit in words", "A 2 metre rod rests.", { givens: [plain("L", 2, "m")] }, ["L = 2 m"]],
+  ["named values inside brackets", "Take (a = 3, b = 4) here.", { givens: [plain("a", 3), plain("b", 4)] }, ["a = 3", "b = 4"]],
+  ["degrees in words", "Here A = 30 degrees, at rest.", { givens: [plain("A", 30, "°")] }, ["A = 30 °"]],
+  ["moles in words", "Here n = 2 moles, at rest.", { givens: [plain("n", 2, "mol")] }, ["n = 2 mol"]],
+  ["a glued Celsius", "Heat with T = 40°C, then stop.", { givens: [plain("T", 40, "°C")] }, ["T = 40 °C"]],
+  ["a glued molarity", "Take c = 0.1M, then stop.", { givens: [plain("c", 0.1, "M")] }, ["c = 0.1 M"]],
+  ["a unit in words", "Here L = 2 metre, at rest.", { givens: [plain("L", 2, "m")] }, ["L = 2 m"]],
+  ["a spaced compound unit", "A torque has M_t = 10 N m, then stops.", { givens: [plain("M_t", 10, "N m")] }, ["M_t = 10 N m"]],
+  ["a part label is not options", "(a) Let m = 2 kg rest. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
+  ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
   ["a math name", "Given y = sin x. Plot it.", undefined, ["y = sin x"]],
-  ["a label names the owner", "The speed = 3 m/s here.", { givens: [{ ...plain("v", 3, "m/s"), label: "speed" }] }, ["v = 3 m/s"]],
   ["an expression with products", "Given y = ax^2 + bx + c and a = 2. Plot it.", undefined, ["y = ax^2 + bx + c", "a = 2"]],
+  ["millimolar from the question", "A solution has c = 5 mM.", undefined, ["c = 5 mM"]],
+  ["kmph from the question", "A car has v = 72 kmph.", undefined, ["v = 72 kmph"]],
   ["a value with the place it holds", "If y = 0 at x = 0, plot it.", undefined, ["y = 0 at x = 0", "x = 0"]],
 ] as const) {
   const rows = boardRows(question, plan as { givens: unknown[] } | undefined);
@@ -320,7 +306,7 @@ assert(
 // The ordinary path still works: a stated problem keeps its givens.
 assert(
   collectQuestionGivens(
-    "Three 12 ohm resistors in series. Find the equivalent resistance.",
+    "Three resistors, R = 12 ohm each, in series. Find the equivalent resistance.",
     { givens: [{ id: "R", symbol: "R", value: 12, unit: "Ω", provenance: "given", sourceText: "12 ohm" }] },
   ).some((g) => g.board === "R = 12 Ω"),
   "a value written in the question must still reach the board",
@@ -338,7 +324,7 @@ assert(
 // arrive already fitted.
 
 const refractionQuestion =
-  "Light enters glass at 45 deg with n = 1.5. Find the angle of refraction and draw both rays.";
+  "Light enters glass with θ_i = 45 deg and n_glass = 1.5. Find the angle of refraction and draw both rays.";
 const refractionPlan = {
   givens: [
     { id: "theta_i", symbol: "θ_i", value: 45, unit: "deg", provenance: "given", sourceText: "45 deg" },
@@ -444,7 +430,6 @@ const longMatrix = `A=[${Array.from({ length: 6 }, () => "[1,1,1,1,1,1]").join("
 assert(!collectQuestionGivens(longMatrix).some((given) => given.symbol === "A"), "an oversized intro value must be omitted rather than asserted as a clipped source matrix");
 assert(collectQuestionGivens("A=[[1,2],[3,4]. Show A.").length === 0, "unbalanced source values must not become supplied intro facts");
 // A written plus survives any decimal spelling; addition is not a sign.
-const TERM_NOT_QUANTITY = new Set<string>(["x +2 C charge", "b = a +2 C charge", "(a) + 2", "1+1", "5 + 2", "5 +2", "x +2", "a +2", "a + 2", "a+2", "= +2"]);
 for (const [sourceText, value, board] of [
   ["+1.0", 1, "q = +1"],
   ["+1.00", 1, "q = +1"],
@@ -470,21 +455,13 @@ for (const [sourceText, value, board] of [
   ["+2 and 20", 0.2, "q = 0.2"],
   ["1+1", 1, "q = 1"],
 ] as const) {
-  const stated = `The value is ${sourceText}. Find q.`;
-  const givens = collectQuestionGivens(stated, {
-    givens: [{ id: "q", symbol: "q", value, unit: "", provenance: "given", sourceText }],
-  });
-  // A term of an expression ("1+1") or a number with no quantity named ("is = +2")
-  // is not a stated quantity: no row for q, and never an invented plus.
-  if (TERM_NOT_QUANTITY.has(sourceText)) {
-    assert(!givens.some((given) => given.symbol === "q"), `"${sourceText}" is not q's value`);
-    continue;
-  }
-  assert(givens.some((given) => given.board === board), `"${sourceText}" should give "${board}", got ${givens.map((given) => given.board).join(", ") || "nothing"}`);
+  const written = `q = ${boardNumber(value, sourceText, ["q"])}`;
+  assert(written === board, `"${sourceText}" should give "${board}", got ${written}`);
 }
-const articleCharge = collectQuestionGivens("A particle has a +2 C charge. Find the force.", {
-  givens: [{ id: "q", symbol: "q", value: 2, unit: "C", provenance: "given", sourceText: "a +2 C charge" }],
+assert(boardNumber(2, "a +2 C charge", ["q"]) === "+2", "an article before a signed charge keeps the written plus");
+const signedCharge = collectQuestionGivens("A particle has q = +2 C. Find the force.", {
+  givens: [{ id: "q", symbol: "q", value: 2, unit: "C", provenance: "given", sourceText: "q = +2 C" }],
 });
-assert(articleCharge.some((given) => given.board === "q = +2 C"), "an article before a signed charge keeps the written plus and unit");
+assert(signedCharge.some((given) => given.board === "q = +2 C"), "a written plus and unit stay on the row");
 
 console.log("given value intro verification passed");

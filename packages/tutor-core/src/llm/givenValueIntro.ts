@@ -218,11 +218,8 @@ function givenFromPlan(raw: unknown, index: number, question: string): GivenCand
     symbol,
     board,
     spoken: `${speakSymbol(symbol)} equals ${speakNumber(raw.value)}${unit ? ` ${speakUnit(unit)}` : ""}`,
-    // And the number has to be this quantity's: "(3, 4)", "x^2", "3i" and "x = 2"
-    // all hold a number that a plan's a, b or c is not. A row needs a symbol a
-    // student can read: never a plan's internal id, a number, or "3h".
-    stated: named !== null && !/^\p{N}/u.test(named) &&
-      questionStatesQuantity(withoutAnswerOptions(question), raw.value, symbol, unit, raw.label, raw.sourceText),
+    // A plan's internal id is never a symbol the question wrote.
+    stated: named !== null && questionLiterallyStates(withoutAnswerOptions(question), raw.value, named, unit),
   };
 }
 
@@ -464,16 +461,13 @@ interface StatedQuantity {
 
 /**
  * The number at each place the question states one as a quantity, with the unit
- * written beside it. A number inside a tuple, a term, a bound, an exponent, a name
- * or an ordinal is not a quantity's value.
+ * written beside it and the symbol assigned it. A term or a bound is not a value.
  */
 function statedQuantities(question: string): StatedQuantity[] {
   const stated: StatedQuantity[] = [];
   for (const match of question.matchAll(/\d+(?:\.\d+)?|\.\d+/g)) {
     const start = match.index ?? 0;
     const end = start + match[0].length;
-    const prior = question[start - 1] ?? "";
-    if (/[\p{L}\p{N}_^.)\]]/u.test(prior)) continue;
     const before = question.slice(Math.max(0, start - WINDOW), start).trimEnd();
     const after = question.slice(end, end + WINDOW);
     const following = after.trimStart();
@@ -483,17 +477,13 @@ function statedQuantities(question: string): StatedQuantity[] {
     // "3 sin x" and "3 x" multiply; "3 m" is a length.
     const nextWord = /^\s+([\p{L}]+)/u.exec(after)?.[1];
     if (nextWord && (MATH_WORD.test(nextWord) || nextWord.length === 1 && !UNIT_TOKEN.test(nextWord))) continue;
-    if (/[*/^×·]$/.test(before) || /\+$/.test(before) && !writtenWithPlus(question, start)) continue;
     // A bound is a limit, and angle brackets are a vector.
     if (/[<>≤≥⟨≠]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
-    if (insideTuple(question, start)) continue;
     const owner = /([\p{L}][\p{L}\p{M}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
     // "bx + c = 0" states no c, even for a plan row named c.
     if (owner && !standsAlone(before, owner.index)) continue;
-    if (/=\s*[+\-−–]?$/.test(before) && !owner) continue;
-    // A glued word must be a unit: "20cm" is a length, "3i", "2x" and "12th" are not.
+    // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
     const glued = /^[\p{L}µ°%Ω][\p{L}\p{N}/^²³⁻¹°]*/u.exec(after)?.[0];
-    if (glued && !isUnitText(glued) && glued !== "%" && glued !== "°") continue;
     // A compound unit may be spaced: "10 N m", "1.08 g mL^-1".
     const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*)(?:\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*))?/u.exec(after);
     const firstUnit = spaced?.[1] && isUnitText(spaced[1]) ? spaced[1].replace(/[.,;:]+$/, "") : "";
@@ -510,56 +500,24 @@ function isUnitText(text: string): boolean {
   return parts.length > 0 && parts.every((part) => /^°[CF]$/.test(part) || UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
 }
 
-/** Inside brackets that hold a comma: the coordinates of one thing, not separate givens. */
-function insideTuple(question: string, position: number): boolean {
-  let depth = 0;
-  for (let left = position - 1; left >= Math.max(0, position - WINDOW); left--) {
-    const char = question[left]!;
-    if (char === ")" || char === "]") depth++;
-    else if (char === "(" || char === "[") {
-      if (depth === 0) {
-        const close = question.slice(position, position + WINDOW).search(/[)\]]/);
-        return close >= 0 && question.slice(left, position + close).includes(",");
-      }
-      depth--;
-    }
-  }
-  return false;
-}
-
-/** A plan row's name matches a question's symbol exactly: M is not m, and R_2 is not R_1. */
-function ownedBy(owner: string, symbol: string, label: unknown): boolean {
-  const base = (name: string) => name.split(/[_^(]/)[0] ?? name;
-  const subscripted = (name: string) => name !== base(name);
-  if (owner === symbol) return true;
-  // "y(0) = 4" is y at one point, not y.
-  if (owner.includes("(")) return false;
-  if (base(owner) === base(symbol) && !(subscripted(owner) && subscripted(symbol))) return true;
-  return typeof label === "string" && normalizeKey(label) === normalizeKey(owner) && normalizeKey(owner).length > 1;
-}
-
 let statedCache: { question: string; stated: StatedQuantity[] } | null = null;
 
 /**
- * Did the question state this value as this quantity? `questionStatesValue` asks
- * only whether the number is somewhere in the text, which is what a teaching
- * prompt needs. A "Given:" row claims more, so it needs the number to stand as a
- * quantity, with no other symbol holding it and no unit of another kind on it.
+ * Does the question literally say this symbol equals this value, with this unit?
+ * `questionStatesValue` asks only whether the number is somewhere in the text,
+ * which is what a teaching prompt needs. A "Given:" row claims the question stated
+ * it, and reading a plan's symbols onto a question's numbers has been wrong in
+ * every form tried: tuples, coefficients, limits, parts of a time. So a row needs
+ * the question's own words. "A 2 kg block" writes no row, and the lesson still teaches.
  */
-function questionStatesQuantity(question: string, value: number, symbol: string, unit: string, label: unknown, sourceText: unknown): boolean {
+function questionLiterallyStates(question: string, value: number, symbol: string, unit: string): boolean {
   if (statedCache?.question !== question) statedCache = { question, stated: statedQuantities(question) };
   return statedCache.stated.some((stated) => {
-    if (stated.owner && !ownedBy(stated.owner, symbol, label)) return false;
-    const sameValue = VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === stated.value);
-    if (!stated.unit) return sameValue;
-    if (stated.unit === "%") return !unit && sameValue;
-    if (!unit) return sameValue && typeof sourceText === "string" && sourceText.includes(stated.unit) && questionMentions(question, sourceText);
-    // The same quantity at the same size: "20 cm" is L = 0.2 m, never L = 2 cm, and "5 min" is not t = 5 s.
+    if (stated.owner !== symbol || stated.value !== value) return false;
+    if (!unit || !stated.unit) return !unit && !stated.unit;
     const planned = readUnit(unit);
     const written = readUnit(stated.unit);
-    if (planned.signature !== written.signature) return false;
-    const size = (number: number, factor: number) => Number((number * factor).toPrecision(10));
-    return size(value, planned.factor) === size(stated.value, written.factor);
+    return planned.signature === written.signature && planned.factor === written.factor;
   });
 }
 
@@ -595,7 +553,7 @@ function formatNumber(value: number): string {
 }
 
 /** Keep a plus the question wrote. An unsigned 1 is not the oxidation state +1. */
-function boardNumber(value: number, sourceText: unknown, names: unknown[]): string {
+export function boardNumber(value: number, sourceText: unknown, names: unknown[]): string {
   const plain = formatNumber(value);
   if (typeof sourceText !== "string" || !(value > 0)) return plain;
   const numbers = [...sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)];
@@ -669,8 +627,7 @@ function writtenWithPlus(text: string, start: number): boolean {
   // A one-letter "a" is an article in a prose noun phrase ("a +2 C
   // charge"), but stays a variable in bare or equation-context addition.
   const beforeWord = text.slice(0, begin).trimEnd();
-  // A full stop after the number ends the sentence: it is not a decimal point.
-  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
+  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
   const article = /^a$/i.test(word) && /\s/.test(text[end + 1] ?? "") &&
     (!beforeWord || /[.!?,:;]$|(?:^|\s)[A-Za-z]{2,}$/.test(beforeWord)) &&
     /^\s+(?:[A-Za-z][^\s]*\s+)*[A-Za-z]{2,}\b/.test(afterNumber);
