@@ -312,7 +312,27 @@ const DECLINES: readonly string[] = [
   "Hydrogen-bond between ethanol and water",
   // Hafnium, whatever case it loses later.
   "Does Hf form hydrogen bonds?",
-  // Both isomers named, so only the pair guards can refuse these.
+  // One acetic acid is not a dimer, and one methanol is not two.
+  "Draw the dimer of acetic acid formed by hydrogen bonds.",
+  "Draw acetic acid dimer with hydrogen bonds.",
+  "Why do carboxylic acids exist as dimers? Show the structure of benzoic acid dimer through hydrogen bonding.",
+  "Draw two methanol molecules joined by a hydrogen bond.",
+  "Draw formamide showing hydrogen bonding between two molecules.",
+  // Both isomers named, so only the closed pair sentences can refuse these.
+  "Compare hydrogen bonding in the anions of o-nitrophenol and p-nitrophenol.",
+  "Compare hydrogen bonding in the sodium salts of o-nitrophenol and p-nitrophenol.",
+  "Compare hydrogen bonding in the phenoxide ions of o-nitrophenol and p-nitrophenol.",
+  "Compare hydrogen bonding in sodium o-nitrophenol and sodium p-nitrophenol.",
+  "Compare hydrogen bonding in o-nitrophenol and p-nitrophenol after reaction with NaOH.",
+  "Compare hydrogen bonding in the methyl ethers of o-nitrophenol and p-nitrophenol.",
+  "Compare hydrogen bonding in tert butyl o-nitrophenol and tert butyl p-nitrophenol.",
+  "Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form with H2O.",
+  "Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form to water molecules.",
+  "Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with acetone.",
+  "Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with NH3.",
+  "Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with alcohols.",
+  "Draw the hydrogen bond between o-nitrophenol and p-nitrophenol.",
+  "Hydrogen bonding of o-nitrophenol with each other.",
   "Compare hydrogen bonding in the o-nitrophenol anion and the p-nitrophenol anion.",
   "Compare hydrogen bonding in o-nitrophenolate and p-nitrophenolate.",
   "Hydrogen bonding in the conjugate bases of o-nitrophenol and p-nitrophenol.",
@@ -376,6 +396,9 @@ for (const [question, family] of [
   ["Draw the VSEPR shape of H2O and explain why it can make hydrogen bonds.", "chem_vsepr"],
   ["Draw the structure of ethanol. Why does it form hydrogen bonds?", "chem_organic"],
   ["Draw the structure of acetone. Can it act as a hydrogen bond acceptor?", "chem_organic"],
+  // Not the ortho or para isomers this figure draws.
+  ["Draw the structure of m-nitrophenol and explain its hydrogen bonding.", "chem_organic"],
+  ["Draw the structure of 2,4-dinitrophenol and explain its hydrogen bonding.", "chem_organic"],
 ] as const) {
   check(`keeps its own figure: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, family));
 }
@@ -390,6 +413,8 @@ for (const question of [
   "o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.",
   "Why is o-nitrophenol less soluble in water than p-nitrophenol? Explain with hydrogen bonding.",
   "Compare the hydrogen bonding in o-nitrophenol and p-nitrophenol.",
+  "Why is p-nitrophenol less volatile than o-nitrophenol? Explain using intramolecular and intermolecular hydrogen bonding.",
+  "Explain the difference in hydrogen bonding of ortho nitrophenol and para nitrophenol.",
 ]) {
   check(`nitrophenol still draws: ${question}`, () => {
     const document = buildLewisScene(question, [], false);
