@@ -482,8 +482,10 @@ pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/
 The offline gate `scripts/verify/verify-home-suggestion-figures.ts` (in
 `gates.d`) runs after every merge at $0. It fails when a card has no oracle row
 or no judged recording, when a card that needs a figure is not judged right,
-and when today's engine draws anything different from what was judged: lost or
-added entities, changed text, a different figure source or tier, or no figure.
+and when today's engine draws anything different from what was judged: a moved
+or reversed shape, lost or added entities, text on a different mark, a different
+figure source or tier, or no figure. Refitting the whole figure and moving labels
+are layout and pass.
 Replay revalidates the raw planner document and rebuilds the family figure, so
 it tests the engine, not a saved verdict. A failure means: run the round for
 that card again, look at the render, and record it again, or replace the card

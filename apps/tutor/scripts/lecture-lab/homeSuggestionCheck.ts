@@ -54,10 +54,31 @@ export interface FigureSignature {
   tier: string | null;
   family: string | null;
   entityIds: string[];
+  /** Readable text with the mark it belongs to, as `entity: text`. */
   texts: string[];
-  /** Exact ink hash: informational, label layout may move it. */
+  /** Every drawn shape, in the figure's own frame. */
+  marks: FigureMark[];
+  /** Exact ink hash: informational, label layout and refitting may move it. */
   inkHash: string | null;
 }
+
+/**
+ * One drawn shape, scaled so the figure's longest side is MARK_FRAME. Refitting
+ * the whole figure and moving labels are layout, and do not change a mark. Point
+ * order is kept, so a reversed arrow does.
+ */
+export interface FigureMark {
+  entityId: string;
+  kind: string;
+  dashed: boolean;
+  points: Array<[number, number]>;
+  radius?: number;
+  angles?: [number, number];
+}
+
+const MARK_FRAME = 1000;
+/** How far a point may move, in frame units, before the figure counts as changed. */
+export const MARK_TOLERANCE = 3;
 
 export interface HomeSuggestionRecording {
   schemaVersion: typeof HOME_SUGGESTION_RECORDING_VERSION;
@@ -83,17 +104,40 @@ export interface HomeSuggestionRecording {
 const textOf = (scene: RenderScene | null | undefined): string[] =>
   (scene?.primitives ?? [])
     .flatMap((primitive) =>
-      (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
-        ? [primitive.text.trim()]
+      (primitive.kind === "label" || primitive.kind === "dimension") && primitive.text?.trim()
+        ? [`${primitive.entityId ?? ""}: ${primitive.text.trim()}`]
         : [],
     )
-    .filter(Boolean)
     .sort();
+
+const round = (value: number, digits = 0): number => Number(value.toFixed(digits));
+
+export function marksOf(scene: RenderScene): FigureMark[] {
+  const drawn = scene.primitives.filter((primitive) =>
+    primitive.kind !== "label" && (primitive.provenance as { labelLeader?: unknown } | undefined)?.labelLeader !== true);
+  const points = drawn.flatMap((primitive) => primitive.points);
+  const minX = Math.min(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const side = Math.max(Math.max(...points.map((point) => point.x)) - minX, Math.max(...points.map((point) => point.y)) - minY) || 1;
+  const scale = MARK_FRAME / side;
+  return drawn
+    .map((primitive): FigureMark => ({
+      entityId: primitive.entityId ?? "",
+      kind: primitive.kind,
+      dashed: (primitive.provenance as { dashed?: unknown } | undefined)?.dashed === true,
+      points: primitive.points.map((point): [number, number] => [round((point.x - minX) * scale), round((point.y - minY) * scale)]),
+      ...(typeof primitive.radius === "number" ? { radius: round(primitive.radius * scale) } : {}),
+      ...(typeof primitive.startAngle === "number" && typeof primitive.endAngle === "number"
+        ? { angles: [round(primitive.startAngle, 2), round(primitive.endAngle, 2)] as [number, number] }
+        : {}),
+    }))
+    .sort((first, second) => `${first.entityId}|${first.kind}`.localeCompare(`${second.entityId}|${second.kind}`));
+}
 
 export function figureSignature(selection: ReturnType<typeof selectProductionScene>): FigureSignature {
   const shown = selection.representation;
   if (!shown) {
-    return { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], inkHash: null };
+    return { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], marks: [], inkHash: null };
   }
   return {
     drawn: true,
@@ -102,6 +146,7 @@ export function figureSignature(selection: ReturnType<typeof selectProductionSce
     family: shown.family ?? null,
     entityIds: shown.sceneDocument.entities.map((entity) => entity.id).sort(),
     texts: textOf(shown.renderScene),
+    marks: marksOf(shown.renderScene),
     inkHash: createHash("sha1").update(JSON.stringify(shown.renderScene)).digest("hex").slice(0, 12),
   };
 }
@@ -138,7 +183,28 @@ export function replayRecording(recording: HomeSuggestionRecording): FigureSigna
   return figureSignature(replaySelection(recording));
 }
 
-/** Differences a student would see. The ink hash is reported, not compared. */
+function markDifferences(expected: readonly FigureMark[], actual: readonly FigureMark[]): string[] {
+  const key = (mark: FigureMark) => `${mark.entityId} ${mark.kind}`;
+  const differences: string[] = [];
+  const remaining = [...actual];
+  const near = (first: number, second: number) => Math.abs(first - second) <= MARK_TOLERANCE;
+  const matches = (first: FigureMark, second: FigureMark) =>
+    key(first) === key(second) && first.dashed === second.dashed &&
+    first.points.length === second.points.length &&
+    first.points.every((point, index) => near(point[0], second.points[index]![0]) && near(point[1], second.points[index]![1])) &&
+    near(first.radius ?? 0, second.radius ?? 0) &&
+    Math.abs((first.angles?.[0] ?? 0) - (second.angles?.[0] ?? 0)) <= 0.02 &&
+    Math.abs((first.angles?.[1] ?? 0) - (second.angles?.[1] ?? 0)) <= 0.02;
+  for (const mark of expected) {
+    const index = remaining.findIndex((candidate) => matches(mark, candidate));
+    if (index >= 0) remaining.splice(index, 1);
+    else differences.push(`mark changed or lost: ${key(mark)}`);
+  }
+  for (const mark of remaining) differences.push(`mark changed or added: ${key(mark)}`);
+  return differences;
+}
+
+/** Differences a student would see. Refitting and label placement are layout, and are not compared. */
 export function signatureDifferences(expected: FigureSignature, actual: FigureSignature): string[] {
   const differences: string[] = [];
   for (const key of ["drawn", "figureSource", "tier", "family"] as const) {
@@ -151,6 +217,7 @@ export function signatureDifferences(expected: FigureSignature, actual: FigureSi
       differences.push(`${key} missing [${missing.join(", ")}] added [${added.join(", ")}]`);
     }
   }
+  differences.push(...markDifferences(expected.marks, actual.marks));
   return differences;
 }
 
@@ -298,7 +365,7 @@ export function recordingFromRun(
       rebuildFamilyFigure: fastRepresentation != null,
       yieldPolicy: run.executionConfig?.diagramYieldPolicy ?? parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
     },
-    expected: { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], inkHash: null },
+    expected: { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], marks: [], inkHash: null },
   };
   recording.expected = replayRecording(recording);
   return recording;

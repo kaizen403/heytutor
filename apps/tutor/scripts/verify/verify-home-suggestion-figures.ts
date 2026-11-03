@@ -5,8 +5,9 @@
  * The recordings hold each card's accepted lab inputs (turn plan, ProblemIR,
  * the raw planner document). Replay revalidates the planner document and
  * rebuilds the family figure, so a regression in either path fails here. A
- * figure that changes at all (new or lost entities, different text, different
- * source or tier) fails too: it has not been judged. Re-run the round and judge
+ * figure that changes at all (a moved or reversed shape, new or lost entities,
+ * text on a different mark, a different source or tier) fails too: it has not
+ * been judged. Refitting the whole figure and moving labels are layout and pass. Re-run the round and judge
  * it again with `scripts/lecture-lab/home-suggestions.ts`. $0, no network.
  *
  * Personalized cards written by the model per student are not covered: only
@@ -23,11 +24,14 @@ import {
   HOME_SUGGESTION_RECORDING_VERSION,
   homeSuggestionEvalRows,
   loadOracle,
+  marksOf,
   ORACLE_PATH,
   RECORDINGS_DIR,
   replayRecording,
+  replaySelection,
   shownSuggestions,
   signatureDifferences,
+  type FigureSignature,
   type HomeSuggestionRecording,
 } from "../lecture-lab/homeSuggestionCheck";
 
@@ -100,9 +104,32 @@ if (sample) {
     signatureDifferences(sample.expected, replayRecording(mutated)).length > 0,
     "mutation: a recording replayed against an unrelated stem must not reproduce its figure",
   );
-  const dropped: HomeSuggestionRecording = structuredClone(sample);
-  dropped.expected = { ...dropped.expected, entityIds: dropped.expected.entityIds.slice(1) };
-  assert(signatureDifferences(dropped.expected, replayRecording(sample)).length > 0, "mutation: a lost entity must fail");
+  const actual = replayRecording(sample);
+  assert.deepEqual(signatureDifferences(sample.expected, actual), [], "the sample must match before it is mutated");
+  const expectMutationCaught = (name: string, change: (signature: FigureSignature) => void) => {
+    const mutatedSignature: FigureSignature = structuredClone(actual);
+    change(mutatedSignature);
+    assert.notDeepEqual(mutatedSignature, actual, `mutation must change the signature: ${name}`);
+    assert(signatureDifferences(mutatedSignature, actual).length > 0, `mutation: ${name} must fail`);
+  };
+  const arrow = actual.marks.find((mark) => mark.points.length >= 2 && mark.kind !== "polyline");
+  assert(arrow, "the sample needs a straight mark to reverse");
+  const arrowIndex = actual.marks.indexOf(arrow);
+  expectMutationCaught("a lost entity", (signature) => { signature.entityIds = signature.entityIds.slice(1); });
+  expectMutationCaught("a reversed arrow", (signature) => { signature.marks[arrowIndex]!.points.reverse(); });
+  expectMutationCaught("a moved point", (signature) => { signature.marks[arrowIndex]!.points[0]![1] += 40; });
+  expectMutationCaught("a solid mark drawn dashed", (signature) => { signature.marks[arrowIndex]!.dashed = !signature.marks[arrowIndex]!.dashed; });
+  expectMutationCaught("a lost mark", (signature) => { signature.marks.splice(arrowIndex, 1); });
+  expectMutationCaught("a label on the wrong mark", (signature) => { signature.texts[0] = `other: ${signature.texts[0]!.split(": ").slice(1).join(": ")}`; });
+  // Layout is not a change: moving and rescaling the whole figure must pass.
+  const scene = replaySelection(sample).representation!.renderScene;
+  const refit: typeof scene = structuredClone(scene);
+  for (const primitive of refit.primitives) {
+    primitive.points = primitive.points.map((point) => ({ x: point.x * 0.8 + 37, y: point.y * 0.8 - 11 }));
+    if (typeof primitive.radius === "number") primitive.radius *= 0.8;
+  }
+  assert.notDeepEqual(refit.primitives, scene.primitives, "the refit must move the figure");
+  assert.deepEqual(signatureDifferences(actual, { ...actual, marks: marksOf(refit) }), [], "layout: a figure refit must not read as a change");
 }
 
 if (failures.length > 0) {
