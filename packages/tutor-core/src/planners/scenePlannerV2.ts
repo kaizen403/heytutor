@@ -234,7 +234,10 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     : null;
 }
 
-const ENGINE_ONLY_SOURCE_KEYS = ["diagramYieldPolicy", "yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox", "teachingNotes", "chemistryFamily", "chemistryTeachingFamilyId"] as const;
+const ENGINE_ONLY_SOURCE_KEYS = ["diagramYieldPolicy", "yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox", "teachingNotes", "chemistryFamily", "chemistryTeachingFamilyId",
+  // Archetype provenance: a planner that writes it would pass the optics
+  // archetype rule and inherit the archetype's exact grounding.
+  "archetype", "slotSources", "exactGrounding"] as const;
 
 /**
  * Canonicalize provenance that is already fixed by the request envelope. This

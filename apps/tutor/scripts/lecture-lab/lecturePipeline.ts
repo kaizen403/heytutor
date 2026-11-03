@@ -52,7 +52,8 @@ import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
-import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -810,6 +811,10 @@ export async function runLecture(
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
           !chemistryRefusesPlannerFigure(classifiedSubject, source)),
+        // The lab selects in its own process and never calls begin-turn, so it reads the
+        // server's switch from the lab's env with the server's resolver: off unless the
+        // lab runs with OPTICS_ARCHETYPE_IN_STRICT=on (match the dev server's env).
+        admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype({ ...planning.gate.diagramStrategy, opticsArchetypeInStrict: resolveOpticsArchetypeInStrict() }),
       },
     };
     run.figureReplayInputs = structuredClone({
