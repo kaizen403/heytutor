@@ -190,10 +190,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       return value;
     }
     const targetKeys = [value.id, value.symbol].filter((key): key is string => typeof key === "string");
-    const refines = withinDisplayedPrecision(evidence.value, {
-      value: value.value, tolerance: displayedNumberTolerance(String(value.value)),
-    });
-    if (!refines && readingInDoubt(value.sourceText, value.unit, targetKeys, numericBindings, bindingMeta)) {
+    if (readingInDoubt(value.sourceText, value.unit, targetKeys, numericBindings, bindingMeta)) {
       // The plan's value stands for now and validation holds it to the same
       // reading, so a disagreement refuses the plan. It never passes unchecked.
       declined.push({ quantityId: value.id, reason: "reading_in_doubt" });

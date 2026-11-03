@@ -107,7 +107,7 @@ refusedOr("false π chain", { source: "x = π/4 = 30°", value: 30, unit: "°" }
 
 // An angle with no declared unit is read by what the chain states.
 stays("no unit, degrees stated", { source: "C = 180° − 50° = 130°", value: 130 });
-stays("no unit, radians stated", { source: "x = 90° − 30° = 1.0472", value: 1.0472 }, 1.0471975511966);
+stays("no unit, radians stated", { source: "x = 90° − 30° = 1.0472", value: 1.0472 });
 refusedOr("no unit, nothing stated", { source: "C = 180° − 50°", value: 130 }, 130);
 refused("no unit, nothing stated, false value", { source: "C = 180° − 50°", value: 99 });
 
@@ -226,14 +226,29 @@ refusedOr("restatement after a false sum", { source: "x = A + B = 200°, so x = 
 stays("running value after a sentence", { source: "x = 5 + 2 = 7. Then x = 7 + 1 = 8", value: 8 });
 stays("running value, capital and", { source: "x = 5 + 2 = 7. So x = 7 + 1 = 8", value: 8 });
 // π and marks in chains that are right as written.
-stays("arc angle with π", { source: "θ = 22/(2π × 7) × 360 = 180°", value: 180, unit: "°" }, 180.07244989826);
-stays("one radian in degrees", { source: "θ = 360/(2π) ≈ 57.3°", value: 57.3, unit: "°" }, 57.29577951);
+stays("arc angle with π", { source: "θ = 22/(2π × 7) × 360 = 180°", value: 180, unit: "°" });
+stays("one radian in degrees", { source: "θ = 360/(2π) ≈ 57.3°", value: 57.3, unit: "°" });
 stays("trig mark beside a written conversion", { source: "v = 30 × π/180 × 2 × cos 30° = 0.907 m/s", value: 0.907, unit: "m/s" }, 0.90689968);
 stays("sum with trig and a written conversion", { source: "x = sin(30 × π/180) + cos(60°) = 1", value: 1 });
 refusedOr("degrees then trig through a no unit angle", { source: "θ = 90° − 30°", value: 60 }, 60);
 stays("set notation", { source: "n = {a, b} = 2", value: 2, givens: [["a", 5], ["b", 7]] });
 stays("connector in prose", { source: "F = m and a = 6", value: 6, givens: [["m", 2], ["a", 3]] });
 refusedOr("two products, false", { source: "P = 2 m + 2 n = 12 m", value: 12, unit: "m", givens: [["m", 3, "m"], ["n", 5, "m"]] }, 16);
+
+// A nearby result is not a refinement unless the chain is about the target.
+refusedOr("near result of the next quantity", { source: "x = 5, SP = 0.96 × 5 = 4.8", value: 5 }, 5);
+refusedOr("near result of the next quantity, y", { source: "x = 8, y = 0.95 × 8 = 7.6", value: 8 }, 8);
+refusedOr("near result, written precision", { source: "x = 5.0, SP = 0.96 × 5 = 4.8", value: 5.0 }, 5);
+refusedOr("near result after a connector", { source: "x = 5 and SP = 0.96 × 5 = 4.8", value: 5 }, 5);
+refusedOr("near result after a sentence", { source: "x = 5. SP = 0.96 × 5 = 4.8", value: 5 }, 5);
+refusedOr("near result in another clause head", { source: "SP = 0.96 × 5 = 4.8, x = 5", value: 5, symbol: "x" }, 5);
+refusedOr("near result through a unit label", { source: "I = 12 V/(12/11) = 11 A", value: 130, unit: "A", givens: VOLTS }, 11);
+// A chain that really is about the target still refines the plan's rounded value.
+stays("true refinement, integer", { source: "x = 2 × 2.48 = 4.96", value: 5 }, 4.96);
+refusedOr("true refinement, nothing stated", { source: "x = 2 × 2.48", value: 5 }, 4.96);
+stays("true refinement, decimals", { source: "x = 3 × 1.7321 = 5.1963", value: 5.2 }, 5.1963);
+stays("true refinement, about the target twice", { source: "x = 2 × 2.48 = 4.96, so x = 4.96", value: 5 }, 4.96);
+stays("true refinement, degrees", { source: "x = 90° − 22.62° = 67.38°", value: 67.4, unit: "°" }, 67.38);
 
 if (failures > 0) {
   console.error(`plan reader false values: ${failures} failed`);
