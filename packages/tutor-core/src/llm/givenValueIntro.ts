@@ -59,7 +59,9 @@ export function collectQuestionGivens(
   if (isConceptLessonQuestion(question)) {
     return [];
   }
-  const statement = givenStatement(question);
+  // Answer options are what the student must choose between, never what was given.
+  const stem = withoutAnswerOptions(question);
+  const statement = givenStatement(stem);
   const unknownKeys = unknownKeysOf(turnPlan);
   const collected: QuestionGiven[] = [];
   const seen = new Set<string>();
@@ -82,7 +84,7 @@ export function collectQuestionGivens(
   };
 
   if (turnPlan && Array.isArray(turnPlan.givens)) {
-    turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question)));
+    turnPlan.givens.forEach((row) => add(givenFromPlan(row, stem)));
   }
   for (const assignment of assignmentsFromQuestion(statement)) {
     add(assignment);
@@ -184,11 +186,14 @@ Start by saying what each of those symbols physically is, and [WRITE] that meani
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
 
-function givenFromPlan(raw: unknown, index: number, question: string): QuestionGiven | null {
+function givenFromPlan(raw: unknown, question: string): QuestionGiven | null {
   if (!isRecord(raw)) return null;
   if (raw.provenance !== undefined && raw.provenance !== "given") return null;
   if (typeof raw.value !== "number" || !Number.isFinite(raw.value)) return null;
-  const symbol = compactSymbol(raw.symbol) ?? compactSymbol(raw.id) ?? `q${index + 1}`;
+  // A row needs a symbol a student can read: never a plan's internal id, and
+  // never a number ("3 = 3") or a number glued to a name ("3h").
+  const symbol = compactSymbol(raw.symbol);
+  if (!symbol || /^\p{N}/u.test(symbol)) return null;
   const unit = displayUnit(raw.unit);
   // "Given: ..." asserts that the *question* stated this value, so the number
   // itself has to be findable in the question. Nothing softer holds: asked for
@@ -235,7 +240,9 @@ function assignmentsFromQuestion(statement: string): QuestionGiven[] {
 function readAssignmentRhs(statement: string, start: number): string | null {
   const closing: string[] = [];
   let end = start;
-  for (; end < statement.length; end++) {
+  // A value is short (compactRhs keeps 40 characters), so a long scan finds none.
+  const limit = Math.min(statement.length, start + 200);
+  for (; end < limit; end++) {
     const char = statement[end]!;
     if (closing.length === 0 && (
       char === "," || char === ";" || char === "\n" ||
@@ -281,6 +288,14 @@ function spokenGivenList(givens: QuestionGiven[], lead = true, language?: Narrat
   return `${opener}${parts.slice(0, -1).join(". ")}. And ${parts.at(-1)}.`;
 }
 
+/** Two labelled choices, (A) and (B), start the options. A lone "(a)" is a part of the question. */
+function withoutAnswerOptions(question: string): string {
+  const first = /(?:^|\s)(?:\(\s*[Aa]\s*\)|[Aa]\))\s/.exec(question);
+  if (first && /(?:^|\s)(?:\(\s*[Bb]\s*\)|[Bb]\))\s/.test(question.slice(first.index + first[0].length))) return question.slice(0, first.index);
+  const named = /\b(?:options|choices)\s*:/i.exec(question);
+  return named ? question.slice(0, named.index) : question;
+}
+
 function givenStatement(question: string): string {
   return (question.split(ASK_SPLIT)[0] ?? question).trim();
 }
@@ -311,8 +326,8 @@ function hasGivenContent(rhs: string): boolean {
 
 /** SI prefixes and bases, and the spelled units a question uses. Anything else is not known to be a unit. */
 const UNIT_TOKEN =
-  /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?|M)$/;
-const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
+  /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?|M|mM|kmph|kph|mph)$/;
+const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|cosec|arcsin|arccos|arctan|sinh|cosh|tanh|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
 
 /**
  * Is this text only a value? A number with its unit, or mathematics. A word that
@@ -345,8 +360,8 @@ function isCondition(rhs: string): boolean {
 
 /** A limit ("from x = 0 to x = 2"), not a stated value. */
 const CONDITION_WORD = /(?:^|[^\p{L}])(?:from|to|between|until|till|through)$/iu;
-const BETWEEN_LIMITS = /\bbetween\s+\S+\s*=\s*\S+\s+and$/iu;
-const LAST_WORD = /(?:^|[^\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_]*|\p{N}+(?:\.\p{N}+)?)$/u;
+const BETWEEN_LIMITS = /\bbetween\s+\S+\s*=\s*\S+(?:\s+\S+)?\s+and$/iu;
+const LAST_WORD = /(?:^|[^\p{L}\p{N}_])([\p{L}\p{N}][\p{L}\p{M}\p{N}_.]*)$/u;
 
 /**
  * "bx + c = 0" has no given c: the symbol is a term of a larger expression. So
@@ -360,7 +375,8 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   if (/[+\-*/^×·(=]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
   // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
   const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
-  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last));
+  // "sin² x" and "log2 x" are functions too.
+  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last.replace(/\p{N}+$/u, "")));
 }
 
 /** How far back a value's own context can reach. Long pasted prompts stay linear. */
@@ -445,22 +461,28 @@ function statedQuantities(question: string): StatedQuantity[] {
     const following = after.trimStart();
     // A term of an expression, not a value: "3 + 4", "2 * x", "5 + 2", "3(x + 1)".
     // "40-turn" and "2-metre" are the number with its noun.
-    if (/^[+*/^×·]/.test(following) || after.startsWith("(") || /^[-−]\s*(?:[\p{N}(]|\p{L}{1,2}(?![\p{L}\p{N}]))/u.test(after)) continue;
+    if (/^[+*/^×·=≠≈]/.test(following) || after.startsWith("(") || /^\s+[-−–]\s/.test(after) || /^[-−–]\s*(?:[\p{N}(]|\p{L}{1,2}(?![\p{L}\p{N}]))/u.test(after)) continue;
+    // "3 sin x" and "3 x" multiply; "3 m" is a length.
+    const nextWord = /^\s+([\p{L}]+)/u.exec(after)?.[1];
+    if (nextWord && (MATH_WORD.test(nextWord) || nextWord.length === 1 && !UNIT_TOKEN.test(nextWord))) continue;
     if (/[*/^×·]$/.test(before) || /\+$/.test(before) && !writtenWithPlus(question, start)) continue;
-    if (/[\p{L}\p{N})\]]\s*[-−]$/u.test(before) && !/\p{L}{2,}\s*[-−]$/u.test(before)) continue;
+    if (/[\p{L}\p{N})\]]\s*[-−–]$/u.test(before) && !/\p{L}{2,}\s*[-−–]$/u.test(before)) continue;
     // A bound is a limit, and angle brackets are a vector.
-    if (/[<>≤≥⟨]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
+    if (/[<>≤≥⟨≠]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
     if (insideTuple(question, start)) continue;
-    const owner = /([\p{L}][\p{L}\p{M}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+\-−]?$/u.exec(before);
+    const owner = /([\p{L}][\p{L}\p{M}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
     // "bx + c = 0" states no c, even for a plan row named c.
     if (owner && !standsAlone(before, owner.index)) continue;
-    if (/=\s*[+\-−]?$/.test(before) && !owner) continue;
+    if (/=\s*[+\-−–]?$/.test(before) && !owner) continue;
     // A glued word must be a unit: "20cm" is a length, "3i", "2x" and "12th" are not.
     const glued = /^[\p{L}µ°%Ω][\p{L}\p{N}/^²³⁻¹°]*/u.exec(after)?.[0];
     if (glued && !isUnitText(glued) && glued !== "%" && glued !== "°") continue;
-    const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*)/u.exec(after)?.[1];
-    const unit = (glued ?? (spaced && isUnitText(spaced) ? spaced : "")).replace(/[.,;:]+$/, "");
-    const negative = /[-−]$/.test(before);
+    // A compound unit may be spaced: "10 N m", "1.08 g mL^-1".
+    const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*)(?:\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*))?/u.exec(after);
+    const firstUnit = spaced?.[1] && isUnitText(spaced[1]) ? spaced[1].replace(/[.,;:]+$/, "") : "";
+    const secondUnit = firstUnit && spaced?.[1] === firstUnit && spaced[2] && isUnitText(spaced[2]) ? spaced[2].replace(/[.,;:]+$/, "") : "";
+    const unit = (glued ?? [firstUnit, secondUnit].filter(Boolean).join(" ")).replace(/[.,;:]+$/, "");
+    const negative = /[-−–]$/.test(before);
     stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null });
   }
   return stated;
@@ -493,6 +515,8 @@ function ownedBy(owner: string, symbol: string, label: unknown): boolean {
   const base = (name: string) => name.split(/[_^(]/)[0] ?? name;
   const subscripted = (name: string) => name !== base(name);
   if (owner === symbol) return true;
+  // "y(0) = 4" is y at one point, not y.
+  if (owner.includes("(")) return false;
   if (base(owner) === base(symbol) && !(subscripted(owner) && subscripted(symbol))) return true;
   return typeof label === "string" && normalizeKey(label) === normalizeKey(owner) && normalizeKey(owner).length > 1;
 }
@@ -640,7 +664,10 @@ function writtenWithPlus(text: string, start: number): boolean {
 }
 
 function speakNumber(value: number): string {
-  return formatNumber(value).replace(/-/g, "minus ");
+  const [mantissa, exponent] = formatNumber(value).split("e");
+  const spoken = (text: string) => text.replace(/-/g, "minus ");
+  if (exponent !== undefined) return `${spoken(mantissa!)} times ten to the ${spoken(exponent.replace(/^\+/, ""))}`;
+  return spoken(mantissa!);
 }
 
 function speakSymbol(symbol: string): string {

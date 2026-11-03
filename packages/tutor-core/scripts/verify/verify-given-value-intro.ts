@@ -226,8 +226,28 @@ for (const [why, question, plan, expected] of [
   ["a number held by another symbol is not this one", "The circle has r = 4 and passes through the origin. Find its area.", { givens: [plain("q", 4)] }, ["r = 4"]],
   ["a term of an inequality is not a constant", "Plot -3x + 6 > 0 on a number line.", { givens: [plain("constant", 6)] }, []],
   ["a function's argument is not a given", "If sin x = 1/2, plot x.", undefined, []],
-  ["a product's last symbol is not a given", "Here m a = 10 holds.", undefined, []],
-  ["a coefficient's symbol is not a given", "Here 3 x = 12 holds.", undefined, []],
+  ["a product's last symbol is not a given", "Take m a = 10, then plot.", undefined, []],
+  ["a coefficient's symbol is not a given", "Take 3 x = 12, then plot.", undefined, []],
+  ["more function spellings", "Take cosec x = 2, then plot.", undefined, []],
+  ["a squared function", "Take sin² x = 1, then plot.", undefined, []],
+  ["a based logarithm", "Take log2 x = 3, then plot.", undefined, []],
+  ["a glued factor", "Take 2π r = 10, then plot.", undefined, []],
+  ["limits with units", "Move between x = 0 m and x = 2 m, then stop.", undefined, []],
+  ["answer options are not given", "Which is correct? (A) v = 5 m/s (B) v = 7 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
+  ["named options are not given", "Pick one. Options: T1 = T2, T1 = 2.", undefined, []],
+  ["a spaced subtraction term", "Plot 4 - x here.", { givens: [plain("d", 4)] }, []],
+  ["a spaced coefficient of a function", "Plot 3 sin x here.", { givens: [plain("a", 3)] }, []],
+  ["a spaced coefficient of a symbol", "Plot 3 x here.", { givens: [plain("a", 3)] }, []],
+  ["a number on the left of an equation", "Graph 9 = 2x + y here.", { givens: [plain("c", 9)] }, []],
+  ["not equal is a bound", "Take x ≠ 9 here.", { givens: [plain("c", 9)] }, []],
+  ["an id is not a symbol", "A ball moves at 2 m/s.", { givens: [{ id: "g2", symbol: "gravity_component_long", value: 2, unit: "m/s", provenance: "given" }] }, []],
+  ["no symbol, no row", "A ball moves at 2 m/s.", { givens: [{ id: "v", value: 2, unit: "m/s", provenance: "given" }] }, []],
+  ["a number is not a symbol", "A ball of 3 kg.", { givens: [plain("3h", 3, "kg")] }, []],
+  ["an en dash is a minus", "A charge of –3 C is used.", { givens: [plain("q", 3, "C")] }, []],
+  ["millimolar is not molar", "A 5 mM solution is used.", { givens: [plain("c", 5, "M")] }, []],
+  ["kmph is not m/s", "A car at 72 kmph.", { givens: [plain("v", 72, "m/s")] }, []],
+  ["a torque is not a force", "A torque of 10 N m acts.", { givens: [plain("F", 10, "N")] }, []],
+  ["y at a point is not y", "Here y(0) = 4 holds.", { givens: [plain("y", 4)] }, []],
   ["limits with and", "Integrate between x = 0 and x = 2.", undefined, []],
   ["what is to be proved is not given", "Prove that x = 2.", undefined, []],
   ["Hindi after a value is prose", "अगर x = 3 है तो ग्राफ बनाओ", undefined, []],
@@ -266,6 +286,8 @@ for (const [why, question, plan, expected] of [
   ["a plain count", "An AP has first term 3 and common difference 5. Find the sum.", { givens: [plain("a", 3), plain("d", 5)] }, ["a = 3", "d = 5"]],
   ["a question's own symbol for its value", "Take g = 10 m/s^2. Find the time.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
   ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
+  ["a spaced compound unit", "A torque of 10 N m acts.", { givens: [plain("τ", 10, "N m")] }, ["τ = 10 N m"]],
+  ["a part label is not options", "(a) A 2 kg mass rests. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
   ["a Greek symbol", "The angle θ = 30° is used.", { givens: [plain("θ", 30, "°")] }, ["θ = 30 °"]],
   ["an aside in brackets", "A ball falls (g = 10 m/s^2) here.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
   ["degrees in words", "An angle of 30 degrees is used.", { givens: [plain("A", 30, "°")] }, ["A = 30 °"]],
@@ -282,6 +304,11 @@ for (const [why, question, plan, expected] of [
   const rows = boardRows(question, plan as { givens: unknown[] } | undefined);
   assert(JSON.stringify(rows) === JSON.stringify(expected), `${why}: ${JSON.stringify(rows)}`);
 }
+
+assert(
+  collectQuestionGivens("A charge of 0.000000003 C acts.", { givens: [plain("q", 3e-9, "C")] })[0]?.spoken.includes("3 times ten to the minus 9"),
+  "a small value is spoken as a power of ten",
+);
 
 // The ordinary path still works: a stated problem keeps its givens.
 assert(
