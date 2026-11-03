@@ -1,8 +1,10 @@
 # Diagram engine coverage plan and session record
 
-Status, 9 October 2026: per-topic chapter diagram work is paused. The topic checklist is [the diagram topic matrix](docs/plans/diagram-topic-matrix/index.md). Do not assign packets or claim rows.
+Status, 3 November 2026: the owner resumed coverage work for physics, chemistry and maths, chapter by chapter, weakest and most asked first. It fixes general causes (operators, assertions, planner contract, repair feedback). The measure is a blind judged chapter table of right, partial, wrong and empty, with the date, code sha and question set of each measurement, compared with a baseline on the same set. Zero wrong figures: a wrong figure is worse than text only. The packet process stays retired, so do not assign packets or claim rows. `accepted` in `topic-progress.csv` keeps its full contract, and TOPIC-READY is reported separately. Biology stays out of this work. The topic checklist is [the diagram topic matrix](docs/plans/diagram-topic-matrix/index.md).
 
-Updated: 2 October 2026. Status: **25-chapter expansion complete; further coverage work paused at the user's request.**
+Earlier status, 9 October 2026: per-topic chapter diagram work was paused after a week of parallel packets accepted 13 of 896 rows. Everything below this point is the record up to that pause and assigns no work.
+
+Updated: 2 October 2026. Status on that date: **25-chapter expansion complete; further coverage work paused at the user's request.**
 
 Publication: [PR #80 — Expand verified diagram operators across 25 chapters](https://github.com/kaizen403/heytutor/pull/80).
 
