@@ -4,7 +4,18 @@ import { AVAILABLE_SUBJECTS, type SubjectId } from "./types";
 
 const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
   physics: [
-    ...LANDING_SUGGESTIONS,
+    {
+      topic: "Resistors",
+      kind: "problem",
+      question:
+        "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+    },
+    {
+      topic: "Newton's laws",
+      kind: "problem",
+      question:
+        "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+    },
     {
       topic: "Capacitors",
       kind: "lecture",
@@ -122,12 +133,6 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
       kind: "problem",
       question:
         "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin.",
-    },
-    {
-      topic: "Organic",
-      kind: "problem",
-      question:
-        "Draw 3-methylbut-1-ene and give the major product when it reacts with HBr.",
     },
     {
       topic: "Equilibrium",

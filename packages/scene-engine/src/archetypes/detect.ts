@@ -22,6 +22,7 @@ import { levelRelationSource } from "../physics/levelRelationSource";
 import { extractFreeFallSlots, extractSuvatSlots } from "./generators/constantAcceleration";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catalog";
 import { formatResistorTree, readResistorTree } from "./resistorTree";
+import { extractOpticsSlots } from "./opticsSource";
 import {
   UNIT,
   STEM_NUMBER,
@@ -31,8 +32,6 @@ import {
   readEnergyAfterInEv,
   wavelengthAfterInNm,
   lengthAfterInCm,
-  lengthBeforeInCm,
-  symbolLengthInCm,
   allAngles,
   collectPlanQuantities,
   coordinateTuples,
@@ -73,28 +72,6 @@ function bridgeWireLengthInCm(stem: string): number | null {
   const before = [...stem.matchAll(pattern)].map(bridgeLengthValueInCm).filter((value): value is number => value !== null);
   const values = [...(after === null ? [] : [after]), ...before];
   return values.length && values.every(value => Math.abs(value - values[0]!) < 1e-8) ? values[0]! : null;
-}
-
-/**
- * Where the object sits, in every phrasing a ray-optics stem uses for it.
- *
- * Shared by the mirror and the lens because they are the same sentence with a
- * different noun. Missing a phrasing here is not a missing number: the
- * generator falls back to a stock distance and draws a *different optical
- * case* than the one asked about, which the tier only marks as qualitative.
- * "object at 20 cm" and "placed 15 cm away" both used to land there.
- */
-const OBJECT_PLACEMENT = /object distance(?: of| is| =)?|(?:the )?object(?: is)?(?:\s+(?:placed|kept|located|positioned))?\s+at|placed at(?: a distance of)?|distance of/;
-const AWAY_FROM = /(?:from|in front of|away(?:\s+from)?|before)/;
-const FOCAL_LENGTH = /focal length(?: of| is| =)?/;
-const RADIUS_OF_CURVATURE = /radius of curvature(?: of| is| =)?/;
-
-function objectDistanceFromStem(stem: string): number | null {
-  return lengthBeforeInCm(stem, AWAY_FROM)
-    ?? lengthAfterInCm(stem, OBJECT_PLACEMENT)
-    ?? symbolLengthInCm(stem, /u/)
-    // A stem that gives the distance with no unit at all means centimetres.
-    ?? numberAfter(stem, OBJECT_PLACEMENT, UNIT.centimetre);
 }
 
 /**
@@ -178,20 +155,6 @@ const COORDINATE_POINT_REFLECTION = inStemWithout(
 /** A line given as the mirror, in a stem that names no optical element. */
 const LINE_GIVEN_AS_MIRROR = inStemWithout(LINE_AS_MIRROR, NAMES_OPTICAL_ELEMENT);
 
-/** Focal length, named or written as `f = 15 cm`. */
-function focalLengthFromStem(stem: string): number | null {
-  return lengthAfterInCm(stem, FOCAL_LENGTH)
-    ?? symbolLengthInCm(stem, /f/)
-    ?? numberAfter(stem, FOCAL_LENGTH, UNIT.centimetre);
-}
-
-/** Radius of curvature, named or written as `R = 30 cm`. */
-function radiusOfCurvatureFromStem(stem: string): number | null {
-  return lengthAfterInCm(stem, RADIUS_OF_CURVATURE)
-    ?? symbolLengthInCm(stem, /R/)
-    ?? numberAfter(stem, RADIUS_OF_CURVATURE, UNIT.centimetre);
-}
-
 export interface DetectionHints {
   turnPlan?: unknown;
   problemIR?: {
@@ -203,9 +166,9 @@ export interface DetectionHints {
   /** An archetype the planner named explicitly; wins when its required slots resolve. */
   plannerArchetype?: string | null;
   /**
-   * Keep main's choice even for a law only lead. Only the planner request
-   * gate uses this, so the prompt and the decision to call the planner stay
-   * exactly as on main; the figure itself still declines downstream.
+   * Keep main's choice even for a law only or refused lead. Only the planner
+   * request gate uses this, so the prompt and the decision to call the planner
+   * stay exactly as on main; the figure itself still declines downstream.
    */
   keepLawOnlyLead?: boolean;
 }
@@ -227,6 +190,14 @@ interface CueSet {
   vetoes?: readonly RegExp[];
   /** Every one of these must match for the figure to be eligible at all. */
   requires?: readonly RegExp[];
+  /**
+   * Wording that makes this figure a stand in for another body. Unlike a veto,
+   * a refusal never hands the turn on: when this set leads, the whole
+   * deterministic figure declines, runner up and families included.
+   */
+  refuses?: readonly RegExp[];
+  /** The stem must match each of these, or a lead by this set declines the figure. */
+  refusesUnless?: readonly RegExp[];
   /** Minimum score to be eligible. Default 2. */
   minScore?: number;
   /** Fill slots from the plan and stem. */
@@ -398,6 +369,10 @@ const CUE_SETS: readonly CueSet[] = [
     // "Released" alone does not mean a body falling under gravity: charges,
     // plasmas, oscillators and dimension questions are other physics.
     vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
+    refuses: [
+      // A body turning about a pivot falls as a rotation, not a free fall;
+      // the Earth's rotation or a swinging crane beside a dropped ball is not.
+      /\b(?:pivot\w*|hinged?|about (?:one|its|an?) end|pendulum)\b|\b(?:rods?|bars?|beams?|planks?|doors?|sticks?|ladders?|discs?|disks?|wheels?|rings?|cylinders?)\b[^.]{0,40}?(?<!\b(?:without|no|not)\s)\b(?:rotat|swing)\w*|\baxles?\b|\b(?:about|around)\s+(?:a|the|its)\s+(?:fixed\s+)?(?:horizontal\s+)?(?:axis|support)\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -571,7 +546,16 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:car|cyclist|vehicle|particle|stone)\b/i, 1],
       [/\bradius\b/i, 1],
     ],
-    vetoes: [/\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i],
+    vetoes: [
+      /\bbanked\b/i, /\bvertical\b/i, /\bmagnetic\b/i, /\bsatellite|orbit\b/i,
+    ],
+    refuses: [
+      // A body spinning in place travels round no circle.
+      /\b(?:about|around)\s+(?:its|their)\s+(?:own\s+)?(?:axis|axes|axle|centre|center|diameter)\b|\bown\s+axis\b|\bspin(?:s|ning)?\b|\brotational\s+(?:kinetic|energy|inertia)\b|\bmoment\s+of\s+inertia\b/i,
+    ],
+    // The figure is a body going round a circle. A car moving along a level
+    // road names no circle, so the stem must say it turns.
+    refusesUnless: [/\b(?:circular|circles?|curved?|curves|turns?|turning|bends?|arcs?|radius|centripetal|roundabout|round|whirl\w*|revolv\w*|revolutions?)\b|\b(?:stones?|balls?|particles?|bobs?|body|bodies|objects?|mass)\b[^.]{0,40}\brotat\w*/i],
     extract: (stem, plan, bag) => {
       setSlot(bag, "radius", planNumber(plan, ["r", "radius"]), "plan");
       setSlot(bag, "radius", firstNumberWithUnit(stem, UNIT.metre), "stem");
@@ -978,29 +962,14 @@ const CUE_SETS: readonly CueSet[] = [
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
     vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
-      setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
-      setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      const focal = focalLengthFromStem(stem);
-      const curvature = radiusOfCurvatureFromStem(stem);
-      setSlot(bag, "f", focal ?? (curvature === null ? null : curvature / 2), "stem");
-      setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
-    },
+    // Units, kind and the one-element rule live in the shared optics reader.
+    extract: (stem, plan, bag) => extractOpticsSlots(stem, plan, bag, "mirror"),
   },
   {
     id: "thin_lens",
     cues: [[/\b(?:convex|concave|converging|diverging|biconvex|thin) lens\b/i, 5], [/\blens\b/i, 3], [/\b(?:focal length|power|image|object|magnification)\b/i, 1]],
     vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i, COORDINATE_POINT_REFLECTION],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "kind", /\b(?:concave|diverging)\b/i.test(stem) ? "concave" : "convex", "stem");
-      setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
-      setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      setSlot(bag, "f", focalLengthFromStem(stem), "stem");
-      setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
-    },
+    extract: (stem, plan, bag) => extractOpticsSlots(stem, plan, bag, "lens"),
   },
   {
     id: "lens_maker",
@@ -1664,6 +1633,10 @@ function scoreCueSet(set: CueSet, stem: string, bonus: Map<ArchetypeId, { score:
   return { set, score, strongest, evidence };
 }
 
+function refusesLead(set: CueSet, stem: string): boolean {
+  return Boolean(set.refuses?.some((pattern) => pattern.test(stem)) || set.refusesUnless?.some((pattern) => !pattern.test(stem)));
+}
+
 function fillSlots(set: CueSet, stem: string, plan: readonly PlanQuantity[]): SlotBag {
   const bag = emptyBag();
   set.extract?.(stem, plan, bag);
@@ -1704,6 +1677,31 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
 }
 
 /**
+ * True when the archetype that leads this stem is refused by its own wording
+ * (a straight road under a circle, a pivoted rod under free fall). Callers
+ * decline the whole deterministic figure, so no runner up or family takes
+ * the turn.
+ */
+export function refusedArchetypeLead(question: string, hints?: DetectionHints): boolean {
+  const stem = prepareStem(question);
+  if (!stem) return false;
+  const plan = collectPlanQuantities(hints?.turnPlan);
+  const bonus = structureBonus(hints);
+  const scored = CUE_SETS
+    .map((set) => scoreCueSet(set, stem, bonus))
+    .filter((item): item is Scored => item !== null)
+    .filter((item) => item.score >= (item.set.minScore ?? 2))
+    .sort((a, b) => b.score - a.score || b.strongest - a.strongest);
+  for (const [index, candidate] of scored.entries()) {
+    if (!requiredSlotsPresent(candidate.set.id, fillSlots(candidate.set, stem, plan))) continue;
+    const next = scored[index + 1] ?? null;
+    if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) return false;
+    return refusesLead(candidate.set, stem);
+  }
+  return false;
+}
+
+/**
  * Decide the archetype for a question. Returns null when no figure clears the
  * evidence bar — callers then fall back or teach text-only, which is the
  * honest outcome for a stem the catalog does not describe.
@@ -1717,6 +1715,8 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);
     if (set && !set.vetoes?.some((veto) => veto.test(stem))) {
+      // A claim the stem cannot support declines; it never falls through.
+      if (refusesLead(set, stem) || set.requires?.some((requirement) => !requirement.test(stem))) return null;
       const bag = fillSlots(set, stem, plan);
       if (requiredSlotsPresent(set.id, bag)) {
         return { id: set.id, slots: bag.values, sources: bag.sources, score: 99, runnerUp: null, evidence: ["planner archetype"] };
@@ -1758,6 +1758,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) {
       return null;
     }
+    if (!hints?.keepLawOnlyLead && refusesLead(candidate.set, stem)) return null;
     return {
       id: candidate.set.id,
       slots: bag.values,
