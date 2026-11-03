@@ -297,6 +297,8 @@ for (const [why, question, plan, expected] of [
   // A symbol with two values has cases, not a given.
   ["two cases of one symbol", "Evaluate with A = 0 and with A = 1, then compare.", undefined, []],
   ["two positions of one symbol", "Masses sit at x = -1 m and x = 1 m, at rest.", undefined, []],
+  ["two values across a line, read from the question", "Here x = 3 m\nx = 4 m. Find the displacement.", undefined, []],
+  ["two values across a line, with a plan row", "Here x = 3 m\nx = 4 m. Find the displacement.", { givens: [plain("x", 3, "m")] }, []],
   ["a second value after the ask", "Here t = 0, then find y at t = 2.", undefined, []],
   ["a plan row for a symbol with two values", "Take x = 3, then x = 4, and plot.", { givens: [plain("x", 3)] }, []],
   ["the same value twice is one value", "Here x = 3, so with x = 3 we plot.", undefined, ["x = 3"]],

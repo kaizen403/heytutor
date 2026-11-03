@@ -475,12 +475,13 @@ function statedQuantities(question: string): StatedQuantity[] {
     const before = question.slice(Math.max(0, start - WINDOW), start).trimEnd();
     const after = question.slice(end, end + WINDOW);
     const owner = /(?<![\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_'/]*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
-    // "bx + c = 0" states no c, even for a plan row named c.
-    if (owner && !standsAlone(before, owner.index)) continue;
     // The whole right side has to be the value: "x = 3 times y" states no x = 3.
     // An aside closes its own bracket: "(g = 10 m/s^2)".
     const rightSide = readAssignmentRhs(question, start) ?? question.slice(start, start + WINDOW).split(")")[0]!;
-    const plain = isPlainValue(rightSide.trim().replace(/[.,;:]+$/, "")) && !continuesAsList(question, start);
+    // "bx + c = 0" states no c, even for a plan row named c. It still counts as a
+    // value below: refusing a row must not hide that the symbol has two values.
+    const plain = (!owner || standsAlone(before, owner.index)) &&
+      isPlainValue(rightSide.trim().replace(/[.,;:]+$/, "")) && !continuesAsList(question, start);
     // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
     const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
     // A compound unit may be spaced ("10 N m", "1.08 g mL^-1"): read all of it.
