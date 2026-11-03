@@ -191,8 +191,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     }
     const targetKeys = [value.id, value.symbol].filter((key): key is string => typeof key === "string");
     if (readingInDoubt(value.sourceText, value.unit, targetKeys, numericBindings, bindingMeta)) {
-      // The plan's value stands for now and validation holds it to the same
-      // reading, so a disagreement refuses the plan. It never passes unchecked.
+      // Validation refuses the plan unless this reading agrees with its value.
       declined.push({ quantityId: value.id, reason: "reading_in_doubt" });
       addNumericBinding(numericBindings, value, bindingMeta, false);
       return value;
@@ -353,6 +352,15 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
       { bindingMeta: validationBindingMeta, declaredValue: value.value },
     );
+    // A reading in doubt never wrote this value, so it decides here on its own:
+    // agreement stands, and no other wording in the text can excuse a disagreement.
+    const targetKeys = [value.id, value.symbol].filter((key): key is string => typeof key === "string");
+    const doubtedReading = readingInDoubt(value.sourceText, value.unit, targetKeys, validationBindings, validationBindingMeta)
+      ? evaluateExplicitArithmetic(
+          value.sourceText, value.unit, knownUnits, validationBindings, true, targetKeys,
+          { bindingMeta: validationBindingMeta, declaredValue: value.value },
+        ).value
+      : null;
     if (evidence.invalid) {
       issues.push({
         code: "source_text_arithmetic_invalid",
@@ -365,6 +373,14 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
         path: `derived[${index}].sourceText`,
         message: "independently checkable calculations in sourceText disagree",
       });
+    } else if (doubtedReading !== null) {
+      if (Math.abs(doubtedReading - value.value) > Math.abs(value.value) * READING_IN_DOUBT_SLACK + 1e-9) {
+        issues.push({
+          code: "source_text_arithmetic_invalid",
+          path: `derived[${index}].sourceText`,
+          message: `declared value ${value.value} disagrees with its source text, which reads ${doubtedReading}`,
+        });
+      }
     } else if (
       evidence.value !== null &&
       !approximatelyEqual(evidence.value, value.value) &&
@@ -758,11 +774,13 @@ function readLiteralVoltOhmQuotient(
 
 /**
  * The ways this reader is known to misread a chain with no sign of it in the
- * number it returns. A value computed from such a chain is not evidence
- * against the plan's value, so it must not overwrite it:
+ * number it returns. Such a reading never writes a value. The plan's value
+ * stands only if the reading agrees with it, and validation refuses the plan
+ * otherwise, so what is accepted here is no looser than what was overwritten:
  * - a later statement about something else ("x = 5, SP = 0.9 × 5 = 4.5");
- * - angles in two units ("θ = 60° × π/180", "x = π/4 = 45°", "x = 90° − B" with
- *   B in radians);
+ * - an equation read as equal to its own answer ("2x + 3 = 11, so x = 4");
+ * - angles with a degree mark outside a trig argument, or in two units
+ *   ("C = 180° − 50°", "x = π/4 = 45°", "x = 90° − B" with B in radians);
  * - a unit label spelled like a bound quantity ("12 V/(12/11)" beside V = 12).
  */
 function readingInDoubt(
@@ -772,9 +790,9 @@ function readingInDoubt(
   numericBindings: Map<string, number>,
   bindingMeta: NumericBindingMetaMap,
 ): boolean {
-  return splitArithmeticClauses(sourceText, targetKeys).some((clause) => {
+  return splitArithmeticClauses(sourceText).some((clause) => {
     const members = splitEqualityParts(clause);
-    return changesSubject(members, targetKeys) ||
+    return changesSubject(members, targetKeys) || equationBeforeAnswer(members, targetKeys) ||
       anglesCrossUnits(clause, expectedUnit, numericBindings, bindingMeta) ||
       members.some((member) => namesBindingAsUnit(
         readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta),
@@ -782,6 +800,9 @@ function readingInDoubt(
       ));
   });
 }
+
+/** A plan's rounded value may differ from a reading in doubt by this much, and no more. A whole number's half unit is not enough. */
+const READING_IN_DOUBT_SLACK = 0.005;
 
 const STATEMENT_BOUNDARY =
   /,\s*(?=\p{L})|\.\s+(?=\p{L})|\b(?:and|or|but|so|then|hence|thus|therefore|giving|gives|where|with|while|since|because|which)\b/giu;
@@ -828,34 +849,17 @@ function changesSubject(members: string[], targetKeys: string[]): boolean {
   return split && (stray || (computes && !about()));
 }
 
-/**
- * "2x + 3 = 11, so x = 4" is an equation, then its answer. Read as one chain,
- * the equation's left side is set equal to the answer. Only an equation that
- * computes nothing of its own is cut here: "1/v = 1/f - 1/u = 7/60, so v = 8.57"
- * and "x = 5 + 2 = 7, then x = 7 + 1 = 8" stay one chain.
- */
-function splitEquationFromAnswer(clause: string, targetKeys: string[]): string[] {
-  const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
-  const members = splitEqualityParts(clause);
+/** "2x + 3 = 11, so x = 4": read as one chain, the equation's left side is set equal to the answer. */
+function equationBeforeAnswer(members: string[], targetKeys: string[]): boolean {
   const first = members[0] ?? "";
-  // A power or a function has several roots, and the answer picks one, so it stays as it was.
-  if (members.length < 3 || targets.has(normalizeNumericBindingKey(first)) || !clauseMentionsTarget([first], targetKeys) ||
-    /[²³^]|\b(?:sqrt|sin|cos|tan|log|ln|exp)\b/.test(first)) return [clause];
-  const statements: string[] = [];
-  let current = first;
-  for (const [index, member] of members.slice(1).entries()) {
-    const boundary = index < members.length - 2 ? statementBoundary(member) : null;
-    if (!boundary) {
-      if (computesInMember(member) && statements.length === 0) return [clause];
-      current += ` = ${member}`;
-      continue;
-    }
-    if (computesInMember(member.slice(0, boundary.at))) return [clause];
-    statements.push(`${current} = ${member.slice(0, boundary.at).replace(/[\s,.]+$/, "")}`);
-    current = member.slice(boundary.head);
+  const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
+  if (members.length < 3 || targets.has(normalizeNumericBindingKey(first)) || !clauseMentionsTarget([first], targetKeys)) return false;
+  for (const member of members.slice(1, -1)) {
+    const boundary = statementBoundary(member);
+    if (boundary) return !computesInMember(member.slice(0, boundary.at));
+    if (computesInMember(member)) return false;
   }
-  statements.push(current);
-  return statements;
+  return false;
 }
 
 function anglesCrossUnits(
@@ -865,8 +869,12 @@ function anglesCrossUnits(
   bindingMeta: NumericBindingMetaMap,
 ): boolean {
   const unit = normalizeUnit(expectedUnit);
-  const outsideTrig = mapTrigArguments(clause, () => " ").replace(BARE_TRIG_DEGREE_LITERAL, " ");
-  if (unit !== "degree" && outsideTrig.search(DEGREE_LITERAL) >= 0) return true;
+  const outsideTrig = mapTrigArguments(separateTrigCoefficient(clause), () => " ").replace(BARE_TRIG_DEGREE_LITERAL, " ");
+  // In a degree result, a mark on a plain stated value ("≈ 22.62°") is just its unit.
+  const marked = unit === "degree"
+    ? splitEqualityParts(outsideTrig).some((member) => member.search(DEGREE_LITERAL) >= 0 && /[+\-−–*/×·⋅÷^()]/.test(member.trim().replace(/^[+\-−]/, "")))
+    : outsideTrig.search(DEGREE_LITERAL) >= 0;
+  if (marked) return true;
   if (unit === "degree" && /π|\bpi\b|\d\s*rad(?:ians?)?\b/i.test(outsideTrig)) return true;
   if (unit !== "degree" && unit !== "radian") return false;
   const other = unit === "degree" ? "radian" : "degree";
@@ -919,7 +927,7 @@ function evaluateExplicitArithmetic(
   let invalid = false;
   let signConflict = false;
   let mixedUnits = false;
-  for (const clause of splitArithmeticClauses(readableSource, targetKeys)) {
+  for (const clause of splitArithmeticClauses(readableSource)) {
     const equalityParts = splitEqualityParts(clause).map((member) =>
       readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
@@ -1250,10 +1258,9 @@ function evaluateAnchoredAnonymousChain(
  * Clauses are separate statements. Implication arrows separate derivation
  * steps ("2(x-30)=x => x=60"); they are never an "=" sign.
  */
-function splitArithmeticClauses(sourceText: string, targetKeys: string[] = []): string[] {
+function splitArithmeticClauses(sourceText: string): string[] {
   return sourceText
     .split(/[;\n]+|==>|=>|⇒|⟹|⟶|→|->|\bimplies\b/)
-    .flatMap((clause) => splitEquationFromAnswer(clause, targetKeys))
     .map((clause) => clause.trim())
     .filter(Boolean);
 }
@@ -2186,6 +2193,11 @@ function chainWorksInDegrees(
 const DEGREE_LITERAL = /((?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?)\s*(?:(?:degrees?|deg)\b|°(?![CF]\b))/gi;
 const BARE_TRIG_DEGREE_LITERAL = /\b(sin|cos|tan)\s*((?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*(?:(?:degrees?|deg)\b|°(?![CF]\b))/gi;
 
+/** "2sin(30°)" is a product, and its mark is a trig argument. */
+function separateTrigCoefficient(text: string): string {
+  return text.replace(/(\d)\s*(?=(?:sin|cos|tan)(?![A-Za-z0-9_]))/gi, "$1*");
+}
+
 /** Binding maps of chains whose result is in degrees, so every member reads its marks the same way. */
 const DEGREE_RESULT = new WeakSet<Map<string, number>>();
 
@@ -2219,10 +2231,11 @@ function normalizeExplicitNumericExpression(
     .replace(/²/g, "^2")
     .replace(/³/g, "^3")
     .replace(/[{}]/g, "");
-  if (DEGREE_RESULT.has(numericBindings)) {
+  if (DEGREE_RESULT.has(numericBindings) && allowedIdentifier === undefined) {
     // A result in degrees is computed in degrees. A mark only labels the
-    // number, unless the number is a trig argument.
-    expression = mapTrigArguments(expression, (name, argument) =>
+    // number, unless the number is a trig argument. The target's own side is
+    // left as it was: "x + 110° = ..." stays unreadable.
+    expression = mapTrigArguments(separateTrigCoefficient(expression), (name, argument) =>
       `${name}(${argument.replace(DEGREE_LITERAL, "(($1)*pi/180)")})`)
       .replace(BARE_TRIG_DEGREE_LITERAL, "$1(($2)*pi/180)")
       .replace(DEGREE_LITERAL, "$1");

@@ -8,10 +8,10 @@
  * - a unit letter read as the bound symbol of the same name (11 A became 132);
  * - a later statement about something else (x took the next quantity's value);
  * - an equation read as equal to its own answer ("2x + 3 = 11, so x = 4").
- * A result in degrees is now read in degrees. The other shapes are not
- * overwritten: the plan's value stands and validation holds it to the same
- * reading, so a disagreement refuses the plan. Refused is a safe result here,
- * because a refused plan still teaches a text lesson.
+ * None of these readings writes a value any more. The plan's value stands only
+ * if the reading agrees with it; otherwise validation refuses the plan. A
+ * result in degrees is read in degrees. Refused is a safe result here, because
+ * a refused plan still teaches a text lesson.
  * `stays`: accepted with this value. `refusedOr`: refused, or holding the truth.
  * `refused`: never accepted.
  */
@@ -66,7 +66,7 @@ for (const unit of ["°", "deg", "degrees", "degree"]) {
   stays("degree words", { source: "C = 180 degrees − 50 degrees − 60 degrees = 70 degrees", value: 70, unit, givens: ANGLES });
   stays("degree abbreviation", { source: "C = 180 deg − 110 deg = 70 deg", value: 70, unit, givens: ANGLES });
   stays("marks beside bound angles", { source: "C = 180° − A − B = 70°", value: 70, unit, givens: ANGLES });
-  stays("angle sum solved", { source: "A + B + C = 180°, so C = 70°", value: 70, unit, givens: ANGLES });
+  refusedOr("angle sum solved", { source: "A + B + C = 180°, so C = 70°", value: 70, unit, givens: ANGLES }, 70);
   stays("plain chain unchanged", { source: "C = 180 − 50 − 60 = 70°", value: 70, unit, givens: ANGLES });
   refusedOr("false chain, marks", { source: "C = 180° − 50° − 60° = 80°", value: 80, unit, givens: ANGLES }, 70);
   refusedOr("false chain, bound", { source: "C = 180° − A − B = 80°", value: 80, unit, givens: ANGLES }, 70);
@@ -149,7 +149,7 @@ refusedOr("connector so", { source: "x = 18000 so SP = 0.9 × 18000 = 16200", va
 refusedOr("connector where", { source: "x = 18000 where SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
 refusedOr("sentence end", { source: "x = 18000. SP = 0.9 × 18000 = 16200", value: 18000 }, 18000);
 stays("an implicit product is not a new name", { source: "x = 3 SP = 12", value: 12, givens: [["SP", 4]] });
-stays("equations then the value", { source: "0.9x = 1.1y and x + y = 40000, so x = 22000", value: 22000 });
+refusedOr("equations then the value", { source: "0.9x = 1.1y and x + y = 40000, so x = 22000", value: 22000 }, 22000);
 refused("declared value against its statement", { source: "x = 18000, SP = 0.9 × 18000 = 16200", value: 99 });
 refusedOr("declared value against its arithmetic", { source: "x = 3 × 4 = 12, y = 1", value: 13 }, 12);
 stays("thousands comma", { source: "x = 40,000 × 11/20 = 22,000", value: 22000 });
@@ -214,8 +214,8 @@ stays("rate in degrees", { source: "θ = ω t = 10°", value: 10, unit: "°", gi
 stays("degrees per length", { source: "θ = k d = 20°", value: 20, unit: "°", givens: [["k", 2, "°/cm"], ["d", 10, "cm"]] });
 
 // An equation, then its answer. Read as one chain the left side equals the answer.
-stays("equation then answer", { source: "2x + 3 = 11, so x = 4", value: 4, symbol: "x" });
-stays("equation then answer, hence", { source: "3x = 12, hence x = 4", value: 4, symbol: "x" });
+refusedOr("equation then answer", { source: "2x + 3 = 11, so x = 4", value: 4, symbol: "x" }, 4);
+refusedOr("equation then answer, hence", { source: "3x = 12, hence x = 4", value: 4, symbol: "x" }, 4);
 refusedOr("equation then a false answer", { source: "2x + 3 = 11, so x = 5", value: 5, symbol: "x" }, 4);
 refusedOr("angle sum then a false answer", { source: "A + B + C = 180°, so C = 80°", value: 80, unit: "°", givens: ANGLES, symbol: "C" }, 70);
 stays("reciprocal chain then its answer", { source: "1/v = 1/15 - 1/20 = 1/60, so v = 60", value: 60, symbol: "v" });
@@ -248,7 +248,50 @@ stays("true refinement, integer", { source: "x = 2 × 2.48 = 4.96", value: 5 }, 
 refusedOr("true refinement, nothing stated", { source: "x = 2 × 2.48", value: 5 }, 4.96);
 stays("true refinement, decimals", { source: "x = 3 × 1.7321 = 5.1963", value: 5.2 }, 5.1963);
 stays("true refinement, about the target twice", { source: "x = 2 × 2.48 = 4.96, so x = 4.96", value: 5 }, 4.96);
-stays("true refinement, degrees", { source: "x = 90° − 22.62° = 67.38°", value: 67.4, unit: "°" }, 67.38);
+stays("a rounded value on a degree chain", { source: "x = 90° − 22.62° = 67.38°", value: 67.4, unit: "°" });
+
+// A reading in doubt that disagrees is refused, whatever else the text holds.
+refused("an arrow to a false value", { source: "θ = 180° − 30° → 5 rad", value: 5, unit: "rad" });
+refused("a semicolon before a false value", { source: "θ = 180° − 30°; 5 rad", value: 5, unit: "rad" });
+refused("a false value repeated from the chain", { source: "s = 6 m × 30°", value: 6, unit: "m" });
+refused("a false value with a written conversion", { source: "θ = A × π/180 → 0.9 rad", value: 0.9, unit: "rad", givens: [["A", 30, "°"]] });
+refused("a false value converted back", { source: "D = B × 180/π → 70°", value: 70, unit: "°", givens: [["B", 1.0472, "rad"]] });
+// A whole number's half unit does not excuse a reading in doubt.
+refused("a whole number beside a reading of half that", { source: "θ = 60° − 30° = 1 rad", value: 1, unit: "rad" });
+refused("a whole number with a written conversion", { source: "θ = A × π/180 = 1 rad", value: 1, unit: "rad", givens: [["A", 30, "°"]] });
+refused("a whole number from a conversion", { source: "θ = 0.01 × 180/π = 1°", value: 1, unit: "°" });
+refused("a whole number from a mark", { source: "s = 8 × 5° = 1 cm", value: 1, unit: "cm" });
+refused("a bound angle plus a mark, in different units", { source: "B = A + 30° = 90°", value: 90, unit: "°", givens: [["A", 1.0472]] });
+stays("a bound angle plus a mark", { source: "B = A + 30° = 90°", value: 90, unit: "°", givens: [["A", 60, "°"]] });
+// A mark on a plain stated value is its unit, and a chain with no doubt still refines.
+stays("inverse trig refines a rounded value", { source: "x = arctan(5/12) ≈ 22.62°", value: 22.62, unit: "°" }, 22.61986494804);
+// A rounded value on a chain in doubt stands.
+stays("rounded radians", { source: "θ = 180° − 30°", value: 2.618, unit: "rad" });
+stays("rounded with a written conversion", { source: "θ = A × π/180", value: 0.5236, unit: "rad", givens: [["A", 30, "°"]] });
+stays("rounded one radian", { source: "θ = 180/π", value: 57.3, unit: "°" });
+stays("rounded from a conversion", { source: "θ = 0.5 × 180/π = 28.648°", value: 28.65, unit: "°" });
+stays("rounded through glued trig", { source: "F = 20sin(37°)", value: 12, unit: "N" }, 12.03630);
+// A coefficient glued to trig is a product, and the mark is still its argument.
+stays("glued trig in a degree result", { source: "A = 180 − 100sin(30°) = 130°", value: 130, unit: "°" });
+stays("glued trig times degrees", { source: "x = 90 × 2sin(30°) = 90°", value: 90, unit: "°" });
+refusedOr("glued trig, false declared value", { source: "x = 90 × 2sin(30°) = 90°", value: 80, unit: "°" }, 90);
+// A marked left side stays unread, so a reason in brackets is not read as part of the equation.
+stays("a reason in brackets", { source: "x + 110° = 180° (straight line), so x = 70°", value: 70, unit: "°", symbol: "x" });
+stays("angle sum with a reason", { source: "x + 60° + 50° = 180° (angle sum of triangle), so x = 70°", value: 70, unit: "°", symbol: "x" });
+stays("a marked equation, right side divided", { source: "x + 30° = 360°/3, so x = 90°", value: 90, unit: "°", symbol: "x" });
+stays("a marked equation, other connector", { source: "x + 110° = 180° yields x = 70°", value: 70, unit: "°", symbol: "x" });
+// Equations before an answer are not read against the answer, and false ones stay out.
+refused("false answer, unknown on both sides", { source: "5x − 3 = 2x + 9, so x = 5", value: 5, symbol: "x" });
+refused("false answer, brackets", { source: "2(x − 30) = x, so x = 70", value: 70, symbol: "x" });
+refused("false answer, decimal", { source: "0.9x = x − 40, so x = 500", value: 500, symbol: "x" });
+refusedOr("false answer, trailing words", { source: "x + 3 = 11 in total, so x = 5", value: 5, symbol: "x" }, 8);
+refusedOr("a unit slip after an equation", { source: "2x = 1 m, so x = 0.5", value: 0.5, unit: "cm", symbol: "x" }, 50);
+// Roots after an equation stay as they were.
+stays("factorised roots, first", { source: "(x − 2)(x − 3) = 0, so x = 2 or x = 3", value: 2, symbol: "x" });
+stays("factorised roots, second", { source: "(x − 2)(x − 3) = 0, so x = 2 or x = 3", value: 3, symbol: "x" });
+stays("absolute value roots", { source: "|x − 3| = 5, so x = 8 or x = −2", value: 8, symbol: "x" });
+stays("common factor roots", { source: "x(x − 5) = 0, so x = 0 or x = 5", value: 5, symbol: "x" });
+stays("landing time roots", { source: "t(20 − 5t) = 0, so t = 0 s or t = 4 s", value: 4, unit: "s", symbol: "t" });
 
 if (failures > 0) {
   console.error(`plan reader false values: ${failures} failed`);
