@@ -33,6 +33,10 @@ import type { LectureRun } from "./lecturePipeline";
 
 export const HOME_SUGGESTION_RECORDING_VERSION = "home-suggestion-recording/v1";
 
+/** The only verdicts a recording may hold. A partial or wrong figure is never recorded as judged. */
+export const isAcceptedVerdict = (verdict: unknown): verdict is HomeSuggestionRecording["judged"]["verdict"] =>
+  verdict === "right" || verdict === "text_only_honest";
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 export const ORACLE_PATH = join(repoRoot, "data/home-suggestions/oracle.jsonl");
 export const RECORDINGS_DIR = join(repoRoot, "data/home-suggestions/recorded");
