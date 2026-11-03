@@ -52,6 +52,7 @@ import {
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
+import { sceneKeepsReferencePictureRows } from "@/lib/scene/referencePicturePersistence";
 import {
   audioPrefixMatchesType,
   validateCheckpointUploadParts,
@@ -64,6 +65,7 @@ import {
 import {
   isTurnKind,
   isTurnStatus,
+  lessonMsOf,
   nextTurnStatus,
   type TurnKind,
   type TurnStatus,
@@ -705,7 +707,9 @@ async function applyCheckpoint(
     return reject("turn_audio_oversized", "turn audio exceeds the total size limit", 413);
   }
 
-  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" ? merged : stripSceneInk(merged))
+  // A reference picture turn is text only for the engine, but its picture rows
+  // must reach the persistence branch that rebuilds them from the stored record.
+  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" || sceneKeepsReferencePictureRows(selected.sceneArtifacts) ? merged : stripSceneInk(merged))
     .map((row): CheckpointRow => ({
       orderIndex: row.orderIndex,
       narration: row.narration,
@@ -870,6 +874,7 @@ async function applyCheckpoint(
             visualStatus: canonical.value.visualStatus,
             sceneArtifacts: nullableJson(canonical.value.sceneArtifacts),
             status: finalStatus,
+            lessonMs: lessonMsOf(segmentValues),
             checkpointSeq: seq,
             submittedSegments: finalStatus === "complete" ? Prisma.DbNull : (heldCheckpoint(held, sceneSeq) as unknown as Prisma.InputJsonValue),
             resumeState: nullableJson(resumeState),

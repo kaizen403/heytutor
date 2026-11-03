@@ -60,6 +60,7 @@ described in rule 5.
 | Finished-lecture playback bar (seek, speed, chapters) | `apps/tutor/features/tutor-session/hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx` + `lib/replay/lecturePlayer.ts` |
 | Community (public boards, remix) | `apps/tutor/lib/community/` (`publicBoard.ts` privacy whitelist, `queries.ts`, `remix.ts`) + `features/community/`; moderation in `/admin/community`; gate `verify-community-privacy.ts` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
+| Reference pictures (judged Commons diagram, pencil reveal; off by default) | `apps/tutor/lib/reference-picture/` + `app/api/reference-picture/` + `packages/drawing/src/protocol/referencePicture.ts` |
 
 ## Agent Guidelines
 
@@ -94,9 +95,17 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
 2. **`@heytutor/scene-engine` owns every diagram mark** — geometry, topology,
    labels, dimensions, layout, and reveal order. No topic templates, chapter
    registries, regex routers, fixed-pixel plugins, or model-authored diagram ink.
+   One owner-approved exception (26 Oct 2026), off by default
+   (`DIAGRAM_REFERENCE_PICTURE=on`): when no verified figure is drawn, the
+   server may show a **reference picture**, a free licence Commons diagram
+   that a vision judge accepted, revealed by the pencil from a stored stroke
+   plan. It is never presented as verified geometry; its authority is the
+   stored record. See
+   [docs/architecture/reference-pictures.md](docs/architecture/reference-pictures.md).
 3. **Teaching stream owns narration and work-area `WRITE` only** — never draw,
    label, annotate, erase, circle, or supply focus coordinates. `[FOCUS:id]` may
-   trace existing verified geometry. Filters and `useCommandExecution()` enforce
+   trace existing verified geometry, or (with `REFERENCE_PICTURE_PART_FOCUS=on`)
+   ring a label the server located on a stored reference picture. Filters and `useCommandExecution()` enforce
    ownership.
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot

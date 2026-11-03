@@ -17,6 +17,9 @@ export type DrawCommandType =
   // The conductor emits it on a spoken step that carries no tag of its own,
   // so the pen goes to what is being talked about instead of standing still.
   | 'POINT'
+  // Runtime-only: reveal a stored reference picture along its stroke plan
+  // (protocol/referencePicture.ts). Never parsed from model text.
+  | 'DRAW_PICTURE'
   | 'LABEL'
   | 'UNDERLINE'
   | 'CIRCLE_AROUND'

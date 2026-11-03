@@ -175,6 +175,7 @@ export async function remixCommunityBoard(sourceBoardId: string, userId: string)
               audioReferences: turn.segments.filter((segment) => segment.audioUrl).length,
             }),
             metadataBytes: turn.metadataBytes,
+            lessonMs: turn.lessonMs,
           },
         });
         await tx.segment.createMany({

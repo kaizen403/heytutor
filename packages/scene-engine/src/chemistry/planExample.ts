@@ -10,6 +10,8 @@ import { elementByName } from "./elements";
 import { formulaTokens, normalizeChemistryText, parseFormula } from "./formula";
 import { namedSpeciesMentions } from "./namedSpecies";
 import { isChemistryQuestion } from "./router";
+import { withoutMechanismNames } from "./organic/mechanism/source";
+import { buildPlanExampleReactionDocument } from "./organic/mechanism/planReaction";
 import { actualLonePairCount, buildVseprFigure, compositionKey, isVseprStem, namedVseprProperties, vseprClaimFacts, vseprSpecies } from "./vsepr";
 import type { ParsedFormula } from "./formula";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
@@ -32,7 +34,8 @@ export type PlanExampleReading =
 
 /** True when the question already names a species, an element, or a formula of its own. */
 export function questionNamesSpecies(question: string): boolean {
-  const text = normalizeChemistryText(question);
+  // "SN2" is a mechanism name, not sulfur and nitrogen.
+  const text = normalizeChemistryText(withoutMechanismNames(question));
   if (namedSpeciesMentions(text).length > 0) return true;
   if (formulaTokens(text).some((token) => parseFormula(token) !== null)) return true;
   return (text.toLowerCase().match(/[a-z]+/g) ?? []).some((word) => word.length > 2 && elementByName(word) !== null);
@@ -178,14 +181,25 @@ function moleculePhrasesWithArticle(readable: string): number {
 export type PlanExampleDocument =
   | { status: "none" }
   | { status: "declined"; reason: string }
-  | { status: "built"; document: SceneDocument; source: PlanExampleSource; family: "chem_vsepr" };
+  | { status: "built"; document: SceneDocument; source: PlanExampleSource; family: "chem_vsepr" | "chem_organic" };
 
 /**
  * The example figure, or why there is none. Only the VSEPR family has claim
  * checks today, so only a VSEPR topic draws: the claim must state at least one
- * fact about this species and every stated fact must hold.
+ * fact about this species and every stated fact must hold. A plan's example
+ * reactions for a named mechanism (SN1, SN2, E2) are read first.
  */
 export function buildPlanExampleDocument(question: string, turnPlan: unknown): PlanExampleDocument {
+  // A mechanism ask's example reactions (SN1, SN2, E2): run under checked arrows, drawn only when they give the stated products.
+  const reactions = buildPlanExampleReactionDocument(question, turnPlan);
+  // A declined reaction example only ends the path when the plan has no example species to try instead.
+  const hasSpecies = Array.isArray((turnPlan as { exampleSpecies?: unknown } | null)?.exampleSpecies) && ((turnPlan as { exampleSpecies: unknown[] }).exampleSpecies.length > 0);
+  if (reactions.status === "declined" && !hasSpecies) return reactions;
+  if (reactions.status === "built") {
+    const caption = reactions.document.annotations?.find((annotation) => annotation.id === "figure_caption")?.text ?? `example: ${reactions.equations}`;
+    return { status: "built", document: reactions.document, family: "chem_organic",
+      source: { formula: reactions.equations, claim: "", stem: question.trim(), caption } };
+  }
   const reading = readPlanExample(question, turnPlan);
   if (reading.status !== "accepted") return reading;
   const { source } = reading;

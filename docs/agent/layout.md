@@ -73,8 +73,9 @@ A new kind of file with no row in "Where new files go" gets its row first.
   `authDisabled.ts`, `utils.ts`, `site.ts`, `cookies.ts`). Domains already in
   use: `account/`, `admin/`, `auth/`, `billing/`, `boards/`, `client/`,
   `code-lesson/` (persist parse), `code-render/`, `community/`, `crypto/`, `db/`, `http/`,
-  `lecture-export/`, `llm/`, `object-store/`, `obs/`, `replay/`, `scene/`,
-  `tts/`.
+  `lecture-export/`, `llm/`, `object-store/`, `obs/`, `reference-picture/`
+  (find, judge, stroke plan and store a reference picture), `replay/`,
+  `scene/`, `tts/`.
 - Check → `scripts/verify/verify-<kebab-name>.ts` next to the package that
   owns the code; wire it into that package’s `verify` script. Live/manual
   probes go in `scripts/live/` or `scripts/measure/` and stay out of

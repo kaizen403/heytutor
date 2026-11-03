@@ -42,6 +42,8 @@ import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
+import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import type { TutorPhase } from "../types";
 import { isWhiteboardReadyToDraw } from "../lib/board/whiteboardReady";
 import { drawSegmentInk, planSegmentInk } from "../lib/turn/segmentInk";
@@ -188,7 +190,8 @@ export function useReplay({
       }
       const diagram =
         controller?.frames.current()?.presentation.diagram
-        ?? restoreVerifiedDiagramFromTurn(turn);
+        ?? restoreVerifiedDiagramFromTurn(turn)
+        ?? restoreReferencePictureFromTurn(turn);
       if (activeVerifiedDiagramRef) {
         activeVerifiedDiagramRef.current = diagram;
       }
@@ -696,6 +699,13 @@ export function useReplay({
       // The reopened page may still be inking: stop it and let its last row
       // land before replay clears the board and the work column.
       await settleBoardRestore?.();
+      if (cancelRef.current || generation !== replayGenerationRef.current) {
+        return;
+      }
+
+      // The replay clock does not wait for the network: a reference picture's
+      // pixels are fetched before the seek renders, so it never pops in late.
+      await preloadReferencePicturesForTurns(storedTurnsRef.current);
       if (cancelRef.current || generation !== replayGenerationRef.current) {
         return;
       }

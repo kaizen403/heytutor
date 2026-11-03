@@ -9,6 +9,7 @@
  * Board geometry mirrors `@heytutor/drawing` boardZones: canvas 1200×700,
  * diagram zone x 400–1160 / y 140–520, compiler default viewport 410,55 740×555.
  */
+import { measureTextInkBounds } from "@heytutor/drawing";
 import type { RenderPrimitive, RenderScene } from "../../src/types";
 
 export const BOARD_WIDTH = 1200;
@@ -45,7 +46,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
   // Honour the marks the DSA builder sets, or a rejected edge and a live
   // window review as ordinary ink and the gate images say less than the board.
   const provenance = primitive.provenance as
-    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown; fillOnly?: unknown; pointStyle?: unknown; fontPx?: unknown; linearSolution?: unknown; labelBounds?: { x: number; y: number; width: number; height: number } }
+    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown; fillOnly?: unknown; pointStyle?: unknown; fontPx?: unknown; linearSolution?: unknown; labelPad?: unknown; labelBounds?: { x: number; y: number; width: number; height: number } }
     | undefined;
   const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
   const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
@@ -111,6 +112,21 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       if(provenance?.linearSolution && provenance.labelBounds) {
         const bounds=provenance.labelBounds;
         return `<text x="${bounds.x+2}" y="${bounds.y+2}" font-size="${provenance.fontPx}" dominant-baseline="hanging" textLength="${Math.max(1,bounds.width-4)}" lengthAdjust="spacingAndGlyphs" fill="${labelColor}">${escapeXml(primitive.text??"")}</text>`;
+      }
+      // The board writes a label in its own hand from the top-left of its
+      // reserved box, and the engine measures that ink to place it. Centre
+      // the text on the same ink box: drawing it with its baseline at the box
+      // centre put every label about half a line above where the board does.
+      if (provenance?.labelBounds && primitive.text) {
+        const bounds = provenance.labelBounds as { x: number; y: number; width: number; height: number };
+        // The board's sizes: 24 px with the engine's 4 px padding, unless the
+        // compiler recorded its own font and pad (the board writes those
+        // labels at exactly that pad, zero included).
+        const fontPx = typeof provenance?.fontPx === "number" ? provenance.fontPx : 24;
+        const pad = typeof provenance?.labelPad === "number" ? provenance.labelPad : 4;
+        const ink = measureTextInkBounds(primitive.text, bounds.x + pad, bounds.y + pad, fontPx);
+        const centre = ink ? { x: ink.x + ink.width / 2, y: ink.y + ink.height / 2 } : { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        return `<text x="${centre.x}" y="${centre.y}" font-size="${fontPx}" text-anchor="middle" dominant-baseline="central" fill="${labelColor}">${escapeXml(primitive.text)}</text>`;
       }
       return anchor
         ? `<text x="${anchor.x}" y="${anchor.y}" font-size="${typeof provenance?.fontPx === "number" ? provenance.fontPx : 13}" text-anchor="middle" fill="${labelColor}">${escapeXml(primitive.text ?? "")}</text>`

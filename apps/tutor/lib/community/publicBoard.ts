@@ -22,8 +22,8 @@ export function parseCommunitySort(value: unknown): CommunitySort {
   return value === "featured" || value === "new" ? value : "trending";
 }
 
-/** Only these age bands appear on Community. Under 13 and unknown never do. */
-export const COMMUNITY_AGE_BANDS = ["13_17", "18_plus"];
+/** Community lists a lesson only after it has spoken for at least this long. */
+export const COMMUNITY_MIN_LESSON_MS = 60_000;
 
 export const COMMUNITY_HANDLE = /^[a-z0-9](?:[a-z0-9_]{1,22})[a-z0-9]$/;
 
