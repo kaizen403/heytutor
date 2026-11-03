@@ -211,6 +211,46 @@ assert(
   `an explain request opens on the idea, not a Given list, got: ${conceptWithNumber.map((g) => g.board).join(", ")}`,
 );
 
+// A row claims the question stated this value as this quantity. Recorded home
+// suggestion cards, 3 Nov 2026 (lane 2 round): a term of an equation, a stem
+// fragment, and plan symbols over a vector's components all reached the board.
+const boardRows = (question: string, plan?: { givens: unknown[]; unknowns?: unknown[] }) =>
+  collectQuestionGivens(question, plan).map((given) => given.board);
+const plain = (symbol: string, value: number, unit = "") => ({ id: symbol, symbol, value, unit, provenance: "given", sourceText: String(value) });
+for (const [why, question, plan, expected] of [
+  ["a term of an equation is not a given", "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square.", { givens: [plain("c", 0)] }, []],
+  ["a limit and its stem fragment are not givens", "Derive the area under y = x^2 from x = 0 to x = 2 using integration.", { givens: [plain("b", 2)] }, []],
+  ["a tuple's numbers are not a plan's a, b and c", "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them.", { givens: [plain("a", 3), plain("b", 4), plain("c", 1)] }, []],
+  ["an exponent is not a given", "Find the middle term in the expansion of (x + y)^6.", { givens: [plain("n", 6)] }, []],
+  ["a coefficient is not a given", "Let a = i + 2j and b = 2i - j. Find a + b.", { givens: [plain("a_y", 2), plain("b_x", 2)] }, ["a = i + 2j", "b = 2i - j"]],
+  ["a number held by another symbol is not this one", "The circle has r = 4 and passes through the origin. Find its area.", { givens: [plain("q", 4)] }, ["r = 4"]],
+  ["a term of an inequality is not a constant", "Show -3x + 6 > 0 on a number line.", { givens: [plain("constant", 6)] }, []],
+  ["a number beside a unit of another kind is another quantity", "A 2 kg mass moves at 3 m/s. Find its momentum.", { givens: [plain("t", 2, "s"), plain("m", 2, "kg"), plain("v", 3, "m/s")] }, ["m = 2 kg", "v = 3 m/s"]],
+  ["a unitless plan row is not the value with a unit", "A 2 kg mass rests. Find its weight.", { givens: [plain("n", 2)] }, []],
+  ["an ordinal is not a given", "Find the 12th term of the sequence.", { givens: [plain("n", 12)] }, []],
+  ["an identifier's digit is not a given", "A flask holds SF4 at room temperature. Find the pressure.", { givens: [plain("x", 4)] }, []],
+  ["a term with a plain value on its right", "Plot ax^2 + bx + c = 0, with a = 1.", undefined, ["a = 1"]],
+  ["a limit with a plain value", "Integrate y from x = 0 to x = 2.", undefined, []],
+  ["a coefficient the plan quotes", "A force 3i acts on a body.", { givens: [{ ...plain("a", 3), sourceText: "3i" }] }, []],
+  ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
+  // Right rows stay.
+  ["a stated value with its unit", "Concave mirror, f = 15 cm, object at 20 cm. Locate the image.", { givens: [plain("f", 15, "cm"), plain("u", 20, "cm")] }, ["f = 15 cm", "u = 20 cm"]],
+  ["a unit written another way", "A wave moves at 2 m/s^2 past a 12 ohm load. Find the time.", { givens: [plain("a", 2, "m/s²"), plain("R", 12, "Ω")] }, ["a = 2 m/s²", "R = 12 Ω"]],
+  ["a superscript and a caret", "An area of 4 m^2 is used.", { givens: [plain("A", 4, "m²")] }, ["A = 4 m²"]],
+  ["a rescaled unit", "A 20 cm rod. Find its mass.", { givens: [plain("L", 0.2, "m")] }, ["L = 0.2 m"]],
+  ["a percent read as a fraction", "A reaction is 50% complete. Find the time.", { givens: [plain("x", 0.5)] }, ["x = 0.5"]],
+  ["a count with its noun", "A 40-turn coil is used. Find the flux.", { givens: [plain("N", 40)] }, ["N = 40"]],
+  ["a glued unit", "A 20cm rod and a 9V cell. Find the current.", { givens: [plain("L", 20, "cm"), plain("V", 9, "V")] }, ["L = 20 cm", "V = 9 V"]],
+  ["a plain count", "An AP has first term 3 and common difference 5. Find the sum.", { givens: [plain("a", 3), plain("d", 5)] }, ["a = 3", "d = 5"]],
+  ["a question's own symbol for its value", "Take g = 10 m/s^2. Find the time.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
+  ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
+  ["an expression with products", "Given y = ax^2 + bx + c and a = 2. Plot it.", undefined, ["y = ax^2 + bx + c", "a = 2"]],
+  ["a value with the place it holds", "If y = 0 at x = 0, plot it.", undefined, ["y = 0 at x = 0", "x = 0"]],
+] as const) {
+  const rows = boardRows(question, plan as { givens: unknown[] } | undefined);
+  assert(JSON.stringify(rows) === JSON.stringify(expected), `${why}: ${JSON.stringify(rows)}`);
+}
+
 // The ordinary path still works: a stated problem keeps its givens.
 assert(
   collectQuestionGivens(
@@ -338,6 +378,7 @@ const longMatrix = `A=[${Array.from({ length: 6 }, () => "[1,1,1,1,1,1]").join("
 assert(!collectQuestionGivens(longMatrix).some((given) => given.symbol === "A"), "an oversized intro value must be omitted rather than asserted as a clipped source matrix");
 assert(collectQuestionGivens("A=[[1,2],[3,4]. Show A.").length === 0, "unbalanced source values must not become supplied intro facts");
 // A written plus survives any decimal spelling; addition is not a sign.
+const TERM_NOT_QUANTITY = new Set<string>(["x +2 C charge", "b = a +2 C charge", "(a) + 2", "1+1", "5 + 2", "5 +2", "x +2", "a+2", "= +2"]);
 for (const [sourceText, value, board] of [
   ["+1.0", 1, "q = +1"],
   ["+1.00", 1, "q = +1"],
@@ -367,6 +408,12 @@ for (const [sourceText, value, board] of [
   const givens = collectQuestionGivens(stated, {
     givens: [{ id: "q", symbol: "q", value, unit: "", provenance: "given", sourceText }],
   });
+  // A term of an expression ("1+1") or a number with no quantity named ("is = +2")
+  // is not a stated quantity: no row for q, and never an invented plus.
+  if (TERM_NOT_QUANTITY.has(sourceText)) {
+    assert(!givens.some((given) => given.symbol === "q"), `"${sourceText}" is not q's value`);
+    continue;
+  }
   assert(givens.some((given) => given.board === board), `"${sourceText}" should give "${board}", got ${givens.map((given) => given.board).join(", ") || "nothing"}`);
 }
 const articleCharge = collectQuestionGivens("A particle has a +2 C charge. Find the force.", {
