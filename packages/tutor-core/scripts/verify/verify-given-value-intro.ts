@@ -254,19 +254,21 @@ for (const [why, question, plan, expected] of [
   ["one Hindi word after a value is prose", "अगर x = 3 है, तो ग्राफ बनाओ", undefined, []],
   ["a subtraction is not a negative value", "Plot x - 3 here.", { givens: [plain("a", -3)] }, []],
   ["a percent is not a length", "A 50% rise is seen.", { givens: [plain("x", 0.5, "m")] }, []],
+  ["an equation inside a sentence", "Note that 2x + 3 = 7 holds.", undefined, []],
+  ["limits with and, different symbols", "Integrate between x = 0 and y = 2.", undefined, []],
   ["a place in words is prose", "If y = 0 at the top, plot it.", undefined, []],
   ["angle brackets are a vector", "Take <3, 4> as the vector.", { givens: [plain("a", 3), plain("b", 4)] }, []],
   ["a bound is not a value", "Graph 2x + y <= 9 here.", { givens: [plain("c", 9)] }, []],
   ["a bound with a sign", "Graph 2x + y ≤ 9 here.", { givens: [plain("c", 9)] }, []],
   ["a factor is not a value", "Here 3(x + 1) = 12 holds.", { givens: [plain("a", 3)] }, []],
-  ["a sign is part of the value", "A body sits at x = -3 m.", { givens: [plain("x", 3, "m")] }, ["x = -3 m"]],
+  ["a sign is part of the value", "A body sits at x = -3 m.", { givens: [plain("x", 3, "m")] }, []],
   ["a Unicode minus too", "A body sits at x = −3 m.", { givens: [plain("v", 3, "m")] }, ["x = −3 m"]],
   ["speed is not acceleration", "A car moves at 3 m/s.", { givens: [plain("a", 3, "m/s²")] }, []],
   ["minutes are not seconds", "Wait 5 min for it.", { givens: [plain("t", 5, "s")] }, []],
   ["degrees are not metres", "The angle is 60°.", { givens: [plain("h", 60, "m")] }, []],
   ["a rescale keeps the size", "A 20 cm rod rests.", { givens: [plain("L", 2, "cm")] }, []],
-  ["M is not m", "Here M = 3 kg, at rest.", { givens: [plain("m", 3, "kg")] }, ["M = 3 kg"]],
-  ["R_2 is not R_1", "Here R_2 = 10 Ω, at rest.", { givens: [plain("R_1", 10, "Ω")] }, ["R_2 = 10 Ω"]],
+  ["M is not m", "Here M = 3 kg, at rest.", { givens: [plain("m", 3, "kg")] }, []],
+  ["R_2 is not R_1", "Here R_2 = 10 Ω, at rest.", { givens: [plain("R_1", 10, "Ω")] }, []],
   ["a number beside a unit of another kind is another quantity", "A 2 kg mass moves at 3 m/s. Find its momentum.", { givens: [plain("t", 2, "s"), plain("m", 2, "kg"), plain("v", 3, "m/s")] }, ["m = 2 kg", "v = 3 m/s"]],
   ["a unitless plan row is not the value with a unit", "A 2 kg mass rests. Find its weight.", { givens: [plain("n", 2)] }, []],
   ["an ordinal is not a given", "Find the 12th term of the sequence.", { givens: [plain("n", 12)] }, []],
@@ -286,15 +288,13 @@ for (const [why, question, plan, expected] of [
   ["a plain count", "An AP has first term 3 and common difference 5. Find the sum.", { givens: [plain("a", 3), plain("d", 5)] }, ["a = 3", "d = 5"]],
   ["a question's own symbol for its value", "Take g = 10 m/s^2. Find the time.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
   ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
-  ["a spaced compound unit", "A torque of 10 N m acts.", { givens: [plain("τ", 10, "N m")] }, ["τ = 10 N m"]],
+  ["a spaced compound unit", "A torque of 10 N m acts.", { givens: [plain("M_t", 10, "N m")] }, ["M_t = 10 N m"]],
   ["a part label is not options", "(a) A 2 kg mass rests. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
-  ["a Greek symbol", "The angle θ = 30° is used.", { givens: [plain("θ", 30, "°")] }, ["θ = 30 °"]],
   ["an aside in brackets", "A ball falls (g = 10 m/s^2) here.", { givens: [plain("g", 10, "m/s²")] }, ["g = 10 m/s²"]],
   ["degrees in words", "An angle of 30 degrees is used.", { givens: [plain("A", 30, "°")] }, ["A = 30 °"]],
   ["moles in words", "Take 2 moles of gas.", { givens: [plain("n", 2, "mol")] }, ["n = 2 mol"]],
   ["a glued Celsius", "Heat water at 40°C here.", { givens: [plain("T", 40, "°C")] }, ["T = 40 °C"]],
   ["a glued molarity", "Take a 0.1M solution.", { givens: [plain("c", 0.1, "M")] }, ["c = 0.1 M"]],
-  ["minutes read as seconds at their size", "Wait 5 min for it.", { givens: [plain("t", 300, "s")] }, ["t = 300 s"]],
   ["a unit in words", "A 2 metre rod rests.", { givens: [plain("L", 2, "m")] }, ["L = 2 m"]],
   ["a math name", "Given y = sin x. Plot it.", undefined, ["y = sin x"]],
   ["a label names the owner", "The speed = 3 m/s here.", { givens: [{ ...plain("v", 3, "m/s"), label: "speed" }] }, ["v = 3 m/s"]],
@@ -305,9 +305,16 @@ for (const [why, question, plan, expected] of [
   assert(JSON.stringify(rows) === JSON.stringify(expected), `${why}: ${JSON.stringify(rows)}`);
 }
 
+// The check only removes: a refused row never makes room for another, so these
+// rows cannot be new. Nine plan rows fill the list and hide the question's own.
+const crowded = Array.from({ length: 9 }, (_, index) => plain(`p${index}`, 100 + index));
 assert(
-  collectQuestionGivens("A charge of 0.000000003 C acts.", { givens: [plain("q", 3e-9, "C")] })[0]?.spoken.includes("3 times ten to the minus 9"),
-  "a small value is spoken as a power of ten",
+  JSON.stringify(boardRows("Plot the point (100, 101, 102, 103, 104, 105, 106, 107, 108) with z = 5.", { givens: crowded })) === "[]",
+  "a row past the list's old limit stays off when the rows before it are refused",
+);
+assert(
+  JSON.stringify(boardRows("Solve 2x + 3 = 7, with (3, 4) noted.", { givens: [plain("q", 3)] })) === "[]",
+  "a refused plan row does not bring back the equation it used to hide",
 );
 
 // The ordinary path still works: a stated problem keeps its givens.

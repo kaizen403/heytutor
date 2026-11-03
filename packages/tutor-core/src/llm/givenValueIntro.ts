@@ -15,13 +15,20 @@ export interface QuestionGiven {
   spoken: string;
 }
 
+/** A row this code could write, and whether the question positively states it. */
+interface GivenCandidate extends QuestionGiven {
+  stated: boolean;
+}
+
 interface TurnPlanLike {
   givens?: unknown;
   unknowns?: unknown;
 }
 
 const ASK_SPLIT =
-  /\b(?:find|calculate|locate|determine|compute|evaluate|how much|what is|show that|draw the|prove|derive|verify)\b/i;
+  /\b(?:find|calculate|locate|determine|compute|evaluate|how much|what is|show that|draw the)\b/i;
+/** What is to be shown is not given, though a row may reach this far in the statement. */
+const NOT_GIVEN_FROM = /\b(?:prove|derive|verify)\b/i;
 
 const UNIT_SPEECH: ReadonlyArray<readonly [RegExp, string]> = [
   [/m\/s\^2|m\/s²/i, "meters per second squared"],
@@ -59,18 +66,16 @@ export function collectQuestionGivens(
   if (isConceptLessonQuestion(question)) {
     return [];
   }
-  // Answer options are what the student must choose between, never what was given.
-  const stem = withoutAnswerOptions(question);
-  const statement = givenStatement(stem);
+  const statement = givenStatement(question);
   const unknownKeys = unknownKeysOf(turnPlan);
-  const collected: QuestionGiven[] = [];
+  const collected: GivenCandidate[] = [];
   const seen = new Set<string>();
   // A planner often emits both the qualified and the bare form of one quantity
   // — "n_glass = 1.5" and "n = 1.5" — and listing both says there are two
   // refractive indices when there is one. Same base symbol, same value, same
   // unit is the same fact; anything less exact stays two facts.
   const facts = new Set<string>();
-  const add = (given: QuestionGiven | null): void => {
+  const add = (given: GivenCandidate | null): void => {
     if (!given) return;
     const key = normalizeKey(given.symbol);
     if (!key || seen.has(key) || unknownKeys.has(key)) return;
@@ -84,7 +89,7 @@ export function collectQuestionGivens(
   };
 
   if (turnPlan && Array.isArray(turnPlan.givens)) {
-    turnPlan.givens.forEach((row) => add(givenFromPlan(row, stem)));
+    turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question)));
   }
   for (const assignment of assignmentsFromQuestion(statement)) {
     add(assignment);
@@ -92,7 +97,11 @@ export function collectQuestionGivens(
   if (collected.length === 0) {
     add(equationFromQuestion(statement));
   }
-  return collected.slice(0, 8);
+  // The list is chosen first and only then checked, so this check can only
+  // remove a row: a row it refuses never makes room for another.
+  return collected.slice(0, 8)
+    .filter((given) => given.stated)
+    .map(({ symbol, board, spoken }) => ({ symbol, board, spoken }));
 }
 
 const GIVEN_LEAD = "Given: ";
@@ -186,14 +195,12 @@ Start by saying what each of those symbols physically is, and [WRITE] that meani
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
 
-function givenFromPlan(raw: unknown, question: string): QuestionGiven | null {
+function givenFromPlan(raw: unknown, index: number, question: string): GivenCandidate | null {
   if (!isRecord(raw)) return null;
   if (raw.provenance !== undefined && raw.provenance !== "given") return null;
   if (typeof raw.value !== "number" || !Number.isFinite(raw.value)) return null;
-  // A row needs a symbol a student can read: never a plan's internal id, and
-  // never a number ("3 = 3") or a number glued to a name ("3h").
-  const symbol = compactSymbol(raw.symbol);
-  if (!symbol || /^\p{N}/u.test(symbol)) return null;
+  const named = compactSymbol(raw.symbol);
+  const symbol = named ?? compactSymbol(raw.id) ?? `q${index + 1}`;
   const unit = displayUnit(raw.unit);
   // "Given: ..." asserts that the *question* stated this value, so the number
   // itself has to be findable in the question. Nothing softer holds: asked for
@@ -203,9 +210,7 @@ function givenFromPlan(raw: unknown, question: string): QuestionGiven | null {
   // provenance "given". A plausible sourceText is not evidence, and a
   // one-letter symbol matched as a substring is worse than none: "m" is inside
   // "the first law of physics", so the old symbol test passed every time.
-  // And the number has to be this quantity's: "(3, 4)", "x^2", "3i" and "x = 2"
-  // all hold a number that a plan's a, b or c is not.
-  if (!questionStatesQuantity(question, raw.value, symbol, displayUnit(raw.unit), raw.label, raw.sourceText)) {
+  if (!questionStatesValue(question, raw.value)) {
     return null;
   }
   const board = `${symbol} = ${boardNumber(raw.value, raw.sourceText, [raw.label, symbol, raw.id])}${unit ? ` ${unit}` : ""}`;
@@ -213,11 +218,23 @@ function givenFromPlan(raw: unknown, question: string): QuestionGiven | null {
     symbol,
     board,
     spoken: `${speakSymbol(symbol)} equals ${speakNumber(raw.value)}${unit ? ` ${speakUnit(unit)}` : ""}`,
+    // And the number has to be this quantity's: "(3, 4)", "x^2", "3i" and "x = 2"
+    // all hold a number that a plan's a, b or c is not. A row needs a symbol a
+    // student can read: never a plan's internal id, a number, or "3h".
+    stated: named !== null && !/^\p{N}/u.test(named) &&
+      questionStatesQuantity(withoutAnswerOptions(question), raw.value, symbol, unit, raw.label, raw.sourceText),
   };
 }
 
-function assignmentsFromQuestion(statement: string): QuestionGiven[] {
-  const givens: QuestionGiven[] = [];
+/** Where a statement stops stating: at the answer options, or at what is to be shown. */
+function statedEnd(statement: string): number {
+  const shown = NOT_GIVEN_FROM.exec(statement)?.index ?? statement.length;
+  return Math.min(shown, withoutAnswerOptions(statement).length);
+}
+
+function assignmentsFromQuestion(statement: string): GivenCandidate[] {
+  const givens: GivenCandidate[] = [];
+  const end = statedEnd(statement);
   const pattern =
     /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*/g;
   for (const match of statement.matchAll(pattern)) {
@@ -226,12 +243,13 @@ function assignmentsFromQuestion(statement: string): QuestionGiven[] {
     if (sourceRhs === null) continue;
     const rhs = compactRhs(sourceRhs);
     if (!symbol || !rhs || !hasGivenContent(rhs)) continue;
-    if (!isValueExpression(rhs.split(CONDITION_AT)[0]!.trim()) || !isCondition(rhs) || !standsAlone(statement, (match.index ?? 0) + match[0].indexOf(match[1]!))) continue;
     if (isAskedUnknownAssignment(statement, symbol)) continue;
+    const symbolStart = (match.index ?? 0) + match[0].indexOf(match[1]!);
     givens.push({
       symbol,
       board: `${symbol} = ${rhs}`,
       spoken: `${speakSymbol(symbol)} equals ${speakRhs(rhs)}`,
+      stated: symbolStart < end && isValueExpression(rhs.split(CONDITION_AT)[0]!.trim()) && isCondition(rhs) && standsAlone(statement, symbolStart),
     });
   }
   return givens;
@@ -258,7 +276,7 @@ function readAssignmentRhs(statement: string, start: number): string | null {
   return closing.length === 0 ? statement.slice(start, end) : null;
 }
 
-function equationFromQuestion(statement: string): QuestionGiven | null {
+function equationFromQuestion(statement: string): GivenCandidate | null {
   const match = /([^\n=]{1,48}=\s*[^\n=]{1,48})/.exec(statement);
   if (!match || readAssignmentRhs(match[1], match[1].indexOf("=") + 1) === null) return null;
   const equation = compactRhs(match[1]).replace(
@@ -266,12 +284,12 @@ function equationFromQuestion(statement: string): QuestionGiven | null {
     "",
   );
   if (!equation || !/\d/.test(equation) || !/=/.test(equation)) return null;
-  // Both sides must be mathematics: "Derive the formula from a = 0 by parts" is not a given.
-  if (!equation.split("=").every((side) => isValueExpression(side.trim()))) return null;
   return {
     symbol: "equation",
     board: equation,
     spoken: speakRhs(equation),
+    // Both sides must be mathematics: "Derive the formula from a = 0 by parts" is not a given.
+    stated: match.index < statedEnd(statement) && equation.split("=").every((side) => isValueExpression(side.trim())),
   };
 }
 
@@ -466,7 +484,6 @@ function statedQuantities(question: string): StatedQuantity[] {
     const nextWord = /^\s+([\p{L}]+)/u.exec(after)?.[1];
     if (nextWord && (MATH_WORD.test(nextWord) || nextWord.length === 1 && !UNIT_TOKEN.test(nextWord))) continue;
     if (/[*/^×·]$/.test(before) || /\+$/.test(before) && !writtenWithPlus(question, start)) continue;
-    if (/[\p{L}\p{N})\]]\s*[-−–]$/u.test(before) && !/\p{L}{2,}\s*[-−–]$/u.test(before)) continue;
     // A bound is a limit, and angle brackets are a vector.
     if (/[<>≤≥⟨≠]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
     if (insideTuple(question, start)) continue;
@@ -664,10 +681,7 @@ function writtenWithPlus(text: string, start: number): boolean {
 }
 
 function speakNumber(value: number): string {
-  const [mantissa, exponent] = formatNumber(value).split("e");
-  const spoken = (text: string) => text.replace(/-/g, "minus ");
-  if (exponent !== undefined) return `${spoken(mantissa!)} times ten to the ${spoken(exponent.replace(/^\+/, ""))}`;
-  return spoken(mantissa!);
+  return formatNumber(value).replace(/-/g, "minus ");
 }
 
 function speakSymbol(symbol: string): string {
@@ -795,7 +809,7 @@ function questionMentions(question: string, snippet: string): boolean {
 }
 
 function normalizeKey(value: string): string {
-  return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function escapeRegExp(value: string): string {
