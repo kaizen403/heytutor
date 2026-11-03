@@ -235,7 +235,12 @@ Dispatch still reserves the full concurrent in-flight ceilings (including proxy
 retry limits); callers wait for existing responses to settle when they need
 headroom. No dispatch occurs when known settled cost plus those ceilings would
 exceed the allowance. A cap can stop with a small unused balance because the
-next call needs its full ceiling. Unresolved historical calls release dispatch
+next call needs its full ceiling. On Fast rates a scene request with examples
+reserves about $1.56 (a $0.78 ceiling, two attempts), and two run in parallel
+whatever `--concurrency` says, so about $3.12 must be free. A $4 cap stops
+scene planning once the ledger passes about $0.88: it finished 2 of 8 lessons on
+3 Nov 2026, and a resume spent $0.38 and finished none. Allow about $0.36 of
+ledger per full lesson, plus $3.12. Unresolved historical calls release dispatch
 headroom while their estimated exposure remains visible, so they can put the
 actual bill above the known-usage cap. Reconcile Azure ProcessedPromptTokens and
 GeneratedTokens before and after each controlled phase, stop to investigate
