@@ -85,6 +85,12 @@ export function resolveLlmRateLane(model?: string | null): LlmRateLane {
   if (id.includes("kimi-k3") || id.includes("kimi_k3")) {
     return "kimi-k3";
   }
+  // Ember-1 is Kimi K3 trained for shorter reasoning (the reference picture
+  // judge). Fireworks lists no separate price on our account, so it bills at
+  // the Kimi K3 rate rather than the dearer unknown-model fallback.
+  if (id.includes("ember-1")) {
+    return "kimi-k3";
+  }
   return "unknown";
 }
 

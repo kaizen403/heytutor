@@ -6,7 +6,10 @@ export * from "./handwriting/handwriting";
 export * from "./protocol/alignmentCheck";
 export * from "./layout/lessonPlanner";
 export * from "./protocol/verifiedDiagram";
+export * from "./protocol/referencePicture";
 export {
+  admitReferencePictureCommand,
+  REFERENCE_PICTURE_ENTITY_ID,
   isBlockedVerifiedDiagramCommand,
   prepareVerifiedLessonSegments,
   foldWritelessFocusRuns,

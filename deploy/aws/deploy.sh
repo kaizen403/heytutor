@@ -51,7 +51,19 @@ pnpm rebuild @prisma/client @prisma/engines esbuild prisma
 pnpm --filter @heytutor/tutor exec prisma generate
 
 echo "==> build tutor stack"
-pnpm turbo run build --filter=@heytutor/tutor...
+# Shared packages through turbo. The tutor itself is built outside turbo, into
+# the release directory that is not live (deploy/aws/tutor-release.sh), so the
+# live .next is never written while it serves. Outside turbo it also sees the
+# SENTRY_RELEASE exported above: turbo 2's strict env mode drops it, and
+# next build then took the previous deploy's stamp from .env.production
+# (/api/version and the stale tab check ran one deploy behind).
+pnpm turbo run build --filter=@heytutor/tutor^...
+# shellcheck source=deploy/aws/tutor-release.sh
+source "$ROOT/deploy/aws/tutor-release.sh"
+TUTOR_DIR="$ROOT/apps/tutor"
+TUTOR_RELEASE="$(tutor_inactive_release "$TUTOR_DIR")"
+echo "==> build tutor into $TUTOR_RELEASE (live build untouched)"
+tutor_build_release "$TUTOR_DIR" "$TUTOR_RELEASE"
 
 echo "==> migrate"
 cd apps/tutor
@@ -69,9 +81,9 @@ sudo chmod -R g+rX "$ROOT"
 sudo chmod 750 "$ROOT"
 sudo chgrp heytutor "$ENV_FILE"
 sudo chmod 640 "$ENV_FILE"
-sudo mkdir -p "$ROOT/apps/tutor/.next/cache"
-sudo chgrp -R heytutor "$ROOT/apps/tutor/.next"
-sudo chmod -R g+rwX "$ROOT/apps/tutor/.next"
+sudo mkdir -p "$TUTOR_DIR/$TUTOR_RELEASE/cache"
+sudo chgrp -R heytutor "$TUTOR_DIR/$TUTOR_RELEASE"
+sudo chmod -R g+rwX "$TUTOR_DIR/$TUTOR_RELEASE"
 
 if [ -f /etc/systemd/system/heytutor.service ]; then
   echo "==> run heytutor.service as heytutor"
@@ -100,12 +112,16 @@ EOF
 fi
 
 if [ -f /etc/systemd/system/heytutor.service ]; then
-  echo "==> restart heytutor.service"
+  echo "==> switch heytutor.service to $TUTOR_RELEASE"
   sudo node "$ROOT/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
   sudo systemctl reset-failed heytutor || true
-  sudo systemctl restart heytutor
+  # Stop drains the old server on its own build (up to 60 s), then the live
+  # link moves and the new server starts on the new build. A failed switch
+  # starts the old build again and fails the deploy.
+  tutor_switch_release "$TUTOR_DIR" "$TUTOR_RELEASE"
 else
-  echo "==> heytutor.service not installed — start manually or run setup-vm.sh"
+  tutor_activate_release "$TUTOR_DIR" "$TUTOR_RELEASE"
+  echo "==> heytutor.service not installed; start manually or run setup-vm.sh"
 fi
 
 echo "==> deploy complete"

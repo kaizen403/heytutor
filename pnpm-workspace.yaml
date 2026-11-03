@@ -25,5 +25,6 @@ overrides:
   "browserslist@4": "4.28.7"
   "baseline-browser-mapping@2": "2.11.0"
   "zod@4": "4.6.6"
+  "decode-uri-component@0": "0.5.1"
 patchedDependencies:
   braces@3.0.3: patches/braces@3.0.3.patch

@@ -324,6 +324,7 @@ function renderShell(
       useBoardMarking: () => ({ armed: false, marks: [] }),
     },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
+    "./hooks/useBoardThumbnail": { useBoardThumbnail: noop },
     "./hooks/useBoardFullscreen": {
       useBoardFullscreen: () => ({
         active: options.fullscreen === true,

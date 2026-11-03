@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import {
   ChartColumn,
   FlaskConical,
+  Globe,
   GraduationCap,
+  Images,
   LayoutDashboard,
   ScrollText,
   TriangleAlert,
@@ -42,10 +44,22 @@ const SECTIONS: AdminSection[] = [
     active: (p) => p.startsWith("/admin/fails"),
   },
   {
+    href: "/admin/community",
+    label: "Community",
+    icon: Globe,
+    active: (p) => p.startsWith("/admin/community"),
+  },
+  {
     href: "/admin/coverage",
     label: "Coverage",
     icon: ChartColumn,
     active: (p) => p.startsWith("/admin/coverage"),
+  },
+  {
+    href: "/admin/pictures",
+    label: "Pictures",
+    icon: Images,
+    active: (p) => p.startsWith("/admin/pictures"),
   },
 ];
 
