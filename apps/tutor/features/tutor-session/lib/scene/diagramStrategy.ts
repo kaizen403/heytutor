@@ -10,6 +10,12 @@ export interface DiagramStrategyContext {
   doubt: boolean;
   subject?: DiagramSubject;
   strictSubjects?: readonly DiagramSubject[];
+  /**
+   * Server switch `OPTICS_ARCHETYPE_IN_STRICT=on` (default off), sent with
+   * begin-turn. Only true lets strict draw the owning optics archetype;
+   * false or undefined (an older server) means off.
+   */
+  opticsArchetypeInStrict?: boolean;
 }
 
 export interface DiagramStrategyDecision extends DiagramStrategyContext {
@@ -92,6 +98,16 @@ export function plannerProvenFiguresOnly(decision: DiagramStrategyDecision): boo
  */
 export function chemistryRefusesPlannerFigure(subject: DiagramSubject | undefined, source: FigureSource): boolean {
   return subject === "chemistry" && (source === "planner" || source === "verified_recovery");
+}
+
+/**
+ * Whether strict may draw the engine's own lens or mirror figure after it
+ * dropped a planner figure for a stem that figure owns (the narrow rule is
+ * `strictOpticsArchetypeAdmission`). Strict only; the current lane already
+ * draws archetypes.
+ */
+export function strictAdmitsOwningOpticsArchetype(decision: DiagramStrategyDecision): boolean {
+  return decision.strategy === "strict" && decision.opticsArchetypeInStrict === true;
 }
 
 /** Independently compiled complete linear source programs and verified recovery remain available in strict. */
