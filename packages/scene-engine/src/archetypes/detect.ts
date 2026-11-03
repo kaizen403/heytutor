@@ -203,9 +203,9 @@ export interface DetectionHints {
   /** An archetype the planner named explicitly; wins when its required slots resolve. */
   plannerArchetype?: string | null;
   /**
-   * Keep main's choice even for a law only lead. Only the planner request
-   * gate uses this, so the prompt and the decision to call the planner stay
-   * exactly as on main; the figure itself still declines downstream.
+   * Keep main's choice even for a law only or refused lead. Only the planner
+   * request gate uses this, so the prompt and the decision to call the planner
+   * stay exactly as on main; the figure itself still declines downstream.
    */
   keepLawOnlyLead?: boolean;
 }
@@ -1810,7 +1810,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
     if (next && next.score === candidate.score && candidate.strongest < 4 && next.strongest >= candidate.strongest) {
       return null;
     }
-    if (refusesLead(candidate.set, stem)) return null;
+    if (!hints?.keepLawOnlyLead && refusesLead(candidate.set, stem)) return null;
     return {
       id: candidate.set.id,
       slots: bag.values,
