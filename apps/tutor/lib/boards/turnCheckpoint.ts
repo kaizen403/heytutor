@@ -685,10 +685,8 @@ async function applyCheckpoint(
 
   // A long lesson gives up its timings before it gives up its rows.
   const timedRows = append.filter((row) => row.timings != null).length;
-  if (timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES) {
-    append = append.map((row) => ({ ...row, timings: undefined }));
-    console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
-  }
+  const dropTimings = timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES;
+  if (dropTimings) append = append.map((row) => ({ ...row, timings: undefined }));
 
   const merged: HeldRow[] = [...stored, ...append];
   if (merged.length > MAX_TURN_SEGMENTS) return reject("turn_segments_oversized", "turn has too many segments", 413);
@@ -731,6 +729,7 @@ async function applyCheckpoint(
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
     return reject("turn_metadata_oversized", "turn metadata exceeds the size limit", 413);
   }
+  if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
   let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);

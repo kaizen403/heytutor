@@ -511,6 +511,11 @@ async function timingsGiveWayBeforeRows() {
     assert.equal(refused.status, 413, "the metadata limit still holds");
     assert.equal(refused.body.code, "turn_metadata_oversized", "with its own code");
     assert.equal(rowsOf(huge).length, 9, "and refused rows are not saved");
+    warnings.length = 0;
+    const hugeTimed = crypto.randomUUID();
+    assert.equal((await put(hugeTimed, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
+    assert.equal((await put(hugeTimed, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: [...wordy(9, 3), timed(12, 40)] })).status, 413);
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a refused save records no drop");
   } finally {
     console.warn = realWarn;
   }
