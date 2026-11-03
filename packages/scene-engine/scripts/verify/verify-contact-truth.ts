@@ -91,6 +91,7 @@ const refuse: { name: string; code: string; doc: Doc }[] = [
   { name: "a train across a bridge deck", code: "body_straddles_surface", doc: scene("A train on a bridge.", [...seg("deck", "bridge deck", [0, 0], [10, 0]), ...rect("t", "train", [5, 0], 3, 1)]) },
   { name: "only the reaction on this body names a wall's free side", code: "body_inside_surface", doc: scene("A block against a wall.", [...seg("wall", "vertical wall", [0, 0], [0, 4]), ...rect("box", "block", [-0.5, 2], 1, 1), ...arrow("N", "normal reaction on the block", [-0.5, 2], [1, 0], "N")]) },
   { name: "a tall block across a thin table, its centre above the table", code: "body_inside_surface", doc: scene("A block on a table.", [...rect("table", "table", [0, 0], 8, 0.2, "table"), ...rect("box", "block", [0, 0.4], 1, 2)]) },
+  { name: "a rough plane is a surface", code: "body_straddles_surface", doc: scene("A block on a rough plane.", [...seg("p", "rough plane", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
   { name: "rope through a solid table", code: "string_through_surface", doc: scene("A rope.", [...rect("table", "table", [0, -0.5], 6, 1, "table"), ...seg("rope", "rope", [1, 1], [1, -2])]) },
 ];
 
@@ -165,7 +166,9 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "a string to a hook just above the ceiling", doc: scene("A pendulum hangs from a hook in the ceiling.", [...seg("ceiling", "ceiling", [-2, 3], [2, 3]), ...seg("str", "string", [0, 3.2], [0, 0.6]), ...disc("bob", "bob", [0, 0.3], 0.3)]) },
   { name: "third law on a wall: the force on the wall points into it", doc: scene("The block presses on the wall.", [...seg("wall", "vertical wall", [0, 0], [0, 4]), ...rect("box", "block", [-0.5, 2], 1, 1), ...arrow("N", "normal force on the wall by the block", [-0.5, 2], [1, 0], "N")]) },
   { name: "words: a line of motion on the road through two bodies", doc: scene("Two bodies move on a road.", [...seg("axis", "line of motion on the road", [0, 0], [6, 0]), ...disc("b1", "body 1", [1, 0], 0.5), ...disc("b2", "body 2", [4, 0], 0.5)]) },
-  { name: "words: a horizontal plane of the circle through a bob", doc: scene("A conical pendulum.", [...seg("p", "horizontal plane of the circle", [-3, 0], [3, 0]), ...disc("bob", "bob", [1.5, 0], 0.4)]) },
+  { name: "words: a tilted plane of the orbit through a bob", doc: scene("A pendulum in a tilted orbit.", [...seg("p", "tilted plane of the orbit", [-3, 0], [3, 0]), ...disc("bob", "bob", [1.5, 0], 0.4)]) },
+  { name: "words: a horizontal plane through a sphere names no support", doc: scene("A plane meets a sphere.", [...seg("p", "horizontal plane", [-3, 0], [3, 0]), ...disc("s", "sphere", [0, 0], 1.5)]) },
+  { name: "words: a cutting tilted plane through a sphere", doc: scene("A plane meets a sphere.", [...seg("p", "cutting tilted plane", [-3, 0], [3, 0]), ...disc("s", "sphere", [0, 0], 1.5)]) },
   { name: "words: a ground rail through a load body", doc: scene("A circuit.", [...seg("g", "ground rail", [0, 0], [6, 0]), ...rect("c", "load body", [3, 0], 1, 0.5)]) },
   { name: "words: a cell body on a ground line", doc: scene("A circuit.", [...seg("g", "ground line", [0, 0], [6, 0]), ...rect("c", "cell body", [3, 0], 1, 0.5)]) },
   { name: "words: a sphere in a cone, with no inscribed in the stem", doc: scene("A sphere sits in a right circular cone.", [...seg("l", "lateral surface", [-2, 0], [0, 3]), ...seg("r", "lateral surface", [0, 3], [2, 0]), ...seg("base", "base line", [-2, 0], [2, 0]), ...disc("s", "sphere", [0, 1.07], 1.07)]) },

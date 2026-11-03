@@ -73,6 +73,11 @@ const rows: { name: string; question: string; code: string; wrong: Record<string
     right: wedge().block("body", "block", [[1.9, 1.074], [2.9, 1.639], [2.61, 2.13], [1.61, 1.57]], "m").doc(INCLINE),
   },
   {
+    name: "an open slope: only the side rule can refuse the block under it", question: INCLINE, code: "body_inside_surface",
+    wrong: new Figure().segment("incline", "inclined plane", [0, 0], [4.6, 2.6]).block("body", "block", [[1.9, 1.074], [2.9, 1.639], [3.19, 1.15], [2.19, 0.58]], "m").doc(INCLINE),
+    right: new Figure().segment("incline", "inclined plane", [0, 0], [4.6, 2.6]).block("body", "block", [[1.9, 1.074], [2.9, 1.639], [2.61, 2.13], [1.61, 1.57]], "m").doc(INCLINE),
+  },
+  {
     name: "the slope runs through the block", question: PLANE, code: "body_straddles_surface",
     wrong: slope().block("body", "body on the plane", [[2.757, 2.238], [3.271, 1.38], [2.243, 0.762], [1.729, 1.62]], "m").doc(PLANE),
     right: slope().block("body", "body on the plane", [[2, 1.2], [3.2, 1.92], [2.789, 2.606], [1.589, 1.886]], "m").doc(PLANE),

@@ -46,7 +46,7 @@ for (const question of questions) {
   check("last resort", question, synthesizeLastResortScene({ question, families, turnPlan: turnPlan as never })?.document);
 }
 // A sample that draws nothing proves nothing.
-if (documents < 300 || withSurface < 50) failures.push(`the sample is too thin: ${documents} documents, ${withSurface} with a surface`);
+if (documents < 1500 || withSurface < 300) failures.push(`the sample is too thin: ${documents} documents, ${withSurface} with a surface`);
 for (const failure of failures) console.error(failure);
 console.log(`verify-contact-generators: ${questions.length} questions, ${documents} documents, ${withSurface} with a surface, ${failures.length} refused, ${Math.round((Date.now() - started) / 1000)} s`);
 if (failures.length) process.exit(1);
