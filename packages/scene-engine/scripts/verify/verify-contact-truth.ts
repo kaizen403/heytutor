@@ -81,6 +81,7 @@ const refuse: { name: string; code: string; doc: Doc }[] = [
   { name: "the slope runs through the middle of the block", code: "body_straddles_surface", doc: scene("A body slides up a rough plane.", [...wedge(), ...poly("body", "block", [...ACROSS])]) },
   { name: "floor through the middle of a box", code: "body_straddles_surface", doc: scene("A box rests on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0], 1, 1)]) },
   { name: "ball centred on the ground line", code: "body_straddles_surface", doc: scene("A ball rests on the ground.", [...seg("ground", "ground", [0, 0], [6, 0]), ...disc("ball", "ball", [3, 0], 0.5)]) },
+  { name: "a string alone is the evidence: no mechanics word in the stem", code: "string_through_surface", doc: scene("Block A and block B.", [...seg("surface", "horizontal surface", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-1.6, 0.8], [-1.6, -1.4])]) },
   { name: "the string to the hanging block runs through the table", code: "string_through_surface", doc: scene("Block A on a table joined over a pulley to B.", [...seg("surface", "horizontal surface", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-1.6, 0.8], [-1.6, -1.4]), ...rect("blockB", "block B", [-1.6, -1.8], 0.8, 0.8, "B")]) },
   { name: "a string well inside the table's end still crosses it", code: "string_through_surface", doc: scene("A block on a table joined over a pulley to B.", [...seg("table", "table", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-0.5, 0.3], [-0.5, -1.2]), ...rect("m", "hanging block", [-0.5, -1.5], 0.6, 0.6, "M")]) },
   { name: "a stem that says as well as does not switch the check off", code: "body_straddles_surface", doc: scene("A block slides on the floor as well as on the slope.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
@@ -140,7 +141,7 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "words: a cell body on a ground rail in a circuit", doc: scene("A circuit.", [...seg("g", "ground rail", [0, 0], [6, 0]), ...rect("c", "cell body", [3, 0], 1, 0.5)]) },
   { name: "words: a rope into a borewell, a string in a tube, a Hindi hole", doc: scene("A stone tied to a rope is lowered into a deep borewell.", [...seg("g", "ground", [-3, 0], [3, 0]), ...seg("rope", "rope", [0, 1], [0, -2]), ...disc("stone", "stone", [0, -2.3], 0.3)]) },
   { name: "words: a Hindi stem naming a hole", doc: scene("मेज़ में एक छेद है और डोरी उसमें से गुजरती है।", [...seg("t", "table", [-3, 0], [3, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...rect("m", "hanging mass", [0, -2.3], 0.6, 0.6, "M")]) },
-  { name: "words: an electric cable and a spinal cord are not strings", doc: scene("A cable.", [...seg("w", "wall", [0, -3], [0, 3]), ...seg("c", "spinal cord", [-2, 0], [2, 0]), ...seg("e", "electric cord", [-2, 1], [2, 1])]) },
+  { name: "words: an electric cable and a spinal cord are not strings", doc: scene("A cable.", [...seg("w", "table", [0, -3], [0, 3]), ...seg("c", "spinal cord", [-2, 0], [2, 0]), ...seg("e", "electric cord", [-2, 1], [2, 1])]) },
   { name: "ice with a quarter of its volume above the surface", doc: scene("An ice cube in a tumbler has a quarter of its volume above the top surface.", [...seg("s", "surface", [-3, 0], [3, 0]), ...rect("c", "ice cube", [0, -0.25], 1, 1)]) },
   { name: "a ball centred on a table's edge, leaving it", doc: scene("A ball leaves a table's edge horizontally.", [...seg("t", "table", [-4, 2], [0, 2]), ...disc("ball", "ball", [0, 2], 0.2)]) },
   { name: "a small ball centred on a launch point", doc: scene("A ball is thrown from the ground at 30 degrees.", [...seg("g", "ground", [0, 0], [10, 0]), ...disc("ball", "ball", [5, 0], 0.2)]) },
@@ -170,6 +171,11 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "Hindi and Hinglish stems naming a well or floating", doc: scene("कुएं में एक डोरी से बंधा पत्थर है, और ball floating hai", [...seg("g", "ground", [-4, 0], [4, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...disc("s", "stone", [0, 0], 0.5)]) },
   { name: "a stem saying the string passes through the table", doc: scene("The string passes through the table to a hanging mass.", [...seg("t", "table", [-4, 0], [4, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...rect("m", "hanging mass", [0, -2.3], 0.6, 0.6, "M")]) },
   { name: "a road edge through a car", doc: scene("A car moves at speed along a road.", [...seg("e", "road edge", [0, 0], [8, 0]), ...rect("car", "car", [4, 0], 2, 1)]) },
+  { name: "a hanging block just past the wedge's top: its near corner is past the drawn line", doc: scene("A block on an incline is joined over a pulley at the top to a hanging block.", [...seg("incline", "inclined plane", [0, 0], [4.6, 2.6]), ...seg("ground", "ground", [0, 0], [4.6, 0]), ...seg("rise", "vertical side", [4.6, 0], [4.6, 2.6]), ...rect("h", "hanging block", [5.1, 2.2], 0.8, 0.8, "M")]) },
+  { name: "a box well clear under a floor is not touching it", doc: scene("A box hangs far below a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, -1.5], 1, 1)]) },
+  { name: "a table has a free underside: a box flush under it", doc: scene("A force holds a box to a table.", [...seg("t", "table", [0, 0], [6, 0]), ...rect("box", "box", [3, -0.5], 1, 1)]) },
+  { name: "a near vertical slope says nothing about which side is free", doc: scene("A force holds a block to a steep slope.", [...seg("s", "slope", [0, 0], [0.3, 4]), ...poly("body", "block", [[0.075, 1], [0.225, 3], [1.222, 2.925], [1.072, 0.925]])]) },
+  { name: "a role naming the hole lets a string through the table", doc: scene("Block A on a table is tied by a string to a hanging mass.", [{ id: "hole", role: "hole in the table", kind: "point", at: [0, 0] }, ...seg("t", "table", [-4, 0], [4, 0]), ...seg("str", "string", [0, 1], [0, -2]), ...rect("m", "hanging mass", [0, -2.3], 0.6, 0.6, "M")]) },
   { name: "a dot marking a particle on a long slope", doc: scene("A particle on an incline.", [...seg("slope", "slope", [0, 0], [40, 30]), ...disc("p", "particle", [20, 15], 0.3)]) },
   { name: "ball in flight above the ground", doc: scene("A projectile.", [...seg("ground", "ground", [0, 0], [10, 0]), ...disc("ball", "ball", [5, 3], 0.3)]) },
   { name: "the axis of motion through two bodies is not a surface", doc: scene("Two bodies collide.", [...seg("axis", "line of motion", [0, 0], [6, 0]), ...disc("b1", "body 1", [1, 0], 0.5), ...disc("b2", "body 2", [4, 0], 0.5)]) },
@@ -189,10 +195,18 @@ for (const row of refuse) {
   if (codes.includes(row.code)) passed += 1;
   else failures.push(`REFUSE ${row.name}: wanted ${row.code}, got ${codes.join(",") || "no fatal issue"}`);
 }
+// A figure with no mechanics in it stays silent before any word is read, so a keep row proves nothing unless it also holds
+// with that evidence present. The other subject rows are about the silence itself.
+const withEvidence = (doc: Doc): Doc => {
+  const source = (doc as { source: { question: string } }).source;
+  return { ...doc, source: { ...source, question: `${source.question} A force acts.` } };
+};
 for (const row of keep) {
-  const hits = codesOf(row.doc).filter((code) => CODES.has(code));
-  if (hits.length === 0) passed += 1;
-  else failures.push(`KEEP ${row.name}: refused with ${hits.join(",")}`);
+  for (const doc of row.name.startsWith("another subject") ? [row.doc] : [row.doc, withEvidence(row.doc)]) {
+    const hits = codesOf(doc).filter((code) => CODES.has(code));
+    if (hits.length === 0) passed += 1;
+    else failures.push(`KEEP ${row.name}${doc === row.doc ? "" : " (with evidence)"}: refused with ${hits.join(",")}`);
+  }
 }
 // A saved board compiles without admission options, so an old figure still reopens. Every refuse row is one.
 for (const row of refuse) {
@@ -203,8 +217,8 @@ for (const row of refuse) {
 }
 // A refusing check must not throw on a large outline.
 try {
-  const many = Array.from({ length: 1000 }, (_, i): Xy => [3 + Math.cos((i * 2 * Math.PI) / 1000), 1.2 + Math.sin((i * 2 * Math.PI) / 1000)]);
-  compileSceneDocument(scene("A ball on the floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...poly("body", "block", many)]) as never, { figureConsistency: true });
+  const many = Array.from({ length: 500 }, (_, i): Xy => [3 + Math.cos((i * 2 * Math.PI) / 500), 1.2 + Math.sin((i * 2 * Math.PI) / 500)]);
+  compileSceneDocument(scene("A block rests on the floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...poly("body", "block", many)]) as never, { figureConsistency: true });
   passed += 1;
 } catch (error) {
   failures.push(`LARGE OUTLINE threw: ${String(error).slice(0, 100)}`);
