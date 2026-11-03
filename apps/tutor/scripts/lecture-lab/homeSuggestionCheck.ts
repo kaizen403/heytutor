@@ -290,13 +290,14 @@ export function lessonTeaches(run: LectureRun): { teaches: boolean; note: string
 
 export function readRound(roundDir: string): Map<string, { run: LectureRun; file: string }> {
   const runsDir = join(roundDir, "runs");
-  const byQuestion = new Map<string, { run: LectureRun; file: string }>();
+  // By row id: the lab normalizes a question's text (x² becomes x^2) before it asks.
+  const byId = new Map<string, { run: LectureRun; file: string }>();
   for (const name of readdirSync(runsDir).filter((file) => file.endsWith(".json")).sort()) {
     const file = join(runsDir, name);
     const run = JSON.parse(readFileSync(file, "utf8")) as LectureRun;
-    byQuestion.set(run.question, { run, file });
+    byId.set(run.probeId, { run, file });
   }
-  return byQuestion;
+  return byId;
 }
 
 export function gradeRound(
@@ -304,7 +305,7 @@ export function gradeRound(
   round: Map<string, { run: LectureRun; file: string }>,
 ): SuggestionRoundRow[] {
   return rows.map((row) => {
-    const hit = round.get(row.question);
+    const hit = round.get(row.id);
     if (!hit) {
       return {
         question: row.question, subject: row.subject, figureNeed: row.figure_need,
@@ -348,6 +349,7 @@ export function recordingFromRun(
   run: LectureRun & { executionConfig?: { diagramYieldPolicy?: DiagramYieldPolicy } },
   recordedFrom: string,
   judged: HomeSuggestionRecording["judged"],
+  cardQuestion: string = run.question,
 ): HomeSuggestionRecording {
   const inputs = run.figureReplayInputs;
   if (!inputs) throw new Error(`run has no figureReplayInputs: ${recordedFrom}`);
@@ -356,7 +358,7 @@ export function recordingFromRun(
   const validated = candidateValidation?.value?.document as Record<string, unknown> | undefined;
   const recording: HomeSuggestionRecording = {
     schemaVersion: HOME_SUGGESTION_RECORDING_VERSION,
-    question: run.question,
+    question: cardQuestion,
     recordedFrom,
     judged,
     selection: {

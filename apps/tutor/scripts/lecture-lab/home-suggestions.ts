@@ -103,7 +103,7 @@ function command(args: string[]): void {
       lines.push(`| ${index + 1} | ${row.subject} | ${row.figureNeed} | ${row.teaches ? "yes" : "NO"} | ${row.draws ? "yes" : "no"} | ${row.tier ?? ""} | ${row.figureSource ?? ""} | ${row.family ?? ""} | ${row.teachNote}${row.emptyCause && !row.draws ? `; ${row.emptyCause}` : ""} | ${row.question} |`);
       if (!row.draws || !row.runFile) continue;
       const run = JSON.parse(readFileSync(row.runFile, "utf8"));
-      const recording = recordingFromRun(run, row.runFile, { verdict: "right", by: "unjudged", note: "" });
+      const recording = recordingFromRun(run, row.runFile, { verdict: "right", by: "unjudged", note: "" }, row.question);
       const selection = replaySelection(recording);
       writeSvg(join(figures, `${String(index + 1).padStart(2, "0")}-${labArtifactSlug(rows[index]!.id)}.svg`), selection,
         rows[index]!.question.slice(0, 100), `${row.figureSource} ${row.tier} ${row.family ?? ""}`);
@@ -127,9 +127,9 @@ function command(args: string[]): void {
     let failed = false;
     for (const row of evalRowsOrExit()) {
       const judged = judgements[row.question];
-      const hit = runs.get(row.question);
+      const hit = runs.get(row.id);
       if (!judged || !hit) continue;
-      const recording = recordingFromRun(hit.run, `${round.replace(/^.*\.lecture-lab\//, ".lecture-lab/")}/runs/${hit.file.split("/").pop()}`, judged);
+      const recording = recordingFromRun(hit.run, `${round.replace(/^.*\.lecture-lab\//, ".lecture-lab/")}/runs/${hit.file.split("/").pop()}`, judged, row.question);
       // The replay must reproduce what the lab showed, or the gate would guard a different figure.
       const lab = labOutcome(hit.run);
       const differences = signatureDifferences({ ...recording.expected, ...lab }, recording.expected);

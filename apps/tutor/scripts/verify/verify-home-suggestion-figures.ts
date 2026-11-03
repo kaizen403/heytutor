@@ -66,9 +66,8 @@ for (const row of rows) {
   }
   const recording = JSON.parse(readFileSync(path, "utf8")) as HomeSuggestionRecording;
   if (recording.schemaVersion !== HOME_SUGGESTION_RECORDING_VERSION) failures.push(`stale recording schema: ${path}`);
-  if (recording.question !== row.question || recording.selection.question !== row.question) {
-    failures.push(`recording question differs from the card: ${path}`);
-  }
+  // Only the card's text is compared: the lab normalizes what it asks (x² becomes x^2).
+  if (recording.question !== row.question) failures.push(`recording question differs from the card: ${path}`);
   const { verdict } = recording.judged;
   if (verdict === "right" && !recording.expected.drawn) failures.push(`judged right but records no figure: ${row.question}`);
   if (verdict === "text_only_honest" && recording.expected.drawn) failures.push(`judged text only but records a figure: ${row.question}`);
