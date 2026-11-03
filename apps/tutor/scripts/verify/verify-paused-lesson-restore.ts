@@ -779,7 +779,7 @@ async function main() {
       "Continue draws the beats a Stop cut off");
     assert(handler.includes("enqueueVerifiedIntro(introSegments, turnGeneration, { remainder: resumeIntroRemainder });"),
       "as a remainder, never saved");
-    assert(handler.includes("reason: resume.reason,") && handler.includes("resumeInkRetryUserPrompt(resume?.reason)") &&
+    assert(handler.includes("reason: resume.reason,") && handler.includes("resumeInkRetryUserPrompt(resume?.reason, resumeNextRowY(pagePromptInput))") &&
       /resumeLessonUserPrompt\([\s\S]{0,200}resume\.reason,\s*\)/.test(handler),
       "every resume prompt is told why the lesson paused");
 

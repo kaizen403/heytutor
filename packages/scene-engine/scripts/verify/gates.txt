@@ -26,6 +26,7 @@ tsx scripts/verify/verify-bank-family-compile.ts
 tsx scripts/verify/verify-family-synthesis.ts
 tsx scripts/verify/verify-concept-schematic.ts
 tsx scripts/verify/verify-archetype-pictures.ts
+tsx scripts/verify/verify-wave-types-compression.ts
 tsx scripts/verify/verify-discrete-structures.ts
 tsx scripts/verify/verify-dsa-trace.ts
 tsx scripts/verify/verify-dsa-trace-render.ts
@@ -34,6 +35,7 @@ tsx scripts/verify/verify-dsa-teaching.ts
 tsx scripts/verify/verify-dsa-stacked.ts
 tsx scripts/verify/verify-chemistry-subject.ts
 tsx scripts/verify/verify-chemistry-families.ts
+tsx scripts/verify/verify-plan-example-species.ts
 tsx scripts/verify/verify-chemistry-foundation-correctness.ts
 tsx scripts/verify/verify-incline-force-visibility.ts
 tsx scripts/verify/verify-summary-label-stack.ts
@@ -51,6 +53,7 @@ tsx scripts/verify/verify-pinned-label-precision.ts
 tsx scripts/verify/verify-instrument-labels.ts
 tsx scripts/verify/verify-label-ink-clearance.ts
 tsx scripts/verify/verify-label-owner-placement.ts
+tsx scripts/verify/verify-level-label-gaps.ts
 tsx scripts/verify/verify-point-label-rival-lines.ts
 tsx scripts/verify/verify-archetype-point-ownership.ts
 tsx scripts/verify/verify-solid-measurement-proof.ts
@@ -75,6 +78,10 @@ tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
 tsx scripts/verify/verify-projectile-units.ts
 tsx scripts/verify/verify-figure-consistency.ts
+tsx scripts/verify/verify-fluid-apparatus.ts
 tsx scripts/verify/verify-pv-cycle-stated-values.ts
 tsx scripts/verify/verify-rounded-circle-point-repair.ts
 tsx scripts/verify/verify-axes-titles.ts
+tsx scripts/verify/verify-semiconductor-bands.ts
+tsx scripts/verify/verify-photoelectric-axis-title.ts
+tsx scripts/verify/verify-review-svg-labels.ts

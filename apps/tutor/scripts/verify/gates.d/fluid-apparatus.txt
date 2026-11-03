@@ -1,0 +1,1 @@
+tsx --tsconfig tsconfig.json scripts/verify/verify-fluid-apparatus-admission.ts

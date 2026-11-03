@@ -163,7 +163,7 @@ const KNOWN_ANGLES: Record<string, string> = {
 /** Elements that can carry a hydrogen directly (H is never on a halogen or noble gas). */
 const HYDRIDE_CENTRES = new Set(["Be", "B", "Al", "C", "Si", "Ge", "Sn", "N", "P", "As", "Sb", "O", "S", "Se", "Te"]);
 
-function compositionKey(parsed: ParsedFormula): string {
+export function compositionKey(parsed: ParsedFormula): string {
   const parts = [...parsed.atoms]
     .sort((a, b) => a.symbol.localeCompare(b.symbol))
     .map((atom) => `${atom.symbol}${atom.count > 1 ? atom.count : ""}`);
@@ -456,10 +456,36 @@ function stemProperty(stem: string): StemProperty {
   return { hybridisation: readHybridisation(stem), shape: readShape(stem), lonePairs: readLonePairs(stem) };
 }
 
+/**
+ * Every hybridisation, shape and lone-pair count a topic ask names, so a plan
+ * example can be held to the topic: "what is sp2 hybridisation" names sp2, and
+ * an sp3 example does not illustrate it. A bare "sp" counts as sp here; the
+ * reader errs towards naming something, which only ever declines an example.
+ */
+export function namedVseprProperties(text: string): { hybridisations: Set<Hybridisation>; shapes: Set<VseprShape>; lonePairs: Set<number> } {
+  const stem = normalizeChemistryText(text).toLowerCase();
+  const compact = stem.replace(/[\^*'\u2019"`()]/g, "");
+  const hybridisations = new Set<Hybridisation>();
+  for (const match of compact.matchAll(/\bsp\s?(\d)?\s?(d)?\s?(\d)?(?![a-z])/g)) {
+    const [, power, d, dPower] = match;
+    if (d) hybridisations.add(dPower === "2" ? "sp3d2" : dPower === "3" ? "sp3d3" : "sp3d");
+    else if (power === "2") hybridisations.add("sp2");
+    else if (power === "3") hybridisations.add("sp3");
+    else hybridisations.add("sp");
+  }
+  const shapes = new Set<VseprShape>();
+  for (const [pattern, shape] of SHAPE_WORDS) if (pattern.test(stem)) shapes.add(shape);
+  const lonePairs = new Set<number>();
+  const words: Record<string, number> = { zero: 0, no: 0, one: 1, two: 2, three: 3 };
+  for (const match of stem.matchAll(/\b(zero|no|one|two|three|[0-3])\s+lone[ -]?pairs?/g)) lonePairs.add(words[match[1]!] ?? Number(match[1]));
+  return { hybridisations, shapes, lonePairs };
+}
+
 /** A radical's single-electron domain is not an electron pair. */
 function actualLonePairs(result: VseprResult): number {
   return result.lonePairs - (result.unpairedElectron ? 1 : 0);
 }
+export const actualLonePairCount = actualLonePairs;
 
 type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean; owners: readonly string[] | null };
 
@@ -834,32 +860,42 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
-    const facts: Array<{ truth: boolean; property: string }> = [];
-    const moleculeKey = compositionKey(parseFormula(result.formula)!);
-    for (const described of shapeClaims(rawText, result)) {
-      if (!described.owners?.includes(moleculeKey)) continue;
-      const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
-        : [described.target === "electron" ? result.electronGeometry : result.shape];
-      const equal = sourceShapes.map(shape => shape === described.shape);
-      // A property that could refer to either different geometry stays undecided.
-      if (equal.some(Boolean) && !equal.every(Boolean)) continue;
-      facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
-    }
-    for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
-    for (const described of electronCountClaims(rawText, result)) {
-      if (!described.central) continue;
-      const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
-      facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
-    }
-    if (result.stericNumber === 5 && result.lonePairs > 0) {
-      for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
-    }
-    if (claim.expected === false && facts.length && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText))) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
-    const conflict = facts.find(fact => fact.truth !== (claim.expected !== false));
+    const checked = vseprClaimFacts(claim, result);
+    if (checked.scopeError) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
+    const conflict = checked.facts.find(fact => fact.truth !== (claim.expected !== false));
     if (conflict) return `VSEPR plan claim ${claim.id} contradicts the source-derived ${conflict.property}`;
   }
   return null;
+}
+
+/** The source facts one claim states about one computed species, each with its truth. */
+export function vseprClaimFacts(
+  claim: { claim: string; expected: boolean | string | number },
+  result: VseprResult,
+): { facts: Array<{ truth: boolean; property: string }>; scopeError: boolean } {
+  const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+  const facts: Array<{ truth: boolean; property: string }> = [];
+  const moleculeKey = compositionKey(parseFormula(result.formula)!);
+  for (const described of shapeClaims(rawText, result)) {
+    if (!described.owners?.includes(moleculeKey)) continue;
+    const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
+      : [described.target === "electron" ? result.electronGeometry : result.shape];
+    const equal = sourceShapes.map(shape => shape === described.shape);
+    // A property that could refer to either different geometry stays undecided.
+    if (equal.some(Boolean) && !equal.every(Boolean)) continue;
+    facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
+  }
+  for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
+  for (const described of electronCountClaims(rawText, result)) {
+    if (!described.central) continue;
+    const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
+    facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
+  }
+  if (result.stericNumber === 5 && result.lonePairs > 0) {
+    for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
+  }
+  const scopeError = claim.expected === false && facts.length > 0 && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText));
+  return { facts, scopeError };
 }
 
 /** A closed carbon bond line is one molecule, not a list of VSEPR fragments.
@@ -1086,13 +1122,16 @@ function layoutFor(result: VseprResult): Layout | null {
           { deg: 360 - theta, len: 1, style: "plain", seat: "axial" },
           { deg: 0, len: 1, style: "plain", seat: "equatorial" },
         ],
-        lonePairs: [{ deg: 150, dist: 0.45 }, { deg: 210, dist: 0.45 }],
+        // Far enough out that the two equatorial pairs read as two pairs.
+        lonePairs: [{ deg: 150, dist: 0.7 }, { deg: 210, dist: 0.7 }],
         angle: [0, 2],
       };
     case "5-3":
+      // The three lone pairs take the equatorial slots of 5-0, far enough out
+      // that the gap between two pairs is over twice the gap within one.
       return {
         bonds: [{ deg: 90, len: 1, style: "plain", seat: "axial" }, { deg: 270, len: 1, style: "plain", seat: "axial" }],
-        lonePairs: [{ deg: 180, dist: 0.5 }, { deg: 60, dist: 0.5 }, { deg: 300, dist: 0.5 }],
+        lonePairs: [{ deg: 180, dist: 0.7 }, { deg: 330, dist: 0.7 }, { deg: 30, dist: 0.7 }],
         angle: null,
       };
     case "6-0":
@@ -1108,19 +1147,24 @@ function layoutFor(result: VseprResult): Layout | null {
         angle: [0, 1],
       };
     case "6-2":
+      // The square in the octahedral perspective, the lone pairs trans on the
+      // axis. Its marked cis pair includes a wedge, so the angle is a caption.
       return {
-        bonds: [45, 135, 225, 315].map((deg) => ({ deg, len: 1, style: "plain" as const, seat: "equatorial" as const })),
+        bonds: OCT_BASAL,
         lonePairs: [{ deg: 90, dist: 0.45 }, { deg: 270, dist: 0.45 }],
-        angle: [3, 0],
+        angle: [0, 2],
       };
     case "6-3":
+      // Meridional: one lone pair trans to the in-plane bond, two trans on the
+      // front-back axis. The front-back pairs sit further out so no two pairs
+      // read as one chain of dots.
       return {
         bonds: [
           { deg: 90, len: 1, style: "plain", seat: "axial" },
           { deg: 270, len: 1, style: "plain", seat: "axial" },
           { deg: 0, len: 1, style: "plain", seat: "equatorial" },
         ],
-        lonePairs: [{ deg: 150, dist: 0.42 }, { deg: 210, dist: 0.42 }, { deg: 180, dist: 0.72 }],
+        lonePairs: [{ deg: 180, dist: 0.4 }, { deg: 225, dist: 0.8 }, { deg: 45, dist: 0.8 }],
         angle: null,
       };
     case "7-0":
@@ -1358,6 +1402,23 @@ function honestArc(layout: Layout, ink: SpeciesInk, radius: number): readonly [n
 }
 
 /**
+ * Whether the marked pair's page sector reads as the written value: "90°"
+ * within a degree, "<90°" below it, ">90°" above it. A perspective pair
+ * (XeF4's cis F) or a layout drawn at the ideal angle under a bound (BrF5's
+ * <90° on a right angle) does not, and is written as a caption.
+ */
+function sectorReads(layout: Layout, value: string): boolean {
+  if (!layout.angle) return false;
+  const slotA = layout.bonds[layout.angle[0]];
+  const slotB = layout.bonds[layout.angle[1]];
+  const written = /^([<>]?)(\d+(?:\.\d+)?)°$/.exec(value);
+  if (!slotA || !slotB || !written) return false;
+  const span = sectorOf(slotA.deg, slotB.deg).span;
+  const target = Number(written[2]);
+  return written[1] === "<" ? span < target : written[1] === ">" ? span > target : Math.abs(span - target) <= 1;
+}
+
+/**
  * Where the value of an honest arc sits: inside its sector, just outside the
  * arc, its ink clear of every bond, symbol and lone pair by MARK_GAP_PX and
  * its text box clear of every symbol's box by LABEL_BOX_GAP_PX at the
@@ -1447,14 +1508,14 @@ function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[
   // whose angle differs from the value).
   const [first, second] = layout.angle!;
   if (anglePairQualifier(result.stericNumber, seated[first]!.slot.seat, seated[second]!.slot.seat) === null) return null;
-  const pair = honestArc(layout, ink, radius);
+  const pair = sectorReads(layout, value) ? honestArc(layout, ink, radius) : null;
   const placed = pair ? arcValueBox(value, layout, pair, radius, ink, pxPerUnit) : null;
   if (pair && placed) return { kind: "arc", a: pair[0], b: pair[1], radius, ...placed };
   const text = angleCaption(result, layout, seated, value);
   return text ? { kind: "caption", text } : null;
 }
 
-function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean, row: boolean): DrawnSpecies | null {
+function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: string, pxPerUnit: number, withAngle: boolean, row: boolean, exampleCaption?: string): DrawnSpecies | null {
   const layout = layoutFor(result);
   if (!layout) return null;
   const seated = seatLigands(result, layout);
@@ -1524,10 +1585,12 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     symbolBoxes: [textBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => textBox(ligand.label, ligandAt[index]!, pxPerUnit))],
   };
   // Only a single molecule gets the arc and caption rules. A row of species
-  // keeps main's mark exactly, so a row main's label solver refuses is still
-  // refused, and no row draws where main would not.
+  // keeps main's mark, so a row main's label solver refuses is still
+  // refused; only a pair whose sector does not read as its value is
+  // written as a caption instead.
+  const rowCaption = characteristic && row && !sectorReads(layout, characteristic) ? angleCaption(result, layout, seated, characteristic) : null;
   const mark: AngleMark | null = !characteristic ? null
-    : row ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 }
+    : row ? (rowCaption ? { kind: "caption", text: rowCaption } : sectorReads(layout, characteristic) ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 } : null)
     : angleMark(result, layout, seated, ink, characteristic, pxPerUnit);
   const angleTextIds: string[] = [];
   if (mark?.kind === "row") {
@@ -1572,7 +1635,11 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     claimId = c.text(`${tag}_claim`, { x: origin.x, y: claimY }, claim, "angle is ideal, an inequality, or a quoted value");
     detailIds.push(claimId);
   }
-  const top = titleY + PANEL_END;
+  // A plan example says so above its formula: the student asked about the
+  // idea, not about this species.
+  const exampleY = titleY + CAPTION_STEP;
+  if (exampleCaption) frameIds.push(c.text(`${tag}_example`, { x: origin.x, y: exampleY }, exampleCaption, "example caption"));
+  const top = (exampleCaption ? exampleY : titleY) + PANEL_END;
   const bottom = claimY - PANEL_END;
   const halfWidth = Math.max(reachX + PANEL_SIDE, 1.45);
   frameIds.push(panel(c, `${tag}_panel`, { x: origin.x, y: (top + bottom) / 2 }, 2 * halfWidth, top - bottom));
@@ -1637,20 +1704,25 @@ export interface VseprFigure {
   structures: VseprStructure[];
 }
 
-export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[], schematic: boolean): VseprFigure | null {
+export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[], schematic: boolean, options: { exampleCaption?: string } = {}): VseprFigure | null {
   void quantities;
   void schematic;
   const stem = chemStem(question);
-  if (!shapeIsTheAsk(stem) && fajanAsked(stem)) {
+  const example = options.exampleCaption;
+  // A plan example is drawn only as its molecular shape. A stem that asks for
+  // another figure of the species (its dipoles, its Fajans polarisation)
+  // would get a shape without the marks the lesson needs: decline instead.
+  if (example && (dipoleIsTheAsk(stem) || (!shapeIsTheAsk(stem) && fajanAsked(stem)))) return null;
+  if (!example && !shapeIsTheAsk(stem) && fajanAsked(stem)) {
     const fajan = buildFajanScene(question);
     if (fajan) return { document: fajan, structures: [] };
   }
-  if (dipoleIsTheAsk(stem)) {
+  if (!example && dipoleIsTheAsk(stem)) {
     const dipole = buildDipoleScene(question, dipoleInputs(vseprSpecies(question)));
     if (dipole) return { document: dipole, structures: [] };
   }
   const species = vseprSpecies(question);
-  if (species.length === 0) return null;
+  if (species.length === 0 || (example && species.length !== 1)) return null;
   const single = species.length === 1;
   const reason = single
     ? `${species[0]!.formula} by VSEPR: ${species[0]!.hybridisation}, ${species[0]!.shape}`
@@ -1663,7 +1735,7 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     const scene = new ChemScene(question, reason, VSEPR_FAMILY);
     const items: Array<{ result: VseprResult; drawn: DrawnSpecies }> = [];
     species.forEach((result, index) => {
-      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle, !single);
+      const item = drawSpecies(scene, result, { x: index * SPECIES_PITCH, y: 0 }, `m${index + 1}`, pxPerUnit, withAngle, !single, example);
       if (item) items.push({ result, drawn: item });
     });
     return { scene, items };

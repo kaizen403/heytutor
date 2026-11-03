@@ -76,8 +76,10 @@ function waveTypes(context: GeneratorContext) {
     const b = scene.point(`l${index}_b`, { x, y: baseY + 0.5 }, "longitudinal wave particle");
     ticks.push(scene.segment(`l${index}`, a, b, index === 0 ? "longitudinal wave: particles move along the direction of travel" : "longitudinal wave particle line"));
   }
-  scene.point("comp", { x: lambda / 4, y: baseY + 0.9 }, "compression", "compression");
-  scene.point("rare", { x: 3 * lambda / 4, y: baseY + 0.9 }, "rarefaction", "rarefaction");
+  // x = u + 0.35 sin(2πu/λ) packs the particles closest where the cosine is -1 (u = λ/2)
+  // and spreads them farthest where it is +1 (u = λ).
+  scene.point("comp", { x: lambda / 2, y: baseY + 0.9 }, "compression", "compression");
+  scene.point("rare", { x: lambda, y: baseY + 0.9 }, "rarefaction", "rarefaction");
   scene.point("l_particle", { x: lambda / 2, y: baseY - 0.9 }, "particle on the longitudinal wave");
   scene.vector("l_osc", "l_particle", { direction: { x: 1, y: 0 }, length: 0.9 }, "longitudinal oscillation", "oscillation");
   scene.assert("transverse_crest", "function_value", ["transverse"], { x: Number((lambda / 4).toFixed(6)), y: 1 });

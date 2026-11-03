@@ -122,12 +122,22 @@ import {
   buildDoubtTeachingPrompt,
   buildResumeTeachingPrompt,
   buildTurnTeachingPrompt,
+  figureExampleSpeciesOf,
   resumeLessonUserPrompt,
   resumeInkRetryUserPrompt,
+  resumeNextRowY,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
 import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
+import { requestReferencePicture, type ReferencePictureResult } from "../../lib/scene/referencePictureClient";
+import {
+  buildReferencePicturePresentation,
+  isReferencePictureDiagram,
+  type ReferencePictureOutcome,
+  type StoredReferencePicture,
+} from "../../lib/scene/referencePicturePresentation";
+import { preloadReferencePictureWithin, REFERENCE_PICTURE_PRELOAD_TIMEOUT_MS } from "../../lib/scene/referencePicturePreload";
 import {
   selectFastVerifiedRepresentation,
   type RepresentationTier,
@@ -140,6 +150,7 @@ import {
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
 import { runScenePlanningOverlap } from "../../lib/scene/planningOverlap";
 import {
+  chemistryRefusesPlannerFigure,
   diagramStrategyAllowsFigureSource,
   liveDiagramStrategyDecision,
   type DiagramStrategy,
@@ -152,21 +163,26 @@ import {
 import {
   SCENE_PLANNER_DEADLINE_MS,
   REQUIRED_DIAGRAM_RETRY_ENABLED,
+  OTHER_SUBJECT_BLOCK_FLOW_ENABLED,
+  blockFlowEligibleTurn,
   PROBLEM_AUTHORITY_DEADLINE_MS,
   TURN_PLAN_DEADLINE_MS,
   selectBestAvailableTurnPlan,
   turnPlanNeedsNumericAuthority,
   waitForRequiredScenePeers,
 } from "../../lib/scene/diagramGeneration";
+import { BLOCK_FLOW_REVIEW_TIMEOUT_MS, reviewBlockFlowScene, withRestatedProcess } from "../../lib/scene/blockFlowReview";
 import {
   findVerifiedSceneRecovery,
   forgetVerifiedScene,
+  recoveryForPlanning,
   rememberVerifiedScene,
 } from "../../lib/scene/verifiedSceneRecovery";
 import {
   canStreamResumeRepair,
   createEmptySegmentPlanStats,
   createResumeInkGate,
+  retryContinuationFetchOnce,
   foldGluedSegment,
   isTeachingResponseIncomplete,
   normalizeSegmentForAlignment,
@@ -236,6 +252,16 @@ const QUEUED_ASK_TTL_MS = 60_000;
  * decisions.
  */
 export const TEACHING_HEDGE_ENABLED = process.env.NEXT_PUBLIC_TEACHING_HEDGE === "1";
+
+/**
+ * How long a text only turn may wait, past its scene planning, for a reference
+ * picture (default off tier). The route takes 10 to 40 s cold: one query call,
+ * a Commons search (6 s cap a query), a download (10 s cap) and the vision
+ * judge; a cached query answers at once. 25 s covers a cold Commons hit and its
+ * preload while capping what a decline can add to time to first word. A
+ * picture started while the scene was still planning has had that time too.
+ */
+export const REFERENCE_PICTURE_TEXT_ONLY_WAIT_MS = 25_000;
 
 /** Where a turn leaves its save handle once billed, for `handleQuestion`'s finally. */
 type LiveTurnSaveExit = { handle: LiveTurnHandle | null };
@@ -768,7 +794,12 @@ export function useQuestionHandler(
       let resumeIntroRemainder = false;
       let sceneVisualStatus: "validated" | "text_only" | "retry_required" = "text_only";
       let sceneV2Repaired = false;
-      let sceneArtifacts: (SceneArtifactsV3 & { diagramStrategy?: DiagramStrategy }) | null = null;
+      let sceneArtifacts: (SceneArtifactsV3 & {
+        diagramStrategy?: DiagramStrategy;
+        diagramSubject?: import("@heytutor/tutor-core").DiagramSubject;
+        referencePicture?: StoredReferencePicture;
+        referencePictureOutcome?: ReferencePictureOutcome;
+      }) | null = null;
       let representationTier: RepresentationTier | null = null;
       let representationNonMetric = false;
       let representationReason: string | null = null;
@@ -843,6 +874,7 @@ export function useQuestionHandler(
       prepareOriginalOpening();
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let plannedSubject: string | undefined;
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
         subject: diagramStrategySubject,
@@ -947,6 +979,7 @@ export function useQuestionHandler(
           solverAuthority: null,
           figureSource,
           diagramStrategy: diagramStrategyDecision.strategy,
+          diagramSubject,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: [],
@@ -1033,6 +1066,47 @@ export function useQuestionHandler(
         });
       }
 
+      // Reference pictures (default off): a real labelled diagram when no
+      // verified figure is drawn. Never on a doubt, a resume, a code lesson or
+      // a DSA question. The request starts once the turn plan wants a figure,
+      // so it runs while the scene plans, and is used only if no verified
+      // figure is drawn.
+      const referencePictureAllowed = billed.referencePicture === true && !doubt && !resume && !dsaClassification.isDsa;
+      type PendingReferencePicture = {
+        promise: Promise<ReferencePictureResult>;
+        controller: AbortController;
+        startedAt: number;
+        speculative: boolean;
+      };
+      // Asserted, not narrowed to null: the closures below assign both.
+      let referencePicturePending = null as PendingReferencePicture | null;
+      let referencePictureOutcome = null as ReferencePictureOutcome | null;
+      let referencePictureShown: StoredReferencePicture | null = null;
+      let earlyChemistryLane = false;
+      const startReferencePicture = (speculative: boolean) => {
+        if (referencePicturePending || !referencePictureAllowed) return;
+        const controller = new AbortController();
+        const abortWithTurn = () => controller.abort();
+        if (abortController.signal.aborted) controller.abort();
+        else abortController.signal.addEventListener("abort", abortWithTurn, { once: true });
+        const promise = requestReferencePicture({
+          question,
+          subject: diagramSubject,
+          boardId: sessionId,
+          traceId: turnTraceId,
+          signal: controller.signal,
+        }).finally(() => abortController.signal.removeEventListener("abort", abortWithTurn));
+        referencePicturePending = { promise, controller, startedAt: Date.now(), speculative };
+        tel.mark("reference-picture-requested", { speculative, subject: diagramSubject });
+      };
+      // A verified figure won, or the turn left before teaching: stop paying.
+      const abandonReferencePicture = (reason: string) => {
+        const pending = referencePicturePending;
+        if (!pending || referencePictureOutcome) return;
+        pending.controller.abort();
+        referencePictureOutcome = { attempted: true, status: "skipped", reason, ms: Date.now() - pending.startedAt, speculative: pending.speculative };
+      };
+
       if (codeLesson && !resume) {
         turnPlan = createFallbackTurnPlanV3(question);
         dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
@@ -1050,11 +1124,12 @@ export function useQuestionHandler(
         // A repeated phrase can refer to a different figure after prior turns.
         // Reuse of a context-free scene would skip both the contextual turn
         // planner and Jev's visual assessment for this follow-up.
+        // A recovered chemistry scene, or one with no recorded subject, plans afresh.
         let recoveredScene = recentConversation
           ? null
-          : findVerifiedSceneRecovery(question, storedTurnsRef.current, {
+          : recoveryForPlanning(findVerifiedSceneRecovery(question, storedTurnsRef.current, {
               boardId: sessionId,
-            });
+            }));
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
         let diagramExampleIds: string[] = [];
@@ -1065,6 +1140,7 @@ export function useQuestionHandler(
           const capabilities = inferSceneCapabilities(question, { turnPlan: plan });
           const chemistryLane = capabilities.families.some(isChemistrySceneFamily) ||
             isChemistryQuestion(question);
+          earlyChemistryLane = chemistryLane;
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
             subject: diagramStrategySubject,
@@ -1120,6 +1196,11 @@ export function useQuestionHandler(
 
         if (recoveredScene) {
           turnPlan = recoveredScene.turnPlan;
+          // The recovered scene's recorded subject; recoveryForPlanning admitted it.
+          diagramSubject = recoveredScene.subject ?? diagramSubject;
+          // The block diagram test reads the recorded subject too, so a recovered
+          // block diagram is judged by the rules that admitted it.
+          plannedSubject = recoveredScene.subject ?? undefined;
           problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
             proxyUrl: plannerUrl,
             sessionId: sessionId ?? undefined,
@@ -1193,6 +1274,7 @@ export function useQuestionHandler(
           diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
           // Rejected-plan consensus is metadata; strict was measured on accepted plans.
           diagramStrategySubject = plannedTurn ? diagramSubject : "other";
+          plannedSubject = plannedTurn?.subject;
           page.failureTelemetry = {
             subject: diagramSubject,
             requestCount: page.failureTelemetry?.requestCount,
@@ -1236,6 +1318,16 @@ export function useQuestionHandler(
             effective: turnPlan.visualRequirement,
           });
           startDiagramExamplePicker(turnPlan);
+          // Every turn that wants a figure asks now, while the scene plans.
+          // Measured 27 Oct 2026 in the lab: asked only at the text only
+          // point, a failed physics figure added 14 to 16 s before teaching;
+          // started here, the picture is ready while the scene still plans
+          // (10 to 40 s). A verified figure that wins aborts the request, and
+          // a finished one is cached for the next student on that topic. The
+          // chemistry lane draws deterministically, so it is left out.
+          if (!earlyChemistryLane && turnPlan.visualRequirement !== "none") {
+            startReferencePicture(true);
+          }
         }
 
         // ProblemIR still decides family inference, the deterministic figure
@@ -1251,18 +1343,22 @@ export function useQuestionHandler(
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
         let validationCallIndex = 0;
+        const blockFlowEligible = blockFlowEligibleTurn({
+          enabled: OTHER_SUBJECT_BLOCK_FLOW_ENABLED, plannedSubject,
+          codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa,
+        });
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, blockFlowEligible }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
           const gate = deriveProductionSceneGate({
             question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
-            conversationContext: recentConversation,
+            conversationContext: recentConversation, blockFlowEligible,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
@@ -1322,6 +1418,18 @@ export function useQuestionHandler(
           shouldWaitForDiagramExamples,
         ), isCurrentTurn);
         if (pickerWaitMs > 0) tel.meta({ diagram_example_picker_critical_path_ms: pickerWaitMs });
+        // An eligible lesson whose plan states no process may have one restated.
+        if (turnPlan) {
+          const restated = await withRestatedProcess({
+            question, turnPlan, eligible: blockFlowEligible,
+            options: {
+              proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+              fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+            },
+          });
+          if (restated.asked) tel.mark("block-flow-process-restated", { restated: restated.restated !== null });
+          turnPlan = restated.turnPlan;
+        }
         const planning = await runScenePlanningOverlap<
           ProblemAuthorityV1Response,
           SceneGate,
@@ -1458,7 +1566,15 @@ export function useQuestionHandler(
             primitive_count: fastRepresentation.renderScene.primitives.length,
           });
         }
-        const result = planning.scene;
+        // A block diagram stands only after the semantic process review.
+        const { result, review: blockFlowReview } = await reviewBlockFlowScene(planning.scene, {
+          question, turnPlan,
+          options: {
+            proxyUrl: plannerUrl, timeoutMs: BLOCK_FLOW_REVIEW_TIMEOUT_MS, signal: abortController.signal,
+            fastMode: fastModeRef.current, traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+          },
+        });
+        if (blockFlowReview) tel.mark("block-flow-review", { verdict: blockFlowReview.verdict });
         const solverAuthorityBlocked = problemAuthority?.audit.status === "contradiction";
 
         sceneV2Document = result?.response.document ?? null;
@@ -1517,7 +1633,7 @@ export function useQuestionHandler(
         }
         const selectionTurnPlan = turnPlan;
         const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
-          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities, blockFlowEligible,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
@@ -1525,7 +1641,10 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
-            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
+            // The strategy reads only an accepted plan's subject; a chemistry
+            // consensus from rejected plans still refuses planner figures.
+            allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
+              !chemistryRefusesPlannerFigure(diagramSubject, source)),
           },
         }));
         const selected = sceneSelection.representation;
@@ -1600,7 +1719,7 @@ export function useQuestionHandler(
         figureSource = selected?.figureSource ?? "text_only";
         // Only admitted exact scenes enter recovery; the pure selector never writes the cache.
         if (selected?.tier === "exact_verified") {
-          rememberVerifiedScene(question, selected.sceneDocument, turnPlan, { boardId: sessionId });
+          rememberVerifiedScene(question, selected.sceneDocument, turnPlan, { boardId: sessionId, subject: diagramSubject });
         }
 
         const selectedModelCandidate = result?.candidates.find((candidate) =>
@@ -1614,6 +1733,7 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority?.audit ?? null,
           figureSource,
           diagramStrategy: diagramStrategyDecision.strategy,
+          diagramSubject,
           representationTier: representationTier ?? undefined,
           nonMetric: representationTier ? representationNonMetric : undefined,
           candidates: result?.candidates.map((candidate) => {
@@ -1687,7 +1807,7 @@ export function useQuestionHandler(
       const plannerLatencyMs = Date.now() - plannerStartedAt;
 
       let activeDiagram: import("@heytutor/drawing").VerifiedDiagram | null;
-      let diagramSource: "verified_scene" | "none";
+      let diagramSource: "verified_scene" | "reference_picture" | "none";
 
       const presentation = sceneV2RenderScene && sceneV2Document && "visualDecision" in sceneV2Document
         ? buildVerifiedDiagramPresentation(
@@ -1712,7 +1832,7 @@ export function useQuestionHandler(
       if (doubt) {
         // The doubt answers on the figure already drawn on this page.
         activeDiagram = codeLessonBoard ? null : activeVerifiedDiagramRef.current;
-        diagramSource = activeDiagram ? "verified_scene" : "none";
+        diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram) ? "reference_picture" : "verified_scene") : "none";
       } else if (resume) {
         // Keep the figure the lesson already committed. If the intro never
         // landed, rebuild it from the paused scene so the rest of the lecture
@@ -1751,7 +1871,7 @@ export function useQuestionHandler(
             setActiveVerifiedDiagram?.(activeDiagram);
           }
         }
-        diagramSource = activeDiagram ? "verified_scene" : "none";
+        diagramSource = activeDiagram ? (isReferencePictureDiagram(activeDiagram) ? "reference_picture" : "verified_scene") : "none";
       } else if (
         // Second line of defence: primitives that compile to no command leave
         // the same empty board as no primitives at all.
@@ -1862,6 +1982,7 @@ export function useQuestionHandler(
       });
 
       if (problemAuthority?.audit.status === "contradiction") {
+        abandonReferencePicture("solver_contradiction");
         markTurnExitReason(terminal, "solver_authority_contradiction");
         emitError({
           message: "The independent solution checks disagreed, so the tutor stopped before presenting an unverified answer. Retry the question.",
@@ -1886,6 +2007,107 @@ export function useQuestionHandler(
         tel.mark("diagram-unverified-continue", {
           latency_ms: plannerLatencyMs,
           issue_codes: sceneV2Report?.issues.map((issue) => issue.code) ?? [],
+        });
+      }
+
+      // The text only point: a turn that needed a figure and drew none may
+      // show a stored reference picture instead. It is its own tier, never a
+      // verified scene: figureSource and the result status stay text only, so
+      // every engine metric still counts this turn as text only.
+      if (diagramSource !== "none") {
+        abandonReferencePicture("verified_figure");
+      } else if (
+        referencePictureAllowed && !codeLesson && sceneArtifacts &&
+        turnPlan && turnPlan.visualRequirement !== "none"
+      ) {
+        const waitStartedAt = Date.now();
+        if (!referencePicturePending) startReferencePicture(false);
+        const pending = referencePicturePending!;
+        // A turn replaced while it waits stops paying for its picture.
+        const awaitWhileCurrent = <T,>(operation: Promise<T>): Promise<T> =>
+          awaitCurrentTurn(operation, isCurrentTurn).catch((error: unknown) => {
+            pending.controller.abort();
+            throw error;
+          });
+        let deadline: ReturnType<typeof setTimeout> | undefined;
+        const answer = await awaitWhileCurrent(Promise.race([
+          pending.promise,
+          new Promise<ReferencePictureResult>((resolve) => {
+            deadline = setTimeout(() => resolve({ status: "unavailable", reason: "wait_deadline" }), REFERENCE_PICTURE_TEXT_ONLY_WAIT_MS);
+          }),
+        ]).finally(() => clearTimeout(deadline)));
+        let picture: ReturnType<typeof buildReferencePicturePresentation> | null = null;
+        let failure: { status: "declined" | "unavailable"; reason: string } | null =
+          answer.status === "ready" ? null : { status: answer.status, reason: answer.reason };
+        if (answer.status === "ready") {
+          // Pixels before the commitment: a picture that cannot load is text.
+          const left = Math.max(1_000, REFERENCE_PICTURE_TEXT_ONLY_WAIT_MS - (Date.now() - waitStartedAt));
+          const loaded = await awaitWhileCurrent(
+            preloadReferencePictureWithin(answer.picture.id, Math.min(left, REFERENCE_PICTURE_PRELOAD_TIMEOUT_MS), answer.picture),
+          );
+          if (!loaded) failure = { status: "unavailable", reason: "preload_failed" };
+          else {
+            try {
+              picture = buildReferencePicturePresentation(answer.picture, {
+                narrationLanguage: turnNarrationLanguage,
+                partFocus: billed.referencePicturePartFocus === true,
+              });
+            } catch {
+              failure = { status: "unavailable", reason: "presentation_failed" };
+            }
+          }
+        } else if (answer.status === "unavailable" && answer.reason === "wait_deadline") {
+          // Stop waiting, not searching: the request runs on (to the client's
+          // own timeout) so the server stores and caches the topic for the
+          // next ask. Every other exit aborts, which stops the server's work;
+          // a Stop or a replaced turn aborts it through the turn's signal.
+        } else {
+          pending.controller.abort();
+        }
+        referencePictureOutcome = {
+          attempted: true,
+          status: picture ? "shown" : failure!.status,
+          reason: picture ? null : failure!.reason,
+          ms: Date.now() - pending.startedAt,
+          speculative: pending.speculative,
+          ...(answer.status === "ready" && answer.cached ? { cached: true } : {}),
+        };
+        tel.mark("reference-picture", {
+          status: referencePictureOutcome.status,
+          reason: referencePictureOutcome.reason,
+          ms: referencePictureOutcome.ms,
+          wait_ms: Date.now() - waitStartedAt,
+          speculative: pending.speculative,
+          source: picture?.stored.source ?? null,
+          label_count: picture?.stored.labels.length ?? 0,
+        });
+        if (picture) {
+          referencePictureShown = picture.stored;
+          activeDiagram = picture.diagram;
+          sceneV2IntroSegments = picture.introSegments;
+          diagramSource = "reference_picture";
+          activeVerifiedDiagramRef.current = activeDiagram;
+          setActiveVerifiedDiagram?.(activeDiagram);
+        }
+      } else {
+        // An early request this turn will not wait for (a code lesson, no
+        // artifacts, or the requirement fell to none) stops paying now.
+        abandonReferencePicture("not_waited");
+      }
+      if (referencePictureOutcome && sceneArtifacts && !doubt && !resume) {
+        sceneArtifacts = {
+          ...sceneArtifacts,
+          ...(referencePictureShown ? { referencePicture: referencePictureShown } : {}),
+          referencePictureOutcome,
+        };
+        page.turn.scene = page.turn.scene ? { ...page.turn.scene, sceneArtifacts } : page.turn.scene;
+        tel.meta({
+          reference_picture_attempted: referencePictureOutcome.attempted,
+          reference_picture_status: referencePictureOutcome.status,
+          reference_picture_reason: referencePictureOutcome.reason,
+          reference_picture_ms: referencePictureOutcome.ms,
+          reference_picture_speculative: referencePictureOutcome.speculative,
+          reference_picture_cached: referencePictureOutcome.cached === true,
         });
       }
 
@@ -1975,6 +2197,9 @@ export function useQuestionHandler(
         : buildTurnTeachingPrompt({
             question,
             diagramPromptAddon: activeDiagram?.promptAddon ?? null,
+            // Only a committed figure that is the plan's example lets the
+            // lesson name that example as the species on the board.
+            figureExampleSpecies: activeDiagram ? figureExampleSpeciesOf(sceneV2Document) : null,
             turnPlan,
             solverProjection: problemAuthority?.projection ?? null,
             codeLesson,
@@ -2337,13 +2562,13 @@ export function useQuestionHandler(
           const hedgeThisRequest = TEACHING_HEDGE_ENABLED &&
             continueCount === 0 && !reasoningOnlyRetry && !resumeInkRetry && !resume;
           teachingAttempt = "primary";
-          const streamResult = await streamLLMResponse(
+          const streamResult = await retryContinuationFetchOnce(() => streamLLMResponse(
             {
               systemPrompt: isContinuation
                 ? turnContinuationPrompt
                 : turnSystemPrompt,
               userPrompt: resumeInkRetry
-                ? resumeInkRetryUserPrompt(resume?.reason)
+                ? resumeInkRetryUserPrompt(resume?.reason, resumeNextRowY(pagePromptInput))
                 : isContinuation
                 ? [
                     "continue",
@@ -2440,7 +2665,15 @@ export function useQuestionHandler(
                 }
               }
             },
-          );
+          ), {
+            // A continuation whose request never reached the server (b97d2500:
+            // the student's network dropped it) is asked once more; nothing of
+            // it was parsed or spoken, so the lesson simply carries on.
+            enabled: isContinuation && !resumeInkRetry,
+            signal: abortController.signal,
+            isCurrent: isCurrentTurn,
+            onRetry: () => tel.mark("teaching-continuation-retry", { continuation: continueCount }),
+          });
 
           throwIfTurnCancelled();
           fullResponse += streamResult.text;

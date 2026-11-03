@@ -6,6 +6,7 @@
  * role and species. In particular, a layout angle is never a measured angle.
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
+import { PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument } from "./planExample";
 import { displayedSceneQuantityTexts } from "../contracts/contractsV3";
 import { compileSceneDocument } from "../compile/compiler";
 import { deferVerifiedAnswerLabels } from "../compile/answerLabels";
@@ -197,17 +198,26 @@ export function certifyVseprSourceDocument(document: SceneDocument, question: st
   // An untrusted candidate cannot opt out by stripping its provenance. Reuse
   // the existing family's cue on the actual question, then regenerate its
   // graph. Ordinary physics stems do not become chemistry from formula alone.
-  const sourceApplies = isVseprStem(question);
+  // A plan example is regenerated from the question and the plan together:
+  // the same reader, claim checks and builder that drew it, or nothing.
+  const example = document.source.figureProvenance === PLAN_EXAMPLE_PROVENANCE
+    ? buildPlanExampleDocument(question, plan) : null;
+  if (example && example.status !== "built") return { status: "rejected", issues: [{
+    code: "vsepr_source_graph_mismatch", severity: "fatal",
+    message: `plan example does not regenerate: ${example.status === "declined" ? example.reason : "no plan example"}`,
+  }] };
+  const exampleStem = example?.status === "built" ? example.source.stem : null;
+  const sourceApplies = exampleStem !== null || isVseprStem(question);
   const claimsFamily = document.source.chemistryFamily === VSEPR_FAMILY || document.source.archetype === VSEPR_FAMILY;
   if (!sourceApplies && !claimsFamily) return { status: "not_applicable" };
-  const raw = sourceApplies ? buildVseprScene(question, [], false) : null;
+  const raw = example?.status === "built" ? example.document : sourceApplies ? buildVseprScene(question, [], false) : null;
   const isShape = (scene: SceneDocument | null) => scene?.entities.some((entity) => entity.role === "molecular shape") === true;
   if (!isShape(raw) && !isShape(document)) return { status: "not_applicable" };
   const reject = (message: string): VseprSourceCertification => ({ status: "rejected", issues: [{
     code: "vsepr_source_graph_mismatch", severity: "fatal", message,
   }] });
   if (!raw || !isShape(raw)) return reject("actual source does not regenerate this native VSEPR shape graph");
-  const issues = plan ? planIssues(plan, vseprSpecies(question)) : [];
+  const issues = plan ? planIssues(plan, vseprSpecies(exampleStem ?? question)) : [];
   if (issues.length) return { status: "rejected", issues };
   const fresh = validateSceneDocument(pruneDeadSceneEntities(raw as unknown as Record<string, unknown>)).document;
   const submitted = validateSceneDocument(document).document;

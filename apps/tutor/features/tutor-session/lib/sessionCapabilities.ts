@@ -21,7 +21,7 @@
  * a lecture, open the Ask chat, or write to anyone's settings.
  */
 
-export type TutorSessionVariant = "full" | "panel" | "embed" | "headless";
+export type TutorSessionVariant = "full" | "panel" | "embed" | "community" | "headless";
 
 export interface SessionCapabilities {
   /** The app frame: sidebar, board list, session header. */
@@ -64,6 +64,12 @@ const EMBED: SessionCapabilities = {
   board: true,
 };
 
+/**
+ * Someone else's board on Community: watched with its own page around it,
+ * never written to. A viewer who wants to ask about it remixes it first.
+ */
+const COMMUNITY: SessionCapabilities = { ...EMBED };
+
 /** A recording runtime with no interface at all. */
 const HEADLESS: SessionCapabilities = {
   appChrome: false,
@@ -79,6 +85,7 @@ const CAPABILITIES: Record<TutorSessionVariant, SessionCapabilities> = {
   full: FULL,
   panel: PANEL,
   embed: EMBED,
+  community: COMMUNITY,
   headless: HEADLESS,
 };
 

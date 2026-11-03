@@ -228,9 +228,12 @@ check("an exact figure drawing a stem value the plan omits is still declined", (
 
 check("a stem number is not evidence for the drawn launch angle", () => {
   const entry = get("derive_claims_omit_45");
-  // The plan's claims never state 45 degrees; the drawn theta = 45 is the
-  // derivation's result, not a given, so the fast path declines it.
-  assert.equal(selectLikeLive(entry).figure, null);
+  // The plan's claims never state 45 degrees; 45 is the derivation's result,
+  // not a launch angle. The launch clause states only theta, so the figure
+  // may draw, but symbolic: no drawn value, and never theta = 45.
+  const own = selectLikeLive(entry);
+  assert.ok(own.figure === null || own.figure === CONTACT_BODY, `unexpected figure ${own.figure}`);
+  assert.ok(!own.labels.some((text) => /\d/.test(text)), `must not commit a labelled value: ${own.labels.join(" ")}`);
   const stems = [
     "A wind blows at 45 degrees to the north. Derive the range of a projectile launched with speed u at angle theta on level ground.",
     "A ball is launched with speed u at angle theta. It hits a wall that leans at 60 degrees. Derive its range on level ground.",
@@ -238,7 +241,7 @@ check("a stem number is not evidence for the drawn launch angle", () => {
   ];
   for (const question of stems) {
     const live = selectLikeLive(restem(entry, question));
-    assert.equal(live.figure, null, `must not commit a labelled value: ${question}`);
+    assert.ok(!live.labels.some((text) => /\d/.test(text)), `must not commit a labelled value: ${question}: ${live.labels.join(" ")}`);
   }
 });
 

@@ -59,6 +59,33 @@ export interface TurnPlanV3 {
   visualRequirement: VisualRequirement;
   /** Optional teaching sequence hints (entity/view ids resolved later). */
   teachingSequenceHints?: string[];
+  /**
+   * Chemistry only: the one example the lesson teaches with when the question
+   * names no species. The engine recomputes everything from the formula and
+   * checks the claim; nothing here is trusted geometry.
+   */
+  exampleSpecies?: TurnPlanExampleSpeciesV3[];
+  /**
+   * Chemistry only: the example reaction for each mechanism class (SN1, SN2,
+   * E2) a question names when it names no species. The engine reads each
+   * equation, runs the class's checked curly arrows on its reactants and
+   * draws it only when the arrows give exactly the stated products.
+   */
+  exampleReactions?: TurnPlanExampleReactionV3[];
+}
+
+export type TurnPlanExampleMechanismV3 = "SN1" | "SN2" | "E2";
+
+export interface TurnPlanExampleReactionV3 {
+  mechanism: TurnPlanExampleMechanismV3;
+  /** Condensed formulas, reactants then products: "CH3Br + OH- -> CH3OH + Br-". */
+  equation: string;
+}
+
+export interface TurnPlanExampleSpeciesV3 {
+  formula: string;
+  /** A checkable statement about the species, e.g. "BF3 is sp2 and trigonal planar". */
+  claim: string;
 }
 
 export interface TurnPlanValidationIssue {
@@ -593,11 +620,34 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       issues.push({ code: "invalid_assumption", path: `assumptions[${index}]`, message: "assumption must be a non-empty string" });
     }
   });
+  // Absent, null or empty means no example. Anything else must be one
+  // well-formed entry; a malformed example is refused, never repaired.
+  if (raw.exampleSpecies !== undefined && raw.exampleSpecies !== null) {
+    const entries = raw.exampleSpecies;
+    const wellFormed = Array.isArray(entries) && entries.length <= 1 && entries.every((entry) =>
+      isRecord(entry) && typeof entry.formula === "string" && entry.formula.trim() !== "" && entry.formula.length <= 40
+        && typeof entry.claim === "string" && entry.claim.trim() !== "" && entry.claim.length <= 240);
+    if (!wellFormed) {
+      issues.push({ code: "invalid_example_species", path: "exampleSpecies", message: "exampleSpecies must be at most one {formula, claim} with non-empty strings" });
+    }
+  }
+  // Example reactions: at most one per class, two in all. A malformed list is
+  // dropped, never repaired, and never rejects the plan: it only means no
+  // example figure ("compare SN1, SN2, E1 and E2" may well name three or E1).
+  let dropExampleReactions = false;
+  if (raw.exampleReactions !== undefined && raw.exampleReactions !== null) {
+    const entries = raw.exampleReactions;
+    const mechanisms = Array.isArray(entries) ? entries.map((entry) => (isRecord(entry) ? entry.mechanism : undefined)) : [];
+    const wellFormed = Array.isArray(entries) && entries.length <= 2 && new Set(mechanisms).size === mechanisms.length && entries.every((entry) =>
+      isRecord(entry) && (entry.mechanism === "SN1" || entry.mechanism === "SN2" || entry.mechanism === "E2")
+        && typeof entry.equation === "string" && entry.equation.trim() !== "" && entry.equation.length <= 80);
+    if (!wellFormed) dropExampleReactions = true;
+  }
 
   return {
     valid: issues.length === 0,
     plan: issues.length === 0
-      ? { ...raw, question: expectedQuestion ?? raw.question } as unknown as TurnPlanV3
+      ? { ...raw, question: expectedQuestion ?? raw.question, ...(dropExampleReactions ? { exampleReactions: undefined } : {}) } as unknown as TurnPlanV3
       : null,
     issues,
   };
@@ -4227,6 +4277,10 @@ function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: n
   for (const match of text.matchAll(pattern)) {
     const value = Number(match[1]?.replace(/−/g, "-"));
     const unit = match[2]?.trim();
+    // A group count in a formula ("(CH_3)_3C", "(CH_3)_3COH") is board script, not a measured value: a digit run
+    // written "_" straight after a closing bracket. "x_2 m", "T_300K" and "λ_500 nm" are still read.
+    const digitsAt = match.index! + match[0].indexOf(match[1]!);
+    if (text.slice(digitsAt - 2, digitsAt) === ")_") continue;
     if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
       text, { index: match.index!, length: match[0].length, unit }, plan,
     )) {

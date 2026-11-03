@@ -19,6 +19,7 @@ import { demandRejection, sceneDemand } from "../synthesize/sceneDemand";
 import type { RenderScene, SceneDocument, SceneIssue, ValidationReport } from "../types";
 import { ARCHETYPES, type ArchetypeId } from "./catalog";
 import { checkPictureContract } from "./contract";
+import { carryArchetypeFigureIdentity } from "./figureIdentity";
 import { detectArchetype, type ArchetypeMatch, type DetectionHints } from "./detect";
 import { generatorFor } from "./generators";
 import { collectPlanQuantities } from "./slots";
@@ -102,6 +103,7 @@ export function attemptArchetypeScene(input: ArchetypeSceneInput): ArchetypeAtte
 
   const validated = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
   if (!validated.document) return { match, scene: null, declined: "validation", issues: validated.report.issues };
+  carryArchetypeFigureIdentity(document, validated.document);
   const compiled = compileSceneDocument(validated.document);
   const fatal = compiled.report.issues.filter((issue) => issue.severity === "fatal");
   if (!compiled.ok || !compiled.renderScene || compiled.renderScene.primitives.length === 0 || fatal.length > 0) {

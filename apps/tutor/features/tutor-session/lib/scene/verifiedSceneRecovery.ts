@@ -4,6 +4,7 @@ import {
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
+import type { DiagramSubject } from "@heytutor/tutor-core";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { canAdoptVerifiedScene, fingerprintTurnPlan, sceneCompileIsolationKey } from "./sceneIsolation";
 
@@ -12,6 +13,8 @@ const MAX_MEMORY_ENTRIES = 32;
 export type VerifiedSceneScope = {
   /** Isolation boundary. Concurrent lecture jobs must pass their own boardId. */
   boardId: string;
+  /** The plan subject when the scene was drawn; recorded so a recovery can be refused by subject. */
+  subject?: DiagramSubject;
 };
 
 export interface VerifiedSceneRecovery {
@@ -19,6 +22,8 @@ export interface VerifiedSceneRecovery {
   document: SceneDocument;
   turnPlan: TurnPlanV3;
   source: "memory" | "stored_turn";
+  /** The plan subject recorded with the scene, or null when none was (scenes saved before it was). */
+  subject: DiagramSubject | null;
 }
 
 interface MemoryEntry {
@@ -26,6 +31,23 @@ interface MemoryEntry {
   question: string;
   document: SceneDocument;
   turnPlan: TurnPlanV3;
+  subject: DiagramSubject | null;
+}
+
+const DIAGRAM_SUBJECTS: readonly DiagramSubject[] = ["maths", "physics", "chemistry", "other"];
+
+/**
+ * A recovery skips the turn planner, so its plan subject is the one recorded
+ * with the scene. A chemistry plan never reuses a planner figure, and a scene
+ * with no recorded subject cannot prove it is not one; both plan afresh.
+ */
+export function recoveryForPlanning(recovery: VerifiedSceneRecovery | null): VerifiedSceneRecovery | null {
+  return recovery && recovery.subject !== null && recovery.subject !== "chemistry" ? recovery : null;
+}
+
+/** A recorded subject from the closed set, or null. */
+export function recordedDiagramSubject(value: unknown): DiagramSubject | null {
+  return typeof value === "string" && (DIAGRAM_SUBJECTS as readonly string[]).includes(value) ? value as DiagramSubject : null;
 }
 
 const memory = new Map<string, MemoryEntry>();
@@ -78,6 +100,7 @@ export function findVerifiedSceneRecovery(
       question,
       document,
       turnPlan: planValidation.plan,
+      subject: recordedDiagramSubject(turn.sceneArtifacts.diagramSubject),
     };
     if (!sceneMatchesScope(entry, question, boardId)) {
       continue;
@@ -110,6 +133,7 @@ export function rememberVerifiedScene(
     question,
     document: clone(document),
     turnPlan: clone(turnPlan),
+    subject: recordedDiagramSubject(scope.subject),
   };
   if (!sceneMatchesScope(entry, question, boardId)) {
     return;

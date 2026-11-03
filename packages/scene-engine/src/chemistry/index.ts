@@ -31,3 +31,7 @@ export { verifiedVseprStructure } from "./vseprStructure";
 export { verifiedOrganicNeighbourhoodStructure } from "./organic/neighbourhoodStructure";
 export { vseprPlanConflict } from "./vsepr";
 export { readChemistryLiteral, convertChemistryValue, parseChemistryScalar, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, resolveChemistryGiven, convertChemistryReading, findChemistryQuantities, chemistryQuestionSpan, chemistryPlanBindingsValid, type ChemistrySpan, type ChemistryDimension, type ChemistryUnit, type ChemistryReading, type ChemistryQuantityInput, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemRead } from "./quantityReader";
+export {
+  PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument, questionNamesSpecies, readPlanExample,
+  type PlanExampleDocument, type PlanExampleReading, type PlanExampleSource,
+} from "./planExample";

@@ -86,14 +86,17 @@ export function buildSceneDocumentPlannerPrompt(
   context: ScenePlannerPromptContext = {},
   detailedOperators?: readonly string[],
 ): string {
-  const operators = context.constructionOperators === undefined
+  const requested = context.constructionOperators === undefined
     ? DEFAULT_SCENE_CONSTRUCTION_OPERATORS
     : [...new Set(context.constructionOperators.filter(isPlannerVisibleSceneConstructionOperator))];
   const proofPredicates = context.proofPredicates === undefined
     ? DEFAULT_SCENE_PROOF_PREDICATES
     : context.proofPredicates.filter(isPlannerVisibleSceneProofPredicate);
-  const operatorSet = new Set(operators);
-  const fullCatalog = DEFAULT_SCENE_CONSTRUCTION_OPERATORS.every((operator) => operatorSet.has(operator));
+  const requestedSet = new Set<string>(requested);
+  const fullCatalog = DEFAULT_SCENE_CONSTRUCTION_OPERATORS.every((operator) => requestedSet.has(operator));
+  // Family scoped operators join only a scoped request; the universal catalog keeps its budget.
+  const universal = new Set<string>(DEFAULT_SCENE_CONSTRUCTION_OPERATORS);
+  const operators = fullCatalog ? requested.filter((operator) => universal.has(operator)) : requested;
   // A scoped planning request gets full contracts. A universal catalog keeps
   // every input/output shape concise rather than expanding with each feature.
   const operatorContracts = selectConstructionInputContracts(operators,
@@ -286,6 +289,8 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - hydrostatic_profile: {p0,rho,g,depth}. Full shape: {surfacePressure,density,gravity,depthMin,depthMax,pressureUnit:"Pa"|"kPa"|"bar",densityUnit:"kg/m^3"|"g/cm^3"|"kg/L",gravityUnit:"m/s^2"|"cm/s^2",depthUnit:"m"|"cm"|"mm"|"km",origin?:[x,y],depthScale:positive,pressureScale:positive,samples?:17}. Output one exact sampled profile p=p0+rho*g*d. Density/gravity positive, pressure/depth nonnegative, depthMax>depthMin. Physical inputs and units must be explicit. Display scales cannot change physical pressure or gradient.
 - hydrostatic_state: {profile:hydrostatic_profile_id,depth}. Output one analytically computed pressure point in the verified source-depth domain, retaining physical pressure/depth and exact incidence metadata. Numerical claims are engine-checked.
 - buoyancy: {density,gravity,displacedVolume}. Full shape: {density,gravity,displacedVolume,densityUnit:"kg/m^3"|"g/cm^3"|"kg/L",gravityUnit:"m/s^2"|"cm/s^2",volumeUnit:"m^3"|"L"|"cm^3",origin?:[x,y],displayLength?:positive,displayScale?:positive}. Output one upward force vector F=rho*g*V or a point for explicitly zero displaced volume. Supply exactly one display length or scale; density/gravity positive and volume nonnegative. No inferred submerged volume, density, or gravity.
+- submerged_body: {topDepth,bodyHeight,bodyWidth,forceScale?}. Outputs [fluid,surface,body,F_top,F_bottom,F_B,h1,h2]. A fully submerged body; bare display numbers, no units: bodyHeight 0.5 to 2 times bodyWidth, topDepth 1 to 2 times bodyHeight, forceScale 0.3 to 0.4; symbol labels only. Face forces grow with depth and F_B=F_bottom-F_top.
+- hydraulic_press: {smallWidth,largeWidth,forceLength}. Outputs [vessel,fluid,small piston,large piston,F1,F2,pressure point]. Bare display numbers, largeWidth 1.25 to 2.5 times smallWidth; symbol labels only. F2/F1=A2/A1; pressure is a point, never an arrow. Both refuse a source with stated values.
 - probability_tree: {nodes:[{id,outcome,parent?,probability?},...], origin?:point_id, levelGap?:2, leafGap?:1}. One root omits parent/probability; every other node names its parent and explicitly supplied conditional probability in [0,1]. Outgoing siblings must sum to 1. No inferred complements or independence. Caps: 31 nodes, 12 leaves, depth 5. Outputs [N points in input order,N-1 polylines for nonroot nodes in input order,L labels in DFS leaf order]. Labels are engine-derived source outcomes, conditional probabilities, and joint leaf products; omit entity.label unless it matches the computed value. Never guess node coordinates or joint probabilities.
 - electric_field: {charges:[{position:point_id,charge},...], at:point_id, mode:"schematic"|"si", k, displayLength, lengthUnit?,chargeUnit?}. Compute the Coulomb superposition at an explicitly supplied observation point. Schematic requires k=1 and gives normalized direction without SI claims. SI requires explicit positive k in N*m^2/C^2 and common declared position/charge units; the engine converts to SI. Output one vector, or a point marker for a certified zero field. displayLength is a positive display length, never field magnitude. Labels are engine-derived; omit entity.label. Singular or unverifiable cancellation cases fail closed. Never invent charges or assume a generic dipole.
 - Dipole packet, k explicit, displayLength is arrow length only: coulomb_pair outputs two force vectors; point_charge_field, dipole_field, dipole_torque, and dipole_energy output one vector (dipole_torque draws a page-normal ⊙/⊗ glyph, a point at zero); field_lines outputs one polyline; equipotential outputs a circle when source is point_charge and a polyline when source is dipole. dipole_field mode is finite or ideal, and ideal requires separation large enough for the far-field check. Reject coincident charges, zero distance, a test charge, nonuniform torque, and a numeric field-line density. Rings, Gauss surfaces, and capacitors are not these operators.
@@ -325,6 +330,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - collinear_velocity_pair: {vf,speed}. Gives [current,boat,downstream,upstream]. Downstream is frame plus body; upstream is frame minus body. The body speed is along the frame, not a second heading.
 - crossing_strategies: {v}. Gives six vectors: across current, boat, resultant, then shortest-time current, boat, resultant. Fails closed unless boat speed exceeds current speed. Do not invent a straight-across heading.
 - parallel_guides: {gap}. Gives two parallel segments. separation and halfLength are display lengths, not a physical width.
+- block_flow: {nodes:[{id,label,claimIds:[claim_id]}],edges:[{from,to,claimId}],direction?:"right"|"down"}. Output one entity of kind "block_flow". Only for a process a claim writes as nothing but "Process: a → b → c": each box label is one whole step copied exactly; each arrow joins two neighbouring steps of the chain claim it cites, in its direction, and has no label. 3 to 8 boxes, 2 to 10 arrows, all connected; no word over 16 characters. The engine places and routes everything; give no coordinates.
 - kirchhoff_network: {nodes,branches}. Gives n node points, then b branch polylines, then b current vectors. Wires omit resistance and emf. A supplied multi-loop graph must not be redrawn as a series chain. Currents are solved.
 - free_body: {F}. Gives the body point, then one vector per supplied force. Do not invent a normal, friction, or weight. equilibrium requires a zero sum. mass and acceleration must satisfy sum F = ma.
 - coupled_bodies: {link,bodies}. Gives [body1,body2,tension1,tension2,accel1,accel2]. stringPull is the direction the link pulls each body. A string rejects compression. External forces include weight; gravity is not inferred.

@@ -7,6 +7,7 @@
 
 import type { RenderPoint, RenderPrimitive } from "../types";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
+import { LABEL_IN_NAMED_GAP, insideNamedGap, namedGaps, ownerNamedGaps } from "./levelGap";
 
 export interface LabelBounds {
   x: number;
@@ -141,6 +142,14 @@ export interface LabelEngineOptions {
   pointRivals?: boolean;
   /** Called when placeLabels returns a layout the point rival rule moved. */
   onPointRivalLayout?: () => void;
+  /**
+   * Refuse a level label that sits in a gap an arrow names. Off reproduces
+   * the layout without that rule, which placeLabels falls back to whenever
+   * the ruled joint solve fails or makes a label worse. Defaults to on.
+   */
+  namedGaps?: boolean;
+  /** Called when placeLabels runs the second, gap ruled solve. */
+  onNamedGapSolve?: () => void;
 }
 
 export interface LabelEngineResult {
@@ -454,33 +463,43 @@ export function boundsInside(inner: LabelBounds, outer: LabelBounds): boolean {
  */
 /** Query the same constraints for one label without selecting a final slot. */
 export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions = {}): boolean {
-  // placeLabels admits exactly what the layout without the point rival rule
-  // admits (it falls back to that layout), so feasibility asks that layout.
-  const result = placeLabelsInternal([owner], obstacles, { ...options, pointRivals: false }, true).ok;
-  return result;
+  // placeLabels admits exactly what the layout without the point rival and
+  // named gap rules admits (it falls back to that layout whenever a ruled
+  // layout fails or is not kept), so feasibility asks that layout, stopping
+  // at the first clear slot.
+  return placeLabelsInternal([owner], obstacles, { ...options, pointRivals: false, namedGaps: false }, true).ok;
 }
+
+/**
+ * When false, placeLabels keeps a successful gap ruled layout without the
+ * per label tests. The gate mutates this to prove the guard is live.
+ */
+const NAMED_GAP_GUARD = true;
 
 export function placeLabels(
   owners: LabelOwner[],
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
 ): LabelEngineResult {
-  const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false });
-  if (options.pointRivals === false || !plain.ok) return plain;
-  // The rule exists to repair a point letter that names the wrong mark.
-  // Where the layout without it misreads no point letter, it is the layout.
-  const before = labelReadings(plain, owners, obstacles);
-  if (!before || ![...before.values()].some((reading) => reading.point && reading.misread)) return plain;
-  const ruled = placeLabelsInternal(owners, obstacles, options);
-  // The rule may move labels, never cost a figure: when its joint solve
-  // fails the figure keeps the layout without it, byte for byte.
-  if (!ruled.ok) return plain;
-  // Fail closed: the ruled layout is kept only when every label it moved
-  // passes every test against the layout without it.
-  const after = labelReadings(ruled, owners, obstacles);
-  if (!after || pointRivalLayoutRegressions(before, after).length > 0) return plain;
-  options.onPointRivalLayout?.();
-  return ruled;
+  const withRivals = (gapRule: boolean): LabelEngineResult => {
+    const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: gapRule });
+    if (options.pointRivals === false || !plain.ok) return plain;
+    const before = labelReadings(plain, owners, obstacles);
+    if (!before || ![...before.values()].some((reading) => reading.point && reading.misread)) return plain;
+    const ruled = placeLabelsInternal(owners, obstacles, { ...options, namedGaps: gapRule });
+    if (!ruled.ok) return plain;
+    const after = labelReadings(ruled, owners, obstacles);
+    if (!after || pointRivalLayoutRegressions(before, after).length > 0) return plain;
+    options.onPointRivalLayout?.();
+    return ruled;
+  };
+  const base = withRivals(false);
+  const gaps = options.namedGaps === false ? [] : namedGaps(obstacles);
+  const gapApplies = gaps.length > 0 && owners.some((owner) => ownerNamedGaps(owner, obstacles, gaps).length > 0);
+  if (!gapApplies) return base;
+  options.onNamedGapSolve?.();
+  const gapped = withRivals(true);
+  return NAMED_GAP_GUARD && !keepNamedGapLayout(base, gapped, owners, obstacles) ? base : gapped;
 }
 
 /**
@@ -659,6 +678,56 @@ function pointRivalLayoutRegressions(before: Map<string, LabelReading>, after: M
   return reasons;
 }
 
+/**
+ * Keep the gap ruled layout only when its solve succeeds, every label it
+ * moved still reads as its own mark with margin and drift inside the #308
+ * bands and with no gained or lost leader, and at least one level label
+ * actually left a named gap. Otherwise the figure keeps the layout without
+ * the rule, byte for byte.
+ */
+function keepNamedGapLayout(
+  ungapped: LabelEngineResult,
+  gapped: LabelEngineResult,
+  owners: LabelOwner[],
+  obstacles: LabelObstacle[],
+): boolean {
+  if (!gapped.ok) return false;
+  const before = labelReadings(ungapped, owners, obstacles);
+  const after = labelReadings(gapped, owners, obstacles);
+  if (!before || !after) return false;
+  const same = (a: LabelBounds, b: LabelBounds) =>
+    Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.width - b.width) < 0.01 && Math.abs(a.height - b.height) < 0.01;
+  const sameLeader = (a: RenderPoint[] | null, b: RenderPoint[] | null) => a === null || b === null ? a === b
+    : a.length === b.length && a.every((point, index) => Math.abs(point.x - b[index]!.x) < 0.01 && Math.abs(point.y - b[index]!.y) < 0.01);
+  const gaps = namedGaps(obstacles);
+  let leftGap = false;
+  if (before.size !== after.size) return false;
+  for (const [labelKey, next] of after) {
+    const prior = before.get(labelKey);
+    if (!prior) return false;
+    if (same(prior.bounds, next.bounds) && sameLeader(prior.leader, next.leader)) continue;
+    if (next.boxes.length === 0 || prior.boxes.length !== next.boxes.length || next.misread) return false;
+    if (prior.leader && !next.leader) return false;
+    if (next.leader && !next.straightOwnLeader) return false;
+    if (next.leader && !prior.leader) return false;
+    const owner = owners.find((entry) => `${entry.labelId ?? `label:${entry.entityId}`}\u0000${entry.text}` === labelKey);
+    const ownerGaps = owner ? ownerNamedGaps(owner, obstacles, gaps) : [];
+    const leftThisGap = ownerGaps.length > 0 && insideNamedGap(prior.bounds, ownerGaps) && !insideNamedGap(next.bounds, ownerGaps);
+    if (leftThisGap) {
+      if (next.boxes.some((box, index) => box.margin < Math.min(prior.boxes[index]!.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX, 8))) return false;
+      leftGap = true;
+      continue;
+    }
+    // Neighbours the rule displaced must not get worse. The label that left
+    // the gap is allowed to travel; that is the repair.
+    if (next.boxes.some((box, index) => {
+      const was = prior.boxes[index]!;
+      return box.margin < was.margin - POINT_RIVAL_MARGIN_TOLERANCE_PX || box.own > was.own + POINT_RIVAL_DRIFT_TOLERANCE_PX;
+    })) return false;
+  }
+  return leftGap;
+}
+
 function boxToPointDistance(box: LabelBounds, point: RenderPoint): number {
   return Math.hypot(
     Math.max(box.x - point.x, 0, point.x - (box.x + box.width)),
@@ -738,6 +807,7 @@ function placeLabelsInternal(
   const fixedLabelBounds = fixedLabelObstacles.map(obstacle => obstacle.bounds);
   const leaderGeometry = obstacles.filter(obstacle => obstacle.kind !== "label");
   const geometryQuery = owners.some(owner => owner.leaderGeometrySafe) ? createLeaderGeometryQuery(leaderGeometry) : undefined;
+  const gaps = options.namedGaps === false ? [] : namedGaps(obstacles);
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     const prepareOwner = (exhaustive = false): PreparedLabelOwner => {
@@ -799,6 +869,9 @@ function placeLabelsInternal(
       const ownership = owner.useOwnerBounds === false ? null : strokeOwnership(owner, obstacles);
       const pointForeign = ownership || options.pointRivals === false ? null : pointRivalMarks(owner, obstacles);
       const nearerForeignInk = (box: LabelBounds) => pointForeign !== null && pointLabelNearerForeign(box, owner.anchor, pointForeign);
+      const ownerGaps = ownerNamedGaps(owner, obstacles, gaps);
+      let gapRule = ownerGaps.length > 0;
+      const inNamedGap = (box: LabelBounds) => gapRule && insideNamedGap(box, ownerGaps);
       // Point labels can use a closer compass slot when the usual margin wastes
       // clear interior space. Every candidate still clears ink by minGapPx.
       const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
@@ -821,6 +894,7 @@ function placeLabelsInternal(
           const margin = ownership ? ownershipMargin(collisionBounds, ownership) : Infinity;
           if (overlaps.length === 0 && margin < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
           if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+          if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
           const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
@@ -838,6 +912,18 @@ function placeLabelsInternal(
           };
         });
       }));
+      // A level label leaves a named gap only for a clear slot beside its own
+      // line. Pushed onto a long leader it reads worse than where it was, so
+      // with no such slot the owner is placed exactly as without the rule.
+      if (gapRule && !candidates.some((candidate) => candidate.overlaps.length === 0)) {
+        gapRule = false;
+        for (const candidate of candidates) {
+          const index = candidate.overlaps.indexOf(LABEL_IN_NAMED_GAP);
+          if (index < 0) continue;
+          candidate.overlaps.splice(index, 1);
+          candidate.score -= 10;
+        }
+      }
 
       // Only feasibility consumes this branch: the caller receives no chosen
       // placement. Honor first-position deduplication before accepting a slot.
@@ -919,6 +1005,7 @@ function placeLabelsInternal(
             // proximity, so it must sit nearest its owner like a slot label.
             if (overlaps.length === 0 && !candidate.usesLeader && ownership && ownershipMargin(collisionBounds, ownership) < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
             if (overlaps.length === 0 && !candidate.usesLeader && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+            if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
             // Routing cannot repair a glyph box that is already illegal. Keep
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
@@ -945,6 +1032,7 @@ function placeLabelsInternal(
             if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
             if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
             if (overlaps.length === 0 && nearerForeignInk(collisionBounds)) overlaps.push(LABEL_NEARER_FOREIGN);
+            if (overlaps.length === 0 && inNamedGap(collisionBounds)) overlaps.push(LABEL_IN_NAMED_GAP);
             return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
           })
         : [];

@@ -1,0 +1,2 @@
+# Lane 4: curly arrow mechanisms (rows plus mutants; each mutant must turn exactly its own rows red)
+tsx scripts/verify/verify-chemistry-mechanism.ts

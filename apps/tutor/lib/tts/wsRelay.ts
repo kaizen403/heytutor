@@ -35,6 +35,55 @@ interface SegmentMessage {
 const MAX_BUFFERED_BYTES = 4 * 1024 * 1024;
 const MAX_QUEUED_MESSAGES = 32;
 
+/**
+ * Live relays and the segments each is still synthesising, so a restart can
+ * let the sentence being spoken finish (see `installGracefulShutdown`).
+ */
+const liveRelays = new Set<{ pending: Map<string, unknown>; restart: () => void }>();
+let speechDraining = false;
+
+/** Receipt settlements (finish or refund) still in flight, across every relay. */
+const settlements = new Set<Promise<unknown>>();
+function trackSettlement<T>(settlement: Promise<T>): Promise<T> {
+  settlements.add(settlement);
+  // then(remove, remove): a raw (possibly rejecting) promise is tracked too,
+  // and a derived finally() would reject unhandled.
+  const remove = () => { settlements.delete(settlement); };
+  settlement.then(remove, remove);
+  return settlement;
+}
+
+/** Receipt settlements still open, for the exit log. */
+export function openSpeechSettlements(): number {
+  return settlements.size;
+}
+
+/**
+ * Resolves once every receipt settlement already started has finished, so a
+ * restart lets the charges for spoken segments land before the process exits.
+ * The caller bounds the wait (`beforeExit` runs under its own cap).
+ */
+export function speechSettlementsDone(): Promise<unknown> {
+  return Promise.allSettled([...settlements]);
+}
+
+/** Segments sent to the provider and not yet finished, across every relay. */
+export function inFlightSpeechSegments(): number {
+  let count = 0;
+  for (const relay of liveRelays) count += relay.pending.size;
+  return count;
+}
+
+/**
+ * A restart has begun: an idle relay closes now with 1012 (service restart),
+ * a busy one when its last segment finishes, and no new segment is admitted.
+ * The browser treats the close like any other and falls back for the rest.
+ */
+export function beginSpeechDrain(): void {
+  speechDraining = true;
+  for (const relay of [...liveRelays]) if (relay.pending.size === 0) relay.restart();
+}
+
 /** Every segment is admitted and durably charged before the first vendor send.
  * Socket close/error retains that charge, including missing provider finals. */
 export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): void {
@@ -46,10 +95,13 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   let unregister = () => {};
   let upstream: WebSocket | undefined = undefined;
   const pending = new Map<string, { receipt: PaidUsageReservation; characters: number; startedAt: number; grant: TurnGrant }>();
-  const finishReceipt = (receipt: PaidUsageReservation) => void receipt.finish().catch(captureTtsRelayFailure);
+  const finishReceipt = (receipt: PaidUsageReservation) => trackSettlement(receipt.finish().catch(captureTtsRelayFailure));
+  const live = { pending: pending as Map<string, unknown>, restart: () => close("server_restarting", 1012) };
+  liveRelays.add(live);
   const teardown = () => {
     if (stopped) return;
     stopped = true;
+    liveRelays.delete(live);
     if (idle) clearTimeout(idle);
     if (keepalive) clearInterval(keepalive);
     unregister();
@@ -57,7 +109,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     // A serial vendor (Sarvam) queues segments here; those never reached it.
     const neverSent = new Set(undispatched());
     for (const [id, spend] of pending) {
-      if (neverSent.has(id)) void spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      if (neverSent.has(id)) trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       else finishReceipt(spend.receipt);
     }
     pending.clear();
@@ -136,6 +188,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
         recordTtsSpend({ userId: context.userId, characters: spend.characters, model, provider,
           skipAutumn: spend.grant.skipAutumn, skipGates: spend.grant.skipGates, accounted: true });
         flushInBackground();
+        if (speechDraining && pending.size === 0) close("server_restarting", 1012);
       }
     } catch (error) { captureTtsRelayFailure(error); close("speech_generation_failed", 1011); }
   });
@@ -158,7 +211,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       // finishes and is charged, and the client ignores its audio.
       if (spend && relay.cancel?.(id)) {
         pending.delete(id);
-        await spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+        await trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       }
       return;
     }
@@ -181,6 +234,13 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
         style: bounded("style", 0), speed: bounded("speed", context.speed ?? 1, 0.7, 1.2) };
     }
     if (message.flush !== true) return;
+    // During a restart no new segment is admitted or charged. A close or a
+    // skip fails every segment this client is generating, so a busy relay
+    // waits for its last in-flight segment and closes then.
+    if (speechDraining) {
+      if (pending.size === 0) close("server_restarting", 1012);
+      return;
+    }
     const segmentText = text.trim();
     const settings = voiceSettings ?? { stability: 0.5, similarity_boost: 0.75, speed: context.speed ?? 1 };
     const start = startedAt;
@@ -201,8 +261,15 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       grant, kind: "tts", traceId: context.traceId, usd: calculateTtsCostDetails(characters, { model, provider }).total ?? 0,
     });
     if (receipt instanceof Response) { close("tts_budget"); return; }
-    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await receipt.cancelBeforeDispatch(); return; }
-    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await receipt.cancelBeforeDispatch(); close("speech_backpressure"); return; }
+    // The drain may have begun during the awaits above: nothing is dispatched.
+    if (speechDraining) {
+      // A failed refund is reported, never allowed to cut the sentence in flight.
+      await trackSettlement(receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
+      if (pending.size === 0) close("server_restarting", 1012);
+      return;
+    }
+    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await trackSettlement(receipt.cancelBeforeDispatch()); return; }
+    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await trackSettlement(receipt.cancelBeforeDispatch()); close("speech_backpressure"); return; }
     sequence++; charactersUsed += characters; usedContexts.add(id);
     pending.set(id, { receipt, characters, startedAt: start, grant });
     // From this point any uncertain send failure is charged conservatively.

@@ -43,7 +43,7 @@ import {
   type LessonBudget,
   type SubjectFamiliarity,
 } from "@heytutor/tutor-core";
-import { isChemistryQuestion, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { buildPlanExampleDocument, isChemistryQuestion, readPlanExample, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
 import type { PausedLessonReason } from "./doubtTurn";
@@ -52,6 +52,8 @@ export interface TurnTeachingPromptInput {
   question: string;
   /** `VerifiedDiagram.promptAddon` when a figure was committed, else null. */
   diagramPromptAddon: string | null;
+  /** The committed figure's `source.exampleSpecies` when it is the plan's example, else null. */
+  figureExampleSpecies?: string | null;
   turnPlan: TurnPlanV3 | null;
   /** `ProblemAuthorityV1Response["projection"]` when the solver answered. */
   solverProjection: unknown;
@@ -379,6 +381,22 @@ function doubtRowY(rowsLeft: number): number {
   return WORK_ZONE.topY + index * WORK_ZONE.lineHeight;
 }
 
+/**
+ * The full row tag with real numbers. A resumed lesson's base prompt is the
+ * continuation prompt, which never showed the coordinates, and a retry that
+ * spelled them `x,y` got a literal x back: production resumes wrote
+ * `[WRITE:text]`, `[WRITE:text,277]` and `[WRITE:text,x,211]`, the parser
+ * refused every row, and the lesson taught nothing.
+ */
+function writeRowTag(y: number): string {
+  return `[WRITE:text,${WORK_ZONE.marginX},${y}]`;
+}
+
+/** The y a continued lesson's next row is quoted at: the space rule's own number. */
+export function resumeNextRowY(input: Pick<ResumeTeachingPromptInput, "rowsLeftOnPage" | "nextRowY">): number {
+  return input.rowsLeftOnPage <= 0 || input.nextRowY === null ? WORK_ZONE.topY : doubtRowY(input.rowsLeftOnPage);
+}
+
 function doubtSpaceRule(
   input: Pick<DoubtTeachingPromptInput, "rowsLeftOnPage" | "nextRowY">,
   figureOnBoard: boolean,
@@ -386,10 +404,10 @@ function doubtSpaceRule(
   const pitch = WORK_ZONE.lineHeight;
   const figureStays = figureOnBoard ? ", and the figure stays" : "";
   if (input.rowsLeftOnPage <= 0 || input.nextRowY === null) {
-    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the line the doubt is about, restated in symbols at y = ${WORK_ZONE.topY}, and explain under it, stepping y by ${pitch}.`;
+    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the line the doubt is about, restated in symbols at y = ${WORK_ZONE.topY} as ${writeRowTag(WORK_ZONE.topY)}, and explain under it, stepping y by ${pitch}.`;
   }
   const rows = input.rowsLeftOnPage;
-  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page. Fit an ordinary doubt in that room: your first row is y = ${doubtRowY(rows)}, then step y by ${pitch}. When the answer needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the line the doubt is about, so the student can still see it.`;
+  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page. Fit an ordinary doubt in that room: your first row is y = ${doubtRowY(rows)}, written ${writeRowTag(doubtRowY(rows))}, then step y by ${pitch}. When the answer needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the line the doubt is about, so the student can still see it.`;
 }
 
 /**
@@ -579,9 +597,9 @@ export function resumeLessonUserPrompt(
 }
 
 /** The one corrective retry when a resume came back without board writing. */
-export function resumeInkRetryUserPrompt(reason: PausedLessonReason = "doubt"): string {
+export function resumeInkRetryUserPrompt(reason: PausedLessonReason = "doubt", nextRowY: number = WORK_ZONE.topY): string {
   const repeat = reason === "stop" ? "Do not repeat any already written row." : "Do not repeat the doubt or any already written row.";
-  return `${resumeLessonUserPrompt(null, reason)}\n\nYour previous continuation contained no usable [WRITE] step. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short [WRITE:text,x,y] tag immediately after the words that explain it. ${repeat} Return [STEP] blocks, not narration alone.`;
+  return `${resumeLessonUserPrompt(null, reason)}\n\nYour previous continuation contained no usable [WRITE] step: every row needs its two numbers. Continue from the next unfinished derivation step on the existing board. For each new mathematical step, put its short row tag immediately after the words that explain it, the first one as ${writeRowTag(nextRowY)} with your row text in place of "text", the next at y = ${nextRowY + WORK_ZONE.lineHeight}, and so on in steps of ${WORK_ZONE.lineHeight}. ${repeat} Return [STEP] blocks, not narration alone.`;
 }
 
 const RESUME_LENGTH_ADDON = `LESSON LENGTH FOR THIS CONTINUATION
@@ -599,10 +617,10 @@ function resumeSpaceRule(
   const pitch = WORK_ZONE.lineHeight;
   const figureStays = figureOnBoard ? ", and the figure stays" : "";
   if (input.rowsLeftOnPage <= 0 || input.nextRowY === null) {
-    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the last result the lesson reached, restated in symbols at y = ${WORK_ZONE.topY}, and continue under it, stepping y by ${pitch}.`;
+    return `This page is full. Your first [WRITE] turns the board to a fresh page by itself${figureStays}. Make that first row the last result the lesson reached, restated in symbols at y = ${WORK_ZONE.topY} as ${writeRowTag(WORK_ZONE.topY)}, and continue under it, stepping y by ${pitch}.`;
   }
   const rows = input.rowsLeftOnPage;
-  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page: your next row is y = ${doubtRowY(rows)}, then step y by ${pitch}. When the lesson needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the last result the lesson reached.`;
+  return `There is room for ${rows} more ${rows === 1 ? "row" : "rows"} under the last one on this page: your next row is y = ${doubtRowY(rows)}, written ${writeRowTag(doubtRowY(rows))}, then step y by ${pitch}. When the lesson needs more, keep writing past the bottom: the board turns to a fresh page by itself${figureStays}. Your first row on a fresh page restates, in symbols, the last result the lesson reached.`;
 }
 
 function remainingCodeLessonStepsBlock(input: ResumeTeachingPromptInput): string {
@@ -750,6 +768,36 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   };
 }
 
+/** The plan example a committed scene document draws, or null when it draws none. */
+export function figureExampleSpeciesOf(document: unknown): string | null {
+  const source = document && typeof document === "object" ? (document as { source?: { figureProvenance?: unknown; exampleSpecies?: unknown } }).source : undefined;
+  return source?.figureProvenance === "plan_example" && typeof source.exampleSpecies === "string" ? source.exampleSpecies : null;
+}
+
+/**
+ * Empty unless the figure committed to the board is the plan's example for
+ * this chemistry question. A parseable example the figure checks refused, or
+ * a turn whose board shows something else, gets nothing: the lesson never
+ * commits to a species the board does not show.
+ */
+export function planExampleTeachingAddon(question: string, turnPlan: TurnPlanV3 | null, figureExampleSpecies: string | null | undefined): string {
+  if (!figureExampleSpecies) return "";
+  // Example reactions (SN1, SN2, E2): the figure is the plan's reactions, rebuilt by the same reader and checked arrows.
+  const reactions = turnPlan?.exampleReactions ?? [];
+  if (reactions.length) {
+    const built = buildPlanExampleDocument(question, turnPlan);
+    if (built.status !== "built" || built.family !== "chem_organic" || built.document.source.exampleSpecies !== figureExampleSpecies) return "";
+    const listed = reactions.map((reaction) => `${reaction.mechanism}: ${reaction.equation.trim()}`).join("; ");
+    return `EXAMPLE REACTIONS TO TEACH WITH
+The question names no species. The board draws these as the worked examples, each with its curly arrows: ${listed}. Say early that they are examples you chose, teach each mechanism step by step on its example, and write those same equations in the work area. Do not switch to another reaction as the main example; a second one only as a brief contrast.`;
+  }
+  const reading = readPlanExample(question, turnPlan);
+  if (reading.status !== "accepted" || reading.source.formula !== figureExampleSpecies) return "";
+  const { formula } = reading.source;
+  return `EXAMPLE TO TEACH WITH
+The question names no species. Teach the idea with ${formula} as the one worked example, and say early that ${formula} is an example you chose. Any figure on the board is ${formula}. Do not switch to another species as the main example; a second species only as a brief contrast.`;
+}
+
 export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTeachingPrompt {
   const { question, codeLesson, turnPlan } = input;
   const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeLesson && input.codeLessonFrames?.length);
@@ -847,6 +895,9 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     // the engine computed from the formula. Keyed off the question, never the
     // account subject, which never reaches this code.
     !codeLesson && isChemistryQuestion(question) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
+    // The figure of a topic ask with no species is the plan's own example;
+    // the lesson teaches with that same species so voice and board agree.
+    !codeLesson && hasFigure && isChemistryQuestion(question) ? planExampleTeachingAddon(question, turnPlan, input.figureExampleSpecies) : "",
     !codeLesson && input.fastMode ? FAST_MODE_TEACHING_ADDON : "",
     !codeLesson ? (FAMILIARITY_ADDONS[input.familiarity] ?? "") : "",
     !hasFigure ? noFigurePromptAddon(Boolean(codeLesson)) : "",

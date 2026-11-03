@@ -16,9 +16,9 @@ import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { evaluateOpticsLaw } from "../physics/opticsLaws";
 import { levelRelationSource } from "../physics/levelRelationSource";
 import { relativeMotionSource } from "../physics/relativeMotionSource";
-import { projectileLaunchAngle } from "../physics/projectileLaunchSource";
+import { projectileLaunchAngle, projectileStatedConditions } from "../physics/projectileLaunchSource";
 import { relativeMotionPlanConflicts } from "../physics/motionPlanAgreement";
-import { riverCrossingPlanConflicts, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
+import { riverCrossingHeading, riverCrossingPlanConflicts, riverHeadingFromFlow, riverCrossingSpeeds, riverShortestPathAsked } from "../physics/riverCrossingSource";
 import { relativeMotionDocument } from "./relativeMotionScene";
 import {
   applyStemFamilyOverrides,
@@ -47,6 +47,7 @@ import {
   normalizeStem,
   orderFamiliesByStemPreference,
   restrictFamiliesToChemistry,
+  riverAlongStreamStated,
   riverBoatVariant,
   type SceneVisualFamily,
 } from "./familyClassification";
@@ -57,7 +58,7 @@ import {
   visualObligationRejection,
   type VisualObligationSet,
 } from "./visualObligations";
-import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
+import { CHEMISTRY_SCENE_FAMILIES, buildPlanExampleDocument, chemistryFamilyBuilder } from "../chemistry";
 import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
@@ -150,7 +151,21 @@ interface PlanQuantity {
 }
 
 export function synthesizeFamilyScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
-  return synthesizeFromFamilies(input, false);
+  return synthesizeFromFamilies(input, false) ?? synthesizePlanExampleScene(input);
+}
+
+/**
+ * A chemistry topic ask that names no species draws only the plan's own
+ * example, computed from its formula and captioned as an example. It never
+ * displaces a figure the question itself grounds.
+ */
+function synthesizePlanExampleScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
+  const built = buildPlanExampleDocument(input.question, input.turnPlan);
+  if (built.status !== "built") return null;
+  const compiled = tryCompile(built.document);
+  if (!compiled || demandRejection(compiled.document, sceneDemand(input.question, input.problemIR))) return null;
+  return { ...compiled, tier: "qualitative_verified", nonMetric: true, family: built.family,
+    reason: `computed the plan's example ${built.source.formula} from its formula; the question names no species` };
 }
 
 export function synthesizeLastResortScene(input: FamilySceneInput): SynthesizedFamilyScene | null {
@@ -2316,7 +2331,10 @@ function buildContactBody(
   if (isProjectileStem(stem)) {
     return projectileDocument(question, quantities);
   }
+  // A body launched at an angle (or horizontally) is not a vertical drop, even
+  // "from the top of a tower": a declined launch draws nothing here.
   if (isFallingStem(stem)) {
+    if (projectileLaunchAngle(question) !== null) return null;
     return fallingBodyDocument(question);
   }
   if (/(?:collid(?:e|es|ing|ed)|collision|head-on|sticks to|embeds in|ballistic pendulum|glancing collision|coefficient of restitution|impulse|batsman|recoil|on ice)/i.test(stem)) {
@@ -3098,6 +3116,10 @@ function projectileDocument(question: string, quantities: PlanQuantity[]): Scene
   const theta = projectileLaunchAngle(question);
   const plannedTheta = firstQuantity(quantities, ["theta", "angle", "alpha"]);
   if (theta === null || (plannedTheta !== null && plannedTheta !== theta)) return null;
+  // The same stated conditions bind this sketch: no foreign angle reference
+  // drawn from the horizontal, no stated launch height drawn as level ground.
+  const stated = projectileStatedConditions(question);
+  if (stated.angle.status === "unread" || (stated.height.status !== "none" && !fromHeight)) return null;
   return baseDocument({
     question,
     reason: fromHeight
@@ -3412,17 +3434,34 @@ function circularParkDocument(question: string): SceneDocument {
 }
 
 /**
- * The legacy river sketch is withheld when the boat and current speeds are
- * not each bound by role words, when the plan disagrees with them, or when a
- * boat no faster than the current is asked to cross straight.
+ * The legacy river sketch is withheld when it would draw a heading the stem
+ * does not state, when the boat and current speeds are not each bound by role
+ * words, when the plan disagrees with them, or when a boat no faster than the
+ * current is asked to cross straight.
  */
 function riverCrossingWithheld(question: string, quantities: PlanQuantity[]): boolean {
+  // One crossing is drawn at the plan's or the stem's first angle, else a
+  // schematic 60° from the current. Only a heading the stem measures from the
+  // current is that angle; a stated, asked or unread heading of any other kind
+  // is the archetype's alone, with or without stated speeds.
+  const variant = riverBoatVariant(normalizeStem(question));
+  if (variant === "along_stream" && !riverAlongStreamStated(question)) return true;
+  if (variant === "crossing") {
+    const fromFlow = riverHeadingFromFlow(question);
+    if (fromFlow === null || angleDegrees(quantities, question) !== fromFlow) return true;
+  }
+  if (variant === "two_triangles" && riverCrossingHeading(question).unread) return true;
   const speeds = riverCrossingSpeeds(question);
   if (speeds.status === "unstated") return false;
   if (speeds.status !== "bound") return true;
+  // Stated speeds the plan does not name would fall back to the stock 5:2 sketch.
+  if (variant === "along_stream" && !riverSpeeds(quantities).sourced) return true;
+  // A boat no faster than the current moving along the stream: the archetype declines it, and main
+  // never drew this sketch for it, so it declines here too (decline only).
+  if (variant === "along_stream" && speeds.vb <= speeds.vc) return true;
   if (riverCrossingPlanConflicts(speeds, { givens: quantities }, question).length > 0) return true;
   if (speeds.vb > speeds.vc) return false;
-  return riverBoatVariant(normalizeStem(question)) === "two_triangles" || riverShortestPathAsked(question);
+  return variant === "two_triangles" || riverShortestPathAsked(question);
 }
 
 function riverSpeeds(quantities: PlanQuantity[]): { boat: number; current: number; unit: "m/s" | "km/h" | "cm/s" | "unit"; sourced: boolean } {
@@ -4258,48 +4297,57 @@ function sourceLevelRelationDocument(question: string): SceneDocument | null {
   });
 }
 
-function semiconductorBandDocument(question: string): SceneDocument {
-  const stem = normalizeStem(question);
+/**
+ * One band column, or n-type beside p-type. A comparison with a conductor or
+ * an insulator declines: a conductor's bands overlap and an insulator's gap
+ * is wide, and two lines with a gap between them would draw neither.
+ */
+function semiconductorBandDocument(question: string): SceneDocument | null {
+  // "semi-conductor" is one word, and "n type" or a non-breaking "n‑type" is n-type.
+  const stem = normalizeStem(question)
+    .replace(/\bsemi[\s\u2010\u2011-]+conductor/gi, "semiconductor")
+    .replace(/\b([np])[\s\u2010\u2011\u2012-]+type\b/gi, "$1-type");
+  if (/\b(?:conductors?|insulators?|metals?)\b/i.test(stem)) return null;
   const bothTypes = /n-type/i.test(stem) && /p-type/i.test(stem);
   const nType = /n-type/i.test(stem);
   const pType = /p-type/i.test(stem);
-  const conductorSplit = /conductor/i.test(stem) && /(?:semiconductor|insulator)/i.test(stem);
+  // Flat bands with no impurity level cannot show doping, a junction, a device
+  // or a superconductor: a stem that names one without saying n-type or
+  // p-type gets no figure rather than an intrinsic one.
+  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ants?)|donors?|acceptors?|impurit\w*|solar cells?|superconduct\w*)\b/i.test(stem)) return null;
+  // A junction, a bias, a diode, a transistor or a laser bends the bands at
+  // the junction; separate flat columns cannot show it, whatever the type.
+  if (/\b(?:junctions?|bias\w*|\w*diodes?|transistors?|npn|pnp|lasers?|light[\s-]emitting|LEDs?)\b/i.test(stem)) return null;
   const columns: Array<{
     prefix: string;
     x0: number;
     x1: number;
-    extra: "donor" | "acceptor" | "narrow" | null;
+    extra: "donor" | "acceptor" | null;
     caption: string;
   }> = bothTypes
     ? [
       { prefix: "n", x0: -3.2, x1: -0.6, extra: "donor", caption: "n-type" },
       { prefix: "p", x0: 0.6, x1: 3.2, extra: "acceptor", caption: "p-type" },
     ]
-    : conductorSplit
-      ? [
-        { prefix: "cond", x0: -3.2, x1: -0.6, extra: "narrow", caption: "conductor" },
-        { prefix: "semi", x0: 0.6, x1: 3.2, extra: null, caption: "semiconductor" },
-      ]
-      : [{
-        prefix: "band",
-        x0: -2.4,
-        x1: 2.4,
-        extra: nType ? "donor" : pType ? "acceptor" : null,
-        caption: nType ? "n-type" : pType ? "p-type" : "intrinsic",
-      }];
+    : [{
+      prefix: "band",
+      x0: -2.4,
+      x1: 2.4,
+      extra: nType ? "donor" : pType ? "acceptor" : null,
+      caption: nType ? "n-type" : pType ? "p-type" : /\bintrinsic\b/i.test(stem) ? "intrinsic" : "semiconductor",
+    }];
 
   const entities: SceneEntity[] = [];
   const constructions: SceneConstruction[] = [];
   const levelIds: string[] = [];
   for (const column of columns) {
-    const evY = column.extra === "narrow" ? -0.25 : -1.2;
-    const ecY = column.extra === "narrow" ? 0.25 : 1.2;
     const evL = `${column.prefix}_ev_l`;
     const evR = `${column.prefix}_ev_r`;
     const ecL = `${column.prefix}_ec_l`;
     const ecR = `${column.prefix}_ec_r`;
     const ev = `${column.prefix}_ev`;
     const ec = `${column.prefix}_ec`;
+    // Each level is named once, by its own label.
     entities.push(
       { id: evL, kind: "point", role: "band end" },
       { id: evR, kind: "point", role: "band end" },
@@ -4309,18 +4357,12 @@ function semiconductorBandDocument(question: string): SceneDocument {
       { id: ec, kind: "segment", role: "conduction band", label: "Ec" },
     );
     constructions.push(
-      pointAt(evL, column.x0, evY),
-      pointAt(evR, column.x1, evY),
-      pointAt(ecL, column.x0, ecY),
-      pointAt(ecR, column.x1, ecY),
+      pointAt(evL, column.x0, -1.2),
+      pointAt(evR, column.x1, -1.2),
+      pointAt(ecL, column.x0, 1.2),
+      pointAt(ecR, column.x1, 1.2),
       { id: `make_${ev}`, operator: "segment", inputs: { start: evL, end: evR }, outputs: [ev] },
       { id: `make_${ec}`, operator: "segment", inputs: { start: ecL, end: ecR }, outputs: [ec] },
-      { id: `label_${ev}`, operator: "label", inputs: { target: ev, text: "Ev" }, outputs: [`${ev}_label`] },
-      { id: `label_${ec}`, operator: "label", inputs: { target: ec, text: "Ec" }, outputs: [`${ec}_label`] },
-    );
-    entities.push(
-      { id: `${ev}_label`, kind: "label", role: "band label" },
-      { id: `${ec}_label`, kind: "label", role: "band label" },
     );
     levelIds.push(ev, ec);
     if (column.extra === "donor" || column.extra === "acceptor") {
@@ -4333,13 +4375,11 @@ function semiconductorBandDocument(question: string): SceneDocument {
         { id: a, kind: "point", role: "impurity end" },
         { id: b, kind: "point", role: "impurity end" },
         { id: seg, kind: "segment", role: "impurity level", label: extraText },
-        { id: `${seg}_label`, kind: "label", role: "band label" },
       );
       constructions.push(
         pointAt(a, column.x0, extraY),
         pointAt(b, column.x1, extraY),
         { id: `make_${seg}`, operator: "segment", inputs: { start: a, end: b }, outputs: [seg] },
-        { id: `label_${seg}`, operator: "label", inputs: { target: seg, text: extraText }, outputs: [`${seg}_label`] },
       );
       levelIds.push(seg);
     }

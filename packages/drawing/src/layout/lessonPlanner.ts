@@ -5,6 +5,8 @@ import {
   parseDrawCommandFromTag,
   parseDrawingCommands,
   parsedResponseToSegments,
+  repairCoordinateLessWriteTags,
+  repairHeaderOnlyTextTags,
   scanDrawingTags,
   getSegmentCommands,
   type DrawCommand,
@@ -124,7 +126,10 @@ function createSegment(narration: string, command: DrawCommand | null): TutorSeg
  * Parse [STEP]...[/STEP] blocks as universal teaching micro-steps.
  * Every command keeps the narration immediately before it as its sync anchor.
  */
-export function parseStructuredLessonSteps(responseText: string): TutorSegment[] {
+export function parseStructuredLessonSteps(rawResponseText: string): TutorSegment[] {
+  // The same row repairs as the live parser, so notes and history read the
+  // rows the board wrote and never a WRITE tag as narration.
+  const responseText = repairCoordinateLessWriteTags(repairHeaderOnlyTextTags(rawResponseText));
   const segments: TutorSegment[] = [];
   const blocks = [...responseText.matchAll(STEP_BLOCK_PATTERN)];
 

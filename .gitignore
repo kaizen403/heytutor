@@ -9,7 +9,10 @@ node_modules/
 dist/
 build/
 out/
-.next/
+.next
+.next-a/
+.next-b/
+.next-legacy/
 .turbo/
 .cache/
 *.tsbuildinfo
