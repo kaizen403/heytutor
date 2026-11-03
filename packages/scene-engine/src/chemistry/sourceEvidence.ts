@@ -115,8 +115,11 @@ function quantityMatches(quantity: TurnPlanQuantityV3, role: Role, species: read
     if (formulaTargets.flat().some((result) => !parseFormula(result.formula)?.atoms.some((entry) => entry.symbol === atom.symbol))) return false;
     return equalScalar(quantity.value, valenceElectrons(atom));
   }
+  // A scalar that names no target is unambiguous only when one species is drawn. Its
+  // value must still equal the one computed for that species below.
   const targets = formulaTarget ? [formulaTarget] : atomTarget
-    ? species.filter((result) => result.central.symbol === atomTarget.symbol) : [];
+    ? species.filter((result) => result.central.symbol === atomTarget.symbol)
+    : species.length === 1 ? [species[0]!] : [];
   if (targets.length !== 1) return false;
   const result = targets[0]!;
   if (atomTarget && atomTarget.symbol !== result.central.symbol) return false;
