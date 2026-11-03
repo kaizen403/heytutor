@@ -308,7 +308,7 @@ function spokenGivenList(givens: QuestionGiven[], lead = true, language?: Narrat
 /** Labelled choices, a first label and then its second, start the options. A lone "(a)" is a part of the question. */
 const OPTION_LABELS: ReadonlyArray<readonly [RegExp, RegExp]> = [
   [/(?:^|\s)(?:\(\s*[Aa]\s*\)|[Aa]\))\s/, /(?:^|\s)(?:\(\s*[Bb]\s*\)|[Bb]\))\s/],
-  [/(?:^|\n)\s*[Aa]\.\s/, /\n\s*[Bb]\.\s/],
+  [/(?:^|\s)[Aa]\.\s/, /\s[Bb]\.\s/],
 ];
 
 function withoutAnswerOptions(question: string): string {
@@ -389,7 +389,8 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
   const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
   // "sin² x" and "log2 x" are functions too.
-  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last.replace(/[\p{N}_]+$/u, "")));
+  // A word with a digit or a subscript is a symbol too: "m_1 a = 10".
+  return !last || !(last.length === 1 || /[\p{N}_]/u.test(last) || MATH_WORD.test(last));
 }
 
 /** How far back a value's own context can reach. Long pasted prompts stay linear. */
@@ -481,11 +482,15 @@ function statedQuantities(question: string): StatedQuantity[] {
     const plain = isPlainValue(rightSide.trim().replace(/[.,;:]+$/, "")) && !continuesAsList(question, start);
     // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
     const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
-    // A compound unit may be spaced: "10 N m", "1.08 g mL^-1".
-    const spaced = /^\s+([\p{L}µ°Ω](?:[\p{L}\p{N}/·²³⁻¹°]|\^-?)*)(?:\s+([\p{L}µ°Ω](?:[\p{L}\p{N}/·²³⁻¹°]|\^-?)*))?/u.exec(after);
-    const firstUnit = spaced?.[1] && isUnitText(spaced[1]) ? spaced[1].replace(/[.,;:]+$/, "") : "";
-    const secondUnit = firstUnit && spaced?.[1] === firstUnit && spaced[2] && isUnitText(spaced[2]) ? spaced[2].replace(/[.,;:]+$/, "") : "";
-    const unit = (glued ?? [firstUnit, secondUnit].filter(Boolean).join(" ")).replace(/[.,;:]+$/, "");
+    // A compound unit may be spaced ("10 N m", "1.08 g mL^-1"): read all of it.
+    const spacedUnits: string[] = [];
+    for (const word of /^\s/.test(after) ? after.trimStart().split(/\s+/) : []) {
+      const bare = word.replace(/[.,;:)]+$/, "");
+      if (!isUnitText(bare)) break;
+      spacedUnits.push(bare);
+      if (bare !== word) break;
+    }
+    const unit = (glued ?? spacedUnits.join(" ")).replace(/[.,;:]+$/, "");
     const negative = /[-−–]$/.test(before);
     stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null, plain });
   }
