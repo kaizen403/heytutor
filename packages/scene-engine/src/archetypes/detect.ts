@@ -22,6 +22,7 @@ import { levelRelationSource } from "../physics/levelRelationSource";
 import { extractFreeFallSlots, extractSuvatSlots } from "./generators/constantAcceleration";
 import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catalog";
 import { formatResistorTree, readResistorTree } from "./resistorTree";
+import { extractOpticsSlots } from "./opticsSource";
 import {
   UNIT,
   STEM_NUMBER,
@@ -31,8 +32,6 @@ import {
   readEnergyAfterInEv,
   wavelengthAfterInNm,
   lengthAfterInCm,
-  lengthBeforeInCm,
-  symbolLengthInCm,
   allAngles,
   collectPlanQuantities,
   coordinateTuples,
@@ -73,28 +72,6 @@ function bridgeWireLengthInCm(stem: string): number | null {
   const before = [...stem.matchAll(pattern)].map(bridgeLengthValueInCm).filter((value): value is number => value !== null);
   const values = [...(after === null ? [] : [after]), ...before];
   return values.length && values.every(value => Math.abs(value - values[0]!) < 1e-8) ? values[0]! : null;
-}
-
-/**
- * Where the object sits, in every phrasing a ray-optics stem uses for it.
- *
- * Shared by the mirror and the lens because they are the same sentence with a
- * different noun. Missing a phrasing here is not a missing number: the
- * generator falls back to a stock distance and draws a *different optical
- * case* than the one asked about, which the tier only marks as qualitative.
- * "object at 20 cm" and "placed 15 cm away" both used to land there.
- */
-const OBJECT_PLACEMENT = /object distance(?: of| is| =)?|(?:the )?object(?: is)?(?:\s+(?:placed|kept|located|positioned))?\s+at|placed at(?: a distance of)?|distance of/;
-const AWAY_FROM = /(?:from|in front of|away(?:\s+from)?|before)/;
-const FOCAL_LENGTH = /focal length(?: of| is| =)?/;
-const RADIUS_OF_CURVATURE = /radius of curvature(?: of| is| =)?/;
-
-function objectDistanceFromStem(stem: string): number | null {
-  return lengthBeforeInCm(stem, AWAY_FROM)
-    ?? lengthAfterInCm(stem, OBJECT_PLACEMENT)
-    ?? symbolLengthInCm(stem, /u/)
-    // A stem that gives the distance with no unit at all means centimetres.
-    ?? numberAfter(stem, OBJECT_PLACEMENT, UNIT.centimetre);
 }
 
 /**
@@ -177,20 +154,6 @@ const COORDINATE_POINT_REFLECTION = inStemWithout(
 
 /** A line given as the mirror, in a stem that names no optical element. */
 const LINE_GIVEN_AS_MIRROR = inStemWithout(LINE_AS_MIRROR, NAMES_OPTICAL_ELEMENT);
-
-/** Focal length, named or written as `f = 15 cm`. */
-function focalLengthFromStem(stem: string): number | null {
-  return lengthAfterInCm(stem, FOCAL_LENGTH)
-    ?? symbolLengthInCm(stem, /f/)
-    ?? numberAfter(stem, FOCAL_LENGTH, UNIT.centimetre);
-}
-
-/** Radius of curvature, named or written as `R = 30 cm`. */
-function radiusOfCurvatureFromStem(stem: string): number | null {
-  return lengthAfterInCm(stem, RADIUS_OF_CURVATURE)
-    ?? symbolLengthInCm(stem, /R/)
-    ?? numberAfter(stem, RADIUS_OF_CURVATURE, UNIT.centimetre);
-}
 
 export interface DetectionHints {
   turnPlan?: unknown;
@@ -978,29 +941,14 @@ const CUE_SETS: readonly CueSet[] = [
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
     vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
-      setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
-      setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      const focal = focalLengthFromStem(stem);
-      const curvature = radiusOfCurvatureFromStem(stem);
-      setSlot(bag, "f", focal ?? (curvature === null ? null : curvature / 2), "stem");
-      setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
-    },
+    // Units, kind and the one-element rule live in the shared optics reader.
+    extract: (stem, plan, bag) => extractOpticsSlots(stem, plan, bag, "mirror"),
   },
   {
     id: "thin_lens",
     cues: [[/\b(?:convex|concave|converging|diverging|biconvex|thin) lens\b/i, 5], [/\blens\b/i, 3], [/\b(?:focal length|power|image|object|magnification)\b/i, 1]],
     vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i, COORDINATE_POINT_REFLECTION],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "kind", /\b(?:concave|diverging)\b/i.test(stem) ? "concave" : "convex", "stem");
-      setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
-      setSlot(bag, "u", objectDistanceFromStem(stem), "stem");
-      setSlot(bag, "f", planNumber(plan, ["f", "focallength"]), "plan");
-      setSlot(bag, "f", focalLengthFromStem(stem), "stem");
-      setSlot(bag, "v", planNumber(plan, ["v", "imagedistance", "di"]), "plan");
-    },
+    extract: (stem, plan, bag) => extractOpticsSlots(stem, plan, bag, "lens"),
   },
   {
     id: "lens_maker",
