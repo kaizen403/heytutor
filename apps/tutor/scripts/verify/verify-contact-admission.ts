@@ -4,7 +4,7 @@
  * compile/contactTruth.ts is checked on its own by the scene engine gate. This one proves the refusals through
  * validateProductionSceneCandidate and selection: verified parts may remove a label, but it must not turn a
  * contact refusal into a smaller figure that still draws the block in the wedge, and the strict lane must then
- * draw nothing. The documents have the shapes production drew, with their question text written here. Each true
+ * draw nothing. The documents have the shapes production drew, with every number and word authored here. Each true
  * twin must be admitted, so a refusal for an unrelated reason cannot pass this gate.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-contact-admission.ts
@@ -56,8 +56,15 @@ const wedge = () => new Figure()
   .segment("incline", "rough inclined plane", [0, 0], [4.6, 2.6])
   .segment("ground", "horizontal ground", [0, 0], [4.6, 0])
   .segment("rise", "vertical side", [4.6, 0], [4.6, 2.6]);
+const slope = () => new Figure()
+  .segment("incline", "inclined plane", [0, 0], [5, 3])
+  .segment("ground", "ground", [0, 0], [5, 0])
+  .segment("rise", "vertical side", [5, 0], [5, 3]);
+const table = () => new Figure()
+  .segment("surface", "horizontal surface", [-4, 0], [0, 0])
+  .box("blockA", "block A", [-2.6, 0.4], 1, 0.8, "A");
 const INCLINE = "A block rests on a rough incline. Draw the block on the incline.";
-const FLOOR = "A block rests on a rough 45 degree plane. Draw it.";
+const PLANE = "A block rests on a rough sloping plane. Draw it.";
 const PULLEY = "Block A on a table is joined by a string over a pulley to a hanging block B. Draw the setup.";
 const rows: { name: string; question: string; code: string; wrong: Record<string, unknown>; right: Record<string, unknown> }[] = [
   {
@@ -66,18 +73,14 @@ const rows: { name: string; question: string; code: string; wrong: Record<string
     right: wedge().block("body", "block", [[1.9, 1.074], [2.9, 1.639], [2.61, 2.13], [1.61, 1.57]], "m").doc(INCLINE),
   },
   {
-    name: "b5ba0604 shape: slope through the block", question: FLOOR, code: "body_straddles_surface",
-    wrong: new Figure().segment("incline", "inclined plane", [0, 0], [6, 6]).segment("ground", "ground", [0, 0], [6, 0]).segment("rise", "vertical side", [6, 0], [6, 6])
-      .block("body", "body on the plane", [[2.6, 3.4], [3.4, 2.6], [4, 3.2], [3.2, 4]], "m").doc(FLOOR),
-    right: new Figure().segment("incline", "inclined plane", [0, 0], [6, 6]).segment("ground", "ground", [0, 0], [6, 0]).segment("rise", "vertical side", [6, 0], [6, 6])
-      .block("body", "body on the plane", [[2.6, 2.6], [3.4, 3.4], [2.6, 4.2], [1.8, 3.4]], "m").doc(FLOOR),
+    name: "the slope runs through the block", question: PLANE, code: "body_straddles_surface",
+    wrong: slope().block("body", "body on the plane", [[2.757, 2.238], [3.271, 1.38], [2.243, 0.762], [1.729, 1.62]], "m").doc(PLANE),
+    right: slope().block("body", "body on the plane", [[2, 1.2], [3.2, 1.92], [2.789, 2.606], [1.589, 1.886]], "m").doc(PLANE),
   },
   {
-    name: "4fb87931 shape: string through the table", question: PULLEY, code: "string_through_surface",
-    wrong: new Figure().segment("surface", "horizontal surface", [-3, 0], [0, 0]).box("blockA", "block A", [-2, 0.3], 0.8, 0.6, "A")
-      .segment("string", "vertical string", [-1.25, 0.55], [-1.25, -1.1]).box("blockB", "block B", [-1.25, -1.4], 0.6, 0.6, "B").doc(PULLEY),
-    right: new Figure().segment("surface", "horizontal surface", [-3, 0], [0, 0]).box("blockA", "block A", [-2, 0.3], 0.8, 0.6, "A")
-      .segment("string", "vertical string", [0.3, 0.55], [0.3, -1.1]).box("blockB", "block B", [0.3, -1.4], 0.6, 0.6, "B").doc(PULLEY),
+    name: "the string runs through the table", question: PULLEY, code: "string_through_surface",
+    wrong: table().segment("string", "vertical string", [-1.6, 0.8], [-1.6, -1.4]).box("blockB", "block B", [-1.6, -1.8], 0.8, 0.8, "B").doc(PULLEY),
+    right: table().segment("string", "vertical string", [0.5, 0.8], [0.5, -1.4]).box("blockB", "block B", [0.5, -1.8], 0.8, 0.8, "B").doc(PULLEY),
   },
 ];
 const planFor = (question: string): TurnPlanV3 => ({

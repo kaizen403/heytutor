@@ -23,7 +23,7 @@ type Solid = { id: string; role: string; points: Point[] };
 
 const QUALIFIED_PLANE = String.raw`\b(?:inclined|rough|smooth|frictionless|sloping|tilted|horizontal)\s+plane\b`;
 const SURFACE_WORDS = new RegExp(String.raw`\b(?:incline|inclined|ramp|slope|wedge|ground|floor|table|tabletop|road|bank|banked|track|rails?|conveyor|belt|platform|shelf|bench|surface|wall|ceiling|roof|hill|desk|deck|bridge|plank|cliff|ledge|mountain|pavement|runway)\b|${QUALIFIED_PLANE}`, "i");
-const NOT_SURFACE_WORDS = /\b(?:sand|mud|soil|pit|well|trench|tunnel|water|liquid|fluid|oil|mercury|meniscus|sea|lake|gauss\w*|equipotential|mirror|lens|optical|refract\w*|reflect\w*|interface|medium|glass|film|capacitor|plates?|sheet|conduct\w*|charge\w*|metal|coil|magnet\w*|wave\w*|image|focal|principal|axis|axes|normal|tangent|vector|field|rays?|string|rope|cord|thread|equatorial|state|energy|reference|sectional|cross|horizon|line of|path|trajectory|dimension|diameter|radius|chord|height|depth|distance|length|width|parallel|perpendicular|direction|along|above|below|to the|cutting|diagonal|molecular|infinite|imaginary|plane of|free surface|piston|partition|surface contact|contact geometry|ladder|rod|strut|bar|against|cone|conical|lateral|slant|hash|periodic|truth|lookup|contingency|frequency|data|row|column|circuit|node|terminal|wheatstone|metre|meter|galvanometer|ground\s+(?:rail|wire|node|terminal|symbol|bus))\b|\bin\s+(?:the\s+|its\s+)?(?:\w+\s+)?plane\b/i;
+const NOT_SURFACE_WORDS = /\b(?:sand|mud|soil|pit|well|trench|tunnel|water|liquid|fluid|oil|mercury|meniscus|sea|lake|gauss\w*|equipotential|mirror|lens|optical|refract\w*|reflect\w*|interface|medium|glass|film|capacitor|plates?|sheet|conduct\w*|charge\w*|metal|coil|magnet\w*|wave\w*|image|focal|principal|axis|axes|normal|tangent|vector|field|rays?|string|rope|cord|thread|equatorial|state|energy|reference|sectional|cross|horizon|line of|path|trajectory|dimension|diameter|radius|chord|height|depth|distance|length|width|parallel|perpendicular|direction|along|above|below|to the|plane of|free surface|piston|partition|surface contact|contact geometry|ladder|rod|strut|bar|against|cone|conical|lateral|slant|hash|periodic|truth|lookup|contingency|frequency|data|row|column|circuit|node|terminal|wheatstone|metre|meter|galvanometer|ground\s+(?:rail|wire|node|terminal|symbol|bus))\b|\bin\s+(?:the\s+|its\s+)?(?:\w+\s+)?plane\b/i;
 const SOLID_WORDS = new RegExp(String.raw`\b(?:wedge|incline|inclined|ramp|slope|ground|floor|table|tabletop|platform|bench|road)\b|${QUALIFIED_PLANE}`, "i");
 const WEDGE_WORD = /\bwedge\b/i;
 /** Nothing rests under these. A shelf, a table or a platform has a free underside, so it makes no such claim. */
@@ -266,7 +266,7 @@ export function validateContactTruth(document: SceneDocument, geometry: Readonly
           `The hatch on ${surface.id} (${surface.role}) falls inside ${body.id} (${body.role}), so the body reads as part of the solid. Keep the hatch, and swap the surface's start and end so the hatch falls on the solid side.`);
       }
       const up = upSide(surface);
-      const fromAbove = up !== null && (wedges.has(surface.id) || SOLID_BELOW_WORDS.test(surface.role)) && !statedUnderside ? up : null;
+      const fromAbove = up !== null && SOLID_BELOW_WORDS.test(surface.role) && !statedUnderside ? up : null;
       const free = fromAbove ?? (up === null || !SOLID_BELOW_WORDS.test(surface.role) ? freeSideFromNormal(surface, body, document, geometry) : null);
       if (free !== null && side !== free) {
         fail("body_inside_surface", [body.id, surface.id],
