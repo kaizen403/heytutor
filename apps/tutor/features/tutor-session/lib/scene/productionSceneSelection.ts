@@ -4,7 +4,7 @@
  */
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
-  ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
+  ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, refusedArchetypeLead, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry, planStatesChain,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
@@ -748,15 +748,20 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     // is never offered, and any other selected figure still declines here.
     const lawOnlyLead = !input.policy?.preferPlanner && lawOnlyArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null });
     const lawOnlyReason = "the stem matched an archetype only through its plan's laws";
-    const lawOnlyDecline = () => {
+    const lawOnlyDecline = (reason = lawOnlyReason, code: "law_only_archetype_lead" | "refused_archetype_lead" = "law_only_archetype_lead") => {
       const leadStatus = resolveDiagramFailureStatus({
         visualRequirement: questionRequiresVisual(question) ? "required" : turnPlan.visualRequirement,
         requiredRetryEnabled: input.requiredRetryEnabled ?? true,
       });
-      return empty(lawOnlyReason, leadStatus === "retry_required" ? "retry_required" : "text_only",
-        validScene(candidateValidation) ? { code: "law_only_archetype_lead", reason: lawOnlyReason, preferred: false, replacedBy: null } : null);
+      return empty(reason, leadStatus === "retry_required" ? "retry_required" : "text_only",
+        validScene(candidateValidation) ? { code, reason, preferred: false, replacedBy: null } : null);
     };
     if (lawOnlyLead && buildPlanExampleDocument(question, turnPlan).status !== "built") return lawOnlyDecline();
+    // A refused lead declines the same way: once the family refuses, a planner
+    // candidate is no longer outranked and would take the turn. Strict is unchanged.
+    if (!input.policy?.preferPlanner && refusedArchetypeLead(question, { turnPlan, problemIR: input.problemIR ?? null })) {
+      return lawOnlyDecline("the stem's leading archetype refuses this question", "refused_archetype_lead");
+    }
     const value = !lawOnlyLead && validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
