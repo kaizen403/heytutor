@@ -1,0 +1,1094 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+ "recordedFrom": ".lecture-lab/home-mini-20261103/runs/mini_physics_3_momentum_second_law_and_impulse.json",
+ "judged": {
+  "verdict": "right",
+  "by": "lane 2 (salem) and a blind Opus reviewer, from renders of home-mini-20261103, 3 Nov 2026; arrow lengths ruled by the orchestrator",
+  "note": "block on the surface, N and mg equal and opposite, F to the right, no friction; F is drawn longer than mg (163 against 112 px), on a perpendicular axis, so it states nothing false"
+ },
+ "selection": {
+  "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "physics",
+   "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+   "givens": [
+    {
+     "id": "m",
+     "symbol": "m",
+     "value": 5,
+     "unit": "kg",
+     "sourceText": "5 kg block",
+     "provenance": "given"
+    },
+    {
+     "id": "F",
+     "symbol": "F",
+     "value": 20,
+     "unit": "N",
+     "sourceText": "horizontal force of 20 N",
+     "provenance": "given"
+    },
+    {
+     "id": "g",
+     "symbol": "g",
+     "value": 9.8,
+     "unit": "m/s^2",
+     "provenance": "given",
+     "sourceText": "g = 9.8"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "a",
+     "symbol": "a",
+     "unit": "m/s^2"
+    },
+    {
+     "id": "N",
+     "symbol": "N",
+     "unit": "N"
+    }
+   ],
+   "derived": [
+    {
+     "id": "a",
+     "symbol": "a",
+     "value": 4,
+     "unit": "m/s^2",
+     "sourceText": "a = F/m = 20/5",
+     "provenance": "derived",
+     "dependsOn": [
+      "F",
+      "m"
+     ]
+    },
+    {
+     "id": "N",
+     "symbol": "N",
+     "value": 49,
+     "unit": "N",
+     "sourceText": "N = mg = 5*9.8",
+     "provenance": "derived",
+     "dependsOn": [
+      "m",
+      "g"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Smooth table means friction is zero, so the applied force is the net horizontal force.",
+     "expected": "F_net = F",
+     "relatedQuantityIds": [
+      "F"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "No vertical acceleration, so normal force balances weight.",
+     "expected": "N = mg",
+     "relatedQuantityIds": [
+      "N",
+      "m",
+      "g"
+     ]
+    }
+   ],
+   "lawIds": [
+    "Newton's second law",
+    "equilibrium of vertical forces"
+   ],
+   "assumptions": [
+    "smooth table implies negligible friction",
+    "g = 9.8 m/s^2",
+    "force and acceleration are horizontal",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fMass",
+     "kind": "given",
+     "statement": "block mass is 5 kg",
+     "evidence": {
+      "source": "question",
+      "start": 2,
+      "end": 12,
+      "quote": "5 kg block"
+     }
+    },
+    {
+     "id": "fForce",
+     "kind": "given",
+     "statement": "horizontal pulling force is 20 N",
+     "evidence": {
+      "source": "question",
+      "start": 57,
+      "end": 81,
+      "quote": "horizontal force of 20 N"
+     }
+    },
+    {
+     "id": "fSmooth",
+     "kind": "assumption",
+     "statement": "table is smooth, friction negligible",
+     "evidence": {
+      "source": "question",
+      "start": 18,
+      "end": 41,
+      "quote": "smooth horizontal table"
+     }
+    },
+    {
+     "id": "fReqAccel",
+     "kind": "requested",
+     "statement": "find acceleration of block",
+     "evidence": {
+      "source": "question",
+      "start": 83,
+      "end": 104,
+      "quote": "Find its acceleration"
+     }
+    },
+    {
+     "id": "fReqNormal",
+     "kind": "requested",
+     "statement": "find normal force on block",
+     "evidence": {
+      "source": "question",
+      "start": 109,
+      "end": 131,
+      "quote": "the normal force on it"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "block",
+     "kind": "body",
+     "label": "block",
+     "evidenceFactIds": [
+      "fMass",
+      "fForce"
+     ]
+    },
+    {
+     "id": "table",
+     "kind": "region",
+     "label": "horizontal table",
+     "evidenceFactIds": [
+      "fSmooth"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eAccel",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fForce",
+      "fMass"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "number",
+       "value": 20
+      },
+      "right": {
+       "kind": "number",
+       "value": 5
+      }
+     }
+    },
+    {
+     "id": "eNormal",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fMass"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "*",
+      "left": {
+       "kind": "number",
+       "value": 5
+      },
+      "right": {
+       "kind": "number",
+       "value": 9.8
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iFreeBody",
+     "kind": "free_body",
+     "entityIds": [
+      "block"
+     ],
+     "evidenceFactIds": [
+      "fForce",
+      "fSmooth",
+      "fReqNormal"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sAccel",
+     "kind": "evaluate",
+     "expressionId": "eAccel",
+     "resultBinding": {
+      "turnPlanQuantityId": "a",
+      "symbol": "a",
+      "unit": "m/s^2",
+      "evidenceFactIds": [
+       "fReqAccel"
+      ]
+     }
+    },
+    {
+     "id": "sNormal",
+     "kind": "evaluate",
+     "expressionId": "eNormal",
+     "resultBinding": {
+      "turnPlanQuantityId": "N",
+      "symbol": "N",
+      "unit": "N",
+      "evidenceFactIds": [
+       "fReqNormal"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "contact_body",
+    "bounded_region",
+    "analytic_curve"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "elastic_profile",
+    "elastic_state",
+    "rectangle",
+    "circle",
+    "vector_components",
+    "surface_contact",
+    "right_angle_mark",
+    "rotate",
+    "arc",
+    "midpoint",
+    "rotational_motion",
+    "rotational_state",
+    "planar_torque",
+    "harmonic_motion",
+    "harmonic_state",
+    "gravitational_field",
+    "gravitational_force",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "vector_sum",
+    "vector_scale",
+    "vector_projection",
+    "free_body",
+    "coupled_bodies",
+    "vertical_circle",
+    "mechanical_energy_pair",
+    "work_interval",
+    "spring_energy",
+    "potential_curve",
+    "collision",
+    "incline_friction",
+    "uniform_circular_motion",
+    "projectile_trajectory",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "function_region",
+    "constraint_region",
+    "representative_slice",
+    "solid_of_revolution",
+    "polygon",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "intersection",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "motion_graph",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "perpendicular",
+    "opposite_direction",
+    "connected",
+    "parallel",
+    "angle_between",
+    "on",
+    "equal_length",
+    "function_value",
+    "root",
+    "between",
+    "incident"
+   ],
+   "planningGuidance": [
+    "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
+    "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fMass",
+      "kind": "given",
+      "statement": "block mass is 5 kg",
+      "evidence": {
+       "source": "question",
+       "start": 2,
+       "end": 12,
+       "quote": "5 kg block"
+      }
+     },
+     {
+      "id": "fForce",
+      "kind": "given",
+      "statement": "horizontal pulling force is 20 N",
+      "evidence": {
+       "source": "question",
+       "start": 57,
+       "end": 81,
+       "quote": "horizontal force of 20 N"
+      }
+     },
+     {
+      "id": "fSmooth",
+      "kind": "assumption",
+      "statement": "table is smooth, friction negligible",
+      "evidence": {
+       "source": "question",
+       "start": 18,
+       "end": 41,
+       "quote": "smooth horizontal table"
+      }
+     },
+     {
+      "id": "fReqAccel",
+      "kind": "requested",
+      "statement": "find acceleration of block",
+      "evidence": {
+       "source": "question",
+       "start": 83,
+       "end": 104,
+       "quote": "Find its acceleration"
+      }
+     },
+     {
+      "id": "fReqNormal",
+      "kind": "requested",
+      "statement": "find normal force on block",
+      "evidence": {
+       "source": "question",
+       "start": 109,
+       "end": 131,
+       "quote": "the normal force on it"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "block",
+      "kind": "body",
+      "label": "block",
+      "evidenceFactIds": [
+       "fMass",
+       "fForce"
+      ]
+     },
+     {
+      "id": "table",
+      "kind": "region",
+      "label": "horizontal table",
+      "evidenceFactIds": [
+       "fSmooth"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eAccel",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fForce",
+       "fMass"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 20
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      }
+     },
+     {
+      "id": "eNormal",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fMass"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 5
+       },
+       "right": {
+        "kind": "number",
+        "value": 9.8
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iFreeBody",
+      "kind": "free_body",
+      "entityIds": [
+       "block"
+      ],
+      "evidenceFactIds": [
+       "fForce",
+       "fSmooth",
+       "fReqNormal"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sAccel",
+      "kind": "evaluate",
+      "expressionId": "eAccel",
+      "resultBinding": {
+       "turnPlanQuantityId": "a",
+       "symbol": "a",
+       "unit": "m/s^2",
+       "evidenceFactIds": [
+        "fReqAccel"
+       ]
+      }
+     },
+     {
+      "id": "sNormal",
+      "kind": "evaluate",
+      "expressionId": "eNormal",
+      "resultBinding": {
+       "turnPlanQuantityId": "N",
+       "symbol": "N",
+       "unit": "N",
+       "evidenceFactIds": [
+        "fReqNormal"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sAccel",
+      "requestId": "sAccel",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "4"
+      },
+      "approximate": 4,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sNormal",
+      "requestId": "sNormal",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "49"
+      },
+      "approximate": 49,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sAccel",
+      "requestId": "sAccel",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eAccel"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sNormal",
+      "requestId": "sNormal",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eNormal"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "block on a smooth horizontal table pulled by a horizontal force; show setup with body, surface, applied force, weight, and normal"
+   },
+   "source": {
+    "question": "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+    "representationTier": "metric",
+    "nonMetric": false
+   },
+   "quantities": [
+    {
+     "id": "m",
+     "symbol": "m",
+     "value": 5,
+     "unit": "kg",
+     "provenance": "given"
+    },
+    {
+     "id": "F",
+     "symbol": "F",
+     "value": 20,
+     "unit": "N",
+     "provenance": "given"
+    },
+    {
+     "id": "g",
+     "symbol": "g",
+     "value": 9.8,
+     "unit": "m/s^2",
+     "provenance": "given"
+    }
+   ],
+   "entities": [
+    {
+     "id": "surface_a",
+     "kind": "point",
+     "role": "surface end"
+    },
+    {
+     "id": "surface_b",
+     "kind": "point",
+     "role": "surface end"
+    },
+    {
+     "id": "surface",
+     "kind": "segment",
+     "role": "surface"
+    },
+    {
+     "id": "G",
+     "kind": "point",
+     "role": "body centre"
+    },
+    {
+     "id": "body",
+     "kind": "rectangle",
+     "role": "body",
+     "label": "m=5 kg"
+    },
+    {
+     "id": "body_base",
+     "kind": "point",
+     "role": "body base point"
+    },
+    {
+     "id": "F_anchor",
+     "kind": "point",
+     "role": "applied force anchor"
+    },
+    {
+     "id": "F_tip",
+     "kind": "point",
+     "role": "applied force tip"
+    },
+    {
+     "id": "force",
+     "kind": "vector",
+     "role": "applied force",
+     "label": "F=20 N"
+    },
+    {
+     "id": "weight",
+     "kind": "vector",
+     "role": "weight",
+     "label": "mg"
+    },
+    {
+     "id": "normal",
+     "kind": "vector",
+     "role": "normal reaction",
+     "label": "N"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_surface_a",
+     "operator": "point",
+     "inputs": {
+      "x": -3,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "surface_a"
+     ]
+    },
+    {
+     "id": "make_surface_b",
+     "operator": "point",
+     "inputs": {
+      "x": 3,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "surface_b"
+     ]
+    },
+    {
+     "id": "make_surface",
+     "operator": "segment",
+     "inputs": {
+      "start": "surface_a",
+      "end": "surface_b"
+     },
+     "outputs": [
+      "surface"
+     ]
+    },
+    {
+     "id": "make_G",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0.45,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "G"
+     ]
+    },
+    {
+     "id": "make_body",
+     "operator": "rectangle",
+     "inputs": {
+      "center": "G",
+      "width": 1.2,
+      "height": 0.9
+     },
+     "outputs": [
+      "body"
+     ]
+    },
+    {
+     "id": "make_body_base",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "body_base"
+     ]
+    },
+    {
+     "id": "make_F_anchor",
+     "operator": "point",
+     "inputs": {
+      "x": 0.6,
+      "y": 0.45,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "F_anchor"
+     ]
+    },
+    {
+     "id": "make_F_tip",
+     "operator": "point",
+     "inputs": {
+      "x": 2.2,
+      "y": 0.45,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "F_tip"
+     ]
+    },
+    {
+     "id": "make_force",
+     "operator": "vector",
+     "inputs": {
+      "start": "F_anchor",
+      "end": "F_tip"
+     },
+     "outputs": [
+      "force"
+     ]
+    },
+    {
+     "id": "make_weight",
+     "operator": "vector",
+     "inputs": {
+      "start": "G",
+      "direction": [
+       0,
+       -1
+      ],
+      "length": 1.1
+     },
+     "outputs": [
+      "weight"
+     ]
+    },
+    {
+     "id": "make_normal",
+     "operator": "vector",
+     "inputs": {
+      "start": "G",
+      "direction": [
+       0,
+       1
+      ],
+      "length": 1.1
+     },
+     "outputs": [
+      "normal"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "body_rests",
+     "predicate": "on",
+     "entities": [
+      "body_base",
+      "surface"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "normal_perp",
+     "predicate": "perpendicular",
+     "entities": [
+      "normal",
+      "surface"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "force_along_surface",
+     "predicate": "parallel",
+     "entities": [
+      "force",
+      "surface"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_body",
+     "predicate": "label_attached",
+     "entities": [
+      "body"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_force",
+     "predicate": "label_attached",
+     "entities": [
+      "force"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "note_smooth",
+     "kind": "narration",
+     "targetIds": [
+      "surface"
+     ],
+     "text": "Smooth table: friction is zero, so F is the net horizontal force.",
+     "placementIntent": "below"
+    },
+    {
+     "id": "note_vertical",
+     "kind": "narration",
+     "targetIds": [
+      "normal",
+      "weight"
+     ],
+     "text": "No vertical acceleration: N balances mg.",
+     "placementIntent": "above"
+    }
+   ],
+   "requiredEntityIds": [
+    "surface_a",
+    "surface_b",
+    "surface",
+    "G",
+    "body",
+    "body_base",
+    "F_anchor",
+    "F_tip",
+    "force",
+    "weight",
+    "normal"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "surface_a",
+      "surface_b",
+      "surface",
+      "G",
+      "body",
+      "body_base",
+      "F_anchor",
+      "F_tip",
+      "force",
+      "weight",
+      "normal"
+     ],
+     "dependsOn": [],
+     "narrationCue": "A 5 kg block on a smooth horizontal table pulled by a 20 N horizontal force."
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": true,
+  "figureSource": "planner",
+  "tier": "qualitative_verified",
+  "family": null,
+  "entityIds": [
+   "F_anchor",
+   "F_tip",
+   "G",
+   "body",
+   "body_base",
+   "force",
+   "normal",
+   "surface",
+   "surface_a",
+   "surface_b",
+   "weight"
+  ],
+  "texts": [
+   "body: m=5 kg",
+   "force: F=20 N",
+   "normal: N",
+   "weight: mg"
+  ],
+  "marks": [
+   {
+    "entityId": "body_base",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      500,
+      258
+     ]
+    ]
+   },
+   {
+    "entityId": "body",
+    "kind": "rectangle",
+    "dashed": false,
+    "points": [
+     [
+      400,
+      258
+     ],
+     [
+      600,
+      258
+     ],
+     [
+      600,
+      108
+     ],
+     [
+      400,
+      108
+     ]
+    ]
+   },
+   {
+    "entityId": "force",
+    "kind": "vector",
+    "dashed": false,
+    "points": [
+     [
+      600,
+      183
+     ],
+     [
+      867,
+      183
+     ]
+    ]
+   },
+   {
+    "entityId": "normal",
+    "kind": "vector",
+    "dashed": false,
+    "points": [
+     [
+      500,
+      183
+     ],
+     [
+      500,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "surface",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      258
+     ],
+     [
+      1000,
+      258
+     ]
+    ]
+   },
+   {
+    "entityId": "weight",
+    "kind": "vector",
+    "dashed": false,
+    "points": [
+     [
+      500,
+      183
+     ],
+     [
+      500,
+      367
+     ]
+    ]
+   }
+  ],
+  "inkHash": "6bb12d64d45b"
+ }
+}

@@ -5,16 +5,16 @@ import { AVAILABLE_SUBJECTS, type SubjectId } from "./types";
 const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
   physics: [
     {
-      topic: "Projectiles",
-      kind: "lecture",
-      question:
-        "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
-    },
-    {
       topic: "Resistors",
       kind: "problem",
       question:
         "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+    },
+    {
+      topic: "Newton's laws",
+      kind: "problem",
+      question:
+        "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
     },
     {
       topic: "Capacitors",
