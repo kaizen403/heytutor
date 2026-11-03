@@ -55,7 +55,7 @@ const PARTIAL_FIGURES: ReadonlyMap<string, string> = new Map([
   ["A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.", "N and mg are drawn exactly equal, so length reads as size, and the 20 N arrow at 163 px then reads as more than the 49 N arrow at 112 px, with nothing saying it is not to scale"],
 ]);
 
-/** Lower this as entries leave. Raising it, to exempt another card, needs the owner. */
+/** Lower this as entries leave. Raising it exempts another card, so a reviewer must catch that: this gate cannot stop an edit to itself. */
 const PARTIAL_CEILING = 4;
 
 const failureHelp = `
@@ -110,6 +110,10 @@ for (const row of rows) {
   if (recording.schemaVersion !== HOME_SUGGESTION_RECORDING_VERSION) failures.push(`stale recording schema: ${path}`);
   // The lab normalizes what it asks (x² becomes x^2), so a replay must ask the normalized card.
   if (!recordingAsksCard(recording, row.question)) failures.push(`recording question differs from the card: ${path}`);
+  if (!recording.judged) {
+    failures.push(`recording has no verdict: ${row.question}`);
+    continue;
+  }
   const { verdict } = recording.judged;
   const problem = judgementProblem(recording.judged, recording.expected);
   if (problem) failures.push(`${problem}: ${row.question}`);
@@ -137,7 +141,13 @@ for (const question of PARTIAL_FIGURES.keys()) {
 let drawn = 0;
 const matching: HomeSuggestionRecording[] = [];
 for (const [question, recording] of recordings) {
-  const actual = replayRecording(recording);
+  let actual: FigureSignature;
+  try {
+    actual = replayRecording(recording);
+  } catch (error) {
+    failures.push(`replay threw: ${question}: ${error instanceof Error ? error.message : String(error)}`);
+    continue;
+  }
   const differences = signatureDifferences(recording.expected, actual);
   if (differences.length === 0) matching.push(recording);
   if (differences.length > 0) failures.push(`figure changed since it was judged: ${question}: ${differences.join("; ")}`);
@@ -150,7 +160,8 @@ for (const [question, recording] of recordings) {
 const sample = matching.find((recording) => recording.expected.drawn);
 const plannerRecording = matching.find((recording) => recording.expected.figureSource === "planner");
 if (recordings.size > 0 && !plannerRecording) failures.push("no matching planner figure: the replay self-tests did not run");
-if (sample && plannerRecording) {
+// A self-test that fails is one more failure on the list, never an assert that hides the list.
+if (sample && plannerRecording) try {
   const unrelated = "What is 2 + 2?";
   const mutated: HomeSuggestionRecording = structuredClone(sample);
   mutated.question = unrelated;
@@ -186,7 +197,8 @@ if (sample && plannerRecording) {
   assert(plannerRecording.selection.candidate, "a planner recording is needed to test normalization");
   const stringSource: HomeSuggestionRecording = structuredClone(plannerRecording);
   stringSource.selection.candidate = { ...stringSource.selection.candidate!, source: "the student's question" };
-  assert.deepEqual(signatureDifferences(plannerRecording.expected, replayRecording(stringSource)), [], "a string source must replay to the same figure");
+  // The tier may rise on a non metric figure, because only the plain source marks it so. The figure itself must not change.
+  assert.deepEqual(signatureDifferences(plannerRecording.expected, replayRecording(stringSource)).filter((difference) => !difference.startsWith("tier ")), [], "a string source must replay to the same figure");
 
   // Layout is not a change: moving and rescaling the whole figure must pass.
   const scene = replaySelection(sample).representation!.renderScene;
@@ -197,6 +209,8 @@ if (sample && plannerRecording) {
   }
   assert.notDeepEqual(refit.primitives, scene.primitives, "the refit must move the figure");
   assert.deepEqual(signatureDifferences(actual, { ...actual, marks: marksOf(refit) }), [], "layout: a figure refit must not read as a change");
+} catch (error) {
+  failures.push(`a replay self-test failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 if (failures.length > 0) {

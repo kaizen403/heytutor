@@ -501,7 +501,7 @@ says nothing about a fresh planner run, and nothing about a reference picture a
 student may see instead. Production drew the projectile card wrong after the lab
 judged it right.
 
-When the gate fails on an engine change you meant to make, no paid round is needed:
+When the gate fails on an engine change you meant to make, no paid round is needed unless the saved document no longer validates:
 `render` the recordings, look at that card's PNG, and if it is right, write the
 verdict and run `home-suggestions.ts rejudge --judgements judged.json`. It replays
 the saved document with no planner call and refuses a verdict other than `right`
@@ -513,8 +513,9 @@ The gate runs with `--allow-unjudged`, which exempts only the cards in its
 `PARTIAL_FIGURES` list: they drew a figure that is true but missing something or
 hard to read. A green run names them. They have no recording, so their figures can
 get worse with the gate green. Any other card with no recording still fails, a
-deleted recording still fails, and a new entry fails unless `PARTIAL_CEILING` is
-raised, which needs the owner. An entry leaves when its card draws a figure judged
+deleted recording still fails, and adding an entry means raising `PARTIAL_CEILING`
+or swapping one out, in the same diff. No gate can stop an edit to itself, so review
+is what guards this list and its ceiling. An entry leaves when its card draws a figure judged
 right or leaves the home screen. The ceiling must come down as entries leave, and
 the flag fails once the list is empty, so it has to be removed then.
 
