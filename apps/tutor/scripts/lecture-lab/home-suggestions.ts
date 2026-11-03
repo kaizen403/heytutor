@@ -5,7 +5,7 @@
  *   # 1. the evaluation set, built from the cards that can show ($0)
  *   pnpm exec tsx scripts/lecture-lab/home-suggestions.ts eval --out .lecture-lab/home-suggestions.jsonl
  *   # 2. one paid round of full lessons (needs the orchestrator's yes and a cap)
- *   pnpm exec tsx scripts/lecture-lab/run.ts --eval .lecture-lab/home-suggestions.jsonl \
+ *   DIAGRAM_YIELD_POLICY=verified_parts pnpm exec tsx scripts/lecture-lab/run.ts --eval .lecture-lab/home-suggestions.jsonl \
  *     --arm planner_examples_strict --production-strict-subjects maths,physics --model fast \
  *     --scene-planner-limit-ms 60000 --figure-only=false --max-usd <cap> --yes --out .lecture-lab/home-<date>
  *   # 3. the per-card table, and every drawn figure as SVG + PNG to judge ($0)
@@ -14,6 +14,8 @@
  *   pnpm exec tsx scripts/lecture-lab/home-suggestions.ts record .lecture-lab/home-<date> --judgements judged.json
  *   # 5. replay every recording through today's engine and render it ($0)
  *   pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
+ *   # 6. an engine change moved a judged figure: after looking at step 5's PNG, accept it ($0, no planner call)
+ *   pnpm exec tsx scripts/lecture-lab/home-suggestions.ts rejudge --judgements judged.json
  *
  * `judged.json` maps each question to `{ "verdict": "right" | "text_only_honest", "by": "...", "note": "..." }`,
  * written after looking at the PNGs. Questions without a verdict are not recorded.
@@ -29,11 +31,13 @@ import {
   gradeRound,
   homeSuggestionEvalRows,
   isAcceptedVerdict,
+  judgementProblem,
   loadOracle,
   ORACLE_PATH,
   RECORDINGS_DIR,
   readRound,
   recordingFromRun,
+  replayRecording,
   replaySelection,
   shownSuggestions,
   signatureDifferences,
@@ -132,6 +136,7 @@ function command(args: string[]): void {
       if (!judged || !hit) continue;
       if (!isAcceptedVerdict(judged.verdict)) {
         console.error(`refusing verdict ${String(judged.verdict)}: only right or text_only_honest may be recorded: ${row.question}`);
+        if (existsSync(join(RECORDINGS_DIR, `${labArtifactSlug(row.id)}.json`))) console.error("  its older recording is still there: delete it and add the card to PARTIAL_FIGURES, or the gate stays green");
         failed = true;
         continue;
       }
@@ -144,14 +149,45 @@ function command(args: string[]): void {
         failed = true;
         continue;
       }
-      if (judged.verdict === "right" && !recording.expected.drawn) {
-        console.error(`judged right but nothing drew: ${row.question}`);
+      const problem = judgementProblem(judged, recording.expected);
+      if (problem) {
+        console.error(`${problem}: ${row.question}`);
         failed = true;
         continue;
       }
       const path = join(RECORDINGS_DIR, `${labArtifactSlug(row.id)}.json`);
       writeFileSync(path, JSON.stringify(recording, null, 1) + "\n");
       console.log(`recorded ${judged.verdict} ${recording.expected.drawn ? recording.expected.figureSource : "text_only"} -> ${path}`);
+    }
+    if (failed) process.exit(1);
+    return;
+  }
+  if (verb === "rejudge") {
+    // A real engine change moved a judged figure. Nothing is sent to a planner: this
+    // replays the saved document, so a person must have looked at the render first.
+    const judgementsPath = flag(rest, "judgements");
+    if (!judgementsPath) throw new Error("rejudge needs --judgements <file.json>");
+    const judgements = JSON.parse(readFileSync(judgementsPath, "utf8")) as Record<string, HomeSuggestionRecording["judged"]>;
+    const rows = evalRowsOrExit();
+    let failed = false;
+    for (const [question, judged] of Object.entries(judgements)) {
+      const row = rows.find((candidate) => candidate.question === question);
+      const path = row ? join(RECORDINGS_DIR, `${labArtifactSlug(row.id)}.json`) : null;
+      if (!path || !existsSync(path)) {
+        console.error(`no recording to rejudge: ${question}`);
+        failed = true;
+        continue;
+      }
+      const recording = JSON.parse(readFileSync(path, "utf8")) as HomeSuggestionRecording;
+      const expected = replayRecording(recording);
+      const problem = judgementProblem(judged, expected);
+      if (problem) {
+        console.error(`${problem}: ${question}`);
+        failed = true;
+        continue;
+      }
+      writeFileSync(path, JSON.stringify({ ...recording, judged, expected }, null, 1) + "\n");
+      console.log(`rejudged ${judged.verdict}: ${question}`);
     }
     if (failed) process.exit(1);
     return;
@@ -174,7 +210,7 @@ function command(args: string[]): void {
     if (readdirSync(out).some((file) => file.endsWith(".svg"))) rasterize(out);
     return;
   }
-  throw new Error("usage: home-suggestions.ts eval --out <file> | report <round> | record <round> --judgements <file> | render [--out <dir>]");
+  throw new Error("usage: home-suggestions.ts eval --out <file> | report <round> | record <round> --judgements <file> | render [--out <dir>] | rejudge --judgements <file>");
 }
 
 command(process.argv.slice(2));

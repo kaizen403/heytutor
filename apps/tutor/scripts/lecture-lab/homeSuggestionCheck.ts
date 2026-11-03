@@ -37,6 +37,15 @@ export const HOME_SUGGESTION_RECORDING_VERSION = "home-suggestion-recording/v1";
 export const isAcceptedVerdict = (verdict: unknown): verdict is HomeSuggestionRecording["judged"]["verdict"] =>
   verdict === "right" || verdict === "text_only_honest";
 
+/** Why a judgement cannot stand for this figure, or null. Used by `record`, `rejudge` and the gate. */
+export function judgementProblem(judged: HomeSuggestionRecording["judged"], expected: FigureSignature): string | null {
+  if (!isAcceptedVerdict(judged.verdict)) return `only right or text_only_honest may be recorded, got ${String(judged.verdict)}`;
+  if (!judged.by?.trim() || judged.by === "unjudged") return "a judgement must say who judged it";
+  if (judged.verdict === "right" && !expected.drawn) return "judged right but records no figure";
+  if (judged.verdict === "text_only_honest" && expected.drawn) return "judged text only but records a figure";
+  return null;
+}
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 export const ORACLE_PATH = join(repoRoot, "data/home-suggestions/oracle.jsonl");
 export const RECORDINGS_DIR = join(repoRoot, "data/home-suggestions/recorded");
@@ -159,7 +168,8 @@ export function figureSignature(selection: ReturnType<typeof selectProductionSce
 /**
  * Run a recording through today's engine: the planner document is validated
  * again and the deterministic family figure is rebuilt, so a regression in
- * either path shows up. Nothing here reads the network or the environment.
+ * either path shows up. Nothing here reads the network, and the environment only
+ * when a recording sets `completionEnabled`; none does.
  */
 export function replaySelection(recording: HomeSuggestionRecording): ReturnType<typeof selectProductionScene> {
   const { candidate, rebuildFamilyFigure, yieldPolicy, ...input } = recording.selection;

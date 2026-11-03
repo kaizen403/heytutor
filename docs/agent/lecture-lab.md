@@ -484,25 +484,39 @@ pnpm exec tsx scripts/lecture-lab/home-suggestions.ts record .lecture-lab/home-<
 pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
 ```
 
-The offline gate `scripts/verify/verify-home-suggestion-figures.ts` (in
-`gates.d`) runs after every merge at $0. It fails when a card has no oracle row
-or no judged recording, when a card that needs a figure is not judged right,
-and when today's engine draws anything different from what was judged: a moved
-or reversed shape, lost or added entities, text on a different mark, a different
-figure source or tier, or no figure. Refitting the whole figure and moving labels
-are layout and pass.
-Replay revalidates the raw planner document and rebuilds the family figure, so
-it tests the engine, not a saved verdict. A failure means: run the round for
-that card again, look at the render, and record it again, or replace the card
-with one the lab proves draws a right figure. A card is chosen only because the
-general engine already draws it right; never add a template for one.
+The offline gate `scripts/verify/verify-home-suggestion-figures.ts` runs in CI, in
+the `security` job of `deploy-tutor.yml`, at $0, so a failure blocks that deploy.
+It fails when a card has no oracle row or no judged recording, when a card that
+needs a figure is not judged right, and when today's engine draws something
+different from what was judged: a moved, reversed, added or lost shape, a solid
+mark gone dashed, lost or added entities, text changed or moved to another mark, a
+different figure source or tier, or no figure.
 
-The gate is registered with `--allow-unjudged`, which exempts only the cards in
-its `PARTIAL_FIGURES` list: they drew a figure that is true but missing something
-or hard to read. Any other card with no recording still fails. An entry leaves
-the list when its card draws a figure judged right, or leaves the home screen.
-Each card ran once for its recording, so a recording proves what today's engine
-does with that planner document, not that a fresh planner run draws it again.
+It does not see everything a student sees. Label positions, the caption, reveal
+order, stroke width or role, and a stray line flagged as a label leader all stay
+green. Refitting a whole figure is treated as layout and passes. Replay revalidates
+the raw planner document and rebuilds the family figure, so it tests the engine and
+not a saved verdict, but each recording is one planner document from one run: it
+says nothing about a fresh planner run, and nothing about a reference picture a
+student may see instead. Production drew the projectile card wrong after the lab
+judged it right.
+
+When the gate fails on an engine change you meant to make, no paid round is needed:
+`render` the recordings, look at that card's PNG, and if it is right, write the
+verdict and run `home-suggestions.ts rejudge --judgements judged.json`. It replays
+the saved document with no planner call and refuses a verdict other than `right`
+or `text_only_honest`. If it is not right, fix the engine or pull the card. A card
+is chosen only because the general engine already draws it right; never add a
+template for one.
+
+The gate runs with `--allow-unjudged`, which exempts only the cards in its
+`PARTIAL_FIGURES` list: they drew a figure that is true but missing something or
+hard to read. A green run names them. They have no recording, so their figures can
+get worse with the gate green. Any other card with no recording still fails, a
+deleted recording still fails, and a new entry fails unless `PARTIAL_CEILING` is
+raised, which needs the owner. An entry leaves when its card draws a figure judged
+right or leaves the home screen. The ceiling must come down as entries leave, and
+the flag fails once the list is empty, so it has to be removed then.
 
 ## The DSA lane
 

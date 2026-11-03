@@ -4,19 +4,27 @@
  *
  * The recordings hold each card's accepted lab inputs (turn plan, ProblemIR,
  * the raw planner document). Replay revalidates the planner document and
- * rebuilds the family figure, so a regression in either path fails here. A
- * figure that changes at all (a moved or reversed shape, new or lost entities,
- * text on a different mark, a different source or tier) fails too: it has not
- * been judged. Refitting the whole figure and moving labels are layout and pass. Re-run the round and judge
- * it again with `scripts/lecture-lab/home-suggestions.ts`. $0, no network.
+ * rebuilds the family figure, so a regression in either path fails here.
+ *
+ * It fails on a moved, reversed, added or lost shape, a solid mark gone dashed,
+ * lost or added entities, text changed or moved to another mark, a different
+ * source or tier, or no figure. It does NOT see label positions, the caption,
+ * reveal order, stroke width or role, or a stray line flagged as a label leader,
+ * so a green run is not "nothing a student sees changed". It says nothing about a
+ * fresh planner run, or a reference picture a student may see instead. Each
+ * verdict rests on one run.
+ *
+ * When it fails on a real engine change: render, look, and either rejudge ($0,
+ * no planner call) or pull the card. See `failureHelp` below.
  *
  * Personalized cards written by the model per student are not covered: only
  * their shape is gated, in verify-landing-suggestions.
  *
  * `--allow-unjudged` exempts only the cards in PARTIAL_FIGURES, which drew a
- * figure judged partial: true, but missing something or hard to read. Each needs
- * a right figure or to leave the home screen. Any other card without a judged
- * recording still fails.
+ * figure judged partial: true, but missing something or hard to read. They have
+ * no recording, so their figures can get worse with this gate green. Each needs a
+ * right figure or to leave the home screen. Any other card without a judged
+ * recording still fails, and the flag fails once the list is empty.
  */
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -27,6 +35,7 @@ import {
   HOME_SUGGESTION_RECORDING_VERSION,
   homeSuggestionEvalRows,
   isAcceptedVerdict,
+  judgementProblem,
   loadOracle,
   marksOf,
   ORACLE_PATH,
@@ -45,6 +54,18 @@ const PARTIAL_FIGURES: ReadonlyMap<string, string> = new Map([
   ["Explain what dy/dx means geometrically, then show how to differentiate y = x³ − 4x.", "the geometry is exact, but the curve's equation sits on the tangent line"],
   ["A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.", "N and mg are drawn exactly equal, so length reads as size, and the 20 N arrow at 163 px then reads as more than the 49 N arrow at 112 px, with nothing saying it is not to scale"],
 ]);
+
+/** Lower this as entries leave. Raising it, to exempt another card, needs the owner. */
+const PARTIAL_CEILING = 4;
+
+const failureHelp = `
+If you changed the engine on purpose and a judged figure moved:
+  1. pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
+  2. Look at that card's PNG. Do not judge from this message.
+  3. Right: write judged.json and run home-suggestions.ts rejudge --judgements judged.json. No planner call, $0.
+  4. Not right: fix the engine, or pull the card: delete its recording and add it to PARTIAL_FIGURES (the owner
+     must raise PARTIAL_CEILING), or take it off the lists and add it to verify-home-suggestion-retired.
+If you did not mean to change that figure, this is a regression. See docs/agent/lecture-lab.md.`;
 
 const recordingAsksCard = (recording: HomeSuggestionRecording, cardQuestion: string) =>
   recording.question === cardQuestion && recording.selection.question === normalizeTutorQuestion(cardQuestion);
@@ -66,7 +87,8 @@ assert(
   "mutation: a new card without an oracle row must fail",
 );
 assert(
-  homeSuggestionEvalRows(shown.slice(1), oracle).problems.some((problem) => problem.includes("no longer shows")),
+  homeSuggestionEvalRows(shown, [...oracle, { ...oracle[0]!, id: "removed-card", question: "A card that was removed." }])
+    .problems.some((problem) => problem.includes("no longer shows")),
   "mutation: an oracle row for a removed card must fail",
 );
 
@@ -89,9 +111,8 @@ for (const row of rows) {
   // The lab normalizes what it asks (x² becomes x^2), so a replay must ask the normalized card.
   if (!recordingAsksCard(recording, row.question)) failures.push(`recording question differs from the card: ${path}`);
   const { verdict } = recording.judged;
-  if (!isAcceptedVerdict(verdict)) failures.push(`a recording may only hold right or text_only_honest, got ${String(verdict)}: ${row.question}`);
-  if (verdict === "right" && !recording.expected.drawn) failures.push(`judged right but records no figure: ${row.question}`);
-  if (verdict === "text_only_honest" && recording.expected.drawn) failures.push(`judged text only but records a figure: ${row.question}`);
+  const problem = judgementProblem(recording.judged, recording.expected);
+  if (problem) failures.push(`${problem}: ${row.question}`);
   if (row.figure_need === "required" && verdict !== "right") {
     failures.push(`a card that needs a figure must draw a judged right one: ${row.question}`);
   }
@@ -102,7 +123,10 @@ for (const file of existsSync(RECORDINGS_DIR) ? readdirSync(RECORDINGS_DIR) : []
   if (file.endsWith(".json") && !known.has(file)) failures.push(`recording for a card that no longer shows: ${file}`);
 }
 
-// The partial list only shrinks: every entry is a live card still without a judged figure.
+// The partial list ends: every entry is a live card still without a judged figure, the
+// ceiling stops a new entry slipping in, and the flag must go once the list is empty.
+if (PARTIAL_FIGURES.size !== PARTIAL_CEILING) failures.push(`PARTIAL_FIGURES has ${PARTIAL_FIGURES.size} cards and the ceiling is ${PARTIAL_CEILING}: lower the ceiling as entries leave; raising it needs the owner`);
+if (allowUnjudged && PARTIAL_FIGURES.size === 0) failures.push("no card is exempt any more: remove --allow-unjudged from the gate's registration");
 const shownQuestions = new Set(shown.map((card) => card.question));
 for (const question of PARTIAL_FIGURES.keys()) {
   if (!shownQuestions.has(question)) failures.push(`partial list names a card that no longer shows: ${question}`);
@@ -111,17 +135,22 @@ for (const question of PARTIAL_FIGURES.keys()) {
 
 // 3. Today's engine draws exactly what was judged.
 let drawn = 0;
+const matching: HomeSuggestionRecording[] = [];
 for (const [question, recording] of recordings) {
   const actual = replayRecording(recording);
   const differences = signatureDifferences(recording.expected, actual);
+  if (differences.length === 0) matching.push(recording);
   if (differences.length > 0) failures.push(`figure changed since it was judged: ${question}: ${differences.join("; ")}`);
   if (actual.drawn) drawn += 1;
 }
 
 // The replay is live, not a saved verdict: a recording whose stem no longer
 // grounds its figure must stop matching.
-const sample = [...recordings.values()].find((recording) => recording.expected.drawn);
-if (sample) {
+// Self-tests use a card that still matches, so one regression cannot hide the others.
+const sample = matching.find((recording) => recording.expected.drawn);
+const plannerRecording = matching.find((recording) => recording.expected.figureSource === "planner");
+if (recordings.size > 0 && !plannerRecording) failures.push("no matching planner figure: the replay self-tests did not run");
+if (sample && plannerRecording) {
   const unrelated = "What is 2 + 2?";
   const mutated: HomeSuggestionRecording = structuredClone(sample);
   mutated.question = unrelated;
@@ -154,8 +183,7 @@ if (sample) {
   assert(!recordingAsksCard({ ...sample, question: reworded }, reworded), "mutation: an old run stamped with a changed card must fail");
 
   // Replay normalizes a raw response as the lab does: a string source still binds to the question.
-  const plannerRecording = [...recordings.values()].find((recording) => recording.expected.figureSource === "planner");
-  assert(plannerRecording?.selection.candidate, "a planner recording is needed to test normalization");
+  assert(plannerRecording.selection.candidate, "a planner recording is needed to test normalization");
   const stringSource: HomeSuggestionRecording = structuredClone(plannerRecording);
   stringSource.selection.candidate = { ...stringSource.selection.candidate!, source: "the student's question" };
   assert.deepEqual(signatureDifferences(plannerRecording.expected, replayRecording(stringSource)), [], "a string source must replay to the same figure");
@@ -173,8 +201,10 @@ if (sample) {
 
 if (failures.length > 0) {
   for (const failure of failures) console.error(`  ${failure}`);
+  console.error(failureHelp);
   console.error(`verify-home-suggestion-figures: ${failures.length} failure(s) over ${rows.length} cards`);
   process.exit(1);
 }
 const judged = recordings.size;
+for (const line of unjudged) console.log(`  exempt, ${line}`);
 console.log(`verify-home-suggestion-figures: ok (${rows.length} cards, ${judged} judged: ${drawn} draw, ${judged - drawn} text only; ${unjudged.length} not judged yet)`);
