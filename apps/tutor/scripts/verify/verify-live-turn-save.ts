@@ -729,7 +729,6 @@ async function refusedSaveStillClosesItsRow() {
     ["turn_metadata_oversized", 413, { code: "turn_metadata_oversized" }],
     ["storage_commit_rejected", 413, { code: "storage_commit_rejected" }],
     ["save_allowance_used", 409, { code: "save_allowance_used" }],
-    ["unauthorized", 401, { code: "unauthorized" }],
   ];
   for (const [name, status, body] of recorded) {
     for (const ending of ["stop", "complete"] as const) {
@@ -766,6 +765,19 @@ async function refusedSaveStillClosesItsRow() {
       assert.equal(h.calls.filter((call) => call.method === "PATCH").length, 1, `${name}, ${ending}: and only once`);
     }
   }
+  // Stop while the refused save is still in flight: the refusal itself closes it.
+  const racing = harness();
+  const stopped = begin(racing, { generation: 1 });
+  racing.registry.recordRow(owner, 1, row("step one"), { intro: false });
+  await racing.settle();
+  await racing.ack(racing.calls[0]!);
+  racing.registry.recordRow(owner, 1, row("step two"), { intro: false });
+  await racing.settle();
+  stopped.handle.close();
+  await racing.settle();
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 0, "the save in flight owns the turn until it answers");
+  await racing.fail(racing.calls[racing.calls.length - 1]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 1, "a refusal after Stop closes the row");
   // Still teaching: the refused save leaves the turn open until it ends.
   const open = harness();
   const live = begin(open, { generation: 1 });

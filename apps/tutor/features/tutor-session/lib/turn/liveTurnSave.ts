@@ -1075,14 +1075,9 @@ export class LiveTurnSaveRegistry {
   private closeRefusedTurn(turn: LiveTurn): void {
     if (!turn.failure || turn.final || turn.status === "live" || turn.ackedStatus !== "live" || turn.refusedCloseSent) return;
     turn.refusedCloseSent = true;
-    const seq = Math.max(turn.seq, 0) + 1;
-    turn.seq = seq;
-    void this.env.transport.close(turn.boardId, turn.turnId, { seq, status: "stopped", traceId: turn.traceId, baseCount: turn.ackedCount }).then(
-      (result) => {
-        if (result.ok && turn.ackedStatus === "live") turn.ackedStatus = result.turn.status ?? "stopped";
-      },
-      () => {},
-    );
+    // Status only, so its seq claims nothing: Try again keeps its own sequence.
+    void this.env.transport.close(turn.boardId, turn.turnId, { seq: Math.max(turn.seq, 0) + 1, status: "stopped", traceId: turn.traceId, baseCount: turn.ackedCount })
+      .catch(() => {});
   }
 
   private settleComplete(turn: LiveTurn, result: SaveTurnResult): void {

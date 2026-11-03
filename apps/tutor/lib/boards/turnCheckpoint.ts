@@ -471,7 +471,7 @@ export async function handleTurnCheckpoint(request: Request, params: RouteParams
  * turn's stored scene and takes `seq`.
  */
 /** What the server refuses in a close's payload. Sign in, ownership and rate limits are not the payload. */
-const CLOSE_REFUSALS = new Set([400, 409, 413, 415]);
+const CLOSE_REFUSALS = new Set([400, 409, 413]);
 
 export async function handleTurnClose(request: Request, params: RouteParams): Promise<Response> {
   params = { ...params, entryPoint: "checkpoint_close" };

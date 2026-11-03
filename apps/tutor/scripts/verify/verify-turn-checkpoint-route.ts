@@ -441,6 +441,18 @@ async function refusedCloseStillClosesTheTurn() {
     assert(closed.status === 400 || closed.status === 413, `${name}: the page still hears its rows were refused (HTTP ${closed.status})`);
     assert.equal(rowsOf(id).length, held, `${name}: rows it refused are not saved, rows it held stay`);
   }
+  // A close with no rows whose metadata is refused closes the same way.
+  const metadataOnly = crypto.randomUUID();
+  await put(metadataOnly, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  growthBytesLimit = 0;
+  try {
+    const refusedMetadata = await close(metadataOnly, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedMetadata.status, 413, "a page still hears its metadata was refused");
+    assert.equal(stored(metadataOnly).status, "stopped", "and the turn is closed");
+    assert.equal(stored(metadataOnly).rawResponse, "First.", "without the refused metadata");
+  } finally {
+    growthBytesLimit = null;
+  }
   // No turn yet: nothing to close, and refused rows create nothing.
   const none = crypto.randomUUID();
   const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
