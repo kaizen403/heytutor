@@ -3,8 +3,9 @@ import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
 import { MAX_BOARD_TITLE_CHARS, MAX_BOARD_PREVIEW_CHARS, boardDeletionStorageBytes, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
-import { boardAudioPrefix } from "@/lib/object-store/keys";
+import { boardAudioPrefix, boardThumbnailPrefix } from "@/lib/object-store/keys";
 import { effectiveTurnStatus, isTurnKind, isTurnStatus } from "@/lib/boards/turnStatus";
+import { isCommunityVisibility } from "@/lib/community/publicBoard";
 
 interface RouteContext {
   params: Promise<{ boardId: string }>;
@@ -69,6 +70,7 @@ export async function GET(request: Request, context: RouteContext) {
       title: board.title,
       preview: board.preview,
       createdAt: board.createdAt.getTime(),
+      visibility: board.visibility,
     },
     turns: turnRows.map((turn) => ({
       id: turn.id,
@@ -124,6 +126,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     preview?: string;
     pinned?: boolean;
     archived?: boolean;
+    visibility?: string;
   } = {};
   try {
     body = await readBoundedJson(request, 16 * 1024);
@@ -136,12 +139,16 @@ export async function PATCH(request: Request, context: RouteContext) {
     (body.preview !== undefined && (typeof body.preview !== "string" || body.preview.length > MAX_BOARD_PREVIEW_CHARS))) {
     return NextResponse.json({ error: "board title or preview exceeds its field limit" }, { status: 400 });
   }
+  if (body.visibility !== undefined && !isCommunityVisibility(body.visibility)) {
+    return NextResponse.json({ error: "visibility must be public or private" }, { status: 400 });
+  }
 
   const data: {
     title?: string;
     preview?: string;
     pinnedAt?: Date | null;
     archivedAt?: Date | null;
+    visibility?: string;
     updatedAt: Date;
   } = {
     updatedAt: new Date(),
@@ -166,6 +173,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.archivedAt = body.archived ? (board.archivedAt ?? new Date()) : null;
   }
 
+  if (isCommunityVisibility(body.visibility)) {
+    data.visibility = body.visibility;
+  }
+
   const updated = await prisma.board.update({
     where: { id: boardId },
     data,
@@ -179,6 +190,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       createdAt: updated.createdAt.getTime(),
       pinnedAt: updated.pinnedAt?.getTime() ?? null,
       archivedAt: updated.archivedAt?.getTime() ?? null,
+      visibility: updated.visibility,
     },
   });
 }
@@ -227,10 +239,16 @@ export async function DELETE(request: Request, context: RouteContext) {
       // Deletion stays available during an object-store outage. Its held
       // allocation is refunded only after the durable worker confirms cleanup.
       const deleted = await withUserStorageLock(userId, async (tx) => {
-        const boards = await tx.$queryRaw<Array<{ id: string }>>`
-          SELECT id FROM boards WHERE id = ${boardId} AND user_id = ${userId} FOR UPDATE
+        const boards = await tx.$queryRaw<Array<{ id: string; thumbnail_at: Date | null }>>`
+          SELECT id, thumbnail_at FROM boards WHERE id = ${boardId} AND user_id = ${userId} FOR UPDATE
         `;
         if (!boards.length) return false;
+        // The card picture has its own receipt, committed with the delete, so
+        // an object store outage cannot strand it.
+        const thumbnailPrefix = boards[0]!.thumbnail_at ? boardThumbnailPrefix(boardId) : null;
+        if (thumbnailPrefix) {
+          await tx.objectDeletionJob.createMany({ data: [{ id: crypto.randomUUID(), prefix: thumbnailPrefix, userId, bytes: 0n }], skipDuplicates: true });
+        }
         const bytes = await boardDeletionStorageBytes(tx, userId, boardId);
         await tx.objectDeletionJob.create({ data: { id: crypto.randomUUID(), prefix: boardAudioPrefix(boardId), userId, bytes } });
         await tx.board.delete({ where: { id: boardId } });

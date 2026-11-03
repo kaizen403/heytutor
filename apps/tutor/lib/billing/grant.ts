@@ -5,9 +5,9 @@ import {
 } from "./catalog";
 
 export type TurnKind = "lesson" | "doubt" | "resume";
-export type PaidCallKind = "planner" | "teaching" | "stt" | "photo" | "tts" | "notes" | "policy" | "title" | "suggestions";
+export type PaidCallKind = "planner" | "teaching" | "stt" | "photo" | "tts" | "notes" | "policy" | "title" | "suggestions" | "picture";
 export const PAID_CALL_LIMITS: Record<PaidCallKind, number> = {
-  planner: 12, teaching: 4, stt: 3, photo: 3, tts: 240, notes: 30, policy: 4, title: 1, suggestions: 2,
+  planner: 12, teaching: 4, stt: 3, photo: 3, tts: 240, notes: 30, policy: 4, title: 1, suggestions: 2, picture: 2,
 };
 
 export interface TurnGrant {

@@ -424,6 +424,8 @@ export function useTurnControl(
       const remainder = options?.remainder === true;
       const unsafeCommand = normalized.flatMap((segment) => segment.commands ?? []).find((command) =>
         !(
+          // Includes DRAW_PICTURE: a reference picture's two passes are drawn
+          // in this same transaction, so a picture that fails rolls back whole.
           command.type.startsWith("DRAW_") ||
           // CIRCLE_AROUND and HIGHLIGHT are trace marks over geometry the scene
           // has already verified, and they execute through the very same

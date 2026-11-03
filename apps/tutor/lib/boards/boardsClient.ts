@@ -155,20 +155,23 @@ export async function fetchBoardDetail(boardId: string, options?: { signal?: Abo
 
 export async function updateBoard(
   boardId: string,
-  patch: { title?: string; preview?: string; pinned?: boolean; archived?: boolean },
+  patch: { title?: string; preview?: string; pinned?: boolean; archived?: boolean; visibility?: "public" | "private" },
 ): Promise<BoardEntry | null> {
-  const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-
-  if (!res.ok) {
+  // A dropped connection is a failed save, never a throw: callers undo their
+  // optimistic change on null, and "Make private" must not look done when
+  // the board is still public.
+  try {
+    const res = await fetch(resolveApiUrl(`/api/boards/${boardId}`), {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { board?: BoardEntry };
+    return data.board ?? null;
+  } catch {
     return null;
   }
-
-  const data = (await res.json()) as { board?: BoardEntry };
-  return data.board ?? null;
 }
 
 export async function deleteBoardApi(boardId: string): Promise<boolean> {

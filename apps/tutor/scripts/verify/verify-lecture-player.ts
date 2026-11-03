@@ -478,8 +478,11 @@ assert.equal(msFromFraction(-0.2, 6400), 0);
 assert.equal(msFromFraction(1.5, 6400), 6400);
 assert.equal(msFromFraction(Number.NaN, 6400), 0);
 
-assert.equal(lecturePaceRate(1.25), 0.9, "1.25 plays a little slower than real time");
-assert.equal(lecturePaceRate(1.5), 1.5, "1.5 stays faster than the 1.25 pace");
+assert.equal(lecturePaceRate(1.25), 1.25, "1.25 replays at the pace the live lesson used");
+assert.equal(lecturePaceRate(1.5), 1.5);
+for (const [slower, faster] of [[1, 1.25], [1.25, 1.5]] as const) {
+  assert.ok(lecturePaceRate(slower) < lecturePaceRate(faster), `${slower} replays slower than ${faster}`);
+}
 assert.equal(lecturePaceRate(1), 1);
 assert.equal(lecturePaceRate(0.75), 0.75);
 assert.equal(lecturePaceRate(Number.NaN), 1);

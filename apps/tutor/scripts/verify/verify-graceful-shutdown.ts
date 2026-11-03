@@ -16,6 +16,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { request } from "node:http";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { settleThenFlush } from "../../lib/http/gracefulShutdown";
 
 const fixture = resolve(__dirname, "fixtures/gracefulShutdownServer.ts");
 const tsx = resolve(__dirname, "../../node_modules/.bin/tsx");
@@ -216,6 +217,29 @@ async function main() {
     assert(log.indexOf("STREAM END") >= 0 && log.indexOf("SPEECH DRAIN") > log.indexOf("STREAM END"),
       `the speech drain starts only after the teaching stream ends: ${JSON.stringify(log)}`);
     assert(exit.code === 0 && exit.at - signalledAt >= 1_200, `the exit waits for the stream and then the sentence (${exit.at - signalledAt} ms)`);
+  }
+
+  //    A settle that never finishes uses only its slice: the open count is
+  //    logged, and the flush still runs with the time left in the cap.
+  {
+    const logged: string[] = [];
+    let flushedWith = -1;
+    const startedAt = Date.now();
+    // A timer keeps the process alive: a settle that never yields must fail
+    // this row, not end the process quietly with nothing left to run.
+    let guard: ReturnType<typeof setTimeout> | undefined;
+    const bounded = new Promise<never>((_, fail) => { guard = setTimeout(() => fail(new Error("the settle slice never handed over to the flush")), 3_000); });
+    await Promise.race([bounded, settleThenFlush({
+      settled: () => new Promise(() => undefined),
+      open: () => 2,
+      flush: async (timeoutMs) => { flushedWith = timeoutMs; },
+      log: (line) => logged.push(line),
+      sliceMs: 200,
+      capMs: 600,
+    })]).finally(() => clearTimeout(guard));
+    assert(logged.includes("[shutdown] 2 speech settlement(s) still open at exit"), `the open settlements are logged: ${JSON.stringify(logged)}`);
+    assert(flushedWith >= 300 && flushedWith <= 400 && Date.now() - startedAt < 450,
+      `the flush runs with the rest of the cap after the settle slice (${flushedWith} ms)`);
   }
 
   // 6. The production unit has no tsx relay parent.

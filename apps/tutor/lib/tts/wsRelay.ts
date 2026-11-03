@@ -42,6 +42,31 @@ const MAX_QUEUED_MESSAGES = 32;
 const liveRelays = new Set<{ pending: Map<string, unknown>; restart: () => void }>();
 let speechDraining = false;
 
+/** Receipt settlements (finish or refund) still in flight, across every relay. */
+const settlements = new Set<Promise<unknown>>();
+function trackSettlement<T>(settlement: Promise<T>): Promise<T> {
+  settlements.add(settlement);
+  // then(remove, remove): a raw (possibly rejecting) promise is tracked too,
+  // and a derived finally() would reject unhandled.
+  const remove = () => { settlements.delete(settlement); };
+  settlement.then(remove, remove);
+  return settlement;
+}
+
+/** Receipt settlements still open, for the exit log. */
+export function openSpeechSettlements(): number {
+  return settlements.size;
+}
+
+/**
+ * Resolves once every receipt settlement already started has finished, so a
+ * restart lets the charges for spoken segments land before the process exits.
+ * The caller bounds the wait (`beforeExit` runs under its own cap).
+ */
+export function speechSettlementsDone(): Promise<unknown> {
+  return Promise.allSettled([...settlements]);
+}
+
 /** Segments sent to the provider and not yet finished, across every relay. */
 export function inFlightSpeechSegments(): number {
   let count = 0;
@@ -70,7 +95,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
   let unregister = () => {};
   let upstream: WebSocket | undefined = undefined;
   const pending = new Map<string, { receipt: PaidUsageReservation; characters: number; startedAt: number; grant: TurnGrant }>();
-  const finishReceipt = (receipt: PaidUsageReservation) => void receipt.finish().catch(captureTtsRelayFailure);
+  const finishReceipt = (receipt: PaidUsageReservation) => trackSettlement(receipt.finish().catch(captureTtsRelayFailure));
   const live = { pending: pending as Map<string, unknown>, restart: () => close("server_restarting", 1012) };
   liveRelays.add(live);
   const teardown = () => {
@@ -84,7 +109,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     // A serial vendor (Sarvam) queues segments here; those never reached it.
     const neverSent = new Set(undispatched());
     for (const [id, spend] of pending) {
-      if (neverSent.has(id)) void spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      if (neverSent.has(id)) trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       else finishReceipt(spend.receipt);
     }
     pending.clear();
@@ -186,7 +211,7 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
       // finishes and is charged, and the client ignores its audio.
       if (spend && relay.cancel?.(id)) {
         pending.delete(id);
-        await spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+        await trackSettlement(spend.receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       }
       return;
     }
@@ -239,12 +264,12 @@ export function relayTtsWebSocket(client: WebSocket, context: TtsRelayContext): 
     // The drain may have begun during the awaits above: nothing is dispatched.
     if (speechDraining) {
       // A failed refund is reported, never allowed to cut the sentence in flight.
-      await receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure);
+      await trackSettlement(receipt.cancelBeforeDispatch().catch(captureTtsRelayFailure));
       if (pending.size === 0) close("server_restarting", 1012);
       return;
     }
-    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await receipt.cancelBeforeDispatch(); return; }
-    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await receipt.cancelBeforeDispatch(); close("speech_backpressure"); return; }
+    if (stopped || client.readyState !== WebSocket.OPEN || vendor.readyState !== WebSocket.OPEN) { await trackSettlement(receipt.cancelBeforeDispatch()); return; }
+    if (vendor.bufferedAmount > MAX_BUFFERED_BYTES) { await trackSettlement(receipt.cancelBeforeDispatch()); close("speech_backpressure"); return; }
     sequence++; charactersUsed += characters; usedContexts.add(id);
     pending.set(id, { receipt, characters, startedAt: start, grant });
     // From this point any uncertain send failure is charged conservatively.
