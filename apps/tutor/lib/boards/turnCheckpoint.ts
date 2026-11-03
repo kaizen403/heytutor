@@ -729,7 +729,6 @@ async function applyCheckpoint(
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
     return reject("turn_metadata_oversized", "turn metadata exceeds the size limit", 413);
   }
-  if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
   let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
@@ -985,7 +984,10 @@ async function applyCheckpoint(
     settled = true;
     switch (outcome.kind) {
       case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId, entryPoint }, input, files, stoppedRetries + 1);
-      case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
+      case "saved":
+        // Only rows that were saved have lost anything.
+        if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
+        return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
       case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
       case "conflict": return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: outcome.serverCount, serverSeq: outcome.serverSeq });

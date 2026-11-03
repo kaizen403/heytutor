@@ -516,6 +516,19 @@ async function timingsGiveWayBeforeRows() {
     assert.equal((await put(hugeTimed, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
     assert.equal((await put(hugeTimed, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: [...wordy(9, 3), timed(12, 40)] })).status, 413);
     assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a refused save records no drop");
+
+    // The size check passed, then the upload failed: nothing was saved, so nothing was lost.
+    warnings.length = 0;
+    uploadPause = async () => { throw new Error("upload failed"); };
+    try {
+      const count = rowsOf(long).length;
+      const failed = await put(long, { seq: 500, baseCount: count, rawResponse: "a", appendSegments: [timed(count, 138)] }, { [count]: MP3(9) }).catch(() => null);
+      assert(failed === null || failed.status >= 400, "the failed upload is not a saved row");
+      assert.equal(rowsOf(long).length, count, "no row was added");
+    } finally {
+      uploadPause = null;
+    }
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a failed save records no drop");
   } finally {
     console.warn = realWarn;
   }
