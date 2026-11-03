@@ -333,6 +333,16 @@ analysis) draw nothing, which is the honest outcome for those stems.
 
 ## Rules learned here
 
+- A refusal can hand the turn to the next family in catalog order, which then
+  draws for a stem it never had. When the Lewis hydrogen bond figure declined,
+  thermo drew a barrier for bond formation and the orbital family read
+  "hydrogen" as the element. `afterHydrogenBondFigure` in `families.ts` makes a
+  later family yield where that figure led, and keeps the figures that answer
+  the question when the hydrogen bond only gives the reason, such as a Raoult
+  deviation graph. Check the runner up whenever you add a decline.
+- A list of allowed words is not a reader, because it loses word order: "water
+  and hydrogen", "molecule A" and "two hydrogen bonds" all pass one. Close the
+  whole sentence instead, as `HYDROGEN_BOND_ASKS` does.
 - A family must decline what it cannot honour: a complex whose charge OCR
   dropped, four salts electrolysed together, a five-coordinate complex, an
   organic name that only half parses. The gate treats a wrong draw as fatal
