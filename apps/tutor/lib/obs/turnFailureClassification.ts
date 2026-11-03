@@ -10,6 +10,16 @@ export const CONFIRMED_TURN_FAILURE_CODES = [
 ] as const;
 export type ConfirmedTurnFailureCode = typeof CONFIRMED_TURN_FAILURE_CODES[number];
 export const UNCOMMITTED_VISUAL_STATUSES = ["text_only", "retry_required", "legacy"] as const;
+/**
+ * The confirmed codes that only say the engine drew no figure. A reference
+ * picture on the board answers these. Every other confirmed code (the lesson,
+ * the voice, billing, the save, a numeric contradiction) still fails the turn.
+ */
+export const PICTURE_ANSWERED_FAILURE_CODES = [
+  "planner_unavailable", "candidate_invalid", "missing_capability", "required_visual_unavailable",
+  "turn_plan_rejected", "problem_ir_invalid", "scene_planner_invalid", "planner_deadline", "planner_declined",
+  "fallback_suppressed", "scene_relevance_rejected", "valid_candidate_dropped",
+] as const satisfies readonly ConfirmedTurnFailureCode[];
 
 export interface TurnFailureInput {
   visualStatus?: string | null;
@@ -21,7 +31,8 @@ export interface TurnFailureInput {
   segmentCount?: number;
 }
 export interface TurnFailureClassification {
-  classification: "failed" | "healthy" | "unverified" | "pending";
+  /** `picture_shown`: no verified figure, but the server stored a reference picture on the board. Neither failed nor verified. */
+  classification: "failed" | "healthy" | "unverified" | "pending" | "picture_shown";
   code: ConfirmedTurnFailureCode | "unknown" | null;
   taught: boolean | null;
 }
@@ -58,6 +69,13 @@ export function classifyTurnFailure(input: TurnFailureInput): TurnFailureClassif
   const uncommitted = input.visualStatus == null || (UNCOMMITTED_VISUAL_STATUSES as readonly string[]).includes(input.visualStatus);
   if (uncommitted) {
     const code = confirmedCode(telemetry.code) ?? confirmedCode(record(artifacts.degradation).reason);
+    // Only the server writes `referencePicture`, and only after rebuilding the
+    // picture's ink from its record. The browser's own outcome is not evidence.
+    if (typeof record(artifacts.referencePicture).id === "string" &&
+      [confirmedCode(telemetry.code), confirmedCode(record(artifacts.degradation).reason)]
+        .every((value) => value === null || (PICTURE_ANSWERED_FAILURE_CODES as readonly string[]).includes(value))) {
+      return verdict("picture_shown", code);
+    }
     // The planner may skip a figure the plan did not require, or the engine
     // may have no figure tools for the subject. That taught lesson is the
     // text outcome, not a failed turn. A required figure stays a failure even

@@ -11,6 +11,8 @@ import { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nextjs";
 import ts from "typescript";
 import type { FailedTurnSentryEvent } from "../../lib/obs/failedTurnTelemetry";
+import { failedTurnWhere } from "../../lib/admin/turnFilters";
+import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
 
 const app = resolve(import.meta.dirname, "../..");
 const receiptsDirectory = resolve(app, "../../.context/monitor");
@@ -238,6 +240,28 @@ async function main(): Promise<void> {
     assert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(Date.now() + 86_400_000) })).reported, 0);
     assert.equal(received.length, 4, "a repeated actual database drain cannot report any turn twice");
     receipts.push("real outbox lease/acknowledgement SQL and dedicated NodeClient deliver four clean events exactly once; subsequent drain stays empty");
+
+    // A row with no picture has no JSON path to read. The real database must keep
+    // it in the failed feed: only a stored picture takes a figure refusal out.
+    const pictureRows: Array<[string, boolean, string, Prisma.InputJsonValue | typeof Prisma.DbNull]> = [
+      ["text only, refused, no picture", true, "text_only", { degradation: { reason: "candidate_invalid" } }],
+      ["retry required, no artifacts", true, "retry_required", Prisma.DbNull],
+      ["retry required, a browser claim only", true, "retry_required", { referencePictureOutcome: { status: "shown" } }],
+      ["text only, refused, picture stored", false, "text_only", { degradation: { reason: "candidate_invalid" }, referencePicture: { id: "rp_fixture" } }],
+      ["retry required, picture stored", false, "retry_required", { referencePicture: { id: "rp_fixture" } }],
+      ["picture stored, billing stop", true, "text_only", { failureTelemetry: { code: "budget_limit" }, referencePicture: { id: "rp_fixture" } }],
+      ["picture stored, teaching failed", true, "text_only", { failureTelemetry: { failed: true, code: "lesson_not_taught" }, referencePicture: { id: "rp_fixture" } }],
+    ];
+    for (const [name, failed, visualStatus, sceneArtifacts] of pictureRows) {
+      const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex++, question: "Synthetic picture lesson",
+        rawResponse: "Synthetic", status: "live", visualStatus, sceneArtifacts,
+        segments: { create: { orderIndex: 0, narration: "Synthetic", spokenText: "Synthetic" } } } });
+      const found = await db.turn.count({ where: { AND: [{ id: row.id }, failedTurnWhere()] } });
+      assert.equal(found, failed ? 1 : 0, `failed feed, ${name}`);
+      assert.equal(classifyTurnFailure({ visualStatus, status: "complete", sceneArtifacts: sceneArtifacts === Prisma.DbNull ? null : sceneArtifacts, segmentCount: 1 }).classification === "failed", failed, `classifier agrees, ${name}`);
+      await db.turn.delete({ where: { id: row.id } });
+    }
+    receipts.push("real Postgres keeps rows with no picture in the failed feed and drops only a stored picture over a figure refusal");
 
     // Legacy save paths could persist a completed, verified diagram without any
     // teaching rows. Its diagram status must not make the outbox strand it.

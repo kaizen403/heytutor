@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { failedTurnWhere } from "../../lib/admin/turnFilters";
 import { classifyOutcome } from "../../lib/admin/outcome";
-import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
+import { Prisma } from "@prisma/client";
+import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
 
-type Fixture = TurnFailureInput & { name: string; expected: "failed" | "healthy" | "unverified" | "pending" };
+type Fixture = TurnFailureInput & { name: string; expected: "failed" | "healthy" | "unverified" | "pending" | "picture_shown" };
 const narrative = [{ narration: "Synthetic teaching." }];
 const continuation = { boardContinuation: { schemaVersion: "board-continuation/v1" } };
 const none = { turnPlan: { visualRequirement: "none" } };
+const picture = { referencePicture: { id: "rp_0123456789abcdef01234567" }, referencePictureOutcome: { attempted: true, status: "shown", reason: null, ms: 9_600, speculative: true } };
 const fixtures: Fixture[] = [
   { name: "legacy verified placeholder-only turn", expected: "unverified", visualStatus: "validated", status: "complete", segments: [{ command: { type: "CLEAR" } }] },
   { name: "expected no figure", expected: "healthy", visualStatus: "text_only", status: "complete", sceneArtifacts: none, segments: narrative },
@@ -32,6 +34,17 @@ const fixtures: Fixture[] = [
   { name: "a dropped valid figure (#172) is a confirmed failure", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { degradation: { reason: "valid_candidate_dropped", issueCodes: ["valid_candidate_dropped", "source_question_mismatch"] } }, segments: narrative },
   { name: "legacy unrecorded code", expected: "unverified", visualStatus: "text_only", status: "complete", sceneArtifacts: { degradation: { reason: "unrecorded" } }, segments: narrative },
   { name: "content-free fail flag with unknown cause", expected: "failed", visualStatus: "text_only", status: "stopped", sceneArtifacts: { failureTelemetry: { failed: true, code: "unknown" } }, segments: narrative },
+  { name: "shown picture over a refused figure", expected: "picture_shown", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, degradation: { reason: "candidate_invalid" } }, segments: narrative },
+  { name: "shown picture over a required figure", expected: "picture_shown", visualStatus: "retry_required", status: "complete", sceneArtifacts: picture, segments: narrative },
+  { name: "shown picture stopped by the student", expected: "picture_shown", visualStatus: "text_only", status: "stopped", sceneArtifacts: { ...picture, degradation: { reason: "required_visual_unavailable" } }, segments: narrative },
+  { name: "shown picture with no engine reason", expected: "picture_shown", visualStatus: "text_only", status: "complete", sceneArtifacts: picture, segments: narrative },
+  { name: "shown picture does not excuse a teaching failure", expected: "failed", visualStatus: "text_only", status: "stopped", sceneArtifacts: { ...picture, failureTelemetry: { failed: true, code: "lesson_not_taught" } }, segments: narrative },
+  { name: "shown picture does not excuse a billing stop", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, failureTelemetry: { code: "budget_limit" }, degradation: { reason: "candidate_invalid" } }, segments: narrative },
+  { name: "shown picture does not excuse a solver contradiction", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, degradation: { reason: "solver_contradiction" } }, segments: narrative },
+  { name: "shown picture does not excuse an empty lesson", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { ...picture, degradation: { reason: "candidate_invalid" } }, segments: [] },
+  { name: "the browser saying shown is not a picture", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { referencePictureOutcome: picture.referencePictureOutcome, degradation: { reason: "candidate_invalid" } }, segments: narrative },
+  { name: "a declined picture leaves the failure", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { referencePictureOutcome: { attempted: true, status: "declined", reason: "no_match", ms: 4_000, speculative: true }, degradation: { reason: "candidate_invalid" } }, segments: narrative },
+  { name: "a retry required figure with no picture still fails", expected: "failed", visualStatus: "retry_required", status: "complete", sceneArtifacts: { referencePictureOutcome: { attempted: true, status: "skipped", reason: "wait_in_progress", ms: 0, speculative: false } }, segments: narrative },
 ];
 
 // Evaluate the concrete positive Prisma predicate on deterministic fixtures.
@@ -46,7 +59,7 @@ function matches(row: TurnFailureInput, where: unknown): boolean {
       const json = value as { path: string[]; equals: unknown };
       let actual: unknown = row.sceneArtifacts;
       for (const part of json.path) actual = actual !== null && typeof actual === "object" ? (actual as Record<string, unknown>)[part] : undefined;
-      if (actual !== json.equals) return false;
+      if (json.equals === Prisma.AnyNull ? actual !== undefined && actual !== null : actual !== json.equals) return false;
     } else if (key === "segments") {
       if ((row.segments?.length ?? row.segmentCount) !== 0) return false;
     } else if (key === "visualStatus" || key === "status") {
@@ -68,6 +81,10 @@ for (const fixture of fixtures) {
   const outcome = classifyOutcome(fixture.visualStatus, fixture);
   if (fixture.expected === "unverified" || fixture.expected === "pending") assert.equal(outcome, "unverified", `${fixture.name}: unknown remains visible in All logs`);
   if (fixture.expected === "failed") assert(outcome === "failed" || outcome === "retry_required", `${fixture.name}: confirmed failure has a failure pill`);
+  if (fixture.expected === "picture_shown") {
+    assert.equal(outcome, "picture_shown", `${fixture.name}: a shown picture has its own pill`);
+    assert.equal(classifyOutcome(fixture.visualStatus), fixture.visualStatus, `${fixture.name}: by status alone the engine still counts it as it did`);
+  }
 }
 assert.equal(classifyTurnFailure(fixtures.find((fixture) => fixture.name === "muted command-only lesson")!).taught, true);
 assert.equal(classifyTurnFailure(fixtures.find((fixture) => fixture.name === "completed reset-only row is uncertain without telemetry")!).taught, false);
@@ -78,6 +95,13 @@ for (const code of CONFIRMED_TURN_FAILURE_CODES) {
   assert.equal(matches(fixture, predicate), true);
   assert.equal(classifyTurnFailure({ ...fixture, visualStatus: "validated" }).classification, "healthy", `recovered diagram clears prior ${code}`);
   assert.equal(matches({ ...fixture, visualStatus: "validated" }, predicate), false);
+}
+for (const code of CONFIRMED_TURN_FAILURE_CODES) {
+  const fixture = { visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { ...picture, degradation: { reason: code } } };
+  const answered = (PICTURE_ANSWERED_FAILURE_CODES as readonly string[]).includes(code);
+  assert.equal(classifyTurnFailure(fixture).classification, answered ? "picture_shown" : "failed", `${code} under a shown picture`);
+  assert.equal(matches(fixture, predicate), !answered, `${code} under a shown picture: query and classifier agree`);
+  if (answered) assert.equal(classifyTurnFailure(fixture).code, code, `${code}: the engine's reason survives for its own report`);
 }
 for (const code of ["not_needed", "continuation", "unrecorded", "unknown"]) assert(!(CONFIRMED_TURN_FAILURE_CODES as readonly string[]).includes(code));
 const windowed = failedTurnWhere(new Date("2026-10-01T00:00:00.000Z"));

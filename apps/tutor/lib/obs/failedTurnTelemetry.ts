@@ -141,8 +141,8 @@ export interface FailedTurnInput {
 
 export interface FailedTurnSentryEvent {
   timestamp: number;
-  message: "Tutor turn failed";
-  level: "warning" | "error";
+  message: "Tutor turn failed" | "Tutor turn picture shown";
+  level: "info" | "warning" | "error";
   fingerprint: string[];
   tags: Record<string, string>;
   extra: { candidate_count: number; validation_issue_count: number; unknown_issue_count: number; request_count: number; issue_codes: string[]; segment_count: number };
@@ -184,7 +184,10 @@ export function buildFailedTurnSentryEvent(
     effectiveTurnStatus(turn.status, turn.updatedAt, options.now?.getTime() ?? Date.now()) === "stopped";
   if (turn.status === "live" && !staleLive) return null;
   const failure = classifyTurnFailure(turn);
-  if (failure.classification !== "failed") return null;
+  // A shown picture is reported as its own outcome, under its own issue, so the
+  // engine's reason is still counted without calling the lesson failed.
+  const pictureShown = failure.classification === "picture_shown";
+  if (failure.classification !== "failed" && !pictureShown) return null;
   const artifacts = record(turn.sceneArtifacts);
   const telemetry = readFailedTurnTelemetry(artifacts.failureTelemetry) ?? { subject: "unknown" };
   const plan = record(artifacts.turnPlan);
@@ -208,11 +211,11 @@ export function buildFailedTurnSentryEvent(
   const environment = failedTurnRuntimeEnvironment(env);
   return {
     timestamp: (options.now?.getTime() ?? Date.now()) / 1_000,
-    message: "Tutor turn failed",
-    level: taught && telemetry.failed !== true ? "warning" : "error",
-    fingerprint: ["turn-failure", stage, code, subject],
+    message: pictureShown ? "Tutor turn picture shown" : "Tutor turn failed",
+    level: pictureShown ? "info" : taught && telemetry.failed !== true ? "warning" : "error",
+    fingerprint: [pictureShown ? "turn-picture" : "turn-failure", stage, code, subject],
     tags: {
-      area: "turn-failure", subject, stage, code, figure_need: figureNeed,
+      area: pictureShown ? "turn-picture" : "turn-failure", subject, stage, code, figure_need: figureNeed,
       billing_code: telemetry.billingCode ?? "none",
       reporting_origin: options.historical ? "backfill" : "live",
       strict_subjects: options.historical ? "unknown" : [...new Set(strictSubjects)].sort().join(",") || "none",
