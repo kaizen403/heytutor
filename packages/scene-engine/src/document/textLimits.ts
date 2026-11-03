@@ -35,6 +35,43 @@ export const SCENE_TEXT_LIMITS = Object.freeze({
   digitRun: 400,
 });
 
+/**
+ * How many of each thing one document may hold. Every recorded document and all
+ * generator output sit well inside them.
+ */
+export const SCENE_COUNT_LIMITS = Object.freeze({
+  entities: 640,
+  constructions: 640,
+  annotations: 64,
+  revealGroups: 32,
+  assertions: 256,
+  quantities: 64,
+  relations: 32,
+  teachingTimeline: 32,
+  /** One kind of entity or construction, unless named below. */
+  perKind: 32,
+  kinds: Object.freeze({
+    point: 512,
+    segment: 256,
+    rectangle: 256,
+    vector: 128,
+    label: 128,
+    circle: 96,
+    connect: 96,
+    connector: 96,
+    tick_mark: 64,
+    space_point: 64,
+    space_segment: 64,
+    component: 48,
+    curve_anchor: 48,
+    polyline: 48,
+    symbol: 48,
+    dimension: 16,
+  }),
+});
+
+const COUNTED_LISTS = ["entities", "constructions", "annotations", "revealGroups", "assertions", "quantities", "relations", "teachingTimeline"] as const;
+
 const OVER_LONG_WHITESPACE = new RegExp(String.raw`\s{${SCENE_TEXT_LIMITS.whitespaceRun + 1}}`);
 const OVER_LONG_DIGITS = new RegExp(String.raw`\d{${SCENE_TEXT_LIMITS.digitRun + 1}}`);
 const LABEL_FIELDS: ReadonlySet<string> = new Set(["label", "xLabel", "yLabel"]);
@@ -95,6 +132,36 @@ export function sceneTextOverLimit(raw: unknown): SceneIssue | null {
         if (total > limits.totalChars) return over("total length");
         pending.push({ value: entry, key: entryKey, depth: depth + 1, section: depth === 0 ? entryKey : section });
       }
+    }
+  }
+  return null;
+}
+
+/** The first count this document breaks, or null. */
+export function sceneCountOverLimit(raw: unknown): SceneIssue | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const limits = SCENE_COUNT_LIMITS;
+  const fields = raw as Record<string, unknown>;
+  const over = (limit: string): SceneIssue => ({
+    code: "scene_count_over_limit",
+    message: `scene document is over the ${limit} count limit`,
+    severity: "fatal",
+    path: "$",
+  });
+  for (const field of COUNTED_LISTS) {
+    const list = fields[field];
+    if (Array.isArray(list) && list.length > limits[field]) return over(field);
+  }
+  for (const [list, key] of [[fields.constructions, "operator"], [fields.entities, "kind"]] as const) {
+    if (!Array.isArray(list)) continue;
+    const counts = new Map<string, number>();
+    for (const entry of list) {
+      const kind = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>)[key] : undefined;
+      if (typeof kind !== "string") continue;
+      const count = (counts.get(kind) ?? 0) + 1;
+      counts.set(kind, count);
+      const limit = Object.hasOwn(limits.kinds, kind) ? limits.kinds[kind as keyof typeof limits.kinds] : limits.perKind;
+      if (count > limit) return over("kind");
     }
   }
   return null;

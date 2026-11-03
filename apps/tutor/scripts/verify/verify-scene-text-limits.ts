@@ -5,12 +5,17 @@
  */
 import {
   LABEL_MEASURE_CHAR_BUDGET,
+  LABEL_OVERLAP_WORK_BUDGET,
+  SCENE_COUNT_LIMITS as N,
   SCENE_TEXT_LIMITS as L,
+  canPlaceSingleLabel,
   compileSceneDocument,
   placeLabels,
+  sceneCountOverLimit,
   sceneTextOverLimit,
   synthesizeFamilyScene,
   validateSceneDocument,
+  withSharedLabelWork,
 } from "@heytutor/scene-engine";
 import { findSpokenToken } from "../../../../packages/tutor-core/src/sync/cueWindow";
 import { inferSceneCapabilities } from "../../../../packages/tutor-core/src/planners/sceneCapabilities";
@@ -34,9 +39,22 @@ const PINNED = {
 };
 if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", L);
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
+if (LABEL_OVERLAP_WORK_BUDGET !== 16_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
+const PINNED_COUNTS = {
+  entities: 640, constructions: 640, annotations: 64, revealGroups: 32, assertions: 256, quantities: 64, relations: 32, teachingTimeline: 32, perKind: 32,
+  kinds: { point: 512, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16 },
+};
+if (JSON.stringify(N) !== JSON.stringify(PINNED_COUNTS)) fail("the scene counts moved", N);
 
 interface FigureEntity { id: string; label?: string; role?: string }
-interface Figure { source: { question: string }; entities: FigureEntity[]; annotations?: unknown[] }
+interface Figure {
+  source: { question: string };
+  entities: FigureEntity[];
+  constructions: Array<{ id: string; operator: string; inputs: Record<string, unknown>; outputs: string[] }>;
+  requiredEntityIds?: string[];
+  annotations?: unknown[];
+  revealGroups?: unknown[];
+}
 
 const STEMS = [
   "A block of mass 2 kg rests on a rough incline of angle 30 degrees. Draw the free body diagram.",
@@ -142,6 +160,11 @@ const sizes: Array<[string, (over: number) => unknown]> = [
   ["entity label", (over) => shell({ entities: [{ id: "e", label: "a".repeat(L.labelChars + over) }] })],
   ["node label", (over) => shell({ constructions: [{ inputs: { nodes: [{ label: "a".repeat(L.labelChars + over) }] } }] })],
   ["axis title", (over) => shell({ constructions: [{ inputs: { xLabel: "a".repeat(L.labelChars + over) } }] })],
+  ["other axis title", (over) => shell({ constructions: [{ inputs: { yLabel: "a".repeat(L.labelChars + over) } }] })],
+  ["symbol", (over) => shell({ quantities: [{ symbol: "a".repeat(L.nameChars + over) }] })],
+  ["unit", (over) => shell({ quantities: [{ unit: "a".repeat(L.nameChars + over) }] })],
+  ["operator", (over) => shell({ constructions: [{ operator: "a".repeat(L.nameChars + over) }] })],
+  ["kind", (over) => shell({ entities: [{ kind: "a".repeat(L.nameChars + over) }] })],
   ["construction text", (over) => shell({ constructions: [{ inputs: { text: "a".repeat(L.labelChars + over) } }] })],
   ["label count", (over) => shell({ entities: Array.from({ length: L.labelCount + over }, () => ({ label: "a" })) })],
   ["label total", (over) => {
@@ -214,6 +237,126 @@ const keysLast = { a: Array.from({ length: 42 }, () => "a".repeat(L.textChars)),
 const keysFirst = { extra: manyKeys, a: keysLast.a };
 if (stringsTotal(keysLast) <= L.totalChars) fail("the key rows need more text", stringsTotal(keysLast));
 if (sceneTextOverLimit(keysLast)?.code !== OVER || sceneTextOverLimit(keysFirst)?.code !== OVER) fail("keys count toward the total", null);
+
+// Each count, right at it and one past it, for lists and for kinds.
+const COUNT = "scene_count_over_limit";
+const many = (count: number, make: (index: number) => unknown) => Array.from({ length: count }, (_, index) => make(index));
+for (const field of ["entities", "constructions", "annotations", "revealGroups", "assertions", "quantities", "relations", "teachingTimeline"] as const) {
+  if (sceneCountOverLimit({ [field]: many(N[field], () => ({})) }) !== null) fail(`${field}: at the count`, null);
+  const past = sceneCountOverLimit({ [field]: many(N[field] + 1, () => ({})) });
+  if (past?.code !== COUNT || past.path !== "$" || past.severity !== "fatal" || past.message.length > 60) fail(`${field}: one past the count`, past);
+}
+for (const [kind, limit] of [...Object.entries(N.kinds), ["some_other_kind", N.perKind], ["constructor", N.perKind], ["__proto__", N.perKind]] as Array<[string, number]>) {
+  for (const [field, key] of [["constructions", "operator"], ["entities", "kind"]] as const) {
+    if (sceneCountOverLimit({ [field]: many(limit, () => ({ [key]: kind })) }) !== null) fail(`${kind} in ${field}: at the count`, limit);
+    if (sceneCountOverLimit({ [field]: many(limit + 1, () => ({ [key]: kind })) })?.code !== COUNT) fail(`${kind} in ${field}: one past the count`, limit);
+  }
+}
+if (validateSceneDocument({ ...clone(base), entities: many(N.entities + 1, (index) => ({ id: `e${index}`, kind: "point", role: "point" })) }).report.issues[0]?.code !== COUNT) fail("the validator checks counts", null);
+if (compileSceneDocument({ ...clone(base), entities: many(N.entities + 1, (index) => ({ id: `e${index}`, kind: "point", role: "point" })) } as never).report.issues[0]?.code !== COUNT) fail("the compiler checks counts", null);
+
+// Rows that add entities to a real figure, at each count, through compile and save.
+const requireEntity = (d: Figure, id: string) => {
+  d.requiredEntityIds?.push(id);
+  (d.revealGroups?.[0] as { entityIds?: string[] } | undefined)?.entityIds?.push(id);
+};
+const point = (d: Figure, id: string, x: number, y: number, label?: string) => {
+  d.constructions.push({ id: `c_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "layout" }, outputs: [id] });
+  d.entities.push({ id, kind: "point", role: "point", ...(label ? { label } : {}) } as FigureEntity);
+  requireEntity(d, id);
+};
+const between = (operator: string, kind: string, extra: Record<string, unknown> = {}) => (d: Figure, index: number, label?: string) => {
+  const start = `s${index}`; const end = `t${index}`;
+  point(d, start, 2 * Math.cos(index), 2 * Math.sin(index));
+  point(d, end, 5 * Math.cos(1.7 * index), 5 * Math.sin(1.7 * index));
+  const id = `k${index}`;
+  d.constructions.push({ id: `c_${id}`, operator, inputs: { start, end, ...extra }, outputs: [id] });
+  d.entities.push({ id, kind, role: kind, ...(label ? { label } : {}) } as FigureEntity);
+  requireEntity(d, id);
+};
+const centred = (operator: string, kind: string, inputs: Record<string, unknown>) => (d: Figure, index: number, label?: string) => {
+  const center = `s${index}`;
+  point(d, center, 4 * Math.cos(index), 4 * Math.sin(index));
+  const id = `k${index}`;
+  d.constructions.push({ id: `c_${id}`, operator, inputs: { center, ...inputs }, outputs: [id] });
+  d.entities.push({ id, kind, role: kind, ...(label ? { label } : {}) } as FigureEntity);
+  requireEntity(d, id);
+};
+// Room left for one kind on the figure, under that kind's count and the whole document's.
+const room = (kind: keyof typeof N.kinds, perAdded: number) => {
+  const held = Math.max(base.constructions.filter((entry) => entry.operator === kind).length, base.entities.filter((entity) => (entity as unknown as { kind?: string }).kind === kind).length);
+  return Math.min(N.kinds[kind] - held, Math.floor((N.entities - base.entities.length) / perAdded));
+};
+const added: Array<[string, number, (d: Figure, index: number, label?: string) => void]> = [
+  ["points", room("point", 1), (d, index, label) => point(d, `s${index}`, 5 * Math.cos(1.7 * index), 5 * Math.sin(2.3 * index), label)],
+  ["fewer points, so each can hold a label", L.labelCount - 16, (d, index, label) => point(d, `s${index}`, 5 * Math.cos(1.7 * index), 5 * Math.sin(2.3 * index), label)],
+  ["segments", room("segment", 3), between("segment", "segment")],
+  ["vectors", room("vector", 3), between("vector", "vector")],
+  ["connectors", room("connector", 3), between("connect", "connector")],
+  ["dimensions", room("dimension", 3), between("dimension", "dimension")],
+  ["circles", room("circle", 2), centred("circle", "circle", { radius: 1 })],
+  ["rectangles", room("rectangle", 2), centred("rectangle", "rectangle", { width: 2, height: 1 })],
+];
+let sawBudget = false;
+for (const [name, count, add] of added) {
+  for (const label of [undefined, "short", "wide"] as const) {
+    const document = clone(base);
+    for (let index = 0; index < count; index += 1) add(document, index, label === undefined ? undefined : label === "short" ? `L${index}` : `${index}${fill("i", 57)}`);
+    if (document.entities.filter((entity) => entity.label).length > N.kinds.label * 2) continue;
+    const textOver = sceneTextOverLimit(document);
+    const countOver = sceneCountOverLimit(document);
+    if (countOver) fail(`${name}, ${label}: inside the counts`, countOver);
+    if (textOver && label === undefined) fail(`${name}: inside the sizes`, textOver);
+    if (textOver) continue;
+    let codes: string[] = [];
+    const compileMs = cpuMs(() => { codes = compileSceneDocument(document as never).report.issues.map((issue) => issue.code); }, LIMIT_MS);
+    if (compileMs > LIMIT_MS) fail(`${name}, ${label}: compile time`, compileMs);
+    if (codes.includes("label_overlap_budget")) sawBudget = true;
+    const started = process.cpuUsage();
+    await save(document);
+    const used = process.cpuUsage(started);
+    if ((used.user + used.system) / 1000 > LIMIT_MS * 3) fail(`${name}, ${label}: save time`, used);
+  }
+}
+if (!sawBudget) fail("no added row reached the overlap budget", null);
+for (const [name, grow] of [
+  ["notes", (d: Figure) => { d.annotations = many(N.annotations, (index) => ({ id: `n${index}`, kind: "callout", text: `Note ${index}`, entityIds: [d.entities[0]!.id] })); }],
+  ["reveal groups", (d: Figure) => { d.revealGroups = many(N.revealGroups, (index) => ({ id: `g${index}`, entityIds: [d.entities[index % d.entities.length]!.id], narrationCue: `cue ${index}` })); }],
+] as Array<[string, (d: Figure) => void]>) {
+  const document = clone(base);
+  grow(document);
+  if (sceneCountOverLimit(document)) fail(`${name}: inside the counts`, null);
+  const started = process.cpuUsage();
+  await save(document);
+  const used = process.cpuUsage(started);
+  if ((used.user + used.system) / 1000 > LIMIT_MS * 3) fail(`${name}: save time`, used);
+}
+
+// One budget across a whole compile, whichever layout or lane check spends it.
+const single = (entityId: string, text: string) => ({ entityId, text, anchor: { x: 500, y: 300 } });
+let probes = 0;
+const countingProbe = (text: string, x: number, y: number) => { probes += text.length; return { x, y, width: 40, height: 16 }; };
+if (canPlaceSingleLabel(single("a", "a".repeat(17)) as never, [], { measureTextInkBounds: countingProbe }) || probes !== 0) fail("a lane check on a label over its size measures nothing", probes);
+if (!canPlaceSingleLabel(single("a", "a".repeat(16)) as never, [], { measureTextInkBounds: countingProbe }) || probes === 0) fail("a lane check on a label at its size", probes);
+const shared = withSharedLabelWork(() => {
+  const budgeted = { measureTextInkBounds: countingProbe, measureCharBudget: 40 };
+  const results = [placeLabels([single("a", "abcdefgh")] as never, [], budgeted)];
+  for (let index = 0; index < 20 && results.at(-1)!.ok; index += 1) results.push(placeLabels([single(`b${index}`, "ijklmnop")] as never, [], budgeted));
+  return results;
+});
+if (shared.value.at(-1)!.ok || shared.value.at(-1)!.issues[0]?.code !== "label_measure_budget" || shared.work.spent !== "label_measure_budget") fail("layouts share one measure budget", shared.work);
+const laneAfterSpent = withSharedLabelWork(() => canPlaceSingleLabel(single("a", "abc") as never, [], { measureTextInkBounds: countingProbe, measureCharBudget: 0 }));
+if (laneAfterSpent.value || laneAfterSpent.work.spent !== "label_measure_budget") fail("a lane check spends the same budget", laneAfterSpent.work);
+// An obstacle's segments are charged too, because each one is a test.
+const overlapsWith = (segmentCount: number) => withSharedLabelWork(() => placeLabels([single("a", "abc")] as never, [{
+  id: "far", kind: "protected", bounds: { x: 0, y: 0, width: 1200, height: 700 },
+  segments: many(segmentCount, () => [{ x: 1190, y: 690 }, { x: 1195, y: 695 }]),
+}] as never, { measureTextInkBounds: countingProbe })).work.overlaps;
+if (overlapsWith(400) < overlapsWith(1) * 50) fail("an obstacle's segments count as work", { many: overlapsWith(400), one: overlapsWith(1) });
+const atTheBudget = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { overlaps: LABEL_OVERLAP_WORK_BUDGET });
+if (atTheBudget.value.ok || atTheBudget.work.spent !== "label_overlap_budget") fail("an overlap test past the budget stops the compile", atTheBudget.work);
+const spentBefore = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { spent: "label_overlap_budget" });
+if (spentBefore.value.ok || spentBefore.value.renderScene !== null || !spentBefore.value.report.issues.some((issue) => issue.code === "label_overlap_budget")) fail("a compile that spent its budget never draws", spentBefore.value.report.issues.slice(0, 2));
 
 // A refused document never carries its text in the issue.
 const refusal = validateSceneDocument(withLabel(`secretword${spaces(40)}`)).report.issues[0];

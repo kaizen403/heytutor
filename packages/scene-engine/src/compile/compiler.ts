@@ -28,6 +28,7 @@ import {
 import {
   createTextInkBoundsCache,
   canPlaceSingleLabel,
+  withSharedLabelWork,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -243,6 +244,21 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const { value: compiled, work } = withSharedLabelWork(() => compileWithPointRule(document, options));
+  if (!work.spent) return compiled;
+  // However a layout handled running out, a figure laid out only in part is never drawn.
+  return {
+    ...compiled,
+    ok: false,
+    renderScene: null,
+    report: {
+      ...compiled.report,
+      issues: [...compiled.report.issues, { code: work.spent, message: "Labels need more layout work than one compile may spend", severity: "fatal" }],
+    },
+  };
+}
+
+function compileWithPointRule(document: SceneDocument, options: CompileOptions): CompileResult {
   if (options.pointLabelRivals === false) return compileSceneDocumentOnce(document, options, undefined);
   const rule = { moved: false };
   const result = compileSceneDocumentOnce(document, options, () => { rule.moved = true; });
