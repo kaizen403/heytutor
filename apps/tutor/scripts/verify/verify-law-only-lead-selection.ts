@@ -7,7 +7,7 @@
  * Strict, which prefers the planner, keeps its behaviour. Synthetic text.
  */
 import assert from "node:assert/strict";
-import { detectArchetype, lawOnlyArchetypeLead, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { detectArchetype, lawOnlyArchetypeLead, refusedArchetypeLead, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { deriveSceneGate, selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
 const question = "A small air bubble sits inside a glass sphere of radius 5 cm, 3 cm from its surface. Where does it appear when viewed from outside?";
@@ -60,5 +60,23 @@ assert.equal(retryOff.visualStatus, "text_only", "with required retry disabled t
 
 const strict = select(true);
 assert.notEqual(strict.reason, current.reason, "strict does not take the current lane decline");
+
+// A refused lead declines on the current lane too: with the family refused, a
+// valid planner candidate would otherwise stop being outranked and draw.
+const refusedQuestion = "A sphere of radius 0.1 m spinning at 20 rad/s on a level road. Find its rotational kinetic energy.";
+const refusedPlan: TurnPlanV3 = {
+  ...turnPlan, question: refusedQuestion, lawIds: ["rotational kinetic energy"],
+  givens: [{ id: "r", symbol: "r", value: 0.1, unit: "m", description: "radius" }] as unknown as TurnPlanV3["givens"],
+};
+assert.equal(refusedArchetypeLead(refusedQuestion, { turnPlan: refusedPlan, problemIR: null }), true, "the fixture must be a refused lead");
+const selectRefused = (preferPlanner: boolean) => selectProductionScene({
+  question: refusedQuestion, turnPlan: refusedPlan, problemIR: null,
+  candidate: { ...candidate, source: { question: refusedQuestion } } as unknown as Record<string, unknown>, requiredRetryEnabled: true,
+  ...(preferPlanner ? { policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "linear_source", "text_only"] } } : {}),
+} as Parameters<typeof selectProductionScene>[0]);
+const refusedCurrent = selectRefused(false);
+assert.equal(refusedCurrent.representation, null, "the current lane draws nothing for a refused lead, planner included");
+assert.equal(refusedCurrent.droppedCandidate?.code, "refused_archetype_lead", "the dropped planner candidate names the refusal");
+assert.notEqual(selectRefused(true).reason, refusedCurrent.reason, "strict does not take the refused lead decline");
 
 console.log("law only lead selection: current lane draws nothing, names the drop and honours the retry flag; strict keeps its own path");
