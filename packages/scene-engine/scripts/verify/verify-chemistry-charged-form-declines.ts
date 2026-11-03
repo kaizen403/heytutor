@@ -33,17 +33,14 @@ for (const question of [
   "Draw the internal salt of alanine.",
   "Draw glycine at its isoelectric point.",
   "Draw the structure of glycine at pH 7.",
-  "Draw the structure of glycine in strongly acidic solution.",
   "What form does alanine take at physiological pH? Draw it.",
   "Draw the protonated form of aniline.",
   "Draw protonated ethanol.",
-  "Draw the conjugate acid of aniline.",
-  "Draw the conjugate base of phenol.",
   "Draw the anion of phenol.",
-  "Draw the enolate of acetone.",
   "Draw the sodium salt of benzoic acid.",
   "Draw deprotonated acetic acid.",
-  "Draw the carboxylate of glycine.",
+  "Glycine is an inner salt. Draw it.",
+  "Draw the cation of aniline.",
 ]) {
   check(`no neutral structure for: ${question}`, () => {
     assert.equal(buildOrganicScene(question, [], false), null, "the organic figure drew");
@@ -56,7 +53,6 @@ for (const question of [
 for (const question of [
   "Draw the structure of glycine.",
   "Draw the structure of alanine.",
-  "What is the structure of glycine? Why does it have a high melting point?",
   "Draw the structure of acetic acid.",
   "Draw the structure of aniline.",
   "Draw the structure of phenol.",
@@ -64,6 +60,17 @@ for (const question of [
   "Draw the structure of benzoic acid.",
 ]) {
   check(`a plain structure still draws: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, "chem_organic"));
+}
+
+// A condition on a reaction, or a reason in an explanation, is no ask for another form.
+for (const question of [
+  "Toluene on treatment with KMnO4 in acidic medium gives benzoic acid.",
+  "Ethanol on treatment with K2Cr2O7 in acidic medium gives acetic acid.",
+  "Why is p-nitrophenol more acidic than phenol? Compare their conjugate bases.",
+  "Why is benzoic acid stronger than acetic acid? Explain using the carboxylate ion.",
+  "Draw the structure of aniline. Why is it less basic after protonation?",
+]) {
+  check(`a condition or a reason still draws: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, "chem_organic"));
 }
 
 console.log(`verify-chemistry-charged-form-declines: ${passed} passed, ${failed} failed`);

@@ -371,9 +371,11 @@ function factsLine(stem: string, molecule: Molecule): string {
  * molecule, which is false for that form: "the zwitterion of glycine" drew NH2 and
  * COOH. A name the parser cannot resolve ("anilinium") already declines; this is the
  * name beside a word asking for another form. Decline only, so a wording missed here
- * draws what it drew before.
+ * draws what it drew before. Words a stem also uses for a reason or a condition stay
+ * out: "conjugate base" explains an acidity, and "in acidic medium" is where a reaction
+ * runs, and those stems draw true figures.
  */
-const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoelectric|\b(?:at|physiological)\s+ph\b|\bin\s+(?:strongly\s+|dilute\s+)?(?:acidic|basic|alkaline)\s+(?:solution|medium)|\b(?:de)?protonat|\bconjugate\s+(?:acid|base)|\b(?:an|cat)ions?\s+of\b|\benolate|\bcarboxylate|\bsalts?\s+of\b/;
+const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoelectric|\b(?:at|physiological)\s+ph\b|\b(?:de)?protonated\b|\b(?:an|cat)ions?\s+of\b|\bsalts?\s+of\b/;
 
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   // A mechanism ask is answered by checked curly arrows or not at all: a
