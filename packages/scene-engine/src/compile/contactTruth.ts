@@ -164,7 +164,7 @@ function freeSideFromNormal(surface: Line, body: Body, document: SceneDocument, 
   const reach = extentOf(body.points) * 0.1;
   let side: number | null = null;
   for (const entity of document.entities) {
-    if (entity.kind !== "vector" || !NORMAL_WORDS.test(words(entity)) || FORCE_ON_SURFACE.test(words(entity))) continue;
+    if (entity.kind !== "vector" || !NORMAL_WORDS.test(words(entity)) ) continue;
     const shape = geometry.get(entity.id) as Shape | undefined;
     if (shape?.kind !== "path" || !shape.points || shape.points.length < 2) continue;
     const a = shape.points[0]!, b = shape.points.at(-1)!;
