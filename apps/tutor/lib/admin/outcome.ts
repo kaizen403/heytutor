@@ -11,8 +11,11 @@ import { CONFIRMED_TURN_FAILURE_CODES, classifyTurnFailure, type TurnFailureInpu
  * to see. `unverified` covers every row that predates the verified-scene
  * pipeline ("legacy") or never recorded a status — those were taught without
  * an outcome rather than confirmed failed, and must not be misread as fails.
+ * `picture_shown` is a lesson that showed a stored reference picture: neither a
+ * failure nor a verified figure. It needs the row's evidence, so a count by
+ * visual status alone (`foldOutcomeCounts`, the engine's view) keeps it text only.
  */
-export type TurnOutcome = "validated" | "text_only" | "retry_required" | "failed" | "unverified";
+export type TurnOutcome = "validated" | "picture_shown" | "text_only" | "retry_required" | "failed" | "unverified";
 
 const OUTCOME_BY_VISUAL_STATUS: Record<string, TurnOutcome> = {
   validated: "validated",
@@ -23,6 +26,7 @@ const OUTCOME_BY_VISUAL_STATUS: Record<string, TurnOutcome> = {
 export function classifyOutcome(visualStatus: string | null | undefined, evidence?: Omit<TurnFailureInput, "visualStatus">): TurnOutcome {
   if (evidence) {
     const failure = classifyTurnFailure({ ...evidence, visualStatus });
+    if (failure.classification === "picture_shown") return "picture_shown";
     if (failure.classification === "failed") return visualStatus === "retry_required" ? "retry_required" : "failed";
     if (failure.classification === "unverified" || failure.classification === "pending") return "unverified";
   }
@@ -165,6 +169,8 @@ export function outcomeLabel(outcome: TurnOutcome): string {
   switch (outcome) {
     case "validated":
       return "Verified diagram";
+    case "picture_shown":
+      return "Reference picture";
     case "text_only":
       return "Text only";
     case "retry_required":
