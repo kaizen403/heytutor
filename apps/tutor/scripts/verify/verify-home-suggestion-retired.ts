@@ -16,7 +16,7 @@ import { AVAILABLE_SUBJECTS, type SubjectId } from "../../lib/account/types";
 const RETIRED: ReadonlyArray<{ question: string; why: string }> = [
   {
     question: "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
-    why: "drew right once in the lab, then wrong for a student (turn 748d3adb): the landing point sat at about one sixth of R",
+    why: "drew right once in the lab, then a wrong figure for a student: the arc did not reach the marked range",
   },
   {
     question: "Explain how to draw a free-body diagram for a block on a rough incline, and show how friction enters Newton's second law.",
