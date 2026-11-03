@@ -279,6 +279,12 @@ for (const [why, question, plan, expected] of [
   ["a percent and a degree", "Here e = 50%, A = 30°, then stop.", undefined, ["e = 50%", "A = 30°"]],
   ["millimolar from the question", "A solution has c = 5 mM.", undefined, ["c = 5 mM"]],
   ["kmph from the question", "A car has v = 72 kmph.", undefined, ["v = 72 kmph"]],
+  // A symbol with two values has cases, not a given.
+  ["two cases of one symbol", "Evaluate with A = 0 and with A = 1, then compare.", undefined, []],
+  ["two positions of one symbol", "Masses sit at x = -1 m and x = 1 m, at rest.", undefined, []],
+  ["a second value after the ask", "Here t = 0, then find y at t = 2.", undefined, []],
+  ["a plan row for a symbol with two values", "Take x = 3, then x = 4, and plot.", { givens: [plain("x", 3)] }, []],
+  ["the same value twice is one value", "Here x = 3, so with x = 3 we plot.", undefined, ["x = 3"]],
   // Expressions are not values, however true: this is the accepted cost.
   ["a bare equation", "Solve 2x + 3 = 7.", undefined, []],
   ["a math name", "Given y = sin x. Plot it.", undefined, []],

@@ -91,7 +91,7 @@ export function collectQuestionGivens(
   if (turnPlan && Array.isArray(turnPlan.givens)) {
     turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question)));
   }
-  for (const assignment of assignmentsFromQuestion(statement)) {
+  for (const assignment of assignmentsFromQuestion(statement, question)) {
     add(assignment);
   }
   if (collected.length === 0) {
@@ -229,9 +229,10 @@ function statedEnd(statement: string): number {
   return Math.min(shown, withoutAnswerOptions(statement).length);
 }
 
-function assignmentsFromQuestion(statement: string): GivenCandidate[] {
+function assignmentsFromQuestion(statement: string, question: string): GivenCandidate[] {
   const givens: GivenCandidate[] = [];
   const end = statedEnd(statement);
+  const { reassigned } = statedOf(withoutAnswerOptions(question));
   const pattern =
     /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*/g;
   for (const match of statement.matchAll(pattern)) {
@@ -246,7 +247,7 @@ function assignmentsFromQuestion(statement: string): GivenCandidate[] {
       symbol,
       board: `${symbol} = ${rhs}`,
       spoken: `${speakSymbol(symbol)} equals ${speakRhs(rhs)}`,
-      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart),
+      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart) && !reassigned.has(symbol),
     });
   }
   return givens;
@@ -483,7 +484,23 @@ function isUnitText(text: string): boolean {
   return parts.length > 0 && parts.every((part) => /^°[CF]$/.test(part) || UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
 }
 
-let statedCache: { question: string; stated: StatedQuantity[] } | null = null;
+let statedCache: { question: string; stated: StatedQuantity[]; reassigned: Set<string> } | null = null;
+
+/**
+ * The question's stated quantities, and the symbols it gives more than one value:
+ * "A = 0 and A = 1", "masses at x = -1 m and x = 1 m". Such a symbol has cases, not
+ * a given, so neither value can be written as what the question stated.
+ */
+function statedOf(question: string): { stated: StatedQuantity[]; reassigned: Set<string> } {
+  if (statedCache?.question === question) return statedCache;
+  const stated = statedQuantities(question);
+  const values = new Map<string, Set<number>>();
+  for (const { owner, value } of stated) {
+    if (owner) values.set(owner, (values.get(owner) ?? new Set()).add(value));
+  }
+  statedCache = { question, stated, reassigned: new Set([...values].filter(([, seen]) => seen.size > 1).map(([owner]) => owner)) };
+  return statedCache;
+}
 
 /**
  * Does the question literally say this symbol equals this value, with this unit?
@@ -494,8 +511,8 @@ let statedCache: { question: string; stated: StatedQuantity[] } | null = null;
  * the question's own words. "A 2 kg block" writes no row, and the lesson still teaches.
  */
 function questionLiterallyStates(question: string, value: number, symbol: string, unit: string): boolean {
-  if (statedCache?.question !== question) statedCache = { question, stated: statedQuantities(question) };
-  return statedCache.stated.some((stated) => {
+  if (statedOf(question).reassigned.has(symbol)) return false;
+  return statedOf(question).stated.some((stated) => {
     if (stated.owner !== symbol || stated.value !== value) return false;
     if (!unit || !stated.unit) return !unit && !stated.unit;
     const planned = readUnit(unit);
