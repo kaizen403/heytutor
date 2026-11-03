@@ -503,7 +503,8 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   // the turn reading as still being taught. The refusal is still the answer: a
   // page that lives on must hear that its rows were not saved.
   const closedDespite = async (refusal: Response): Promise<Response> => {
-    if (!existing || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
+    // A turn already closed has nothing to close: a refusal leaves it untouched.
+    if (!existing || existing.status !== "live" || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
     const bare = parseCommon({ seq: raw.seq, status: raw.status, traceId: raw.traceId, baseCount: raw.baseCount }, "patch");
     if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value);
     return refusal;

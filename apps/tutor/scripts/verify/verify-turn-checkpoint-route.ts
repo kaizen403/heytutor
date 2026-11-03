@@ -453,6 +453,37 @@ async function refusedCloseStillClosesTheTurn() {
   } finally {
     growthBytesLimit = null;
   }
+  // A turn already stopped: a refused close changes nothing about it.
+  const already = crypto.randomUUID();
+  await put(already, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  await close(already, { seq: 2, status: "stopped" });
+  const stoppedAt = stored(already).updatedAt;
+  const again = await close(already, { seq: 3, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(again.status, 400, "the refusal still answers");
+  assert.equal(stored(already).updatedAt, stoppedAt, "a refused close does not touch a turn already stopped");
+
+  // An older tab's close while a newer page still teaches this turn. A plain
+  // late close already stops a live turn, and a refused one stops it the same
+  // way: the newer page keeps saving its rows, and can still finish.
+  for (const [name, olderClose] of [
+    ["a plain older close", { seq: 2, status: "stopped" }],
+    ["a refused older close", { seq: 2, status: "stopped", baseCount: 2, appendSegments: [{ orderIndex: "first" }] }],
+  ] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+    await put(shared, { seq: 3, baseCount: 1, rawResponse: "First. Second.", appendSegments: [row(1, "Second.")] });
+    await close(shared, olderClose);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped`);
+    assert.equal(stored(shared).rawResponse, "First. Second.", `${name}: the newer page's words stay`);
+    const stillTeaching = await put(shared, { seq: 4, baseCount: 2, status: "live", rawResponse: "First. Second. Third.", appendSegments: [row(2, "Third.")] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, 3, `${name}: its rows are kept`);
+    assert.equal(stored(shared).status, "stopped", `${name}: a live save cannot reopen it, as before`);
+    const finished = await put(shared, { seq: 5, baseCount: 3, status: "complete", rawResponse: "First. Second. Third." });
+    assert.equal(finished.status, 200, `${name}: the newer page can still finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: and the lesson completes`);
+  }
+
   // No turn yet: nothing to close, and refused rows create nothing.
   const none = crypto.randomUUID();
   const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
