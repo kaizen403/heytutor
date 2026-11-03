@@ -22,7 +22,7 @@ import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } fr
 import { normalizeChemistryText, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
 import { CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
-import { claimsElectrodeDepositionMass, readDepositionMassSource, readPlainDepositionMass, type DepositionMassSource } from "./electrolysisSource";
+import { claimsElectrodeDepositionMass, readDepositionMassSource, type DepositionMassSource } from "./electrolysisSource";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
@@ -2148,14 +2148,8 @@ function buildElectrolytic(question: string): SceneDocument | null {
       captionParts.push(`Faraday: m=MIt/(zF)=${grams} g, Q=${sourceMass.charge} C, z=${sourceMass.electrons} electrons per ${sourceMass.symbol}. M and F use ${sourceMass.molarMassBasis} and ${sourceMass.faradayBasis} respectively. This uses complete deposition at 100% current efficiency.`);
       return drawElectrolyticCell(question, products, massText, captionParts.join("; "), sourceMass);
     }
-    // Stated M and F win; a stem that states neither keeps the table's M. Anything unread leaves no mass on the cell.
-    const faraday = readPlainDepositionMass(question, products.deposit);
-    if (faraday) {
-      const grams = Number(faraday.grams.toPrecision(3));
-      const text = `${products.deposit.symbol}: ${grams} g`;
-      if (text.length <= 16) massText = text;
-      captionParts.push(`Faraday: m = (M/n) × I t / ${faraday.faraday} = ${grams} g of ${products.deposit.symbol} for ${faraday.ampere} A over ${faraday.seconds} s, M = ${faraday.molarMass} g/mol`);
-    }
+    // A stem outside the reviewed reader above gets the true cell and no mass. This path used to
+    // work one from the table, ignoring a stated molar mass, an efficiency or a second duration.
   }
   return drawElectrolyticCell(question, products, massText, captionParts.join("; "));
 }

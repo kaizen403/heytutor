@@ -333,14 +333,10 @@ analysis) draw nothing, which is the honest outcome for those stems.
 
 ## Rules learned here
 
-- A number on the board comes from the student's own stem. A stated molar mass
-  with its unit beats the element table, a stem stating none keeps the table, and
-  a qualifier the reader cannot own ("only half of the current", "at 80%
-  efficiency") leaves the cell with no mass, never one computed as if the
-  qualifier were absent. This is `readPlainDepositionMass` in
-  `electrolysisSource.ts`, for a stem naming no electrode. The electrode path has
-  its own reader, and a word list there lost ordinary stems such as "copper
-  sulphate".
+- A mass on an electrolytic cell comes only from `readDepositionMassSource`, the
+  reviewed reader for a stem naming an electrode. Any other stem gets the true cell
+  and no mass. A wider reader kept drawing false values: a compound's molar mass
+  read as the metal's, and "1 Hour 30 min" read as 30 minutes.
 - A family must decline what it cannot honour: a complex whose charge OCR
   dropped, four salts electrolysed together, a five-coordinate complex, an
   organic name that only half parses. The gate treats a wrong draw as fatal
