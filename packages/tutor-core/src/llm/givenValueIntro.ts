@@ -219,7 +219,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): GivenCand
     board,
     spoken: `${speakSymbol(symbol)} equals ${speakNumber(raw.value)}${unit ? ` ${speakUnit(unit)}` : ""}`,
     // A plan's internal id is never a symbol the question wrote.
-    stated: named !== null && questionLiterallyStates(question.slice(0, statedEnd(question)), raw.value, named, unit),
+    stated: named !== null && questionLiterallyStates(question, raw.value, named, unit),
   };
 }
 
@@ -237,7 +237,8 @@ function assignmentsFromQuestion(statement: string, question: string): GivenCand
     /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*/g;
   for (const match of statement.matchAll(pattern)) {
     const symbol = compactSymbol(match[1]);
-    const sourceRhs = readAssignmentRhs(statement, (match.index ?? 0) + match[0].length);
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const sourceRhs = readAssignmentRhs(statement, valueStart);
     if (sourceRhs === null) continue;
     const rhs = compactRhs(sourceRhs);
     if (!symbol || !rhs || !hasGivenContent(rhs)) continue;
@@ -247,7 +248,8 @@ function assignmentsFromQuestion(statement: string, question: string): GivenCand
       symbol,
       board: `${symbol} = ${rhs}`,
       spoken: `${speakSymbol(symbol)} equals ${speakRhs(rhs)}`,
-      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart) && !reassigned.has(symbol),
+      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart) && !reassigned.has(symbol) &&
+        !continuesAsList(statement, valueStart),
     });
   }
   return givens;
@@ -256,9 +258,7 @@ function assignmentsFromQuestion(statement: string, question: string): GivenCand
 function readAssignmentRhs(statement: string, start: number): string | null {
   const closing: string[] = [];
   let end = start;
-  // A value is short (compactRhs keeps 40 characters), so a long scan finds none.
-  const limit = Math.min(statement.length, start + 200);
-  for (; end < limit; end++) {
+  for (; end < statement.length; end++) {
     const char = statement[end]!;
     if (closing.length === 0 && (
       char === "," || char === ";" || char === "\n" ||
@@ -305,12 +305,20 @@ function spokenGivenList(givens: QuestionGiven[], lead = true, language?: Narrat
   return `${opener}${parts.slice(0, -1).join(". ")}. And ${parts.at(-1)}.`;
 }
 
-/** Two labelled choices, (A) and (B), start the options. A lone "(a)" is a part of the question. */
+/** Labelled choices, a first label and then its second, start the options. A lone "(a)" is a part of the question. */
+const OPTION_LABELS: ReadonlyArray<readonly [RegExp, RegExp]> = [
+  [/(?:^|\s)(?:\(\s*[Aa]\s*\)|[Aa]\))\s/, /(?:^|\s)(?:\(\s*[Bb]\s*\)|[Bb]\))\s/],
+  [/(?:^|\n)\s*[Aa]\.\s/, /\n\s*[Bb]\.\s/],
+];
+
 function withoutAnswerOptions(question: string): string {
-  const first = /(?:^|\s)(?:\(\s*[Aa]\s*\)|[Aa]\))\s/.exec(question);
-  if (first && /(?:^|\s)(?:\(\s*[Bb]\s*\)|[Bb]\))\s/.test(question.slice(first.index + first[0].length))) return question.slice(0, first.index);
+  let end = question.length;
+  for (const [firstLabel, secondLabel] of OPTION_LABELS) {
+    const first = firstLabel.exec(question);
+    if (first && secondLabel.test(question.slice(first.index + first[0].length))) end = Math.min(end, first.index);
+  }
   const named = /\b(?:options|choices)\s*:/i.exec(question);
-  return named ? question.slice(0, named.index) : question;
+  return question.slice(0, named ? Math.min(end, named.index) : end);
 }
 
 function givenStatement(question: string): string {
@@ -350,6 +358,12 @@ const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|cosec|arcsin|arccos|arctan|sinh|c
  * A number with at most its unit: all a row may state. "AX = B", "y = sin x",
  * "CH2 = CH-CH2+" and "0 by completing the square" are not values.
  */
+/** "10,000" and "x = 1, 2": the clause ended at a comma, but the number did not. */
+function continuesAsList(text: string, start: number): boolean {
+  const rhs = readAssignmentRhs(text, start);
+  return rhs !== null && /^,\s*\d/.test(text.slice(start + rhs.length, start + rhs.length + WINDOW));
+}
+
 function isPlainValue(text: string): boolean {
   const match = /^[+\-−–]?\s*(?:\d+(?:\.\d+)?|\.\d+)\s*(.*)$/su.exec(text);
   if (!match) return false;
@@ -371,11 +385,11 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   const before = statement.slice(Math.max(0, symbolStart - WINDOW), symbolStart);
   const trimmed = before.trimEnd();
   if (trimmed.endsWith("(") && /(?:^|\s)\($/.test(trimmed)) return true;
-  if (/[+\-*/^×·(=]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
+  if (/[+\-*/^×·(=)\]]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
   // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
   const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
   // "sin² x" and "log2 x" are functions too.
-  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last.replace(/\p{N}+$/u, "")));
+  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last.replace(/[\p{N}_]+$/u, "")));
 }
 
 /** How far back a value's own context can reach. Long pasted prompts stay linear. */
@@ -399,6 +413,8 @@ function plainUnit(unit: string): string {
 
 /** One unit word as its base and what it is worth in that base. */
 function unitPart(word: string): { base: string; factor: number } {
+  // No unit is this long: it can only be opaque, and it must never recurse deep.
+  if (word.length > 32) return { base: word, factor: 1 };
   const bare = word.replace(/s$/, "");
   const spelledPrefix = /^(kilo|centi|milli)(.+)$/.exec(word);
   if (spelledPrefix) {
@@ -441,6 +457,8 @@ interface StatedQuantity {
   unit: string;
   /** The symbol assigned this number in the question, if any. */
   owner: string | null;
+  /** The whole right side is this number and its unit. Any other value still counts as a second value. */
+  plain: boolean;
 }
 
 /**
@@ -454,18 +472,13 @@ function statedQuantities(question: string): StatedQuantity[] {
     const end = start + match[0].length;
     const before = question.slice(Math.max(0, start - WINDOW), start).trimEnd();
     const after = question.slice(end, end + WINDOW);
-    const following = after.trimStart();
-    // A term of an expression, not a value: "3 + 4", "2 * x", "5 + 2", "3(x + 1)".
-    // "40-turn" and "2-metre" are the number with its noun.
-    if (/^[+*/^×·=≠≈]/.test(following) || after.startsWith("(") || /^\s+[-−–]\s/.test(after) || /^[-−–]\s*(?:[\p{N}(]|\p{L}{1,2}(?![\p{L}\p{N}]))/u.test(after)) continue;
-    // "3 sin x" and "3 x" multiply; "3 m" is a length.
-    const nextWord = /^\s+([\p{L}]+)/u.exec(after)?.[1];
-    if (nextWord && (MATH_WORD.test(nextWord) || nextWord.length === 1 && !UNIT_TOKEN.test(nextWord))) continue;
-    // A bound is a limit, and angle brackets are a vector.
-    if (/[<>≤≥⟨≠]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
-    const owner = /([\p{L}][\p{L}\p{M}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
+    const owner = /(?<![\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_'/]*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
     // "bx + c = 0" states no c, even for a plan row named c.
     if (owner && !standsAlone(before, owner.index)) continue;
+    // The whole right side has to be the value: "x = 3 times y" states no x = 3.
+    // An aside closes its own bracket: "(g = 10 m/s^2)".
+    const rightSide = readAssignmentRhs(question, start) ?? question.slice(start, start + WINDOW).split(")")[0]!;
+    const plain = isPlainValue(rightSide.trim().replace(/[.,;:]+$/, "")) && !continuesAsList(question, start);
     // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
     const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
     // A compound unit may be spaced: "10 N m", "1.08 g mL^-1".
@@ -474,7 +487,7 @@ function statedQuantities(question: string): StatedQuantity[] {
     const secondUnit = firstUnit && spaced?.[1] === firstUnit && spaced[2] && isUnitText(spaced[2]) ? spaced[2].replace(/[.,;:]+$/, "") : "";
     const unit = (glued ?? [firstUnit, secondUnit].filter(Boolean).join(" ")).replace(/[.,;:]+$/, "");
     const negative = /[-−–]$/.test(before);
-    stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null });
+    stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null, plain });
   }
   return stated;
 }
@@ -484,7 +497,7 @@ function isUnitText(text: string): boolean {
   return parts.length > 0 && parts.every((part) => /^°[CF]$/.test(part) || UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
 }
 
-let statedCache: { question: string; stated: StatedQuantity[]; reassigned: Set<string> } | null = null;
+const statedCache = new Map<string, { stated: StatedQuantity[]; reassigned: Set<string> }>();
 
 /**
  * The question's stated quantities, and the symbols it gives more than one value:
@@ -492,14 +505,18 @@ let statedCache: { question: string; stated: StatedQuantity[]; reassigned: Set<s
  * a given, so neither value can be written as what the question stated.
  */
 function statedOf(question: string): { stated: StatedQuantity[]; reassigned: Set<string> } {
-  if (statedCache?.question === question) return statedCache;
+  const cached = statedCache.get(question);
+  if (cached) return cached;
   const stated = statedQuantities(question);
-  const values = new Map<string, Set<number>>();
-  for (const { owner, value } of stated) {
-    if (owner) values.set(owner, (values.get(owner) ?? new Set()).add(value));
+  const values = new Map<string, Set<string>>();
+  for (const { owner, value, unit } of stated) {
+    if (owner) values.set(owner, (values.get(owner) ?? new Set()).add(`${value} ${unit}`));
   }
-  statedCache = { question, stated, reassigned: new Set([...values].filter(([, seen]) => seen.size > 1).map(([owner]) => owner)) };
-  return statedCache;
+  const entry = { stated, reassigned: new Set([...values].filter(([, seen]) => seen.size > 1).map(([owner]) => owner)) };
+  // One question at a time reads a few spellings of itself: no need to keep more.
+  if (statedCache.size >= 4) statedCache.clear();
+  statedCache.set(question, entry);
+  return entry;
 }
 
 /**
@@ -511,9 +528,13 @@ function statedOf(question: string): { stated: StatedQuantity[]; reassigned: Set
  * the question's own words. "A 2 kg block" writes no row, and the lesson still teaches.
  */
 function questionLiterallyStates(question: string, value: number, symbol: string, unit: string): boolean {
-  if (statedOf(question).reassigned.has(symbol)) return false;
-  return statedOf(question).stated.some((stated) => {
-    if (stated.owner !== symbol || stated.value !== value) return false;
+  // One value across the whole question, but stated before anything is asked of it.
+  const { reassigned } = statedOf(withoutAnswerOptions(question));
+  if (reassigned.has(symbol)) return false;
+  const asked = givenStatement(question);
+  const statedPart = asked.slice(0, statedEnd(asked));
+  return statedOf(statedPart).stated.some((stated) => {
+    if (stated.owner !== symbol || stated.value !== value || !stated.plain) return false;
     if (!unit || !stated.unit) return !unit && !stated.unit;
     const planned = readUnit(unit);
     const written = readUnit(stated.unit);
@@ -740,7 +761,7 @@ export function isQuotedPhysicalConstant(symbol: string, value: number): boolean
  *
  * A planner will happily invent a whole worked example and mark every value
  * `provenance: "given"` with a confident sourceText. The board's "Given: ..." row
- * asks for more than this (`questionStatesQuantity`). The teaching prompt was
+ * asks for more than this (`questionLiterallyStates`). The teaching prompt was
  * not gated on it: it handed the model every planner given as authoritative,
  * so a lesson said "substitute the given values" over numbers the question
  * never contained, and once told a student Earth's magnetic field is one tesla.

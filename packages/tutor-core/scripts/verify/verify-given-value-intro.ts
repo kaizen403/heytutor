@@ -5,6 +5,7 @@ import {
   collectQuestionGivens,
   givenValuesPromptAddon,
 } from "../../src/llm/givenValueIntro";
+import { TUTOR_SYSTEM_PROMPT } from "../../src/llm/systemPrompt";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -135,7 +136,7 @@ const substringTrap = collectQuestionGivens("What is momentum in physics", {
 assert(substringTrap.length === 0, "a symbol found inside a word is not a stated given");
 
 // An assumed constant is not a given even in a question that does state values.
-const withConstant = collectQuestionGivens("A block with m = 2 kg is pushed. Find the acceleration.", {
+const withConstant = collectQuestionGivens("A block has m = 2 kg, and it is pushed. Find the acceleration.", {
   givens: [
     { id: "m", symbol: "m", value: 2, unit: "kg", provenance: "given", sourceText: "2 kg block" },
     { id: "g", symbol: "g", value: 9.8, unit: "m/s^2", provenance: "given", sourceText: "gravity" },
@@ -279,7 +280,7 @@ for (const [why, question, plan, expected] of [
   ["a unit in words", "Here L = 2 metre, at rest.", { givens: [plain("L", 2, "m")] }, ["L = 2 m"]],
   ["a spaced compound unit", "A torque has M_t = 10 N m, then stops.", { givens: [plain("M_t", 10, "N m")] }, ["M_t = 10 N m"]],
   ["a spaced negative exponent", "A body has a = 3 m s^-2, then stops.", { givens: [plain("a", 3, "m/s²")] }, ["a = 3 m/s²"]],
-  ["a part label is not options", "(a) Let m = 2 kg rest. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
+  ["a part label is not options", "(a) Let m = 2 kg, at rest. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
   ["a symbol and its unit", "Given a = 2 kg, plot it.", undefined, ["a = 2 kg"]],
   ["a percent and a degree", "Here e = 50%, A = 30°, then stop.", undefined, ["e = 50%", "A = 30°"]],
   ["millimolar from the question", "A solution has c = 5 mM.", undefined, ["c = 5 mM"]],
@@ -290,6 +291,24 @@ for (const [why, question, plan, expected] of [
   ["a second value after the ask", "Here t = 0, then find y at t = 2.", undefined, []],
   ["a plan row for a symbol with two values", "Take x = 3, then x = 4, and plot.", { givens: [plain("x", 3)] }, []],
   ["the same value twice is one value", "Here x = 3, so with x = 3 we plot.", undefined, ["x = 3"]],
+  // The plan path holds to the same right side as the question path.
+  ["a product after a plan value", "Take x = 3 times y, then plot.", { givens: [plain("x", 3)] }, []],
+  ["or after a plan value", "Take x = 3 or 4, then plot.", { givens: [plain("x", 3)] }, []],
+  ["plus or minus after a plan value", "Take x = 3 ± 1, then plot.", { givens: [plain("x", 3)] }, []],
+  ["a word after a plan value", "Three resistors, R = 12 ohm each, in series.", { givens: [plain("R", 12, "Ω")] }, []],
+  ["a plan row after show that", "A block has m = 2 kg. Show that a = 3 m/s^2.", { givens: [plain("m", 2, "kg"), plain("a", 3, "m/s²")] }, ["m = 2 kg"]],
+  ["a plan row after find", "A block has m = 2 kg. Find a = 3 m/s^2.", { givens: [plain("a", 3, "m/s²")] }, ["m = 2 kg"]],
+  ["a thousands comma", "Principal P = 10,000 rupees. Find the interest.", undefined, []],
+  ["a list after a value", "The roots are x = 1, 2.", undefined, []],
+  ["a plan row with a thousands comma", "Principal P = 10,000 rupees. Find the interest.", { givens: [plain("P", 10)] }, []],
+  ["options by letter and stop", "Which holds?\nA. v = 5 m/s\nB. w = 7 m/s", undefined, []],
+  ["options by number", "Pick one: (1) x = 5 (2) y = 7 (3) z = 9", undefined, []],
+  ["a glued coefficient on a plan symbol", "Solve 2x = 6.", { givens: [plain("x", 6)] }, []],
+  ["a based logarithm with a subscript", "Take log_2 x = 3, then plot.", undefined, []],
+  ["a bracket before the symbol", "Take (a + b) x = 12, then plot.", undefined, []],
+  ["a second value after the stated part", "Here x = 3. Derive that x = 2.", { givens: [plain("x", 3)] }, []],
+  ["a derivative with two values", "Here dy/dx = 3, then dy/dx = 4 later.", undefined, []],
+  ["one number in two units", "Here x = 3 m, then x = 3 cm later.", undefined, []],
   // Expressions are not values, however true: this is the accepted cost.
   ["a bare equation", "Solve 2x + 3 = 7.", undefined, []],
   ["a math name", "Given y = sin x. Plot it.", undefined, []],
@@ -317,7 +336,7 @@ assert(
 // The ordinary path still works: a stated problem keeps its givens.
 assert(
   collectQuestionGivens(
-    "Three resistors, R = 12 ohm each, in series. Find the equivalent resistance.",
+    "Three resistors in series, R = 12 ohm. Find the equivalent resistance.",
     { givens: [{ id: "R", symbol: "R", value: 12, unit: "Ω", provenance: "given", sourceText: "12 ohm" }] },
   ).some((g) => g.board === "R = 12 Ω"),
   "a value written in the question must still reach the board",
@@ -474,5 +493,13 @@ const signedCharge = collectQuestionGivens("A particle has q = +2 C. Find the fo
   givens: [{ id: "q", symbol: "q", value: 2, unit: "C", provenance: "given", sourceText: "q = +2 C" }],
 });
 assert(signedCharge.some((given) => given.board === "q = +2 C"), "a written plus and unit stay on the row");
+
+// The opening prompt must not promise a row that is not there.
+assert(/written "Given: \.\.\." only for values the question writes as symbol = number/.test(TUTOR_SYSTEM_PROMPT), "the prompt says when a Given row exists");
+assert(/a value with no "Given:" row is not on the board yet/.test(TUTOR_SYSTEM_PROMPT), "the prompt tells the model to write a value with no row");
+assert(!/for every stated value/.test(TUTOR_SYSTEM_PROMPT), "the prompt does not claim every value is already written");
+
+// A planner's absurd unit stays opaque rather than recursing.
+assert(collectQuestionGivens("Take x = 3 m.", { givens: [plain("x", 3, "kilo".repeat(10_000))] }).length === 0, "a huge plan unit is refused, not thrown on");
 
 console.log("given value intro verification passed");
