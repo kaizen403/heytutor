@@ -42,6 +42,7 @@ const PARTIAL_FIGURES: ReadonlyMap<string, string> = new Map([
   ["Explain how capacitance changes when a dielectric is inserted between parallel plates.", "the slab cannot be told apart from the plates, and its label sits by the gap arrow"],
   ["Derive the relation between wave speed, frequency, and wavelength using a traveling wave.", "no direction of travel, and a stray axis label reads as y minus x"],
   ["Explain what dy/dx means geometrically, then show how to differentiate y = x³ − 4x.", "the geometry is exact, but the curve's equation sits on the tangent line"],
+  ["A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.", "N and mg are drawn exactly equal, so length reads as size, and the 20 N arrow at 163 px then reads as more than the 49 N arrow at 112 px, with nothing saying it is not to scale"],
 ]);
 
 const recordingAsksCard = (recording: HomeSuggestionRecording, cardQuestion: string) =>
