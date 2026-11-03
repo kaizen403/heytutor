@@ -506,7 +506,7 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
     // A turn already closed has nothing to close: a refusal leaves it untouched.
     if (!existing || existing.status !== "live" || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
     const bare = parseCommon({ seq: raw.seq, status: raw.status, traceId: raw.traceId, baseCount: raw.baseCount }, "patch");
-    if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value);
+    if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value, { afterRefusal: true });
     return refusal;
   };
   if (!common.ok) return closedDespite(reject("turn_fields_invalid", common.error, 400));
@@ -531,13 +531,16 @@ async function closeStatusOnly(
   params: RouteParams,
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
+  options: { afterRefusal?: boolean } = {},
 ): Promise<Response> {
   const reject = checkpointRejection(params, input.traceId ?? existing.traceId ?? undefined);
   // New metadata has the same canonical byte budget/quota as a full save.
   // Only a status-only or stale-header close may skip that charged path.
   // Legacy rows also need their existing scene receipt envelope accounted.
-  if (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
-    (input.rawResponse !== undefined || input.resumeState !== undefined))) {
+  // After a refusal only the status changes: the held rows stay as stored, so it
+  // needs no new bytes and a full account can still close its turn.
+  if (!options.afterRefusal && (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
+    (input.rawResponse !== undefined || input.resumeState !== undefined)))) {
     return applyCheckpoint(request, userId, params, {
       ...input, baseCount: heldRows(existing).length, appendSegments: [],
       scene: "stored", tolerateOverlap: true,

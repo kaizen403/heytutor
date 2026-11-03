@@ -453,6 +453,22 @@ async function refusedCloseStillClosesTheTurn() {
   } finally {
     growthBytesLimit = null;
   }
+  // A legacy row with its segments still held, at full quota: the close still
+  // closes it, and leaves the held rows exactly as stored.
+  const legacy = crypto.randomUUID();
+  await put(legacy, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const heldRows = [{ orderIndex: 0, narration: "First.", spokenText: "First.", command: null }];
+  stored(legacy).submittedSegments = heldRows;
+  growthBytesLimit = 0;
+  try {
+    const refusedLegacy = await close(legacy, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedLegacy.status, 413, "a full account still hears the refusal");
+    assert.equal(stored(legacy).status, "stopped", "a legacy row closes at full quota");
+    assert.deepEqual(stored(legacy).submittedSegments, heldRows, "its held rows stay as stored");
+  } finally {
+    growthBytesLimit = null;
+  }
+
   // A turn already stopped: a refused close changes nothing about it.
   const already = crypto.randomUUID();
   await put(already, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
