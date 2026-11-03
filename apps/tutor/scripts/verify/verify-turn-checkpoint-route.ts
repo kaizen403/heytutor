@@ -419,7 +419,7 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
   } finally { globalThis.fetch = originalFetch; }
 }
 
-// afafb88f, 28 Oct: 41 rows, 5.7 KB of narration and 193 KB of per character
+// A recorded lesson: 41 rows, 5.7 KB of narration and 193 KB of per character
 // timings at full precision. Its next save got a 413, and the rest of the lesson
 // was never saved. Timings are given up before rows are.
 async function timingsGiveWayBeforeRows() {
