@@ -39,6 +39,7 @@ import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import type { SceneDocument, SceneIssue } from "../types";
 import { verifiedVseprStructure } from "../chemistry/vseprStructure";
 import type { VseprFigure } from "../chemistry/vsepr";
+import { elementByName, elementBySymbol } from "../chemistry/elements";
 import { parseFormula } from "../chemistry/formula";
 import { chemistrySpeciesIdentity } from "../chemistry/representation/species";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
@@ -528,6 +529,12 @@ function mapProblemEntities(
       consumed.add(species);
       continue;
     }
+    const atom = bindCertifiedAtom(molecule, byId, obligation, consumed);
+    if (atom) {
+      mapping.set(obligation.problemEntityId, atom);
+      consumed.add(atom);
+      continue;
+    }
     // A physics body named in model words ("parabolic trajectory", "near
     // bank") binds only to a body the certified archetype constructed, by role.
     const bound = archetype ? bindArchetypeBody(archetype, obligation.problemKind, wanted, consumed, usedBodies) : null;
@@ -712,6 +719,37 @@ function bindCertifiedSpecies(
     const title = document.entities.find((entity) => entity.id === structure.formulaId);
     const drawn = title?.label ? chemistrySpeciesIdentity(title.label.replace(/_(\d+)/g, "$1").replace(/\^\(([^)]*)\)/g, "$1")) : null;
     if (drawn && drawn.key === wanted.key) return structure.formulaId;
+  }
+  return null;
+}
+
+// A named atom also arrives as a point: "central P atom" in a geometry ask.
+const ATOM_BODY_KINDS = new Set([...SPECIES_BODY_KINDS, "point"]);
+
+/**
+ * Bind "central P atom", "Cl atoms" or "sulfur atom" to an atom of that element on the
+ * certified VSEPR figure. "central" needs the atom every bond shares, and a plural needs
+ * two such atoms in one species. A count, an index or a charge in the name stays unbound.
+ */
+function bindCertifiedAtom(
+  molecule: VseprFigure | null,
+  entities: ReadonlyMap<string, SceneDocument["entities"][number]>,
+  obligation: NamedBodyObligation,
+  consumed: ReadonlySet<string>,
+): string | null {
+  if (!molecule || !ATOM_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
+  const read = /^(?:[Tt]he\s+)?([Cc]entral\s+)?(\S+)\s+(atoms?)$/.exec(obligation.problemLabel.trim());
+  if (!read) return null;
+  const element = elementBySymbol(read[2]!) ?? elementByName(read[2]!);
+  if (!element) return null;
+  for (const structure of molecule.structures) {
+    const atoms = structure.atomIds.filter((id) => entities.get(id)?.label === element.symbol);
+    if (read[3] === "atoms" && atoms.length < 2) continue;
+    const allowed = read[1]
+      ? atoms.filter((id) => structure.bonds.length > 1 && structure.bonds.every((bond) => bond.includes(id)))
+      : atoms;
+    const free = allowed.find((id) => !consumed.has(id));
+    if (free) return free;
   }
   return null;
 }
