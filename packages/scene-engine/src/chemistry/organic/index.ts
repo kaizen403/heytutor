@@ -372,9 +372,6 @@ export function buildOrganicScene(question: string, _quantities: ChemPlanQuantit
   const mechanism = readMechanismSource(question);
   if (mechanism.status === "source") return mechanism.document;
   if (mechanism.status === "declined") return null;
-  // A hydrogen bond ask needs two molecules and the bond between them. One
-  // structure alone would read as the answer, so the organic row draws nothing.
-  if (/hydrogen bond/.test(chemStem(question))) return null;
   if (!isOrganicStem(question)) return null;
   // This operator owns every original source/request span and proves the
   // complete graph result. Do not let a narrower structural-label heuristic

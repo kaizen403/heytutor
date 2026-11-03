@@ -710,6 +710,7 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   if (/methane|ch4|hydrogen chloride|\bhcl\b/.test(stem) && !ortho && !para) return null;
   const c = new ChemScene(question, "hydrogen bond donor and acceptor", LEWIS_FAMILY);
   if (ortho || para) {
+    if (!plainNitrophenolAsk(stem, para && !ortho)) return null;
     const ids: string[] = [];
     if (ortho) ids.push(...drawNitrophenol(c, { x: ortho && para ? -3.8 : 0, y: 0 }, true, "o"));
     if (para) ids.push(...drawNitrophenol(c, { x: ortho ? 3.8 : 0, y: 0 }, false, "p"));
@@ -730,24 +731,38 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   if (!layout) return null;
   const { heavy, label } = species;
   const ids: string[] = [];
-  ids.push(c.atom("a_x", heavy, { x: 0, y: 0.2 }, { role: `${heavy} donor atom` }));
-  ids.push(c.atom("a_h", "H", { x: 1.05, y: -0.25 }, { role: "donor hydrogen" }));
+  ids.push(c.atom("a_x", heavy, { x: 0, y: 0 }, { role: `${heavy} donor atom` }));
+  ids.push(c.atom("a_h", "H", { x: 1.14, y: 0 }, { role: "donor hydrogen" }));
   ids.push(...c.bond("a_b", "a_x", "a_h", { role: `${heavy}-H bond` }));
-  layout.donor.forEach((at, index) => {
-    ids.push(c.atom(`a_h${index + 2}`, "H", at, { role: "donor molecule hydrogen" }));
-    ids.push(...c.bond(`a_b${index + 2}`, "a_x", `a_h${index + 2}`, { role: `${heavy}-H bond` }));
+  layout.donor.forEach((site, index) => {
+    ids.push(c.atom(`a_h${index + 2}`, "H", site, { role: "donor molecule hydrogen" }));
+    ids.push(...c.bond(`a_b${index + 2}`, "a_x", `a_h${index + 2}`, { role: `${heavy}-H bond`, style: site.style }));
   });
-  ids.push(c.atom("b_x", heavy, { x: 2.5, y: 0.2 }, { role: `${heavy} acceptor` }));
-  layout.acceptor.forEach((at, index) => {
+  ids.push(c.atom("b_x", heavy, { x: 2.6, y: 0 }, { role: `${heavy} acceptor` }));
+  layout.acceptor.forEach((site, index) => {
     const suffix = index === 0 ? "" : String(index + 1);
-    ids.push(c.atom(`b_h${suffix}`, "H", at, { role: "second hydrogen" }));
-    ids.push(...c.bond(`b_b${suffix}`, "b_x", `b_h${suffix}`, { role: `${heavy}-H bond` }));
+    ids.push(c.atom(`b_h${suffix}`, "H", site, { role: "acceptor molecule hydrogen" }));
+    ids.push(...c.bond(`b_b${suffix}`, "b_x", `b_h${suffix}`, { role: `${heavy}-H bond`, style: site.style }));
   });
-  ids.push(c.link("hb", { x: 1.05, y: -0.25 }, { x: 2.5, y: 0.2 }, "intermolecular hydrogen bond"));
-  ids.push(c.text("kind", { x: 1.3, y: -1.1 }, "inter", "intermolecular hydrogen bond"));
-  ids.push(c.text("pair", { x: 1.3, y: 1.15 }, label, "molecules"));
+  // Stops short of both symbols, so the dashes never strike through a letter.
+  ids.push(c.link("hb", { x: 1.38, y: 0 }, { x: 2.32, y: 0 }, "intermolecular hydrogen bond"));
+  ids.push(c.text("kind", { x: 1.85, y: -0.62 }, "hydrogen bond", "intermolecular hydrogen bond"));
+  ids.push(c.text("pair", { x: 1.3, y: 1.45 }, label, "molecules"));
   c.scene.group("hbonds", ids, `intermolecular hydrogen bond from H on ${heavy} to ${heavy}`);
   return c.build({ caption: `${heavy} intermolecular` });
+}
+
+/** A nitrophenol figure answers about the neutral isomer itself, and only as far as it draws. */
+function plainNitrophenolAsk(stem: string, onlyPara: boolean): boolean {
+  // The anion has no O-H to bond with.
+  if (/nitrophenol(?:ate|s?\s+ion)|nitrophenoxide/.test(stem)) return false;
+  // 5-methyl-o-nitrophenol is another compound.
+  if (/[a-z0-9)]-(?:o|p|ortho|para)-?\s?nitrophenol/.test(stem)) return false;
+  // A bond to a second substance is not the intramolecular one this draws.
+  if (/nitrophenols?\s+(?:and|with)\s+(?:water|ethanol|methanol|an?\s+alcohol|ammonia)\b/.test(stem)) return false;
+  // The para figure says "no intra" and draws no bond between molecules.
+  if (onlyPara && /\bintermolecular\b|\bbetween\b/.test(stem)) return false;
+  return true;
 }
 
 interface HydrogenBondSpecies {
@@ -764,33 +779,56 @@ const HYDROGEN_BOND_SPECIES: readonly HydrogenBondSpecies[] = [
   { heavy: "O", formula: "H2O", label: "H_2O", names: /\bwater\b|\bh2o\b/g },
 ];
 
+interface HydrogenSite extends Vec2 {
+  readonly style?: "wedge" | "dash";
+}
+
 /**
  * Hydrogen positions by the formula's hydrogen count, so a molecule always has
- * the atoms its label claims. The donor's bonding hydrogen is drawn separately.
- * The acceptor's hydrogens point away from the incoming hydrogen bond.
+ * the atoms its label claims. The donor's bonding hydrogen is drawn separately,
+ * on the line to the acceptor, because a hydrogen bond is near linear at H.
+ * Water is bent, ammonia is a pyramid with its lone pair facing the donor, and
+ * HF zigzags at the acceptor.
  */
-const HYDROGEN_BOND_LAYOUT: Readonly<Record<number, { donor: readonly Vec2[]; acceptor: readonly Vec2[] }>> = {
-  1: { donor: [], acceptor: [{ x: 3.45, y: 0.55 }] },
-  2: { donor: [{ x: -0.7, y: -0.7 }], acceptor: [{ x: 3.42, y: -0.47 }, { x: 2.89, y: 1.27 }] },
-  3: { donor: [{ x: -0.13, y: 1.33 }, { x: -0.91, y: -0.48 }], acceptor: [{ x: 3.46, y: 0.49 }, { x: 2.79, y: -0.76 }, { x: 2.21, y: 1.16 }] },
+const HYDROGEN_BOND_LAYOUT: Readonly<Record<number, { donor: readonly HydrogenSite[]; acceptor: readonly HydrogenSite[] }>> = {
+  1: { donor: [], acceptor: [{ x: 3.17, y: 0.99 }] },
+  2: { donor: [{ x: -0.29, y: 1.1 }], acceptor: [{ x: 3.3, y: 0.9 }, { x: 3.3, y: -0.9 }] },
+  3: {
+    donor: [{ x: -0.57, y: 0.99, style: "wedge" }, { x: -0.57, y: -0.99, style: "dash" }],
+    acceptor: [{ x: 3.74, y: 0 }, { x: 3.17, y: 0.99, style: "wedge" }, { x: 3.17, y: -0.99, style: "dash" }],
+  },
 };
 
+const ASK_NUMBERING = String.raw`(?:(?:\d{1,2}[.)]|\(?[a-d]\)|q\.?\s*\d{1,2}[.:)]?)\s+)?`;
+const ASK_ADJECTIVE = String.raw`(?:neat\s+|labell?ed\s+|simple\s+|clear\s+)?`;
+const ASK_VERB = String.raw`(?:(?:please\s+)?(?:draw|show(?:\s+me)?|sketch|illustrate|depict|explain|describe|discuss|define|teach\s+me|what\s+is(?:\s+meant\s+by)?|what\s+are|what\s+type\s+of|why\s+is\s+there)\s+)?`;
+const ASK_DIAGRAM = String.raw`(?:a\s+${ASK_ADJECTIVE}diagram\s+(?:to\s+(?:show|illustrate)|showing|of|for)\s+)?`;
+const ASK_BOND = String.raw`hydrogen\s+(?:bonds?|bonding)`;
+const ASK_JOIN = String.raw`(?:(?:that\s+occurs?\s+|(?:is|are)\s+(?:present|found|seen)\s+)?(?:in|of|for|between|among))\s+`;
+const ASK_QUALIFIER = String.raw`(?:(?:the|two|a\s+pair\s+of|neighbou?ring|adjacent|liquid|pure)\s+|2\s+(?=species\s+molecules)){0,2}`;
+const ASK_MOLECULES = String.raw`species(?:\(l\))?(?:\s+molecules?)?`;
+const ASK_TAIL = String.raw`(?:\s+with\s+(?:a\s+)?${ASK_ADJECTIVE}(?:diagram|figure))?(?:\s+with\s+each\s+other)?(?:\s+(?:kya\s+(?:hota\s+)?hai|explain\s+kar(?:o|ein|iye)|samjhao))?[.?!]*(?:\s*\(\s*\d+\s*marks?\s*\))?(?:\s+(?:draw|show|sketch)\s+(?:a\s+|the\s+)?${ASK_ADJECTIVE}(?:diagram|figure|structure)[.?!]*)?`;
+
 /**
- * Every word a plain ask about one species' own hydrogen bonds may use. A second
- * substance, a negation, a comparison, a solution or an isotope falls outside it
- * and declines, because this figure would then answer a different question:
- * ammonia in water bonds to water, and DNA in water is not two waters.
+ * The whole sentence a plain ask about one species' own hydrogen bonds may be.
+ * Word order is part of it: a bag of allowed words lets "water and hydrogen",
+ * "molecule A" and "two hydrogen bonds" through. Everything else declines,
+ * because this figure of one bond between two molecules would answer a
+ * different question. The species has been replaced by the word `species`.
  */
-const HYDROGEN_BOND_ASK_WORDS = new Set((
-  "a an the of in for with and between among two 2 pair neighbouring neighboring adjacent "
-  + "hydrogen bond bonds bonding intermolecular molecule molecules liquid pure "
-  + "show draw sketch explain illustrate depict describe label diagram figure structure "
-  + "how what why is are does do form forms formed has have occur occurs"
-).split(" "));
+const HYDROGEN_BOND_ASKS: readonly RegExp[] = [
+  // Draw a neat diagram of hydrogen bonding between two water molecules.
+  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_DIAGRAM}(?:the\s+)?(?:intermolecular\s+)?${ASK_BOND}\s+${ASK_JOIN}${ASK_QUALIFIER}${ASK_MOLECULES}${ASK_TAIL}$`),
+  // Why does water form hydrogen bonds? Can ammonia molecules form hydrogen bonds with each other?
+  new RegExp(String.raw`^${ASK_NUMBERING}(?:(?:why|how)\s+(?:do|does|can)\s+|do\s+|does\s+|can\s+)${ASK_QUALIFIER}${ASK_MOLECULES}\s+(?:form|have|show|exhibit)\s+(?:intermolecular\s+)?${ASK_BOND}${ASK_TAIL}$`),
+  // Explain hydrogen bonding using water as an example.
+  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_BOND}\s+using\s+species\s+as\s+an\s+example${ASK_TAIL}$`),
+  // Water me hydrogen bonding explain karo.
+  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_MOLECULES}\s+(?:me|mein|main)\s+${ASK_BOND}${ASK_TAIL}$`),
+];
 
 function plainHydrogenBondAsk(stem: string, species: HydrogenBondSpecies): boolean {
-  const rest = stem.replace(species.names, " ");
-  // A charge or isotope notation is a different species, whatever its words.
-  if (/[^a-z0-9\s.,;:?!()]/.test(rest)) return false;
-  return rest.split(/[^a-z0-9]+/).filter(Boolean).every((word) => HYDROGEN_BOND_ASK_WORDS.has(word));
+  const ask = stem.replace(/\s+/g, " ").trim().replace(species.names, "species");
+  return HYDROGEN_BOND_ASKS.some((shape) => shape.test(ask));
 }
+

@@ -1,17 +1,19 @@
 /**
  * A hydrogen bond figure draws whole molecules, with the hydrogens the formula
- * gives, and only for a plain ask about one species. It used to draw one O-H
- * under the label H2O, and drew a pair of ammonia or water for any stem naming
- * them, including "ammonia in water" and "DNA base pairs in water".
+ * gives, near linear at H, and only for a plain ask about one species. It used
+ * to draw one O-H under the label H2O, and a pair of ammonia or water for any
+ * stem naming them, including "ammonia in water" and "DNA base pairs in water".
+ * When it declines, no other family may take the turn.
  *
  *   tsx --tsconfig ../../apps/tutor/tsconfig.json scripts/verify/verify-chemistry-hbond-molecules.ts
  */
 import assert from "node:assert/strict";
+import "../../src/chemistry/families";
 import { buildLewisScene } from "../../src/chemistry/lewis";
 import { parseFormula } from "../../src/chemistry/formula";
-import { buildOrganicScene } from "../../src/chemistry/organic";
+import { isChemistryQuestion, inferChemistryFamilies } from "../../src/chemistry/router";
 import { compileSceneDocument } from "../../src/compile/compiler";
-import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
+import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
 let failed = 0;
@@ -26,7 +28,9 @@ function check(id: string, run: () => void): void {
   }
 }
 
-function pointOf(document: SceneDocument, id: string): { x: number; y: number } {
+type Point = { x: number; y: number };
+
+function pointOf(document: SceneDocument, id: string): Point {
   const construction = document.constructions.find((value) => value.outputs.includes(id));
   assert.ok(construction, `no construction for ${id}`);
   if (construction.operator === "label") return pointOf(document, String(construction.inputs.target));
@@ -34,46 +38,66 @@ function pointOf(document: SceneDocument, id: string): { x: number; y: number } 
   return { x: Number(construction.inputs.x), y: Number(construction.inputs.y) };
 }
 
-function isAtom(document: SceneDocument, id: string, heavy: string): boolean {
-  return document.entities.find((entity) => entity.id === id)?.label === heavy;
+const labelOf = (document: SceneDocument, id: string) => document.entities.find((entity) => entity.id === id)?.label;
+const atomsOf = (document: SceneDocument, symbol: string) => document.entities.filter((entity) => entity.label === symbol).map((entity) => entity.id);
+const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+
+/** The angle at `vertex`, in degrees, as drawn on the page. */
+function angleAt(vertex: Point, a: Point, b: Point): number {
+  const raw = Math.abs(Math.atan2(a.y - vertex.y, a.x - vertex.x) - Math.atan2(b.y - vertex.y, b.x - vertex.x)) * 180 / Math.PI;
+  return raw > 180 ? 360 - raw : raw;
 }
 
-function atomsOf(document: SceneDocument, symbol: string): string[] {
-  return document.entities.filter((entity) => entity.label === symbol).map((entity) => entity.id);
+/** The hydrogens on one heavy atom and their bonds, by the ids the figure gives them. */
+function moleculeHydrogens(document: SceneDocument, prefix: "a" | "b"): Array<{ hydrogen: string; bond: string }> {
+  const rows: Array<{ hydrogen: string; bond: string }> = [];
+  for (const entity of document.entities) {
+    const match = new RegExp(`^${prefix}_h(\\d*)$`).exec(entity.id);
+    if (match && entity.label === "H") rows.push({ hydrogen: entity.id, bond: `${prefix}_b${match[1]}` });
+  }
+  return rows;
 }
 
-const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
-
-/** What the figure says, read from its geometry: bonds to each heavy atom, never from the labels alone. */
-function bondedHydrogens(document: SceneDocument, heavyId: string, hydrogens: readonly string[]): string[] {
-  const heavy = pointOf(document, heavyId);
-  return hydrogens.filter((id) => {
-    if (document.entities.find((entity) => entity.id === id)?.label !== "H") return false;
-    const at = pointOf(document, id);
-    return document.entities.some((entity) => {
-      if (entity.kind !== "segment" || !String(entity.role ?? "").endsWith("-H bond")) return false;
-      const ends = (document.constructions.find((value) => value.outputs.includes(entity.id))?.inputs ?? {}) as Record<string, unknown>;
-      const [start, end] = [ends.start ?? ends.from ?? ends.a, ends.end ?? ends.to ?? ends.b].map((value) => pointOf(document, String(value)));
-      const onHeavy = distance(start!, heavy) < 0.5 || distance(end!, heavy) < 0.5;
-      const onHydrogen = distance(start!, at) < 0.5 || distance(end!, at) < 0.5;
-      return onHeavy && onHydrogen;
-    });
-  });
-}
+const roleOf = (document: SceneDocument, id: string) => String(document.entities.find((entity) => entity.id === id)?.role ?? "");
 
 // Plain asks: the figure draws and each molecule has its formula's hydrogens.
+const WATER = { formula: "H2O", heavy: "O", label: "H_2O" };
+const AMMONIA = { formula: "NH3", heavy: "N", label: "NH_3" };
+const HF = { formula: "HF", heavy: "F", label: "HF" };
 const DRAWS: ReadonlyArray<{ question: string; formula: string; heavy: string; label: string }> = [
-  { question: "hydrogen bonding in water", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "Draw the hydrogen bond between two water molecules.", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "show hydrogen bonding in H2O", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "show hydrogen bonding in H₂O", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "Why does water form hydrogen bonds? Draw a diagram.", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "hydrogen bonding in liquid water", formula: "H2O", heavy: "O", label: "H_2O" },
-  { question: "hydrogen bonding in ammonia", formula: "NH3", heavy: "N", label: "NH_3" },
-  { question: "Draw hydrogen bonds between NH3 molecules.", formula: "NH3", heavy: "N", label: "NH_3" },
-  { question: "Show the intermolecular hydrogen bond in ammonia.", formula: "NH3", heavy: "N", label: "NH_3" },
-  { question: "hydrogen bonding in HF", formula: "HF", heavy: "F", label: "HF" },
-  { question: "Show the intermolecular hydrogen bond in hydrogen fluoride.", formula: "HF", heavy: "F", label: "HF" },
+  { question: "hydrogen bonding in water", ...WATER },
+  { question: "Draw the hydrogen bond between two water molecules.", ...WATER },
+  { question: "show hydrogen bonding in H2O", ...WATER },
+  { question: "show hydrogen bonding in H₂O", ...WATER },
+  { question: "Why does water form hydrogen bonds? Draw a diagram.", ...WATER },
+  { question: "hydrogen bonding in liquid water", ...WATER },
+  { question: "Draw a diagram to show hydrogen bonding between two water molecules", ...WATER },
+  { question: "Draw a labelled diagram of hydrogen bonding in water", ...WATER },
+  { question: "Explain hydrogen bonding in water with a neat diagram", ...WATER },
+  { question: "Can water form hydrogen bonds?", ...WATER },
+  { question: "Teach me hydrogen bonding in water", ...WATER },
+  { question: "Please explain hydrogen bonding in water", ...WATER },
+  { question: "What is hydrogen bonding in water?", ...WATER },
+  { question: "Explain hydrogen bonding using water as an example", ...WATER },
+  { question: "Do water molecules form hydrogen bonds with each other?", ...WATER },
+  { question: "What type of hydrogen bonding is present in water?", ...WATER },
+  { question: "1. Explain hydrogen bonding in water.", ...WATER },
+  { question: "(b) Explain hydrogen bonding in water.", ...WATER },
+  { question: "Explain hydrogen bonding in water. (2 marks)", ...WATER },
+  { question: "Hydrogen bond in H2O(l)", ...WATER },
+  { question: "Water me hydrogen bonding explain karo", ...WATER },
+  { question: "Hydrogen bonding in water kya hota hai", ...WATER },
+  { question: "Draw hydrogen bonds between 2 water molecules.", ...WATER },
+  { question: "hydrogen bonding in ammonia", ...AMMONIA },
+  { question: "Draw hydrogen bonds between NH3 molecules.", ...AMMONIA },
+  { question: "Show the intermolecular hydrogen bond in ammonia.", ...AMMONIA },
+  { question: "Can ammonia form hydrogen bonds?", ...AMMONIA },
+  { question: "Draw a neat diagram of hydrogen bonding in ammonia", ...AMMONIA },
+  { question: "What is meant by hydrogen bonding in ammonia?", ...AMMONIA },
+  { question: "hydrogen bonding in HF", ...HF },
+  { question: "Show the intermolecular hydrogen bond in hydrogen fluoride.", ...HF },
+  { question: "Show me hydrogen bonding in HF", ...HF },
+  { question: "Draw a labelled diagram to show hydrogen bonding in HF", ...HF },
 ];
 
 for (const row of DRAWS) {
@@ -82,16 +106,25 @@ for (const row of DRAWS) {
   check(`draws: ${row.question}`, () => assert.ok(document, "declined"));
   if (!document) continue;
   check(`hydrogens from the formula: ${row.question}`, () => {
-    const hydrogens = atomsOf(document, "H");
-    assert.equal(hydrogens.length, expected * 2, `${hydrogens.length} H drawn for two ${row.formula}`);
-    assert.ok(isAtom(document, "a_x", row.heavy) && isAtom(document, "b_x", row.heavy), "heavy atoms");
-    assert.equal(bondedHydrogens(document, "a_x", hydrogens).length, expected, "donor molecule");
-    assert.equal(bondedHydrogens(document, "b_x", hydrogens).length, expected, "acceptor molecule");
+    assert.equal(atomsOf(document, "H").length, expected * 2, `${atomsOf(document, "H").length} H drawn for two ${row.formula}`);
+    assert.equal(labelOf(document, "a_x"), row.heavy);
+    assert.equal(labelOf(document, "b_x"), row.heavy);
+    for (const [prefix, heavy] of [["a", "a_x"], ["b", "b_x"]] as const) {
+      const hydrogens = moleculeHydrogens(document, prefix);
+      assert.equal(hydrogens.length, expected, `${prefix} molecule has ${hydrogens.length} H`);
+      for (const { hydrogen, bond } of hydrogens) {
+        assert.ok(roleOf(document, bond).includes(`${row.heavy}-H bond`), `${bond} is not a covalent bond`);
+        const length = distance(pointOf(document, heavy), pointOf(document, hydrogen));
+        assert.ok(length > 1 && length < 1.25, `${hydrogen} is ${length.toFixed(2)} from ${heavy}`);
+      }
+    }
   });
-  check(`hydrogen bond runs from H to the other heavy atom: ${row.question}`, () => {
+  check(`the hydrogen bond is dashed, not covalent, and near linear at H: ${row.question}`, () => {
     const link = document.entities.find((entity) => entity.id === "hb");
-    assert.ok(link && link.provenance?.dashed !== false, "dashed link");
-    assert.ok(distance(pointOf(document, "a_h"), pointOf(document, "b_x")) > 1, "not a covalent distance");
+    assert.ok(link && link.provenance?.dashed === true, "dashed link");
+    const [donor, hydrogen, acceptor] = ["a_x", "a_h", "b_x"].map((id) => pointOf(document, id));
+    assert.ok(angleAt(hydrogen!, donor!, acceptor!) > 170, "bent at H");
+    assert.ok(distance(hydrogen!, acceptor!) > distance(donor!, hydrogen!), "shorter than the covalent bond");
   });
   check(`no two atoms collide: ${row.question}`, () => {
     const atoms = [...atomsOf(document, "H"), "a_x", "b_x"].map((id) => pointOf(document, id));
@@ -99,11 +132,11 @@ for (const row of DRAWS) {
       assert.ok(distance(atoms[i]!, atoms[j]!) > 0.8, `atoms ${i} and ${j} are ${distance(atoms[i]!, atoms[j]!).toFixed(2)} apart`);
     }
   });
-  check(`compiles and names the species: ${row.question}`, () => {
+  check(`compiles and names the bond and the species: ${row.question}`, () => {
     const compiled = compileSceneDocument(document);
     const labels = compiled.renderScene.primitives.filter((p) => p.kind === "label" && p.text).map((p) => p.text);
     assert.ok(labels.includes(row.label), `no ${row.label} label`);
-    assert.ok(labels.includes("inter"), "no inter label");
+    assert.ok(labels.includes("hydrogen bond"), "no hydrogen bond label");
     assert.ok(!compiled.report.issues.some((issue) => issue.severity === "fatal"), "fatal compile issue");
   });
   check(`family path draws it: ${row.question}`, () => {
@@ -111,28 +144,49 @@ for (const row of DRAWS) {
   });
 }
 
-// HF has one hydrogen, so its figure was already true: it must not change.
-check("HF stays one hydrogen per molecule", () => {
-  const document = buildLewisScene("hydrogen bonding in HF", [], false);
-  assert.ok(document);
-  assert.deepEqual(atomsOf(document, "H").sort(), ["a_h", "b_h"]);
-});
-
-// Water's drawn angle stays near the true one, on both molecules.
-check("water angles read as bent", () => {
-  const document = buildLewisScene("hydrogen bonding in water", [], false);
-  assert.ok(document);
+// Each species has the shape it really has. Read from the geometry and the bond marks.
+const water = buildLewisScene("hydrogen bonding in water", [], false)!;
+const ammonia = buildLewisScene("hydrogen bonding in ammonia", [], false)!;
+const hf = buildLewisScene("hydrogen bonding in HF", [], false)!;
+check("water is bent on both molecules", () => {
   for (const [centre, first, second] of [["a_x", "a_h", "a_h2"], ["b_x", "b_h", "b_h2"]] as const) {
-    const o = pointOf(document, centre);
-    const [a, b] = [pointOf(document, first), pointOf(document, second)];
-    const angle = Math.abs(Math.atan2(a.y - o.y, a.x - o.x) - Math.atan2(b.y - o.y, b.x - o.x)) * 180 / Math.PI;
-    const inner = angle > 180 ? 360 - angle : angle;
+    const inner = angleAt(pointOf(water, centre), pointOf(water, first), pointOf(water, second));
     assert.ok(inner > 95 && inner < 115, `${centre} H-O-H is ${inner.toFixed(1)} degrees`);
   }
 });
+check("water's acceptor takes the bond between its two hydrogens", () => {
+  const o = pointOf(water, "b_x");
+  const first = angleAt(o, pointOf(water, "a_h"), pointOf(water, "b_h"));
+  const second = angleAt(o, pointOf(water, "a_h"), pointOf(water, "b_h2"));
+  assert.ok(Math.abs(first - second) < 3, `${first.toFixed(1)} against ${second.toFixed(1)}`);
+});
+check("ammonia is marked as a pyramid on both molecules, never flat or T shaped", () => {
+  for (const [prefix, centre] of [["a", "a_x"], ["b", "b_x"]] as const) {
+    const hydrogens = moleculeHydrogens(ammonia, prefix);
+    const roles = hydrogens.map(({ bond }) => roleOf(ammonia, bond));
+    assert.equal(roles.filter((role) => role.includes("wedge")).length, 1, `${prefix} wedge`);
+    assert.equal(roles.filter((role) => role.includes("dash")).length, 1, `${prefix} dash`);
+    const points = hydrogens.map(({ hydrogen }) => pointOf(ammonia, hydrogen));
+    for (let i = 0; i < points.length; i += 1) for (let j = i + 1; j < points.length; j += 1) {
+      assert.ok(angleAt(pointOf(ammonia, centre), points[i]!, points[j]!) < 170, `${prefix} has a straight H-N-H`);
+    }
+  }
+});
+check("ammonia's lone pair side faces the donor", () => {
+  const n = pointOf(ammonia, "b_x");
+  const donorSide = pointOf(ammonia, "a_h");
+  for (const { hydrogen } of moleculeHydrogens(ammonia, "b")) {
+    assert.ok(angleAt(n, donorSide, pointOf(ammonia, hydrogen)) > 100, `${hydrogen} crowds the hydrogen bond`);
+  }
+});
+check("HF zigzags at the acceptor", () => {
+  const inner = angleAt(pointOf(hf, "b_x"), pointOf(hf, "a_h"), pointOf(hf, "b_h"));
+  assert.ok(inner > 100 && inner < 140, `H-F...H is ${inner.toFixed(1)} degrees`);
+});
 
-// Anything but a plain ask about one species: this figure must not answer it.
+// Anything but a plain ask about one species: this figure must not answer it, and nothing else may.
 const DECLINES: readonly string[] = [
+  // A second substance.
   "hydrogen bonding between water and ammonia",
   "Draw the hydrogen bond between NH3 and H2O.",
   "hydrogen bonding between HF and water",
@@ -144,6 +198,9 @@ const DECLINES: readonly string[] = [
   "Hydrogen bonding in hydrazine and ammonia",
   "Hydrogen bonding in hydrogen peroxide and water",
   "Show the hydrogen bond between phenol and water.",
+  "Draw the hydrogen bond between ethanol and water.",
+  "Show hydrogen bonds between methanol molecules.",
+  "Does methane form hydrogen bonds with water?",
   "hydrogen bonding in acetic acid dimer in water",
   "hydrogen bonds between DNA base pairs in water",
   "hydrogen bonds in a protein helix in water",
@@ -155,51 +212,102 @@ const DECLINES: readonly string[] = [
   "water of crystallisation and hydrogen bonds in CuSO4.5H2O",
   "Why does ice float on water? Show the hydrogen bonds.",
   "hydrogen bonding of water in the structure of ice",
-  "intramolecular hydrogen bonding in water",
-  "Water has no hydrogen bonds. True or false?",
-  "Water does not form hydrogen bonds. Explain.",
   "Water boils higher than H2Se because of hydrogen bonding. Explain.",
   "Why does H2S not form hydrogen bonds but water does?",
   "Water boils far above hydrogen sulfide. Explain the difference using hydrogen bonding, and say why H2S does not form hydrogen bonds of the same kind.",
+  // Word order: a bag of allowed words let these through.
+  "Show the hydrogen bond between water and hydrogen",
+  "Show the hydrogen bond between a water molecule and a hydrogen molecule",
+  "Does hydrogen form a hydrogen bond with water?",
+  "Why do hydrogen and water form a hydrogen bond?",
+  "Hydrogen bonding in pure hydrogen and water",
+  "How is a hydrogen bond formed between liquid hydrogen and HF?",
+  "Show the hydrogen bond between water and molecule A",
+  "Does A form a hydrogen bond with water?",
+  "Do A and water form hydrogen bonds?",
+  "Show the hydrogen bond between water and molecule 2",
+  "Does structure 2 have a hydrogen bond with water?",
+  "Does the molecule in figure 2 form hydrogen bonds with HF?",
+  // Counts: the figure draws exactly one bond.
+  "Show two hydrogen bonds in water",
+  "Show 2 hydrogen bonds of a water molecule",
+  "Show a pair of hydrogen bonds in ammonia",
+  "Draw two hydrogen bonds between two molecules of ammonia",
   "How many hydrogen bonds can one water molecule form?",
+  // Formula spellings and charges.
+  "Hydrogen bond in H2O 2",
+  "Hydrogen bond in H2O(2)",
+  "Explain the hydrogen bond in HF 2",
+  "Explain the hydrogen bond in HF(2)",
+  "Hydrogen bonding in ² H₂O",
   "hydrogen bonding in hydronium ion H3O+ in water",
   "hydrogen bonding in water^(+)",
   "hydrogen bonding in NH3+",
   "hydrogen bonding in the ammonium ion",
   "hydrogen bond in the HF2- ion",
+  // Negations and false premises.
+  "intramolecular hydrogen bonding in water",
+  "Water has no hydrogen bonds. True or false?",
+  "Water does not form hydrogen bonds. Explain.",
   "Explain hydrogen bonding in methane.",
   "Explain hydrogen bonding in HCl.",
+  // Another family used to take these when the figure refused.
+  "Energy profile of hydrogen bond formation in water",
+  "Energy profile of hydrogen bond formation in HF",
+  "Draw the energy profile for hydrogen bonding in water",
+  "Hydrogen bonding in water is endothermic. Draw the energy profile.",
+  "Potential energy diagram of a hydrogen bond in water",
+  "Energy profile of hydrogen bond formation",
+  "Electron configuration of O in H2O and its hydrogen bonding",
+  "Electron configuration of H2O and hydrogen bonding",
+  "Orbital box diagram for hydrogen bond in water",
+  "Draw the orbital diagram of hydrogen bonding in water",
+  "Is liquid water a simple cubic lattice with hydrogen bonds?",
+  "Show fcc packing of HF with hydrogen bonds",
+  "Electrolysis of pure water without acid, and its hydrogen bonds",
+  "Raoult law plot of ammonia and water, hydrogen bonds",
+  "Water and ethanol hydrogen bonds Raoult law plot",
+  // Nitrophenol asks that figure would answer wrongly.
+  "Show the hydrogen bond between o-nitrophenol and water",
+  "Show the hydrogen bond between p-nitrophenol and water",
+  "hydrogen bond in ortho nitrophenol and water",
+  "Hydrogen bonding in the o-nitrophenolate ion",
+  "Hydrogen bonding in p-nitrophenolate",
+  "Show the hydrogen bond in 5-methyl-o-nitrophenol",
+  "Show the hydrogen bond in 3-chloro-p-nitrophenol",
+  "Show the intermolecular hydrogen bond in p-nitrophenol",
+  "Show the intermolecular hydrogen bond between two p-nitrophenol molecules",
 ];
 for (const question of DECLINES) {
-  check(`declines: ${question}`, () => assert.equal(buildLewisScene(question, [], false), null));
-}
-
-// A refused figure must not hand the turn to a lone structure of the other compound.
-for (const question of [
-  "Show the hydrogen bond between phenol and water.",
-  "Hydrogen bonds between glucose and water molecules.",
-  "Draw the hydrogen bond between ethanol and water.",
-  "Show hydrogen bonds between methanol molecules.",
-  "Does methane form hydrogen bonds with water?",
-  "hydrogen bonding in acetic acid dimer in water",
-]) {
-  check(`no runner up: ${question}`, () => {
-    assert.equal(buildOrganicScene(question, [], false), null, "organic drew a lone structure");
-    assert.equal(synthesizeFamilyScene({ question }) ?? null, null, "another family took the turn");
+  check(`declines everywhere: ${question}`, () => {
+    assert.equal(buildLewisScene(question, [], false), null, "the Lewis figure drew");
+    const scene = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
+    assert.equal(scene, null, `${scene?.family ?? ""} took the turn`);
   });
 }
-// The organic decline is only for hydrogen bond asks.
-check("organic still draws a plain structure ask", () => {
-  assert.ok(buildOrganicScene("Draw the structure of phenol.", [], false), "phenol declined");
+
+// The terminal decline moves figures, never routing, and only for hydrogen bond asks.
+for (const question of ["Draw the structure of phenol.", "Energy profile diagram of an exothermic reaction with Ea = 50 kJ/mol and ΔH = -20 kJ/mol."]) {
+  check(`other asks still draw: ${question}`, () => assert.ok(synthesizeFamilyScene({ question }), "declined"));
+}
+check("declined asks keep their chemistry route and family inference", () => {
+  const question = "Energy profile of hydrogen bond formation in water";
+  assert.equal(isChemistryQuestion(question), true);
+  assert.deepEqual(inferChemistryFamilies(question), ["chem_lewis", "chem_thermo"]);
 });
 
-// The nitrophenol figures are a separate branch and must not move.
-check("nitrophenol still draws", () => {
-  const document = buildLewisScene("o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.", [], false);
-  assert.ok(document, "declined");
-  const labels = document.entities.map((entity) => entity.label);
-  assert.ok(labels.includes("intra") && labels.includes("no intra") && labels.includes("inter"), "intra and inter labels");
-});
+// The nitrophenol figures are a separate branch: a plain comparison must not move.
+for (const question of [
+  "o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.",
+  "Why is o-nitrophenol less soluble in water than p-nitrophenol? Explain with hydrogen bonding.",
+]) {
+  check(`nitrophenol still draws: ${question}`, () => {
+    const document = buildLewisScene(question, [], false);
+    assert.ok(document, "declined");
+    const labels = document.entities.map((entity) => entity.label);
+    assert.ok(labels.includes("intra") && labels.includes("no intra") && labels.includes("inter"), "intra and inter labels");
+  });
+}
 
 console.log(`verify-chemistry-hbond-molecules: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
