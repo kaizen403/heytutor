@@ -93,9 +93,22 @@ for (const probe of ARCHETYPE_PROBES) {
     failures.push(`${probe.id}: a resting block must not invent a rolling disk`);
   }
   // Circuit contract shared with the family gate: every network marks current direction on a branch.
+  // One exception, read from the drawn components alone: a circuit with no source symbol and nothing
+  // else that could drive it, only an inductor. Its current is induced, and which way it flows depends
+  // on a winding sense the figure does not draw, so a sense mark there would be a guess. Such a circuit
+  // must carry no sense mark at all.
   const isCircuit = scene.document.constructions.some((construction) => construction.operator === "symbol");
-  if (isCircuit && !scene.document.annotations.some((annotation) => annotation.kind === "sense")) {
+  const hasSense = scene.document.annotations.some((annotation) => annotation.kind === "sense");
+  const drawnSymbols = scene.document.constructions
+    .filter((construction) => construction.operator === "symbol")
+    .map((construction) => String(construction.inputs.symbol));
+  const inductorOnly = drawnSymbols.some((symbol) => symbol === "inductor" || symbol === "coil")
+    && !drawnSymbols.some((symbol) => /^(?:cell|battery|ac_source|alternating_source|dc_current_source|capacitor)$/.test(symbol));
+  if (isCircuit && !inductorOnly && !hasSense) {
     failures.push(`${probe.id}: circuit figure has no current-sense annotation`);
+  }
+  if (isCircuit && inductorOnly && hasSense) {
+    failures.push(`${probe.id}: inductor-only circuit marks a current direction its undrawn winding decides`);
   }
   // Provenance the persistence trust boundary reads.
   const source = scene.document.source as Record<string, unknown>;

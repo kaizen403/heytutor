@@ -780,7 +780,7 @@ function usesPlannerOpticsOnArchetypeStem(
   question: string,
   document: SceneDocument,
 ): boolean {
-  const match = detectArchetype(question);
+  const match = detectArchetype(question, { keepLawOnlyLead: true });
   if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") return false;
   const source = document.source as { archetype?: unknown } | undefined;
   return source?.archetype !== match.id;
