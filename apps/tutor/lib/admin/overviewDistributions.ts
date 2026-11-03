@@ -4,7 +4,7 @@ import {
   foldOutcomeCounts,
   type DegradationReason,
 } from "./outcome";
-import { classifyTurnFailure, engineRefusalReason } from "../obs/turnFailureClassification";
+import { classifyTurnFailure, countEngineRefusal } from "../obs/turnFailureClassification";
 import type {
   DegradationReasonCount,
   DiagramStrategyCount,
@@ -87,10 +87,7 @@ export async function fetchOverviewDistributions(windows: {
     diagramStrategyCounts.set(diagramStrategy, (diagramStrategyCounts.get(diagramStrategy) ?? 0) + 1);
     const failure = classifyTurnFailure({ visualStatus: row.visualStatus, status: row.status,
       sceneArtifacts: row.sceneArtifacts, segmentCount: row._count.segments });
-    const reason = engineRefusalReason(failure);
-    if (reason) {
-      reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
-    }
+    countEngineRefusal(reasonCounts, failure);
   }
   const reasons: DegradationReasonCount[] = [...reasonCounts.entries()]
     .map(([reason, count]) => ({ reason, count }))

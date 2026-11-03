@@ -4,7 +4,7 @@ import { failedTurnWhere } from "../../lib/admin/turnFilters";
 import { FAILED_TURN_STAGES } from "../../lib/obs/failedTurnTelemetry";
 import { classifyOutcome } from "../../lib/admin/outcome";
 import { Prisma } from "@prisma/client";
-import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, engineRefusalReason, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
+import { classifyTurnFailure, CONFIRMED_TURN_FAILURE_CODES, countEngineRefusal, PICTURE_ANSWERED_FAILURE_CODES, type TurnFailureInput } from "../../lib/obs/turnFailureClassification";
 
 type Fixture = TurnFailureInput & { name: string; expected: "failed" | "healthy" | "unverified" | "pending" | "picture_shown" };
 const narrative = [{ narration: "Synthetic teaching." }];
@@ -112,10 +112,20 @@ for (const code of CONFIRMED_TURN_FAILURE_CODES) {
   if (answered) assert.equal(classifyTurnFailure(fixture).code, code, `${code}: the engine's reason survives for its own report`);
 }
 // The engine's reason counts stay as they were, with or without a picture.
-assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { ...picture, degradation: { reason: "candidate_invalid" } } })), "candidate_invalid");
-assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { degradation: { reason: "candidate_invalid" } } })), "candidate_invalid");
-assert.equal(engineRefusalReason(classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: picture })), null, "a picture with no refusal adds no reason");
-assert(readFileSync(new URL("../../lib/admin/overviewDistributions.ts", import.meta.url), "utf8").includes("const reason = engineRefusalReason(failure);"), "the overview counts through the same rule");
+const engineCounts = new Map<string, number>();
+for (const sceneArtifacts of [
+  { ...picture, degradation: { reason: "candidate_invalid" } },
+  { degradation: { reason: "candidate_invalid" } },
+  picture,
+]) countEngineRefusal(engineCounts, classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts }));
+countEngineRefusal(engineCounts, classifyTurnFailure({ visualStatus: "text_only", status: "complete", segments: narrative, sceneArtifacts: { failureTelemetry: { failed: true, code: "unknown" } } }));
+assert.deepEqual([...engineCounts.entries()], [["candidate_invalid", 2], ["unknown", 1]], "a refusal counts the same with or without a picture, and a picture with no refusal adds nothing");
+const overview = readFileSync(new URL("../../lib/admin/overviewDistributions.ts", import.meta.url), "utf8");
+const scanLoop = overview.indexOf("for (const row of scannedRows) {");
+const scanEnd = overview.indexOf("const reasons: DegradationReasonCount[]", scanLoop);
+assert(scanLoop > 0 && scanEnd > scanLoop, "the overview still scans its rows, then sorts its reasons");
+assert(/\n {4}countEngineRefusal\(reasonCounts, failure\);\n/.test(overview.slice(scanLoop, scanEnd)), "the overview counts every scanned row through the same rule");
+assert(!overview.slice(scanLoop, scanEnd).includes("reasonCounts.set("), "the overview has no second way to count a reason");
 // Every combination of code, stage and reason: the query and the classifier agree.
 assert.equal(classifyTurnFailure({ visualStatus: "retry_required", status: "complete", sceneArtifacts: picture, segments: narrative }).code, "required_visual_unavailable", "a required figure keeps its code in the picture report");
 let grid = 0;

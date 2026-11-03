@@ -53,12 +53,13 @@ function confirmedCode(value: unknown): ConfirmedTurnFailureCode | null {
 }
 
 /**
- * The reason an engine metric counts for this turn. A shown picture keeps the
- * engine's refusal: to the engine that lesson is still text only.
+ * Add one turn to an engine reason count. A shown picture keeps the engine's
+ * refusal: to the engine that lesson is still text only.
  */
-export function engineRefusalReason(failure: TurnFailureClassification): TurnFailureClassification["code"] | "unrecorded" | null {
-  if (failure.classification === "failed") return failure.code ?? "unrecorded";
-  return failure.classification === "picture_shown" ? failure.code : null;
+export function countEngineRefusal<Key>(counts: Map<Key | "unrecorded", number>, failure: TurnFailureClassification): void {
+  const reason = failure.classification === "failed" ? failure.code ?? "unrecorded"
+    : failure.classification === "picture_shown" ? failure.code : null;
+  if (reason) counts.set(reason as Key | "unrecorded", (counts.get(reason as Key | "unrecorded") ?? 0) + 1);
 }
 
 /**

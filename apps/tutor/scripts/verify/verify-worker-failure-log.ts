@@ -38,7 +38,7 @@ function load(file: string): unknown {
     "@sentry/nextjs": { NodeClient: class { init() {} }, defaultStackParser: () => [], makeNodeTransport: () => ({}) },
     "../db/prisma": { prisma: file.includes("deletionJobs") ? cleanupDb : db },
     "./sentryPrivacy": { sentryServerDsn: () => "https://synthetic@example.test/1", sentryDataCollection: () => ({}), sentryBeforeSend: (event: unknown) => event },
-    "./failedTurnTelemetry": {}, "../boards/turnStatus": { LIVE_TURN_IDLE_MS: 60_000 }, "../admin/turnFilters": { failedTurnWhere: () => ({}) },
+    "./failedTurnTelemetry": {}, "../boards/turnStatus": { LIVE_TURN_IDLE_MS: 60_000 }, "../admin/turnFilters": { failedTurnWhere: () => ({}), shownPictureWhere: () => ({}) },
     "./failedTurnRuntime": { failedTurnDeliveryEnabled: () => true },
     "./s3": { deletePrefix: () => { throw new Error("No object-store requests allowed"); } },
   };
