@@ -418,6 +418,42 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
   } finally { globalThis.fetch = originalFetch; }
 }
 
+// The page that sent a close is gone: whatever the server refuses in it, a turn
+// it holds must stop reading as still being taught.
+async function refusedCloseStillClosesTheTurn() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const big = Array.from({ length: 9 }, (_, index) => row(index, "x".repeat(12_000), write("x")));
+  const cases: Array<[string, Row, Row]> = [
+    ["rows that do not parse", { rawResponse: "First.", appendSegments: [row(0, "First.")] },
+      { baseCount: 1, appendSegments: [{ orderIndex: "first" }], rawResponse: "Bad." }],
+    // The shape of afafb88f: the lesson outgrew the merged metadata limit.
+    ["a tail over the metadata limit", { rawResponse: "y".repeat(40_000), appendSegments: big },
+      { baseCount: 9, appendSegments: [row(9, "z".repeat(6_000), write("z"))] }],
+  ];
+  for (const [name, first, payload] of cases) {
+    const id = crypto.randomUUID();
+    const opened = await put(id, { seq: 1, baseCount: 0, ...first });
+    assert.equal(opened.status, 200, `${name}: the turn saved before its close`);
+    const held = rowsOf(id).length;
+    assert.equal(stored(id).status, "live", `${name}: the turn is live before its close`);
+    const closed = await close(id, { seq: 2, status: "stopped", ...payload });
+    assert.equal(stored(id).status, "stopped", `${name}: the close closed the turn (HTTP ${closed.status})`);
+    assert(closed.status === 400 || closed.status === 413, `${name}: the page still hears its rows were refused (HTTP ${closed.status})`);
+    assert.equal(rowsOf(id).length, held, `${name}: rows it refused are not saved, rows it held stay`);
+  }
+  // No turn yet: nothing to close, and refused rows create nothing.
+  const none = crypto.randomUUID();
+  const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(refused.status, 400, "with no turn the refusal stands");
+  assert(!turns.some((turn) => turn.id === none), "and creates nothing");
+  // A signed in stranger gets no close on someone else's board.
+  const owned = crypto.randomUUID();
+  await put(owned, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const stranger = await close(owned, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] }, "board-b");
+  assert.equal(stranger.status, 404, "another board's close is refused");
+  assert.equal(stored(owned).status, "live", "and closes nothing");
+}
+
 async function closeMetadataSequenceOwnership() {
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   const id = crypto.randomUUID();
@@ -790,6 +826,7 @@ async function main() {
   await failedEarlierCreationKeepsDurableOrder();
   await registryHistoryReceiptsDriveDurableInsertion();
   await closeMetadataSequenceOwnership();
+  await refusedCloseStillClosesTheTurn();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();

@@ -470,6 +470,9 @@ export async function handleTurnCheckpoint(request: Request, params: RouteParams
  * applies. With rows (the unsent tail, words and ink) it appends them under the
  * turn's stored scene and takes `seq`.
  */
+/** What the server refuses in a close's payload. Sign in, ownership and rate limits are not the payload. */
+const CLOSE_REFUSALS = new Set([400, 409, 413, 415]);
+
 export async function handleTurnClose(request: Request, params: RouteParams): Promise<Response> {
   params = { ...params, entryPoint: "checkpoint_close" };
   const reject = checkpointRejection(params);
@@ -484,7 +487,6 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   }
   if (!isRecord(raw)) return reject("close_body_invalid", "invalid close body", 400);
   const common = parseCommon(raw, "patch");
-  if (!common.ok) return reject("turn_fields_invalid", common.error, 400);
   // A close that creates the turn saves it as text: the figure never committed
   // on this tab's checkpoints, and the body has no room for a scene. Its
   // artifacts may still carry the plan and the page continuation marker.
@@ -496,15 +498,26 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   if (existing && (existing.userId !== auth.userId || existing.boardId !== params.boardId)) {
     return reject("turn_not_found", "not found", 404);
   }
+  // A close always closes a turn that exists. Rows the server refuses are not
+  // saved, and the page that sent them is usually gone, so they must not leave
+  // the turn reading as still being taught. The refusal is still the answer: a
+  // page that lives on must hear that its rows were not saved.
+  const closedDespite = async (refusal: Response): Promise<Response> => {
+    if (!existing || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
+    const bare = parseCommon({ seq: raw.seq, status: raw.status, traceId: raw.traceId, baseCount: raw.baseCount }, "patch");
+    if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value);
+    return refusal;
+  };
+  if (!common.ok) return closedDespite(reject("turn_fields_invalid", common.error, 400));
   if (!existing && !common.value.question?.trim()) return reject("turn_not_found", "turn not found", 404);
   if (existing && common.value.appendSegments.length === 0) {
-    return closeStatusOnly(request, auth.userId, params, existing, common.value);
+    return closedDespite(await closeStatusOnly(request, auth.userId, params, existing, common.value));
   }
-  return applyCheckpoint(request, auth.userId, params, {
+  return closedDespite(await applyCheckpoint(request, auth.userId, params, {
     ...common.value,
     scene: existing ? "stored" : createScene,
     tolerateOverlap: true,
-  }, new Map());
+  }, new Map()));
 }
 
 async function ownedTraceAllowed(userId: string, boardId: string, traceId: string | undefined): Promise<boolean> {
