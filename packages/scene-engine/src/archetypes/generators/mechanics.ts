@@ -308,7 +308,9 @@ function pulleyIncline(context: GeneratorContext) {
   scene.point("G1", centre, "body centre");
   scene.box("body1", centre, 1.1, height, theta, "body on the incline", grounded(context, "m1") ? `m1=${withUnit(num(context, "m1", 1), "kg")}` : "m1");
   const stringStart = add(centre, scale(along, 0.55));
-  const stringEnd = add(add(top, scale(along, 0.15)), scale(normal, height / 2));
+  // The hanging block is 0.9 wide: carry the string far enough past the top that the block clears the wedge's vertical side.
+  const past = Math.max(0.15, (0.45 + 0.1 + normal.x * -1 * (height / 2 + radius) - radius) / along.x);
+  const stringEnd = add(add(top, scale(along, past)), scale(normal, height / 2));
   const pulleyCentre = add(stringEnd, scale(normal, radius));
   scene.point("S", stringStart, "string end at the block");
   scene.point("Q", stringEnd, "string tangent point");

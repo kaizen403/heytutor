@@ -1,0 +1,52 @@
+/**
+ * Our own figure generators never draw a body across or inside its surface.
+ *
+ * The contact truth rules refuse planner candidates at admission and are off for
+ * every other compile, so that saved boards still reopen. Generators are code we
+ * own, so they are held here instead: a bounded sample of questions goes through
+ * the archetype, family and last resort paths, and each document is compiled
+ * with the admission rules on. Any contact code is red.
+ *
+ *   npx tsx --tsconfig ../../apps/tutor/tsconfig.json scripts/verify/verify-contact-generators.ts   (from packages/scene-engine)
+ */
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { attemptArchetypeScene } from "../../src/archetypes";
+import { compileSceneDocument } from "../../src/index";
+import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
+import { inferSceneCapabilities } from "../../../tutor-core/src/planners/sceneCapabilities.ts";
+import { ARCHETYPE_PROBES } from "../probes/archetypeProbes";
+
+const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface", "hatch_inside_body"]);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const stems = (file: string, every: number): string[] => readFileSync(resolve(root, `data/diagram-eval/v1/${file}`), "utf8")
+  .split("\n").filter(Boolean).map((line) => (JSON.parse(line) as { question: string }).question).filter((_, index) => index % every === 0);
+// Every physics stem, where bodies and surfaces live, and a sample of the other two.
+const questions = [...new Set([...ARCHETYPE_PROBES.map((probe) => probe.question), ...stems("physics.jsonl", 1), ...stems("maths.jsonl", 4), ...stems("chemistry.jsonl", 4)])];
+const plan = (question: string) => ({
+  schemaVersion: "turn-plan/v3" as const, question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" as const,
+});
+const started = Date.now();
+const failures: string[] = [];
+let documents = 0, withSurface = 0;
+const check = (route: string, question: string, document: unknown) => {
+  if (!document) return;
+  documents += 1;
+  if (JSON.stringify(document).match(/"role":"[^"]*\b(?:incline|inclined|ramp|slope|wedge|ground|floor|table|road|surface|wall)\b/i)) withSurface += 1;
+  const report = compileSceneDocument(document as never, { figureConsistency: true }).report;
+  const hits = report.issues.filter((issue) => CODES.has(issue.code));
+  if (hits.length) failures.push(`${route}: ${[...new Set(hits.map((issue) => issue.code))].join(",")} on "${question.slice(0, 70)}": ${hits[0]!.message.slice(0, 120)}`);
+};
+for (const question of questions) {
+  const turnPlan = plan(question);
+  const families = inferSceneCapabilities(question, { lawIds: [], turnPlan: turnPlan as never } as never).families;
+  check("archetype", question, attemptArchetypeScene({ question, turnPlan: turnPlan as never }).scene?.document);
+  check("family", question, synthesizeFamilyScene({ question, families, turnPlan: turnPlan as never })?.document);
+  check("last resort", question, synthesizeLastResortScene({ question, families, turnPlan: turnPlan as never })?.document);
+}
+// A sample that draws nothing proves nothing.
+if (documents < 300 || withSurface < 50) failures.push(`the sample is too thin: ${documents} documents, ${withSurface} with a surface`);
+for (const failure of failures) console.error(failure);
+console.log(`verify-contact-generators: ${questions.length} questions, ${documents} documents, ${withSurface} with a surface, ${failures.length} refused, ${Math.round((Date.now() - started) / 1000)} s`);
+if (failures.length) process.exit(1);
