@@ -710,7 +710,7 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   if (/methane|ch4|hydrogen chloride|\bhcl\b/.test(stem) && !ortho && !para) return null;
   const c = new ChemScene(question, "hydrogen bond donor and acceptor", LEWIS_FAMILY);
   if (ortho || para) {
-    if (!plainNitrophenolAsk(stem, para && !ortho)) return null;
+    if (!plainNitrophenolAsk(stem, ortho, para)) return null;
     const ids: string[] = [];
     if (ortho) ids.push(...drawNitrophenol(c, { x: ortho && para ? -3.8 : 0, y: 0 }, true, "o"));
     if (para) ids.push(...drawNitrophenol(c, { x: ortho ? 3.8 : 0, y: 0 }, false, "p"));
@@ -724,6 +724,8 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   }
   const species = HYDROGEN_BOND_SPECIES.find((candidate) => stem.search(candidate.names) >= 0);
   if (!species || !plainHydrogenBondAsk(stem, species)) return null;
+  // The stem is lower case by now, and Hf is hafnium.
+  if (species.formula === "HF" && /\bHf\b/.test(question)) return null;
   // HF 2 -, NH4 +, "the ... ion": the neutral molecules drawn are not the ion asked.
   if (!stemChargesRead(question, [species.formula])) return null;
   const hydrogens = parseFormula(species.formula)?.atoms.find((atom) => atom.symbol === "H")?.count ?? 0;
@@ -752,17 +754,22 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   return c.build({ caption: `${heavy} intermolecular` });
 }
 
-/** A nitrophenol figure answers about the neutral isomer itself, and only as far as it draws. */
-function plainNitrophenolAsk(stem: string, onlyPara: boolean): boolean {
+/**
+ * Whether the nitrophenol figures answer this ask. Two isomers side by side
+ * answer a comparison. One ortho answers only a plain ask about its own bond.
+ * The para figure alone says "no intra" and draws no bond, which reads as "no
+ * hydrogen bonds" when p-nitrophenol does form them, so it never draws alone.
+ */
+function plainNitrophenolAsk(stem: string, ortho: boolean, para: boolean): boolean {
   // The anion has no O-H to bond with.
-  if (/nitrophenol(?:ate|s?\s+ion)|nitrophenoxide/.test(stem)) return false;
+  if (/nitrophenol(?:ate|s?\s+(?:an)?ion)|nitrophenoxide|deprotonat|conjugate\s+base|\bsalt\b/.test(stem)) return false;
+  if (para && !ortho) return false;
+  if (!para) return ORTHO_NITROPHENOL_ASK.test(stem.replace(/\s+/g, " ").trim());
   // 5-methyl-o-nitrophenol is another compound.
-  if (/[a-z0-9)]-(?:o|p|ortho|para)-?\s?nitrophenol/.test(stem)) return false;
-  // A bond to a second substance is not the intramolecular one this draws.
-  if (/nitrophenols?\s+(?:and|with)\s+(?:water|ethanol|methanol|an?\s+alcohol|ammonia)\b/.test(stem)) return false;
-  // The para figure says "no intra" and draws no bond between molecules.
-  if (onlyPara && /\bintermolecular\b|\bbetween\b/.test(stem)) return false;
-  return true;
+  if (/(?:[a-z0-9)]-|\d\s|(?:chloro|bromo|fluoro|iodo|methyl|ethyl|amino|hydroxy|methoxy|nitro)\s)(?:o|p|ortho|para)-?\s?nitrophenol/.test(stem)) return false;
+  // A bond to a second substance is not what this draws.
+  const other = String.raw`(?:water|ethanol|methanol|an?\s+alcohol|ammonia|hf)`;
+  return !new RegExp(String.raw`nitrophenols?\s+(?:and|with)\s+${other}\b|\b(?:between|with)\s+${other}\b`).test(stem);
 }
 
 interface HydrogenBondSpecies {
@@ -793,21 +800,24 @@ interface HydrogenSite extends Vec2 {
 const HYDROGEN_BOND_LAYOUT: Readonly<Record<number, { donor: readonly HydrogenSite[]; acceptor: readonly HydrogenSite[] }>> = {
   1: { donor: [], acceptor: [{ x: 3.17, y: 0.99 }] },
   2: { donor: [{ x: -0.29, y: 1.1 }], acceptor: [{ x: 3.3, y: 0.9 }, { x: 3.3, y: -0.9 }] },
+  // The VSEPR AX3E tripod (plain and wedge splayed, a short dash between them),
+  // turned so the donor's plain bond is the bonding one and the acceptor's lone
+  // pair faces the donor.
   3: {
-    donor: [{ x: -0.57, y: 0.99, style: "wedge" }, { x: -0.57, y: -0.99, style: "dash" }],
-    acceptor: [{ x: 3.74, y: 0 }, { x: 3.17, y: 0.99, style: "wedge" }, { x: 3.17, y: -0.99, style: "dash" }],
+    donor: [{ x: -0.32, y: 1.04, style: "wedge" }, { x: 0.49, y: 0.66, style: "dash" }],
+    acceptor: [{ x: 3.28, y: 0.92 }, { x: 3.24, y: -0.87, style: "wedge" }, { x: 3.42, y: 0, style: "dash" }],
   },
 };
 
 const ASK_NUMBERING = String.raw`(?:(?:\d{1,2}[.)]|\(?[a-d]\)|q\.?\s*\d{1,2}[.:)]?)\s+)?`;
 const ASK_ADJECTIVE = String.raw`(?:neat\s+|labell?ed\s+|simple\s+|clear\s+)?`;
-const ASK_VERB = String.raw`(?:(?:please\s+)?(?:draw|show(?:\s+me)?|sketch|illustrate|depict|explain|describe|discuss|define|teach\s+me|what\s+is(?:\s+meant\s+by)?|what\s+are|what\s+type\s+of|why\s+is\s+there)\s+)?`;
+const ASK_VERB = String.raw`(?:(?:please\s+)?(?:can\s+you\s+)?(?:draw\s+and\s+explain|explain\s+and\s+draw|draw|show(?:\s+me)?|sketch|illustrate|depict|explain|describe|discuss|define|teach\s+me|write\s+a\s+(?:short\s+)?note\s+on|what\s+is(?:\s+meant\s+by)?|what\s+are|what\s+do\s+you\s+(?:mean|understand)\s+by|what\s+type\s+of|why\s+is\s+there|is\s+there|is)\s+)?`;
 const ASK_DIAGRAM = String.raw`(?:a\s+${ASK_ADJECTIVE}diagram\s+(?:to\s+(?:show|illustrate)|showing|of|for)\s+)?`;
 const ASK_BOND = String.raw`hydrogen\s+(?:bonds?|bonding)`;
-const ASK_JOIN = String.raw`(?:(?:that\s+occurs?\s+|(?:is|are)\s+(?:present|found|seen)\s+)?(?:in|of|for|between|among))\s+`;
-const ASK_QUALIFIER = String.raw`(?:(?:the|two|a\s+pair\s+of|neighbou?ring|adjacent|liquid|pure)\s+|2\s+(?=species\s+molecules)){0,2}`;
+const ASK_JOIN = String.raw`(?:(?:that\s+occurs?\s+|(?:(?:is|are)\s+)?(?:present|found|seen)\s+)?(?:in|of|for|between|among))\s+`;
+const ASK_QUALIFIER = String.raw`(?:(?:the|two|two\s+molecules\s+of|a\s+pair\s+of|neighbou?ring|adjacent|liquid|pure)\s+|2\s+(?=species\s+molecules)|a\s+(?=species\s+molecule\b)){0,2}`;
 const ASK_MOLECULES = String.raw`species(?:\(l\))?(?:\s+molecules?)?`;
-const ASK_TAIL = String.raw`(?:\s+with\s+(?:a\s+)?${ASK_ADJECTIVE}(?:diagram|figure))?(?:\s+with\s+each\s+other)?(?:\s+(?:kya\s+(?:hota\s+)?hai|explain\s+kar(?:o|ein|iye)|samjhao))?[.?!]*(?:\s*\(\s*\d+\s*marks?\s*\))?(?:\s+(?:draw|show|sketch)\s+(?:a\s+|the\s+)?${ASK_ADJECTIVE}(?:diagram|figure|structure)[.?!]*)?`;
+const ASK_TAIL = String.raw`(?:,?\s+with\s+(?:the\s+help\s+of\s+)?(?:a\s+)?${ASK_ADJECTIVE}(?:diagram|figure))?(?:\s+with\s+each\s+other)?(?:\s+(?:kya\s+(?:hota\s+)?hai|explain\s+kar(?:o|ein|iye)|samjhao|kaise\s+banta\s+hai))?[.?!]*(?:\s*\(\s*\d+\s*marks?\s*\))?(?:\s+(?:draw|show|sketch)\s+(?:a\s+|the\s+)?${ASK_ADJECTIVE}(?:diagram|figure|structure)[.?!]*)?`;
 
 /**
  * The whole sentence a plain ask about one species' own hydrogen bonds may be.
@@ -821,11 +831,39 @@ const HYDROGEN_BOND_ASKS: readonly RegExp[] = [
   new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_DIAGRAM}(?:the\s+)?(?:intermolecular\s+)?${ASK_BOND}\s+${ASK_JOIN}${ASK_QUALIFIER}${ASK_MOLECULES}${ASK_TAIL}$`),
   // Why does water form hydrogen bonds? Can ammonia molecules form hydrogen bonds with each other?
   new RegExp(String.raw`^${ASK_NUMBERING}(?:(?:why|how)\s+(?:do|does|can)\s+|do\s+|does\s+|can\s+)${ASK_QUALIFIER}${ASK_MOLECULES}\s+(?:form|have|show|exhibit)\s+(?:intermolecular\s+)?${ASK_BOND}${ASK_TAIL}$`),
-  // Explain hydrogen bonding using water as an example.
-  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_BOND}\s+using\s+species\s+as\s+an\s+example${ASK_TAIL}$`),
-  // Water me hydrogen bonding explain karo.
+  // Show how hydrogen bonds form between water molecules. How are hydrogen bonds formed in water?
+  new RegExp(String.raw`^${ASK_NUMBERING}(?:show\s+)?how\s+(?:do\s+|are\s+)?${ASK_BOND}\s+(?:form|formed)\s+(?:in|between|among)\s+${ASK_QUALIFIER}${ASK_MOLECULES}${ASK_TAIL}$`),
+  // Explain hydrogen bonding using water as an example. Explain hydrogen bonding with the example of HF.
+  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_BOND}\s+(?:using\s+species\s+as\s+an\s+example|taking\s+species\s+as\s+an\s+example|with\s+(?:the\s+)?example\s+of\s+species)${ASK_TAIL}$`),
+  // What is hydrogen bonding? Explain with the example of water.
+  new RegExp(String.raw`^${ASK_NUMBERING}what\s+is\s+${ASK_BOND}[.?!]+\s+explain\s+with\s+(?:the\s+)?example\s+of\s+species${ASK_TAIL}$`),
+  // Draw the structure of water showing hydrogen bonding.
+  new RegExp(String.raw`^${ASK_NUMBERING}draw\s+the\s+structure\s+of\s+${ASK_MOLECULES}\s+showing\s+${ASK_BOND}${ASK_TAIL}$`),
+  // Water me hydrogen bonding explain karo. Hydrogen bonding kya hai water me.
   new RegExp(String.raw`^${ASK_NUMBERING}${ASK_MOLECULES}\s+(?:me|mein|main)\s+${ASK_BOND}${ASK_TAIL}$`),
+  new RegExp(String.raw`^${ASK_NUMBERING}${ASK_BOND}\s+kya\s+(?:hota\s+)?hai\s+${ASK_MOLECULES}\s+(?:me|mein|main)[.?!]*$`),
 ];
+
+const ORTHO_NITROPHENOL_ASK = new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_DIAGRAM}(?:the\s+)?(?:intramolecular\s+)?${ASK_BOND}\s+(?:in|of)\s+(?:the\s+)?(?:o-|ortho[\s-]?)nitrophenol${ASK_TAIL}$`);
+
+/** Every spelling, for the guards a hyphen must not skip. `hydrogenBondAsked` stays literal, so the Lewis cue does not widen. */
+export function mentionsHydrogenBond(stem: string): boolean {
+  return /hydrogen[\s-]*bond|\bh[\s-]bond/.test(stem);
+}
+
+/**
+ * A hydrogen bond ask this figure leads: a later family never got these stems,
+ * because the Lewis figure drew them first. When it now declines, the turn must
+ * not pass on.
+ */
+export function hydrogenBondFigureLeads(stem: string): boolean {
+  return mentionsHydrogenBond(stem) && /\bwater\b|\bh2o\b|\bammonia\b|\bnh3\b|\bhf\b|hydrogen fluoride|nitrophenol/.test(stem);
+}
+
+/** Asked to show the bond itself, which a lone structure cannot do. */
+export function asksToShowHydrogenBond(stem: string): boolean {
+  return /\b(?:show|draw|sketch|illustrate|depict)\s+(?:the\s+|a\s+|its\s+)?(?:inter\s*molecular\s+|intra\s*molecular\s+)?(?:hydrogen[\s-]*bond|h[\s-]bond)/.test(stem);
+}
 
 function plainHydrogenBondAsk(stem: string, species: HydrogenBondSpecies): boolean {
   const ask = stem.replace(/\s+/g, " ").trim().replace(species.names, "species");

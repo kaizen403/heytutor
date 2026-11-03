@@ -17,29 +17,33 @@ import { KINETICS_FAMILY, isKineticsStem, buildKineticsScene } from "./kinetics"
 import { THERMO_FAMILY, isThermoGraphStem, buildThermoGraphScene } from "./thermoGraphs";
 import { SOLUTIONS_FAMILY, isSolutionsGraphStem, buildSolutionsGraphScene } from "./solutionsGraphs";
 import { PERIODIC_FAMILY, isPeriodicTrendStem, buildPeriodicTrendScene } from "./periodicTrend";
-import { hydrogenBondAsked } from "./bondingFigures";
+import { asksToShowHydrogenBond, hydrogenBondFigureLeads, mentionsHydrogenBond } from "./bondingFigures";
 import { chemStem, type ChemFamilyBuilder } from "./sceneKit";
 
 /**
- * A hydrogen bond ask belongs to the Lewis family alone. When that figure
- * declines, no later family may take the turn: thermo drew a barrier for bond
- * formation, the orbital family read "hydrogen" as the element, the unit cell
- * drew a cube that read as yes. Cues stay as they are, so routing does not move.
+ * A family after Lewis in catalog order yields a hydrogen bond ask the Lewis
+ * figure leads, even when that figure declines: it would be taking a turn it
+ * never had. `alsoDeclines` adds what this family cannot answer at all. Cues
+ * stay as they are, so routing does not move. VSEPR comes before Lewis and
+ * keeps its turn, and a stem naming no such species keeps its Raoult figure.
  */
-function notForHydrogenBondAsk(build: ChemFamilyBuilder): ChemFamilyBuilder {
-  return (question, quantities, schematic) => hydrogenBondAsked(chemStem(question)) ? null : build(question, quantities, schematic);
+function afterHydrogenBondFigure(build: ChemFamilyBuilder, alsoDeclines?: (stem: string) => boolean): ChemFamilyBuilder {
+  return (question, quantities, schematic) => {
+    const stem = chemStem(question);
+    return hydrogenBondFigureLeads(stem) || alsoDeclines?.(stem) ? null : build(question, quantities, schematic);
+  };
 }
 
-registerChemistryFamily({ family: VSEPR_FAMILY, cue: isVseprStem, build: notForHydrogenBondAsk(buildVseprScene) });
+registerChemistryFamily({ family: VSEPR_FAMILY, cue: isVseprStem, build: buildVseprScene });
 registerChemistryFamily({ family: LEWIS_FAMILY, cue: isLewisStem, build: buildLewisScene });
-registerChemistryFamily({ family: MO_FAMILY, cue: isMoStem, build: notForHydrogenBondAsk(buildMoScene) });
-registerChemistryFamily({ family: ORBITAL_FAMILY, cue: isOrbitalStem, build: notForHydrogenBondAsk(buildOrbitalScene) });
-registerChemistryFamily({ family: CFT_FAMILY, cue: isCrystalFieldStem, build: notForHydrogenBondAsk(buildCrystalFieldScene) });
-registerChemistryFamily({ family: COORD_FAMILY, cue: isCoordinationStem, build: notForHydrogenBondAsk(buildCoordinationScene) });
-registerChemistryFamily({ family: ELECTROCHEM_FAMILY, cue: isElectrochemStem, build: notForHydrogenBondAsk(buildElectrochemScene) });
-registerChemistryFamily({ family: SOLID_FAMILY, cue: isUnitCellStem, build: notForHydrogenBondAsk(buildUnitCellScene) });
-registerChemistryFamily({ family: KINETICS_FAMILY, cue: isKineticsStem, build: notForHydrogenBondAsk(buildKineticsScene) });
-registerChemistryFamily({ family: THERMO_FAMILY, cue: isThermoGraphStem, build: notForHydrogenBondAsk(buildThermoGraphScene) });
-registerChemistryFamily({ family: SOLUTIONS_FAMILY, cue: isSolutionsGraphStem, build: notForHydrogenBondAsk(buildSolutionsGraphScene) });
-registerChemistryFamily({ family: PERIODIC_FAMILY, cue: isPeriodicTrendStem, build: notForHydrogenBondAsk(buildPeriodicTrendScene) });
-registerChemistryFamily({ family: ORGANIC_FAMILY, cue: isOrganicStem, build: notForHydrogenBondAsk(buildOrganicScene) });
+registerChemistryFamily({ family: MO_FAMILY, cue: isMoStem, build: afterHydrogenBondFigure(buildMoScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: ORBITAL_FAMILY, cue: isOrbitalStem, build: afterHydrogenBondFigure(buildOrbitalScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: CFT_FAMILY, cue: isCrystalFieldStem, build: afterHydrogenBondFigure(buildCrystalFieldScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: COORD_FAMILY, cue: isCoordinationStem, build: afterHydrogenBondFigure(buildCoordinationScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: ELECTROCHEM_FAMILY, cue: isElectrochemStem, build: afterHydrogenBondFigure(buildElectrochemScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: SOLID_FAMILY, cue: isUnitCellStem, build: afterHydrogenBondFigure(buildUnitCellScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: KINETICS_FAMILY, cue: isKineticsStem, build: afterHydrogenBondFigure(buildKineticsScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: THERMO_FAMILY, cue: isThermoGraphStem, build: afterHydrogenBondFigure(buildThermoGraphScene, mentionsHydrogenBond) });
+registerChemistryFamily({ family: SOLUTIONS_FAMILY, cue: isSolutionsGraphStem, build: afterHydrogenBondFigure(buildSolutionsGraphScene) });
+registerChemistryFamily({ family: PERIODIC_FAMILY, cue: isPeriodicTrendStem, build: afterHydrogenBondFigure(buildPeriodicTrendScene) });
+registerChemistryFamily({ family: ORGANIC_FAMILY, cue: isOrganicStem, build: afterHydrogenBondFigure(buildOrganicScene, asksToShowHydrogenBond) });
