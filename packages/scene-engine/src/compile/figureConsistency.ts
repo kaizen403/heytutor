@@ -419,6 +419,10 @@ function oppositeHalves(first: NonNullable<ReturnType<typeof frameBox>>, second:
     const reachesUpper = Math.min(...ys) < axis - CURVE_AXIS_TOLERANCE_PX;
     const reachesLower = Math.max(...ys) > axis + CURVE_AXIS_TOLERANCE_PX;
     if (reachesUpper && reachesLower) return false;
+    // A short mark or a flat reference line is not a graph, so it does not fill a half.
+    const xs = inside.map((point) => point.x);
+    const flatLine = curve.kind === "line" && Math.max(...ys) - Math.min(...ys) <= CURVE_AXIS_TOLERANCE_PX;
+    if (flatLine || Math.max(...xs) - Math.min(...xs) < MIN_CURVE_SPAN_OF_FRAME * (first.maxX - first.minX)) continue;
     inUpper ||= reachesUpper;
     inLower ||= reachesLower;
   }
@@ -427,6 +431,8 @@ function oppositeHalves(first: NonNullable<ReturnType<typeof frameBox>>, second:
 
 /** A curve may run along the shared axis by this much without crossing it. */
 const CURVE_AXIS_TOLERANCE_PX = 2;
+/** A mark narrower than this share of its frame cannot be one half's graph. */
+const MIN_CURVE_SPAN_OF_FRAME = 0.25;
 
 /** Every pair of axes of different entities whose drawn frames overlap; packed panels are apart. */
 export function validateFrameOverlap(document: SceneDocument, primitives: RenderPrimitive[]): SceneIssue[] {

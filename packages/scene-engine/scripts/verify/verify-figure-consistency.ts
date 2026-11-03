@@ -269,9 +269,9 @@ expect("opposite-half frames with both curves below the axis are still refused",
 expect("opposite halves listed lower first are still one graph split at its axis", frames(2, { firstRange: halves.secondRange, secondRange: halves.firstRange, expressions: ["-2*exp(-0.3*x)", "2*exp(-0.3*x)"] }), "axes_frames_overlap", false);
 expect("opposite-half frames over different x spans are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 4.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", true);
 // A straight segment crossing the shared axis lands in the other graph's half just as a curve does.
-function halvesWithCrossingLine(): Doc {
-  const document = frames(2, { ...halves, expressions: decay });
-  const parts: Array<[Entity, Construction]> = [point("c1", 4, 1.5, "construction helper"), point("c2", 4, -1.5, "construction helper"),
+function halvesWithLine(expressions: [string, string], from: [number, number], to: [number, number]): Doc {
+  const document = frames(2, { ...halves, expressions });
+  const parts: Array<[Entity, Construction]> = [point("c1", from[0], from[1], "construction helper"), point("c2", to[0], to[1], "construction helper"),
     [{ id: "crossing", kind: "segment", role: "line", label: "crossing" }, { id: "make_crossing", operator: "segment", inputs: { start: "c1", end: "c2" }, outputs: ["crossing"] }]];
   for (const [entity, construction] of parts) {
     (document.entities as Entity[]).push(entity);
@@ -281,7 +281,11 @@ function halvesWithCrossingLine(): Doc {
   }
   return document;
 }
-expect("a straight line crossing the shared axis still refuses opposite-half frames", halvesWithCrossingLine(), "axes_frames_overlap", true);
+expect("a straight line crossing the shared axis still refuses opposite-half frames", halvesWithLine(decay, [4, 1.5], [4, -1.5]), "axes_frames_overlap", true);
+const sameHalf: [string, string] = ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"];
+expect("a short line below does not stand in for the lower graph", halvesWithLine(sameHalf, [3, -1], [4, -1.5]), "axes_frames_overlap", true);
+expect("a flat reference line below does not stand in for the lower graph", halvesWithLine(sameHalf, [0, -1], [8, -1]), "axes_frames_overlap", true);
+expect("a true split graph with a short line in one half is still admitted", halvesWithLine(decay, [3, 1], [4, 1.5]), "axes_frames_overlap", false);
 
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }
