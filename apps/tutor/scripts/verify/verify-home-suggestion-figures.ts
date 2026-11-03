@@ -62,7 +62,7 @@ const failureHelp = `
 If you changed the engine on purpose and a judged figure moved:
   1. pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
   2. Look at that card's PNG. Do not judge from this message.
-  3. Right: write judged.json and run home-suggestions.ts rejudge --judgements judged.json. No planner call, $0.
+  3. Right: write judged.json and run home-suggestions.ts rejudge --judgements judged.json. No planner call, $0, unless the saved document no longer validates, which needs a new run of that card.
   4. Not right: fix the engine, or pull the card: delete its recording and add it to PARTIAL_FIGURES (the owner
      must raise PARTIAL_CEILING), or take it off the lists and add it to verify-home-suggestion-retired.
 If you did not mean to change that figure, this is a regression. See docs/agent/lecture-lab.md.`;
