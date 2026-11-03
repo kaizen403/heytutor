@@ -21,7 +21,7 @@ interface TurnPlanLike {
 }
 
 const ASK_SPLIT =
-  /\b(?:find|calculate|locate|determine|compute|evaluate|how much|what is|show that|draw the)\b/i;
+  /\b(?:find|calculate|locate|determine|compute|evaluate|how much|what is|show that|draw the|prove|derive|verify)\b/i;
 
 const UNIT_SPEECH: ReadonlyArray<readonly [RegExp, string]> = [
   [/m\/s\^2|m\/s²/i, "meters per second squared"],
@@ -200,7 +200,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
   // "the first law of physics", so the old symbol test passed every time.
   // And the number has to be this quantity's: "(3, 4)", "x^2", "3i" and "x = 2"
   // all hold a number that a plan's a, b or c is not.
-  if (!questionStatesQuantity(question, raw.value, symbol, displayUnit(raw.unit), [raw.label, raw.id], raw.sourceText)) {
+  if (!questionStatesQuantity(question, raw.value, symbol, displayUnit(raw.unit), raw.label, raw.sourceText)) {
     return null;
   }
   const board = `${symbol} = ${boardNumber(raw.value, raw.sourceText, [raw.label, symbol, raw.id])}${unit ? ` ${unit}` : ""}`;
@@ -311,7 +311,7 @@ function hasGivenContent(rhs: string): boolean {
 
 /** SI prefixes and bases, and the spelled units a question uses. Anything else is not known to be a unit. */
 const UNIT_TOKEN =
-  /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?)$/;
+  /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?|M)$/;
 const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
 
 /**
@@ -321,7 +321,8 @@ const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|log|ln|exp|sqrt|pi|alpha|beta|gam
  */
 function isValueExpression(text: string): boolean {
   if (!text || text.includes("=")) return false;
-  for (const word of text.matchAll(/\p{L}[\p{L}\p{N}_]*/gu)) {
+  // Marks stay with their letter: a Hindi word is one word, not a row of symbols.
+  for (const word of text.matchAll(/\p{L}[\p{L}\p{M}\p{N}_]*/gu)) {
     const token = word[0];
     if (token.length === 1 || /^\p{L}_?\p{N}+$/u.test(token) || UNIT_TOKEN.test(token) || MATH_WORD.test(token)) continue;
     // Short products of symbols are mathematics only beside an operator: "ax^2 + bx".
@@ -344,88 +345,141 @@ function isCondition(rhs: string): boolean {
 
 /** A limit ("from x = 0 to x = 2"), not a stated value. */
 const CONDITION_WORD = /(?:^|[^\p{L}])(?:from|to|between|until|till|through)$/iu;
+const BETWEEN_LIMITS = /\bbetween\s+\S+\s*=\s*\S+\s+and$/iu;
+const LAST_WORD = /(?:^|[^\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_]*|\p{N}+(?:\.\p{N}+)?)$/u;
 
-/** "bx + c = 0" has no given c: the symbol is a term of a larger expression. */
+/**
+ * "bx + c = 0" has no given c: the symbol is a term of a larger expression. So
+ * does "sin x = 1/2", "3 x = 12" and "m a = 10": the word before it multiplies it
+ * or applies to it. A bracket opened after a space ("(g = 10 m/s^2)") is an aside.
+ */
 function standsAlone(statement: string, symbolStart: number): boolean {
-  const before = statement.slice(0, symbolStart).trimEnd();
-  return !/[+\-*/^×·(=]$/.test(before) && !CONDITION_WORD.test(before);
+  const before = statement.slice(Math.max(0, symbolStart - WINDOW), symbolStart);
+  const trimmed = before.trimEnd();
+  if (trimmed.endsWith("(") && /(?:^|\s)\($/.test(trimmed)) return true;
+  if (/[+\-*/^×·(=]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
+  // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
+  const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
+  return !last || !(last.length === 1 || /^\p{N}/u.test(last) || MATH_WORD.test(last));
 }
+
+/** How far back a value's own context can reach. Long pasted prompts stay linear. */
+const WINDOW = 80;
 
 const SPELLED_UNITS: Record<string, string> = {
   ohm: "Ω", volt: "V", amp: "A", ampere: "A", newton: "N", joule: "J", watt: "W", hertz: "Hz", kelvin: "K",
-  pascal: "Pa", coulomb: "C", farad: "F", henry: "H", tesla: "T", liter: "L", litre: "L",
+  pascal: "Pa", coulomb: "C", farad: "F", henry: "H", tesla: "T", liter: "L", litre: "L", mole: "mol", degree: "°",
+  meter: "m", metre: "m", gram: "g", second: "s", minute: "min", hour: "h", deg: "°", sec: "s",
 };
 const SUPERSCRIPTS: Record<string, string> = { "²": "^2", "³": "^3", "⁻¹": "^-1", "⁻²": "^-2", "⁻³": "^-3" };
+const PREFIX_FACTOR: Record<string, number> = { f: 1e-15, p: 1e-12, n: 1e-9, u: 1e-6, "µ": 1e-6, "μ": 1e-6, m: 1e-3, c: 1e-2, d: 1e-1, k: 1e3, M: 1e6, G: 1e9, T: 1e12 };
+const SPELLED_PREFIX: Record<string, number> = { kilo: 1e3, centi: 1e-2, milli: 1e-3 };
+const BASE_UNIT = /^(m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|Pa|Hz|eV|mol|bar)$/;
+const TIME_FACTOR: Record<string, number> = { min: 60, mins: 60, h: 3600, hr: 3600, hrs: 3600 };
 
 /** "m/s²" and "m/s^2" are one unit. */
 function plainUnit(unit: string): string {
   return unit.replace(/⁻[¹²³]|[²³]/g, (mark) => SUPERSCRIPTS[mark] ?? mark);
 }
 
-/** What a unit measures, once its prefix is gone. Unknown units only match themselves. */
-function unitBase(unit: string): string {
-  // The leading unit decides: "g mL^-1" and "g/mL" both start in grams.
-  const compact = (plainUnit(unit).trim().split(/[\s/·]/)[0] ?? "").replace(/\^-?\d+$/, "");
-  if (/^(?:s|sec|secs|ms|us|µs|μs|ns|min|mins|h|hr|hrs|seconds?|minutes?|hours?|years?|days?)$/.test(compact)) return "time";
-  const prefixed = /^[fpnuµμmcdkMGT]?(m|g|L|l|A|V|N|J|W|C|F|H|T|Ω|Pa|Hz|eV|K)$/.exec(compact);
-  if (prefixed) return prefixed[1]!.toLowerCase() === "l" ? "L" : prefixed[1]!;
-  const spelled = /^(?:kilo|centi|milli)?(met(?:er|re)|gram)s?$/.exec(compact);
-  if (spelled) return spelled[1]!.startsWith("met") ? "m" : "g";
-  const named = /^[kKmMµμu]?(ohm|volt|amp|ampere|newton|joule|watt|hertz|kelvin|pascal|coulomb|farad|henry|tesla|liter|litre)s?$/i.exec(compact);
-  if (named) return SPELLED_UNITS[named[1]!.toLowerCase()]!;
-  return compact.toLowerCase();
+/** One unit word as its base and what it is worth in that base. */
+function unitPart(word: string): { base: string; factor: number } {
+  const bare = word.replace(/s$/, "");
+  const spelledPrefix = /^(kilo|centi|milli)(.+)$/.exec(word);
+  if (spelledPrefix) {
+    const inner = unitPart(spelledPrefix[2]!);
+    return { base: inner.base, factor: inner.factor * SPELLED_PREFIX[spelledPrefix[1]!]! };
+  }
+  if (TIME_FACTOR[word]) return { base: "s", factor: TIME_FACTOR[word]! };
+  const named = SPELLED_UNITS[word.toLowerCase()] ?? SPELLED_UNITS[bare.toLowerCase()];
+  if (named && (word.length > 2 || word === "Ω")) return TIME_FACTOR[named] ? { base: "s", factor: TIME_FACTOR[named]! } : { base: named, factor: 1 };
+  if (word === "l") return { base: "L", factor: 1 };
+  if (word === "ml") return { base: "L", factor: 1e-3 };
+  if (BASE_UNIT.test(word)) return { base: word, factor: 1 };
+  const prefix = PREFIX_FACTOR[word[0] ?? ""];
+  const rest = word.slice(1);
+  if (prefix !== undefined && BASE_UNIT.test(rest)) return { base: rest, factor: prefix };
+  if (prefix !== undefined && /^ohms?$/i.test(rest)) return { base: "Ω", factor: prefix };
+  return { base: word, factor: 1 };
+}
+
+/** A unit as what it measures and its size, so "g mL^-1" and "g/mL" agree and "m/s" and "m/s^2" do not. */
+function readUnit(unit: string): { signature: string; factor: number } {
+  let factor = 1;
+  const powers = new Map<string, number>();
+  plainUnit(unit).trim().split("/").forEach((group, groupIndex) => {
+    for (const piece of group.split(/[\s·*]+/).filter(Boolean)) {
+      const match = /^(.+?)(?:\^(-?\d+))?$/.exec(piece);
+      if (!match) continue;
+      const part = unitPart(match[1]!);
+      const power = Number(match[2] ?? 1) * (groupIndex === 0 ? 1 : -1);
+      factor *= part.factor ** power;
+      powers.set(part.base, (powers.get(part.base) ?? 0) + power);
+    }
+  });
+  const signature = [...powers.entries()].filter(([, power]) => power !== 0).map(([base, power]) => `${base}^${power}`).sort().join(" ");
+  return { signature, factor };
+}
+
+interface StatedQuantity {
+  value: number;
+  unit: string;
+  /** The symbol assigned this number in the question, if any. */
+  owner: string | null;
 }
 
 /**
  * The number at each place the question states one as a quantity, with the unit
- * written beside it. A number inside a tuple, a term, an exponent, a name or an
- * ordinal is not a quantity's value, and neither is one assigned to another symbol.
+ * written beside it. A number inside a tuple, a term, a bound, an exponent, a name
+ * or an ordinal is not a quantity's value.
  */
-function statedQuantities(question: string, names: readonly string[]): { value: number; unit: string }[] {
-  const stated: { value: number; unit: string }[] = [];
+function statedQuantities(question: string): StatedQuantity[] {
+  const stated: StatedQuantity[] = [];
   for (const match of question.matchAll(/\d+(?:\.\d+)?|\.\d+/g)) {
     const start = match.index ?? 0;
     const end = start + match[0].length;
     const prior = question[start - 1] ?? "";
     if (/[\p{L}\p{N}_^.)\]]/u.test(prior)) continue;
-    const before = question.slice(0, start).trimEnd();
-    const after = question.slice(end);
+    const before = question.slice(Math.max(0, start - WINDOW), start).trimEnd();
+    const after = question.slice(end, end + WINDOW);
     const following = after.trimStart();
-    // A term of an expression, not a value: "3 + 4", "2 * x", "5 + 2".
-    // "40-turn" and "2-metre" are the number with its noun; "3-x", "3-4" are terms.
-    if (/^[+*/^×·]/.test(following) || /^-\s*(?:[\p{N}(]|\p{L}{1,2}(?![\p{L}\p{N}]))/u.test(after)) continue;
+    // A term of an expression, not a value: "3 + 4", "2 * x", "5 + 2", "3(x + 1)".
+    // "40-turn" and "2-metre" are the number with its noun.
+    if (/^[+*/^×·]/.test(following) || after.startsWith("(") || /^[-−]\s*(?:[\p{N}(]|\p{L}{1,2}(?![\p{L}\p{N}]))/u.test(after)) continue;
     if (/[*/^×·]$/.test(before) || /\+$/.test(before) && !writtenWithPlus(question, start)) continue;
-    if (/[\p{L}\p{N})\]]\s*-$/u.test(before) && !/\p{L}{2,}\s*-$/u.test(before)) continue;
+    if (/[\p{L}\p{N})\]]\s*[-−]$/u.test(before) && !/\p{L}{2,}\s*[-−]$/u.test(before)) continue;
+    // A bound is a limit, and angle brackets are a vector.
+    if (/[<>≤≥⟨]$/.test(before) || /^[<>≤≥⟩]/.test(following)) continue;
     if (insideTuple(question, start)) continue;
-    const owner = /([\p{L}][\p{L}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+-]?$/u.exec(before);
-    if (owner && !names.includes(normalizeKey(owner[1]!.split(/[_^(]/)[0] ?? "")) && !names.includes(normalizeKey(owner[1]!))) continue;
+    const owner = /([\p{L}][\p{L}\p{M}\p{N}_']*(?:\([^()]*\))?)\s*=\s*[+\-−]?$/u.exec(before);
     // "bx + c = 0" states no c, even for a plan row named c.
     if (owner && !standsAlone(before, owner.index)) continue;
-    if (/=\s*[+-]?$/.test(before) && !owner) continue;
+    if (/=\s*[+\-−]?$/.test(before) && !owner) continue;
     // A glued word must be a unit: "20cm" is a length, "3i", "2x" and "12th" are not.
-    const glued = /^[\p{L}µ°%Ω][\p{L}\p{N}/^]*/u.exec(after)?.[0];
+    const glued = /^[\p{L}µ°%Ω][\p{L}\p{N}/^²³⁻¹°]*/u.exec(after)?.[0];
     if (glued && !isUnitText(glued) && glued !== "%" && glued !== "°") continue;
-    const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·]*)/u.exec(after)?.[1];
-    const unit = (glued ?? (spaced && isUnitText(spaced) ? spaced : "")).replace(/^-.*/, "");
-    stated.push({ value: Number(match[0]), unit: unit.replace(/[.,;:]+$/, "") });
+    const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*)/u.exec(after)?.[1];
+    const unit = (glued ?? (spaced && isUnitText(spaced) ? spaced : "")).replace(/[.,;:]+$/, "");
+    const negative = /[-−]$/.test(before);
+    stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null });
   }
   return stated;
 }
 
 function isUnitText(text: string): boolean {
   const parts = plainUnit(text).replace(/[.,;:]+$/, "").split(/[/·]/);
-  return parts.length > 0 && parts.every((part) => UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
+  return parts.length > 0 && parts.every((part) => /^°[CF]$/.test(part) || UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
 }
 
 /** Inside brackets that hold a comma: the coordinates of one thing, not separate givens. */
 function insideTuple(question: string, position: number): boolean {
   let depth = 0;
-  for (let left = position - 1; left >= 0; left--) {
+  for (let left = position - 1; left >= Math.max(0, position - WINDOW); left--) {
     const char = question[left]!;
     if (char === ")" || char === "]") depth++;
     else if (char === "(" || char === "[") {
       if (depth === 0) {
-        const close = question.slice(position).search(/[)\]]/);
+        const close = question.slice(position, position + WINDOW).search(/[)\]]/);
         return close >= 0 && question.slice(left, position + close).includes(",");
       }
       depth--;
@@ -434,24 +488,37 @@ function insideTuple(question: string, position: number): boolean {
   return false;
 }
 
+/** A plan row's name matches a question's symbol exactly: M is not m, and R_2 is not R_1. */
+function ownedBy(owner: string, symbol: string, label: unknown): boolean {
+  const base = (name: string) => name.split(/[_^(]/)[0] ?? name;
+  const subscripted = (name: string) => name !== base(name);
+  if (owner === symbol) return true;
+  if (base(owner) === base(symbol) && !(subscripted(owner) && subscripted(symbol))) return true;
+  return typeof label === "string" && normalizeKey(label) === normalizeKey(owner) && normalizeKey(owner).length > 1;
+}
+
+let statedCache: { question: string; stated: StatedQuantity[] } | null = null;
+
 /**
  * Did the question state this value as this quantity? `questionStatesValue` asks
  * only whether the number is somewhere in the text, which is what a teaching
  * prompt needs. A "Given:" row claims more, so it needs the number to stand as a
  * quantity, with no other symbol holding it and no unit of another kind on it.
  */
-function questionStatesQuantity(question: string, value: number, symbol: string, unit: string, labels: readonly unknown[], sourceText: unknown): boolean {
-  const names = [symbol, symbol.split(/[_^(]/)[0] ?? symbol, ...labels.filter((label): label is string => typeof label === "string")]
-    .map(normalizeKey).filter(Boolean);
-  return statedQuantities(question, names).some((stated) => {
-    const matches = VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === stated.value);
-    if (!matches) return false;
-    if (!stated.unit || stated.unit === "%" || stated.unit === "°") return true;
-    // A unit of another kind is another quantity. So is a bare plan value beside
-    // a written unit, unless the plan quotes the question's own words for it.
-    return unit
-      ? unitBase(unit) === unitBase(stated.unit)
-      : typeof sourceText === "string" && sourceText.includes(stated.unit) && questionMentions(question, sourceText);
+function questionStatesQuantity(question: string, value: number, symbol: string, unit: string, label: unknown, sourceText: unknown): boolean {
+  if (statedCache?.question !== question) statedCache = { question, stated: statedQuantities(question) };
+  return statedCache.stated.some((stated) => {
+    if (stated.owner && !ownedBy(stated.owner, symbol, label)) return false;
+    const sameValue = VALUE_SCALES.some((scale) => Number(formatNumber(value * scale)) === stated.value);
+    if (!stated.unit) return sameValue;
+    if (stated.unit === "%") return !unit && sameValue;
+    if (!unit) return sameValue && typeof sourceText === "string" && sourceText.includes(stated.unit) && questionMentions(question, sourceText);
+    // The same quantity at the same size: "20 cm" is L = 0.2 m, never L = 2 cm, and "5 min" is not t = 5 s.
+    const planned = readUnit(unit);
+    const written = readUnit(stated.unit);
+    if (planned.signature !== written.signature) return false;
+    const size = (number: number, factor: number) => Number((number * factor).toPrecision(10));
+    return size(value, planned.factor) === size(stated.value, written.factor);
   });
 }
 
@@ -561,7 +628,8 @@ function writtenWithPlus(text: string, start: number): boolean {
   // A one-letter "a" is an article in a prose noun phrase ("a +2 C
   // charge"), but stays a variable in bare or equation-context addition.
   const beforeWord = text.slice(0, begin).trimEnd();
-  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
+  // A full stop after the number ends the sentence: it is not a decimal point.
+  const afterNumber = text.slice(start).replace(/^(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/, "");
   const article = /^a$/i.test(word) && /\s/.test(text[end + 1] ?? "") &&
     (!beforeWord || /[.!?,:;]$|(?:^|\s)[A-Za-z]{2,}$/.test(beforeWord)) &&
     /^\s+(?:[A-Za-z][^\s]*\s+)*[A-Za-z]{2,}\b/.test(afterNumber);
@@ -672,9 +740,9 @@ export function isQuotedPhysicalConstant(symbol: string, value: number): boolean
 /**
  * Did the question actually state this number?
  *
- * The board's "Given: ..." row has always been gated on this, because a
- * planner will happily invent a whole worked example and mark every value
- * `provenance: "given"` with a confident sourceText. The teaching prompt was
+ * A planner will happily invent a whole worked example and mark every value
+ * `provenance: "given"` with a confident sourceText. The board's "Given: ..." row
+ * asks for more than this (`questionStatesQuantity`). The teaching prompt was
  * not gated on it: it handed the model every planner given as authoritative,
  * so a lesson said "substitute the given values" over numbers the question
  * never contained, and once told a student Earth's magnetic field is one tesla.
@@ -700,7 +768,7 @@ function questionMentions(question: string, snippet: string): boolean {
 }
 
 function normalizeKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function escapeRegExp(value: string): string {
