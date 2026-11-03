@@ -160,7 +160,10 @@ function wedgeUnderSurface(surface: Line, lines: Line[]): Solid | null {
 }
 
 /** A reaction whose tail is on this body points away from the surface. Only for a surface gravity says nothing about. */
-function freeSideFromNormal(surface: Line, body: Body, document: SceneDocument, geometry: ReadonlyMap<string, unknown>): number | null {
+function freeSideFromNormal(surface: Line, body: Body, contacts: Line[], document: SceneDocument, geometry: ReadonlyMap<string, unknown>): number | null {
+  // With two touching faces in line, either could supply the reaction, so the arrow names neither side.
+  const inLine = (other: Line) => Math.abs((other.b.x - other.a.x) * (surface.b.x - surface.a.x) + (other.b.y - other.a.y) * (surface.b.y - surface.a.y)) / (other.length * surface.length);
+  if (contacts.some((other) => other.id !== surface.id && inLine(other) >= Math.cos((NORMAL_TOLERANCE_DEG * Math.PI) / 180))) return null;
   const reach = extentOf(body.points) * 0.1;
   let side: number | null = null;
   for (const entity of document.entities) {
@@ -213,6 +216,19 @@ function segmentEntersBody(line: Line, body: Body): boolean {
   });
 }
 
+/** The body rests against this surface: it spans a real share of it, with no part across it, and touches it. */
+function touchesSurface(surface: Line, body: Body): boolean {
+  const params = body.points.map((p) => along(surface, p));
+  const lo = minOf(params), hi = maxOf(params);
+  if (!(hi > lo) || Math.min(hi, 1) - Math.max(lo, 0) < (hi - lo) * ALONG_SHARE || straddles(surface, body)) return false;
+  const signed = body.points.map((p) => signedDistance(surface, p));
+  const thickness = Math.max(0, maxOf(signed)) + Math.max(0, -minOf(signed));
+  if (!(thickness > SAME_POINT)) return false;
+  return body.circle
+    ? Math.abs(Math.abs(signedDistance(surface, body.circle.center)) - body.circle.radius) <= thickness * TOUCH_SHARE
+    : minOf(signed.map((value) => Math.abs(value))) <= thickness * TOUCH_SHARE;
+}
+
 /** The line runs through the body with a real share of it on each side. */
 function straddles(line: Line, body: Body): boolean {
   if (!segmentEntersBody(line, body)) return false;
@@ -254,6 +270,7 @@ export function validateContactTruth(document: SceneDocument, geometry: Readonly
   for (const body of statedSunk ? [] : bodies) {
     const extent = extentOf(body.points);
     if (!(extent > SAME_POINT)) continue;
+    const contacts = surfaces.filter((surface) => touchesSurface(surface, body));
     for (const surface of surfaces) {
       // A dot marking a particle is a position, not an extended body lying across the line.
       if (extent <= surface.length * (body.circle ? BALL_MARKER_SHARE : MARKER_SHARE)) continue;
@@ -283,7 +300,7 @@ export function validateContactTruth(document: SceneDocument, geometry: Readonly
       }
       const up = upSide(surface);
       const fromAbove = up !== null && SOLID_BELOW_WORDS.test(surface.role) && !statedUnderside ? up : null;
-      const free = fromAbove ?? (up === null || !SOLID_BELOW_WORDS.test(surface.role) ? freeSideFromNormal(surface, body, document, geometry) : null);
+      const free = fromAbove ?? (up === null || !SOLID_BELOW_WORDS.test(surface.role) ? freeSideFromNormal(surface, body, contacts, document, geometry) : null);
       if (free !== null && side !== free) {
         fail("body_inside_surface", [body.id, surface.id],
           `${body.id} (${body.role}) touches ${surface.id} (${surface.role}) from its solid side, so the body is drawn inside the surface. Keep both, and move every corner of the body to the free side, with its contact face still on the surface.`);
