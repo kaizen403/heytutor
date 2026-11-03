@@ -263,10 +263,16 @@ async function main(): Promise<void> {
     }
     receipts.push("real Postgres keeps rows with no picture in the failed feed and drops only a stored picture over a figure refusal");
 
-    // A picture lesson whose tab vanished still gets its own report, and the
-    // lesson beside it with no picture still gets its failure report.
+    // An idle picture lesson queues nothing: a turn sends one event, so a report
+    // here would drop a real failure when the tab returns. The same lesson once it
+    // has failed, and the lesson with no picture, still get their failure report.
     const abandonedAt = new Date();
-    const abandoned = await Promise.all([{ referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" } }, { degradation: { reason: "candidate_invalid" } }].map(async (sceneArtifacts, index) => {
+    const teachingFailure = { subject: "physics", failed: true, stage: "teaching", code: "transport_error" };
+    const abandoned = await Promise.all([
+      { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" } },
+      { degradation: { reason: "candidate_invalid" } },
+      { referencePicture: { id: "rp_fixture" }, failureTelemetry: teachingFailure },
+    ].map(async (sceneArtifacts, index) => {
       const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex + index, question: "Synthetic abandoned lesson",
         rawResponse: "Synthetic", status: "live", visualStatus: "text_only", sceneArtifacts,
         segments: { create: { orderIndex: 0, narration: "Synthetic", spokenText: "Synthetic" } } } });
@@ -275,11 +281,19 @@ async function main(): Promise<void> {
     }));
     orderIndex += abandoned.length;
     await reporter.queueAbandonedFailedTurns(abandonedAt, { env: fixtureEnvironment, startedAt: new Date(abandonedAt.getTime() - 60 * 60_000) });
-    const [abandonedPicture, abandonedFailure] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
-    assert.equal((abandonedPicture!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn picture shown", "an abandoned picture lesson is reported as a picture");
+    const [abandonedPicture, abandonedFailure, abandonedPictureFailed] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
+    assert.equal(abandonedPicture!.sentryEventId, null, "an idle picture lesson keeps its one event free");
     assert.equal((abandonedFailure!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "an abandoned lesson with no picture is still a failure");
+    assert.equal((abandonedPictureFailed!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "a stale picture lesson that failed is still a failure");
+    // The tab returns and teaching fails: the failure takes the event the idle lesson left free.
+    await db.turn.update({ where: { id: abandonedPicture!.id }, data: { status: "stopped", sceneArtifacts: { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" }, failureTelemetry: teachingFailure } } });
+    const returnedTurn = await db.turn.findUniqueOrThrow({ where: { id: abandonedPicture!.id }, include: { segments: true } });
+    assert(await db.$transaction(tx => queue(tx, returnedTurn, { env: fixtureEnvironment })), "a failure after the tab returns reserves the turn's event");
+    const returnedEvent = (await db.turn.findUniqueOrThrow({ where: { id: abandonedPicture!.id } })).sentryFailureEvent as unknown as FailedTurnSentryEvent | null;
+    assert.equal(returnedEvent?.message, "Tutor turn failed", "a failure after an idle picture lesson reaches Sentry as a failure");
+    assert.equal(returnedEvent?.tags.area, "turn-failure", "the failure counts for the failure alerts");
     await db.turn.deleteMany({ where: { id: { in: abandoned } } });
-    receipts.push("abandoned picture lessons queue their own report on real Postgres");
+    receipts.push("an idle picture lesson queues nothing on real Postgres, and a later failure still reports as a failure");
 
     // Legacy save paths could persist a completed, verified diagram without any
     // teaching rows. Its diagram status must not make the outbox strand it.

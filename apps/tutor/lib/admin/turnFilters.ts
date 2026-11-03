@@ -8,11 +8,6 @@ import {
 } from "../obs/turnFailureClassification";
 import { FAILED_TURN_STAGES } from "../obs/failedTurnTelemetry";
 
-/** A stored reference picture, by positive evidence: only the server writes it. */
-export function shownPictureWhere(): Prisma.TurnWhereInput {
-  return { sceneArtifacts: { path: ["referencePicture", "id"], string_starts_with: "rp_" } };
-}
-
 /** Same positive evidence as classifyTurnFailure; missing JSON is never negated. */
 export function failedTurnWhere(since?: Date): Prisma.TurnWhereInput {
   const noVerifiedFigure: Prisma.TurnWhereInput = {

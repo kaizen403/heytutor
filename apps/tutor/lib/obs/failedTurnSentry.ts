@@ -5,7 +5,7 @@ import { prisma } from "../db/prisma";
 import { sentryBeforeSend, sentryDataCollection, sentryServerDsn } from "./sentryPrivacy";
 import { buildFailedTurnSentryEvent, type FailedTurnInput, type FailedTurnSentryEvent } from "./failedTurnTelemetry";
 import { LIVE_TURN_IDLE_MS } from "../boards/turnStatus";
-import { failedTurnWhere, shownPictureWhere } from "../admin/turnFilters";
+import { failedTurnWhere } from "../admin/turnFilters";
 import { failedTurnDeliveryEnabled } from "./failedTurnRuntime";
 import { logWorkerFailure } from "./workerFailureLog";
 
@@ -254,7 +254,8 @@ export async function queueAbandonedFailedTurns(now = new Date(), options: {
     where: {
       status: "live", sentryReportedAt: null,
       updatedAt: { gte: recentAfter, lt: new Date(now.getTime() - LIVE_TURN_IDLE_MS) },
-      AND: [{ OR: [failedTurnWhere(), shownPictureWhere()] }, { OR: [{ sentryEventId: null }, { sentryNextAttemptAt: null }] }],
+      // Failed turns only. A turn sends one event, so reporting an idle picture lesson here would use it up and drop a real failure when the tab returns.
+      AND: [failedTurnWhere(), { OR: [{ sentryEventId: null }, { sentryNextAttemptAt: null }] }],
     },
     orderBy: { updatedAt: "asc" }, take: FAILED_TURN_SENTRY_BATCH_LIMIT,
     select: { id: true, status: true, visualStatus: true, sceneArtifacts: true, updatedAt: true, resumeState: true,
