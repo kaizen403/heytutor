@@ -2314,7 +2314,7 @@ function buildContactBody(
   // in contact, a contact sketch here would stand in for that graph.
   if (isMotionGraphStem(stem) && !namesBodyInContact(stem)) return null;
   // An emf is a field effect or a source; no contact sketch is its figure.
-  if (namesFieldEmf(question)) return null;
+  if (/\bemfs?\b/i.test(stem) && namesFieldEmf(question)) return null;
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
     && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);
