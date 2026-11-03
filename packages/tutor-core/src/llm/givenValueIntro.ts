@@ -246,7 +246,7 @@ function assignmentsFromQuestion(statement: string): GivenCandidate[] {
       symbol,
       board: `${symbol} = ${rhs}`,
       spoken: `${speakSymbol(symbol)} equals ${speakRhs(rhs)}`,
-      stated: symbolStart < end && isValueExpression(rhs.split(CONDITION_AT)[0]!.trim()) && isCondition(rhs) && standsAlone(statement, symbolStart),
+      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart),
     });
   }
   return givens;
@@ -285,8 +285,9 @@ function equationFromQuestion(statement: string): GivenCandidate | null {
     symbol: "equation",
     board: equation,
     spoken: speakRhs(equation),
-    // Both sides must be mathematics: "Derive the formula from a = 0 by parts" is not a given.
-    stated: match.index < statedEnd(statement) && equation.split("=").every((side) => isValueExpression(side.trim())),
+    // An equation is not a symbol equal to a value. It stays on this list only so
+    // that refusing it cannot change which rows the list holds.
+    stated: false,
   };
 }
 
@@ -345,32 +346,14 @@ const UNIT_TOKEN =
 const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|cosec|arcsin|arccos|arctan|sinh|cosh|tanh|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
 
 /**
- * Is this text only a value? A number with its unit, or mathematics. A word that
- * is neither a unit, a math name nor a symbol is prose, and prose means the text
- * ran on past the value ("0 by completing the square").
+ * A number with at most its unit: all a row may state. "AX = B", "y = sin x",
+ * "CH2 = CH-CH2+" and "0 by completing the square" are not values.
  */
-function isValueExpression(text: string): boolean {
-  if (!text || text.includes("=")) return false;
-  // Marks stay with their letter: a Hindi word is one word, not a row of symbols.
-  for (const word of text.matchAll(/\p{L}[\p{L}\p{M}\p{N}_]*/gu)) {
-    const token = word[0];
-    if (token.length === 1 || /^\p{L}_?\p{N}+$/u.test(token) || UNIT_TOKEN.test(token) || MATH_WORD.test(token)) continue;
-    // Short products of symbols are mathematics only beside an operator: "ax^2 + bx".
-    const before = text.slice(0, word.index).trimEnd().slice(-1);
-    const after = text.slice(word.index + token.length).trimStart().charAt(0);
-    if (token.length <= 3 && (/[+\-*/^×·(]/.test(before) || /[+\-*/^×·)]/.test(after))) continue;
-    return false;
-  }
-  return true;
-}
-
-/** "y = 0 at x = 0": a value with the place it holds, both sides plain. */
-const CONDITION_AT = /\s+at\s+/;
-function isCondition(rhs: string): boolean {
-  const place = rhs.split(CONDITION_AT)[1];
-  if (place === undefined) return true;
-  const sides = place.split("=");
-  return sides.length === 2 && sides.every((side) => isValueExpression(side.trim()));
+function isPlainValue(text: string): boolean {
+  const match = /^[+\-−–]?\s*(?:\d+(?:\.\d+)?|\.\d+)\s*(.*)$/su.exec(text);
+  if (!match) return false;
+  const unit = match[1]!.trim();
+  return !unit || unit === "%" || unit === "°" || unit.split(/\s+/).every(isUnitText);
 }
 
 /** A limit ("from x = 0 to x = 2"), not a stated value. */
@@ -757,12 +740,6 @@ export function questionStatesValue(question: string, value: number): boolean {
     if (stated.some((token) => Number(token) === Number(needle))) return true;
   }
   return false;
-}
-
-function questionMentions(question: string, snippet: string): boolean {
-  const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9=]+/g, "");
-  const needle = compact(snippet);
-  return needle.length > 0 && compact(question).includes(needle);
 }
 
 function normalizeKey(value: string): string {

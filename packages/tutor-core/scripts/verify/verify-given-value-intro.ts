@@ -62,19 +62,15 @@ assert(currentGivens.some((given) => given.board === "v = 10 V"), "voltage v was
 
 const calculusQuestion = "If dy/dx = 2x and y = 0 at x = 0, find y at x = 2.";
 const calculusGivens = collectQuestionGivens(calculusQuestion);
-assert(calculusGivens.some((given) => given.board === "dy/dx = 2x"), "the given derivative was not listed");
+assert(calculusGivens.every((given) => given.board !== "dy/dx = 2x"), "an expression is not a value: it stays for the teaching to write");
 
 const particleQuestion =
   "A particle moves on the line s = t^3 - 6t^2 + 9t, with s in metres and t in seconds. Find its velocity at t = 2.";
-const particleSegments = buildGivenValueSegments(particleQuestion);
-assert(
-  /^Given\.\.\. s equals t cubed, minus 6 t squared, plus 9 t\.$/.test(particleSegments[0]?.narration ?? ""),
-  `particle given speech should breathe and name terms: ${particleSegments[0]?.narration}`,
-);
+assert(buildGivenValueSegments(particleQuestion).length === 0, "an expression opens no Given row");
 
 const equationQuestion = "Solve 2x + 3 = 7.";
 const equationSegments = buildGivenValueSegments(equationQuestion);
-assert(equationSegments[0]?.command?.text === "Given: 2x + 3 = 7", "the stated equation must open the board");
+assert(equationSegments.length === 0, "an equation is not a symbol equal to a value");
 
 const conceptual = collectQuestionGivens("Explain the photoelectric effect.");
 assert(conceptual.length === 0, "a concept question with no values must not invent givens");
@@ -261,10 +257,9 @@ for (const [why, question, plan, expected] of [
   ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
   ["Hindi after a value is prose", "अगर x = 3 है तो ग्राफ बनाओ", undefined, []],
   ["one Hindi word after a value is prose", "अगर x = 3 है, तो ग्राफ बनाओ", undefined, []],
-  ["an equation inside a sentence", "Note that 2x + 3 = 7 holds.", undefined, []],
-  ["a place in words is prose", "If y = 0 at the top, plot it.", undefined, []],
   ["answer options are not given", "Which is correct? (A) v = 5 m/s (B) v = 7 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
-  ["named options are not given", "Pick one. Options: T1 = T2, T1 = 2.", undefined, []],
+  ["named options are not given", "Pick one. Options: T1 = 5, T2 = 6.", undefined, []],
+  ["a value in an option is not given", "Which holds? (A) x = 5, (B) x = 7.", undefined, []],
   // Right rows stay: the question's own words.
   ["a stated value with its unit", "Concave mirror, f = 15 cm, object at 20 cm. Locate the image.", { givens: [plain("f", 15, "cm"), plain("u", 20, "cm")] }, ["f = 15 cm"]],
   ["a unit written another way", "Here a = 2 m/s^2, R = 12 ohm. Find the time.", { givens: [plain("a", 2, "m/s²"), plain("R", 12, "Ω")] }, ["a = 2 m/s²", "R = 12 Ω"]],
@@ -280,12 +275,17 @@ for (const [why, question, plan, expected] of [
   ["a unit in words", "Here L = 2 metre, at rest.", { givens: [plain("L", 2, "m")] }, ["L = 2 m"]],
   ["a spaced compound unit", "A torque has M_t = 10 N m, then stops.", { givens: [plain("M_t", 10, "N m")] }, ["M_t = 10 N m"]],
   ["a part label is not options", "(a) Let m = 2 kg rest. Find its weight.", { givens: [plain("m", 2, "kg")] }, ["m = 2 kg"]],
-  ["a bare equation", "Solve 2x + 3 = 7.", undefined, ["2x + 3 = 7"]],
-  ["a math name", "Given y = sin x. Plot it.", undefined, ["y = sin x"]],
-  ["an expression with products", "Given y = ax^2 + bx + c and a = 2. Plot it.", undefined, ["y = ax^2 + bx + c", "a = 2"]],
+  ["a symbol and its unit", "Given a = 2 kg, plot it.", undefined, ["a = 2 kg"]],
+  ["a percent and a degree", "Here e = 50%, A = 30°, then stop.", undefined, ["e = 50%", "A = 30°"]],
   ["millimolar from the question", "A solution has c = 5 mM.", undefined, ["c = 5 mM"]],
   ["kmph from the question", "A car has v = 72 kmph.", undefined, ["v = 72 kmph"]],
-  ["a value with the place it holds", "If y = 0 at x = 0, plot it.", undefined, ["y = 0 at x = 0", "x = 0"]],
+  // Expressions are not values, however true: this is the accepted cost.
+  ["a bare equation", "Solve 2x + 3 = 7.", undefined, []],
+  ["a math name", "Given y = sin x. Plot it.", undefined, []],
+  ["an expression with products", "Given y = ax^2 + bx + c and a = 2. Plot it.", undefined, ["a = 2"]],
+  ["a letters only equation", "Write it as AX = B.", undefined, []],
+  ["a chemical formula", "Draw CH2 = CH-CH2+ now.", undefined, []],
+  ["a value with a place in words", "If y = 0 at x = 0, plot it.", undefined, ["x = 0"]],
 ] as const) {
   const rows = boardRows(question, plan as { givens: unknown[] } | undefined);
   assert(JSON.stringify(rows) === JSON.stringify(expected), `${why}: ${JSON.stringify(rows)}`);
@@ -418,14 +418,14 @@ for (const segment of wideGivens) {
 }
 
 const matrixIntro = collectQuestionGivens("A=[[1,2],[3,4]]. A is a square matrix. Show A and state its type.");
-assert(matrixIntro.some((given) => given.symbol === "A" && given.board === "A = [[1,2],[3,4]]"), "matrix commas must preserve the complete source given");
+assert(matrixIntro.length === 0, "a matrix is not a plain value");
 assert(!matrixIntro.some((given) => given.board === "A = [[1" || given.spoken === "A equals [[1"), "matrix intro must never assert a truncated supplied value");
 const tupleIntro = collectQuestionGivens("r=(1,2,3), m=2 kg; F=(3+4) N. Find the magnitude.");
-assert(tupleIntro.some((given) => given.board === "r = (1,2,3)"), "tuple commas belong inside the supplied vector value");
-assert(tupleIntro.some((given) => given.board === "m = 2 kg") && tupleIntro.some((given) => given.board === "F = (3+4) N"), "structured values must preserve adjacent scalar assignments");
+assert(!tupleIntro.some((given) => given.symbol === "r"), "a vector is not a plain value");
+assert(tupleIntro.some((given) => given.board === "m = 2 kg"), "a scalar beside a vector still reads whole");
+assert(!tupleIntro.some((given) => given.symbol === "F"), "an expression with a unit is not a plain value");
 const nestedIntro = collectQuestionGivens("A=[[1,2],[3,4]], r=([1,2],{3,4}) and t=5 s. Find t.");
-assert(nestedIntro.some((given) => given.board === "A = [[1,2],[3,4]]"), "nested matrix brackets must be read atomically");
-assert(nestedIntro.some((given) => given.board === "r = ([1,2],{3,4})"), "nested mixed delimiters must not split provided tuples");
+assert(JSON.stringify(nestedIntro.map((given) => given.board)) === JSON.stringify(["t = 5 s"]), "nested brackets are read whole and refused, and the scalar after them survives");
 const longMatrix = `A=[${Array.from({ length: 6 }, () => "[1,1,1,1,1,1]").join(",")}]. Show A.`;
 assert(!collectQuestionGivens(longMatrix).some((given) => given.symbol === "A"), "an oversized intro value must be omitted rather than asserted as a clipped source matrix");
 assert(collectQuestionGivens("A=[[1,2],[3,4]. Show A.").length === 0, "unbalanced source values must not become supplied intro facts");
