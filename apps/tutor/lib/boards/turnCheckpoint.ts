@@ -61,6 +61,8 @@ import {
   MAX_TURN_MERGED_METADATA_BYTES,
   MAX_TURN_SEGMENTS,
   MAX_TURN_UPLOAD_BYTES,
+  compactTimings,
+  TIMINGS_KEEP_BYTES,
 } from "@/lib/scene/turnUploadLimits";
 import {
   isTurnKind,
@@ -284,7 +286,7 @@ function parseRows(value: unknown, baseCount: number): Parsed<CheckpointRow[]> {
       spokenText,
       command: raw.command ?? null,
       ...(raw.durationMs != null ? { durationMs: raw.durationMs as number } : {}),
-      ...(raw.timings != null ? { timings: raw.timings } : {}),
+      ...(raw.timings != null ? { timings: compactTimings(raw.timings) } : {}),
     });
   }
   return { ok: true, value: rows };
@@ -679,6 +681,13 @@ async function applyCheckpoint(
   if (status === "complete" && !rawResponse.trim() &&
     !(scene.visualStatus === "retry_required" && scene.sceneArtifacts != null)) {
     return reject("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400);
+  }
+
+  // A long lesson gives up its timings before it gives up its rows.
+  const timedRows = append.filter((row) => row.timings != null).length;
+  if (timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES) {
+    append = append.map((row) => ({ ...row, timings: undefined }));
+    console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
   }
 
   const merged: HeldRow[] = [...stored, ...append];
