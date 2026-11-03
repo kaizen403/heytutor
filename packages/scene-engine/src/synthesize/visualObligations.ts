@@ -40,6 +40,7 @@ import type { SceneDocument, SceneIssue } from "../types";
 import { verifiedVseprStructure } from "../chemistry/vseprStructure";
 import type { VseprFigure } from "../chemistry/vsepr";
 import { parseFormula } from "../chemistry/formula";
+import { chemistrySpeciesIdentity } from "../chemistry/representation/species";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
 import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
 import { bindArchetypeBody, certifiedArchetypeFigureIdentity } from "../archetypes/obligationIdentity";
@@ -306,9 +307,10 @@ export function checkVisualObligations(
 export function visualObligationIssues(
   problem: ProblemIR,
   document: SceneDocument,
+  originalQuestion?: string,
 ): SceneIssue[] {
   const set = deriveVisualObligations(problem);
-  const result = checkVisualObligations(set, document);
+  const result = checkVisualObligations(set, document, originalQuestion);
   return result.missing.map((miss) => ({
     code: miss.code,
     message: miss.message,
@@ -444,7 +446,8 @@ function describeBody(obligation: NamedBodyObligation): string {
  * one label still report the second as missing. Only when no exact match
  * exists may a certified physics archetype, recomputed whole from the
  * original question, bind a model-word name to a body it constructed, by role
- * (`archetypes/obligationIdentity`).
+ * (`archetypes/obligationIdentity`). A chemistry name such as "SF4 molecule"
+ * binds only to a species the certified VSEPR figure actually drew.
  */
 function mapProblemEntities(
   set: VisualObligationSet,
@@ -517,6 +520,12 @@ function mapProblemEntities(
     if (labelled) {
       mapping.set(obligation.problemEntityId, labelled.id);
       consumed.add(labelled.id);
+      continue;
+    }
+    const species = bindCertifiedSpecies(molecule, document, obligation, consumed);
+    if (species) {
+      mapping.set(obligation.problemEntityId, species);
+      consumed.add(species);
       continue;
     }
     // A physics body named in model words ("parabolic trajectory", "near
@@ -659,6 +668,52 @@ function valuesMatch(first: number, second: number): boolean {
 
 function normalizeObligationLabel(value: string): string {
   return value.trim().replace(/\s+/g, " ");
+}
+
+/**
+ * ProblemIR often names a drawn species as "SF4 molecule". The wrapper is not
+ * a different body; the formula is. Articles are lowercase words only, so a
+ * point named "A" is never read as one. "ion" is dropped only when a charge is
+ * still written ("NH4+ ion"); "Na ion" keeps it and names no drawn species.
+ * Used only against a certified VSEPR figure, never for other subjects.
+ */
+function speciesObligationName(label: string): string {
+  const bare = label
+    .trim()
+    .replace(/^(?:[Tt]he|an?)\s+/, "")
+    .replace(/\s+(?:molecules?|compounds?|species)$/i, "")
+    .trim();
+  const charged = /^(.*[+\-\u2212]\)?)\s+ions?$/i.exec(bare);
+  return charged ? charged[1]!.trim() : bare;
+}
+
+// The kinds main binds a molecule for, plus "other", which live ProblemIR uses for
+// a named species ("SF4 molecule"). Never a solid, region or field.
+const SPECIES_BODY_KINDS = new Set(["body", "component", "other"]);
+
+/**
+ * Bind one obligated chemistry name to a species the certified VSEPR figure
+ * drew, with the same formula and charge, or null. Each drawn species binds
+ * at most once, so a second SF4 obligation stays missing and an H2O
+ * obligation cannot attach to SF4. Only the species title is consumed, so a
+ * "lone pair" obligation can still bind that species' electrons.
+ */
+function bindCertifiedSpecies(
+  molecule: VseprFigure | null,
+  document: SceneDocument,
+  obligation: NamedBodyObligation,
+  consumed: ReadonlySet<string>,
+): string | null {
+  if (!molecule || !SPECIES_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
+  const wanted = chemistrySpeciesIdentity(speciesObligationName(obligation.problemLabel));
+  if (!wanted) return null;
+  for (const structure of molecule.structures) {
+    if (consumed.has(structure.formulaId)) continue;
+    const title = document.entities.find((entity) => entity.id === structure.formulaId);
+    const drawn = title?.label ? chemistrySpeciesIdentity(title.label.replace(/_(\d+)/g, "$1").replace(/\^\(([^)]*)\)/g, "$1")) : null;
+    if (drawn && drawn.key === wanted.key) return structure.formulaId;
+  }
+  return null;
 }
 
 /**

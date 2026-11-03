@@ -2,7 +2,10 @@ import {
   DRAW_COMMAND_TYPES,
   HEADER_ONLY_TEXT_TAG_EXACT,
   isCompleteDrawingTag,
+  matchClosedWriteRow,
   matchCoordinateLessWriteTag,
+  matchRefusedWriteTag,
+  SPOKEN_WORD_START,
   parseDrawingTag,
   parseDrawCommandFromTag,
   repairHeaderOnlyTextTags,
@@ -33,6 +36,11 @@ export class IncrementalTagParser {
    * usual terminators are suspended until a newline or STEP footer arrives.
    */
   private headerOnlyTextTag = false;
+  /**
+   * Protocol was just dropped from speech after a word: the next narration
+   * character, if it starts a word, a number or "(", gets one space first.
+   */
+  private pendingSeparator = false;
   private charPosition = 0;
   private readonly preserveStepSpeech: boolean;
   private insideStep = false;
@@ -71,6 +79,10 @@ export class IncrementalTagParser {
   }
 
   private processChar(char: string): void {
+    if (this.state === 'NARRATION' && this.pendingSeparator) {
+      this.pendingSeparator = false;
+      if (SPOKEN_WORD_START.test(char)) this.narrationBuffer += ' ';
+    }
     if (this.state === 'NARRATION') {
       if (char === '[') {
         this.tagBuffer = '[';
@@ -89,6 +101,17 @@ export class IncrementalTagParser {
         return;
       }
       this.tagBuffer += char;
+      // `[WRITE]text[/WRITE]`: the closing tag ends the row.
+      if (/\[\/WRITE\]$/i.test(this.tagBuffer)) {
+        const closed = matchClosedWriteRow(this.tagBuffer);
+        if (closed && closed.raw === this.tagBuffer) {
+          this.tagBuffer = '';
+          this.headerOnlyTextTag = false;
+          this.state = 'NARRATION';
+          for (const closedChar of closed.canonical) this.processChar(closedChar);
+          return;
+        }
+      }
       if (/\[\/STEP\]$/i.test(this.tagBuffer)) {
         const footer = this.tagBuffer.slice(-7);
         this.tagBuffer = this.tagBuffer.slice(0, -7);
@@ -129,13 +152,32 @@ export class IncrementalTagParser {
    * through the parser.
    */
   private closeCoordinateLessWrite(force: boolean): boolean {
-    const repaired = matchCoordinateLessWriteTag(this.tagBuffer);
-    if (!repaired) return false;
+    const repaired = matchCoordinateLessWriteTag(this.tagBuffer) ?? matchClosedWriteRow(this.tagBuffer);
+    if (!repaired) return this.dropRefusedWrite(force);
     const rest = this.tagBuffer.slice(repaired.raw.length);
     if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
     this.tagBuffer = '';
     this.state = 'NARRATION';
     for (const char of `${repaired.canonical}${rest}`) this.processChar(char);
+    return true;
+  }
+
+  /**
+   * A buffered WRITE that can close neither way (see `matchRefusedWriteTag`)
+   * is dropped once a text tag or STEP marker follows, the buffer overflows,
+   * or the stream ends, and the rest goes back through the parser. Holding it
+   * used to swallow the next tags and read them aloud.
+   */
+  private dropRefusedWrite(force: boolean): boolean {
+    const refused = matchRefusedWriteTag(this.tagBuffer);
+    if (!refused) return false;
+    const rest = this.tagBuffer.slice(refused.length);
+    if (!force && !TEXT_TAG_BREAK.test(rest)) return false;
+    this.charPosition += refused.length;
+    this.tagBuffer = '';
+    this.state = 'NARRATION';
+    this.pendingSeparator = /\S$/u.test(this.narrationBuffer);
+    for (const char of rest) this.processChar(char);
     return true;
   }
 
@@ -150,6 +192,7 @@ export class IncrementalTagParser {
     if (
       'STEP'.startsWith(upperInner) ||
       '/STEP'.startsWith(upperInner) ||
+      '/WRITE]'.startsWith(upperInner) ||
       upperInner.startsWith('STEP') ||
       upperInner.startsWith('/STEP')
     ) {
@@ -240,6 +283,15 @@ export class IncrementalTagParser {
       this.charPosition += this.tagBuffer.length;
       this.tagBuffer = '';
       this.state = 'NARRATION';
+      return;
+    }
+
+    // `[/WRITE]` closes nothing in this protocol: drop it, never speak it.
+    if (upperTag === '[/WRITE]') {
+      this.charPosition += this.tagBuffer.length;
+      this.tagBuffer = '';
+      this.state = 'NARRATION';
+      this.pendingSeparator = /\S$/u.test(this.narrationBuffer);
       return;
     }
 

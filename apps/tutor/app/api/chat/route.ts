@@ -234,6 +234,26 @@ function finalizeMockPlannerTrace(
   );
 }
 
+/** Without a model, a process review can never admit a figure. */
+function finalizeMockProcessReviewTrace(
+  turnTrace: TurnTrace | null,
+  traceId: string,
+): Response {
+  const content = JSON.stringify({ verdict: "NOT" });
+  endLlmGeneration(turnTrace, {
+    output: content,
+    usageDetails: { input: 0, output: 0, total: 0 },
+    metadata: { mock: true, planner: true, process_review: true },
+    mock: true,
+    updateTrace: false,
+  });
+  flushInBackground();
+  return Response.json(
+    { choices: [{ message: { content } }] },
+    { headers: { "x-heytutor-trace-id": traceId } },
+  );
+}
+
 function finalizeMockDiagramExamplePickerTrace(
   turnTrace: TurnTrace | null,
   traceId: string,
@@ -594,6 +614,8 @@ interface PlannerRequestArgs {
   problemIRV1: boolean;
   codeLessonV1: boolean;
   diagramExamplePicker: boolean;
+  /** A one-word review of a block diagram's process (`reviewProcessChain`). */
+  processReview: boolean;
   diagramExampleIds: string[];
   /** The turn's subject; null (old client, or `other`) resolves from the whole library. */
   diagramExampleSubject: ReturnType<typeof parseLiveDiagramExampleSubject>;
@@ -621,6 +643,7 @@ async function handlePlannerRequest({
   problemIRV1,
   codeLessonV1,
   diagramExamplePicker,
+  processReview,
   diagramExampleIds,
   diagramExampleSubject,
   question,
@@ -663,6 +686,12 @@ async function handlePlannerRequest({
     if (diagramExamplePicker) {
       parsed.thinking = { type: "disabled" };
       parsed.max_tokens = 60;
+    } else if (processReview) {
+      // A short bounded reasoning pass: without it the review let lists of
+      // parts through as processes (lane 9 held-out set, 27 Oct).
+      parsed.thinking = { type: "enabled", budget_tokens: 1024 };
+      // Reasoning can run past its budget; the verdict must still fit.
+      parsed.max_tokens = 3000;
     } else if (semanticSceneV2 || turnPlanV3 || problemIRV1 || codeLessonV1) {
       // Hidden reasoning adds latency without improving the audited document.
       // Complex scenes routinely exceed 1,400 output tokens; truncating JSON
@@ -953,6 +982,8 @@ export async function POST(request: Request): Promise<Response> {
   const attach = Boolean(incomingTraceId);
   const kind = resolveChatGenerationKind(request.headers);
   const diagramExamplePicker = request.headers.get("x-diagram-example-picker") === "1";
+  // "1" is a review vote, "write" restates a plan's process; both are one short JSON answer.
+  const processReview = !diagramExamplePicker && ["1", "write"].includes(request.headers.get("x-process-review") ?? "");
   const fastMode = parseFastModeHeader(request.headers.get("x-heytutor-fast-mode"));
   const llm = resolveLlmEndpoint();
   const apiKey = llm.apiKey;
@@ -999,6 +1030,9 @@ export async function POST(request: Request): Promise<Response> {
       if (diagramExamplePicker) {
         return finalizeMockDiagramExamplePickerTrace(turnTrace, traceId);
       }
+      if (processReview) {
+        return finalizeMockProcessReviewTrace(turnTrace, traceId);
+      }
       if (request.headers.get("x-code-lesson-version") === "1") {
         return finalizeMockCodeLessonTrace(turnTrace, userInput, traceId);
       }
@@ -1036,6 +1070,7 @@ export async function POST(request: Request): Promise<Response> {
       problemIRV1,
       codeLessonV1,
       diagramExamplePicker,
+      processReview,
       diagramExampleIds: parseLiveDiagramExampleIds(requestUrl.searchParams.get("diagramExampleIds")),
       diagramExampleSubject: parseLiveDiagramExampleSubject(requestUrl.searchParams.get("diagramSubject")),
       question: question ?? "",

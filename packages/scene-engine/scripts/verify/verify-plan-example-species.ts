@@ -246,6 +246,81 @@ for (const [question, formula, claim] of CUT) {
     `declines ${formula} for a question whose words are not all read (${question}): ${built.status}`);
 }
 
+// A singular "lone pair" is the count one, with or without "a". A singular
+// "molecule" needs "a" or "an" as its own article (only a shape or
+// hybridisation may sit between them); an article on another noun does not
+// count.
+const SO2 = "SO2 is sp2 and bent with one lone pair";
+const ONE_LONE_PAIR_AND_BARE_MOLECULE: Array<[string, string, string]> = [
+  ["explain bent molecules with a lone pair", "H2O", H2O],
+  ["why do molecules with a lone pair look bent", "H2O", H2O],
+  ["explain linear molecules with a lone pair", "XeF2", XEF2],
+  ["what is a molecule with a lone pair", "H2O", H2O],
+  ["describe a molecule with a lone pair", "ClF3", CLF3],
+  ["explain square planar molecules with a lone pair", "XeF4", XEF4],
+  ["what is a lone pair", "H2O", H2O],
+  ["what is shape of molecule", "CH4", CH4],
+  ["what is hybridisation of molecule", "CH4", CH4],
+  ["what is bond angle of molecule", "NH3", NH3],
+  ["explain shape of molecule", "H2O", H2O],
+  ["explain linear molecules with lone pair", "XeF2", XEF2],
+  ["what is a bent molecule with lone pair", "H2O", H2O],
+  ["explain bent molecules with lone pair", "H2O", H2O],
+  ["what is a bond angle of molecule", "NH3", NH3],
+  ["what is a shape of molecule", "CH4", CH4],
+  ["explain a shape of molecule", "H2O", H2O],
+  ["explain a hybridisation of molecule", "CH4", CH4],
+  ["what is a shape of molecule with a lone pair", "NH3", NH3],
+];
+for (const [question, formula, claim] of ONE_LONE_PAIR_AND_BARE_MOLECULE) {
+  const turnPlan = plan(question, [{ formula, claim }]);
+  const built = buildPlanExampleDocument(question, turnPlan);
+  const scene = synthesizeFamilyScene({ question, turnPlan });
+  check(built.status === "declined" && scene?.document.source.figureProvenance !== "plan_example",
+    `declines ${formula} for (${question}): ${built.status}`);
+}
+for (const [question, formula, claim] of [
+  ["explain bent molecules with a lone pair", "SO2", SO2],
+  ["explain bent molecules with lone pair", "SO2", SO2],
+  ["what is a lone pair", "NH3", NH3],
+  ["what is a linear molecule", "CO2", CO2],
+  ["what is a t shaped molecule", "ClF3", CLF3],
+  ["what is a bent molecule with one lone pair", "SO2", SO2],
+] as const) {
+  const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
+  check(built.status === "built", `${question} with ${formula} draws: ${built.status === "declined" ? built.reason : built.status}`);
+}
+
+// The caption is drawn whole or the example declines: board text is cut to
+// one label's length, and a cut caption names another species or drops a charge.
+for (const [question, formula, claim] of [
+  ["explain sp3 hybridisation", "CH2Cl2", "CH2Cl2 is sp3 and tetrahedral"],
+  ["explain sp3 hybridisation", "SO2Cl2", "SO2Cl2 is sp3 and tetrahedral"],
+  ["explain sp3d hybridisation", "XeO2F2", "XeO2F2 is sp3d and see-saw"],
+  ["explain sp3d hybridisation", "PCl3F2", "PCl3F2 is sp3d and trigonal bipyramidal"],
+  ["explain hybridisation", "SO4^2-", "SO4^2- is sp3 and tetrahedral"],
+  ["explain sp2 hybridisation", "CO3^2-", "CO3^2- is sp2 and trigonal planar"],
+  ["explain hybridisation", "NH₄⁺", "NH₄⁺ is sp3 and tetrahedral"],
+] as const) {
+  const turnPlan = plan(question, [{ formula, claim }]);
+  const built = buildPlanExampleDocument(question, turnPlan);
+  const scene = synthesizeFamilyScene({ question, turnPlan });
+  check(built.status === "declined" && scene?.document.source.figureProvenance !== "plan_example",
+    `declines ${formula}, whose caption does not fit one label: ${built.status === "built" ? built.source.caption : built.status}`);
+}
+for (const [question, formula, claim] of [
+  ["explain hybridisation", "CH2F2", "CH2F2 is sp3 and tetrahedral"],
+  ["explain hybridisation", "POCl3", "POCl3 is sp3 and tetrahedral"],
+  ["explain sp3d2 hybridisation", "XeOF4", "XeOF4 is sp3d2 and square pyramidal"],
+] as const) {
+  const turnPlan = plan(question, [{ formula, claim }]);
+  const scene = synthesizeFamilyScene({ question, turnPlan });
+  const built = buildPlanExampleDocument(question, turnPlan);
+  const drawn = scene?.renderScene.primitives.filter((primitive) => primitive.kind === "label" && /^example: /.test(primitive.text ?? "")).map((primitive) => primitive.text) ?? [];
+  check(built.status === "built" && drawn.length === 1 && drawn[0] === built.source.caption,
+    `${formula} draws its whole caption: ${built.status === "built" ? `${built.source.caption} drawn ${JSON.stringify(drawn)}` : built.status === "declined" ? built.reason : built.status}`);
+}
+
 // Notation: subscripts and explicit charges are read; a charge the parser
 // would have to guess or cannot read whole declines.
 const NOTATION: Array<[string, string, string, string]> = [
@@ -254,10 +329,12 @@ const NOTATION: Array<[string, string, string, string]> = [
   ["explain hybridisation", "SO4^2-", "SO4^2- is sp3 and tetrahedral", "SO4^2-"],
 ];
 for (const [question, formula, claim, recorded] of NOTATION) {
-  const built = buildPlanExampleDocument(question, plan(question, [{ formula, claim }]));
-  check(built.status === "built" && built.document.source.exampleSpecies === recorded,
-    `${formula} reads as ${recorded}: ${built.status === "declined" ? built.reason : built.status === "built" ? built.document.source.exampleSpecies : "none"}`);
+  const reading = readPlanExample(question, plan(question, [{ formula, claim }]));
+  check(reading.status === "accepted" && reading.source.formula === recorded,
+    `${formula} reads as ${recorded}: ${reading.status === "declined" ? reading.reason : reading.status === "accepted" ? reading.source.formula : "none"}`);
 }
+const bf3 = buildPlanExampleDocument("what is sp2 hybridisation", plan("what is sp2 hybridisation", [{ formula: "BF₃", claim: "BF₃ is sp2 and trigonal planar" }]));
+check(bf3.status === "built" && bf3.document.source.exampleSpecies === "BF3", `BF₃ builds as BF3: ${bf3.status}`);
 for (const formula of ["SO42-", "PO43-", "SO4-2", "NH4(+)", "SO4^-2", "NH4+-", "SO4^2-^", "S-O4", "NO2^(+)^"]) {
   check(!chargeReadWhole(formula), `the charge reader refuses ${formula}`);
 }
@@ -293,4 +370,4 @@ if (failures) {
   console.error(`verify-plan-example-species: ${failures} failure(s)`);
   process.exit(1);
 }
-console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + NOTATION.length} example draws, ${DECLINE.length + OFF_TOPIC.length + UNREAD.length + CUT.length + 8} declines, charge reader`);
+console.log(`verify-plan-example-species: schema, ${DRAW.length + ON_TOPIC.length + 10} example draws, ${DECLINE.length + OFF_TOPIC.length + UNREAD.length + CUT.length + ONE_LONE_PAIR_AND_BARE_MOLECULE.length + 15} declines, charge reader`);

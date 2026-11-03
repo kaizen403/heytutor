@@ -8,6 +8,42 @@ import type { WebSocketServer } from "ws";
  */
 export const SHUTDOWN_DRAIN_CAP_MS = 60_000;
 
+/**
+ * Longest the exit waits for `beforeExit` (the Sentry flush). Added to the
+ * drain cap, 60 s + 1.5 s still exits well before systemd's 90 s SIGKILL.
+ */
+export const SHUTDOWN_FLUSH_CAP_MS = 1_500;
+
+/** The part of the exit cap the speech settlements may use; the flush gets the rest. */
+export const SHUTDOWN_SETTLE_SLICE_MS = 1_000;
+
+/**
+ * Speech charges settle first, bounded by their own slice, so a slow settle can
+ * never use the whole cap and skip the error report flush. Settlements still
+ * open at the slice are logged; the flush then runs with the time left.
+ */
+export async function settleThenFlush(options: {
+  settled: () => Promise<unknown>;
+  open: () => number;
+  flush: (timeoutMs: number) => Promise<unknown>;
+  log?: (message: string) => void;
+  sliceMs?: number;
+  capMs?: number;
+}): Promise<void> {
+  const sliceMs = options.sliceMs ?? SHUTDOWN_SETTLE_SLICE_MS;
+  const capMs = options.capMs ?? SHUTDOWN_FLUSH_CAP_MS;
+  const log = options.log ?? ((message: string) => console.log(message));
+  const startedAt = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = await Promise.race([
+    options.settled().then(() => false, () => false),
+    new Promise<boolean>((done) => { timer = setTimeout(() => done(true), sliceMs); }),
+  ]);
+  clearTimeout(timer);
+  if (timedOut) log(`[shutdown] ${options.open()} speech settlement(s) still open at exit`);
+  await options.flush(Math.max(100, capMs - (Date.now() - startedAt)));
+}
+
 /** WebSocket close code 1012: the service is restarting. */
 const WS_SERVICE_RESTART = 1012;
 
@@ -17,6 +53,11 @@ export interface GracefulShutdownOptions {
   wss?: WebSocketServer;
   capMs?: number;
   exit?: (code: number) => void;
+  /** Awaited once, for at most `flushCapMs`, after the drain and before exit. */
+  beforeExit?: () => Promise<unknown>;
+  /** Speech still being synthesised: the drain waits for it too (same cap). */
+  speech?: { inFlight: () => number; beginDrain: () => void };
+  flushCapMs?: number;
   log?: (message: string) => void;
 }
 
@@ -37,6 +78,7 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
   const capMs = options.capMs ?? SHUTDOWN_DRAIN_CAP_MS;
   const exit = options.exit ?? ((code: number) => process.exit(code));
   const log = options.log ?? ((message: string) => console.log(message));
+  const flushCapMs = options.flushCapMs ?? SHUTDOWN_FLUSH_CAP_MS;
   const active = new Set<ServerResponse>();
   let draining = false;
   let exited = false;
@@ -46,10 +88,34 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     exited = true;
     for (const client of wss?.clients ?? []) client.close(WS_SERVICE_RESTART, "server restarting");
     log(`[shutdown] ${reason}, ${active.size} request(s) still open`);
-    exit(0);
+    if (!options.beforeExit) {
+      exit(0);
+      return;
+    }
+    // Error reports queued during the lesson (for example a speech relay
+    // failure) are sent before the process ends; a stuck flush cannot hold it.
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushed = Promise.resolve().then(options.beforeExit).catch(() => undefined);
+    const capped = new Promise((done) => { flushTimer = setTimeout(done, flushCapMs); });
+    void Promise.race([flushed, capped]).finally(() => {
+      clearTimeout(flushTimer);
+      exit(0);
+    });
   };
+  let speechPoll: ReturnType<typeof setInterval> | undefined;
+  let speechDrainStarted = false;
   const exitWhenDrained = () => {
-    if (draining && active.size === 0) finish("drained");
+    if (!draining || active.size > 0) return;
+    // Speech keeps flowing while a teaching stream is still open; the speech
+    // drain starts only once HTTP has drained, then the sentences already sent
+    // to the provider finish.
+    if (options.speech && !speechDrainStarted) {
+      speechDrainStarted = true;
+      options.speech.beginDrain();
+    }
+    if ((options.speech?.inFlight() ?? 0) > 0) return;
+    if (speechPoll) clearInterval(speechPoll);
+    finish("drained");
   };
 
   server.on("request", (_request, response) => {
@@ -69,6 +135,7 @@ export function installGracefulShutdown(options: GracefulShutdownOptions): { dra
     log(`[shutdown] SIGTERM: draining ${active.size} request(s), cap ${capMs} ms`);
     server.close();
     server.closeIdleConnections();
+    if (options.speech) speechPoll = setInterval(exitWhenDrained, 100);
     setTimeout(() => finish("cap"), capMs);
     exitWhenDrained();
   };

@@ -5,6 +5,7 @@ import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "@/features/tutor-session/lib/scene/restoreReferencePicture";
 import {
   recordedLectureWorkPages,
   type LectureWorkPage,
@@ -101,12 +102,11 @@ export const LECTURE_PLAYER_SKIP_MS = 10_000;
 /**
  * The pace the lecture actually plays at.
  *
- * 1.25 is the default stop. It sits a little under real time, so it is not
- * the same pace as 1.5. Every other stop is the number on the menu.
+ * Every stop is the number on the menu, the same rate the live lesson used,
+ * so a replay at 1.25 plays at the pace the student first heard.
  */
 export function lecturePaceRate(selected: number): number {
   if (!Number.isFinite(selected) || selected <= 0) return 1;
-  if (Math.abs(selected - 1.25) < 0.001) return 0.9;
   return Math.min(Math.max(selected, 0.1), 4);
 }
 
@@ -230,7 +230,7 @@ export function buildLecturePlayerTimeline(
         if (turn && !storedTurnContinuesBoard(turn)) {
           restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
           installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
-            restoreVerifiedDiagramFromTurn(turn));
+            restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
         }
         previousTurn = cue.turnIndex;
       }

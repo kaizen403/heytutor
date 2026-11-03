@@ -34,6 +34,7 @@ import { canonicalizeTurnSceneMetadata as canonicalizeRealScene } from "../../li
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 import { enrichStoredSegmentsWithReplayAudio, replayAudioBytesForUrl, releaseReplayAudioBytes } from "../../lib/replay/replayTurns";
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
+import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -273,6 +274,7 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   },
   // Failure telemetry has its own runtime/privacy gate; keep this fixture on checkpoint semantics.
   "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
+  "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,
@@ -292,6 +294,8 @@ const boardRoute = load("app/api/boards/[boardId]/route.ts", {
   "@/lib/boards/storageQuota": { withUserStorageLock: (_id: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run) },
   "@/lib/object-store/keys": keys,
   "@/lib/boards/turnStatus": turnStatus,
+  "@/lib/community/publicBoard": { isCommunityVisibility: (value: unknown) => value === "public" || value === "private" },
+  "@/lib/object-store/s3": { deleteBoardThumbnail: async () => {} },
 });
 async function freshOrder(boardId = "board-a"): Promise<string[]> {
   const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}`), { params: Promise.resolve({ boardId }) });

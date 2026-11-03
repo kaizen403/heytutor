@@ -4,12 +4,16 @@ import {
   scale2, scalar, sourceUnits, SourceInputError, validationNumber,
   type SourceContext,
 } from "./sourceScalars";
+import {
+  evaluateFluidApparatusConstruction, FLUID_APPARATUS_OPERATORS, FLUID_APPARATUS_OUTPUT_COUNTS, fluidApparatusRoleLabels,
+} from "./fluidApparatusGeometry";
 
 export const CHAPTER_INSTRUMENT_OPERATORS = [
   "metre_bridge",
   "potentiometer",
   "incline_friction",
   "cyclotron",
+  ...FLUID_APPARATUS_OPERATORS,
 ] as const;
 
 export interface InstrumentMark {
@@ -26,9 +30,10 @@ export type InstrumentGeometry =
   | { kind: "point"; point: RenderPoint; instrument: InstrumentMark }
   | { kind: "path"; points: RenderPoint[]; directed?: true; closed?: true; instrument: InstrumentMark }
   | { kind: "circle"; center: RenderPoint; radius: number; instrument: InstrumentMark }
-  | { kind: "multi_path"; paths: RenderPoint[][]; instrument: InstrumentMark };
+  | { kind: "multi_path"; paths: RenderPoint[][]; instrument: InstrumentMark }
+  | { kind: "dimension"; a: RenderPoint; b: RenderPoint; instrument: InstrumentMark };
 
-const COUNTS = { metre_bridge: 4, potentiometer: 2, incline_friction: 6, cyclotron: 5 } as const;
+const COUNTS = { metre_bridge: 4, potentiometer: 2, incline_friction: 6, cyclotron: 5, ...FLUID_APPARATUS_OUTPUT_COUNTS } as const;
 const OHM: Readonly<Record<string, string>> = { ohm: "ohm", Ω: "ohm" };
 const LENGTH: Readonly<Record<string, string>> = { m: "m", metre: "m", meter: "m", cm: "cm" };
 const VOLT: Readonly<Record<string, string>> = { V: "V", volt: "V" };
@@ -297,6 +302,7 @@ export function evaluateChapterInstrumentConstruction(operator: string, inputs: 
   if (operator === "metre_bridge") return readBridge(inputs, context, document);
   if (operator === "potentiometer") return readPotentiometer(inputs, context, document);
   if (operator === "incline_friction") return readIncline(inputs, context, document);
+  if (operator === "submerged_body" || operator === "hydraulic_press") return evaluateFluidApparatusConstruction(operator, inputs, context, document);
   return readCyclotron(inputs, context, document);
 }
 
@@ -305,6 +311,13 @@ export function chapterInstrumentOutputLabels(operator: string, outputs: readonl
   return outputs.map((output, index) => {
     if (!isRecord(output) || !isRecord(output.instrument)) invalid("outputs", "instrument geometry is missing source metadata");
     const metadata = output.instrument as unknown as InstrumentMark;
+    // Qualitative apparatus roles carry symbols only, never a measured value.
+    const symbols = fluidApparatusRoleLabels(metadata.role);
+    if (symbols && (operator === "submerged_body" || operator === "hydraulic_press")) {
+      const requestedText = requested?.[index];
+      if (requestedText !== undefined && !symbols.includes(String(requestedText))) invalid("label", `${metadata.role} may only be labelled ${symbols.join(", ")}`);
+      return requestedText === undefined ? symbols[0]! : String(requestedText);
+    }
     const numeric = `${metadata.role}=${compactNumber(metadata.certified ?? metadata.magnitude)}`;
     const requestedText = requested?.[index];
     if (requestedText !== undefined && requestedText !== metadata.role && requestedText !== numeric) invalid("label", "instrument labels must be the role symbol or the verified magnitude");

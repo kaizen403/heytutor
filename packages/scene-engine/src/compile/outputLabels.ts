@@ -145,6 +145,8 @@ export function withEvaluatedOutputLabels(
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
+    case "submerged_body":
+    case "hydraulic_press":
     case "cyclotron":
       labels = chapterInstrumentOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
       break;

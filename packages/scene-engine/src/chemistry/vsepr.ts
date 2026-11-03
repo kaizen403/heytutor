@@ -1122,13 +1122,16 @@ function layoutFor(result: VseprResult): Layout | null {
           { deg: 360 - theta, len: 1, style: "plain", seat: "axial" },
           { deg: 0, len: 1, style: "plain", seat: "equatorial" },
         ],
-        lonePairs: [{ deg: 150, dist: 0.45 }, { deg: 210, dist: 0.45 }],
+        // Far enough out that the two equatorial pairs read as two pairs.
+        lonePairs: [{ deg: 150, dist: 0.7 }, { deg: 210, dist: 0.7 }],
         angle: [0, 2],
       };
     case "5-3":
+      // The three lone pairs take the equatorial slots of 5-0, far enough out
+      // that the gap between two pairs is over twice the gap within one.
       return {
         bonds: [{ deg: 90, len: 1, style: "plain", seat: "axial" }, { deg: 270, len: 1, style: "plain", seat: "axial" }],
-        lonePairs: [{ deg: 180, dist: 0.5 }, { deg: 60, dist: 0.5 }, { deg: 300, dist: 0.5 }],
+        lonePairs: [{ deg: 180, dist: 0.7 }, { deg: 330, dist: 0.7 }, { deg: 30, dist: 0.7 }],
         angle: null,
       };
     case "6-0":
@@ -1144,19 +1147,24 @@ function layoutFor(result: VseprResult): Layout | null {
         angle: [0, 1],
       };
     case "6-2":
+      // The square in the octahedral perspective, the lone pairs trans on the
+      // axis. Its marked cis pair includes a wedge, so the angle is a caption.
       return {
-        bonds: [45, 135, 225, 315].map((deg) => ({ deg, len: 1, style: "plain" as const, seat: "equatorial" as const })),
+        bonds: OCT_BASAL,
         lonePairs: [{ deg: 90, dist: 0.45 }, { deg: 270, dist: 0.45 }],
-        angle: [3, 0],
+        angle: [0, 2],
       };
     case "6-3":
+      // Meridional: one lone pair trans to the in-plane bond, two trans on the
+      // front-back axis. The front-back pairs sit further out so no two pairs
+      // read as one chain of dots.
       return {
         bonds: [
           { deg: 90, len: 1, style: "plain", seat: "axial" },
           { deg: 270, len: 1, style: "plain", seat: "axial" },
           { deg: 0, len: 1, style: "plain", seat: "equatorial" },
         ],
-        lonePairs: [{ deg: 150, dist: 0.42 }, { deg: 210, dist: 0.42 }, { deg: 180, dist: 0.72 }],
+        lonePairs: [{ deg: 180, dist: 0.4 }, { deg: 225, dist: 0.8 }, { deg: 45, dist: 0.8 }],
         angle: null,
       };
     case "7-0":
@@ -1394,6 +1402,23 @@ function honestArc(layout: Layout, ink: SpeciesInk, radius: number): readonly [n
 }
 
 /**
+ * Whether the marked pair's page sector reads as the written value: "90°"
+ * within a degree, "<90°" below it, ">90°" above it. A perspective pair
+ * (XeF4's cis F) or a layout drawn at the ideal angle under a bound (BrF5's
+ * <90° on a right angle) does not, and is written as a caption.
+ */
+function sectorReads(layout: Layout, value: string): boolean {
+  if (!layout.angle) return false;
+  const slotA = layout.bonds[layout.angle[0]];
+  const slotB = layout.bonds[layout.angle[1]];
+  const written = /^([<>]?)(\d+(?:\.\d+)?)°$/.exec(value);
+  if (!slotA || !slotB || !written) return false;
+  const span = sectorOf(slotA.deg, slotB.deg).span;
+  const target = Number(written[2]);
+  return written[1] === "<" ? span < target : written[1] === ">" ? span > target : Math.abs(span - target) <= 1;
+}
+
+/**
  * Where the value of an honest arc sits: inside its sector, just outside the
  * arc, its ink clear of every bond, symbol and lone pair by MARK_GAP_PX and
  * its text box clear of every symbol's box by LABEL_BOX_GAP_PX at the
@@ -1483,7 +1508,7 @@ function angleMark(result: VseprResult, layout: Layout, seated: readonly Seated[
   // whose angle differs from the value).
   const [first, second] = layout.angle!;
   if (anglePairQualifier(result.stericNumber, seated[first]!.slot.seat, seated[second]!.slot.seat) === null) return null;
-  const pair = honestArc(layout, ink, radius);
+  const pair = sectorReads(layout, value) ? honestArc(layout, ink, radius) : null;
   const placed = pair ? arcValueBox(value, layout, pair, radius, ink, pxPerUnit) : null;
   if (pair && placed) return { kind: "arc", a: pair[0], b: pair[1], radius, ...placed };
   const text = angleCaption(result, layout, seated, value);
@@ -1560,10 +1585,12 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
     symbolBoxes: [textBox(result.central.symbol, origin, pxPerUnit), ...seated.map(({ ligand }, index) => textBox(ligand.label, ligandAt[index]!, pxPerUnit))],
   };
   // Only a single molecule gets the arc and caption rules. A row of species
-  // keeps main's mark exactly, so a row main's label solver refuses is still
-  // refused, and no row draws where main would not.
+  // keeps main's mark, so a row main's label solver refuses is still
+  // refused; only a pair whose sector does not read as its value is
+  // written as a caption instead.
+  const rowCaption = characteristic && row && !sectorReads(layout, characteristic) ? angleCaption(result, layout, seated, characteristic) : null;
   const mark: AngleMark | null = !characteristic ? null
-    : row ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 }
+    : row ? (rowCaption ? { kind: "caption", text: rowCaption } : sectorReads(layout, characteristic) ? { kind: "row", a: layout.angle![0], b: layout.angle![1], radius: layout.angleRadius ?? 0.36 } : null)
     : angleMark(result, layout, seated, ink, characteristic, pxPerUnit);
   const angleTextIds: string[] = [];
   if (mark?.kind === "row") {

@@ -319,6 +319,7 @@ export function shellSession(options: ShellOptions) {
     "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, revealed: options.playerRevealed !== false, playerBoardRef: { current: null }, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
+    "./hooks/useBoardThumbnail": { useBoardThumbnail: noop },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },
   };
   const shellFile = path.join(appRoot, "features/tutor-session/TutorSessionShell.tsx");

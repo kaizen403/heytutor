@@ -8,6 +8,8 @@
  */
 import {
   IncrementalTagParser,
+  buildLessonSegments,
+  lessonNarrationText,
   WORK_ZONE,
   getSegmentCommands,
   parseDrawingCommands,
@@ -69,8 +71,6 @@ const refused = [
   `[STEP]A row on the wrong grid. [WRITE:v = 12,100] Done.[/STEP]`,
   "[STEP]A placeholder only. [WRITE:v = 12,x] Done.[/STEP]",
   `[STEP]Off grid y. [WRITE:v = 12,x,${ROW(1) + 3}] Done.[/STEP]`,
-  "[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]",
-  "[STEP]Q2 next. [WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]",
   "[STEP]An empty row. [WRITE:] Nothing.[/STEP]",
   // Labelled coordinates, seen in production resumes: never written as text.
   "[STEP]Tissue next. [WRITE:tissue = similar cells together:y=541] Cells group.[/STEP]",
@@ -116,4 +116,114 @@ assert(batchWrites(canonical[0]!)[0]!.text === "x^3/3 ]_0^1 = 1/3", "the evaluat
 const two = streamed(`[STEP]First. [WRITE:a = 1] then [WRITE:b = 2 m,${ROW(1)}] end.[/STEP]`);
 assert(two.writes.map((write) => write.text).join("|") === "a = 1|b = 2 m", "consecutive repaired rows both reach the board");
 
-console.log("verify-coordinate-less-write: coordinate-less WRITE rows are repaired to the work margin; ambiguous, id-shaped and LABEL tags stay refused; canonical rows are unchanged");
+// A WRITE that closes neither way is protocol: it is dropped, never spoken,
+// and the tags after it still run. Recorded resumes sent these; the stream
+// used to hold the rest of the step behind them and read it all aloud.
+const refusedThenTags = "[STEP]The canal. [WRITE:w6:y475] It also receives.[/STEP]\n\n" +
+  `[STEP]Next the force. [WRITE:F = ma,90,${ROW(1)}] Newton. [/WRITE] [PAUSE:400] Done.[/STEP]`;
+for (const chunk of [1, 7, 64]) {
+  const commands: DrawCommand[] = [];
+  const narration: string[] = [];
+  const parser = new IncrementalTagParser({
+    preserveStepSpeech: true,
+    onSegmentReady: (segment) => {
+      commands.push(...getSegmentCommands(segment));
+      narration.push(segment.narration);
+    },
+  });
+  for (let index = 0; index < refusedThenTags.length; index += chunk) parser.push(refusedThenTags.slice(index, index + chunk));
+  parser.flush();
+  assert(commands.filter((command) => command.type === "WRITE").map((command) => command.text).join("|") === "F = ma",
+    `the canonical row after a refused WRITE is still written (chunk ${chunk})`);
+  assert(commands.some((command) => command.type === "PAUSE"), `the PAUSE after a refused WRITE still runs (chunk ${chunk})`);
+  assert(!narration.join(" ").includes("["), `no tag text is spoken after a refused WRITE (chunk ${chunk}): ${narration.join(" | ")}`);
+}
+const batchRefused = parseDrawingCommands(refusedThenTags);
+assert(batchRefused.commands.filter((command) => command.type === "WRITE").map((command) => command.text).join("|") === "F = ma" &&
+  !/\[\/?WRITE/i.test(batchRefused.narration), "the batch parser drops the refused WRITE and the stray [/WRITE] the same way");
+
+// Dropped protocol between two words leaves one space: words are never glued
+// and two numbers never become one ("x = 2[/WRITE]3" is not "x = 23").
+const glued: Array<[string, string[], string[]]> = [
+  // (A [WRITE:w3:y=211]text[/WRITE] pair is a tag-closed row on this branch.)
+  ["[STEP]It is alive.[WRITE:w3:y=211]cell is life.[/STEP]", ["alive. cell"], ["alive.cell"]],
+  ["[STEP]Now the canal[/WRITE]The delivery.[/STEP]", ["canal The"], ["canalThe"]],
+  ["Then x = 2[/WRITE]3 seconds later.", ["2 3 seconds"], ["23 seconds"]],
+  ["[STEP]Speed v = 2[WRITE:y=277]3 seconds later.[/STEP]", ["2 3 seconds"], ["23 seconds"]],
+];
+for (const [source, spaced, joined] of glued) {
+  const spokenBatch = parseDrawingCommands(source).narration;
+  for (const chunk of [1, 7]) {
+    const spoken = streamed(source, chunk).narration;
+    for (const [where, text] of [["stream", spoken], ["batch", spokenBatch]] as const) {
+      assert(spaced.every((piece) => text.includes(piece)) && !joined.some((piece) => text.includes(piece)),
+        `dropped protocol leaves a space in the ${where} (chunk ${chunk}): ${JSON.stringify(text)}`);
+    }
+  }
+}
+
+// The overflow and the end of the stream drop a refused WRITE too.
+const overflow = streamed(`[STEP]A row. [WRITE:y=277] ${"then more words ".repeat(24)}[/STEP]`);
+assert(overflow.writes.length === 0 && !overflow.narration.includes("[WRITE"), "a refused WRITE held past the buffer limit is not spoken");
+assert(!streamed("Last words. [WRITE:w5]").narration.includes("[WRITE"), "a refused WRITE at the end of the stream is not spoken");
+
+// A row closed by a tag is the row the model meant, with a bare header or a
+// header that holds only an id or coordinates. Recorded production shapes.
+const closedRows: Array<[string, string]> = [
+  ["[STEP]The square. [WRITE]x^2 + (b/a)x = (x + b/(2a))^2[/WRITE] The key step.[/STEP]", "x^2 + (b/a)x = (x + b/(2a))^2"],
+  ["[STEP]Vagina is the canal. [WRITE:w6:y475]canal: birth[/WRITE] It also receives.[/STEP]", "canal: birth"],
+  ["[STEP]Q2 next. [WRITE:y=541]Q2: where?[/WRITE] A board question.[/STEP]", "Q2: where?"],
+  ["[STEP]Ten. [WRITE:x=60, y=475]chapter = many exercises[/WRITE] Many.[/STEP]", "chapter = many exercises"],
+];
+for (const [source, text] of closedRows) {
+  for (const chunk of [1, 7, 64]) {
+    const { writes, narration } = streamed(source, chunk);
+    assert(writes.length === 1 && writes[0]!.text === text, `a tag-closed row is written (chunk ${chunk}): ${JSON.stringify(writes.map((write) => write.text))}`);
+    assert(writes[0]!.params[0] === WORK_ZONE.marginX, "a tag-closed row sits at the work margin");
+    assert(!/\[\/?WRITE/i.test(narration), `no WRITE tag is spoken around a tag-closed row (chunk ${chunk}): ${narration}`);
+  }
+  const batch = batchWrites(source);
+  assert(batch.length === 1 && batch[0]!.text === text, `the batch parser agrees on ${JSON.stringify(source)}`);
+}
+// The refusals still hold inside the tags, and a header that says more than
+// an id or coordinates is not a tag-closed row.
+for (const source of [
+  "[STEP]Count. [WRITE]Population = 1,211[/WRITE] That many.[/STEP]",
+  "[STEP]Kelvin. [WRITE]w4:T(K) = T(C) + 273[/WRITE] Always.[/STEP]",
+]) {
+  assert(streamed(source).writes.length === 0 && batchWrites(source).length === 0, `a tag-closed body still refuses ${JSON.stringify(source)}`);
+}
+
+// Notes and history read the same rows the board wrote.
+const notesSource = `[STEP]The square. [WRITE]x^2 + 2x = (x + 1)^2 - 1[/WRITE] The key step.[/STEP]\n\n[STEP]Rows. [WRITE:y = 2x,${ROW(2)}] Done. [WRITE:w5] Next.[/STEP]`;
+const notes = lessonNarrationText(notesSource);
+assert(!/\[\/?WRITE/i.test(notes), `lesson notes never carry a WRITE tag: ${notes}`);
+const noteRows = buildLessonSegments(notesSource).flatMap((segment) => getSegmentCommands(segment))
+  .filter((command) => command.type === "WRITE").map((command) => command.text);
+assert(noteRows.join("|") === "x^2 + 2x = (x + 1)^2 - 1|y = 2x", `lesson segments hold the repaired rows: ${JSON.stringify(noteRows)}`);
+
+// A header with a real row is that row; the words after it are not ink.
+const headed = "[STEP]Head. [WRITE:v = 3]and more[/WRITE] Done.[/STEP]";
+assert(streamed(headed).writes.map((write) => write.text).join("|") === "v = 3" &&
+  batchWrites(headed).map((write) => write.text).join("|") === "v = 3", "a header that holds a row keeps only that row");
+
+// The refused span ends at the tag's own "]": a bracket in the speech after it
+// (an interval) is speech, not part of the tag.
+const interval = "[STEP]The domain. [WRITE:w5] Take x in (0, 1]. Then solve.[/STEP]";
+for (const chunk of [1, 9]) {
+  const spoken = streamed(interval, chunk).narration;
+  assert(spoken.includes("Take x in (0, 1]") && !spoken.includes("[WRITE"), `the words after a refused WRITE are still spoken (chunk ${chunk}): ${spoken}`);
+}
+assert(parseDrawingCommands(interval).narration.includes("Take x in (0, 1]"), "the batch parser keeps the words after a refused WRITE");
+
+// A row may quote a closing tag: only a stray [/WRITE] outside a row is dropped.
+const quoted = `[STEP]The tag. [WRITE:the [/WRITE] tag,90,${ROW(1)}] Quoted.[/STEP]`;
+assert(batchWrites(quoted)[0]?.text === "the [/WRITE] tag", `the batch parser keeps a quoted [/WRITE] in a row: ${batchWrites(quoted)[0]?.text}`);
+assert(streamed(quoted).writes[0]?.text === "the [/WRITE] tag", "the streaming parser keeps a quoted [/WRITE] in a row");
+
+// An evaluation bar refused as a row leaves with its bounds, not as speech.
+const bar = streamed("[STEP]Area. [WRITE:x^3/3 ]_0^1 = 1/3] So a third.[/STEP]");
+assert(bar.writes.length === 0 && !bar.narration.includes("[") && !bar.narration.includes("_0^1"),
+  `a refused evaluation bar row is neither written nor read out: ${bar.narration}`);
+
+console.log("verify-coordinate-less-write: coordinate-less WRITE rows are repaired to the work margin; ambiguous, id-shaped and LABEL tags stay refused; canonical rows are unchanged; a WRITE that closes neither way is dropped from speech and the tags after it still run");
