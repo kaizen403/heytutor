@@ -33,6 +33,7 @@ import * as requestBody from "../../lib/http/requestBody";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as turnStatus from "../../lib/boards/turnStatus";
 import * as turnFilters from "../../lib/admin/turnFilters";
+import { Prisma } from "@prisma/client";
 import * as objectKeys from "../../lib/object-store/keys";
 import * as mediaUrl from "../../lib/object-store/mediaUrl";
 import { sentryEventUrl } from "../../lib/admin/sentryLink";
@@ -167,6 +168,8 @@ const failureEvent = {
     issue_codes: ["candidate_invalid"], question: "Synthetic student question" },
   exception: { values: [{ value: "Synthetic student answer" }] },
 };
+// The scrub edits in place, so the picture rows below need their own dirty copy.
+const dirtyPictureEvent = structuredClone(failureEvent);
 const cleanFailure = scrubSentryEvent(failureEvent);
 assert(cleanFailure.user == null, "failed-turn telemetry drops every user field, including ids");
 assert(cleanFailure.request == null, "failed-turn telemetry drops inherited request data and paths");
@@ -181,6 +184,16 @@ assert(
   "failed-turn issue grouping contains only the canonical stage, code and subject",
 );
 assert(!JSON.stringify(cleanFailure).includes("Synthetic student"), "failed-turn telemetry has no synthetic lesson text");
+// A shown reference picture is its own issue, with the same closed vocabulary.
+const cleanPicture = scrubSentryEvent({ ...dirtyPictureEvent, level: "info", tags: { ...dirtyPictureEvent.tags, area: "turn-picture" } });
+assert(cleanPicture.message === "Tutor turn picture shown", "a shown picture never reads as a failed turn");
+assert(cleanPicture.level === "info", "a shown picture is not raised to warning, so no failure alert fires");
+assert(cleanPicture.tags.area === "turn-picture" && cleanPicture.tags.code === "candidate_invalid", "a shown picture keeps its own area and the engine's reason");
+assert(JSON.stringify(cleanPicture.fingerprint) === JSON.stringify(["turn-picture", "scene_planner", "candidate_invalid", "physics"]),
+  "a shown picture groups apart from failed turns");
+assert(cleanPicture.user == null && cleanPicture.request == null && cleanPicture.breadcrumbs == null && cleanPicture.exception == null && cleanPicture.tags.board_id == null && cleanPicture.extra.question == null,
+  "a shown picture passes the same privacy boundary");
+assert(!JSON.stringify(cleanPicture).includes("Synthetic student"), "a shown picture has no synthetic lesson text");
 assert(!JSON.stringify(cleanFailure).includes("synthetic-user-id"), "failed-turn telemetry has no synthetic identity");
 assert(scrubSentryBreadcrumb({ category: "console", message: "question text" }) == null, "console crumbs are refused");
 assert(sentryBeforeSendLog({ message: "[tutor:planner] 3 villagers" }) == null, "tutor debug logs stay on the machine");
@@ -234,6 +247,8 @@ function matchesWhere(row: FixtureTurn, where: Record<string, unknown>): boolean
     if (key === "sceneArtifacts" && expected !== null && typeof expected === "object" && "path" in expected && Array.isArray(expected.path)) {
       const value = expected.path.reduce((current: unknown, part: string) => current !== null && typeof current === "object"
         ? (current as Record<string, unknown>)[part] : undefined, actual);
+      if ("string_starts_with" in expected) return typeof value === "string" && value.startsWith(String(expected.string_starts_with));
+      if ("equals" in expected && expected.equals === Prisma.AnyNull) return value === undefined || value === null;
       return "equals" in expected && value === expected.equals;
     }
     if (expected instanceof Date) return actual instanceof Date && actual.getTime() === expected.getTime();
@@ -753,6 +768,19 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       else strictAssert.equal(event, null, `expected text is healthy for ${kind}`);
     }
   }
+  const shownPicture = { ...failedTurn, visualStatus: "text_only",
+    sceneArtifacts: { degradation: { reason: "candidate_invalid", candidateCount: 2, issueCodes: [] }, referencePicture: { id: "rp_0123456789abcdef01234567" } } };
+  const pictureEvent = telemetry.buildFailedTurnSentryEvent(shownPicture, failureEnv);
+  assert(pictureEvent, "a shown picture keeps a report of its own");
+  strictAssert.equal(pictureEvent.message, "Tutor turn picture shown", "a shown picture is not a failed turn in Sentry");
+  strictAssert.equal(pictureEvent.level, "info");
+  strictAssert.equal(pictureEvent.tags.area, "turn-picture");
+  strictAssert.equal(pictureEvent.tags.code, "candidate_invalid", "the engine's refusal is still counted");
+  strictAssert.equal(pictureEvent.fingerprint[0], "turn-picture");
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...shownPicture, status: "live" }, failureEnv), null,
+    "a live picture lesson waits for its final outcome too");
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...shownPicture, sceneArtifacts: { ...shownPicture.sceneArtifacts, failureTelemetry: { failed: true, code: "lesson_not_taught" } } }, failureEnv)?.message,
+    "Tutor turn failed", "a picture lesson that did not teach is still a failed turn");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, status: "live" }, failureEnv), null,
     "a provisional live checkpoint waits for final outcome");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, visualStatus: "validated" }, failureEnv), null,
