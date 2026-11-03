@@ -20,7 +20,7 @@ export const SCENE_TEXT_LIMITS = Object.freeze({
   textChars: 2_000,
   /** All annotation text together. */
   annotationTotalChars: 8_000,
-  /** The document's copy of the question, the same size a saved turn may hold. */
+  /** The document's question and a generator's copy of it, the same size a saved turn may hold. */
   questionChars: 12_000,
   /** All text and keys together, apart from the question. */
   totalChars: 96_000,
@@ -60,13 +60,15 @@ export function sceneTextOverLimit(raw: unknown): SceneIssue | null {
     if (++nodes > limits.nodes) return over("value count");
     if (depth > limits.depth) return over("nesting");
     if (typeof value === "string") {
-      if (key === "question") {
+      if (key === "question" && section === "source" && depth === 2) {
         // A real stem can hold wide gaps and long numbers, and neither costs anything here.
         if (value.length > limits.questionChars) return over("question length");
         continue;
       }
       const isLabel = LABEL_FIELDS.has(key) || (key === "text" && section === "constructions");
-      const size = isLabel ? limits.labelChars : key === "role" ? limits.roleChars : NAME_FIELDS.has(key) ? limits.nameChars : limits.textChars;
+      // A generator may keep its own copy of the stem under source. It counts like other text.
+      const isStemCopy = key === "question" && section === "source";
+      const size = isLabel ? limits.labelChars : isStemCopy ? limits.questionChars : key === "role" ? limits.roleChars : NAME_FIELDS.has(key) ? limits.nameChars : limits.textChars;
       if (value.length > size) return over("field length");
       total += value.length;
       if (total > limits.totalChars) return over("total length");

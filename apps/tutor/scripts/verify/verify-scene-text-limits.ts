@@ -194,6 +194,17 @@ for (const question of [`a${spaces(L.questionChars - 2)}b`, "1".repeat(L.questio
   if (sceneTextOverLimit(shell({ source: { question } })) !== null) fail("a question inside its length", question.slice(0, 8));
 }
 
+// Only the document's own question is exempt. A copy of the stem counts like other text, and any other question is plain text.
+const copies = (count: number, chars: number) => shell({ source: { question: "Q", extra: Array.from({ length: count }, () => ({ question: "a".repeat(chars) })) } });
+if (sceneTextOverLimit(copies(1, L.questionChars)) !== null) fail("a stem copy at its size", null);
+if (sceneTextOverLimit(copies(1, L.questionChars + 1))?.code !== OVER) fail("a stem copy one past its size", null);
+if (sceneTextOverLimit(copies(Math.ceil(L.totalChars / L.questionChars) + 1, L.questionChars))?.code !== OVER) fail("stem copies count toward the total", null);
+if (sceneTextOverLimit(shell({ source: { question: "Q", copy: { question: `a${spaces(L.whitespaceRun + 1)}b` } } }))?.code !== OVER) fail("a stem copy is held to the whitespace run", null);
+if (sceneTextOverLimit(shell({ source: { question: "Q", copy: { question: "7".repeat(L.digitRun + 1) } } }))?.code !== OVER) fail("a stem copy is held to the digit run", null);
+if (sceneTextOverLimit(shell({ extra: [{ question: "a".repeat(L.textChars) }] })) !== null) fail("a question outside source at the text size", null);
+if (sceneTextOverLimit(shell({ extra: [{ question: "a".repeat(L.textChars + 1) }] }))?.code !== OVER) fail("a question outside source is plain text", null);
+if (sceneTextOverLimit(shell({ extra: { question: `a${spaces(L.whitespaceRun + 1)}b` } }))?.code !== OVER) fail("a gap in a question outside source", null);
+
 // Keys count toward the total, in whatever order the document lists them.
 const manyKeys = Object.fromEntries(Array.from({ length: L.entries }, (_, index) => [String(index).padEnd(L.nameChars, "k"), 1]));
 const keysLast = { a: Array.from({ length: 42 }, () => "a".repeat(L.textChars)), extra: manyKeys };
