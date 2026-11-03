@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import { buildLewisScene } from "../../src/chemistry/lewis";
 import { parseFormula } from "../../src/chemistry/formula";
+import { buildOrganicScene } from "../../src/chemistry/organic";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
@@ -172,6 +173,25 @@ const DECLINES: readonly string[] = [
 for (const question of DECLINES) {
   check(`declines: ${question}`, () => assert.equal(buildLewisScene(question, [], false), null));
 }
+
+// A refused figure must not hand the turn to a lone structure of the other compound.
+for (const question of [
+  "Show the hydrogen bond between phenol and water.",
+  "Hydrogen bonds between glucose and water molecules.",
+  "Draw the hydrogen bond between ethanol and water.",
+  "Show hydrogen bonds between methanol molecules.",
+  "Does methane form hydrogen bonds with water?",
+  "hydrogen bonding in acetic acid dimer in water",
+]) {
+  check(`no runner up: ${question}`, () => {
+    assert.equal(buildOrganicScene(question, [], false), null, "organic drew a lone structure");
+    assert.equal(synthesizeFamilyScene({ question }) ?? null, null, "another family took the turn");
+  });
+}
+// The organic decline is only for hydrogen bond asks.
+check("organic still draws a plain structure ask", () => {
+  assert.ok(buildOrganicScene("Draw the structure of phenol.", [], false), "phenol declined");
+});
 
 // The nitrophenol figures are a separate branch and must not move.
 check("nitrophenol still draws", () => {

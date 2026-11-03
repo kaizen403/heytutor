@@ -199,7 +199,12 @@ const GUARD_FILES: Record<string, { file: string; call: string; to?: string; als
   mo: { file: "chemistry/moDiagram.ts", call: "stemChargesRead(", rows: (row) => row.owners.includes("chem_mo") },
   orbital: { file: "chemistry/orbitalBox.ts", call: "stemChargesRead(", rows: (row) => row.owners.includes("chem_orbital") && !row.id.startsWith("hydrogenic") },
   periodic: { file: "chemistry/periodicTrend.ts", call: "stemChargesRead(", rows: (row) => row.owners.includes("chem_periodic") },
-  hbond: { file: "chemistry/bondingFigures.ts", call: "stemChargesRead(", rows: (row) => row.id.startsWith("hbond") },
+  // These stems also fall outside the closed hydrogen bond ask, so both refusals go off here.
+  hbond: {
+    file: "chemistry/bondingFigures.ts", call: "stemChargesRead(",
+    also: { call: "!plainHydrogenBondAsk(stem, species)", to: "false" },
+    rows: (row) => row.id.startsWith("hbond"),
+  },
   hydrogenic: { file: "chemistry/hydrogenicRadial.ts", call: "stemChargesRead(", rows: (row) => row.id.startsWith("hydrogenic") },
 };
 
