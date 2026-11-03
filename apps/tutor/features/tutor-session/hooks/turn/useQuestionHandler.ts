@@ -2028,10 +2028,23 @@ export function useQuestionHandler(
         const waitStartedAt = Date.now();
         if (!referencePicturePending) startReferencePicture(false);
         const pending = referencePicturePending!;
+        // On the page before the wait: Stop saves the turn before this code can
+        // run again, so only this tells a stop during the wait apart.
+        page.turn.scene = page.turn.scene ? {
+          ...page.turn.scene,
+          sceneArtifacts: {
+            ...sceneArtifacts,
+            referencePictureOutcome: {
+              attempted: true, status: "skipped", reason: "wait_in_progress",
+              ms: Math.max(0, waitStartedAt - pending.startedAt), speculative: pending.speculative,
+            } satisfies ReferencePictureOutcome,
+          },
+        } : page.turn.scene;
         // A turn replaced while it waits stops paying for its picture.
         const awaitWhileCurrent = <T,>(operation: Promise<T>): Promise<T> =>
           awaitCurrentTurn(operation, isCurrentTurn).catch((error: unknown) => {
             pending.controller.abort();
+            tel.mark("reference-picture-wait-stopped", { wait_ms: Date.now() - waitStartedAt, speculative: pending.speculative });
             throw error;
           });
         let deadline: ReturnType<typeof setTimeout> | undefined;
