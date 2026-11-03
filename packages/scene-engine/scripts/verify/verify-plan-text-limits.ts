@@ -12,6 +12,7 @@ import {
   validateTurnPlanV3,
 } from "../../src/contracts/contractsV3";
 import { parseTurnPlanV3Content, type TurnPlanV3ParseTrace } from "../../../tutor-core/src/planners/turnPlannerV3";
+import { cpuMs } from "./cpuTime";
 
 const QUESTION = "A synthetic plan row.";
 const LIMIT_MS = 1_000;
@@ -23,6 +24,10 @@ const fail = (name: string, detail: unknown): never => {
   console.error(`FAIL ${name}: ${JSON.stringify(detail).slice(0, 200)}`);
   process.exit(1);
 };
+
+// The sizes themselves, so raising one is a decision and not an accident.
+const PINNED = { textChars: 1_000, nameChars: 128, totalChars: 8_000, entries: 64, nodes: 2_000, depth: 16, whitespaceRun: 16, digitRun: 400, questionChars: 12_000 };
+if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the plan sizes moved", L);
 
 const plan = (over: Record<string, unknown> = {}) => ({
   schemaVersion: "turn-plan/v3", question: QUESTION, givens: [],
@@ -62,13 +67,11 @@ const refusedInTime: Array<[string, Record<string, unknown>]> = [
   ["no schema and no question", { givens: [{ symbol: `sin 1${spaces(2_000)}!`, value: 1 }], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [] }],
 ];
 for (const [name, raw] of refusedInTime) {
-  let started = performance.now();
-  const validated = codes(raw, QUESTION);
-  const validateMs = performance.now() - started;
-  started = performance.now();
-  const trace: TurnPlanV3ParseTrace = {};
-  const parsed = parseTurnPlanV3Content(JSON.stringify(raw), QUESTION, trace);
-  const parseMs = performance.now() - started;
+  let validated: string[] = [];
+  let trace: TurnPlanV3ParseTrace = {};
+  let parsed: unknown = null;
+  const validateMs = cpuMs(() => { validated = codes(raw, QUESTION); }, LIMIT_MS);
+  const parseMs = cpuMs(() => { trace = {}; parsed = parseTurnPlanV3Content(JSON.stringify(raw), QUESTION, trace); }, LIMIT_MS);
   if (validateMs > LIMIT_MS || parseMs > LIMIT_MS) fail(`${name}: time`, { validateMs, parseMs });
   if (validated.join() !== OVER) fail(`${name}: validate`, validated);
   if (parsed !== null || trace.issues?.[0]?.code !== OVER || trace.normalized !== undefined) fail(`${name}: parse`, trace.issues);
@@ -88,12 +91,9 @@ const atTheSizes: Array<[string, Record<string, unknown>]> = [
   ["seven chains", plan({ unknowns: [], derived: Array.from({ length: 7 }, (_, index) => ({ id: `x${index}`, symbol: `x${index}`, value: 7, sourceText: `x${index} = ${fill("1 = ", L.textChars - 8)}`, provenance: "derived" })) })],
 ];
 for (const [name, raw] of atTheSizes) {
-  let started = performance.now();
-  const validated = codes(raw, QUESTION);
-  const validateMs = performance.now() - started;
-  started = performance.now();
-  parseTurnPlanV3Content(JSON.stringify(raw), QUESTION);
-  const parseMs = performance.now() - started;
+  let validated: string[] = [];
+  const validateMs = cpuMs(() => { validated = codes(raw, QUESTION); }, LIMIT_MS);
+  const parseMs = cpuMs(() => { parseTurnPlanV3Content(JSON.stringify(raw), QUESTION); }, LIMIT_MS);
   if (validateMs > LIMIT_MS || parseMs > LIMIT_MS) fail(`${name}: time`, { validateMs, parseMs });
   if (validated.includes(OVER)) fail(`${name}: within the sizes`, validated);
 }
@@ -105,6 +105,7 @@ const longQuestions: Array<[string, string]> = [
   ["an approximate sign, a wide gap", `x = ~${spaces(L.questionChars - 10)}!`],
   ["repeated statements", fill("x = 1 m ", L.questionChars)],
   ["repeated measures", fill("1 m ", L.questionChars)],
+  ["digits at the run size", fill(`${"1".repeat(L.digitRun)} `, L.questionChars)],
   ["bars", fill("|x| ", L.questionChars)],
   ["open brackets", fill("(", L.questionChars)],
   ["close brackets", fill(")", L.questionChars)],
@@ -112,12 +113,10 @@ const longQuestions: Array<[string, string]> = [
 ];
 for (const [name, question] of longQuestions) {
   const raw = plan({ question });
-  let started = performance.now();
-  const validated = validateTurnPlanV3(raw, question);
-  const validateMs = performance.now() - started;
-  started = performance.now();
-  const parsed = parseTurnPlanV3Content(JSON.stringify(raw), question);
-  const parseMs = performance.now() - started;
+  let validated = validateTurnPlanV3(plan(), QUESTION);
+  let parsed: unknown = null;
+  const validateMs = cpuMs(() => { validated = validateTurnPlanV3(raw, question); }, LIMIT_MS);
+  const parseMs = cpuMs(() => { parsed = parseTurnPlanV3Content(JSON.stringify(raw), question); }, QUESTION_PARSE_LIMIT_MS);
   if (validateMs > LIMIT_MS || parseMs > QUESTION_PARSE_LIMIT_MS) fail(`question, ${name}: time`, { validateMs, parseMs });
   if (validated.issues.some((issue) => issue.code === OVER) || !validated.plan) fail(`question, ${name}: refused`, validated.issues);
   if (!parsed) fail(`question, ${name}: parser refused`, null);
@@ -137,6 +136,12 @@ for (const question of ["q".repeat(L.questionChars + 1), `${"1".repeat(L.digitRu
 }
 if (codes(plan({ question: "q".repeat(L.questionChars) }), "q".repeat(L.questionChars)).includes(OVER)) fail("a question at the length size", null);
 if (codes(plan({ question: "1".repeat(L.digitRun) }), "1".repeat(L.digitRun)).includes(OVER)) fail("a question at the digit size", null);
+
+// A long stated number is an ordinary thing to state. A value this reader cannot hold as a finite number has at most 309 digits.
+const fifty = "30414093201713378043612608166064768844377641568960512000000000000";
+const longNumber = validateTurnPlanV3(reconcileTurnPlanV3ExplicitArithmetic(plan({ unknowns: [{ id: "x", symbol: "x" }], derived: [{ id: "x", symbol: "x", value: Number(fifty), sourceText: `x = ${fifty}`, provenance: "derived" }] })).plan, QUESTION);
+if (longNumber.plan?.derived[0]?.value !== Number(fifty)) fail("a plan stating a 65 digit result", longNumber.issues);
+if (codes(plan(), `What is the sum of the digits of ${fifty}?`).includes(OVER)) fail("a question holding a 65 digit number", null);
 
 // Each size, right at it and one past it.
 const quantities = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `g${index}`, symbol: `g${index}`, value: 1, provenance: "given" }));

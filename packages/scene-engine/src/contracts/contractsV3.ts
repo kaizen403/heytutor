@@ -143,8 +143,8 @@ export const TURN_PLAN_TEXT_LIMITS = Object.freeze({
   depth: 16,
   /** A run of whitespace inside plan text. */
   whitespaceRun: 16,
-  /** A run of digits anywhere, the question included. */
-  digitRun: 40,
+  /** A run of digits anywhere, the question included. A finite value has at most 309. */
+  digitRun: 400,
   /** The question, which matches what a saved turn may hold. */
   questionChars: 12_000,
 });
