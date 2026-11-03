@@ -148,6 +148,10 @@ jobs:
           pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-teaching-reservation-budget.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-home-suggestion-race.ts
           node deploy/aws/verify-sentry-release.mjs
+      - name: Home suggestion card gates (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-landing-suggestions.ts
+          pnpm --filter @heytutor/tutor exec tsx --tsconfig tsconfig.json scripts/verify/verify-home-suggestion-retired.ts
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
       - name: VSEPR source evidence and save regressions (offline)
