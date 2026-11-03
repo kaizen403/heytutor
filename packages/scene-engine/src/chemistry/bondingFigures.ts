@@ -759,11 +759,10 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
  * Two isomers side by side answer a comparison of the two. One ortho answers a
  * plain ask about its own bond. The para figure alone says "no intra" and draws
  * no bond, which reads as "no hydrogen bonds" when p-nitrophenol does form them,
- * so it never draws alone. Lists of what to refuse lost to spelling each round
+ * and no sentence here accepts it alone. Lists of what to refuse lost to spelling each round
  * (anions of, sodium salts, with H2O, tert butyl), so nothing here lists them.
  */
 function plainNitrophenolAsk(stem: string, ortho: boolean, para: boolean): boolean {
-  if (para && !ortho) return false;
   const ask = stem.replace(/\s+/g, " ").trim();
   return ortho && !para ? ORTHO_NITROPHENOL_ASK.test(ask) : NITROPHENOL_PAIR_ASKS.some((shape) => shape.test(ask));
 }
