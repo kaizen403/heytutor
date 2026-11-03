@@ -390,4 +390,33 @@ check("a battery's emf is not a field emf, so the contact sketch does not give w
   }
 });
 
+check("motion in a field with no emf named keeps its sketch", () => {
+  for (const question of [
+    "A charged particle of mass 2 g moves in a magnetic field. Find the force on it.",
+    "A neutral particle moves along a straight line at 5 m/s in a uniform magnetic field. Find its displacement in 2 s.",
+  ]) {
+    const family = contactFamily(question)?.family ?? synthesizeFamilyScene({ question })?.family ?? null;
+    assert.notEqual(family, null, `${question}: an emf the stem never names does not decline the sketch`);
+    assert.notEqual(family, "circuit_network", `${question}: no resistors`);
+  }
+});
+
+check("a turning conductor never draws the magnet and coil", () => {
+  for (const question of [
+    "A coil rotates between the poles of a magnet. Explain the induced emf.",
+    "A rotating loop of wire with a magnet nearby. Explain the induced current.",
+    "A metal disc spins between the poles of a magnet. Explain the induced emf.",
+  ]) {
+    assert.equal(detectArchetype(question, {}), null, `${question}: a turning conductor is not a magnet and coil`);
+  }
+});
+
+check("an induction setup with a resistor does not draw a resistor network", () => {
+  for (const question of [
+    "A battery and two 5 ohm resistors in series sit beside a magnet. Explain Lenz's law for the circuit.",
+  ]) {
+    assert.equal(detectArchetype(question, {}), null, `${question}: not a resistor network`);
+  }
+});
+
 console.log(`verify-decline-wrong-fallbacks: ${checks} checks passed`);
