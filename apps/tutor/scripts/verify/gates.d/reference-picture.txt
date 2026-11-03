@@ -1,0 +1,6 @@
+tsx scripts/verify/verify-reference-picture-server.ts
+tsx scripts/verify/verify-reference-picture-stroke-plan.ts
+tsx scripts/verify/verify-reference-picture-turn.ts
+tsx scripts/verify/verify-admin-pictures.ts
+tsx scripts/verify/verify-reference-picture-parts.ts
+tsx scripts/verify/verify-picture-value-guard.ts

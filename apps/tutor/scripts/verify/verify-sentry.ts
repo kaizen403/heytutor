@@ -40,6 +40,7 @@ import * as liveTurnSave from "../../features/tutor-session/lib/turn/liveTurnSav
 import * as doubtTurn from "../../features/tutor-session/lib/turn/doubtTurn";
 import * as saveStatus from "../../features/tutor-session/lib/turn/saveStatus";
 import type * as boardsClient from "../../lib/boards/boardsClient";
+import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -581,6 +582,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       withUserStorageLock: async (_user: string, run: (client: typeof tx) => Promise<unknown>) => run(tx),
     },
     "@/lib/obs/traceOwnership": {},
+    "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalizeCheckpoint },
     "@/lib/scene/turnUploadLimits": uploadLimits, "@/lib/boards/turnStatus": turnStatus,
     "@/lib/boards/turnSaveRejection": { rejectTurnSave: (_code: string, error: string, status: number) => Response.json({ error }, { status }) },

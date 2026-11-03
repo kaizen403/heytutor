@@ -14,6 +14,36 @@ export const SHUTDOWN_DRAIN_CAP_MS = 60_000;
  */
 export const SHUTDOWN_FLUSH_CAP_MS = 1_500;
 
+/** The part of the exit cap the speech settlements may use; the flush gets the rest. */
+export const SHUTDOWN_SETTLE_SLICE_MS = 1_000;
+
+/**
+ * Speech charges settle first, bounded by their own slice, so a slow settle can
+ * never use the whole cap and skip the error report flush. Settlements still
+ * open at the slice are logged; the flush then runs with the time left.
+ */
+export async function settleThenFlush(options: {
+  settled: () => Promise<unknown>;
+  open: () => number;
+  flush: (timeoutMs: number) => Promise<unknown>;
+  log?: (message: string) => void;
+  sliceMs?: number;
+  capMs?: number;
+}): Promise<void> {
+  const sliceMs = options.sliceMs ?? SHUTDOWN_SETTLE_SLICE_MS;
+  const capMs = options.capMs ?? SHUTDOWN_FLUSH_CAP_MS;
+  const log = options.log ?? ((message: string) => console.log(message));
+  const startedAt = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timedOut = await Promise.race([
+    options.settled().then(() => false, () => false),
+    new Promise<boolean>((done) => { timer = setTimeout(() => done(true), sliceMs); }),
+  ]);
+  clearTimeout(timer);
+  if (timedOut) log(`[shutdown] ${options.open()} speech settlement(s) still open at exit`);
+  await options.flush(Math.max(100, capMs - (Date.now() - startedAt)));
+}
+
 /** WebSocket close code 1012: the service is restarting. */
 const WS_SERVICE_RESTART = 1012;
 

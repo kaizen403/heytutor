@@ -128,7 +128,7 @@ async function runLiveConsumer(strictSubjects = ["physics"]): Promise<ConsumerRe
     },
   });
   const code = `${deadlineText}\n${selection.map((node) => node.getText(generation)).join("\n")}\n` +
-    `${currentTurnGuardText}\n(async () => { let turnPlan; let turnPlanMs; let diagramSubject = "other"; let diagramStrategySubject = "other";\n` +
+    `${currentTurnGuardText}\n(async () => { let turnPlan; let turnPlanMs; let plannedSubject; let diagramSubject = "other"; let diagramStrategySubject = "other";\n` +
     `${consumerBlock(liveBlock.statements.slice(liveBegin, liveEnd), liveSource, "live")}\n` +
     `return { subject: diagramSubject, planned: plannedTurn !== null, turnPlan, outcomes: typeof turnPlanOutcomes === "undefined" ? [] : turnPlanOutcomes, decisions: [${liveStrategyCalls.join(",\n")}] }; })()`;
   const result: ConsumerResult = await new Script(ts.transpileModule(code, { compilerOptions: {

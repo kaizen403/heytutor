@@ -1,4 +1,5 @@
 import {
+  CopyObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -7,7 +8,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getObjectStoreConfig } from "./config";
-import { isSafeObjectDeletionPrefix, isSafeObjectKey } from "./keys";
+import { boardThumbnailKey, isSafeObjectDeletionPrefix, isSafeObjectKey, parseStoredObjectKey } from "./keys";
 import { mediaProxyUrl } from "./mediaUrl";
 
 export { boardAudioPrefix, userImagePrefix } from "./keys";
@@ -199,4 +200,55 @@ export async function uploadImage(
   signal?: AbortSignal,
 ): Promise<string | null> {
   return putObject(key, bytes, contentType, signal);
+}
+
+/** Card picture bytes; the route caps their size and checks the format first. */
+export async function putBoardThumbnail(boardId: string, bytes: Uint8Array): Promise<boolean> {
+  const key = boardThumbnailKey(boardId);
+  const config = getObjectStoreConfig();
+  const client = getClient();
+  if (!key || !config || !client) return false;
+  try {
+    await client.send(
+      new PutObjectCommand({ Bucket: config.bucket, Key: key, Body: Buffer.from(bytes), ContentType: "image/webp" }),
+      { abortSignal: AbortSignal.timeout(15_000) },
+    );
+    return true;
+  } catch (error) {
+    console.error("[community] thumbnail upload failed", error);
+    return false;
+  }
+}
+
+export async function getBoardThumbnail(boardId: string): Promise<StoredObjectBody | null> {
+  const key = boardThumbnailKey(boardId);
+  const config = getObjectStoreConfig();
+  const client = getClient();
+  if (!key || !config || !client) return null;
+  try {
+    const result = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+    const body = result.Body;
+    if (!body || typeof body.transformToWebStream !== "function") return null;
+    return { body: body.transformToWebStream() as ReadableStream<Uint8Array>, contentType: "image/webp" };
+  } catch {
+    return null;
+  }
+}
+
+/** Server side copy of a lecture clip, for a remix. Both keys must be lecture keys. */
+export async function copyLectureObject(sourceKey: string, targetKey: string, signal?: AbortSignal): Promise<boolean> {
+  if (parseStoredObjectKey(sourceKey)?.kind !== "lecture" || parseStoredObjectKey(targetKey)?.kind !== "lecture") return false;
+  const config = getObjectStoreConfig();
+  const client = getClient();
+  if (!config || !client) return false;
+  try {
+    await client.send(
+      new CopyObjectCommand({ Bucket: config.bucket, Key: targetKey, CopySource: `${config.bucket}/${encodeURI(sourceKey)}` }),
+      { abortSignal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) },
+    );
+    return true;
+  } catch (error) {
+    console.error("[community] clip copy failed", error);
+    return false;
+  }
 }

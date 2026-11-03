@@ -101,4 +101,15 @@ check: {
   assert.equal(detectArchetype(level, {}), null, "a refused circle lead declines, no runner up");
   checks += 1;
 }
+check: {
+  // The planner request gate keeps the refused lead, so the prompt stays as it was; the figure still declines.
+  for (const [question, id] of [
+    ["A car moves on a level road with constant speed. Draw its x-t graph.", "circular_motion_level"],
+    ["A rod pivoted at one end is released from horizontal. Find its angular speed at the bottom.", "free_fall"],
+  ] as const) {
+    assert.equal(detectArchetype(question, { keepLawOnlyLead: true })?.id, id, `${question}: the request gate keeps ${id}`);
+    assert.equal(detectArchetype(question, {}), null, `${question}: drawing still declines`);
+    checks += 1;
+  }
+}
 console.log(`verify-mechanics-stand-ins: ${checks} checks passed`);

@@ -6,7 +6,16 @@ import { SENTRY_TUNNEL_PATH } from "./lib/obs/sentryTunnel";
 import { renderFingerprint } from "./lib/lecture-export/buildRenderFingerprint.mjs";
 import { resolveBuildIdentity } from "./lib/client/buildIdentity.mjs";
 
+// Production deploys build into a release directory beside the live one
+// (deploy/aws/tutor-release.sh), then point .next at it. Anything else builds
+// into .next as before.
+const distDir = process.env.NEXT_DIST_DIR?.trim();
+if (distDir && distDir !== ".next-a" && distDir !== ".next-b") {
+  throw new Error(`NEXT_DIST_DIR must be .next-a or .next-b, not ${distDir}`);
+}
+
 const nextConfig: NextConfig = {
+  ...(distDir ? { distDir } : {}),
   env: {
     NEXT_PUBLIC_LECTURE_RENDER_HASH: renderFingerprint(path.resolve(process.cwd(), "../..")),
     // The deployed commit, inlined into the browser bundle and the server alike,

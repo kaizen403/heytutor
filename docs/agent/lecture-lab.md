@@ -327,6 +327,56 @@ run artifacts retain raw candidate responses separately from deterministic
 fallback diagnostics. `physicsHybrid.ts <output.json>` computes the read-only
 counterfactual over previously judged Part 11/12/14 artifacts, with no API calls.
 
+## Reference picture step
+
+`--reference-picture` (off by default) replays the live reference picture tier
+(`docs/architecture/reference-pictures.md`) against the dev server's real
+`POST /api/reference-picture`, which must run with `DIAGRAM_REFERENCE_PICTURE=on`
+(a 404 stops the round). `labReferencePicture.ts` makes the hook's three moves
+in its order: an early start right after the merged visual requirement for
+every subject outside the chemistry lane whose turn wants a figure; a start at
+the text only point otherwise (no verified figure, requirement not `none`, not
+DSA); a 25 s wait plus the asset preload (image and stroke plan);
+an abort when a verified figure wins. A shown picture gives the teaching prompt
+the presentation's `promptAddon` and the marker its `reference_picture` target,
+while every engine field stays text only, as live.
+`--reference-picture-part-focus` also builds the picture's part and key focus
+targets (live begin-turn `referencePicturePartFocus`); start the dev server with
+`REFERENCE_PICTURE_PART_FOCUS=on` too, since the server strips `parts` from
+records when its flag is off.
+
+Use `--production-strict-subjects` for production parity (now allowed with
+`--ask` on the strict arm, with the same leak-filtered example library): it is
+what makes the planner classify the subject the request carries and the
+strict policy reads. Set `DIAGRAM_YIELD_POLICY` on the CLI
+to match production; the lab reads it from its own environment.
+
+The route bills its own reservation and returns no usage, so every request
+reserves $0.80 before dispatch (`LAB_REFERENCE_PICTURE_BASE_RESERVATION_USD`,
+above the route's own ceiling of about $0.38 for the query plus two rounds of
+three Ember-1 judges; $0.20 more when an image provider is configured) and
+settles to it. Only a refusal before the route reserves (a 4xx, `missing_key`)
+is a proved zero. Ready answers that cost a cent still charge $0.80, and so
+does an early request a verified figure aborts, so the ledger overstates
+picture spend by design.
+
+Each row records `referencePicture` (attempted, speculative, status, reason,
+subject, `startedAtMs`, `requestMs`, `waitMs` past scene planning, the route's
+answer and `cached`, picture id, title, source, licence, labels, the saved
+image under `pictures/`, accounting) and `timings.firstTeachingTokenMs` (turn
+start to the first teaching token). The transcript gains a Reference picture
+section with planner, ProblemIR, scene planning, picture and total timings;
+`summary.json` gains `referencePictures` (shown on engine failures, wait p50
+and p90) and `referencePictureCalls`. The route's `steps` (search and judge
+trail) and a numbered picture's `legend` are kept per row and printed in the
+transcript. The offline gate is
+`verify-lab-reference-picture.ts`, inside `verify:lab`.
+
+```bash
+cd apps/tutor
+DIAGRAM_YIELD_POLICY=verified_parts caffeinate -i pnpm exec tsx scripts/lecture-lab/run.ts --ask questions.txt --model fast --arm planner_examples_strict --production-strict-subjects maths,physics --reference-picture --concurrency 2 --max-usd 6 --out .lecture-lab/pictures-01
+```
+
 ## Planner evidence
 
 Every new run initializes `diagram.plannerDeclineReason` (selected candidate,

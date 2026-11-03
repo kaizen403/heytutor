@@ -12,6 +12,7 @@
 import type { SceneDocument } from "../../../types";
 import { ChemScene, type Vec2 } from "../../sceneKit";
 import { arrowRing, type CurlyArrow } from "./arrows";
+import { curlyArrow, curvePoints } from "./curlyInk";
 import { CYCLIC_RING_SIZE, type CyclicElimination, type CyclicEliminationKind } from "./eliminations";
 import { bondOrder, formalCharge, fragments, neighbourAtoms, type MechState } from "./state";
 
@@ -32,8 +33,6 @@ const SECOND_PRODUCT: Readonly<Record<CyclicEliminationKind, string>> = {
   cope_elimination: "a hydroxylamine",
 };
 const RING_WORDS: Readonly<Record<number, string>> = { 5: "five", 6: "six" };
-const CURVE_SAMPLES = 10;
-const CURVE_MIN_BOW = 0.36;
 const LONE_PAIR_TURN = (50 * Math.PI) / 180;
 /** Ring bond length: two "CH_2" labels side by side still leave a visible bond between them. */
 const RING_SIDE = 1.5;
@@ -232,23 +231,10 @@ function curlyArrows(c: ChemScene, prefix: string, model: CyclicElimination, lai
       const atom = at(arrow.head.atom);
       head = add(atom, scale(unit(sub(tail, atom)), 0.36));
     }
-    // The compiler holds any curved path to 12 px across; the bow keeps a
-    // short arrow clear of that at board scale.
-    const bow = Math.max(CURVE_MIN_BOW, length(sub(head, tail)) * 0.35);
     const along = unit(sub(head, tail));
     const inward = sub(centre, mid(tail, head));
     const side = (-along.y * inward.x + along.x * inward.y >= 0 ? 1 : -1) * (fromLonePair ? -1 : 1);
-    const control = add(mid(tail, head), scale({ x: -along.y * side, y: along.x * side }, 2 * bow));
-    const points: string[] = [];
-    for (let step = 0; step <= CURVE_SAMPLES; step += 1) {
-      const t = step / CURVE_SAMPLES;
-      const point = add(add(scale(tail, (1 - t) ** 2), scale(control, 2 * (1 - t) * t)), scale(head, t * t));
-      points.push(c.scene.helper(`${prefix}_arrow${index}_p${step}`, point, "curly arrow path helper"));
-    }
-    const id = `${prefix}_arrow${index}`;
-    c.scene.entities.push({ id, kind: "vector", role: "curly arrow: one electron pair moves from tail to head" });
-    c.scene.constructions.push({ id: `make_${id}`, operator: "polyline", inputs: { points }, outputs: [id] });
-    ids.push(id);
+    ids.push(curlyArrow(c, `${prefix}_arrow${index}`, curvePoints(tail, head, side)));
   });
   return ids;
 }
