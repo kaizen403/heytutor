@@ -257,7 +257,7 @@ for (const [why, question, plan, expected] of [
   ["prose after a value keeps it off the board", "If x = 3 is the root, draw it.", undefined, []],
   ["Hindi after a value is prose", "अगर x = 3 है तो ग्राफ बनाओ", undefined, []],
   ["one Hindi word after a value is prose", "अगर x = 3 है, तो ग्राफ बनाओ", undefined, []],
-  ["answer options are not given", "Which is correct? (A) v = 5 m/s (B) v = 7 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
+  ["answer options are not given", "Which is correct? (A) v = 7 m/s (B) w = 9 m/s.", { givens: [plain("v", 7, "m/s")] }, []],
   ["named options are not given", "Pick one. Options: T1 = 5, T2 = 6.", undefined, []],
   ["a value in an option is not given", "Which holds? (A) x = 5, (B) x = 7.", undefined, []],
   // Right rows stay: the question's own words.
