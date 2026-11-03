@@ -23,6 +23,7 @@ import { labArtifactSlug } from "../lecture-lab/diagramEval";
 import {
   HOME_SUGGESTION_RECORDING_VERSION,
   homeSuggestionEvalRows,
+  isAcceptedVerdict,
   loadOracle,
   marksOf,
   ORACLE_PATH,
@@ -56,6 +57,12 @@ assert(
   "mutation: an oracle row for a removed card must fail",
 );
 
+// A partial or wrong figure cannot pass as judged.
+for (const verdict of ["wrong", "partial", "", undefined]) {
+  assert(!isAcceptedVerdict(verdict), `mutation: verdict ${String(verdict)} must be refused`);
+}
+for (const verdict of ["right", "text_only_honest"]) assert(isAcceptedVerdict(verdict), `verdict ${verdict} is accepted`);
+
 // 2. Every card has a judged recording that fits its figure need.
 const recordings = new Map<string, HomeSuggestionRecording>();
 for (const row of rows) {
@@ -70,6 +77,7 @@ for (const row of rows) {
     failures.push(`recording question differs from the card: ${path}`);
   }
   const { verdict } = recording.judged;
+  if (!isAcceptedVerdict(verdict)) failures.push(`a recording may only hold right or text_only_honest, got ${String(verdict)}: ${row.question}`);
   if (verdict === "right" && !recording.expected.drawn) failures.push(`judged right but records no figure: ${row.question}`);
   if (verdict === "text_only_honest" && recording.expected.drawn) failures.push(`judged text only but records a figure: ${row.question}`);
   if (row.figure_need === "required" && verdict !== "right") {

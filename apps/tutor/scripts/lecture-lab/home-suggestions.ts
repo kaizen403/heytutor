@@ -28,6 +28,7 @@ import type { LectureRun } from "./lecturePipeline";
 import {
   gradeRound,
   homeSuggestionEvalRows,
+  isAcceptedVerdict,
   loadOracle,
   ORACLE_PATH,
   RECORDINGS_DIR,
@@ -129,6 +130,11 @@ function command(args: string[]): void {
       const judged = judgements[row.question];
       const hit = runs.get(row.question);
       if (!judged || !hit) continue;
+      if (!isAcceptedVerdict(judged.verdict)) {
+        console.error(`refusing verdict ${String(judged.verdict)}: only right or text_only_honest may be recorded: ${row.question}`);
+        failed = true;
+        continue;
+      }
       const recording = recordingFromRun(hit.run, `${round.replace(/^.*\.lecture-lab\//, ".lecture-lab/")}/runs/${hit.file.split("/").pop()}`, judged);
       // The replay must reproduce what the lab showed, or the gate would guard a different figure.
       const lab = labOutcome(hit.run);
