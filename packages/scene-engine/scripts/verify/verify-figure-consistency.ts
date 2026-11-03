@@ -233,6 +233,60 @@ function highlightedRod(): Doc {
 expect("a loop highlight holding the region name does not count as a nested body", highlightedRod(), "region_label_in_nested_body", false);
 expect("mutation: a highlighted body still refuses a name inside the body", annotate(tank(3), { id: "ring", kind: "loop", targetIds: ["solid"] }), "region_label_in_nested_body", true);
 
+// --- two axes drawn over one another ------------------------------------------------
+// Production drew a transverse and a longitudinal wave as two axes in two reveal groups
+// with no placement: both landed on one frame, so the compression mark sat on a crest.
+function frames(count: 1 | 2, options: { curves?: boolean; firstRange?: [number, number, number, number]; secondRange?: [number, number, number, number]; expressions?: [string, string] } = {}): Doc {
+  const parts: Array<[Entity, Construction]> = [];
+  const names = ["T", "L"].slice(0, count);
+  for (const [index, name] of names.entries()) {
+    const [xMin, xMax, yMin, yMax] = index === 1 && options.secondRange ? options.secondRange : index === 0 && options.firstRange ? options.firstRange : [-0.4, 8.6, -2.6, 2.6];
+    parts.push([{ id: `axes${name}`, kind: "axes", role: `${name} axes` }, { id: `make_axes${name}`, operator: "axes", inputs: { xMin, xMax, yMin, yMax }, outputs: [`axes${name}`] }]);
+    if (options.curves !== false) parts.push([{ id: `wave${name}`, kind: "polyline", role: `${name} wave`, label: `wave ${index + 1}` }, { id: `make_wave${name}`, operator: "function_curve", inputs: { expression: options.expressions?.[index] ?? "1.6*sin(1.5707963267948966*x)", variable: "x", xMin: 0, xMax: 8, samples: 49 }, outputs: [`wave${name}`] }]);
+  }
+  const document = build(parts);
+  document.revealGroups = names.map((name, index) => ({
+    id: `panel${name}`, dependsOn: index === 0 ? [] : ["panelT"], entityIds: [`axes${name}`, ...(options.curves === false ? [] : [`wave${name}`])], narrationCue: `panel ${name}` }));
+  return document;
+}
+expect("two axes in two reveal groups drawn on one frame are refused", frames(2), "axes_frames_overlap", true);
+expect("two axes with different ranges still share the world frame and are refused", frames(2, { secondRange: [-1, 4, -1, 1] }), "axes_frames_overlap", true);
+expect("mutation: the same figure with one axes is admitted", frames(1), "axes_frames_overlap", false);
+expect("two lone axes the compiler packs into separate panels are admitted", frames(2, { curves: false }), "axes_frames_overlap", false);
+// One graph split at its axis (g(r) above, V(r) below a shared r axis) is not two graphs
+// on one scale: each frame reaches past the shared axis only by a margin.
+const decay: [string, string] = ["2*exp(-0.3*x)", "-2*exp(-0.3*x)"];
+expect("two frames on opposite halves of one shared axis are admitted", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", false);
+expect("a frame spanning both signs beside a half-plane frame is still refused", frames(2, { firstRange: [-0.4, 8.6, -2.6, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", true);
+expect("opposite-half frames whose curves cross the shared axis are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3] }), "axes_frames_overlap", true);
+expect("two frames in the same half are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -0.3, 2.6], expressions: ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
+
+// Each half must hold a curve of its own: frames that claim opposite halves with both
+// curves above the axis are two graphs on one scale (x beside a positive v).
+const halves = { firstRange: [-0.4, 8.6, -0.3, 2.6] as [number, number, number, number], secondRange: [-0.4, 8.6, -2.6, 0.3] as [number, number, number, number] };
+expect("opposite-half frames with both curves above the axis are still refused", frames(2, { ...halves, expressions: ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
+expect("opposite-half frames with both curves below the axis are still refused", frames(2, { ...halves, expressions: ["-2*exp(-0.3*x)", "-1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
+expect("opposite halves listed lower first are still one graph split at its axis", frames(2, { firstRange: halves.secondRange, secondRange: halves.firstRange, expressions: ["-2*exp(-0.3*x)", "2*exp(-0.3*x)"] }), "axes_frames_overlap", false);
+expect("opposite-half frames over different x spans are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 4.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", true);
+// A straight segment crossing the shared axis lands in the other graph's half just as a curve does.
+function halvesWithLine(expressions: [string, string], from: [number, number], to: [number, number]): Doc {
+  const document = frames(2, { ...halves, expressions });
+  const parts: Array<[Entity, Construction]> = [point("c1", from[0], from[1], "construction helper"), point("c2", to[0], to[1], "construction helper"),
+    [{ id: "crossing", kind: "segment", role: "line", label: "crossing" }, { id: "make_crossing", operator: "segment", inputs: { start: "c1", end: "c2" }, outputs: ["crossing"] }]];
+  for (const [entity, construction] of parts) {
+    (document.entities as Entity[]).push(entity);
+    (document.constructions as Construction[]).push(construction);
+    (document.requiredEntityIds as string[]).push(entity.id);
+    ((document.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push(entity.id);
+  }
+  return document;
+}
+expect("a straight line crossing the shared axis still refuses opposite-half frames", halvesWithLine(decay, [4, 1.5], [4, -1.5]), "axes_frames_overlap", true);
+const sameHalf: [string, string] = ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"];
+expect("a short line below does not stand in for the lower graph", halvesWithLine(sameHalf, [3, -1], [4, -1.5]), "axes_frames_overlap", true);
+expect("a flat reference line below does not stand in for the lower graph", halvesWithLine(sameHalf, [0, -1], [8, -1]), "axes_frames_overlap", true);
+expect("a true split graph with a short line in one half is still admitted", halvesWithLine(decay, [3, 1], [4, 1.5]), "axes_frames_overlap", false);
+
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }
 else { passed += 1; console.log("pass the rules run only when admission opts in"); }
