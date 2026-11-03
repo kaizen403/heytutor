@@ -18,20 +18,15 @@ export const STREAM_SEGMENTS_LIVE = true;
 /**
  * Empty-board prompts for a profile with no available subject. Cap is 5: a sixth
  * card forces a scroll, and a second column clips. Each card is a different
- * chapter, and each one was run as a full lesson and judged from its render
- * before it was listed here. A card stays out if it drew a wrong figure, even
- * when that leaves the subject mix uneven.
+ * chapter, and each ran once as a full lesson, judged from its render, before it
+ * was listed here. One right run does not make a card safe: the planner varies,
+ * so a card leaves this list when it draws a wrong figure, in the lab or for a
+ * student, even when that leaves the subject mix uneven.
  *
  * Mix topic lectures (derive / explain / show how) with numbered problems.
  * A stack of only exam questions made the empty board feel like a problem set.
  */
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
-  {
-    topic: "Projectiles",
-    kind: "lecture",
-    question:
-      "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
-  },
   {
     topic: "Resistors",
     kind: "problem",
@@ -49,6 +44,12 @@ export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
     kind: "lecture",
     question:
       "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4.",
+  },
+  {
+    topic: "Newton's laws",
+    kind: "problem",
+    question:
+      "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
   },
 ];
 
