@@ -23,8 +23,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const stems = (file: string, every: number): string[] => readFileSync(resolve(root, `data/diagram-eval/v1/${file}`), "utf8")
   .split("\n").filter(Boolean).map((line) => (JSON.parse(line) as { question: string }).question).filter((_, index) => index % every === 0);
 // Every physics stem, where bodies and surfaces live, and a sample of the other two.
-// One stem hid what `pulley_incline` draws at other angles, so its angle is swept here.
-const angles = Array.from({ length: 16 }, (_, index) => `A 2 kg block on a ${5 + index * 5}° rough incline is connected by a light string over a smooth pulley to a hanging 3 kg block.`);
+// One stem hid what `pulley_incline` draws at other angles, so its angle is swept to the top of its range.
+const inclineStem = (degrees: number) => `A 2 kg block on a ${degrees}° rough incline is connected by a light string over a smooth pulley to a hanging 3 kg block.`;
+const angles = [...Array.from({ length: 17 }, (_, index) => 5 + index * 5), 88, 89].map(inclineStem);
 const questions = [...new Set([...ARCHETYPE_PROBES.map((probe) => probe.question), ...angles, ...stems("physics.jsonl", 1), ...stems("maths.jsonl", 4), ...stems("chemistry.jsonl", 4)])];
 const plan = (question: string) => ({
   schemaVersion: "turn-plan/v3" as const, question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" as const,
@@ -46,6 +47,11 @@ for (const question of questions) {
   check("archetype", question, attemptArchetypeScene({ question, turnPlan: turnPlan as never }).scene?.document);
   check("family", question, synthesizeFamilyScene({ question, families, turnPlan: turnPlan as never })?.document);
   check("last resort", question, synthesizeLastResortScene({ question, families, turnPlan: turnPlan as never })?.document);
+}
+// A steep incline must not lose its figure: an unbounded pulley position once shrank it until the compiler refused it.
+for (const degrees of [30, 45, 60, 75, 85, 88, 89]) {
+  const question = inclineStem(degrees);
+  if (!attemptArchetypeScene({ question, turnPlan: plan(question) as never }).scene) failures.push(`pulley_incline draws nothing at ${degrees} degrees`);
 }
 // A sample that draws nothing proves nothing.
 if (documents < 1500 || withSurface < 300) failures.push(`the sample is too thin: ${documents} documents, ${withSurface} with a surface`);
