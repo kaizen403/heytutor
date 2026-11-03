@@ -31,7 +31,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "invalid_quantity_value", "invalid_question", "invalid_sign", "invalid_symbol", "invalid_unit",
   "invalid_unknown", "invalid_visual_requirement", "missing_array", "question_mismatch", "schema_version",
   "sign_mismatch", "source_text_arithmetic_conflict", "source_text_arithmetic_invalid", "source_text_value_mismatch",
-  "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch",
+  "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch", "plan_text_over_limit", "scene_text_over_limit", "label_measure_budget",
   "scene_without_readable_label", "planner_declined_required_scene", "unsupported_operator",
   "scene_source_question_mismatch", "scene_solver_plan_contradiction", "solver_value_mismatch",
   "numeric_authority_contradiction",

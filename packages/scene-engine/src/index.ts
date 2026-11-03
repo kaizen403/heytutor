@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./chemistry/representation";
 export * from "./capability/capabilityManifest";
 export * from "./document/validation";
+export * from "./document/textLimits";
 export * from "./document/namedPoints";
 export * from "./document/placementIntent";
 export * from "./compile/compiler";
