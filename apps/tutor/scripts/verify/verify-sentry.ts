@@ -168,6 +168,8 @@ const failureEvent = {
     issue_codes: ["candidate_invalid"], question: "Synthetic student question" },
   exception: { values: [{ value: "Synthetic student answer" }] },
 };
+// The scrub edits in place, so the picture rows below need their own dirty copy.
+const dirtyPictureEvent = structuredClone(failureEvent);
 const cleanFailure = scrubSentryEvent(failureEvent);
 assert(cleanFailure.user == null, "failed-turn telemetry drops every user field, including ids");
 assert(cleanFailure.request == null, "failed-turn telemetry drops inherited request data and paths");
@@ -183,7 +185,7 @@ assert(
 );
 assert(!JSON.stringify(cleanFailure).includes("Synthetic student"), "failed-turn telemetry has no synthetic lesson text");
 // A shown reference picture is its own issue, with the same closed vocabulary.
-const cleanPicture = scrubSentryEvent({ ...failureEvent, level: "info", tags: { ...failureEvent.tags, area: "turn-picture" } });
+const cleanPicture = scrubSentryEvent({ ...dirtyPictureEvent, level: "info", tags: { ...dirtyPictureEvent.tags, area: "turn-picture" } });
 assert(cleanPicture.message === "Tutor turn picture shown", "a shown picture never reads as a failed turn");
 assert(cleanPicture.level === "info", "a shown picture is not raised to warning, so no failure alert fires");
 assert(cleanPicture.tags.area === "turn-picture" && cleanPicture.tags.code === "candidate_invalid", "a shown picture keeps its own area and the engine's reason");
