@@ -11,6 +11,9 @@
  *
  * Personalized cards written by the model per student are not covered: only
  * their shape is gated, in verify-landing-suggestions.
+ *
+ * `--allow-unjudged` reports cards with no recording instead of failing, for
+ * use only until the first judged round lands. Everything else stays strict.
  */
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -29,6 +32,8 @@ import {
 } from "../lecture-lab/homeSuggestionCheck";
 
 const failures: string[] = [];
+const unjudged: string[] = [];
+const allowUnjudged = process.argv.includes("--allow-unjudged");
 const shown = shownSuggestions();
 const oracle = loadOracle(ORACLE_PATH);
 
@@ -52,7 +57,7 @@ const recordings = new Map<string, HomeSuggestionRecording>();
 for (const row of rows) {
   const path = join(RECORDINGS_DIR, `${labArtifactSlug(row.id)}.json`);
   if (!existsSync(path)) {
-    failures.push(`no judged recording for: ${row.question}`);
+    (allowUnjudged ? unjudged : failures).push(`no judged recording for: ${row.question}`);
     continue;
   }
   const recording = JSON.parse(readFileSync(path, "utf8")) as HomeSuggestionRecording;
@@ -105,4 +110,5 @@ if (failures.length > 0) {
   console.error(`verify-home-suggestion-figures: ${failures.length} failure(s) over ${rows.length} cards`);
   process.exit(1);
 }
-console.log(`verify-home-suggestion-figures: ok (${rows.length} cards, ${drawn} draw a judged figure, ${rows.length - drawn} judged text only)`);
+const judged = recordings.size;
+console.log(`verify-home-suggestion-figures: ok (${rows.length} cards, ${judged} judged: ${drawn} draw, ${judged - drawn} text only; ${unjudged.length} not judged yet)`);

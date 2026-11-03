@@ -7,7 +7,7 @@
  *   # 2. one paid round of full lessons (needs the orchestrator's yes and a cap)
  *   pnpm exec tsx scripts/lecture-lab/run.ts --eval .lecture-lab/home-suggestions.jsonl \
  *     --arm planner_examples_strict --production-strict-subjects maths,physics --model fast \
- *     --scene-planner-limit-ms 60000 --figure-only false --max-usd <cap> --yes --out .lecture-lab/home-<date>
+ *     --scene-planner-limit-ms 60000 --figure-only=false --max-usd <cap> --yes --out .lecture-lab/home-<date>
  *   # 3. the per-card table, and every drawn figure as SVG + PNG to judge ($0)
  *   pnpm exec tsx scripts/lecture-lab/home-suggestions.ts report .lecture-lab/home-<date>
  *   # 4. freeze the judged figures for the offline gate ($0)
