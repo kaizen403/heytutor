@@ -17,12 +17,13 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { RenderScene } from "@heytutor/scene-engine";
+import { parseDiagramYieldPolicy, type DiagramYieldPolicy, type RenderScene } from "@heytutor/scene-engine";
 import { shownHomeSuggestions } from "../../lib/account/homeSuggestions";
 import type { SubjectId } from "../../lib/account/types";
 import {
   deriveSceneGate,
   selectProductionScene,
+  validateProductionSceneCandidate,
   type ProductionSceneSelectionInput,
 } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
@@ -73,6 +74,8 @@ export interface HomeSuggestionRecording {
     /** The selected raw planner document. Null when none was planned. */
     candidate: Record<string, unknown> | null;
     rebuildFamilyFigure: boolean;
+    /** Validate under the policy the lab ran with, as the live hook does. */
+    yieldPolicy: DiagramYieldPolicy;
   };
   expected: FigureSignature;
 }
@@ -109,7 +112,7 @@ export function figureSignature(selection: ReturnType<typeof selectProductionSce
  * either path shows up. Nothing here reads the network or the environment.
  */
 export function replaySelection(recording: HomeSuggestionRecording): ReturnType<typeof selectProductionScene> {
-  const { candidate, rebuildFamilyFigure, ...input } = recording.selection;
+  const { candidate, rebuildFamilyFigure, yieldPolicy, ...input } = recording.selection;
   const gate = deriveSceneGate(input);
   const fastRepresentation = rebuildFamilyFigure
     ? selectFastVerifiedRepresentation({
@@ -121,7 +124,11 @@ export function replaySelection(recording: HomeSuggestionRecording): ReturnType<
     : null;
   return selectProductionScene({
     ...input,
-    candidate,
+    candidateValidation: candidate
+      ? validateProductionSceneCandidate({
+          candidate, question: input.question, turnPlan: gate.turnPlan, yieldPolicy, blockFlowEligible: input.blockFlowEligible,
+        })
+      : null,
     fastRepresentation,
     requiredRetryEnabled: input.requiredRetryEnabled ?? true,
   });
@@ -271,7 +278,7 @@ function parseCandidate(rawContent: string | undefined): Record<string, unknown>
  * validation; the family figure is rebuilt on replay for the same reason.
  */
 export function recordingFromRun(
-  run: LectureRun,
+  run: LectureRun & { executionConfig?: { diagramYieldPolicy?: DiagramYieldPolicy } },
   recordedFrom: string,
   judged: HomeSuggestionRecording["judged"],
 ): HomeSuggestionRecording {
@@ -289,6 +296,7 @@ export function recordingFromRun(
       ...input,
       candidate: parseCandidate(selected?.rawContent) ?? validated ?? null,
       rebuildFamilyFigure: fastRepresentation != null,
+      yieldPolicy: run.executionConfig?.diagramYieldPolicy ?? parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
     },
     expected: { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], inkHash: null },
   };

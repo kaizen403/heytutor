@@ -342,7 +342,8 @@
   "policy": {
    "preferPlanner": true
   },
-  "rebuildFamilyFigure": false
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
  },
  "expected": {
   "drawn": true,
