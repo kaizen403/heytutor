@@ -21,6 +21,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { labArtifactSlug } from "../lecture-lab/diagramEval";
 import {
   HOME_SUGGESTION_RECORDING_VERSION,
@@ -42,6 +43,9 @@ const PARTIAL_FIGURES: ReadonlyMap<string, string> = new Map([
   ["Derive the relation between wave speed, frequency, and wavelength using a traveling wave.", "no direction of travel, and a stray axis label reads as y minus x"],
   ["Explain what dy/dx means geometrically, then show how to differentiate y = x³ − 4x.", "the geometry is exact, but the curve's equation sits on the tangent line"],
 ]);
+
+const recordingAsksCard = (recording: HomeSuggestionRecording, cardQuestion: string) =>
+  recording.question === cardQuestion && recording.selection.question === normalizeTutorQuestion(cardQuestion);
 
 const failures: string[] = [];
 const unjudged: string[] = [];
@@ -74,8 +78,8 @@ for (const row of rows) {
   }
   const recording = JSON.parse(readFileSync(path, "utf8")) as HomeSuggestionRecording;
   if (recording.schemaVersion !== HOME_SUGGESTION_RECORDING_VERSION) failures.push(`stale recording schema: ${path}`);
-  // Only the card's text is compared: the lab normalizes what it asks (x² becomes x^2).
-  if (recording.question !== row.question) failures.push(`recording question differs from the card: ${path}`);
+  // The lab normalizes what it asks (x² becomes x^2), so a replay must ask the normalized card.
+  if (!recordingAsksCard(recording, row.question)) failures.push(`recording question differs from the card: ${path}`);
   const { verdict } = recording.judged;
   if (verdict === "right" && !recording.expected.drawn) failures.push(`judged right but records no figure: ${row.question}`);
   if (verdict === "text_only_honest" && recording.expected.drawn) failures.push(`judged text only but records a figure: ${row.question}`);
@@ -135,6 +139,18 @@ if (sample) {
   expectMutationCaught("a solid mark drawn dashed", (signature) => { signature.marks[arrowIndex]!.dashed = !signature.marks[arrowIndex]!.dashed; });
   expectMutationCaught("a lost mark", (signature) => { signature.marks.splice(arrowIndex, 1); });
   expectMutationCaught("a label on the wrong mark", (signature) => { signature.texts[0] = `other: ${signature.texts[0]!.split(": ").slice(1).join(": ")}`; });
+  // A run recorded for an older wording cannot stand in for a changed card.
+  assert(recordingAsksCard(sample, sample.question), "the sample must ask its own card");
+  const reworded = `${sample.question} Show every step.`;
+  assert(!recordingAsksCard({ ...sample, question: reworded }, reworded), "mutation: an old run stamped with a changed card must fail");
+
+  // Replay normalizes a raw response as the lab does: a string source still binds to the question.
+  const plannerRecording = [...recordings.values()].find((recording) => recording.expected.figureSource === "planner");
+  assert(plannerRecording?.selection.candidate, "a planner recording is needed to test normalization");
+  const stringSource: HomeSuggestionRecording = structuredClone(plannerRecording);
+  stringSource.selection.candidate = { ...stringSource.selection.candidate!, source: "the student's question" };
+  assert.deepEqual(signatureDifferences(plannerRecording.expected, replayRecording(stringSource)), [], "a string source must replay to the same figure");
+
   // Layout is not a change: moving and rescaling the whole figure must pass.
   const scene = replaySelection(sample).representation!.renderScene;
   const refit: typeof scene = structuredClone(scene);
