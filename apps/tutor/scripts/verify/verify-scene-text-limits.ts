@@ -35,6 +35,9 @@ const PINNED = {
 if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", L);
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
 
+interface FigureEntity { id: string; label?: string; role?: string }
+interface Figure { source: { question: string }; entities: FigureEntity[]; annotations?: unknown[] }
+
 const STEMS = [
   "A block of mass 2 kg rests on a rough incline of angle 30 degrees. Draw the free body diagram.",
   "Draw the ray diagram for a convex lens of focal length 10 cm with an object at 30 cm.",
@@ -45,24 +48,24 @@ const figures = STEMS.map((question) => {
   const made = synthesizeFamilyScene({ question, families: inferSceneCapabilities(question).families });
   if (!made || !compileSceneDocument(made.document).ok) return fail("a generator row no longer draws", question);
   if (sceneTextOverLimit(made.document) !== null) fail("a generator figure is over a size", question);
-  return made.document as unknown as Record<string, any>;
+  return made.document as unknown as Figure;
 });
-const clone = (document: Record<string, any>) => structuredClone(document);
+const clone = (document: Figure) => structuredClone(document);
 const fill = (part: string, chars: number) => part.repeat(Math.ceil(chars / part.length)).slice(0, chars);
 const spaces = (count: number) => " ".repeat(count);
-const save = async (document: Record<string, any>) => canonicalizeTurnSceneMetadata({
+const save = async (document: Figure) => canonicalizeTurnSceneMetadata({
   question: document.source.question, rawResponse: "x", segments: [], visualStatus: "validated", sceneDocument: document,
   sceneArtifacts: { schemaVersion: "scene-artifacts/v3", diagramResultStatus: "ready", representationTier: "qualitative_verified", nonMetric: true },
 } as never);
 const base = figures[0]!;
-const labelled = (document: Record<string, any>) => document.entities.find((entity: { label?: unknown }) => typeof entity.label === "string");
+const labelled = (document: Figure) => document.entities.find((entity) => typeof entity.label === "string")!;
 
 async function main() {
 // Every text shape in every field that reads it, far over the sizes. Each is refused before anything reads it.
 const withLabel = (text: string) => { const d = clone(base); labelled(d).label = text; return d; };
-const withRole = (text: string) => { const d = clone(base); d.entities[0].role = text; return d; };
-const withNote = (text: string) => { const d = clone(base); d.annotations = [{ id: "note", kind: "callout", text, entityIds: [d.entities[0].id] }]; return d; };
-const farOver: Array<[string, Record<string, any>]> = [
+const withRole = (text: string) => { const d = clone(base); d.entities[0]!.role = text; return d; };
+const withNote = (text: string) => { const d = clone(base); d.annotations = [{ id: "note", kind: "callout", text, entityIds: [d.entities[0]!.id] }]; return d; };
+const farOver: Array<[string, Figure]> = [
   ["a wide gap in a label", withLabel(`1${spaces(1_600)}!`)],
   ["a mid sized gap in a label", withLabel(`1${spaces(398)}!`)],
   ["repeated words in a label", withLabel(fill("a ", 800))],
@@ -89,12 +92,12 @@ for (const [name, document] of farOver) {
 }
 
 // The slowest text the sizes still allow, across real figures.
-const atTheSizes: Array<[string, (document: Record<string, any>) => void]> = [
+const atTheSizes: Array<[string, (document: Figure) => void]> = [
   ["every label wide", (d) => { let index = 0; for (const entity of d.entities) if (typeof entity.label === "string") entity.label = `${index++}${fill("W", L.labelChars - 3)}`; }],
   ["every label at a medium size", (d) => { let index = 0; for (const entity of d.entities) if (typeof entity.label === "string") entity.label = `${index++}${fill("W", 45)}`; }],
   ["the whole label total", (d) => { let index = 0; for (const entity of d.entities) { if (index >= Math.floor(L.labelTotalChars / L.labelChars)) break; entity.label = `${index++}${fill("W", L.labelChars - 3)}`; } }],
   ["words in every label", (d) => { let index = 0; for (const entity of d.entities) if (typeof entity.label === "string") entity.label = `${index++} ${fill("a ", L.labelChars - 4)}`; }],
-  ["notes at the total", (d) => { d.annotations = Array.from({ length: Math.floor(L.annotationTotalChars / L.textChars) }, (_, index) => ({ id: `note${index}`, kind: "callout", text: fill(`5 m${spaces(L.whitespaceRun)}!`, L.textChars), entityIds: [d.entities[0].id] })); }],
+  ["notes at the total", (d) => { d.annotations = Array.from({ length: Math.floor(L.annotationTotalChars / L.textChars) }, (_, index) => ({ id: `note${index}`, kind: "callout", text: fill(`5 m${spaces(L.whitespaceRun)}!`, L.textChars), entityIds: [d.entities[0]!.id] })); }],
   ["brackets in every role", (d) => { for (const entity of d.entities) entity.role = fill("(", L.roleChars); }],
   ["the question at its size", (d) => { d.source.question = fill("x = 1 m ", L.questionChars).trim(); }],
   ["a question that is one wide gap", (d) => { d.source.question = `sin 1${spaces(L.questionChars - 6)}!`; }],
@@ -124,10 +127,10 @@ for (const text of [fill("(", L.roleChars), fill("[", L.roleChars), fill("\\", L
 const entityList = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `e${index}`, kind: "point", role: "point" }));
 const deep = (levels: number) => { let value: unknown = 1; for (let index = 0; index < levels; index += 1) value = { a: value }; return value; };
 const shell = (over: Record<string, unknown> = {}) => ({ source: { question: "Q" }, entities: [], ...over });
-const stringsTotal = (raw: unknown, top = true): number => {
+const stringsTotal = (raw: unknown): number => {
   if (typeof raw === "string") return raw.length;
-  if (Array.isArray(raw)) return raw.reduce((sum: number, entry) => sum + stringsTotal(entry, false), 0);
-  if (raw && typeof raw === "object") return Object.entries(raw).reduce((sum, [key, entry]) => sum + key.length + (key === "question" ? 0 : stringsTotal(entry, false)), 0);
+  if (Array.isArray(raw)) return raw.reduce((sum: number, entry) => sum + stringsTotal(entry), 0);
+  if (raw && typeof raw === "object") return Object.entries(raw).reduce((sum, [key, entry]) => sum + key.length + (key === "question" ? 0 : stringsTotal(entry)), 0);
   return 0;
 };
 const nodeCount = (raw: unknown): number => {
