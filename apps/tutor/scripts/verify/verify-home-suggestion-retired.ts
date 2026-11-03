@@ -1,7 +1,9 @@
 /**
  * Cards pulled from the home screen stay pulled. Each one failed a full lab
- * lesson judged from its render (round home-20261103b). A card returns only by
- * being measured again and judged right, and then being taken off this list.
+ * lesson judged from its render (round home-20261103b), or drew a wrong figure
+ * for a student. A card returns only by being measured again and judged right,
+ * and then being taken off this list. Matching is on the exact card text, so a
+ * reworded card is not caught.
  * This does not stop a student typing the same question: the causes are in the
  * engine, the planner and the lesson, and are tracked separately.
  */
@@ -12,6 +14,10 @@ import { fallbackHomeSuggestions, suggestionsForSubjects } from "../../lib/accou
 import { AVAILABLE_SUBJECTS, type SubjectId } from "../../lib/account/types";
 
 const RETIRED: ReadonlyArray<{ question: string; why: string }> = [
+  {
+    question: "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
+    why: "drew right once in the lab, then wrong for a student (turn 748d3adb): the landing point sat at about one sixth of R",
+  },
   {
     question: "Explain how to draw a free-body diagram for a block on a rough incline, and show how friction enters Newton's second law.",
     why: "drew the block inside the wedge, under the surface",
