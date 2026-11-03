@@ -312,6 +312,50 @@ async function main() {
     assert(headerCleared.storageBytes < headerAtQuota.storageBytes, "clearing metadata releases its former high-water allocation");
     assert.equal(heldBalance - (await balance()).reservedBytes, headerAtQuota.storageBytes - headerCleared.storageBytes,
       "clearing metadata refunds exactly the removed retained bytes to the account");
+
+    // A legacy row (a bare array, before the receipt envelope) whose close is
+    // refused at full quota. The normal path would rewrite the array into the
+    // envelope and charge that growth. The fallback writes the status only, so
+    // nothing may be charged, reserved, released or left open, and the only
+    // logical change is the status word, which the next save settles.
+    const legacyTurn = randomUUID();
+    assert.equal((await put(legacyTurn, { question: "Legacy lesson.", rawResponse: "Legacy words.", seq: 1, baseCount: 0, appendSegments: [row(0, "Legacy words.")] })).status, 200);
+    const legacyEnvelope = (await turnRow(legacyTurn)).submittedSegments as unknown as { rows: unknown[] };
+    await prisma.turn.update({ where: { id: legacyTurn }, data: { submittedSegments: legacyEnvelope.rows as never } });
+    const legacyBefore = await turnRow(legacyTurn);
+    assert.equal(legacyBefore.status, "live");
+    assert(Array.isArray(legacyBefore.submittedSegments), "the fixture is really a legacy bare array");
+    const legacyBalance = await balance();
+    const legacyJobs = await prisma.objectDeletionJob.count({ where: { userId } });
+    await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES) } });
+    try {
+      const refusedLegacy = await close(legacyTurn, { seq: 2, status: "stopped", rawResponse: "n".repeat(4000), resumeState: { solver: "s".repeat(4000) } });
+      assert.equal(refusedLegacy.status, 413, "a full account refuses the legacy close's metadata");
+      const legacyAfter = await turnRow(legacyTurn);
+      assert.equal(legacyAfter.status, "stopped", "the legacy row still closes at full quota");
+      assert.deepEqual(legacyAfter.submittedSegments, legacyBefore.submittedSegments, "its held rows stay a bare array, exactly as stored");
+      assert.equal(legacyAfter.rawResponse, legacyBefore.rawResponse, "the refused metadata is not saved");
+      assert.equal(legacyAfter.checkpointSeq, legacyBefore.checkpointSeq, "the refused close claims no sequence");
+      assert.equal(legacyAfter.metadataBytes, legacyBefore.metadataBytes, "no metadata bytes are charged");
+      assert.equal(legacyAfter.storageBytes, legacyBefore.storageBytes, "no storage bytes are charged");
+      const atQuota = await balance();
+      assert.equal(atQuota.reservedBytes, BigInt(storage.MAX_ACCOUNT_STORAGE_BYTES), "nothing is reserved or released");
+      assert.equal(atQuota.pendingTurns, legacyBalance.pendingTurns, "nothing is left pending");
+      assert.equal(await prisma.objectDeletionJob.count({ where: { userId } }), legacyJobs, "no deletion is queued");
+      assert.equal(turnMetadataStorageBytes(legacyAfter as unknown as Record<string, unknown>) - turnMetadataStorageBytes(legacyBefore as unknown as Record<string, unknown>),
+        "stopped".length - "live".length, "the only logical change is the status word");
+    } finally {
+      await prisma.userStorage.update({ where: { userId }, data: { reservedBytes: legacyBalance.reservedBytes } });
+    }
+    // The next save settles the row: envelope written, charged once, books agree.
+    const settled = await close(legacyTurn, { seq: 3, status: "stopped", rawResponse: "Settled.", resumeState: null });
+    assert.equal(settled.status, 200, "a later close on the legacy row still saves");
+    const legacySettled = await turnRow(legacyTurn);
+    assert(!Array.isArray(legacySettled.submittedSegments), "the next save writes the receipt envelope");
+    assert.equal(Number(legacySettled.metadataBytes) >= turnMetadataStorageBytes(legacySettled as unknown as Record<string, unknown>), true, "the books cover the row again");
+    const settledBalance = await balance();
+    assert.equal(settledBalance.reservedBytes - legacyBalance.reservedBytes, legacySettled.storageBytes - legacyBefore.storageBytes, "the account moved by exactly what the row moved");
+    assert.equal(settledBalance.pendingTurns, legacyBalance.pendingTurns, "nothing is left pending after it settles");
     assert.equal((await turnRow(headerTurn)).resumeState, null);
     const [closeA, closeB] = await Promise.all([
       close(headerTurn, { seq: 4, status: "stopped", rawResponse: "older".repeat(1000), resumeState: { older: true } }),

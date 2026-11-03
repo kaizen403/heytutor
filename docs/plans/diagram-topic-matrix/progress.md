@@ -1,6 +1,8 @@
 # Topic progress and agent completion logs
 
-Status, 9 October 2026: per-topic chapter diagram work is paused. This matrix is the topic checklist. Do not assign packets or claim rows.
+Status, 3 November 2026: the owner resumed coverage work for physics, chemistry and maths, chapter by chapter, weakest and most asked first. It fixes general causes (operators, assertions, planner contract, repair feedback). The measure is a blind judged chapter table of right, partial, wrong and empty, with the date, code sha and question set of each measurement, compared with a baseline on the same set. Zero wrong figures: a wrong figure is worse than text only. The packet process stays retired, so do not assign packets or claim rows. `accepted` in `topic-progress.csv` keeps its full contract, and TOPIC-READY is reported separately. Biology stays out of this work. This matrix is the topic checklist.
+
+Earlier status, 9 October 2026: per-topic chapter diagram work was paused after a week of parallel packets accepted 13 of 896 rows.
 
 Current ledger (`topic-progress.csv`, 896 rows): 13 `accepted` (Chemistry Atomic Structure 6/6 and Chemical Bonding 7/7), 36 `verification_pending`, 6 `auditing`, 234 `blocked`, 607 `planned`.
 
@@ -29,8 +31,11 @@ Tracking snapshot: **2026-10-02-topic-matrix-v1**. This ledger starts with **no 
 
 ## Completion workflow
 
-Paused 9 October 2026. Per-topic packet work stopped, so no worker log or
-acceptance review is running. The 2 to 6 October packet logs that no ledger row
+Per-topic packet work stopped on 9 October 2026 and stays stopped since the
+3 November 2026 resume, so no packet worker log or packet acceptance review is
+running. A drawn figure, a green gate or a finished worker never closes a row.
+Only the coverage orchestrator updates ledger counts, and only with evidence
+under the row contract below. The 2 to 6 October packet logs that no ledger row
 cites were removed; the 12 logs that `topic-progress.csv` cites stay in
 `work-logs/`.
 

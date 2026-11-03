@@ -120,6 +120,15 @@ async function main(): Promise<void> {
       '} else if (answer.status === "unavailable" && answer.reason === "wait_deadline") {',
       'diagramPromptAddon: activeDiagram?.promptAddon ?? null,',
     ]) assert(hook.includes(line), `live hook changed: ${line.split("\n")[0]}`);
+    // Stop saves the turn before the wait's catch can run, so the record that
+    // tells a stop during the wait apart has to be on the page before the wait.
+    const waitStart = hook.indexOf("if (!referencePicturePending) startReferencePicture(false);");
+    const waitRace = hook.indexOf("const answer = await awaitWhileCurrent(Promise.race([");
+    assert(waitStart > 0 && waitRace > waitStart, "the wait still starts, then races");
+    const beforeWait = hook.slice(waitStart, waitRace);
+    assert(/const pending = referencePicturePending!;\n(?:\s*\/\/[^\n]*\n)*\s*page\.turn\.scene = page\.turn\.scene \? \{[\s\S]*referencePictureOutcome: \{[\s\S]*reason: "wait_in_progress"/.test(beforeWait),
+      "the page says the picture wait is in progress, unconditionally, before the wait begins");
+    assert(beforeWait.includes("ms: Math.max(0, waitStartedAt - pending.startedAt)"), "a late start cannot store a negative time, which the reader would drop");
     assert(startsReferencePictureEarly({ chemistryLane: false, visualRequirement: "required" }), "every subject starts early");
     assert(startsReferencePictureEarly({ chemistryLane: false, visualRequirement: "optional" }));
     assert(!startsReferencePictureEarly({ chemistryLane: true, visualRequirement: "required" }), "the chemistry lane draws deterministically");
