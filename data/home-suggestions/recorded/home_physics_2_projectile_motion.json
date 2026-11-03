@@ -341,7 +341,8 @@
   },
   "policy": {
    "preferPlanner": true
-  }
+  },
+  "rebuildFamilyFigure": false
  },
  "expected": {
   "drawn": true,

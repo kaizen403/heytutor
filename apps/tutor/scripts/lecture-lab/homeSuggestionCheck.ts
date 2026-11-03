@@ -65,17 +65,14 @@ export interface HomeSuggestionRecording {
   recordedFrom: string;
   /** Human or reviewer verdict on the recorded figure, from its render. */
   judged: { verdict: "right" | "text_only_honest"; by: string; note: string };
-  selection: {
-    question: string;
-    turnPlan: ProductionSceneSelectionInput["turnPlan"];
-    problemIR: ProductionSceneSelectionInput["problemIR"];
-    /** The selected raw planner document, revalidated on replay. Null when none was planned. */
+  /**
+   * The lab's selection inputs, without its saved verdicts: the planner document
+   * is validated again and a family figure is rebuilt only if the lab had one.
+   */
+  selection: Omit<ProductionSceneSelectionInput, "candidate" | "candidateValidation" | "fastRepresentation"> & {
+    /** The selected raw planner document. Null when none was planned. */
     candidate: Record<string, unknown> | null;
-    exactFigureSource?: ProductionSceneSelectionInput["exactFigureSource"];
-    solverAuthorityBlocked?: boolean;
-    requiredRetryEnabled?: boolean;
-    solverAuthority?: unknown;
-    policy?: ProductionSceneSelectionInput["policy"];
+    rebuildFamilyFigure: boolean;
   };
   expected: FigureSignature;
 }
@@ -112,27 +109,21 @@ export function figureSignature(selection: ReturnType<typeof selectProductionSce
  * either path shows up. Nothing here reads the network or the environment.
  */
 export function replaySelection(recording: HomeSuggestionRecording): ReturnType<typeof selectProductionScene> {
-  const base: ProductionSceneSelectionInput = {
-    question: recording.selection.question,
-    turnPlan: recording.selection.turnPlan,
-    problemIR: recording.selection.problemIR,
-  };
-  const gate = deriveSceneGate(base);
-  const fastRepresentation = selectFastVerifiedRepresentation({
-    question: base.question,
-    turnPlan: gate.turnPlan,
-    problemIR: base.problemIR ?? null,
-    families: gate.sceneCapabilities.families,
-  });
+  const { candidate, rebuildFamilyFigure, ...input } = recording.selection;
+  const gate = deriveSceneGate(input);
+  const fastRepresentation = rebuildFamilyFigure
+    ? selectFastVerifiedRepresentation({
+        question: input.question,
+        turnPlan: gate.turnPlan,
+        problemIR: input.problemIR ?? null,
+        families: gate.sceneCapabilities.families,
+      })
+    : null;
   return selectProductionScene({
-    ...base,
-    candidate: recording.selection.candidate,
+    ...input,
+    candidate,
     fastRepresentation,
-    exactFigureSource: recording.selection.exactFigureSource,
-    solverAuthorityBlocked: recording.selection.solverAuthorityBlocked,
-    requiredRetryEnabled: recording.selection.requiredRetryEnabled ?? true,
-    solverAuthority: recording.selection.solverAuthority,
-    policy: recording.selection.policy,
+    requiredRetryEnabled: input.requiredRetryEnabled ?? true,
   });
 }
 
@@ -287,22 +278,17 @@ export function recordingFromRun(
   const inputs = run.figureReplayInputs;
   if (!inputs) throw new Error(`run has no figureReplayInputs: ${recordedFrom}`);
   const selected = run.diagram.plannerResponses?.find((response) => response.selected);
-  const validated = inputs.selection.candidateValidation?.value?.document as Record<string, unknown> | undefined;
+  const { candidateValidation, fastRepresentation, ...input } = inputs.selection;
+  const validated = candidateValidation?.value?.document as Record<string, unknown> | undefined;
   const recording: HomeSuggestionRecording = {
     schemaVersion: HOME_SUGGESTION_RECORDING_VERSION,
     question: run.question,
     recordedFrom,
     judged,
     selection: {
-      question: inputs.selection.question,
-      turnPlan: inputs.selection.turnPlan,
-      problemIR: inputs.selection.problemIR,
+      ...input,
       candidate: parseCandidate(selected?.rawContent) ?? validated ?? null,
-      exactFigureSource: inputs.selection.exactFigureSource,
-      solverAuthorityBlocked: inputs.selection.solverAuthorityBlocked,
-      requiredRetryEnabled: inputs.selection.requiredRetryEnabled,
-      solverAuthority: inputs.selection.solverAuthority,
-      policy: inputs.selection.policy,
+      rebuildFamilyFigure: fastRepresentation != null,
     },
     expected: { drawn: false, figureSource: "text_only", tier: null, family: null, entityIds: [], texts: [], inkHash: null },
   };
