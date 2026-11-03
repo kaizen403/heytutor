@@ -1324,8 +1324,7 @@ function buildCircuit(
   // An induced, motional or back emf names a field effect, not a source in a
   // circuit, and once the stem names one, its other "emf" mentions are that one.
   // So is the emf of a conductor moving or turning in a magnetic field.
-  const fieldEmf = /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question)
-    || (/\bmagnetic\s+field\b|\bin\s+a\s+field\b|\b\d+(?:\.\d+)?\s*T\b/.test(question) && /\b(?:rotat|spin|revolv|slid|mov|swing)\w*/i.test(question));
+  const fieldEmf = namesFieldEmf(question);
   if (
     schematic
     && resistors.length < 2
@@ -2315,7 +2314,7 @@ function buildContactBody(
   // in contact, a contact sketch here would stand in for that graph.
   if (isMotionGraphStem(stem) && !namesBodyInContact(stem)) return null;
   // An emf is a field effect or a source; no contact sketch is its figure.
-  if (/\bemfs?\b/i.test(stem)) return null;
+  if (namesFieldEmf(question)) return null;
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
     && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);
@@ -3119,6 +3118,11 @@ function isFallingStem(question: string): boolean {
 
 function isCircularMotionStem(question: string): boolean {
   return /(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road)/i.test(normalizeStem(question));
+}
+
+function namesFieldEmf(question: string): boolean {
+  return /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question)
+    || (/\bmagnetic\s+field\b|\bin\s+a\s+field\b|\b\d+(?:\.\d+)?\s*T\b/.test(question) && /\b(?:rotat|spin|revolv|slid|mov|swing)\w*/i.test(question));
 }
 
 function namesBodyInContact(stem: string): boolean {
