@@ -8,14 +8,17 @@
  *   tsx --tsconfig ../../apps/tutor/tsconfig.json scripts/verify/verify-chemistry-hbond-molecules.ts
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import "../../src/chemistry/families";
-import { mentionsHydrogenBond } from "../../src/chemistry/bondingFigures";
+import { hydrogenBondFigureLeads, hydrogenBondSpelledPastLewis, mentionsHydrogenBond, organicStructureCannotAnswer } from "../../src/chemistry/bondingFigures";
+import { chemStem } from "../../src/chemistry/sceneKit";
 import { buildLewisScene } from "../../src/chemistry/lewis";
 import { parseFormula } from "../../src/chemistry/formula";
 import { isChemistryQuestion, inferChemistryFamilies } from "../../src/chemistry/router";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
+import subsetFixture from "./fixtures/chemistry-hbond-subset.json";
 
 let failed = 0;
 let passed = 0;
@@ -492,6 +495,34 @@ check("one ortho draws for a plain ask about its own bond", () => {
   const document = buildLewisScene("Explain the intramolecular hydrogen bonding in o-nitrophenol.", [], false);
   assert.ok(document, "declined");
   assert.ok(document.entities.some((entity) => entity.label === "intra"), "no intra label");
+});
+
+// The subset: on stems mentioning a hydrogen bond, head draws only where dev drew, in the same family.
+// Dev's family for each stem is recorded in the fixture. The drawing itself may be corrected.
+{
+  let drawn = 0;
+  for (const [question, devFamily] of subsetFixture.rows as Array<[string, string | null]>) {
+    const family = (synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question }))?.family ?? null;
+    if (family === null) continue;
+    drawn += 1;
+    check(`subset of dev: ${question}`, () => assert.equal(family, devFamily, `head draws ${family}, dev drew ${devFamily}`));
+  }
+  check("the subset check covered figures, not only declines", () => assert.ok(drawn >= 100, `only ${drawn} drawn`));
+}
+
+// A stem that does not mention a hydrogen bond meets no guard here, so its figure cannot move.
+check("stems with no hydrogen bond mention meet no guard", () => {
+  const rows = readFileSync(new URL("../../../../data/diagram-eval/v1/chemistry.jsonl", import.meta.url), "utf8").split("\n").filter(Boolean);
+  let unmentioned = 0;
+  for (const line of rows) {
+    const stem = chemStem((JSON.parse(line) as { question: string }).question);
+    if (mentionsHydrogenBond(stem)) continue;
+    unmentioned += 1;
+    assert.equal(hydrogenBondFigureLeads(stem), false, stem);
+    assert.equal(organicStructureCannotAnswer(stem), false, stem);
+    assert.equal(hydrogenBondSpelledPastLewis(stem), false, stem);
+  }
+  assert.ok(unmentioned > 400, `only ${unmentioned} stems`);
 });
 
 console.log(`verify-chemistry-hbond-molecules: ${passed} passed, ${failed} failed`);
