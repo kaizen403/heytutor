@@ -387,8 +387,8 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   if (trimmed.endsWith("(") && /(?:^|\s)\($/.test(trimmed)) return true;
   if (/[+\-*/^×·(=)\]]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
   // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
-  // Nor does a new line: what ends the last line does not multiply this one.
-  const last = /\s$/.test(before) && !/\n\s*$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
+  // A line break does not separate them: maths wraps.
+  const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
   // "sin² x" and "log2 x" are functions too.
   // A word with a digit or a subscript is a symbol too: "m_1 a = 10".
   return !last || !(last.length === 1 || /[\p{N}_]/u.test(last) || MATH_WORD.test(last));
