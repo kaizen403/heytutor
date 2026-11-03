@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import "../../src/chemistry/families";
-import { hydrogenBondFigureLeads, hydrogenBondSpelledPastLewis, mentionsHydrogenBond, organicStructureCannotAnswer } from "../../src/chemistry/bondingFigures";
+import { hydrogenBondFigureLeads, hydrogenBondSpelledPastLewis, mentionsHydrogenBond } from "../../src/chemistry/bondingFigures";
 import { chemStem } from "../../src/chemistry/sceneKit";
 import { buildLewisScene } from "../../src/chemistry/lewis";
 import { parseFormula } from "../../src/chemistry/formula";
@@ -357,6 +357,27 @@ const DECLINES: readonly string[] = [
   "Why is p-nitrophenol less acidic than o-nitrophenol? Explain in terms of hydrogen bonding.",
   "o-Nitrophenol is less steam volatile than p-nitrophenol. Explain this with hydrogen bonding.",
   "p-Nitrophenol is more volatile than o-nitrophenol. Explain the difference using hydrogen bonding.",
+  // Organic declines every hydrogen bond mention. A structure ask beside one stays text only, by choice:
+  // each reader for when a lone structure is enough lost to the next wording.
+  "Draw the structure of acetic acid dimers formed by hydrogen bonding.",
+  "Draw the structure of hydrogen bonded dimers of benzoic acid.",
+  "Write the formula of acetic acid dimers held by hydrogen bonds.",
+  "Give the structures of hydrogen-bonded dimers of formic acid.",
+  "Draw the skeletal structure of hydrogen bonded glycine dimers in the crystal.",
+  "Draw the structure of acetic acid H-bonded dimers.",
+  "Draw the structure of the ethanol trimer formed by hydrogen bonds.",
+  "Draw the structure of two acetic acid molecules hydrogen bonded together.",
+  "Draw the structure of ethanol molecules linked by hydrogen bonds.",
+  "Write the structure of hydrogen bonded methanol molecules.",
+  "Write the structural formula of ethanol hydrogen bonded with another ethanol molecule.",
+  "Sketch the structure of phenol molecules bonded by hydrogen bonds.",
+  "Draw the structure of associated ethanol formed by hydrogen bonding.",
+  "Draw the structure of the hydrogen bond formed by phenol.",
+  "Draw the structure of the hydrogen bond formed by acetamide.",
+  "Draw the structure of acetic acid, which gives dimers through hydrogen bonding.",
+  "Draw the structure of acetic acid in the gas phase, where hydrogen bonds give two molecules together.",
+  "Draw the structure of ethanol. Why does it form hydrogen bonds?",
+  "Draw the structure of m-nitrophenol and explain its hydrogen bonding.",
   // Both isomers named, so only the closed pair sentences can refuse these.
   "Compare hydrogen bonding in the anions of o-nitrophenol and p-nitrophenol.",
   "Compare hydrogen bonding in the sodium salts of o-nitrophenol and p-nitrophenol.",
@@ -444,17 +465,13 @@ for (const [question, family] of [
   ["Sketch positive deviation from Raoult's law. Why does breaking hydrogen bonds in ethanol cause it?", "chem_solutions"],
   ["What is the shape of NH3? Does it form hydrogen bonds?", "chem_vsepr"],
   ["Draw the VSEPR shape of H2O and explain why it can make hydrogen bonds.", "chem_vsepr"],
-  ["Draw the structure of ethanol. Why does it form hydrogen bonds?", "chem_organic"],
-  ["Draw the structure of acetone. Can it act as a hydrogen bond acceptor?", "chem_organic"],
-  // Not the ortho or para isomers this figure draws.
-  ["Draw the structure of m-nitrophenol and explain its hydrogen bonding.", "chem_organic"],
-  ["Draw the structure of 2,4-dinitrophenol and explain its hydrogen bonding.", "chem_organic"],
 ] as const) {
   check(`keeps its own figure: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, family));
 }
 // A covalent bond to hydrogen is not a hydrogen bond: "C-H bond" must not trip any guard.
 check("covalent X-H bonds are not hydrogen bond asks", () => {
-  for (const stem of ["sigma c-h bonds in ethene", "the o-h bond in ethanol", "n-h bonds in methanamine", "s-h bond", "h-h bond in h2", "c-h bond"]) {
+  for (const stem of ["sigma c-h bonds in ethene", "the o-h bond in ethanol", "n-h bonds in methanamine", "s-h bond", "h-h bond in h2", "c-h bond",
+    "a carbon-hydrogen bond", "hydrogen-hydrogen bonds", "each nitrogen-hydrogen bond", "the oxygen-hydrogen bond"]) {
     assert.equal(mentionsHydrogenBond(stem), false, stem);
   }
   for (const stem of ["h-bond in water", "an h-bond", "(h-bond)", "hydrogen-bond", "hydrogen bond", "hydrogen bonding"]) {
@@ -466,6 +483,11 @@ for (const [question, family] of [
   ["How many O-H bonds does ethanol have? Draw its structure.", "chem_organic"],
   ["How many sigma C-H bonds does ethene have? Draw its structure.", "chem_organic"],
   ["lewis structure of water showing its O-H bonds", "chem_lewis"],
+  ["Draw the molecular orbital diagram of H2 and give the bond order of its hydrogen-hydrogen bond.", "chem_mo"],
+  ["Draw the MO diagram of H2 and explain how the hydrogen-hydrogen bond forms.", "chem_mo"],
+  ["Draw the orbital box diagram of carbon and explain how it forms a carbon-hydrogen bond.", "chem_orbital"],
+  ["Show the carbon-hydrogen bond in propane.", "chem_organic"],
+  ["Draw the skeletal structure of 2-methylbutane showing each carbon-hydrogen bond.", "chem_organic"],
 ] as const) {
   check(`an X-H bond keeps its figure: ${question}`, () => assert.equal(synthesizeFamilyScene({ question })?.family, family));
 }
@@ -519,7 +541,6 @@ check("stems with no hydrogen bond mention meet no guard", () => {
     if (mentionsHydrogenBond(stem)) continue;
     unmentioned += 1;
     assert.equal(hydrogenBondFigureLeads(stem), false, stem);
-    assert.equal(organicStructureCannotAnswer(stem), false, stem);
     assert.equal(hydrogenBondSpelledPastLewis(stem), false, stem);
   }
   assert.ok(unmentioned > 400, `only ${unmentioned} stems`);

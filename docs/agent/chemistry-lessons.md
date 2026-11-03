@@ -337,9 +337,11 @@ analysis) draw nothing, which is the honest outcome for those stems.
   draws for a stem it never had. When the Lewis hydrogen bond figure declined,
   thermo drew a barrier for bond formation and the orbital family read
   "hydrogen" as the element. `afterHydrogenBondFigure` in `families.ts` makes a
-  later family yield where that figure led, and keeps the figures that answer
-  the question when the hydrogen bond only gives the reason, such as a Raoult
-  deviation graph. Check the runner up whenever you add a decline.
+  later family yield where that figure led. Organic declines every mention, because
+  each reader for when a lone structure is enough lost to the next wording. A
+  figure that answers the question while the bond only gives the reason, such as
+  a Raoult deviation graph, keeps its turn. Check the runner up whenever you add
+  a decline.
 - A list of allowed words is not a reader, because it loses word order: "water
   and hydrogen", "molecule A" and "two hydrogen bonds" all pass one. Close the
   whole sentence instead, as `HYDROGEN_BOND_ASKS` does.

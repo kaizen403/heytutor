@@ -858,11 +858,11 @@ const NITROPHENOL_PAIR_ASKS: readonly RegExp[] = [
 
 /**
  * Every spelling, for the guards a hyphen must not skip. `hydrogenBondAsked` stays
- * literal, so the Lewis cue does not widen. "H-bond" must stand alone: "C-H bond"
- * and "O-H bond" are covalent bonds, and those stems keep their figures.
+ * literal, so the Lewis cue does not widen. "C-H bond" and "carbon-hydrogen bond"
+ * are covalent bonds, and those stems keep their figures.
  */
 export function mentionsHydrogenBond(stem: string): boolean {
-  return /hydrogen[\s-]*bond|(?:^|[\s(])h-bond/.test(stem);
+  return /(?<![a-z]-)hydrogen[\s-]*bond|(?:^|[\s(])h-bond/.test(stem);
 }
 
 /**
@@ -873,20 +873,7 @@ export function mentionsHydrogenBond(stem: string): boolean {
  * right figures that only mention the bond as a reason, and that is accepted.
  */
 export function hydrogenBondFigureLeads(stem: string): boolean {
-  return mentionsHydrogenBond(stem) && /\bwater\b|\bh2o\b|\bammonia\b|\bnh3\b|\bhf\b|hydrogen fluoride|(?:\bo-|\bortho[\s-]?|\bp-|\bpara[\s-]?)nitro[\s-]?phenol/.test(stem);
-}
-
-/**
- * A lone structure answers a hydrogen bond ask only when the stem asks for that
- * structure outright: "Draw the structure of ethanol. Why does it form hydrogen
- * bonds?" Anything else needs the bond or a second molecule, which it cannot
- * show. This is positive evidence on purpose: each list of wordings to refuse
- * (draw the bond, dimer, two molecules, forms, chain, joined) lost to the next.
- */
-export function organicStructureCannotAnswer(stem: string): boolean {
-  if (!mentionsHydrogenBond(stem)) return false;
-  const asksForStructure = /\b(?:draw|write|give|sketch)\s+(?:the\s+)?(?:skeletal\s+|structural\s+)?(?:structure|formula)s?\s+of\b/.test(stem);
-  return !asksForStructure || /\b(?:show|showing|joined|between|dimer|pair|chain|network)\b/.test(stem);
+  return mentionsHydrogenBond(stem) && /\bwater\b|\bh2o\b|\bammonia\b|\bnh3\b|\bhf\b|hydrogen fluoride|nitro[\s-]?phenol/.test(stem);
 }
 
 /** A hyphen or "H-bond" skips the Lewis hydrogen bond figure, so a plain Lewis structure must not answer it. */

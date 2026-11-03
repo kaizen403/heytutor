@@ -17,7 +17,7 @@ import { KINETICS_FAMILY, isKineticsStem, buildKineticsScene } from "./kinetics"
 import { THERMO_FAMILY, isThermoGraphStem, buildThermoGraphScene } from "./thermoGraphs";
 import { SOLUTIONS_FAMILY, isSolutionsGraphStem, buildSolutionsGraphScene } from "./solutionsGraphs";
 import { PERIODIC_FAMILY, isPeriodicTrendStem, buildPeriodicTrendScene } from "./periodicTrend";
-import { hydrogenBondFigureLeads, hydrogenBondSpelledPastLewis, mentionsHydrogenBond, organicStructureCannotAnswer } from "./bondingFigures";
+import { hydrogenBondFigureLeads, hydrogenBondSpelledPastLewis, mentionsHydrogenBond } from "./bondingFigures";
 import { chemStem, type ChemFamilyBuilder } from "./sceneKit";
 
 /**
@@ -50,4 +50,4 @@ registerChemistryFamily({ family: KINETICS_FAMILY, cue: isKineticsStem, build: a
 registerChemistryFamily({ family: THERMO_FAMILY, cue: isThermoGraphStem, build: afterHydrogenBondFigure(buildThermoGraphScene, mentionsHydrogenBond) });
 registerChemistryFamily({ family: SOLUTIONS_FAMILY, cue: isSolutionsGraphStem, build: afterHydrogenBondFigure(buildSolutionsGraphScene) });
 registerChemistryFamily({ family: PERIODIC_FAMILY, cue: isPeriodicTrendStem, build: afterHydrogenBondFigure(buildPeriodicTrendScene) });
-registerChemistryFamily({ family: ORGANIC_FAMILY, cue: isOrganicStem, build: afterHydrogenBondFigure(buildOrganicScene, organicStructureCannotAnswer) });
+registerChemistryFamily({ family: ORGANIC_FAMILY, cue: isOrganicStem, build: afterHydrogenBondFigure(buildOrganicScene, mentionsHydrogenBond) });
