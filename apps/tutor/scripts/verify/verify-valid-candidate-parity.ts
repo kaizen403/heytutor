@@ -241,7 +241,8 @@ const fixtures: DeclineFixture[] = [
   { name: "optics rule, strict", code: "planner_optics_on_archetype_stem", preferred: false, drawn: null, saved: true,
     input: { question: opticsQuestion, turnPlan: planFor(opticsQuestion, [{ id: "u", value: 30, unit: "cm" }, { id: "f", value: 10, unit: "cm" }]),
       output: segmentOutput(opticsQuestion, "principal axis"), policy: strictPolicy } },
-  { name: "optics rule, current", code: "planner_optics_on_archetype_stem", preferred: false, drawn: null, saved: true,
+  // Since #369 the current lane draws the owning mirror figure here (v=15 cm, computed from u and f).
+  { name: "optics rule, current", code: "planner_optics_on_archetype_stem", preferred: false, drawn: "archetype", saved: true,
     input: { question: opticsQuestion, turnPlan: planFor(opticsQuestion, [{ id: "u", value: 30, unit: "cm" }, { id: "f", value: 10, unit: "cm" }]),
       output: segmentOutput(opticsQuestion, "principal axis"), policy: currentPolicy } },
   { name: "source figure preferred and drawn", code: "source_figure_preferred", preferred: true, drawn: "archetype", saved: false,
