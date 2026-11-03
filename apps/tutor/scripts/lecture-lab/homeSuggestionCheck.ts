@@ -18,6 +18,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDiagramYieldPolicy, type DiagramYieldPolicy, type RenderScene } from "@heytutor/scene-engine";
+import { normalizeSceneDocumentModelOutput, parseScenePlannerResponseJson } from "@heytutor/tutor-core";
 import { shownHomeSuggestions } from "../../lib/account/homeSuggestions";
 import type { SubjectId } from "../../lib/account/types";
 import {
@@ -171,7 +172,9 @@ export function replaySelection(recording: HomeSuggestionRecording): ReturnType<
     ...input,
     candidateValidation: candidate
       ? validateProductionSceneCandidate({
-          candidate, question: input.question, turnPlan: gate.turnPlan, yieldPolicy, blockFlowEligible: input.blockFlowEligible,
+          // The lab normalizes a response before validating it; the recording keeps it raw.
+          candidate: normalizeSceneDocumentModelOutput(structuredClone(candidate), input.question),
+          question: input.question, turnPlan: gate.turnPlan, yieldPolicy, blockFlowEligible: input.blockFlowEligible,
         })
       : null,
     fastRepresentation,
@@ -327,19 +330,6 @@ export function gradeRound(
   });
 }
 
-function parseCandidate(rawContent: string | undefined): Record<string, unknown> | null {
-  if (!rawContent) return null;
-  const first = rawContent.indexOf("{");
-  const last = rawContent.lastIndexOf("}");
-  if (first < 0 || last <= first) return null;
-  try {
-    const parsed = JSON.parse(rawContent.slice(first, last + 1));
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Freeze one lab run's accepted figure inputs. The candidate is the selected
  * planner document, so replay revalidates it instead of trusting the saved
@@ -363,7 +353,7 @@ export function recordingFromRun(
     judged,
     selection: {
       ...input,
-      candidate: parseCandidate(selected?.rawContent) ?? validated ?? null,
+      candidate: (selected?.rawContent ? parseScenePlannerResponseJson(selected.rawContent) as Record<string, unknown> | null : null) ?? validated ?? null,
       rebuildFamilyFigure: fastRepresentation != null,
       yieldPolicy: run.executionConfig?.diagramYieldPolicy ?? parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
     },
