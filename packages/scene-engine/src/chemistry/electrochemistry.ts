@@ -22,7 +22,7 @@ import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } fr
 import { normalizeChemistryText, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
 import { CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
-import { claimsElectrodeDepositionMass, readDepositionMassSource, type DepositionMassSource } from "./electrolysisSource";
+import { claimsElectrodeDepositionMass, readDepositionMassSource, readPlainDepositionMass, type DepositionMassSource } from "./electrolysisSource";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
@@ -1742,18 +1742,6 @@ function inertMaterialLabel(question: string): string | null {
   return null;
 }
 
-/** Faraday's law: metal mass deposited, in grams, when the stem gives a current and a time. */
-function faradayMass(question: string, deposit: { symbol: string; n: number }): { grams: number; ampere: number; seconds: number } | null {
-  const text = question;
-  const ampere = literalValue(text, "current", "A");
-  const seconds = literalValue(text, "time", "s");
-  if (ampere === null || seconds === null || !(ampere > 0) || !(seconds > 0)) return null;
-  const element = elementBySymbol(deposit.symbol);
-  if (!element) return null;
-  const grams = (element.mass / deposit.n) * ampere * seconds / FARADAY;
-  return { grams, ampere, seconds };
-}
-
 /* ------------------------------------------------------------------------- */
 /* Cues                                                                      */
 /* ------------------------------------------------------------------------- */
@@ -2160,12 +2148,13 @@ function buildElectrolytic(question: string): SceneDocument | null {
       captionParts.push(`Faraday: m=MIt/(zF)=${grams} g, Q=${sourceMass.charge} C, z=${sourceMass.electrons} electrons per ${sourceMass.symbol}. M and F use ${sourceMass.molarMassBasis} and ${sourceMass.faradayBasis} respectively. This uses complete deposition at 100% current efficiency.`);
       return drawElectrolyticCell(question, products, massText, captionParts.join("; "), sourceMass);
     }
-    const faraday = faradayMass(question, products.deposit);
+    // Stated M and F win; a stem that states neither keeps the table's M. Anything unread leaves no mass on the cell.
+    const faraday = readPlainDepositionMass(question, products.deposit);
     if (faraday) {
       const grams = Number(faraday.grams.toPrecision(3));
       const text = `${products.deposit.symbol}: ${grams} g`;
       if (text.length <= 16) massText = text;
-      captionParts.push(`Faraday: m = (M/n) × I t / 96500 = ${grams} g of ${products.deposit.symbol} for ${faraday.ampere} A over ${faraday.seconds} s`);
+      captionParts.push(`Faraday: m = (M/n) × I t / ${faraday.faraday} = ${grams} g of ${products.deposit.symbol} for ${faraday.ampere} A over ${faraday.seconds} s, M = ${faraday.molarMass} g/mol`);
     }
   }
   return drawElectrolyticCell(question, products, massText, captionParts.join("; "));
