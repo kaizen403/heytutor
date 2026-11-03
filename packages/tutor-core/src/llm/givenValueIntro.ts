@@ -219,7 +219,7 @@ function givenFromPlan(raw: unknown, index: number, question: string): GivenCand
     board,
     spoken: `${speakSymbol(symbol)} equals ${speakNumber(raw.value)}${unit ? ` ${speakUnit(unit)}` : ""}`,
     // A plan's internal id is never a symbol the question wrote.
-    stated: named !== null && questionLiterallyStates(withoutAnswerOptions(question), raw.value, named, unit),
+    stated: named !== null && questionLiterallyStates(question.slice(0, statedEnd(question)), raw.value, named, unit),
   };
 }
 
@@ -467,9 +467,9 @@ function statedQuantities(question: string): StatedQuantity[] {
     // "bx + c = 0" states no c, even for a plan row named c.
     if (owner && !standsAlone(before, owner.index)) continue;
     // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
-    const glued = /^[\p{L}µ°%Ω][\p{L}\p{N}/^²³⁻¹°]*/u.exec(after)?.[0];
+    const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
     // A compound unit may be spaced: "10 N m", "1.08 g mL^-1".
-    const spaced = /^\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*)(?:\s+([\p{L}µ°Ω][\p{L}\p{N}/^·²³⁻¹°]*))?/u.exec(after);
+    const spaced = /^\s+([\p{L}µ°Ω](?:[\p{L}\p{N}/·²³⁻¹°]|\^-?)*)(?:\s+([\p{L}µ°Ω](?:[\p{L}\p{N}/·²³⁻¹°]|\^-?)*))?/u.exec(after);
     const firstUnit = spaced?.[1] && isUnitText(spaced[1]) ? spaced[1].replace(/[.,;:]+$/, "") : "";
     const secondUnit = firstUnit && spaced?.[1] === firstUnit && spaced[2] && isUnitText(spaced[2]) ? spaced[2].replace(/[.,;:]+$/, "") : "";
     const unit = (glued ?? [firstUnit, secondUnit].filter(Boolean).join(" ")).replace(/[.,;:]+$/, "");
