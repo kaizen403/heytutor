@@ -227,6 +227,8 @@ interface LiveTurn {
   inflight: Promise<void> | null;
   /** Submitted rows covered by the last keepalive close, or -1. */
   keepaliveCovered: number;
+  /** The status-only close after a refused save went out. Sent once. */
+  refusedCloseSent: boolean;
   retryTimer: unknown;
   hasRetryTimer: boolean;
   /** Stopped with nothing to save yet: waiting for the cut segment's row. */
@@ -417,6 +419,7 @@ export class LiveTurnSaveRegistry {
       keepaliveSceneKey: null,
       inflight: null,
       keepaliveCovered: -1,
+      refusedCloseSent: false,
       retryTimer: null,
       hasRetryTimer: false,
       cutGraceTimer: null,
@@ -1057,9 +1060,24 @@ export class LiveTurnSaveRegistry {
     }
     this.mirrorLocal(turn);
     this.emit();
-    if (turn.failure) this.settleComplete(turn, turn.failure);
-    else this.pump(turn);
+    if (turn.failure) {
+      this.settleComplete(turn, turn.failure);
+      this.closeRefusedTurn(turn);
+    } else this.pump(turn);
     return result;
+  }
+
+  /**
+   * A refused save stops the turn's sending, but a turn that ended must not stay
+   * live on the server. This close carries no rows, so nothing in them can
+   * refuse it. A later Try again can still save them.
+   */
+  private closeRefusedTurn(turn: LiveTurn): void {
+    if (!turn.failure || turn.final || turn.status === "live" || turn.ackedStatus !== "live" || turn.refusedCloseSent) return;
+    turn.refusedCloseSent = true;
+    // Status only, so its seq claims nothing: Try again keeps its own sequence.
+    void this.env.transport.close(turn.boardId, turn.turnId, { seq: Math.max(turn.seq, 0) + 1, status: "stopped", traceId: turn.traceId, baseCount: turn.ackedCount })
+      .catch(() => {});
   }
 
   private settleComplete(turn: LiveTurn, result: SaveTurnResult): void {
@@ -1071,6 +1089,7 @@ export class LiveTurnSaveRegistry {
 
   private pump(turn: LiveTurn, recoverFailedClose = false): void {
     const blockedFailure = turn.failure && !(recoverFailedClose && turn.failureSource === "close");
+    if (blockedFailure) this.closeRefusedTurn(turn);
     if (turn.inflight || turn.final || blockedFailure || turn.hasRetryTimer || turn.waitingOnline) return;
     if (turn.ackedStatus === null && !this.queueAllows(turn)) return;
     if (turn.opensPage === null) turn.opensPage = this.decideOpensPage(turn);
@@ -1260,6 +1279,7 @@ export class LiveTurnSaveRegistry {
     turn.failureSource = "checkpoint";
     turn.failureSeq = sent.seq;
     this.settleComplete(turn, result);
+    this.closeRefusedTurn(turn);
     this.releaseQueue(turn);
     this.emit();
   }
