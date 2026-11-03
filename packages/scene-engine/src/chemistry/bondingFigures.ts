@@ -843,13 +843,15 @@ const ORTHO_ISOMER = String.raw`(?:o-|ortho[\s-]?)nitrophenol`;
 const PARA_ISOMER = String.raw`(?:p-|para[\s-]?)nitrophenol`;
 const ORTHO_NITROPHENOL_ASK = new RegExp(String.raw`^${ASK_NUMBERING}${ASK_VERB}${ASK_DIAGRAM}(?:the\s+)?(?:intramolecular\s+)?${ASK_BOND}\s+(?:in|of)\s+(?:the\s+)?${ORTHO_ISOMER}${ASK_TAIL}$`);
 const ASK_BOTH_KINDS = String.raw`(?:(?:intramolecular\s+and\s+intermolecular|intermolecular\s+and\s+intramolecular)\s+)?`;
-const ISOMER_PROPERTY = String.raw`(?:more\s+|less\s+)?(?:steam\s+volatile|volatile|soluble\s+in\s+water|acidic)`;
+// Only the true direction: the intramolecular bond leaves ortho more volatile and less soluble.
+const ORTHO_PROPERTY = String.raw`(?:more\s+(?:steam\s+)?volatile|less\s+soluble\s+in\s+water)`;
+const PARA_PROPERTY = String.raw`(?:less\s+(?:steam\s+)?volatile|more\s+soluble\s+in\s+water)`;
 const ISOMER_EXPLAIN = String.raw`explain(?:\s+this|\s+the)?(?:\s+difference)?\s+(?:with|using|in|in\s+terms\s+of|on\s+the\s+basis\s+of)\s+${ASK_BOTH_KINDS}${ASK_BOND}[.?!]*`;
 const NITROPHENOL_PAIR_ASKS: readonly RegExp[] = [
   // Compare the hydrogen bonding in o-nitrophenol and p-nitrophenol.
   new RegExp(String.raw`^${ASK_NUMBERING}(?:compare|contrast|explain|describe|discuss|explain\s+the\s+difference\s+in|what\s+is\s+the\s+difference\s+in)\s+(?:the\s+)?${ASK_BOTH_KINDS}${ASK_BOND}\s+(?:in|of)\s+${ORTHO_ISOMER}\s+and\s+${PARA_ISOMER}${ASK_TAIL}$`),
   // Why is o-nitrophenol less soluble in water than p-nitrophenol? Explain with hydrogen bonding.
-  new RegExp(String.raw`^${ASK_NUMBERING}(?:why\s+is\s+|explain\s+why\s+)?(?:${ORTHO_ISOMER}\s+(?:is\s+)?${ISOMER_PROPERTY}\s+than\s+${PARA_ISOMER}|${PARA_ISOMER}\s+(?:is\s+)?${ISOMER_PROPERTY}\s+than\s+${ORTHO_ISOMER})[.?!,]*\s+${ISOMER_EXPLAIN}$`),
+  new RegExp(String.raw`^${ASK_NUMBERING}(?:why\s+is\s+|explain\s+why\s+)?(?:${ORTHO_ISOMER}\s+(?:is\s+)?${ORTHO_PROPERTY}\s+than\s+${PARA_ISOMER}|${PARA_ISOMER}\s+(?:is\s+)?${PARA_PROPERTY}\s+than\s+${ORTHO_ISOMER})[.?!,]*\s+${ISOMER_EXPLAIN}$`),
   // o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.
   new RegExp(String.raw`^${ASK_NUMBERING}${ORTHO_ISOMER}\s+is\s+(?:steam\s+volatile|volatile)\s+(?:but|and|while|whereas)\s+${PARA_ISOMER}\s+is\s+not[.,]?\s+${ISOMER_EXPLAIN}$`),
 ];
@@ -867,14 +869,25 @@ export function mentionsHydrogenBond(stem: string): boolean {
  * right figures that only mention the bond as a reason, and that is accepted.
  */
 export function hydrogenBondFigureLeads(stem: string): boolean {
-  return mentionsHydrogenBond(stem) && /\bwater\b|\bh2o\b|\bammonia\b|\bnh3\b|\bhf\b|hydrogen fluoride|(?:\bo-|\bortho[\s-]?|\bp-|\bpara[\s-]?)nitrophenol/.test(stem);
+  return mentionsHydrogenBond(stem) && /\bwater\b|\bh2o\b|\bammonia\b|\bnh3\b|\bhf\b|hydrogen fluoride|(?:\bo-|\bortho[\s-]?|\bp-|\bpara[\s-]?)nitro[\s-]?phenol/.test(stem);
 }
 
-/** Asked to show the bond itself or the molecules it joins, which a lone structure cannot do. */
-export function asksToShowHydrogenBond(stem: string): boolean {
+/**
+ * A lone structure answers a hydrogen bond ask only when the stem asks for that
+ * structure outright: "Draw the structure of ethanol. Why does it form hydrogen
+ * bonds?" Anything else needs the bond or a second molecule, which it cannot
+ * show. This is positive evidence on purpose: each list of wordings to refuse
+ * (draw the bond, dimer, two molecules, forms, chain, joined) lost to the next.
+ */
+export function organicStructureCannotAnswer(stem: string): boolean {
   if (!mentionsHydrogenBond(stem)) return false;
-  return /\b(?:show|draw|sketch|illustrate|depict)\s+(?:the\s+|a\s+|its\s+)?(?:inter\s*molecular\s+|intra\s*molecular\s+)?(?:hydrogen[\s-]*bond|h[\s-]bond)/.test(stem)
-    || /\bdimer|\btwo\s+(?:[a-z0-9-]+\s+){0,2}molecules\b|\bbetween\s+two\b/.test(stem);
+  const asksForStructure = /\b(?:draw|write|give|sketch)\s+(?:the\s+)?(?:skeletal\s+|structural\s+)?(?:structure|formula)s?\s+of\b/.test(stem);
+  return !asksForStructure || /\b(?:show|showing|joined|between|dimer|pair|chain|network)\b/.test(stem);
+}
+
+/** A hyphen or "H-bond" skips the Lewis hydrogen bond figure, so a plain Lewis structure must not answer it. */
+export function hydrogenBondSpelledPastLewis(stem: string): boolean {
+  return mentionsHydrogenBond(stem) && !hydrogenBondAsked(stem);
 }
 
 function plainHydrogenBondAsk(stem: string, species: HydrogenBondSpecies): boolean {

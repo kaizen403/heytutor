@@ -318,6 +318,41 @@ const DECLINES: readonly string[] = [
   "Why do carboxylic acids exist as dimers? Show the structure of benzoic acid dimer through hydrogen bonding.",
   "Draw two methanol molecules joined by a hydrogen bond.",
   "Draw formamide showing hydrogen bonding between two molecules.",
+  // A lone structure, or an arrow to a "?", where the stem needs the bond or a second molecule.
+  "Acetic acid forms a pair held by two hydrogen bonds. Draw this.",
+  "Ethanol forms hydrogen bonds with itself. Explain.",
+  "Acetic acid forms hydrogen bonds. Draw a diagram.",
+  "Phenol forms hydrogen bonds. Show this.",
+  "Salicylic acid forms an intramolecular hydrogen bond. Draw it.",
+  "Draw the structure of ethanol showing hydrogen bonding.",
+  "Show how hydrogen bonds form between ethanol molecules.",
+  "Explain hydrogen bonding between 2 molecules of ethanol.",
+  "Draw the inter-molecular hydrogen bond between methanol molecules.",
+  "Draw ethanol molecules joined by hydrogen bonds.",
+  "Draw a diagram of hydrogen bonding in ethylene glycol.",
+  "Draw a diagram showing intramolecular hydrogen bonding in salicylaldehyde.",
+  "Draw the structure of salicylic acid showing the intramolecular hydrogen bond.",
+  "Acetic acid exists as a hydrogen-bonded pair in benzene. Draw the pair.",
+  "Ethanol molecules form a chain through hydrogen bonds. Draw the chain.",
+  "Methanol molecules form a hydrogen bonded network. Draw it.",
+  // A partial name reads as a different compound.
+  "Explain hydrogen bonding in ortho nitro phenol.",
+  "Explain hydrogen bonding in para nitro phenol.",
+  "Explain hydrogen bonding in o-nitro phenol and p-nitro phenol.",
+  "Why is ortho nitro phenol more volatile than para nitro phenol? Explain with hydrogen bonding.",
+  "Explain hydrogen bonding in ortho chloro phenol.",
+  "Explain the intramolecular hydrogen bonding in ortho hydroxy benzaldehyde.",
+  "Draw the structure of ortho nitro phenol and explain its hydrogen bonding.",
+  // A false direction must not get a figure that reads as its verified answer.
+  "Why is p-nitrophenol more volatile than o-nitrophenol? Explain with hydrogen bonding.",
+  "Why is p-nitrophenol more steam volatile than o-nitrophenol? Explain in terms of hydrogen bonding.",
+  "Why is o-nitrophenol more soluble in water than p-nitrophenol? Explain using hydrogen bonding.",
+  "Explain why p-nitrophenol is less soluble in water than o-nitrophenol. Explain on the basis of hydrogen bonding.",
+  "Why is o-nitrophenol less volatile than p-nitrophenol? Explain with hydrogen bonding.",
+  "Why is o-nitrophenol more acidic than p-nitrophenol? Explain with hydrogen bonding.",
+  "Why is p-nitrophenol less acidic than o-nitrophenol? Explain in terms of hydrogen bonding.",
+  "o-Nitrophenol is less steam volatile than p-nitrophenol. Explain this with hydrogen bonding.",
+  "p-Nitrophenol is more volatile than o-nitrophenol. Explain the difference using hydrogen bonding.",
   // Both isomers named, so only the closed pair sentences can refuse these.
   "Compare hydrogen bonding in the anions of o-nitrophenol and p-nitrophenol.",
   "Compare hydrogen bonding in the sodium salts of o-nitrophenol and p-nitrophenol.",
@@ -372,6 +407,17 @@ const DECLINES: readonly string[] = [
 for (const question of DECLINES) {
   check(`declines everywhere: ${question}`, () => {
     assert.equal(buildLewisScene(question, [], false), null, "the Lewis figure drew");
+    const scene = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
+    assert.equal(scene, null, `${scene?.family ?? ""} took the turn`);
+  });
+}
+// A hyphen or "H-bond" reaches the plain Lewis route, not the hydrogen bond builder, so only the family guard stops it.
+for (const question of [
+  "Draw Lewis structures to show the hydrogen-bond between two water molecules.",
+  "Explain the Lewis structure of water and show the H-bond between two water molecules.",
+  "Compare the O-H bond length with the hydrogen-bond length in water.",
+]) {
+  check(`no plain Lewis figure for: ${question}`, () => {
     const scene = synthesizeFamilyScene({ question }) ?? synthesizeLastResortScene({ question });
     assert.equal(scene, null, `${scene?.family ?? ""} took the turn`);
   });
