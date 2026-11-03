@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-optics-archetype-strict-selection.ts

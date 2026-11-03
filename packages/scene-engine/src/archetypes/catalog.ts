@@ -374,12 +374,12 @@ export const ARCHETYPES: Readonly<Record<ArchetypeId, ArchetypeSpec>> = {
   },
   spherical_mirror: {
     id: "spherical_mirror", family: "axis_view", label: "concave or convex mirror ray diagram",
-    slots: { kind: choice(["concave", "convex"], { required: true }), u: num("cm", { metric: true }), f: num("cm", { metric: true }), v: num("cm") },
+    slots: { kind: choice(["concave", "convex"], { required: true }), u: num("cm", { metric: true }), f: num("cm", { metric: true }), v: num("cm"), unit: choice(["cm", "mm", "m"]), conflict: choice(["kind", "focal", "power"]) },
     contract: { roles: ["mirror", "principal axis", "object", "image", "focus"], metric: ["distance_ratio", "converges", "on"] },
   },
   thin_lens: {
     id: "thin_lens", family: "axis_view", label: "convex or concave lens ray diagram",
-    slots: { kind: choice(["convex", "concave"], { required: true }), u: num("cm", { metric: true }), f: num("cm", { metric: true }), v: num("cm") },
+    slots: { kind: choice(["convex", "concave"], { required: true }), u: num("cm", { metric: true }), f: num("cm", { metric: true }), v: num("cm"), unit: choice(["cm", "mm", "m"]), conflict: choice(["kind", "focal", "power"]) },
     contract: { roles: ["lens", "principal axis", "object", "image", "focus"], operators: ["lens_section"], metric: ["distance_ratio", "converges", "on"] },
   },
   lens_maker: {

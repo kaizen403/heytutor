@@ -18,8 +18,8 @@ export interface HybridRow {
 }
 
 export function hybridBuilderKey(row: HybridRow): string | null {
-  const family = row.source === "archetype" ? row.archetype : row.family;
-  return family && ["fast_family", "family", "archetype", "last_resort"].includes(row.source)
+  const family = row.source === "archetype" || row.source === "optics_archetype" ? row.archetype : row.family;
+  return family && ["fast_family", "family", "archetype", "optics_archetype", "last_resort"].includes(row.source)
     ? `${row.source}:${family}` : null;
 }
 

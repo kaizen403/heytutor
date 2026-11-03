@@ -16,26 +16,17 @@ export const MAX_LLM_CONTINUATIONS = 2;
 export const STREAM_SEGMENTS_LIVE = true;
 
 /**
- * Empty-board prompts. Cap is 5: a sixth card forces a scroll, and a second
- * column clips. Each card is a different JEE chapter — two from the same
- * unit made the stack look like a resistors-and-mirrors demo.
+ * Empty-board prompts for a profile with no available subject. Cap is 5: a sixth
+ * card forces a scroll, and a second column clips. Each card is a different
+ * chapter, and each ran once as a full lesson, judged from its render, before it
+ * was listed here. One right run does not make a card safe: the planner varies,
+ * so a card leaves this list when it draws a wrong figure, in the lab or for a
+ * student, even when that leaves the subject mix uneven.
  *
  * Mix topic lectures (derive / explain / show how) with numbered problems.
  * A stack of only exam questions made the empty board feel like a problem set.
  */
 export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
-  {
-    topic: "Projectiles",
-    kind: "lecture",
-    question:
-      "Derive the formula for the range of a projectile on level ground, and show why 45° gives the maximum range.",
-  },
-  {
-    topic: "Inclined planes",
-    kind: "lecture",
-    question:
-      "Explain how to draw a free-body diagram for a block on a rough incline, and show how friction enters Newton's second law.",
-  },
   {
     topic: "Resistors",
     kind: "problem",
@@ -43,16 +34,22 @@ export const LANDING_SUGGESTIONS: CanvasLandingSuggestion[] = [
       "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
   },
   {
-    topic: "Electric charges",
+    topic: "Circles",
     kind: "lecture",
     question:
-      "Show how two point charges produce an electric field on the line joining them, and explain where that field can be zero.",
+      "Explain how completing the square reveals the centre and radius of a circle.",
   },
   {
-    topic: "Ray optics",
+    topic: "Molecular shape",
+    kind: "lecture",
+    question:
+      "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4.",
+  },
+  {
+    topic: "Newton's laws",
     kind: "problem",
     question:
-      "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.",
+      "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
   },
 ];
 
