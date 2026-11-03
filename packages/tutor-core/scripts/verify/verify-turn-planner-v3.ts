@@ -486,7 +486,7 @@ try {
     derived: [{ id: "x", symbol: "x", value, ...(unit ? { unit } : {}), sourceText, provenance: "derived" }],
     qualitativeClaims: [], lawIds: ["law"], assumptions: [], visualRequirement: "optional",
   });
-  for (const [source, value, unit] of [["x = 180° − 50° − 60° = 70°", 70, "°"], ["x = 5, SP = 0.96 × 5 = 4.8", 5, undefined], ["2x + 3 = 11, so x = 4", 4, undefined]] as const) {
+  for (const [source, value, unit] of [["x = 180° − 50° − 60° = 70°", 70, "°"], ["x = 5, SP = 0.96 × 5 = 4.8", 5, undefined], ["2x + 3 = 11, so x = 4", 4, undefined], ["x = 6 m × 30°", 6, "m"]] as const) {
     if (parseTurnPlanV3Content(doubtPlan(source, value, unit), "Doubt row.") !== null) {
       throw new Error(`a fresh plan with a doubtful chain was not refused: ${source}`);
     }

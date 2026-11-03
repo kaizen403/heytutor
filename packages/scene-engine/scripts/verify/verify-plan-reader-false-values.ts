@@ -89,6 +89,8 @@ same("glued trig argument", { source: "v0y = 20 sin60° = 10√3 ≈ 17.32", val
 same("inverse trig", { source: "x = arcsin(5/13) ≈ 22.62°", value: 22.61986494804, unit: "°" });
 same("inverse trig refines", { source: "x = arctan(5/12) ≈ 22.62°", value: 22.62, unit: "°" }, 22.61986494804);
 same("mark minus inverse trig", { source: "x = 90° − arctan(3/4)", value: 53.13010235416, unit: "°" });
+same("mark minus inverse trig corrects a slip", { source: "x = 90° − arctan(3/4)", value: 60, unit: "°" }, 53.13010235416);
+same("glued trig coefficient corrects a slip", { source: "F = 20sin(37°) = 15 N", value: 15, unit: "N", symbol: "F" }, 12.0363);
 same("a mark on a plain value", { source: "x = 30°", value: 30, unit: "°" });
 same("radian chain within its precision", { source: "θ = 180° − 30° = 150° = 2.618 rad", value: 2.618, unit: "rad", symbol: "θ" });
 same("a ratio of marks", { source: "x = (60°/360°) × 360 = 60°", value: 60, unit: "°" });
@@ -136,10 +138,10 @@ for (const source of [
 refused("another statement, near y", { source: "x = 8, y = 0.95 × 8 = 7.6", value: 8 });
 {
   // A stored plan was accepted when saved. Reopening it does not apply the fresh plan check.
-  const stored = { schemaVersion: "turn-plan/v3", question: QUESTION, givens: [], unknowns: [{ id: "C", symbol: "C", unit: "°" }], derived: [{ id: "C", symbol: "C", value: 70, unit: "°", sourceText: "C = 180° − 50° − 60°", provenance: "derived" }], qualitativeClaims: [], lawIds: ["law"], assumptions: [], visualRequirement: "optional" };
+  const stored = { schemaVersion: "turn-plan/v3", question: QUESTION, givens: [], unknowns: [{ id: "C", symbol: "C", unit: "m" }], derived: [{ id: "C", symbol: "C", value: 6, unit: "m", sourceText: "C = 6 m × 30°", provenance: "derived" }], qualitativeClaims: [], lawIds: ["law"], assumptions: [], visualRequirement: "optional" };
   const fresh = validateTurnPlanV3(stored, QUESTION, { freshFromModel: true }).valid;
   const reopened = validateTurnPlanV3(stored, QUESTION);
-  check("a stored plan is judged as it was, a fresh one is not", !fresh && reopened.issues.every((issue) => issue.code !== "reading_in_doubt"), { fresh, issues: reopened.issues });
+  check("a stored plan is judged as it was, a fresh one is not", !fresh && reopened.valid, { fresh, issues: reopened.issues });
 }
 same("a chain about the target still refines", { source: "x = 2 × 2.48 = 4.96", value: 5 }, 4.96);
 same("a chain about the target still refines decimals", { source: "x = 3 × 1.7321 = 5.1963", value: 5.2 }, 5.1963);

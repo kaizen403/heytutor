@@ -826,8 +826,8 @@ function equationBeforeAnswer(members: string[], targetKeys: string[]): boolean 
   return false;
 }
 
-/** A mark for detection only; °C and °F are temperatures. The reader itself is unchanged. */
-const DEGREE_MARK = /(?:\d|\.)\s*(?:(?:degrees?|deg)\b|°(?![CF]\b))/i;
+/** A mark for detection only. The reader itself is unchanged. */
+const DEGREE_MARK = /(?:\d|\.)\s*(?:(?:degrees?|deg)\b|°)/i;
 
 /** "C = 180° − 50°", "s = 6 m × 30°": this reader converts a mark outside a trig argument to radians. */
 function degreeMarkInArithmetic(members: string[]): boolean {
