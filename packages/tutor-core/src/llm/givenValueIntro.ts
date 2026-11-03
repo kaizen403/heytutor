@@ -484,9 +484,11 @@ function statedQuantities(question: string): StatedQuantity[] {
     const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
     // A compound unit may be spaced ("10 N m", "1.08 g mL^-1"): read all of it.
     const spacedUnits: string[] = [];
-    for (const word of /^\s/.test(after) ? after.trimStart().split(/\s+/) : []) {
+    // A unit ends with its line, and before the next assignment's symbol.
+    const unitWords = /^[^\S\n]/.test(after) ? (after.split("\n")[0] ?? "").trimStart().split(/\s+/) : [];
+    for (const [index, word] of unitWords.entries()) {
       const bare = word.replace(/[.,;:)]+$/, "");
-      if (!isUnitText(bare)) break;
+      if (!isUnitText(bare) || unitWords[index + 1]?.startsWith("=")) break;
       spacedUnits.push(bare);
       if (bare !== word) break;
     }
