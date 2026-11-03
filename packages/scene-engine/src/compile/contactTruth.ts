@@ -164,7 +164,7 @@ function freeSideFromNormal(surface: Line, body: Body, document: SceneDocument, 
   const reach = extentOf(body.points) * 0.1;
   let side: number | null = null;
   for (const entity of document.entities) {
-    if (entity.kind !== "vector" || !NORMAL_WORDS.test(words(entity)) ) continue;
+    if (entity.kind !== "vector" || !NORMAL_WORDS.test(words(entity)) || FORCE_ON_SURFACE.test(words(entity))) continue;
     const shape = geometry.get(entity.id) as Shape | undefined;
     if (shape?.kind !== "path" || !shape.points || shape.points.length < 2) continue;
     const a = shape.points[0]!, b = shape.points.at(-1)!;
@@ -198,8 +198,24 @@ function insideAlong(line: Line, circle: { center: Point; radius: number }): boo
   return at >= margin && at <= 1 - margin;
 }
 
+/** The drawn line itself, not its extension past either end, enters the body. */
+function segmentEntersBody(line: Line, body: Body): boolean {
+  if (body.circle) return distanceToSegment(body.circle.center, line.a, line.b) < body.circle.radius;
+  if (insidePolygon(line.a, body.points) || insidePolygon(line.b, body.points)) return true;
+  return body.points.some((a, i) => {
+    const b = body.points[(i + 1) % body.points.length]!;
+    const rx = line.b.x - line.a.x, ry = line.b.y - line.a.y, sx = b.x - a.x, sy = b.y - a.y;
+    const denominator = rx * sy - ry * sx;
+    if (Math.abs(denominator) < 1e-12) return false;
+    const t = ((a.x - line.a.x) * sy - (a.y - line.a.y) * sx) / denominator;
+    const u = ((a.x - line.a.x) * ry - (a.y - line.a.y) * rx) / denominator;
+    return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+  });
+}
+
 /** The line runs through the body with a real share of it on each side. */
 function straddles(line: Line, body: Body): boolean {
+  if (!segmentEntersBody(line, body)) return false;
   const params = body.points.map((p) => along(line, p));
   const lo = minOf(params), hi = maxOf(params);
   if (!(hi > lo) || Math.min(hi, 1) - Math.max(lo, 0) < (hi - lo) * ALONG_SHARE) return false;
