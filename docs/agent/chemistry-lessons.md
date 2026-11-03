@@ -337,7 +337,10 @@ analysis) draw nothing, which is the honest outcome for those stems.
   with its unit beats the element table, a stem stating none keeps the table, and
   a qualifier the reader cannot own ("only half of the current", "at 80%
   efficiency") leaves the cell with no mass, never one computed as if the
-  qualifier were absent. `closedDepositionWords` in `electrolysisSource.ts`.
+  qualifier were absent. This is `readPlainDepositionMass` in
+  `electrolysisSource.ts`, for a stem naming no electrode. The electrode path has
+  its own reader, and a word list there lost ordinary stems such as "copper
+  sulphate".
 - A family must decline what it cannot honour: a complex whose charge OCR
   dropped, four salts electrolysed together, a five-coordinate complex, an
   organic name that only half parses. The gate treats a wrong draw as fatal

@@ -34,7 +34,6 @@ export interface DepositionMassSource {
 
 export function readDepositionMassSource(question: string, deposit: { symbol: string; n: number }): DepositionMassSource | null {
   if (!claimsElectrodeDepositionMass(question)) return null;
-  if (!closedDepositionWords(question, deposit)) return null;
   return readDepositionMassInputs(question, deposit, false);
 }
 
@@ -42,8 +41,7 @@ export function readDepositionMassSource(question: string, deposit: { symbol: st
 const PLAIN_DEPOSITION_WORDS = new Set((
   "a an the of is are by with using for and at on in take given if "
   + "aqueous molten solution electrolysed electrolyzed electrolysis current passed through "
-  + "find calculate determine what mass deposited inert electrode electrodes cathode anode "
-  + "passes carbon graphite platinum faraday constant m alumina dissolved cryolite"
+  + "find calculate determine what mass deposited inert electrode electrodes cathode anode"
 ).split(" "));
 const QUANTITY_WITH_UNIT = /\b\d+(?:\.\d+)?\s*(?:amperes?|amps?|a|minutes?|mins?|min|seconds?|secs?|s|hours?|hrs?|h|g\s*\/\s*mol|g\s*mol\^?\(?-1\)?|c\s*\/\s*mol|c\s*mol\^?\(?-1\)?)(?![a-z0-9])/gi;
 

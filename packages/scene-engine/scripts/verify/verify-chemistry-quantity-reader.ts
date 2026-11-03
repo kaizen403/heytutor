@@ -434,7 +434,8 @@ check("complete inverse-mole Faraday unit supports actual electrolysis source", 
     const r=quantity(`value=96500 ${notation}`,"faraday_constant","C/mol"); assert.ok(r.ok,JSON.stringify(r)); near(r.reading.value,96500);
   }
   const question="Aqueous CuSO4 is electrolysed by a 2.0 A current for 30 minutes. Cu = 63.5 g mol^-1 and F = 96500 C mol^-1. Find the mass of copper deposited.";
-  assert.match(compiled("electrolysis-inverse-mole",buildElectrochemScene(question,[],false)),/1.19 g/);
+  // Cu = 63.5 is stated: 63.5 * 3600 / (2 * 96500) = 1.18 g. This row used to pin 1.19 g, from the table's 63.546.
+  assert.match(compiled("electrolysis-inverse-mole",buildElectrochemScene(question,[],false)),/1\.18 g/);
 });
 
 // PR137 caller-review additions; one old no-span refusal is superseded above.
