@@ -1807,6 +1807,7 @@ export function lawOnlyArchetypeLead(question: string, hints?: DetectionHints): 
 export function refusedArchetypeLead(question: string, hints?: DetectionHints): boolean {
   const stem = prepareStem(question);
   if (!stem) return false;
+  if (contradictedMagnetCoil(question)) return true;
   const plan = collectPlanQuantities(hints?.turnPlan);
   const bonus = structureBonus(hints);
   const scored = CUE_SETS
@@ -1833,7 +1834,7 @@ export function detectArchetype(question: string, hints?: DetectionHints): Arche
   if (!stem) return null;
   const plan = collectPlanQuantities(hints?.turnPlan);
   const bonus = structureBonus(hints);
-  if (contradictedMagnetCoil(question)) return null;
+  if (!hints?.keepLawOnlyLead && contradictedMagnetCoil(question)) return null;
 
   if (hints?.plannerArchetype && isArchetypeId(hints.plannerArchetype)) {
     const set = CUE_SET_BY_ID.get(hints.plannerArchetype);

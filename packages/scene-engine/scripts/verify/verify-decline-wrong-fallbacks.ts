@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { contradictedMagnetCoil, detectArchetype } from "../../src/archetypes/detect";
+import { contradictedMagnetCoil, detectArchetype, refusedArchetypeLead } from "../../src/archetypes/detect";
 import { synthesizeArchetypeScene } from "../../src/archetypes";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 
@@ -365,6 +365,29 @@ for (const question of [
 check("no graph asked", () => {
   const question = "A cyclist makes a round trip of 4 km in 20 minutes. Find the average speed and the average velocity.";
   assert.equal(contactFamily(question)?.family, "contact_body", "a kinematics stem that asks for no graph keeps its sketch");
+});
+
+check("a contradicted magnet and coil stem keeps the planner request and declines the figure", () => {
+  for (const [question, lead] of [
+    ["A magnet is pulled out of a coil. Explain.", "faraday_induction"],
+    ["A magnet of mass 2 kg slides down an incline of 30 degrees and moves away from a coil.", "incline_body"],
+    ["A lens of focal length 10 cm stands near a stationary magnet and a coil. Find the image position.", "thin_lens"],
+  ] as const) {
+    assert.equal(detectArchetype(question, { keepLawOnlyLead: true })?.id, lead, `${question}: the request gate keeps ${lead}`);
+    assert.equal(detectArchetype(question, {}), null, `${question}: the figure path declines`);
+    assert.equal(refusedArchetypeLead(question, {}), true, `${question}: selection declines the planner candidate too`);
+    assert.equal(synthesizeFamilyScene({ question }), null, `${question}: the family path declines`);
+    assert.equal(synthesizeLastResortScene({ question }), null, `${question}: the last resort declines`);
+  }
+});
+
+check("a battery's emf is not a field emf, so the contact sketch does not give way to resistors", () => {
+  for (const question of [
+    "A battery with emf 6 V rests on a table. Find the normal force.",
+    "A car on a banked road has a battery of emf 12 V. Find the banking angle.",
+  ]) {
+    assert.equal(contactFamily(question)?.family, "contact_body", `${question}: keeps the same family as before this PR`);
+  }
 });
 
 console.log(`verify-decline-wrong-fallbacks: ${checks} checks passed`);
