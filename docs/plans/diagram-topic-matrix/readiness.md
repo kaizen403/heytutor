@@ -8,7 +8,9 @@ written into the old ledger as something it is not.
 ## TOPIC-READY for a declared scope
 
 This was the working milestone from 4 to 9 October 2026, when per-topic work
-paused; the counts below are final. A topic is READY for a declared scope when
+paused; the counts below are final for that period. Coverage work resumed on
+3 November 2026 with a measured chapter table; a new READY claim meets the same
+five conditions and is reported separately from `accepted`. A topic is READY for a declared scope when
 all five hold:
 
 1. **Integrated.** The implementation runs in the normal application path on the
