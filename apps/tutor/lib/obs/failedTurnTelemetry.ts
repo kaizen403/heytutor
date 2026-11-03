@@ -23,7 +23,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   // failure list on purpose, so it never fails the turn or opens an issue.
   "teaching_voice_degraded",
   // #172 drop codes, saved after valid_candidate_dropped.
-  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
+  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "refused_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id", "duplicate_quantity_id",
   "duplicate_unknown_id", "given_trig_stipulation_conflict", "invalid_assumption", "invalid_claim", "invalid_example_species",
   "invalid_claim_entity_hints", "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
@@ -50,7 +50,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
   // Figure consistency (scene-engine compile/figureConsistency.ts).
   "component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap",
-  "vector_without_label", "region_label_in_nested_body",
+  "vector_without_label", "region_label_in_nested_body", "axes_frames_overlap",
   "unknown_issue",
 ] as const;
 export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "mock", "unknown"] as const;
