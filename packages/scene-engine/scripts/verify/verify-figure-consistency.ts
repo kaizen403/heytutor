@@ -261,6 +261,28 @@ expect("a frame spanning both signs beside a half-plane frame is still refused",
 expect("opposite-half frames whose curves cross the shared axis are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -2.6, 0.3] }), "axes_frames_overlap", true);
 expect("two frames in the same half are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 8.6, -0.3, 2.6], expressions: ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
 
+// Each half must hold a curve of its own: frames that claim opposite halves with both
+// curves above the axis are two graphs on one scale (x beside a positive v).
+const halves = { firstRange: [-0.4, 8.6, -0.3, 2.6] as [number, number, number, number], secondRange: [-0.4, 8.6, -2.6, 0.3] as [number, number, number, number] };
+expect("opposite-half frames with both curves above the axis are still refused", frames(2, { ...halves, expressions: ["2*exp(-0.3*x)", "1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
+expect("opposite-half frames with both curves below the axis are still refused", frames(2, { ...halves, expressions: ["-2*exp(-0.3*x)", "-1.5*exp(-0.2*x)"] }), "axes_frames_overlap", true);
+expect("opposite halves listed lower first are still one graph split at its axis", frames(2, { firstRange: halves.secondRange, secondRange: halves.firstRange, expressions: ["-2*exp(-0.3*x)", "2*exp(-0.3*x)"] }), "axes_frames_overlap", false);
+expect("opposite-half frames over different x spans are still refused", frames(2, { firstRange: [-0.4, 8.6, -0.3, 2.6], secondRange: [-0.4, 4.6, -2.6, 0.3], expressions: decay }), "axes_frames_overlap", true);
+// A straight segment crossing the shared axis lands in the other graph's half just as a curve does.
+function halvesWithCrossingLine(): Doc {
+  const document = frames(2, { ...halves, expressions: decay });
+  const parts: Array<[Entity, Construction]> = [point("c1", 4, 1.5, "construction helper"), point("c2", 4, -1.5, "construction helper"),
+    [{ id: "crossing", kind: "segment", role: "line", label: "crossing" }, { id: "make_crossing", operator: "segment", inputs: { start: "c1", end: "c2" }, outputs: ["crossing"] }]];
+  for (const [entity, construction] of parts) {
+    (document.entities as Entity[]).push(entity);
+    (document.constructions as Construction[]).push(construction);
+    (document.requiredEntityIds as string[]).push(entity.id);
+    ((document.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push(entity.id);
+  }
+  return document;
+}
+expect("a straight line crossing the shared axis still refuses opposite-half frames", halvesWithCrossingLine(), "axes_frames_overlap", true);
+
 // Scope: without the option (engine built figures) the rules do not run.
 if (codes(loop("negative"), false).includes("current_against_source_polarity")) { failures.push("the rules ran without the figureConsistency option"); console.log("FAIL the rules ran without the figureConsistency option"); }
 else { passed += 1; console.log("pass the rules run only when admission opts in"); }

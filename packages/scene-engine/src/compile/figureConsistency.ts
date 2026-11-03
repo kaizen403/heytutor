@@ -408,13 +408,21 @@ function oppositeHalves(first: NonNullable<ReturnType<typeof frameBox>>, second:
   const lower = (box: NonNullable<ReturnType<typeof frameBox>>) => above(box) <= HALF_PLANE_MARGIN * height(box);
   if (!((upper(first) && lower(second)) || (lower(first) && upper(second)))) return false;
   // Curves are not clipped to their frame: one that crosses the shared axis
-  // lands in the other graph's half, so the two still overlap.
-  return !curves.some((curve) => {
+  // lands in the other graph's half, so the two still overlap. Two curves in
+  // one half are two graphs on one scale, whatever the frames claim, so each
+  // half must hold a curve of its own.
+  let inUpper = false, inLower = false;
+  for (const curve of curves) {
     const inside = curve.points.filter((point) => point.x >= first.minX - 2 && point.x <= first.maxX + 2);
-    if (inside.length === 0) return false;
+    if (inside.length === 0) continue;
     const ys = inside.map((point) => point.y);
-    return Math.min(...ys) < axis - CURVE_AXIS_TOLERANCE_PX && Math.max(...ys) > axis + CURVE_AXIS_TOLERANCE_PX;
-  });
+    const reachesUpper = Math.min(...ys) < axis - CURVE_AXIS_TOLERANCE_PX;
+    const reachesLower = Math.max(...ys) > axis + CURVE_AXIS_TOLERANCE_PX;
+    if (reachesUpper && reachesLower) return false;
+    inUpper ||= reachesUpper;
+    inLower ||= reachesLower;
+  }
+  return inUpper && inLower;
 }
 
 /** A curve may run along the shared axis by this much without crossing it. */
@@ -426,7 +434,7 @@ export function validateFrameOverlap(document: SceneDocument, primitives: Render
     const box = isInk(primitive) && !isAnnotationMark(document, primitive) ? frameBox(primitive) : null;
     return box ? [{ entityId: primitive.entityId, box }] : [];
   });
-  const curves = primitives.filter((primitive) => primitive.kind === "polyline" && isInk(primitive) && !isAnnotationMark(document, primitive));
+  const curves = primitives.filter((primitive) => (primitive.kind === "polyline" || primitive.kind === "line") && isInk(primitive) && !isAnnotationMark(document, primitive));
   const issues: SceneIssue[] = [];
   for (let i = 0; i < frames.length; i++) for (let j = i + 1; j < frames.length; j++) {
     const first = frames[i]!, second = frames[j]!;

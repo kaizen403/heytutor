@@ -702,58 +702,9 @@
    "productionSource": "chemistry_family",
    "productionVerdict": "wrong",
    "expect": {
-    "strict": "chemistry_family:chem_thermo",
-    "current": "chemistry_family:chem_thermo",
-    "current_unclassified": "chemistry_family:chem_thermo"
-   },
-   "drawing": {
-    "strict": {
-     "labels": [
-      "E_a",
-      "T_1",
-      "T_2",
-      "fraction",
-      "kinetic energy"
-     ],
-     "marks": {
-      "axes": 1,
-      "line": 1,
-      "polyline": 2
-     }
-    },
-    "current": {
-     "labels": [
-      "E_a",
-      "T_1",
-      "T_2",
-      "fraction",
-      "kinetic energy"
-     ],
-     "marks": {
-      "axes": 1,
-      "line": 1,
-      "polyline": 2
-     }
-    },
-    "current_unclassified": {
-     "labels": [
-      "E_a",
-      "T_1",
-      "T_2",
-      "fraction",
-      "kinetic energy"
-     ],
-     "marks": {
-      "axes": 1,
-      "line": 1,
-      "polyline": 2
-     }
-    }
-   },
-   "open": {
-    "strict": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
-    "current": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)",
-    "current_unclassified": "a Maxwell Boltzmann curve for an electromagnetism question: chemistry routing on a bare word (closes with #312; then text only)"
+    "strict": "none",
+    "current": "none",
+    "current_unclassified": "none"
    },
    "turnPlan": {
     "givens": [],
@@ -7859,43 +7810,25 @@
     "current": {
      "labels": [
       "Ec",
-      "Ec",
-      "Ec",
-      "Ec",
       "Ev",
-      "Ev",
-      "Ev",
-      "Ev",
-      "conductor",
-      "semiconductor"
+      "intrinsic"
      ],
      "marks": {
-      "line": 5,
-      "point": 2
+      "line": 2,
+      "point": 1
      }
     },
     "current_unclassified": {
      "labels": [
       "Ec",
-      "Ec",
-      "Ec",
-      "Ec",
       "Ev",
-      "Ev",
-      "Ev",
-      "Ev",
-      "conductor",
-      "semiconductor"
+      "intrinsic"
      ],
      "marks": {
-      "line": 5,
-      "point": 2
+      "line": 2,
+      "point": 1
      }
     }
-   },
-   "open": {
-    "current": "energy_level draws the conductor with a band gap and doubles the Ec and Ev labels (lane 1, energy_level band figure in synthesize/familyScene.ts)",
-    "current_unclassified": "same band figure (lane 1, energy_level band figure)"
    },
    "turnPlan": {
     "givens": [],
