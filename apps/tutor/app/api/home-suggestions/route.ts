@@ -20,6 +20,7 @@ import {
   reservePaidUsage,
 } from "@/lib/billing/paidUsage";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
+import { hasAllowedMutationOrigin } from "@/lib/http/requestOrigin";
 import { resolveFireworksModel } from "@/lib/llm/fireworksModels";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "@/lib/llm/llmProvider";
 import {
@@ -109,9 +110,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const origin = request.headers.get("origin");
+  // request.url is the address behind the proxy, never the public origin.
   if (
-    (origin && origin !== new URL(request.url).origin) ||
+    !hasAllowedMutationOrigin(request) ||
     request.headers.get("sec-fetch-site") === "cross-site"
   ) {
     return json({ error: "forbidden" }, 403);
