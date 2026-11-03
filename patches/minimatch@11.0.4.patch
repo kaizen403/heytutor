@@ -1,0 +1,29 @@
+diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
+index eb1c915f43b2debf5faa7ac3a73c262a161c7a4f..f81505e7d98eb846cd34356f5833f32c771d63a1 100644
+--- a/dist/commonjs/index.js
++++ b/dist/commonjs/index.js
+@@ -1547,4 +1547,12 @@ Object.defineProperty(exports, "unescape", { enumerable: true, get: function ()
+ exports.minimatch.Minimatch = Minimatch;
+ exports.minimatch.escape = escape_js_1.escape;
+ exports.minimatch.unescape = unescape_js_1.unescape;
++/* minimatch 3 export shape, for ESLint and its plugins. */
++for (const key of Object.keys(exports)) {
++    if (!(key in exports.minimatch)) exports.minimatch[key] = exports[key];
++}
++exports.minimatch.default = exports.minimatch;
++exports.minimatch.__esModule = true;
++exports.minimatch.minimatch = exports.minimatch;
++module.exports = exports.minimatch;
+ //# sourceMappingURL=index.js.map
+\ No newline at end of file
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 1dc27e67064fcbf1f3dce34aa3ea1a134b7be168..ed45ab7a526806c277c7671d0ba22e3074424ebb 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1536,4 +1536,6 @@ export { unescape } from './unescape.js';
+ minimatch.Minimatch = Minimatch;
+ minimatch.escape = escape;
+ minimatch.unescape = unescape;
++/* minimatch 3 default import, for @eslint/eslintrc. */
++export default minimatch;
+ //# sourceMappingURL=index.js.map
