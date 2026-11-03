@@ -1,4494 +1,1150 @@
-{
-"note": "What dev draws on the family path for stems mentioning a hydrogen bond. Oracle for the subset check only: no builder reads it, and no row is a student question.",
-"devSha": "8b2700768",
-"rows": [
-[
-"(a) Explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"(a) Hydrogen bonding in H2O(l)",
-"chem_lewis"
-],
-[
-"(b) Explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"(c) Discuss hydrogen bonding in NH3, with the help of a clear diagram.",
-"chem_lewis"
-],
-[
-"0.1 M HF titrated with 0.1 M NaOH; hydrogen bonding in HF makes it weak. Draw the titration curve.",
-"chem_lewis"
-],
-[
-"1. Depict hydrogen bonds are seen in ammonia.",
-"chem_lewis"
-],
-[
-"1. Explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"2) Illustrate a simple diagram showing hydrogen bonds of adjacent water molecules with each other.",
-"chem_lewis"
-],
-[
-"2. Explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"A 2 kg block floats in water. Does water form hydrogen bonds? Draw the forces on the block.",
-"chem_lewis"
-],
-[
-"A ball of mass 2 kg rolls down an incline of 30 degrees. Ignore any hydrogen bond.",
-null
-],
-[
-"A block of ice floats in water. Show the forces and hydrogen bonds.",
-"chem_lewis"
-],
-[
-"A convex lens is placed in water. Does water form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"A hydrogen bond in ethanol has energy 20 kJ. Two point charges are 2 m apart. Find the force between them.",
-null
-],
-[
-"A hydrogen-bonded water film rises in a capillary tube of radius 1 mm. Draw the setup.",
-"fluid_apparatus"
-],
-[
-"A mixture of ethanol and acetone breaks hydrogen bonds. Sketch the vapour pressure against mole fraction using Raoult's law.",
-"chem_solutions"
-],
-[
-"A mixture of phenol and aniline shows negative deviation because of hydrogen bonding. Draw the vapour pressure composition graph.",
-"chem_solutions"
-],
-[
-"A pipe carries water at 2 m/s. Draw the velocity profile and explain the role of hydrogen bonding in viscosity.",
-"chem_lewis"
-],
-[
-"A water molecule is an electric dipole. Draw its field and a hydrogen bond.",
-"chem_lewis"
-],
-[
-"Acetic acid associates through hydrogen bonds in benzene. Plot the van't Hoff factor.",
-"chem_organic"
-],
-[
-"Acetic acid exists as a hydrogen-bonded pair in benzene. Draw the pair.",
-"chem_organic"
-],
-[
-"Acetic acid forms a pair held by two hydrogen bonds. Draw this.",
-"chem_organic"
-],
-[
-"Acetic acid forms hydrogen bonds. Draw a diagram.",
-"chem_organic"
-],
-[
-"Acetone and chloroform show negative deviation due to hydrogen bonding. Draw the vapour pressure graph.",
-"chem_solutions"
-],
-[
-"Activation energy of hydrogen bond formation in water",
-"chem_lewis"
-],
-[
-"Adenine pairs with thymine through two hydrogen bonds. Draw this base pair.",
-null
-],
-[
-"Ammonia me hydrogen bonding explain karo.",
-"chem_lewis"
-],
-[
-"Ammonia shows hydrogen bonding because nitrogen is small and electronegative. Explain.",
-"chem_lewis"
-],
-[
-"Arrange H2O, H2S, H2Se and H2Te by boiling point because of hydrogen bonding",
-"chem_lewis"
-],
-[
-"Arrange N, O and F in increasing order of electronegativity and relate it to hydrogen bond strength.",
-"chem_periodic"
-],
-[
-"Arrange PH3, H2S and HCl by hydrogen bond strength.",
-null
-],
-[
-"Arrange hydrogen bond strength of NH3, H2O and HF in increasing order",
-"chem_lewis"
-],
-[
-"Arrhenius plot for hydrogen bond breaking in water",
-"chem_lewis"
-],
-[
-"Atomic radius of F, O and N decreases, so the hydrogen bond in HF is stronger. Show the trend.",
-"chem_lewis"
-],
-[
-"Atomic radius of nitrogen and hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Boiling point elevation of water and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Born Haber cycle for HF and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Can Hf have hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Can NH3 molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Can a pair of HF molecules have hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Can a water molecule form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Can ammonia form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Can ammonia molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Can p-nitrophenol molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Can two water molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Can water form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Can you draw and explain hydrogen bonding among adjacent water molecules?",
-"chem_lewis"
-],
-[
-"Can you explain hydrogen bonding in water?",
-"chem_lewis"
-],
-[
-"Can you show hydrogen bonding in ammonia?",
-"chem_lewis"
-],
-[
-"Can you show me hydrogen bonding in water?",
-"chem_lewis"
-],
-[
-"Capillary rise of water in a glass tube; explain the role of hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Compare electronegativity of O and S and explain why H2O has hydrogen bonds but H2S does not",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in 2-nitrophenol and 4-nitrophenol.",
-"chem_organic"
-],
-[
-"Compare hydrogen bonding in HF, H2O and NH3.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and m-nitrophenol",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and m-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and p-nitrophenol",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and p-nitrophenol after reaction with NaOH.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol and salicylic acid.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in o-nitrophenol, p-nitrophenol and m-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in ortho and para nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in para and ortho nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in sodium o-nitrophenol and sodium p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in tert butyl o-nitrophenol and tert butyl p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the acetates of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the anions of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the methyl ethers of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the phenoxide ions of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the sodium derivatives of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in the sodium salts of o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Compare hydrogen bonding in water and ammonia",
-"chem_lewis"
-],
-[
-"Compare the O-H bond length with the hydrogen-bond length in water.",
-"chem_lewis"
-],
-[
-"Compare the electronegativity of F, O and N and its effect on hydrogen bonding in HF, H2O and NH3",
-"chem_lewis"
-],
-[
-"Compare the hydrogen bonding in o- and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Conductivity of HF and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Crystal lattice of ice water, tetrahedral arrangement and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Define hydrogen bond of the o-nitrophenol, with a neat figure (2 marks) sketch a diagram.",
-"chem_lewis"
-],
-[
-"Define hydrogen bonding. Show it in water.",
-"chem_lewis"
-],
-[
-"Define hydrogen bonds using ammonia as an example.",
-"chem_lewis"
-],
-[
-"Define intermolecular hydrogen bonding of pure water.",
-"chem_lewis"
-],
-[
-"Density of water against temperature, anomalous expansion caused by hydrogen bonds; draw the graph.",
-"chem_lewis"
-],
-[
-"Describe how water molecules form hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Describe the hydrogen bonding in liquid ammonia",
-"chem_lewis"
-],
-[
-"Describe the hydrogen bonding in water with a labelled figure.",
-"chem_lewis"
-],
-[
-"Describe the hydrogen bonding present in water",
-"chem_lewis"
-],
-[
-"Describe the structure of water with hydrogen bonds",
-"chem_lewis"
-],
-[
-"Dipole moment of HF and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Dipole moment of water and hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Discuss hydrogen bonding that occurs in ammonia(l).",
-"chem_lewis"
-],
-[
-"Do A and water form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Do HF molecules show hydrogen bonding with each other?",
-"chem_lewis"
-],
-[
-"Do adjacent ammonia molecules exhibit intermolecular hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Do water molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Do water molecules form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Does A form a hydrogen bond with HF?",
-"chem_lewis"
-],
-[
-"Does A form a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"Does HCl form hydrogen bonds in water?",
-null
-],
-[
-"Does HF show hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Does Hf form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Does ammonia form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Does ammonia have a hydrogen bond in the gas?",
-"chem_lewis"
-],
-[
-"Does electrolysis of water break hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Does hydrogen form a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"Does hydrogen have a hydrogen bond with ammonia?",
-"chem_lewis"
-],
-[
-"Does ice have hydrogen bonds? Draw the unit cell.",
-null
-],
-[
-"Does ice have hydrogen-bonds? Draw the unit cell.",
-null
-],
-[
-"Does methane form hydrogen bonds with water?",
-"chem_organic"
-],
-[
-"Does o-nitrophenol form hydrogen bonds with water?",
-"chem_lewis"
-],
-[
-"Does p-nitrophenol form hydrogen bonds with water?",
-"chem_lewis"
-],
-[
-"Does p-nitrophenol form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Does p-nitrophenol have an intramolecular hydrogen bond in the ortho position?",
-"chem_lewis"
-],
-[
-"Does para-nitrophenol show hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Does structure 2 have a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"Does the liquid in the figure have hydrogen bonds with water?",
-null
-],
-[
-"Does the molecule in figure 2 form hydrogen bonds with HF?",
-"chem_lewis"
-],
-[
-"Does the molecule in the figure form a hydrogen bond with ammonia?",
-null
-],
-[
-"Does the molecule in the figure form a hydrogen bond with water?",
-null
-],
-[
-"Does the structure in the diagram have a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"Does water have hydrogen?  Is the bond a hydrogen bond?",
-"chem_lewis"
-],
-[
-"Draw 2 hydrogen bonds in HF",
-"chem_lewis"
-],
-[
-"Draw 2,4-dinitrophenol and explain its hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw H-bonding in ethanol.",
-null
-],
-[
-"Draw H-bonding in p-nitrophenol.",
-"chem_organic"
-],
-[
-"Draw H-bonds in HF.",
-null
-],
-[
-"Draw Lewis structures to show the hydrogen bond between two water molecules.",
-"chem_lewis"
-],
-[
-"Draw Lewis structures to show the hydrogen-bond between two water molecules.",
-"chem_lewis"
-],
-[
-"Draw a Daniell cell. Why do hydrogen bonds not matter in the salt bridge?",
-"chem_electrochem"
-],
-[
-"Draw a block floating on water and explain hydrogen bonding in the water.",
-"chem_lewis"
-],
-[
-"Draw a diagram of hydrogen bonding in ethylene glycol.",
-"chem_organic"
-],
-[
-"Draw a diagram of the hydrogen bonds of the HF molecule.",
-"chem_lewis"
-],
-[
-"Draw a diagram showing hydrogen bonding between water molecules",
-"chem_lewis"
-],
-[
-"Draw a diagram showing hydrogen bonding in alcohols.",
-null
-],
-[
-"Draw a diagram showing hydrogen bonding in ethanol.",
-null
-],
-[
-"Draw a diagram showing intramolecular hydrogen bonding in salicylaldehyde.",
-"chem_organic"
-],
-[
-"Draw a diagram to show hydrogen bonding between two water molecules",
-"chem_lewis"
-],
-[
-"Draw a diagram to show the hydrogen bond between two ammonia molecules",
-"chem_lewis"
-],
-[
-"Draw a graph of density of water versus temperature and explain it using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw a graph of potential energy against distance for a hydrogen bond.",
-null
-],
-[
-"Draw a labelled diagram for the hydrogen bond that occurs between two H2O molecules with each other (2 marks)",
-"chem_vsepr"
-],
-[
-"Draw a labelled diagram of hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Draw a labelled diagram to show hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Draw a neat diagram of hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Draw a triangle showing the angle of the O-H...O hydrogen bond in ice.",
-null
-],
-[
-"Draw acetic acid dimer with hydrogen bonds.",
-"chem_organic"
-],
-[
-"Draw adenine and thymine showing the hydrogen bonds of the base pair.",
-null
-],
-[
-"Draw an energy profile for the exothermic reaction of an acid with ammonia, ignoring hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw an exothermic energy profile for hydrogen bond formation.",
-"chem_thermo"
-],
-[
-"Draw an exothermic energy profile for hydrogen-bond formation.",
-"chem_thermo"
-],
-[
-"Draw an isothermal PV graph for water vapour. Hydrogen bonds are ignored.",
-"chem_lewis"
-],
-[
-"Draw and explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Draw ethanol and acetone with a hydrogen bond between them.",
-"chem_organic"
-],
-[
-"Draw ethanol molecules joined by hydrogen bonds.",
-"chem_organic"
-],
-[
-"Draw formamide showing hydrogen bonding between two molecules.",
-"chem_organic"
-],
-[
-"Draw formic acid and explain its dimerisation by hydrogen bonds.",
-"chem_organic"
-],
-[
-"Draw hydrogen bond between 2 HF molecules",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonded water molecules",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding between H3O+ and water",
-null
-],
-[
-"Draw hydrogen bonding between two HF molecules.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding between two ammonia molecules.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding between two water molecules.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding in HF -",
-null
-],
-[
-"Draw hydrogen bonding in HF+",
-null
-],
-[
-"Draw hydrogen bonding in H₂O⁺.",
-null
-],
-[
-"Draw hydrogen bonding in NH_3^{+}.",
-null
-],
-[
-"Draw hydrogen bonding in NH₃⁺.",
-null
-],
-[
-"Draw hydrogen bonding in a water molecule.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding in ammonia.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonding in liquid ammonia.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonds between NH3 molecules.",
-"chem_lewis"
-],
-[
-"Draw hydrogen bonds between two water molecules",
-"chem_lewis"
-],
-[
-"Draw hydrogen-bonded water molecules.",
-null
-],
-[
-"Draw hydrogen-bonding in water.",
-null
-],
-[
-"Draw neat hydrogen bonds in ethanol.",
-null
-],
-[
-"Draw o-nitrophenol and p-nitrophenol and mark the hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw phenol and explain its hydrogen bonding with water.",
-"chem_lewis"
-],
-[
-"Draw salicylaldehyde showing intramolecular hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the Arrhenius plot for a proton transfer across a hydrogen bond.",
-"chem_kinetics"
-],
-[
-"Draw the Lewis dot structure of HF. Why does HF form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Draw the Lewis structure of NH3 and say whether it forms hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw the Lewis structure of water and explain hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the Lewis structure of water and show H-bonding.",
-"chem_lewis"
-],
-[
-"Draw the Lewis structure of water and show the hydrogen bond",
-"chem_lewis"
-],
-[
-"Draw the MO diagram of HF and show hydrogen bonding",
-null
-],
-[
-"Draw the MO diagram of N2 and explain why N2 forms no hydrogen bonds.",
-"chem_mo"
-],
-[
-"Draw the MO diagram of O2 and explain why water has hydrogen bonds.",
-"chem_mo"
-],
-[
-"Draw the VSEPR shape of H2O and explain why it can make hydrogen bonds.",
-"chem_vsepr"
-],
-[
-"Draw the benzene ring. Does benzene form hydrogen bonds?",
-"chem_organic"
-],
-[
-"Draw the boiling point elevation graph for water. Why do hydrogen bonds matter?",
-"chem_lewis"
-],
-[
-"Draw the boiling point elevation graph of a solution of ethanol in water and explain hydrogen bonding.",
-"chem_solutions"
-],
-[
-"Draw the boiling point trend of H2O, H2S, H2Se and H2Te and explain the anomaly with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the bonding between water molecules, including hydrogen bonds",
-"chem_lewis"
-],
-[
-"Draw the conductometric titration curve of HCl and NaOH. Why does H+ conduct so well through hydrogen bonds in water?",
-null
-],
-[
-"Draw the crystal field splitting of [Fe(H2O)6]3+; its water ligands also form hydrogen bonds.",
-"chem_cft"
-],
-[
-"Draw the deviation from Raoult's law for acetone and chloroform, which form a hydrogen bond.",
-"chem_solutions"
-],
-[
-"Draw the dimer of acetic acid formed by hydrogen bonds.",
-"chem_organic"
-],
-[
-"Draw the electric field of the dipole in an alcohol molecule that makes a hydrogen bond.",
-"point_field"
-],
-[
-"Draw the electrochemical cell for the Daniell cell. Hydrogen bonds in the salt bridge can be ignored.",
-"chem_electrochem"
-],
-[
-"Draw the electrolysis cell for water and show the hydrogen bonds",
-"chem_lewis"
-],
-[
-"Draw the energy diagram for H-bond formation.",
-null
-],
-[
-"Draw the energy diagram for the hydrogen bond in HF",
-"chem_lewis"
-],
-[
-"Draw the energy level diagram of a hydrogen bond.",
-null
-],
-[
-"Draw the energy level diagram of a hydrogen-bond.",
-null
-],
-[
-"Draw the energy levels of the hydrogen atom for the n=2 to n=1 transition. Hydrogen bonds play no part.",
-null
-],
-[
-"Draw the energy profile for H-bond formation in water.",
-"chem_thermo"
-],
-[
-"Draw the energy profile for hydrogen bonding in HF. Hydrogen bond enthalpy is 29 kJ/mol",
-"chem_lewis"
-],
-[
-"Draw the energy profile for hydrogen bonding in pure water",
-"chem_lewis"
-],
-[
-"Draw the energy profile for hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Draw the energy profile when water molecules form hydrogen bonds",
-"chem_lewis"
-],
-[
-"Draw the enthalpy diagram for dissolving ammonia in water, where hydrogen bonds form.",
-"chem_lewis"
-],
-[
-"Draw the enthalpy level diagram for breaking a hydrogen bond in ethanol.",
-null
-],
-[
-"Draw the first order concentration against time graph. Hydrogen bonds do not change the order.",
-"chem_kinetics"
-],
-[
-"Draw the force vector between two water molecules due to a hydrogen bond.",
-"chem_lewis"
-],
-[
-"Draw the forces between two alcohol molecules joined by a hydrogen bond.",
-null
-],
-[
-"Draw the forces on a water drop held to glass by hydrogen-bonding at a contact angle of 30 degrees.",
-null
-],
-[
-"Draw the freezing point depression graph for a solute that dimerises by hydrogen bonding.",
-"chem_solutions"
-],
-[
-"Draw the galvanic cell in which water has hydrogen bonds",
-"chem_lewis"
-],
-[
-"Draw the graph of boiling point showing hydrogen-bonding for group 16 hydrides.",
-null
-],
-[
-"Draw the graph of boiling points of group 17 hydrides and explain why HF is high in terms of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the graph of hydrogen bond strength against electronegativity.",
-null
-],
-[
-"Draw the heating curve of water and explain the role of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the heating curve of water. Why is the boiling plateau long, in terms of hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between NH3 and H2O.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between ethanol and water.",
-"chem_organic"
-],
-[
-"Draw the hydrogen bond between o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between two H2O molecules with each other.",
-"chem_vsepr"
-],
-[
-"Draw the hydrogen bond between two H2O molecules.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between two molecules of HF.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between two water molecules.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond between water and o-nitrophenol.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond in hydrogen fluoride.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond in the p-nitrophenol dimer.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bond in water with a positive charge",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonded dimer of acetic acid",
-"chem_organic"
-],
-[
-"Draw the hydrogen bonding in CH3OH.",
-null
-],
-[
-"Draw the hydrogen bonding in ethanol.",
-null
-],
-[
-"Draw the hydrogen bonding in o-nitrophenol with water.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonding in p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonds among p-nitrophenol molecules.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonds in H₃O⁺",
-null
-],
-[
-"Draw the hydrogen bonds in a sample of water",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form to water molecules.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form with H2O.",
-"chem_lewis"
-],
-[
-"Draw the hydrogen-bond between water and ammonia.",
-null
-],
-[
-"Draw the hydrogen-bonded dimer of HF.",
-null
-],
-[
-"Draw the hydrogen-bonded dimer of acetic acid.",
-"chem_organic"
-],
-[
-"Draw the hydrogen-bonded structure of HF.",
-null
-],
-[
-"Draw the hydrogen-bonding in o-nitrophenol.",
-"chem_organic"
-],
-[
-"Draw the inter-molecular hydrogen bond between methanol molecules.",
-"chem_organic"
-],
-[
-"Draw the intermolecular hydrogen bond between two o-nitrophenol molecules.",
-"chem_lewis"
-],
-[
-"Draw the intermolecular hydrogen bonds in water.",
-"chem_lewis"
-],
-[
-"Draw the intramolecular hydrogen bond in ortho nitrophenol with a diagram.",
-"chem_lewis"
-],
-[
-"Draw the isomers of C4H10O and say which form hydrogen bonds",
-null
-],
-[
-"Draw the molecular orbital diagram for the hydrogen-bond in HF.",
-null
-],
-[
-"Draw the molecular orbital diagram of HF and say whether HF forms hydrogen bonds.",
-null
-],
-[
-"Draw the o-nitrophenol-water hydrogen bond complex.",
-"chem_lewis"
-],
-[
-"Draw the orbital box diagram for hydrogen-bonds in ammonia.",
-"chem_orbital"
-],
-[
-"Draw the orbital box diagram of oxygen and explain how lone pairs in water make hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw the orbital box diagram of oxygen in water and explain hydrogen bonding",
-"chem_lewis"
-],
-[
-"Draw the orbital diagram for hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Draw the orbital diagram for hydrogen-bonding in HF.",
-"chem_orbital"
-],
-[
-"Draw the orbital diagram for hydrogen-bonding in water.",
-"chem_orbital"
-],
-[
-"Draw the orbital diagram of hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Draw the orbital diagram of nitrogen and explain why it forms hydrogen bonds.",
-"chem_orbital"
-],
-[
-"Draw the orbital overlap in a hydrogen bond in formic acid.",
-"chem_organic"
-],
-[
-"Draw the phase diagram of water and explain its negative solid liquid slope using hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw the phase diagram of water and explain its slope using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the phenoxide ion and explain hydrogen bonding in it.",
-null
-],
-[
-"Draw the potential energy curve of a hydrogen-bond.",
-"chem_thermo"
-],
-[
-"Draw the shape of (HF)2 formed by a hydrogen bond.",
-null
-],
-[
-"Draw the shape of H2O and show H-bonds.",
-"chem_vsepr"
-],
-[
-"Draw the shape of HF2- showing the hydrogen bond.",
-null
-],
-[
-"Draw the shape of a water molecule and explain how it forms hydrogen bonds.",
-null
-],
-[
-"Draw the shape of the water dimer held by a hydrogen bond.",
-null
-],
-[
-"Draw the shape of water and explain hydrogen bonding.",
-null
-],
-[
-"Draw the shape of water and show a hydrogen bond",
-null
-],
-[
-"Draw the shape of water and show the hydrogen bond between two water molecules.",
-null
-],
-[
-"Draw the skeletal structure of aspirin. How many hydrogen bond acceptors does it have?",
-"chem_organic"
-],
-[
-"Draw the sodium salt of o-nitrophenol and its hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Draw the sp3 overlap in ammonia and show a hydrogen bond",
-"chem_lewis"
-],
-[
-"Draw the structure of 1-propanol and explain hydrogen bonding with water.",
-"chem_organic"
-],
-[
-"Draw the structure of 2-nitrophenol and explain its intramolecular hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of 4-nitrophenol and explain its hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of HF molecules showing hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the structure of [Cu(H2O)4]2+ in copper sulfate pentahydrate and mention hydrogen bonds to the fifth water.",
-null
-],
-[
-"Draw the structure of [Cu(H2O)4]SO4.H2O and show the hydrogen bond to the sulfate.",
-null
-],
-[
-"Draw the structure of [Ni(dmg)2] and show its hydrogen bonds.",
-"chem_coordination"
-],
-[
-"Draw the structure of a hydrogen bond",
-null
-],
-[
-"Draw the structure of acetic acid and explain how it forms hydrogen bonds.",
-"chem_organic"
-],
-[
-"Draw the structure of acetic acid and explain its hydrogen bonding",
-"chem_organic"
-],
-[
-"Draw the structure of acetone. Can it act as a hydrogen bond acceptor?",
-"chem_organic"
-],
-[
-"Draw the structure of adenine. How many hydrogen bonds does it make with thymine?",
-null
-],
-[
-"Draw the structure of ammonia with a hydrogen bond",
-"chem_lewis"
-],
-[
-"Draw the structure of benzene and explain why it forms no hydrogen bonds with water.",
-"chem_organic"
-],
-[
-"Draw the structure of benzoic acid and explain its hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of butan-1-ol and butanal. Which one forms hydrogen bonds?",
-"chem_organic"
-],
-[
-"Draw the structure of cellulose showing hydrogen bonds.",
-null
-],
-[
-"Draw the structure of ethanol and explain its hydrogen bonding with water.",
-"chem_organic"
-],
-[
-"Draw the structure of ethanol showing hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of ethanol. Does it form hydrogen bonds?",
-"chem_organic"
-],
-[
-"Draw the structure of ethanol. Why does it form hydrogen bonds?",
-"chem_organic"
-],
-[
-"Draw the structure of ethylene glycol and explain why its hydrogen bonds raise its boiling point.",
-"chem_organic"
-],
-[
-"Draw the structure of glucose and explain why it makes hydrogen bonds with water.",
-"chem_lewis"
-],
-[
-"Draw the structure of glycine and identify the hydrogen bond donors.",
-"chem_organic"
-],
-[
-"Draw the structure of glycine and its hydrogen bonding",
-"chem_organic"
-],
-[
-"Draw the structure of ice and show the hydrogen bonds in water",
-"chem_lewis"
-],
-[
-"Draw the structure of m-nitrophenol and explain its hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of methanamine and explain how it forms hydrogen bonds with water.",
-"chem_organic"
-],
-[
-"Draw the structure of methanamine. Does it form hydrogen bonds?",
-"chem_organic"
-],
-[
-"Draw the structure of phenol. Does it form hydrogen bonds with water?",
-"chem_lewis"
-],
-[
-"Draw the structure of salicylic acid and explain its intramolecular hydrogen bonding.",
-"chem_organic"
-],
-[
-"Draw the structure of salicylic acid showing the intramolecular hydrogen bond.",
-"chem_organic"
-],
-[
-"Draw the structure of water and show the hydrogen bond",
-"chem_lewis"
-],
-[
-"Draw the structure of water showing hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Draw the tetrahedral arrangement of hydrogen bonds around oxygen in ice.",
-null
-],
-[
-"Draw the tetrahedral network of hydrogen bonds in water",
-"chem_lewis"
-],
-[
-"Draw the trend in boiling points of group 16 hydrides and explain the anomaly with hydrogen bonding.",
-null
-],
-[
-"Draw the unit cell of NaCl and say why it has no hydrogen bonds.",
-"chem_unit_cell"
-],
-[
-"Draw the unit cell of hydrogen-bonded ice.",
-null
-],
-[
-"Draw the unit cell of ice and show the hydrogen bonds.",
-null
-],
-[
-"Draw the unit cell of ice showing hydrogen bonds.",
-null
-],
-[
-"Draw the vapour pressure against mole fraction diagram for ethanol and water, where hydrogen bonds are broken on mixing.",
-null
-],
-[
-"Draw the vapour pressure against mole fraction graph for water and ammonia with hydrogen bonding",
-"chem_lewis"
-],
-[
-"Draw the vapour pressure composition diagram for a mixture of acetone and chloroform and explain the role of hydrogen bonding.",
-null
-],
-[
-"Draw the vapour pressure diagram for an ethanol and water mixture, which shows positive deviation because hydrogen bonds are broken.",
-"chem_solutions"
-],
-[
-"Draw the zig zag chain of hydrogen bonds in HF",
-"chem_lewis"
-],
-[
-"Draw toluene and explain why it does not form hydrogen bonds with water.",
-"chem_organic"
-],
-[
-"Draw two hydrogen bonds between two molecules of ammonia",
-"chem_lewis"
-],
-[
-"Draw two hydrogen bonds in a molecule of HF",
-"chem_lewis"
-],
-[
-"Draw two methanol molecules joined by a hydrogen bond.",
-"chem_organic"
-],
-[
-"Electric dipole moment of water and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electrolysis does not break hydrogen bonds in water. Explain.",
-"chem_lewis"
-],
-[
-"Electrolysis of D2O and hydrogen bonds",
-null
-],
-[
-"Electrolysis of HF and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of ammonia and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of aqueous ammonia and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of heavy water and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of liquid HF and its hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of pure water without acid, and its hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of water and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Electrolysis of water with hydrogen bonds in pure water and no acid added",
-"chem_lewis"
-],
-[
-"Electron configuration of F in HF and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of F- and hydrogen bonding in HF",
-"chem_orbital"
-],
-[
-"Electron configuration of H2O and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of N in NH3 and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of O in H2O and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of fluorine in HF and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of hydrogen in a hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Electron configuration of oxygen and hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Electron configuration of oxygen in H2O and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Electron configuration of the O2- ion and hydrogen bonding in water",
-"chem_orbital"
-],
-[
-"Electron configuration of the oxygen in H3O+ and hydrogen bonding in water",
-null
-],
-[
-"Electronegativity and hydrogen bond in period 2",
-"chem_periodic"
-],
-[
-"Electronegativity of oxygen and hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Electronegativity order of N, O and F that decides hydrogen bonding in ammonia, water and HF",
-"chem_lewis"
-],
-[
-"Electronic configuration of nitrogen in ammonia and its hydrogen bonds",
-"chem_lewis"
-],
-[
-"Ellingham diagram and hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Energy profile diagram: hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Energy profile for hydrogen bonding in ammonia with Ea = 5 kJ/mol and ΔH = -20 kJ/mol",
-"chem_lewis"
-],
-[
-"Energy profile of hydrogen bond breaking in water",
-"chem_lewis"
-],
-[
-"Energy profile of hydrogen bond formation",
-"chem_thermo"
-],
-[
-"Energy profile of hydrogen bond formation in HF",
-"chem_lewis"
-],
-[
-"Energy profile of hydrogen bond formation in ammonia",
-"chem_lewis"
-],
-[
-"Energy profile of hydrogen bond formation in ice",
-"chem_thermo"
-],
-[
-"Energy profile of hydrogen bond formation in water",
-"chem_lewis"
-],
-[
-"Energy profile of hydrogen bond formation in water with no activation energy",
-"chem_lewis"
-],
-[
-"Ethanoic acid dimerises through hydrogen bonds in benzene but not in water. Plot the freezing point depression.",
-"chem_solutions"
-],
-[
-"Ethanol and acetone show positive deviation because hydrogen bonds break. Draw the vapour pressure graph.",
-"chem_solutions"
-],
-[
-"Ethanol forms hydrogen bonds with itself. Explain.",
-"chem_organic"
-],
-[
-"Ethanol molecules form a chain through hydrogen bonds. Draw the chain.",
-"chem_organic"
-],
-[
-"Explain about hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding between 2 molecules of ethanol.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in H2O",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in HF.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in Hf.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in NH3",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in a water molecule.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in ammonia.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in carboxylic acids with a diagram.",
-null
-],
-[
-"Explain hydrogen bonding in ethanol.",
-null
-],
-[
-"Explain hydrogen bonding in hydrogen fluoride",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in nitrophenol.",
-null
-],
-[
-"Explain hydrogen bonding in o nitrophenol.",
-null
-],
-[
-"Explain hydrogen bonding in o- and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in o-hydroxy benzoic acid.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in o-nitro phenol and p-nitro phenol.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in o-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in o-nitrophenol. Draw the structure.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in ortho chloro phenol.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in ortho nitro phenol.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in para nitro phenol.",
-"chem_organic"
-],
-[
-"Explain hydrogen bonding in para-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water (5 marks) Draw the structure.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water [2]",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water and its properties",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water using orbital diagrams",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water with a neat diagram",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water with diagram.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water with the help of a diagram.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water, with a neat diagram.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water. (2 marks)",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water. (2)",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding in water. Draw a diagram.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding taking water as an example.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding using ammonia as an example.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding using hf as an example",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding using water as an example",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding with example of HF.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding with the example of water",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding with the help of water.",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding, taking water as an example",
-"chem_lewis"
-],
-[
-"Explain hydrogen bonding.",
-null
-],
-[
-"Explain hydrogen-bonding in phenol.",
-"chem_organic"
-],
-[
-"Explain hydrogen-bonding in water.",
-null
-],
-[
-"Explain intermolecular and intramolecular hydrogen bonding in o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain intermolecular hydrogen bonding in hydrogen fluoride",
-"chem_lewis"
-],
-[
-"Explain intramolecular hydrogen bonding in o-nitrophenol with a diagram.",
-"chem_lewis"
-],
-[
-"Explain surface tension of water using hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Explain the Lewis structure of water and show the H-bond between two water molecules.",
-"chem_lewis"
-],
-[
-"Explain the concept of hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Explain the difference in hydrogen bonding between ortho- and para-nitrophenol.",
-"chem_lewis"
-],
-[
-"Explain the heating curve of water and hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bond between two hydrogen in water",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bond in HF 2",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bond in HF 2 -",
-null
-],
-[
-"Explain the hydrogen bond in HF minus",
-null
-],
-[
-"Explain the hydrogen bond in HF negative one",
-null
-],
-[
-"Explain the hydrogen bond in HF with a charge of -1",
-null
-],
-[
-"Explain the hydrogen bond in HF(2)",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bond in HF2-",
-null
-],
-[
-"Explain the hydrogen bond in HF₂⁻",
-null
-],
-[
-"Explain the hydrogen bond in [HF2]-",
-null
-],
-[
-"Explain the hydrogen bond in the NH3 molecule.",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bond in the bifluoride ion",
-null
-],
-[
-"Explain the hydrogen bonding between ethanol and acetone.",
-"chem_organic"
-],
-[
-"Explain the hydrogen bonding in liquid HF",
-"chem_lewis"
-],
-[
-"Explain the hydrogen bonds in HF.",
-"chem_lewis"
-],
-[
-"Explain the intramolecular hydrogen bonding in 2-nitrophenol.",
-"chem_organic"
-],
-[
-"Explain the intramolecular hydrogen bonding in ortho hydroxy benzaldehyde.",
-"chem_organic"
-],
-[
-"Explain the surface tension of water using hydrogen bonding. Draw a diagram of a water drop.",
-"chem_lewis"
-],
-[
-"Explain why a mixture of chloroform and acetone shows negative deviation from Raoult's law in terms of hydrogen bonding. Sketch the vapour pressure against mole fraction graph.",
-"chem_solutions"
-],
-[
-"Explain why o-nitrophenol is steam volatile but p-nitrophenol is not, using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Explain why p-nitrophenol is less soluble in water than o-nitrophenol. Explain on the basis of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Explain why water forms hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Explain with a diagram the hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"First order decay with k = 0.1 per s of the hydrogen bond in water",
-null
-],
-[
-"Force between two dipoles in water and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Gibbs energy against temperature for hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Give a diagram of hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Graph of boiling point against molar mass of hydrides showing hydrogen bonding in HF, H2O and NH3",
-"chem_lewis"
-],
-[
-"Graph of potential energy against distance for a hydrogen bond in water",
-"chem_lewis"
-],
-[
-"H-bond in water",
-null
-],
-[
-"H-bonding in ammonia",
-null
-],
-[
-"H2O: hydrogen bond (diagram)",
-"chem_lewis"
-],
-[
-"H2S without that intermolecular hydrogen-bond network",
-null
-],
-[
-"HF hydrogen bond diagram",
-"chem_lewis"
-],
-[
-"HF me hydrogen bond kya hota hai",
-"chem_lewis"
-],
-[
-"HF never forms hydrogen bonds. Why?",
-"chem_lewis"
-],
-[
-"HYDROGEN BOND IN AMMONIA",
-"chem_lewis"
-],
-[
-"Hexaaquairon(II) and the hydrogen bond with water",
-"chem_lewis"
-],
-[
-"How are hydrogen bonds formed in ammonia?",
-"chem_lewis"
-],
-[
-"How are hydrogen bonds formed in water?",
-"chem_lewis"
-],
-[
-"How can water show hydrogen bonds?",
-"chem_lewis"
-],
-[
-"How do hydrogen bonds form between water molecules?",
-"chem_lewis"
-],
-[
-"How do molecules form hydrogen bonds in water?",
-"chem_lewis"
-],
-[
-"How do molecules in water form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"How do two water molecules form 2 hydrogen bonds?",
-"chem_lewis"
-],
-[
-"How do water molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"How does a molecule form a hydrogen bond with HF?",
-"chem_lewis"
-],
-[
-"How does a molecule form a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"How does a pure liquid form hydrogen bonds with water?",
-"chem_lewis"
-],
-[
-"How does hydrogen bonding affect the boiling point of ammonia?",
-"chem_lewis"
-],
-[
-"How does hydrogen bonding occur in water?",
-"chem_lewis"
-],
-[
-"How does hydrogen bonding work in water?",
-"chem_lewis"
-],
-[
-"How does hydrogen form a hydrogen bond with HF?",
-"chem_lewis"
-],
-[
-"How does liquid ammonia show intermolecular hydrogen bonding?",
-"chem_lewis"
-],
-[
-"How is a hydrogen bond formed between hydrogen and hydrogen in ammonia?",
-"chem_lewis"
-],
-[
-"How is a hydrogen bond formed between liquid hydrogen and HF?",
-"chem_lewis"
-],
-[
-"How is water formed with hydrogen and what is the hydrogen bond?",
-"chem_lewis"
-],
-[
-"How is water formed? Hydrogen bond.",
-"chem_lewis"
-],
-[
-"How many hydrogen bond acceptors does p-nitrophenol have?",
-"chem_lewis"
-],
-[
-"How many hydrogen bonds does a water molecule form?",
-"chem_lewis"
-],
-[
-"How many lone pairs of H2O can accept hydrogen bonds?",
-"chem_vsepr"
-],
-[
-"Hybridisation of O in water and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Hydrogen bond between HF and NH3",
-"chem_lewis"
-],
-[
-"Hydrogen bond between HF and fluorine",
-"chem_lewis"
-],
-[
-"Hydrogen bond between NH3 and H2O",
-"chem_lewis"
-],
-[
-"Hydrogen bond between X and water",
-"chem_lewis"
-],
-[
-"Hydrogen bond between ammonia and nitrogen",
-"chem_lewis"
-],
-[
-"Hydrogen bond between ammonia and water",
-"chem_lewis"
-],
-[
-"Hydrogen bond between the pure liquid water",
-"chem_lewis"
-],
-[
-"Hydrogen bond between the sulphate and water in [Cu(H2O)4]SO4.H2O",
-null
-],
-[
-"Hydrogen bond between water and DNA",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and HF",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and O2",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and a protein",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and a solute",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and acetone",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and fluoride",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and ice",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and oxygen",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and sugar",
-"chem_lewis"
-],
-[
-"Hydrogen bond between water and urea",
-"chem_lewis"
-],
-[
-"Hydrogen bond formation in water",
-"chem_lewis"
-],
-[
-"Hydrogen bond in $H_2O$",
-null
-],
-[
-"Hydrogen bond in (H2O)2",
-"chem_lewis"
-],
-[
-"Hydrogen bond in (H2O)n",
-"chem_lewis"
-],
-[
-"Hydrogen bond in (HF)2",
-"chem_lewis"
-],
-[
-"Hydrogen bond in (HF)n",
-"chem_lewis"
-],
-[
-"Hydrogen bond in (NH3)2",
-"chem_lewis"
-],
-[
-"Hydrogen bond in 2-nitrophenol",
-"chem_organic"
-],
-[
-"Hydrogen bond in H 2 O",
-null
-],
-[
-"Hydrogen bond in H2 O",
-null
-],
-[
-"Hydrogen bond in H20",
-null
-],
-[
-"Hydrogen bond in H2O",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H2O 2",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H2O 2 and water",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H2O(2)",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H2O(l)",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H2O2",
-null
-],
-[
-"Hydrogen bond in H2o",
-"chem_lewis"
-],
-[
-"Hydrogen bond in HF(g)",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H_2O",
-null
-],
-[
-"Hydrogen bond in H_{2}O",
-"chem_lewis"
-],
-[
-"Hydrogen bond in Hf",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H₂O",
-"chem_lewis"
-],
-[
-"Hydrogen bond in H₂O²",
-null
-],
-[
-"Hydrogen bond in H₂O₂",
-null
-],
-[
-"Hydrogen bond in NH 3",
-null
-],
-[
-"Hydrogen bond in NH3 (+)",
-null
-],
-[
-"Hydrogen bond in NH3 +",
-null
-],
-[
-"Hydrogen bond in NH3 2",
-"chem_lewis"
-],
-[
-"Hydrogen bond in NH3 cation",
-null
-],
-[
-"Hydrogen bond in NH3 plus",
-null
-],
-[
-"Hydrogen bond in NH3 positive",
-null
-],
-[
-"Hydrogen bond in NH3(2)",
-"chem_lewis"
-],
-[
-"Hydrogen bond in NH3(l)",
-"chem_lewis"
-],
-[
-"Hydrogen bond in NH3+",
-null
-],
-[
-"Hydrogen bond in NH3^+",
-null
-],
-[
-"Hydrogen bond in NH_3",
-null
-],
-[
-"Hydrogen bond in NH_{3}",
-"chem_lewis"
-],
-[
-"Hydrogen bond in NH₃",
-"chem_lewis"
-],
-[
-"Hydrogen bond in NH₃⁺",
-null
-],
-[
-"Hydrogen bond in Nh3",
-"chem_lewis"
-],
-[
-"Hydrogen bond in \\ce{H2O}",
-"chem_lewis"
-],
-[
-"Hydrogen bond in formic acid",
-"chem_organic"
-],
-[
-"Hydrogen bond in frozen water",
-"chem_lewis"
-],
-[
-"Hydrogen bond in gaseous HF",
-"chem_lewis"
-],
-[
-"Hydrogen bond in h2O",
-"chem_lewis"
-],
-[
-"Hydrogen bond in hF",
-"chem_lewis"
-],
-[
-"Hydrogen bond in hafnium",
-null
-],
-[
-"Hydrogen bond in m-nitrophenol",
-"chem_organic"
-],
-[
-"Hydrogen bond in methylamine",
-"chem_organic"
-],
-[
-"Hydrogen bond in o-nitrophenol and o-hydroxybenzaldehyde",
-"chem_lewis"
-],
-[
-"Hydrogen bond in the H2O ion",
-null
-],
-[
-"Hydrogen bond in the water cation",
-null
-],
-[
-"Hydrogen bond in water above the boiling point",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water and pressure volume work",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water and the force between two point charges",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water at 100 C",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water is weak. Explain.",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water vapour",
-"chem_lewis"
-],
-[
-"Hydrogen bond in water, ammonia",
-"chem_lewis"
-],
-[
-"Hydrogen bond in Н2О",
-null
-],
-[
-"Hydrogen bond strength trend in group 17 hydrides",
-null
-],
-[
-"Hydrogen bonded water molecules",
-"chem_lewis"
-],
-[
-"Hydrogen bonding between HF and HF",
-"chem_lewis"
-],
-[
-"Hydrogen bonding between NH3 and HF",
-"chem_lewis"
-],
-[
-"Hydrogen bonding between o-nitrophenol and HF.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding between o-nitrophenol and phenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding between water and water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 15 NH3",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 15NH3",
-null
-],
-[
-"Hydrogen bonding in 18 H2O",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 18O water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 2 H2O",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 2 HF",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 2 water molecules",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 2-chloro p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in 4-chloro o-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in CH3OH",
-null
-],
-[
-"Hydrogen bonding in D2O",
-null
-],
-[
-"Hydrogen bonding in DF",
-null
-],
-[
-"Hydrogen bonding in D₂O",
-null
-],
-[
-"Hydrogen bonding in H-F",
-null
-],
-[
-"Hydrogen bonding in H2 18O",
-null
-],
-[
-"Hydrogen bonding in H2O +",
-null
-],
-[
-"Hydrogen bonding in H2O ice",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in H2O(l).",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in H2O(s)",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in H2O+",
-null
-],
-[
-"Hydrogen bonding in H2O-18",
-null
-],
-[
-"Hydrogen bonding in H2O2",
-null
-],
-[
-"Hydrogen bonding in H2O^(+)",
-null
-],
-[
-"Hydrogen bonding in H2S",
-null
-],
-[
-"Hydrogen bonding in H3O+",
-null
-],
-[
-"Hydrogen bonding in HBr",
-null
-],
-[
-"Hydrogen bonding in HCl",
-null
-],
-[
-"Hydrogen bonding in HDO",
-null
-],
-[
-"Hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in HF 2-",
-null
-],
-[
-"Hydrogen bonding in HF dimer",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in HF in water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in HF-",
-null
-],
-[
-"Hydrogen bonding in HF2 -",
-null
-],
-[
-"Hydrogen bonding in HF2-",
-null
-],
-[
-"Hydrogen bonding in HF_2^-",
-null
-],
-[
-"Hydrogen bonding in H_{2}O^{+}",
-null
-],
-[
-"Hydrogen bonding in Hf",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in H¹⁸F",
-null
-],
-[
-"Hydrogen bonding in H₂O",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in H₂O⁺",
-null
-],
-[
-"Hydrogen bonding in H₂¹⁸O",
-null
-],
-[
-"Hydrogen bonding in N2H4",
-null
-],
-[
-"Hydrogen bonding in ND3",
-null
-],
-[
-"Hydrogen bonding in NH2OH",
-null
-],
-[
-"Hydrogen bonding in NH3 plus",
-null
-],
-[
-"Hydrogen bonding in NH4+",
-null
-],
-[
-"Hydrogen bonding in NH₃",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in OH2",
-null
-],
-[
-"Hydrogen bonding in PH3",
-null
-],
-[
-"Hydrogen bonding in T2O",
-null
-],
-[
-"Hydrogen bonding in acetone and water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ammonia and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ammonia water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ammonia(aq)",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ammonia. The solvent is water.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in aqueous ammonia",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in deprotonated p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in deuterium fluoride",
-null
-],
-[
-"Hydrogen bonding in diethyl ether",
-null
-],
-[
-"Hydrogen bonding in dihydrogen fluoride",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in hard water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in heavy water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in hydrazine",
-null
-],
-[
-"Hydrogen bonding in hydrazine and ammonia",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in hydrazine.",
-null
-],
-[
-"Hydrogen bonding in hydrofluoric acid",
-null
-],
-[
-"Hydrogen bonding in hydrogen cyanide.",
-null
-],
-[
-"Hydrogen bonding in hydrogen fluorides",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in hydrogen peroxide and water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in hydrogen peroxide.",
-null
-],
-[
-"Hydrogen bonding in hydroxylamine",
-null
-],
-[
-"Hydrogen bonding in ice",
-null
-],
-[
-"Hydrogen bonding in methanol",
-null
-],
-[
-"Hydrogen bonding in nitrophenol.",
-null
-],
-[
-"Hydrogen bonding in o-nitrophenolate",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in o-nitrophenolate.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in p-nitrophenolate",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in phenol",
-"chem_organic"
-],
-[
-"Hydrogen bonding in protonated water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in pure hydrogen and water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in sea water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in seawater",
-null
-],
-[
-"Hydrogen bonding in sodium p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in the acetate ion.",
-null
-],
-[
-"Hydrogen bonding in the conjugate base of o-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in the hydrogen fluoride ion",
-null
-],
-[
-"Hydrogen bonding in the o-nitrophenol anion.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in the o-nitrophenol ion.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in the o-nitrophenolate ion",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in tritiated water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water and o-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water has no transition state. Draw the energy profile.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water is endothermic. Draw the energy profile.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water kya hota hai",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water minus",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water molecules (2 marks)",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water of crystallisation",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water please",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water(g)",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in water-ethanol mixture",
-null
-],
-[
-"Hydrogen bonding in ² H₂O",
-"chem_lewis"
-],
-[
-"Hydrogen bonding in ²H₂O",
-null
-],
-[
-"Hydrogen bonding in ¹⁵NH₃",
-null
-],
-[
-"Hydrogen bonding kya hai water me",
-"chem_lewis"
-],
-[
-"Hydrogen bonding kya hota hai water mein.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding occurs in water because oxygen has high electronegativity. Explain.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding of o-nitrophenol with each other.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding of p-nitrophenol in water.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding of water",
-"chem_lewis"
-],
-[
-"Hydrogen bonding of water with o-nitrophenol and p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Hydrogen bonding of water-HF",
-"chem_lewis"
-],
-[
-"Hydrogen bonds between glucose and water molecules.",
-"chem_lewis"
-],
-[
-"Hydrogen bonds between p nitrophenol molecules.",
-null
-],
-[
-"Hydrogen bonds in Hf",
-"chem_lewis"
-],
-[
-"Hydrogen bonds in an alcohol. Two point charges are 1 m apart. Find the force between them.",
-"point_field"
-],
-[
-"Hydrogen bonds in o-nitrophenol vapour and in solution.",
-"chem_lewis"
-],
-[
-"Hydrogen bonds in steam and water",
-"chem_lewis"
-],
-[
-"Hydrogen bonds in water",
-"chem_lewis"
-],
-[
-"Hydrogen fuel cell and hydrogen bonds in the water it makes",
-"chem_lewis"
-],
-[
-"Hydrogen-bond between ethanol and water",
-"chem_organic"
-],
-[
-"Hydrogen-bonding in water",
-null
-],
-[
-"Ice floats on water because of hydrogen bonding. Draw a diagram.",
-"chem_lewis"
-],
-[
-"If water had no hydrogen bonds, what would happen?",
-"chem_lewis"
-],
-[
-"Illustrate hydrogen bonding between molecules of ammonia.",
-"chem_lewis"
-],
-[
-"Illustrate hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Illustrate with a diagram hydrogen bonding in methanol.",
-null
-],
-[
-"In a series circuit of 2 ohm and 4 ohm with a 6 V cell, draw the circuit. Hydrogen bonds do not matter.",
-null
-],
-[
-"Increasing electronegativity of N, O and F, and why S does not form hydrogen bonds in H2S",
-"chem_periodic"
-],
-[
-"Increasing order of hydrogen bond strength in HF, H2O and NH3",
-"chem_lewis"
-],
-[
-"Intermolecular hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Ionisation energy of O and F and hydrogen bonds in water and HF",
-"chem_lewis"
-],
-[
-"Is a hydrogen bond a bond in water?",
-"chem_lewis"
-],
-[
-"Is a hydrogen bond formed between water and hydrogen?",
-"chem_lewis"
-],
-[
-"Is hydrogen bond in a water molecule?",
-"chem_lewis"
-],
-[
-"Is hydrogen bonding in water exothermic? Draw the energy profile.",
-"chem_lewis"
-],
-[
-"Is hydrogen bonding in water intermolecular?",
-"chem_lewis"
-],
-[
-"Is hydrogen bonding in water intramolecular?",
-"chem_lewis"
-],
-[
-"Is hydrogen bonding present in ammonia?",
-"chem_lewis"
-],
-[
-"Is hydrogen bonding present in liquid ammonia?",
-"chem_lewis"
-],
-[
-"Is ice a bcc lattice with hydrogen bonds in water?",
-"chem_lewis"
-],
-[
-"Is liquid water a simple cubic lattice with hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Is pure water a molecule with a hydrogen bond?",
-"chem_lewis"
-],
-[
-"Is the bond between hydrogen in HF a hydrogen bond?",
-"chem_lewis"
-],
-[
-"Is the bond in a water molecule a hydrogen bond?",
-"chem_lewis"
-],
-[
-"Is the hydrogen bond between two NH3 molecules linear or bent?",
-"chem_vsepr"
-],
-[
-"Is the hydrogen bond formed in the liquid or in the gas in HF?",
-"chem_lewis"
-],
-[
-"Is the hydrogen bond in H2O linear?",
-"chem_vsepr"
-],
-[
-"Is the hydrogen bond in ammonia formed in a liquid?",
-"chem_lewis"
-],
-[
-"Is the hydrogen bond in water strong?",
-"chem_lewis"
-],
-[
-"Is there hydrogen bonding in HF?",
-"chem_lewis"
-],
-[
-"Is there hydrogen bonding in o-nitrophenol?",
-"chem_lewis"
-],
-[
-"Is there hydrogen bonding in ortho-nitrophenol?",
-"chem_lewis"
-],
-[
-"Is there hydrogen bonding in water?",
-"chem_lewis"
-],
-[
-"Is there intermolecular hydrogen bonding in o-nitrophenol?",
-"chem_lewis"
-],
-[
-"Is there intramolecular hydrogen bonding in p-nitrophenol?",
-"chem_lewis"
-],
-[
-"Is there no hydrogen bonding in o-nitrophenol?",
-"chem_lewis"
-],
-[
-"Is water an fcc crystal with hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Label the hydrogen bond in the figure of water",
-null
-],
-[
-"Lewis dot structure of ammonia and its hydrogen bonding",
-"chem_lewis"
-],
-[
-"Liquid hydrogen and ammonia: show the hydrogen bond between the two",
-"chem_lewis"
-],
-[
-"Maxwell Boltzmann distribution and hydrogen bonds in ammonia",
-"chem_lewis"
-],
-[
-"Maxwell Boltzmann distribution of HF molecules with hydrogen bonding",
-"chem_lewis"
-],
-[
-"Maxwell Boltzmann distribution of water and hydrogen bonding",
-"chem_lewis"
-],
-[
-"Mechanism of ester hydrolysis. Why does hydrogen bonding matter?",
-null
-],
-[
-"Methanol molecules form a hydrogen bonded network. Draw it.",
-"chem_organic"
-],
-[
-"Mixing acetone and chloroform forms a new hydrogen bond. Sketch the Raoult's law plot.",
-"chem_solutions"
-],
-[
-"Mixing phenol and aniline forms hydrogen bonds. Draw the deviation from Raoult's law.",
-"chem_solutions"
-],
-[
-"Molecular orbital diagram of HF and its hydrogen bonding",
-null
-],
-[
-"NH3 hydrogen bond figure",
-"chem_lewis"
-],
-[
-"Negative deviation from Raoult law in water and HF because of hydrogen bonds. Draw the graph.",
-"chem_lewis"
-],
-[
-"Orbital box diagram for hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Orbital diagram of the hydrogen bond in HF",
-"chem_lewis"
-],
-[
-"Orbital overlap in the hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Orbital picture of the hydrogen bond in HF",
-"chem_lewis"
-],
-[
-"Order of boiling point HF, HCl, HBr, HI and hydrogen bonding",
-null
-],
-[
-"Ortho nitrophenol forms an intramolecular hydrogen bond. Draw it.",
-"chem_lewis"
-],
-[
-"Periodic trend of boiling point with hydrogen bonding across HF, HCl, HBr",
-null
-],
-[
-"Phenol forms hydrogen bonds. Show this.",
-"chem_organic"
-],
-[
-"Please explain hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Please sketch a clear diagram to illustrate hydrogen bonding that occurs among neighbouring HF molecules.",
-"chem_lewis"
-],
-[
-"Plot boiling points of group 16 hydrides, H2O anomalous, H-bonding.",
-null
-],
-[
-"Plot the boiling point of water against pressure and explain with hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Plot the boiling point trend of the group 16 hydrides and mention hydrogen bonds.",
-null
-],
-[
-"Plot the boiling points of group 16 hydrides and explain the effect of hydrogen bonding.",
-null
-],
-[
-"Plot the boiling points of the hydrides of group 16 and explain the anomaly of water by hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Position of fluorine in the periodic table and hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Potential energy diagram of a hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Q. 3 Hydrogen bonding of ammonia. Sketch a neat figure.",
-"chem_lewis"
-],
-[
-"Q.3 Draw hydrogen bonding among liquid NH3 molecules",
-"chem_lewis"
-],
-[
-"Raoult law for HF and water with hydrogen bonds",
-"chem_lewis"
-],
-[
-"Raoult law for water and ammonia with hydrogen bonding",
-"chem_lewis"
-],
-[
-"Raoult law plot of ammonia and water, hydrogen bonds",
-"chem_lewis"
-],
-[
-"Raoult law plot of water and HF, hydrogen bonding",
-"chem_lewis"
-],
-[
-"Rate of hydrogen bond formation in water is first order. Draw the plot.",
-"chem_lewis"
-],
-[
-"Reaction energy diagram of the hydrogen bond in ammonia",
-"chem_lewis"
-],
-[
-"Reaction profile of hydrogen bond formation between two water molecules",
-"chem_lewis"
-],
-[
-"Salicylic acid forms an intramolecular hydrogen bond. Draw it.",
-"chem_organic"
-],
-[
-"Show 2 hydrogen bonds in ammonia",
-"chem_lewis"
-],
-[
-"Show 2 hydrogen bonds of a water molecule",
-"chem_lewis"
-],
-[
-"Show 4 hydrogen bonds in water",
-"chem_lewis"
-],
-[
-"Show H-bonds in ammonia.",
-null
-],
-[
-"Show a hydrogen bond between two molecules of ammonia",
-"chem_lewis"
-],
-[
-"Show a hydrogen bond in water and the energy profile",
-"chem_lewis"
-],
-[
-"Show a pair of hydrogen bonds in ammonia",
-"chem_lewis"
-],
-[
-"Show fcc packing of HF with hydrogen bonds",
-"chem_lewis"
-],
-[
-"Show four hydrogen bonds around a water molecule",
-"chem_lewis"
-],
-[
-"Show how ammonia molecules are held together by hydrogen bonds",
-"chem_lewis"
-],
-[
-"Show how hydrogen bonds form among the neighbouring HF molecules.",
-"chem_lewis"
-],
-[
-"Show how hydrogen bonds form between ethanol molecules.",
-"chem_organic"
-],
-[
-"Show how hydrogen bonds form between water molecules.",
-"chem_lewis"
-],
-[
-"Show how hydrogen bonds form in HF",
-"chem_lewis"
-],
-[
-"Show how p-nitrophenol molecules associate through hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Show hydrogen bonding between water molecules",
-"chem_lewis"
-],
-[
-"Show hydrogen bonding in water molecules using a diagram.",
-"chem_lewis"
-],
-[
-"Show hydrogen bonds between methanol molecules.",
-"chem_organic"
-],
-[
-"Show hydrogen bonds for pure HF with a neat diagram.",
-"chem_lewis"
-],
-[
-"Show hydrogen bonds in ammonia.",
-"chem_lewis"
-],
-[
-"Show hydrogen-bonding in ethanol.",
-null
-],
-[
-"Show inter molecular hydrogen bonding in para nitrophenol.",
-"chem_lewis"
-],
-[
-"Show inter-molecular hydrogen bonding in p-nitrophenol.",
-"chem_lewis"
-],
-[
-"Show me hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Show the 2 hydrogen bonds in a molecule of water",
-"chem_lewis"
-],
-[
-"Show the 2 hydrogen bonds of a pair of neighbouring water molecules",
-"chem_lewis"
-],
-[
-"Show the H-bond in acetic acid.",
-null
-],
-[
-"Show the chain of hydrogen bonds in HF",
-"chem_lewis"
-],
-[
-"Show the covalent bond and the hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Show the dipole of water and the hydrogen bond",
-"chem_lewis"
-],
-[
-"Show the electron boxes for hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Show the energy barrier for hydrogen-bond formation between two water molecules.",
-null
-],
-[
-"Show the hydrogen bond between F- and HF",
-null
-],
-[
-"Show the hydrogen bond between HF and HF",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between NH2- and ammonia",
-null
-],
-[
-"Show the hydrogen bond between a fluoride ion and HF",
-null
-],
-[
-"Show the hydrogen bond between a molecule and ammonia",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between a water molecule and a hydrogen molecule",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between ammonia and hydrogen",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between an H2O molecule and another H2O molecule",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between base pairs in DNA",
-null
-],
-[
-"Show the hydrogen bond between ethanol and water",
-"chem_organic"
-],
-[
-"Show the hydrogen bond between hydrogen fluoride and HF",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between liquid A and ammonia",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between molecule 2 and ammonia",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between o-nitrophenol and water",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between one water molecule and another",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between p-nitrophenol and water",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between phenol and water.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between two molecules of water.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and H2O",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and OH-",
-null
-],
-[
-"Show the hydrogen bond between water and a liquid",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and hydrogen",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and hydroxide",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and molecule 2",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and molecule A",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond between water and water",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond donor and acceptor in water",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in 3-chloro-p-nitrophenol",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in 5-methyl-o-nitrophenol",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in NH₄⁺",
-null
-],
-[
-"Show the hydrogen bond in ammonia with methanol",
-null
-],
-[
-"Show the hydrogen bond in ammonium",
-null
-],
-[
-"Show the hydrogen bond in hydronium",
-null
-],
-[
-"Show the hydrogen bond in o-nitrophenol",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in oxonium",
-null
-],
-[
-"Show the hydrogen bond in p-nitrophenol",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in the hydronium ion",
-null
-],
-[
-"Show the hydrogen bond in water and alcohol",
-null
-],
-[
-"Show the hydrogen bond in water in figure 2",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond in water with ethanol",
-null
-],
-[
-"Show the hydrogen bond in water. Ethanol is the second molecule.",
-"chem_organic"
-],
-[
-"Show the hydrogen bond of a molecule in water",
-"chem_lewis"
-],
-[
-"Show the hydrogen bond of a molecule with HF",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonding in NH4 +",
-null
-],
-[
-"Show the hydrogen bonding in NH4+",
-null
-],
-[
-"Show the hydrogen bonding in ethanol",
-null
-],
-[
-"Show the hydrogen bonding in the ammonium ion",
-null
-],
-[
-"Show the hydrogen bonding that occurs in HF",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds among two pair of molecules of HF",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds in ice",
-null
-],
-[
-"Show the hydrogen bonds in water. Add salt.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds in water. The other molecule is ethanol.",
-"chem_organic"
-],
-[
-"Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with NH3.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with acetone.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with alcohols.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with hydrogen fluoride.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with the water.",
-"chem_lewis"
-],
-[
-"Show the hydrogen bonds that form between water molecules",
-"chem_lewis"
-],
-[
-"Show the intermolecular hydrogen bond between two p-nitrophenol molecules",
-"chem_lewis"
-],
-[
-"Show the intermolecular hydrogen bond in p-nitrophenol",
-"chem_lewis"
-],
-[
-"Show the intramolecular H-bond in salicylic acid.",
-"chem_organic"
-],
-[
-"Show the intramolecular hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Show the lone pairs and hydrogen bond in water",
-"chem_lewis"
-],
-[
-"Show the position of oxygen in the periodic table and explain hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Show the sc unit cell of water and hydrogen bonds",
-"chem_lewis"
-],
-[
-"Show the trend in boiling points of H2O, H2S, H2Se and H2Te. Why is water anomalous due to hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Show the variation of atomic radius down group 17 and explain why only fluorine forms hydrogen bonds.",
-"chem_periodic"
-],
-[
-"Show two hydrogen bonds in water",
-"chem_lewis"
-],
-[
-"Show two hydrogen bonds with two water molecules",
-"chem_lewis"
-],
-[
-"Show water without a hydrogen bond",
-"chem_lewis"
-],
-[
-"Show, using a diagram, the hydrogen bonding in ethanol.",
-null
-],
-[
-"Sketch hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"Sketch positive deviation from Raoult's law. Why does breaking hydrogen bonds in ethanol cause it?",
-"chem_solutions"
-],
-[
-"Sketch the Raoult's law plot for a methanol and water mixture and explain hydrogen bonding.",
-"chem_solutions"
-],
-[
-"Sketch the heating curve of a liquid whose molecules have hydrogen bonds.",
-null
-],
-[
-"Sketch the reaction energy profile for an exothermic reaction. Hydrogen bonds form in the product.",
-"chem_thermo"
-],
-[
-"Sketch the titration curve of NH3 with HCl and state whether NH3 forms hydrogen bonds.",
-"chem_solutions"
-],
-[
-"State how hydrogen bonds form in water",
-"chem_lewis"
-],
-[
-"Suppose ammonia formed no hydrogen bond. Show it.",
-"chem_lewis"
-],
-[
-"Teach me hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"Teach me hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Tell me about hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"The ammonia molecule forms hydrogen bonds. Arrange N, P and As in order of electronegativity.",
-"chem_lewis"
-],
-[
-"The half life of a hydrogen bond in water is 2 ps. Draw the first order decay plot.",
-null
-],
-[
-"The hydrogen bond in H2O has what bond angle?",
-"chem_vsepr"
-],
-[
-"Titrate 0.1 M NH3 with 0.1 M HCl. Explain hydrogen bonding in ammonia.",
-"chem_solutions"
-],
-[
-"Titration of ammonia with hydrochloric acid and hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"Trend of hydrogen bond strength across period 2: NH3, H2O, HF",
-"chem_lewis"
-],
-[
-"Two point charges are 2 m apart in water. Is there a hydrogen bond? Find the force between them.",
-"chem_lewis"
-],
-[
-"Two point charges on a hydrogen bond are 2 angstrom apart. Find the force between them.",
-null
-],
-[
-"Two point charges on a hydrogen-bond are 2 angstrom apart. Find the force between them.",
-"point_field"
-],
-[
-"Unit cell of ice with hydrogen bonds",
-null
-],
-[
-"Use a dotted line to show the hydrogen bond between two HF molecules",
-"chem_lewis"
-],
-[
-"Using VSEPR, draw two water molecules joined by a hydrogen bond.",
-null
-],
-[
-"VSEPR shape of NH3 and its hydrogen bonds",
-"chem_vsepr"
-],
-[
-"Water and acetone show deviation from Raoult law because of hydrogen bonding. Explain.",
-"chem_lewis"
-],
-[
-"Water and acetone show negative deviation from Raoult law because of hydrogen bonding. Draw the graph.",
-"chem_lewis"
-],
-[
-"Water and acetone show positive deviation from Raoult law because of hydrogen bonding. Draw the graph.",
-"chem_lewis"
-],
-[
-"Water and ethanol hydrogen bonds Raoult law plot",
-"chem_solutions"
-],
-[
-"Water boils far above hydrogen sulfide. Explain the difference using hydrogen bonding, and say why H2S does not form hydrogen bonds of the same kind.",
-"chem_lewis"
-],
-[
-"Water boils higher than H2Se because of hydrogen bonding. Explain.",
-"chem_lewis"
-],
-[
-"Water doesn't form a hydrogen bond with hydrogen",
-"chem_lewis"
-],
-[
-"Water has a high specific heat capacity due to hydrogen bonding. Draw a graph of temperature against time for heating water.",
-"chem_lewis"
-],
-[
-"Water has no hydrogen bonds. True or false?",
-"chem_lewis"
-],
-[
-"Water hydrogen bond!",
-"chem_lewis"
-],
-[
-"Water hydrogen bonds",
-"chem_lewis"
-],
-[
-"Water in ice has a lattice held by hydrogen bonds. Explain.",
-"chem_lewis"
-],
-[
-"Water ke molecules ke beech hydrogen bond dikhao",
-"chem_lewis"
-],
-[
-"Water main hydrogen bonding",
-"chem_lewis"
-],
-[
-"Water main hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Water me hydrogen bonding explain karo",
-"chem_lewis"
-],
-[
-"Water mein hydrogen bond kaise banta hai?",
-"chem_lewis"
-],
-[
-"Water molecules me hydrogen bonding samjhao",
-"chem_lewis"
-],
-[
-"Water molecules sit at the corners of a simple cubic unit cell with hydrogen bonds",
-"chem_lewis"
-],
-[
-"Water rises in a capillary tube because of hydrogen bonding. Draw the capillary rise.",
-"chem_lewis"
-],
-[
-"Water: hydrogen bonds; ammonia: none",
-"chem_lewis"
-],
-[
-"What are hydrogen bonds for water?",
-"chem_lewis"
-],
-[
-"What bond does hydrogen form in water, a hydrogen bond?",
-"chem_lewis"
-],
-[
-"What do you mean by hydrogen bonding in water?",
-"chem_lewis"
-],
-[
-"What do you understand by hydrogen bonding in HF?",
-"chem_lewis"
-],
-[
-"What do you understand by hydrogen bonds between a pair of ammonia molecules?",
-"chem_lewis"
-],
-[
-"What does the figure show about the hydrogen bond in water?",
-"chem_lewis"
-],
-[
-"What hydrogen bond does HF form with hydrogen?",
-"chem_lewis"
-],
-[
-"What hydrogen bond does molecule A form with water?",
-"chem_lewis"
-],
-[
-"What hydrogen bond is formed in HF with a pair of molecules of hydrogen?",
-"chem_lewis"
-],
-[
-"What if HF had a hydrogen bond?",
-"chem_lewis"
-],
-[
-"What is H-bonding in water?",
-null
-],
-[
-"What is a hydrogen bond in water?",
-"chem_lewis"
-],
-[
-"What is a hydrogen bond?",
-null
-],
-[
-"What is a hydrogen bond? Show in water.",
-"chem_lewis"
-],
-[
-"What is a hydrogen bond? Show it in water.",
-"chem_lewis"
-],
-[
-"What is formed in a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"What is hydrogen bonding for water?",
-"chem_lewis"
-],
-[
-"What is hydrogen bonding? Explain with reference to water",
-"chem_lewis"
-],
-[
-"What is hydrogen bonding? Explain with the example of HF.",
-"chem_lewis"
-],
-[
-"What is hydrogen bonding? Explain with the example of water.",
-"chem_lewis"
-],
-[
-"What is hydrogen bonding? Give an example with water",
-"chem_lewis"
-],
-[
-"What is meant by hydrogen bonding in ammonia?",
-"chem_lewis"
-],
-[
-"What is the O-H...O bond angle of the hydrogen bond between two H2O molecules?",
-"chem_vsepr"
-],
-[
-"What is the O-H...O bond angle of the hydrogen bond between two water molecules?",
-null
-],
-[
-"What is the bond angle in a hydrogen bond in HF?",
-null
-],
-[
-"What is the bond angle in water with hydrogen bonds?",
-null
-],
-[
-"What is the bond angle in water, and how does it help hydrogen bonding? Draw the shape.",
-null
-],
-[
-"What is the bond angle of the hydrogen bond in NH3?",
-"chem_vsepr"
-],
-[
-"What is the bond energy of an H-bond in water?",
-"chem_lewis"
-],
-[
-"What is the electron configuration behind hydrogen-bonding in water?",
-"chem_orbital"
-],
-[
-"What is the geometry of (H2O)2 held by a hydrogen bond?",
-null
-],
-[
-"What is the geometry of the hydrogen bond between two H2O molecules?",
-"chem_vsepr"
-],
-[
-"What is the geometry of the hydrogen bond in NH3?",
-"chem_vsepr"
-],
-[
-"What is the hybridisation of the hydrogen atom in a hydrogen bond between H2O molecules?",
-"chem_vsepr"
-],
-[
-"What is the hydrogen bond angle in water?",
-null
-],
-[
-"What is the hydrogen bond energy in HF?",
-"chem_lewis"
-],
-[
-"What is the hydrogen bond enthalpy in water?",
-"chem_lewis"
-],
-[
-"What is the hydrogen bond in the water molecule?",
-"chem_lewis"
-],
-[
-"What is the hydrogen bond length in water?",
-"chem_lewis"
-],
-[
-"What is the shape of NH3 and does it show H-bonding?",
-"chem_vsepr"
-],
-[
-"What is the shape of NH3? Does it form hydrogen bonds?",
-"chem_vsepr"
-],
-[
-"What is the shape of the (HF)6 ring formed by hydrogen bonds?",
-null
-],
-[
-"What is the shape of the HF dimer formed by hydrogen bonding?",
-null
-],
-[
-"What is the shape of the hydrogen bond in HF?",
-null
-],
-[
-"What is the shape of the hydrogen bonded H3O+ ion in water?",
-null
-],
-[
-"What is the shape of the water dimer held by a hydrogen bond?",
-null
-],
-[
-"What is the shape of water and its hydrogen bonding?",
-null
-],
-[
-"What is the structure of HF with hydrogen bond?",
-"chem_lewis"
-],
-[
-"What kind of hydrogen bonding does HF show?",
-"chem_lewis"
-],
-[
-"What liquid forms hydrogen bonds with water?",
-"chem_lewis"
-],
-[
-"What liquid has hydrogen bonds with HF?",
-"chem_lewis"
-],
-[
-"What molecule forms a hydrogen bond with water?",
-"chem_lewis"
-],
-[
-"What molecules form hydrogen bonds with ammonia?",
-"chem_lewis"
-],
-[
-"What type of a diagram for hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"What type of hydrogen bond is found in water?",
-"chem_lewis"
-],
-[
-"What type of hydrogen bond is present in a water molecule?",
-"chem_lewis"
-],
-[
-"What type of hydrogen bonding in o-nitrophenol?",
-"chem_lewis"
-],
-[
-"What type of hydrogen bonding is present in HF?",
-"chem_lewis"
-],
-[
-"What type of hydrogen bonding is present in water?",
-"chem_lewis"
-],
-[
-"Which atom is the hydrogen bond acceptor in ammonia?",
-"chem_lewis"
-],
-[
-"Which has stronger hydrogen bonds, NH3 or PH3? Compare their shapes.",
-"chem_vsepr"
-],
-[
-"Which is stronger, the hydrogen bond in water or in ammonia?",
-"chem_lewis"
-],
-[
-"Which of o- and p-nitrophenol has intramolecular hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Which orbitals are involved in hydrogen bonding in ammonia?",
-"chem_lewis"
-],
-[
-"Why are two hydrogen bonds formed in water?",
-"chem_lewis"
-],
-[
-"Why can't ammonia form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why do H2O molecules form hydrogen bonds with each other?",
-"chem_lewis"
-],
-[
-"Why do HF molecules form a zigzag shape through hydrogen bonds?",
-null
-],
-[
-"Why do carboxylic acids exist as dimers? Show the structure of benzoic acid dimer through hydrogen bonding.",
-"chem_organic"
-],
-[
-"Why do hydrogen and water form a hydrogen bond?",
-"chem_lewis"
-],
-[
-"Why do molecules in pure water have hydrogen bonds with a molecule in the figure?",
-null
-],
-[
-"Why do water molecules show hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Why does H-bonding raise the boiling point of ethanol?",
-null
-],
-[
-"Why does H2S not form hydrogen bonds but water does?",
-"chem_lewis"
-],
-[
-"Why does HF form 2 hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does HF have hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does HF show hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Why does HF show hydrogen bonding? Explain using the electronegativity of fluorine.",
-"chem_lewis"
-],
-[
-"Why does a molecule of water have a hydrogen bond in the molecule?",
-"chem_lewis"
-],
-[
-"Why does a needle float on water? Explain surface tension and hydrogen bonds with a diagram.",
-"chem_lewis"
-],
-[
-"Why does a water molecule form two hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does a water molecule have 2 hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does alcohol rise in a capillary tube? Explain using hydrogen bonds.",
-"fluid_apparatus"
-],
-[
-"Why does ammonia have hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does ammonia show hydrogen bonding?",
-"chem_lewis"
-],
-[
-"Why does an alcohol dissolve in water? Show the hydrogen bond.",
-null
-],
-[
-"Why does ethanol boil higher than dimethyl ether? Use hydrogen bonding.",
-"chem_organic"
-],
-[
-"Why does ethanol form hydrogen bonds?",
-"chem_organic"
-],
-[
-"Why does ethanol rise in a capillary tube? Explain using hydrogen bonds.",
-"chem_organic"
-],
-[
-"Why does hafnium Hf form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does hydrogen bonding in water break on heating?",
-"chem_lewis"
-],
-[
-"Why does hydrogen bonding in water not stop electrolysis?",
-"chem_lewis"
-],
-[
-"Why does hydrogen bonding need a small electronegative atom? Show the electronegativity trend across period 2.",
-"chem_periodic"
-],
-[
-"Why does ice float on water? Explain using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why does ice float on water? Show the hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Why does liquid water have the hydrogen bond in a pair?",
-"chem_lewis"
-],
-[
-"Why does o-nitrophenol have a lower boiling point than p-nitrophenol? Use hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why does p-nitrophenol form dimers through hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does p-nitrophenol form intermolecular hydrogen bonds while o-nitrophenol does not?",
-"chem_lewis"
-],
-[
-"Why does p-nitrophenol have a high boiling point? Use hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why does p-nitrophenol have a higher boiling point than o-nitrophenol? Explain with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why does the electronegativity of fluorine make hydrogen bonding in HF stronger than in water? Arrange in increasing order",
-"chem_lewis"
-],
-[
-"Why does water form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does water have hydrogen bonds and methane does not?",
-"chem_organic"
-],
-[
-"Why does water not form hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why does water rise in a capillary tube? Explain using hydrogen bonds.",
-"chem_lewis"
-],
-[
-"Why is HF a liquid with hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why is a hydrogen bond formed between hydrogen and ammonia?",
-"chem_lewis"
-],
-[
-"Why is a hydrogen bond in water a covalent bond?",
-"chem_lewis"
-],
-[
-"Why is ammonia a liquid with hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why is ammonia very soluble in water? Show the hydrogen bond.",
-"chem_lewis"
-],
-[
-"Why is hydrogen bond in HF stronger than in water?",
-"chem_lewis"
-],
-[
-"Why is hydrogen bonding in water stronger?",
-"chem_lewis"
-],
-[
-"Why is hydrogen bonding strongest in HF? Electronegativity of F",
-"chem_lewis"
-],
-[
-"Why is o nitrophenol more volatile than p nitrophenol? Explain with hydrogen bonding.",
-null
-],
-[
-"Why is o-nitrophenol less acidic than p-nitrophenol? Explain with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is o-nitrophenol less soluble in water than p-nitrophenol? Use hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is o-nitrophenol less volatile than p-nitrophenol? Explain with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is o-nitrophenol more acidic than p-nitrophenol? Explain with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is o-nitrophenol more soluble in water than p-nitrophenol? Explain using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is o-nitrophenol more volatile than p-nitrophenol? Explain with intramolecular and intermolecular hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is ortho nitro phenol more volatile than para nitro phenol? Explain with hydrogen bonding.",
-"chem_organic"
-],
-[
-"Why is p-nitrophenol less acidic than o-nitrophenol? Explain in terms of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is p-nitrophenol more steam volatile than o-nitrophenol? Explain in terms of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is p-nitrophenol more volatile than o-nitrophenol? Explain with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is p-nitrophenol soluble in water? Use hydrogen bonding.",
-"chem_lewis"
-],
-[
-"Why is pure water a poor conductor despite hydrogen bonds?",
-"chem_lewis"
-],
-[
-"Why is the boiling point of NH3 higher than PH3? Use hydrogen bonding and draw the trend for group 15 hydrides.",
-"chem_lewis"
-],
-[
-"Why is the boiling point of water high? Hydrogen bonding",
-"chem_lewis"
-],
-[
-"Why is the dipole moment of water high, and how do hydrogen bonds form?",
-"chem_lewis"
-],
-[
-"Why is the hydrogen bond in water in a molecule?",
-"chem_lewis"
-],
-[
-"Why is there hydrogen bonding between two molecules of HF?",
-"chem_lewis"
-],
-[
-"Why is there hydrogen bonding in liquid ammonia?",
-"chem_lewis"
-],
-[
-"Why is there intramolecular hydrogen bonding in ortho nitrophenol?",
-"chem_lewis"
-],
-[
-"Why is there no hydrogen bond in water?",
-"chem_lewis"
-],
-[
-"Why is there no hydrogen bonding in dimethyl ether? Draw it.",
-"chem_organic"
-],
-[
-"Why is there no intramolecular hydrogen bond in o-nitrophenol?",
-"chem_lewis"
-],
-[
-"Why is water a liquid? Hydrogen bonds",
-"chem_lewis"
-],
-[
-"Why is water bent and hydrogen bonded?",
-"chem_lewis"
-],
-[
-"Write a note on hydrogen bonding in water.",
-"chem_lewis"
-],
-[
-"Write a short note on hydrogen bonding in hydrogen fluoride.",
-"chem_lewis"
-],
-[
-"[Cu(H2O)4]SO4.H2O hydrogen bond in water",
-null
-],
-[
-"a VSEPR-only pair of shapes with no hydrogen bonds",
-null
-],
-[
-"a covalent bond drawn where the hydrogen bond is",
-null
-],
-[
-"a hydrogen bond from H of one molecule to O of the other",
-null
-],
-[
-"both isomers with the same hydrogen-bond type",
-null
-],
-[
-"hydrogen bond between water and a chloride ion",
-null
-],
-[
-"hydrogen bond in h2o",
-"chem_lewis"
-],
-[
-"hydrogen bond in nH3",
-"chem_lewis"
-],
-[
-"hydrogen bond in ortho nitrophenol and water",
-"chem_lewis"
-],
-[
-"hydrogen bond in the HF2- ion",
-null
-],
-[
-"hydrogen bond water",
-"chem_lewis"
-],
-[
-"hydrogen bonding between HF and water",
-"chem_lewis"
-],
-[
-"hydrogen bonding between water and ammonia",
-"chem_lewis"
-],
-[
-"hydrogen bonding in H2O +",
-null
-],
-[
-"hydrogen bonding in H2O...H2O",
-"chem_lewis"
-],
-[
-"hydrogen bonding in HF",
-"chem_lewis"
-],
-[
-"hydrogen bonding in HF.H2O",
-"chem_lewis"
-],
-[
-"hydrogen bonding in NH4+ and water",
-null
-],
-[
-"hydrogen bonding in acetic acid dimer in water",
-"chem_lewis"
-],
-[
-"hydrogen bonding in ammonia",
-"chem_lewis"
-],
-[
-"hydrogen bonding in an aqueous solution of ammonia",
-"chem_lewis"
-],
-[
-"hydrogen bonding in cellulose and water",
-"chem_lewis"
-],
-[
-"hydrogen bonding in ethanol and water",
-null
-],
-[
-"hydrogen bonding in heavy water",
-"chem_lewis"
-],
-[
-"hydrogen bonding in heavy water D2O",
-"chem_lewis"
-],
-[
-"hydrogen bonding in hydronium ion H3O+ in water",
-null
-],
-[
-"hydrogen bonding in hydroxide ion and water",
-null
-],
-[
-"hydrogen bonding in liquid ammonia and liquid HF",
-"chem_lewis"
-],
-[
-"hydrogen bonding in sugar water",
-"chem_lewis"
-],
-[
-"hydrogen bonding in the ammonium ion",
-null
-],
-[
-"hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"hydrogen bonding in water (ethanol).",
-null
-],
-[
-"hydrogen bonding in water/ethanol.",
-null
-],
-[
-"hydrogen bonding in water?",
-"chem_lewis"
-],
-[
-"hydrogen bonding of water in the structure of ice",
-"chem_lewis"
-],
-[
-"hydrogen bonds between DNA base pairs in water",
-"chem_lewis"
-],
-[
-"hydrogen bonds in a protein helix in water",
-"chem_lewis"
-],
-[
-"hydrogen bonds in nylon and water",
-"chem_lewis"
-],
-[
-"intramolecular hydrogen bonding in water",
-"chem_lewis"
-],
-[
-"o-Nitrophenol is less steam volatile than p-nitrophenol. Explain this with hydrogen bonding.",
-"chem_lewis"
-],
-[
-"o-Nitrophenol is steam volatile and p-nitrophenol is not, although simple distillation would decompose both. Explain the difference in hydrogen bonding.",
-"chem_lewis"
-],
-[
-"o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.",
-"chem_lewis"
-],
-[
-"o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of intramolecular and intermolecular hydrogen bonding.",
-"chem_lewis"
-],
-[
-"ortho-nitrophenol with an intramolecular O–H···O hydrogen bond",
-"chem_lewis"
-],
-[
-"p-Nitrophenol is more volatile than o-nitrophenol. Explain the difference using hydrogen bonding.",
-"chem_lewis"
-],
-[
-"para-nitrophenol with intermolecular hydrogen bonds between molecules",
-"chem_lewis"
-],
-[
-"show hydrogen bonding in H2O",
-"chem_lewis"
-],
-[
-"sp3 hybrid orbitals of oxygen in water and hydrogen bonding",
-"chem_lewis"
-],
-[
-"the O–H covalent bond distinguished from the hydrogen bond",
-null
-],
-[
-"the hydrogen bond is an intermolecular attraction, weaker than the covalent O–H",
-null
-],
-[
-"the ortho isomer is tied by an intramolecular hydrogen bond, so its proton is less available than that of the para isomer",
-null
-],
-[
-"the ortho isomer with an intramolecular hydrogen bond",
-null
-],
-[
-"the para isomer with intermolecular hydrogen bonds",
-null
-],
-[
-"water molecules linked by O–H···O hydrogen bonds",
-"chem_lewis"
-],
-[
-"water of crystallisation and hydrogen bonds in CuSO4.5H2O",
-"chem_lewis"
-],
-[
-"ΔG vs T for hydrogen bond formation in water",
-"chem_lewis"
-]
-]
-}
+{"note":"What dev draws on the family path for stems mentioning a hydrogen bond or close to it. Head must draw the same family on each, including none. Oracle only: no builder reads it, and no row is a student question.","devSha":"e44881ae1","rows":[["(a) Explain hydrogen bonding in water.","chem_lewis"],
+["(a) Hydrogen bonding in H2O(l)","chem_lewis"],
+["(b) Explain hydrogen bonding in water.","chem_lewis"],
+["(c) Discuss hydrogen bonding in NH3, with the help of a clear diagram.","chem_lewis"],
+["0.1 M HF titrated with 0.1 M NaOH; hydrogen bonding in HF makes it weak. Draw the titration curve.","chem_lewis"],
+["1. Depict hydrogen bonds are seen in ammonia.","chem_lewis"],
+["1. Explain hydrogen bonding in water.","chem_lewis"],
+["2) Illustrate a simple diagram showing hydrogen bonds of adjacent water molecules with each other.","chem_lewis"],
+["2. Explain hydrogen bonding in water.","chem_lewis"],
+["A 2 kg block floats in water. Does water form hydrogen bonds? Draw the forces on the block.","chem_lewis"],
+["A ball of mass 2 kg rolls down an incline of 30 degrees. Ignore any hydrogen bond.",null],
+["A block of ice floats in water. Show the forces and hydrogen bonds.","chem_lewis"],
+["A convex lens is placed in water. Does water form hydrogen bonds?","chem_lewis"],
+["A hydrogen bond in ethanol has energy 20 kJ. Two point charges are 2 m apart. Find the force between them.",null],
+["A hydrogen-bonded water film rises in a capillary tube of radius 1 mm. Draw the setup.","fluid_apparatus"],
+["A mixture of ethanol and acetone breaks hydrogen bonds. Sketch the vapour pressure against mole fraction using Raoult's law.","chem_solutions"],
+["A mixture of phenol and aniline shows negative deviation because of hydrogen bonding. Draw the vapour pressure composition graph.","chem_solutions"],
+["A pipe carries water at 2 m/s. Draw the velocity profile and explain the role of hydrogen bonding in viscosity.","chem_lewis"],
+["A water molecule is an electric dipole. Draw its field and a hydrogen bond.","chem_lewis"],
+["Acetic acid associates through hydrogen bonds in benzene. Plot the van't Hoff factor.","chem_organic"],
+["Acetic acid exists as a hydrogen-bonded pair in benzene. Draw the pair.","chem_organic"],
+["Acetic acid forms a pair held by two hydrogen bonds. Draw this.","chem_organic"],
+["Acetic acid forms hydrogen bonds. Draw a diagram.","chem_organic"],
+["Acetone and chloroform show negative deviation due to hydrogen bonding. Draw the vapour pressure graph.","chem_solutions"],
+["Activation energy of hydrogen bond formation in water","chem_lewis"],
+["Adenine pairs with thymine through two hydrogen bonds. Draw this base pair.",null],
+["Ammonia me hydrogen bonding explain karo.","chem_lewis"],
+["Ammonia shows hydrogen bonding because nitrogen is small and electronegative. Explain.","chem_lewis"],
+["Arrange H2O, H2S, H2Se and H2Te by boiling point because of hydrogen bonding","chem_lewis"],
+["Arrange N, O and F in increasing order of electronegativity and relate it to hydrogen bond strength.","chem_periodic"],
+["Arrange PH3, H2S and HCl by hydrogen bond strength.",null],
+["Arrange hydrogen bond strength of NH3, H2O and HF in increasing order","chem_lewis"],
+["Arrhenius plot for hydrogen bond breaking in water","chem_lewis"],
+["Atomic radius of F, O and N decreases, so the hydrogen bond in HF is stronger. Show the trend.","chem_lewis"],
+["Atomic radius of nitrogen and hydrogen bonding in ammonia","chem_lewis"],
+["Boiling point elevation of water and hydrogen bonds","chem_lewis"],
+["Born Haber cycle for HF and hydrogen bonding","chem_lewis"],
+["Can Hf have hydrogen bonds?","chem_lewis"],
+["Can NH3 molecules form hydrogen bonds with each other?","chem_lewis"],
+["Can a pair of HF molecules have hydrogen bonds?","chem_lewis"],
+["Can a water molecule form hydrogen bonds?","chem_lewis"],
+["Can ammonia form hydrogen bonds?","chem_lewis"],
+["Can ammonia molecules form hydrogen bonds with each other?","chem_lewis"],
+["Can p-nitrophenol molecules form hydrogen bonds with each other?","chem_lewis"],
+["Can two water molecules form hydrogen bonds with each other?","chem_lewis"],
+["Can water form hydrogen bonds?","chem_lewis"],
+["Can you draw and explain hydrogen bonding among adjacent water molecules?","chem_lewis"],
+["Can you explain hydrogen bonding in water?","chem_lewis"],
+["Can you show hydrogen bonding in ammonia?","chem_lewis"],
+["Can you show me hydrogen bonding in water?","chem_lewis"],
+["Capillary rise of water in a glass tube; explain the role of hydrogen bonds.","chem_lewis"],
+["Compare electronegativity of O and S and explain why H2O has hydrogen bonds but H2S does not","chem_lewis"],
+["Compare hydrogen bonding in 2-nitrophenol and 4-nitrophenol.","chem_organic"],
+["Compare hydrogen bonding in HF, H2O and NH3.","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and m-nitrophenol","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and m-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and p-nitrophenol","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and p-nitrophenol after reaction with NaOH.","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol and salicylic acid.","chem_lewis"],
+["Compare hydrogen bonding in o-nitrophenol, p-nitrophenol and m-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in ortho and para nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in para and ortho nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in sodium o-nitrophenol and sodium p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in tert butyl o-nitrophenol and tert butyl p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the acetates of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the anions of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the methyl ethers of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the phenoxide ions of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the sodium derivatives of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in the sodium salts of o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Compare hydrogen bonding in water and ammonia","chem_lewis"],
+["Compare the O-H bond length with the hydrogen-bond length in water.","chem_lewis"],
+["Compare the electronegativity of F, O and N and its effect on hydrogen bonding in HF, H2O and NH3","chem_lewis"],
+["Compare the hydrogen bonding in o- and p-nitrophenol.","chem_lewis"],
+["Conductivity of HF and hydrogen bonding","chem_lewis"],
+["Crystal lattice of ice water, tetrahedral arrangement and hydrogen bonds","chem_lewis"],
+["Define hydrogen bond of the o-nitrophenol, with a neat figure (2 marks) sketch a diagram.","chem_lewis"],
+["Define hydrogen bonding. Show it in water.","chem_lewis"],
+["Define hydrogen bonds using ammonia as an example.","chem_lewis"],
+["Define intermolecular hydrogen bonding of pure water.","chem_lewis"],
+["Density of water against temperature, anomalous expansion caused by hydrogen bonds; draw the graph.","chem_lewis"],
+["Describe how water molecules form hydrogen bonds.","chem_lewis"],
+["Describe the hydrogen bonding in liquid ammonia","chem_lewis"],
+["Describe the hydrogen bonding in water with a labelled figure.","chem_lewis"],
+["Describe the hydrogen bonding present in water","chem_lewis"],
+["Describe the structure of water with hydrogen bonds","chem_lewis"],
+["Dipole moment of HF and hydrogen bonding","chem_lewis"],
+["Dipole moment of water and hydrogen bonding.","chem_lewis"],
+["Discuss hydrogen bonding that occurs in ammonia(l).","chem_lewis"],
+["Do A and water form hydrogen bonds?","chem_lewis"],
+["Do HF molecules show hydrogen bonding with each other?","chem_lewis"],
+["Do adjacent ammonia molecules exhibit intermolecular hydrogen bonds?","chem_lewis"],
+["Do water molecules form hydrogen bonds with each other?","chem_lewis"],
+["Do water molecules form hydrogen bonds?","chem_lewis"],
+["Does A form a hydrogen bond with HF?","chem_lewis"],
+["Does A form a hydrogen bond with water?","chem_lewis"],
+["Does HCl form hydrogen bonds in water?",null],
+["Does HF show hydrogen bonding?","chem_lewis"],
+["Does Hf form hydrogen bonds?","chem_lewis"],
+["Does ammonia form hydrogen bonds?","chem_lewis"],
+["Does ammonia have a hydrogen bond in the gas?","chem_lewis"],
+["Does electrolysis of water break hydrogen bonds?","chem_lewis"],
+["Does hydrogen form a hydrogen bond with water?","chem_lewis"],
+["Does hydrogen have a hydrogen bond with ammonia?","chem_lewis"],
+["Does ice have hydrogen bonds? Draw the unit cell.",null],
+["Does ice have hydrogen-bonds? Draw the unit cell.",null],
+["Does methane form hydrogen bonds with water?","chem_organic"],
+["Does o-nitrophenol form hydrogen bonds with water?","chem_lewis"],
+["Does p-nitrophenol form hydrogen bonds with water?","chem_lewis"],
+["Does p-nitrophenol form hydrogen bonds?","chem_lewis"],
+["Does p-nitrophenol have an intramolecular hydrogen bond in the ortho position?","chem_lewis"],
+["Does para-nitrophenol show hydrogen bonding?","chem_lewis"],
+["Does structure 2 have a hydrogen bond with water?","chem_lewis"],
+["Does the liquid in the figure have hydrogen bonds with water?",null],
+["Does the molecule in figure 2 form hydrogen bonds with HF?","chem_lewis"],
+["Does the molecule in the figure form a hydrogen bond with ammonia?",null],
+["Does the molecule in the figure form a hydrogen bond with water?",null],
+["Does the structure in the diagram have a hydrogen bond with water?","chem_lewis"],
+["Does water have hydrogen?  Is the bond a hydrogen bond?","chem_lewis"],
+["Draw 2 hydrogen bonds in HF","chem_lewis"],
+["Draw 2,4-dinitrophenol and explain its hydrogen bonding.","chem_organic"],
+["Draw H-bonding in ethanol.",null],
+["Draw H-bonding in p-nitrophenol.","chem_organic"],
+["Draw H-bonds in HF.",null],
+["Draw Lewis structures to show the hydrogen bond between two water molecules.","chem_lewis"],
+["Draw Lewis structures to show the hydrogen-bond between two water molecules.","chem_lewis"],
+["Draw a Daniell cell. Why do hydrogen bonds not matter in the salt bridge?","chem_electrochem"],
+["Draw a block floating on water and explain hydrogen bonding in the water.","chem_lewis"],
+["Draw a diagram of hydrogen bonding in ethylene glycol.","chem_organic"],
+["Draw a diagram of the hydrogen bonds of the HF molecule.","chem_lewis"],
+["Draw a diagram showing hydrogen bonding between water molecules","chem_lewis"],
+["Draw a diagram showing hydrogen bonding in alcohols.",null],
+["Draw a diagram showing hydrogen bonding in ethanol.",null],
+["Draw a diagram showing intramolecular hydrogen bonding in salicylaldehyde.","chem_organic"],
+["Draw a diagram to show hydrogen bonding between two water molecules","chem_lewis"],
+["Draw a diagram to show the hydrogen bond between two ammonia molecules","chem_lewis"],
+["Draw a graph of density of water versus temperature and explain it using hydrogen bonding.","chem_lewis"],
+["Draw a graph of potential energy against distance for a hydrogen bond.",null],
+["Draw a labelled diagram for the hydrogen bond that occurs between two H2O molecules with each other (2 marks)","chem_vsepr"],
+["Draw a labelled diagram of hydrogen bonding in water","chem_lewis"],
+["Draw a labelled diagram to show hydrogen bonding in HF","chem_lewis"],
+["Draw a neat diagram of hydrogen bonding in ammonia","chem_lewis"],
+["Draw a triangle showing the angle of the O-H...O hydrogen bond in ice.",null],
+["Draw acetic acid dimer with hydrogen bonds.","chem_organic"],
+["Draw adenine and thymine showing the hydrogen bonds of the base pair.",null],
+["Draw an energy profile for the exothermic reaction of an acid with ammonia, ignoring hydrogen bonds.","chem_lewis"],
+["Draw an exothermic energy profile for H bond formation.","chem_thermo"],
+["Draw an exothermic energy profile for hydrogen bond formation.","chem_thermo"],
+["Draw an exothermic energy profile for hydrogen-bond formation.","chem_thermo"],
+["Draw an exothermic energy profile. The reaction breaks a hydrogen hydrogen bond.","chem_thermo"],
+["Draw an isothermal PV graph for water vapour. Hydrogen bonds are ignored.","chem_lewis"],
+["Draw and explain hydrogen bonding in water.","chem_lewis"],
+["Draw ethanol and acetone with a hydrogen bond between them.","chem_organic"],
+["Draw ethanol molecules joined by hydrogen bonds.","chem_organic"],
+["Draw formamide showing hydrogen bonding between two molecules.","chem_organic"],
+["Draw formic acid and explain its dimerisation by hydrogen bonds.","chem_organic"],
+["Draw hydrogen bond between 2 HF molecules","chem_lewis"],
+["Draw hydrogen bonded water molecules","chem_lewis"],
+["Draw hydrogen bonding between H3O+ and water",null],
+["Draw hydrogen bonding between two HF molecules.","chem_lewis"],
+["Draw hydrogen bonding between two ammonia molecules.","chem_lewis"],
+["Draw hydrogen bonding between two water molecules.","chem_lewis"],
+["Draw hydrogen bonding in HF -",null],
+["Draw hydrogen bonding in HF+",null],
+["Draw hydrogen bonding in H₂O⁺.",null],
+["Draw hydrogen bonding in NH_3^{+}.",null],
+["Draw hydrogen bonding in NH₃⁺.",null],
+["Draw hydrogen bonding in a water molecule.","chem_lewis"],
+["Draw hydrogen bonding in ammonia.","chem_lewis"],
+["Draw hydrogen bonding in liquid ammonia.","chem_lewis"],
+["Draw hydrogen bonds between NH3 molecules.","chem_lewis"],
+["Draw hydrogen bonds between two water molecules","chem_lewis"],
+["Draw hydrogen-bonded water molecules.",null],
+["Draw hydrogen-bonding in water.",null],
+["Draw neat hydrogen bonds in ethanol.",null],
+["Draw o-nitrophenol and p-nitrophenol and mark the hydrogen bonds.","chem_lewis"],
+["Draw phenol and explain its hydrogen bonding with water.","chem_lewis"],
+["Draw salicylaldehyde showing intramolecular hydrogen bonding.","chem_organic"],
+["Draw the Arrhenius plot for a proton transfer across a hydrogen bond.","chem_kinetics"],
+["Draw the H bond between o-nitrophenol and water.","chem_organic"],
+["Draw the H bonded dimer of acetic acid.","chem_organic"],
+["Draw the Lewis dot structure of HF. Why does HF form hydrogen bonds?","chem_lewis"],
+["Draw the Lewis structure of HCl. Plot electronegativity across period 2 and explain H-bonding.","chem_lewis"],
+["Draw the Lewis structure of NH3 and say whether it forms hydrogen bonds.","chem_lewis"],
+["Draw the Lewis structure of water and explain hydrogen bonding.","chem_lewis"],
+["Draw the Lewis structure of water and show H-bonding.","chem_lewis"],
+["Draw the Lewis structure of water and show the hydrogen bond","chem_lewis"],
+["Draw the MO diagram of H2 and state the hydrogen bond order.","chem_mo"],
+["Draw the MO diagram of HF and show hydrogen bonding",null],
+["Draw the MO diagram of N2 and explain why N2 forms no hydrogen bonds.","chem_mo"],
+["Draw the MO diagram of O2 and explain why water has hydrogen bonds.","chem_mo"],
+["Draw the VSEPR shape of H2O and explain why it can make hydrogen bonds.","chem_vsepr"],
+["Draw the benzene ring. Does benzene form hydrogen bonds?","chem_organic"],
+["Draw the boiling point elevation graph for water. Why do hydrogen bonds matter?","chem_lewis"],
+["Draw the boiling point elevation graph of a solution of ethanol in water and explain hydrogen bonding.","chem_solutions"],
+["Draw the boiling point trend of H2O, H2S, H2Se and H2Te and explain the anomaly with hydrogen bonding.","chem_lewis"],
+["Draw the bonding between water molecules, including hydrogen bonds","chem_lewis"],
+["Draw the conductometric titration curve of HCl and NaOH. Why does H+ conduct so well through hydrogen bonds in water?",null],
+["Draw the crystal field splitting of [Fe(H2O)6]3+; its water ligands also form hydrogen bonds.","chem_cft"],
+["Draw the deviation from Raoult's law for acetone and chloroform, which form a hydrogen bond.","chem_solutions"],
+["Draw the dimer of acetic acid formed by hydrogen bonds.","chem_organic"],
+["Draw the electric field of the dipole in an alcohol molecule that makes a hydrogen bond.","point_field"],
+["Draw the electrochemical cell for the Daniell cell. Hydrogen bonds in the salt bridge can be ignored.","chem_electrochem"],
+["Draw the electrolysis cell for water and show the hydrogen bonds","chem_lewis"],
+["Draw the energy diagram for H-bond formation.",null],
+["Draw the energy diagram for the hydrogen bond in HF","chem_lewis"],
+["Draw the energy level diagram of a hydrogen bond.",null],
+["Draw the energy level diagram of a hydrogen-bond.",null],
+["Draw the energy levels of the hydrogen atom for the n=2 to n=1 transition. Hydrogen bonds play no part.",null],
+["Draw the energy profile for H-bond formation in water.","chem_thermo"],
+["Draw the energy profile for hydrogen bonding in HF. Hydrogen bond enthalpy is 29 kJ/mol","chem_lewis"],
+["Draw the energy profile for hydrogen bonding in pure water","chem_lewis"],
+["Draw the energy profile for hydrogen bonding in water","chem_lewis"],
+["Draw the energy profile of the ammonia-hydrogen bond.","chem_lewis"],
+["Draw the energy profile when water molecules form hydrogen bonds","chem_lewis"],
+["Draw the enthalpy diagram for dissolving ammonia in water, where hydrogen bonds form.","chem_lewis"],
+["Draw the enthalpy level diagram for breaking a hydrogen bond in ethanol.",null],
+["Draw the first order concentration against time graph. Hydrogen bonds do not change the order.","chem_kinetics"],
+["Draw the force vector between two water molecules due to a hydrogen bond.","chem_lewis"],
+["Draw the forces between two alcohol molecules joined by a hydrogen bond.",null],
+["Draw the forces on a water drop held to glass by hydrogen-bonding at a contact angle of 30 degrees.",null],
+["Draw the freezing point depression graph for a solute that dimerises by hydrogen bonding.","chem_solutions"],
+["Draw the galvanic cell in which water has hydrogen bonds","chem_lewis"],
+["Draw the graph of boiling point showing hydrogen-bonding for group 16 hydrides.",null],
+["Draw the graph of boiling points of group 17 hydrides and explain why HF is high in terms of hydrogen bonding.","chem_lewis"],
+["Draw the graph of hydrogen bond strength against electronegativity.",null],
+["Draw the heating curve of water and explain the role of hydrogen bonding.","chem_lewis"],
+["Draw the heating curve of water. Why is the boiling plateau long, in terms of hydrogen bonds?","chem_lewis"],
+["Draw the hydrogen bond between NH3 and H2O.","chem_lewis"],
+["Draw the hydrogen bond between ethanol and water.","chem_organic"],
+["Draw the hydrogen bond between o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Draw the hydrogen bond between two H2O molecules with each other.","chem_vsepr"],
+["Draw the hydrogen bond between two H2O molecules.","chem_lewis"],
+["Draw the hydrogen bond between two molecules of HF.","chem_lewis"],
+["Draw the hydrogen bond between two water molecules.","chem_lewis"],
+["Draw the hydrogen bond between water and o-nitrophenol.","chem_lewis"],
+["Draw the hydrogen bond in hydrogen fluoride.","chem_lewis"],
+["Draw the hydrogen bond in the p-nitrophenol dimer.","chem_lewis"],
+["Draw the hydrogen bond in water with a positive charge","chem_lewis"],
+["Draw the hydrogen bonded dimer of acetic acid","chem_organic"],
+["Draw the hydrogen bonding in CH3OH.",null],
+["Draw the hydrogen bonding in ethanol.",null],
+["Draw the hydrogen bonding in o-nitrophenol with water.","chem_lewis"],
+["Draw the hydrogen bonding in p-nitrophenol.","chem_lewis"],
+["Draw the hydrogen bonds among p-nitrophenol molecules.","chem_lewis"],
+["Draw the hydrogen bonds in H₃O⁺",null],
+["Draw the hydrogen bonds in a sample of water","chem_lewis"],
+["Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form to water molecules.","chem_lewis"],
+["Draw the hydrogen bonds that o-nitrophenol and p-nitrophenol form with H2O.","chem_lewis"],
+["Draw the hydrogen bridge in HF","circuit_network"],
+["Draw the hydrogen-bond between water and ammonia.",null],
+["Draw the hydrogen-bonded dimer of HF.",null],
+["Draw the hydrogen-bonded dimer of acetic acid.","chem_organic"],
+["Draw the hydrogen-bonded structure of HF.",null],
+["Draw the hydrogen-bonding in o-nitrophenol.","chem_organic"],
+["Draw the inter-molecular hydrogen bond between methanol molecules.","chem_organic"],
+["Draw the intermolecular hydrogen bond between two o-nitrophenol molecules.","chem_lewis"],
+["Draw the intermolecular hydrogen bonds in water.","chem_lewis"],
+["Draw the intramolecular hydrogen bond in ortho nitrophenol with a diagram.","chem_lewis"],
+["Draw the isomers of C4H10O and say which form hydrogen bonds",null],
+["Draw the molecular orbital diagram for the hydrogen-bond in HF.",null],
+["Draw the molecular orbital diagram of HF and say whether HF forms hydrogen bonds.",null],
+["Draw the o-nitrophenol-water hydrogen bond complex.","chem_lewis"],
+["Draw the orbital box diagram for hydrogen-bonds in ammonia.","chem_orbital"],
+["Draw the orbital box diagram of carbon and show the carbon hydrogen bond in methane.","chem_orbital"],
+["Draw the orbital box diagram of oxygen and explain how lone pairs in water make hydrogen bonds.","chem_lewis"],
+["Draw the orbital box diagram of oxygen in water and explain hydrogen bonding","chem_lewis"],
+["Draw the orbital diagram for hydrogen bonding in water.","chem_lewis"],
+["Draw the orbital diagram for hydrogen-bonding in HF.","chem_orbital"],
+["Draw the orbital diagram for hydrogen-bonding in water.","chem_orbital"],
+["Draw the orbital diagram of hydrogen bonding in water","chem_lewis"],
+["Draw the orbital diagram of nitrogen and explain why it forms hydrogen bonds.","chem_orbital"],
+["Draw the orbital overlap in a hydrogen bond in formic acid.","chem_organic"],
+["Draw the phase diagram of water and explain its negative solid liquid slope using hydrogen bonds.","chem_lewis"],
+["Draw the phase diagram of water and explain its slope using hydrogen bonding.","chem_lewis"],
+["Draw the phenoxide ion and explain hydrogen bonding in it.",null],
+["Draw the potential energy curve of a hydrogen-bond.","chem_thermo"],
+["Draw the shape of (HF)2 formed by a hydrogen bond.",null],
+["Draw the shape of H2O and show H-bonds.","chem_vsepr"],
+["Draw the shape of HF2- showing the hydrogen bond.",null],
+["Draw the shape of a water molecule and explain how it forms hydrogen bonds.",null],
+["Draw the shape of the water dimer held by a hydrogen bond.",null],
+["Draw the shape of water and explain hydrogen bonding.",null],
+["Draw the shape of water and show a hydrogen bond",null],
+["Draw the shape of water and show the hydrogen bond between two water molecules.",null],
+["Draw the skeletal structure of aspirin. How many hydrogen bond acceptors does it have?","chem_organic"],
+["Draw the sodium salt of o-nitrophenol and its hydrogen bonds.","chem_lewis"],
+["Draw the sp3 overlap in ammonia and show a hydrogen bond","chem_lewis"],
+["Draw the structure of 1-propanol and explain hydrogen bonding with water.","chem_organic"],
+["Draw the structure of 2-nitrophenol and explain its intramolecular hydrogen bonding.","chem_organic"],
+["Draw the structure of 4-nitrophenol and explain its hydrogen bonding.","chem_organic"],
+["Draw the structure of HF molecules showing hydrogen bonding.","chem_lewis"],
+["Draw the structure of [Cu(H2O)4]2+ in copper sulfate pentahydrate and mention hydrogen bonds to the fifth water.",null],
+["Draw the structure of [Cu(H2O)4]SO4.H2O and show the hydrogen bond to the sulfate.",null],
+["Draw the structure of [Ni(dmg)2] and show its hydrogen bonds.","chem_coordination"],
+["Draw the structure of a hydrogen bond",null],
+["Draw the structure of acetic acid and explain how it forms hydrogen bonds.","chem_organic"],
+["Draw the structure of acetic acid and explain its hydrogen bonding","chem_organic"],
+["Draw the structure of acetone. Can it act as a hydrogen bond acceptor?","chem_organic"],
+["Draw the structure of adenine. How many hydrogen bonds does it make with thymine?",null],
+["Draw the structure of ammonia with a hydrogen bond","chem_lewis"],
+["Draw the structure of benzene and explain why it forms no hydrogen bonds with water.","chem_organic"],
+["Draw the structure of benzoic acid and explain its hydrogen bonding.","chem_organic"],
+["Draw the structure of butan-1-ol and butanal. Which one forms hydrogen bonds?","chem_organic"],
+["Draw the structure of butane and count each carbon - hydrogen bond.","chem_organic"],
+["Draw the structure of cellulose showing hydrogen bonds.",null],
+["Draw the structure of diborane with its hydrogen bridge.","circuit_network"],
+["Draw the structure of ethane and show each carbon hydrogen bond.","chem_organic"],
+["Draw the structure of ethanol and explain its hydrogen bonding with water.","chem_organic"],
+["Draw the structure of ethanol and show the oxygen hydrogen bond.","chem_organic"],
+["Draw the structure of ethanol showing hydrogen bonding.","chem_organic"],
+["Draw the structure of ethanol. Does it form hydrogen bonds?","chem_organic"],
+["Draw the structure of ethanol. Why does it form hydrogen bonds?","chem_organic"],
+["Draw the structure of ethylene glycol and explain why its hydrogen bonds raise its boiling point.","chem_organic"],
+["Draw the structure of glucose and explain why it makes hydrogen bonds with water.","chem_lewis"],
+["Draw the structure of glycine and identify the hydrogen bond donors.","chem_organic"],
+["Draw the structure of glycine and its hydrogen bonding","chem_organic"],
+["Draw the structure of ice and show the hydrogen bonds in water","chem_lewis"],
+["Draw the structure of m-nitrophenol and explain its hydrogen bonding.","chem_organic"],
+["Draw the structure of methanamine and explain how it forms hydrogen bonds with water.","chem_organic"],
+["Draw the structure of methanamine. Does it form hydrogen bonds?","chem_organic"],
+["Draw the structure of phenol. Does it form hydrogen bonds with water?","chem_lewis"],
+["Draw the structure of propanal. Which hydrogen bonded to carbon is acidic?","chem_organic"],
+["Draw the structure of salicylic acid and explain its intramolecular hydrogen bonding.","chem_organic"],
+["Draw the structure of salicylic acid showing the intramolecular hydrogen bond.","chem_organic"],
+["Draw the structure of water and show the hydrogen bond","chem_lewis"],
+["Draw the structure of water showing hydrogen bonding.","chem_lewis"],
+["Draw the tetrahedral arrangement of hydrogen bonds around oxygen in ice.",null],
+["Draw the tetrahedral network of hydrogen bonds in water","chem_lewis"],
+["Draw the trend in boiling points of group 16 hydrides and explain the anomaly with hydrogen bonding.",null],
+["Draw the unit cell of NaCl and say why it has no hydrogen bonds.","chem_unit_cell"],
+["Draw the unit cell of hydrogen-bonded ice.",null],
+["Draw the unit cell of ice and show the hydrogen bonds.",null],
+["Draw the unit cell of ice showing hydrogen bonds.",null],
+["Draw the vapour pressure against mole fraction diagram for ethanol and water, where hydrogen bonds are broken on mixing.",null],
+["Draw the vapour pressure against mole fraction graph for water and ammonia with hydrogen bonding","chem_lewis"],
+["Draw the vapour pressure composition diagram for a mixture of acetone and chloroform and explain the role of hydrogen bonding.",null],
+["Draw the vapour pressure diagram for an ethanol and water mixture, which shows positive deviation because hydrogen bonds are broken.","chem_solutions"],
+["Draw the zig zag chain of hydrogen bonds in HF","chem_lewis"],
+["Draw toluene and explain why it does not form hydrogen bonds with water.","chem_organic"],
+["Draw two hydrogen bonds between two molecules of ammonia","chem_lewis"],
+["Draw two hydrogen bonds in a molecule of HF","chem_lewis"],
+["Draw two methanol molecules joined by a H bond.","chem_organic"],
+["Draw two methanol molecules joined by a hydrogen bond.","chem_organic"],
+["Electric dipole moment of water and hydrogen bonding","chem_lewis"],
+["Electrolysis does not break hydrogen bonds in water. Explain.","chem_lewis"],
+["Electrolysis of D2O and hydrogen bonds",null],
+["Electrolysis of HF and hydrogen bonds","chem_lewis"],
+["Electrolysis of ammonia and hydrogen bonds","chem_lewis"],
+["Electrolysis of aqueous ammonia and hydrogen bonds","chem_lewis"],
+["Electrolysis of heavy water and hydrogen bonds","chem_lewis"],
+["Electrolysis of liquid HF and its hydrogen bonds","chem_lewis"],
+["Electrolysis of pure water without acid, and its H bonds","chem_electrochem"],
+["Electrolysis of pure water without acid, and its hydrogen bonds","chem_lewis"],
+["Electrolysis of water and hydrogen bonds","chem_lewis"],
+["Electrolysis of water with hydrogen bonds in pure water and no acid added","chem_lewis"],
+["Electron configuration of F in HF and its hydrogen bonding","chem_lewis"],
+["Electron configuration of F- and hydrogen bonding in HF","chem_orbital"],
+["Electron configuration of H2O and hydrogen bonding","chem_lewis"],
+["Electron configuration of N in NH3 and its hydrogen bonding","chem_lewis"],
+["Electron configuration of O in H2O and its hydrogen bonding","chem_lewis"],
+["Electron configuration of fluorine in HF and its hydrogen bonding","chem_lewis"],
+["Electron configuration of hydrogen in a hydrogen bond in water","chem_lewis"],
+["Electron configuration of oxygen and hydrogen bonding in water","chem_lewis"],
+["Electron configuration of oxygen in H2O and its hydrogen bonding","chem_lewis"],
+["Electron configuration of the O2- ion and hydrogen bonding in water","chem_orbital"],
+["Electron configuration of the oxygen in H3O+ and hydrogen bonding in water",null],
+["Electronegativity and hydrogen bond in period 2","chem_periodic"],
+["Electronegativity of oxygen and hydrogen bonding in water","chem_lewis"],
+["Electronegativity order of N, O and F that decides hydrogen bonding in ammonia, water and HF","chem_lewis"],
+["Electronic configuration of nitrogen in ammonia and its hydrogen bonds","chem_lewis"],
+["Ellingham diagram and hydrogen bond in water","chem_lewis"],
+["Energy profile diagram: hydrogen bonding in water","chem_lewis"],
+["Energy profile for hydrogen bonding in ammonia with Ea = 5 kJ/mol and ΔH = -20 kJ/mol","chem_lewis"],
+["Energy profile of H bond formation in water","chem_thermo"],
+["Energy profile of hydrogen bond breaking in water","chem_lewis"],
+["Energy profile of hydrogen bond formation","chem_thermo"],
+["Energy profile of hydrogen bond formation in HF","chem_lewis"],
+["Energy profile of hydrogen bond formation in ammonia","chem_lewis"],
+["Energy profile of hydrogen bond formation in ice","chem_thermo"],
+["Energy profile of hydrogen bond formation in water","chem_lewis"],
+["Energy profile of hydrogen bond formation in water with no activation energy","chem_lewis"],
+["Energy profile of water-hydrogen bond formation","chem_lewis"],
+["Ethanoic acid dimerises through hydrogen bonds in benzene but not in water. Plot the freezing point depression.","chem_solutions"],
+["Ethanol and acetone show positive deviation because hydrogen bonds break. Draw the vapour pressure graph.","chem_solutions"],
+["Ethanol forms hydrogen bonds with itself. Explain.","chem_organic"],
+["Ethanol molecules form a chain through hydrogen bonds. Draw the chain.","chem_organic"],
+["Explain about hydrogen bonding in water.","chem_lewis"],
+["Explain hydrogen bonding between 2 molecules of ethanol.","chem_organic"],
+["Explain hydrogen bonding in H2O","chem_lewis"],
+["Explain hydrogen bonding in HF","chem_lewis"],
+["Explain hydrogen bonding in HF.","chem_lewis"],
+["Explain hydrogen bonding in Hf.","chem_lewis"],
+["Explain hydrogen bonding in NH3","chem_lewis"],
+["Explain hydrogen bonding in a water molecule.","chem_lewis"],
+["Explain hydrogen bonding in ammonia","chem_lewis"],
+["Explain hydrogen bonding in ammonia.","chem_lewis"],
+["Explain hydrogen bonding in carboxylic acids with a diagram.",null],
+["Explain hydrogen bonding in ethanol.",null],
+["Explain hydrogen bonding in hydrogen fluoride","chem_lewis"],
+["Explain hydrogen bonding in nitrophenol.",null],
+["Explain hydrogen bonding in o nitrophenol.",null],
+["Explain hydrogen bonding in o- and p-nitrophenol.","chem_lewis"],
+["Explain hydrogen bonding in o-hydroxy benzoic acid.","chem_organic"],
+["Explain hydrogen bonding in o-nitro phenol and p-nitro phenol.","chem_organic"],
+["Explain hydrogen bonding in o-nitrophenol.","chem_lewis"],
+["Explain hydrogen bonding in o-nitrophenol. Draw the structure.","chem_lewis"],
+["Explain hydrogen bonding in ortho chloro phenol.","chem_organic"],
+["Explain hydrogen bonding in ortho nitro phenol.","chem_organic"],
+["Explain hydrogen bonding in p-nitrophenol.","chem_lewis"],
+["Explain hydrogen bonding in para nitro phenol.","chem_organic"],
+["Explain hydrogen bonding in para-nitrophenol.","chem_lewis"],
+["Explain hydrogen bonding in water","chem_lewis"],
+["Explain hydrogen bonding in water (5 marks) Draw the structure.","chem_lewis"],
+["Explain hydrogen bonding in water [2]","chem_lewis"],
+["Explain hydrogen bonding in water and its properties","chem_lewis"],
+["Explain hydrogen bonding in water using orbital diagrams","chem_lewis"],
+["Explain hydrogen bonding in water with a neat diagram","chem_lewis"],
+["Explain hydrogen bonding in water with diagram.","chem_lewis"],
+["Explain hydrogen bonding in water with the help of a diagram.","chem_lewis"],
+["Explain hydrogen bonding in water, with a neat diagram.","chem_lewis"],
+["Explain hydrogen bonding in water.","chem_lewis"],
+["Explain hydrogen bonding in water. (2 marks)","chem_lewis"],
+["Explain hydrogen bonding in water. (2)","chem_lewis"],
+["Explain hydrogen bonding in water. Draw a diagram.","chem_lewis"],
+["Explain hydrogen bonding taking water as an example.","chem_lewis"],
+["Explain hydrogen bonding using ammonia as an example.","chem_lewis"],
+["Explain hydrogen bonding using hf as an example","chem_lewis"],
+["Explain hydrogen bonding using water as an example","chem_lewis"],
+["Explain hydrogen bonding with example of HF.","chem_lewis"],
+["Explain hydrogen bonding with the example of water","chem_lewis"],
+["Explain hydrogen bonding with the help of water.","chem_lewis"],
+["Explain hydrogen bonding, taking water as an example","chem_lewis"],
+["Explain hydrogen bonding.",null],
+["Explain hydrogen-bonding in phenol.","chem_organic"],
+["Explain hydrogen-bonding in water.",null],
+["Explain intermolecular and intramolecular hydrogen bonding in o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Explain intermolecular hydrogen bonding in hydrogen fluoride","chem_lewis"],
+["Explain intramolecular hydrogen bonding in o-nitrophenol with a diagram.","chem_lewis"],
+["Explain surface tension of water using hydrogen bonds.","chem_lewis"],
+["Explain the Lewis structure of water and show the H-bond between two water molecules.","chem_lewis"],
+["Explain the concept of hydrogen bonding in water.","chem_lewis"],
+["Explain the difference in hydrogen bonding between ortho- and para-nitrophenol.","chem_lewis"],
+["Explain the heating curve of water and hydrogen bonds.","chem_lewis"],
+["Explain the hydrogen bond between two hydrogen in water","chem_lewis"],
+["Explain the hydrogen bond in HF 2","chem_lewis"],
+["Explain the hydrogen bond in HF 2 -",null],
+["Explain the hydrogen bond in HF minus",null],
+["Explain the hydrogen bond in HF negative one",null],
+["Explain the hydrogen bond in HF with a charge of -1",null],
+["Explain the hydrogen bond in HF(2)","chem_lewis"],
+["Explain the hydrogen bond in HF2-",null],
+["Explain the hydrogen bond in HF₂⁻",null],
+["Explain the hydrogen bond in [HF2]-",null],
+["Explain the hydrogen bond in the NH3 molecule.","chem_lewis"],
+["Explain the hydrogen bond in the bifluoride ion",null],
+["Explain the hydrogen bonding between ethanol and acetone.","chem_organic"],
+["Explain the hydrogen bonding in liquid HF","chem_lewis"],
+["Explain the hydrogen bonds in HF.","chem_lewis"],
+["Explain the intramolecular hydrogen bonding in 2-nitrophenol.","chem_organic"],
+["Explain the intramolecular hydrogen bonding in ortho hydroxy benzaldehyde.","chem_organic"],
+["Explain the surface tension of water using hydrogen bonding. Draw a diagram of a water drop.","chem_lewis"],
+["Explain why a mixture of chloroform and acetone shows negative deviation from Raoult's law in terms of hydrogen bonding. Sketch the vapour pressure against mole fraction graph.","chem_solutions"],
+["Explain why o-nitrophenol is steam volatile but p-nitrophenol is not, using hydrogen bonding.","chem_lewis"],
+["Explain why p-nitrophenol is less soluble in water than o-nitrophenol. Explain on the basis of hydrogen bonding.","chem_lewis"],
+["Explain why water forms hydrogen bonds.","chem_lewis"],
+["Explain with a diagram the hydrogen bonding in water","chem_lewis"],
+["First order decay with k = 0.1 per s of the hydrogen bond in water",null],
+["Force between two dipoles in water and hydrogen bonds","chem_lewis"],
+["Gibbs energy against temperature for hydrogen bonding in water","chem_lewis"],
+["Give a diagram of hydrogen bonding in water","chem_lewis"],
+["Graph of boiling point against molar mass of hydrides showing hydrogen bonding in HF, H2O and NH3","chem_lewis"],
+["Graph of potential energy against distance for a hydrogen bond in water","chem_lewis"],
+["H-bond in water",null],
+["H-bonding in ammonia",null],
+["H2O: hydrogen bond (diagram)","chem_lewis"],
+["H2S without that intermolecular hydrogen-bond network",null],
+["HF hydrogen bond diagram","chem_lewis"],
+["HF me hydrogen bond kya hota hai","chem_lewis"],
+["HF never forms hydrogen bonds. Why?","chem_lewis"],
+["HYDROGEN BOND IN AMMONIA","chem_lewis"],
+["Hexaaquairon(II) and the hydrogen bond with water","chem_lewis"],
+["How are hydrogen bonds formed in ammonia?","chem_lewis"],
+["How are hydrogen bonds formed in water?","chem_lewis"],
+["How can water show hydrogen bonds?","chem_lewis"],
+["How do hydrogen bonds form between water molecules?","chem_lewis"],
+["How do molecules form hydrogen bonds in water?","chem_lewis"],
+["How do molecules in water form hydrogen bonds?","chem_lewis"],
+["How do two water molecules form 2 hydrogen bonds?","chem_lewis"],
+["How do water molecules form hydrogen bonds with each other?","chem_lewis"],
+["How does a molecule form a hydrogen bond with HF?","chem_lewis"],
+["How does a molecule form a hydrogen bond with water?","chem_lewis"],
+["How does a pure liquid form hydrogen bonds with water?","chem_lewis"],
+["How does hydrogen bonding affect the boiling point of ammonia?","chem_lewis"],
+["How does hydrogen bonding occur in water?","chem_lewis"],
+["How does hydrogen bonding work in water?","chem_lewis"],
+["How does hydrogen form a hydrogen bond with HF?","chem_lewis"],
+["How does liquid ammonia show intermolecular hydrogen bonding?","chem_lewis"],
+["How is a hydrogen bond formed between hydrogen and hydrogen in ammonia?","chem_lewis"],
+["How is a hydrogen bond formed between liquid hydrogen and HF?","chem_lewis"],
+["How is water formed with hydrogen and what is the hydrogen bond?","chem_lewis"],
+["How is water formed? Hydrogen bond.","chem_lewis"],
+["How many carbon hydrogen bonds are in ethene? Draw its structure.","chem_organic"],
+["How many hydrogen bond acceptors does p-nitrophenol have?","chem_lewis"],
+["How many hydrogen bonds does a water molecule form?","chem_lewis"],
+["How many lone pairs of H2O can accept hydrogen bonds?","chem_vsepr"],
+["Hybridisation of O in water and hydrogen bonding","chem_lewis"],
+["Hydrogen bond between HF and NH3","chem_lewis"],
+["Hydrogen bond between HF and fluorine","chem_lewis"],
+["Hydrogen bond between NH3 and H2O","chem_lewis"],
+["Hydrogen bond between X and water","chem_lewis"],
+["Hydrogen bond between ammonia and nitrogen","chem_lewis"],
+["Hydrogen bond between ammonia and water","chem_lewis"],
+["Hydrogen bond between the pure liquid water","chem_lewis"],
+["Hydrogen bond between the sulphate and water in [Cu(H2O)4]SO4.H2O",null],
+["Hydrogen bond between water and DNA","chem_lewis"],
+["Hydrogen bond between water and HF","chem_lewis"],
+["Hydrogen bond between water and O2","chem_lewis"],
+["Hydrogen bond between water and a protein","chem_lewis"],
+["Hydrogen bond between water and a solute","chem_lewis"],
+["Hydrogen bond between water and acetone","chem_lewis"],
+["Hydrogen bond between water and fluoride","chem_lewis"],
+["Hydrogen bond between water and ice","chem_lewis"],
+["Hydrogen bond between water and oxygen","chem_lewis"],
+["Hydrogen bond between water and sugar","chem_lewis"],
+["Hydrogen bond between water and urea","chem_lewis"],
+["Hydrogen bond formation in water","chem_lewis"],
+["Hydrogen bond in $H_2O$",null],
+["Hydrogen bond in (H2O)2","chem_lewis"],
+["Hydrogen bond in (H2O)n","chem_lewis"],
+["Hydrogen bond in (HF)2","chem_lewis"],
+["Hydrogen bond in (HF)n","chem_lewis"],
+["Hydrogen bond in (NH3)2","chem_lewis"],
+["Hydrogen bond in 2-nitrophenol","chem_organic"],
+["Hydrogen bond in H 2 O",null],
+["Hydrogen bond in H2 O",null],
+["Hydrogen bond in H20",null],
+["Hydrogen bond in H2O","chem_lewis"],
+["Hydrogen bond in H2O 2","chem_lewis"],
+["Hydrogen bond in H2O 2 and water","chem_lewis"],
+["Hydrogen bond in H2O(2)","chem_lewis"],
+["Hydrogen bond in H2O(l)","chem_lewis"],
+["Hydrogen bond in H2O2",null],
+["Hydrogen bond in H2o","chem_lewis"],
+["Hydrogen bond in HF(g)","chem_lewis"],
+["Hydrogen bond in H_2O",null],
+["Hydrogen bond in H_{2}O","chem_lewis"],
+["Hydrogen bond in Hf","chem_lewis"],
+["Hydrogen bond in H₂O","chem_lewis"],
+["Hydrogen bond in H₂O²",null],
+["Hydrogen bond in H₂O₂",null],
+["Hydrogen bond in NH 3",null],
+["Hydrogen bond in NH3 (+)",null],
+["Hydrogen bond in NH3 +",null],
+["Hydrogen bond in NH3 2","chem_lewis"],
+["Hydrogen bond in NH3 cation",null],
+["Hydrogen bond in NH3 plus",null],
+["Hydrogen bond in NH3 positive",null],
+["Hydrogen bond in NH3(2)","chem_lewis"],
+["Hydrogen bond in NH3(l)","chem_lewis"],
+["Hydrogen bond in NH3+",null],
+["Hydrogen bond in NH3^+",null],
+["Hydrogen bond in NH_3",null],
+["Hydrogen bond in NH_{3}","chem_lewis"],
+["Hydrogen bond in NH₃","chem_lewis"],
+["Hydrogen bond in NH₃⁺",null],
+["Hydrogen bond in Nh3","chem_lewis"],
+["Hydrogen bond in \\ce{H2O}","chem_lewis"],
+["Hydrogen bond in formic acid","chem_organic"],
+["Hydrogen bond in frozen water","chem_lewis"],
+["Hydrogen bond in gaseous HF","chem_lewis"],
+["Hydrogen bond in h2O","chem_lewis"],
+["Hydrogen bond in hF","chem_lewis"],
+["Hydrogen bond in hafnium",null],
+["Hydrogen bond in m-nitrophenol","chem_organic"],
+["Hydrogen bond in methylamine","chem_organic"],
+["Hydrogen bond in o-nitrophenol and o-hydroxybenzaldehyde","chem_lewis"],
+["Hydrogen bond in the H2O ion",null],
+["Hydrogen bond in the water cation",null],
+["Hydrogen bond in water above the boiling point","chem_lewis"],
+["Hydrogen bond in water and pressure volume work","chem_lewis"],
+["Hydrogen bond in water and the force between two point charges","chem_lewis"],
+["Hydrogen bond in water at 100 C","chem_lewis"],
+["Hydrogen bond in water is weak. Explain.","chem_lewis"],
+["Hydrogen bond in water vapour","chem_lewis"],
+["Hydrogen bond in water, ammonia","chem_lewis"],
+["Hydrogen bond in Н2О",null],
+["Hydrogen bond strength trend in group 17 hydrides",null],
+["Hydrogen bonded water molecules","chem_lewis"],
+["Hydrogen bonding between HF and HF","chem_lewis"],
+["Hydrogen bonding between NH3 and HF","chem_lewis"],
+["Hydrogen bonding between o-nitrophenol and HF.","chem_lewis"],
+["Hydrogen bonding between o-nitrophenol and phenol.","chem_lewis"],
+["Hydrogen bonding between water and water","chem_lewis"],
+["Hydrogen bonding in 15 NH3","chem_lewis"],
+["Hydrogen bonding in 15NH3",null],
+["Hydrogen bonding in 18 H2O","chem_lewis"],
+["Hydrogen bonding in 18O water","chem_lewis"],
+["Hydrogen bonding in 2 H2O","chem_lewis"],
+["Hydrogen bonding in 2 HF","chem_lewis"],
+["Hydrogen bonding in 2 water molecules","chem_lewis"],
+["Hydrogen bonding in 2-chloro p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in 4-chloro o-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in CH3OH",null],
+["Hydrogen bonding in D2O",null],
+["Hydrogen bonding in DF",null],
+["Hydrogen bonding in D₂O",null],
+["Hydrogen bonding in H-F",null],
+["Hydrogen bonding in H2 18O",null],
+["Hydrogen bonding in H2O +",null],
+["Hydrogen bonding in H2O ice","chem_lewis"],
+["Hydrogen bonding in H2O(l).","chem_lewis"],
+["Hydrogen bonding in H2O(s)","chem_lewis"],
+["Hydrogen bonding in H2O+",null],
+["Hydrogen bonding in H2O-18",null],
+["Hydrogen bonding in H2O2",null],
+["Hydrogen bonding in H2O^(+)",null],
+["Hydrogen bonding in H2S",null],
+["Hydrogen bonding in H3O+",null],
+["Hydrogen bonding in HBr",null],
+["Hydrogen bonding in HCl",null],
+["Hydrogen bonding in HDO",null],
+["Hydrogen bonding in HF","chem_lewis"],
+["Hydrogen bonding in HF 2-",null],
+["Hydrogen bonding in HF dimer","chem_lewis"],
+["Hydrogen bonding in HF in water","chem_lewis"],
+["Hydrogen bonding in HF-",null],
+["Hydrogen bonding in HF2 -",null],
+["Hydrogen bonding in HF2-",null],
+["Hydrogen bonding in HF_2^-",null],
+["Hydrogen bonding in H_{2}O^{+}",null],
+["Hydrogen bonding in Hf","chem_lewis"],
+["Hydrogen bonding in H¹⁸F",null],
+["Hydrogen bonding in H₂O","chem_lewis"],
+["Hydrogen bonding in H₂O⁺",null],
+["Hydrogen bonding in H₂¹⁸O",null],
+["Hydrogen bonding in N2H4",null],
+["Hydrogen bonding in ND3",null],
+["Hydrogen bonding in NH2OH",null],
+["Hydrogen bonding in NH3 plus",null],
+["Hydrogen bonding in NH4+",null],
+["Hydrogen bonding in NH₃","chem_lewis"],
+["Hydrogen bonding in OH2",null],
+["Hydrogen bonding in PH3",null],
+["Hydrogen bonding in T2O",null],
+["Hydrogen bonding in acetone and water","chem_lewis"],
+["Hydrogen bonding in ammonia","chem_lewis"],
+["Hydrogen bonding in ammonia and p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in ammonia water","chem_lewis"],
+["Hydrogen bonding in ammonia(aq)","chem_lewis"],
+["Hydrogen bonding in ammonia. The solvent is water.","chem_lewis"],
+["Hydrogen bonding in aqueous ammonia","chem_lewis"],
+["Hydrogen bonding in deprotonated p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in deuterium fluoride",null],
+["Hydrogen bonding in diethyl ether",null],
+["Hydrogen bonding in dihydrogen fluoride","chem_lewis"],
+["Hydrogen bonding in hard water","chem_lewis"],
+["Hydrogen bonding in heavy water","chem_lewis"],
+["Hydrogen bonding in hydrazine",null],
+["Hydrogen bonding in hydrazine and ammonia","chem_lewis"],
+["Hydrogen bonding in hydrazine.",null],
+["Hydrogen bonding in hydrofluoric acid",null],
+["Hydrogen bonding in hydrogen cyanide.",null],
+["Hydrogen bonding in hydrogen fluorides","chem_lewis"],
+["Hydrogen bonding in hydrogen peroxide and water","chem_lewis"],
+["Hydrogen bonding in hydrogen peroxide.",null],
+["Hydrogen bonding in hydroxylamine",null],
+["Hydrogen bonding in ice",null],
+["Hydrogen bonding in methanol",null],
+["Hydrogen bonding in nitrophenol.",null],
+["Hydrogen bonding in o-nitrophenolate","chem_lewis"],
+["Hydrogen bonding in o-nitrophenolate.","chem_lewis"],
+["Hydrogen bonding in p-nitrophenolate","chem_lewis"],
+["Hydrogen bonding in phenol","chem_organic"],
+["Hydrogen bonding in protonated water","chem_lewis"],
+["Hydrogen bonding in pure hydrogen and water","chem_lewis"],
+["Hydrogen bonding in sea water","chem_lewis"],
+["Hydrogen bonding in seawater",null],
+["Hydrogen bonding in sodium p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in the acetate ion.",null],
+["Hydrogen bonding in the conjugate base of o-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in the hydrogen fluoride ion",null],
+["Hydrogen bonding in the o-nitrophenol anion.","chem_lewis"],
+["Hydrogen bonding in the o-nitrophenol ion.","chem_lewis"],
+["Hydrogen bonding in the o-nitrophenolate ion","chem_lewis"],
+["Hydrogen bonding in tritiated water","chem_lewis"],
+["Hydrogen bonding in water","chem_lewis"],
+["Hydrogen bonding in water and o-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in water and p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding in water has no transition state. Draw the energy profile.","chem_lewis"],
+["Hydrogen bonding in water is endothermic. Draw the energy profile.","chem_lewis"],
+["Hydrogen bonding in water kya hota hai","chem_lewis"],
+["Hydrogen bonding in water minus","chem_lewis"],
+["Hydrogen bonding in water molecules (2 marks)","chem_lewis"],
+["Hydrogen bonding in water of crystallisation","chem_lewis"],
+["Hydrogen bonding in water please","chem_lewis"],
+["Hydrogen bonding in water(g)","chem_lewis"],
+["Hydrogen bonding in water-ethanol mixture",null],
+["Hydrogen bonding in ² H₂O","chem_lewis"],
+["Hydrogen bonding in ²H₂O",null],
+["Hydrogen bonding in ¹⁵NH₃",null],
+["Hydrogen bonding kya hai water me","chem_lewis"],
+["Hydrogen bonding kya hota hai water mein.","chem_lewis"],
+["Hydrogen bonding occurs in water because oxygen has high electronegativity. Explain.","chem_lewis"],
+["Hydrogen bonding of o-nitrophenol with each other.","chem_lewis"],
+["Hydrogen bonding of p-nitrophenol in water.","chem_lewis"],
+["Hydrogen bonding of water","chem_lewis"],
+["Hydrogen bonding of water with o-nitrophenol and p-nitrophenol.","chem_lewis"],
+["Hydrogen bonding of water-HF","chem_lewis"],
+["Hydrogen bonds between glucose and water molecules.","chem_lewis"],
+["Hydrogen bonds between p nitrophenol molecules.",null],
+["Hydrogen bonds in Hf","chem_lewis"],
+["Hydrogen bonds in an alcohol. Two point charges are 1 m apart. Find the force between them.","point_field"],
+["Hydrogen bonds in o-nitrophenol vapour and in solution.","chem_lewis"],
+["Hydrogen bonds in steam and water","chem_lewis"],
+["Hydrogen bonds in water","chem_lewis"],
+["Hydrogen bridge in water","circuit_network"],
+["Hydrogen fuel cell and hydrogen bonds in the water it makes","chem_lewis"],
+["Hydrogen-bond between ethanol and water","chem_organic"],
+["Hydrogen-bonding in water",null],
+["Ice floats on water because of hydrogen bonding. Draw a diagram.","chem_lewis"],
+["If water had no hydrogen bonds, what would happen?","chem_lewis"],
+["Illustrate hydrogen bonding between molecules of ammonia.","chem_lewis"],
+["Illustrate hydrogen bonding in ammonia","chem_lewis"],
+["Illustrate with a diagram hydrogen bonding in methanol.",null],
+["In a series circuit of 2 ohm and 4 ohm with a 6 V cell, draw the circuit. Hydrogen bonds do not matter.",null],
+["Increasing electronegativity of N, O and F, and why S does not form hydrogen bonds in H2S","chem_periodic"],
+["Increasing order of hydrogen bond strength in HF, H2O and NH3","chem_lewis"],
+["Intermolecular hydrogen bonding in water","chem_lewis"],
+["Ionisation energy of O and F and hydrogen bonds in water and HF","chem_lewis"],
+["Is a hydrogen bond a bond in water?","chem_lewis"],
+["Is a hydrogen bond formed between water and hydrogen?","chem_lewis"],
+["Is hydrogen bond in a water molecule?","chem_lewis"],
+["Is hydrogen bonding in water exothermic? Draw the energy profile.","chem_lewis"],
+["Is hydrogen bonding in water intermolecular?","chem_lewis"],
+["Is hydrogen bonding in water intramolecular?","chem_lewis"],
+["Is hydrogen bonding present in ammonia?","chem_lewis"],
+["Is hydrogen bonding present in liquid ammonia?","chem_lewis"],
+["Is ice a bcc lattice with hydrogen bonds in water?","chem_lewis"],
+["Is liquid water a simple cubic lattice with H bonds?","chem_unit_cell"],
+["Is liquid water a simple cubic lattice with hydrogen bonds?","chem_lewis"],
+["Is pure water a molecule with a hydrogen bond?","chem_lewis"],
+["Is the bond between hydrogen in HF a hydrogen bond?","chem_lewis"],
+["Is the bond in a water molecule a hydrogen bond?","chem_lewis"],
+["Is the hydrogen bond between two NH3 molecules linear or bent?","chem_vsepr"],
+["Is the hydrogen bond formed in the liquid or in the gas in HF?","chem_lewis"],
+["Is the hydrogen bond in H2O linear?","chem_vsepr"],
+["Is the hydrogen bond in ammonia formed in a liquid?","chem_lewis"],
+["Is the hydrogen bond in water strong?","chem_lewis"],
+["Is there hydrogen bonding in HF?","chem_lewis"],
+["Is there hydrogen bonding in o-nitrophenol?","chem_lewis"],
+["Is there hydrogen bonding in ortho-nitrophenol?","chem_lewis"],
+["Is there hydrogen bonding in water?","chem_lewis"],
+["Is there intermolecular hydrogen bonding in o-nitrophenol?","chem_lewis"],
+["Is there intramolecular hydrogen bonding in p-nitrophenol?","chem_lewis"],
+["Is there no hydrogen bonding in o-nitrophenol?","chem_lewis"],
+["Is water an fcc crystal with hydrogen bonds?","chem_lewis"],
+["Label the hydrogen bond in the figure of water",null],
+["Lewis dot structure of ammonia and its hydrogen bonding","chem_lewis"],
+["Lewis structure of CHCl3. Sketch the Raoult law plot of chloroform and acetone, hydrogen-bond.","chem_lewis"],
+["Lewis structure of CS2 and Raoult law plot of CS2 and acetone, H-bonding","chem_lewis"],
+["Liquid hydrogen and ammonia: show the hydrogen bond between the two","chem_lewis"],
+["Maxwell Boltzmann distribution and hydrogen bonds in ammonia","chem_lewis"],
+["Maxwell Boltzmann distribution of HF molecules with hydrogen bonding","chem_lewis"],
+["Maxwell Boltzmann distribution of water and hydrogen bonding","chem_lewis"],
+["Mechanism of ester hydrolysis. Why does hydrogen bonding matter?",null],
+["Methanol molecules form a hydrogen bonded network. Draw it.","chem_organic"],
+["Mixing acetone and chloroform forms a new hydrogen bond. Sketch the Raoult's law plot.","chem_solutions"],
+["Mixing phenol and aniline forms hydrogen bonds. Draw the deviation from Raoult's law.","chem_solutions"],
+["Molecular orbital diagram of HF and its hydrogen bonding",null],
+["NH3 hydrogen bond figure","chem_lewis"],
+["Negative deviation from Raoult law in water and HF because of hydrogen bonds. Draw the graph.","chem_lewis"],
+["Orbital box diagram for hydrogen bond in water","chem_lewis"],
+["Orbital box diagram for the water-hydrogen bond","chem_lewis"],
+["Orbital diagram of the hydrogen bond in HF","chem_lewis"],
+["Orbital overlap in the hydrogen bond in water","chem_lewis"],
+["Orbital picture of the hydrogen bond in HF","chem_lewis"],
+["Order of boiling point HF, HCl, HBr, HI and hydrogen bonding",null],
+["Ortho nitrophenol forms an intramolecular hydrogen bond. Draw it.","chem_lewis"],
+["Periodic trend of boiling point with hydrogen bonding across HF, HCl, HBr",null],
+["Phenol forms hydrogen bonds. Show this.","chem_organic"],
+["Please explain hydrogen bonding in water","chem_lewis"],
+["Please sketch a clear diagram to illustrate hydrogen bonding that occurs among neighbouring HF molecules.","chem_lewis"],
+["Plot boiling points of group 16 hydrides, H2O anomalous, H-bonding.",null],
+["Plot the boiling point of water against pressure and explain with hydrogen bonds.","chem_lewis"],
+["Plot the boiling point trend of the group 16 hydrides and mention hydrogen bonds.",null],
+["Plot the boiling points of group 16 hydrides and explain the effect of hydrogen bonding.",null],
+["Plot the boiling points of the hydrides of group 16 and explain the anomaly of water by hydrogen bonding.","chem_lewis"],
+["Position of fluorine in the periodic table and hydrogen bonding in HF","chem_lewis"],
+["Potential energy diagram of a hydrogen bond in water","chem_lewis"],
+["Q. 3 Hydrogen bonding of ammonia. Sketch a neat figure.","chem_lewis"],
+["Q.3 Draw hydrogen bonding among liquid NH3 molecules","chem_lewis"],
+["Raoult law for HF and water with hydrogen bonds","chem_lewis"],
+["Raoult law for water and ammonia with hydrogen bonding","chem_lewis"],
+["Raoult law plot of ammonia and water, H bonds","chem_solutions"],
+["Raoult law plot of ammonia and water, hydrogen bonds","chem_lewis"],
+["Raoult law plot of water and HF, hydrogen bonding","chem_lewis"],
+["Rate of hydrogen bond formation in water is first order. Draw the plot.","chem_lewis"],
+["Reaction energy diagram of the hydrogen bond in ammonia","chem_lewis"],
+["Reaction profile of hydrogen bond formation between two water molecules","chem_lewis"],
+["Salicylic acid forms an intramolecular hydrogen bond. Draw it.","chem_organic"],
+["Show 2 hydrogen bonds in ammonia","chem_lewis"],
+["Show 2 hydrogen bonds of a water molecule","chem_lewis"],
+["Show 4 hydrogen bonds in water","chem_lewis"],
+["Show H-bonds in ammonia.",null],
+["Show a hydrogen bond between two molecules of ammonia","chem_lewis"],
+["Show a hydrogen bond in water and the energy profile","chem_lewis"],
+["Show a pair of hydrogen bonds in ammonia","chem_lewis"],
+["Show fcc packing of HF with hydrogen bonds","chem_lewis"],
+["Show four hydrogen bonds around a water molecule","chem_lewis"],
+["Show how ammonia molecules are held together by hydrogen bonds","chem_lewis"],
+["Show how hydrogen bonds form among the neighbouring HF molecules.","chem_lewis"],
+["Show how hydrogen bonds form between ethanol molecules.","chem_organic"],
+["Show how hydrogen bonds form between water molecules.","chem_lewis"],
+["Show how hydrogen bonds form in HF","chem_lewis"],
+["Show how p-nitrophenol molecules associate through hydrogen bonds.","chem_lewis"],
+["Show hydrogen bonding between water molecules","chem_lewis"],
+["Show hydrogen bonding in water molecules using a diagram.","chem_lewis"],
+["Show hydrogen bonds between methanol molecules.","chem_organic"],
+["Show hydrogen bonds for pure HF with a neat diagram.","chem_lewis"],
+["Show hydrogen bonds in ammonia.","chem_lewis"],
+["Show hydrogen-bonding in ethanol.",null],
+["Show inter molecular hydrogen bonding in para nitrophenol.","chem_lewis"],
+["Show inter-molecular hydrogen bonding in p-nitrophenol.","chem_lewis"],
+["Show me hydrogen bonding in HF","chem_lewis"],
+["Show the 2 hydrogen bonds in a molecule of water","chem_lewis"],
+["Show the 2 hydrogen bonds of a pair of neighbouring water molecules","chem_lewis"],
+["Show the H-bond in acetic acid.",null],
+["Show the chain of hydrogen bonds in HF","chem_lewis"],
+["Show the covalent bond and the hydrogen bond in water","chem_lewis"],
+["Show the dipole of water and the hydrogen bond","chem_lewis"],
+["Show the electron boxes for hydrogen bonding in ammonia","chem_lewis"],
+["Show the energy barrier for hydrogen-bond formation between two water molecules.",null],
+["Show the hydrogen bond between F- and HF",null],
+["Show the hydrogen bond between HF and HF","chem_lewis"],
+["Show the hydrogen bond between NH2- and ammonia",null],
+["Show the hydrogen bond between a fluoride ion and HF",null],
+["Show the hydrogen bond between a molecule and ammonia","chem_lewis"],
+["Show the hydrogen bond between a water molecule and a hydrogen molecule","chem_lewis"],
+["Show the hydrogen bond between ammonia and hydrogen","chem_lewis"],
+["Show the hydrogen bond between an H2O molecule and another H2O molecule","chem_lewis"],
+["Show the hydrogen bond between base pairs in DNA",null],
+["Show the hydrogen bond between ethanol and water","chem_organic"],
+["Show the hydrogen bond between hydrogen fluoride and HF","chem_lewis"],
+["Show the hydrogen bond between liquid A and ammonia","chem_lewis"],
+["Show the hydrogen bond between molecule 2 and ammonia","chem_lewis"],
+["Show the hydrogen bond between o-nitrophenol and water","chem_lewis"],
+["Show the hydrogen bond between one water molecule and another","chem_lewis"],
+["Show the hydrogen bond between p-nitrophenol and water","chem_lewis"],
+["Show the hydrogen bond between phenol and water.","chem_lewis"],
+["Show the hydrogen bond between two molecules of water.","chem_lewis"],
+["Show the hydrogen bond between water and H2O","chem_lewis"],
+["Show the hydrogen bond between water and OH-",null],
+["Show the hydrogen bond between water and a liquid","chem_lewis"],
+["Show the hydrogen bond between water and hydrogen","chem_lewis"],
+["Show the hydrogen bond between water and hydroxide","chem_lewis"],
+["Show the hydrogen bond between water and molecule 2","chem_lewis"],
+["Show the hydrogen bond between water and molecule A","chem_lewis"],
+["Show the hydrogen bond between water and water","chem_lewis"],
+["Show the hydrogen bond donor and acceptor in water","chem_lewis"],
+["Show the hydrogen bond in 3-chloro-p-nitrophenol","chem_lewis"],
+["Show the hydrogen bond in 5-methyl-o-nitrophenol","chem_lewis"],
+["Show the hydrogen bond in NH₄⁺",null],
+["Show the hydrogen bond in ammonia with methanol",null],
+["Show the hydrogen bond in ammonium",null],
+["Show the hydrogen bond in hydronium",null],
+["Show the hydrogen bond in o-nitrophenol","chem_lewis"],
+["Show the hydrogen bond in oxonium",null],
+["Show the hydrogen bond in p-nitrophenol","chem_lewis"],
+["Show the hydrogen bond in the hydronium ion",null],
+["Show the hydrogen bond in water and alcohol",null],
+["Show the hydrogen bond in water in figure 2","chem_lewis"],
+["Show the hydrogen bond in water with ethanol",null],
+["Show the hydrogen bond in water. Ethanol is the second molecule.","chem_organic"],
+["Show the hydrogen bond of a molecule in water","chem_lewis"],
+["Show the hydrogen bond of a molecule with HF","chem_lewis"],
+["Show the hydrogen bonding in NH4 +",null],
+["Show the hydrogen bonding in NH4+",null],
+["Show the hydrogen bonding in ethanol",null],
+["Show the hydrogen bonding in the ammonium ion",null],
+["Show the hydrogen bonding that occurs in HF","chem_lewis"],
+["Show the hydrogen bonds among two pair of molecules of HF","chem_lewis"],
+["Show the hydrogen bonds in ice",null],
+["Show the hydrogen bonds in water. Add salt.","chem_lewis"],
+["Show the hydrogen bonds in water. The other molecule is ethanol.","chem_organic"],
+["Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with NH3.","chem_lewis"],
+["Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with acetone.","chem_lewis"],
+["Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with alcohols.","chem_lewis"],
+["Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with hydrogen fluoride.","chem_lewis"],
+["Show the hydrogen bonds of o-nitrophenol and p-nitrophenol with the water.","chem_lewis"],
+["Show the hydrogen bonds that form between water molecules","chem_lewis"],
+["Show the intermolecular H bond in p-nitrophenol","chem_organic"],
+["Show the intermolecular hydrogen bond between two p-nitrophenol molecules","chem_lewis"],
+["Show the intermolecular hydrogen bond in p-nitrophenol","chem_lewis"],
+["Show the intramolecular H-bond in salicylic acid.","chem_organic"],
+["Show the intramolecular hydrogen bond in water","chem_lewis"],
+["Show the lone pairs and hydrogen bond in water","chem_lewis"],
+["Show the position of oxygen in the periodic table and explain hydrogen bonding in water","chem_lewis"],
+["Show the sc unit cell of water and hydrogen bonds","chem_lewis"],
+["Show the trend in boiling points of H2O, H2S, H2Se and H2Te. Why is water anomalous due to hydrogen bonds?","chem_lewis"],
+["Show the variation of atomic radius down group 17 and explain why only fluorine forms hydrogen bonds.","chem_periodic"],
+["Show two hydrogen bonds in water","chem_lewis"],
+["Show two hydrogen bonds with two water molecules","chem_lewis"],
+["Show water without a hydrogen bond","chem_lewis"],
+["Show, using a diagram, the hydrogen bonding in ethanol.",null],
+["Sketch hydrogen bonding in HF","chem_lewis"],
+["Sketch positive deviation from Raoult's law. Why does breaking hydrogen bonds in ethanol cause it?","chem_solutions"],
+["Sketch the Raoult's law plot for a methanol and water mixture and explain hydrogen bonding.","chem_solutions"],
+["Sketch the concentration time graph for a first order reaction that breaks a carbon hydrogen bond.","chem_kinetics"],
+["Sketch the heating curve of a liquid whose molecules have hydrogen bonds.",null],
+["Sketch the reaction energy profile for an exothermic reaction. Hydrogen bonds form in the product.","chem_thermo"],
+["Sketch the titration curve of NH3 with HCl and state whether NH3 forms hydrogen bonds.","chem_solutions"],
+["State how hydrogen bonds form in water","chem_lewis"],
+["Suppose ammonia formed no hydrogen bond. Show it.","chem_lewis"],
+["Teach me hydrogen bonding in water","chem_lewis"],
+["Teach me hydrogen bonding in water.","chem_lewis"],
+["Tell me about hydrogen bonding in water","chem_lewis"],
+["The ammonia molecule forms hydrogen bonds. Arrange N, P and As in order of electronegativity.","chem_lewis"],
+["The half life of a hydrogen bond in water is 2 ps. Draw the first order decay plot.",null],
+["The hydrogen bond in H2O has what bond angle?","chem_vsepr"],
+["Titrate 0.1 M NH3 with 0.1 M HCl. Explain hydrogen bonding in ammonia.","chem_solutions"],
+["Titration of ammonia with hydrochloric acid and hydrogen bonding in ammonia","chem_lewis"],
+["Trend of hydrogen bond strength across period 2: NH3, H2O, HF","chem_lewis"],
+["Two point charges are 2 m apart in water. Is there a hydrogen bond? Find the force between them.","chem_lewis"],
+["Two point charges on a hydrogen bond are 2 angstrom apart. Find the force between them.",null],
+["Two point charges on a hydrogen-bond are 2 angstrom apart. Find the force between them.","point_field"],
+["Unit cell of ice with hydrogen bonds",null],
+["Use a dotted line to show the hydrogen bond between two HF molecules","chem_lewis"],
+["Using VSEPR, draw two H2O molecules with a hydrogen bond between them.","chem_vsepr"],
+["Using VSEPR, draw two water molecules joined by a hydrogen bond.",null],
+["VSEPR shape of NH3 and its hydrogen bonds","chem_vsepr"],
+["Water and acetone show deviation from Raoult law because of hydrogen bonding. Explain.","chem_lewis"],
+["Water and acetone show negative deviation from Raoult law because of hydrogen bonding. Draw the graph.","chem_lewis"],
+["Water and acetone show positive deviation from Raoult law because of hydrogen bonding. Draw the graph.","chem_lewis"],
+["Water and ethanol hydrogen bonds Raoult law plot","chem_solutions"],
+["Water boils far above hydrogen sulfide. Explain the difference using hydrogen bonding, and say why H2S does not form hydrogen bonds of the same kind.","chem_lewis"],
+["Water boils higher than H2Se because of hydrogen bonding. Explain.","chem_lewis"],
+["Water doesn't form a hydrogen bond with hydrogen","chem_lewis"],
+["Water has a high specific heat capacity due to hydrogen bonding. Draw a graph of temperature against time for heating water.","chem_lewis"],
+["Water has no hydrogen bonds. True or false?","chem_lewis"],
+["Water hydrogen bond!","chem_lewis"],
+["Water hydrogen bonds","chem_lewis"],
+["Water in ice has a lattice held by hydrogen bonds. Explain.","chem_lewis"],
+["Water ke molecules ke beech hydrogen bond dikhao","chem_lewis"],
+["Water main hydrogen bonding","chem_lewis"],
+["Water main hydrogen bonding.","chem_lewis"],
+["Water me hydrogen bonding explain karo","chem_lewis"],
+["Water mein hydrogen bond kaise banta hai?","chem_lewis"],
+["Water molecules me hydrogen bonding samjhao","chem_lewis"],
+["Water molecules sit at the corners of a simple cubic unit cell with hydrogen bonds","chem_lewis"],
+["Water rises in a capillary tube because of hydrogen bonding. Draw the capillary rise.","chem_lewis"],
+["Water: hydrogen bonds; ammonia: none","chem_lewis"],
+["What are hydrogen bonds for water?","chem_lewis"],
+["What bond does hydrogen form in water, a hydrogen bond?","chem_lewis"],
+["What do you mean by hydrogen bonding in water?","chem_lewis"],
+["What do you understand by hydrogen bonding in HF?","chem_lewis"],
+["What do you understand by hydrogen bonds between a pair of ammonia molecules?","chem_lewis"],
+["What does the figure show about the hydrogen bond in water?","chem_lewis"],
+["What hydrogen bond does HF form with hydrogen?","chem_lewis"],
+["What hydrogen bond does molecule A form with water?","chem_lewis"],
+["What hydrogen bond is formed in HF with a pair of molecules of hydrogen?","chem_lewis"],
+["What if HF had a hydrogen bond?","chem_lewis"],
+["What is H-bonding in water?",null],
+["What is a hydrogen bond in water?","chem_lewis"],
+["What is a hydrogen bond?",null],
+["What is a hydrogen bond? Show in water.","chem_lewis"],
+["What is a hydrogen bond? Show it in water.","chem_lewis"],
+["What is formed in a hydrogen bond with water?","chem_lewis"],
+["What is hydrogen bonding for water?","chem_lewis"],
+["What is hydrogen bonding? Explain with reference to water","chem_lewis"],
+["What is hydrogen bonding? Explain with the example of HF.","chem_lewis"],
+["What is hydrogen bonding? Explain with the example of water.","chem_lewis"],
+["What is hydrogen bonding? Give an example with water","chem_lewis"],
+["What is meant by hydrogen bonding in ammonia?","chem_lewis"],
+["What is the O-H...O bond angle of the hydrogen bond between two H2O molecules?","chem_vsepr"],
+["What is the O-H...O bond angle of the hydrogen bond between two water molecules?",null],
+["What is the bond angle in a hydrogen bond in HF?",null],
+["What is the bond angle in water with hydrogen bonds?",null],
+["What is the bond angle in water, and how does it help hydrogen bonding? Draw the shape.",null],
+["What is the bond angle of the hydrogen bond in NH3?","chem_vsepr"],
+["What is the bond energy of an H-bond in water?","chem_lewis"],
+["What is the electron configuration behind hydrogen-bonding in water?","chem_orbital"],
+["What is the geometry of (H2O)2 held by a hydrogen bond?",null],
+["What is the geometry of the hydrogen bond between two H2O molecules?","chem_vsepr"],
+["What is the geometry of the hydrogen bond in NH3?","chem_vsepr"],
+["What is the hybridisation of the hydrogen atom in a hydrogen bond between H2O molecules?","chem_vsepr"],
+["What is the hydrogen bond angle in water?",null],
+["What is the hydrogen bond energy in HF?","chem_lewis"],
+["What is the hydrogen bond enthalpy in water?","chem_lewis"],
+["What is the hydrogen bond in the water molecule?","chem_lewis"],
+["What is the hydrogen bond length in water?","chem_lewis"],
+["What is the shape of NH3 and does it show H-bonding?","chem_vsepr"],
+["What is the shape of NH3? Does it form hydrogen bonds?","chem_vsepr"],
+["What is the shape of the (HF)6 ring formed by hydrogen bonds?",null],
+["What is the shape of the HF dimer formed by hydrogen bonding?",null],
+["What is the shape of the hydrogen bond in HF?",null],
+["What is the shape of the hydrogen bonded H3O+ ion in water?",null],
+["What is the shape of the water dimer held by a hydrogen bond?",null],
+["What is the shape of water and its hydrogen bonding?",null],
+["What is the structure of HF with hydrogen bond?","chem_lewis"],
+["What kind of hydrogen bonding does HF show?","chem_lewis"],
+["What liquid forms hydrogen bonds with water?","chem_lewis"],
+["What liquid has hydrogen bonds with HF?","chem_lewis"],
+["What molecule forms a hydrogen bond with water?","chem_lewis"],
+["What molecules form hydrogen bonds with ammonia?","chem_lewis"],
+["What type of a diagram for hydrogen bonding in water","chem_lewis"],
+["What type of hydrogen bond is found in water?","chem_lewis"],
+["What type of hydrogen bond is present in a water molecule?","chem_lewis"],
+["What type of hydrogen bonding in o-nitrophenol?","chem_lewis"],
+["What type of hydrogen bonding is present in HF?","chem_lewis"],
+["What type of hydrogen bonding is present in water?","chem_lewis"],
+["Which atom is the hydrogen bond acceptor in ammonia?","chem_lewis"],
+["Which has stronger hydrogen bonds, NH3 or PH3? Compare their shapes.","chem_vsepr"],
+["Which is stronger, the hydrogen bond in water or in ammonia?","chem_lewis"],
+["Which of o- and p-nitrophenol has intramolecular hydrogen bonding?","chem_lewis"],
+["Which orbitals are involved in hydrogen bonding in ammonia?","chem_lewis"],
+["Why are two hydrogen bonds formed in water?","chem_lewis"],
+["Why can't ammonia form hydrogen bonds?","chem_lewis"],
+["Why do H2O molecules form hydrogen bonds with each other?","chem_lewis"],
+["Why do HF molecules form a zigzag shape through hydrogen bonds?",null],
+["Why do carboxylic acids exist as dimers? Show the structure of benzoic acid dimer through hydrogen bonding.","chem_organic"],
+["Why do hydrogen and water form a hydrogen bond?","chem_lewis"],
+["Why do molecules in pure water have hydrogen bonds with a molecule in the figure?",null],
+["Why do water molecules show hydrogen bonding?","chem_lewis"],
+["Why does H-bonding raise the boiling point of ethanol?",null],
+["Why does H2S not form hydrogen bonds but water does?","chem_lewis"],
+["Why does HF form 2 hydrogen bonds?","chem_lewis"],
+["Why does HF have hydrogen bonds?","chem_lewis"],
+["Why does HF show hydrogen bonding?","chem_lewis"],
+["Why does HF show hydrogen bonding? Explain using the electronegativity of fluorine.","chem_lewis"],
+["Why does a molecule of water have a hydrogen bond in the molecule?","chem_lewis"],
+["Why does a needle float on water? Explain surface tension and hydrogen bonds with a diagram.","chem_lewis"],
+["Why does a water molecule form two hydrogen bonds?","chem_lewis"],
+["Why does a water molecule have 2 hydrogen bonds?","chem_lewis"],
+["Why does alcohol rise in a capillary tube? Explain using hydrogen bonds.","fluid_apparatus"],
+["Why does ammonia have hydrogen bonds?","chem_lewis"],
+["Why does ammonia show hydrogen bonding?","chem_lewis"],
+["Why does an alcohol dissolve in water? Show the hydrogen bond.",null],
+["Why does ethanol boil higher than dimethyl ether? Use hydrogen bonding.","chem_organic"],
+["Why does ethanol form hydrogen bonds?","chem_organic"],
+["Why does ethanol rise in a capillary tube? Explain using hydrogen bonds.","chem_organic"],
+["Why does hafnium Hf form hydrogen bonds?","chem_lewis"],
+["Why does hydrogen bonding in water break on heating?","chem_lewis"],
+["Why does hydrogen bonding in water not stop electrolysis?","chem_lewis"],
+["Why does hydrogen bonding need a small electronegative atom? Show the electronegativity trend across period 2.","chem_periodic"],
+["Why does ice float on water? Explain using hydrogen bonding.","chem_lewis"],
+["Why does ice float on water? Show the hydrogen bonds.","chem_lewis"],
+["Why does liquid water have the hydrogen bond in a pair?","chem_lewis"],
+["Why does o-nitrophenol have a lower boiling point than p-nitrophenol? Use hydrogen bonding.","chem_lewis"],
+["Why does p-nitrophenol form dimers through hydrogen bonds?","chem_lewis"],
+["Why does p-nitrophenol form intermolecular hydrogen bonds while o-nitrophenol does not?","chem_lewis"],
+["Why does p-nitrophenol have a high boiling point? Use hydrogen bonding.","chem_lewis"],
+["Why does p-nitrophenol have a higher boiling point than o-nitrophenol? Explain with hydrogen bonding.","chem_lewis"],
+["Why does the electronegativity of fluorine make hydrogen bonding in HF stronger than in water? Arrange in increasing order","chem_lewis"],
+["Why does water form hydrogen bonds?","chem_lewis"],
+["Why does water have hydrogen bonds and methane does not?","chem_organic"],
+["Why does water not form hydrogen bonds?","chem_lewis"],
+["Why does water rise in a capillary tube? Explain using hydrogen bonds.","chem_lewis"],
+["Why is HF a liquid with hydrogen bonds?","chem_lewis"],
+["Why is a hydrogen bond formed between hydrogen and ammonia?","chem_lewis"],
+["Why is a hydrogen bond in water a covalent bond?","chem_lewis"],
+["Why is ammonia a liquid with hydrogen bonds?","chem_lewis"],
+["Why is ammonia very soluble in water? Show the hydrogen bond.","chem_lewis"],
+["Why is hydrogen bond in HF stronger than in water?","chem_lewis"],
+["Why is hydrogen bonding in water stronger?","chem_lewis"],
+["Why is hydrogen bonding strongest in HF? Electronegativity of F","chem_lewis"],
+["Why is o nitrophenol more volatile than p nitrophenol? Explain with hydrogen bonding.",null],
+["Why is o-nitrophenol less acidic than p-nitrophenol? Explain with hydrogen bonding.","chem_lewis"],
+["Why is o-nitrophenol less soluble in water than p-nitrophenol? Use hydrogen bonding.","chem_lewis"],
+["Why is o-nitrophenol less volatile than p-nitrophenol? Explain with hydrogen bonding.","chem_lewis"],
+["Why is o-nitrophenol more acidic than p-nitrophenol? Explain with hydrogen bonding.","chem_lewis"],
+["Why is o-nitrophenol more soluble in water than p-nitrophenol? Explain using hydrogen bonding.","chem_lewis"],
+["Why is o-nitrophenol more volatile than p-nitrophenol? Explain with intramolecular and intermolecular hydrogen bonding.","chem_lewis"],
+["Why is ortho nitro phenol more volatile than para nitro phenol? Explain with hydrogen bonding.","chem_organic"],
+["Why is p-nitrophenol less acidic than o-nitrophenol? Explain in terms of hydrogen bonding.","chem_lewis"],
+["Why is p-nitrophenol more steam volatile than o-nitrophenol? Explain in terms of hydrogen bonding.","chem_lewis"],
+["Why is p-nitrophenol more volatile than o-nitrophenol? Explain with hydrogen bonding.","chem_lewis"],
+["Why is p-nitrophenol soluble in water? Use hydrogen bonding.","chem_lewis"],
+["Why is pure water a poor conductor despite hydrogen bonds?","chem_lewis"],
+["Why is the boiling point of NH3 higher than PH3? Use hydrogen bonding and draw the trend for group 15 hydrides.","chem_lewis"],
+["Why is the boiling point of water high? Hydrogen bonding","chem_lewis"],
+["Why is the dipole moment of water high, and how do hydrogen bonds form?","chem_lewis"],
+["Why is the hydrogen bond in water in a molecule?","chem_lewis"],
+["Why is there hydrogen bonding between two molecules of HF?","chem_lewis"],
+["Why is there hydrogen bonding in liquid ammonia?","chem_lewis"],
+["Why is there intramolecular hydrogen bonding in ortho nitrophenol?","chem_lewis"],
+["Why is there no hydrogen bond in water?","chem_lewis"],
+["Why is there no hydrogen bonding in dimethyl ether? Draw it.","chem_organic"],
+["Why is there no intramolecular hydrogen bond in o-nitrophenol?","chem_lewis"],
+["Why is water a liquid? Hydrogen bonds","chem_lewis"],
+["Why is water bent and hydrogen bonded?","chem_lewis"],
+["Write a note on hydrogen bonding in water.","chem_lewis"],
+["Write a short note on hydrogen bonding in hydrogen fluoride.","chem_lewis"],
+["[Cu(H2O)4]SO4.H2O hydrogen bond in water",null],
+["a VSEPR-only pair of shapes with no hydrogen bonds",null],
+["a covalent bond drawn where the hydrogen bond is",null],
+["a hydrogen bond from H of one molecule to O of the other",null],
+["both isomers with the same hydrogen-bond type",null],
+["hydrogen bond between water and a chloride ion",null],
+["hydrogen bond in h2o","chem_lewis"],
+["hydrogen bond in nH3","chem_lewis"],
+["hydrogen bond in ortho nitrophenol and water","chem_lewis"],
+["hydrogen bond in the HF2- ion",null],
+["hydrogen bond water","chem_lewis"],
+["hydrogen bonding between HF and water","chem_lewis"],
+["hydrogen bonding between water and ammonia","chem_lewis"],
+["hydrogen bonding in H2O +",null],
+["hydrogen bonding in H2O...H2O","chem_lewis"],
+["hydrogen bonding in HF","chem_lewis"],
+["hydrogen bonding in HF.H2O","chem_lewis"],
+["hydrogen bonding in NH4+ and water",null],
+["hydrogen bonding in acetic acid dimer in water","chem_lewis"],
+["hydrogen bonding in ammonia","chem_lewis"],
+["hydrogen bonding in an aqueous solution of ammonia","chem_lewis"],
+["hydrogen bonding in cellulose and water","chem_lewis"],
+["hydrogen bonding in ethanol and water",null],
+["hydrogen bonding in heavy water","chem_lewis"],
+["hydrogen bonding in heavy water D2O","chem_lewis"],
+["hydrogen bonding in hydronium ion H3O+ in water",null],
+["hydrogen bonding in hydroxide ion and water",null],
+["hydrogen bonding in liquid ammonia and liquid HF","chem_lewis"],
+["hydrogen bonding in sugar water","chem_lewis"],
+["hydrogen bonding in the ammonium ion",null],
+["hydrogen bonding in water","chem_lewis"],
+["hydrogen bonding in water (ethanol).",null],
+["hydrogen bonding in water/ethanol.",null],
+["hydrogen bonding in water?","chem_lewis"],
+["hydrogen bonding of water in the structure of ice","chem_lewis"],
+["hydrogen bonds between DNA base pairs in water","chem_lewis"],
+["hydrogen bonds in a protein helix in water","chem_lewis"],
+["hydrogen bonds in nylon and water","chem_lewis"],
+["intramolecular hydrogen bonding in water","chem_lewis"],
+["o-Nitrophenol is less steam volatile than p-nitrophenol. Explain this with hydrogen bonding.","chem_lewis"],
+["o-Nitrophenol is steam volatile and p-nitrophenol is not, although simple distillation would decompose both. Explain the difference in hydrogen bonding.","chem_lewis"],
+["o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of hydrogen bonding.","chem_lewis"],
+["o-Nitrophenol is steam volatile but p-nitrophenol is not. Explain this difference in terms of intramolecular and intermolecular hydrogen bonding.","chem_lewis"],
+["ortho-nitrophenol with an intramolecular O–H···O hydrogen bond","chem_lewis"],
+["p-Nitrophenol is more volatile than o-nitrophenol. Explain the difference using hydrogen bonding.","chem_lewis"],
+["para-nitrophenol with intermolecular hydrogen bonds between molecules","chem_lewis"],
+["show hydrogen bonding in H2O","chem_lewis"],
+["sp3 hybrid orbitals of oxygen in water and hydrogen bonding","chem_lewis"],
+["the O–H covalent bond distinguished from the hydrogen bond",null],
+["the hydrogen bond is an intermolecular attraction, weaker than the covalent O–H",null],
+["the ortho isomer is tied by an intramolecular hydrogen bond, so its proton is less available than that of the para isomer",null],
+["the ortho isomer with an intramolecular hydrogen bond",null],
+["the para isomer with intermolecular hydrogen bonds",null],
+["water molecules linked by O–H···O hydrogen bonds","chem_lewis"],
+["water of crystallisation and hydrogen bonds in CuSO4.5H2O","chem_lewis"],
+["ΔG vs T for hydrogen bond formation in water","chem_lewis"]]}
