@@ -2284,7 +2284,10 @@ const POWER_OF_TEN_SOURCE =
 function parseMeasuredPart(
   text: string,
 ): { value: number; tolerance: number; unit: string | null } | null {
-  const match = text.match(new RegExp(
+  // Runs of whitespace are collapsed first. The pattern's neighbouring \s* would
+  // otherwise try every split of a long run, cubic in its length, when a later
+  // character fails: 800 spaces took minutes.
+  const match = text.replace(/\s+/g, " ").match(new RegExp(
     String.raw`^\s*[~≈]?\s*\(?\s*(${NUMBER_SOURCE})${POWER_OF_TEN_SOURCE}\s*\)?\s*([A-Za-zΩΩ°μµ%][A-Za-z0-9ΩΩ°μµ/*^²³¹⁰⁻·⋅ ()\-]*)?\s*[.,]?\s*$`,
   ));
   if (!match) return null;
