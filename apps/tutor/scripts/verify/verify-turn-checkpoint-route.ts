@@ -534,6 +534,131 @@ async function timingsGiveWayBeforeRows() {
   }
 }
 
+// The page that sent a close is gone: whatever the server refuses in it, a turn
+// it holds must stop reading as still being taught.
+async function refusedCloseStillClosesTheTurn() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const big = Array.from({ length: 9 }, (_, index) => row(index, "x".repeat(12_000), write("x")));
+  const cases: Array<[string, Row, Row]> = [
+    ["rows that do not parse", { rawResponse: "First.", appendSegments: [row(0, "First.")] },
+      { baseCount: 1, appendSegments: [{ orderIndex: "first" }], rawResponse: "Bad." }],
+    // The recorded shape: a lesson outgrew the merged metadata limit.
+    ["a tail over the metadata limit", { rawResponse: "y".repeat(40_000), appendSegments: big },
+      { baseCount: 9, appendSegments: [row(9, "z".repeat(6_000), write("z"))] }],
+  ];
+  for (const [name, first, payload] of cases) {
+    const id = crypto.randomUUID();
+    const opened = await put(id, { seq: 1, baseCount: 0, ...first });
+    assert.equal(opened.status, 200, `${name}: the turn saved before its close`);
+    const held = rowsOf(id).length;
+    assert.equal(stored(id).status, "live", `${name}: the turn is live before its close`);
+    const closed = await close(id, { seq: 2, status: "stopped", ...payload });
+    assert.equal(stored(id).status, "stopped", `${name}: the close closed the turn (HTTP ${closed.status})`);
+    assert(closed.status === 400 || closed.status === 413, `${name}: the page still hears its rows were refused (HTTP ${closed.status})`);
+    assert.equal(rowsOf(id).length, held, `${name}: rows it refused are not saved, rows it held stay`);
+  }
+  // A close with no rows whose metadata is refused closes the same way.
+  const metadataOnly = crypto.randomUUID();
+  await put(metadataOnly, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  growthBytesLimit = 0;
+  try {
+    const refusedMetadata = await close(metadataOnly, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedMetadata.status, 413, "a page still hears its metadata was refused");
+    assert.equal(stored(metadataOnly).status, "stopped", "and the turn is closed");
+    assert.equal(stored(metadataOnly).rawResponse, "First.", "without the refused metadata");
+  } finally {
+    growthBytesLimit = null;
+  }
+  // A legacy row with its segments still held, at full quota: the close still
+  // closes it, and leaves the held rows exactly as stored.
+  const legacy = crypto.randomUUID();
+  await put(legacy, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const heldRows = [{ orderIndex: 0, narration: "First.", spokenText: "First.", command: null }];
+  stored(legacy).submittedSegments = heldRows;
+  growthBytesLimit = 0;
+  try {
+    const refusedLegacy = await close(legacy, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedLegacy.status, 413, "a full account still hears the refusal");
+    assert.equal(stored(legacy).status, "stopped", "a legacy row closes at full quota");
+    assert.deepEqual(stored(legacy).submittedSegments, heldRows, "its held rows stay as stored");
+  } finally {
+    growthBytesLimit = null;
+  }
+
+  // A turn already stopped: a refused close changes nothing about it.
+  const already = crypto.randomUUID();
+  await put(already, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  await close(already, { seq: 2, status: "stopped" });
+  const stoppedAt = stored(already).updatedAt;
+  const again = await close(already, { seq: 3, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(again.status, 400, "the refusal still answers");
+  assert.equal(stored(already).updatedAt, stoppedAt, "a refused close does not touch a turn already stopped");
+
+  // An older tab's close while a newer page still teaches this turn. A plain
+  // late close already stops a live turn, and a refused one stops it the same
+  // way: the newer page keeps saving its rows, and can still finish.
+  for (const [name, olderClose] of [
+    ["a plain older close", { seq: 2, status: "stopped" }],
+    ["a refused older close", { seq: 2, status: "stopped", baseCount: 2, appendSegments: [{ orderIndex: "first" }] }],
+  ] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+    await put(shared, { seq: 3, baseCount: 1, rawResponse: "First. Second.", appendSegments: [row(1, "Second.")] });
+    await close(shared, olderClose);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped`);
+    assert.equal(stored(shared).rawResponse, "First. Second.", `${name}: the newer page's words stay`);
+    const stillTeaching = await put(shared, { seq: 4, baseCount: 2, status: "live", rawResponse: "First. Second. Third.", appendSegments: [row(2, "Third.")] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, 3, `${name}: its rows are kept`);
+    assert.equal(stored(shared).status, "stopped", `${name}: a live save cannot reopen it, as before`);
+    const finished = await put(shared, { seq: 5, baseCount: 3, status: "complete", rawResponse: "First. Second. Third." });
+    assert.equal(finished.status, 200, `${name}: the newer page can still finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: and the lesson completes`);
+  }
+
+  // The same comparison when the refusal is 413 or 409: the two ways an older tab's
+  // close with rows can be refused while a newer page still teaches this turn.
+  const bigRows = (from: number, count: number) => Array.from({ length: count }, (_, index) => row(from + index, "x".repeat(12_000), write("x")));
+  for (const [name, refusedStatus] of [["a 413", 413], ["a 409", 409]] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "y".repeat(40_000), appendSegments: bigRows(0, 9) });
+    await put(shared, { seq: 3, baseCount: 9, rawResponse: "z".repeat(40_000), appendSegments: [row(9, "Second.", write("x"))] });
+    const words = stored(shared).rawResponse;
+    if (refusedStatus === 409) {
+      // A newer save lands while the older close is on its way to commit.
+      growthPause = async () => {
+        growthPause = null;
+        const newer = await put(shared, { seq: 4, baseCount: 10, rawResponse: words, appendSegments: [row(10, "Third.", write("x"))] });
+        assert.equal(newer.status, 200, "the newer save lands first");
+      };
+    }
+    const older = await close(shared, { seq: 2, status: "stopped", baseCount: 10,
+      appendSegments: refusedStatus === 413 ? [row(10, "o".repeat(6_000), write("x"))] : [row(10, "Older.", write("x"))] });
+    growthPause = null;
+    assert.equal(older.status, refusedStatus, `${name}: the older close is refused that way`);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped, as a plain late close does`);
+    assert.equal(stored(shared).rawResponse, words, `${name}: the newer page's words stay`);
+    const count = rowsOf(shared).length;
+    const stillTeaching = await put(shared, { seq: 5, baseCount: count, status: "live", rawResponse: words, appendSegments: [row(count, "More.", write("x"))] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, count + 1, `${name}: its rows are kept`);
+    assert.equal((await put(shared, { seq: 6, baseCount: count + 1, status: "complete", rawResponse: words })).status, 200, `${name}: and it can finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: the lesson completes`);
+  }
+
+  // No turn yet: nothing to close, and refused rows create nothing.
+  const none = crypto.randomUUID();
+  const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(refused.status, 400, "with no turn the refusal stands");
+  assert(!turns.some((turn) => turn.id === none), "and creates nothing");
+  // A signed in stranger gets no close on someone else's board.
+  const owned = crypto.randomUUID();
+  await put(owned, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const stranger = await close(owned, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] }, "board-b");
+  assert.equal(stranger.status, 404, "another board's close is refused");
+  assert.equal(stored(owned).status, "live", "and closes nothing");
+}
+
 async function closeMetadataSequenceOwnership() {
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   const id = crypto.randomUUID();
@@ -907,6 +1032,7 @@ async function main() {
   await registryHistoryReceiptsDriveDurableInsertion();
   await closeMetadataSequenceOwnership();
   await timingsGiveWayBeforeRows();
+  await refusedCloseStillClosesTheTurn();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();
