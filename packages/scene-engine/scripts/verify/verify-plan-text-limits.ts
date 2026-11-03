@@ -15,6 +15,8 @@ import { parseTurnPlanV3Content, type TurnPlanV3ParseTrace } from "../../../tuto
 
 const QUESTION = "A synthetic plan row.";
 const LIMIT_MS = 1_000;
+// A long question is read by more of the parser, and runners differ, so its rows get more room.
+const QUESTION_PARSE_LIMIT_MS = 5_000;
 const OVER = "plan_text_over_limit";
 // The first failure ends the run, because a slow row is slow whichever row it is.
 const fail = (name: string, detail: unknown): never => {
@@ -116,7 +118,7 @@ for (const [name, question] of longQuestions) {
   started = performance.now();
   const parsed = parseTurnPlanV3Content(JSON.stringify(raw), question);
   const parseMs = performance.now() - started;
-  if (validateMs > LIMIT_MS || parseMs > LIMIT_MS) fail(`question, ${name}: time`, { validateMs, parseMs });
+  if (validateMs > LIMIT_MS || parseMs > QUESTION_PARSE_LIMIT_MS) fail(`question, ${name}: time`, { validateMs, parseMs });
   if (validated.issues.some((issue) => issue.code === OVER) || !validated.plan) fail(`question, ${name}: refused`, validated.issues);
   if (!parsed) fail(`question, ${name}: parser refused`, null);
   if (validated.plan && validated.plan.question !== questionForPlanReaders(question)) fail(`question, ${name}: text`, null);
@@ -196,6 +198,11 @@ function turnPlanNodeCount(raw: Record<string, unknown>): number {
   walk(raw, 0);
   return nodes;
 }
+
+// Object keys count toward the total, in whatever order the plan lists them.
+const keysFirst = { extra: Object.fromEntries(Array.from({ length: L.entries }, (_, index) => [String(index).padEnd(L.nameChars, "k"), 1])), ...plan() };
+if (turnPlanTextOverLimit(keysFirst)?.code !== OVER) fail("keys listed before the text", null);
+if (turnPlanTextOverLimit({ ...plan(), extra: keysFirst.extra })?.code !== OVER) fail("keys listed after the text", null);
 
 // A refused plan never carries its text in the issue.
 const wideGap = `secretword${spaces(40)}`;

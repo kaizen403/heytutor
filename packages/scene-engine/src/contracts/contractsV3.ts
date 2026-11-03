@@ -201,6 +201,7 @@ export function turnPlanTextOverLimit(raw: unknown, expectedQuestion?: string): 
       for (const [entryKey, entry] of entries) {
         if (entryKey.length > limits.nameChars) return over("field length");
         total += entryKey.length;
+        if (total > limits.totalChars) return over("total length");
         if (depth > 0 || entryKey !== "question") pending.push({ value: entry, key: entryKey, depth: depth + 1 });
       }
     }
