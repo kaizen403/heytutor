@@ -21,7 +21,6 @@ const LEWIS_FAMILY = "chem_lewis";
 
 const PHYSICS_DIPOLE = /point charge|electric dipole|revolving|magnetic moment|torque on/;
 const COVALENT_METALS = new Set(["Be", "Al", "Sn", "Pb"]);
-const HBD_HEAVY = new Set(["N", "O", "F"]);
 
 type V3 = [number, number, number];
 
@@ -722,22 +721,76 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
       : "hydrogen bond donor is H on O and the acceptor is O");
     return c.build({ caption: ortho && para ? "intra versus inter" : ortho ? "intramolecular" : "no intramolecular" });
   }
-  const heavy = /\bhf\b|hydrogen fluoride/.test(stem) ? "F" : /\bammonia\b|\bnh3\b/.test(stem) ? "N" : /\bwater\b|\bh2o\b/.test(stem) ? "O" : null;
-  if (heavy && HBD_HEAVY.has(heavy)) {
-    // HF 2 -, NH4 +, "the ... ion": the neutral molecules drawn are not the ion asked.
-    if (!stemChargesRead(question, [heavy === "F" ? "HF" : heavy === "N" ? "NH3" : "H2O"])) return null;
-    const ids: string[] = [];
-    ids.push(c.atom("a_x", heavy, { x: 0, y: 0.2 }, { role: `${heavy} donor atom` }));
-    ids.push(c.atom("a_h", "H", { x: 1.05, y: -0.25 }, { role: "donor hydrogen" }));
-    ids.push(...c.bond("a_b", "a_x", "a_h", { role: `${heavy}-H bond` }));
-    ids.push(c.atom("b_x", heavy, { x: 2.5, y: 0.2 }, { role: `${heavy} acceptor` }));
-    ids.push(c.atom("b_h", "H", { x: 3.45, y: 0.55 }, { role: "second hydrogen" }));
-    ids.push(...c.bond("b_b", "b_x", "b_h", { role: `${heavy}-H bond` }));
-    ids.push(c.link("hb", { x: 1.05, y: -0.25 }, { x: 2.5, y: 0.2 }, "intermolecular hydrogen bond"));
-    ids.push(c.text("kind", { x: 1.3, y: -1.1 }, "inter", "intermolecular hydrogen bond"));
-    ids.push(c.text("pair", { x: 1.3, y: 1.15 }, heavy === "F" ? "HF" : heavy === "N" ? "NH_3" : "H_2O", "molecules"));
-    c.scene.group("hbonds", ids, `intermolecular hydrogen bond from H on ${heavy} to ${heavy}`);
-    return c.build({ caption: `${heavy} intermolecular` });
-  }
-  return null;
+  const species = HYDROGEN_BOND_SPECIES.find((candidate) => stem.search(candidate.names) >= 0);
+  if (!species || !plainHydrogenBondAsk(stem, species)) return null;
+  // HF 2 -, NH4 +, "the ... ion": the neutral molecules drawn are not the ion asked.
+  if (!stemChargesRead(question, [species.formula])) return null;
+  const hydrogens = parseFormula(species.formula)?.atoms.find((atom) => atom.symbol === "H")?.count ?? 0;
+  const layout = HYDROGEN_BOND_LAYOUT[hydrogens];
+  if (!layout) return null;
+  const { heavy, label } = species;
+  const ids: string[] = [];
+  ids.push(c.atom("a_x", heavy, { x: 0, y: 0.2 }, { role: `${heavy} donor atom` }));
+  ids.push(c.atom("a_h", "H", { x: 1.05, y: -0.25 }, { role: "donor hydrogen" }));
+  ids.push(...c.bond("a_b", "a_x", "a_h", { role: `${heavy}-H bond` }));
+  layout.donor.forEach((at, index) => {
+    ids.push(c.atom(`a_h${index + 2}`, "H", at, { role: "donor molecule hydrogen" }));
+    ids.push(...c.bond(`a_b${index + 2}`, "a_x", `a_h${index + 2}`, { role: `${heavy}-H bond` }));
+  });
+  ids.push(c.atom("b_x", heavy, { x: 2.5, y: 0.2 }, { role: `${heavy} acceptor` }));
+  layout.acceptor.forEach((at, index) => {
+    const suffix = index === 0 ? "" : String(index + 1);
+    ids.push(c.atom(`b_h${suffix}`, "H", at, { role: "second hydrogen" }));
+    ids.push(...c.bond(`b_b${suffix}`, "b_x", `b_h${suffix}`, { role: `${heavy}-H bond` }));
+  });
+  ids.push(c.link("hb", { x: 1.05, y: -0.25 }, { x: 2.5, y: 0.2 }, "intermolecular hydrogen bond"));
+  ids.push(c.text("kind", { x: 1.3, y: -1.1 }, "inter", "intermolecular hydrogen bond"));
+  ids.push(c.text("pair", { x: 1.3, y: 1.15 }, label, "molecules"));
+  c.scene.group("hbonds", ids, `intermolecular hydrogen bond from H on ${heavy} to ${heavy}`);
+  return c.build({ caption: `${heavy} intermolecular` });
+}
+
+interface HydrogenBondSpecies {
+  readonly heavy: string;
+  readonly formula: string;
+  readonly label: string;
+  readonly names: RegExp;
+}
+
+/** The species this figure may draw. One molecule of each, bonded to a copy of itself. */
+const HYDROGEN_BOND_SPECIES: readonly HydrogenBondSpecies[] = [
+  { heavy: "F", formula: "HF", label: "HF", names: /\bhf\b|hydrogen fluoride/g },
+  { heavy: "N", formula: "NH3", label: "NH_3", names: /\bammonia\b|\bnh3\b/g },
+  { heavy: "O", formula: "H2O", label: "H_2O", names: /\bwater\b|\bh2o\b/g },
+];
+
+/**
+ * Hydrogen positions by the formula's hydrogen count, so a molecule always has
+ * the atoms its label claims. The donor's bonding hydrogen is drawn separately.
+ * The acceptor's hydrogens point away from the incoming hydrogen bond.
+ */
+const HYDROGEN_BOND_LAYOUT: Readonly<Record<number, { donor: readonly Vec2[]; acceptor: readonly Vec2[] }>> = {
+  1: { donor: [], acceptor: [{ x: 3.45, y: 0.55 }] },
+  2: { donor: [{ x: -0.7, y: -0.7 }], acceptor: [{ x: 3.42, y: -0.47 }, { x: 2.89, y: 1.27 }] },
+  3: { donor: [{ x: -0.13, y: 1.33 }, { x: -0.91, y: -0.48 }], acceptor: [{ x: 3.46, y: 0.49 }, { x: 2.79, y: -0.76 }, { x: 2.21, y: 1.16 }] },
+};
+
+/**
+ * Every word a plain ask about one species' own hydrogen bonds may use. A second
+ * substance, a negation, a comparison, a solution or an isotope falls outside it
+ * and declines, because this figure would then answer a different question:
+ * ammonia in water bonds to water, and DNA in water is not two waters.
+ */
+const HYDROGEN_BOND_ASK_WORDS = new Set((
+  "a an the of in for with and between among two 2 pair neighbouring neighboring adjacent "
+  + "hydrogen bond bonds bonding intermolecular molecule molecules liquid pure "
+  + "show draw sketch explain illustrate depict describe label diagram figure structure "
+  + "how what why is are does do form forms formed has have occur occurs"
+).split(" "));
+
+function plainHydrogenBondAsk(stem: string, species: HydrogenBondSpecies): boolean {
+  const rest = stem.replace(species.names, " ");
+  // A charge or isotope notation is a different species, whatever its words.
+  if (/[^a-z0-9\s.,;:?!()]/.test(rest)) return false;
+  return rest.split(/[^a-z0-9]+/).filter(Boolean).every((word) => HYDROGEN_BOND_ASK_WORDS.has(word));
 }
