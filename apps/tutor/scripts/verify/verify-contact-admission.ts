@@ -92,7 +92,7 @@ const planFor = (question: string): TurnPlanV3 => ({
   schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required",
 } as unknown as TurnPlanV3);
 const STRICT = { preferPlanner: true, allowedFigureSources: ["planner", "linear_source", "text_only", "verified_recovery"] as never };
-const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface", "hatch_inside_body"]);
+const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface"]);
 const failures: string[] = [];
 let checks = 0;
 for (const row of rows) {

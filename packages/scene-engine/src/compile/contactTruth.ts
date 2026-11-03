@@ -50,8 +50,6 @@ const SAME_POINT = 1e-6;
 const END_SHARE = 0.08;
 const NORMAL_TOLERANCE_DEG = 12;
 const STEEPEST_RESTING_DEG = 80;
-/** As `hatchSegments`: six ticks, evenly spaced, on the right of start to end in world coordinates. */
-const HATCH_TICKS = [1, 2, 3, 4, 5, 6].map((index) => index / 7);
 
 const dist = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 const words = (entity: SceneEntity) => `${entity.role ?? ""}`;
@@ -293,11 +291,6 @@ export function validateContactTruth(document: SceneDocument, geometry: Readonly
       const gap = minOf(signed.map((value) => Math.abs(value)));
       const touching = body.circle ? Math.abs(Math.abs(signedDistance(surface, body.circle.center)) - body.circle.radius) <= thickness * TOUCH_SHARE : gap <= thickness * TOUCH_SHARE;
       if (!touching) continue;
-      // A circle touches at one point, so ticks beside it stay outside it. Only a flat face covers them.
-      if (!body.circle && hatched.has(surface.id) && side < 0 && HATCH_TICKS.some((tick) => tick > lo && tick < hi)) {
-        fail("hatch_inside_body", [body.id, surface.id],
-          `The hatch on ${surface.id} (${surface.role}) falls inside ${body.id} (${body.role}), so the body reads as part of the solid. Keep the hatch, and swap the surface's start and end so the hatch falls on the solid side.`);
-      }
       const up = upSide(surface);
       const fromAbove = up !== null && SOLID_BELOW_WORDS.test(surface.role) && !statedUnderside ? up : null;
       const free = fromAbove ?? (up === null || !SOLID_BELOW_WORDS.test(surface.role) ? freeSideFromNormal(surface, body, contacts, document, geometry) : null);

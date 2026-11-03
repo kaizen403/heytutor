@@ -18,7 +18,7 @@ import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synt
 import { inferSceneCapabilities } from "../../../tutor-core/src/planners/sceneCapabilities.ts";
 import { ARCHETYPE_PROBES } from "../probes/archetypeProbes";
 
-const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface", "hatch_inside_body"]);
+const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface"]);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const stems = (file: string, every: number): string[] => readFileSync(resolve(root, `data/diagram-eval/v1/${file}`), "utf8")
   .split("\n").filter(Boolean).map((line) => (JSON.parse(line) as { question: string }).question).filter((_, index) => index % every === 0);

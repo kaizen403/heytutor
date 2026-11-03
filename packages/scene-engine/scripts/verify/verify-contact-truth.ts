@@ -78,7 +78,6 @@ const refuse: { name: string; code: string; doc: Doc }[] = [
   { name: "the string to the hanging block runs through the table", code: "string_through_surface", doc: scene("Block A on a table joined over a pulley to B.", [...seg("surface", "horizontal surface", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-1.6, 0.8], [-1.6, -1.4]), ...rect("blockB", "block B", [-1.6, -1.8], 0.8, 0.8, "B")]) },
   { name: "only the closed triangle names the solid side: a hatched face, no resting word", code: "body_inside_surface", doc: scene("A block.", [...seg("face", "sloping face", [0, 0], [4.6, 2.6]), ...seg("base", "base line", [0, 0], [4.6, 0]), ...seg("back", "back line", [4.6, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])], [{ id: "h", kind: "hatch", targetIds: ["face"] }]) },
   { name: "only the normal reaction names the free side: a surface with no resting word", code: "body_inside_surface", doc: scene("A block.", [...seg("face", "slanted surface", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER]), ...arrow("N", "normal reaction on the block", [2.5, 1.1], [-0.4924, 0.8704], "N")]) },
-  { name: "floor hatched from right to left: the ticks fall inside the box on it", code: "hatch_inside_body", doc: scene("A box on a floor.", [...seg("floor", "floor", [6, 0], [0, 0]), ...rect("box", "box", [3, 0.5], 1, 1)], [{ id: "h", kind: "hatch", targetIds: ["floor"] }]) },
   { name: "a string well inside the table's end still crosses it", code: "string_through_surface", doc: scene("A block on a table joined over a pulley to B.", [...seg("table", "table", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-0.5, 0.3], [-0.5, -1.2]), ...rect("m", "hanging block", [-0.5, -1.5], 0.6, 0.6, "M")]) },
   { name: "a stem that says as well as does not switch the check off", code: "body_straddles_surface", doc: scene("A block slides on the floor as well as on the slope.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
   { name: "a level road is a surface", code: "body_straddles_surface", doc: scene("A car on a level road.", [...seg("road", "level road", [0, 0], [8, 0]), ...rect("car", "car", [4, 0], 2, 1)]) },
@@ -126,14 +125,11 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "a ground state line through a ring is not a surface", doc: scene("A ring.", [...seg("g", "ground state line", [0, 0], [6, 0]), ...disc("o", "ring", [3, 0], 1)]) },
   { name: "a diameter in the plane of a disc runs through it", doc: scene("Perpendicular axes for a disc.", [...seg("xa", "diameter in disk plane", [-3, 0], [3, 0]), ...disc("d", "uniform thin disk", [0, 0], 1.5)]) },
   { name: "a line lying in a stated plane is not a surface", doc: scene("A plate in a plane.", [...seg("ya", "line in the horizontal plane", [-3, 0], [3, 0]), ...rect("b", "rectangular body", [0, 0], 2, 1)]) },
-  { name: "floor hatched from left to right: the ticks fall under the box", doc: scene("A box on a floor.", [...seg("floor", "floor", [0, 0], [6, 0]), ...rect("box", "box", [3, 0.5], 1, 1)], [{ id: "h", kind: "hatch", targetIds: ["floor"] }]) },
-  { name: "floor hatched from right to left, box between two ticks", doc: scene("A box on a floor.", [...seg("floor", "floor", [7, 0], [0, 0]), ...rect("box", "box", [3.5, 0.3], 0.6, 0.6)], [{ id: "h", kind: "hatch", targetIds: ["floor"] }]) },
   { name: "a block partly sunk in sand", doc: scene("A heavy block is partly sunk in sand.", [...seg("sand", "sand surface", [0, 0], [6, 0]), ...rect("box", "block", [3, 0.1], 1, 1)]) },
   { name: "a stem that says partly sunk keeps a plain ground line", doc: scene("A block sinks into the ground and comes to rest partly buried.", [...seg("ground", "ground", [0, 0], [6, 0]), ...rect("box", "block", [3, 0.1], 1, 1)]) },
   { name: "a stone in a well, below the ground line", doc: scene("A stone is dropped into a well.", [...seg("ground", "ground", [-3, 0], [3, 0]), ...disc("stone", "stone", [0, -2], 0.3), ...seg("rope", "rope", [0, 1], [0, -1.7])]) },
   { name: "a ball in a tunnel through the ground", doc: scene("A ball is dropped into a tunnel through the earth.", [...seg("ground", "ground", [-3, 0], [3, 0]), ...disc("ball", "ball", [0, 0], 0.4)]) },
   { name: "a string over a pulley clamped at the table's edge", doc: scene("A block on a table is tied over a pulley at the table's edge to a hanging mass.", [...seg("table", "table", [-4, 0], [0, 0]), ...seg("string", "vertical string", [-0.15, 0.3], [-0.15, -1.2]), ...rect("m", "hanging block", [-0.15, -1.5], 0.6, 0.6, "M")]) },
-  { name: "a ball tangent to a slope hatched on its side: the ticks stay outside the ball", doc: scene("A ball rolls down a slope.", [...seg("slope", "slope", [4, 3], [0, 0]), ...disc("ball", "rolling sphere", [1.7, 1.875], 0.5)], [{ id: "h", kind: "hatch", targetIds: ["slope"] }]) },
   { name: "a block across a water surface, with no stem word for it", doc: scene("A block in water.", [...seg("water", "water surface", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
   { name: "a block across a sand surface, with no stem word for it", doc: scene("A block on sand.", [...seg("sand", "sand surface", [0, 0], [6, 0]), ...rect("box", "block", [3, 0], 1, 1)]) },
   { name: "a diameter across a plane disc", doc: scene("A disc.", [...seg("xa", "diameter across the plane disc", [-3, 0], [3, 0]), ...disc("d", "uniform thin disk", [0, 0], 1.5)]) },
@@ -187,7 +183,7 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "ground state level across an electron orbit is not a surface", doc: scene("An atom.", [...seg("g", "ground state energy level", [0, 0], [6, 0]), ...disc("o", "electron shell ring", [3, 0], 1)]) },
 ];
 
-const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface", "hatch_inside_body"]);
+const CODES = new Set(["body_straddles_surface", "body_inside_surface", "string_through_surface"]);
 const codesOf = (doc: Doc): string[] => {
   const result = compileSceneDocument(doc as never, { figureConsistency: true });
   return result.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code);
