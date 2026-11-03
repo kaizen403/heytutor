@@ -426,7 +426,7 @@ async function refusedCloseStillClosesTheTurn() {
   const cases: Array<[string, Row, Row]> = [
     ["rows that do not parse", { rawResponse: "First.", appendSegments: [row(0, "First.")] },
       { baseCount: 1, appendSegments: [{ orderIndex: "first" }], rawResponse: "Bad." }],
-    // The shape of afafb88f: the lesson outgrew the merged metadata limit.
+    // The recorded shape: a lesson outgrew the merged metadata limit.
     ["a tail over the metadata limit", { rawResponse: "y".repeat(40_000), appendSegments: big },
       { baseCount: 9, appendSegments: [row(9, "z".repeat(6_000), write("z"))] }],
   ];
