@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/nextjs";
 import { prisma } from "../db/prisma";
 import { compatChatUrl, compatCircuit, resolveLlmEndpoint } from "../llm/llmProvider";
 import { logWorkerFailure } from "../obs/workerFailureLog";
@@ -40,7 +39,10 @@ function alert(percent: number, spentUsd: number, budgetUsd: number): void {
     ? `AI credits used: $${spentUsd.toFixed(2)} of $${budgetUsd}; new lessons moved to Fireworks until the cycle resets`
     : `AI credits at ${percent}%: $${spentUsd.toFixed(2)} of $${budgetUsd} this cycle`;
   console.error(`[ai-credits] ${message}`);
-  Sentry.captureMessage(message, { level: percent >= 95 ? "error" : "warning", tags: { area: "ai-credits" } });
+  // Loaded here so that starting the server never pulls in Sentry for this worker.
+  void import("@sentry/nextjs").then((Sentry) => {
+    Sentry.captureMessage(message, { level: percent >= 95 ? "error" : "warning", tags: { area: "ai-credits" } });
+  }).catch(() => undefined);
 }
 
 /** Reads the relay counter once a minute while the relay is the configured provider. */
