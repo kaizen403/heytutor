@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import {
   buildSnapshot, counterStep, creditCycle, monthlyBudgetUsd, pollAiCredits,
@@ -191,6 +192,29 @@ const checks: [string, () => void | Promise<void>][] = [
     assert.equal(empty.stale, true);
     assert.equal(empty.lastPolledAt, null);
   }],
+  ["an alert really reaches the Sentry client, through the module the server loads", async () => {
+    // Under Node, `import("@sentry/nextjs")` has no named captureMessage, so a lazy
+    // call there threw and a catch hid it. This drives the real path end to end.
+    Object.assign(process.env, { NODE_ENV: "production", SENTRY_ENVIRONMENT: "production", SENTRY_DSN: "http://k@127.0.0.1:9/1", DATABASE_URL: process.env.DATABASE_URL || "postgresql://u:p@127.0.0.1:9/none" });
+    await import("../../lib/obs/sentryNode");
+    const Sentry = createRequire(import.meta.url)("@sentry/nextjs") as { getClient(): { on(hook: "beforeSendEvent", run: (event: { message?: string; level?: string; tags?: Record<string, unknown> }) => void): void } | undefined };
+    const client = Sentry.getClient();
+    assert(client, "the fixture environment initialises Sentry");
+    const seen: { message?: string; level?: string; area?: unknown }[] = [];
+    client.on("beforeSendEvent", (event) => seen.push({ message: event.message, level: event.level, area: event.tags?.area }));
+    const { sendAiCreditsAlert } = await import("../../lib/admin/aiCredits");
+    const quiet = console.error;
+    console.error = () => undefined;
+    try {
+      await sendAiCreditsAlert(80, 800, 1000);
+      await sendAiCreditsAlert(100, 996, 1000);
+      for (let tick = 0; tick < 20 && seen.length < 2; tick += 1) await new Promise((done) => setTimeout(done, 50));
+    } finally { console.error = quiet; }
+    assert.deepEqual(seen, [
+      { message: "AI credits at 80%: $800.00 of $1000 this cycle", level: "warning", area: "ai-credits" },
+      { message: "AI credits used: $996.00 of $1000; new lessons moved to Fireworks until the cycle resets", level: "error", area: "ai-credits" },
+    ]);
+  }],
   ["the worker starts with the server and the overview carries the snapshot", () => {
     const read = (file: string) => readFileSync(resolve(root, file), "utf8");
     assert.match(read("server.ts"), /\n\s+startAiCreditsWorker\(\);/);
@@ -207,5 +231,6 @@ async function main() {
   }
   if (failed > 0) { console.error(`${failed}/${checks.length} AI credits checks failed`); process.exit(1); }
   console.log("AI credits verification passed");
+  process.exit(0); // The Sentry client from the alert check would keep the process open.
 }
 void main();

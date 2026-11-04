@@ -34,15 +34,25 @@ const store: CreditStore = {
   },
 };
 
-function alert(percent: number, spentUsd: number, budgetUsd: number): void {
+/**
+ * Console and Sentry. The Sentry module loads here and not at the top of this file,
+ * so that importing the worker at server start stays free of it.
+ */
+export async function sendAiCreditsAlert(percent: number, spentUsd: number, budgetUsd: number): Promise<void> {
   const message = percent === SWITCHED_ALERT
     ? `AI credits used: $${spentUsd.toFixed(2)} of $${budgetUsd}; new lessons moved to Fireworks until the cycle resets`
     : `AI credits at ${percent}%: $${spentUsd.toFixed(2)} of $${budgetUsd} this cycle`;
   console.error(`[ai-credits] ${message}`);
-  // Loaded here so that starting the server never pulls in Sentry for this worker.
-  void import("@sentry/nextjs").then((Sentry) => {
-    Sentry.captureMessage(message, { level: percent >= 95 ? "error" : "warning", tags: { area: "ai-credits" } });
-  }).catch(() => undefined);
+  try {
+    const { captureAiCreditsAlert } = await import("../obs/sentryNode");
+    captureAiCreditsAlert(message, percent >= 95 ? "error" : "warning");
+  } catch (error) {
+    console.error("[ai-credits] Sentry alert failed", error instanceof Error ? error.message : String(error));
+  }
+}
+
+function alert(percent: number, spentUsd: number, budgetUsd: number): void {
+  void sendAiCreditsAlert(percent, spentUsd, budgetUsd);
 }
 
 /** Reads the relay counter once a minute while the relay is the configured provider. */
