@@ -1,0 +1,784 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_physics_3_dynamics_of_uniform_circular_motion.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "no drawing asked for; lesson reaches 18 N"
+ },
+ "selection": {
+  "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "physics",
+   "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force.",
+   "givens": [
+    {
+     "id": "m",
+     "symbol": "m",
+     "value": 2,
+     "unit": "kg",
+     "sourceText": "2 kg mass",
+     "provenance": "given"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 1,
+     "unit": "m",
+     "sourceText": "radius 1 m",
+     "provenance": "given"
+    },
+    {
+     "id": "v",
+     "symbol": "v",
+     "value": 3,
+     "unit": "m/s",
+     "sourceText": "3 m/s",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "F",
+     "symbol": "F_c",
+     "unit": "N"
+    }
+   ],
+   "derived": [
+    {
+     "id": "F",
+     "symbol": "F_c",
+     "value": 18,
+     "unit": "N",
+     "sign": "positive",
+     "sourceText": "F_c = m v^2 / r = 2 * 3^2 / 1 = 18",
+     "provenance": "derived",
+     "dependsOn": [
+      "m",
+      "r",
+      "v"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Centripetal force points toward the center of the circular path.",
+     "expected": "F_c = m v^2 / r, directed radially inward",
+     "relatedQuantityIds": [
+      "F",
+      "m",
+      "r",
+      "v"
+     ]
+    }
+   ],
+   "lawIds": [
+    "centripetal_force",
+    "newton_second_law_circular_motion"
+   ],
+   "assumptions": [
+    "uniform circular motion",
+    "constant speed",
+    "horizontal circle or gravity balanced by other forces",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fMass",
+     "kind": "given",
+     "statement": "mass is 2 kg",
+     "evidence": {
+      "source": "question",
+      "start": 2,
+      "end": 11,
+      "quote": "2 kg mass"
+     }
+    },
+    {
+     "id": "fRadius",
+     "kind": "given",
+     "statement": "circle radius is 1 m",
+     "evidence": {
+      "source": "question",
+      "start": 33,
+      "end": 43,
+      "quote": "radius 1 m"
+     }
+    },
+    {
+     "id": "fSpeed",
+     "kind": "given",
+     "statement": "speed is 3 m/s",
+     "evidence": {
+      "source": "question",
+      "start": 47,
+      "end": 52,
+      "quote": "3 m/s"
+     }
+    },
+    {
+     "id": "fForce",
+     "kind": "requested",
+     "statement": "find centripetal force",
+     "evidence": {
+      "source": "question",
+      "start": 54,
+      "end": 80,
+      "quote": "Find its centripetal force"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "mass",
+     "kind": "body",
+     "label": "2 kg mass",
+     "evidenceFactIds": [
+      "fMass"
+     ]
+    },
+    {
+     "id": "path",
+     "kind": "curve",
+     "label": "circular path",
+     "evidenceFactIds": [
+      "fRadius"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eForce",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fMass",
+      "fRadius",
+      "fSpeed"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 2
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "^",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      },
+      "right": {
+       "kind": "number",
+       "value": 1
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iCircle",
+     "kind": "conceptual",
+     "entityIds": [
+      "mass",
+      "path"
+     ],
+     "evidenceFactIds": [
+      "fRadius",
+      "fSpeed"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sForce",
+     "kind": "evaluate",
+     "expressionId": "eForce",
+     "resultBinding": {
+      "turnPlanQuantityId": "F",
+      "symbol": "F_c",
+      "unit": "N",
+      "evidenceFactIds": [
+       "fForce"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "contact_body",
+    "analytic_curve",
+    "bounded_region"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "elastic_profile",
+    "elastic_state",
+    "rectangle",
+    "circle",
+    "vector_components",
+    "surface_contact",
+    "right_angle_mark",
+    "rotate",
+    "arc",
+    "midpoint",
+    "rotational_motion",
+    "rotational_state",
+    "planar_torque",
+    "harmonic_motion",
+    "harmonic_state",
+    "gravitational_field",
+    "gravitational_force",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "vector_sum",
+    "vector_scale",
+    "vector_projection",
+    "free_body",
+    "coupled_bodies",
+    "vertical_circle",
+    "mechanical_energy_pair",
+    "work_interval",
+    "spring_energy",
+    "potential_curve",
+    "collision",
+    "incline_friction",
+    "uniform_circular_motion",
+    "projectile_trajectory",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "function_region",
+    "intersection",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "motion_graph",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency",
+    "constraint_region",
+    "representative_slice",
+    "solid_of_revolution",
+    "polygon"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "perpendicular",
+    "opposite_direction",
+    "connected",
+    "parallel",
+    "angle_between",
+    "on",
+    "equal_length",
+    "function_value",
+    "root",
+    "incident",
+    "between"
+   ],
+   "planningGuidance": [
+    "Construct contact surfaces and rigid bodies first. Attach every force vector to its body with a shared point ID, using vector_components with the physical surface as basis on an incline. Use free_body for explicit forces, incline_friction when mass, angle, and mu determine the contact forces, and coupled_bodies for a string or rod; do not invent a normal, friction, or gravity. Use vertical_circle when a supplied speed and radius determine the constraint force. Use work_interval, spring_energy, or collision only with the supplied source values. For a hinged rod or rotating rigid body, reuse one hinge/axis point and derive the second pose with rotate; attach weight at the centre of mass. Prove contact, perpendicular normals, equal rod lengths, and opposite action-reaction. Never draw a free-body as floating arrows or two disconnected copies of the same body.",
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
+    "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fMass",
+      "kind": "given",
+      "statement": "mass is 2 kg",
+      "evidence": {
+       "source": "question",
+       "start": 2,
+       "end": 11,
+       "quote": "2 kg mass"
+      }
+     },
+     {
+      "id": "fRadius",
+      "kind": "given",
+      "statement": "circle radius is 1 m",
+      "evidence": {
+       "source": "question",
+       "start": 33,
+       "end": 43,
+       "quote": "radius 1 m"
+      }
+     },
+     {
+      "id": "fSpeed",
+      "kind": "given",
+      "statement": "speed is 3 m/s",
+      "evidence": {
+       "source": "question",
+       "start": 47,
+       "end": 52,
+       "quote": "3 m/s"
+      }
+     },
+     {
+      "id": "fForce",
+      "kind": "requested",
+      "statement": "find centripetal force",
+      "evidence": {
+       "source": "question",
+       "start": 54,
+       "end": 80,
+       "quote": "Find its centripetal force"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "mass",
+      "kind": "body",
+      "label": "2 kg mass",
+      "evidenceFactIds": [
+       "fMass"
+      ]
+     },
+     {
+      "id": "path",
+      "kind": "curve",
+      "label": "circular path",
+      "evidenceFactIds": [
+       "fRadius"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eForce",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fMass",
+       "fRadius",
+       "fSpeed"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "^",
+         "left": {
+          "kind": "number",
+          "value": 3
+         },
+         "right": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iCircle",
+      "kind": "conceptual",
+      "entityIds": [
+       "mass",
+       "path"
+      ],
+      "evidenceFactIds": [
+       "fRadius",
+       "fSpeed"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sForce",
+      "kind": "evaluate",
+      "expressionId": "eForce",
+      "resultBinding": {
+       "turnPlanQuantityId": "F",
+       "symbol": "F_c",
+       "unit": "N",
+       "evidenceFactIds": [
+        "fForce"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sForce",
+      "requestId": "sForce",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "18"
+      },
+      "approximate": 18,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sForce",
+      "requestId": "sForce",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eForce"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "body on a level circular path with its velocity and centripetal force"
+   },
+   "source": {
+    "question": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s. Find its centripetal force.",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [
+    {
+     "id": "m",
+     "symbol": "m",
+     "value": 2,
+     "unit": "kg"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 1,
+     "unit": "m"
+    },
+    {
+     "id": "v",
+     "symbol": "v",
+     "value": 3,
+     "unit": "m/s"
+    }
+   ],
+   "entities": [
+    {
+     "id": "O",
+     "kind": "point",
+     "role": "centre",
+     "label": "O"
+    },
+    {
+     "id": "path",
+     "kind": "circle",
+     "role": "circular path"
+    },
+    {
+     "id": "body",
+     "kind": "point",
+     "role": "body",
+     "label": "P"
+    },
+    {
+     "id": "radius",
+     "kind": "segment",
+     "role": "radius",
+     "label": "r=1 m"
+    },
+    {
+     "id": "velocity",
+     "kind": "vector",
+     "role": "velocity",
+     "label": "v=3 m/s"
+    },
+    {
+     "id": "centripetal",
+     "kind": "vector",
+     "role": "centripetal",
+     "label": "F_c"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_O",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "O"
+     ]
+    },
+    {
+     "id": "make_path",
+     "operator": "circle",
+     "inputs": {
+      "center": "O",
+      "radius": 2.4
+     },
+     "outputs": [
+      "path"
+     ]
+    },
+    {
+     "id": "make_body",
+     "operator": "point",
+     "inputs": {
+      "x": 2.4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "body"
+     ]
+    },
+    {
+     "id": "make_radius",
+     "operator": "segment",
+     "inputs": {
+      "start": "O",
+      "end": "body"
+     },
+     "outputs": [
+      "radius"
+     ]
+    },
+    {
+     "id": "make_velocity",
+     "operator": "vector",
+     "inputs": {
+      "start": "body",
+      "direction": [
+       0,
+       1
+      ],
+      "length": 1.3
+     },
+     "outputs": [
+      "velocity"
+     ]
+    },
+    {
+     "id": "make_centripetal",
+     "operator": "vector",
+     "inputs": {
+      "start": "body",
+      "direction": [
+       -1,
+       0
+      ],
+      "length": 1.1
+     },
+     "outputs": [
+      "centripetal"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "body_on",
+     "predicate": "on",
+     "entities": [
+      "body",
+      "path"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "v_tangent",
+     "predicate": "perpendicular",
+     "entities": [
+      "velocity",
+      "radius"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_O",
+     "predicate": "label_attached",
+     "entities": [
+      "O"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_body",
+     "predicate": "label_attached",
+     "entities": [
+      "body"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_velocity",
+     "predicate": "label_attached",
+     "entities": [
+      "velocity"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_centripetal",
+     "predicate": "label_attached",
+     "entities": [
+      "centripetal"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "mass_note",
+     "kind": "label",
+     "targetIds": [
+      "body"
+     ],
+     "text": "m=2 kg",
+     "placementIntent": "near"
+    }
+   ],
+   "requiredEntityIds": [
+    "O",
+    "path",
+    "body",
+    "radius",
+    "velocity",
+    "centripetal"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "O",
+      "path",
+      "body",
+      "radius",
+      "velocity",
+      "centripetal"
+     ],
+     "dependsOn": [],
+     "narrationCue": "A 2 kg mass moves in a circle of radius 1 m at 3 m/s; the centripetal force points toward the centre."
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}
