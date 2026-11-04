@@ -13,6 +13,7 @@
  * only, with a tail, creating, overlapping) and late audio, the 415 byte
  * check, and growth charging only new bytes.
  */
+import { getWriteCharScheduleMs, validateAudioTimingsForNarration } from "@heytutor/tutor-core";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -434,6 +435,246 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
   } finally { globalThis.fetch = originalFetch; }
 }
 
+// A recorded lesson: 41 rows, 5.7 KB of narration and 193 KB of per character
+// timings at full precision. Its next save got a 413, and the rest of the lesson
+// was never saved. Timings are given up before rows are.
+async function timingsGiveWayBeforeRows() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const seconds = (index: number) => index * 0.0812345678901234 + 0.0312345678901234;
+  const timed = (orderIndex: number, chars: number) => {
+    const text = "a".repeat(chars);
+    return { ...row(orderIndex, text, write("x")), durationMs: 9_000, timings: {
+      charStartTimes: Array.from({ length: chars }, (_, index) => seconds(index)),
+      charDurations: Array.from({ length: chars }, () => 0.0812345678901234),
+      totalDuration: seconds(chars),
+    } };
+  };
+  const warnings: unknown[][] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => { warnings.push(args); };
+  try {
+    // Rounded to the millisecond as it is saved, and within a millisecond of what was sent.
+    const small = crypto.randomUUID();
+    const sent = timed(0, 40);
+    assert.equal((await put(small, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: [sent] })).status, 200);
+    const saved = rowsOf(small)[0]!.timings as { charStartTimes: number[]; charDurations: number[]; totalDuration: number };
+    assert.equal(saved.charStartTimes.length, 40, "every character keeps its time");
+    saved.charStartTimes.forEach((value, index) => {
+      assert(Math.abs(value - sent.timings.charStartTimes[index]!) <= 0.0005, "a time moves by half a millisecond at most");
+      assert.equal(value, Number(value.toFixed(3)), "a time holds three decimals");
+    });
+    assert.equal(saved.totalDuration, Number(sent.timings.totalDuration.toFixed(3)), "the total is rounded too");
+    assert(JSON.stringify(saved).length < JSON.stringify(sent.timings).length / 2, "rounding at least halves the bytes");
+    // Rounding does not move the pen, through the code the pen actually uses.
+    const words = "aaaa ".repeat(8).slice(0, 39) + "a";
+    const penRow = { type: "WRITE" as const, text: "aaaa", params: [90, 142], charPosition: 0, narrationBefore: words.slice(0, 20) };
+    assert.equal(validateAudioTimingsForNarration(words, saved as never).valid, validateAudioTimingsForNarration(words, sent.timings as never).valid, "the validator reads rounded timings the same way");
+    assert.equal(validateAudioTimingsForNarration(words, saved as never).valid, true, "and accepts them");
+    const penBefore = getWriteCharScheduleMs(words, penRow as never, sent.timings as never)!;
+    const penAfter = getWriteCharScheduleMs(words, penRow as never, saved as never)!;
+    assert(penBefore && penAfter, "both give a pen schedule");
+    assert(penBefore.offsetsMs.length > 0, "the schedule has characters to compare");
+    assert.equal(penAfter.offsetsMs.length, penBefore.offsetsMs.length, "the pen writes the same characters");
+    penBefore.offsetsMs.forEach((value: number, index: number) => assert(Math.abs(value - penAfter.offsetsMs[index]!) <= 1, "the pen moves by a millisecond at most"));
+
+    // A lesson saved before this: its full precision rows are never rewritten, and
+    // it reads back, and can grow, alongside new rounded rows.
+    const older = crypto.randomUUID();
+    assert.equal((await put(older, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: [row(0, "Old.", write("x"))] })).status, 200);
+    stored(older).submittedSegments.rows[0].timings = sent.timings;
+    assert.equal((await put(older, { seq: 2, baseCount: 1, rawResponse: "a", appendSegments: [timed(1, 40)] })).status, 200);
+    assert.deepEqual(rowsOf(older)[0]!.timings, sent.timings, "an older row keeps its timings exactly");
+    const replayed = (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"), { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === older);
+    assert.deepEqual(replayed.segments[0].timings, sent.timings, "and replays with them");
+    assert.equal(replayed.segments[1].timings.charStartTimes[1], Number(seconds(1).toFixed(3)), "next to a rounded row");
+
+    // The recorded lesson's shape saves whole, every row with its timings.
+    const recorded = crypto.randomUUID();
+    let base = 0;
+    for (let index = 0; index < 60; index++) {
+      const saveRow = await put(recorded, { seq: index + 1, baseCount: base, rawResponse: "a", appendSegments: [timed(base, 138)] });
+      assert.equal(saveRow.status, 200, `row ${index} of a long lesson saves`);
+      base += 1;
+    }
+    assert.equal(rowsOf(recorded).length, 60);
+    assert(rowsOf(recorded).every((saved) => saved.timings != null), "a lesson this size keeps every timing");
+
+    // Far longer: the rows keep coming, and only the later ones lose timings.
+    warnings.length = 0;
+    const long = crypto.randomUUID();
+    base = 0;
+    for (let index = 0; index < 200; index++) {
+      const saveRow = await put(long, { seq: index + 1, baseCount: base, rawResponse: "a", appendSegments: [timed(base, 138)] });
+      assert.equal(saveRow.status, 200, `row ${index} of a very long lesson saves`);
+      base += 1;
+    }
+    const rows = rowsOf(long);
+    assert.equal(rows.length, 200, "no row is lost");
+    assert(rows[0]!.timings != null, "early rows keep their timings");
+    assert(rows[199]!.timings == null, "late rows give theirs up");
+    assert.equal(rows[199]!.durationMs, 9_000, "a row without timings keeps its real length, which replay paces by");
+    assert.equal(rows[199]!.narration.length, 138, "and its words");
+    const dropped = warnings.filter((args) => args[0] === "[turn-timings-dropped]");
+    assert(dropped.length > 0, "the loss is recorded");
+    assert.deepEqual(Object.keys(dropped[0]![1] as object).sort(), ["entryPoint", "event", "rows"], "with counts and no content");
+
+    // Nothing is loosened: rows too big without timings are still refused, by the
+    // merged limit and not only by the limit on one request.
+    const huge = crypto.randomUUID();
+    const wordy = (from: number, count: number) => Array.from({ length: count }, (_, index) => row(from + index, "x".repeat(12_000), write("x")));
+    assert.equal((await put(huge, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
+    const refused = await put(huge, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: wordy(9, 3) });
+    assert.equal(refused.status, 413, "the metadata limit still holds");
+    assert.equal(refused.body.code, "turn_metadata_oversized", "with its own code");
+    assert.equal(rowsOf(huge).length, 9, "and refused rows are not saved");
+    warnings.length = 0;
+    const hugeTimed = crypto.randomUUID();
+    assert.equal((await put(hugeTimed, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
+    assert.equal((await put(hugeTimed, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: [...wordy(9, 3), timed(12, 40)] })).status, 413);
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a refused save records no drop");
+
+    // The size check passed, then the upload failed: nothing was saved, so nothing was lost.
+    warnings.length = 0;
+    uploadPause = async () => { throw new Error("upload failed"); };
+    try {
+      const count = rowsOf(long).length;
+      const failed = await put(long, { seq: 500, baseCount: count, rawResponse: "a", appendSegments: [timed(count, 138)] }, { [count]: MP3(9) }).catch(() => null);
+      assert(failed === null || failed.status >= 400, "the failed upload is not a saved row");
+      assert.equal(rowsOf(long).length, count, "no row was added");
+    } finally {
+      uploadPause = null;
+    }
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a failed save records no drop");
+  } finally {
+    console.warn = realWarn;
+  }
+}
+
+// The page that sent a close is gone: whatever the server refuses in it, a turn
+// it holds must stop reading as still being taught.
+async function refusedCloseStillClosesTheTurn() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const big = Array.from({ length: 9 }, (_, index) => row(index, "x".repeat(12_000), write("x")));
+  const cases: Array<[string, Row, Row]> = [
+    ["rows that do not parse", { rawResponse: "First.", appendSegments: [row(0, "First.")] },
+      { baseCount: 1, appendSegments: [{ orderIndex: "first" }], rawResponse: "Bad." }],
+    // The recorded shape: a lesson outgrew the merged metadata limit.
+    ["a tail over the metadata limit", { rawResponse: "y".repeat(40_000), appendSegments: big },
+      { baseCount: 9, appendSegments: [row(9, "z".repeat(6_000), write("z"))] }],
+  ];
+  for (const [name, first, payload] of cases) {
+    const id = crypto.randomUUID();
+    const opened = await put(id, { seq: 1, baseCount: 0, ...first });
+    assert.equal(opened.status, 200, `${name}: the turn saved before its close`);
+    const held = rowsOf(id).length;
+    assert.equal(stored(id).status, "live", `${name}: the turn is live before its close`);
+    const closed = await close(id, { seq: 2, status: "stopped", ...payload });
+    assert.equal(stored(id).status, "stopped", `${name}: the close closed the turn (HTTP ${closed.status})`);
+    assert(closed.status === 400 || closed.status === 413, `${name}: the page still hears its rows were refused (HTTP ${closed.status})`);
+    assert.equal(rowsOf(id).length, held, `${name}: rows it refused are not saved, rows it held stay`);
+  }
+  // A close with no rows whose metadata is refused closes the same way.
+  const metadataOnly = crypto.randomUUID();
+  await put(metadataOnly, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  growthBytesLimit = 0;
+  try {
+    const refusedMetadata = await close(metadataOnly, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedMetadata.status, 413, "a page still hears its metadata was refused");
+    assert.equal(stored(metadataOnly).status, "stopped", "and the turn is closed");
+    assert.equal(stored(metadataOnly).rawResponse, "First.", "without the refused metadata");
+  } finally {
+    growthBytesLimit = null;
+  }
+  // A legacy row with its segments still held, at full quota: the close still
+  // closes it, and leaves the held rows exactly as stored.
+  const legacy = crypto.randomUUID();
+  await put(legacy, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const heldRows = [{ orderIndex: 0, narration: "First.", spokenText: "First.", command: null }];
+  stored(legacy).submittedSegments = heldRows;
+  growthBytesLimit = 0;
+  try {
+    const refusedLegacy = await close(legacy, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedLegacy.status, 413, "a full account still hears the refusal");
+    assert.equal(stored(legacy).status, "stopped", "a legacy row closes at full quota");
+    assert.deepEqual(stored(legacy).submittedSegments, heldRows, "its held rows stay as stored");
+  } finally {
+    growthBytesLimit = null;
+  }
+
+  // A turn already stopped: a refused close changes nothing about it.
+  const already = crypto.randomUUID();
+  await put(already, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  await close(already, { seq: 2, status: "stopped" });
+  const stoppedAt = stored(already).updatedAt;
+  const again = await close(already, { seq: 3, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(again.status, 400, "the refusal still answers");
+  assert.equal(stored(already).updatedAt, stoppedAt, "a refused close does not touch a turn already stopped");
+
+  // An older tab's close while a newer page still teaches this turn. A plain
+  // late close already stops a live turn, and a refused one stops it the same
+  // way: the newer page keeps saving its rows, and can still finish.
+  for (const [name, olderClose] of [
+    ["a plain older close", { seq: 2, status: "stopped" }],
+    ["a refused older close", { seq: 2, status: "stopped", baseCount: 2, appendSegments: [{ orderIndex: "first" }] }],
+  ] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+    await put(shared, { seq: 3, baseCount: 1, rawResponse: "First. Second.", appendSegments: [row(1, "Second.")] });
+    await close(shared, olderClose);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped`);
+    assert.equal(stored(shared).rawResponse, "First. Second.", `${name}: the newer page's words stay`);
+    const stillTeaching = await put(shared, { seq: 4, baseCount: 2, status: "live", rawResponse: "First. Second. Third.", appendSegments: [row(2, "Third.")] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, 3, `${name}: its rows are kept`);
+    assert.equal(stored(shared).status, "stopped", `${name}: a live save cannot reopen it, as before`);
+    const finished = await put(shared, { seq: 5, baseCount: 3, status: "complete", rawResponse: "First. Second. Third." });
+    assert.equal(finished.status, 200, `${name}: the newer page can still finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: and the lesson completes`);
+  }
+
+  // The same comparison when the refusal is 413 or 409: the two ways an older tab's
+  // close with rows can be refused while a newer page still teaches this turn.
+  const bigRows = (from: number, count: number) => Array.from({ length: count }, (_, index) => row(from + index, "x".repeat(12_000), write("x")));
+  for (const [name, refusedStatus] of [["a 413", 413], ["a 409", 409]] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "y".repeat(40_000), appendSegments: bigRows(0, 9) });
+    await put(shared, { seq: 3, baseCount: 9, rawResponse: "z".repeat(40_000), appendSegments: [row(9, "Second.", write("x"))] });
+    const words = stored(shared).rawResponse;
+    if (refusedStatus === 409) {
+      // A newer save lands while the older close is on its way to commit.
+      growthPause = async () => {
+        growthPause = null;
+        const newer = await put(shared, { seq: 4, baseCount: 10, rawResponse: words, appendSegments: [row(10, "Third.", write("x"))] });
+        assert.equal(newer.status, 200, "the newer save lands first");
+      };
+    }
+    const older = await close(shared, { seq: 2, status: "stopped", baseCount: 10,
+      appendSegments: refusedStatus === 413 ? [row(10, "o".repeat(6_000), write("x"))] : [row(10, "Older.", write("x"))] });
+    growthPause = null;
+    assert.equal(older.status, refusedStatus, `${name}: the older close is refused that way`);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped, as a plain late close does`);
+    assert.equal(stored(shared).rawResponse, words, `${name}: the newer page's words stay`);
+    const count = rowsOf(shared).length;
+    const stillTeaching = await put(shared, { seq: 5, baseCount: count, status: "live", rawResponse: words, appendSegments: [row(count, "More.", write("x"))] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, count + 1, `${name}: its rows are kept`);
+    assert.equal((await put(shared, { seq: 6, baseCount: count + 1, status: "complete", rawResponse: words })).status, 200, `${name}: and it can finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: the lesson completes`);
+  }
+
+  // No turn yet: nothing to close, and refused rows create nothing.
+  const none = crypto.randomUUID();
+  const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(refused.status, 400, "with no turn the refusal stands");
+  assert(!turns.some((turn) => turn.id === none), "and creates nothing");
+  // A signed in stranger gets no close on someone else's board.
+  const owned = crypto.randomUUID();
+  await put(owned, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const stranger = await close(owned, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] }, "board-b");
+  assert.equal(stranger.status, 404, "another board's close is refused");
+  assert.equal(stored(owned).status, "live", "and closes nothing");
+}
+
 async function closeMetadataSequenceOwnership() {
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   const id = crypto.randomUUID();
@@ -806,6 +1047,8 @@ async function main() {
   await failedEarlierCreationKeepsDurableOrder();
   await registryHistoryReceiptsDriveDurableInsertion();
   await closeMetadataSequenceOwnership();
+  await timingsGiveWayBeforeRows();
+  await refusedCloseStillClosesTheTurn();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();

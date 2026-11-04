@@ -514,14 +514,17 @@ function completeAtomicActivityPhase(question: string, start: number, end: numbe
     return read.ok && /^\s*$/.test(question.slice(read.reading.source.span.end, phaseEnd));
   });
 }
+/** No unit is longer than this, so the inventory never needs to read further ahead for one. */
+const UNIT_LOOKAHEAD_CHARS = 64;
+
 function inventoryNotationSpans(question: string, end: number, dimension?: ChemistryDimension): ChemistrySpan[] {
   const spans: ChemistrySpan[] = [];
   const body = question.slice(0, end);
   for (const match of body.matchAll(/[A-Za-zÅå°/]/g)) {
     const start = match.index!;
     if (/[A-Za-z0-9_]/.test(body[start - 1] ?? "")) continue;
-    const parsed = unitAt(body.slice(start));
-    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) {
+    const parsed = unitAt(body.slice(start, start + UNIT_LOOKAHEAD_CHARS));
+    if (parsed && !continuesUnit(body.slice(start + parsed.text.length, start + parsed.text.length + UNIT_LOOKAHEAD_CHARS))) {
       const unitEnd = start + parsed.text.length;
       // The scalar lexer can include a sentence's full stop in an exponent
       // token ("-1."). Only this internal notation mask owns that punctuation;

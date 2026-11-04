@@ -4,7 +4,18 @@ import { AVAILABLE_SUBJECTS, type SubjectId } from "./types";
 
 const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
   physics: [
-    ...LANDING_SUGGESTIONS,
+    {
+      topic: "Resistors",
+      kind: "problem",
+      question:
+        "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+    },
+    {
+      topic: "Newton's laws",
+      kind: "problem",
+      question:
+        "A 5 kg block on a smooth horizontal table is pulled by a horizontal force of 20 N. Find its acceleration and the normal force on it.",
+    },
     {
       topic: "Capacitors",
       kind: "lecture",
@@ -124,12 +135,6 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
         "Find the spin only magnetic moment of [Fe(CN)6]3- and [CoF6]3- and say which is high spin.",
     },
     {
-      topic: "Organic",
-      kind: "problem",
-      question:
-        "Draw 3-methylbut-1-ene and give the major product when it reacts with HBr.",
-    },
-    {
       topic: "Equilibrium",
       kind: "lecture",
       question:
@@ -149,6 +154,31 @@ const SUBJECT_SUGGESTIONS: Record<SubjectId, CanvasLandingSuggestion[]> = {
     },
   ],
 };
+
+/**
+ * Every fixed card a student can be shown, in subject order. The lecture-lab
+ * suggestion check builds its evaluation set from this list, so a new card
+ * is measured before it ships.
+ */
+export function shownHomeSuggestions(): Array<
+  CanvasLandingSuggestion & { subject: SubjectId }
+> {
+  const seen = new Set<string>();
+  const shown: Array<CanvasLandingSuggestion & { subject: SubjectId }> = [];
+  for (const subject of AVAILABLE_SUBJECTS) {
+    for (const suggestion of SUBJECT_SUGGESTIONS[subject] ?? []) {
+      if (seen.has(suggestion.question)) continue;
+      seen.add(suggestion.question);
+      shown.push({ ...suggestion, subject });
+    }
+  }
+  for (const suggestion of LANDING_SUGGESTIONS) {
+    if (seen.has(suggestion.question)) continue;
+    seen.add(suggestion.question);
+    shown.push({ ...suggestion, subject: "physics" });
+  }
+  return shown;
+}
 
 /** Topic lectures start as Derive / Explain / Show how, not as a numbered exam item. */
 export function isLectureHomePrompt(question: string): boolean {

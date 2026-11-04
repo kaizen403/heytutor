@@ -4,6 +4,7 @@ import { cacheUsageOnUser } from "@/lib/billing/ledger";
 import {
   resolveDiagramStrictSubjects,
   resolveDiagramYieldPolicy,
+  resolveOpticsArchetypeInStrict,
   resolveReferencePictureEnabled,
   resolveReferencePicturePartFocusEnabled,
 } from "@/lib/scene/diagramStrategy.server";
@@ -37,6 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     diagramStrategy: result.diagramStrategy,
     diagramStrictSubjects: resolveDiagramStrictSubjects(),
     diagramYieldPolicy: resolveDiagramYieldPolicy(),
+    opticsArchetypeInStrict: resolveOpticsArchetypeInStrict(),
     referencePicture: resolveReferencePictureEnabled(),
     referencePicturePartFocus: resolveReferencePicturePartFocusEnabled(),
     doubtPointing: resolveDoubtPointingEnabled(),

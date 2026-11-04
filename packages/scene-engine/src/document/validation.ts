@@ -8,6 +8,7 @@ import {
   type ValidationReport,
   type ValidationResult,
 } from "../types";
+import { sceneTextOverLimit } from "./textLimits";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { AXIS_BASELINE, piecewiseLinearGraph, polygonMatchesGraphRegion, regionGrid, type GraphBoundary, type GraphPoint } from "../compile/graphRegion";
 import {
@@ -4118,6 +4119,8 @@ function escapeRegExp(value: string): string {
 }
 
 export function validateSceneDocument(raw: unknown): ValidationResult {
+  const overLimit = sceneTextOverLimit(raw);
+  if (overLimit) return result(null, [overLimit]);
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);

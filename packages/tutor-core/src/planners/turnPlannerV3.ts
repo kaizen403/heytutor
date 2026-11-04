@@ -1,5 +1,7 @@
 import {
+  questionForPlanReaders,
   reconcileTurnPlanV3ExplicitArithmetic,
+  turnPlanTextOverLimit,
   validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
@@ -53,7 +55,7 @@ const TURN_PLAN_DIAGNOSTIC_ISSUE_CODES = [
   "missing_array", "question_mismatch", "schema_version", "sign_mismatch",
   "source_text_arithmetic_conflict", "source_text_arithmetic_invalid",
   "source_text_value_mismatch", "unknown_claim_quantity", "unknown_dependency",
-  "unresolved_numeric_unknown", "optics_law_mismatch",
+  "unresolved_numeric_unknown", "optics_law_mismatch", "plan_text_over_limit",
 ] as const;
 export type TurnPlanDiagnosticIssueCode = typeof TURN_PLAN_DIAGNOSTIC_ISSUE_CODES[number];
 const diagnosticIssueCodes: ReadonlySet<string> = new Set(TURN_PLAN_DIAGNOSTIC_ISSUE_CODES);
@@ -560,7 +562,7 @@ function parseTurnPlanV3ContentObserved(
   outcome?: TurnPlanParseOutcome,
 ): TurnPlanV3 | null {
   const parsed = parseTurnPlan(content, question, trace, outcome);
-  return parsed ? enforceMinimumVisualRequirement(parsed, question) : null;
+  return parsed ? enforceMinimumVisualRequirement(parsed, questionForPlanReaders(question)) : null;
 }
 
 function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace, outcome?: TurnPlanParseOutcome): TurnPlanV3 | null {
@@ -572,7 +574,16 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
       return null;
     }
     jsonParsed = true;
-    const normalized = normalizePlannerTurnPlan(parsed, question);
+    const overLimit = turnPlanTextOverLimit(parsed, question);
+    if (overLimit) {
+      if (trace) trace.issues = [overLimit];
+      if (outcome) {
+        outcome.code = "plan_validation_failed";
+        outcome.issueCodes.push("plan_text_over_limit");
+      }
+      return null;
+    }
+    const normalized = normalizePlannerTurnPlan(parsed, questionForPlanReaders(question));
     if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);
     if (trace) trace.arithmetic = reconciled;

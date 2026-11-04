@@ -54,6 +54,11 @@ export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY
   return parseDiagramYieldPolicy(raw);
 }
 
+/** Switch for strict drawing the owning optics archetype: only `OPTICS_ARCHETYPE_IN_STRICT=on` turns it on; default off. */
+export function resolveOpticsArchetypeInStrict(raw = process.env.OPTICS_ARCHETYPE_IN_STRICT): boolean {
+  return (raw ?? "").trim().toLowerCase() === "on";
+}
+
 /**
  * Reference pictures (a judged Commons or generated picture drawn when no
  * verified figure could be): off unless `DIAGRAM_REFERENCE_PICTURE=on`.

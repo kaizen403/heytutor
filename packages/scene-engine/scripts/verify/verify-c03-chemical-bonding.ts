@@ -319,9 +319,9 @@ check(hb !== null && zoneOk(hb), "nitrophenol hydrogen bonds compile");
 check(hb?.labels.includes("intra") === true && hb.labels.includes("no intra") === true && hb.labels.includes("inter") === true, "ortho and para hydrogen bonds are distinguished");
 check(hb?.labels.includes("+") === true && hb.labels.includes("-") === true, "nitro formal charges are marked");
 const hf = compileDoc(buildLewisScene("Show the intermolecular hydrogen bond in hydrogen fluoride.", [], false));
-check(hf?.labels.includes("inter") === true && hf.labels.includes("HF") === true, "HF hydrogen bond");
+check(hf?.labels.includes("hydrogen bond") === true && hf.labels.includes("HF") === true, "HF hydrogen bond");
 const ammonia = compileDoc(buildLewisScene("Show the intermolecular hydrogen bond in ammonia.", [], false));
-check(ammonia?.labels.includes("NH_3") === true && ammonia.labels.includes("inter") === true, "ammonia hydrogen bond uses N");
+check(ammonia?.labels.includes("NH_3") === true && ammonia.labels.includes("hydrogen bond") === true, "ammonia hydrogen bond uses N");
 check(compileDoc(buildLewisScene("Explain hydrogen bonding in methane.", [], false)) === null, "methane is not a hydrogen-bond donor");
 check(compileDoc(buildLewisScene("Explain hydrogen bonding in HCl.", [], false)) === null, "chlorine is not the N/O/F acceptor used here");
 

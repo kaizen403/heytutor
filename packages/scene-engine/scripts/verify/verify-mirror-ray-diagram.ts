@@ -116,37 +116,19 @@ function checkMirror(
     fail(id, "the second reflected ray must be parallel to the axis");
   }
 
-  const dimFa = worldPoint(document, "dim_f_a");
-  const dimFb = worldPoint(document, "dim_f_b");
-  const pole = worldPoint(document, "P");
-  if (!dimFa || !dimFb || !pole) {
-    fail(id, "missing focal-length dimension anchors");
-  } else {
-    const dimLeft = dimFa.x < dimFb.x ? dimFa : dimFb;
-    const dimRight = dimFa.x < dimFb.x ? dimFb : dimFa;
-    const focusLeft = focus.x < pole.x ? focus : pole;
-    const focusRight = focus.x < pole.x ? pole : focus;
-    if (!nearly(dimLeft.x, focusLeft.x, 0.02) || !nearly(dimRight.x, focusRight.x, 0.02)) {
-      fail(id, `f-bar spans x=${dimLeft.x}..${dimRight.x}, expected F–P ${focusLeft.x}..${focusRight.x}`);
+  // Measured spans: each bar runs from the pole to the figure's own point.
+  for (const [dimension, point] of [["dim_u", "O_base"], ["dim_f", "F"], ["dim_v", "I_base"]] as const) {
+    const make = document.constructions.find((construction) => construction.operator === "dimension" && construction.outputs.includes(dimension));
+    if (!make || make.inputs.start !== "P" || make.inputs.end !== point) {
+      fail(id, `${dimension} must measure P to ${point}, got ${JSON.stringify(make?.inputs ?? null)}`);
     }
-    if (Math.abs(dimFa.x - dimFb.x) < 0.02 || Math.abs(dimFa.y - dimFb.y) > 0.02) {
-      fail(id, "f-bar must be a horizontal span from F to P");
-    }
-    const envelope = Math.min(0, iTip.y, m2.y) - 0.15 * Math.abs(oTip.y);
-    if (dimFa.y > envelope || dimFb.y > envelope) {
-      fail(id, `f-bar at y=${dimFa.y} still sits in the through-F corridor (must be below ${envelope})`);
-    }
-  }
-  const dimUa = worldPoint(document, "dim_u_a");
-  if (dimUa && dimUa.y < oTip.y + 0.15 * Math.abs(oTip.y)) {
-    fail(id, `u-bar at y=${dimUa.y} must sit above the object, not in the ray corridor`);
   }
 
   const rayIds = new Set(["ray1_in", "ray2_in", "ray1_out", "ray2_out", "ray1_ext", "ray2_ext"]);
   const rayInk = renderScene.primitives.filter((primitive) =>
     rayIds.has(primitive.entityId) && primitive.points.length >= 2);
   const dimInk = renderScene.primitives.filter((primitive) =>
-    (primitive.entityId === "dim_f" || primitive.entityId === "dim_u")
+    (primitive.entityId === "dim_f" || primitive.entityId === "dim_u" || primitive.entityId === "dim_v")
     && primitive.kind === "dimension"
     && primitive.points.length >= 2);
   for (const bar of dimInk) {

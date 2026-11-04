@@ -38,6 +38,7 @@ import {
   type TurnCheckpointResult,
   type TurnCloseInput,
 } from "../../lib/boards/boardsClient";
+import { classifySaveFailure } from "../../lib/boards/boardsClient";
 import { boardContinuationOf } from "../../lib/boards/boardContinuation";
 import { MAX_PAGE_AWAY_TELEMETRY_BYTES, MAX_TELEMETRY_BODY_BYTES } from "../../lib/obs/turnTelemetry";
 import {
@@ -845,6 +846,87 @@ async function reopenKeepsUnsavedTurns() {
   assert.deepEqual(q.registry.reopen("board-2"), [], "never another board's turn");
 }
 
+// The rejection codes production logged from 26 Oct to 2 Nov, read back through
+// the real classifier. A turn the server holds must not stay live after one.
+async function refusedSaveStillClosesItsRow() {
+  const recorded: Array<[string, number, Record<string, unknown>]> = [
+    ["multipart_invalid", 400, { code: "multipart_invalid" }],
+    ["scene_solver_artifacts_incomplete", 400, { code: "scene_solver_artifacts_incomplete" }],
+    ["turn_metadata_oversized", 413, { code: "turn_metadata_oversized" }],
+    ["storage_commit_rejected", 413, { code: "storage_commit_rejected" }],
+    ["save_allowance_used", 409, { code: "save_allowance_used" }],
+  ];
+  for (const [name, status, body] of recorded) {
+    for (const ending of ["stop", "complete"] as const) {
+      const h = harness();
+      const turn = begin(h, { generation: 1 });
+      h.registry.recordRow(owner, 1, row("step one"), { intro: false });
+      await h.settle();
+      await h.ack(h.calls[0]!);
+      h.registry.recordRow(owner, 1, row("step two"), { intro: false });
+      await h.settle();
+      const refused = classifySaveFailure(status, { error: "refused", ...body });
+      assert.equal(refused.retryable, false, `${name}: not retried on its own`);
+      await h.fail(h.calls[h.calls.length - 1]!, refused);
+      if (refused.reason === "refused" && status === 400) {
+        // Decision 7: saved once more as text only, then given up on.
+        await h.settle();
+        await h.fail(h.calls[h.calls.length - 1]!, refused);
+      }
+      assert.equal(h.server.get(h.calls[0]!.turnId)?.status, "live", `${name}: the row is still live when the save is refused`);
+      if (ending === "stop") turn.handle.close();
+      else void turn.handle.complete({ rawResponse: "all of it" });
+      await h.settle();
+      // A Stop then a finish before the answer must not send a second one.
+      if (ending === "stop") void turn.handle.complete({ rawResponse: "all of it" });
+      await h.settle();
+      const closes = h.calls.filter((call) => call.method === "PATCH");
+      assert.equal(closes.length, 1, `${name}, ${ending}: one close goes out after the refusal`);
+      assert.equal(closes[0]!.input.status, "stopped", `${name}, ${ending}: it stops the row`);
+      assert.deepEqual(closes[0]!.input.segments ?? [], [], `${name}, ${ending}: it carries no rows to refuse`);
+      await h.ack(closes[0]!);
+      assert.equal(h.server.get(h.calls[0]!.turnId)?.status, "stopped", `${name}, ${ending}: the row is closed`);
+      turn.handle.close();
+      await h.settle();
+      assert.equal(h.calls.filter((call) => call.method === "PATCH").length, 1, `${name}, ${ending}: and only once`);
+    }
+  }
+  // Stop while the refused save is still in flight: the refusal itself closes it.
+  const racing = harness();
+  const stopped = begin(racing, { generation: 1 });
+  racing.registry.recordRow(owner, 1, row("step one"), { intro: false });
+  await racing.settle();
+  await racing.ack(racing.calls[0]!);
+  racing.registry.recordRow(owner, 1, row("step two"), { intro: false });
+  await racing.settle();
+  stopped.handle.close();
+  await racing.settle();
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 0, "the save in flight owns the turn until it answers");
+  await racing.fail(racing.calls[racing.calls.length - 1]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 1, "a refusal after Stop closes the row");
+  // Still teaching: the refused save leaves the turn open until it ends.
+  const open = harness();
+  const live = begin(open, { generation: 1 });
+  open.registry.recordRow(owner, 1, row("step one"), { intro: false });
+  await open.settle();
+  await open.ack(open.calls[0]!);
+  open.registry.recordRow(owner, 1, row("step two"), { intro: false });
+  await open.settle();
+  await open.fail(open.calls[open.calls.length - 1]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(open.calls.filter((call) => call.method === "PATCH").length, 0, "no close while the lesson is still teaching");
+  live.handle.close();
+  await open.settle();
+  assert.equal(open.calls.filter((call) => call.method === "PATCH").length, 1, "the close goes out when it ends");
+  // Never created on the server: there is no row to close.
+  const never = harness();
+  const unsaved = begin(never, { generation: 1 });
+  never.registry.recordRow(owner, 1, row("step"), { intro: false });
+  unsaved.handle.close();
+  await never.settle();
+  await never.fail(never.calls[0]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(never.calls.length, 1, "a turn the server never held sends no close");
+}
+
 async function keepaliveCloseFitsTheBudget() {
   assert(KEEPALIVE_CLOSE_MAX_BYTES + MAX_PAGE_AWAY_TELEMETRY_BYTES <= 64 * 1024,
     "the lesson close and telemetry's page away body fit one 64 KiB keepalive budget together");
@@ -1220,6 +1302,7 @@ async function main() {
   await doubtPointsAtTheFigure();
   await backoffThenFailedThenRetry();
   await refusedFigureSavesOnceAsText();
+  await refusedSaveStillClosesItsRow();
   await conflictResendsFromServerCount();
   await cutRowAndLiveTurn();
   await cutFirstStepOfDoubtOrResumeIsKept();

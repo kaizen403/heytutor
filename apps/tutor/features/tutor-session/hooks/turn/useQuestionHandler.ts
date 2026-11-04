@@ -184,6 +184,7 @@ import {
   chemistryRefusesPlannerFigure,
   diagramStrategyAllowsFigureSource,
   liveDiagramStrategyDecision,
+  strictAdmitsOwningOpticsArchetype,
   type DiagramStrategy,
 } from "../../lib/scene/diagramStrategy";
 import {
@@ -1000,7 +1001,7 @@ export function useQuestionHandler(
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
         subject: diagramStrategySubject,
-        strictSubjects: billed.diagramStrictSubjects,
+        strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
         dsa: dsaClassification.isDsa,
@@ -1266,7 +1267,7 @@ export function useQuestionHandler(
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
             subject: diagramStrategySubject,
-            strictSubjects: billed.diagramStrictSubjects,
+            strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict,
             chemistryLane,
             codeLesson: false,
             dsa: dsaClassification.isDsa,
@@ -1488,7 +1489,7 @@ export function useQuestionHandler(
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
-            strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
+            strictSubjects: billed.diagramStrictSubjects, opticsArchetypeInStrict: billed.opticsArchetypeInStrict, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
           const pickedIds = diagramStrategy.usePickedExamples && diagramExamplePickerSettled ? diagramExampleIds : [];
@@ -1736,6 +1737,7 @@ export function useQuestionHandler(
           solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
+            admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype(diagramStrategyDecision),
             // The strategy reads only an accepted plan's subject; a chemistry
             // consensus from rejected plans still refuses planner figures.
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source) &&
@@ -1755,6 +1757,9 @@ export function useQuestionHandler(
         }
         if (sceneSelection.reason === "the question asks for no figure") {
           tutorDebug("planner", "no figure asked for, skipping the fallback", { law_ids: turnPlan.lawIds });
+        }
+        if (sceneSelection.strictOpticsAdmission?.admitted) {
+          tutorDebug("planner", "strict drew the owning optics archetype", { reason: sceneSelection.strictOpticsAdmission.reason });
         }
         if (attempted && !sceneSelection.sourceAllowed) {
           tutorDebug("planner", "strict strategy suppressed non-planner representation", {
@@ -2423,10 +2428,23 @@ export function useQuestionHandler(
         const waitStartedAt = Date.now();
         if (!referencePicturePending) startReferencePicture(false);
         const pending = referencePicturePending!;
+        // On the page before the wait: Stop saves the turn before this code can
+        // run again, so only this tells a stop during the wait apart.
+        page.turn.scene = page.turn.scene ? {
+          ...page.turn.scene,
+          sceneArtifacts: {
+            ...sceneArtifacts,
+            referencePictureOutcome: {
+              attempted: true, status: "skipped", reason: "wait_in_progress",
+              ms: Math.max(0, waitStartedAt - pending.startedAt), speculative: pending.speculative,
+            } satisfies ReferencePictureOutcome,
+          },
+        } : page.turn.scene;
         // A turn replaced while it waits stops paying for its picture.
         const awaitWhileCurrent = <T,>(operation: Promise<T>): Promise<T> =>
           awaitCurrentTurn(operation, isCurrentTurn).catch((error: unknown) => {
             pending.controller.abort();
+            tel.mark("reference-picture-wait-stopped", { wait_ms: Date.now() - waitStartedAt, speculative: pending.speculative });
             throw error;
           });
         let deadline: ReturnType<typeof setTimeout> | undefined;
