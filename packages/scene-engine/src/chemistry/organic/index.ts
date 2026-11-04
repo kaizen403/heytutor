@@ -366,12 +366,24 @@ function factsLine(stem: string, molecule: Molecule): string {
  * "?" box. The private source-reaction path first computes supported graph
  * transformations; other isomer/name requests retain the existing row path.
  */
+/**
+ * Asked for a charged form of a named compound. This figure draws the neutral
+ * molecule, which is false for that form: "the zwitterion of glycine" drew NH2 and
+ * COOH. A name the parser cannot resolve ("anilinium") already declines; this is the
+ * name beside a word asking for another form. Decline only, so a wording missed here
+ * draws what it drew before. Words a stem also uses for a reason or a condition stay
+ * out: "conjugate base" explains an acidity, and "in acidic medium" is where a reaction
+ * runs, and those stems draw true figures.
+ */
+const CHARGED_FORM_ASK = /zwitter|dipolar\s+ion|(?:inner|internal)\s+salt|isoelectric|\b(?:at|physiological)\s+ph\b|\b(?:de)?protonated\b|\b(?:an|cat)ions?\s+of\b|\bsalts?\s+of\b/;
+
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   // A mechanism ask is answered by checked curly arrows or not at all: a
   // product row without arrows would read as the mechanism.
   const mechanism = readMechanismSource(question);
   if (mechanism.status === "source") return mechanism.document;
   if (mechanism.status === "declined") return null;
+  if (CHARGED_FORM_ASK.test(chemStem(question))) return null;
   if (!isOrganicStem(question)) return null;
   // This operator owns every original source/request span and proves the
   // complete graph result. Do not let a narrower structural-label heuristic

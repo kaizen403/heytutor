@@ -1,0 +1,80 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "In a right triangle, opposite = 5 and hypotenuse = 13. Find sin θ and the other acute angle.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_14_trigonometric_functions.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "no drawing asked for; lesson correct; all three turn plan calls rejected"
+ },
+ "selection": {
+  "question": "In a right triangle, opposite = 5 and hypotenuse = 13. Find sin θ and the other acute angle.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "question": "In a right triangle, opposite = 5 and hypotenuse = 13. Find sin θ and the other acute angle.",
+   "givens": [],
+   "unknowns": [],
+   "derived": [],
+   "qualitativeClaims": [],
+   "lawIds": [],
+   "assumptions": [
+    "Turn-plan model was unavailable; visual requirement was classified conservatively."
+   ],
+   "visualRequirement": "optional"
+  },
+  "problemIR": null,
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "circle",
+    "circle_tangent_at",
+    "function_curve",
+    "curve_anchor"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": null,
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

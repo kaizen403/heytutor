@@ -1,0 +1,634 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_3_vsepr_and_shapes.json",
+ "judged": {
+  "verdict": "right",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "SF4 see-saw with one equatorial lone pair, XeF4 square planar with two opposite lone pairs"
+ },
+ "selection": {
+  "question": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "chemistry",
+   "question": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4.",
+   "givens": [],
+   "unknowns": [],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "VSEPR theory: electron pairs in the valence shell of a central atom repel each other and arrange themselves as far apart as possible; lone pairs repel more strongly than bonding pairs (LP-LP > LP-BP > BP-BP), so molecular shape is set by the positions of atoms after minimizing repulsion.",
+     "expected": "Electron-pair geometry from total steric number; molecular shape from bonding pairs only; lone pairs compress bond angles.",
+     "relatedEntityHints": [
+      "valence electron pairs",
+      "lone pairs",
+      "bonding pairs"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "SF4: sulfur has 6 valence electrons; 4 bonding pairs to F plus 1 lone pair gives steric number 5, a trigonal-bipyramidal electron geometry.",
+     "expected": "Steric number = (6 + 4)/2 = 5; electron geometry trigonal bipyramidal.",
+     "relatedEntityHints": [
+      "SF4",
+      "sulfur",
+      "fluorine"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "In SF4 the lone pair occupies an equatorial position (fewer 90-degree repulsions than axial), leaving the four F atoms in a seesaw (sawhorse) molecular shape.",
+     "expected": "Shape: seesaw; equatorial lone pair; axial F-S-F slightly less than 180 degrees, equatorial F-S-F slightly less than 120 degrees due to lone-pair repulsion.",
+     "relatedEntityHints": [
+      "SF4",
+      "seesaw shape"
+     ]
+    },
+    {
+     "id": "c4",
+     "claim": "XeF4: xenon has 8 valence electrons; 4 bonding pairs to F plus 2 lone pairs gives steric number 6, an octahedral electron geometry.",
+     "expected": "Steric number = (8 + 4)/2 = 6; electron geometry octahedral.",
+     "relatedEntityHints": [
+      "XeF4",
+      "xenon",
+      "fluorine"
+     ]
+    },
+    {
+     "id": "c5",
+     "claim": "In XeF4 the two lone pairs occupy opposite (trans, axial) positions to maximize separation, leaving the four F atoms in one plane: square planar molecular shape with 90-degree F-Xe-F angles.",
+     "expected": "Shape: square planar; lone pairs trans; F-Xe-F = 90 degrees.",
+     "relatedEntityHints": [
+      "XeF4",
+      "square planar"
+     ]
+    },
+    {
+     "id": "c6",
+     "claim": "Comparison: both have four bonding pairs, but SF4 (1 lone pair) is seesaw while XeF4 (2 lone pairs) is square planar, showing how lone-pair count controls shape.",
+     "expected": "Same ligand count, different steric numbers (5 vs 6) give different shapes.",
+     "relatedEntityHints": [
+      "SF4",
+      "XeF4"
+     ]
+    }
+   ],
+   "lawIds": [
+    "VSEPR theory",
+    "steric number = (valence electrons of central atom + monovalent atoms)/2",
+    "lone pair-bond pair repulsion hierarchy"
+   ],
+   "assumptions": [
+    "Sulfur and xenon are hypervalent here; octet expansion is treated descriptively via VSEPR steric counting.",
+    "Fluorine is monovalent and contributes one electron per bond in steric counting.",
+    "Idealized geometries; real bond angles are slightly compressed by lone pairs."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fExplain",
+     "kind": "requested",
+     "statement": "Explain VSEPR theory and predict shapes",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 72,
+      "quote": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4."
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "sf4",
+     "kind": "other",
+     "label": "SF4 molecule",
+     "evidenceFactIds": [
+      "fExplain"
+     ]
+    },
+    {
+     "id": "xef4",
+     "kind": "other",
+     "label": "XeF4 molecule",
+     "evidenceFactIds": [
+      "fExplain"
+     ]
+    },
+    {
+     "id": "electronPairs",
+     "kind": "other",
+     "label": "valence electron pairs",
+     "evidenceFactIds": [
+      "fExplain"
+     ]
+    }
+   ],
+   "expressions": [],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iSf4Shape",
+     "kind": "conceptual",
+     "entityIds": [
+      "sf4"
+     ],
+     "evidenceFactIds": [
+      "fExplain"
+     ]
+    },
+    {
+     "id": "iXef4Shape",
+     "kind": "conceptual",
+     "entityIds": [
+      "xef4"
+     ],
+     "evidenceFactIds": [
+      "fExplain"
+     ]
+    }
+   ],
+   "solveRequests": [],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "chem_vsepr"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "polygon",
+    "circle",
+    "arc"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": [
+    "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fExplain",
+      "kind": "requested",
+      "statement": "Explain VSEPR theory and predict shapes",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 72,
+       "quote": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "sf4",
+      "kind": "other",
+      "label": "SF4 molecule",
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     },
+     {
+      "id": "xef4",
+      "kind": "other",
+      "label": "XeF4 molecule",
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     },
+     {
+      "id": "electronPairs",
+      "kind": "other",
+      "label": "valence electron pairs",
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iSf4Shape",
+      "kind": "conceptual",
+      "entityIds": [
+       "sf4"
+      ],
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     },
+     {
+      "id": "iXef4Shape",
+      "kind": "conceptual",
+      "entityIds": [
+       "xef4"
+      ],
+      "evidenceFactIds": [
+       "fExplain"
+      ]
+     }
+    ],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Explain VSEPR theory and show how it predicts the shape of SF4 and XeF4."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": true,
+  "figureSource": "chemistry_family",
+  "tier": "qualitative_verified",
+  "family": "chem_vsepr",
+  "entityIds": [
+   "m1_A",
+   "m1_A_p",
+   "m1_L1",
+   "m1_L1_p",
+   "m1_L2",
+   "m1_L2_p",
+   "m1_L3",
+   "m1_L3_p",
+   "m1_L4",
+   "m1_L4_p",
+   "m1_b1",
+   "m1_b1_e",
+   "m1_b1_s",
+   "m1_b2",
+   "m1_b2_e",
+   "m1_b2_s",
+   "m1_b3",
+   "m1_b3_w0",
+   "m1_b3_w1",
+   "m1_b3_w2",
+   "m1_b4",
+   "m1_b4_e",
+   "m1_b4_s",
+   "m1_dom",
+   "m1_dom_p",
+   "m1_hyb",
+   "m1_hyb_p",
+   "m1_lp1_1",
+   "m1_lp1_2",
+   "m1_panel",
+   "m1_panel_c",
+   "m1_shape",
+   "m1_shape_p",
+   "m1_title",
+   "m1_title_p",
+   "m2_A",
+   "m2_A_p",
+   "m2_L1",
+   "m2_L1_p",
+   "m2_L2",
+   "m2_L2_p",
+   "m2_L3",
+   "m2_L3_p",
+   "m2_L4",
+   "m2_L4_p",
+   "m2_b1",
+   "m2_b1_e",
+   "m2_b1_s",
+   "m2_b2",
+   "m2_b2_e",
+   "m2_b2_s",
+   "m2_b3",
+   "m2_b3_w0",
+   "m2_b3_w1",
+   "m2_b3_w2",
+   "m2_b4",
+   "m2_b4_e",
+   "m2_b4_s",
+   "m2_dom",
+   "m2_dom_p",
+   "m2_hyb",
+   "m2_hyb_p",
+   "m2_lp1_1",
+   "m2_lp1_2",
+   "m2_lp2_1",
+   "m2_lp2_2",
+   "m2_panel",
+   "m2_panel_c",
+   "m2_shape",
+   "m2_shape_p",
+   "m2_title",
+   "m2_title_p"
+  ],
+  "texts": [
+   "m1_A: S",
+   "m1_L1: F",
+   "m1_L2: F",
+   "m1_L3: F",
+   "m1_L4: F",
+   "m1_dom: e: TBP",
+   "m1_hyb: sp^3d",
+   "m1_shape: see-saw",
+   "m1_title: SF_4",
+   "m2_A: Xe",
+   "m2_L1: F",
+   "m2_L2: F",
+   "m2_L3: F",
+   "m2_L4: F",
+   "m2_dom: e: octahedral",
+   "m2_hyb: sp^3d^2",
+   "m2_shape: sq. planar",
+   "m2_title: XeF_4"
+  ],
+  "marks": [
+   {
+    "entityId": "m1_b1",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      224,
+      264
+     ],
+     [
+      228,
+      185
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_b2",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      224,
+      337
+     ],
+     [
+      228,
+      416
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_b3",
+    "kind": "polygon",
+    "dashed": false,
+    "points": [
+     [
+      244,
+      329
+     ],
+     [
+      295,
+      370
+     ],
+     [
+      274,
+      387
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_b4",
+    "kind": "line",
+    "dashed": true,
+    "points": [
+     [
+      244,
+      272
+     ],
+     [
+      285,
+      222
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_lp1_1",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      153,
+      284
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_lp1_2",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      153,
+      317
+     ]
+    ]
+   },
+   {
+    "entityId": "m1_panel",
+    "kind": "rectangle",
+    "dashed": true,
+    "points": [
+     [
+      0,
+      853
+     ],
+     [
+      443,
+      853
+     ],
+     [
+      443,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_b1",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      734,
+      300
+     ],
+     [
+      655,
+      300
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_b2",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      808,
+      300
+     ],
+     [
+      887,
+      300
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_b3",
+    "kind": "polygon",
+    "dashed": false,
+    "points": [
+     [
+      745,
+      326
+     ],
+     [
+      709,
+      381
+     ],
+     [
+      690,
+      362
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_b4",
+    "kind": "line",
+    "dashed": true,
+    "points": [
+     [
+      797,
+      275
+     ],
+     [
+      842,
+      229
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_lp1_1",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      788,
+      232
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_lp1_2",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      754,
+      232
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_lp2_1",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      754,
+      369
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_lp2_2",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      788,
+      369
+     ]
+    ]
+   },
+   {
+    "entityId": "m2_panel",
+    "kind": "rectangle",
+    "dashed": true,
+    "points": [
+     [
+      542,
+      798
+     ],
+     [
+      1000,
+      798
+     ],
+     [
+      1000,
+      55
+     ],
+     [
+      542,
+      55
+     ]
+    ]
+   }
+  ],
+  "inkHash": "12cd7b732743"
+ }
+}

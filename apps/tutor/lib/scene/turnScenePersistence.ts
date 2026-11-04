@@ -3,16 +3,10 @@ import {
   FIGURE_SOURCES,
   SCENE_ARTIFACTS_V3_VERSION,
   SCENE_ENGINE_VERSION,
-  compileSceneDocument,
-  chemistryTeachingFamilyId,
-  certifyVseprSourceDocument,
   validateProblemIR,
-  validateSceneDocument,
   validateSceneQuantityAgreement,
   validateSolverResult,
-  validateTurnPlanSceneProofs,
   validateTurnPlanV3,
-  archetypeProvenance,
   verifyTurnPlanAgainstSolver,
   type SceneArtifactsV3,
   type FigureSource,
@@ -24,24 +18,46 @@ import {
   getSegmentCommands,
   isBlockedVerifiedDiagramCommand,
   isStoredCommandTrustedGeometry,
+  withoutFocusKeep,
+  parseFocusSpec,
   parseStoredSegmentCommands,
   serializeSegmentCommands,
   type DrawCommand,
   type TutorSegment,
+  type VerifiedDiagram,
 } from "@heytutor/drawing";
 import { codeLessonBlockById, type CodeLessonPlan } from "@heytutor/tutor-core";
-import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
-import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
-import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
+import { admitLessonFigures, admitStoredScene, isRepresentationTier, withoutLegacyTeachingNotes } from "@/lib/scene/sceneAdmission";
+import {
+  isLessonFigureAdvanceId,
+  lessonFiguresOf,
+  resolveLessonFiguresEnabled,
+  LESSON_FIGURE_IDS,
+  type LessonFigureId,
+  type LessonFiguresArtifact,
+} from "@/lib/boards/lessonFigures";
 import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/workTextPresentation";
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
+import { doubtFigureRefArtifacts, doubtFigureRefOf, type DoubtFigureKind, type DoubtFigureRef } from "@/lib/boards/doubtFigureRef";
+import {
+  composeDoubtFigureQuestion,
+  doubtFigureArtifacts,
+  doubtFigureOf,
+  resolveDoubtFiguresEnabled,
+  type DoubtFigureMarker,
+} from "@/lib/boards/doubtFigure";
+import type { TurnKind } from "@/lib/boards/turnStatus";
+import type { DoubtFigurePageCheck, LessonFigureStartLoader, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
+import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { recordedDiagramSubject } from "@/features/tutor-session/lib/scene/verifiedSceneRecovery";
 import type { DiagramSubject } from "@heytutor/tutor-core";
 import { readFailedTurnTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import {
   isReferencePictureRow,
+  pointsAtReferencePicture,
+  referencePictureIdOf,
   type ReferencePictureOutcome,
   type StoredReferencePicture,
 } from "@/features/tutor-session/lib/scene/referencePicturePresentation";
@@ -90,9 +106,15 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   diagramStrategy?: DiagramStrategy;
   /** The plan subject the scene was drawn under; scene recovery refuses chemistry and unrecorded subjects. */
   diagramSubject?: DiagramSubject;
-  failureTelemetry?: FailedTurnTelemetry;
+  failureTelemetry?: FailedTurnTelemetry & { pointsAtFigureStatus?: "unresolved" };
+  /** A doubt on that page: the earlier turn whose figure it pointed at. */
+  pointsAtFigure?: DoubtFigureRef;
+  /** A doubt that drew its own figure in the zone (DIAGRAM_DOUBT_FIGURES). */
+  doubtFigure?: DoubtFigureMarker;
   /** A text only turn that drew a stored reference picture: the server's own summary. */
   referencePicture?: StoredReferencePicture;
+  /** A lesson's later figures (DIAGRAM_LESSON_FIGURES), each admitted on its own composed question. */
+  lessonFigures?: LessonFiguresArtifact & { droppedFigureIds?: LessonFigureId[] };
   /** How this turn's reference picture attempt ended (telemetry only). */
   referencePictureOutcome?: ReferencePictureOutcome;
 };
@@ -120,25 +142,10 @@ export type TurnSceneRejectionCode =
   | "scene_point_line_solver_quantity_mismatch" | "scene_solver_artifacts_incomplete"
   | "scene_problem_ir_invalid" | "scene_solver_result_invalid" | "scene_solver_recomputation_failed"
   | "scene_solver_values_mismatch" | "scene_solver_plan_contradiction"
-  | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed";
+  | "scene_teaching_envelope_invalid" | "scene_teaching_type_plan_required" | "scene_teaching_command_not_allowed"
+  | "scene_doubt_figure_invalid";
 
 type TurnSceneFailure = { ok: false; error: string; code?: TurnSceneRejectionCode };
-
-/** Historical documents may carry planner-written prose; it is never authority. */
-function withoutLegacyTeachingNotes(input: unknown): unknown {
-  if (!isRecord(input) || !isRecord(input.source) || !Object.hasOwn(input.source, "teachingNotes")) return input;
-  const source = { ...input.source };
-  delete source.teachingNotes;
-  return { ...input, source };
-}
-
-function canonicalTeachingFamily(document: SceneDocument): SceneDocument {
-  const familyId = chemistryTeachingFamilyId(document);
-  const source = { ...document.source };
-  delete source.chemistryTeachingFamilyId;
-  if (familyId) source.chemistryTeachingFamilyId = familyId;
-  return { ...document, source };
-}
 
 export type TurnScenePersistenceResult =
   | { ok: true; value: CanonicalTurnSceneMetadata }
@@ -151,7 +158,30 @@ export type TurnScenePersistenceResult =
  */
 export async function canonicalizeTurnSceneMetadata(
   submittedMetadata: SubmittedTurnSceneMetadata,
-  options: { loadReferencePicture?: ReferencePictureLoader } = {},
+  options: {
+    loadReferencePicture?: ReferencePictureLoader;
+    /** Bound by the save route to this turn's board, owner and id. */
+    loadPageFigure?: PageFigureLoader;
+    /**
+     * Bound by the save route like `loadPageFigure`: does a doubt figure
+     * belong to its page's lesson. Absent, no doubt figure is admitted.
+     */
+    checkDoubtFigurePage?: DoubtFigurePageCheck;
+    /** The saved turn's kind; a doubt figure is admitted on a doubt only. */
+    kind?: TurnKind;
+    /** DIAGRAM_DOUBT_FIGURES at save time; read from the environment when absent. */
+    doubtFiguresEnabled?: boolean;
+    /** DIAGRAM_DOUBT_POINTING at save time; read from the environment when absent. */
+    doubtPointingEnabled?: boolean;
+    /** DIAGRAM_LESSON_FIGURES at save time; read from the environment when absent. */
+    lessonFiguresEnabled?: boolean;
+    /**
+     * Bound by the save route like `loadPageFigure`: the lesson figure the
+     * stored page had reached, which a resume's teaching starts on. Absent, a
+     * resume starts on figure 1.
+     */
+    lessonFigureStart?: LessonFigureStartLoader;
+  } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
   if (!question) return failure("scene_question_required", "question is required for scene validation");
@@ -161,6 +191,8 @@ export async function canonicalizeTurnSceneMetadata(
   }
   const metadata: SubmittedTurnSceneMetadata = {
     ...submittedMetadata,
+    sceneArtifacts: freshPageOnDoubtOnly(submittedMetadata.sceneArtifacts, options.kind,
+      () => options.doubtFiguresEnabled ?? resolveDoubtFiguresEnabled()),
     sceneDocument: withoutLegacyTeachingNotes(submittedMetadata.sceneDocument),
     segments: submittedMetadata.segments.map((segment) => ({
       ...segment,
@@ -187,7 +219,51 @@ export async function canonicalizeTurnSceneMetadata(
       isStoredCommandTrustedGeometry(segment.command) && !(picture.stored && isReferencePictureRow(segment.command, picture.stored.id)))) {
       return failure("scene_unvalidated_trusted_geometry", "trusted diagram commands require a server-validated scene");
     }
-    const teachingCommands = canonicalizeTeachingCommands(picture.segments, picture.diagram, codeLesson);
+    // A doubt on the lesson's page names the turn whose figure it pointed at.
+    // Its pointing is checked against that figure, loaded here from the
+    // referenced turn's own row; one the server cannot load loses its
+    // pointing and keeps its words. The reference never fails a save.
+    const pageContinuation = boardContinuationOf(metadata.sceneArtifacts);
+    const submittedRef = pageContinuation && !referencePictureIdOf(metadata.sceneArtifacts)
+      ? doubtFigureRefOf(metadata.sceneArtifacts)
+      : null;
+    // doubt-lesson-figure-ref:begin
+    // A lesson's later figure is named only while DIAGRAM_LESSON_FIGURES is
+    // on at save time; off, the id is stripped and the doubt is checked
+    // against the turn's own figure, as before.
+    const pointsAtFigure = submittedRef?.figureId !== undefined && !(options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
+      ? doubtFigureRefOf(doubtFigureRefArtifacts({ schemaVersion: submittedRef.schemaVersion, turnId: submittedRef.turnId, kind: submittedRef.kind }))
+      : submittedRef;
+    // doubt-lesson-figure-ref:end
+    // With DIAGRAM_DOUBT_POINTING off the live doubt filter strips kept rings
+    // and ANNOTATE, so only a modified client sends them: they are not saved.
+    const doubtRows = (options.kind === "doubt" || (options.kind === undefined && pointsAtFigure !== null)) &&
+      !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
+      ? withoutFlaggedDoubtPointing(picture.segments)
+      : picture.segments;
+    let pageFigure: VerifiedDiagram | null = null;
+    // The figure is rebuilt only for rows that point at it: most doubt
+    // checkpoints carry words alone and need no compile.
+    const pointing = doubtRows.some((segment) => segment.command != null && !isStoredCommandTrustedGeometry(segment.command) &&
+      parseStoredSegmentCommands(segment.command).some((command) => SCENE_POINTING_COMMANDS.has(command.type)));
+    if (pointsAtFigure && pageContinuation && options.loadPageFigure && pointing) {
+      try {
+        pageFigure = await options.loadPageFigure(pointsAtFigure, {
+          lessonQuestion: pageContinuation.lessonQuestion,
+          ...((options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled()) ? { lessonFigures: true as const } : {}),
+        });
+      } catch {
+        pageFigure = null;
+      }
+    }
+    const teachingCommands = pointsAtFigure
+      ? canonicalizeTeachingCommands(
+          doubtRows,
+          pageFigure ? doubtCheckDiagram(pageFigure, pointsAtFigure.kind) : null,
+          codeLesson,
+          { kind: pointsAtFigure.kind },
+        )
+      : canonicalizeTeachingCommands(doubtRows, picture.diagram, codeLesson);
     if (!teachingCommands.ok) return teachingCommands;
     const retryRequired = metadata.visualStatus === "retry_required";
     const plan = validatedOptionalTurnPlan(metadata.sceneArtifacts, question);
@@ -195,7 +271,10 @@ export async function canonicalizeTurnSceneMetadata(
     const figureSource = validatedFigureSource(metadata.sceneArtifacts);
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
     const completion = validatedCompletion(metadata.sceneArtifacts);
-    const failureTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);
+    const readTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);
+    const failureTelemetry: PersistedSceneArtifacts["failureTelemetry"] = pointsAtFigure && pointing && !pageFigure
+      ? { ...(readTelemetry ?? { subject: "unknown" }), pointsAtFigureStatus: "unresolved" }
+      : readTelemetry;
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
@@ -224,6 +303,7 @@ export async function canonicalizeTurnSceneMetadata(
               ...baseArtifacts,
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
+              ...(pointsAtFigure ? { pointsAtFigure } : {}),
               ...(failureTelemetry ? { failureTelemetry } : {}),
               ...(picture.stored ? { referencePicture: picture.stored } : {}),
               ...(picture.outcome ? { referencePictureOutcome: picture.outcome } : {}),
@@ -250,111 +330,42 @@ export async function canonicalizeTurnSceneMetadata(
     return failure("scene_non_metric_mismatch", "representation tier and nonMetric flag disagree");
   }
 
-  const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
+  // A doubt that drew its own figure was planned and verified on the lesson
+  // question composed with the doubt, never on its title. Every scene check
+  // below reads that recomputed question; Turn.question stays the title.
+  const submittedDoubtFigure = doubtFigureOf(metadata.sceneArtifacts);
+  const doubtContinuation = boardContinuationOf(metadata.sceneArtifacts);
+  if (isRecord(metadata.sceneArtifacts) && metadata.sceneArtifacts.doubtFigure !== undefined) {
+    if (!submittedDoubtFigure || options.kind !== "doubt" || !doubtContinuation?.lessonQuestion) {
+      return failure("scene_doubt_figure_invalid", "a doubt figure needs a doubt turn on its lesson's page");
+    }
+    // Off at save time: a doubt that drew its figure while the flag was on
+    // keeps its words rather than losing every later checkpoint.
+    if (!(options.doubtFiguresEnabled ?? resolveDoubtFiguresEnabled())) {
+      return doubtFigureAsText(submittedMetadata, doubtContinuation, options);
+    }
+  }
+  const doubtFigure = submittedDoubtFigure && doubtContinuation ? submittedDoubtFigure : null;
+  // The composed question comes from the client's lesson question: it is
+  // admitted only when the stored page really is that lesson's. A figure that
+  // is not keeps the doubt's words, as text on the lesson's page.
+  if (doubtFigure && doubtContinuation) {
+    let onPage = false;
+    try {
+      onPage = options.checkDoubtFigurePage
+        ? await options.checkDoubtFigurePage(doubtFigure, { lessonQuestion: doubtContinuation.lessonQuestion })
+        : false;
+    } catch {
+      onPage = false;
+    }
+    if (!onPage) return doubtFigureAsText(submittedMetadata, doubtContinuation, options);
+  }
+  const sceneQuestion = doubtFigure && doubtContinuation
+    ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, question)
+    : question;
+
+  const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, sceneQuestion);
   const turnPlan = planResult.plan;
-  if (tier === "exact_verified" && !turnPlan) {
-    // A plan is one source of exact numbers, not the only one. When every
-    // metric slot was read from the question itself — "Sketch y = x^2", a
-    // circle given by its own equation — the stem IS the source of truth, and
-    // demanding a plan would mean re-deriving what the question already states.
-    // Anything less than fully stem-grounded ("mixed", a display default, or a
-    // document with no archetype provenance at all) still needs the plan.
-    const submitted = validateSceneDocument(metadata.sceneDocument);
-    if (!submitted.document) {
-      // A document that does not even parse is structurally invalid; saying it
-      // has a bad plan would hide the real reason from the caller.
-      return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(submitted.report.issues)}`);
-    }
-    if (archetypeProvenance(submitted.document).exactGrounding !== "stem") {
-      return failure("scene_turn_plan_invalid", `exact scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
-    }
-  }
-
-  let document: SceneDocument;
-  let report: ValidationReport;
-  let renderScene: NonNullable<ReturnType<typeof compileSceneDocument>["renderScene"]>;
-  if (nonMetric) {
-    // Recompile the accepted document that was actually taught. Re-running
-    // selectVerifiedRepresentation here would re-infer families from the
-    // question without the live-only context (inferred families, ProblemIR),
-    // so the rebuilt document could differ from the one the student saw:
-    // replay would diverge and teaching FOCUS on the taught ids would 400 the
-    // save. Trust is re-established by validating and compiling the submitted
-    // document; intro ink below is regenerated from this server compile,
-    // never from the browser's trusted-geometry payload.
-    const structural = validateSceneDocument(metadata.sceneDocument);
-    if (!structural.document) {
-      return failure("scene_document_invalid", `accepted representation is structurally invalid: ${formatIssues(structural.report.issues)}`);
-    }
-    document = canonicalTeachingFamily(structural.document);
-    if (document.visualDecision.mode !== "scene") {
-      return failure("scene_representation_not_scene", "accepted representation persisted as text-only");
-    }
-    if (!sourceQuestionMatches(document, question)) {
-      return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
-    }
-    const declaredTier = document.source.representationTier;
-    if (declaredTier !== undefined && declaredTier !== tier) {
-      return failure("scene_document_tier_mismatch", "submitted fallback tier does not match the accepted document");
-    }
-    if (document.source.nonMetric === false) {
-      return failure("scene_metric_geometry_outside_exact", "accepted document declares metric geometry outside the exact path");
-    }
-    // DSA structure diagrams were compiled into the code-lesson split live;
-    // recompiling into the default viewport would move every primitive under
-    // the code panel and diverge replay from the taught scene.
-    const compiled = compileSceneDocument(
-      document,
-      isDsaSceneDocument(document) ? { viewport: DSA_DIAGRAM_ZONE } : {},
-    );
-    if (!compiled.ok || !compiled.renderScene) {
-      return failure("scene_compile_failed", `accepted representation does not compile: ${formatIssues(compiled.report.issues)}`);
-    }
-    report = compiled.report;
-    renderScene = compiled.renderScene;
-  } else {
-    const structural = validateSceneDocument(metadata.sceneDocument);
-    if (!structural.document) {
-      return failure("scene_document_invalid", `exact scene is structurally invalid: ${formatIssues(structural.report.issues)}`);
-    }
-    document = canonicalTeachingFamily(structural.document);
-    if (!sourceQuestionMatches(document, question)) {
-      return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
-    }
-    // Both checks below reconcile the scene against the plan. A stem-grounded
-    // exact scene has no plan to reconcile with — it was computed from the
-    // question's own equation — so they are skipped rather than faked. Trust
-    // is not weakened: the document is still structurally validated, its source
-    // question still has to match, and compileSceneDocument below still fails
-    // the save on any fatal assertion, which is where the metric proof lives.
-    if (turnPlan) {
-      const proofIssues = validateTurnPlanSceneProofs(document, turnPlan);
-      if (proofIssues.some((issue) => issue.severity === "fatal")) {
-        return failure("scene_proof_failed", `scene proof obligations failed: ${formatIssues(proofIssues)}`);
-      }
-    }
-    const compiled = compileSceneDocument(document);
-    if (!compiled.ok || !compiled.renderScene) {
-      return failure("scene_compile_failed", `exact scene does not compile: ${formatIssues(compiled.report.issues)}`);
-    }
-    report = compiled.report;
-    renderScene = compiled.renderScene;
-  }
-
-  // The same function runs live before a figure is drawn (useQuestionHandler),
-  // so a scene this would refuse is never shown and then lost.
-  // A missing optional plan is safe for an exact native source graph; an
-  // explicitly invalid plan must not silently gain that legacy allowance.
-  if (!turnPlan && metadata.sceneArtifacts.turnPlan != null
-    && certifyVseprSourceDocument(document, question, null).status !== "not_applicable") {
-    return failure("scene_turn_plan_invalid", `native VSEPR scene has an invalid TurnPlanV3: ${formatIssues(planResult.issues)}`);
-  }
-  const admissionFailure = sceneSaveAdmissionFailure({ document, question, turnPlan, tier });
-  if (admissionFailure) return failure("scene_admission_failed", admissionFailure);
-
-  if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
-    return failure("scene_validation_report_invalid", "current scene engine did not produce a valid report");
-  }
   // The intro's ink is rebuilt here, and each part carries the word it is
   // drawn under. Rebuilt in English under a Hinglish recording, those words
   // were not in the stored sentence, so replay and export found no cue and
@@ -362,21 +373,18 @@ export async function canonicalizeTurnSceneMetadata(
   const narrationLanguage = metadata.segments.some((segment) =>
     isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
   ) ? "hinglish" as const : undefined;
-  const expectedPresentation = buildVerifiedDiagramPresentation(
-    document,
-    renderScene,
-    {
-      originalQuestion: question,
-      ...(turnPlan ? { turnPlan } : {}),
-      ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
-      ...(narrationLanguage ? { narrationLanguage } : {}),
-      // The live intro letters a source given ("x = -2") with the plan, and
-      // restore reads the same saved plan, so without it the saved intro
-      // dropped that label and replay never drew it. Only a plan validated
-      // against this question is passed; no plan keeps every value deferred.
-      ...(turnPlan ? { turnPlan } : {}),
-    },
-  );
+  const admitted = admitStoredScene({
+    sceneDocument: metadata.sceneDocument,
+    sceneQuestion,
+    turnPlan,
+    submittedTier: tier,
+    narrationLanguage,
+    planSubmitted: metadata.sceneArtifacts.turnPlan != null,
+    planIssues: planResult.issues,
+  });
+  if (!admitted.ok) return failure(admitted.code, admitted.message);
+  const { document, presentation: expectedPresentation } = admitted;
+  const { report } = admitted.compiled;
   // A turn that continues a page (a resume after Stop, or a doubt) teaches
   // under a figure an earlier turn on the page already drew. It keeps its
   // marker so restore, replay and notes keep the page, and the figure intro is
@@ -390,16 +398,47 @@ export async function canonicalizeTurnSceneMetadata(
   const persistSegments = mergeServerDiagramIntro(
     canonicalReferencePictureRows(metadata.segments, null, { pictureTurn: false }).segments,
     expectedPresentation.introSegments,
-    { insertMissing: continuation === null },
+    // A doubt's own figure is new on the page: its intro is inserted when missing.
+    { insertMissing: continuation === null || doubtFigure !== null },
   );
+  // lesson-figures:begin
+  // A lesson's later figures are admitted one by one on their own composed
+  // questions; a figure that fails is dropped. Off at save time, or on a doubt
+  // figure or a code lesson, the artifact is stripped and nothing else changes.
+  const submittedLessonFigures = lessonFiguresOf(metadata.sceneArtifacts);
+  const lessonFigures = submittedLessonFigures && !doubtFigure && !codeLesson &&
+    (options.lessonFiguresEnabled ?? resolveLessonFiguresEnabled())
+    ? admitLessonFigures(submittedLessonFigures, { lessonQuestion: sceneQuestion, lessonPlan: metadata.sceneArtifacts.turnPlan, narrationLanguage, first: expectedPresentation.diagram })
+    : null;
+  // lesson-figures:end
+  // lesson-figure-resume-start:begin
+  // A resume teaches on the figure the page had reached (live reads the zone),
+  // so its cursor starts there, not on figure 1: its FOCUS on figure k's parts
+  // are checked against figure k, as replay resolves them (`pageFigureAt`).
+  let resumeStart: LessonFigureId | null = null;
+  if (lessonFigures && continuation && options.kind === "resume" && options.lessonFigureStart) {
+    let reached: string = "figure_1";
+    try {
+      reached = await options.lessonFigureStart();
+    } catch {
+      reached = "figure_1";
+    }
+    resumeStart = isLessonFigureAdvanceId(reached) && lessonFigures.diagrams.has(reached) ? reached : null;
+  }
+  // lesson-figure-resume-start:end
   const teachingCommands = canonicalizeTeachingCommands(
-    persistSegments,
+    doubtFigure && !(options.doubtPointingEnabled ?? resolveDoubtPointingEnabled())
+      ? withoutFlaggedDoubtPointing(persistSegments)
+      : persistSegments,
     expectedPresentation.diagram,
     codeLesson,
+    null,
+    lessonFigures?.diagrams ?? null,
+    resumeStart,
   );
   if (!teachingCommands.ok) return teachingCommands;
 
-  const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, question);
+  const solver = await canonicalSolverArtifacts(metadata.sceneArtifacts, turnPlan, sceneQuestion);
   if (!solver.ok) return solver;
   for (const construction of document.constructions) {
     if (construction.operator !== "point_line_distance") continue;
@@ -488,20 +527,18 @@ export async function canonicalizeTurnSceneMetadata(
       sceneEngineVersion: SCENE_ENGINE_VERSION,
       validationReport: report,
       visualStatus: "validated",
-      sceneArtifacts: codeLesson || continuation
+      sceneArtifacts: codeLesson || continuation || lessonFigures
         ? {
             ...canonicalArtifacts,
             ...(codeLesson ? { codeLesson } : {}),
             ...(continuation ? { boardContinuation: continuation } : {}),
+            ...(doubtFigure ? doubtFigureArtifacts(doubtFigure.replacedTurnId) : {}),
+            ...(lessonFigures ? { lessonFigures: lessonFigures.artifact } : {}),
           }
         : canonicalArtifacts,
       segments: teachingCommands.segments,
     },
   };
-}
-
-function isDsaSceneDocument(document: SceneDocument): boolean {
-  return (document.source as Record<string, unknown>).synthesizedDsa === true;
 }
 
 async function canonicalSolverArtifacts(
@@ -621,6 +658,67 @@ function mergeServerDiagramIntro(
   return merged.map((segment, orderIndex) => ({ ...segment, orderIndex }));
 }
 
+/**
+ * A doubt's rows as the live filter leaves them with DIAGRAM_DOUBT_POINTING
+ * off: plain FOCUS stays, a kept ring becomes a plain FOCUS, ANNOTATE goes.
+ * Trusted figure rows are untouched.
+ */
+function withoutFlaggedDoubtPointing(segments: SubmittedTurnSegment[]): SubmittedTurnSegment[] {
+  return segments.map((segment) => {
+    if (segment.command == null || isStoredCommandTrustedGeometry(segment.command)) return segment;
+    const commands = parseStoredSegmentCommands(segment.command);
+    if (!commands.some((command) => command.type === "ANNOTATE" || command.type === "FOCUS")) return segment;
+    const kept = commands
+      .filter((command) => command.type !== "ANNOTATE")
+      .map((command) => command.type === "FOCUS" ? withoutFocusKeep(command) : command);
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
+}
+
+// doubt-fresh-page:begin
+/**
+ * Only a doubt turns a fresh page (DIAGRAM_DOUBT_FIGURES, lane 9): the marker
+ * is dropped from any other turn. On a doubt it is kept whatever becomes of
+ * the doubt's figure: the student saw the page turn, and the doubt's rows
+ * were laid out on the blank page, never over the lesson's. With the flag off
+ * it is dropped from every turn (review round 3 S2), so flag off saves
+ * today's bytes whatever a client sends.
+ */
+function freshPageOnDoubtOnly(sceneArtifacts: unknown, kind: TurnKind | undefined, enabled: () => boolean): unknown {
+  if (!isRecord(sceneArtifacts) || !isRecord(sceneArtifacts.boardContinuation) ||
+    !("freshPage" in sceneArtifacts.boardContinuation)) return sceneArtifacts;
+  if (kind === "doubt" && enabled()) return sceneArtifacts;
+  const continuation: Record<string, unknown> = { ...sceneArtifacts.boardContinuation };
+  delete continuation.freshPage;
+  return { ...sceneArtifacts, boardContinuation: continuation };
+}
+// doubt-fresh-page:end
+
+/**
+ * A doubt figure the server will not admit, saved as the text doubt it would
+ * have been without a figure: the words stay on the lesson's page, the
+ * figure's ink and its marker go, and with them any FOCUS or ANNOTATE on it.
+ */
+async function doubtFigureAsText(
+  submitted: SubmittedTurnSceneMetadata,
+  continuation: NonNullable<ReturnType<typeof boardContinuationOf>>,
+  options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
+): Promise<TurnScenePersistenceResult> {
+  const segments = submitted.segments.map((segment) => {
+    if (segment.command == null) return segment;
+    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
+    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
+  return canonicalizeTurnSceneMetadata({
+    ...submitted,
+    visualStatus: "text_only",
+    sceneDocument: null,
+    sceneArtifacts: { boardContinuation: continuation },
+    segments,
+  }, { ...options, loadPageFigure: undefined });
+}
+
 function minimalFailureArtifacts(
   turnPlan: TurnPlanV3 | null,
   status: "retry_required" | "text_only",
@@ -729,12 +827,77 @@ function validatedOptionalTurnPlan(artifacts: unknown, question: string): TurnPl
   return validateTurnPlanV3(artifacts.turnPlan, question).plan;
 }
 
+/**
+ * The page figure as a doubt's pointing is checked against it. A code lesson
+ * frame is checked as a plain figure: on `code_lesson` a FOCUS names a frame
+ * and passes unchecked, and a doubt never steps frames, so here it must name a
+ * cell the frame drew.
+ */
+function doubtCheckDiagram(figure: VerifiedDiagram, kind: DoubtFigureKind): VerifiedDiagram {
+  if (kind !== "dsa_frame") return figure;
+  const plain = { ...figure };
+  delete plain.layout;
+  return plain;
+}
+
+/** A label the figure holds back until the lesson ends: no doubt letters it. */
+function namesWithheldAnswer(command: DrawCommand, diagram: VerifiedDiagram): boolean {
+  const requested = (command.text ?? command.semanticRef?.entityId ?? "").trim().toLowerCase();
+  if (!requested) return false;
+  return (diagram.deferredAnnotations ?? []).some((entry) =>
+    (entry.revealAfter === "teaching_complete" || entry.revealAfterLesson === true) &&
+    (entry.entityId.toLowerCase() === requested ||
+      entry.entityId.split(",").some((id) => id.trim().toLowerCase() === requested)));
+}
+
+/**
+ * Whether a doubt's pointing survives the save. Only FOCUS and ANNOTATE are
+ * a doubt's to keep, and only when they resolve on the loaded page figure:
+ * on a picture, the picture's own targets; ANNOTATE only on a verified scene,
+ * never on an answer label. Everything else is filtered, never refused.
+ */
+function keepsDoubtPointing(command: DrawCommand, diagram: VerifiedDiagram | null, kind: DoubtFigureKind): boolean {
+  if (!diagram) return false;
+  if (command.type === "FOCUS") {
+    if (isBlockedVerifiedDiagramCommand(command, diagram)) return false;
+    return kind !== "reference_picture" || pointsAtReferencePicture(command, diagram);
+  }
+  if (command.type === "ANNOTATE") {
+    return kind === "verified_scene" &&
+      !isBlockedVerifiedDiagramCommand(command, diagram) &&
+      !namesWithheldAnswer(command, diagram);
+  }
+  return false;
+}
+
 function canonicalizeTeachingCommands(
   segments: SubmittedTurnSegment[],
   diagram: Parameters<typeof isBlockedVerifiedDiagramCommand>[1],
   codeLesson: CodeLessonPlan | null = null,
+  /** A doubt that names its page's figure: `diagram` is that figure, or null when it did not load. */
+  doubt: { kind: DoubtFigureKind } | null = null,
+  /**
+   * A lesson's admitted later figures. A kept `[FOCUS:figure_k]` moves the
+   * check diagram to figure k for every later command, forward only; an
+   * advance to a figure not admitted is filtered like any stale FOCUS.
+   */
+  lessonFigures: ReadonlyMap<LessonFigureId, VerifiedDiagram> | null = null,
+  /** A resume's starting figure: the one the page had reached (one of `lessonFigures`). */
+  startFigure: LessonFigureId | null = null,
 ): { ok: true; segments: SubmittedTurnSegment[] } | TurnSceneFailure {
   const canonical: SubmittedTurnSegment[] = [];
+  // lesson-figure-cursor:begin
+  const start = startFigure && lessonFigures?.get(startFigure) ? startFigure : null;
+  let checkDiagram = start ? lessonFigures!.get(start)! : diagram;
+  let figureIndex = start ? LESSON_FIGURE_IDS.indexOf(start) : -1;
+  const advanceOf = (candidate: DrawCommand): LessonFigureId | null => {
+    if (!lessonFigures || candidate.type !== "FOCUS") return null;
+    const spec = parseFocusSpec(candidate.semanticRef?.entityId ?? candidate.text);
+    const target = spec.targetIds.length === 1 ? spec.targetIds[0]!.trim() : "";
+    if (!isLessonFigureAdvanceId(target) || !lessonFigures.has(target)) return null;
+    return LESSON_FIGURE_IDS.indexOf(target) > figureIndex ? target : null;
+  };
+  // lesson-figure-cursor:end
 
   for (const [segmentIndex, segment] of segments.entries()) {
     if (segment.command == null || isStoredCommandTrustedGeometry(segment.command)) {
@@ -788,13 +951,26 @@ function canonicalizeTeachingCommands(
       // filter, so one stale id cannot drop the whole recording. Genuine
       // diagram ink (DRAW_*, LABEL, ERASE, …) and unknown ANNOTATE targets
       // still hard-fail below.
-      const allowed = safeCommands.filter((candidate) =>
-        candidate.type !== "FOCUS" || !isBlockedVerifiedDiagramCommand(candidate, diagram));
+      // lesson-figure-advance:begin
+      const advances = new Set<DrawCommand>();
+      const allowed = safeCommands.filter((candidate) => {
+        const advance = advanceOf(candidate);
+        if (advance) {
+          advances.add(candidate);
+          figureIndex = LESSON_FIGURE_IDS.indexOf(advance);
+          checkDiagram = lessonFigures!.get(advance)!;
+          return true;
+        }
+        return doubt && SCENE_POINTING_COMMANDS.has(candidate.type)
+          ? keepsDoubtPointing(candidate, checkDiagram, doubt.kind)
+          : candidate.type !== "FOCUS" || !isBlockedVerifiedDiagramCommand(candidate, checkDiagram);
+      });
       if (
         safeCommands.length === 0 ||
         normalized.length + allowed.length > 16 ||
-        allowed.some((candidate) => isBlockedVerifiedDiagramCommand(candidate, diagram))
+        allowed.some((candidate) => !advances.has(candidate) && isBlockedVerifiedDiagramCommand(candidate, checkDiagram))
       ) {
+      // lesson-figure-advance:end
         const type = isRecord(command) && typeof command.type === "string"
           ? command.type
           : "unknown";
@@ -814,6 +990,9 @@ function canonicalizeTeachingCommands(
 
   return { ok: true, segments: canonical };
 }
+
+/** A doubt's pointing at its page's figure: filtered on save, never a refusal. */
+const SCENE_POINTING_COMMANDS = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
 
 function canonicalTypeCommand(
   command: Record<string, unknown>,
@@ -975,12 +1154,6 @@ function canonicalTeachingCommand(command: unknown): DrawCommand | null {
   return null;
 }
 
-function sourceQuestionMatches(document: SceneDocument, question: string): boolean {
-  return typeof document.source.question === "string" &&
-    normalizeQuestion(document.source.question) === normalizeQuestion(question);
-}
-
-
 function validSegmentOrder(segments: SubmittedTurnSegment[]): boolean {
   const seen = new Set<number>();
   return segments.every((segment) => {
@@ -1010,14 +1183,6 @@ function numericValueEqual(first: number | number[], second: number | number[], 
   }
   if (!Array.isArray(first) || !Array.isArray(second) || first.length !== second.length) return false;
   return first.every((value, index) => Math.abs(value - second[index]!) <= Math.max(1e-10, tolerance));
-}
-
-function isRepresentationTier(value: unknown): value is NonNullable<SceneArtifactsV3["representationTier"]> {
-  return value === "exact_verified" || value === "qualitative_verified" || value === "question_representation";
-}
-
-function normalizeQuestion(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
 function deepEqual(first: unknown, second: unknown): boolean {

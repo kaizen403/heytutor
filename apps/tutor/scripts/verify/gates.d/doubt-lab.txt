@@ -1,0 +1,1 @@
+tsx scripts/lecture-lab/doubt-run.ts --check
