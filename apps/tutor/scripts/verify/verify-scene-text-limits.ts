@@ -44,7 +44,7 @@ if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", 
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
 if (LABEL_OVERLAP_WORK_BUDGET !== 48_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
 const PINNED_COUNTS = {
-  entities: 640, constructions: 640, annotations: 64, revealGroups: 32, assertions: 256, quantities: 64, relations: 32, teachingTimeline: 32, perKind: 32,
+  entities: 640, constructions: 640, annotations: 64, revealGroups: 32, assertions: 256, quantities: 128, relations: 32, teachingTimeline: 128, perKind: 32,
   kinds: { point: 512, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16 },
 };
 if (JSON.stringify(N) !== JSON.stringify(PINNED_COUNTS)) fail("the scene counts moved", N);

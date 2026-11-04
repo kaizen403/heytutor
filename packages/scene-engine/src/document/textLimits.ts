@@ -45,9 +45,9 @@ export const SCENE_COUNT_LIMITS = Object.freeze({
   annotations: 64,
   revealGroups: 32,
   assertions: 256,
-  quantities: 64,
+  quantities: 128,
   relations: 32,
-  teachingTimeline: 32,
+  teachingTimeline: 128,
   /** One kind of entity or construction, unless named below. */
   perKind: 32,
   kinds: Object.freeze({
