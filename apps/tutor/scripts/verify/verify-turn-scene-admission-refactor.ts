@@ -33,12 +33,37 @@ const record = process.argv.includes("--record");
 type Options = Parameters<typeof canonicalizeTurnSceneMetadata>[1];
 interface Case { name: string; metadata: SubmittedTurnSceneMetadata; options?: Options }
 
-function json(path: string): any {
-  return JSON.parse(readFileSync(resolve(FIXTURES, path), "utf8"));
+/** A fixture scene document, as far as these variants read and rewrite it. */
+interface FixtureDocument {
+  source?: Record<string, unknown>;
+  visualDecision?: Record<string, unknown>;
+  quantities?: unknown[];
+}
+/** A fixture's stored row: narration may be absent on an old recording. */
+interface FixtureRow {
+  orderIndex: number;
+  narration?: string;
+  spokenText?: string;
+  command: unknown;
+}
+interface FixtureTurn {
+  question: string;
+  sceneDocument: unknown;
+  sceneArtifacts: unknown;
+  segments: FixtureRow[];
+}
+/** The artifacts of a save, as far as these variants read them. */
+interface FixtureArtifacts {
+  representationTier?: unknown;
+  turnPlan?: (Record<string, unknown> & { givens?: unknown[] }) | null;
 }
 
-function tierOf(document: any): "exact_verified" | "qualitative_verified" | "question_representation" {
-  const tier = document?.source?.representationTier;
+function json<T>(path: string): T {
+  return JSON.parse(readFileSync(resolve(FIXTURES, path), "utf8")) as T;
+}
+
+function tierOf(document: unknown): "exact_verified" | "qualitative_verified" | "question_representation" {
+  const tier = (document as FixtureDocument | null | undefined)?.source?.representationTier;
   return tier === "qualitative_verified" || tier === "question_representation" ? tier : "exact_verified";
 }
 
@@ -64,14 +89,14 @@ function withArtifacts(metadata: SubmittedTurnSceneMetadata, patch: Record<strin
   return { ...structuredClone(metadata), sceneArtifacts: { ...(structuredClone(metadata.sceneArtifacts) as object), ...patch } };
 }
 
-function withDocument(metadata: SubmittedTurnSceneMetadata, edit: (document: any) => unknown): SubmittedTurnSceneMetadata {
+function withDocument(metadata: SubmittedTurnSceneMetadata, edit: (document: FixtureDocument) => unknown): SubmittedTurnSceneMetadata {
   const clone = structuredClone(metadata);
-  return { ...clone, sceneDocument: edit(clone.sceneDocument) };
+  return { ...clone, sceneDocument: edit(clone.sceneDocument as FixtureDocument) };
 }
 
 /** Each base, and variants reaching every refusal the admission owns. */
 function variants(name: string, base: SubmittedTurnSceneMetadata, options?: Options): Case[] {
-  const artifacts = base.sceneArtifacts as Record<string, any>;
+  const artifacts = base.sceneArtifacts as FixtureArtifacts;
   const tier = artifacts.representationTier;
   const otherTier = tier === "exact_verified" ? "qualitative_verified" : "exact_verified";
   const cases: Case[] = [
@@ -118,29 +143,30 @@ async function corpus(): Promise<Case[]> {
   };
   cases.push(...variants("doubt-figure", doubt, { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck([lessonTurn]) }));
 
-  for (const [index, capture] of (json("answer-label-captures.json").captures as any[]).entries()) {
+  for (const [index, capture] of json<{ captures: FixtureTurn[] }>("answer-label-captures.json").captures.entries()) {
     cases.push(...variants(`answer-label-captures/${index}`, {
       question: capture.question, sceneDocument: capture.sceneDocument, visualStatus: "validated",
       sceneArtifacts: capture.sceneArtifacts, segments: rows(capture.segments),
     }));
   }
-  const circle = json("replay/circle-s3-turn.json").turn;
+  const circle = json<{ turn: FixtureTurn }>("replay/circle-s3-turn.json").turn;
   cases.push(...variants("replay/circle-s3-turn", {
     question: circle.question, sceneDocument: circle.sceneDocument, visualStatus: "validated",
     sceneArtifacts: circle.sceneArtifacts,
     segments: rows(circle.segments),
   }));
-  const pointLine = json("point-line/annotation-link-positive.json").submitted;
+  const pointLine = json<{ submitted: FixtureTurn }>("point-line/annotation-link-positive.json").submitted;
   cases.push(...variants("point-line/annotation-link-positive", { ...pointLine, segments: rows(pointLine.segments) }));
 
-  const documents: Array<[string, any, unknown]> = [];
-  const l20 = json("launch-l20-late-intro.json");
+  type RecordedPlan = { sceneDocument: unknown; turnPlan?: unknown };
+  const documents: Array<[string, unknown, unknown]> = [];
+  const l20 = json<RecordedPlan>("launch-l20-late-intro.json");
   documents.push(["launch-l20-late-intro", l20.sceneDocument, l20.turnPlan]);
-  const ucm = json("w1-ucm-car-jsonb.json");
+  const ucm = json<RecordedPlan>("w1-ucm-car-jsonb.json");
   documents.push(["w1-ucm-car-jsonb", ucm.sceneDocument, ucm.turnPlan]);
-  documents.push(["launch-l02-primitive-tour", json("launch-l02-primitive-tour.json").sceneDocument, null]);
-  documents.push(["focus-writing/m09", json("focus-writing/m09.json").sceneDocument, null]);
-  documents.push(["youtube-pen/q15", json("youtube-pen/q15.json").sceneDocument, null]);
+  documents.push(["launch-l02-primitive-tour", json<RecordedPlan>("launch-l02-primitive-tour.json").sceneDocument, null]);
+  documents.push(["focus-writing/m09", json<RecordedPlan>("focus-writing/m09.json").sceneDocument, null]);
+  documents.push(["youtube-pen/q15", json<RecordedPlan>("youtube-pen/q15.json").sceneDocument, null]);
   for (const name of ["vt-graph-car-p4c-t5", "track-displacement-p1c-t1"]) {
     documents.push([`recorded-intro/${name}`, json(`recorded-intro/${name}.scene.json`), json(`recorded-intro/${name}.turn-plan.json`)]);
   }
@@ -152,7 +178,7 @@ async function corpus(): Promise<Case[]> {
   return cases;
 }
 
-function rows(segments: any[]): SubmittedTurnSceneMetadata["segments"] {
+function rows(segments: FixtureRow[]): SubmittedTurnSceneMetadata["segments"] {
   return segments.map((segment) => ({
     orderIndex: segment.orderIndex, narration: segment.narration ?? "", spokenText: segment.spokenText ?? segment.narration ?? "",
     command: segment.command,
