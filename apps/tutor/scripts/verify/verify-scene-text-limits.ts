@@ -8,10 +8,13 @@ import {
   LABEL_OVERLAP_WORK_BUDGET,
   SCENE_COUNT_LIMITS as N,
   SCENE_TEXT_LIMITS as L,
+  boundsOverlap,
   canPlaceSingleLabel,
   compileSceneDocument,
+  isLabelWorkSpent,
   placeLabels,
   sceneCountOverLimit,
+  stackLabelRows,
   sceneTextOverLimit,
   synthesizeFamilyScene,
   validateSceneDocument,
@@ -39,7 +42,7 @@ const PINNED = {
 };
 if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", L);
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
-if (LABEL_OVERLAP_WORK_BUDGET !== 16_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
+if (LABEL_OVERLAP_WORK_BUDGET !== 48_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
 const PINNED_COUNTS = {
   entities: 640, constructions: 640, annotations: 64, revealGroups: 32, assertions: 256, quantities: 64, relations: 32, teachingTimeline: 32, perKind: 32,
   kinds: { point: 512, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16 },
@@ -82,7 +85,7 @@ async function main() {
 // Every text shape in every field that reads it, far over the sizes. Each is refused before anything reads it.
 const withLabel = (text: string) => { const d = clone(base); labelled(d).label = text; return d; };
 const withRole = (text: string) => { const d = clone(base); d.entities[0]!.role = text; return d; };
-const withNote = (text: string) => { const d = clone(base); d.annotations = [{ id: "note", kind: "callout", text, entityIds: [d.entities[0]!.id] }]; return d; };
+const withNote = (text: string) => { const d = clone(base); d.annotations = [{ id: "note", kind: "callout", text, targetIds: [d.entities[0]!.id] }]; return d; };
 const farOver: Array<[string, Figure]> = [
   ["a wide gap in a label", withLabel(`1${spaces(1_600)}!`)],
   ["a mid sized gap in a label", withLabel(`1${spaces(398)}!`)],
@@ -115,7 +118,7 @@ const atTheSizes: Array<[string, (document: Figure) => void]> = [
   ["every label at a medium size", (d) => { let index = 0; for (const entity of d.entities) if (typeof entity.label === "string") entity.label = `${index++}${fill("W", 45)}`; }],
   ["the whole label total", (d) => { let index = 0; for (const entity of d.entities) { if (index >= Math.floor(L.labelTotalChars / L.labelChars)) break; entity.label = `${index++}${fill("W", L.labelChars - 3)}`; } }],
   ["words in every label", (d) => { let index = 0; for (const entity of d.entities) if (typeof entity.label === "string") entity.label = `${index++} ${fill("a ", L.labelChars - 4)}`; }],
-  ["notes at the total", (d) => { d.annotations = Array.from({ length: Math.floor(L.annotationTotalChars / L.textChars) }, (_, index) => ({ id: `note${index}`, kind: "callout", text: fill(`5 m${spaces(L.whitespaceRun)}!`, L.textChars), entityIds: [d.entities[0]!.id] })); }],
+  ["notes at the total", (d) => { d.annotations = Array.from({ length: Math.floor(L.annotationTotalChars / L.textChars) }, (_, index) => ({ id: `note${index}`, kind: "callout", text: fill(`5 m${spaces(L.whitespaceRun)}!`, L.textChars), targetIds: [d.entities[0]!.id] })); }],
   ["brackets in every role", (d) => { for (const entity of d.entities) entity.role = fill("(", L.roleChars); }],
   ["the question at its size", (d) => { d.source.question = fill("x = 1 m ", L.questionChars).trim(); }],
   ["a question that is one wide gap", (d) => { d.source.question = `sin 1${spaces(L.questionChars - 6)}!`; }],
@@ -309,8 +312,8 @@ for (const [name, count, add] of added) {
     if (textOver && label === undefined) fail(`${name}: inside the sizes`, textOver);
     if (textOver) continue;
     let codes: string[] = [];
-    const compileMs = cpuMs(() => { codes = compileSceneDocument(document as never).report.issues.map((issue) => issue.code); }, LIMIT_MS);
-    if (compileMs > LIMIT_MS) fail(`${name}, ${label}: compile time`, compileMs);
+    const compileMs = cpuMs(() => { codes = compileSceneDocument(document as never).report.issues.map((issue) => issue.code); }, LIMIT_MS * 2);
+    if (compileMs > LIMIT_MS * 2) fail(`${name}, ${label}: compile time`, compileMs);
     if (codes.includes("label_overlap_budget")) sawBudget = true;
     const started = process.cpuUsage();
     await save(document);
@@ -320,7 +323,7 @@ for (const [name, count, add] of added) {
 }
 if (!sawBudget) fail("no added row reached the overlap budget", null);
 for (const [name, grow] of [
-  ["notes", (d: Figure) => { d.annotations = many(N.annotations, (index) => ({ id: `n${index}`, kind: "callout", text: `Note ${index}`, entityIds: [d.entities[0]!.id] })); }],
+  ["notes", (d: Figure) => { d.annotations = many(N.annotations, (index) => ({ id: `n${index}`, kind: "callout", text: `Note ${index}`, targetIds: [d.entities[0]!.id] })); }],
   ["reveal groups", (d: Figure) => { d.revealGroups = many(N.revealGroups, (index) => ({ id: `g${index}`, entityIds: [d.entities[index % d.entities.length]!.id], narrationCue: `cue ${index}` })); }],
 ] as Array<[string, (d: Figure) => void]>) {
   const document = clone(base);
@@ -353,6 +356,41 @@ const overlapsWith = (segmentCount: number) => withSharedLabelWork(() => placeLa
   segments: many(segmentCount, () => [{ x: 1190, y: 690 }, { x: 1195, y: 695 }]),
 }] as never, { measureTextInkBounds: countingProbe })).work.overlaps;
 if (overlapsWith(400) < overlapsWith(1) * 50) fail("an obstacle's segments count as work", { many: overlapsWith(400), one: overlapsWith(1) });
+// Every overlap test counts, wherever it runs, and so does the search over label pairs.
+const direct = withSharedLabelWork(() => boundsOverlap({ x: 0, y: 0, width: 1, height: 1 }, { x: 9, y: 9, width: 1, height: 1 }));
+if (direct.work.overlaps !== 1) fail("a direct overlap test counts", direct.work);
+const crowd = (count: number) => many(count, (index) => single(`p${index}`, `P${index}`));
+const pairs = withSharedLabelWork(() => placeLabels(crowd(10) as never, [], { measureTextInkBounds: countingProbe }));
+if (pairs.work.overlaps < 1_000_000) fail("the search over label pairs counts", pairs.work);
+// Row stacking spends the same two budgets, and past them it stops.
+const rowOwners = [single("a", "row one"), single("b", "row two")];
+const rowOrigin = [{ x: 600, y: 100, align: "left" as const }];
+const rows = withSharedLabelWork(() => stackLabelRows(rowOwners as never, rowOrigin as never, undefined, [], { measureTextInkBounds: countingProbe }));
+if (rows.work.measuredChars === 0) fail("row stacking spends the measure budget", rows.work);
+let rowStop: unknown = null;
+withSharedLabelWork(() => { try { stackLabelRows(rowOwners as never, rowOrigin as never, undefined, [{ id: "o", kind: "protected", bounds: { x: 0, y: 0, width: 10, height: 10 } }] as never, {}); } catch (error) { rowStop = error; } }, { overlaps: LABEL_OVERLAP_WORK_BUDGET });
+if (!isLabelWorkSpent(rowStop)) fail("row stacking stops past the budget", String(rowStop));
+// However the work runs out, a compile returns a refusal and never throws, and refusing reads nothing further.
+for (const figure of figures) {
+  let refused: ReturnType<typeof compileSceneDocument> | null = null;
+  const refuseMs = cpuMs(() => { refused = withSharedLabelWork(() => compileSceneDocument(clone(figure) as never), { overlaps: LABEL_OVERLAP_WORK_BUDGET }).value; }, LIMIT_MS);
+  const result = refused as unknown as ReturnType<typeof compileSceneDocument>;
+  if (refuseMs > LIMIT_MS) fail("a spent compile refuses quickly", refuseMs);
+  if (result.ok || result.renderScene !== null || !result.report.issues.some((issue) => issue.code === "label_overlap_budget")) fail("a compile past the budget refuses", result.report.issues.slice(0, 2));
+}
+// A summary row is stacked before its layout, so a stop can land outside every layout. The compile still returns a refusal.
+for (const figure of figures) {
+  const held = clone(figure);
+  const target = labelled(held);
+  held.annotations = [...(held.annotations ?? []), { id: "summary", kind: "callout", text: "F = 5 N", targetIds: [target.id] }];
+  let stopped: ReturnType<typeof compileSceneDocument> | null = null;
+  try {
+    stopped = withSharedLabelWork(() => compileSceneDocument(held as never), { overlaps: LABEL_OVERLAP_WORK_BUDGET }).value;
+  } catch (error) {
+    fail("a stop outside a layout left the compile", String(error).slice(0, 80));
+  }
+  if (!stopped || stopped.ok || stopped.renderScene !== null) fail("a stop outside a layout refuses", stopped?.report.issues.slice(0, 2));
+}
 const atTheBudget = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { overlaps: LABEL_OVERLAP_WORK_BUDGET });
 if (atTheBudget.value.ok || atTheBudget.work.spent !== "label_overlap_budget") fail("an overlap test past the budget stops the compile", atTheBudget.work);
 const spentBefore = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { spent: "label_overlap_budget" });

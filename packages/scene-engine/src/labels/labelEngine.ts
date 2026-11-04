@@ -443,6 +443,7 @@ function textBoundsAtSlot(
 }
 
 export function boundsOverlap(a: LabelBounds, b: LabelBounds, gap = 0): boolean {
+  chargeLabelOverlaps(1);
   return !(
     a.x + a.width + gap <= b.x ||
     b.x + b.width + gap <= a.x ||
@@ -499,7 +500,7 @@ export const LABEL_MEASURE_CHAR_BUDGET = 200_000;
  * count, so a figure's layout never depends on the clock. Every real figure
  * stays well under this.
  */
-export const LABEL_OVERLAP_WORK_BUDGET = 16_000_000;
+export const LABEL_OVERLAP_WORK_BUDGET = 48_000_000;
 
 export interface LabelWork {
   measuredChars: number;
@@ -519,6 +520,17 @@ function chargeLabelOverlaps(count: number): void {
     work.spent = "label_overlap_budget";
     throw new LabelWorkSpent();
   }
+}
+
+/** The search's own budget resets for each layout, and its work counts toward the compile's too. */
+function spendSearchWork(work: LabelSearchWork, count: number): void {
+  work.spent += count;
+  chargeLabelOverlaps(count);
+}
+
+/** True when a budget stopped the work. A compile refuses the figure when it sees this. */
+export function isLabelWorkSpent(error: unknown): boolean {
+  return error instanceof LabelWorkSpent;
 }
 
 /** Every layout inside `run` shares one budget. Nested calls share the outer one. */
@@ -1358,8 +1370,9 @@ export function stackLabelRows(
   origins: LabelRowOrigin[],
   viewBounds: LabelBounds | undefined,
   obstacles: LabelObstacle[],
-  options: LabelEngineOptions = {},
+  rawOptions: LabelEngineOptions = {},
 ): LabelOwner[] | null {
+  const options = activeLabelWork ? measuredWithinBudget(rawOptions, activeLabelWork) : rawOptions;
   const minGapPx = options.minGapPx ?? DEFAULTS.minGapPx;
   for (const origin of origins) {
     const rows: LabelOwner[] = [];
@@ -1487,7 +1500,7 @@ function solveLabelPlacements(
       const owner = byIndex.get(index)?.owner;
       const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
       const otherLeaders = [...routed.values()].flatMap(leaderPoints);
-      work.spent += routeLeaderWork(candidate, boxes, geometry, otherLeaders);
+      spendSearchWork(work, routeLeaderWork(candidate, boxes, geometry, otherLeaders));
       const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders, owner?.leaderGeometrySafe ? geometryQuery : undefined);
       if (!route) return null;
       routed.set(index, route);
@@ -1582,12 +1595,12 @@ function solveLabelPlacements(
             // Keep the identical deterministic work accounting. Once one
             // domain is empty no later compatibility result can save this
             // branch, so its remaining pair tests need not execute.
-            work.spent += domain.count;
+            spendSearchWork(work, domain.count);
             continue;
           }
           // No budget decision occurs inside this domain. Charge the same
           // number of tests together, before the next search boundary.
-          work.spent += domain.count;
+          spendSearchWork(work, domain.count);
           const compatible = narrow(index, domain, placed);
           narrowed.set(index, compatible);
           if (compatible.count === 0) impossible = true;
@@ -2018,7 +2031,6 @@ function isLabelBounds(value: unknown): value is LabelBounds {
 }
 
 function labelOverlapsObstacle(label: LabelBounds, obstacle: LabelObstacle, gap: number): boolean {
-  chargeLabelOverlaps(1);
   if (!boundsOverlap(label, obstacle.bounds, gap)) return false;
   if (!obstacle.segments || obstacle.segments.length === 0) return true;
   chargeLabelOverlaps(obstacle.segments.length);

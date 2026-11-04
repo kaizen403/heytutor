@@ -28,6 +28,7 @@ import {
 import {
   createTextInkBoundsCache,
   canPlaceSingleLabel,
+  isLabelWorkSpent,
   withSharedLabelWork,
   obstaclesFromPrimitives,
   placeLabels,
@@ -244,17 +245,29 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
-  const { value: compiled, work } = withSharedLabelWork(() => compileWithPointRule(document, options));
-  if (!work.spent) return compiled;
-  // However a layout handled running out, a figure laid out only in part is never drawn.
+  const { value: compiled, work } = withSharedLabelWork(() => {
+    try {
+      return compileWithPointRule(document, options);
+    } catch (error) {
+      if (!isLabelWorkSpent(error)) throw error;
+      return null;
+    }
+  });
+  if (compiled && !work.spent) return compiled;
+  // However the work ran out, a figure laid out only in part is never drawn.
+  // Nothing here reads the document again, so refusing costs nothing further.
+  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "Labels need more layout work than one compile may spend", severity: "fatal" };
   return {
-    ...compiled,
     ok: false,
     renderScene: null,
-    report: {
-      ...compiled.report,
-      issues: [...compiled.report.issues, { code: work.spent, message: "Labels need more layout work than one compile may spend", severity: "fatal" }],
-    },
+    report: compiled
+      ? { ...compiled.report, valid: false, issues: [...compiled.report.issues, issue] }
+      : {
+        engineVersion: SCENE_ENGINE_VERSION,
+        valid: false,
+        issues: [issue],
+        stats: { entityCount: document.entities?.length ?? 0, constructionCount: document.constructions?.length ?? 0, primitiveCount: 0, assertionCount: document.assertions?.length ?? 0 },
+      },
   };
 }
 
