@@ -49,8 +49,9 @@
  *   pnpm exec tsx scripts/lecture-lab/doubt-run.ts --regrade .lecture-lab/doubts-01
  */
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import {
   IncrementalTagParser,
   getSegmentCommands,
@@ -74,12 +75,16 @@ import {
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { DOUBT_FIGURE_REF_VERSION, type DoubtPointingPolicy } from "../../lib/boards/doubtFigureRef";
 import { LESSON_FIGURE_IDS, isLessonFigureAdvanceId, type LessonFigureId } from "../../lib/boards/lessonFigures";
+import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
+import { maximumLlmCost } from "../../lib/billing/paidUsage";
+import { resolvePlannerModels } from "../../lib/llm/plannerTransport";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { buildLabModelProfile, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { LECTURE_LAB_STANDARD_MODEL_HEADER } from "../../lib/billing/flags";
 import { MAX_LLM_CONTINUATIONS } from "../../features/tutor-session/constants";
 import { workColumnRoom, workColumnRows } from "../../features/tutor-session/lib/board/boardLayout";
+import { turnDoubtPage } from "../../features/tutor-session/lib/board/doubtPage";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import {
   buildMarkedDoubtPrompt,
@@ -91,6 +96,7 @@ import { buildDoubtPrompt, doubtTurnTitle } from "../../features/tutor-session/l
 import { buildDoubtPointingPolicy, doubtActiveFigure } from "../../features/tutor-session/lib/turn/doubtPointing";
 import {
   DOUBT_FIGURE_BUDGET_MS,
+  doubtFigurePlannedScene,
   doubtFigureNeedInput,
   doubtFigureNeedSkip,
   planDoubtFigure,
@@ -100,7 +106,13 @@ import {
   type DoubtFigureDrawn,
   type DoubtFigurePlanners,
 } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
-import type { DoubtFigureNeedInput, DoubtFigureNeedResult } from "../../lib/llm/doubtFigureNeed";
+import {
+  DOUBT_FIGURE_NEED_MAX_TOKENS,
+  buildDoubtFigureNeedMessages,
+  parseDoubtFigureNeedInput,
+  type DoubtFigureNeedInput,
+  type DoubtFigureNeedResult,
+} from "../../lib/llm/doubtFigureNeed";
 import { planAndSolveProblemV1, planTurnV3 } from "@heytutor/tutor-core";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
@@ -112,6 +124,7 @@ import {
 } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import {
   doubtFigureRefFor,
+  doubtFigureTurnScene,
   doubtSegment,
   doubtTurnScene,
   type BoardPageRecord,
@@ -135,6 +148,7 @@ import {
   loadFigurePlans,
   precheckSourceFrom,
   loadPrecheckSources,
+  matchExpectation,
   precheckRow,
   recordedPlanners,
   replayLessonFigure,
@@ -155,6 +169,7 @@ import {
   parseDoubtProbes,
   partMatchesTerms,
   summarizeDoubtGrades,
+  zoneRowFails,
   type DoubtArm,
   type DoubtEvidence,
   type DoubtGrade,
@@ -584,6 +599,21 @@ async function labZoneEvidence(probe: DoubtProbe, lesson: LessonRecord, doubt: D
   return zoneSequence({ kind, lessonQuestion: lesson.lessonQuestion, doubtTitle: title, lesson: zoneLesson, doubt, rows: lesson.rows });
 }
 
+/**
+ * The page the doubt teaches on: the lesson's, or a blank one when its figure
+ * lands where the lesson's rows reach the empty zone, through the same
+ * `turnDoubtPage` live turns the page with.
+ */
+export function labDoubtLayout(
+  lessonLayout: BoardLayoutState,
+  input: { doubtFigureDrawn: boolean; zoneFigure: VerifiedDiagram | null; codeBoard: boolean },
+): BoardLayoutState {
+  if (!input.doubtFigureDrawn || input.zoneFigure || input.codeBoard || !zoneInkOccupied(lessonLayout)) return lessonLayout;
+  const page: BoardLayoutState = { ...lessonLayout };
+  turnDoubtPage({ holdPage: () => undefined }, page);
+  return page;
+}
+
 export async function runDoubt(
   probe: DoubtProbe,
   lesson: LessonRecord,
@@ -625,7 +655,8 @@ export async function runDoubt(
     codeBoard,
     frameIds,
   });
-  const layout = preLayout;
+  // As live: the prompt describes the page the doubt teaches on.
+  const layout = labDoubtLayout(preLayout, { doubtFigureDrawn: doubtFigure !== null, zoneFigure, codeBoard });
   const room = workColumnRoom(layout, Boolean(zoneFigure) && !codeBoard);
   const boardRows = workColumnRows(layout);
   const fastMode = options.model === "fast";
@@ -759,7 +790,18 @@ export async function runDoubt(
       }
     }
 
-    // The save, in process, with the lesson's figure as the page figure.
+    // The save, in process. A doubt that drew its own figure is saved as live
+    // saves it: that figure's scene, its intro and the rows that taught on it.
+    const teachingRows = (first: number): SubmittedTurnSceneMetadata["segments"] => outgoing.map((segment, index) => {
+      const commands = getSegmentCommands(segment);
+      return {
+        orderIndex: first + index,
+        narration: segment.narration,
+        spokenText: segment.narration,
+        command: commands.length > 0 ? serializeSegmentCommands(commands, { trustedDiagramGeometry: false }) : null,
+      };
+    });
+    // Otherwise it points at the lesson's figure as the page figure.
     const pageRecord: BoardPageRecord = {
       boardId: "doubt-lab-board",
       lessonQuestion: lesson.lessonQuestion,
@@ -774,25 +816,36 @@ export async function runDoubt(
       storedTurns: [], activeDiagram: zoneFigure, codeLessonFrameIndex: lesson.dsa?.frameIndex ?? null,
     });
     const scene = doubtTurnScene(lesson.lessonQuestion, true, undefined, ref);
-    const metadata: SubmittedTurnSceneMetadata = {
+    let metadata: SubmittedTurnSceneMetadata = {
       question: title,
       visualStatus: "text_only",
       sceneArtifacts: scene.sceneArtifacts,
-      segments: outgoing.map((segment, index) => {
-        const commands = getSegmentCommands(segment);
-        return {
-          orderIndex: index,
-          narration: segment.narration,
-          spokenText: segment.narration,
-          command: commands.length > 0 ? serializeSegmentCommands(commands, { trustedDiagramGeometry: false }) : null,
-        };
-      }),
+      segments: teachingRows(0),
     };
-    const saved = await canonicalizeTurnSceneMetadata(metadata, {
-      loadPageFigure: async (requested) =>
-        zoneFigure && requested.schemaVersion === DOUBT_FIGURE_REF_VERSION && requested.turnId === lesson.figureTurnId
-          ? structuredClone(zoneFigure) : null,
-    });
+    if (doubtFigure) {
+      const own = doubtFigureTurnScene(doubtFigurePlannedScene(doubtFigure), lesson.lessonQuestion, zoneFigure ? lesson.figureTurnId : null);
+      const intro = doubtFigure.presentation.introSegments.map((segment, orderIndex) => ({
+        orderIndex, narration: segment.narration, spokenText: segment.narration,
+        command: serializeSegmentCommands(getSegmentCommands(segment), { trustedDiagramGeometry: true }),
+      }));
+      metadata = {
+        question: title,
+        ...own,
+        // The live save marks the page turn on the doubt's continuation (liveTurnScene).
+        ...(layout !== preLayout ? { sceneArtifacts: {
+          ...(own.sceneArtifacts as Record<string, unknown>), ...boardContinuationArtifacts(lesson.lessonQuestion, { freshPage: true }),
+        } } : {}),
+        segments: [...intro, ...teachingRows(intro.length)],
+      };
+    }
+    const saved = await canonicalizeTurnSceneMetadata(metadata, doubtFigure
+      // The lab keeps no stored page; `--zone-check` plays the page rules on stored turns.
+      ? { kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: async () => true }
+      : {
+          loadPageFigure: async (requested) =>
+            zoneFigure && requested.schemaVersion === DOUBT_FIGURE_REF_VERSION && requested.turnId === lesson.figureTurnId
+              ? structuredClone(zoneFigure) : null,
+        });
     evidence.saveOk = saved.ok;
     if (saved.ok) {
       for (const segment of saved.value.segments) {
@@ -880,11 +933,124 @@ function printSummary(summary: ReturnType<typeof summarizeDoubtGrades>): void {
 // Offline modes
 // ---------------------------------------------------------------------------
 
-function runCheck(): void {
-  const { checks, failures } = doubtGradeSelfCheck();
+async function runCheck(): Promise<void> {
+  const grade = doubtGradeSelfCheck();
+  const lab = await doubtRunSelfCheck();
+  const failures = [...grade.failures, ...lab.failures];
   for (const failure of failures) console.error(`FAIL ${failure}`);
-  console.log(`doubtGrade: ${checks - failures.length}/${checks} checks pass`);
+  console.log(`doubtGrade: ${grade.checks - grade.failures.length}/${grade.checks} checks pass`);
+  console.log(`doubt-run: ${lab.checks - lab.failures.length}/${lab.checks} checks pass`);
   if (failures.length > 0) process.exitCode = 1;
+}
+
+/** The harness itself, offline: the spend cap, regrading, the precheck, the page and the save. */
+async function doubtRunSelfCheck(): Promise<{ checks: number; failures: string[] }> {
+  const failures: string[] = [];
+  let checks = 0;
+  const check = (condition: unknown, message: string) => {
+    checks += 1;
+    if (!condition) failures.push(message);
+  };
+  const scratch = mkdtempSync(join(tmpdir(), "doubt-run-check-"));
+  const realFetch = globalThis.fetch;
+  try {
+    // The need check reserves through the round's cap, before dispatch.
+    const origin = "http://lab.check";
+    const body = { lessonQuestion: "A lesson.", doubt: "A doubt.", figure: { family: null, parts: [] } };
+    const capRun = async (maxUsd: number) => {
+      let sent = 0;
+      globalThis.fetch = (async () => { sent += 1; return Response.json({ decision: "new_figure", reason: "needs one" }); }) as typeof fetch;
+      const ledger = installBudgetedFetch({
+        origin, cookie: "a=b", maxUsd, checkpointPath: join(scratch, `spend-${maxUsd}.json`), standardModelHeader: false,
+        endpoint: {} as ReturnType<typeof resolveLlmEndpoint>, profile: {} as LabModelProfile, serverConfig: {} as LabBudgetServerConfig,
+      });
+      try {
+        const answer = await requestDoubtFigureNeed({ url: `${origin}/api/doubt-figure-need`, body, traceId: "cap-trace" });
+        return { sent, answer, denied: ledger.deniedTraces.has("cap-trace"), charged: ledger.spendCap.summary(0, 0).chargedUsd };
+      } finally {
+        ledger.restore();
+      }
+    };
+    const roomy = await capRun(5);
+    check(roomy.sent === 1 && roomy.answer.decision === "new_figure" && !roomy.denied, "a need check inside the cap is sent");
+    check(roomy.charged >= DOUBT_FIGURE_NEED_FLOOR_USD, "a need check is charged to the round");
+    const tight = await capRun(DOUBT_FIGURE_NEED_FLOOR_USD / 2);
+    check(tight.sent === 0, "a need check over --max-usd is never sent");
+    check(tight.denied && tight.answer.decision === "point", "and its row is marked untested, not graded");
+
+    // Regrading keeps the figures arm's records and leaves its planner documents out.
+    mkdirSync(join(scratch, "round", "doubts"), { recursive: true });
+    const record = (arm: DoubtArm) => JSON.stringify({ probeId: "row", arm, evidence: {} });
+    writeFileSync(join(scratch, "round", "doubts", "row-pointing.json"), record("pointing"));
+    writeFileSync(join(scratch, "round", "doubts", "row-figures.json"), record("figures"));
+    writeFileSync(join(scratch, "round", "doubts", "row-figures-figures.json"), JSON.stringify({ schemaVersion: FIGURE_PLANS_VERSION, probeId: "row", arm: "figures" }));
+    const records = roundRecords(join(scratch, "round"));
+    check(records.map((entry) => entry.arm).sort().join() === "figures,pointing", "a regrade keeps the figures arm and drops only planner documents");
+
+    // A row that expects no later figure passes on a refusal, and fails on a figure.
+    const noneRow = parseDoubtProbes(JSON.stringify({ id: "lf", lane: "lesson_figures", lessonQuestion: "Q", doubt: "D",
+      lessonFigureAsks: [{ id: "figure_2", view: "chem_thermo" }],
+      expect: { lessonFigure: "drawn", zoneAfterResume: null, point: null, pointTerms: [], newFigure: null, figures: ["no later figure"], noLaterFigure: true } }))[0]!;
+    const drawnLesson = { status: "drawn", detail: "" } as Parameters<typeof matchExpectation>[1];
+    check(matchExpectation(noneRow, drawnLesson, { status: "none", detail: "figure_2:same_figure" }, false).matches, "a correct refusal passes the precheck");
+    check(!matchExpectation(noneRow, drawnLesson, { status: "drawn", detail: "figure_2" }, false).matches, "a later figure on a row expecting none fails it");
+    check(!matchExpectation({ ...noneRow, expect: { ...noneRow.expect, noLaterFigure: false } }, drawnLesson, { status: "none", detail: "" }, false).matches,
+      "a row expecting a later figure still fails on a refusal");
+
+    // A wrong figure after the resume fails the zone check, even when live and stored agree.
+    check(zoneRowFails({ error: null, storedEqualsLive: true }, "wrong_zone"), "wrong_zone fails the zone check");
+    check(!zoneRowFails({ error: null, storedEqualsLive: true }, "ok"), "an ok zone passes");
+
+    // A doubt figure over lesson text: the prompt describes the blank page, and the save reads its own figure.
+    const row = "a long lesson row that runs on across the whole width of the board and reaches into the diagram zone itself";
+    const zoneLayout = boardLayoutFor({ rows: [row], diagram: null, kind: "none" });
+    check(zoneInkOccupied(zoneLayout), "the fixture row reaches the empty zone");
+    const lessonQuestion = "Derive the formula for the range of a projectile on level ground.";
+    const figurePlan = (question: string): TurnPlanV3 => ({
+      schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [{ id: "range", symbol: "R" }], derived: [],
+      qualitativeClaims: [{ id: "range", claim: "R = u^2 sin(2 theta) / g", expected: "u^2 sin(2 theta) / g", relatedQuantityIds: ["range"] }],
+      lawIds: ["constant-acceleration"], assumptions: ["Air resistance is negligible"], visualRequirement: "required",
+    });
+    const planning: DoubtFigurePlanning = {
+      need: async () => ({ decision: "new_figure", reason: "needs one" }),
+      planners: () => ({
+        planTurn: async (question) => ({ turnPlan: figurePlan(question), rawContent: "", elapsedMs: 0 }),
+        planAuthority: async () => null,
+      }),
+    };
+    const probe: DoubtProbe = {
+      id: "check-fresh-page", lane: "empty_zone", lessonQuestion, doubt: "show me the path when it is launched higher",
+      mark: null, markTerms: [], dsaFrame: null, referencePicture: false, lessonFigureAsks: [], offlineOnly: false,
+      expect: { lessonFigure: null, zoneAfterResume: null, figures: [], noLaterFigure: false, point: null, pointTerms: [], newFigure: "the path", newFigureInScope: true },
+    };
+    const lesson: LessonRecord = {
+      schemaVersion: LESSON_RECORD_VERSION, key: "check", lessonQuestion, kind: "none", diagram: null, figureTurnId: randomUUID(), dsa: null,
+      turnPlan: null, solverProjection: null, rows: [row], lessonResponse: "", planner: null,
+      summary: { committed: false, figureSource: null, family: null, referencePicture: null, error: null, svg: null },
+    };
+    const planned = await planDoubtFigure({
+      lessonQuestion, doubtTitle: doubtTurnTitle(probe.doubt), zoneFigure: null, deadlineAt: Date.now() + DOUBT_FIGURE_BUDGET_MS,
+      signal: new AbortController().signal, planners: planning.planners("check"),
+    });
+    check(planned.status === "drawn", "the fixture doubt draws a fast figure");
+    if (planned.status === "drawn") {
+      const part = planned.presentation.diagram.anchors[0]!.id;
+      let prompt = "";
+      const scripted: TeachingStream = async (request) => {
+        prompt = request.systemPrompt;
+        return { text: `[STEP] Look at this part of the new figure. [FOCUS:${part}] [/STEP]\n[STEP] [WRITE:90,142:the part] So that is the doubt. [/STEP]`, ttftMs: 1, reasoningChars: 0 };
+      };
+      const run = await runDoubt(probe, lesson, "figures", scripted, { familiarity: "normal", model: "fast" }, planning);
+      check(run.evidence.newFigure?.drawn === true, "the doubt drew its own figure");
+      check(prompt.length > 0 && !prompt.includes(row), "the prompt no longer lists the lesson's rows on the fresh page");
+      check(run.evidence.saveOk, `the doubt figure saves: ${run.evidence.saveError ?? run.evidence.error ?? ""}`);
+      check(run.evidence.liveFocusIds.includes(part) && run.evidence.savedFocusIds.includes(part), "a part of the doubt's figure survives the save");
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  return { checks, failures };
 }
 
 /** A scripted answer that points at the figure's first part and rings it, plus one unknown id. */
@@ -998,9 +1164,7 @@ async function runZoneCheck(options: Options, probes: readonly DoubtProbe[]): Pr
       });
       const grade = gradeZone(row.probe, zone);
       played += 1;
-      const failed = zone.error !== null || !zone.storedEqualsLive || grade.grade === "doubt_left_on_board" || grade.grade === "drawn_over_ink" ||
-        grade.grade === "lesson_page_lost" || grade.grade === "stored_differs";
-      if (failed) failures += 1;
+      if (zoneRowFails(zone, grade.grade)) failures += 1;
       const pages = zone.pages ? `${zone.pages.live.join(" > ")} / ${zone.pages.stored.join(" > ")}` : "";
       console.log(`| ${row.probe.id} | ${zone.sequence} | ${zone.live.join(" > ")} | ${zone.stored.join(" > ")} | ${(zone.replay ?? []).join(" > ")} | ${pages} | ${zone.storedEqualsLive ? "yes" : "NO"} | ${grade.grade}${zone.error ? ` (${cell(zone.error)})` : ""} |`);
     }
@@ -1061,7 +1225,7 @@ async function runDryRun(options: Options, probes: readonly DoubtProbe[]): Promi
   const fixtureProbe: DoubtProbe = {
     id: "fixture-number-line", lane: "physics_maths", lessonQuestion: fixture.question, doubt: "Why does the arrow start here?",
     mark: null, markTerms: [], dsaFrame: null, referencePicture: false, lessonFigureAsks: [], offlineOnly: false,
-    expect: { lessonFigure: "drawn", zoneAfterResume: null, figures: [], point: "the starting value", pointTerms: ["start", "2"], newFigure: null, newFigureInScope: true },
+    expect: { lessonFigure: "drawn", zoneAfterResume: null, figures: [], noLaterFigure: false, point: "the starting value", pointTerms: ["start", "2"], newFigure: null, newFigureInScope: true },
   };
   smokeRows.push({ probe: fixtureProbe, lesson: {
     schemaVersion: LESSON_RECORD_VERSION, key: "fixture", lessonQuestion: fixture.question, kind: "scene",
@@ -1107,8 +1271,48 @@ interface Ledger {
   restore: () => void;
 }
 
+/** What one need check may cost: the route's own bound. A model with no price still reserves the floor. */
+const DOUBT_FIGURE_NEED_FLOOR_USD = 0.01;
+export function doubtFigureNeedWorstCaseUsd(init: RequestInit | undefined): number {
+  const raw = typeof init?.body === "string" ? init.body : "";
+  let input: DoubtFigureNeedInput | null = null;
+  try { input = parseDoubtFigureNeedInput(JSON.parse(raw)); } catch { /* the bound below reads the raw text */ }
+  const models = resolvePlannerModels({ semanticSceneV2: false, turnPlanV3: false, plannerPhase: "plan", fastMode: true });
+  return Math.max(DOUBT_FIGURE_NEED_FLOOR_USD,
+    maximumLlmCost(input ? buildDoubtFigureNeedMessages(input) : raw, DOUBT_FIGURE_NEED_MAX_TOKENS, models, 1));
+}
+
 /**
- * The live cap: every chat, visual need and picture request reserves its
+ * `/api/doubt-figure-need` is paid: it reserves before dispatch and is charged
+ * in full, since its reply carries no usage. A denied check is never sent, and
+ * the row is marked untested, because the live client reads the throw as "point".
+ */
+export async function budgetedDoubtFigureNeedFetch(input: RequestInfo | URL, init: RequestInit | undefined, fetchImpl: typeof fetch, hooks: {
+  reserve: (usd: number) => Promise<void>;
+  beforeDispatch: () => void;
+  settle: (reservedUsd: number, chargedUsd: number, observation: NonNullable<Parameters<LabSpendCap["settleCall"]>[2]>) => void;
+  onDenied: () => void;
+}): Promise<Response> {
+  const reservedUsd = doubtFigureNeedWorstCaseUsd(init);
+  try {
+    await hooks.reserve(reservedUsd);
+  } catch (error) {
+    hooks.onDenied();
+    throw error;
+  }
+  try {
+    hooks.beforeDispatch();
+    return await fetchImpl(input, init);
+  } finally {
+    hooks.settle(reservedUsd, reservedUsd, {
+      model: "doubt_figure_need", measuredUsd: null, unresolvedAttempts: 1, unresolvedAllowanceUsd: reservedUsd,
+      reason: "doubt_figure_need_reports_no_usage",
+    });
+  }
+}
+
+/**
+ * The live cap: every chat, visual need, need check and picture request reserves its
  * worst case before dispatch and settles after, through the same pieces
  * run.ts uses (conservative spend mode). A request the cap would push over
  * `--max-usd` is never sent, and the row is recorded as untested.
@@ -1142,6 +1346,13 @@ function installBudgetedFetch(input: {
         reserve: (usd) => spendCap.reserveCall(usd), spendMode: "conservative", beforeDispatch: writeCheckpoint,
         settle: (reserved, charged, observation) => settle(reserved, charged, observation, { traceId, kind: "visual_need" }),
         onAccounting: () => writeCheckpoint(), onDenied: deny,
+      });
+    }
+    if (url === `${input.origin}/api/doubt-figure-need`) {
+      return budgetedDoubtFigureNeedFetch(request, { ...init, headers }, nativeFetch, {
+        reserve: (usd) => reserveLabRequest(spendCap, usd, init?.signal), beforeDispatch: writeCheckpoint,
+        settle: (reserved, charged, observation) => settle(reserved, charged, observation, { traceId, kind: "doubt_figure_need" }),
+        onDenied: deny,
       });
     }
     if (url === `${input.origin}/api/reference-picture`) {
@@ -1338,17 +1549,27 @@ async function runPaidRound(options: Options, probes: readonly DoubtProbe[]): Pr
   console.log(`\nspend: $${final.chargedUsd.toFixed(4)} charged (conservative), $${final.knownUsageUsd.toFixed(4)} measured, cap $${final.maxUsd.toFixed(2)}${final.stoppedForBudget ? ", STOPPED FOR BUDGET" : ""}; ${untested.length} untested`);
 }
 
+/**
+ * A round's graded records. The `figures` arm's own record and its planner
+ * documents can both end in `-figures.json`, so the schema tells them apart,
+ * never the name.
+ */
+export function roundRecords(dir: string): DoubtRecord[] {
+  return readdirSync(`${dir}/doubts`).filter((name) => name.endsWith(".json"))
+    .map((name) => JSON.parse(readFileSync(`${dir}/doubts/${name}`, "utf8")) as DoubtRecord & { schemaVersion?: string })
+    .filter((record) => record.schemaVersion !== FIGURE_PLANS_VERSION);
+}
+
 function runRegrade(options: Options, probes: readonly DoubtProbe[]): void {
   const dir = resolve(process.cwd(), options.regrade!);
-  const records = readdirSync(`${dir}/doubts`).filter((name) => name.endsWith(".json") && !name.endsWith("-figures.json"))
-    .map((name) => JSON.parse(readFileSync(`${dir}/doubts/${name}`, "utf8")) as DoubtRecord);
+  const records = roundRecords(dir);
   const spend = existsSync(`${dir}/summary.json`) ? (JSON.parse(readFileSync(`${dir}/summary.json`, "utf8")) as { spend?: unknown }).spend : null;
   printSummary(writeReports(dir, probes, records, spend));
 }
 
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
-  if (options.check) return runCheck();
+  if (options.check) return await runCheck();
   const probes = loadProbes(options);
   if (options.precheck) return runPrecheck(options, probes);
   if (options.zoneCheck) return runZoneCheck(options, probes);

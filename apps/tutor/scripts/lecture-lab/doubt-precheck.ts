@@ -409,7 +409,11 @@ export function matchExpectation(probe: DoubtProbe, lesson: FigureCheck, doubt: 
   // Work ink reaches the empty zone (lane 9): the doubt's figure turns a fresh page, never a refusal.
   if (doubt.status === "none" && doubt.detail === "skip zone_occupied") problems.push("refused zone_occupied, expected a fresh page");
   const freshPage = doubt.status === "drawn" && doubt.detail.includes("fresh page");
-  if (probe.lane === "lesson_figures" && doubt.status !== "drawn") problems.push("no later figure draws offline");
+  if (probe.lane === "lesson_figures" && probe.expect.noLaterFigure) {
+    // A correct refusal is the expected result, and a figure here is the miss.
+    if (doubt.status === "drawn") problems.push(`a later figure drew (${doubt.detail}), expected none`);
+    else if (doubt.status !== "none") problems.push(`later figure ${doubt.status}, expected none`);
+  } else if (probe.lane === "lesson_figures" && doubt.status !== "drawn") problems.push("no later figure draws offline");
   else if (probe.lane !== "lesson_figures" && wantsDoubtFigure && doubt.status !== "drawn") {
     problems.push(`doubt figure ${doubt.status}, expected drawn`);
   }

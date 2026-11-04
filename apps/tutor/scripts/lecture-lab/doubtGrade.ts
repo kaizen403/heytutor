@@ -68,6 +68,8 @@ export interface DoubtProbe {
     zoneAfterResume: "empty" | "lesson" | "picture" | null;
     /** lesson_figures: what each later figure should show, one per ask. */
     figures: string[];
+    /** lesson_figures: the right result is no later figure (the lesson reads one figure kind). */
+    noLaterFigure: boolean;
     /** The part to point at, in words, or null when no pointing is needed. */
     point: string | null;
     /** Marks a teacher would write on that part: labels, symbols, or names. */
@@ -161,6 +163,9 @@ export function parseDoubtProbes(text: string): DoubtProbe[] {
     });
     if ((lane === "lesson_figures") !== (lessonFigureAsks.length > 0)) throw new Error(`${where}: lessonFigureAsks belong to the lesson_figures lane only, and it needs them`);
     if (figures.length !== lessonFigureAsks.length) throw new Error(`${where}: expect.figures needs one entry per ask`);
+    if (raw.expect.noLaterFigure !== undefined && (raw.expect.noLaterFigure !== true || lane !== "lesson_figures")) {
+      throw new Error(`${where}: expect.noLaterFigure is true on a lesson_figures row, or absent`);
+    }
     if (raw.offlineOnly !== undefined && typeof raw.offlineOnly !== "boolean") throw new Error(`${where}: offlineOnly must be boolean`);
     probes.push({
       id,
@@ -173,7 +178,7 @@ export function parseDoubtProbes(text: string): DoubtProbe[] {
       referencePicture: raw.referencePicture === true || lane === "reference_picture" || lane === "picture_swap",
       lessonFigureAsks,
       offlineOnly: raw.offlineOnly === true || OFFLINE_LANES.includes(lane),
-      expect: { lessonFigure, zoneAfterResume, figures, point, pointTerms, newFigure, newFigureInScope: inScope },
+      expect: { lessonFigure, zoneAfterResume, figures, noLaterFigure: raw.expect.noLaterFigure === true, point, pointTerms, newFigure, newFigureInScope: inScope },
     });
   });
   return probes;
@@ -263,6 +268,12 @@ export function gradeZone(probe: Pick<DoubtProbe, "expect">, zone: ZoneEvidence 
   }
   if (live !== expected || stored !== expected) return { grade: "wrong_zone", reasons: [`zone after resume ${live}/${stored}, expected ${expected}`] };
   return { grade: "ok", reasons: [] };
+}
+
+/** A zone row that fails the `--zone-check` round: a figure wrong after the resume counts, live and stored agreeing or not. */
+export function zoneRowFails(zone: Pick<ZoneEvidence, "error" | "storedEqualsLive">, grade: ZoneGrade): boolean {
+  return zone.error !== null || !zone.storedEqualsLive || grade === "doubt_left_on_board" || grade === "wrong_zone" ||
+    grade === "drawn_over_ink" || grade === "lesson_page_lost" || grade === "stored_differs" || grade === "error";
 }
 
 /** The lesson's later figures as the lesson-figures arm saw them. */
@@ -385,7 +396,10 @@ export function judgmentKey(id: string, arm: DoubtArm): string {
 
 export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?: DoubtJudgment | null): DoubtGrade {
   const reasons: string[] = [];
-  let needsHuman = false;
+  // Each part that needs a look, kept until a judgment covers that part.
+  let needsPointing = false;
+  let needsPins = false;
+  let needsFigure = false;
   const { expect } = probe;
 
   let pointing: PointingGrade;
@@ -400,7 +414,7 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
     pointing = "right_part";
   } else {
     pointing = "wrong_part";
-    needsHuman = true;
+    needsPointing = true;
     reasons.push(`pointed at ${evidence.pointed.map((part) => part.id).join(", ")}; expected ${expect.point}`);
   }
 
@@ -408,7 +422,7 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
     .filter((part) => part.kept && (expect.point === null || !partMatchesTerms(part, expect.pointTerms)))
     .map((part) => part.id);
   if (wrongPins.length > 0) {
-    needsHuman = true;
+    needsPins = true;
     reasons.push(`kept ring on ${wrongPins.join(", ")}`);
   }
 
@@ -422,7 +436,7 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
     newFigure = drawn ? "drawn_when_not_needed" : "ok_none";
   }
   if (newFigure === "drawn_unjudged" || newFigure === "drawn_when_not_needed" || newFigure === "drawn_out_of_scope") {
-    needsHuman = true;
+    needsFigure = true;
   }
 
   let judgedBy: string | null = null;
@@ -433,8 +447,10 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
     if (judgment.newFigure && drawn && expect.newFigure !== null && expect.newFigureInScope) newFigure = judgment.newFigure;
     if (judgment.pins === "right") wrongPins = [];
     if (judgment.reason) reasons.push(`judge: ${judgment.reason}`);
-    // Someone has looked at this row; its verdicts are final.
-    needsHuman = false;
+    // Someone has looked at these parts; their verdicts are final.
+    if (judgment.pointing) needsPointing = false;
+    if (judgment.pins) needsPins = false;
+    if (judgment.newFigure) needsFigure = false;
   }
 
   const saved = lowerSet(evidence.savedFocusIds);
@@ -449,7 +465,8 @@ export function gradeDoubt(probe: DoubtProbe, evidence: DoubtEvidence, judgment?
   const zone = gradeZone(probe, evidence.zone);
   reasons.push(...zone.reasons);
   const lessonFigures = gradeLessonFigures(probe, evidence.lessonFigures, judgment?.extraFigures);
-  if (!judgment && lessonFigures.some((entry) => entry.grade === "drawn_unjudged")) needsHuman = true;
+  const needsLaterFigures = lessonFigures.some((entry) => entry.grade === "drawn_unjudged");
+  const needsHuman = needsPointing || needsPins || needsFigure || needsLaterFigures;
   for (const entry of lessonFigures) if (entry.grade !== "drawn_unjudged" && entry.grade !== "right") reasons.push(`${entry.id}: ${entry.grade}`);
 
   return {
@@ -616,7 +633,7 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
     offlineOnly: false,
     ...overrides,
     expect: {
-      lessonFigure: null, zoneAfterResume: null, figures: [],
+      lessonFigure: null, zoneAfterResume: null, figures: [], noLaterFigure: false,
       point: "the normal reaction", pointTerms: ["N", "normal"], newFigure: null, newFigureInScope: true, ...overrides.expect,
     },
   });
@@ -686,6 +703,11 @@ export function doubtGradeSelfCheck(): { checks: number; failures: string[] } {
   // Judgments win.
   const judged = gradeDoubt(probe(), evidence({ pointed: [weight] }), { id: "incline-normal", arm: "pointing", pointing: "right_part", by: "human", reason: "mg cos is drawn on the weight" });
   check(judged.pointing === "right_part" && !judged.needsHuman && judged.judgedBy === "human", "a judgment overrides the rule");
+  const wrongAndDrawn = evidence({ pointed: [weight], newFigure: { drawn: true, summary: "fbd" } });
+  check(gradeDoubt(wantsFigure, wrongAndDrawn, { id: "incline-normal", arm: "pointing", pointing: "right_part", by: "human", reason: "" }).needsHuman,
+    "a judgment of the pointing alone leaves the drawn figure in the queue");
+  check(!gradeDoubt(wantsFigure, wrongAndDrawn, { id: "incline-normal", arm: "pointing", pointing: "right_part", newFigure: "right", by: "human", reason: "" }).needsHuman,
+    "judged part by part, the row leaves the queue");
   const judgedFigure = gradeDoubt(wantsFigure, evidence({ newFigure: { drawn: true, summary: "fbd" } }), { id: "incline-normal", arm: "pointing", newFigure: "wrong", by: "human", reason: "" });
   check(judgedFigure.newFigure === "wrong", "a judged wrong figure");
   const pinJudged = (pins: "right" | "wrong") => gradeDoubt(probe(), evidence({ pointed: [normal, { ...weight, kept: true }] }),
