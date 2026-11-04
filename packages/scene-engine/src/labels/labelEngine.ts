@@ -170,7 +170,7 @@ export interface LabelEngineResult {
     leaderPath?: RenderPoint[];
   }>;
   issues: Array<{
-    code: "label_measure_budget" | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
+    code: "label_measure_budget" | "label_overlap_budget" | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
     entityId: string;
     message: string;
     overlappingIds?: string[];
@@ -443,6 +443,7 @@ function textBoundsAtSlot(
 }
 
 export function boundsOverlap(a: LabelBounds, b: LabelBounds, gap = 0): boolean {
+  chargeLabelOverlaps(1);
   return !(
     a.x + a.width + gap <= b.x ||
     b.x + b.width + gap <= a.x ||
@@ -470,7 +471,16 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
   // named gap rules admits (it falls back to that layout whenever a ruled
   // layout fails or is not kept), so feasibility asks that layout, stopping
   // at the first clear slot.
-  return placeLabelsInternal([owner], obstacles, { ...options, pointRivals: false, namedGaps: false }, true).ok;
+  // A label over its size fails that layout whatever its slot, so no slot is tried.
+  if (owner.text.length > (options.maxLabelChars ?? DEFAULTS.maxLabelChars)) return false;
+  return withSharedLabelWork(() => {
+    try {
+      return placeLabelsInternal([owner], obstacles, { ...measuredWithinBudget(options, activeLabelWork!), pointRivals: false, namedGaps: false }, true).ok;
+    } catch (error) {
+      if (!(error instanceof LabelWorkSpent)) throw error;
+      return false;
+    }
+  }).value;
 }
 
 /**
@@ -480,12 +490,77 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
 const NAMED_GAP_GUARD = true;
 
 /**
- * Characters one layout may pass to the ink measure, because each measured
- * character costs the same wherever it sits. Every real figure stays well under this.
+ * Characters one compile may pass to the ink measure, across every layout and
+ * lane check. Every real figure stays well under this.
  */
 export const LABEL_MEASURE_CHAR_BUDGET = 200_000;
 
-class LabelMeasureBudgetSpent extends Error {}
+/**
+ * Overlap tests one compile may run, across every layout and lane check. A
+ * count, so a figure's layout never depends on the clock. Every real figure
+ * stays well under this.
+ */
+export const LABEL_OVERLAP_WORK_BUDGET = 48_000_000;
+
+export interface LabelWork {
+  measuredChars: number;
+  overlaps: number;
+  spent: "label_measure_budget" | "label_overlap_budget" | null;
+}
+
+class LabelWorkSpent extends Error {}
+
+let activeLabelWork: LabelWork | null = null;
+
+function chargeLabelOverlaps(count: number): void {
+  const work = activeLabelWork;
+  if (!work) return;
+  work.overlaps += count;
+  if (work.overlaps > LABEL_OVERLAP_WORK_BUDGET) {
+    work.spent = "label_overlap_budget";
+    throw new LabelWorkSpent();
+  }
+}
+
+/** The search's own budget resets for each layout, and its work counts toward the compile's too. */
+function spendSearchWork(work: LabelSearchWork, count: number): void {
+  work.spent += count;
+  chargeLabelOverlaps(count);
+}
+
+/** True when a budget stopped the work. A compile refuses the figure when it sees this. */
+export function isLabelWorkSpent(error: unknown): boolean {
+  return error instanceof LabelWorkSpent;
+}
+
+/** Every layout inside `run` shares one budget. Nested calls share the outer one. */
+export function withSharedLabelWork<T>(run: () => T, start: Partial<LabelWork> = {}): { value: T; work: LabelWork } {
+  const outer = activeLabelWork;
+  const work = outer ?? { measuredChars: 0, overlaps: 0, spent: null, ...start };
+  activeLabelWork = work;
+  try {
+    return { value: run(), work };
+  } finally {
+    activeLabelWork = outer;
+  }
+}
+
+function measuredWithinBudget(options: LabelEngineOptions, work: LabelWork): LabelEngineOptions {
+  const measure = options.measureTextInkBounds;
+  if (!measure) return options;
+  const budget = options.measureCharBudget ?? LABEL_MEASURE_CHAR_BUDGET;
+  return {
+    ...options,
+    measureTextInkBounds: (text, x, y, fontHeightPx) => {
+      work.measuredChars += text.length;
+      if (work.measuredChars > budget) {
+        work.spent = "label_measure_budget";
+        throw new LabelWorkSpent();
+      }
+      return measure(text, x, y, fontHeightPx);
+    },
+  };
+}
 
 export function placeLabels(
   owners: LabelOwner[],
@@ -507,34 +582,25 @@ export function placeLabels(
       solvedBy: null,
     };
   }
-  const measure = options.measureTextInkBounds;
-  if (!measure) return placeLabelsMeasured(owners, obstacles, options);
-  let measuredChars = 0;
-  const budget = options.measureCharBudget ?? LABEL_MEASURE_CHAR_BUDGET;
-  try {
-    const placed = placeLabelsMeasured(owners, obstacles, {
-      ...options,
-      measureTextInkBounds: (text, x, y, fontHeightPx) => {
-        measuredChars += text.length;
-        if (measuredChars > budget) throw new LabelMeasureBudgetSpent();
-        return measure(text, x, y, fontHeightPx);
-      },
-    });
-    return placed;
-  } catch (error) {
-    if (!(error instanceof LabelMeasureBudgetSpent)) throw error;
-    return {
-      ok: false,
-      placements: [],
-      issues: owners.slice(0, 1).map((owner) => ({
-        code: "label_measure_budget" as const,
-        entityId: owner.entityId,
-        message: "Labels need more text measuring than one layout may spend",
-      })),
-      searchWork: 0,
-      solvedBy: null,
-    };
-  }
+  return withSharedLabelWork((): LabelEngineResult => {
+    const work = activeLabelWork!;
+    try {
+      return placeLabelsMeasured(owners, obstacles, measuredWithinBudget(options, work));
+    } catch (error) {
+      if (!(error instanceof LabelWorkSpent)) throw error;
+      return {
+        ok: false,
+        placements: [],
+        issues: owners.slice(0, 1).map((owner) => ({
+          code: work.spent ?? "label_overlap_budget",
+          entityId: owner.entityId,
+          message: "Labels need more layout work than one compile may spend",
+        })),
+        searchWork: 0,
+        solvedBy: null,
+      };
+    }
+  }).value;
 }
 
 function placeLabelsMeasured(
@@ -1304,8 +1370,9 @@ export function stackLabelRows(
   origins: LabelRowOrigin[],
   viewBounds: LabelBounds | undefined,
   obstacles: LabelObstacle[],
-  options: LabelEngineOptions = {},
+  rawOptions: LabelEngineOptions = {},
 ): LabelOwner[] | null {
+  const options = activeLabelWork ? measuredWithinBudget(rawOptions, activeLabelWork) : rawOptions;
   const minGapPx = options.minGapPx ?? DEFAULTS.minGapPx;
   for (const origin of origins) {
     const rows: LabelOwner[] = [];
@@ -1433,7 +1500,7 @@ function solveLabelPlacements(
       const owner = byIndex.get(index)?.owner;
       const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
       const otherLeaders = [...routed.values()].flatMap(leaderPoints);
-      work.spent += routeLeaderWork(candidate, boxes, geometry, otherLeaders);
+      spendSearchWork(work, routeLeaderWork(candidate, boxes, geometry, otherLeaders));
       const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders, owner?.leaderGeometrySafe ? geometryQuery : undefined);
       if (!route) return null;
       routed.set(index, route);
@@ -1528,12 +1595,12 @@ function solveLabelPlacements(
             // Keep the identical deterministic work accounting. Once one
             // domain is empty no later compatibility result can save this
             // branch, so its remaining pair tests need not execute.
-            work.spent += domain.count;
+            spendSearchWork(work, domain.count);
             continue;
           }
           // No budget decision occurs inside this domain. Charge the same
           // number of tests together, before the next search boundary.
-          work.spent += domain.count;
+          spendSearchWork(work, domain.count);
           const compatible = narrow(index, domain, placed);
           narrowed.set(index, compatible);
           if (compatible.count === 0) impossible = true;
@@ -1966,6 +2033,7 @@ function isLabelBounds(value: unknown): value is LabelBounds {
 function labelOverlapsObstacle(label: LabelBounds, obstacle: LabelObstacle, gap: number): boolean {
   if (!boundsOverlap(label, obstacle.bounds, gap)) return false;
   if (!obstacle.segments || obstacle.segments.length === 0) return true;
+  chargeLabelOverlaps(obstacle.segments.length);
   const expanded = {
     x: label.x - gap,
     y: label.y - gap,
