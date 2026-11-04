@@ -11,6 +11,14 @@ type Env = Record<string, string | undefined>;
 export const DEFAULT_MONTHLY_USD = 1000;
 export const DEFAULT_CYCLE_ANCHOR = "2026-11-04";
 export const ALERT_PERCENTS = [50, 80, 95] as const;
+/** The alert level recorded once the budget has moved lessons to Fireworks. */
+export const SWITCHED_ALERT = 100;
+/**
+ * Move to Fireworks this far below the budget. The relay's own limit equals the
+ * budget and it may refuse a request that would cross it, so the counter may
+ * never reach the full amount.
+ */
+export const SWITCH_MARGIN_USD = 5;
 /** A reading older than this is shown as stale. */
 export const STALE_AFTER_MS = 5 * 60_000;
 
@@ -59,12 +67,30 @@ export function creditCycle(nowMs: number, env: Env = process.env): CreditCycle 
   return { key, startMs, endMs: cycleStartMs(next.year, next.month, anchor.day) };
 }
 
+export function budgetReached(spentUsd: number, budgetUsd: number): boolean {
+  return spentUsd >= budgetUsd - SWITCH_MARGIN_USD;
+}
+
+export interface CounterStep {
+  /** Cents newly used. */
+  addCents: number;
+  /** The reading later spend is measured from. */
+  baseCents: number;
+  /** A low reading is waiting for a second one to prove a reset. */
+  pendingReset: boolean;
+}
+
 /**
- * Cents newly used between two counter readings. A counter that fell was reset
- * by a refill, so everything it now shows is new.
+ * Cents newly used between two counter readings. The counter is not strictly
+ * rising: a small dip or a bad reading must add nothing, or the key's whole
+ * lifetime would land in one month. So the base stays at its high water mark, and
+ * only two readings in a row below half of it count as a refill's reset.
  */
-export function counterDelta(lastCents: number, currentCents: number): number {
-  return currentCents >= lastCents ? currentCents - lastCents : currentCents;
+export function counterStep(baseCents: number, currentCents: number, pendingReset: boolean): CounterStep {
+  if (currentCents >= baseCents) return { addCents: currentCents - baseCents, baseCents: currentCents, pendingReset: false };
+  if (currentCents >= baseCents / 2) return { addCents: 0, baseCents, pendingReset: false };
+  if (!pendingReset) return { addCents: 0, baseCents, pendingReset: true };
+  return { addCents: currentCents, baseCents: currentCents, pendingReset: false };
 }
 
 export interface CycleRow {
@@ -89,6 +115,8 @@ export interface PollDeps {
   readCounterCents: () => Promise<number>;
   circuit: Pick<CompatCircuit, "setBudgetExhausted">;
   alert: (percent: number, spentUsd: number, budgetUsd: number) => void;
+  /** Held by the worker between polls; a restart only asks for one more reading. */
+  state: { pendingReset: boolean };
   now?: () => number;
   env?: Env;
 }
@@ -99,7 +127,7 @@ function resetLabel(endMs: number): string {
 
 function applyBudget(deps: PollDeps, spentCents: number, cycle: CreditCycle, budgetUsd: number): void {
   const spentUsd = spentCents / 100;
-  deps.circuit.setBudgetExhausted(spentUsd >= budgetUsd
+  deps.circuit.setBudgetExhausted(budgetReached(spentUsd, budgetUsd)
     ? `AI credits used: $${spentUsd.toFixed(2)} of $${budgetUsd} in the cycle ending ${resetLabel(cycle.endMs)}; using Fireworks until it resets`
     : null);
 }
@@ -115,34 +143,31 @@ export async function pollAiCredits(deps: PollDeps): Promise<CycleRow | null> {
   const cycle = creditCycle(nowMs, env);
   const budgetUsd = monthlyBudgetUsd(env);
   const saved = await deps.store.find(cycle.key);
-  let counter: number;
-  try {
-    counter = await deps.readCounterCents();
-  } catch (error) {
-    applyBudget(deps, saved?.spentCents ?? 0, cycle, budgetUsd);
-    throw error;
-  }
+  // The saved figure decides first, so a restart never sends traffic past the budget.
+  applyBudget(deps, saved?.spentCents ?? 0, cycle, budgetUsd);
+  const counter = await deps.readCounterCents();
   const previous = saved ?? await deps.store.latest();
-  const delta = counterDelta(previous?.lastCounterCents ?? 0, counter);
-  const spentCents = (saved?.spentCents ?? 0) + delta;
-  const percent = spentCents / 100 / budgetUsd * 100;
-  let alertedPercent = saved?.alertedPercent ?? 0;
-  for (const threshold of ALERT_PERCENTS) {
-    if (percent >= threshold && alertedPercent < threshold) {
-      alertedPercent = threshold;
-      deps.alert(threshold, spentCents / 100, budgetUsd);
-    }
-  }
+  const step = counterStep(previous?.lastCounterCents ?? 0, counter, deps.state.pendingReset);
+  deps.state.pendingReset = step.pendingReset;
+  const spentCents = (saved?.spentCents ?? 0) + step.addCents;
+  const spentUsd = spentCents / 100;
+  const percent = spentUsd / budgetUsd * 100;
+  const reached = budgetReached(spentUsd, budgetUsd);
+  const due = [
+    ...ALERT_PERCENTS.filter((threshold) => percent >= threshold && (saved?.alertedPercent ?? 0) < threshold),
+    ...(reached && (saved?.alertedPercent ?? 0) < SWITCHED_ALERT ? [SWITCHED_ALERT] : []),
+  ];
+  applyBudget(deps, spentCents, cycle, budgetUsd);
   const row: CycleRow = {
     cycleKey: cycle.key,
     startedAt: saved?.startedAt ?? new Date(cycle.startMs),
     spentCents,
-    lastCounterCents: counter,
-    alertedPercent,
+    lastCounterCents: step.baseCents,
+    alertedPercent: due.at(-1) ?? saved?.alertedPercent ?? 0,
     polledAt: new Date(nowMs),
   };
   await deps.store.save(row);
-  applyBudget(deps, spentCents, cycle, budgetUsd);
+  for (const threshold of due) deps.alert(threshold, spentUsd, budgetUsd);
   return row;
 }
 
@@ -197,7 +222,7 @@ export function buildSnapshot(input: {
     projectedRunOutAt: runOutMs !== null && runOutMs < cycle.endMs ? new Date(runOutMs).toISOString() : null,
     lastPolledAt: current?.polledAt.toISOString() ?? null,
     stale: !current || nowMs - current.polledAt.getTime() > STALE_AFTER_MS,
-    exhausted: spentUsd >= budgetUsd,
+    exhausted: budgetReached(spentUsd, budgetUsd),
     history: input.recent.filter((row) => row.cycleKey !== cycle.key).map((row) => ({ cycleKey: row.cycleKey, spentUsd: row.spentCents / 100 })),
   };
 }

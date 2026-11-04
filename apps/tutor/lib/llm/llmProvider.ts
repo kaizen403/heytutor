@@ -148,7 +148,7 @@ export class CompatCircuit {
 }
 
 /**
- * The process-wide relay circuit every LLM route reports into. Next bundles
+ * The process-wide relay circuit the chat route reports into. Next bundles
  * each route separately, so module state is per bundle; the circuit lives on
  * globalThis (as turn grants do) so one route's failures protect the others.
  */

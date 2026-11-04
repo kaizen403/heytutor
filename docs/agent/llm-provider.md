@@ -174,10 +174,13 @@ time. `lib/admin/aiCredits.ts` reads the relay's `/v1/dashboard/billing/usage`
 counter (`total_usage`, cents, the key's whole life) once a minute into
 `ai_credit_cycles`. Only the counter sees every call on the key: failed attempts,
 aborted streams, staff, lab and local runs, which the per user ledger leaves out.
-A counter that falls means a refill reset it. Sentry alerts once each at 50, 80 and
-95%. At the budget, `compatCircuit.setBudgetExhausted` sends new requests to
-Fireworks until the next cycle; an unreadable counter keeps the saved decision and
-never blocks a lesson. Voice and Fireworks spend are outside this figure. Gate:
+The counter can dip, so spend is measured from its high water mark and only two
+readings in a row below half of it count as a refill's reset. Sentry alerts once
+each at 50, 80 and 95%, and again at the switch. $5 before the budget,
+`compatCircuit.setBudgetExhausted` sends new requests to Fireworks until the next
+cycle, because the relay may refuse requests near its own limit; an unreadable
+counter keeps the saved decision and never blocks a lesson. If the relay is refilled
+mid cycle, raise `AI_CREDITS_MONTHLY_USD` and restart to move back. Voice and Fireworks spend are outside this figure. Gate:
 `scripts/verify/verify-ai-credits.ts`.
 
 ## First relay against Fireworks, same harness (27 Oct 2026)

@@ -31,7 +31,7 @@ export function OverviewAiCredits({ credits }: { credits: AiCreditsSnapshot }) {
 
       {credits.exhausted ? (
         <p role="alert" className="glass rounded-xl px-3 py-2.5 type-accent-xs text-danger">
-          The {usd(credits.budgetUsd)} is used up. New lessons run on Fireworks, billed to Fireworks, until {day(credits.resetsAt)}.
+          The {usd(credits.budgetUsd)} is used up.{credits.servingProvider === "fireworks" ? ` New lessons run on Fireworks, billed to Fireworks, until ${day(credits.resetsAt)}.` : ""}
         </p>
       ) : null}
 

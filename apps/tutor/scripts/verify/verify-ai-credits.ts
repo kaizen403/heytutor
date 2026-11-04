@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  ALERT_PERCENTS, buildSnapshot, counterDelta, creditCycle, monthlyBudgetUsd, pollAiCredits,
+  buildSnapshot, counterStep, creditCycle, monthlyBudgetUsd, pollAiCredits,
   type CreditStore, type CycleRow,
 } from "../../lib/admin/aiCreditsCore";
 import { CompatCircuit, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
@@ -28,8 +28,9 @@ function harness(counter: { cents: number | Error }, now: { ms: number }) {
   const store = memoryStore();
   const circuit = new CompatCircuit();
   const alerts: number[] = [];
+  const state = { pendingReset: false };
   const poll = () => pollAiCredits({
-    store, circuit, env, now: () => now.ms,
+    store, circuit, env, state, now: () => now.ms,
     readCounterCents: async () => { if (counter.cents instanceof Error) throw counter.cents; return counter.cents; },
     alert: (percent) => alerts.push(percent),
   });
@@ -58,10 +59,27 @@ const checks: [string, () => void | Promise<void>][] = [
     assert.equal(monthlyBudgetUsd({ AI_CREDITS_MONTHLY_USD: "lots" }), 1000);
     assert.equal(monthlyBudgetUsd({ AI_CREDITS_MONTHLY_USD: "-5" }), 1000);
   }],
-  ["a counter that falls was reset by a refill", () => {
-    assert.equal(counterDelta(100, 150), 50);
-    assert.equal(counterDelta(100, 100), 0);
-    assert.equal(counterDelta(5000, 40), 40);
+  ["a dip or a bad reading adds nothing; only two low readings in a row are a reset", () => {
+    assert.deepEqual(counterStep(100, 150, false), { addCents: 50, baseCents: 150, pendingReset: false });
+    assert.deepEqual(counterStep(100, 100, false), { addCents: 0, baseCents: 100, pendingReset: false });
+    assert.deepEqual(counterStep(34000.5, 34000.4, false), { addCents: 0, baseCents: 34000.5, pendingReset: false });
+    assert.deepEqual(counterStep(5000, 40, false), { addCents: 0, baseCents: 5000, pendingReset: true });
+    assert.deepEqual(counterStep(5000, 60, true), { addCents: 60, baseCents: 60, pendingReset: false });
+    assert.deepEqual(counterStep(5000, 5010, true), { addCents: 10, baseCents: 5010, pendingReset: false }, "a recovery drops the pending reset");
+  }],
+  ["spend survives dips, blips and a real refill reset", async () => {
+    const run = async (readings: number[]) => {
+      const counter = { cents: 0 }, now = { ms: IST("2026-11-20T10:00:00") };
+      const { store, poll, circuit } = harness(counter, now);
+      for (const cents of readings) { counter.cents = cents; await poll(); }
+      return { spent: store.rows.get("2026-11-04")!.spentCents, circuit };
+    };
+    assert.equal((await run([30000, 34000.5, 34000.4, 34010])).spent, 34010, "a tiny dip costs nothing");
+    const blip = await run([30000, 34000, 0, 34020]);
+    assert.equal(blip.spent, 34020, "a zero blip that recovers costs nothing");
+    assert.equal(blip.circuit.openReason(), null, "and lessons stay on the relay");
+    assert.equal((await run([90000, 25, 40])).spent, 90040, "a real reset counts once it is confirmed");
+    assert.equal((await run([90000, 25, 40, 90])).spent, 90090);
   }],
   ["the first cycle counts the whole counter, then only what is new", async () => {
     const counter = { cents: 397.5 }, now = { ms: IST("2026-11-04T18:00:00") };
@@ -83,8 +101,9 @@ const checks: [string, () => void | Promise<void>][] = [
       counter.cents = refillCounter;
       now.ms = IST("2026-12-04T00:01:00");
       await poll();
+      if (refillCounter === 25) { counter.cents = 30; now.ms += 60_000; await poll(); }
       const fresh = store.rows.get("2026-12-04")!;
-      assert.equal(fresh.spentCents, refillCounter === 25 ? 25 : 500, `counter ${refillCounter}`);
+      assert.equal(fresh.spentCents, refillCounter === 25 ? 30 : 500, `counter ${refillCounter}`);
       assert.equal(fresh.alertedPercent, 0, "alerts start again each cycle");
       assert.equal(store.rows.get("2026-11-04")!.spentCents, 90_000, "last cycle's figure is kept");
     }
@@ -92,23 +111,23 @@ const checks: [string, () => void | Promise<void>][] = [
   ["each alert fires once per cycle", async () => {
     const counter = { cents: 0 }, now = { ms: IST("2026-11-10T10:00:00") };
     const { poll, alerts } = harness(counter, now);
-    for (const cents of [49_999, 50_000, 60_000, 80_000, 95_000, 95_500]) { counter.cents = cents; await poll(); }
-    assert.deepEqual(alerts, [...ALERT_PERCENTS]);
+    for (const cents of [49_999, 50_000, 60_000, 80_000, 95_000, 95_400, 99_500, 99_600, 100_000]) { counter.cents = cents; await poll(); }
+    assert.deepEqual(alerts, [50, 80, 95, 100], "the move to Fireworks raises its own alert");
     const jump = harness({ cents: 96_000 }, now);
     await jump.poll();
     assert.deepEqual(jump.alerts, [50, 80, 95], "a jump past several still names each");
   }],
-  ["at $1,000 new requests move to Fireworks, and a new cycle moves them back", async () => {
-    const counter = { cents: 99_999 }, now = { ms: IST("2026-11-20T10:00:00") };
+  ["$5 before the budget new requests move to Fireworks, and a new cycle moves them back", async () => {
+    const counter = { cents: 99_499 }, now = { ms: IST("2026-11-20T10:00:00") };
     const { circuit, poll } = harness(counter, now);
     const relayEnv = { LLM_PROVIDER: "openai_compat", OPENAI_COMPAT_BASE_URL: "https://relay.test/v1", OPENAI_COMPAT_API_KEY: "k", OPENAI_COMPAT_MODEL: "gpt-6-sol", FIREWORKS_API_KEY: "fw" };
     await poll();
     assert.equal(resolveLlmEndpoint(relayEnv, circuit).provider, "openai_compat");
-    counter.cents = 100_000;
+    counter.cents = 99_500;
     await poll();
     const moved = resolveLlmEndpoint(relayEnv, circuit);
     assert.equal(moved.provider, "fireworks");
-    assert.match(moved.fallbackReason ?? "", /AI credits used: \$1000.00 of \$1000 in the cycle ending 2026-12-03/);
+    assert.match(moved.fallbackReason ?? "", /AI credits used: \$995.00 of \$1000 in the cycle ending 2026-12-03/);
     now.ms = IST("2026-12-04T00:00:30");
     await poll();
     assert.equal(resolveLlmEndpoint(relayEnv, circuit).provider, "openai_compat");
@@ -126,6 +145,25 @@ const checks: [string, () => void | Promise<void>][] = [
     const fresh = harness({ cents: new Error("relay down") }, now);
     await assert.rejects(fresh.poll(), /relay down/);
     assert.equal(fresh.circuit.openReason(), null, "no saved spend, no block");
+  }],
+  ["alerts wait for the save, and the budget still applies if the save fails", async () => {
+    const counter = { cents: 99_600 }, now = { ms: IST("2026-11-20T10:00:00") };
+    const circuit = new CompatCircuit();
+    const alerts: number[] = [];
+    const store = memoryStore();
+    const failing: CreditStore = { ...store, save: async () => { throw new Error("db down"); } };
+    await assert.rejects(pollAiCredits({ store: failing, circuit, env, state: { pendingReset: false }, now: () => now.ms, readCounterCents: async () => counter.cents, alert: (p) => alerts.push(p) }), /db down/);
+    assert.deepEqual(alerts, [], "an unsaved alert would repeat every minute");
+    assert.notEqual(circuit.openReason(), null, "the budget decision does not depend on the save");
+  }],
+  ["after a restart the saved figure decides before the relay is read", async () => {
+    const now = { ms: IST("2026-11-20T10:00:00") };
+    const store = memoryStore();
+    store.rows.set("2026-11-04", { cycleKey: "2026-11-04", startedAt: new Date(IST("2026-11-04T00:00:00")), spentCents: 99_800, lastCounterCents: 99_800, alertedPercent: 100, polledAt: new Date(now.ms) });
+    const circuit = new CompatCircuit();
+    let openWhileReading: string | null = null;
+    await pollAiCredits({ store, circuit, env, state: { pendingReset: false }, now: () => now.ms, readCounterCents: async () => { openWhileReading = circuit.openReason(); return 99_800; }, alert: () => undefined });
+    assert.notEqual(openWhileReading, null);
   }],
   ["the snapshot states pace, run out date, staleness and past cycles", () => {
     const nowMs = IST("2026-11-14T00:00:00");
