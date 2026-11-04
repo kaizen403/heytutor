@@ -48,8 +48,9 @@ for (const question of questions) {
   check("family", question, synthesizeFamilyScene({ question, families, turnPlan: turnPlan as never })?.document);
   check("last resort", question, synthesizeLastResortScene({ question, families, turnPlan: turnPlan as never })?.document);
 }
-// A steep incline must not lose its figure: an unbounded pulley position once shrank it until the compiler refused it.
-for (const degrees of [30, 45, 60, 75, 85, 88, 89]) {
+// An incline must not lose its figure at any angle: an unbounded pulley position once shrank it until the compiler refused
+// it, and rounding the pulley and its tangent point separately once put the point off the pulley at the fractional angles here.
+for (const degrees of [5.4, 30, 45, 48.3, 59.6, 60, 60.3, 61, 75, 85, 88, 89]) {
   const question = inclineStem(degrees);
   if (!attemptArchetypeScene({ question, turnPlan: plan(question) as never }).scene) failures.push(`pulley_incline draws nothing at ${degrees} degrees`);
 }

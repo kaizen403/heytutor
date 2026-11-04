@@ -11,7 +11,7 @@ import { projectileLaunchAngle, projectileStatedConditions } from "../../physics
 import { planGivenNumber } from "../slots";
 import { recordArchetypeFigureIdentity } from "../figureIdentity";
 import { riverAlongStreamStated } from "../../synthesize/familyClassification";
-import { DEG, SceneBuilder, add, fmt, polar, rotate, scale, withUnit, type Vec2 } from "../document";
+import { DEG, SceneBuilder, add, fmt, polar, rotate, round, scale, withUnit, type Vec2 } from "../document";
 import { angleExpected, angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
 const G = 9.8;
@@ -310,8 +310,10 @@ function pulleyIncline(context: GeneratorContext) {
   const stringStart = add(centre, scale(along, 0.55));
   // The string runs over the top of the pulley and down its far side. So the pulley sits on the slope's side of the string,
   // just past the top, and the hanging block clears the wedge's vertical side at every angle.
-  const stringEnd = add(add(top, scale(along, radius + 0.05)), scale(normal, height / 2));
-  const pulleyCentre = add(stringEnd, scale(normal, -radius));
+  // The tangent point is built from the rounded centre, so rounding cannot push it off the pulley at any angle.
+  const unroundedCentre = add(add(top, scale(along, radius + 0.05)), scale(normal, height / 2 - radius));
+  const pulleyCentre = { x: round(unroundedCentre.x), y: round(unroundedCentre.y) };
+  const stringEnd = add(pulleyCentre, scale(normal, radius));
   scene.point("S", stringStart, "string end at the block");
   scene.point("Q", stringEnd, "string tangent point");
   scene.point("P", pulleyCentre, "pulley centre");
