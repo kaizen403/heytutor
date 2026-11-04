@@ -6,6 +6,7 @@
  */
 
 import type { RenderPoint, RenderPrimitive } from "../types";
+import { SCENE_TEXT_LIMITS } from "../document/textLimits";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
 import { LABEL_IN_NAMED_GAP, insideNamedGap, namedGaps, ownerNamedGaps } from "./levelGap";
 
@@ -131,6 +132,8 @@ export interface LabelEngineOptions {
   measureTextPx?: (text: string, fontHeightPx: number) => number;
   /** Actual renderer ink at the top-left run position, including scripts. */
   measureTextInkBounds?: (text: string, x: number, y: number, fontHeightPx: number) => LabelBounds | null;
+  /** Override `LABEL_MEASURE_CHAR_BUDGET` for one call. */
+  measureCharBudget?: number;
   /** Override `LABEL_SEARCH_WORK_BUDGET` for one call. */
   searchWorkBudget?: number;
   /**
@@ -167,7 +170,7 @@ export interface LabelEngineResult {
     leaderPath?: RenderPoint[];
   }>;
   issues: Array<{
-    code: "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
+    code: "label_measure_budget" | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
     entityId: string;
     message: string;
     overlappingIds?: string[];
@@ -476,10 +479,68 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
  */
 const NAMED_GAP_GUARD = true;
 
+/**
+ * Characters one layout may pass to the ink measure, because each measured
+ * character costs the same wherever it sits. Every real figure stays well under this.
+ */
+export const LABEL_MEASURE_CHAR_BUDGET = 200_000;
+
+class LabelMeasureBudgetSpent extends Error {}
+
 export function placeLabels(
   owners: LabelOwner[],
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
+): LabelEngineResult {
+  // A label over the size is refused wherever it would sit, so nothing lays it out.
+  const overSize = owners.filter((owner) => owner.text.length > SCENE_TEXT_LIMITS.labelChars);
+  if (overSize.length > 0) {
+    return {
+      ok: false,
+      placements: [],
+      issues: overSize.map((owner) => ({
+        code: "label_too_long" as const,
+        entityId: owner.entityId,
+        message: `Label for ${owner.entityId} exceeds ${SCENE_TEXT_LIMITS.labelChars} characters`,
+      })),
+      searchWork: 0,
+      solvedBy: null,
+    };
+  }
+  const measure = options.measureTextInkBounds;
+  if (!measure) return placeLabelsMeasured(owners, obstacles, options);
+  let measuredChars = 0;
+  const budget = options.measureCharBudget ?? LABEL_MEASURE_CHAR_BUDGET;
+  try {
+    const placed = placeLabelsMeasured(owners, obstacles, {
+      ...options,
+      measureTextInkBounds: (text, x, y, fontHeightPx) => {
+        measuredChars += text.length;
+        if (measuredChars > budget) throw new LabelMeasureBudgetSpent();
+        return measure(text, x, y, fontHeightPx);
+      },
+    });
+    return placed;
+  } catch (error) {
+    if (!(error instanceof LabelMeasureBudgetSpent)) throw error;
+    return {
+      ok: false,
+      placements: [],
+      issues: owners.slice(0, 1).map((owner) => ({
+        code: "label_measure_budget" as const,
+        entityId: owner.entityId,
+        message: "Labels need more text measuring than one layout may spend",
+      })),
+      searchWork: 0,
+      solvedBy: null,
+    };
+  }
+}
+
+function placeLabelsMeasured(
+  owners: LabelOwner[],
+  obstacles: LabelObstacle[],
+  options: LabelEngineOptions,
 ): LabelEngineResult {
   const withRivals = (gapRule: boolean): LabelEngineResult => {
     const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: gapRule });

@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-whiteboard-chunk-reload.ts

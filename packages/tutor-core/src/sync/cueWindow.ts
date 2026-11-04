@@ -1,6 +1,6 @@
 import type { DrawCommand } from "@heytutor/drawing";
 import { mathToSpeech, type AudioTimings } from "../tts/elevenLabsClient";
-import { getCommandDrawDurationMs, getFlightDuration } from "./audioSync";
+import { REFERENCE_PICTURE_PASS_MS, getCommandDrawDurationMs, getFlightDuration, referencePicturePassMs } from "./audioSync";
 
 /**
  * The pen follows the voice through a figure intro.
@@ -219,6 +219,9 @@ export function estimateCommandInkLengthPx(command: DrawCommand): number {
     case "UNDERLINE":
     case "HIGHLIGHT":
       return Math.abs(n(2));
+    // `[x, y, w, h, pass, boardLengthPx]`: the pass's strokes, scaled to the board.
+    case "DRAW_PICTURE":
+      return Math.abs(n(5));
     default:
       return 60;
   }
@@ -233,6 +236,10 @@ const TEXT_TYPES = new Set<DrawCommand["type"]>(["WRITE", "LABEL", "DIMENSION"])
  * the execution path already refuses to letter it faster.
  */
 export function cuedInkFloorMs(command: DrawCommand): number {
+  // A picture pass is hand speed over its strokes, inside the pass's own
+  // floor and cap: the whiteboard draws a budget in that range exactly as
+  // given, so the cue window and the board agree on when the pass ends.
+  if (command.type === "DRAW_PICTURE") return referencePicturePassMs(command);
   // A compiled dimension is a bare bar; its value is a LABEL of its own.
   const isText = TEXT_TYPES.has(command.type)
     && (command.type !== "DIMENSION" || Boolean(command.text?.trim()));
@@ -263,6 +270,9 @@ export function cuedInkFloorMs(command: DrawCommand): number {
  * time the hand takes to letter it, whatever the voice is doing.
  */
 export function cuedInkCapMs(command: DrawCommand, floorMs = cuedInkFloorMs(command)): number {
+  if (command.type === "DRAW_PICTURE") {
+    return Math.max(REFERENCE_PICTURE_PASS_MS[command.params[4] === 1 ? "fill" : "outline"].maxMs, floorMs);
+  }
   const isText = TEXT_TYPES.has(command.type)
     && (command.type !== "DIMENSION" || Boolean(command.text?.trim()));
   if (isText) return floorMs;

@@ -465,6 +465,98 @@ for (const values of [
   assert.equal(synthesizeFamilyScene({ question }), null);
 });
 
+// Maxwell routing may only decline relative to main. Main routed the bare
+// name "maxwell" into the molecular curve, so the thumb rule, the equations,
+// the bridge, the demon and the relations drew it too. Each stem's main outcome
+// is recorded; the head may draw, or call a stem chemistry, only where main
+// did. The named non kinetic stems must stay out, and every keep stem main
+// drew must still draw.
+{
+  const oracle = JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/maxwell-subset-of-main.json"), "utf8")) as { rows: Array<{ stem: string; mainDraws: boolean; mainChemistry: boolean }> };
+  const draws = (question: string) => inferChemistryFamilies(question).includes("chem_thermo") && !!chemistryFamilyBuilder("chem_thermo")?.(question, [], false);
+  for (const row of oracle.rows) check(`maxwell subset of main: ${row.stem}`, () => {
+    if (!row.mainDraws) assert.equal(draws(row.stem), false, "draws where main did not");
+    if (!row.mainChemistry) assert.equal(isChemistryQuestion(row.stem), false, "chemistry where main was not");
+  });
+  for (const question of [
+    "Sketch the distribution of kinetic energies for electrons emitted from a metal sample.",
+    "Sketch the distribution of energies in the visible spectrum of a sample of white light.",
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
+    "Sketch the distribution of energies of alpha particles emitted.",
+    "A reaction is started by ultraviolet radiation. Sketch the distribution of molecular energies at two temperatures and mark the activation energy.",
+    "Draw the distribution of kinetic energies for an exothermic process at two temperatures.",
+    "Sketch the distribution of kinetic energies of ions in a plasma at two temperatures and mark the activation energy.",
+    "Sketch the distribution of energies and show the energy barrier.",
+    "Plot the distribution of energies and the Gibbs energy for ΔH = 40 kJ/mol and ΔS = 120 J/K/mol and find when it is spontaneous.",
+    "Using Maxwell's equations, sketch the distribution of energy of charged particles in a field.",
+    "Sketch the distribution of energies of beta particles emitted in beta decay.",
+    "Sketch the distribution of energies of cosmic ray particles.",
+    "Sketch the distribution of energy in a standing electromagnetic wave.",
+    "Sketch the distribution of energy for a photon gas at two temperatures.",
+    "Draw the distribution of molecular speeds in a star's corona plasma.",
+    "Explain Maxwell's right hand thumb rule for the field around a current carrying wire.",
+    "Write Maxwell's equations and show how they predict the speed of light.",
+    "State the Maxwell right-hand thumb rule and use it to find the field direction.",
+    "Using Maxwell's equations, find the field of a spherical charge distribution.",
+    "A Maxwell bridge measures an unknown inductance. Find L at balance.",
+    "Explain the Ampere-Maxwell law and the displacement current in a charging capacitor.",
+    "Using Maxwell's equations, sketch the energy distribution of a standing electromagnetic wave.",
+    "Use Maxwell's energy density to sketch the field energy along a plane wave.",
+    "Using Maxwell's equations, sketch the energy distribution of charged particles in a field.",
+    "Using Maxwell's equations, sketch the energy distribution of light in a gas.",
+    "Using Maxwell's equations, draw the energy distribution of electromagnetic waves in a gas-filled cavity.",
+    "Draw the Maxwell bridge circuit and its balance condition.",
+    "Explain Maxwell's corkscrew rule with a diagram.",
+    "Explain Maxwell's demon and why it does not violate the second law.",
+    "Derive the Maxwell relations from the thermodynamic potentials."
+  ]) check(`maxwell named outside kinetic theory: ${question}`, () => assert.equal(draws(question), false));
+  // A stem that names Maxwell but not the distribution must not fall through
+  // to another thermo figure (main drew the MB curve for these; a reaction
+  // energy profile is wrong), so it declines.
+  for (const question of [
+    "Using Maxwell's theory, sketch how the number of molecules with energy above the activation energy of 50 kJ/mol changes from 300 K to 400 K.",
+    "Sketch Maxwell's law for a gas at 300 K and 600 K and mark the activation energy.",
+    "Draw the Maxwell energy spectrum at two temperatures and mark the activation energy.",
+  ]) check(`maxwell named, distribution unnamed, no other thermo figure: ${question}`, () => assert.equal(draws(question), false));
+  for (const question of [
+    "Sketch the distribution of energies of particles in a radioactive sample.",
+    "Sketch the distribution of energies of collision products in a particle accelerator.",
+  ]) check(`declined distribution keeps main's route, no figure: ${question}`, () => {
+    assert.equal(isChemistryQuestion(question), true, "left main's chemistry route");
+    assert.equal(synthesizeFamilyScene({ question }), null, "another family drew it");
+  });
+  for (const question of [
+    "Sketch the distribution of molecular speeds for a light gas at two temperatures.",
+    "Sketch the distribution of speeds of nitrogen at 300 K and 600 K.",
+    "Explain, using the distribution of energies, why increasing the temperature increases the rate of reaction.",
+    "Use the distribution of energies to explain how a catalyst increases the rate of a reaction.",
+    "Sketch the distribution of energies in a sample and show the effect of adding a catalyst.",
+    "Explain using the Boltzmann distribution why raising the temperature speeds up a redox reaction in which electrons are transferred.",
+    "Sketch the distribution of speeds for helium atoms at 300 K.",
+    "Sketch the distribution of molecular speeds of nitrogen at 300 K and 600 K.",
+    "Sketch Maxwell's normalized distribution for an ideal gas at two temperatures.",
+    "Draw the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+    "Draw the Maxwell speed distribution and mark the most probable speed.",
+    "Sketch one Maxwell speed-distribution curve and mark the named speeds.",
+    "Sketch two normalized Maxwell distributions for the same gas.",
+    "A Maxwell gas is compared at 100 K and 400 K. Sketch the two speed distributions.",
+    "For a Maxwell gas, sketch the distribution of molecular speed at two temperatures.",
+    "Sketch the Maxwell energy distribution of gas molecules at two temperatures.",
+    "Using Maxwell's result, sketch the distribution of kinetic energies among the molecules of a gas.",
+    "Sketch the distribution of energy for an ideal gas at two temperatures.",
+    "Sketch the distribution of energy for a monatomic ideal gas at two temperatures.",
+    "Sketch the distribution of energy among the particles of an ideal gas at two temperatures.",
+    "Sketch the Maxwell Boltzmann distribution of molecular speeds at two temperatures.",
+    "Draw the distribution of kinetic energies of gas molecules at two temperatures and mark the activation energy.",
+    "Sketch the distribution of molecular energies for a monatomic ideal gas at two temperatures.",
+    "Explain with a Maxwell Boltzmann curve why rate increases with temperature.",
+    "Draw the distribution of energy for an ideal gas at two temperatures.",
+    "Sketch the distribution of molecular speeds for nitrogen gas at 300 K and 600 K.",
+    "Draw the Maxwell distribution for an ideal gas for two different temperatures."
+  ]) check(`maxwell keep row main drew: ${question}`, () => assert.equal(draws(question), true));
+}
+
 // The frozen public corpus remains external: fixtures are oracles, never routing inputs.
 const args = process.argv.slice(2);
 const argument = (name: string): string | undefined => {

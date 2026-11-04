@@ -14,6 +14,7 @@ import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
+import { lessonMsOf } from "@/lib/boards/turnStatus";
 import {
   audioPrefixMatchesType,
   validateTurnUploadHeaders,
@@ -306,6 +307,11 @@ export async function POST(request: Request, context: RouteContext) {
             userId,
             idempotencyKey,
             orderIndex,
+            lessonMs: lessonMsOf(segmentMeta.map((segment) => ({
+              orderIndex: segment.orderIndex,
+              audioRef: segment.sourceOrderIndex ?? segment.orderIndex,
+              durationMs: segment.durationMs,
+            }))),
             question: metadata.question,
             storageBytes: BigInt(retainedBytes),
             metadataBytes: BigInt(retainedMetadataBytes),

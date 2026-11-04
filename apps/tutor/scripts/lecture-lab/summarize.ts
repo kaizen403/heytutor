@@ -8,6 +8,7 @@
  */
 import type { LectureGrade } from "./grade";
 import type { LectureRun } from "./lecturePipeline";
+import { summarizeReferencePictures } from "./labReferencePicture";
 
 export interface RoundSummary {
   total: number;
@@ -19,6 +20,8 @@ export interface RoundSummary {
   figureOnlyRows: number;
   findingCounts: Record<string, number>;
   duplicateFigures: { signature: string; probeIds: string[] }[];
+  /** Only for `--reference-picture` rounds. */
+  referencePictures?: NonNullable<ReturnType<typeof summarizeReferencePictures>>;
   grades: LectureGrade[];
 }
 
@@ -33,6 +36,7 @@ export function summarize(
       byCode.set(finding.code, (byCode.get(finding.code) ?? 0) + 1);
     }
   }
+  const referencePictures = summarizeReferencePictures(runs);
   return {
     total: grades.length,
     graded: graded.length,
@@ -48,6 +52,7 @@ export function summarize(
       [...byCode.entries()].sort((left, right) => right[1] - left[1]),
     ),
     duplicateFigures: duplicateFigureSignatures(runs),
+    ...(referencePictures ? { referencePictures } : {}),
     grades: [...grades].sort((left, right) => left.score - right.score),
   };
 }
@@ -68,6 +73,11 @@ export function printSummary(summary: RoundSummary): void {
   }
   for (const group of summary.duplicateFigures) {
     console.log(`  same figure across units: ${group.probeIds.join("  ")}  [${group.signature}]`);
+  }
+  const pictures = summary.referencePictures;
+  if (pictures) {
+    console.log(`reference pictures: ${pictures.shown} shown, ${pictures.attempted} asked (${pictures.speculative} early), ` +
+      `${pictures.shownOnEngineFailures}/${pictures.engineFailures} shown on engine failures, wait p50 ${pictures.waitMs.median ?? "n/a"}ms p90 ${pictures.waitMs.p90 ?? "n/a"}ms`);
   }
 }
 

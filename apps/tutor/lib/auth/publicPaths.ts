@@ -7,6 +7,8 @@ const AUTH_PUBLIC_PATHS = [
   "/favicon.svg",
   "/site.webmanifest",
   "/preview-v3.mp4",
+  // Community is browsable signed out; each API route still checks what it serves.
+  "/community",
 ] as const;
 
 export function isAuthPublicPath(pathname: string): boolean {

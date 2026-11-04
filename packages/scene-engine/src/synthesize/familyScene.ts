@@ -64,7 +64,7 @@ import { extractCircleSource, findStatedCurves, type StatedCurve } from "./state
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
 import { synthesizeArchetypeScene } from "../archetypes";
-import { detectArchetype, lawOnlyArchetypeLead } from "../archetypes/detect";
+import { contradictedMagnetCoil, detectArchetype, lawOnlyArchetypeLead, refusedArchetypeLead } from "../archetypes/detect";
 import { buildSolidFigure } from "./solidFigure";
 import { buildPlanarMensuration } from "./planarMensuration";
 import { sourceMensurationStructure } from "./sourceMensuration";
@@ -181,6 +181,10 @@ function synthesizeFromFamilies(
   // A stem main's archetype scoring matched only through its plan's laws gets
   // no deterministic figure at all, not the next archetype or a family.
   if (lawOnlyArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
+  // A magnet and coil stem that contradicts the only figure for it gets none.
+  if (contradictedMagnetCoil(question)) return null;
+  // A lead refused by its own wording declines here too, not the next figure.
+  if (refusedArchetypeLead(question, { turnPlan: input.turnPlan, problemIR: input.problemIR ?? null })) return null;
   const youngRequest=readYoungRepresentationRequest(question);
   if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;
@@ -1317,11 +1321,16 @@ function buildCircuit(
     || resistors.length < 2)) return null;
   if (resistors.length < 2 && !schematic && !namedNetwork) return null;
   // A schematic still requires the stem to name circuit apparatus; never invent a network.
+  // An induced, motional or back emf names a field effect, not a source in a
+  // circuit, and once the stem names one, its other "emf" mentions are that one.
+  // So is the emf of a conductor moving or turning in a magnetic field.
+  const fieldEmf = namesFieldEmf(question);
   if (
     schematic
     && resistors.length < 2
     && !namedNetwork
-    && !/(?:resist|circuit|battery|\bcells?\b|\bemf\b|capacitor|inductor|diode|zener|galvanometer|ammeter|voltmeter|\bohm|series|parallel|bulb|lamp)/i.test(question)
+    && !/(?:resist|circuit|battery|\bcells?\b|capacitor|inductor|diode|zener|galvanometer|ammeter|voltmeter|\bohm|series|parallel|bulb|lamp)/i.test(question)
+    && (fieldEmf || !/\bemf\b/i.test(question))
   ) {
     return null;
   }
@@ -2301,6 +2310,11 @@ function buildContactBody(
   _schematic: boolean,
 ): SceneDocument | null {
   const stem = normalizeStem(question);
+  // A stem asking for a motion graph wants the graph. Unless it names a body
+  // in contact, a contact sketch here would stand in for that graph.
+  if (isMotionGraphStem(stem) && !namesBodyInContact(stem)) return null;
+  // An emf is a field effect or a source; no contact sketch is its figure.
+  if (/\bemfs?\b/i.test(stem) && namesFieldEmf(question)) return null;
   if (/(?:pulley|blocks? connected|hanging (?:mass|block))/i.test(stem)
     && !/(?:hanging over|hanging from the table)/i.test(stem)) {
     return pulleyDocument(question);
@@ -3104,6 +3118,15 @@ function isFallingStem(question: string): boolean {
 
 function isCircularMotionStem(question: string): boolean {
   return /(?:uniform circular motion|horizontal circle|centripetal|circular turn|level circular|circular road|curve on a level road)/i.test(normalizeStem(question));
+}
+
+function namesFieldEmf(question: string): boolean {
+  return /\b(?:induced|motional|back)\s+emfs?\b|\bemfs?\s+(?:is\s+)?induced\b/i.test(question)
+    || (/\bmagnetic\s+field\b|\bin\s+a\s+field\b|\b\d+(?:\.\d+)?\s*T\b/.test(question) && /\b(?:rotat|spin|revolv|slid|mov|swing)\w*/i.test(question));
+}
+
+function namesBodyInContact(stem: string): boolean {
+  return /\b(?:in contact|rests? on|resting on|placed on|pushed against|pressed against|pulley|incline|inclined plane|on (?:a|the) (?:rough|smooth|horizontal|frictionless|level) (?:surface|table|floor|plane|road|track))\b/i.test(stem);
 }
 
 function isMotionGraphStem(question: string): boolean {
@@ -4297,48 +4320,57 @@ function sourceLevelRelationDocument(question: string): SceneDocument | null {
   });
 }
 
-function semiconductorBandDocument(question: string): SceneDocument {
-  const stem = normalizeStem(question);
+/**
+ * One band column, or n-type beside p-type. A comparison with a conductor or
+ * an insulator declines: a conductor's bands overlap and an insulator's gap
+ * is wide, and two lines with a gap between them would draw neither.
+ */
+function semiconductorBandDocument(question: string): SceneDocument | null {
+  // "semi-conductor" is one word, and "n type" or a non-breaking "n‑type" is n-type.
+  const stem = normalizeStem(question)
+    .replace(/\bsemi[\s\u2010\u2011-]+conductor/gi, "semiconductor")
+    .replace(/\b([np])[\s\u2010\u2011\u2012-]+type\b/gi, "$1-type");
+  if (/\b(?:conductors?|insulators?|metals?)\b/i.test(stem)) return null;
   const bothTypes = /n-type/i.test(stem) && /p-type/i.test(stem);
   const nType = /n-type/i.test(stem);
   const pType = /p-type/i.test(stem);
-  const conductorSplit = /conductor/i.test(stem) && /(?:semiconductor|insulator)/i.test(stem);
+  // Flat bands with no impurity level cannot show doping, a junction, a device
+  // or a superconductor: a stem that names one without saying n-type or
+  // p-type gets no figure rather than an intrinsic one.
+  if (!nType && !pType && /\b(?:extrinsic|dop(?:ed|ing|ants?)|donors?|acceptors?|impurit\w*|solar cells?|superconduct\w*)\b/i.test(stem)) return null;
+  // A junction, a bias, a diode, a transistor or a laser bends the bands at
+  // the junction; separate flat columns cannot show it, whatever the type.
+  if (/\b(?:junctions?|bias\w*|\w*diodes?|transistors?|npn|pnp|lasers?|light[\s-]emitting|LEDs?)\b/i.test(stem)) return null;
   const columns: Array<{
     prefix: string;
     x0: number;
     x1: number;
-    extra: "donor" | "acceptor" | "narrow" | null;
+    extra: "donor" | "acceptor" | null;
     caption: string;
   }> = bothTypes
     ? [
       { prefix: "n", x0: -3.2, x1: -0.6, extra: "donor", caption: "n-type" },
       { prefix: "p", x0: 0.6, x1: 3.2, extra: "acceptor", caption: "p-type" },
     ]
-    : conductorSplit
-      ? [
-        { prefix: "cond", x0: -3.2, x1: -0.6, extra: "narrow", caption: "conductor" },
-        { prefix: "semi", x0: 0.6, x1: 3.2, extra: null, caption: "semiconductor" },
-      ]
-      : [{
-        prefix: "band",
-        x0: -2.4,
-        x1: 2.4,
-        extra: nType ? "donor" : pType ? "acceptor" : null,
-        caption: nType ? "n-type" : pType ? "p-type" : "intrinsic",
-      }];
+    : [{
+      prefix: "band",
+      x0: -2.4,
+      x1: 2.4,
+      extra: nType ? "donor" : pType ? "acceptor" : null,
+      caption: nType ? "n-type" : pType ? "p-type" : /\bintrinsic\b/i.test(stem) ? "intrinsic" : "semiconductor",
+    }];
 
   const entities: SceneEntity[] = [];
   const constructions: SceneConstruction[] = [];
   const levelIds: string[] = [];
   for (const column of columns) {
-    const evY = column.extra === "narrow" ? -0.25 : -1.2;
-    const ecY = column.extra === "narrow" ? 0.25 : 1.2;
     const evL = `${column.prefix}_ev_l`;
     const evR = `${column.prefix}_ev_r`;
     const ecL = `${column.prefix}_ec_l`;
     const ecR = `${column.prefix}_ec_r`;
     const ev = `${column.prefix}_ev`;
     const ec = `${column.prefix}_ec`;
+    // Each level is named once, by its own label.
     entities.push(
       { id: evL, kind: "point", role: "band end" },
       { id: evR, kind: "point", role: "band end" },
@@ -4348,18 +4380,12 @@ function semiconductorBandDocument(question: string): SceneDocument {
       { id: ec, kind: "segment", role: "conduction band", label: "Ec" },
     );
     constructions.push(
-      pointAt(evL, column.x0, evY),
-      pointAt(evR, column.x1, evY),
-      pointAt(ecL, column.x0, ecY),
-      pointAt(ecR, column.x1, ecY),
+      pointAt(evL, column.x0, -1.2),
+      pointAt(evR, column.x1, -1.2),
+      pointAt(ecL, column.x0, 1.2),
+      pointAt(ecR, column.x1, 1.2),
       { id: `make_${ev}`, operator: "segment", inputs: { start: evL, end: evR }, outputs: [ev] },
       { id: `make_${ec}`, operator: "segment", inputs: { start: ecL, end: ecR }, outputs: [ec] },
-      { id: `label_${ev}`, operator: "label", inputs: { target: ev, text: "Ev" }, outputs: [`${ev}_label`] },
-      { id: `label_${ec}`, operator: "label", inputs: { target: ec, text: "Ec" }, outputs: [`${ec}_label`] },
-    );
-    entities.push(
-      { id: `${ev}_label`, kind: "label", role: "band label" },
-      { id: `${ec}_label`, kind: "label", role: "band label" },
     );
     levelIds.push(ev, ec);
     if (column.extra === "donor" || column.extra === "acceptor") {
@@ -4372,13 +4398,11 @@ function semiconductorBandDocument(question: string): SceneDocument {
         { id: a, kind: "point", role: "impurity end" },
         { id: b, kind: "point", role: "impurity end" },
         { id: seg, kind: "segment", role: "impurity level", label: extraText },
-        { id: `${seg}_label`, kind: "label", role: "band label" },
       );
       constructions.push(
         pointAt(a, column.x0, extraY),
         pointAt(b, column.x1, extraY),
         { id: `make_${seg}`, operator: "segment", inputs: { start: a, end: b }, outputs: [seg] },
-        { id: `label_${seg}`, operator: "label", inputs: { target: seg, text: extraText }, outputs: [`${seg}_label`] },
       );
       levelIds.push(seg);
     }

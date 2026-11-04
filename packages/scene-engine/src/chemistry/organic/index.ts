@@ -26,6 +26,7 @@ import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
 import { readOrganicReactionSource } from "./reactionSource";
 import { buildOrganicReactionFigure } from "./reactionFigure";
+import { readMechanismSource } from "./mechanism/source";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
 
@@ -311,6 +312,8 @@ export function mentionRole(lower: string, mention: Mention): "reagent" | "produ
 export function isOrganicStem(question: string): boolean {
   const stem = chemStem(question);
   if (NOT_ORGANIC.test(stem) || requiresConformationProjection(question)) return false;
+  // Condensed formulas alone name no compound the mention reader knows.
+  if (readMechanismSource(question).status === "source") return true;
   const complexes = complexTokens(question);
   const mentions = distinctMentions(findMentions(question));
   const strong = mentions.filter((mention) => !mention.weak);
@@ -364,6 +367,11 @@ function factsLine(stem: string, molecule: Molecule): string {
  * transformations; other isomer/name requests retain the existing row path.
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
+  // A mechanism ask is answered by checked curly arrows or not at all: a
+  // product row without arrows would read as the mechanism.
+  const mechanism = readMechanismSource(question);
+  if (mechanism.status === "source") return mechanism.document;
+  if (mechanism.status === "declined") return null;
   if (!isOrganicStem(question)) return null;
   // This operator owns every original source/request span and proves the
   // complete graph result. Do not let a narrower structural-label heuristic
@@ -599,4 +607,6 @@ export const ORGANIC_PROBES: ReadonlyArray<{
   { question: "The number of chiral centres in 2-chlorobutane is", expect: "draw", labels: ["Cl", "2-chlorobutane"], note: "caption carries chiral centres 1" },
   { question: "The hybridisation of cobalt in [Co(NH3)6]3+ is", expect: "decline", note: "coordination complex, no organic name" },
   { question: "The major product of the following reaction is", expect: "decline", note: "figure absent, nothing named" },
+  { question: "Show the ester pyrolysis of CH3-C(=O)-O-CH2CH3 on heating.", expect: "draw", labels: ["Ester pyrolysis", "six-membered TS", "CH_3"], forbidLabels: ["?"], note: "curly arrows, cyclic TS, ethene and acetic acid" },
+  { question: "Explain the mechanism of xanthate pyrolysis of ethyl xanthate to give ethene.", expect: "decline", note: "mechanism ask with no checked species: no product row without arrows" },
 ];

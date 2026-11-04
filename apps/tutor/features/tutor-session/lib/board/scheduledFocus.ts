@@ -60,6 +60,14 @@ export interface ScheduledFocusTarget {
   rects: SpotlightRect[];
   /** What the pen traces: the target's own ink, or a ring round its anchor. */
   paths: FocusTracePath[];
+  /**
+   * The spotlight hole for each path, exactly as given (no padding added),
+   * for a target whose paths sit far apart: a numbered picture's mark on the
+   * drawing, then its row in the key. The spotlight follows the pen from one
+   * to the next instead of one hole spanning both, which would light most of
+   * the picture. Absent, the hole is `rects` padded, throughout the target.
+   */
+  pathHoles?: SpotlightRect[];
   /** The ring drawn after the trace when the emphasis is pulse. */
   pulse: FocusTracePath | null;
   /**
@@ -192,13 +200,22 @@ export async function runScheduledFocus(
       shouldStop: deadlineExpired,
     });
   };
+  // Parts that sit far apart open on the first rather than on a hole
+  // spanning them all.
+  const firstHole = targets[0]?.pathHoles?.[0];
   const spotlight = options.emphasis === "spotlight" && options.veil
     ? {
         veil: options.veil,
-        hole: paddedHole(targets.flatMap((target) => target.rects)),
+        hole: firstHole && targets.every((target) => target.pathHoles && target.pathHoles.length > 0)
+          ? { ...firstHole }
+          : paddedHole(targets.flatMap((target) => target.rects)),
         opacity: FOCUS_SPOTLIGHT_OPACITY,
       }
     : null;
+  const holeFor = (target: ScheduledFocusTarget, pathIndex: number): SpotlightRect | null => {
+    const hole = target.pathHoles?.[pathIndex];
+    return hole ? { ...hole } : null;
+  };
   // Every re-aim replaces the lease owned by this focus. The helper releases
   // the latest target's nodes, not just the initial union or a successor veil.
   return withSpotlight(host, spotlight, async (scope) => {
@@ -215,7 +232,7 @@ export async function runScheduledFocus(
       await options.waitUntilAudioMs(startMs() - FOCUS_FLIGHT_LEAD_MS,
         options.getTiming ? () => startMs() - FOCUS_FLIGHT_LEAD_MS : undefined);
       if (options.isCancelled()) return true;
-      if (spotlight) scope.setSpotlight?.({ ...spotlight, hole: paddedHole(target.rects) });
+      if (spotlight) scope.setSpotlight?.({ ...spotlight, hole: holeFor(target, 0) ?? paddedHole(target.rects) });
       const pulseParts = options.emphasis === "pulse" && target.pulse ? 2 : 0;
       const traceParts = target.paths.length * 2 + pulseParts;
       const approachMs = boundDuration(focusHopMs(penAt, first, FOCUS_HOP_MAX_MS), traceParts + 1);
@@ -264,6 +281,8 @@ export async function runScheduledFocus(
         if (options.isCancelled()) return true;
         if (deadlineExpired()) break;
         const remainingParts = (target.paths.length - pathIndex) * 2 + pulseParts;
+        const pathHole = pathIndex > 0 ? holeFor(target, pathIndex) : null;
+        if (spotlight && pathHole) scope.setSpotlight?.({ ...spotlight, hole: pathHole });
         const hopMs = boundDuration(focusHopMs(penAt, candidate, perPathMs / 3), remainingParts);
         if (hopMs > 0) await flyTo(candidate, hopMs);
         if (options.isCancelled()) return true;

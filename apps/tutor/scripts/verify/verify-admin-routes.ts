@@ -21,6 +21,7 @@ const ADMIN_API_ROUTES = [
   "app/api/admin/users/[userId]/route.ts",
   "app/api/admin/turns/route.ts",
   "app/api/admin/coverage/route.ts",
+  "app/api/admin/pictures/route.ts",
 ];
 
 for (const route of ADMIN_API_ROUTES) {
@@ -60,7 +61,7 @@ assert(
 );
 
 const nav = read("features/admin/nav/AdminNav.tsx");
-for (const href of ["/admin", "/admin/playground", "/admin/users", "/admin/logs", "/admin/fails", "/admin/coverage"]) {
+for (const href of ["/admin", "/admin/playground", "/admin/users", "/admin/logs", "/admin/fails", "/admin/coverage", "/admin/pictures"]) {
   assert(nav.includes(`href: "${href}"`), `the admin nav must keep its ${href} section`);
 }
 
@@ -85,6 +86,7 @@ const adminQuerySources = [
   "lib/admin/turnsQueries.ts",
   "lib/admin/coverageQueries.ts",
   "lib/admin/costQueries.ts",
+  "lib/admin/picturesQueries.ts",
 ];
 for (const source of adminQuerySources) {
   const text = read(source);

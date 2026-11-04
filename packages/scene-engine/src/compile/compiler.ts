@@ -121,6 +121,7 @@ import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleG
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
 import { evaluateRigidMassConstruction, type RigidMassGeometry, type RigidMassRecord } from "./rigidMassGeometry";
 import { evaluateMatrixArrayConstruction, matrixArrayPrimitives, type MatrixArrayGeometry } from "./matrixArrayGeometry";
+import { blockFlowPrimitives, evaluateBlockFlowConstruction, type BlockFlowGeometry } from "./blockFlowGeometry";
 import { evaluateLinearRegionConstruction, linearRegionPrimitives, type LinearRegionGeometry } from "./linearRegionGeometry";
 import { validateLinearSourceBinding, validateLinearClaims } from "./linearRegionSource";
 import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
@@ -228,6 +229,7 @@ type Geometry =
   | ({ kind: "dimension"; a: Point; b: Point } & DerivedGeometryMetadata)
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry
+  | BlockFlowGeometry
   | PvPlotGeometry
   | LinearRegionGeometry;
 
@@ -1844,6 +1846,7 @@ function evaluateConstruction(
     case "crossing_strategies":
     case "parallel_guides": return evaluateRelativeMotionConstruction(operator, inputs, constructionContext);
     case "kirchhoff_network": return evaluateNetworkConstruction(operator, inputs, constructionContext);
+    case "block_flow": return evaluateBlockFlowConstruction(operator, inputs);
     case "free_body":
     case "coupled_bodies":
     case "vertical_circle":
@@ -3040,6 +3043,8 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
   if (value.kind === "linear_region") {
     return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
+  // Laid out in board pixels by the engine; no world transform applies.
+  if (value.kind === "block_flow") return blockFlowPrimitives(value, entityId, groupId);
   if (value.kind === "matrix_array") {
     const sourceProvenance = { ...provenance };
     delete sourceProvenance.matrixCell;
@@ -3368,22 +3373,33 @@ function relocateObstructedDimensions(
       return canPlaceSingleLabel(owner, [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
         { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
-    if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
+    const labelWidth = (entityId: string): number => measureTextWidth(dimensionLabelText(document, entityId) ?? "", fontHeightPx) + paddingPx * 2;
+    // Only a bar whose builder asked for it (entity provenance keepLabelLane)
+    // keeps a label lane; every other bar takes the first clear lane.
+    const keepsLabelLane = entity?.provenance?.keepLabelLane === true;
+    const crowded = (candidateBar: RenderPrimitive): boolean => keepsLabelLane && Boolean(text) &&
+      dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
+    if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
     const preferredSign = Math.sign(offset) || 1;
     let replacement: RenderPrimitive[] | undefined;
-    for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
-      for (const sign of [preferredSign, -preferredSign]) {
-        const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);
-        const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
-        const boundsIssues: SceneIssue[] = [];
-        assertDimensionViewport(candidate, transformPlan, boundsIssues);
-        if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink)) continue;
-        if (!labelClears(candidate)) continue;
-        replacement = candidate;
-        dimensionLanes.set(bar.entityId, amount * sign);
-        break;
+    // A lane that keeps a label lane is preferred; when the view has none, the
+    // bar keeps the first clear lane as before rather than failing the figure.
+    for (const keepLabelLane of keepsLabelLane ? [true, false] : [false]) {
+      for (let amount = Math.abs(offset); amount <= maxOffset && !replacement; amount += DIMENSION_LANE_PX) {
+        for (const sign of [preferredSign, -preferredSign]) {
+          const candidate = toPrimitives(bar.entityId, "dimension", value, bar.groupId, transform, viewport, false, amount * sign, undefined, entity?.provenance);
+          const candidateBar = candidate.find((primitive) => primitive.kind === "dimension")!;
+          const boundsIssues: SceneIssue[] = [];
+          assertDimensionViewport(candidate, transformPlan, boundsIssues);
+          if (boundsIssues.length > 0 || dimensionBarObstructed(candidateBar, ink) || (keepLabelLane && crowded(candidateBar))) continue;
+          if (!labelClears(candidate)) continue;
+          replacement = candidate;
+          dimensionLanes.set(bar.entityId, amount * sign);
+          break;
+        }
       }
+      if (replacement) break;
     }
     if (!replacement) {
       issues.push({ code: "dimension_overlap_unresolved", message: `Dimension ${bar.entityId} cannot clear the verified figure and keep its labels in view`, severity: "fatal", entityIds: [bar.entityId] });
@@ -3396,6 +3412,42 @@ function relocateObstructedDimensions(
     changed = true;
   }
   return changed;
+}
+
+/** A dimension's text sits on the far side of its own bar. When a labelled
+ * bar is stacked inside a longer labelled bar's stretch, closer than a label
+ * lane, the inner text can neither fit between the bars nor slide along to
+ * a stretch the outer bar leaves open, so the label engine parks it beyond
+ * the outer bar, where it reads as the outer bar's value. Relocated bars
+ * keep the lane the compiler already gives labelled bars stacked inside one
+ * group. */
+function dimensionLabelLaneCrowded(bar: RenderPrimitive, labelledOthers: RenderPrimitive[], labelWidth: (entityId: string) => number): boolean {
+  const [start, end] = bar.points;
+  const measured = bar.provenance?.measuredStart as RenderPoint | undefined;
+  if (!start || !end || !measured) return false;
+  const length = Math.hypot(end.x - start.x, end.y - start.y);
+  if (length < EPSILON) return false;
+  const ux = (end.x - start.x) / length;
+  const uy = (end.y - start.y) / length;
+  // Signed distance from the measured line, along the bar's normal.
+  const offset = (point: RenderPoint) => (point.x - measured.x) * uy - (point.y - measured.y) * ux;
+  const project = (point: RenderPoint) => (point.x - start.x) * ux + (point.y - start.y) * uy;
+  const own = offset(start);
+  return labelledOthers.some((other) => {
+    if (other.kind !== "dimension" || other.provenance?.measurementRole !== "bar") return false;
+    const [a, b] = other.points;
+    if (!a || !b) return false;
+    // Parallel bars on the same side of the measured line, closer than a label lane.
+    if (Math.abs((b.x - a.x) * uy - (b.y - a.y) * ux) > 1e-6 * Math.max(1, Math.hypot(b.x - a.x, b.y - a.y))) return false;
+    const theirs = offset(a);
+    if (Math.sign(theirs) !== Math.sign(own) || Math.abs(theirs - own) < EPSILON || Math.abs(theirs - own) >= DIMENSION_LABEL_LANE_PX) return false;
+    const [low, high] = [project(a), project(b)].sort((first, second) => first - second) as [number, number];
+    // Inner bar stretch [innerLow, innerHigh]; the outer bar covers [outerLow, outerHigh].
+    const ownInner = Math.abs(own) < Math.abs(theirs);
+    const [innerLow, innerHigh, outerLow, outerHigh] = ownInner ? [0, length, low, high] : [low, high, 0, length];
+    const room = Math.max(Math.min(outerLow, innerHigh) - innerLow, innerHigh - Math.max(outerHigh, innerLow));
+    return room < labelWidth(ownInner ? bar.entityId : other.entityId);
+  });
 }
 
 function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boolean {
@@ -5745,7 +5797,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="pv_plot")return pvPlotBounds(); if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="block_flow")return blockFlowPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -6296,6 +6348,7 @@ function geometrySignature(value: Geometry): string {
   if (value.kind === "arc") return `arc:${pointKey(value.center)}:${signatureNumber(value.radius)}:${signatureNumber(value.startAngle)}:${signatureNumber(value.endAngle)}`;
   if (value.kind === "axes") return `axes:${value.xMin}:${value.xMax}:${value.yMin}:${value.yMax}`;
   if (value.kind === "linear_region") return `linear:${JSON.stringify(value)}`;
+  if (value.kind === "block_flow") return `block_flow:${JSON.stringify([value.blockFlow.nodes, value.blockFlow.edges])}`;
   if (value.kind === "matrix_array") return `matrix:${value.matrixArray.operation}:${value.matrixArray.rows}x${value.matrixArray.columns}:${JSON.stringify(value.matrixArray.exactEntries)}:${pointKey(value.matrixArray.origin)}:${signatureNumber(value.matrixArray.displayScale)}`;
   return `dimension:${pointKey(value.a)}:${pointKey(value.b)}`;
 }
