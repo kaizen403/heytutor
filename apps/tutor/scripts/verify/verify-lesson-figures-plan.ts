@@ -28,7 +28,7 @@ import {
   withChemistryExampleAddon,
   type TurnPlannerV3Options,
 } from "@heytutor/tutor-core";
-import { ARCHETYPE_IDS, SCENE_VISUAL_FAMILIES, describeSceneFamily, detectArchetype, validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { ARCHETYPE_IDS, SCENE_VISUAL_FAMILIES, archetypeFamily, describeSceneFamily, detectArchetype, validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import incline from "./fixtures/lesson-figures-incline-plan.json";
 import circle from "./fixtures/replay/circle-s3-turn.json";
@@ -152,6 +152,13 @@ async function askChecks(): Promise<void> {
     // Covers detectArchetype's slot readers and vetoes, not cue scoring
     // (which the view steers by design) nor inferSceneCapabilities (whose
     // families the view is meant to change).
+    //
+    // A phrase can also lift an archetype's refusal: "analytic curve" holds
+    // the word a turning body's stem must say. That is harmless only for an
+    // archetype of another figure kind, which `planOne` refuses as
+    // `not_picked_view` (row plan/a-lifted-refusal-draws-nothing). The list
+    // is exact, so a new lift is read before it passes.
+    const liftedAcrossKinds = new Set<string>();
     const forced = (question: string, id: string) => {
       const match = detectArchetype(question, { plannerArchetype: id });
       // A slot that copies the whole question (e.g. phases) carries the
@@ -168,12 +175,17 @@ async function askChecks(): Promise<void> {
           const before = own.get(id) ?? null;
           const after = forced(composed, id);
           if (after === null) continue;
+          if (before === null && archetypeFamily(id) !== family) {
+            liftedAcrossKinds.add(`${family} lifts ${id}`);
+            continue;
+          }
           assert.equal(after, before, `${family} on "${stem.slice(0, 40)}": ${id} reads ${before === null ? "a slot the lesson question lacks" : "different state"}`);
           compared += 1;
         }
       }
     }
     assert(compared > SCENE_VISUAL_FAMILIES.length * READER_STEMS.length, `the parity compared real reads (${compared})`);
+    assert.deepEqual([...liftedAcrossKinds], ["analytic_curve lifts circular_motion_level"], "the only refusal a view's phrase lifts, on another figure kind");
   });
   await check("flag", () => {
     assert.equal(resolveLessonFiguresEnabled({}), false);
@@ -302,6 +314,12 @@ async function planChecks(): Promise<void> {
     const fromPlan = run(lesson.diagram, undefined, { turnPlan: { ...plan, figures: [{ id: "figure_2", view: "contact_body" }] } as TurnPlanV3 });
     assert.deepEqual([...fromPlan.misses.map((miss) => miss.id), ...fromPlan.figures.map((figure) => figure.ask.id)], ["figure_2"], "the plan's own figures are read");
     assert.deepEqual(run(lesson.diagram, undefined), { figures: [], misses: [] }, "no figures key: nothing planned");
+  });
+  await check("plan/a-lifted-refusal-draws-nothing", () => {
+    // The incline stem says no turn; the analytic curve view's phrase says "curve".
+    const result = run(lesson.diagram, [{ id: "figure_2", view: "analytic_curve" }], { families: [...lesson.families, "contact_body", "analytic_curve"] });
+    assert.deepEqual(result.figures.filter((figure) => figure.representation.family !== "analytic_curve"), [], "no figure of another kind is ever kept");
+    assert.deepEqual(result.figures, [], "and this stem has no curve to draw");
   });
   await check("plan/another-kind-is-an-honest-miss", () => {
     // Mutation (f): the selector draws the block for "state plot"; kept, the
