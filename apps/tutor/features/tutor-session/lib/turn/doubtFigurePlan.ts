@@ -36,7 +36,7 @@ import type { TutorSegment, VerifiedDiagram } from "@heytutor/drawing";
 import { takeDeferredAnnotations, verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { composeDoubtFigureQuestion } from "@/lib/boards/doubtFigure";
-import { lessonFigureReturnAfter, pageFigureAt, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
+import { lessonFigureReturnAfter, pageFigureAfter, storedTurnSwapsFigureIn } from "@/lib/boards/pageFigure";
 import { DIAGRAM_ZONE } from "../../constants";
 import type { BoardLayoutState } from "../../types";
 import { storedLessonFigurePresentation } from "../replay/pageFigureSync";
@@ -251,7 +251,8 @@ export function storedPageZoneStash(turns: readonly StoredTurn[], live: Verified
 
 function readStoredPageZoneStash(turns: readonly StoredTurn[], live: VerifiedDiagram): ZoneStash | null {
   if (turns.length === 0) return null;
-  const at = pageFigureAt(turns, turns.length - 1);
+  // The zone after the last turn: restore has already played its advance.
+  const at = pageFigureAfter(turns);
   if (at.sourceIndex === null) return null;
   const source = turns[at.sourceIndex]!;
   if (!storedTurnSwapsFigureIn(source)) return storedZoneStash(live, source, at.figureId);

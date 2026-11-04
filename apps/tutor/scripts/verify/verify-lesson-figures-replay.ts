@@ -57,13 +57,13 @@ import { doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { DOUBT_FIGURE_REF_VERSION, doubtFigureRefArtifacts, type DoubtFigureRef } from "../../lib/boards/doubtFigureRef";
 import { bindLessonFigureStart, bindPageFigureLoader, memoryPageFigureStore, type PageFigureTurn } from "../../lib/scene/pageFigureLoader";
 import { doubtFigureRefFor } from "../../features/tutor-session/lib/turn/doubtTurn";
-import { lessonFigureReturnAfter, pageFigureAt, storedTurnFocusIds } from "../../lib/boards/pageFigure";
+import { lessonFigureReturnAfter, pageFigureAfter, pageFigureAt, storedTurnFocusIds } from "../../lib/boards/pageFigure";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { figureFingerprint, lessonFigureIdInZone, selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { stored } from "./fixtures/doubtFigureScene";
 import { admitStoredScene } from "../../lib/scene/sceneAdmission";
 import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
-import { storedPageZoneStash } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
+import { doubtFigureNeedSkip, storedPageZoneStash } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
 import { LessonFigureSequence, finishLessonFigureAdvance, lessonFigureIntroCommands } from "../../features/tutor-session/lib/scene/lessonFigureSequence";
 import { restoreLessonFigureViews, restoreLessonFigures } from "../../features/tutor-session/lib/scene/restoreLessonFigures";
@@ -543,6 +543,30 @@ async function resumeChecks(): Promise<void> {
     const swapped = storedPageZoneStash(on.turns.slice(0, 3), doubtZone);
     assert(swapped && swapped.presentation && swapped.figureId === "figure_2");
     assert.deepEqual(ids(swapped.presentation.diagram), ids(figure2), "the stash holds figure 2");
+  });
+  await check("stash/reopened-after-the-last-turn-advanced", () => {
+    // The lesson's own turn is the last one saved, and its rows advanced to figure 2.
+    const lastTurn = on.turns.slice(0, 1);
+    const L = lastTurn[0]!;
+    const figure1 = storedLessonFigurePresentation(L, "figure_1").diagram!;
+    const figure2 = storedLessonFigurePresentation(L, "figure_2").diagram!;
+    const stash = storedPageZoneStash(lastTurn, figure2);
+    assert(stash && stash.diagram && stash.figureId === "figure_2", "restore drew figure 2: it is stashed as figure 2, so the doubt may swap it");
+    assert.equal(storedPageZoneStash(lastTurn, figure1), null, "a zone showing figure 1 does not match where the rows left the page");
+    assert.equal(pageFigureAfter(lastTurn).figureId, "figure_2", "after the last turn the page stands on figure 2");
+    assert.equal(pageFigureAt(lastTurn, 0).figureId, "figure_1", "while it starts, on figure 1");
+    const skip = doubtFigureNeedSkip({
+      granted: true, codeBoard: false, markedFigureIds: [], zoneFigure: figure2, zoneReturnable: stash !== null,
+      zoneEmpty: false, zoneOccupied: false, lessonResumable: true,
+    });
+    assert.equal(skip, null, "the next doubt may draw its figure");
+  });
+  await check("stash/flag-off-reads-the-same-zone", () => {
+    const L = off.turns[0]!;
+    const figure1 = storedLessonFigurePresentation(L, "figure_1").diagram!;
+    assert.equal(pageFigureAfter(off.turns.slice(0, 1)).figureId, "figure_1", "flag off: no advance, figure 1");
+    assert.equal(pageFigureAfter(off.turns.slice(0, 1)).sourceIndex, pageFigureAt(off.turns.slice(0, 1), 0).sourceIndex, "and the same source as at its start");
+    assert(storedPageZoneStash(off.turns.slice(0, 1), figure1), "figure 1 is stashed");
   });
   await check("uqh/return-after-a-reload-reads-the-figure-id", () => {
     const slice = anchoredSlice("hooks/turn/useQuestionHandler.ts", "doubt-figure-return");

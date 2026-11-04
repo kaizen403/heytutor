@@ -806,13 +806,13 @@ function between(source: string, file: string, start: string, end: string): stri
     "a stopped intro unwinding late tears down only its own turn, never the doubt",
   );
   const respond = between(source, file, "const processResponseText", "const stopTurn = useCallback(");
-  const withheldLoops = respond.split("while (activeDiagram && revealDeferredAnnotations) {").slice(1);
+  const withheldLoops = respond.split("while (labelDiagram && revealDeferredAnnotations) {").slice(1);
   assert(withheldLoops.length === 2, "both teaching paths retain their withheld-label completion loop");
   const cancellationReturn = /if \(cancelRef\.current \|\| turnGeneration !== turnGenerationRef\.current\)\s*(?:\{\s*return;\s*\}|return;)/;
   for (const loop of withheldLoops) {
-    const peek = loop.indexOf("const command = peekDeferredAnnotation(activeDiagram);");
+    const peek = loop.indexOf("const command = peekDeferredAnnotation(labelDiagram);");
     const draw = loop.indexOf("await executeCommandWithCancel(");
-    const acknowledge = loop.indexOf("acknowledgeDeferredAnnotation(activeDiagram, command)");
+    const acknowledge = loop.indexOf("acknowledgeDeferredAnnotation(labelDiagram, command)");
     assert(peek >= 0 && draw > peek && acknowledge > draw,
       "both withheld-label loops peek, await drawing, then acknowledge in order");
     assert(cancellationReturn.test(loop.slice(0, peek)) && cancellationReturn.test(loop.slice(draw, acknowledge)),

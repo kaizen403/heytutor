@@ -102,6 +102,11 @@ export class LessonFigureSequence {
     this.pending = null;
   }
 
+  /** A restored sequence has no live page: a resume hands it the page's hooks. */
+  setHooks(hooks: LessonFigureSequenceHooks): void {
+    this.hooks = hooks;
+  }
+
   /** A sequence with at least one later figure. */
   active(): boolean {
     return this.first !== null && this.rest.length > 0;
@@ -109,6 +114,11 @@ export class LessonFigureSequence {
 
   views(): readonly PlannedLessonFigureView[] {
     return this.rest;
+  }
+
+  /** The later figures still ahead of the playback cursor. */
+  remainingViews(): readonly PlannedLessonFigureView[] {
+    return this.rest.filter((view) => indexOf(view.id) > this.index);
   }
 
   currentId(): "figure_1" | LessonFigureId {
@@ -200,6 +210,29 @@ export class LessonFigureSequence {
     }
     return index < 0 ? this.first.diagram : this.rest.find((view) => indexOf(view.id) === index)!.diagram;
   }
+}
+
+/**
+ * The cues preparation starts from: a lesson from figure 1, a resume from the
+ * figure the lesson had reached. Null sequence: none.
+ */
+export function lessonFigureStartCues(sequence: LessonFigureSequence | null | undefined): string[] {
+  const current = sequence?.currentId() ?? "figure_1";
+  return current === "figure_1" ? [] : [current];
+}
+
+/**
+ * The figure the final withheld labels belong to, read once playback is done.
+ * With a sequence an advance may have replaced the figure captured before the
+ * wait, whose labels must not land on the new one. With none (flag off) the
+ * captured figure stands, as it always has.
+ */
+export function finalLabelDiagram(
+  captured: VerifiedDiagram | null,
+  current: VerifiedDiagram | null,
+  sequence: LessonFigureSequence | null | undefined,
+): VerifiedDiagram | null {
+  return sequence?.active() ? current : captured;
 }
 
 /**

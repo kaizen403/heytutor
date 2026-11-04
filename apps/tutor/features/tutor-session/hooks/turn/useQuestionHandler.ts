@@ -119,8 +119,8 @@ import {
 import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type BillingFailure } from "@/lib/billing/billingClient";
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
-import { finishLessonFigureAdvance, laterFigurePromptOf, prepareLessonFigureSegments } from "../../lib/scene/lessonFigureSequence";
-import { lessonFiguresArtifact, lessonFiguresMayPlan, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
+import { finishLessonFigureAdvance, laterFigurePromptOf, lessonFigureStartCues, prepareLessonFigureSegments, type PlannedLessonFigureView } from "../../lib/scene/lessonFigureSequence";
+import { lessonFigureResumeSequence, lessonFiguresArtifact, lessonFiguresMayPlan, planLessonFigures } from "../../lib/turn/lessonFigurePlan";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
 import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
@@ -2301,6 +2301,15 @@ export function useQuestionHandler(
       // view the plan named is drawn offline by the engine's fast selector
       // from this lesson's reconciled plan and authority. No LLM call.
       let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
+      const lessonPage = page;
+      const lessonFigureHooks = {
+        // A doubt's own figure in the zone: never draw over it.
+        mayAdvance: () => !lessonPage.zoneStash,
+        onAdvanced: (view: PlannedLessonFigureView) => {
+          rememberZonePresentation(view, billed.doubtFigures === true);
+          lessonPage.lessonFigureId = view.id;
+        },
+      };
       if (!doubt && !resume) lessonFiguresRef?.current?.reset();
       if (
         lessonFiguresMayPlan({
@@ -2330,19 +2339,23 @@ export function useQuestionHandler(
           misses: lessonPlanned.misses.map((miss) => `${miss.id}:${miss.reason}`).join(","),
         });
         if (views.length > 0) {
-          const lessonPage = page;
-          lessonFiguresRef.current.commit(firstFigure, views, {
-            // A doubt's own figure in the zone: never draw over it.
-            mayAdvance: () => !lessonPage.zoneStash,
-            onAdvanced: (view) => {
-              rememberZonePresentation(view, billed.doubtFigures === true);
-              lessonPage.lessonFigureId = view.id;
-            },
-          });
+          lessonFiguresRef.current.commit(firstFigure, views, lessonFigureHooks);
           laterFigures = views.map(laterFigurePromptOf);
           if (sceneArtifacts) sceneArtifacts = { ...sceneArtifacts, lessonFigures: lessonFiguresArtifact(lessonPlanned.figures) };
           if (page.turn.scene) page.turn.scene = { ...page.turn.scene, sceneArtifacts };
         }
+      }
+      // A resume goes on through the figures still ahead, from the one the
+      // lesson reached, only when the zone shows exactly that figure.
+      const lessonFigureResume = lessonFigureResumeSequence({
+        granted: billed.lessonFigures === true, resume: Boolean(resume), codeLesson: Boolean(codeLesson),
+        sequence: lessonFiguresRef?.current, zone: activeDiagram,
+      });
+      let laterFiguresOnBoard: string | null = null;
+      if (lessonFigureResume) {
+        lessonFigureResume.setHooks(lessonFigureHooks);
+        laterFigures = lessonFigureResume.remainingViews().map(laterFigurePromptOf);
+        laterFiguresOnBoard = lessonFigureStartCues(lessonFigureResume)[0] ?? null;
       }
       // lesson-figures-plan:end
 
@@ -2661,6 +2674,7 @@ export function useQuestionHandler(
             earlyOpeningAcknowledgement: earlyOpeningStarted,
             // lesson-figures-prompt: absent when no later figure drew (bytes unchanged).
             ...(laterFigures.length > 0 ? { laterFigures } : {}),
+            ...(laterFiguresOnBoard ? { laterFiguresOnBoard } : {}),
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
@@ -2950,8 +2964,9 @@ export function useQuestionHandler(
         // is checked against figure 2 here, long before the executor draws it.
         const lessonFigurePrep = !doubt && !resume && !codeLesson && lessonFiguresRef?.current?.active()
           ? lessonFiguresRef.current
-          : null;
-        const lessonFigureCues: string[] = [];
+          : lessonFigureResume;
+        const lessonFigureStart = lessonFigureStartCues(lessonFigurePrep);
+        const lessonFigureCues: string[] = [...lessonFigureStart];
         const flushBufferedSegment = () => {
           if (!bufferedSegment) return;
           // A resumed lecture must not queue its opening figure until a
@@ -3175,8 +3190,9 @@ export function useQuestionHandler(
               conductor = createTurnConductor();
               focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
               // lesson-figures-retry:begin
-              // Nothing played: the retried response moves through the figures from figure 1 again.
+              // Nothing played: the retried response moves through the figures from where this turn began.
               lessonFigureCues.length = 0;
+              lessonFigureCues.push(...lessonFigureStart);
               // lesson-figures-retry:end
             }
             continue;

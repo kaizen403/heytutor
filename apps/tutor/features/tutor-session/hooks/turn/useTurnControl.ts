@@ -12,7 +12,7 @@ import {
   peekDeferredAnnotation,
   acknowledgeDeferredAnnotation,
 } from "@heytutor/drawing";
-import { prepareLessonFigureSegments, type LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
+import { finalLabelDiagram, lessonFigureStartCues, prepareLessonFigureSegments, type LessonFigureSequence } from "../../lib/scene/lessonFigureSequence";
 import { compactConversationHistory, tutorDebug, voiceSettingsForDelivery } from "@heytutor/tutor-core";
 import {
   summarizeSegmentsForTrace,
@@ -676,7 +676,7 @@ export function useTurnControl(
       const activeDiagram = activeVerifiedDiagramRef.current;
       const rawLlmSegments = buildLessonSegments(responseText);
       // lesson-figures-prepare:begin
-      const preparedLlmSegments = prepareLessonFigureSegments(rawLlmSegments, activeDiagram, options?.lessonFigures ?? null, []);
+      const preparedLlmSegments = prepareLessonFigureSegments(rawLlmSegments, activeDiagram, options?.lessonFigures ?? null, lessonFigureStartCues(options?.lessonFigures));
       // lesson-figures-prepare:end
       // During a code lesson the teaching stream may only narrate, gesture,
       // and reveal committed blocks; [TYPE] tags resolve to their exact code.
@@ -736,13 +736,15 @@ export function useTurnControl(
         const drawQueue = drawChainRef.current;
         await drawQueue;
         if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
-        while (activeDiagram && revealDeferredAnnotations) {
+        // An advance may have replaced the figure while the queues drained.
+        const labelDiagram = finalLabelDiagram(activeDiagram, activeVerifiedDiagramRef.current, options?.lessonFigures);
+        while (labelDiagram && revealDeferredAnnotations) {
           // A doubt can own the board by now: one starts the moment this turn
           // is stopped, and these labels must not draw onto its page.
           if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
             return;
           }
-          const command = peekDeferredAnnotation(activeDiagram);
+          const command = peekDeferredAnnotation(labelDiagram);
           if (!command) break;
           await executeCommandWithCancel({
             type: command.type,
@@ -754,7 +756,7 @@ export function useTurnControl(
             semanticRef: command.semanticRef,
           }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
           if (cancelRef.current || turnGeneration !== turnGenerationRef.current) return;
-          if (!acknowledgeDeferredAnnotation(activeDiagram, command)) return;
+          if (!acknowledgeDeferredAnnotation(labelDiagram, command)) return;
         }
         setNarrationText(
           [
@@ -812,11 +814,12 @@ export function useTurnControl(
       const drawQueue = drawChainRef.current;
       await drawQueue;
       if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
-      while (activeDiagram && revealDeferredAnnotations) {
+      const labelDiagram = finalLabelDiagram(activeDiagram, activeVerifiedDiagramRef.current, options?.lessonFigures);
+      while (labelDiagram && revealDeferredAnnotations) {
         if (cancelRef.current || turnGeneration !== turnGenerationRef.current) {
           return;
         }
-        const command = peekDeferredAnnotation(activeDiagram);
+        const command = peekDeferredAnnotation(labelDiagram);
         if (!command) break;
         await executeCommandWithCancel({
           type: command.type,
@@ -828,7 +831,7 @@ export function useTurnControl(
           semanticRef: command.semanticRef,
         }, { trustedDiagramGeometry: true, applyLayout: false, inkPace: "scene" });
         if (cancelRef.current || turnGeneration !== turnGenerationRef.current) return;
-        if (!acknowledgeDeferredAnnotation(activeDiagram, command)) return;
+        if (!acknowledgeDeferredAnnotation(labelDiagram, command)) return;
       }
       setNarrationText(
         [

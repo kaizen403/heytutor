@@ -34,12 +34,14 @@ import incline from "./fixtures/lesson-figures-incline-plan.json";
 import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { selectFastFigure } from "../../features/tutor-session/lib/turn/doubtFigurePlan";
-import { lessonDiagramSourceOf, lessonFiguresMayPlan, planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
+import { lessonDiagramSourceOf, lessonFigureResumeSequence, lessonFiguresMayPlan, planLessonFigures } from "../../features/tutor-session/lib/turn/lessonFigurePlan";
 import {
   LessonFigureSequence,
+  finalLabelDiagram,
   finishLessonFigureAdvance,
   laterFigurePromptOf,
   lessonFigureIntroCommands,
+  lessonFigureStartCues,
   prepareLessonFigureSegments,
   savedCommandFilter,
   type LessonFigurePresentation,
@@ -540,12 +542,109 @@ async function preparationChecks(): Promise<void> {
     assert(/prepareLessonFigureSegments\(\[bufferedSegment\], activeDiagram, lessonFigurePrep, lessonFigureCues\)/.test(stream), "the stream prepares each segment through the cursor");
     assert(!/prepareVerifiedLessonSegments\(/.test(stream), "never against the static diagram");
     const batch = anchoredSlice("hooks/turn/useTurnControl.ts", "lesson-figures-prepare");
-    assert(/prepareLessonFigureSegments\(rawLlmSegments, activeDiagram, options\?\.lessonFigures \?\? null, \[\]\)/.test(batch), "the batch path prepares through the cursor");
+    assert(/prepareLessonFigureSegments\(rawLlmSegments, activeDiagram, options\?\.lessonFigures \?\? null, lessonFigureStartCues\(options\?\.lessonFigures\)\)/.test(batch), "the batch path prepares through the cursor");
     assert(!/prepareVerifiedLessonSegments\(/.test(batch), "never against the static diagram");
     const uqh = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useQuestionHandler.ts"), "utf8"));
     assert(/errorQuestion: question, lessonFigures: lessonFigurePrep \}/.test(uqh), "the batch call passes the same sequence");
     assert(!/prepareVerifiedLessonSegments\(/.test(uqh), "uQH prepares nothing against the static diagram");
     assert(/lessonFigureCues\.length = 0;/.test(anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-retry")), "a startup retry starts the cursor again");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// After an advance: the final labels and a resume read the figure the lesson reached.
+// ---------------------------------------------------------------------------
+
+async function afterAdvanceChecks(): Promise<void> {
+  const figureOnePart = first.diagram.anchors.find((anchor) => !view2.diagram.anchors.some((other) => other.id === anchor.id))!.id;
+  const figureTwoPart = view2.diagram.anchors.find((anchor) => !first.diagram.anchors.some((other) => other.id === anchor.id))!.id;
+  const atFigure2 = () => {
+    const sequence = committed([view2, view3]);
+    sequence.seekTo("figure_2");
+    return sequence;
+  };
+  const resumeInput = { granted: true, resume: true, codeLesson: false };
+
+  await check("final-labels/follow-the-advance", () => {
+    const sequence = committed([view2]);
+    assert.equal(finalLabelDiagram(first.diagram, view2.diagram, sequence), view2.diagram, "after an advance the labels are the new figure's");
+    assert.equal(finalLabelDiagram(first.diagram, first.diagram, sequence), first.diagram, "no advance: the same figure");
+    assert.equal(finalLabelDiagram(first.diagram, null, sequence), null, "an emptied zone takes no label");
+  });
+  await check("final-labels/no-sequence-keeps-the-captured-figure", () => {
+    assert.equal(finalLabelDiagram(first.diagram, view2.diagram, null), first.diagram, "flag off: as before, whatever the ref holds");
+    assert.equal(finalLabelDiagram(first.diagram, view2.diagram, new LessonFigureSequence()), first.diagram, "no later figure: as before");
+  });
+  await check("final-labels/both-loops-read-it-after-the-queues", () => {
+    const respond = stripComments(readFileSync(path.join(SOURCE_ROOT, "hooks/turn/useTurnControl.ts"), "utf8"));
+    const start = respond.indexOf("const processResponseText");
+    const end = respond.indexOf("const stopTurn = useCallback(", start);
+    assert(start >= 0 && end > start, "the response handler slice is found");
+    const body = respond.slice(start, end);
+    const read = "const labelDiagram = finalLabelDiagram(activeDiagram, activeVerifiedDiagramRef.current, options?.lessonFigures);";
+    const reads = body.split(read);
+    assert.equal(reads.length, 3, "both teaching paths read the figure");
+    for (const before of reads.slice(0, 2)) {
+      const wait = before.lastIndexOf("await drawQueue;");
+      assert(wait >= 0 && !/while \(/.test(before.slice(wait)), "each read follows the draw queue and precedes its loop");
+    }
+    assert(!/(?:peek|acknowledge)DeferredAnnotation\(activeDiagram/.test(body), "no loop releases the figure captured before the wait");
+  });
+  await check("resume/keeps-the-figures-still-ahead", () => {
+    const sequence = atFigure2();
+    assert.equal(lessonFigureResumeSequence({ ...resumeInput, sequence, zone: view2.diagram }), sequence, "the zone shows the figure reached");
+    assert.deepEqual(sequence.remainingViews().map((view) => view.id), ["figure_3"], "only what is still ahead");
+    assert.deepEqual(lessonFigureStartCues(sequence), ["figure_2"], "preparation starts on the figure reached");
+    const fromOne = committed([view2]);
+    assert.equal(lessonFigureResumeSequence({ ...resumeInput, sequence: fromOne, zone: first.diagram }), fromOne, "a resume on figure 1 keeps figure 2");
+    assert.deepEqual(lessonFigureStartCues(fromOne), [], "and starts from figure 1");
+  });
+  await check("resume/declines-unless-sure", () => {
+    const none = (input: Partial<Parameters<typeof lessonFigureResumeSequence>[0]>, why: string) => assert.equal(
+      lessonFigureResumeSequence({ ...resumeInput, sequence: atFigure2(), zone: view2.diagram, ...input }), null, why);
+    none({ granted: false }, "flag off: a resume offers nothing, as before");
+    none({ resume: false }, "not a resume");
+    none({ codeLesson: true }, "a code lesson");
+    none({ zone: null }, "an empty zone");
+    none({ zone: first.diagram }, "the zone is not the figure the sequence stands on");
+    none({ sequence: null }, "no sequence");
+    none({ sequence: new LessonFigureSequence() }, "a sequence with no later figure");
+    const done = committed([view2]);
+    done.seekTo("figure_2");
+    none({ sequence: done }, "nothing ahead");
+    const pending = committed([view2, view3]);
+    pending.advanceTo("figure_2");
+    none({ sequence: pending }, "an advance a Stop left part drawn");
+  });
+  await check("resume/prepares-from-the-figure-reached", () => {
+    const sequence = atFigure2();
+    const run = [
+      segment("Still on this figure.", [focus(figureTwoPart)]),
+      segment("Not the first figure again.", [focus(figureOnePart)]),
+      segment("Not this one again.", [focus("figure_2")]),
+      segment("Now the next view.", [focus("figure_3")]),
+    ];
+    const cues = lessonFigureStartCues(sequence);
+    const prepared = run.flatMap((one) => prepareLessonFigureSegments([one], view2.diagram, sequence, cues).segments);
+    assert.deepEqual(keptIds(prepared), [figureTwoPart, "figure_3"], "figure 1's part and a repeat cue are filtered; the later cue moves");
+    const batch = prepareLessonFigureSegments(structuredClone(run), view2.diagram, sequence, lessonFigureStartCues(sequence));
+    assert.deepEqual(keptIds(batch.segments), [figureTwoPart, "figure_3"], "the batch path too");
+  });
+  await check("resume/prompt-offers-only-what-is-ahead", () => {
+    const sequence = atFigure2();
+    const block = laterFiguresPromptAddon(sequence.remainingViews().map(laterFigurePromptOf), lessonFigureStartCues(sequence)[0]);
+    assert(block.includes("- figure_3") && !block.includes("- figure_2"), "figure 3 is offered, figure 2 is not");
+    assert(block.includes("The figure on the board now is figure_2.") && !block.includes("figure 1"), "the block names the figure on the board");
+    assert(laterFiguresPromptAddon([laterFigurePromptOf(view2)]).includes("The figure on the board now is figure 1."), "a lesson's block is unchanged");
+  });
+  await check("resume/uqh-wires-it", () => {
+    const plan = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-plan");
+    assert(/lessonFigureResumeSequence\(\{\s*granted: billed\.lessonFigures === true, resume: Boolean\(resume\), codeLesson: Boolean\(codeLesson\),\s*sequence: lessonFiguresRef\?\.current, zone: activeDiagram,\s*\}\)/.test(plan), "the zone and the grant decide");
+    assert(/laterFigures = lessonFigureResume\.remainingViews\(\)\.map\(laterFigurePromptOf\);/.test(plan), "the prompt lists what is still ahead");
+    const stream = anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-prepare");
+    assert(/\? lessonFiguresRef\.current\s*: lessonFigureResume;/.test(stream), "a resume prepares through the same sequence");
+    assert(/const lessonFigureCues: string\[\] = \[\.\.\.lessonFigureStart\];/.test(stream), "from the figure it reached");
+    assert(/lessonFigureCues\.push\(\.\.\.lessonFigureStart\);/.test(anchoredSlice("hooks/turn/useQuestionHandler.ts", "lesson-figures-retry")), "a startup retry starts there again");
   });
 }
 
@@ -679,6 +778,7 @@ async function finishSourceChecks(): Promise<void> {
 async function main(): Promise<void> {
   await sequenceChecks();
   await preparationChecks();
+  await afterAdvanceChecks();
   await promptChecks();
   await executorChecks();
   await finishSourceChecks();

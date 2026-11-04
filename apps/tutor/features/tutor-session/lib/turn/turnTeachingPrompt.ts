@@ -92,6 +92,8 @@ export interface TurnTeachingPromptInput {
    * Absent or empty leaves the prompt bytes unchanged.
    */
   laterFigures?: readonly LaterFigurePrompt[];
+  /** A resume after an advance: the later figure already on the board. Absent: figure 1. */
+  laterFiguresOnBoard?: string;
 }
 
 /** What the teaching stream may know of a later figure: its id, its kind, its parts. Never geometry. */
@@ -108,7 +110,7 @@ export interface LaterFigurePrompt {
  * The figures are already verified and compiled; the teaching stream only
  * names the moment the lesson moves to one.
  */
-export function laterFiguresPromptAddon(figures: readonly LaterFigurePrompt[] | undefined): string {
+export function laterFiguresPromptAddon(figures: readonly LaterFigurePrompt[] | undefined, onBoard = "figure 1"): string {
   if (!figures || figures.length === 0) return "";
   const lines = figures.map((figure) => {
     const parts = figure.parts
@@ -118,9 +120,9 @@ export function laterFiguresPromptAddon(figures: readonly LaterFigurePrompt[] | 
   });
   return [
     "LATER FIGURES",
-    "The runtime has already verified and compiled these further views of this same situation. The figure on the board now is figure 1.",
+    `The runtime has already verified and compiled these further views of this same situation. The figure on the board now is ${onBoard}.`,
     ...lines,
-    "When the lesson needs one, write [FOCUS:figure_k] in the sentence that moves to it, at the start of that sentence; the runtime clears the figure area and draws it there. After that point, FOCUS only at its parts, by the ids listed for it, and never at figure 1's parts again. Never go back to an earlier figure, and never name a figure that is not listed. Do not describe drawing it; say what it shows.",
+    `When the lesson needs one, write [FOCUS:figure_k] in the sentence that moves to it, at the start of that sentence; the runtime clears the figure area and draws it there. After that point, FOCUS only at its parts, by the ids listed for it, and never at the parts of ${onBoard} again. Never go back to an earlier figure, and never name a figure that is not listed. Do not describe drawing it; say what it shows.`,
   ].join("\n");
 }
 
@@ -970,7 +972,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
       ? dsaOpeningPromptAddon(givenSegments.length > 0, input.codeLessonIncludeCode)
       : runtimeGivenAddon,
     diagramPromptAddon,
-    codeLesson ? "" : laterFiguresPromptAddon(input.laterFigures),
+    codeLesson ? "" : laterFiguresPromptAddon(input.laterFigures, input.laterFiguresOnBoard),
     codeLesson
       ? codeLessonPromptAddon(codeLesson, {
           frames: input.codeLessonFrames,

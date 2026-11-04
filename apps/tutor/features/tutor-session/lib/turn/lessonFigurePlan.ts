@@ -36,6 +36,7 @@ import { isReferencePictureDiagram } from "../scene/referencePicturePresentation
 import type { SelectedRepresentation } from "../scene/representationFallback";
 import { deriveSceneGate, selectProductionScene } from "../scene/productionSceneSelection";
 import { buildVerifiedDiagramPresentation } from "../scene/verifiedScenePresentation";
+import { lessonFigureStartCues, type LessonFigureSequence } from "../scene/lessonFigureSequence";
 import { figureFingerprint, selectFastFigure } from "./doubtFigurePlan";
 
 export interface PlannedLessonFigure {
@@ -55,6 +56,27 @@ export type LessonFigureMissReason =
 export interface LessonFigurePlanResult {
   figures: PlannedLessonFigure[];
   misses: Array<{ id: LessonFigureId; reason: LessonFigureMissReason }>;
+}
+
+/**
+ * The sequence a resume keeps moving through, or null, when it teaches on the
+ * figure in the zone with no later figure offered. Null unless granted, with
+ * a figure still ahead, nothing part drawn, and the zone showing exactly the
+ * figure the sequence stands on: any doubt about the board declines the
+ * advance and the lesson teaches on.
+ */
+export function lessonFigureResumeSequence(input: {
+  granted: boolean;
+  resume: boolean;
+  codeLesson: boolean;
+  sequence: LessonFigureSequence | null | undefined;
+  zone: VerifiedDiagram | null;
+}): LessonFigureSequence | null {
+  const { sequence, zone } = input;
+  if (!input.granted || !input.resume || input.codeLesson || !zone) return null;
+  if (!sequence?.active() || sequence.pendingIntro() || sequence.remainingViews().length === 0) return null;
+  const standing = sequence.diagramAfter(lessonFigureStartCues(sequence));
+  return standing && figureFingerprint(standing) === figureFingerprint(zone) ? sequence : null;
 }
 
 /** A part named like an advance cue would make `[FOCUS:figure_2]` ambiguous (shared with the server). */

@@ -205,6 +205,23 @@ export function pageFigureAt(turns: readonly PageFigureTurn[], index: number): P
 }
 
 /**
+ * The zone once every saved turn has played, as a board reopened after its
+ * last turn shows it: `pageFigureAt` reads the zone when a turn starts, so an
+ * advance in the last turn's own rows counts only from the turn after it. A
+ * text only doubt moves nothing, so it reads the zone those rows left.
+ */
+export function pageFigureAfter(turns: readonly PageFigureTurn[]): PageFigureAt {
+  const next: PageFigureTurn = {
+    kind: "doubt",
+    sceneArtifacts: { boardContinuation: { schemaVersion: BOARD_CONTINUATION_VERSION, lessonQuestion: "" } },
+    segments: [],
+    sceneDocument: null,
+    visualStatus: "text_only",
+  };
+  return pageFigureAt([...turns, next], turns.length);
+}
+
+/**
  * Index of the newest lesson-owned turn in [opener, upTo] whose rows drew the
  * lesson's figure, or null when no lesson turn of the page drew it.
  */
