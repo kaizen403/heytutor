@@ -61,6 +61,8 @@ import {
   MAX_TURN_MERGED_METADATA_BYTES,
   MAX_TURN_SEGMENTS,
   MAX_TURN_UPLOAD_BYTES,
+  compactTimings,
+  TIMINGS_KEEP_BYTES,
 } from "@/lib/scene/turnUploadLimits";
 import {
   isTurnKind,
@@ -284,7 +286,7 @@ function parseRows(value: unknown, baseCount: number): Parsed<CheckpointRow[]> {
       spokenText,
       command: raw.command ?? null,
       ...(raw.durationMs != null ? { durationMs: raw.durationMs as number } : {}),
-      ...(raw.timings != null ? { timings: raw.timings } : {}),
+      ...(raw.timings != null ? { timings: compactTimings(raw.timings) } : {}),
     });
   }
   return { ok: true, value: rows };
@@ -698,6 +700,11 @@ async function applyCheckpoint(
     return reject("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400);
   }
 
+  // A long lesson gives up its timings before it gives up its rows.
+  const timedRows = append.filter((row) => row.timings != null).length;
+  const dropTimings = timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES;
+  if (dropTimings) append = append.map((row) => ({ ...row, timings: undefined }));
+
   const merged: HeldRow[] = [...stored, ...append];
   if (merged.length > MAX_TURN_SEGMENTS) return reject("turn_segments_oversized", "turn has too many segments", 413);
 
@@ -994,7 +1001,10 @@ async function applyCheckpoint(
     settled = true;
     switch (outcome.kind) {
       case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId, entryPoint }, input, files, stoppedRetries + 1);
-      case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
+      case "saved":
+        // Only rows that were saved have lost anything.
+        if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
+        return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
       case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
       case "conflict": return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: outcome.serverCount, serverSeq: outcome.serverSeq });
