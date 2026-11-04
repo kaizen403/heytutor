@@ -25,7 +25,7 @@ const OPEN_UNKNOWN = /=\s*\?\s*$/;
 const SAYS_EQUALS = /\bequals\b|\bequal to\b/i;
 /** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is", "here is" or "there still is". */
 const COPULA_IS =
-  /(?<!\b(?:here|there)\s+(?:\p{L}+\s+)?)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/giu;
+  /(?<!\b(?:here|there)\s+(?:(?:still|also|now|only|just)\s+)?)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/giu;
 
 function isRelationWrite(command: DrawCommand): boolean {
   if (command.type !== "WRITE") return false;
@@ -98,8 +98,12 @@ function isSpokenValue(after: string): boolean {
   return SPOKEN_VALUE_END.test(rest) || (words >= 2 && new RegExp(`^${CLAUSE_END}`, "u").test(rest));
 }
 
-/** After a numeral: an operator sign with its operand ("25 + 273"), or a unit symbol that ends the clause ("9 V.", "25 °C."). */
-const DIGIT_VALUE_END = new RegExp(`^(?:\\s*[+\u2212\u00d7*/\u00f7^=]\\s*[\\p{L}\\p{N}(\u221a]|\\s*\u00b0\\s*[CFK]?${CLAUSE_END}|\\s+\\p{L}{1,3}(?:/\\p{L}{1,3})?(?:\\^?\\d)?${CLAUSE_END})`, "u");
+/**
+ * After a numeral: an operator sign with its operand ("25 + 273", "2 * -3"), or a
+ * unit symbol that ends the clause ("9 V.", "25 °C."). An ASCII minus counts only
+ * spaced ("25 - y"): "3-dimensional" is a word.
+ */
+const DIGIT_VALUE_END = new RegExp(`^(?:\\s*[+\u2212\u00d7*/\u00f7^=]\\s*[-\u2212]?[\\p{L}\\p{N}(\u221a]|\\s+-\\s*[-\u2212]?[\\p{L}\\p{N}(\u221a]|\\s*\u00b0\\s*[CFK]?${CLAUSE_END}|\\s+\\p{L}{1,3}(?:/\\p{L}{1,3})?(?:\\^?\\d)?${CLAUSE_END})`, "u");
 const NUMERAL = /^\s+[\d.,%]+(?![\p{L}\p{N}])/u;
 
 /**

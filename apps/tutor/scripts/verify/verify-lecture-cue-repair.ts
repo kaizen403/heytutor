@@ -301,6 +301,8 @@ for (const [step, kept] of [
   ["[STEP]Here is 1. [WRITE:n = 1,90,211][/STEP]", "Here is 1"],
   ["[STEP]There still is 1. [WRITE:n = 1,90,211][/STEP]", "There still is 1"],
   ["[STEP]This is 2 of the cases. [WRITE:n = 2,90,211][/STEP]", "This is 2 of the cases"],
+  ["[STEP]Here also is 1. [WRITE:n = 1,90,211][/STEP]", "Here also is 1"],
+  ["[STEP]The cube is 3-dimensional. [WRITE:d = 3,90,211][/STEP]", "The cube is 3-dimensional"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a numeral without strong evidence stays as spoken: ${spokenAfter(step)}`);
 }
@@ -311,6 +313,9 @@ for (const [step, spoken] of [
   ["[STEP]half of 9 V is 4.5 V. [WRITE:V = 4.5 V,90,211][/STEP]", "half of 9 V equals 4.5 V"],
   ["[STEP]the room is 25 °C. [WRITE:T = 25 °C,90,211][/STEP]", "the room equals 25 °C"],
   ["[STEP]the wavelength is 2 metres — consistent with step one. [WRITE:λ = 2 m,90,211][/STEP]", "the wavelength equals 2 metres —"],
+  ["[STEP]Here x is 5. [WRITE:x = 5,90,211][/STEP]", "Here x equals 5"],
+  ["[STEP]so x is 25 - y. [WRITE:x = 25 - y,90,211][/STEP]", "x equals 25 - y"],
+  ["[STEP]so x is 2 * -3. [WRITE:x = 2 * -3,90,211][/STEP]", "x equals 2 * -3"],
 ] as const) {
   assert(spokenAfter(step).includes(spoken), `a numeral with strong evidence is spoken as equals: ${spokenAfter(step)}`);
 }
