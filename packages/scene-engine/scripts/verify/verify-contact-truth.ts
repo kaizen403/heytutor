@@ -176,6 +176,8 @@ const keep: { name: string; doc: Doc }[] = [
   { name: "words: a mirror surface through an object", doc: scene("An object and a mirror.", [...seg("m", "mirror surface", [-3, 0], [3, 0]), ...rect("o", "object", [0, 0], 1, 1)]) },
   { name: "words: a rod on the table through a block", doc: scene("A rod and a block.", [...seg("r", "rod on the table", [-3, 0], [3, 0]), ...rect("b", "block", [0, 0], 1, 1)]) },
   { name: "words: an entry surface through a glass block", doc: scene("A ray enters a glass block.", [...seg("s", "entry surface", [-2, 0], [2, 0]), ...rect("g", "glass block", [0, 0], 1, 1)]) },
+  { name: "a block held from below against an inclined roof", doc: scene("A block is held against a rough inclined roof by a force F acting upward.", [...seg("r", "inclined roof", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])]) },
+  { name: "a block pushed from below against an inclined ceiling", doc: scene("A block is pushed against a rough inclined ceiling by a force.", [...seg("r", "rough inclined ceiling", [0, 0], [4.6, 2.6]), ...poly("body", "block", [...UNDER])]) },
   { name: "a dot marking a particle on a long slope", doc: scene("A particle on an incline.", [...seg("slope", "slope", [0, 0], [40, 30]), ...disc("p", "particle", [20, 15], 0.3)]) },
   { name: "ball in flight above the ground", doc: scene("A projectile.", [...seg("ground", "ground", [0, 0], [10, 0]), ...disc("ball", "ball", [5, 3], 0.3)]) },
   { name: "the axis of motion through two bodies is not a surface", doc: scene("Two bodies collide.", [...seg("axis", "line of motion", [0, 0], [6, 0]), ...disc("b1", "body 1", [1, 0], 0.5), ...disc("b2", "body 2", [4, 0], 0.5)]) },

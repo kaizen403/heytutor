@@ -8,7 +8,7 @@
  * own role words, needs a figure that shows mechanics, and stays silent on
  * anything else: walls, solids drawn as closed shapes, and every surface whose
  * role it does not read behave as if this check did not exist. The word lists
- * only ever withhold or cause a refusal, and the stem only withholds one. Saved
+ * only ever withhold or cause a refusal and never decide what draws. Saved
  * boards compile without these rules, so an old figure still reopens.
  */
 import type { SceneDocument, SceneEntity, SceneIssue } from "../types";
@@ -23,17 +23,17 @@ const QUALIFIED_PLANE = String.raw`\b(?:inclined|rough|smooth|frictionless|slopi
 const SURFACE_WORDS = new RegExp(String.raw`\b(?:incline|inclined|ramp|slope|wedge|ground|floor|table|tabletop|road|banked|surface)\b|${QUALIFIED_PLANE}`, "i");
 const NOT_SURFACE_WORDS = /\b(?:sand|mud|soil|pit|well|trench|tunnel|water|liquid|fluid|oil|mercury|meniscus|sea|lake|gauss\w*|equipotential|mirror|lens|optical|refract\w*|reflect\w*|interface|medium|glass|film|capacitor|plates?|sheet|conduct\w*|charge\w*|metal|coil|magnet\w*|wave\w*|image|focal|principal|axis|axes|normal|tangent|vector|field|rays?|string|rope|cord|thread|equatorial|state|energy|reference|sectional|cross|horizon|line of|path|trajectory|dimension|diameter|radius|chord|height|depth|distance|length|width|parallel|perpendicular|direction|along|above|below|to the|cutting|diagonal|molecular|infinite|imaginary|section|plane of|free surface|piston|partition|surface contact|contact geometry|edge|centre|center|lane|ladder|rod|strut|bar|against|hash|periodic|truth|lookup|contingency|frequency|data|row|column|circuit|node|terminal|wheatstone|metre|meter|galvanometer|ground\s+(?:rail|wire|node|terminal|symbol|bus))\b/i;
 /** Nothing rests under these. A shelf, a table or a platform has a free underside, so it makes no such claim. */
-const SOLID_BELOW_WORDS = new RegExp(String.raw`\b(?:incline|inclined|ramp|slope|wedge|ground|floor|road|banked)\b|${QUALIFIED_PLANE}`, "i");
+const SOLID_BELOW_WORDS = new RegExp(String.raw`\b(?:incline|ramp|slope|wedge|ground|floor|road|banked)\b|${QUALIFIED_PLANE}`, "i");
 const BODY_WORDS = /\b(?:block|blocks|box|body|bodies|mass|masses|crate|cube|cart|trolley|car|vehicle|truck|bus|ball|sphere|cylinder|disc|disk|hoop|ring|wheel|object|particle|load|bob|sled|sledge|brick|stone|book|person|man|woman|boy|girl|barrel|drum|trunk|suitcase|package|container|sack|bag|log|train|wagon|bike|bicycle|motorcycle|scooter|locomotive|m[12]?)\b/i;
 const NOT_BODY_WORDS = /\b(?:glass|prism|slab|gas|imaginary|benzene|molecule|pulley|support|clamp|hole|region|shaded|area|contact|marker|symbol|charge\w*|coil|core|magnet\w*|capacitor|resistor|cell|battery|lamp|bulb|switch|diode|ammeter|voltmeter|galvanometer|planet|sun|earth|moon|satellite|nucleus|atom|ion|electron|proton|gaussian|field)\b/i;
 const STRING_WORDS = /\b(?:string|rope|thread|cord|chain)\b/i;
 const NOT_STRING_WORDS = /\b(?:spinal|electric|power|carbon|polymer|side|food|charge\w*|wire)\b/i;
-// Everything below reads the stem or the roles only to withhold a refusal, so a miss or a false match behaves as if this check did not exist.
+// These read the stem or the roles only to withhold a refusal, so a false match behaves as if this check did not exist.
 const ROLE_OPENING_WORDS = /\b(?:hole|opening|slit|aperture|slot|tunnel|tube)\b/i;
 const OPENING_WORDS = /\b(?:hole|opening|slit|aperture|slot|tunnel|borewell|well|pit|mine|mineshaft|tube|pipe|eyelet|ditch|gap|kuan|kuen|kuwan|chhed|chhid|surang|surakh|pass(?:es|ing)?\s+through)\b|कुआँ|कुएँ|कुएं|कुंआ|छेद|छिद्र|सुरंग/i;
 const SUNK_WORDS = /\b(?:sunk|sinks?|sinking|embedded|buried|immersed|submerged|dipped|floats?|floating|penetrat\w*|inscribed|of\s+its\s+volume|driven\s+(?:into|in)|fixed\s+(?:into|in)\s+(?:a|an|the)|stuck\s+in|press(?:es|ed)?\s+into|tunnel|borewell|well|pit|mine|mineshaft|trench|ditch|gap|pipe|hole|cavity|cuts?|cut\s+by|section|top\s+view|plan\s+view|(?:seen|viewed)\s+from\s+above|kuan|kuen|kuwan|chhed|chhid|surang|surakh|tair\w*)\b|कुआँ|कुएँ|कुएं|कुंआ|छेद|छिद्र|सुरंग|तैर/i;
 const UNDERSIDE_WORDS = /\b(?:underside|underneath|beneath|between|overhang\w*|propped|props?|rollers?|on\s+wheels|hung|stuck\s+to|pressed\s+(?:up\s+)?against|under\s+(?:a|an|the)\s+(?:\w+\s+)?(?:ramp|bridge|shelf|table|floor|road|slope|incline|wedge|roof))\b/i;
-/** A contact figure shows a force or a string, or its stem is about mechanics. Without any of them the words proved nothing. */
+/** A contact figure shows a force or a string, or its stem is about mechanics. Without any of them the check stays silent, so these words can let a refusal through. */
 const FORCE_WORDS = /\b(?:weight|normal|friction|tension|force|thrust|drag|reaction|acceleration|velocity|mg)\b/i;
 const MECHANICS_STEM = /\b(?:force|friction\w*|incline\w*|ramp|slope|slid\w*|roll\w*|pull\w*|push\w*|mass(?:es)?|kg|newtons?|pulley|string|rope|acceler\w*|decelerat\w*|velocity|speed|weight|gravity|rests?\s+on|resting\s+on|lift|elevator|tension|momentum|collision|collides?|torque|banked|skid\w*|brak\w*)\b/i;
 
