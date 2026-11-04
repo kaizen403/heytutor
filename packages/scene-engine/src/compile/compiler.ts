@@ -8,6 +8,7 @@ import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
 import { validateVelocityTriangleTruth } from "./velocityTriangleTruth";
+import { validateContactTruth } from "./contactTruth";
 import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
 import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
@@ -465,6 +466,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   issues.push(...validateVelocityTriangleTruth(document, geometry));
+  if (options.figureConsistency) issues.push(...validateContactTruth(document, geometry));
   issues.push(...validateQualitativeLabelTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   issues.push(...validateLaunchVelocityTruth(document, geometry));

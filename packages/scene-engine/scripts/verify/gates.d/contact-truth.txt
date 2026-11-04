@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-contact-truth.ts
+tsx scripts/verify/verify-contact-generators.ts
