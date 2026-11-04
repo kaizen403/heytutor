@@ -19,6 +19,7 @@ import {
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
 import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
+import { storedTurnSceneQuestion } from "@/lib/boards/doubtFigure";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
 
@@ -45,11 +46,13 @@ export function restoreVerifiedPresentationFromTurn(
   const rawPlan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
     ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "turnPlan")?.value
     : undefined;
-  const plan = validateTurnPlanV3(rawPlan, turn.question ?? String(document.source.question ?? "")).plan;
+  // A doubt figure was planned on the composed question, not its title.
+  const question = storedTurnSceneQuestion(turn);
+  const plan = validateTurnPlanV3(rawPlan, question ?? String(document.source.question ?? "")).plan;
   const presentation = buildVerifiedDiagramPresentation(
     document,
     compiled.renderScene,
-    { originalQuestion: turn.question, narrationLanguage, ...(plan ? { turnPlan: plan } : {}), ...(dsa ? { layout: "code_lesson" as const } : {}) },
+    { originalQuestion: question, narrationLanguage, ...(plan ? { turnPlan: plan } : {}), ...(dsa ? { layout: "code_lesson" as const } : {}) },
   );
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return null;
   return presentation;

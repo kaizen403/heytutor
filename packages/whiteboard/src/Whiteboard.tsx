@@ -222,6 +222,11 @@ export interface AnnotationOptions {
   shouldCancel?: () => boolean;
   /** Stop a transient at its current nib position and fade without holding the pen. */
   shouldStop?: () => boolean;
+  /**
+   * A kept FOCUS ring: never transient, tagged `"pin"` so a page turn,
+   * `erasePinnedInk` or `eraseSceneInk` removes it while the figure stays.
+   */
+  pinned?: true;
 }
 
 export interface ShapeDrawOptions {
@@ -295,6 +300,12 @@ export interface PictureDrawOptions {
   shouldCancel?: () => boolean;
 }
 
+/** A page lifted off the board whole by `holdPage`. */
+interface HeldPage {
+  entries: Array<{ node: Konva.Node; parent: Konva.Container; index: number; tracked: "completed" | "anim" }>;
+  meta: unknown;
+}
+
 export interface WhiteboardHandle {
   drawShape: (pathData: string, duration: number, options?: ShapeDrawOptions) => Promise<void>;
   /**
@@ -347,6 +358,36 @@ export interface WhiteboardHandle {
    * and leaves those tails on the board.
    */
   eraseWorkInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
+  /** Remove every kept FOCUS ring at once. The figure and the work stay. */
+  erasePinnedInk: () => void;
+  /** How many kept FOCUS rings stand on the board: the page cap reads this. */
+  pinnedInkCount: () => number;
+  /** Wipe the figure zone ink: scene strokes and kept rings. Work ink stays. */
+  eraseSceneInk: (duration: number, shouldCancel?: () => boolean) => Promise<void>;
+  /**
+   * Lift the whole page off the board and keep it: every stroke is held, not
+   * destroyed, and the board is left blank (a doubt's fresh page). One page
+   * is held at most: a hold while one is held erases the board and keeps the
+   * page already held, with its meta. `meta` rides with the page for the
+   * caller (its layout). `clearBoard` drops a held page. Call between
+   * commands, never while a stroke is drawing.
+   */
+  holdPage: (meta?: unknown) => void;
+  /**
+   * Erase the board and put the held page back exactly as it was held, in
+   * its order. Resolves the page's meta, or null when no page is held.
+   */
+  returnHeldPage: () => { meta: unknown } | null;
+  /** A page is held for `returnHeldPage`. */
+  hasHeldPage: () => boolean;
+  /**
+   * Snapshot the held page as `returnHeldPage` would put it back (cursor
+   * excluded, as `captureSnapshot`), with its meta, and leave the board and
+   * the held page exactly as they were. Null when no page is held or the
+   * stage is not mounted. Download notes reads the lesson page with it while
+   * a doubt page is up.
+   */
+  captureHeldPageSnapshot: (pixelRatio?: number) => { snapshotDataUrl: string; meta: unknown } | null;
   /** Split diagram vector lines that pass through a label emphasis region. */
   punchDiagramLineGapsInRect: (
     rect: { x: number; y: number; width: number; height: number },
@@ -576,6 +617,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
     const animationCleanupsRef = useRef<Set<() => void>>(new Set());
     const completedNodesRef = useRef<Set<Konva.Node>>(new Set());
     const animNodesRef = useRef<Set<Konva.Node>>(new Set());
+    /** The page `holdPage` lifted off the board: each stroke, where it stood, and the caller's meta. */
+    const heldPageRef = useRef<HeldPage | null>(null);
     const drawTransactionsRef = useRef(new DrawTransactionRegistry<Konva.Node>());
     const strokeLengthCacheRef = useRef<Map<string, number>>(new Map());
     /**
@@ -2191,7 +2234,8 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             styleForCommand(options.inkSettings),
           ),
         );
-        tagBoardInk(path, boardInkKindAt(path.getClientRect().x));
+        const pinned = options.pinned === true && !options.transient;
+        tagBoardInk(path, pinned ? "pin" : boardInkKindAt(path.getClientRect().x));
         const totalLength = Math.max(path.getLength(), 1);
 
         path.dash([totalLength]);
@@ -3113,6 +3157,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // tails sitting in the figure.
         destroyTaggedInk(completedNodesRef.current, "work");
         destroyTaggedInk(animNodesRef.current, "work");
+        // A kept ring belongs to the page: it goes when the page turns.
+        destroyTaggedInk(completedNodesRef.current, "pin");
+        destroyTaggedInk(animNodesRef.current, "pin");
         drawLayer.batchDraw();
         animLayer.batchDraw();
         highlightLayer?.batchDraw();
@@ -3141,9 +3188,184 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
       [animateOver, destroyTaggedInk, flyCursorTo, setCursorViewSafely, updateCursorState],
     );
 
+    const erasePinnedInk = useCallback((): void => {
+      destroyTaggedInk(completedNodesRef.current, "pin");
+      destroyTaggedInk(animNodesRef.current, "pin");
+      drawLayerRef.current?.batchDraw();
+      animLayerRef.current?.batchDraw();
+    }, [destroyTaggedInk]);
+
+    const pinnedInkCount = useCallback((): number => {
+      let count = 0;
+      for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+        nodes.forEach((node) => {
+          if (node.getAttr(BOARD_INK_ATTR) === "pin") count += 1;
+        });
+      }
+      return count;
+    }, []);
+
+    const eraseSceneInk = useCallback(
+      async (duration: number, shouldCancel?: () => boolean): Promise<void> => {
+        const ownership = drawTransactionsRef.current.capture();
+        const isCancelled = (): boolean => Boolean(shouldCancel?.()) || drawTransactionsRef.current.isCancelled(ownership);
+        const drawLayer = drawLayerRef.current;
+        const animLayer = animLayerRef.current;
+        const cursorLayer = cursorLayerRef.current;
+        const highlightLayer = highlightLayerRef.current;
+
+        if (!drawLayer || !animLayer || !cursorLayer || isCancelled()) {
+          return;
+        }
+
+        // Untagged nodes predate the tag and sit in the figure; they go too.
+        const isSceneInk = (node: Konva.Node): boolean => {
+          const kind = node.getAttr(BOARD_INK_ATTR) as BoardInkKind | undefined;
+          return kind === undefined || kind === "scene" || kind === "pin";
+        };
+        for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+          nodes.forEach((node) => {
+            if (!isSceneInk(node)) return;
+            node.destroy();
+            nodes.delete(node);
+            drawTransactionsRef.current.detach(node);
+          });
+        }
+        drawLayer.batchDraw();
+        animLayer.batchDraw();
+        highlightLayer?.batchDraw();
+
+        if (duration <= 0) {
+          return;
+        }
+
+        const previousCursorState = activeCursorStateRef.current;
+        updateCursorState("erasing");
+        const x = DIAGRAM_ZONE.x;
+        const regionWidth = DIAGRAM_ZONE.width;
+        const targetY = DIAGRAM_ZONE.y + DIAGRAM_ZONE.height / 2;
+        await flyCursorTo(x, targetY, Math.min(duration * 0.3, 800), undefined, isCancelled, ownership);
+        if (isCancelled()) return;
+        const sweepDuration = Math.max(duration * 0.7, 100);
+        await animateOver(sweepDuration, (progress) => {
+          setCursorViewSafely(x + regionWidth * progress, targetY, 0, 1);
+          cursorLayer.batchDraw();
+        }, isCancelled);
+        if (!isCancelled()) updateCursorState(previousCursorState);
+      },
+      [animateOver, flyCursorTo, setCursorViewSafely, updateCursorState],
+    );
+
+    const destroySpotlights = useCallback((): void => {
+      for (const node of spotlightNodesRef.current) {
+        node.destroy();
+        drawTransactionsRef.current.detach(node);
+      }
+      spotlightNodesRef.current = [];
+    }, []);
+
+    const redrawLayers = useCallback((): void => {
+      drawLayerRef.current?.batchDraw();
+      animLayerRef.current?.batchDraw();
+      highlightLayerRef.current?.batchDraw();
+      spotlightLayerRef.current?.batchDraw();
+      cursorLayerRef.current?.batchDraw();
+    }, []);
+
+    const holdPage = useCallback((meta?: unknown): void => {
+      if (!drawLayerRef.current || !animLayerRef.current) return;
+      if (heldPageRef.current) {
+        // One level: the page already held (the lesson's) stays held; what
+        // stands on the board now goes.
+        clearTrackedNodes(animNodesRef.current);
+        clearTrackedNodes(completedNodesRef.current);
+      } else {
+        const entries: HeldPage["entries"] = [];
+        for (const [tracked, nodes] of [["completed", completedNodesRef.current], ["anim", animNodesRef.current]] as const) {
+          nodes.forEach((node) => {
+            const parent = node.getParent();
+            if (parent) entries.push({ node, parent, index: node.zIndex(), tracked });
+            else node.destroy();
+          });
+        }
+        for (const entry of entries) {
+          entry.node.remove();
+          // Held ink is past ink: no beat's rollback may reach it.
+          drawTransactionsRef.current.detach(entry.node);
+        }
+        completedNodesRef.current.clear();
+        animNodesRef.current.clear();
+        heldPageRef.current = { entries, meta };
+      }
+      destroySpotlights();
+      previousPaceScaleRef.current = null;
+      redrawLayers();
+    }, [clearTrackedNodes, destroySpotlights, redrawLayers]);
+
+    const returnHeldPage = useCallback((): { meta: unknown } | null => {
+      const held = heldPageRef.current;
+      if (!held) return null;
+      heldPageRef.current = null;
+      clearTrackedNodes(animNodesRef.current);
+      clearTrackedNodes(completedNodesRef.current);
+      destroySpotlights();
+      // Back in the order they stood: ascending index per parent restores it.
+      for (const entry of [...held.entries].sort((a, b) => a.index - b.index)) {
+        entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+        entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        (entry.tracked === "completed" ? completedNodesRef.current : animNodesRef.current).add(entry.node);
+      }
+      previousPaceScaleRef.current = null;
+      redrawLayers();
+      return { meta: held.meta };
+    }, [clearTrackedNodes, destroySpotlights, redrawLayers]);
+
+    const captureHeldPageSnapshot = useCallback((pixelRatio: number = 2): { snapshotDataUrl: string; meta: unknown } | null => {
+      const held = heldPageRef.current;
+      const stage = drawLayerRef.current?.getStage();
+      if (!held || !stage) return null;
+      // Take the shown page off as returnHeldPage erases it, put the held one
+      // back as it returns it, snapshot, then undo both in reverse. Synchronous:
+      // no frame is drawn in between.
+      const shown: Array<{ node: Konva.Node; parent: Konva.Container; index: number }> = [];
+      for (const nodes of [completedNodesRef.current, animNodesRef.current]) {
+        nodes.forEach((node) => {
+          const parent = node.getParent();
+          if (parent) shown.push({ node, parent, index: node.zIndex() });
+        });
+      }
+      for (const entry of shown) entry.node.remove();
+      const spotlights = spotlightNodesRef.current.map((node) => ({ node, visible: node.visible() }));
+      for (const entry of spotlights) entry.node.visible(false);
+      const cursorLayer = cursorLayerRef.current;
+      const hideCursor = shouldHideCursorForCapture("snapshot");
+      const cursorWasVisible = cursorLayer ? cursorLayer.visible() : false;
+      if (cursorLayer && hideCursor) cursorLayer.visible(false);
+      const back = [...held.entries].sort((a, b) => a.index - b.index);
+      try {
+        for (const entry of back) {
+          entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+          entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        }
+        return { snapshotDataUrl: stage.toDataURL({ pixelRatio }), meta: held.meta };
+      } finally {
+        for (const entry of back) entry.node.remove();
+        for (const entry of [...shown].sort((a, b) => a.index - b.index)) {
+          entry.parent.add(entry.node as Konva.Shape | Konva.Group);
+          entry.node.zIndex(Math.min(entry.index, entry.parent.getChildren().length - 1));
+        }
+        for (const entry of spotlights) entry.node.visible(entry.visible);
+        if (cursorLayer && hideCursor) cursorLayer.visible(cursorWasVisible);
+      }
+    }, []);
+
     const clearBoard = useCallback(
       async (duration?: number): Promise<void> => {
         drawTransactionsRef.current.clear();
+        // A new page abandons a held one.
+        const held = heldPageRef.current;
+        heldPageRef.current = null;
+        held?.entries.forEach((entry) => entry.node.destroy());
         const ownership = drawTransactionsRef.current.capture();
         const isCancelled = (): boolean => drawTransactionsRef.current.isCancelled(ownership);
         const drawLayer = drawLayerRef.current;
@@ -3777,6 +3999,13 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         setSpotlight,
         eraseRegion,
         eraseWorkInk,
+        erasePinnedInk,
+        eraseSceneInk,
+        holdPage,
+        returnHeldPage,
+        hasHeldPage: () => heldPageRef.current !== null,
+        captureHeldPageSnapshot,
+        pinnedInkCount,
         punchDiagramLineGapsInRect,
         setCursorPos: (x: number, y: number) => setCursorViewSafely(x, y),
         setCursorState: updateCursorState,
@@ -3852,7 +4081,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         },
         getInkSettings,
       }),
-      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, eraseWorkInk, finishAbortedDrawTransaction, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
+      [abortDrawTransaction, beginDrawTransaction, cancelAnimations, cancelDrawSavepoint, clearBoard, commitDrawTransaction, createDrawSavepoint, rollbackDrawSavepoint, drawAnnotation, drawPicture, drawShape, eraseRegion, erasePinnedInk, eraseSceneInk, eraseWorkInk, finishAbortedDrawTransaction, holdPage, returnHeldPage, captureHeldPageSnapshot, pinnedInkCount, flourishPen, flyCursorTo, getInkSettings, punchDiagramLineGapsInRect, setCursorViewSafely, setSpotlight, swapInstrument, updateCursorState, writeText],
     );
 
     return (

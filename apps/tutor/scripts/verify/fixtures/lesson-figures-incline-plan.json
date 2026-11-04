@@ -1,0 +1,87 @@
+{
+  "source": ".lecture-lab/doubts-01/lessons/a-5-kg-block-rests-on-a-rough-pl-528af2e662.json (lesson turnPlan, recorded 29 Oct 2026)",
+  "turnPlan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A 5 kg block rests on a rough plane inclined at 30 degrees to the horizontal. Find the friction force needed to hold it still. Take g = 10 m/s^2.",
+    "givens": [
+      {
+        "id": "m",
+        "symbol": "m",
+        "value": 5,
+        "unit": "kg",
+        "sourceText": "5 kg block",
+        "provenance": "given"
+      },
+      {
+        "id": "theta",
+        "symbol": "θ",
+        "value": 30,
+        "unit": "deg",
+        "sourceText": "inclined at 30 degrees",
+        "provenance": "given"
+      },
+      {
+        "id": "g",
+        "symbol": "g",
+        "value": 10,
+        "unit": "m/s^2",
+        "sourceText": "g = 10 m/s^2",
+        "provenance": "given"
+      }
+    ],
+    "unknowns": [
+      {
+        "id": "f",
+        "symbol": "f",
+        "unit": "N"
+      }
+    ],
+    "derived": [
+      {
+        "id": "f",
+        "symbol": "f",
+        "value": 25,
+        "unit": "N",
+        "sign": "positive",
+        "sourceText": "f = m g sinθ = 5 × 10 × sin30° = 50 × 0.5 = 25",
+        "provenance": "derived",
+        "dependsOn": [
+          "m",
+          "g",
+          "theta"
+        ]
+      }
+    ],
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Static equilibrium: friction up the slope balances the downslope component of gravity",
+        "expected": "f = m g sinθ",
+        "relatedQuantityIds": [
+          "f",
+          "m",
+          "g",
+          "theta"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Friction acts up the incline, opposing the tendency to slide down",
+        "expected": "direction: up the slope",
+        "relatedQuantityIds": [
+          "f"
+        ]
+      }
+    ],
+    "lawIds": [
+      "Newton's first law (static equilibrium)",
+      "resolution of weight on an incline: parallel component mg sinθ"
+    ],
+    "assumptions": [
+      "block is stationary so static friction exactly balances the gravity component along the plane",
+      "friction magnitude equals mg sinθ, at or below the maximum available static friction",
+      "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "visualRequirement": "required"
+  }
+}

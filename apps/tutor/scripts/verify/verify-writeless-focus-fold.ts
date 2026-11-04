@@ -319,7 +319,8 @@ async function main() {
     return handler.slice(from, to);
   };
   const flushBody = slice("const flushBufferedSegment = () => {", "\n        };");
-  assert(/const prepared = prepareVerifiedLessonSegments\(\[bufferedSegment\], activeDiagram\);/.test(flushBody), "the streamed segment is prepared on its own");
+  // Through the lesson figure cursor (prepareVerifiedLessonSegments itself when no later figure drew).
+  assert(/const prepared = prepareLessonFigureSegments\(\[bufferedSegment\], activeDiagram, lessonFigurePrep, lessonFigureCues\);/.test(flushBody), "the streamed segment is prepared on its own");
   assert(/focusFold\.take\(prepared\.segments,\s*\{\s*lessonStarted:\s*usableTeachingStepReceived\s*\}\)/.test(flushBody), "every prepared streamed segment goes through the fold");
   assert(!/queuePreparedSegments\(prepared\.segments/.test(flushBody), "no prepared segment skips the fold");
   const finishBody = slice("const flushFocusFold = () => {", "\n        };");

@@ -10,7 +10,8 @@ import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { InkPace } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { storedPageTurnAt, storedTurnContinuesBoard, storedTurnPageQuestion } from "@/lib/boards/boardContinuation";
+import { storedPageFigureChange } from "../lib/replay/pageFigureSync";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { lecturePageCacheKey } from "@/lib/lecture-export/canExportLectureMp4";
 import {
@@ -52,6 +53,7 @@ import { useBoardLayout } from "./useBoardLayout";
 import { useCancelControl } from "./useCancelControl";
 import { useCommandExecution } from "./useCommandExecution";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 
 const UNSUPPORTED_BROWSER = "This browser cannot make a video. Try Chrome or Edge.";
@@ -151,6 +153,10 @@ export function useLectureExport({
   if (codeLessonControllerRef.current === null) {
     codeLessonControllerRef.current = new CodeLessonController();
   }
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(null);
+  if (lessonFiguresRef.current === null) {
+    lessonFiguresRef.current = new LessonFigureSequence();
+  }
   const telemetryRef = useRef<TurnTelemetry | null>(null);
   const inkPaceRef = useRef<InkPace>("follow");
   const adaptiveFactorRef = useRef(1);
@@ -244,6 +250,7 @@ export function useLectureExport({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     nowMs: exportNowMs,
   });
 
@@ -396,7 +403,9 @@ export function useLectureExport({
           clock,
           shouldCancel,
           resetBoardLayout,
+          getLayout: () => boardLayoutRef.current,
           getDiagram: () => diagramRef.current,
+          lessonFigures: lessonFiguresRef.current,
           onTurnStart: (turn, diagram) => {
             exportQuestionRef.current = storedTurnPageQuestion(turn);
             // FRAME needs the same persisted walk-through replay uses. A doubt
@@ -409,6 +418,12 @@ export function useLectureExport({
               else controller.reset();
               restoreDsaFrames(controller, turn, plan);
               diagramRef.current = controller.frames.current()?.presentation.diagram ?? diagram;
+            } else if (storedPageFigureChange(turns, turns.indexOf(turn)).kind !== "keep" ||
+              storedPageTurnAt(turns, turns.indexOf(turn)) !== null) {
+              // The export swapped a doubt's own figure in, or returned the
+              // lesson's on its resume, or turned a doubt's fresh page or
+              // returned the lesson's: point FOCUS at the figure it drew.
+              diagramRef.current = diagram;
             }
             hasStartedTurn = true;
             fbdStartedRef.current = Boolean(diagramRef.current);
@@ -453,6 +468,7 @@ export function useLectureExport({
       }
     })();
   }, [
+    boardLayoutRef,
     dispatch,
     enabled,
     executeCommandWithCancel,

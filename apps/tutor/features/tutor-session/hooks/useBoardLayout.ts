@@ -29,6 +29,7 @@ import {
   workColumnMaxWidth,
   workColumnRoom,
 } from "../lib/board/boardLayout";
+import { closeDoubtPageForNotes } from "../lib/board/doubtPage";
 
 export interface UseBoardLayoutParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -310,9 +311,14 @@ export function useBoardLayout({
 
   const beginBoardEpoch = useCallback(async (): Promise<void> => {
     const wb = whiteboardRef.current;
-    if (wb && boardLayoutRef.current.rects.length > 0) {
+    // doubt-page-notes:begin
+    // A doubt's fresh page holds the lesson's page (lane 9): a new question
+    // abandons both, so each is a notes page, the doubt's first.
+    if (!closeDoubtPageForNotes(wb, { capture: captureNotesEpoch, narration: narrationSinceEpochRef }) &&
+      wb && boardLayoutRef.current.rects.length > 0) {
       captureNotesEpoch();
     }
+    // doubt-page-notes:end
     narrationSinceEpochRef.current = "";
     if (wb) await wb.clearBoard();
     resetBoardLayout(false, true);

@@ -106,7 +106,13 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    label, annotate, erase, circle, or supply focus coordinates. `[FOCUS:id]` may
    trace existing verified geometry, or (with `REFERENCE_PICTURE_PART_FOCUS=on`)
    ring a label the server located on a stored reference picture. Filters and `useCommandExecution()` enforce
-   ownership.
+   ownership. One owner-approved exception (28 Oct 2026): `[FOCUS:id|keep]`
+   leaves a ring on a verified scene part until the work column turns its page
+   or the figure leaves the zone. The ring's geometry comes only from the scene
+   entity's verified anchor, never from the model. With `DIAGRAM_LESSON_FIGURES=on`,
+   `[FOCUS:figure_2]` or `[FOCUS:figure_3]` may move the zone forward to a later
+   lesson figure the engine already verified; the executor draws that figure, and
+   the teaching stream supplies only the id, never geometry.
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot
    pair with a correct diagram.
