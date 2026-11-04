@@ -1,9 +1,10 @@
 /**
  * Runtime-owned opening for problem-solving turns.
  *
- * If the submitted question states values, write them first as "Given: ...",
- * then the verified figure can be revealed and the teaching stream can solve.
- * The teaching model must not restate or rewrite this list.
+ * A value the question writes literally as symbol = number is written first as
+ * "Given: ...", then the verified figure can be revealed and the teaching stream
+ * can solve. The teaching model is told exactly which rows are on the board, must
+ * not rewrite them, and writes every other value where it first uses it.
  */
 import { WORK_ZONE, measureTextWidth, workRowFontSize, type TutorSegment } from "@heytutor/drawing";
 import { isConceptLessonQuestion } from "./reasoningEffort";
@@ -187,10 +188,10 @@ export function buildGivenValueSegments(
   }));
 }
 
-export function givenValuesPromptAddon(hasGivens: boolean): string {
-  if (!hasGivens) return "";
+export function givenValuesPromptAddon(writtenRows: readonly string[]): string {
+  if (writtenRows.length === 0) return "";
   return `GIVEN VALUES ARE ALREADY ON THE BOARD
-The runtime already spoke the opening line, wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens as a second list, do not say what the question asks for again, and do not read the question back.
+The runtime already spoke the opening line, wrote the given quantities as "Given: ..." and will reveal any verified figure next. On the board now, and nothing else: ${writtenRows.join("; ")}. Do not rewrite those givens as a second list, do not say what the question asks for again, and do not read the question back. Any other value the question states is not on the board yet: say it and [WRITE] it where you first use it.
 Start by saying what each of those symbols physically is, and [WRITE] that meaning line first. If a figure is visible, read it next: name each labeled part, say what it represents and which way it points or where it acts, and [FOCUS:entity_id] on the part you just named.
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
@@ -354,15 +355,31 @@ const UNIT_TOKEN =
   /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?|M|mM|kmph|kph|mph)$/;
 const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|cosec|arcsin|arccos|arctan|sinh|cosh|tanh|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
 
+/** A value is short, so a right side with no end in this reach is not one. */
+const RHS_REACH = 200;
+
+/** The right side, read no further than a value could run. Long pasted prompts stay linear. */
+function readValueRhs(text: string, start: number): string | null {
+  const reach = text.slice(start, start + RHS_REACH);
+  const rhs = readAssignmentRhs(reach, 0);
+  return rhs !== null && rhs.length === reach.length && start + RHS_REACH < text.length ? null : rhs;
+}
+
+/**
+ * The clause ended, but the value did not: "10,000", "x = 1, 2", "x = 2; 3",
+ * "m = 2 kg and 3 kg", and "c = 3" with "× 10^8 m/s" wrapped onto the next line.
+ */
+function continuesAsList(text: string, start: number): boolean {
+  const rhs = readValueRhs(text, start);
+  if (rhs === null) return false;
+  const rest = text.slice(start + rhs.length, start + rhs.length + WINDOW);
+  return /^(?:[,;]|\s*and\b)\s*[+\-−–]?\.?\d/iu.test(rest) || /^\s*\n\s*(?:[×*·^/+\-−–=]|[xX]\s*\d)/u.test(rest);
+}
+
 /**
  * A number with at most its unit: all a row may state. "AX = B", "y = sin x",
  * "CH2 = CH-CH2+" and "0 by completing the square" are not values.
  */
-/** "10,000" and "x = 1, 2": the clause ended at a comma, but the number did not. */
-function continuesAsList(text: string, start: number): boolean {
-  const rhs = readAssignmentRhs(text, start);
-  return rhs !== null && /^,\s*\d/.test(text.slice(start + rhs.length, start + rhs.length + WINDOW));
-}
 
 function isPlainValue(text: string): boolean {
   const match = /^[+\-−–]?\s*(?:\d+(?:\.\d+)?|\.\d+)\s*(.*)$/su.exec(text);
@@ -394,7 +411,7 @@ function standsAlone(statement: string, symbolStart: number): boolean {
   return !last || !(last.length === 1 || /[\p{N}_]/u.test(last) || MATH_WORD.test(last));
 }
 
-/** How far back a value's own context can reach. Long pasted prompts stay linear. */
+/** How far back a value's own context can reach. */
 const WINDOW = 80;
 
 const SPELLED_UNITS: Record<string, string> = {
@@ -477,7 +494,7 @@ function statedQuantities(question: string): StatedQuantity[] {
     const owner = /(?<![\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_'/]*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
     // The whole right side has to be the value: "x = 3 times y" states no x = 3.
     // An aside closes its own bracket: "(g = 10 m/s^2)".
-    const rightSide = readAssignmentRhs(question, start) ?? question.slice(start, start + WINDOW).split(")")[0]!;
+    const rightSide = readValueRhs(question, start) ?? question.slice(start, start + WINDOW).split(")")[0]!;
     // "bx + c = 0" states no c, even for a plan row named c. It still counts as a
     // value below: refusing a row must not hide that the symbol has two values.
     const plain = (!owner || standsAlone(before, owner.index)) &&

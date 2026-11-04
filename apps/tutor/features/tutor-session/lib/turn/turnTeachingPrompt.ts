@@ -849,7 +849,9 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
 
   // Given rows keep their runtime ownership, but an acknowledgement is not
   // the question-specific opening assumed by the shared legacy addon.
-  const givenAddon = codeLesson ? "" : givenValuesPromptAddon(givenSegments.length > 0);
+  const givenAddon = codeLesson ? "" : givenValuesPromptAddon(
+    givenSegments.flatMap((segment) => segment.command?.type === "WRITE" && segment.command.text ? [segment.command.text] : []),
+  );
   const runtimeGivenAddon = input.earlyOpeningAcknowledgement
     ? givenAddon.replace(
         "The runtime already spoke the opening line",

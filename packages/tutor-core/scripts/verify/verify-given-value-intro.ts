@@ -77,18 +77,18 @@ const conceptual = collectQuestionGivens("Explain the photoelectric effect.");
 assert(conceptual.length === 0, "a concept question with no values must not invent givens");
 assert(buildGivenValueSegments("Explain the photoelectric effect.").length === 0, "concept questions must skip the given opener");
 
-assert(givenValuesPromptAddon(true).includes("wrote the given quantities"), "teaching must be told not to rewrite givens");
+assert(givenValuesPromptAddon(["Given: a = 2"]).includes("wrote the given quantities"), "teaching must be told not to rewrite givens");
 assert(
-  givenValuesPromptAddon(true).includes("general formula"),
+  givenValuesPromptAddon(["Given: a = 2"]).includes("general formula"),
   "teaching must be told to write the general formula before substitution",
 );
-assert(givenValuesPromptAddon(false) === "", "empty given addon leaked into a concept lesson");
+assert(givenValuesPromptAddon([]) === "", "empty given addon leaked into a concept lesson");
 assert(
-  /\[EMPHASIZE:last\] to box/.test(givenValuesPromptAddon(true)),
+  /\[EMPHASIZE:last\] to box/.test(givenValuesPromptAddon(["Given: a = 2"])),
   "the given-values addon must say EMPHASIZE boxes a work line",
 );
 assert(
-  !/EMPHASIZE[^\n.]*underline/i.test(givenValuesPromptAddon(true)),
+  !/EMPHASIZE[^\n.]*underline/i.test(givenValuesPromptAddon(["Given: a = 2"])),
   "the given-values addon must not claim EMPHASIZE underlines",
 );
 
@@ -328,6 +328,14 @@ for (const [why, question, plan, expected] of [
   ["a letters only equation", "Write it as AX = B.", undefined, []],
   ["a chemical formula", "Draw CH2 = CH-CH2+ now.", undefined, []],
   ["a value with a place in words", "If y = 0 at x = 0, plot it.", undefined, ["x = 0"]],
+  ["a value wrapped onto the next line", "Take c = 3\n× 10^8 m/s here.", undefined, []],
+  ["a wrapped value the plan holds whole", "Take c = 3\n× 10^8 m/s here.", { givens: [plain("c", 300000000, "m/s")] }, []],
+  ["a wrapped row the plan misreads", "Take c = 3\n× 10^8 m/s here.", { givens: [plain("c", 3)] }, []],
+  ["a second value after and", "Take m = 2 kg and 3 kg here.", undefined, []],
+  ["a second value after a semicolon", "Take x = 2; 3 here.", undefined, []],
+  ["a plan row with a second value after and", "Take m = 2 kg and 3 kg here.", { givens: [plain("m", 2, "kg")] }, []],
+  ["a next symbol after and stays a row", "Take x = 2 and y = 3.", undefined, ["x = 2", "y = 3"]],
+  ["a plan row asked again after the ask", "Take x = 3. Find y when x = 5.", { givens: [plain("x", 3)] }, []],
 ] as const) {
   const rows = boardRows(question, plan as { givens: unknown[] } | undefined);
   assert(JSON.stringify(rows) === JSON.stringify(expected), `${why}: ${JSON.stringify(rows)}`);
@@ -506,9 +514,23 @@ const signedCharge = collectQuestionGivens("A particle has q = +2 C. Find the fo
 });
 assert(signedCharge.some((given) => given.board === "q = +2 C"), "a written plus and unit stay on the row");
 
+// A long pasted line of numbers stays cheap: it took about 31 s before the reach.
+{
+  const pasted = `Take x = ${"12 ".repeat(16_000)}`;
+  const started = performance.now();
+  collectQuestionGivens(pasted, { givens: [plain("x", 12)] });
+  const elapsed = performance.now() - started;
+  assert(elapsed < 5_000, `a long line of numbers took ${Math.round(elapsed)} ms`);
+}
+
+// The teaching prompt names exactly the rows on the board, and says the rest are not.
+const addon = givenValuesPromptAddon(["Given: x = 2 m", "t = 3 s"]);
+assert(addon.includes("On the board now, and nothing else: Given: x = 2 m; t = 3 s."), "the addon lists the written rows");
+assert(addon.includes("Any other value the question states is not on the board yet"), "the addon says the other values still need writing");
+
 // The opening prompt must not promise a row that is not there.
-assert(/written "Given: \.\.\." only for values the question writes as symbol = number/.test(TUTOR_SYSTEM_PROMPT), "the prompt says when a Given row exists");
-assert(/a value with no "Given:" row is not on the board yet/.test(TUTOR_SYSTEM_PROMPT), "the prompt tells the model to write a value with no row");
+assert(/written "Given: \.\.\." only for the values listed as already on the board, if any are listed/.test(TUTOR_SYSTEM_PROMPT), "the prompt says when a Given row exists");
+assert(/a value not listed there is not on the board yet/.test(TUTOR_SYSTEM_PROMPT), "the prompt tells the model to write a value with no row");
 assert(!/for every stated value/.test(TUTOR_SYSTEM_PROMPT), "the prompt does not claim every value is already written");
 
 // A planner's absurd unit stays opaque rather than recursing.
