@@ -1,5 +1,6 @@
 "use client";
 
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import {
   useCallback,
   useEffect,
@@ -59,6 +60,8 @@ import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { LectureWorkPage } from "@/lib/replay/lectureWorkPages";
 import { BOARD_HEIGHT, BOARD_WIDTH, DSA_CODE_PANEL_RECT } from "../constants";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
 import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
@@ -289,6 +292,10 @@ export function useLecturePlayer({
   if (controllerRef.current === null) {
     controllerRef.current = new CodeLessonController();
   }
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(null);
+  if (lessonFiguresRef.current === null) {
+    lessonFiguresRef.current = new LessonFigureSequence();
+  }
   const diagramRef = useRef<VerifiedDiagram | null>(null);
   const fbdMarkedRef = useRef(false);
   const fbdStartedRef = useRef(false);
@@ -373,6 +380,7 @@ export function useLecturePlayer({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef: controllerRef,
+    lessonFiguresRef,
     nowMs: clockNowMs,
   });
 
@@ -409,13 +417,31 @@ export function useLecturePlayer({
         return false;
       lastSyncedTurnRef.current = turnIndex;
       const turn = storedTurnsRef.current[turnIndex];
-      if (turn && storedTurnContinuesBoard(turn)) return true;
+      if (turn && storedTurnContinuesBoard(turn)) {
+        // A doubt's own figure swaps in; the resume returns the lesson's.
+        const figure = await syncStoredPageFigure({
+          turns: storedTurnsRef.current,
+          turnIndex,
+          whiteboard: playerBoardRef.current,
+          layout: boardLayoutRef.current,
+          executeCommand: executeRef.current,
+          shouldCancel,
+          lessonFigures: lessonFiguresRef.current,
+        });
+        if (figure.changed) {
+          if (figure.cancelled) return false;
+          diagramRef.current = figure.diagram;
+          fbdStartedRef.current = Boolean(figure.diagram);
+        }
+        return true;
+      }
       questionRef.current = turn?.question ?? "";
       const controller = controllerRef.current!;
       const plan = turn ? storedCodeLessonPlan(turn.sceneArtifacts) : null;
       if (plan) controller.commit(plan);
       else controller.reset();
       restoreDsaFrames(controller, turn, plan);
+      restoreLessonFigures(lessonFiguresRef.current, turn);
       const diagram =
         controller.frames.current()?.presentation.diagram ??
         restoreVerifiedDiagramFromTurn(turn) ??
@@ -424,7 +450,7 @@ export function useLecturePlayer({
       fbdStartedRef.current = Boolean(diagram);
       return true;
     },
-    [storedTurnsRef],
+    [storedTurnsRef, boardLayoutRef],
   );
 
   const publishCueText = useCallback((cues: readonly ReplayCue[], index: number) => {

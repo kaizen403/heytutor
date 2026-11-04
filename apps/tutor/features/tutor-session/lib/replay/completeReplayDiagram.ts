@@ -6,6 +6,7 @@ import {
 } from "@heytutor/drawing";
 import { storedTurnStatus, type StoredTurn } from "@/lib/boards/boardsClient";
 import { boardContinuationOf, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { doubtFigureOf } from "@/lib/boards/doubtFigure";
 import { deepEqual } from "../scene/diagramGeneration";
 import { restoreVerifiedDiagramFromTurn } from "../scene/restoreVerifiedDiagram";
 import {
@@ -22,6 +23,11 @@ type CompleteDiagramExecuteCommand = (
   options?: Pick<NonNullable<Parameters<ExportExecuteCommand>[1]>, "durationScale" | "trustedDiagramGeometry" | "applyLayout" | "inkPace" | "isCancelled">,
 ) => Promise<void>;
 
+/** A doubt saved with its own validated figure (DIAGRAM_DOUBT_FIGURES). */
+function isDoubtFigureTurn(turn: StoredTurn): boolean {
+  return turn.kind === "doubt" && doubtFigureOf(turn.sceneArtifacts) !== null && turn.visualStatus === "validated";
+}
+
 /** A resume may finish only the source-checked figure its own page opened. */
 function compatibleCompletedResume(turn: StoredTurn, pageTurns: readonly StoredTurn[] | undefined): boolean {
   if (turn.kind !== "resume" || !pageTurns || pageTurns.length < 2) return false;
@@ -33,7 +39,10 @@ function compatibleCompletedResume(turn: StoredTurn, pageTurns: readonly StoredT
     storedTurnContinuesBoard(entry) && boardContinuationOf(entry.sceneArtifacts)?.lessonQuestion === question &&
     (entry.kind !== "resume" || entry.question.trim() === question) &&
     entry.visualStatus !== "retry_required" &&
-    (!entry.sceneDocument || (entry.visualStatus === "validated" && deepEqual(entry.sceneDocument, opening.sceneDocument) &&
+    // A doubt that drew its own figure left the zone at the resume; its
+    // scene is its own, not a rival copy of the lesson's.
+    (isDoubtFigureTurn(entry) ||
+      !entry.sceneDocument || (entry.visualStatus === "validated" && deepEqual(entry.sceneDocument, opening.sceneDocument) &&
       restoreVerifiedDiagramFromTurn(entry) !== null)),
   );
 }
