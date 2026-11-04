@@ -50,6 +50,19 @@ for (const message of ["[sentry] failed-turn recovery unavailable; events remain
   check(log?.attributes?.error_code === "database_schema" && log.attributes.suppressed === 14, "bounded worker error diagnostics survive without supplied identity");
   check(!JSON.stringify(log).includes(privateText), "worker enum is derived from the fixed message");
 }
+// The record of timings dropped from a long lesson holds counts and nothing else.
+const droppedLog = privacy.sentryBeforeSendLog({ message: `[turn-timings-dropped] ${privateText}`, attributes: {
+  "sentry.message.parameter.0": { event: "turn_timings_dropped", rows: 3, entryPoint: "checkpoint_put", question: privateText },
+} });
+assert(droppedLog?.message === "[turn-timings-dropped]", "dropped timings keep a fixed message");
+const droppedAttributes = droppedLog?.attributes as Record<string, unknown> | undefined;
+assert(droppedAttributes?.rows === 3 && droppedAttributes?.entryPoint === "checkpoint_put", "dropped timings keep their counts");
+assert(!JSON.stringify(droppedLog).includes(privateText), "dropped timings log no content");
+const fakeDropped = privacy.sentryBeforeSendLog({ message: "[turn-timings-dropped]", attributes: {
+  "sentry.message.parameter.0": { rows: privateText, entryPoint: privateText },
+} });
+const fakeDroppedAttributes = fakeDropped?.attributes as Record<string, unknown> | undefined;
+assert(fakeDroppedAttributes?.rows === 0 && fakeDroppedAttributes?.entryPoint === "unknown", "dropped timings keep only a count and a known entry point");
 const fakeEntryPoint = privacy.sentryBeforeSendLog({ message: "[turn-save-rejected]", attributes: { entryPoint: { toString: () => "checkpoint_put", question: privateText } } });
 check(!JSON.stringify(fakeEntryPoint).includes(privateText), "non-string enum lookalikes cannot carry nested content");
 const eventEnvelope: Parameters<typeof privacy.scrubSentryLogEnvelope>[0] = [{ event_id: "e".repeat(32), sent_at: "2026-10-21T00:00:00Z" }, [[{ type: "event" }, { message: "unchanged exception control" }]]];

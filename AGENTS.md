@@ -64,7 +64,7 @@ described in rule 5.
 
 ## Agent Guidelines
 
-- **Diagram coverage work or completion logging:** read [the coverage plan](DIAGRAM_ENGINE_COVERAGE_PLAN.md), [topic matrix](docs/plans/diagram-topic-matrix/index.md) and [progress contract](docs/plans/diagram-topic-matrix/progress.md) before assigning packets or reporting completion. Each worker writes its own evidence log; the integration owner updates accepted topic counts.
+- **Diagram coverage work or completion logging:** resumed 3 November 2026 by general causes with a measured chapter table, no packets and no row claims. Read [the coverage plan](DIAGRAM_ENGINE_COVERAGE_PLAN.md), [topic matrix](docs/plans/diagram-topic-matrix/index.md) and [progress contract](docs/plans/diagram-topic-matrix/progress.md) before reporting completion. The integration owner updates accepted topic counts, only with evidence.
 - [Session handoff](docs/agent/session-handoff.md) — compact seed; Physics certified, Maths operators in (2 OCR leftovers)
 - [Session ownership](docs/agent/session-ownership.md) — announce before editing scene-engine synthesize/document/capability/verify; do not load another session's gate
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist

@@ -61,6 +61,8 @@ import {
   MAX_TURN_MERGED_METADATA_BYTES,
   MAX_TURN_SEGMENTS,
   MAX_TURN_UPLOAD_BYTES,
+  compactTimings,
+  TIMINGS_KEEP_BYTES,
 } from "@/lib/scene/turnUploadLimits";
 import {
   isTurnKind,
@@ -284,7 +286,7 @@ function parseRows(value: unknown, baseCount: number): Parsed<CheckpointRow[]> {
       spokenText,
       command: raw.command ?? null,
       ...(raw.durationMs != null ? { durationMs: raw.durationMs as number } : {}),
-      ...(raw.timings != null ? { timings: raw.timings } : {}),
+      ...(raw.timings != null ? { timings: compactTimings(raw.timings) } : {}),
     });
   }
   return { ok: true, value: rows };
@@ -470,6 +472,9 @@ export async function handleTurnCheckpoint(request: Request, params: RouteParams
  * applies. With rows (the unsent tail, words and ink) it appends them under the
  * turn's stored scene and takes `seq`.
  */
+/** What the server refuses in a close's payload. Sign in, ownership and rate limits are not the payload. */
+const CLOSE_REFUSALS = new Set([400, 409, 413]);
+
 export async function handleTurnClose(request: Request, params: RouteParams): Promise<Response> {
   params = { ...params, entryPoint: "checkpoint_close" };
   const reject = checkpointRejection(params);
@@ -484,7 +489,6 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   }
   if (!isRecord(raw)) return reject("close_body_invalid", "invalid close body", 400);
   const common = parseCommon(raw, "patch");
-  if (!common.ok) return reject("turn_fields_invalid", common.error, 400);
   // A close that creates the turn saves it as text: the figure never committed
   // on this tab's checkpoints, and the body has no room for a scene. Its
   // artifacts may still carry the plan and the page continuation marker.
@@ -496,15 +500,27 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   if (existing && (existing.userId !== auth.userId || existing.boardId !== params.boardId)) {
     return reject("turn_not_found", "not found", 404);
   }
+  // A close always closes a turn that exists. Rows the server refuses are not
+  // saved, and the page that sent them is usually gone, so they must not leave
+  // the turn reading as still being taught. The refusal is still the answer: a
+  // page that lives on must hear that its rows were not saved.
+  const closedDespite = async (refusal: Response): Promise<Response> => {
+    // A turn already closed has nothing to close: a refusal leaves it untouched.
+    if (!existing || existing.status !== "live" || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
+    const bare = parseCommon({ seq: raw.seq, status: raw.status, traceId: raw.traceId, baseCount: raw.baseCount }, "patch");
+    if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value, { afterRefusal: true });
+    return refusal;
+  };
+  if (!common.ok) return closedDespite(reject("turn_fields_invalid", common.error, 400));
   if (!existing && !common.value.question?.trim()) return reject("turn_not_found", "turn not found", 404);
   if (existing && common.value.appendSegments.length === 0) {
-    return closeStatusOnly(request, auth.userId, params, existing, common.value);
+    return closedDespite(await closeStatusOnly(request, auth.userId, params, existing, common.value));
   }
-  return applyCheckpoint(request, auth.userId, params, {
+  return closedDespite(await applyCheckpoint(request, auth.userId, params, {
     ...common.value,
     scene: existing ? "stored" : createScene,
     tolerateOverlap: true,
-  }, new Map());
+  }, new Map()));
 }
 
 async function ownedTraceAllowed(userId: string, boardId: string, traceId: string | undefined): Promise<boolean> {
@@ -517,13 +533,16 @@ async function closeStatusOnly(
   params: RouteParams,
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
+  options: { afterRefusal?: boolean } = {},
 ): Promise<Response> {
   const reject = checkpointRejection(params, input.traceId ?? existing.traceId ?? undefined);
   // New metadata has the same canonical byte budget/quota as a full save.
   // Only a status-only or stale-header close may skip that charged path.
   // Legacy rows also need their existing scene receipt envelope accounted.
-  if (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
-    (input.rawResponse !== undefined || input.resumeState !== undefined))) {
+  // After a refusal only the status changes: the held rows stay as stored, so it
+  // needs no new bytes and a full account can still close its turn.
+  if (!options.afterRefusal && (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
+    (input.rawResponse !== undefined || input.resumeState !== undefined)))) {
     return applyCheckpoint(request, userId, params, {
       ...input, baseCount: heldRows(existing).length, appendSegments: [],
       scene: "stored", tolerateOverlap: true,
@@ -680,6 +699,11 @@ async function applyCheckpoint(
     !(scene.visualStatus === "retry_required" && scene.sceneArtifacts != null)) {
     return reject("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400);
   }
+
+  // A long lesson gives up its timings before it gives up its rows.
+  const timedRows = append.filter((row) => row.timings != null).length;
+  const dropTimings = timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES;
+  if (dropTimings) append = append.map((row) => ({ ...row, timings: undefined }));
 
   const merged: HeldRow[] = [...stored, ...append];
   if (merged.length > MAX_TURN_SEGMENTS) return reject("turn_segments_oversized", "turn has too many segments", 413);
@@ -977,7 +1001,10 @@ async function applyCheckpoint(
     settled = true;
     switch (outcome.kind) {
       case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId, entryPoint }, input, files, stoppedRetries + 1);
-      case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
+      case "saved":
+        // Only rows that were saved have lost anything.
+        if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
+        return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
       case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
       case "conflict": return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: outcome.serverCount, serverSeq: outcome.serverSeq });

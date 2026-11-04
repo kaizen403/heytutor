@@ -143,7 +143,7 @@ function redactQuery(value: QueryValue): QueryValue | undefined {
 }
 
 export function scrubSentryEvent<T extends SentryScrubEvent>(event: T): T {
-  if (event.tags?.area === "turn-failure") return scrubFailedTurnEvent(event);
+  if (event.tags?.area === "turn-failure" || event.tags?.area === "turn-picture") return scrubFailedTurnEvent(event);
   if (event.message) event.message = scrubSecrets(event.message);
   for (const item of event.exception?.values ?? []) {
     if (item.value) item.value = scrubSecrets(item.value);
@@ -195,12 +195,13 @@ function allowedValue(value: unknown, allowed: readonly string[]): string {
 /** Failed-turn events carry counts and vocabulary, even when captured in a dirty request scope. */
 function scrubFailedTurnEvent<T extends SentryScrubEvent>(event: T): T {
   const supplied = event.tags ?? {};
+  const pictureShown = supplied.area === "turn-picture";
   const strictSubjects = typeof supplied.strict_subjects === "string"
     ? supplied.strict_subjects.split(",") : [];
   const release = typeof supplied.release === "string" && /^[a-f0-9]{7,64}$/i.test(supplied.release)
     ? supplied.release : "unknown";
   const tags = {
-    area: "turn-failure",
+    area: pictureShown ? "turn-picture" : "turn-failure",
     reporting_origin: allowedValue(supplied.reporting_origin, FAILED_TURN_REPORTING_ORIGINS),
     subject: allowedValue(supplied.subject, FAILURE_SUBJECTS),
     stage: allowedValue(supplied.stage, FAILED_TURN_STAGES),
@@ -233,13 +234,13 @@ function scrubFailedTurnEvent<T extends SentryScrubEvent>(event: T): T {
   for (const key of Object.keys(event)) {
     if (!kept.has(key)) Reflect.deleteProperty(event, key);
   }
-  event.message = "Tutor turn failed";
-  event.level = event.level === "error" ? "error" : "warning";
+  event.message = pictureShown ? "Tutor turn picture shown" : "Tutor turn failed";
+  event.level = pictureShown ? "info" : event.level === "error" ? "error" : "warning";
   event.platform = "node";
   if (event.event_id !== undefined && !/^[a-f0-9]{32}$/i.test(event.event_id)) delete event.event_id;
   if (event.timestamp !== undefined && !Number.isFinite(event.timestamp)) delete event.timestamp;
   event.tags = tags;
-  event.fingerprint = ["turn-failure", tags.stage, tags.code, tags.subject];
+  event.fingerprint = [pictureShown ? "turn-picture" : "turn-failure", tags.stage, tags.code, tags.subject];
   event.extra = extra;
   event.release = release;
   event.environment = tags.environment;
@@ -354,6 +355,14 @@ function approvedLog(message: string, attributes: Record<string, unknown>) {
       code: typeof fields.code === "string" && SAVE_LOG_CODES.has(fields.code) ? fields.code : "unknown",
       status: typeof fields.status === "number" && Number.isInteger(fields.status) && fields.status >= 100 && fields.status <= 599 ? fields.status : "unknown",
       entryPoint: typeof fields.entryPoint === "string" && ["legacy_post", "checkpoint_put", "checkpoint_close"].includes(fields.entryPoint) ? fields.entryPoint : "unknown",
+    } };
+  }
+  if (message === "[turn-timings-dropped]" || message.startsWith("[turn-timings-dropped] ")) {
+    const fields = { ...attributes, ...logObject(attributes["sentry.message.parameter.0"]) };
+    return { message: "[turn-timings-dropped]", attributes: {
+      event: "turn_timings_dropped",
+      rows: typeof fields.rows === "number" && Number.isInteger(fields.rows) && fields.rows >= 0 && fields.rows <= 1_000 ? fields.rows : 0,
+      entryPoint: typeof fields.entryPoint === "string" && ["checkpoint_put", "checkpoint_close"].includes(fields.entryPoint) ? fields.entryPoint : "unknown",
     } };
   }
   const http = /^\[http\] (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\/\S{1,2048}) ([1-5]\d{2}) (\d{1,10})ms(?: .*|$)/.exec(message);
