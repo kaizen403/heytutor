@@ -4,6 +4,7 @@
  * is JSON-serializable and deliberately slim: no `rawResponse`, no scene
  * documents, no audio URLs — those stay in the database and object store.
  */
+import type { AiCreditsSnapshot } from "./aiCreditsCore";
 import type {
   DegradationReason,
   OutcomeCounts,
@@ -127,6 +128,7 @@ export interface OverviewCost {
 
 export interface OverviewPayload {
   generatedAt: string;
+  aiCredits: AiCreditsSnapshot;
   kpis: OverviewKpis;
   cost: OverviewCost;
   /** UTC day buckets, oldest first, 14 days. */

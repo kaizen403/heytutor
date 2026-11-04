@@ -329,6 +329,18 @@ model UserStorage {
   @@map("user_storage")
 }
 
+/// One monthly AI credits cycle, kept from the relay's usage counter.
+model AiCreditCycle {
+  cycleKey         String   @id @map("cycle_key")
+  startedAt        DateTime @map("started_at") @db.Timestamptz(6)
+  spentCents       Float    @default(0) @map("spent_cents")
+  lastCounterCents Float    @default(0) @map("last_counter_cents")
+  alertedPercent   Int      @default(0) @map("alerted_percent")
+  polledAt         DateTime @map("polled_at") @db.Timestamptz(6)
+
+  @@map("ai_credit_cycles")
+}
+
 /// Retry erasure until storage confirms deletion; survives account cascade.
 model ObjectDeletionJob {
   id            String   @id @db.Uuid

@@ -166,6 +166,20 @@ stream on gpt-6-sol). It is plain http, so production needs
 `OPENAI_COMPAT_ALLOW_INSECURE_HTTP=1`: an owner decision, recorded 4 Nov 2026.
 The address and key live only in env files; this repo is public.
 
+### AI credits tracker
+
+The admin Overview shows total AI credits against `AI_CREDITS_MONTHLY_USD` ($1,000)
+per cycle, turning over on the day of `AI_CREDITS_CYCLE_ANCHOR` at midnight India
+time. `lib/admin/aiCredits.ts` reads the relay's `/v1/dashboard/billing/usage`
+counter (`total_usage`, cents, the key's whole life) once a minute into
+`ai_credit_cycles`. Only the counter sees every call on the key: failed attempts,
+aborted streams, staff, lab and local runs, which the per user ledger leaves out.
+A counter that falls means a refill reset it. Sentry alerts once each at 50, 80 and
+95%. At the budget, `compatCircuit.setBudgetExhausted` sends new requests to
+Fireworks until the next cycle; an unreadable counter keeps the saved decision and
+never blocks a lesson. Voice and Fireworks spend are outside this figure. Gate:
+`scripts/verify/verify-ai-credits.ts`.
+
 ## First relay against Fireworks, same harness (27 Oct 2026)
 
 Same build, same local server, only the provider changed. Relay prices are a
