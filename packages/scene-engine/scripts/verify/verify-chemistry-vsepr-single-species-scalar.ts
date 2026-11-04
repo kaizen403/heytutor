@@ -1,8 +1,9 @@
 /**
- * A plan writes "bond angle = 107 degrees" for "shape of NH3 molecule" and names no
- * species beside it, because only one is being asked about. That refused the figure as
- * ambiguous. With one species drawn it is not ambiguous. The value must still equal the
- * one the engine computes for that species, and two species stay ambiguous.
+ * Two readings refused the recorded plan for "shape of NH3 molecule", and neither fix
+ * draws it alone. The plan writes "bond angle = 107 degrees" and names no species,
+ * because only one is asked about: with one species drawn that is not ambiguous, and the
+ * value must still equal the one computed for it. And it writes "less than the ideal
+ * tetrahedral angle", which names a reference angle, not this molecule's shape.
  *
  *   tsx --tsconfig ../../apps/tutor/tsconfig.json scripts/verify/verify-chemistry-vsepr-single-species-scalar.ts
  */
@@ -10,6 +11,7 @@ import assert from "node:assert/strict";
 import "../../src/chemistry/families";
 import { certifyVseprSourceDocument } from "../../src/chemistry/sourceEvidence";
 import type { TurnPlanV3 } from "../../src/contracts/contractsV3";
+import { vseprPlanConflict } from "../../src/chemistry/vsepr";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { createFallbackTurnPlanV3 } from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
 
@@ -73,6 +75,31 @@ for (const [question, scalars] of [
   ["shape of NH3 molecule", [{ symbol: "N valence electrons", value: 5, unit: "electrons", sourceText: "Nitrogen has 5 valence electrons" }]],
 ] as Array<[string, Scalar[]]>) {
   check(`a named target still certifies: ${question}`, () => assert.deepEqual(issues(question, scalars), []));
+}
+
+// The other half of the same row: a shape word before an angle or a number names that
+// reference, and it says nothing about this molecule's shape.
+const conflict = (question: string, claim: string) => vseprPlanConflict(question, { ...createFallbackTurnPlanV3(question), subject: "chemistry", qualitativeClaims: [{ id: "c1", claim, expected: true }] } as unknown as TurnPlanV3);
+for (const [question, claim] of [
+  ["shape of NH3 molecule", "Bond angle is approximately 107 degrees, less than ideal tetrahedral 109.5 degrees due to lone pair-bond pair repulsion"],
+  ["shape of NH3 molecule", "The bond angle is about 107 degrees, less than the ideal tetrahedral angle of 109.5 degrees."],
+  ["shape of NH3 molecule", "The bond angle is smaller than the tetrahedral bond angle because of lone pair repulsion."],
+  ["shape of H2O", "The H-O-H bond angle is about 104.5 degrees, less than the ideal tetrahedral angle of 109.5 degrees."],
+  ["shape of H2O", "Lone pair repulsion compresses the angle below the tetrahedral value."],
+  ["shape of NH3 molecule", "NH3 is trigonal pyramidal, with an angle below the tetrahedral 109.5 degrees."],
+] as Array<[string, string]>) {
+  check(`a reference angle is no shape claim: ${claim}`, () => assert.equal(conflict(question, claim), null));
+}
+for (const [question, claim] of [
+  ["shape of NH3 molecule", "NH3 is tetrahedral."],
+  ["shape of NH3 molecule", "NH3 has an ideal tetrahedral shape."],
+  ["shape of NH3 molecule", "The molecular shape of NH3 is tetrahedral."],
+  ["shape of NH3 molecule", "NH3 is tetrahedral with an angle of 107 degrees."],
+  ["shape of H2O", "H2O is linear."],
+  ["shape of H2O", "H2O is a tetrahedral molecule, with an angle below 109.5 degrees."],
+  ["shape of NH3 molecule", "The molecular shape of NH3 is trigonal planar, with a planar angle of 120 degrees."],
+] as Array<[string, string]>) {
+  check(`a false shape claim still refuses: ${claim}`, () => assert.ok(conflict(question, claim)?.includes("contradicts")));
 }
 
 console.log(`verify-chemistry-vsepr-single-species-scalar: ${passed} passed, ${failed} failed`);

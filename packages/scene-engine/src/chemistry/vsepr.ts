@@ -696,8 +696,11 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
     const clause = rawClause.toLowerCase();
     const mentions = shapeOwnerMentions(rawClause);
+    // "less than the ideal tetrahedral angle of 109.5" names an angle, not this
+    // molecule's shape, so a shape word before an angle or a number claims nothing.
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
+      .filter((shape) => !/^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/.test(clause.slice(shape.end)))
       .sort((left, right) => left.start - right.start);
     if (!shapes.length && mentions.length) {
       const owners = [...new Set(mentions.map(mention => mention.key))];
