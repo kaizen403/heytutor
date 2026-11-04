@@ -357,6 +357,14 @@ function approvedLog(message: string, attributes: Record<string, unknown>) {
       entryPoint: typeof fields.entryPoint === "string" && ["legacy_post", "checkpoint_put", "checkpoint_close"].includes(fields.entryPoint) ? fields.entryPoint : "unknown",
     } };
   }
+  if (message === "[turn-timings-dropped]" || message.startsWith("[turn-timings-dropped] ")) {
+    const fields = { ...attributes, ...logObject(attributes["sentry.message.parameter.0"]) };
+    return { message: "[turn-timings-dropped]", attributes: {
+      event: "turn_timings_dropped",
+      rows: typeof fields.rows === "number" && Number.isInteger(fields.rows) && fields.rows >= 0 && fields.rows <= 1_000 ? fields.rows : 0,
+      entryPoint: typeof fields.entryPoint === "string" && ["checkpoint_put", "checkpoint_close"].includes(fields.entryPoint) ? fields.entryPoint : "unknown",
+    } };
+  }
   const http = /^\[http\] (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) (\/\S{1,2048}) ([1-5]\d{2}) (\d{1,10})ms(?: .*|$)/.exec(message);
   const route = http && normalizedLogRoute(http[2]!);
   if (!http || !route) return null;
