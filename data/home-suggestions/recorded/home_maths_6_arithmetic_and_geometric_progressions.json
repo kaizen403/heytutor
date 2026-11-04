@@ -1,0 +1,603 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_6_arithmetic_and_geometric_progressions.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "algebra only"
+ },
+ "selection": {
+  "question": "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12.",
+   "givens": [
+    {
+     "id": "a1",
+     "symbol": "a",
+     "value": 3,
+     "sign": "positive",
+     "sourceText": "first term 3",
+     "provenance": "given"
+    },
+    {
+     "id": "d",
+     "symbol": "d",
+     "value": 5,
+     "sign": "positive",
+     "sourceText": "common difference 5",
+     "provenance": "given"
+    },
+    {
+     "id": "n",
+     "symbol": "n",
+     "value": 12,
+     "sign": "positive",
+     "sourceText": "12th term / first 12",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "a12",
+     "symbol": "a_12",
+     "unit": null
+    },
+    {
+     "id": "S12",
+     "symbol": "S_12",
+     "unit": null
+    }
+   ],
+   "derived": [
+    {
+     "id": "a12",
+     "symbol": "a_12",
+     "value": 58,
+     "sign": "positive",
+     "sourceText": "a_12 = a + (n-1)d = 3 + 11*5 = 58",
+     "provenance": "derived",
+     "dependsOn": [
+      "a1",
+      "d",
+      "n"
+     ]
+    },
+    {
+     "id": "S12",
+     "symbol": "S_12",
+     "value": 366,
+     "sign": "positive",
+     "sourceText": "S_12 = n/2 * (a + a_12) = 6 * (3 + 58) = 366",
+     "provenance": "derived",
+     "dependsOn": [
+      "a1",
+      "n",
+      "a12"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "The nth term of an AP is a_n = a + (n-1)d, so the 12th term is 58.",
+     "expected": "a_12 = 3 + 11*5 = 58",
+     "relatedQuantityIds": [
+      "a1",
+      "d",
+      "n",
+      "a12"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "The sum of the first n terms is S_n = n/2 * (a + a_n), giving 378.",
+     "expected": "S_12 = 12/2 * (3 + 58) = 378",
+     "relatedQuantityIds": [
+      "a1",
+      "n",
+      "a12",
+      "S12"
+     ]
+    }
+   ],
+   "lawIds": [
+    "arithmetic progression nth term formula",
+    "arithmetic series sum formula"
+   ],
+   "assumptions": [
+    "The sequence is a standard arithmetic progression with constant common difference."
+   ],
+   "visualRequirement": "none"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fFirst",
+     "kind": "given",
+     "statement": "first term is 3",
+     "evidence": {
+      "source": "question",
+      "start": 10,
+      "end": 22,
+      "quote": "first term 3"
+     }
+    },
+    {
+     "id": "fDiff",
+     "kind": "given",
+     "statement": "common difference is 5",
+     "evidence": {
+      "source": "question",
+      "start": 27,
+      "end": 46,
+      "quote": "common difference 5"
+     }
+    },
+    {
+     "id": "fTerm",
+     "kind": "requested",
+     "statement": "find the 12th term",
+     "evidence": {
+      "source": "question",
+      "start": 48,
+      "end": 66,
+      "quote": "Find the 12th term"
+     }
+    },
+    {
+     "id": "fSum",
+     "kind": "requested",
+     "statement": "find sum of first 12",
+     "evidence": {
+      "source": "question",
+      "start": 71,
+      "end": 94,
+      "quote": "the sum of the first 12"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "seq",
+     "kind": "other",
+     "label": "arithmetic progression",
+     "evidenceFactIds": [
+      "fFirst",
+      "fDiff"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eA12",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fFirst",
+      "fDiff",
+      "fTerm"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "number",
+       "value": 3
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+         "kind": "number",
+         "value": 12
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 5
+       }
+      }
+     }
+    },
+    {
+     "id": "eS12",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fFirst",
+      "fDiff",
+      "fSum"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "*",
+      "left": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 12
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 2
+        },
+        "right": {
+         "kind": "number",
+         "value": 3
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 12
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 5
+        }
+       }
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [],
+   "solveRequests": [
+    {
+     "id": "sA12",
+     "kind": "evaluate",
+     "expressionId": "eA12",
+     "resultBinding": {
+      "turnPlanQuantityId": "a12",
+      "symbol": "a_12",
+      "evidenceFactIds": [
+       "fTerm"
+      ]
+     }
+    },
+    {
+     "id": "sS12",
+     "kind": "evaluate",
+     "expressionId": "eS12",
+     "resultBinding": {
+      "turnPlanQuantityId": "S12",
+      "symbol": "S_12",
+      "evidenceFactIds": [
+       "fSum"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12."
+  },
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fFirst",
+      "kind": "given",
+      "statement": "first term is 3",
+      "evidence": {
+       "source": "question",
+       "start": 10,
+       "end": 22,
+       "quote": "first term 3"
+      }
+     },
+     {
+      "id": "fDiff",
+      "kind": "given",
+      "statement": "common difference is 5",
+      "evidence": {
+       "source": "question",
+       "start": 27,
+       "end": 46,
+       "quote": "common difference 5"
+      }
+     },
+     {
+      "id": "fTerm",
+      "kind": "requested",
+      "statement": "find the 12th term",
+      "evidence": {
+       "source": "question",
+       "start": 48,
+       "end": 66,
+       "quote": "Find the 12th term"
+      }
+     },
+     {
+      "id": "fSum",
+      "kind": "requested",
+      "statement": "find sum of first 12",
+      "evidence": {
+       "source": "question",
+       "start": 71,
+       "end": 94,
+       "quote": "the sum of the first 12"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "seq",
+      "kind": "other",
+      "label": "arithmetic progression",
+      "evidenceFactIds": [
+       "fFirst",
+       "fDiff"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eA12",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fFirst",
+       "fDiff",
+       "fTerm"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "binary",
+         "operator": "-",
+         "left": {
+          "kind": "number",
+          "value": 12
+         },
+         "right": {
+          "kind": "number",
+          "value": 1
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 5
+        }
+       }
+      }
+     },
+     {
+      "id": "eS12",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fFirst",
+       "fDiff",
+       "fSum"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 12
+        },
+        "right": {
+         "kind": "number",
+         "value": 2
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "number",
+          "value": 2
+         },
+         "right": {
+          "kind": "number",
+          "value": 3
+         }
+        },
+        "right": {
+         "kind": "binary",
+         "operator": "*",
+         "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+           "kind": "number",
+           "value": 12
+          },
+          "right": {
+           "kind": "number",
+           "value": 1
+          }
+         },
+         "right": {
+          "kind": "number",
+          "value": 5
+         }
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [
+     {
+      "id": "sA12",
+      "kind": "evaluate",
+      "expressionId": "eA12",
+      "resultBinding": {
+       "turnPlanQuantityId": "a12",
+       "symbol": "a_12",
+       "evidenceFactIds": [
+        "fTerm"
+       ]
+      }
+     },
+     {
+      "id": "sS12",
+      "kind": "evaluate",
+      "expressionId": "eS12",
+      "resultBinding": {
+       "turnPlanQuantityId": "S12",
+       "symbol": "S_12",
+       "evidenceFactIds": [
+        "fSum"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "An AP has first term 3 and common difference 5. Find the 12th term and the sum of the first 12."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sA12",
+      "requestId": "sA12",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "58"
+      },
+      "approximate": 58,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sS12",
+      "requestId": "sS12",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "366"
+      },
+      "approximate": 366,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sA12",
+      "requestId": "sA12",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eA12"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sS12",
+      "requestId": "sS12",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eS12"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

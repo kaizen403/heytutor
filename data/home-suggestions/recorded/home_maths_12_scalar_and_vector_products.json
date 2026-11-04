@@ -1,0 +1,1234 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Vectors (3, 4) and (1, −2) are given. Find their dot product and the angle between them.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_12_scalar_and_vector_products.json",
+ "judged": {
+  "verdict": "right",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "tips exact, arc spans the 116.6 degree angle; runtime Given row is a separate fault"
+ },
+ "selection": {
+  "question": "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them.",
+   "givens": [
+    {
+     "id": "a",
+     "symbol": "a",
+     "value": 3,
+     "sign": "positive",
+     "sourceText": "(3, 4)",
+     "provenance": "given"
+    },
+    {
+     "id": "b",
+     "symbol": "b",
+     "value": 4,
+     "sign": "positive",
+     "sourceText": "(3, 4)",
+     "provenance": "given"
+    },
+    {
+     "id": "c",
+     "symbol": "c",
+     "value": 1,
+     "sign": "positive",
+     "sourceText": "(1, -2)",
+     "provenance": "given"
+    },
+    {
+     "id": "d",
+     "symbol": "d",
+     "value": -2,
+     "sign": "negative",
+     "sourceText": "(1, -2)",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "dot",
+     "symbol": "a·b",
+     "unit": null
+    },
+    {
+     "id": "theta",
+     "symbol": "θ",
+     "unit": "degrees"
+    }
+   ],
+   "derived": [
+    {
+     "id": "dot",
+     "symbol": "a·b",
+     "value": -5,
+     "sign": "negative",
+     "sourceText": "3*1 + 4*(-2) = 3 - 8 = -5",
+     "provenance": "derived",
+     "dependsOn": [
+      "a",
+      "b",
+      "c",
+      "d"
+     ]
+    },
+    {
+     "id": "theta",
+     "symbol": "θ",
+     "value": 116.56505117707799,
+     "unit": "degrees",
+     "sign": "positive",
+     "sourceText": "acos(-5/(5*sqrt(5))) = acos(-1/sqrt(5)) ≈ 116.57°",
+     "provenance": "derived",
+     "dependsOn": [
+      "dot",
+      "magA",
+      "magB"
+     ]
+    },
+    {
+     "id": "magA",
+     "symbol": "|a|",
+     "value": 5,
+     "sign": "positive",
+     "sourceText": "sqrt(3^2 + 4^2) = sqrt(25) = 5",
+     "provenance": "derived",
+     "dependsOn": [
+      "a",
+      "b"
+     ]
+    },
+    {
+     "id": "magB",
+     "symbol": "|b|",
+     "value": 2.23606797749979,
+     "sign": "positive",
+     "sourceText": "sqrt(1^2 + (-2)^2) = sqrt(5) ≈ 2.236",
+     "provenance": "derived",
+     "dependsOn": [
+      "c",
+      "d"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "The dot product is negative, so the angle between the vectors is obtuse (greater than 90°).",
+     "expected": "θ ≈ 116.57° > 90°",
+     "relatedQuantityIds": [
+      "dot",
+      "theta"
+     ],
+     "relatedEntityHints": [
+      "vector (3,4)",
+      "vector (1,-2)"
+     ]
+    }
+   ],
+   "lawIds": [
+    "dot product definition: a·b = a1b1 + a2b2",
+    "magnitude formula: |v| = sqrt(v1^2 + v2^2)",
+    "angle formula: cos θ = (a·b)/(|a||b|)"
+   ],
+   "assumptions": [
+    "Vectors are in 2D Euclidean space with standard basis.",
+    "Angle measured in degrees, taken as the smaller angle between the vectors (0° to 180°).",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fVecA",
+     "kind": "given",
+     "statement": "First vector is (3, 4)",
+     "evidence": {
+      "source": "question",
+      "start": 8,
+      "end": 14,
+      "quote": "(3, 4)"
+     }
+    },
+    {
+     "id": "fVecB",
+     "kind": "given",
+     "statement": "Second vector is (1, -2)",
+     "evidence": {
+      "source": "question",
+      "start": 19,
+      "end": 26,
+      "quote": "(1, -2)"
+     }
+    },
+    {
+     "id": "fDot",
+     "kind": "requested",
+     "statement": "Find their dot product",
+     "evidence": {
+      "source": "question",
+      "start": 38,
+      "end": 60,
+      "quote": "Find their dot product"
+     }
+    },
+    {
+     "id": "fAngle",
+     "kind": "requested",
+     "statement": "Find the angle between them",
+     "evidence": {
+      "source": "question",
+      "start": 65,
+      "end": 87,
+      "quote": "the angle between them"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "vecA",
+     "kind": "other",
+     "label": "vector (3, 4)",
+     "evidenceFactIds": [
+      "fVecA"
+     ]
+    },
+    {
+     "id": "vecB",
+     "kind": "other",
+     "label": "vector (1, -2)",
+     "evidenceFactIds": [
+      "fVecB"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eDot",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fVecA",
+      "fVecB"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "+",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 3
+       },
+       "right": {
+        "kind": "number",
+        "value": 1
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 4
+       },
+       "right": {
+        "kind": "unary",
+        "operator": "-",
+        "operand": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "eTheta",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fVecA",
+      "fVecB"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "call",
+        "function": "acos",
+        "argument": {
+         "kind": "binary",
+         "operator": "/",
+         "left": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 3
+           },
+           "right": {
+            "kind": "number",
+            "value": 1
+           }
+          },
+          "right": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "number",
+            "value": 4
+           },
+           "right": {
+            "kind": "unary",
+            "operator": "-",
+            "operand": {
+             "kind": "number",
+             "value": 2
+            }
+           }
+          }
+         },
+         "right": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+           "kind": "call",
+           "function": "sqrt",
+           "argument": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+             "kind": "binary",
+             "operator": "^",
+             "left": {
+              "kind": "number",
+              "value": 3
+             },
+             "right": {
+              "kind": "number",
+              "value": 2
+             }
+            },
+            "right": {
+             "kind": "binary",
+             "operator": "^",
+             "left": {
+              "kind": "number",
+              "value": 4
+             },
+             "right": {
+              "kind": "number",
+              "value": 2
+             }
+            }
+           }
+          },
+          "right": {
+           "kind": "call",
+           "function": "sqrt",
+           "argument": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+             "kind": "binary",
+             "operator": "^",
+             "left": {
+              "kind": "number",
+              "value": 1
+             },
+             "right": {
+              "kind": "number",
+              "value": 2
+             }
+            },
+            "right": {
+             "kind": "binary",
+             "operator": "^",
+             "left": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+               "kind": "number",
+               "value": 2
+              }
+             },
+             "right": {
+              "kind": "number",
+              "value": 2
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       "right": {
+        "kind": "number",
+        "value": 180
+       }
+      },
+      "right": {
+       "kind": "constant",
+       "name": "pi"
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iVectors",
+     "kind": "conceptual",
+     "entityIds": [
+      "vecA",
+      "vecB"
+     ],
+     "evidenceFactIds": [
+      "fVecA",
+      "fVecB"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sDot",
+     "kind": "evaluate",
+     "expressionId": "eDot",
+     "resultBinding": {
+      "turnPlanQuantityId": "dot",
+      "symbol": "a·b",
+      "evidenceFactIds": [
+       "fDot"
+      ]
+     }
+    },
+    {
+     "id": "sTheta",
+     "kind": "evaluate",
+     "expressionId": "eTheta",
+     "resultBinding": {
+      "turnPlanQuantityId": "theta",
+      "symbol": "θ",
+      "unit": "degrees",
+      "evidenceFactIds": [
+       "fAngle"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "vector_diagram"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "centre_of_mass",
+    "com_motion",
+    "point_mass_inertia",
+    "simple_body_inertia",
+    "axes_theorem",
+    "rotational_motion",
+    "rotational_state",
+    "planar_torque",
+    "magnetic_force",
+    "magnetic_components",
+    "gravitational_field",
+    "gravitational_force",
+    "axes",
+    "vector_components",
+    "vector_sum",
+    "vector_scale",
+    "vector_projection",
+    "velocity_triangle",
+    "collinear_velocity_pair",
+    "crossing_strategies",
+    "parallel_guides",
+    "relative_velocity",
+    "uniform_circular_motion",
+    "space_frame",
+    "space_point",
+    "space_line",
+    "plane",
+    "space_project",
+    "space_intersection",
+    "space_segment",
+    "space_vector",
+    "space_cross",
+    "space_angle_mark",
+    "space_right_angle_mark"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "perpendicular",
+    "parallel",
+    "equal_length",
+    "angle_between"
+   ],
+   "planningGuidance": [
+    "Draw named vectors from a shared origin in one frame. Use vector_components for resolved parts and prove the named angle or perpendicular/parallel relation. A stream figure uses parallel_guides plus velocity_triangle, collinear_velocity_pair, or crossing_strategies; do not invent a heading or a straight-across triangle when boat speed does not exceed the current. Use relative_velocity for one shared frame and uniform_circular_motion for v^2/R. Do not substitute a free-body or a circuit. Only three-component vectors or a cross product use one space_frame with space_point and space_vector; derive a×b with space_cross."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fVecA",
+      "kind": "given",
+      "statement": "First vector is (3, 4)",
+      "evidence": {
+       "source": "question",
+       "start": 8,
+       "end": 14,
+       "quote": "(3, 4)"
+      }
+     },
+     {
+      "id": "fVecB",
+      "kind": "given",
+      "statement": "Second vector is (1, -2)",
+      "evidence": {
+       "source": "question",
+       "start": 19,
+       "end": 26,
+       "quote": "(1, -2)"
+      }
+     },
+     {
+      "id": "fDot",
+      "kind": "requested",
+      "statement": "Find their dot product",
+      "evidence": {
+       "source": "question",
+       "start": 38,
+       "end": 60,
+       "quote": "Find their dot product"
+      }
+     },
+     {
+      "id": "fAngle",
+      "kind": "requested",
+      "statement": "Find the angle between them",
+      "evidence": {
+       "source": "question",
+       "start": 65,
+       "end": 87,
+       "quote": "the angle between them"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "vecA",
+      "kind": "other",
+      "label": "vector (3, 4)",
+      "evidenceFactIds": [
+       "fVecA"
+      ]
+     },
+     {
+      "id": "vecB",
+      "kind": "other",
+      "label": "vector (1, -2)",
+      "evidenceFactIds": [
+       "fVecB"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eDot",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fVecA",
+       "fVecB"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 3
+        },
+        "right": {
+         "kind": "number",
+         "value": 1
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 4
+        },
+        "right": {
+         "kind": "unary",
+         "operator": "-",
+         "operand": {
+          "kind": "number",
+          "value": 2
+         }
+        }
+       }
+      }
+     },
+     {
+      "id": "eTheta",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fVecA",
+       "fVecB"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "call",
+         "function": "acos",
+         "argument": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+           "kind": "binary",
+           "operator": "+",
+           "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+             "kind": "number",
+             "value": 3
+            },
+            "right": {
+             "kind": "number",
+             "value": 1
+            }
+           },
+           "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+             "kind": "number",
+             "value": 4
+            },
+            "right": {
+             "kind": "unary",
+             "operator": "-",
+             "operand": {
+              "kind": "number",
+              "value": 2
+             }
+            }
+           }
+          },
+          "right": {
+           "kind": "binary",
+           "operator": "*",
+           "left": {
+            "kind": "call",
+            "function": "sqrt",
+            "argument": {
+             "kind": "binary",
+             "operator": "+",
+             "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+               "kind": "number",
+               "value": 3
+              },
+              "right": {
+               "kind": "number",
+               "value": 2
+              }
+             },
+             "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+               "kind": "number",
+               "value": 4
+              },
+              "right": {
+               "kind": "number",
+               "value": 2
+              }
+             }
+            }
+           },
+           "right": {
+            "kind": "call",
+            "function": "sqrt",
+            "argument": {
+             "kind": "binary",
+             "operator": "+",
+             "left": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+               "kind": "number",
+               "value": 1
+              },
+              "right": {
+               "kind": "number",
+               "value": 2
+              }
+             },
+             "right": {
+              "kind": "binary",
+              "operator": "^",
+              "left": {
+               "kind": "unary",
+               "operator": "-",
+               "operand": {
+                "kind": "number",
+                "value": 2
+               }
+              },
+              "right": {
+               "kind": "number",
+               "value": 2
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "right": {
+         "kind": "number",
+         "value": 180
+        }
+       },
+       "right": {
+        "kind": "constant",
+        "name": "pi"
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iVectors",
+      "kind": "conceptual",
+      "entityIds": [
+       "vecA",
+       "vecB"
+      ],
+      "evidenceFactIds": [
+       "fVecA",
+       "fVecB"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sDot",
+      "kind": "evaluate",
+      "expressionId": "eDot",
+      "resultBinding": {
+       "turnPlanQuantityId": "dot",
+       "symbol": "a·b",
+       "evidenceFactIds": [
+        "fDot"
+       ]
+      }
+     },
+     {
+      "id": "sTheta",
+      "kind": "evaluate",
+      "expressionId": "eTheta",
+      "resultBinding": {
+       "turnPlanQuantityId": "theta",
+       "symbol": "θ",
+       "unit": "degrees",
+       "evidenceFactIds": [
+        "fAngle"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sDot",
+      "requestId": "sDot",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "integer",
+       "value": "-5"
+      },
+      "approximate": -5,
+      "errorBound": 0
+     },
+     {
+      "id": "value_sTheta",
+      "requestId": "sTheta",
+      "valueType": "scalar",
+      "approximate": 116.56505117707799,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sDot",
+      "requestId": "sDot",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eDot"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     },
+     {
+      "id": "proof_sTheta",
+      "requestId": "sTheta",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eTheta"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "two given vectors (3,4) and (1,-2) drawn from a shared origin with the angle between them marked; dot product and angle are derived after setup, not placed as answers"
+   },
+   "source": {
+    "question": "Vectors (3, 4) and (1, -2) are given. Find their dot product and the angle between them.",
+    "representationTier": "metric_verified",
+    "nonMetric": false
+   },
+   "quantities": [
+    {
+     "id": "a",
+     "symbol": "a",
+     "value": 3,
+     "unit": ""
+    },
+    {
+     "id": "b",
+     "symbol": "b",
+     "value": 4,
+     "unit": ""
+    },
+    {
+     "id": "c",
+     "symbol": "c",
+     "value": 1,
+     "unit": ""
+    },
+    {
+     "id": "d",
+     "symbol": "d",
+     "value": -2,
+     "unit": ""
+    }
+   ],
+   "entities": [
+    {
+     "id": "ax",
+     "kind": "axes",
+     "role": "coordinate axes"
+    },
+    {
+     "id": "O",
+     "kind": "point",
+     "role": "shared origin",
+     "label": "O"
+    },
+    {
+     "id": "A_end",
+     "kind": "point",
+     "role": "tip of vector a",
+     "label": "(3, 4)"
+    },
+    {
+     "id": "B_end",
+     "kind": "point",
+     "role": "tip of vector b",
+     "label": "(1, -2)"
+    },
+    {
+     "id": "va",
+     "kind": "vector",
+     "role": "vector a",
+     "label": "a"
+    },
+    {
+     "id": "vb",
+     "kind": "vector",
+     "role": "vector b",
+     "label": "b"
+    },
+    {
+     "id": "theta",
+     "kind": "angle_mark",
+     "role": "angle between the vectors",
+     "label": "θ"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_ax",
+     "operator": "axes",
+     "inputs": {
+      "xMin": -3,
+      "xMax": 4,
+      "yMin": -3,
+      "yMax": 5,
+      "xLabel": "x",
+      "yLabel": "y"
+     },
+     "outputs": [
+      "ax"
+     ]
+    },
+    {
+     "id": "make_O",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "O"
+     ]
+    },
+    {
+     "id": "make_A_end",
+     "operator": "point",
+     "inputs": {
+      "x": 3,
+      "y": 4,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "A_end"
+     ]
+    },
+    {
+     "id": "make_B_end",
+     "operator": "point",
+     "inputs": {
+      "x": 1,
+      "y": -2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "B_end"
+     ]
+    },
+    {
+     "id": "make_va",
+     "operator": "vector",
+     "inputs": {
+      "start": "O",
+      "end": "A_end"
+     },
+     "outputs": [
+      "va"
+     ]
+    },
+    {
+     "id": "make_vb",
+     "operator": "vector",
+     "inputs": {
+      "start": "O",
+      "end": "B_end"
+     },
+     "outputs": [
+      "vb"
+     ]
+    },
+    {
+     "id": "make_theta",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "O",
+      "a": "va",
+      "b": "vb",
+      "radius": 1.2
+     },
+     "outputs": [
+      "theta"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "angle_ab",
+     "predicate": "angle_between",
+     "entities": [
+      "va",
+      "vb"
+     ],
+     "expected": {
+      "value": 116.56505117707799,
+      "unit": "degree"
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "label_va",
+     "predicate": "label_attached",
+     "entities": [
+      "va"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_vb",
+     "predicate": "label_attached",
+     "entities": [
+      "vb"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_O",
+     "predicate": "label_attached",
+     "entities": [
+      "O"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "narr_setup",
+     "kind": "narration",
+     "targetIds": [
+      "va",
+      "vb"
+     ],
+     "text": "Vectors a = (3, 4) and b = (1, -2) from a shared origin; θ is the angle between them.",
+     "placementIntent": "below"
+    }
+   ],
+   "requiredEntityIds": [
+    "ax",
+    "O",
+    "A_end",
+    "B_end",
+    "va",
+    "vb",
+    "theta"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "ax",
+      "O",
+      "A_end",
+      "B_end",
+      "va",
+      "vb",
+      "theta"
+     ],
+     "dependsOn": [],
+     "narrationCue": "two given vectors from one origin with the angle between them marked"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": true,
+  "figureSource": "planner",
+  "tier": "exact_verified",
+  "family": null,
+  "entityIds": [
+   "A_end",
+   "B_end",
+   "O",
+   "ax",
+   "theta",
+   "va",
+   "vb"
+  ],
+  "texts": [
+   "A_end: (3, 4)",
+   "B_end: (1, -2)",
+   "O: O",
+   "theta: θ",
+   "va: a",
+   "vb: b"
+  ],
+  "marks": [
+   {
+    "entityId": "A_end",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      750,
+      125
+     ]
+    ]
+   },
+   {
+    "entityId": "ax",
+    "kind": "axes",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      625
+     ],
+     [
+      875,
+      625
+     ],
+     [
+      375,
+      1000
+     ],
+     [
+      375,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "B_end",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      500,
+      875
+     ]
+    ]
+   },
+   {
+    "entityId": "O",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      375,
+      625
+     ]
+    ]
+   },
+   {
+    "entityId": "theta",
+    "kind": "arc",
+    "dashed": false,
+    "points": [
+     [
+      375,
+      625
+     ]
+    ],
+    "radius": 150,
+    "angles": [
+     1.11,
+     -0.93
+    ]
+   },
+   {
+    "entityId": "va",
+    "kind": "vector",
+    "dashed": false,
+    "points": [
+     [
+      375,
+      625
+     ],
+     [
+      750,
+      125
+     ]
+    ]
+   },
+   {
+    "entityId": "vb",
+    "kind": "vector",
+    "dashed": false,
+    "points": [
+     [
+      375,
+      625
+     ],
+     [
+      500,
+      875
+     ]
+    ]
+   }
+  ],
+  "inkHash": "6bb1294edc29"
+ }
+}

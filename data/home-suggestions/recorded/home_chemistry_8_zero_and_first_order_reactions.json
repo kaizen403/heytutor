@@ -1,0 +1,514 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "A first order reaction is 50% complete in 120 minutes. How long does 90% decomposition take?",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_8_zero_and_first_order_reactions.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "numeric, no figure needed"
+ },
+ "selection": {
+  "question": "A first order reaction is 50% complete in 120 minutes. How long does 90% decomposition take?",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "chemistry",
+   "question": "A first order reaction is 50% complete in 120 minutes. How long does 90% decomposition take?",
+   "givens": [
+    {
+     "id": "t50",
+     "symbol": "t_1/2",
+     "value": 120,
+     "unit": "min",
+     "sourceText": "50% complete in 120 minutes",
+     "provenance": "given"
+    },
+    {
+     "id": "f1",
+     "symbol": "x1",
+     "value": 0.5,
+     "sourceText": "50% complete",
+     "provenance": "given"
+    },
+    {
+     "id": "f2",
+     "symbol": "x2",
+     "value": 0.9,
+     "sourceText": "90% decomposition",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "k",
+     "symbol": "k",
+     "unit": "min^-1"
+    },
+    {
+     "id": "t90",
+     "symbol": "t_90",
+     "unit": "min"
+    }
+   ],
+   "derived": [
+    {
+     "id": "k",
+     "symbol": "k",
+     "value": 0.005775833333333333,
+     "unit": "min^-1",
+     "sourceText": "k = ln2/120 = 0.6931/120 = 0.00577583333333 min^-1",
+     "provenance": "derived",
+     "dependsOn": [
+      "t50"
+     ]
+    },
+    {
+     "id": "t90",
+     "symbol": "t_90",
+     "value": 398.6313713864836,
+     "unit": "min",
+     "sourceText": "Solver-verified t_90 = 398.6313713864836 min",
+     "provenance": "derived",
+     "dependsOn": [
+      "k",
+      "f2"
+     ],
+     "uncertainty": 0
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "For a first order reaction the half-life is constant and independent of initial concentration.",
+     "expected": "t_1/2 = ln2/k",
+     "relatedQuantityIds": [
+      "t50",
+      "k"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "Time for fraction x decomposed follows the integrated first order law.",
+     "expected": "t = (1/k) ln(1/(1-x)); for x=0.9, t = ln10/k",
+     "relatedQuantityIds": [
+      "t90",
+      "k",
+      "f2"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "90% decomposition takes log2(10) ≈ 3.32 half-lives, i.e. 3.32 × 120 ≈ 398.9 min.",
+     "expected": "t_90 = t_1/2 × ln10/ln2 ≈ 3.32 t_1/2",
+     "relatedQuantityIds": [
+      "t90",
+      "t50"
+     ]
+    }
+   ],
+   "lawIds": [
+    "firstOrderIntegratedRateLaw",
+    "firstOrderHalfLife"
+   ],
+   "assumptions": [
+    "Reaction follows first order kinetics throughout",
+    "Temperature and rate constant k remain constant",
+    "Percent completion refers to fraction of reactant decomposed",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fOrder",
+     "kind": "assumption",
+     "statement": "reaction is first order",
+     "evidence": {
+      "source": "question",
+      "start": 2,
+      "end": 22,
+      "quote": "first order reaction"
+     }
+    },
+    {
+     "id": "fHalf",
+     "kind": "given",
+     "statement": "50% complete in 120 minutes",
+     "evidence": {
+      "source": "question",
+      "start": 26,
+      "end": 53,
+      "quote": "50% complete in 120 minutes"
+     }
+    },
+    {
+     "id": "fNinety",
+     "kind": "requested",
+     "statement": "time for 90% decomposition",
+     "evidence": {
+      "source": "question",
+      "start": 55,
+      "end": 91,
+      "quote": "How long does 90% decomposition take"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "reaction",
+     "kind": "state",
+     "label": "first order reaction",
+     "evidenceFactIds": [
+      "fOrder"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eT90",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fHalf",
+      "fNinety"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 120
+       },
+       "right": {
+        "kind": "call",
+        "function": "ln",
+        "argument": {
+         "kind": "number",
+         "value": 10
+        }
+       }
+      },
+      "right": {
+       "kind": "call",
+       "function": "ln",
+       "argument": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iDecay",
+     "kind": "graph",
+     "entityIds": [
+      "reaction"
+     ],
+     "evidenceFactIds": [
+      "fOrder",
+      "fHalf",
+      "fNinety"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sT90",
+     "kind": "evaluate",
+     "expressionId": "eT90",
+     "resultBinding": {
+      "turnPlanQuantityId": "t90",
+      "symbol": "t_90",
+      "unit": "min",
+      "evidenceFactIds": [
+       "fNinety"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "A first order reaction is 50% complete in 120 minutes. How long does 90% decomposition take?"
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "chem_kinetics"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "elastic_profile",
+    "elastic_state",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "function_region",
+    "intersection",
+    "vector_components",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "harmonic_motion",
+    "harmonic_state",
+    "motion_graph",
+    "potential_curve",
+    "projectile_trajectory",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency",
+    "permutation_cycles",
+    "subset_lattice",
+    "set_partition",
+    "set_select",
+    "buoyancy",
+    "polygon",
+    "probability_tree",
+    "pv_process",
+    "polytropic_process",
+    "isochoric_process",
+    "process_state"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "on",
+    "function_value",
+    "root",
+    "incident",
+    "perpendicular",
+    "connected",
+    "between",
+    "ordered_along"
+   ],
+   "planningGuidance": [
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x.",
+    "Use pv_process for named P-V laws: one shared plot, complete states; physical quantity refs or explicitly nonmetric conceptual ratios. Other plots use comparable axis layout spans, not raw SI magnitudes. Grouped counts: histogram (density for unequal widths), frequency_polygon, cumulative_frequency. Conditional outcome branches: probability_tree. Other closed cycles share point IDs. Independent axis scales are display-only.",
+    "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fOrder",
+      "kind": "assumption",
+      "statement": "reaction is first order",
+      "evidence": {
+       "source": "question",
+       "start": 2,
+       "end": 22,
+       "quote": "first order reaction"
+      }
+     },
+     {
+      "id": "fHalf",
+      "kind": "given",
+      "statement": "50% complete in 120 minutes",
+      "evidence": {
+       "source": "question",
+       "start": 26,
+       "end": 53,
+       "quote": "50% complete in 120 minutes"
+      }
+     },
+     {
+      "id": "fNinety",
+      "kind": "requested",
+      "statement": "time for 90% decomposition",
+      "evidence": {
+       "source": "question",
+       "start": 55,
+       "end": 91,
+       "quote": "How long does 90% decomposition take"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "reaction",
+      "kind": "state",
+      "label": "first order reaction",
+      "evidenceFactIds": [
+       "fOrder"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eT90",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fHalf",
+       "fNinety"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 120
+        },
+        "right": {
+         "kind": "call",
+         "function": "ln",
+         "argument": {
+          "kind": "number",
+          "value": 10
+         }
+        }
+       },
+       "right": {
+        "kind": "call",
+        "function": "ln",
+        "argument": {
+         "kind": "number",
+         "value": 2
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iDecay",
+      "kind": "graph",
+      "entityIds": [
+       "reaction"
+      ],
+      "evidenceFactIds": [
+       "fOrder",
+       "fHalf",
+       "fNinety"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sT90",
+      "kind": "evaluate",
+      "expressionId": "eT90",
+      "resultBinding": {
+       "turnPlanQuantityId": "t90",
+       "symbol": "t_90",
+       "unit": "min",
+       "evidenceFactIds": [
+        "fNinety"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A first order reaction is 50% complete in 120 minutes. How long does 90% decomposition take?"
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sT90",
+      "requestId": "sT90",
+      "valueType": "scalar",
+      "approximate": 398.6313713864836,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sT90",
+      "requestId": "sT90",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eT90"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

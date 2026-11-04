@@ -1,0 +1,407 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Explain how completing the square reveals the centre and radius of a circle.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_10_circle_general_form_radius_and_centre.json",
+ "judged": {
+  "verdict": "right",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "centre, radius, point and standard form all correct"
+ },
+ "selection": {
+  "question": "Explain how completing the square reveals the centre and radius of a circle.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "Explain how completing the square reveals the centre and radius of a circle.",
+   "givens": [],
+   "unknowns": [],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "A circle is the set of points at a fixed distance (radius r) from a fixed point (centre (h,k)), giving the standard equation (x-h)^2+(y-k)^2=r^2.",
+     "expected": "(x-h)^2+(y-k)^2=r^2",
+     "relatedEntityHints": [
+      "circle",
+      "centre",
+      "radius"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "A general equation x^2+y^2+Dx+Ey+F=0 hides the centre and radius because the x and y terms are mixed with linear terms.",
+     "expected": "x^2+y^2+Dx+Ey+F=0",
+     "relatedEntityHints": [
+      "general form"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "Completing the square rewrites x^2+Dx as (x+D/2)^2-(D/2)^2, and similarly y^2+Ey as (y+E/2)^2-(E/2)^2, converting each variable into a perfect-square shift.",
+     "expected": "x^2+Dx=(x+D/2)^2-(D/2)^2; y^2+Ey=(y+E/2)^2-(E/2)^2",
+     "relatedEntityHints": [
+      "completing the square"
+     ]
+    },
+    {
+     "id": "c4",
+     "claim": "Substituting and moving constants to the right yields (x+D/2)^2+(y+E/2)^2=(D/2)^2+(E/2)^2-F, which matches the standard form.",
+     "expected": "(x+D/2)^2+(y+E/2)^2=D^2/4+E^2/4-F",
+     "relatedEntityHints": [
+      "standard form"
+     ]
+    },
+    {
+     "id": "c5",
+     "claim": "Matching with (x-h)^2+(y-k)^2=r^2 reads off the centre directly: h=-D/2, k=-E/2, so the centre is (-D/2,-E/2).",
+     "expected": "centre (h,k)=(-D/2,-E/2)",
+     "relatedEntityHints": [
+      "centre"
+     ]
+    },
+    {
+     "id": "c6",
+     "claim": "The right-hand side is r^2, so the radius is r=sqrt(D^2/4+E^2/4-F), requiring D^2/4+E^2/4-F>0 for a real circle.",
+     "expected": "r=sqrt(D^2+E^2-4F)/2",
+     "relatedEntityHints": [
+      "radius"
+     ]
+    },
+    {
+     "id": "c7",
+     "claim": "Geometrically, completing the square is a translation of coordinates: it recentres the equation at the circle's true centre, making the squared-distance structure (and hence the radius) explicit.",
+     "expected": "translation to centre makes distance structure explicit",
+     "relatedEntityHints": [
+      "interpretation"
+     ]
+    }
+   ],
+   "lawIds": [
+    "distance formula / definition of a circle",
+    "completing the square: x^2+bx=(x+b/2)^2-(b/2)^2",
+    "algebraic rearrangement and comparison of matching forms"
+   ],
+   "assumptions": [
+    "The circle is described by a quadratic equation in x and y with equal unit coefficients on x^2 and y^2 and no xy term.",
+    "Parameters D, E, F are real constants; the radius is real only when D^2+E^2-4F>0."
+   ],
+   "visualRequirement": "optional"
+  },
+  "problemIR": null,
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "circle",
+    "circle_tangent_at",
+    "function_curve",
+    "curve_anchor"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": null,
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "symbolic circle with centre and radius; qualitative non-metric representative"
+   },
+   "source": {
+    "question": "Explain how completing the square reveals the centre and radius of a circle.",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "ax",
+     "kind": "axes",
+     "role": "coordinate axes"
+    },
+    {
+     "id": "k",
+     "kind": "circle",
+     "role": "circle",
+     "label": "(x-h)²+(y-k)²=r²"
+    },
+    {
+     "id": "C",
+     "kind": "point",
+     "role": "centre",
+     "label": "C(h, k)"
+    },
+    {
+     "id": "P",
+     "kind": "point",
+     "role": "point on circle",
+     "label": "P(x, y)"
+    },
+    {
+     "id": "r",
+     "kind": "segment",
+     "role": "radius",
+     "label": "r"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "kax",
+     "operator": "axes",
+     "inputs": {
+      "xMin": -1,
+      "xMax": 11,
+      "yMin": -1,
+      "yMax": 9
+     },
+     "outputs": [
+      "ax"
+     ]
+    },
+    {
+     "id": "kC",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": 3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "C"
+     ]
+    },
+    {
+     "id": "kk",
+     "operator": "circle",
+     "inputs": {
+      "center": "C",
+      "radius": 5
+     },
+     "outputs": [
+      "k"
+     ]
+    },
+    {
+     "id": "kP",
+     "operator": "point",
+     "inputs": {
+      "x": 8,
+      "y": 6,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "P"
+     ]
+    },
+    {
+     "id": "kr",
+     "operator": "segment",
+     "inputs": {
+      "start": "C",
+      "end": "P"
+     },
+     "outputs": [
+      "r"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "onP",
+     "predicate": "on",
+     "entities": [
+      "P",
+      "k"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "lblK",
+     "predicate": "label_attached",
+     "entities": [
+      "k"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "lblC",
+     "predicate": "label_attached",
+     "entities": [
+      "C"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "lblR",
+     "predicate": "label_attached",
+     "entities": [
+      "r"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "narr",
+     "kind": "narration",
+     "targetIds": [
+      "k",
+      "C",
+      "r"
+     ],
+     "text": "Completing the square rewrites x²+y²+Dx+Ey+F=0 as (x+D/2)²+(y+E/2)²=D²/4+E²/4-F, matching (x-h)²+(y-k)²=r²: centre (-D/2,-E/2), radius √(D²/4+E²/4-F)."
+    }
+   ],
+   "requiredEntityIds": [
+    "ax",
+    "k",
+    "C",
+    "P",
+    "r"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "ax",
+      "k",
+      "C",
+      "P",
+      "r"
+     ],
+     "dependsOn": [],
+     "narrationCue": "circle with centre and radius: the squared-distance structure revealed by completing the square"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": true,
+  "figureSource": "planner",
+  "tier": "qualitative_verified",
+  "family": null,
+  "entityIds": [
+   "C",
+   "P",
+   "ax",
+   "k",
+   "r"
+  ],
+  "texts": [
+   "C: C(h, k)",
+   "P: P(x, y)",
+   "k: (x-h)²+(y-k)²=r²",
+   "r: r"
+  ],
+  "marks": [
+   {
+    "entityId": "ax",
+    "kind": "axes",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      750
+     ],
+     [
+      1000,
+      750
+     ],
+     [
+      83,
+      833
+     ],
+     [
+      83,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "C",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      417,
+      500
+     ]
+    ]
+   },
+   {
+    "entityId": "k",
+    "kind": "circle",
+    "dashed": false,
+    "points": [
+     [
+      417,
+      500
+     ]
+    ],
+    "radius": 417
+   },
+   {
+    "entityId": "P",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      750,
+      250
+     ]
+    ]
+   },
+   {
+    "entityId": "r",
+    "kind": "line",
+    "dashed": false,
+    "points": [
+     [
+      417,
+      500
+     ],
+     [
+      750,
+      250
+     ]
+    ]
+   }
+  ],
+  "inkHash": "9882bf33e812"
+ }
+}

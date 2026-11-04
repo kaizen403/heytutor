@@ -1,0 +1,794 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_physics_12_resistor_combinations.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "no drawing asked for; lesson reaches 4.5 V"
+ },
+ "selection": {
+  "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "physics",
+   "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+   "givens": [
+    {
+     "id": "Vs",
+     "symbol": "V_s",
+     "value": 9,
+     "unit": "V",
+     "sourceText": "9 V supply",
+     "provenance": "given"
+    },
+    {
+     "id": "R1",
+     "symbol": "R_1",
+     "value": 4.7,
+     "unit": "kΩ",
+     "sourceText": "two 4.7 kΩ resistors",
+     "provenance": "given"
+    },
+    {
+     "id": "R2",
+     "symbol": "R_2",
+     "value": 4.7,
+     "unit": "kΩ",
+     "sourceText": "two 4.7 kΩ resistors",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "Vm",
+     "symbol": "V_m",
+     "unit": "V"
+    }
+   ],
+   "derived": [
+    {
+     "id": "Vm",
+     "symbol": "V_m",
+     "value": 4.5,
+     "unit": "V",
+     "sourceText": "V_m = 9 × 4.7/(4.7+4.7) = 4.5",
+     "provenance": "derived",
+     "dependsOn": [
+      "Vs",
+      "R1",
+      "R2"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Two equal resistors in series form a voltage divider, so the midpoint sits at half the supply voltage relative to the negative terminal.",
+     "expected": "V_m = V_s × R_2/(R_1+R_2) = V_s/2",
+     "relatedQuantityIds": [
+      "Vm",
+      "Vs",
+      "R1",
+      "R2"
+     ]
+    }
+   ],
+   "lawIds": [
+    "voltage_divider",
+    "ohms_law",
+    "series_resistance"
+   ],
+   "assumptions": [
+    "Midpoint voltage measured relative to the supply negative terminal",
+    "Resistors are ideal with equal nominal values",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fSupply",
+     "kind": "given",
+     "statement": "Supply voltage is 9 V",
+     "evidence": {
+      "source": "question",
+      "start": 2,
+      "end": 12,
+      "quote": "9 V supply"
+     }
+    },
+    {
+     "id": "fResistors",
+     "kind": "given",
+     "statement": "Two 4.7 kΩ resistors in series",
+     "evidence": {
+      "source": "question",
+      "start": 17,
+      "end": 47,
+      "quote": "two 4.7 kΩ resistors in series"
+     }
+    },
+    {
+     "id": "fFind",
+     "kind": "requested",
+     "statement": "Find voltage at midpoint",
+     "evidence": {
+      "source": "question",
+      "start": 49,
+      "end": 81,
+      "quote": "Find the voltage at the midpoint"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "supply",
+     "kind": "component",
+     "label": "9 V supply",
+     "evidenceFactIds": [
+      "fSupply"
+     ]
+    },
+    {
+     "id": "r1",
+     "kind": "component",
+     "label": "4.7 kΩ resistor",
+     "evidenceFactIds": [
+      "fResistors"
+     ]
+    },
+    {
+     "id": "r2",
+     "kind": "component",
+     "label": "4.7 kΩ resistor",
+     "evidenceFactIds": [
+      "fResistors"
+     ]
+    },
+    {
+     "id": "midpoint",
+     "kind": "point",
+     "label": "midpoint",
+     "evidenceFactIds": [
+      "fFind"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eVm",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fSupply",
+      "fResistors"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "*",
+       "left": {
+        "kind": "number",
+        "value": 9
+       },
+       "right": {
+        "kind": "number",
+        "value": 4.7
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "+",
+       "left": {
+        "kind": "number",
+        "value": 4.7
+       },
+       "right": {
+        "kind": "number",
+        "value": 4.7
+       }
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iCircuit",
+     "kind": "network",
+     "entityIds": [
+      "supply",
+      "r1",
+      "r2",
+      "midpoint"
+     ],
+     "evidenceFactIds": [
+      "fSupply",
+      "fResistors",
+      "fFind"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sVm",
+     "kind": "evaluate",
+     "expressionId": "eVm",
+     "resultBinding": {
+      "turnPlanQuantityId": "Vm",
+      "symbol": "V_m",
+      "unit": "V",
+      "evidenceFactIds": [
+       "fFind"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "circuit_network"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "symbol",
+    "connect",
+    "vector_components",
+    "arc",
+    "impedance",
+    "impedance_combine",
+    "phasor_response",
+    "kirchhoff_network",
+    "metre_bridge",
+    "potentiometer",
+    "galvanometer"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "path",
+    "sameTerminalPair",
+    "pathCount",
+    "loadBranchCount",
+    "degree",
+    "connected",
+    "perpendicular",
+    "angle_between"
+   ],
+   "planningGuidance": [
+    "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. A supplied multi-loop graph uses kirchhoff_network and must not be redrawn as a series chain. A metre bridge or potentiometer balance uses metre_bridge or potentiometer; do not place the jockey by eye. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fSupply",
+      "kind": "given",
+      "statement": "Supply voltage is 9 V",
+      "evidence": {
+       "source": "question",
+       "start": 2,
+       "end": 12,
+       "quote": "9 V supply"
+      }
+     },
+     {
+      "id": "fResistors",
+      "kind": "given",
+      "statement": "Two 4.7 kΩ resistors in series",
+      "evidence": {
+       "source": "question",
+       "start": 17,
+       "end": 47,
+       "quote": "two 4.7 kΩ resistors in series"
+      }
+     },
+     {
+      "id": "fFind",
+      "kind": "requested",
+      "statement": "Find voltage at midpoint",
+      "evidence": {
+       "source": "question",
+       "start": 49,
+       "end": 81,
+       "quote": "Find the voltage at the midpoint"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "supply",
+      "kind": "component",
+      "label": "9 V supply",
+      "evidenceFactIds": [
+       "fSupply"
+      ]
+     },
+     {
+      "id": "r1",
+      "kind": "component",
+      "label": "4.7 kΩ resistor",
+      "evidenceFactIds": [
+       "fResistors"
+      ]
+     },
+     {
+      "id": "r2",
+      "kind": "component",
+      "label": "4.7 kΩ resistor",
+      "evidenceFactIds": [
+       "fResistors"
+      ]
+     },
+     {
+      "id": "midpoint",
+      "kind": "point",
+      "label": "midpoint",
+      "evidenceFactIds": [
+       "fFind"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eVm",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fSupply",
+       "fResistors"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+         "kind": "number",
+         "value": 9
+        },
+        "right": {
+         "kind": "number",
+         "value": 4.7
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+         "kind": "number",
+         "value": 4.7
+        },
+        "right": {
+         "kind": "number",
+         "value": 4.7
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iCircuit",
+      "kind": "network",
+      "entityIds": [
+       "supply",
+       "r1",
+       "r2",
+       "midpoint"
+      ],
+      "evidenceFactIds": [
+       "fSupply",
+       "fResistors",
+       "fFind"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sVm",
+      "kind": "evaluate",
+      "expressionId": "eVm",
+      "resultBinding": {
+       "turnPlanQuantityId": "Vm",
+       "symbol": "V_m",
+       "unit": "V",
+       "evidenceFactIds": [
+        "fFind"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sVm",
+      "requestId": "sVm",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "9/2"
+      },
+      "approximate": 4.5,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sVm",
+      "requestId": "sVm",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eVm"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A 9 V supply drives two equal 4.7 kΩ resistors in series; the midpoint node between them is the node whose voltage is requested. Show the series loop and label the midpoint, without placing the derived 4.5 V answer."
+   },
+   "source": {
+    "question": "A 9 V supply and two 4.7 kΩ resistors in series. Find the voltage at the midpoint.",
+    "representationTier": "quantitative_givens",
+    "nonMetric": true
+   },
+   "quantities": [
+    {
+     "id": "Vs",
+     "symbol": "V_s",
+     "value": 9,
+     "unit": "V"
+    },
+    {
+     "id": "R1",
+     "symbol": "R_1",
+     "value": 4.7,
+     "unit": "kΩ"
+    },
+    {
+     "id": "R2",
+     "symbol": "R_2",
+     "value": 4.7,
+     "unit": "kΩ"
+    }
+   ],
+   "entities": [
+    {
+     "id": "A",
+     "kind": "point",
+     "role": "corner, supply positive side"
+    },
+    {
+     "id": "B",
+     "kind": "point",
+     "role": "corner, supply negative side"
+    },
+    {
+     "id": "M",
+     "kind": "point",
+     "role": "midpoint node between the resistors",
+     "label": "M"
+    },
+    {
+     "id": "C",
+     "kind": "point",
+     "role": "corner"
+    },
+    {
+     "id": "supply",
+     "kind": "component",
+     "role": "source cell, long plate (+) at start",
+     "label": "9 V"
+    },
+    {
+     "id": "res1",
+     "kind": "component",
+     "role": "resistor",
+     "label": "R₁ = 4.7 kΩ"
+    },
+    {
+     "id": "res2",
+     "kind": "component",
+     "role": "resistor",
+     "label": "R₂ = 4.7 kΩ"
+    },
+    {
+     "id": "w_BC",
+     "kind": "connector",
+     "role": "wire"
+    },
+    {
+     "id": "w_CA",
+     "kind": "connector",
+     "role": "wire"
+    },
+    {
+     "id": "midpoint_callout",
+     "kind": "label",
+     "role": "midpoint query label",
+     "label": "V_m = ?"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_A",
+     "operator": "point",
+     "inputs": {
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "A"
+     ]
+    },
+    {
+     "id": "make_B",
+     "operator": "point",
+     "inputs": {
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "B"
+     ]
+    },
+    {
+     "id": "make_M",
+     "operator": "point",
+     "inputs": {
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "M"
+     ]
+    },
+    {
+     "id": "make_C",
+     "operator": "point",
+     "inputs": {
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "C"
+     ]
+    },
+    {
+     "id": "make_supply",
+     "operator": "symbol",
+     "inputs": {
+      "symbol": "cell",
+      "start": "B",
+      "end": "A"
+     },
+     "outputs": [
+      "supply"
+     ]
+    },
+    {
+     "id": "make_res1",
+     "operator": "symbol",
+     "inputs": {
+      "symbol": "resistor",
+      "start": "A",
+      "end": "M"
+     },
+     "outputs": [
+      "res1"
+     ]
+    },
+    {
+     "id": "make_res2",
+     "operator": "symbol",
+     "inputs": {
+      "symbol": "resistor",
+      "start": "M",
+      "end": "B"
+     },
+     "outputs": [
+      "res2"
+     ]
+    },
+    {
+     "id": "make_w_BC",
+     "operator": "connect",
+     "inputs": {
+      "start": "B",
+      "end": "C"
+     },
+     "outputs": [
+      "w_BC"
+     ]
+    },
+    {
+     "id": "make_w_CA",
+     "operator": "connect",
+     "inputs": {
+      "start": "C",
+      "end": "A"
+     },
+     "outputs": [
+      "w_CA"
+     ]
+    },
+    {
+     "id": "make_midpoint_callout",
+     "operator": "label",
+     "inputs": {
+      "target": "M",
+      "text": "V_m = ?"
+     },
+     "outputs": [
+      "midpoint_callout"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "series_path",
+     "predicate": "path",
+     "entities": [
+      "supply",
+      "res1",
+      "res2"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "loop_closed",
+     "predicate": "path",
+     "entities": [
+      "supply",
+      "w_BC",
+      "w_CA"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_res1",
+     "predicate": "label_attached",
+     "entities": [
+      "res1"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_res2",
+     "predicate": "label_attached",
+     "entities": [
+      "res2"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_supply",
+     "predicate": "label_attached",
+     "entities": [
+      "supply"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "narrate_setup",
+     "kind": "narration",
+     "targetIds": [
+      "supply",
+      "res1",
+      "res2"
+     ],
+     "text": "The 9 V supply drives the same current through R₁ and R₂ in series, so the total 9 V drops across the two equal resistors."
+    },
+    {
+     "id": "narrate_midpoint",
+     "kind": "narration",
+     "targetIds": [
+      "M"
+     ],
+     "text": "M is the node between the resistors; its voltage is measured relative to the supply negative terminal."
+    }
+   ],
+   "requiredEntityIds": [
+    "A",
+    "B",
+    "M",
+    "C",
+    "supply",
+    "res1",
+    "res2",
+    "w_BC",
+    "w_CA",
+    "midpoint_callout"
+   ],
+   "revealGroups": [
+    {
+     "id": "circuit",
+     "entityIds": [
+      "A",
+      "B",
+      "M",
+      "C",
+      "supply",
+      "res1",
+      "res2",
+      "w_BC",
+      "w_CA",
+      "midpoint_callout"
+     ],
+     "dependsOn": [],
+     "narrationCue": "A 9 V supply in a closed loop with R₁ and R₂ in series; M is the midpoint node whose voltage V_m is requested."
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}
