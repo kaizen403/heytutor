@@ -461,6 +461,7 @@ export function TutorSessionShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [liveQuestion, setLiveQuestion] = useState("");
   const liveQuestionRef = useRef("");
+  const readPageQuestion = useCallback(() => liveQuestionRef.current, []);
   /** The page on the board and the turn teaching on it; see `lib/turn/doubtTurn`. */
   const boardPageRef = useRef<BoardPageRecord | null>(null);
   /** A stopped replay left the board on one of its pages; see the turn types. */
@@ -1845,6 +1846,7 @@ export function TutorSessionShell({
       phase={phase}
       isPaused={isPaused}
       inputSubmitMode={inputSubmitMode}
+      pageQuestion={readPageQuestion}
       onSubmit={submitQuestionAndDropMarks}
       onAskDoubt={submitDoubt}
       onPauseToggle={handleLessonPauseToggle}

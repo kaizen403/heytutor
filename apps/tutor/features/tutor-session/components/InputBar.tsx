@@ -1,5 +1,6 @@
 "use client";
 
+import { figureQuestionNote } from "@/lib/scene/figureQuestion";
 import { Highlighter, Settings } from "lucide-react";
 import { resolveApiUrl, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
@@ -15,6 +16,7 @@ import { fileFromClipboardData } from "@/features/tutor-session/lib/input/questi
 import {
   DOUBT_INTERRUPT_HINT,
   DOUBT_PLACEHOLDER,
+  doubtTurnTitle,
 } from "@/features/tutor-session/lib/input/askDoubt";
 import {
   MARK_MODE_PLACEHOLDER,
@@ -48,6 +50,8 @@ export interface InputBarProps {
   onImageSelect?: (file: File) => void;
   disabled?: boolean;
   submitMode?: InputSubmitMode;
+  /** Reads the lesson question a doubt is asked on: a doubt's figure counts it with the doubt. */
+  pageQuestion?: () => string;
   isPaused?: boolean;
   onPauseToggle?: (source?: "control" | "doubt-composer") => void;
   onCancel?: () => void;
@@ -133,6 +137,7 @@ export function InputBar({
   onImageSelect,
   disabled = false,
   submitMode = "ask",
+  pageQuestion,
   isPaused = false,
   onPauseToggle,
   onCancel,
@@ -210,6 +215,9 @@ export function InputBar({
    */
   const canInterruptWithDoubt = isLiveLesson && Boolean(onAskDoubt);
   const inputLocked = isExtracting || (disabled && !canInterruptWithDoubt);
+  const doubtPageQuestion = (isDoubt || canInterruptWithDoubt) && trimmed.length > 0 ? pageQuestion?.() ?? "" : "";
+  // A doubt's figure is planned on its title (`doubtTurnTitle`), so the note counts the same text.
+  const figureNote = doubtPageQuestion.trim() ? figureQuestionNote(doubtTurnTitle(trimmed), doubtPageQuestion) : figureQuestionNote(question);
   /**
    * A mark is a question on its own — "explain this again" is the commonest
    * doubt a student has and the one they are least able to word. So the submit
@@ -959,6 +967,11 @@ export function InputBar({
       {submitError && (
         <p role="alert" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
           {submitError}
+        </p>
+      )}
+      {!submitError && figureNote && (
+        <p role="status" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
+          {figureNote}
         </p>
       )}
       {extractLatencyMs != null && !extractError && (

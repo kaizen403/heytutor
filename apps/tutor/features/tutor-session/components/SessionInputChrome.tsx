@@ -12,6 +12,8 @@ interface SessionInputChromeProps {
   phase: TutorPhase;
   isPaused: boolean;
   inputSubmitMode: "ask" | "doubt" | "follow-up";
+  /** Reads the page's lesson question, for the figure size note on a doubt. */
+  pageQuestion?: () => string;
   onSubmit: InputBarProps["onSubmit"];
   onAskDoubt: (question: string) => void;
   onPauseToggle: (source?: "control" | "doubt-composer") => void;
@@ -56,6 +58,7 @@ export function SessionInputChrome({
   phase,
   isPaused,
   inputSubmitMode,
+  pageQuestion,
   onSubmit,
   onAskDoubt,
   onPauseToggle,
@@ -128,6 +131,7 @@ export function SessionInputChrome({
                   : "Ask a question or paste a photo"
             }
             submitMode={inputSubmitMode}
+            pageQuestion={pageQuestion}
             isPaused={isPaused}
             onPauseToggle={onPauseToggle}
             onCancel={onCancel}

@@ -1,3 +1,5 @@
+import { figureQuestionTooLong } from "@/lib/scene/figureQuestion";
+import type { PageLessonFigureQuestionLoader } from "@/lib/scene/pageFigureLoader";
 import {
   LocalDeterministicSolverProvider,
   FIGURE_SOURCES,
@@ -181,6 +183,10 @@ export async function canonicalizeTurnSceneMetadata(
      * resume starts on figure 1.
      */
     lessonFigureStart?: LessonFigureStartLoader;
+    /** The question already saved on this turn with a figure and its plan, when the turn saves again. */
+    storedQuestion?: string | null;
+    /** Bound by the save route like `loadPageFigure`: the page's lesson question, when that lesson was saved with a figure and its plan. */
+    loadPageLessonFigureQuestion?: PageLessonFigureQuestionLoader;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -363,6 +369,22 @@ export async function canonicalizeTurnSceneMetadata(
   const sceneQuestion = doubtFigure && doubtContinuation
     ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, question)
     : question;
+  const storedSceneQuestion = typeof options.storedQuestion !== "string" ? null
+    : doubtFigure && doubtContinuation ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, options.storedQuestion) : options.storedQuestion;
+  if (metadata.sceneArtifacts.turnPlan != null && figureQuestionTooLong(sceneQuestion, storedSceneQuestion)) {
+    // A resume is a new turn on the page. It keeps its figure when the page's own lesson was saved with one for this question.
+    let pageQuestion: string | null = null;
+    if (options.kind === "resume" && doubtContinuation && !doubtFigure && options.loadPageLessonFigureQuestion) {
+      try {
+        pageQuestion = await options.loadPageLessonFigureQuestion();
+      } catch {
+        pageQuestion = null;
+      }
+    }
+    if (pageQuestion === null || figureQuestionTooLong(sceneQuestion, pageQuestion)) {
+      return figureQuestionAsText(submittedMetadata, options);
+    }
+  }
 
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, sceneQuestion);
   const turnPlan = planResult.plan;
@@ -704,12 +726,7 @@ async function doubtFigureAsText(
   continuation: NonNullable<ReturnType<typeof boardContinuationOf>>,
   options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
 ): Promise<TurnScenePersistenceResult> {
-  const segments = submitted.segments.map((segment) => {
-    if (segment.command == null) return segment;
-    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
-    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
-    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
-  });
+  const segments = withoutFigureInk(submitted.segments);
   return canonicalizeTurnSceneMetadata({
     ...submitted,
     visualStatus: "text_only",
@@ -717,6 +734,32 @@ async function doubtFigureAsText(
     sceneArtifacts: { boardContinuation: continuation },
     segments,
   }, { ...options, loadPageFigure: undefined });
+}
+
+/** Rows with the figure's ink and any pointing at it taken out, the words kept. */
+function withoutFigureInk(segments: SubmittedTurnSceneMetadata["segments"]): SubmittedTurnSceneMetadata["segments"] {
+  return segments.map((segment) => {
+    if (segment.command == null) return segment;
+    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
+    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
+}
+
+/**
+ * A new question past the figure size saves as text. The figure's ink and its
+ * pointing go, and the rest of the turn saves as it was taught.
+ */
+async function figureQuestionAsText(
+  submitted: SubmittedTurnSceneMetadata,
+  options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
+): Promise<TurnScenePersistenceResult> {
+  const segments = withoutFigureInk(submitted.segments);
+  return canonicalizeTurnSceneMetadata({
+    ...submitted,
+    visualStatus: "text_only",
+    segments,
+  }, options);
 }
 
 function minimalFailureArtifacts(

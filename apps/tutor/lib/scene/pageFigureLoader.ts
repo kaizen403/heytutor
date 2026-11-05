@@ -448,18 +448,31 @@ const PAGE_ZONE_TURN_SELECT = {
   segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const } },
 } as const;
 
-/** The same reads over rows in memory, for the gates. */
+/**
+ * The same reads over rows in memory, for the gates. Each read returns what its
+ * Prisma select returns, so a gate cannot pass on rows production never reads:
+ * the turn and the walk read only each turn's first row.
+ */
 export function memoryPageFigureStore(turns: readonly PageFigureTurn[]): PageFigureStore {
   const sorted = [...turns].sort((a, b) => a.orderIndex - b.orderIndex);
+  const firstRow = <T extends { segments: PageFigureTurn["segments"] }>(turn: T): T => ({
+    ...turn,
+    segments: [...turn.segments].sort((a, b) => a.orderIndex - b.orderIndex).slice(0, 1),
+  });
   return {
-    findTurn: async (id) => sorted.find((turn) => turn.id === id) ?? null,
+    findTurn: async (id) => {
+      const turn = sorted.find((candidate) => candidate.id === id);
+      return turn ? firstRow(turn) : null;
+    },
     turnsBetween: async (boardId, after, before) => sorted
       .filter((turn) => turn.boardId === boardId && turn.orderIndex > after && (before === null || turn.orderIndex < before))
-      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 1),
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 1)
+      .map(firstRow),
     turnsBefore: async (boardId, before) => sorted
       .filter((turn) => turn.boardId === boardId && (before === null || turn.orderIndex < before))
       .reverse()
-      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2),
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2)
+      .map(firstRow),
     pageTurns: async (boardId, from, before) => sorted
       .filter((turn) => turn.boardId === boardId && turn.orderIndex >= from && (before === null || turn.orderIndex < before))
       .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2)
@@ -523,6 +536,55 @@ export function lessonFigureStartFor(
   db: Parameters<typeof prismaPageFigureStore>[0],
 ): LessonFigureStartLoader {
   return bindLessonFigureStart(context, { store: prismaPageFigureStore(db) });
+}
+
+/**
+ * The question of the lesson that opened this page, read from the server's own
+ * row, when that lesson was saved as a validated figure with its plan;
+ * otherwise null. A resume of that lesson asks the same question on a new turn.
+ */
+export type PageLessonFigureQuestionLoader = () => Promise<string | null>;
+
+export function bindPageLessonFigureQuestion(
+  context: PageFigureContext,
+  deps: { store: PageFigureStore },
+): PageLessonFigureQuestionLoader {
+  return async () => {
+    try {
+      const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
+      if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return null;
+      const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
+      let between = 0;
+      for (const turn of earlier) {
+        if (turn.id === context.turnId) continue;
+        if (storedTurnContinuesBoard(asContinuationTurn(turn))) {
+          between += 1;
+          if (between > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
+          continue;
+        }
+        if (turn.boardId !== context.boardId || turn.userId !== context.userId) return null;
+        // The walk reads no scene document, so the lesson's own row is read once, as the route reads `before`.
+        const row = await deps.store.findTurn(turn.id);
+        if (!row) return null;
+        const plan = row.sceneArtifacts && typeof row.sceneArtifacts === "object"
+          ? (row.sceneArtifacts as Record<string, unknown>).turnPlan
+          : undefined;
+        if (row.visualStatus !== "validated" || row.sceneDocument == null || plan == null) return null;
+        return row.question;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** The production page lesson question for one save. */
+export function pageLessonFigureQuestionFor(
+  context: PageFigureContext,
+  db: Parameters<typeof prismaPageFigureStore>[0],
+): PageLessonFigureQuestionLoader {
+  return bindPageLessonFigureQuestion(context, { store: prismaPageFigureStore(db) });
 }
 
 /** The production doubt figure page check for one save. */
