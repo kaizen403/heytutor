@@ -65,6 +65,21 @@ export interface TurnPlanV3 {
    * checks the claim; nothing here is trusted geometry.
    */
   exampleSpecies?: TurnPlanExampleSpeciesV3[];
+  /**
+   * Chemistry only: the example reaction for each mechanism class (SN1, SN2,
+   * E2) a question names when it names no species. The engine reads each
+   * equation, runs the class's checked curly arrows on its reactants and
+   * draws it only when the arrows give exactly the stated products.
+   */
+  exampleReactions?: TurnPlanExampleReactionV3[];
+}
+
+export type TurnPlanExampleMechanismV3 = "SN1" | "SN2" | "E2";
+
+export interface TurnPlanExampleReactionV3 {
+  mechanism: TurnPlanExampleMechanismV3;
+  /** Condensed formulas, reactants then products: "CH3Br + OH- -> CH3OH + Br-". */
+  equation: string;
 }
 
 export interface TurnPlanExampleSpeciesV3 {
@@ -109,15 +124,100 @@ export interface TurnPlanArithmeticReconciliationResult {
  * arithmetic in a derived quantity's own sourceText. Symbolic formulas and
  * ambiguous calculations are deliberately left unchanged.
  */
+/**
+ * Sizes for plan text. Every recorded plan sits well inside them, so an ordinary
+ * plan never meets one. A plan outside them is refused before anything reads its
+ * text, and the lesson teaches on without a plan.
+ */
+export const TURN_PLAN_TEXT_LIMITS = Object.freeze({
+  /** One text value: a source text, claim, law or assumption. */
+  textChars: 1_000,
+  /** One id, symbol or unit, or one object key. */
+  nameChars: 128,
+  /** All plan text together, apart from the question. */
+  totalChars: 8_000,
+  /** Entries in one list or object. */
+  entries: 64,
+  /** Values in the whole plan, and how deep they nest. */
+  nodes: 2_000,
+  depth: 16,
+  /** A run of whitespace inside plan text. */
+  whitespaceRun: 16,
+  /** A run of digits anywhere, the question included. A finite value has at most 309. */
+  digitRun: 400,
+  /** The question, which matches what a saved turn may hold. */
+  questionChars: 12_000,
+});
+
+const OVER_LONG_WHITESPACE = new RegExp(String.raw`\s{${TURN_PLAN_TEXT_LIMITS.whitespaceRun + 1},}`);
+const OVER_LONG_DIGITS = new RegExp(String.raw`\d{${TURN_PLAN_TEXT_LIMITS.digitRun + 1}}`);
+const TURN_PLAN_NAME_FIELDS: ReadonlySet<string> = new Set(["id", "symbol", "unit"]);
+
+/**
+ * What every reader sees of a question. A real question can be long and can hold
+ * wide gaps, as a pasted table does, so neither refuses its plan. A gap wider than
+ * the limit is cut to the limit, which reads the same, and any other question comes
+ * back unchanged.
+ */
+export function questionForPlanReaders(question: string): string {
+  return question.replace(new RegExp(OVER_LONG_WHITESPACE, "g"), (run) => run.slice(0, TURN_PLAN_TEXT_LIMITS.whitespaceRun));
+}
+
+/** The first size this plan or question breaks, or null. Reads no meaning from the text. */
+export function turnPlanTextOverLimit(raw: unknown, expectedQuestion?: string): TurnPlanValidationIssue | null {
+  const limits = TURN_PLAN_TEXT_LIMITS;
+  const over = (limit: string): TurnPlanValidationIssue => ({
+    code: "plan_text_over_limit",
+    path: "$",
+    message: `plan text is over the ${limit} limit`,
+  });
+  const questions = [expectedQuestion, isRecord(raw) ? raw.question : undefined];
+  for (const question of questions) {
+    if (typeof question !== "string") continue;
+    if (question.length > limits.questionChars) return over("question length");
+    if (OVER_LONG_DIGITS.test(question)) return over("digit run");
+  }
+  if (!isRecord(raw)) return null;
+
+  let total = 0;
+  let nodes = 0;
+  const pending: Array<{ value: unknown; key: string; depth: number }> = [{ value: raw, key: "", depth: 0 }];
+  while (pending.length > 0) {
+    const { value, key, depth } = pending.pop()!;
+    if (++nodes > limits.nodes) return over("value count");
+    if (depth > limits.depth) return over("nesting");
+    if (typeof value === "string") {
+      if (value.length > (TURN_PLAN_NAME_FIELDS.has(key) ? limits.nameChars : limits.textChars)) return over("field length");
+      total += value.length;
+      if (total > limits.totalChars) return over("total length");
+      if (OVER_LONG_WHITESPACE.test(value)) return over("whitespace run");
+      if (OVER_LONG_DIGITS.test(value)) return over("digit run");
+    } else if (Array.isArray(value)) {
+      if (value.length > limits.entries) return over("entry count");
+      for (const entry of value) pending.push({ value: entry, key, depth: depth + 1 });
+    } else if (isRecord(value)) {
+      const entries = Object.entries(value);
+      if (entries.length > limits.entries) return over("entry count");
+      for (const [entryKey, entry] of entries) {
+        if (entryKey.length > limits.nameChars) return over("field length");
+        total += entryKey.length;
+        if (total > limits.totalChars) return over("total length");
+        if (depth > 0 || entryKey !== "question") pending.push({ value: entry, key: entryKey, depth: depth + 1 });
+      }
+    }
+  }
+  return null;
+}
+
 export function reconcileTurnPlanV3ExplicitArithmetic(
   raw: unknown,
 ): TurnPlanArithmeticReconciliationResult {
-  if (!isRecord(raw) || !Array.isArray(raw.derived)) {
+  if (!isRecord(raw) || !Array.isArray(raw.derived) || turnPlanTextOverLimit(raw)) {
     return { plan: raw, reconciliations: [], declined: [] };
   }
   const reconciliations: TurnPlanArithmeticReconciliation[] = [];
   const originalGivens = Array.isArray(raw.givens) ? raw.givens : [];
-  const prescriptions = collectTrigStipulations({ question: raw.question });
+  const prescriptions = collectTrigStipulations({ question: typeof raw.question === "string" ? questionForPlanReaders(raw.question) : raw.question });
   const givens = originalGivens.map((given) => {
     const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
     if (isRecord(given) && isRecord(corrected) && given.value !== corrected.value) {
@@ -214,6 +314,15 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
  * facts before they become authoritative for the scene and narration.
  */
 export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
+  const overLimit = turnPlanTextOverLimit(raw, expectedQuestion);
+  if (overLimit) return { valid: false, plan: null, issues: [overLimit] };
+  return validateBoundedTurnPlan(
+    isRecord(raw) && typeof raw.question === "string" ? { ...raw, question: questionForPlanReaders(raw.question) } : raw,
+    expectedQuestion === undefined ? undefined : questionForPlanReaders(expectedQuestion),
+  );
+}
+
+function validateBoundedTurnPlan(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
   const issues: TurnPlanValidationIssue[] = [];
   if (!isRecord(raw)) {
     return {
@@ -616,11 +725,23 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       issues.push({ code: "invalid_example_species", path: "exampleSpecies", message: "exampleSpecies must be at most one {formula, claim} with non-empty strings" });
     }
   }
+  // Example reactions: at most one per class, two in all. A malformed list is
+  // dropped, never repaired, and never rejects the plan: it only means no
+  // example figure ("compare SN1, SN2, E1 and E2" may well name three or E1).
+  let dropExampleReactions = false;
+  if (raw.exampleReactions !== undefined && raw.exampleReactions !== null) {
+    const entries = raw.exampleReactions;
+    const mechanisms = Array.isArray(entries) ? entries.map((entry) => (isRecord(entry) ? entry.mechanism : undefined)) : [];
+    const wellFormed = Array.isArray(entries) && entries.length <= 2 && new Set(mechanisms).size === mechanisms.length && entries.every((entry) =>
+      isRecord(entry) && (entry.mechanism === "SN1" || entry.mechanism === "SN2" || entry.mechanism === "E2")
+        && typeof entry.equation === "string" && entry.equation.trim() !== "" && entry.equation.length <= 80);
+    if (!wellFormed) dropExampleReactions = true;
+  }
 
   return {
     valid: issues.length === 0,
     plan: issues.length === 0
-      ? { ...raw, question: expectedQuestion ?? raw.question } as unknown as TurnPlanV3
+      ? { ...raw, question: expectedQuestion ?? raw.question, ...(dropExampleReactions ? { exampleReactions: undefined } : {}) } as unknown as TurnPlanV3
       : null,
     issues,
   };
@@ -4250,6 +4371,10 @@ function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: n
   for (const match of text.matchAll(pattern)) {
     const value = Number(match[1]?.replace(/−/g, "-"));
     const unit = match[2]?.trim();
+    // A group count in a formula ("(CH_3)_3C", "(CH_3)_3COH") is board script, not a measured value: a digit run
+    // written "_" straight after a closing bracket. "x_2 m", "T_300K" and "λ_500 nm" are still read.
+    const digitsAt = match.index! + match[0].indexOf(match[1]!);
+    if (text.slice(digitsAt - 2, digitsAt) === ")_") continue;
     if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
       text, { index: match.index!, length: match[0].length, unit }, plan,
     )) {
@@ -5120,6 +5245,9 @@ export const FIGURE_SOURCES = [
   "fast_family",
   "family",
   "archetype",
+  // The engine's own lens or mirror figure, admitted by the strict policy
+  // after it dropped a planner figure for a stem that figure owns.
+  "optics_archetype",
   "chemistry_family",
   "matrix_source",
   "linear_source",

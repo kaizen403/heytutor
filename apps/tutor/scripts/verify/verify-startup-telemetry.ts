@@ -284,7 +284,7 @@ function verifyHandlerTimingWiring() {
   const source = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
   for (const [operation, helper, stage] of [
     ["validateProductionSceneCandidate", "measureSceneCandidateValidation", undefined],
-    ["selectFastVerifiedRepresentation", "measureSceneSelection", "fast"],
+    ["selectFastFigure", "measureSceneSelection", "fast"],
     ["selectProductionScene", "measureSceneSelection", "final"],
   ] as const) {
     const { operationCall, wrapper, file } = timedHandlerCall(source, operation, helper, stage);
@@ -324,7 +324,7 @@ function verifyFastSelectionPhaseWiring() {
   }
   const handler = readFileSync(path.resolve(import.meta.dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
   const checkHandler = (source: string) => {
-    const { wrapper, file } = timedHandlerCall(source, "selectFastVerifiedRepresentation", "measureSceneSelection", "fast");
+    const { wrapper, file } = timedHandlerCall(source, "selectFastFigure", "measureSceneSelection", "fast");
     let callback: ts.Node | undefined = wrapper.parent;
     while (callback && !ts.isArrowFunction(callback)) callback = callback.parent;
     assert(callback && ts.isArrowFunction(callback));
@@ -339,7 +339,7 @@ function verifyFastSelectionPhaseWiring() {
   const loaded = { exports: undefined as unknown };
   const phases: unknown[] = [];
   const chosen = { figure: "synthetic-boundary-result" };
-  const make = new Function("module", "measureSceneSelection", "tel", "selectFastVerifiedRepresentation", "question", emitted);
+  const make = new Function("module", "measureSceneSelection", "tel", "selectFastFigure", "question", emitted);
   make(loaded, measureSceneSelection, { durationMs: () => 0, mark: (_name: string, metadata: Record<string, unknown>) => phases.push(metadata.phase) },
     () => chosen, "synthetic public question");
   const callback = loaded.exports as (plan: unknown, authority: unknown, gate: unknown, phase: "prediction" | "selection") => unknown;

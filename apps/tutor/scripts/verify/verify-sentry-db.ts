@@ -11,6 +11,8 @@ import { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nextjs";
 import ts from "typescript";
 import type { FailedTurnSentryEvent } from "../../lib/obs/failedTurnTelemetry";
+import { failedTurnWhere } from "../../lib/admin/turnFilters";
+import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
 
 const app = resolve(import.meta.dirname, "../..");
 const receiptsDirectory = resolve(app, "../../.context/monitor");
@@ -238,6 +240,60 @@ async function main(): Promise<void> {
     assert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(Date.now() + 86_400_000) })).reported, 0);
     assert.equal(received.length, 4, "a repeated actual database drain cannot report any turn twice");
     receipts.push("real outbox lease/acknowledgement SQL and dedicated NodeClient deliver four clean events exactly once; subsequent drain stays empty");
+
+    // A row with no picture has no JSON path to read. The real database must keep
+    // it in the failed feed: only a stored picture takes a figure refusal out.
+    const pictureRows: Array<[string, boolean, string, Prisma.InputJsonValue | typeof Prisma.DbNull]> = [
+      ["text only, refused, no picture", true, "text_only", { degradation: { reason: "candidate_invalid" } }],
+      ["retry required, no artifacts", true, "retry_required", Prisma.DbNull],
+      ["retry required, a browser claim only", true, "retry_required", { referencePictureOutcome: { status: "shown" } }],
+      ["text only, refused, picture stored", false, "text_only", { degradation: { reason: "candidate_invalid" }, referencePicture: { id: "rp_fixture" } }],
+      ["retry required, picture stored", false, "retry_required", { referencePicture: { id: "rp_fixture" } }],
+      ["picture stored, billing stop", true, "text_only", { failureTelemetry: { code: "budget_limit" }, referencePicture: { id: "rp_fixture" } }],
+      ["picture stored, teaching failed", true, "text_only", { failureTelemetry: { failed: true, code: "lesson_not_taught" }, referencePicture: { id: "rp_fixture" } }],
+    ];
+    for (const [name, failed, visualStatus, sceneArtifacts] of pictureRows) {
+      const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex++, question: "Synthetic picture lesson",
+        rawResponse: "Synthetic", status: "live", visualStatus, sceneArtifacts,
+        segments: { create: { orderIndex: 0, narration: "Synthetic", spokenText: "Synthetic" } } } });
+      const found = await db.turn.count({ where: { AND: [{ id: row.id }, failedTurnWhere()] } });
+      assert.equal(found, failed ? 1 : 0, `failed feed, ${name}`);
+      assert.equal(classifyTurnFailure({ visualStatus, status: "complete", sceneArtifacts: sceneArtifacts === Prisma.DbNull ? null : sceneArtifacts, segmentCount: 1 }).classification === "failed", failed, `classifier agrees, ${name}`);
+      await db.turn.delete({ where: { id: row.id } });
+    }
+    receipts.push("real Postgres keeps rows with no picture in the failed feed and drops only a stored picture over a figure refusal");
+
+    // An idle picture lesson queues nothing: a turn sends one event, so a report
+    // here would drop a real failure when the tab returns. The same lesson once it
+    // has failed, and the lesson with no picture, still get their failure report.
+    const abandonedAt = new Date();
+    const teachingFailure = { subject: "physics", failed: true, stage: "teaching", code: "transport_error" };
+    const abandoned = await Promise.all([
+      { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" } },
+      { degradation: { reason: "candidate_invalid" } },
+      { referencePicture: { id: "rp_fixture" }, failureTelemetry: teachingFailure },
+    ].map(async (sceneArtifacts, index) => {
+      const row = await db.turn.create({ data: { boardId: board.id, userId: user.id, orderIndex: orderIndex + index, question: "Synthetic abandoned lesson",
+        rawResponse: "Synthetic", status: "live", visualStatus: "text_only", sceneArtifacts,
+        segments: { create: { orderIndex: 0, narration: "Synthetic", spokenText: "Synthetic" } } } });
+      await db.$executeRaw`UPDATE turns SET updated_at = ${new Date(abandonedAt.getTime() - 5 * 60_000)} WHERE id = ${row.id}::uuid`;
+      return row.id;
+    }));
+    orderIndex += abandoned.length;
+    await reporter.queueAbandonedFailedTurns(abandonedAt, { env: fixtureEnvironment, startedAt: new Date(abandonedAt.getTime() - 60 * 60_000) });
+    const [abandonedPicture, abandonedFailure, abandonedPictureFailed] = await Promise.all(abandoned.map(id => db.turn.findUniqueOrThrow({ where: { id } })));
+    assert.equal(abandonedPicture!.sentryEventId, null, "an idle picture lesson keeps its one event free");
+    assert.equal((abandonedFailure!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "an abandoned lesson with no picture is still a failure");
+    assert.equal((abandonedPictureFailed!.sentryFailureEvent as unknown as FailedTurnSentryEvent | null)?.message, "Tutor turn failed", "a stale picture lesson that failed is still a failure");
+    // The tab returns and teaching fails: the failure takes the event the idle lesson left free.
+    await db.turn.update({ where: { id: abandonedPicture!.id }, data: { status: "stopped", sceneArtifacts: { referencePicture: { id: "rp_fixture" }, degradation: { reason: "candidate_invalid" }, failureTelemetry: teachingFailure } } });
+    const returnedTurn = await db.turn.findUniqueOrThrow({ where: { id: abandonedPicture!.id }, include: { segments: true } });
+    assert(await db.$transaction(tx => queue(tx, returnedTurn, { env: fixtureEnvironment })), "a failure after the tab returns reserves the turn's event");
+    const returnedEvent = (await db.turn.findUniqueOrThrow({ where: { id: abandonedPicture!.id } })).sentryFailureEvent as unknown as FailedTurnSentryEvent | null;
+    assert.equal(returnedEvent?.message, "Tutor turn failed", "a failure after an idle picture lesson reaches Sentry as a failure");
+    assert.equal(returnedEvent?.tags.area, "turn-failure", "the failure counts for the failure alerts");
+    await db.turn.deleteMany({ where: { id: { in: abandoned } } });
+    receipts.push("an idle picture lesson queues nothing on real Postgres, and a later failure still reports as a failure");
 
     // Legacy save paths could persist a completed, verified diagram without any
     // teaching rows. Its diagram status must not make the outbox strand it.

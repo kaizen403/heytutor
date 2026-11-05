@@ -13,7 +13,9 @@ import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
+import { pageFigureLoaderFor } from "@/lib/scene/pageFigureLoader";
 import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
+import { lessonMsOf } from "@/lib/boards/turnStatus";
 import {
   audioPrefixMatchesType,
   validateTurnUploadHeaders,
@@ -163,7 +165,11 @@ export async function POST(request: Request, context: RouteContext) {
     return rejectSave("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400, { boardId, traceId: metadata.traceId });
   }
 
-  const canonicalScene = await canonicalizeTurnSceneMetadata(metadata);
+  // A doubt naming its page's figure: checked against that turn's own row.
+  // This turn has no row yet, so the figure must come before the next index.
+  const canonicalScene = await canonicalizeTurnSceneMetadata(metadata, {
+    loadPageFigure: pageFigureLoaderFor({ boardId, userId, turnId: null }, prisma),
+  });
   if (!canonicalScene.ok) {
     return rejectSave(canonicalScene.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonicalScene.error}`, 400, { boardId, traceId: metadata.traceId });
   }
@@ -306,6 +312,11 @@ export async function POST(request: Request, context: RouteContext) {
             userId,
             idempotencyKey,
             orderIndex,
+            lessonMs: lessonMsOf(segmentMeta.map((segment) => ({
+              orderIndex: segment.orderIndex,
+              audioRef: segment.sourceOrderIndex ?? segment.orderIndex,
+              durationMs: segment.durationMs,
+            }))),
             question: metadata.question,
             storageBytes: BigInt(retainedBytes),
             metadataBytes: BigInt(retainedMetadataBytes),

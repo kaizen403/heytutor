@@ -75,7 +75,7 @@ const recordedPlan: TurnPlanV3 = {
   qualitativeClaims: [...symbolicPlan.qualitativeClaims,
     { id: "maximum_angle", claim: "A launch angle of 45 degrees maximizes the level-ground range", expected: "The maximum range occurs at 45 degrees", relatedQuantityIds: ["maximum_angle"] }],
 };
-const numericQuestion = "A projectile is launched at 20 m/s and an angle of 30 degrees on level ground. Find its range.";
+const numericQuestion = "A projectile is launched with u = 20 m/s and theta = 30 deg on level ground. Find its range.";
 const numericPlan: TurnPlanV3 = {
   ...symbolicPlan,
   question: numericQuestion,
@@ -600,7 +600,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         },
       });
     }
-    const observeControl: Pick<TurnControlApi, "finishLectureUi" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText" | "offerPausedLessonResume" | "clearPausedLesson"> = {
+    const observeControl: Pick<TurnControlApi, "finishLectureUi" | "enqueueSegment" | "enqueueVerifiedIntro" | "processResponseText" | "offerPausedLessonResume" | "clearPausedLesson" | "hasPausedLesson"> = {
       ...control,
       enqueueSegment(segment, generation) { record("enqueue", segment); control.enqueueSegment(segment, generation); },
       enqueueVerifiedIntro(segments, generation) { record("enqueue-intro", segments); control.enqueueVerifiedIntro(segments, generation); },

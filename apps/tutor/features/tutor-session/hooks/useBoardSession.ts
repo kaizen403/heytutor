@@ -19,6 +19,7 @@ import { boardPath, draftBoardPath, isUntouchedHomeBoard } from "@/features/tuto
 import {
   sortBoards,
   withArchived,
+  withVisibility,
   withPinned,
   type BoardEntry,
 } from "@/lib/boards/types";
@@ -38,13 +39,18 @@ import {
   storedTurnContinuesBoard,
   storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "../lib/replay/pageFigureSync";
 import { resetReplayPageAtTurn } from "../lib/replay/replayPageBoundary";
 import { parseStoredCodeLesson, storedCodeLessonPlan, storedCodeLessonSegmentCommands } from "@/lib/code-lesson/persistedCodeLesson";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
+import type { LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "../lib/scene/restoreLessonFigures";
 import { restoreVerifiedDiagramFromTurn } from "../lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "../lib/scene/restoreReferencePicture";
+import { preloadReferencePicturesForTurns } from "../lib/scene/referencePicturePreload";
 import { completeStoredTurnDiagram } from "../lib/replay/completeReplayDiagram";
-import type { TutorPhase } from "../types";
+import type { BoardLayoutState, TutorPhase } from "../types";
 import { waitForWhiteboard } from "../lib/board/whiteboardReady";
 import { overlayLiveTurnEvent, liveTurnSave, type LiveTurnMirrorEvent, type LiveTurnSnapshot } from "../lib/turn/liveTurnSave";
 import { IDLE_SAVE, type SaveStatus } from "../lib/turn/saveStatus";
@@ -104,9 +110,19 @@ export interface UseBoardSessionParams {
   skipInkRestoreRef?: RefObject<boolean>;
   /** Restored DSA turns re-commit their persisted CodeLessonPlan here. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /** The executor's lesson figure sequence: restored `[FOCUS:figure_k]` cues advance it. */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   activeVerifiedDiagramRef?: RefObject<VerifiedDiagram | null>;
   setActiveVerifiedDiagram?: (diagram: VerifiedDiagram | null) => void;
   fbdPhaseStartedRef?: RefObject<boolean>;
+  /** The board's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  boardLayoutRef?: RefObject<BoardLayoutState>;
+  /**
+   * Someone else's board, read only (Community). When set, the board is read
+   * through this instead of the owner's API, and nothing on it is created,
+   * drained, or reopened from this tab's save queue.
+   */
+  readBoard?: (boardId: string) => Promise<{ turns: StoredTurn[] } | null>;
 }
 
 export function useBoardSession({
@@ -136,10 +152,17 @@ export function useBoardSession({
   executeCommand,
   skipInkRestoreRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   activeVerifiedDiagramRef,
   setActiveVerifiedDiagram,
   fbdPhaseStartedRef,
+  boardLayoutRef,
+  readBoard,
 }: UseBoardSessionParams) {
+  const readBoardRef = useRef(readBoard);
+  useLayoutEffect(() => {
+    readBoardRef.current = readBoard;
+  }, [readBoard]);
   const [boards, setBoards] = useState<BoardEntry[]>([]);
   const [boardLoaded, setBoardLoaded] = useState(false);
   const storedTurnsRef = useRef<StoredTurn[]>([]);
@@ -189,6 +212,7 @@ export function useBoardSession({
   useEffect(() => {
     if (boardsFetchedRef.current) return;
     boardsFetchedRef.current = true;
+    if (readBoardRef.current) return;
     void fetchBoards().then((list) => {
       setBoards((prev) => {
         const existingIds = new Set(prev.map((b) => b.id));
@@ -312,7 +336,7 @@ export function useBoardSession({
     (
       id: string,
       optimistic: (board: BoardEntry) => BoardEntry,
-      patch: { title?: string; pinned?: boolean; archived?: boolean },
+      patch: { title?: string; pinned?: boolean; archived?: boolean; visibility?: "public" | "private" },
     ) => {
       void (async () => {
         const previous = boards;
@@ -348,6 +372,25 @@ export function useBoardSession({
       applyBoardPatch(id, (b) => withArchived(b, archived), { archived });
     },
     [boards, applyBoardPatch],
+  );
+
+  // Boards with a visibility save in flight: a second toggle waits, so two
+  // saves can never land out of order and leave the server public.
+  const savingVisibilityRef = useRef(new Set<string>());
+  const toggleVisibilityBoard = useCallback(
+    (id: string) => {
+      const board = boards.find((b) => b.id === id);
+      if (!board || savingVisibilityRef.current.has(id)) return;
+      const visibility = board.visibility === "public" ? "private" : "public";
+      const previous = board.visibility === "public" ? "public" : "private";
+      savingVisibilityRef.current.add(id);
+      setBoards((current) => current.map((b) => (b.id === id ? withVisibility(b, visibility) : b)));
+      void updateBoard(id, { visibility }).then((updated) => {
+        savingVisibilityRef.current.delete(id);
+        setBoards((current) => current.map((b) => (b.id === id ? (updated ? { ...b, ...updated } : withVisibility(b, previous)) : b)));
+      });
+    },
+    [boards],
   );
 
   const renameBoard = useCallback(
@@ -560,10 +603,18 @@ export function useBoardSession({
         // it starts empty, and only a question puts it in the database.
         // A lesson stopped here a moment ago may still be on its way to the
         // server: read the board after it lands (or after a short wait).
-        if (!draft && !read) await liveTurnSave().drained(boardId, RESTORE_SAVE_DRAIN_MS);
+        const foreign = readBoardRef.current;
+        if (!draft && !read && !foreign) await liveTurnSave().drained(boardId, RESTORE_SAVE_DRAIN_MS);
         if (isStale()) return;
-        let detail = read ? { turns: [...read.turns] } : draft ? null : await fetchBoardDetail(boardId);
+        let detail = read
+          ? { turns: [...read.turns] }
+          : draft ? null : foreign ? await foreign(boardId) : await fetchBoardDetail(boardId);
         if (isStale()) return;
+
+        if (foreign && !detail) {
+          // Not ours to create. An unknown or private board shows as empty.
+          detail = { turns: [] };
+        }
 
         if (!detail && !draft) {
           await createBoard(boardId);
@@ -581,7 +632,7 @@ export function useBoardSession({
         // their save failed or has not landed yet: the board, replay, notes
         // and Continue keep what the student saw, and the save goes on.
         storedTurnsRef.current = detail?.turns ?? [];
-        if (!draft) {
+        if (!draft && !foreign) {
           for (const local of liveTurnSave().reopen(boardId)) mirrorLiveTurnRef.current(local);
         }
         const turns = storedTurnsRef.current;
@@ -626,6 +677,7 @@ export function useBoardSession({
         if (isStale()) return;
         resetBoardLayout(false, false);
         codeLessonControllerRef?.current?.reset();
+        lessonFiguresRef?.current?.reset();
 
         // The overlay is "loading the board", and it only leaves when this
         // flag flips. Ink after this is the finished page, drawn with no
@@ -646,25 +698,27 @@ export function useBoardSession({
         let restoredCodeComplete = false;
         let turnDiagram: VerifiedDiagram | null = null;
         const inkStale = () => isStale() || ink.cancelled;
+        // Notes pages split at a doubt's fresh page and its return, as live.
+        const restoreNotes = { capture: captureNotesEpoch, narration: narrationSinceEpochRef };
+        // Fetch every reference picture at once rather than one per turn as
+        // the stamp loop reaches it; the executor still waits for its own.
+        await preloadReferencePicturesForTurns(turns);
+        if (inkStale()) return;
         for (const [turnIndex, turn] of turns.entries()) {
           if (inkStale()) return;
           const continuesPage = storedTurnContinuesBoard(turn);
           if (restoredInk && !continuesPage) {
+            // doubt-page-restore-reset:begin
             if (!await resetReplayPageAtTurn({
               turn, previousTurnIndex: turnIndex - 1, turnIndex,
               whiteboard: whiteboardRef.current, resetBoardLayout,
-              shouldCancel: inkStale, capturePreviousPage: captureNotesEpoch,
+              shouldCancel: inkStale, capturePreviousPage: captureNotesEpoch, notes: restoreNotes,
             })) return;
+            // doubt-page-restore-reset:end
             restoredInk = false;
           }
           liveQuestionRef.current = storedTurnPageQuestion(turn);
           const turnNarration = lessonNarrationText(turn.rawResponse);
-          narrationSinceEpochRef.current = continuesPage
-            ? [narrationSinceEpochRef.current, turnNarration]
-                .map((part) => part.trim())
-                .filter(Boolean)
-                .join(" ")
-            : turnNarration;
 
           // A DSA turn's TYPE commands reveal blocks of this plan; committing
           // it first also brings the code panel back for the restored board.
@@ -681,9 +735,14 @@ export function useBoardSession({
             // The restored board replays this turn's FRAME cues, so it needs the
             // same walk-through the live turn compiled.
             if (controller) restoreDsaFrames(controller, turn, codeLesson);
+            // lesson-figures-restore:begin
+            // Its later figures too, or a stored `[FOCUS:figure_k]` draws nothing.
+            restoreLessonFigures(lessonFiguresRef?.current, turn);
+            // lesson-figures-restore:end
             const diagram =
               controller?.frames.current()?.presentation.diagram
-              ?? restoreVerifiedDiagramFromTurn(turn);
+              ?? restoreVerifiedDiagramFromTurn(turn)
+              ?? restoreReferencePictureFromTurn(turn);
             turnDiagram = diagram;
             if (activeVerifiedDiagramRef) {
               activeVerifiedDiagramRef.current = diagram;
@@ -692,8 +751,46 @@ export function useBoardSession({
             if (fbdPhaseStartedRef) {
               fbdPhaseStartedRef.current = Boolean(diagram);
             }
+          } else {
+            // A doubt's own figure swaps in; the resume returns the lesson's,
+            // with the marks earlier turns released (pageFigureAt).
+            const figure = await syncStoredPageFigure({
+              turns,
+              turnIndex,
+              whiteboard: whiteboardRef.current,
+              layout: boardLayoutRef?.current ?? null,
+              executeCommand: executeCommandRef.current,
+              shouldCancel: inkStale,
+              lessonFigures: lessonFiguresRef?.current,
+              // doubt-page-restore-sync:begin
+              notes: restoreNotes,
+              // doubt-page-restore-sync:end
+            });
+            if (figure.changed) {
+              if (figure.cancelled) return;
+              turnDiagram = figure.diagram;
+              if (activeVerifiedDiagramRef) {
+                activeVerifiedDiagramRef.current = figure.diagram;
+              }
+              setActiveVerifiedDiagram?.(figure.diagram);
+              if (fbdPhaseStartedRef) {
+                fbdPhaseStartedRef.current = Boolean(figure.diagram);
+              }
+            }
           }
 
+          // doubt-page-restore-narration:begin
+          // After the page step, as live: a held lesson page keeps its own
+          // narration and the doubt page's starts empty (review round 3 M2).
+          narrationSinceEpochRef.current = continuesPage
+            ? [narrationSinceEpochRef.current, turnNarration]
+                .map((part) => part.trim())
+                .filter(Boolean)
+                .join(" ")
+            : turnNarration;
+          // doubt-page-restore-narration:end
+
+          const figureBefore = lessonFiguresRef?.current?.currentId() ?? "figure_1";
           for (const segment of turn.segments) {
             if (inkStale()) return;
 
@@ -722,6 +819,10 @@ export function useBoardSession({
           // Intro + FOCUS reproduce the reveal up to the final teaching beat.
           // Completed live turns then flush every unnamed engine mark; that
           // flush is not a stored teaching segment, so reopen must do it too.
+          // A stored advance moved the zone to a later figure: it is the one finished.
+          if ((lessonFiguresRef?.current?.currentId() ?? "figure_1") !== figureBefore) {
+            turnDiagram = activeVerifiedDiagramRef?.current ?? turnDiagram;
+          }
           await completeStoredTurnDiagram({
             turn,
             diagram: turnDiagram,
@@ -785,9 +886,11 @@ export function useBoardSession({
       setInputInteracted,
       skipInkRestoreRef,
       codeLessonControllerRef,
+      lessonFiguresRef,
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
       fbdPhaseStartedRef,
+      boardLayoutRef,
     ],
   );
 
@@ -873,6 +976,7 @@ export function useBoardSession({
     deleteBoard,
     togglePinBoard,
     toggleArchiveBoard,
+    toggleVisibilityBoard,
     renameBoard,
     commitDraftBoard,
     ensureTTSClient,

@@ -112,11 +112,13 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   // This fixture supplies a configured, durable object-storage adapter.
   "@/lib/object-store/lectureAudioPersistence": { allowsMetadataOnlyLectureAudio: () => false },
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
+  "@/lib/boards/turnStatus": turnStatus,
   "@/lib/object-store/s3": { uploadAudio: async (key: string, bytes: Uint8Array) => {
     uploads++;
     uploadedAudio.push(Array.from(bytes));
     return mediaUrl.mediaProxyUrl(key);
   }, deletePrefix: async () => undefined },
+  "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
   "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: Row) => ({
     ok: true,

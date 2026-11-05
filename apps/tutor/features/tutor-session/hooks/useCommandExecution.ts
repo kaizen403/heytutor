@@ -1,6 +1,7 @@
 import { useCallback, useRef, type RefObject } from "react";
 import {
   LETTERED_IN_HAND_MS_PER_CHAR,
+  PICTURE_CARD_PADDING_PX,
   type WhiteboardHandle,
   type WriteSchedule,
   type AnnotationKind,
@@ -33,6 +34,7 @@ import {
   measureTextWidth,
   prefetchStrokePaths,
   isBlockedVerifiedDiagramCommand,
+  parsePictureCommandParams,
   resolveVerifiedDiagramFocusTargets,
   focusEmphasisOf,
   parseFocusSpec,
@@ -43,6 +45,8 @@ import {
   BOARD_TYPE_SCALE,
   snapToBoardTypeScale,
   WORK_CONTINUATION_INDENT,
+  isReferencePicturePartFocusId,
+  anchorToTextRect,
 } from "@heytutor/drawing";
 import {
   getDrawingDuration,
@@ -70,6 +74,13 @@ import { fitRecordedWorkRow } from "../lib/board/workTextPresentation";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
 import {
+  focusVeilZone,
+  pictureFocusHole,
+  pictureFocusUnionHole,
+  pictureTextPulsePath,
+  pictureTextRingPath,
+} from "../lib/board/pictureFocus";
+import {
   runScheduledFocus,
   focusHopMs,
   FOCUS_HOP_MAX_MS,
@@ -82,6 +93,10 @@ import { pointThroughExplanation, resolveCompletedExplanationTargets } from "../
 import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
+import { awaitReferencePicture } from "../lib/board/referencePictureAssets";
+import { clearFigureZone } from "../lib/scene/figureSwap";
+import { lessonFigureIntroCommands, type LessonFigureSequence } from "../lib/scene/lessonFigureSequence";
+import { compactPulseBox, erasePinnedInkOf, pinnedInkCountOf, pinnedMarksFor, PINNED_MARK_DRAW_MS } from "../lib/board/pinnedMarks";
 
 export interface UseCommandExecutionParams {
   whiteboardRef: RefObject<WhiteboardHandle | null>;
@@ -111,6 +126,11 @@ export interface UseCommandExecutionParams {
   adaptiveFactorRef: RefObject<number>;
   /** Set for DSA turns; TYPE commands reveal blocks through it. */
   codeLessonControllerRef?: RefObject<CodeLessonController | null>;
+  /**
+   * A lesson's later figures (DIAGRAM_LESSON_FIGURES). A `[FOCUS:figure_k]`
+   * the sequence holds swaps figure k into the zone, forward only.
+   */
+  lessonFiguresRef?: RefObject<LessonFigureSequence | null>;
   /**
    * Publishes the diagram currently on the board to React. The label
    * inspector and retrace targets read this state, so a worked-example frame
@@ -153,6 +173,39 @@ function pointWorkRowTargets(
   return targets;
 }
 
+/**
+ * A figure redrawn under one sentence (a worked-example FRAME, a lesson's
+ * `[FOCUS:figure_k]` advance) has to land with that sentence. The spoken
+ * window, less the wipe, is split across the figure's commands: each one can
+ * only be made quicker than its natural scene pace, never slower, so a long
+ * sentence still draws at a readable speed while a short one stops the board
+ * running three seconds past the voice.
+ *
+ * A figure label is part of the sketch, so it is lettered with the
+ * instrument already in hand. Handing it a generous share of the sentence
+ * pushes it over the prose threshold and buys an instrument swap on every
+ * label: fourteen labels spent six seconds swapping pens while the sentence
+ * that introduced the frame ran out. Same rule as the scene-text branch of
+ * `resolveCommandInkBudgetMs`, applied here because a redraw budgets its own
+ * commands.
+ */
+export function figureRedrawBudget(
+  commandCount: number,
+  speechDurationMs: number | undefined,
+  wipeMs: number,
+): (command: { text?: string }) => number | undefined {
+  const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
+  const evenShareMs = drawWindowMs > 0
+    ? Math.max(Math.floor(drawWindowMs / Math.max(commandCount, 1)), SCENE_MIN_MS)
+    : undefined;
+  return (command) => {
+    if (evenShareMs === undefined) return undefined;
+    const text = command.text?.replace(/\s+/g, "") ?? "";
+    if (text.length === 0) return evenShareMs;
+    return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
+  };
+}
+
 export async function eraseWhiteboardRegionIfCurrent(
   whiteboard: Pick<WhiteboardHandle, "eraseRegion">,
   region: { x: number; y: number; width: number; height: number; duration: number },
@@ -187,12 +240,15 @@ export function useCommandExecution({
   inkPaceRef,
   adaptiveFactorRef,
   codeLessonControllerRef,
+  lessonFiguresRef,
   setActiveVerifiedDiagram,
   nowMs = wallNowMs,
 }: UseCommandExecutionParams) {
   // How many marker walks this board has run. It rotates the route so two
   // steps about the same frame do not repeat the same two moves.
   const pointBeatsRef = useRef(0);
+  // Verified parts holding a kept FOCUS ring on this page (pinnedMarks.ts).
+  const pinnedTargetsRef = useRef<Set<string>>(new Set());
   const resolveAnnotationTarget = useCallback(
     (
       command: DrawCommand,
@@ -383,8 +439,104 @@ export function useCommandExecution({
         inkSettings,
         shouldCancel: commandCancelled,
       });
+      // `[FOCUS:id|keep]`: after the trace or spotlight, a ring stays on each
+      // named verified part while the page is up. Geometry comes only from
+      // the verified anchor (pinnedMarks.ts). A seek draws it at duration 0.
+      const drawKeptFocusRings = async (
+        focusCommand: DrawCommand,
+        targets: readonly VerifiedDiagramAnchor[],
+        diagram: VerifiedDiagram,
+        codeLessonActive: boolean,
+      ): Promise<boolean> => {
+        const pinsOnPage = pinnedInkCountOf(wb);
+        // Every ring went with the page (a page turn, CLEAR or FRAME erase).
+        if (pinsOnPage === 0) pinnedTargetsRef.current.clear();
+        const plan = pinnedMarksFor({
+          command: focusCommand,
+          targets,
+          diagram,
+          targetCommands: focusTraceCommands(diagram, new Set(targets.map((target) => target.id))),
+          codeLessonActive,
+          pinsOnPage,
+          alreadyPinned: pinnedTargetsRef.current,
+        });
+        const ringMs = isSeekCatchUp ? 0 : PINNED_MARK_DRAW_MS;
+        for (const mark of plan.pins) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, ringMs, { strokeWidth: 1.1, pinned: true });
+          if (!commandCancelled()) pinnedTargetsRef.current.add(mark.targetId);
+        }
+        if (isSeekCatchUp) return commandCancelled();
+        for (const mark of plan.overflow) {
+          if (commandCancelled()) return true;
+          await drawAnnotation("circle_around", mark.path, 260, { strokeWidth: 1.1, transient: true });
+        }
+        if (plan.pins.length > 0 || plan.overflow.length > 0) {
+          turnTelemetryRef.current?.mark("verified-focus-kept", {
+            target_id: plan.pins.map((mark) => mark.targetId).join(","),
+            pinned_count: plan.pins.length,
+            overflow_count: plan.overflow.length,
+          });
+        }
+        return commandCancelled();
+      };
 
       let command = rawCommand;
+      // lesson-figure-advance:begin
+      // `[FOCUS:figure_k]` names a later verified figure of this lesson, not a
+      // part of the one on screen, so it is handled before the part check.
+      // The teaching stream supplies only the id: the ink is figure k's own
+      // compiled intro, drawn as a worked-example FRAME is.
+      const lessonFigures = lessonFiguresRef?.current ?? null;
+      const advanceId = lessonFigures?.advanceIdOf(command) ?? null;
+      if (lessonFigures && advanceId) {
+        const refusal = lessonFigures.refusalOf(advanceId);
+        const view = refusal === null ? lessonFigures.advanceTo(advanceId) : null;
+        if (!view) {
+          // Review N6: the zone keeps its figure and the row is saved without
+          // this cue (savedCommandFilter), so replay stays where live stayed.
+          const refused = { figure_id: advanceId, reason: refusal ?? "not_held" };
+          turnTelemetryRef.current?.mark("lesson-figure-advance-refused", refused);
+          tutorDebug("draw", "lesson figure advance refused", refused);
+          return;
+        }
+        // Review F2: from here the lesson is on figure k. The erase is ink the
+        // student sees, so the cue's row is saved with the cue; a Stop part
+        // way leaves figure k pending, finished whole by the next turn.
+        options.onInkStarted?.();
+        const advanceScale = options.durationScale ?? 1;
+        erasePinnedInkOf(wb);
+        const cleared = await clearFigureZone(wb, options.introLayoutCheckpoint?.layout ?? boardLayoutRef.current, commandCancelled);
+        if (!cleared) return;
+        activeVerifiedDiagramRef.current = view.diagram;
+        setActiveVerifiedDiagram?.(view.diagram);
+        for (const anchor of view.diagram.anchors) registerAnchor(anchorToTextRect(anchor));
+        lessonFigures.advanced(view);
+        const intro = lessonFigureIntroCommands(view);
+        // A restore or a seek stamps; live, the figure lands with its sentence.
+        const stamp = advanceScale <= 0.05;
+        const budgetMs = figureRedrawBudget(intro.length, stamp ? undefined : options.speechDurationMs, 0);
+        for (const next of intro) {
+          if (commandCancelled()) return;
+          const share = budgetMs(next);
+          await executeCommand(inheritCommandInk(command, next), {
+            trustedDiagramGeometry: true,
+            applyLayout: false,
+            isCancelled: commandCancelled,
+            inkPace: "scene",
+            ...(stamp ? { durationScale: advanceScale } : share === undefined ? {} : { speechDurationMs: share }),
+          });
+        }
+        if (commandCancelled()) return;
+        lessonFigures.introDone(view);
+        turnTelemetryRef.current?.mark("lesson-figure-advance", {
+          figure_id: view.id,
+          family: view.family,
+          command_count: intro.length,
+        });
+        return;
+      }
+      // lesson-figure-advance:end
       const activeDiagram = activeVerifiedDiagramRef.current;
       const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
       if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
@@ -971,6 +1123,7 @@ export function useCommandExecution({
           if (durationScale <= 0.05) {
             const frame = frames.advance();
             if (frame) {
+              erasePinnedInkOf(wb);
               await eraseWhiteboardRegionIfCurrent(
                 wb,
                 { ...DSA_DIAGRAM_ZONE, duration: 0 },
@@ -994,30 +1147,14 @@ export function useCommandExecution({
 
           const next = frames.advance();
           if (!next) break;
+          erasePinnedInkOf(wb);
           // The redraw has to land with the sentence that introduces it. Split
           // the spoken window across the figure's commands: each one can only
           // be made quicker than its natural scene pace, never slower, so a
           // long sentence still draws at a readable speed while a short one
           // stops the board running three seconds past the voice.
           const wipeMs = 420;
-          const frameCommandCount = Math.max(next.presentation.diagram.commands.length, 1);
-          const drawWindowMs = Math.max((speechDurationMs ?? 0) - wipeMs, 0);
-          const evenShareMs = drawWindowMs > 0
-            ? Math.max(Math.floor(drawWindowMs / frameCommandCount), SCENE_MIN_MS)
-            : undefined;
-          // A figure label is part of the sketch, so it is lettered with the
-          // instrument already in hand. Handing it a generous share of the
-          // sentence pushes it over the prose threshold and buys an instrument
-          // swap on every label: fourteen labels spent six seconds swapping
-          // pens while the sentence that introduced the frame ran out. Same
-          // rule as the scene-text branch of `resolveCommandInkBudgetMs`,
-          // applied here because a frame redraw budgets its own commands.
-          const frameCommandBudgetMs = (command: { text?: string }): number | undefined => {
-            if (evenShareMs === undefined) return undefined;
-            const text = command.text?.replace(/\s+/g, "") ?? "";
-            if (text.length === 0) return evenShareMs;
-            return Math.min(evenShareMs, text.length * LETTERED_IN_HAND_MS_PER_CHAR);
-          };
+          const frameCommandBudgetMs = figureRedrawBudget(next.presentation.diagram.commands.length, speechDurationMs, wipeMs);
           const wiped = await eraseWhiteboardRegionIfCurrent(
             wb,
             { ...DSA_DIAGRAM_ZONE, duration: wipeMs },
@@ -1075,6 +1212,42 @@ export function useCommandExecution({
             });
             pointBeatsRef.current += 1;
           }
+          break;
+        }
+        case "DRAW_PICTURE": {
+          // The reference picture tier's own authority, not scene geometry. It
+          // is checked here whatever path the command came by: a trusted
+          // geometry envelope vouches for compiled figures, not for pictures.
+          const admitted = isBlockedVerifiedDiagramCommand(command, null)
+            ? null
+            : parsePictureCommandParams(command.params);
+          const pictureId = command.text;
+          if (!admitted || !pictureId) {
+            const blockMeta = { command_type: command.type, text: pictureId?.slice(0, 40), params: command.params, reason: "reference-picture-guard" };
+            turnTelemetryRef.current?.mark("reference-picture-blocked", blockMeta);
+            tutorDebug("draw", "block reference picture", blockMeta);
+            break;
+          }
+          const asset = await awaitReferencePicture(pictureId, { isCancelled: commandCancelled });
+          if (commandCancelled()) return;
+          const { placement, pass } = admitted;
+          // The placement was fitted to the record's plan. A plan of another
+          // shape would be drawn stretched, so it is not drawn at all.
+          const aspectDrift = asset
+            ? Math.abs(asset.plan.width / asset.plan.height - placement.width / placement.height)
+              / (asset.plan.width / asset.plan.height)
+            : 0;
+          if (!asset || aspectDrift > 0.03) {
+            const skipMeta = { picture_id: pictureId, pass, reason: asset ? "plan-aspect-mismatch" : "asset-unavailable" };
+            turnTelemetryRef.current?.mark("reference-picture-skipped", skipMeta);
+            console.warn("[reference-picture] skipped", skipMeta);
+            break;
+          }
+          const { drawMs } = speechSplit(command);
+          await wb.drawPicture(asset.board, placement, pass, drawMs, { shouldCancel: commandCancelled });
+          if (commandCancelled()) return;
+          // Board context, so work rows and labels steer round the card.
+          registerAnchor({ ...placement, text: undefined });
           break;
         }
         case "PAUSE": {
@@ -1225,7 +1398,7 @@ export function useCommandExecution({
               scheduled,
               {
                 emphasis,
-                veil: DIAGRAM_ZONE,
+                veil: focusVeilZone(targets, DIAGRAM_ZONE),
                 getAudioPositionMs: focusAudioClock,
                 deadlineMs: options.focusDeadlineMs,
                 isPaused: options.isPaused,
@@ -1268,6 +1441,7 @@ export function useCommandExecution({
               },
             );
             if (scheduleCancelled) return;
+            if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
             wb.setCursorState("thinking");
             turnTelemetryRef.current?.mark("verified-focus-complete", {
               target_id: targets.map((target) => target.id).join(","),
@@ -1301,7 +1475,12 @@ export function useCommandExecution({
               },
             );
           }
-          if (isSeekCatchUp) break;
+          if (isSeekCatchUp) {
+            // A seek or restore lands the kept rings at once, before it skips
+            // every watched gesture.
+            await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive);
+            break;
+          }
           // Tracing rectangle outlines with the marker looks like scribbling
           // on a DSA figure. Code lessons only dim everything except the named
           // cells — the figure itself stays the explanation.
@@ -1390,7 +1569,7 @@ export function useCommandExecution({
             const bottom = Math.max(union.y + union.height, target.y + target.height);
             return { x, y, width: right - x, height: bottom - y };
           }, { x: targets[0]!.x, y: targets[0]!.y, width: targets[0]!.width, height: targets[0]!.height });
-          const veil = codeLessonActive ? DSA_DIAGRAM_ZONE : DIAGRAM_ZONE;
+          const veil = codeLessonActive ? DSA_DIAGRAM_ZONE : focusVeilZone(targets, DIAGRAM_ZONE);
           // Every focus path raises its veil through withSpotlight, so a cancel
           // or a throw between raising and lowering it cannot strand the veil and
           // leave the whole figure greyed out for the rest of the lesson.
@@ -1399,7 +1578,9 @@ export function useCommandExecution({
             emphasis === "spotlight"
               ? {
                   veil: { x: veil.x, y: veil.y, width: veil.width, height: veil.height },
-                  hole: { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
+                  // A picture part's hole clears its ring, which a fixed pad round a tall key row does not.
+                  hole: pictureFocusUnionHole(targets)
+                    ?? { x: hole.x - 10, y: hole.y - 10, width: hole.width + 20, height: hole.height + 20 },
                   opacity: 0.36,
                 }
               : null,
@@ -1410,11 +1591,13 @@ export function useCommandExecution({
               const tracePaths = targetCommands
                 .map(verifiedCommandTracePath)
                 .filter((candidate): candidate is { path: string; x: number; y: number } => candidate !== null);
-              const fallbacks = targets.map((target) => ({
-                path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
-                x: target.x + target.width / 2,
-                y: target.y,
-              }));
+              const fallbacks = targets.map((target) => isReferencePicturePartFocusId(target.id)
+                ? pictureTextRingPath(target)
+                : {
+                    path: emphasisEllipsePath(target.x - 4, target.y - 4, target.width + 8, target.height + 8),
+                    x: target.x + target.width / 2,
+                    y: target.y,
+                  });
               const paths = (tracePaths.length > 0 ? tracePaths : fallbacks).slice(0, 8);
               for (const candidate of paths) {
                 const perPathMs = totalMs / paths.length;
@@ -1451,7 +1634,9 @@ export function useCommandExecution({
                 const pulse = compactPulseBox(target, targetCommands);
                 await drawAnnotation(
                   "circle_around",
-                  emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
+                  isReferencePicturePartFocusId(target.id)
+                    ? pictureTextPulsePath(target).path
+                    : emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
                   260,
                   { strokeWidth: 1.1, transient: true },
                 );
@@ -1464,6 +1649,7 @@ export function useCommandExecution({
             },
           );
           if (focusCancelled) return;
+          if (await drawKeptFocusRings(command, targets, activeDiagram, codeLessonActive)) return;
           if (codeLessonActive && !isSeekCatchUp && durationScale > 0.05) {
             // The veil is down. A tagged step still runs a minute of speech
             // about the figure, and the pen used to spend all of it parked
@@ -1730,6 +1916,7 @@ export function useCommandExecution({
       turnTelemetryRef,
       whiteboardRef,
       codeLessonControllerRef,
+      lessonFiguresRef,
       nowMs,
     ],
   );
@@ -1851,6 +2038,15 @@ function verifiedCommandTracePath(
         y: y1! + (x2! - x1!) / length * offset!,
       };
     }
+    case "DRAW_PICTURE": {
+      // A FOCUS on a reference picture traces round its card, once: the fill
+      // pass names the same picture and would trace the same edge again.
+      const parsed = parsePictureCommandParams(params);
+      if (!parsed || parsed.pass !== "outline") return null;
+      const { x, y, width, height } = parsed.placement;
+      const pad = PICTURE_CARD_PADDING_PX;
+      return { path: rectPath(x - pad, y - pad, width + pad * 2, height + pad * 2), x: x - pad, y: y - pad };
+    }
     case "ARROW": {
       const [x1, y1, a, b, x2, y2] = params;
       if (params.length >= 6 && [x1, y1, a, b, x2, y2].every(Number.isFinite)) {
@@ -1902,6 +2098,22 @@ function scheduledFocusTargets(
     anchors: readonly VerifiedDiagramAnchor[],
   ): ScheduledFocusTarget => {
     const ids = new Set(anchors.map((anchor) => anchor.id));
+    const rects = anchors.map(({ x, y, width, height }) => ({ x, y, width, height }));
+    if (anchors.every((anchor) => isReferencePicturePartFocusId(anchor.id))) {
+      // A picture part owns no ink: the pen rings its printed text, one ring
+      // per anchor in order (a key entry's mark, then its row), and the
+      // spotlight follows it from ring to ring.
+      return {
+        id: window.id,
+        startMs: window.startMs,
+        endMs: window.endMs,
+        rects,
+        paths: rects.slice(0, 8).map((rect) => pictureTextRingPath(rect)),
+        pathHoles: rects.slice(0, 8).map(pictureFocusHole),
+        pulse: pictureTextPulsePath(rects[0]!),
+        letter: letterFor(window.id, [window.id, ...anchors.map((anchor) => anchor.id)], window),
+      };
+    }
     const ink = focusTraceCommands(diagram, ids);
     const paths = anchors
       .flatMap((anchor) => {
@@ -1917,7 +2129,7 @@ function scheduledFocusTargets(
       id: window.id,
       startMs: window.startMs,
       endMs: window.endMs,
-      rects: anchors.map(({ x, y, width, height }) => ({ x, y, width, height })),
+      rects,
       paths,
       pulse: {
         path: emphasisEllipsePath(pulse.x, pulse.y, pulse.width, pulse.height),
@@ -1953,21 +2165,6 @@ function scheduledFocusTargets(
   return targets;
 }
 
-function compactPulseBox(
-  target: { x: number; y: number; width: number; height: number },
-  commands: VerifiedDiagramCommand[],
-): { x: number; y: number; width: number; height: number } {
-  const point = commands.find((command) => command.type === "DRAW_POINT");
-  if (point && [point.params[0], point.params[1]].every(Number.isFinite)) {
-    return { x: point.params[0]! - 12, y: point.params[1]! - 12, width: 24, height: 24 };
-  }
-  const cx = target.x + target.width / 2;
-  const cy = target.y + target.height / 2;
-  const width = Math.min(Math.max(target.width + 10, 22), 56);
-  const height = Math.min(Math.max(target.height + 10, 22), 56);
-  return { x: cx - width / 2, y: cy - height / 2, width, height };
-}
-
 const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([
   "DRAW_CUBOID",
   "DRAW_CUBE",
@@ -1983,10 +2180,14 @@ const UNCOMPILED_STRUCTURAL_TYPES = new Set<DrawCommand["type"]>([
   "HIGHLIGHT",
   "SCRIBBLE",
   "DIMENSION",
+  "DRAW_PICTURE",
 ]);
 
 function isUnsafeUncompiledDiagramCommand(command: DrawCommand): boolean {
   if (!UNCOMPILED_STRUCTURAL_TYPES.has(command.type)) return false;
+  // A picture always sits in the diagram zone, so its bounds say nothing. It
+  // is safe exactly when it passes the picture tier's own check.
+  if (command.type === "DRAW_PICTURE") return isBlockedVerifiedDiagramCommand(command, null);
   const [x = 0, y = 0, a = 0, b = 0] = command.params;
   let bounds = { left: x, top: y, right: x, bottom: y };
 

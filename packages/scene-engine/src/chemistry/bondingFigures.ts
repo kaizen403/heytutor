@@ -703,6 +703,27 @@ function drawNitrophenol(c: ChemScene, origin: Vec2, ortho: boolean, tag: string
   return ids;
 }
 
+interface HydrogenSite extends Vec2 {
+  readonly style?: "wedge" | "dash";
+}
+
+/**
+ * Hydrogen positions by the formula's hydrogen count, so a molecule always has
+ * the atoms its label claims. The donor's bonding hydrogen is drawn separately,
+ * on the line to the acceptor, because a hydrogen bond is near linear at H.
+ * Water is bent, ammonia is the VSEPR AX3E tripod (plain and wedge splayed, a short
+ * dash between them) turned so the acceptor's lone pair side faces the donor, and
+ * HF zigzags at the acceptor.
+ */
+const HYDROGEN_BOND_LAYOUT: Readonly<Record<number, { donor: readonly HydrogenSite[]; acceptor: readonly HydrogenSite[] }>> = {
+  1: { donor: [], acceptor: [{ x: 3.17, y: 0.99 }] },
+  2: { donor: [{ x: -0.29, y: 1.1 }], acceptor: [{ x: 3.3, y: 0.9 }, { x: 3.3, y: -0.9 }] },
+  3: {
+    donor: [{ x: -0.32, y: 1.04, style: "wedge" }, { x: 0.49, y: 0.66, style: "dash" }],
+    acceptor: [{ x: 3.28, y: 0.92 }, { x: 3.24, y: -0.87, style: "wedge" }, { x: 3.42, y: 0, style: "dash" }],
+  },
+};
+
 export function buildHydrogenBondScene(question: string): SceneDocument | null {
   const stem = chemStem(question);
   if (!hydrogenBondAsked(stem)) return null;
@@ -726,16 +747,27 @@ export function buildHydrogenBondScene(question: string): SceneDocument | null {
   if (heavy && HBD_HEAVY.has(heavy)) {
     // HF 2 -, NH4 +, "the ... ion": the neutral molecules drawn are not the ion asked.
     if (!stemChargesRead(question, [heavy === "F" ? "HF" : heavy === "N" ? "NH3" : "H2O"])) return null;
+    const formula = heavy === "F" ? "HF" : heavy === "N" ? "NH3" : "H2O";
+    const hydrogens = parseFormula(formula)?.atoms.find((atom) => atom.symbol === "H")?.count ?? 0;
+    const layout = HYDROGEN_BOND_LAYOUT[hydrogens]!;
     const ids: string[] = [];
-    ids.push(c.atom("a_x", heavy, { x: 0, y: 0.2 }, { role: `${heavy} donor atom` }));
-    ids.push(c.atom("a_h", "H", { x: 1.05, y: -0.25 }, { role: "donor hydrogen" }));
+    ids.push(c.atom("a_x", heavy, { x: 0, y: 0 }, { role: `${heavy} donor atom` }));
+    ids.push(c.atom("a_h", "H", { x: 1.14, y: 0 }, { role: "donor hydrogen" }));
     ids.push(...c.bond("a_b", "a_x", "a_h", { role: `${heavy}-H bond` }));
-    ids.push(c.atom("b_x", heavy, { x: 2.5, y: 0.2 }, { role: `${heavy} acceptor` }));
-    ids.push(c.atom("b_h", "H", { x: 3.45, y: 0.55 }, { role: "second hydrogen" }));
-    ids.push(...c.bond("b_b", "b_x", "b_h", { role: `${heavy}-H bond` }));
-    ids.push(c.link("hb", { x: 1.05, y: -0.25 }, { x: 2.5, y: 0.2 }, "intermolecular hydrogen bond"));
-    ids.push(c.text("kind", { x: 1.3, y: -1.1 }, "inter", "intermolecular hydrogen bond"));
-    ids.push(c.text("pair", { x: 1.3, y: 1.15 }, heavy === "F" ? "HF" : heavy === "N" ? "NH_3" : "H_2O", "molecules"));
+    layout.donor.forEach((site, index) => {
+      ids.push(c.atom(`a_h${index + 2}`, "H", site, { role: "donor molecule hydrogen" }));
+      ids.push(...c.bond(`a_b${index + 2}`, "a_x", `a_h${index + 2}`, { role: `${heavy}-H bond`, style: site.style }));
+    });
+    ids.push(c.atom("b_x", heavy, { x: 2.6, y: 0 }, { role: `${heavy} acceptor` }));
+    layout.acceptor.forEach((site, index) => {
+      const suffix = index === 0 ? "" : String(index + 1);
+      ids.push(c.atom(`b_h${suffix}`, "H", site, { role: "acceptor molecule hydrogen" }));
+      ids.push(...c.bond(`b_b${suffix}`, "b_x", `b_h${suffix}`, { role: `${heavy}-H bond`, style: site.style }));
+    });
+    // Stops short of both symbols, so the dashes never strike through a letter.
+    ids.push(c.link("hb", { x: 1.38, y: 0 }, { x: 2.32, y: 0 }, "intermolecular hydrogen bond"));
+    ids.push(c.text("kind", { x: 1.85, y: -0.62 }, "hydrogen bond", "intermolecular hydrogen bond"));
+    ids.push(c.text("pair", { x: 1.3, y: 1.45 }, heavy === "F" ? "HF" : heavy === "N" ? "NH_3" : "H_2O", "molecules"));
     c.scene.group("hbonds", ids, `intermolecular hydrogen bond from H on ${heavy} to ${heavy}`);
     return c.build({ caption: `${heavy} intermolecular` });
   }

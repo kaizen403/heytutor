@@ -52,7 +52,8 @@ import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
-import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -75,6 +76,9 @@ import {
   type SpeculationAbortReason,
 } from "@/features/tutor-session/lib/scene/planningOverlap";
 import { buildTurnTeachingPrompt, figureExampleSpeciesOf } from "@/features/tutor-session/lib/turn/turnTeachingPrompt";
+import { lessonDiagramSourceOf, lessonFiguresMayPlan, planLessonFigures } from "@/features/tutor-session/lib/turn/lessonFigurePlan";
+import { laterFigurePromptOf } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
+import { lessonFigureAsksOf, type LessonFigureAsk, type LessonFigureId } from "@/lib/boards/lessonFigures";
 import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/segmentPlanning";
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
@@ -102,6 +106,13 @@ import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvide
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
 import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
+import {
+  LabReferencePictureStep,
+  referencePictureTextOnlyAction,
+  startsReferencePictureEarly,
+  type LabReferencePictureImage,
+  type LabReferencePictureRecord,
+} from "./labReferencePicture";
 
 export interface LectureStep {
   index: number;
@@ -159,6 +170,8 @@ export interface LectureRun {
     totalMs: number;
     /** Time from turn start until a verified figure was ready to commit. */
     figureCommitMs?: number | null;
+    /** Turn start to the first teaching content token (any picture wait included). */
+    firstTeachingTokenMs?: number | null;
     /** The live planner stages, measured on the same orchestration. */
     stages?: LecturePlanningStages;
   };
@@ -190,7 +203,15 @@ export interface LectureRun {
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
+  /** RunLectureOptions.lessonFigures: the plan's picked later views and what the engine drew of them. */
+  lessonFigures?: {
+    asks: LessonFigureAsk[];
+    figures: Array<{ id: LessonFigureId; view: string; family: string | null; tier: string; diagram: VerifiedDiagram }>;
+    misses: Array<{ id: LessonFigureId; reason: string }>;
+  } | null;
   productionStrategy?: { classifiedSubject: DiagramSubject; strategy: "current" | "strict" };
+  /** Only with `--reference-picture`: the live picture tier's outcome, timings and spend. */
+  referencePicture?: LabReferencePictureRecord;
   diagram: PlannerEvidence & {
     committed: boolean;
     /**
@@ -297,6 +318,14 @@ export interface RunLectureOptions {
   diagramExampleCatalogue?: DiagramExampleCatalogue;
   /** Hard-cap accounting hook used by paid lecture-lab runs. */
   onModelCost?: (usd: number) => void;
+  /** Replay the live reference picture step (`--reference-picture`); off keeps the lab unchanged. */
+  referencePicture?: boolean;
+  /** The planner's later-figures addon and the offline later figures (DIAGRAM_LESSON_FIGURES), as live grants them. */
+  lessonFigures?: boolean;
+  /** Build the picture with part focus targets (the live begin-turn `referencePicturePartFocus`). */
+  referencePicturePartFocus?: boolean;
+  /** The shown picture's pixels, so the runner can save what the student saw. */
+  onReferencePictureImage?: (image: LabReferencePictureImage) => void;
   spendMode?: LabSpendMode;
   /** Optional artifact capture; the live pipeline remains the authority. */
   onPresentation?: (presentation: {
@@ -453,6 +482,18 @@ export async function runLecture(
     },
     promptChars: 0,
   };
+  const referencePicture = options.referencePicture
+    ? new LabReferencePictureStep({ origin: options.origin, question, traceId, turnStartedAt: startedAt,
+        narrationLanguage: options.narrationLanguage, partFocus: options.referencePicturePartFocus === true })
+    : null;
+  // Live never asks on a DSA question (nor a doubt or a resume, which the lab does not run).
+  if (dsaClassification.isDsa) referencePicture?.exclude("dsa");
+  const settleReferencePicture = async () => {
+    if (!referencePicture) return;
+    const settled = await referencePicture.finish(run.error ? "turn_error" : "turn_ended");
+    run.referencePicture = settled.record;
+    if (settled.image) options.onReferencePictureImage?.(settled.image);
+  };
 
   try {
     const plannerStartedAt = Date.now();
@@ -470,6 +511,8 @@ export async function runLecture(
       fastMode,
       traceId,
       classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
+      // As uQH's lesson-figures-ask anchor: never on a DSA lesson.
+      lessonFigures: options.lessonFigures === true && !dsaClassification.isDsa,
       onRequestOutcome: (outcome) => {
         // Late unused peers may report after selection; the saved JSON is a snapshot, not a drain.
         if (run.turnPlanCallOutcomes && run.turnPlanCallOutcomes.length < 3) run.turnPlanCallOutcomes.push(outcome);
@@ -522,6 +565,12 @@ export async function runLecture(
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
     }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
+    // As live: right after the merged requirement, before the picker and scene
+    // planning, for every subject outside the chemistry lane.
+    if (referencePicture && startsReferencePictureEarly({
+      chemistryLane: pickerGate.chemistryLane, visualRequirement: turnPlan.visualRequirement })) {
+      referencePicture.start(classifiedSubject, true);
+    }
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
@@ -775,6 +824,10 @@ export async function runLecture(
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source) &&
           !chemistryRefusesPlannerFigure(classifiedSubject, source)),
+        // The lab selects in its own process and never calls begin-turn, so it reads the
+        // server's switch from the lab's env with the server's resolver: off unless the
+        // lab runs with OPTICS_ARCHETYPE_IN_STRICT=on (match the dev server's env).
+        admitOwningOpticsArchetype: strictAdmitsOwningOpticsArchetype({ ...planning.gate.diagramStrategy, opticsArchetypeInStrict: resolveOpticsArchetypeInStrict() }),
       },
     };
     run.figureReplayInputs = structuredClone({
@@ -901,13 +954,67 @@ export async function runLecture(
       plannerDeclined: run.diagram.plannerDeclined,
     });
 
+    // lesson-figures-arm:begin
+    // The live condition itself (uQH anchor lesson-figures-plan): once figure 1
+    // drew as a verified scene, each view the plan picked is drawn offline by
+    // the fast selector from the reconciled plan. The lab has no doubt or
+    // resume turn here, and a DSA lesson is its code lesson. The narration
+    // language is the turn's, English unless the lab replays Hinglish (live:
+    // narrationLanguageForVoice).
+    let laterFigures: ReturnType<typeof laterFigurePromptOf>[] = [];
+    if (
+      lessonFiguresMayPlan({
+        granted: options.lessonFigures === true, doubt: false, resume: false,
+        codeLesson: dsaClassification.isDsa, diagramSource: lessonDiagramSourceOf(activeDiagram),
+      }) &&
+      activeDiagram && presentation
+    ) {
+      const planned = planLessonFigures({
+        lessonQuestion: question, turnPlan, authority: problemAuthority, families: sceneCapabilities.families,
+        first: activeDiagram, narrationLanguage: options.narrationLanguage ?? "english",
+        deadlineAt: plannerStartedAt + scenePlannerDeadlineMs,
+      });
+      const views = planned.figures.map((figure) => ({
+        id: figure.ask.id, diagram: figure.presentation.diagram, introSegments: figure.presentation.introSegments,
+        family: figure.representation.family ?? null,
+      }));
+      laterFigures = views.map(laterFigurePromptOf);
+      run.lessonFigures = {
+        asks: lessonFigureAsksOf(turnPlan),
+        figures: planned.figures.map((figure) => ({ id: figure.ask.id, view: figure.ask.view, family: figure.representation.family ?? null,
+          tier: figure.representation.tier, diagram: figure.presentation.diagram })),
+        misses: planned.misses,
+      };
+    } else if (options.lessonFigures === true) {
+      run.lessonFigures = { asks: lessonFigureAsksOf(turnPlan), figures: [], misses: [] };
+    }
+    // lesson-figures-arm:end
+
+    // The live text only point. A shown picture takes the figure's slot for the
+    // prompt and the marker, but every engine field above stays text only.
+    let pictureIntro: TutorSegment[] | null = null;
+    if (referencePicture) {
+      const pictureAction = referencePictureTextOnlyAction({ solverContradiction: solverAuthorityBlocked,
+        figureDrawn: activeDiagram !== null, visualRequirement: turnPlan.visualRequirement });
+      if (pictureAction.action === "abandon") referencePicture.abandon(pictureAction.reason);
+      else {
+        const picture = await referencePicture.atTextOnlyPoint(classifiedSubject);
+        if (picture) {
+          activeDiagram = picture.diagram;
+          diagramPromptAddon = picture.diagram.promptAddon;
+          pictureIntro = picture.introSegments;
+        }
+      }
+    }
+
     if (options.figureOnly) {
       options.onPresentation?.({
         diagram: activeDiagram,
         opening: null,
         givens: [],
-        intro: presentation?.introSegments ?? [],
+        intro: pictureIntro ?? presentation?.introSegments ?? [],
       });
+      await settleReferencePicture();
       run.timings.totalMs = Date.now() - startedAt;
       return run;
     }
@@ -924,6 +1031,7 @@ export async function runLecture(
       familiarity,
       fastMode,
       narrationLanguage: options.narrationLanguage,
+      ...(laterFigures.length > 0 ? { laterFigures } : {}),
     });
     run.promptChars = teachingPrompt.systemPrompt.length;
     run.lessonBudget = {
@@ -941,7 +1049,7 @@ export async function runLecture(
       diagram: activeDiagram,
       opening: teachingPrompt.openingSegment,
       givens: teachingPrompt.givenSegments,
-      intro: presentation?.introSegments ?? [],
+      intro: pictureIntro ?? presentation?.introSegments ?? [],
     });
 
     const teachStartedAt = Date.now();
@@ -954,6 +1062,7 @@ export async function runLecture(
     let incomplete = false;
     while (continueCount <= MAX_LLM_CONTINUATIONS) {
       const isContinuation = continueCount > 0 && !reasoningOnlyRetry;
+      const streamStartedAt = Date.now();
       const streamResult = await streamLLMResponse({
         systemPrompt: isContinuation
           ? teachingPrompt.continuationPrompt
@@ -980,6 +1089,7 @@ export async function runLecture(
       run.teaching.reasoningChars += streamResult.streamStats?.reasoningChars ?? 0;
       if (run.teaching.ttftMs === null) {
         run.teaching.ttftMs = streamResult.streamStats?.ttftContentMs ?? null;
+        if (run.teaching.ttftMs !== null) run.timings.firstTeachingTokenMs = streamStartedAt - startedAt + run.teaching.ttftMs;
       }
 
       const reasoningOnlyChunk =
@@ -1062,6 +1172,7 @@ export async function runLecture(
     }
   }
 
+  await settleReferencePicture();
   run.timings.totalMs = Date.now() - startedAt;
   return run;
 }

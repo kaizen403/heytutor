@@ -2,6 +2,7 @@ import { effectiveTurnStatus, hasMeaningfulTurnSegments } from "../boards/turnSt
 import { classifyTurnFailure } from "./turnFailureClassification";
 import { failedTurnRuntimeEnvironment } from "./failedTurnRuntime";
 import { BILLING_ERROR_CODES, billingStatus, isBillingErrorCode, type BillingErrorCode } from "../billing/errors";
+import { CompatCircuit, compatCircuit, resolveLlmEndpoint } from "../llm/llmProvider";
 
 export const FAILED_TURN_BILLING_CODES = BILLING_ERROR_CODES;
 
@@ -23,7 +24,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   // failure list on purpose, so it never fails the turn or opens an issue.
   "teaching_voice_degraded",
   // #172 drop codes, saved after valid_candidate_dropped.
-  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
+  "colliding_circuit_views", "exact_assertion_unproven", "exact_not_normalized", "exact_not_scene", "exact_recompile_invalid", "exact_report_disagrees", "exact_report_not_current", "exact_without_readable_ink", "generic_vectors_on_river_boat", "mensuration_solid_on_contact_problem", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_question_mismatch", "exact_not_drawable", "exact_scene_not_admitted", "fast_figure_preferred", "no_figure_asked", "law_only_archetype_lead", "refused_archetype_lead", "save_admission_refused", "selection_error", "source_policy_suppressed",
   "claim_quantity_mismatch", "cyclic_dependency", "duplicate_claim_id", "duplicate_quantity_id",
   "duplicate_unknown_id", "given_trig_stipulation_conflict", "invalid_assumption", "invalid_claim", "invalid_example_species",
   "invalid_claim_entity_hints", "invalid_claim_expected", "invalid_claim_quantity_ids", "invalid_dependencies",
@@ -31,7 +32,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "invalid_quantity_value", "invalid_question", "invalid_sign", "invalid_symbol", "invalid_unit",
   "invalid_unknown", "invalid_visual_requirement", "missing_array", "question_mismatch", "schema_version",
   "sign_mismatch", "source_text_arithmetic_conflict", "source_text_arithmetic_invalid", "source_text_value_mismatch",
-  "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch",
+  "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch", "plan_text_over_limit", "scene_text_over_limit", "label_measure_budget", "scene_count_over_limit", "label_overlap_budget",
   "scene_without_readable_label", "planner_declined_required_scene", "unsupported_operator",
   "scene_source_question_mismatch", "scene_solver_plan_contradiction", "solver_value_mismatch",
   "numeric_authority_contradiction",
@@ -50,7 +51,7 @@ export const FAILED_TURN_ISSUE_CODES = [
   "physical_direction_relation_failed", "directed_cycle_not_closed", "directed_cycle_orientation_failed",
   // Figure consistency (scene-engine compile/figureConsistency.ts).
   "component_glyph_overlap", "current_against_source_polarity", "vector_collinear_overlap",
-  "vector_without_label", "region_label_in_nested_body",
+  "vector_without_label", "region_label_in_nested_body", "axes_frames_overlap",
   "unknown_issue",
 ] as const;
 export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "mock", "unknown"] as const;
@@ -141,8 +142,8 @@ export interface FailedTurnInput {
 
 export interface FailedTurnSentryEvent {
   timestamp: number;
-  message: "Tutor turn failed";
-  level: "warning" | "error";
+  message: "Tutor turn failed" | "Tutor turn picture shown";
+  level: "info" | "warning" | "error";
   fingerprint: string[];
   tags: Record<string, string>;
   extra: { candidate_count: number; validation_issue_count: number; unknown_issue_count: number; request_count: number; issue_codes: string[]; segment_count: number };
@@ -184,7 +185,10 @@ export function buildFailedTurnSentryEvent(
     effectiveTurnStatus(turn.status, turn.updatedAt, options.now?.getTime() ?? Date.now()) === "stopped";
   if (turn.status === "live" && !staleLive) return null;
   const failure = classifyTurnFailure(turn);
-  if (failure.classification !== "failed") return null;
+  // A shown picture is reported as its own outcome, under its own issue, so the
+  // engine's reason is still counted without calling the lesson failed.
+  const pictureShown = failure.classification === "picture_shown";
+  if (failure.classification !== "failed" && !pictureShown) return null;
   const artifacts = record(turn.sceneArtifacts);
   const telemetry = readFailedTurnTelemetry(artifacts.failureTelemetry) ?? { subject: "unknown" };
   const plan = record(artifacts.turnPlan);
@@ -200,19 +204,29 @@ export function buildFailedTurnSentryEvent(
   const issueCodes = [...new Set(rawCodes.map(value => typeof value === "string" && known.has(value) ? value : "unknown_issue"))].slice(0, 32);
   const strictSubjects = (env.DIAGRAM_STRICT_SUBJECTS ?? "").split(/[\s,]+/)
     .filter(value => ["maths", "physics", "chemistry"].includes(value));
-  const azure = env.LLM_PROVIDER === "azure" && Boolean(env.AZURE_OPENAI_ENDPOINT?.trim() && env.AZURE_OPENAI_API_KEY?.trim() && env.AZURE_OPENAI_DEPLOYMENT?.trim());
-  const provider = options.historical ? "unknown" : azure ? "azure" : env.FIREWORKS_API_KEY?.trim() ? "fireworks" : "mock";
-  const deployment = options.historical ? "unknown" : member(azure ? env.AZURE_OPENAI_DEPLOYMENT : provider === "mock" ? "mock" : "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
+  // The configured provider, with the relay circuit closed: a failure that
+  // opened the circuit must be tagged on the relay, not on its fallback. When
+  // the circuit is open, the turn's later calls ran on Fireworks, so say so.
+  const endpoint = resolveLlmEndpoint(env, new CompatCircuit());
+  const circuitOpen = endpoint.provider === "openai_compat" && compatCircuit.openReason() !== null;
+  // A requested provider that could not be used, with no Fireworks key, refused
+  // the turn in production; it did not serve mock lessons.
+  const refused = !endpoint.apiKey && endpoint.fallbackReason !== null && env.NODE_ENV === "production";
+  const provider = options.historical || refused ? "unknown" : !endpoint.apiKey ? "mock"
+    : circuitOpen ? "openai_compat_circuit_open" : endpoint.provider;
+  const deployment = options.historical || refused ? "unknown"
+    : member(provider === "mock" ? "mock" : endpoint.deployment ?? "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
+
   const releaseValue = env.SENTRY_RELEASE ?? env.GITHUB_SHA ?? "";
   const release = !options.historical && /^[a-f0-9]{40}$/i.test(releaseValue) ? releaseValue.toLowerCase() : "unknown";
   const environment = failedTurnRuntimeEnvironment(env);
   return {
     timestamp: (options.now?.getTime() ?? Date.now()) / 1_000,
-    message: "Tutor turn failed",
-    level: taught && telemetry.failed !== true ? "warning" : "error",
-    fingerprint: ["turn-failure", stage, code, subject],
+    message: pictureShown ? "Tutor turn picture shown" : "Tutor turn failed",
+    level: pictureShown ? "info" : taught && telemetry.failed !== true ? "warning" : "error",
+    fingerprint: [pictureShown ? "turn-picture" : "turn-failure", stage, code, subject],
     tags: {
-      area: "turn-failure", subject, stage, code, figure_need: figureNeed,
+      area: pictureShown ? "turn-picture" : "turn-failure", subject, stage, code, figure_need: figureNeed,
       billing_code: telemetry.billingCode ?? "none",
       reporting_origin: options.historical ? "backfill" : "live",
       strict_subjects: options.historical ? "unknown" : [...new Set(strictSubjects)].sort().join(",") || "none",

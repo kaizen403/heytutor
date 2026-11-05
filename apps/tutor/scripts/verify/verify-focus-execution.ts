@@ -22,6 +22,12 @@ import {
   type ScheduledFocusTarget,
 } from "../../features/tutor-session/lib/board/scheduledFocus";
 import type { SpotlightRect, SpotlightSpec } from "../../features/tutor-session/lib/board/spotlight";
+import {
+  MAX_PINNED_MARKS_PER_PAGE,
+  compactPulseBox,
+  pinnedMarksFor,
+} from "../../features/tutor-session/lib/board/pinnedMarks";
+import { emphasisEllipsePath, type DrawCommand, type VerifiedDiagram } from "@heytutor/drawing";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -416,6 +422,119 @@ async function main(): Promise<void> {
       "utf8",
     ));
     assert(!/trigger\.text/.test(gesture), "takeDeferredAnnotations must not read a text trigger");
+  }
+
+  // --- `[FOCUS:id|keep]`: one ring per verified part, from compactPulseBox. ---
+  {
+    const diagram: VerifiedDiagram = {
+      id: "verified_scene", layout: "standard", name: "kept rings",
+      anchors: [
+        { id: "B", labels: ["B"], x: 700, y: 200, width: 80, height: 80 },
+        { id: "P", labels: ["P"], x: 900, y: 300, width: 10, height: 10 },
+        { id: "reference_picture.part.1", labels: ["R1"], x: 610, y: 241, width: 22, height: 14 },
+      ],
+      groups: [], reveals: [], promptAddon: "", deferredAnnotations: [],
+      commands: [
+        { type: "DRAW_LINE", params: [700, 200, 780, 280], semanticRef: { entityId: "B" } },
+        { type: "DRAW_POINT", params: [905, 305, 4], semanticRef: { entityId: "P" } },
+      ],
+    };
+    const focus = (text: string, params: number[] = []): DrawCommand => ({ type: "FOCUS", params, text, semanticRef: { entityId: text }, charPosition: 0, narrationBefore: "" });
+    const plan = (text: string, pinsOnPage = 0, layout: VerifiedDiagram["layout"] = "standard", codeLessonActive = false) =>
+      pinnedMarksFor({
+        command: focus(text, [1, 2, 3, 4]),
+        targets: diagram.anchors.filter((anchor) => text.split("|")[0]!.split(",").includes(anchor.id)),
+        diagram: { ...diagram, layout },
+        targetCommands: diagram.commands,
+        codeLessonActive,
+        pinsOnPage,
+      });
+    assert(plan("B|pulse").pins.length === 0, "a FOCUS without keep pins nothing");
+    const kept = plan("B,P|keep");
+    assert(kept.pins.length === 2 && kept.overflow.length === 0, "keep rings every named verified part");
+    const boxB = compactPulseBox(diagram.anchors[0]!, [diagram.commands[0]!]);
+    const boxP = compactPulseBox(diagram.anchors[1]!, [diagram.commands[1]!]);
+    assert(kept.pins[0]!.path === emphasisEllipsePath(boxB.x, boxB.y, boxB.width, boxB.height), "B's ring is compactPulseBox of B");
+    assert(kept.pins[1]!.path === emphasisEllipsePath(boxP.x, boxP.y, boxP.width, boxP.height), "P's ring is compactPulseBox of P's own point");
+    assert(boxP.width === 24 && boxP.x === 893, "a point's ring is its own compact box");
+    assert(!kept.pins.some((pin) => pin.box.x === 1 || pin.box.y === 2), "the command's params never reach a ring");
+    const capped = plan("B,P|keep", MAX_PINNED_MARKS_PER_PAGE - 1);
+    assert(MAX_PINNED_MARKS_PER_PAGE === 3, "the page cap is three rings");
+    assert(capped.pins.length === 1 && capped.overflow.length === 1, "past the page cap a keep draws as a transient pulse");
+    assert(plan("B|keep", 0, "code_lesson").pins.length === 0, "never a kept ring on a code lesson board");
+    assert(plan("B|keep", 0, "standard", true).pins.length === 0, "never a kept ring while a code lesson plays");
+    assert(plan("reference_picture.part.1|keep").pins.length === 0, "never a kept ring on a reference picture part in v1");
+    const again = pinnedMarksFor({
+      command: focus("B|keep"), targets: [diagram.anchors[0]!], diagram, targetCommands: diagram.commands,
+      codeLessonActive: false, pinsOnPage: 1, alreadyPinned: new Set(["B"]),
+    });
+    assert(again.pins.length === 0 && again.overflow.length === 0, "a part already ringed on this page gets no second ring");
+
+    // The seek pass draws the kept ring before it skips every gesture. Both
+    // anchors of the slice are checked so a moved anchor cannot fail open.
+    const strip = (raw: string) => raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+    const executor = strip(readFileSync(
+      new URL("../../features/tutor-session/hooks/useCommandExecution.ts", import.meta.url),
+      "utf8",
+    ));
+    const focusStart = executor.indexOf('case "FOCUS": {');
+    const focusEnd = executor.indexOf('case "EMPHASIZE": {', focusStart);
+    assert(focusStart >= 0, "slice anchor: the FOCUS case");
+    assert(focusEnd > focusStart, "slice anchor: the EMPHASIZE case after FOCUS");
+    const focusCase = executor.slice(focusStart, focusEnd);
+    const seekGate = /if \(isSeekCatchUp\) \{\s*await drawKeptFocusRings\(command, targets, activeDiagram, codeLessonActive\);\s*break;\s*\}/;
+    assert(seekGate.test(focusCase), "a seek draws the kept ring at duration 0 before the isSeekCatchUp break");
+    assert(!/if \(isSeekCatchUp\) break;/.test(focusCase), "no bare isSeekCatchUp break may skip the kept ring");
+    assert(/if \(scheduleCancelled\) return;\s*if \(await drawKeptFocusRings\(/.test(focusCase), "the scheduled path rings after its traces");
+    assert(/if \(focusCancelled\) return;\s*if \(await drawKeptFocusRings\(/.test(focusCase), "the unscheduled path rings after its trace or spotlight");
+    const helperStart = executor.indexOf("const drawKeptFocusRings = async (");
+    const helperEnd = executor.indexOf("let command = rawCommand;", helperStart);
+    assert(helperStart >= 0 && helperEnd > helperStart, "slice anchors: the kept ring helper");
+    const helper = executor.slice(helperStart, helperEnd);
+    assert(/const ringMs = isSeekCatchUp \? 0 : PINNED_MARK_DRAW_MS;/.test(helper), "a seek draws the ring at duration 0");
+    assert(/pinned: true/.test(helper), "kept rings are drawn with pinned");
+    assert(!/focusCommand\.params/.test(helper), "the helper never reads the model's params");
+  }
+
+  // A numbered picture's key entry is one spoken window with two places:
+  // its mark on the drawing, then its row in the key. Both rings fall inside
+  // the window, mark first, and the spotlight follows the pen from one to
+  // the other instead of one hole spanning both. Each hole is used exactly
+  // as given, since a fixed pad does not clear a ring round a tall row.
+  {
+    const board = fakeBoard();
+    const mark = { x: 520, y: 470, width: 9, height: 12 };
+    const row = { x: 922, y: 300, width: 196, height: 30 };
+    const keyEntry: ScheduledFocusTarget = {
+      ...board.target("reference_picture.key.3", 1400, 3800, { x: mark.x, y: mark.y }),
+      rects: [mark, row],
+      paths: [ring("mark", mark.x, mark.y), ring("row", row.x, row.y)],
+      pathHoles: [
+        { x: mark.x - 14, y: mark.y - 12, width: mark.width + 28, height: mark.height + 24 },
+        { x: row.x - 16, y: row.y - 7, width: row.width + 32, height: row.height + 14 },
+      ],
+    };
+    const cancelled = await runScheduledFocus(board.host, [keyEntry], {
+      emphasis: "spotlight", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+    });
+    assert(!cancelled, "the key entry runs to the end");
+    const traces = board.traces();
+    assert(traces.map((trace) => trace.path).join(",") === "ring:mark,ring:row", "mark first, then the key row");
+    assert(traces[0]!.at >= 1400, "the mark is ringed on the name, not before it");
+    const last = traces.at(-1)!;
+    assert(last.at + last.ms <= 3800 + 1, `the key row's ring ends with the clause (${last.at + last.ms})`);
+    const holes = board.spotlights().flatMap((event) => event.hole ? [event.hole] : []);
+    const holeOf = (rect: SpotlightRect) => {
+      const hole = keyEntry.pathHoles![rect === mark ? 0 : 1]!;
+      return `${hole.x},${hole.y},${hole.width},${hole.height}`;
+    };
+    const seen = holes.map((hole) => `${hole.x},${hole.y},${hole.width},${hole.height}`);
+    assert(seen[0] === holeOf(mark), "the veil opens on the mark, not on both places");
+    assert(seen.at(-1) === holeOf(row), "the veil ends on the key row");
+    const rowHoleAt = board.spotlights().find((event) => event.hole && `${event.hole.x},${event.hole.y},${event.hole.width},${event.hole.height}` === holeOf(row))!.at;
+    assert(rowHoleAt >= traces[0]!.at + traces[0]!.ms && rowHoleAt <= traces[1]!.at,
+      "the hole moves to the row between the two rings");
   }
 
   console.log("verify-focus-execution: each focus target is lettered in its beat and traced on its name, in spoken order, and a cancel lowers the veil");

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { fetchAiCreditsSnapshot } from "./aiCredits";
 import { fetchOverviewCost } from "./costQueries";
 import { fetchOverviewDistributions } from "./overviewDistributions";
 import { fetchOverviewLists } from "./overviewLists";
@@ -68,8 +69,11 @@ export async function fetchOverview(): Promise<OverviewPayload> {
     fetchOverviewCost(now),
   ]);
 
+  const aiCredits = await fetchAiCreditsSnapshot(now);
+
   return {
     generatedAt: new Date(now).toISOString(),
+    aiCredits,
     kpis: {
       usersTotal,
       usersNew7d,

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ensureUser, getUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { readBoundedJson, RequestBodyError } from "@/lib/http/requestBody";
+import { isAdminEmail } from "@/lib/auth/admins";
 import { BOARD_PAGE_SIZE, MAX_ACCOUNT_BOARDS, MAX_BOARD_TITLE_CHARS, StorageQuotaError, withUserStorageLock } from "@/lib/boards/storageQuota";
 
 export async function GET(request: Request) {
@@ -36,6 +37,7 @@ export async function GET(request: Request) {
       createdAt: row.createdAt.getTime(),
       pinnedAt: row.pinnedAt?.getTime() ?? null,
       archivedAt: row.archivedAt?.getTime() ?? null,
+      visibility: row.visibility,
     })),
   });
 }
@@ -63,6 +65,10 @@ export async function POST(request: Request) {
 
   const id = body.id ?? crypto.randomUUID();
   const title = body.title?.trim() || "new board";
+  // Students' new boards go on Community. Staff and lab boards stay private
+  // until someone shares them, so test rounds never fill the gallery.
+  const owner = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  const staff = await isAdminEmail(owner?.email);
 
   let quotaError: StorageQuotaError | null = null;
   const row = await withUserStorageLock(userId, async (tx) => {
@@ -73,7 +79,7 @@ export async function POST(request: Request) {
     if (await tx.board.count({ where: { userId } }) >= MAX_ACCOUNT_BOARDS) {
       throw new StorageQuotaError("board storage quota exceeded", 429);
     }
-    return tx.board.create({ data: { id, userId, title, preview: "" } });
+    return tx.board.create({ data: { id, userId, title, preview: "", visibility: staff ? "private" : "public" } });
   })
     .catch((error: unknown) => {
       if (error instanceof StorageQuotaError) { quotaError = error; return null; }
@@ -107,6 +113,7 @@ export async function POST(request: Request) {
         createdAt: existing.createdAt.getTime(),
         pinnedAt: existing.pinnedAt?.getTime() ?? null,
         archivedAt: existing.archivedAt?.getTime() ?? null,
+        visibility: existing.visibility,
       },
     });
   }
@@ -119,6 +126,7 @@ export async function POST(request: Request) {
       createdAt: row.createdAt.getTime(),
       pinnedAt: row.pinnedAt?.getTime() ?? null,
       archivedAt: row.archivedAt?.getTime() ?? null,
+      visibility: row.visibility,
     },
   });
 }

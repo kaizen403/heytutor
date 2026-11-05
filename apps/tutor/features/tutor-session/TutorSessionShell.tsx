@@ -1,5 +1,6 @@
 "use client";
 
+import type { StoredTurn } from "@/lib/boards/boardsClient";
 import {
   useCallback,
   useEffect,
@@ -83,7 +84,9 @@ import {
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "./lib/scene/lessonFigureSequence";
 import { useReplay } from "./hooks/useReplay";
+import { useBoardThumbnail } from "./hooks/useBoardThumbnail";
 import { useLectureRewind } from "./hooks/useLectureRewind";
 import { useLecturePageHalt } from "./hooks/useLecturePageHalt";
 import { useLectureExport } from "./hooks/useLectureExport";
@@ -134,6 +137,7 @@ import {
 } from "./lib/sessionCapabilities";
 import {
   buildMarkedDoubtPrompt,
+  markedEntityIds,
   summarizeMarks,
   type BoardMark,
 } from "./lib/board/boardMarking";
@@ -220,6 +224,8 @@ export type TutorSessionShellProps = {
   autoQuestion?: string;
   /** Start stored-turn replay once the board is restored. Used by `/c/{id}?replay=1`. */
   autoReplay?: boolean;
+  /** Read someone else's board instead of the owner's API (Community). Never written to. */
+  readBoard?: (boardId: string) => Promise<{ turns: StoredTurn[] } | null>;
   /** Capture TTS bytes; do not play through speakers. Defaults on for `headless`. */
   muteAudio?: boolean;
   /** Controlled playback rate (admin Watch). Same model as student replay; default 1.25×. */
@@ -316,6 +322,7 @@ export function TutorSessionShell({
   variant = "full",
   autoQuestion,
   autoReplay = false,
+  readBoard,
   muteAudio,
   playbackRate,
   onPlaybackRateChange,
@@ -842,6 +849,9 @@ export function TutorSessionShell({
   // handle) so tutor typing never re-renders the shell per character.
   const [codeLessonController] = useState(() => new CodeLessonController());
   const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+  // A lesson's later figures (DIAGRAM_LESSON_FIGURES), one sequence per page.
+  const [lessonFigureSequence] = useState(() => new LessonFigureSequence());
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(lessonFigureSequence);
   const codeLessonActive = useSyncExternalStore(
     listener => codeLessonController.subscribe(listener),
     () => Boolean(codeLessonController.getActivePlan()),
@@ -868,6 +878,7 @@ export function TutorSessionShell({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     setActiveVerifiedDiagram,
   });
 
@@ -900,6 +911,7 @@ export function TutorSessionShell({
     deleteBoard,
     togglePinBoard,
     toggleArchiveBoard,
+    toggleVisibilityBoard,
     renameBoard,
     commitDraftBoard,
     ensureTTSClient,
@@ -939,9 +951,12 @@ export function TutorSessionShell({
     executeCommand,
     skipInkRestoreRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
+    readBoard,
+    boardLayoutRef,
   });
 
   // Page load clock only: the first loaded board of this document. Declared
@@ -1016,6 +1031,7 @@ export function TutorSessionShell({
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     codeLessonControllerRef,
+    lessonFiguresRef,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
@@ -1047,6 +1063,7 @@ export function TutorSessionShell({
     clearCancelTimers,
     resetBoardLayout,
     beginBoardEpoch,
+    captureNotesEpoch,
     reserveTextCommandPlacements,
     persistTurnForReplay,
     registerReplayBlobUrl,
@@ -1058,9 +1075,12 @@ export function TutorSessionShell({
   // must be marked restored while empty, or a later Stop's live snapshot would
   // be replaced by the derived one.
   useEffect(() => {
-    if (!boardLoaded) return;
+    // Nothing to continue on a board this viewer cannot teach on (Community),
+    // and its refresh reads the owner's API.
+    if (!boardLoaded || !can.askQuestions) return;
     restorePausedLesson(storedTurnsRef.current);
   }, [
+    can.askQuestions,
     boardLoaded,
     phase,
     isReplaying,
@@ -1207,6 +1227,7 @@ export function TutorSessionShell({
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
     whiteboardRef,
+    boardLayoutRef,
     cancelRef,
     speedRef,
     isPausedRef,
@@ -1215,6 +1236,7 @@ export function TutorSessionShell({
     replayAudioPreloadRef,
     storedTurnsRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
@@ -1489,7 +1511,7 @@ export function TutorSessionShell({
       }
       const prompt = buildMarkedDoubtPrompt(marks, doubt, liveQuestionRef.current);
       marking.disarm();
-      handleAskDoubt(doubt, { prompt, title });
+      handleAskDoubt(doubt, { prompt, title, markedFigureIds: markedEntityIds(marks) });
     },
     [boardLayoutRef, handleAskDoubt, marking],
   );
@@ -1746,6 +1768,25 @@ export function TutorSessionShell({
   // A phone board scrolls inside its pane. A held beat's recovery card must
   // stay in the visible pane, not at the corner of the scrolled board.
   const recoveryOutsideBoard = scrollBoard && showPendingOrRecovery && (audioRecovery !== null || isPaused);
+
+  const thumbnailPublishable = useCallback(
+    () => storedTurnsRef.current.every((turn) => (turn.persistedStatus ?? turn.status ?? "complete") !== "live"),
+    [storedTurnsRef],
+  );
+  useBoardThumbnail({
+    enabled:
+      variant === "full" &&
+      !isDraft &&
+      boardLoaded &&
+      phase === "idle" &&
+      !isReplaying &&
+      !rewindActive &&
+      boards.find((board) => board.id === sessionId)?.visibility === "public",
+    boardId: sessionId,
+    turnCount: storedTurnsCount,
+    whiteboardRef,
+    publishable: thumbnailPublishable,
+  });
 
   if (isHeadless) {
     return (
@@ -2650,6 +2691,7 @@ export function TutorSessionShell({
       onDelete={deleteBoard}
       onTogglePin={togglePinBoard}
       onToggleArchive={toggleArchiveBoard}
+      onToggleVisibility={toggleVisibilityBoard}
       onRename={renameBoard}
       disabled={phase !== "idle"}
       profile={toShellProfile(accountMe?.profile)}

@@ -16,7 +16,7 @@ import { retryContinuationFetchOnce } from "../../features/tutor-session/lib/tur
 const fetchFailure = () => new TeachingTransportError("fetch", new TypeError("Failed to fetch"));
 const readFailure = () => new TeachingTransportError("read", new TypeError("network error"));
 
-async function attempts(errors: Array<Error | null>, options: { enabled: boolean; signal?: AbortSignal; abortDuringPause?: AbortController }) {
+async function attempts(errors: Array<Error | null>, options: { enabled: boolean; signal?: AbortSignal; abortDuringPause?: AbortController; isCurrent?: () => boolean; leaveDuringPause?: () => void }) {
   let calls = 0, retries = 0;
   const run = async () => {
     const error = errors[calls++];
@@ -25,8 +25,12 @@ async function attempts(errors: Array<Error | null>, options: { enabled: boolean
   };
   const signal = options.signal ?? options.abortDuringPause?.signal ?? new AbortController().signal;
   const result = retryContinuationFetchOnce(run, {
-    enabled: options.enabled, signal, delayMs: 50,
-    onRetry: () => { retries++; if (options.abortDuringPause) setTimeout(() => options.abortDuringPause!.abort(), 5); },
+    enabled: options.enabled, signal, delayMs: 50, isCurrent: options.isCurrent,
+    onRetry: () => {
+      retries++;
+      if (options.abortDuringPause) setTimeout(() => options.abortDuringPause!.abort(), 5);
+      if (options.leaveDuringPause) setTimeout(options.leaveDuringPause, 5);
+    },
   });
   try {
     return { value: await result, calls, retries };
@@ -62,12 +66,21 @@ async function main() {
   const other = await attempts([new Error("http 500"), null], { enabled: true });
   assert(other.error instanceof Error && other.calls === 1, "an error that is not a transport failure is not retried");
 
+  // A turn the student left never pays for a retry: not when it was left
+  // before the failure, and not when it was left during the pause.
+  const left = await attempts([fetchFailure(), null], { enabled: true, isCurrent: () => false });
+  assert(left.error instanceof TeachingTransportError && left.calls === 1 && left.retries === 0, "an abandoned turn is not retried");
+  let stillCurrent = true;
+  const leftDuringPause = await attempts([fetchFailure(), null], { enabled: true, isCurrent: () => stillCurrent, leaveDuringPause: () => { stillCurrent = false; } });
+  assert(leftDuringPause.error instanceof TeachingTransportError && leftDuringPause.calls === 1, "a turn left during the pause sends no retry");
+
   // The live teaching loop wraps its request, and only continuations retry.
   const hook = readFileSync(resolve(__dirname, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts"), "utf8");
   assert(hook.includes("await retryContinuationFetchOnce(() => streamLLMResponse("), "the teaching request goes through the continuation retry");
   assert(hook.includes("enabled: isContinuation && !resumeInkRetry,"), "only a continuation (not the first request or the ink retry) is retried");
+  assert(hook.includes("isCurrent: isCurrentTurn,"), "the live retry checks that the turn is still current");
 
-  console.log("verify-continuation-fetch-retry: a continuation whose fetch failed is retried once; mid-stream reads, first requests, stops and second failures are not");
+  console.log("verify-continuation-fetch-retry: a continuation whose fetch failed is retried once; mid-stream reads, first requests, stops, abandoned turns and second failures are not");
 }
 
 main().catch((error) => {

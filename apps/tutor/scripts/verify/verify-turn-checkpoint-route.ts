@@ -13,6 +13,7 @@
  * only, with a tail, creating, overlapping) and late audio, the 415 byte
  * check, and growth charging only new bytes.
  */
+import { getWriteCharScheduleMs, validateAudioTimingsForNarration } from "@heytutor/tutor-core";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -34,6 +35,10 @@ import { canonicalizeTurnSceneMetadata as canonicalizeRealScene } from "../../li
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 import { enrichStoredSegmentsWithReplayAudio, replayAudioBytesForUrl, releaseReplayAudioBytes } from "../../lib/replay/replayTurns";
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
+import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
+import * as pageFigureLoader from "../../lib/scene/pageFigureLoader";
+import * as boardContinuation from "../../lib/boards/boardContinuation";
+import * as doubtFigureRef from "../../lib/boards/doubtFigureRef";
 
 const root = resolve(__dirname, "../..");
 // The in-memory Prisma stub intentionally accepts arbitrary query and row shapes.
@@ -92,7 +97,10 @@ function withSegments(turn: Row | undefined, include: unknown) {
   if (include) copy.segments = segments.filter((s) => s.turnId === turn.id).sort((a, b) => a.orderIndex - b.orderIndex);
   return copy;
 }
-const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("gte" in value ? row[key] >= value.gte : value.in.includes(row[key])) : row[key] === value);
+const range = (actual: number, value: Row) => ("gte" in value ? actual >= value.gte : true) && ("gt" in value ? actual > value.gt : true) && ("lt" in value ? actual < value.lt : true);
+const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("in" in value ? value.in.includes(row[key]) : range(row[key], value)) : row[key] === value);
+/** The page figure loader reads with `select`, segments nested. */
+const segmentsWanted = (args: Row) => Boolean(args.include?.segments ?? args.select?.segments);
 
 function makeClient(): Row {
   return {
@@ -102,8 +110,11 @@ function makeClient(): Row {
       update: async () => ({}),
     },
     turn: {
-      findMany: async ({ where, orderBy, skip = 0, take = 100 }: Row) => turns.filter((t) => matches(t, where)).sort((a, b) => orderBy.orderIndex === "desc" ? b.orderIndex - a.orderIndex : a.orderIndex - b.orderIndex).slice(skip, skip + take).map((t) => ({ ...t })),
-      findFirst: async ({ where, include }: Row) => withSegments(turns.find((t) => matches(t, where)), include),
+      findMany: async (args: Row) => {
+        const { where, orderBy, skip = 0, take = 100 } = args;
+        return turns.filter((t) => matches(t, where)).sort((a, b) => orderBy.orderIndex === "desc" ? b.orderIndex - a.orderIndex : a.orderIndex - b.orderIndex).slice(skip, skip + take).map((t) => withSegments(t, segmentsWanted(args))!);
+      },
+      findFirst: async (args: Row) => withSegments(turns.find((t) => matches(t, args.where)), segmentsWanted(args)),
       count: async ({ where }: Row) => turns.filter((t) => t.boardId === where.boardId).length,
       create: async ({ data }: Row) => {
         if (turns.some((t) => t.id === data.id || (t.boardId === data.boardId && t.orderIndex === data.orderIndex))) {
@@ -173,13 +184,17 @@ const SERVER_INK = drawing.serializeSegmentCommands(
   { trustedDiagramGeometry: true },
 );
 
-const canonicalize = async (meta: Row) => {
+let lastCanonicalizeOptions: Row | undefined;
+const canonicalize = async (meta: Row, options?: Row) => {
   canonicalizeCalls += 1;
-  if (meta.sceneArtifacts?.problemIR) {
+  lastCanonicalizeOptions = options;
+  // A doubt naming its page's figure goes through the real canonicalizer and
+  // the real page figure loader, bound by the route to this in-memory board.
+  if (meta.sceneArtifacts?.problemIR || meta.sceneArtifacts?.pointsAtFigure) {
     await canonicalPause?.();
     // Route data crossed a VM realm; replay its JSON boundary before invoking
     // the real source canonicalizer, whose plain-object check is intentional.
-    return canonicalizeRealScene(JSON.parse(JSON.stringify(meta)));
+    return canonicalizeRealScene(JSON.parse(JSON.stringify(meta)), options);
   }
   if (String(meta.question).includes("REFUSE") || meta.segments.some((s: Row) => s.narration === "REFUSE")) {
     return { ok: false, error: "refused by the stub" };
@@ -273,7 +288,11 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   },
   // Failure telemetry has its own runtime/privacy gate; keep this fixture on checkpoint semantics.
   "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
+  "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
+  "@/lib/scene/pageFigureLoader": pageFigureLoader,
+  "@/lib/boards/boardContinuation": boardContinuation,
+  "@/lib/boards/doubtFigureRef": doubtFigureRef,
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,
   "@/lib/boards/turnSaveRejection": turnSaveRejection,
@@ -292,6 +311,8 @@ const boardRoute = load("app/api/boards/[boardId]/route.ts", {
   "@/lib/boards/storageQuota": { withUserStorageLock: (_id: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run) },
   "@/lib/object-store/keys": keys,
   "@/lib/boards/turnStatus": turnStatus,
+  "@/lib/community/publicBoard": { isCommunityVisibility: (value: unknown) => value === "public" || value === "private" },
+  "@/lib/object-store/s3": { deleteBoardThumbnail: async () => {} },
 });
 async function freshOrder(boardId = "board-a"): Promise<string[]> {
   const response = await boardRoute.GET(new Request(`https://example.test/api/boards/${boardId}`), { params: Promise.resolve({ boardId }) });
@@ -412,6 +433,246 @@ async function registryHistoryReceiptsDriveDurableInsertion() {
     assert.equal(attempted.find(meta=>meta.question==="B")?.orderAfterTurnId,x,"B's own claim observed X as predecessor");
     assert.deepEqual(await freshOrder(),[p,a,x,b],"actual registry receipts through checkpoint and fresh GET preserve interleaved chronological history");
   } finally { globalThis.fetch = originalFetch; }
+}
+
+// A recorded lesson: 41 rows, 5.7 KB of narration and 193 KB of per character
+// timings at full precision. Its next save got a 413, and the rest of the lesson
+// was never saved. Timings are given up before rows are.
+async function timingsGiveWayBeforeRows() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const seconds = (index: number) => index * 0.0812345678901234 + 0.0312345678901234;
+  const timed = (orderIndex: number, chars: number) => {
+    const text = "a".repeat(chars);
+    return { ...row(orderIndex, text, write("x")), durationMs: 9_000, timings: {
+      charStartTimes: Array.from({ length: chars }, (_, index) => seconds(index)),
+      charDurations: Array.from({ length: chars }, () => 0.0812345678901234),
+      totalDuration: seconds(chars),
+    } };
+  };
+  const warnings: unknown[][] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => { warnings.push(args); };
+  try {
+    // Rounded to the millisecond as it is saved, and within a millisecond of what was sent.
+    const small = crypto.randomUUID();
+    const sent = timed(0, 40);
+    assert.equal((await put(small, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: [sent] })).status, 200);
+    const saved = rowsOf(small)[0]!.timings as { charStartTimes: number[]; charDurations: number[]; totalDuration: number };
+    assert.equal(saved.charStartTimes.length, 40, "every character keeps its time");
+    saved.charStartTimes.forEach((value, index) => {
+      assert(Math.abs(value - sent.timings.charStartTimes[index]!) <= 0.0005, "a time moves by half a millisecond at most");
+      assert.equal(value, Number(value.toFixed(3)), "a time holds three decimals");
+    });
+    assert.equal(saved.totalDuration, Number(sent.timings.totalDuration.toFixed(3)), "the total is rounded too");
+    assert(JSON.stringify(saved).length < JSON.stringify(sent.timings).length / 2, "rounding at least halves the bytes");
+    // Rounding does not move the pen, through the code the pen actually uses.
+    const words = "aaaa ".repeat(8).slice(0, 39) + "a";
+    const penRow = { type: "WRITE" as const, text: "aaaa", params: [90, 142], charPosition: 0, narrationBefore: words.slice(0, 20) };
+    assert.equal(validateAudioTimingsForNarration(words, saved as never).valid, validateAudioTimingsForNarration(words, sent.timings as never).valid, "the validator reads rounded timings the same way");
+    assert.equal(validateAudioTimingsForNarration(words, saved as never).valid, true, "and accepts them");
+    const penBefore = getWriteCharScheduleMs(words, penRow as never, sent.timings as never)!;
+    const penAfter = getWriteCharScheduleMs(words, penRow as never, saved as never)!;
+    assert(penBefore && penAfter, "both give a pen schedule");
+    assert(penBefore.offsetsMs.length > 0, "the schedule has characters to compare");
+    assert.equal(penAfter.offsetsMs.length, penBefore.offsetsMs.length, "the pen writes the same characters");
+    penBefore.offsetsMs.forEach((value: number, index: number) => assert(Math.abs(value - penAfter.offsetsMs[index]!) <= 1, "the pen moves by a millisecond at most"));
+
+    // A lesson saved before this: its full precision rows are never rewritten, and
+    // it reads back, and can grow, alongside new rounded rows.
+    const older = crypto.randomUUID();
+    assert.equal((await put(older, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: [row(0, "Old.", write("x"))] })).status, 200);
+    stored(older).submittedSegments.rows[0].timings = sent.timings;
+    assert.equal((await put(older, { seq: 2, baseCount: 1, rawResponse: "a", appendSegments: [timed(1, 40)] })).status, 200);
+    assert.deepEqual(rowsOf(older)[0]!.timings, sent.timings, "an older row keeps its timings exactly");
+    const replayed = (await (await boardRoute.GET(new Request("http://local/api/boards/board-a"), { params: Promise.resolve({ boardId: "board-a" }) })).json()).turns.find((turn: Row) => turn.id === older);
+    assert.deepEqual(replayed.segments[0].timings, sent.timings, "and replays with them");
+    assert.equal(replayed.segments[1].timings.charStartTimes[1], Number(seconds(1).toFixed(3)), "next to a rounded row");
+
+    // The recorded lesson's shape saves whole, every row with its timings.
+    const recorded = crypto.randomUUID();
+    let base = 0;
+    for (let index = 0; index < 60; index++) {
+      const saveRow = await put(recorded, { seq: index + 1, baseCount: base, rawResponse: "a", appendSegments: [timed(base, 138)] });
+      assert.equal(saveRow.status, 200, `row ${index} of a long lesson saves`);
+      base += 1;
+    }
+    assert.equal(rowsOf(recorded).length, 60);
+    assert(rowsOf(recorded).every((saved) => saved.timings != null), "a lesson this size keeps every timing");
+
+    // Far longer: the rows keep coming, and only the later ones lose timings.
+    warnings.length = 0;
+    const long = crypto.randomUUID();
+    base = 0;
+    for (let index = 0; index < 200; index++) {
+      const saveRow = await put(long, { seq: index + 1, baseCount: base, rawResponse: "a", appendSegments: [timed(base, 138)] });
+      assert.equal(saveRow.status, 200, `row ${index} of a very long lesson saves`);
+      base += 1;
+    }
+    const rows = rowsOf(long);
+    assert.equal(rows.length, 200, "no row is lost");
+    assert(rows[0]!.timings != null, "early rows keep their timings");
+    assert(rows[199]!.timings == null, "late rows give theirs up");
+    assert.equal(rows[199]!.durationMs, 9_000, "a row without timings keeps its real length, which replay paces by");
+    assert.equal(rows[199]!.narration.length, 138, "and its words");
+    const dropped = warnings.filter((args) => args[0] === "[turn-timings-dropped]");
+    assert(dropped.length > 0, "the loss is recorded");
+    assert.deepEqual(Object.keys(dropped[0]![1] as object).sort(), ["entryPoint", "event", "rows"], "with counts and no content");
+
+    // Nothing is loosened: rows too big without timings are still refused, by the
+    // merged limit and not only by the limit on one request.
+    const huge = crypto.randomUUID();
+    const wordy = (from: number, count: number) => Array.from({ length: count }, (_, index) => row(from + index, "x".repeat(12_000), write("x")));
+    assert.equal((await put(huge, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
+    const refused = await put(huge, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: wordy(9, 3) });
+    assert.equal(refused.status, 413, "the metadata limit still holds");
+    assert.equal(refused.body.code, "turn_metadata_oversized", "with its own code");
+    assert.equal(rowsOf(huge).length, 9, "and refused rows are not saved");
+    warnings.length = 0;
+    const hugeTimed = crypto.randomUUID();
+    assert.equal((await put(hugeTimed, { seq: 1, baseCount: 0, rawResponse: "a", appendSegments: wordy(0, 9) })).status, 200);
+    assert.equal((await put(hugeTimed, { seq: 2, baseCount: 9, rawResponse: "a", appendSegments: [...wordy(9, 3), timed(12, 40)] })).status, 413);
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a refused save records no drop");
+
+    // The size check passed, then the upload failed: nothing was saved, so nothing was lost.
+    warnings.length = 0;
+    uploadPause = async () => { throw new Error("upload failed"); };
+    try {
+      const count = rowsOf(long).length;
+      const failed = await put(long, { seq: 500, baseCount: count, rawResponse: "a", appendSegments: [timed(count, 138)] }, { [count]: MP3(9) }).catch(() => null);
+      assert(failed === null || failed.status >= 400, "the failed upload is not a saved row");
+      assert.equal(rowsOf(long).length, count, "no row was added");
+    } finally {
+      uploadPause = null;
+    }
+    assert(!warnings.some((args) => args[0] === "[turn-timings-dropped]"), "a failed save records no drop");
+  } finally {
+    console.warn = realWarn;
+  }
+}
+
+// The page that sent a close is gone: whatever the server refuses in it, a turn
+// it holds must stop reading as still being taught.
+async function refusedCloseStillClosesTheTurn() {
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
+  const big = Array.from({ length: 9 }, (_, index) => row(index, "x".repeat(12_000), write("x")));
+  const cases: Array<[string, Row, Row]> = [
+    ["rows that do not parse", { rawResponse: "First.", appendSegments: [row(0, "First.")] },
+      { baseCount: 1, appendSegments: [{ orderIndex: "first" }], rawResponse: "Bad." }],
+    // The recorded shape: a lesson outgrew the merged metadata limit.
+    ["a tail over the metadata limit", { rawResponse: "y".repeat(40_000), appendSegments: big },
+      { baseCount: 9, appendSegments: [row(9, "z".repeat(6_000), write("z"))] }],
+  ];
+  for (const [name, first, payload] of cases) {
+    const id = crypto.randomUUID();
+    const opened = await put(id, { seq: 1, baseCount: 0, ...first });
+    assert.equal(opened.status, 200, `${name}: the turn saved before its close`);
+    const held = rowsOf(id).length;
+    assert.equal(stored(id).status, "live", `${name}: the turn is live before its close`);
+    const closed = await close(id, { seq: 2, status: "stopped", ...payload });
+    assert.equal(stored(id).status, "stopped", `${name}: the close closed the turn (HTTP ${closed.status})`);
+    assert(closed.status === 400 || closed.status === 413, `${name}: the page still hears its rows were refused (HTTP ${closed.status})`);
+    assert.equal(rowsOf(id).length, held, `${name}: rows it refused are not saved, rows it held stay`);
+  }
+  // A close with no rows whose metadata is refused closes the same way.
+  const metadataOnly = crypto.randomUUID();
+  await put(metadataOnly, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  growthBytesLimit = 0;
+  try {
+    const refusedMetadata = await close(metadataOnly, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedMetadata.status, 413, "a page still hears its metadata was refused");
+    assert.equal(stored(metadataOnly).status, "stopped", "and the turn is closed");
+    assert.equal(stored(metadataOnly).rawResponse, "First.", "without the refused metadata");
+  } finally {
+    growthBytesLimit = null;
+  }
+  // A legacy row with its segments still held, at full quota: the close still
+  // closes it, and leaves the held rows exactly as stored.
+  const legacy = crypto.randomUUID();
+  await put(legacy, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const heldRows = [{ orderIndex: 0, narration: "First.", spokenText: "First.", command: null }];
+  stored(legacy).submittedSegments = heldRows;
+  growthBytesLimit = 0;
+  try {
+    const refusedLegacy = await close(legacy, { seq: 2, status: "stopped", rawResponse: "b".repeat(4000) });
+    assert.equal(refusedLegacy.status, 413, "a full account still hears the refusal");
+    assert.equal(stored(legacy).status, "stopped", "a legacy row closes at full quota");
+    assert.deepEqual(stored(legacy).submittedSegments, heldRows, "its held rows stay as stored");
+  } finally {
+    growthBytesLimit = null;
+  }
+
+  // A turn already stopped: a refused close changes nothing about it.
+  const already = crypto.randomUUID();
+  await put(already, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  await close(already, { seq: 2, status: "stopped" });
+  const stoppedAt = stored(already).updatedAt;
+  const again = await close(already, { seq: 3, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(again.status, 400, "the refusal still answers");
+  assert.equal(stored(already).updatedAt, stoppedAt, "a refused close does not touch a turn already stopped");
+
+  // An older tab's close while a newer page still teaches this turn. A plain
+  // late close already stops a live turn, and a refused one stops it the same
+  // way: the newer page keeps saving its rows, and can still finish.
+  for (const [name, olderClose] of [
+    ["a plain older close", { seq: 2, status: "stopped" }],
+    ["a refused older close", { seq: 2, status: "stopped", baseCount: 2, appendSegments: [{ orderIndex: "first" }] }],
+  ] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+    await put(shared, { seq: 3, baseCount: 1, rawResponse: "First. Second.", appendSegments: [row(1, "Second.")] });
+    await close(shared, olderClose);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped`);
+    assert.equal(stored(shared).rawResponse, "First. Second.", `${name}: the newer page's words stay`);
+    const stillTeaching = await put(shared, { seq: 4, baseCount: 2, status: "live", rawResponse: "First. Second. Third.", appendSegments: [row(2, "Third.")] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, 3, `${name}: its rows are kept`);
+    assert.equal(stored(shared).status, "stopped", `${name}: a live save cannot reopen it, as before`);
+    const finished = await put(shared, { seq: 5, baseCount: 3, status: "complete", rawResponse: "First. Second. Third." });
+    assert.equal(finished.status, 200, `${name}: the newer page can still finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: and the lesson completes`);
+  }
+
+  // The same comparison when the refusal is 413 or 409: the two ways an older tab's
+  // close with rows can be refused while a newer page still teaches this turn.
+  const bigRows = (from: number, count: number) => Array.from({ length: count }, (_, index) => row(from + index, "x".repeat(12_000), write("x")));
+  for (const [name, refusedStatus] of [["a 413", 413], ["a 409", 409]] as const) {
+    const shared = crypto.randomUUID();
+    await put(shared, { seq: 1, baseCount: 0, rawResponse: "y".repeat(40_000), appendSegments: bigRows(0, 9) });
+    await put(shared, { seq: 3, baseCount: 9, rawResponse: "z".repeat(40_000), appendSegments: [row(9, "Second.", write("x"))] });
+    const words = stored(shared).rawResponse;
+    if (refusedStatus === 409) {
+      // A newer save lands while the older close is on its way to commit.
+      growthPause = async () => {
+        growthPause = null;
+        const newer = await put(shared, { seq: 4, baseCount: 10, rawResponse: words, appendSegments: [row(10, "Third.", write("x"))] });
+        assert.equal(newer.status, 200, "the newer save lands first");
+      };
+    }
+    const older = await close(shared, { seq: 2, status: "stopped", baseCount: 10,
+      appendSegments: refusedStatus === 413 ? [row(10, "o".repeat(6_000), write("x"))] : [row(10, "Older.", write("x"))] });
+    growthPause = null;
+    assert.equal(older.status, refusedStatus, `${name}: the older close is refused that way`);
+    assert.equal(stored(shared).status, "stopped", `${name}: the turn reads stopped, as a plain late close does`);
+    assert.equal(stored(shared).rawResponse, words, `${name}: the newer page's words stay`);
+    const count = rowsOf(shared).length;
+    const stillTeaching = await put(shared, { seq: 5, baseCount: count, status: "live", rawResponse: words, appendSegments: [row(count, "More.", write("x"))] });
+    assert.equal(stillTeaching.status, 200, `${name}: the newer page keeps saving`);
+    assert.equal(rowsOf(shared).length, count + 1, `${name}: its rows are kept`);
+    assert.equal((await put(shared, { seq: 6, baseCount: count + 1, status: "complete", rawResponse: words })).status, 200, `${name}: and it can finish`);
+    assert.equal(stored(shared).status, "complete", `${name}: the lesson completes`);
+  }
+
+  // No turn yet: nothing to close, and refused rows create nothing.
+  const none = crypto.randomUUID();
+  const refused = await close(none, { seq: 1, status: "stopped", question: "Find the slope.", baseCount: 0, appendSegments: [{ orderIndex: "first" }] });
+  assert.equal(refused.status, 400, "with no turn the refusal stands");
+  assert(!turns.some((turn) => turn.id === none), "and creates nothing");
+  // A signed in stranger gets no close on someone else's board.
+  const owned = crypto.randomUUID();
+  await put(owned, { seq: 1, baseCount: 0, rawResponse: "First.", appendSegments: [row(0, "First.")] });
+  const stranger = await close(owned, { seq: 2, status: "stopped", baseCount: 1, appendSegments: [{ orderIndex: "first" }] }, "board-b");
+  assert.equal(stranger.status, 404, "another board's close is refused");
+  assert.equal(stored(owned).status, "live", "and closes nothing");
 }
 
 async function closeMetadataSequenceOwnership() {
@@ -786,6 +1047,8 @@ async function main() {
   await failedEarlierCreationKeepsDurableOrder();
   await registryHistoryReceiptsDriveDurableInsertion();
   await closeMetadataSequenceOwnership();
+  await timingsGiveWayBeforeRows();
+  await refusedCloseStillClosesTheTurn();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();
@@ -1096,9 +1359,67 @@ async function main() {
   assert.equal(limits.requestBodyLimitForPath("/api/boards/b/turns"), limits.MAX_TURN_BODY_BYTES);
   assert.equal(limits.requestBodyLimitForPath("/api/boards/b/turns/t/x"), limits.MAX_JSON_BODY_BYTES);
 
+  await doubtPointingSurvivesCheckpoint();
+
   assert.ok(canonicalizeCalls > 0);
   assert.equal(reservations.filter((r) => r.state === "open").length, 0, "every reservation is settled or abandoned");
   console.log("verify-turn-checkpoint-route: create, append, idempotency, order, status, trace, ownership, audio refs, close and late audio verified");
+}
+
+/**
+ * 14. A doubt that names its page's figure keeps its pointing through a
+ * checkpoint: `canonicalRowsFor` must not strip FOCUS and ANNOTATE before the
+ * canonicalizer, which checks them against the lesson's own saved row through
+ * the loader the route binds to this board, owner and turn.
+ */
+async function doubtPointingSurvivesCheckpoint() {
+  const fixture = await checkpointSceneFixture();
+  const board = "board-b";
+  const lesson = crypto.randomUUID();
+  const intro = fixture.metadata.segments.map((segment, index) => ({ ...segment, orderIndex: index + 1 }));
+  const saved = await put(lesson, { ...fixture.metadata, seq: 1, baseCount: 0, kind: "lesson", rawResponse: "The sum is five.",
+    appendSegments: [row(0, "", CLEAR), ...intro] }, {}, board);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  assert.equal(stored(lesson).visualStatus, "validated", "the lesson saves its figure");
+
+  const focus = (text: string) => ({ type: "FOCUS", params: [], text, charPosition: 0, narrationBefore: "" });
+  const annotate = (text: string) => ({ type: "ANNOTATE", params: [], text, charPosition: 0, narrationBefore: "" });
+  const doubtArtifacts = (turnId: string | null) => ({
+    ...boardContinuation.boardContinuationArtifacts(fixture.question),
+    ...(turnId ? doubtFigureRef.doubtFigureRefArtifacts({ schemaVersion: doubtFigureRef.DOUBT_FIGURE_REF_VERSION, turnId, kind: "verified_scene" }) : {}),
+  });
+  const doubtRows = [
+    row(0, "The arrow starts at two.", focus("start_value")),
+    row(1, "Nothing called that here.", annotate("ghost_point")),
+    row(2, "So we add three.", { ...write("2 + 3 = 5") }),
+  ];
+  const savedCommands = (turnId: string) => rowsOf(turnId).flatMap((s) => drawing.parseStoredSegmentCommands(s.command));
+
+  const doubt = crypto.randomUUID();
+  const pointed = await put(doubt, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(lesson), appendSegments: doubtRows }, {}, board);
+  assert.equal(pointed.status, 200, `an unknown ANNOTATE never refuses the doubt: ${JSON.stringify(pointed.body)}`);
+  assert.equal(typeof lastCanonicalizeOptions?.loadPageFigure, "function", "the checkpoint binds the page figure loader");
+  assert.ok(savedCommands(doubt).some((c) => c.type === "FOCUS" && c.text === "start_value"),
+    "a checkpointed doubt keeps FOCUS on the lesson figure (canonicalRowsFor keeps pointing)");
+  assert.ok(!savedCommands(doubt).some((c) => c.type === "ANNOTATE"), "an ANNOTATE on no figure part is filtered");
+  assert.deepEqual(rowsOf(doubt).map((s) => s.narration), doubtRows.map((r) => r.narration), "every doubt row keeps its words");
+  assert.equal(stored(doubt).sceneArtifacts?.pointsAtFigure?.turnId, lesson, "the saved doubt names the figure it pointed at");
+
+  // The same doubt without the reference saves exactly as before: no pointing.
+  const plain = crypto.randomUUID();
+  assert.equal((await put(plain, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(null), appendSegments: doubtRows }, {}, board)).status, 200);
+  assert.ok(!savedCommands(plain).some((c) => c.type === "FOCUS" || c.type === "ANNOTATE"), "without a reference a doubt keeps no pointing");
+
+  // The loader binds this save's owner: a figure row owned by someone else lends nothing.
+  stored(lesson).userId = "bob";
+  const foreign = crypto.randomUUID();
+  assert.equal((await put(foreign, { question: "Doubt: why start at 2?", seq: 1, baseCount: 0, kind: "doubt", status: "stopped",
+    visualStatus: "text_only", sceneArtifacts: doubtArtifacts(lesson), appendSegments: doubtRows }, {}, board)).status, 200);
+  assert.ok(!savedCommands(foreign).some((c) => c.type === "FOCUS"), "another owner's figure lends the doubt no pointing");
+  assert.equal(stored(foreign).sceneArtifacts?.failureTelemetry?.pointsAtFigureStatus, "unresolved", "the unresolved reference is recorded");
+  stored(lesson).userId = userId;
 }
 
 const completionWatchdog = setTimeout(() => {

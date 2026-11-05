@@ -27,6 +27,7 @@ export function mapAccountProfile(user: User): AccountProfile {
     ageBand: isAgeBand(user.ageBand) ? user.ageBand : null,
     guardianEmail: user.guardianEmail,
     learningNote: user.learningNote,
+    handle: user.handle,
     createdAt: user.createdAt.toISOString(),
   };
 }

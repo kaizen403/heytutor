@@ -28,6 +28,8 @@ model User {
   /// Fast UI cache only. Monthly millicents ledger is usage authority.
   planId                String?                @map("plan_id")
   remainingPct          Int?                   @map("remaining_pct")
+  /// Public name on Community boards. Null shows a safe default, never the account name of a minor.
+  handle                String?                @unique
   boards                Board[]
   turns                 Turn[]
   chatMessages          BoardChatMessage[]
@@ -151,14 +153,28 @@ model Board {
   pinnedAt     DateTime?          @map("pinned_at") @db.Timestamptz(6)
   /// Archived boards leave the list without being deleted.
   archivedAt   DateTime?          @map("archived_at") @db.Timestamptz(6)
+  /// public | private. New boards are public; boards made before Community stay private.
+  visibility   String             @default("public")
+  /// Set by an admin: the board leaves Community whatever its visibility.
+  communityHiddenAt DateTime?     @map("community_hidden_at") @db.Timestamptz(6)
+  /// Set by an admin: the board shows under Featured.
+  featuredAt   DateTime?          @map("featured_at") @db.Timestamptz(6)
+  viewCount    Int                @default(0) @map("view_count")
+  remixCount   Int                @default(0) @map("remix_count")
+  /// The Community board this one was copied from. No foreign key: the copy outlives its source.
+  remixedFromBoardId String?      @map("remixed_from_board_id")
+  /// When the owner's tab last uploaded the card picture; null means none yet.
+  thumbnailAt  DateTime?          @map("thumbnail_at") @db.Timestamptz(6)
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   turns        Turn[]
   chatMessages BoardChatMessage[]
+  reports      CommunityReport[]
 
   @@index([userId], map: "boards_user_id_idx")
   @@index([userId, archivedAt, pinnedAt], map: "boards_user_id_archived_at_pinned_at_idx")
+  @@index([visibility, communityHiddenAt, updatedAt], map: "boards_community_idx")
   @@map("boards")
 }
 
@@ -208,6 +224,8 @@ model Turn {
   checkpointSeq      Int       @default(0) @map("checkpoint_seq")
   /// Metadata bytes already charged, so growth charges only the delta.
   metadataBytes      BigInt    @default(0) @map("metadata_bytes")
+  /// Spoken length: each audio clip once. Community lists lessons of a minute or more.
+  lessonMs           Int       @default(0) @map("lesson_ms")
   /// Pre-canonical rows plus their audio refs; null once complete.
   submittedSegments  Json?     @map("submitted_segments")
   /// Opaque data a later Continue needs (for example solverProjection).
@@ -311,6 +329,18 @@ model UserStorage {
   @@map("user_storage")
 }
 
+/// One monthly AI credits cycle, kept from the relay's usage counter.
+model AiCreditCycle {
+  cycleKey         String   @id @map("cycle_key")
+  startedAt        DateTime @map("started_at") @db.Timestamptz(6)
+  spentCents       Float    @default(0) @map("spent_cents")
+  lastCounterCents Float    @default(0) @map("last_counter_cents")
+  alertedPercent   Int      @default(0) @map("alerted_percent")
+  polledAt         DateTime @map("polled_at") @db.Timestamptz(6)
+
+  @@map("ai_credit_cycles")
+}
+
 /// Retry erasure until storage confirms deletion; survives account cascade.
 model ObjectDeletionJob {
   id            String   @id @db.Uuid
@@ -324,4 +354,48 @@ model ObjectDeletionJob {
 
   @@index([nextAttemptAt])
   @@map("object_deletion_jobs")
+}
+
+/// A visitor flagged a Community board. Admins read these and may hide the board.
+model CommunityReport {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId    String   @map("board_id")
+  /// Null for a visitor who was not signed in.
+  reporterId String?  @map("reporter_id")
+  reason     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  board      Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt], map: "community_reports_board_id_created_at_idx")
+  @@map("community_reports")
+}
+
+/// Reference pictures (default-off tier, DIAGRAM_REFERENCE_PICTURE). One row per
+/// picture the judge accepted: the Commons file or generated image, its stroke
+/// plan, and the judge's reading. Shared across users: the content is a free
+/// licence picture, not student data. `id` is the only authority the board,
+/// persistence and replay accept for a DRAW_PICTURE command.
+model ReferencePicture {
+  id        String   @id
+  /// Source identity: the Commons file title, or the generated prompt hash.
+  sourceKey String   @unique @map("source_key")
+  source    String
+  record    Json
+  plan      Json
+  image     Bytes
+  imageType String   @map("image_type")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("reference_pictures")
+}
+
+/// What one "must show" request resolved to, so a repeated topic skips the
+/// search and the paid judge. A null picture is a cached decline.
+model ReferencePictureQuery {
+  queryKey  String   @id @map("query_key")
+  pictureId String?  @map("picture_id")
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("reference_picture_queries")
 }

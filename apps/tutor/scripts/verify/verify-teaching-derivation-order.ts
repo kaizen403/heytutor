@@ -380,7 +380,7 @@ for (const solver of [false, true]) for (const language of ["english", "hinglish
   }
   check(doubt.openingSegment === null && doubt.givenSegments.length === 0, "doubt cannot reopen the lesson or restate its givens");
 }
-const equalQuestion = "One length x is 5 m. Find the equal length c.";
+const equalQuestion = "One length has x = 5 m. Find the equal length c.";
 const equalPlan: TurnPlanV3 = { ...plan, question: equalQuestion,
   givens: [{ id: "x", symbol: "x", value: 5, unit: "m", provenance: "given", sourceText: "x is 5 m" }],
   derived: [{ ...plan.derived[0]!, sourceText: "c = x = 5 m", dependsOn: ["x"] }],

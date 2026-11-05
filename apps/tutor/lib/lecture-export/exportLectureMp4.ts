@@ -13,11 +13,17 @@ import type { VirtualWhiteboardClock } from "@heytutor/whiteboard";
 import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import type { VerifiedDiagram } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import type { BoardLayoutState } from "@/features/tutor-session/types";
 import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "@/features/tutor-session/lib/replay/pageFigureSync";
+import type { LessonFigureSequence } from "@/features/tutor-session/lib/scene/lessonFigureSequence";
+import { restoreLessonFigures } from "@/features/tutor-session/lib/scene/restoreLessonFigures";
 import { buildReplayTimeline, type ReplayCue } from "@/lib/replay/replayTimeline";
 import { drawReplayDiagramTimeline } from "@/features/tutor-session/lib/replay/completeReplayDiagram";
 import { resetReplayPageAtTurn } from "@/features/tutor-session/lib/replay/replayPageBoundary";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { restoreReferencePictureFromTurn } from "@/features/tutor-session/lib/scene/restoreReferencePicture";
+import { ExportPictureMissingError, pinReferencePicturesForTurns, preloadReferencePicturesForTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS } from "@/features/tutor-session/lib/scene/referencePicturePreload";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import { DSA_CODE_PANEL_RECT, WHITEBOARD_COLOR } from "@/features/tutor-session/constants";
 import { canEncodeLectureMp4 } from "./canExportLectureMp4";
@@ -223,6 +229,10 @@ export async function exportLectureMp4(options: {
   /** FRAME can replace the figure after turn start; completion follows it. */
   getDiagram?: () => VerifiedDiagram | null;
   resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
+  /** The executor's layout: a doubt's fresh page holds it with the lesson's page and the resume puts it back. */
+  getLayout?: () => BoardLayoutState | null;
+  /** The executor's lesson figure sequence: exported `[FOCUS:figure_k]` cues advance it. */
+  lessonFigures?: LessonFigureSequence | null;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
     ? options.pageTurns
@@ -296,11 +306,20 @@ export async function exportLectureMp4(options: {
   // Set when the export stops before the drawing does (the tail limit, a
   // failure), so the drawing's waits stop instead of lingering on this clock.
   let abandoned = false;
+  let releasePictures: () => void = () => {};
   try {
     if (audioTrack.channels[0] && audioTrack.channels[0].length > 0) {
       await audioSource.add(pcmToAudioBuffer(audioTrack.channels, audioTrack.sampleRate));
     }
 
+    // The export clock never waits for the network: every reference picture
+    // in these turns is fetched before the first frame is drawn, or the
+    // export stops rather than record narration over a missing picture.
+    // Pinned first, so a board with more pictures than the cache holds keeps
+    // every one it preloaded until the export ends.
+    releasePictures = pinReferencePicturesForTurns(pageTurns);
+    const { missing } = await preloadReferencePicturesForTurns(pageTurns, REFERENCE_PICTURE_EXPORT_PRELOAD_TIMEOUT_MS);
+    if (missing.length > 0) throw new ExportPictureMissingError(missing.length);
     options.whiteboard.setTimeSource(options.clock.source);
     options.whiteboard.setAnimationSpeed(1);
     await options.whiteboard.clearBoard(0);
@@ -346,7 +365,26 @@ export async function exportLectureMp4(options: {
         // scene may be absent; only the shared completion authority can decide
         // whether a completed resume may release its remaining marks.
         if (syncedTurnIndex < 0 || !storedTurnContinuesBoard(turn)) {
-          activeDiagram = turn.visualStatus === "validated" ? restoreVerifiedDiagramFromTurn(turn) : null;
+          activeDiagram = turn.visualStatus === "validated"
+            ? restoreVerifiedDiagramFromTurn(turn)
+            : restoreReferencePictureFromTurn(turn);
+          if (options.lessonFigures) restoreLessonFigures(options.lessonFigures, turn);
+        } else {
+          // A doubt's own figure swaps in; the resume returns the lesson's,
+          // with the marks earlier turns released (pageFigureAt).
+          const figure = await syncStoredPageFigure({
+            turns: pageTurns,
+            turnIndex: cue.turnIndex,
+            whiteboard: options.whiteboard,
+            layout: options.getLayout?.() ?? null,
+            executeCommand: options.executeCommand,
+            shouldCancel: drawShouldCancel,
+            lessonFigures: options.lessonFigures,
+          });
+          if (figure.changed) {
+            if (figure.cancelled) return;
+            activeDiagram = figure.diagram;
+          }
         }
         syncedTurnIndex = cue.turnIndex;
         options.onTurnStart?.(turn, activeDiagram);
@@ -502,6 +540,7 @@ export async function exportLectureMp4(options: {
     await output.cancel().catch(() => undefined);
     throw error;
   } finally {
+    releasePictures();
     options.whiteboard.setTimeSource(null);
     options.whiteboard.setAnimationSpeed(1);
   }

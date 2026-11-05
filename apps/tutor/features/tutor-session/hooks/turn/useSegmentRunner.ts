@@ -30,6 +30,7 @@ import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
+import { savedCommandFilter } from "../../lib/scene/lessonFigureSequence";
 import type { UseSegmentRunnerParams } from "./types";
 import { recordFirstAudible, recordTtsFirstByte } from "../../../../lib/obs/turnTelemetry";
 
@@ -63,6 +64,7 @@ export function useSegmentRunner({
   reserveTextCommandPlacements,
   onSpeechStartupStatus,
   onVoiceDegraded,
+  lessonFiguresRef,
 }: UseSegmentRunnerParams) {
   // The voice's measured pace, learned from every aligned sentence of the
   // session and used wherever a sentence has no alignment yet. The estimate
@@ -287,11 +289,17 @@ export function useSegmentRunner({
       /** Ink or voice of this segment reached the student (a Stop after this cuts it). */
       const codeController = codeLessonControllerRef?.current;
       const codePlan = codeController?.getActivePlan();
+      // lesson-figure-saved-cues:begin
+      // A lesson advance cue is saved only once the playback cursor reached it
+      // (review F2, N6). No active sequence: undefined, rows saved as before.
+      const savesCommand = savedCommandFilter(lessonFiguresRef?.current);
+      // lesson-figure-saved-cues:end
       const preparedSave = liveTurnSave().prepareSegment(cancelRef, turnGeneration, {
         orderIndex: index, narration: segment.narration, spokenText: mathToSpeech(narration),
         command: serializeSegmentCommands(segmentCommands), audioBytes: null, durationMs: null, timings: null,
       }, { intro: onRecorded !== undefined || segment.verifiedDiagramIntro === true,
         getTypeShownChars: (id) => codeController?.getActivePlan() === codePlan ? codeController?.getState().revealedChars[id] ?? 0 : 0,
+        ...(savesCommand ? { savesCommand } : {}),
       });
       const markShown = () => { if (!isCancelled()) preparedSave?.markShown(); };
       let timingTelemetryCount = 0;
@@ -1212,7 +1220,7 @@ export function useSegmentRunner({
             orderIndex: index,
             narration: segment.narration,
             spokenText: mathToSpeech(narration),
-            command: serializeSegmentCommands(segmentCommands, {
+            command: serializeSegmentCommands(savesCommand ? segmentCommands.filter(savesCommand) : segmentCommands, {
               trustedDiagramGeometry: segment.verifiedDiagramIntro === true,
             }),
             audioBytes: capturedAudio,
@@ -1279,6 +1287,7 @@ export function useSegmentRunner({
       speakingNarrationRef,
       onSpeechStartupStatus,
       onVoiceDegraded,
+      lessonFiguresRef,
     ],
   );
 

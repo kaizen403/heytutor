@@ -67,8 +67,9 @@ export class SceneBuilder {
     return this.ids.has(id);
   }
 
-  quantity(id: string, symbol: string, value: number, unit = ""): string {
-    this.quantities.push({ id, symbol, value: round(value, 6), unit });
+  /** `derived` marks a value the figure solved (an answer label waits for teaching); givens stay unmarked. */
+  quantity(id: string, symbol: string, value: number, unit = "", provenance?: "derived"): string {
+    this.quantities.push({ id, symbol, value: round(value, 6), unit, ...(provenance ? { provenance } : {}) });
     return id;
   }
 
@@ -361,9 +362,11 @@ export class SceneBuilder {
     );
   }
 
-  dimension(id: string, start: string, end: string, role: string, label?: string): string {
+  /** `keepLabelLane` asks the compiler to keep this bar a label lane clear of
+   * other labelled bars stacked over it (see relocateObstructedDimensions). */
+  dimension(id: string, start: string, end: string, role: string, label?: string, options: { keepLabelLane?: boolean } = {}): string {
     return this.declare(
-      { id, kind: "dimension", role, ...(label ? { label: compact(label) } : {}) },
+      { id, kind: "dimension", role, ...(label ? { label: compact(label) } : {}), ...(options.keepLabelLane === true ? { provenance: { keepLabelLane: true } } : {}) },
       { id: `make_${id}`, operator: "dimension", inputs: { start, end }, outputs: [id] },
     );
   }

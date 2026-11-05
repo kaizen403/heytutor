@@ -11,11 +11,14 @@ import * as keys from "../../lib/object-store/keys";
 import * as mediaUrl from "../../lib/object-store/mediaUrl";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as turnStatus from "../../lib/boards/turnStatus";
+import * as boardContinuation from "../../lib/boards/boardContinuation";
+import * as doubtFigureRef from "../../lib/boards/doubtFigureRef";
 import * as turnSaveRejection from "../../lib/boards/turnSaveRejection";
 import * as storedSceneSource from "../../lib/scene/storedSceneSource";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { turnMetadataStorageBytes } from "../../lib/boards/storageAccounting";
 import { saveFailureMessage } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import { sceneKeepsReferencePictureRows } from "../../lib/scene/referencePicturePersistence";
 
 const root = resolve(__dirname, "../..");
 // The adapter deliberately accepts Prisma's query and JSON row shapes.
@@ -140,7 +143,11 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
     },
     "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
+    "@/lib/boards/boardContinuation": boardContinuation,
+    "@/lib/boards/doubtFigureRef": doubtFigureRef,
+    "@/lib/scene/pageFigureLoader": { pageFigureLoaderFor: () => async () => null, doubtFigurePageCheckFor: () => async () => false, lessonFigureStartFor: () => async () => "figure_1" },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
+    "@/lib/scene/referencePicturePersistence": { sceneKeepsReferencePictureRows },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row) =>
       canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(metadata))) },
     "@/lib/scene/turnUploadLimits": uploadLimits,

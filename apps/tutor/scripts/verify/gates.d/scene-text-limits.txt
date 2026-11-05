@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-scene-text-limits.ts

@@ -1,0 +1,528 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_1_molarity_and_solution_stoichiometry.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "numeric, no figure needed"
+ },
+ "selection": {
+  "question": "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "chemistry",
+   "question": "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution.",
+   "givens": [
+    {
+     "id": "m",
+     "symbol": "m(NaCl)",
+     "value": 5.85,
+     "unit": "g",
+     "sourceText": "5.85 g of NaCl",
+     "provenance": "given"
+    },
+    {
+     "id": "V",
+     "symbol": "V(solution)",
+     "value": 500,
+     "unit": "mL",
+     "sourceText": "500 mL of solution",
+     "provenance": "given"
+    },
+    {
+     "id": "M",
+     "symbol": "M(NaCl)",
+     "value": 58.5,
+     "unit": "g/mol",
+     "sourceText": "Na 23 + Cl 35.5",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "n",
+     "symbol": "n(NaCl)",
+     "unit": "mol"
+    },
+    {
+     "id": "c",
+     "symbol": "c(NaCl)",
+     "unit": "mol/L"
+    }
+   ],
+   "derived": [
+    {
+     "id": "n",
+     "symbol": "n(NaCl)",
+     "value": 0.1,
+     "unit": "mol",
+     "sourceText": "5.85 / 58.5 = 0.1",
+     "provenance": "derived",
+     "dependsOn": [
+      "m",
+      "M"
+     ]
+    },
+    {
+     "id": "c",
+     "symbol": "c(NaCl)",
+     "value": 0.2,
+     "unit": "mol/L",
+     "sourceText": "0.1 / 0.5 = 0.2",
+     "provenance": "derived",
+     "dependsOn": [
+      "n",
+      "VL"
+     ]
+    },
+    {
+     "id": "VL",
+     "symbol": "V(solution)",
+     "value": 0.5,
+     "unit": "L",
+     "sourceText": "500 / 1000 = 0.5",
+     "provenance": "derived",
+     "dependsOn": [
+      "V"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "q1",
+     "claim": "Moles of NaCl = mass / molar mass = 5.85 g / 58.5 g/mol = 0.1 mol.",
+     "expected": "n = m/M",
+     "relatedQuantityIds": [
+      "n",
+      "m",
+      "M"
+     ]
+    },
+    {
+     "id": "q2",
+     "claim": "Molarity = moles of solute / volume of solution in litres = 0.1 mol / 0.5 L = 0.2 mol/L.",
+     "expected": "c = n/V",
+     "relatedQuantityIds": [
+      "c",
+      "n",
+      "VL"
+     ]
+    }
+   ],
+   "lawIds": [
+    "molarity definition c=n/V",
+    "mole-mass relation n=m/M",
+    "mL to L conversion"
+   ],
+   "assumptions": [
+    "Molar mass of NaCl taken as 58.5 g/mol (Na 23, Cl 35.5)",
+    "500 mL is the final solution volume, not solvent volume",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fMass",
+     "kind": "given",
+     "statement": "NaCl mass is 5.85 g",
+     "evidence": {
+      "source": "question",
+      "start": 43,
+      "end": 57,
+      "quote": "5.85 g of NaCl"
+     }
+    },
+    {
+     "id": "fVol",
+     "kind": "given",
+     "statement": "solution volume is 500 mL",
+     "evidence": {
+      "source": "question",
+      "start": 61,
+      "end": 79,
+      "quote": "500 mL of solution"
+     }
+    },
+    {
+     "id": "fMolarity",
+     "kind": "requested",
+     "statement": "find molarity of the solution",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 31,
+      "quote": "Find the molarity of a solution"
+     }
+    },
+    {
+     "id": "fMolarMass",
+     "kind": "assumption",
+     "statement": "NaCl molar mass 58.5 g/mol",
+     "evidence": {
+      "source": "question",
+      "start": 53,
+      "end": 57,
+      "quote": "NaCl"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "solution",
+     "kind": "other",
+     "label": "NaCl solution",
+     "evidenceFactIds": [
+      "fMass",
+      "fVol"
+     ]
+    },
+    {
+     "id": "nacl",
+     "kind": "component",
+     "label": "NaCl solute",
+     "evidenceFactIds": [
+      "fMass",
+      "fMolarMass"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eMolarity",
+     "valueType": "scalar",
+     "evidenceFactIds": [
+      "fMass",
+      "fVol",
+      "fMolarMass"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "/",
+      "left": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 5.85
+       },
+       "right": {
+        "kind": "number",
+        "value": 58.5
+       }
+      },
+      "right": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "number",
+        "value": 500
+       },
+       "right": {
+        "kind": "number",
+        "value": 1000
+       }
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iSolution",
+     "kind": "conceptual",
+     "entityIds": [
+      "solution",
+      "nacl"
+     ],
+     "evidenceFactIds": [
+      "fMass",
+      "fVol"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sMolarity",
+     "kind": "evaluate",
+     "expressionId": "eMolarity",
+     "resultBinding": {
+      "turnPlanQuantityId": "c",
+      "symbol": "c(NaCl)",
+      "unit": "mol/L",
+      "evidenceFactIds": [
+       "fMolarity"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "chem_solutions"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "symbol",
+    "connect",
+    "vector_components",
+    "arc",
+    "impedance",
+    "impedance_combine",
+    "phasor_response",
+    "kirchhoff_network",
+    "metre_bridge",
+    "potentiometer",
+    "galvanometer",
+    "axes",
+    "function_curve"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "path",
+    "sameTerminalPair",
+    "pathCount",
+    "loadBranchCount",
+    "degree",
+    "connected",
+    "perpendicular",
+    "angle_between",
+    "function_value",
+    "on"
+   ],
+   "planningGuidance": [
+    "Every circuit component is a symbol with two terminals. Series components share consecutive terminals; parallel components share the same terminal pair. Prove path or sameTerminalPair. A supplied multi-loop graph uses kirchhoff_network and must not be redrawn as a series chain. A metre bridge or potentiometer balance uses metre_bridge or potentiometer; do not place the jockey by eye. If a phasor diagram is named, put it in a second reveal group as vectors from one origin with angle_between; do not replace symbols with arrows.",
+    "This is a chemistry question. The engine draws the chemistry figure itself from the formula, the named process or the stated numbers; do not author molecules, cells, orbitals or unit cells. Return visualDecision text_only unless the question is a plotted graph whose curve you can state as an expression."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fMass",
+      "kind": "given",
+      "statement": "NaCl mass is 5.85 g",
+      "evidence": {
+       "source": "question",
+       "start": 43,
+       "end": 57,
+       "quote": "5.85 g of NaCl"
+      }
+     },
+     {
+      "id": "fVol",
+      "kind": "given",
+      "statement": "solution volume is 500 mL",
+      "evidence": {
+       "source": "question",
+       "start": 61,
+       "end": 79,
+       "quote": "500 mL of solution"
+      }
+     },
+     {
+      "id": "fMolarity",
+      "kind": "requested",
+      "statement": "find molarity of the solution",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 31,
+       "quote": "Find the molarity of a solution"
+      }
+     },
+     {
+      "id": "fMolarMass",
+      "kind": "assumption",
+      "statement": "NaCl molar mass 58.5 g/mol",
+      "evidence": {
+       "source": "question",
+       "start": 53,
+       "end": 57,
+       "quote": "NaCl"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "solution",
+      "kind": "other",
+      "label": "NaCl solution",
+      "evidenceFactIds": [
+       "fMass",
+       "fVol"
+      ]
+     },
+     {
+      "id": "nacl",
+      "kind": "component",
+      "label": "NaCl solute",
+      "evidenceFactIds": [
+       "fMass",
+       "fMolarMass"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eMolarity",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+       "fMass",
+       "fVol",
+       "fMolarMass"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "/",
+       "left": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 5.85
+        },
+        "right": {
+         "kind": "number",
+         "value": 58.5
+        }
+       },
+       "right": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+         "kind": "number",
+         "value": 500
+        },
+        "right": {
+         "kind": "number",
+         "value": 1000
+        }
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iSolution",
+      "kind": "conceptual",
+      "entityIds": [
+       "solution",
+       "nacl"
+      ],
+      "evidenceFactIds": [
+       "fMass",
+       "fVol"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sMolarity",
+      "kind": "evaluate",
+      "expressionId": "eMolarity",
+      "resultBinding": {
+       "turnPlanQuantityId": "c",
+       "symbol": "c(NaCl)",
+       "unit": "mol/L",
+       "evidenceFactIds": [
+        "fMolarity"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Find the molarity of a solution containing 5.85 g of NaCl in 500 mL of solution."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sMolarity",
+      "requestId": "sMolarity",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "1/5"
+      },
+      "approximate": 0.19999999999999998,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sMolarity",
+      "requestId": "sMolarity",
+      "method": "exact_arithmetic",
+      "expressionIds": [
+       "eMolarity"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Evaluated the typed, variable-free expression with the audited local evaluator."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

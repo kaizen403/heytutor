@@ -55,20 +55,22 @@ described in rule 5.
 | Question bank pipeline | `tools/question-bank/` + `data/question-bank/` |
 | DSA worked examples (LeetCode) | `packages/scene-engine/src/dsa/` — simulators, `traceToScene`, `familyTeaching` |
 | DSA lesson bench | `apps/tutor/scripts/lecture-lab/dsa-run.ts` + `data/leetcode-probes/` |
-| Admin panel (overview / users / logs / fails) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
+| Admin panel (overview / users / logs / fails / community) | `apps/tutor/app/admin/(panel)/` + `features/admin/{nav,analytics,users,turns,shared}/` + `lib/admin/` |
 | Test playground (syllabus lectures) | `apps/tutor/app/admin/playground/page.tsx` + `features/admin/AdminPlayground.tsx` |
 | Finished-lecture playback bar (seek, speed, chapters) | `apps/tutor/features/tutor-session/hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx` + `lib/replay/lecturePlayer.ts` |
+| Community (public boards, remix) | `apps/tutor/lib/community/` (`publicBoard.ts` privacy whitelist, `queries.ts`, `remix.ts`) + `features/community/`; moderation in `/admin/community`; gate `verify-community-privacy.ts` |
 | Chemistry figures (formula to figure) | `packages/scene-engine/src/chemistry/` — families, `classify.ts`, `router.ts`; bench in `scripts/chemistry-lab/` |
+| Reference pictures (judged Commons diagram, pencil reveal; off by default) | `apps/tutor/lib/reference-picture/` + `app/api/reference-picture/` + `packages/drawing/src/protocol/referencePicture.ts` |
 
 ## Agent Guidelines
 
-- **Diagram coverage work or completion logging:** read [the coverage plan](DIAGRAM_ENGINE_COVERAGE_PLAN.md), [topic matrix](docs/plans/diagram-topic-matrix/index.md) and [progress contract](docs/plans/diagram-topic-matrix/progress.md) before assigning packets or reporting completion. Each worker writes its own evidence log; the integration owner updates accepted topic counts.
+- **Diagram coverage work or completion logging:** resumed 3 November 2026 by general causes with a measured chapter table, no packets and no row claims. Read [the coverage plan](DIAGRAM_ENGINE_COVERAGE_PLAN.md), [topic matrix](docs/plans/diagram-topic-matrix/index.md) and [progress contract](docs/plans/diagram-topic-matrix/progress.md) before reporting completion. The integration owner updates accepted topic counts, only with evidence.
 - [Session handoff](docs/agent/session-handoff.md) — compact seed; Physics certified, Maths operators in (2 OCR leftovers)
 - [Session ownership](docs/agent/session-ownership.md) — announce before editing scene-engine synthesize/document/capability/verify; do not load another session's gate
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [DSA lessons](docs/agent/dsa-lessons.md) — the LeetCode lane: simulators, what a frame may draw, lesson shape, and the gates
 - [Chemistry lessons](docs/agent/chemistry-lessons.md) — the chemistry lane: 13 figure families computed from the formula, the subject test, the board notation, and the gates
-- [LLM provider](docs/agent/llm-provider.md): `LLM_PROVIDER=azure` (gpt-6.1-sol on Foundry) or `fireworks` (Kimi K3); what the Azure model accepts and same-harness numbers
+- [LLM provider](docs/agent/llm-provider.md): `LLM_PROVIDER=azure` (gpt-6.1-sol on Foundry), `openai_compat` (a relay, gpt-6-sol, with a Fireworks circuit breaker) or `fireworks` (Kimi K3); what each accepts and same-harness numbers
 - [Lecture lab](docs/agent/lecture-lab.md) — run whole lectures offline against the dev server, grade them, and diff rounds; the DSA lane replays a LeetCode turn and renders every board frame
 - [Wrong figures: causes and ranked fixes](docs/plans/figure-relevance-fixes.md) — 87 wrong figures traced to the probe cue and the family layer, with counts per fix
 - [Start — architecture map](start.md)
@@ -93,10 +95,24 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
 2. **`@heytutor/scene-engine` owns every diagram mark** — geometry, topology,
    labels, dimensions, layout, and reveal order. No topic templates, chapter
    registries, regex routers, fixed-pixel plugins, or model-authored diagram ink.
+   One owner-approved exception (26 Oct 2026), off by default
+   (`DIAGRAM_REFERENCE_PICTURE=on`): when no verified figure is drawn, the
+   server may show a **reference picture**, a free licence Commons diagram
+   that a vision judge accepted, revealed by the pencil from a stored stroke
+   plan. It is never presented as verified geometry; its authority is the
+   stored record. See
+   [docs/architecture/reference-pictures.md](docs/architecture/reference-pictures.md).
 3. **Teaching stream owns narration and work-area `WRITE` only** — never draw,
    label, annotate, erase, circle, or supply focus coordinates. `[FOCUS:id]` may
-   trace existing verified geometry. Filters and `useCommandExecution()` enforce
-   ownership.
+   trace existing verified geometry, or (with `REFERENCE_PICTURE_PART_FOCUS=on`)
+   ring a label the server located on a stored reference picture. Filters and `useCommandExecution()` enforce
+   ownership. One owner-approved exception (28 Oct 2026): `[FOCUS:id|keep]`
+   leaves a ring on a verified scene part until the work column turns its page
+   or the figure leaves the zone. The ring's geometry comes only from the scene
+   entity's verified anchor, never from the model. With `DIAGRAM_LESSON_FIGURES=on`,
+   `[FOCUS:figure_2]` or `[FOCUS:figure_3]` may move the zone forward to a later
+   lesson figure the engine already verified; the executor draws that figure, and
+   the teaching stream supplies only the id, never geometry.
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot
    pair with a correct diagram.

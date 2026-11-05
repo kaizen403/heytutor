@@ -254,6 +254,7 @@ export async function queueAbandonedFailedTurns(now = new Date(), options: {
     where: {
       status: "live", sentryReportedAt: null,
       updatedAt: { gte: recentAfter, lt: new Date(now.getTime() - LIVE_TURN_IDLE_MS) },
+      // Failed turns only. A turn sends one event, so reporting an idle picture lesson here would use it up and drop a real failure when the tab returns.
       AND: [failedTurnWhere(), { OR: [{ sentryEventId: null }, { sentryNextAttemptAt: null }] }],
     },
     orderBy: { updatedAt: "asc" }, take: FAILED_TURN_SENTRY_BATCH_LIMIT,
