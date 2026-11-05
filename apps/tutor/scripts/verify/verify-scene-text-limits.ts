@@ -346,7 +346,7 @@ for (const [name, grow] of [
 // A kind the normalizer renames is counted as what it becomes.
 if (validateSceneDocument({ ...clone(base), entities: many(N.kinds.polyline, (index) => ({ id: `c${index}`, kind: "curve", role: "curve" })), constructions: [] }).report.issues.some((issue) => issue.code === COUNT)) fail("a renamed kind counts as what it becomes", null);
 
-// Each input at its own largest value, through save.
+// Each input at its own largest value.
 const plain = () => ({
   schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
   source: { question: "Draw the figure.", nonMetric: true, representationTier: "qualitative_verified" },
@@ -424,7 +424,7 @@ for (const [name, build] of largest) {
   try { await save(document as unknown as Figure); } catch (error) { threw = String(error).slice(0, 80); }
   const used = process.cpuUsage(started);
   if (threw) fail(`${name}: threw`, threw);
-  if ((used.user + used.system) / 1000 > LARGEST_LIMIT_MS) fail(`${name}: save time`, (used.user + used.system) / 1000);
+  if ((used.user + used.system) / 1000 > LARGEST_LIMIT_MS) fail(`${name}: over the limit`, (used.user + used.system) / 1000);
 }
 // One past a size is refused by the validator, not only by a compile.
 const pastSize = plain(); fieldLines(pastSize, 0, 16, I.fieldLineSteps / 16 + 1);
