@@ -62,7 +62,7 @@ for (const [question, scalars] of [
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in H2O" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "pm" }]],
   ["shape of NH3 molecule", [{ symbol: "unnamed", value: 107, unit: "degrees" }]],
-  ["Use VSEPR to predict the shapes of SF4 and XeF4.", [{ symbol: "lone pairs", value: 1, unit: "" }]],
+  ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [{ symbol: "lone pairs", value: 1, unit: "" }]],
   ["Compare the shapes of NH3 and H2O.", [ANGLE(107)]],
   ["Compare the shapes of NH3 and H2O.", [{ symbol: "lone pairs", value: 1, unit: "" }]],
 ] as Array<[string, Scalar[]]>) {
