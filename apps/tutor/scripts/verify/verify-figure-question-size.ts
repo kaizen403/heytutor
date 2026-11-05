@@ -104,6 +104,15 @@ const main = async () => {
   const textLesson = stored(LESSON_TURN_ID, 0, pastSize, (await canonicalizeTurnSceneMetadata(metadata(pastSize)) as { value: Parameters<typeof stored>[3] }).value, { opensOnClear: true, kind: "lesson" });
   if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([textLesson]) }) !== "text_only") fail("a lesson saved as text lends no exemption", null);
   if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([longLesson], "someone else") }) !== "text_only") fail("another owner's lesson lends no exemption", null);
+  // The memory store reads what Prisma's select reads: the turn and the walk see each turn's first row only.
+  const contractStore = memoryPageFigureStore(pageRowsOf([longLesson]));
+  if (longLesson.segments.length < 2 || (await contractStore.findTurn(LESSON_TURN_ID))?.segments.length !== 1 || (await contractStore.turnsBefore("b1", null))[0]?.segments.length !== 1) fail("the memory store reads one row per turn, as production does", null);
+  // The lesson's own row decides, as production reads it: its first row is the opening CLEAR, not the figure.
+  if (isStoredCommandTrustedGeometry(longLesson.segments[0]?.command)) fail("the saved lesson opens on a row that is not the figure", null);
+  const notValidated = { ...longLesson, visualStatus: "text_only" as const };
+  if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([notValidated]) }) !== "text_only") fail("a lesson row not saved as a validated figure lends nothing", null);
+  const noDocument = { ...longLesson, sceneDocument: null };
+  if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([noDocument]) }) !== "text_only") fail("a lesson row with no scene document lends nothing", null);
   const unplannedSave = await canonicalizeTurnSceneMetadata(metadata(pastSize, false));
   if (!unplannedSave.ok || unplannedSave.value.visualStatus !== "validated") { fail("a long lesson saved with a figure and no plan", unplannedSave.ok ? unplannedSave.value.visualStatus : unplannedSave.code); return; }
   const unplannedLesson = stored(LESSON_TURN_ID, 0, pastSize, unplannedSave.value, { opensOnClear: true, kind: "lesson" });

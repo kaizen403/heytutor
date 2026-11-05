@@ -94,13 +94,18 @@ function clean(value: unknown): unknown {
 function withSegments(turn: Row | undefined, include: unknown) {
   if (!turn) return null;
   const copy = { ...turn };
-  if (include) copy.segments = segments.filter((s) => s.turnId === turn.id).sort((a, b) => a.orderIndex - b.orderIndex);
+  if (include) {
+    const rows = segments.filter((s) => s.turnId === turn.id).sort((a, b) => a.orderIndex - b.orderIndex);
+    // A nested `take` limits the rows, as Prisma does: the page walk reads each turn's first row only.
+    const take = typeof include === "object" && include !== null ? (include as Row).take : undefined;
+    copy.segments = typeof take === "number" ? rows.slice(0, take) : rows;
+  }
   return copy;
 }
 const range = (actual: number, value: Row) => ("gte" in value ? actual >= value.gte : true) && ("gt" in value ? actual > value.gt : true) && ("lt" in value ? actual < value.lt : true);
 const matches = (row: Row, where: Row) => Object.entries(where).every(([key, value]) => typeof value === "object" && value !== null ? ("in" in value ? value.in.includes(row[key]) : range(row[key], value)) : row[key] === value);
 /** The page figure loader reads with `select`, segments nested. */
-const segmentsWanted = (args: Row) => Boolean(args.include?.segments ?? args.select?.segments);
+const segmentsWanted = (args: Row) => args.include?.segments ?? args.select?.segments ?? null;
 
 function makeClient(): Row {
   return {

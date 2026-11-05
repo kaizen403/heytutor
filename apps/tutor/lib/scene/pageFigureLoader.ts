@@ -25,7 +25,6 @@
  * replaced is a figure on that page.
  */
 import {
-  isStoredCommandTrustedGeometry,
   type ReferencePictureRecord,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
@@ -449,18 +448,31 @@ const PAGE_ZONE_TURN_SELECT = {
   segments: { select: { orderIndex: true, command: true }, orderBy: { orderIndex: "asc" as const } },
 } as const;
 
-/** The same reads over rows in memory, for the gates. */
+/**
+ * The same reads over rows in memory, for the gates. Each read returns what its
+ * Prisma select returns, so a gate cannot pass on rows production never reads:
+ * the turn and the walk read only each turn's first row.
+ */
 export function memoryPageFigureStore(turns: readonly PageFigureTurn[]): PageFigureStore {
   const sorted = [...turns].sort((a, b) => a.orderIndex - b.orderIndex);
+  const firstRow = <T extends { segments: PageFigureTurn["segments"] }>(turn: T): T => ({
+    ...turn,
+    segments: [...turn.segments].sort((a, b) => a.orderIndex - b.orderIndex).slice(0, 1),
+  });
   return {
-    findTurn: async (id) => sorted.find((turn) => turn.id === id) ?? null,
+    findTurn: async (id) => {
+      const turn = sorted.find((candidate) => candidate.id === id);
+      return turn ? firstRow(turn) : null;
+    },
     turnsBetween: async (boardId, after, before) => sorted
       .filter((turn) => turn.boardId === boardId && turn.orderIndex > after && (before === null || turn.orderIndex < before))
-      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 1),
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 1)
+      .map(firstRow),
     turnsBefore: async (boardId, before) => sorted
       .filter((turn) => turn.boardId === boardId && (before === null || turn.orderIndex < before))
       .reverse()
-      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2),
+      .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2)
+      .map(firstRow),
     pageTurns: async (boardId, from, before) => sorted
       .filter((turn) => turn.boardId === boardId && turn.orderIndex >= from && (before === null || turn.orderIndex < before))
       .slice(0, PAGE_FIGURE_MAX_TURNS_BETWEEN + 2)
@@ -528,8 +540,8 @@ export function lessonFigureStartFor(
 
 /**
  * The question of the lesson that opened this page, read from the server's own
- * rows, when that lesson was saved with figure ink and a plan; otherwise null.
- * A resume of that lesson asks the same question on a new turn.
+ * row, when that lesson was saved as a validated figure with its plan;
+ * otherwise null. A resume of that lesson asks the same question on a new turn.
  */
 export type PageLessonFigureQuestionLoader = () => Promise<string | null>;
 
@@ -551,11 +563,14 @@ export function bindPageLessonFigureQuestion(
           continue;
         }
         if (turn.boardId !== context.boardId || turn.userId !== context.userId) return null;
-        const plan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
-          ? (turn.sceneArtifacts as Record<string, unknown>).turnPlan
+        // The walk reads no scene document, so the lesson's own row is read once, as the route reads `before`.
+        const row = await deps.store.findTurn(turn.id);
+        if (!row) return null;
+        const plan = row.sceneArtifacts && typeof row.sceneArtifacts === "object"
+          ? (row.sceneArtifacts as Record<string, unknown>).turnPlan
           : undefined;
-        if (plan == null || !turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) return null;
-        return turn.question;
+        if (row.visualStatus !== "validated" || row.sceneDocument == null || plan == null) return null;
+        return row.question;
       }
       return null;
     } catch {
