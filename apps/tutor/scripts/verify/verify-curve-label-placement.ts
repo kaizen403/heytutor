@@ -27,7 +27,8 @@ import { resolveDiagramCurveLabels } from "../../lib/scene/diagramStrategy.serve
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { LESSON_FIGURES_VERSION, lessonFigureSceneInput } from "../../lib/boards/lessonFigures";
-import { doubtPageCheck, LESSON_TURN_ID, stored } from "./fixtures/doubtFigureScene";
+import { doubtPageCheck, LESSON_TURN_ID, pageRowsOf, stored } from "./fixtures/doubtFigureScene";
+import { bindPageLessonCurveLabels, memoryPageFigureStore } from "../../lib/scene/pageFigureLoader";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -241,9 +242,17 @@ async function main() {
   assert(reopenedOn, "the stamped board reopens");
   assert.deepEqual(reopenedOn.diagram.commands, presentedOn.diagram.commands, "with the placement it was drawn with, whatever the switch says now");
   assert.notDeepEqual(reopenedOn.diagram.commands, reopen(devSaved)!.diagram.commands);
-  const resumedOff = await canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(resumeOf(savedOn.sceneDocument))), { ...off, kind: "resume" });
-  assert(resumedOff.ok && resumedOff.value.visualStatus === "validated", "and its resume save passes with the switch off");
-  console.log("PASS rule 3: a dev board resumes as dev with the switch on; a stamped board reopens as drawn with it off");
+  // A resume keeps the figure as its page's lesson saved it, read from the lesson's own row, so replay finishes the
+  // figure (it needs every resume's document equal to the opening one).
+  const RESUME_ID = "33333333-3333-4333-8333-333333333333";
+  const pageOf = (saved: Row) => bindPageLessonCurveLabels({ boardId: "b1", userId: "u1", turnId: RESUME_ID }, { store: memoryPageFigureStore(pageRowsOf([stored(LESSON_TURN_ID, 0, QUESTION, saved as never, { opensOnClear: true, kind: "lesson" })])) });
+  assert.equal(await pageOf(savedOn)(), true, "the loader reads the lesson's stamp from its own row");
+  assert.equal(await pageOf(devSaved)(), false, "and a dev lesson's lack of it");
+  const resumedOff = await savedDocument(resumeOf(savedOn.sceneDocument), { ...off, kind: "resume", loadPageLessonCurveLabels: pageOf(savedOn) });
+  assert.deepEqual(resumedOff.sceneDocument, savedOn.sceneDocument, "with the switch off, a stamped board's resume saves the lesson's own document");
+  const forged = await savedDocument(resumeOf(withCurveLabelPlacement(devSaved.sceneDocument as SceneDocument, true)), { ...on, kind: "resume", loadPageLessonCurveLabels: pageOf(devSaved) });
+  assert.deepEqual(forged.sceneDocument, devSaved.sceneDocument, "with it on, a dev board's resume drops a forged stamp and saves the lesson's own document");
+  console.log("PASS rule 3: a dev board resumes as dev with the switch on; a stamped board reopens and resumes as drawn with it off");
 
   // A doubt's own figure stays as dev draws it, even with the switch on.
   const lessonTurn = stored(LESSON_TURN_ID, 0, QUESTION, devSaved as never, { opensOnClear: true, kind: "lesson" });
@@ -253,7 +262,7 @@ async function main() {
   const doubt = await canonicalizeTurnSceneMetadata({
     question: title, rawResponse: "Here is the curve.", segments: rows, visualStatus: "validated", sceneDocument: doubtFigure,
     sceneArtifacts: { ...artifacts(composed), ...boardContinuationArtifacts(QUESTION), ...doubtFigureArtifacts(LESSON_TURN_ID) },
-  } as unknown as SubmittedTurnSceneMetadata, { ...on, kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck([lessonTurn]) });
+  } as unknown as SubmittedTurnSceneMetadata, { ...on, kind: "doubt", doubtFiguresEnabled: true, checkDoubtFigurePage: doubtPageCheck([lessonTurn]), loadPageLessonCurveLabels: pageOf(savedOn) });
   assert(doubt.ok && doubt.value.visualStatus === "validated", `the doubt saves its figure: ${doubt.ok ? doubt.value.visualStatus : doubt.code}`);
   assert(!isCurveLabelPlacementOnStroke(doubt.value.sceneDocument as SceneDocument), "a doubt's own figure is saved without the stamp");
   console.log("PASS doubt: a doubt's own figure stays as dev draws it");

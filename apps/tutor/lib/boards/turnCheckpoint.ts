@@ -53,7 +53,7 @@ import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { sceneKeepsReferencePictureRows } from "@/lib/scene/referencePicturePersistence";
-import { doubtFigurePageCheckFor, lessonFigureStartFor, pageFigureLoaderFor, pageLessonFigureQuestionFor } from "@/lib/scene/pageFigureLoader";
+import { doubtFigurePageCheckFor, lessonFigureStartFor, pageFigureLoaderFor, pageLessonCurveLabelsFor, pageLessonFigureQuestionFor } from "@/lib/scene/pageFigureLoader";
 import { boardContinuationOf } from "@/lib/boards/boardContinuation";
 import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
 import {
@@ -774,12 +774,14 @@ async function applyCheckpoint(
   const lessonFigureStart = lessonFigureStartFor({ boardId, userId, turnId }, prisma);
   // A resume's page lesson, and this row itself, keep a long question's figure only when saved with a figure and its plan.
   const loadPageLessonFigureQuestion = pageLessonFigureQuestionFor({ boardId, userId, turnId }, prisma);
+  // A resume keeps its page lesson's figure as saved: read from the lesson's own row, only on a resume save.
+  const loadPageLessonCurveLabels = pageLessonCurveLabelsFor({ boardId, userId, turnId }, prisma);
   const storedQuestion = before && before.visualStatus === "validated" && before.sceneDocument != null &&
     isRecord(before.sceneArtifacts) && before.sceneArtifacts.turnPlan != null ? before.question : undefined;
   // A doubt figure is admitted on a doubt only, so the canonicalizer is told the kind.
   const rawKind = before?.kind ?? input.kind;
   const turnKind = isTurnKind(rawKind) ? rawKind : undefined;
-  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion, loadPageLessonFigureQuestion, lessonFigureStart, kind: turnKind });
+  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion, loadPageLessonFigureQuestion, loadPageLessonCurveLabels, lessonFigureStart, kind: turnKind });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
@@ -789,7 +791,7 @@ async function applyCheckpoint(
     // scene. A surviving producer must submit a fresh, coherent scene.
     ownsScene = false;
     const storedScene = sceneOf(before);
-    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion, loadPageLessonFigureQuestion, lessonFigureStart, kind: turnKind });
+    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion, loadPageLessonFigureQuestion, loadPageLessonCurveLabels, lessonFigureStart, kind: turnKind });
     if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
