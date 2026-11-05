@@ -159,6 +159,37 @@ async function main() {
     assert.equal(valueOf(on.turnPlan, "y"), undefined);
     assert.equal(valueOf(on.turnPlan, "x"), 3, "a unit issue is not a disagreement about the value");
   });
+  await check("on: where the audit names no disagreed value, the turn goes exactly as dev", async () => {
+    // The circuit source authority replaces the resistance the kept charge was worked from. With no time given the
+    // kept plan's audit is incomplete, so the kept charge would be taught. With the time given the kept charge breaks
+    // the plan's own Q = I t, so the lesson stops on a contradiction that names no value, and the plan it carries
+    // would still hold the kept charge. Neither may happen, so in both the switch changes nothing.
+    const quiet = () => undefined;
+    const question = "Two resistors of 4 ohm and 6 ohm are connected in series to a 10 V battery. Find the current and the charge that flows in 5 s.";
+    const problem = problemFor(question, [{ id: "Q", value: 5, unit: "C" }]);
+    const result = await solve(problem);
+    const given = (id: string, symbol: string, value: number, unit: string) => ({ id, symbol, value, unit, provenance: "given", sourceText: `${value} ${unit}` });
+    for (const timeGiven of [false, true]) {
+      const circuit = {
+        schemaVersion: "turn-plan/v3", question, visualRequirement: "required",
+        givens: [given("R1", "R_1", 4, "ohm"), given("R2", "R_2", 6, "ohm"), given("V", "V", 10, "V"), ...(timeGiven ? [given("t", "t", 5, "s")] : [])],
+        unknowns: [{ id: "I", symbol: "I", unit: "A" }, { id: "Q", symbol: "Q", unit: "C" }],
+        derived: [
+          { id: "Rs", symbol: "R_s", value: 12, unit: "ohm", provenance: "derived", dependsOn: ["R1", "R2"], sourceText: "series sum" },
+          { id: "I", symbol: "I", value: 0.83, unit: "A", provenance: "derived", dependsOn: ["V", "Rs"], sourceText: "Ohm law" },
+          { id: "Q", symbol: "Q", value: 4.15, unit: "C", provenance: "derived", dependsOn: ["I"], sourceText: "Q = I t" },
+        ], qualitativeClaims: [], lawIds: ["ohms_law"], assumptions: [],
+      } as unknown as TurnPlanV3;
+      const audit = verifyTurnPlanAgainstSolver(problem, result, circuit, question);
+      const authorityFor = () => ({ problemIR: problem, solverResult: result, audit, projection: null, rawContent: "", elapsedMs: 0 }) as never;
+      const off = reconcilePlanWithAuthority(question, circuit, authorityFor(), quiet as never);
+      const on = reconcilePlanWithAuthority(question, circuit, authorityFor(), quiet as never, { keepDisagreement: true });
+      const label = timeGiven ? "time given" : "no time given";
+      assert.notEqual((off.authority as { audit: { status: string } }).audit.status, "contradiction", `${label}: the fixture does not stop as dev`);
+      assert.equal(JSON.stringify(on), JSON.stringify(off), `${label}: the switch on changes nothing here`);
+      assert.notEqual(valueOf(on.turnPlan, "Q"), 4.15, `${label}: the kept value is not taught or carried`);
+    }
+  });
   await check("on: a model written uncertainty does not let a disagreement pass", () => {
     const loose = planFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: 2 }]);
     (loose.derived[1] as { uncertainty?: number }).uncertainty = 10;

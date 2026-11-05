@@ -117,17 +117,24 @@ export function reconcilePlanWithAuthority(
   debug: Debug = plannerDebug,
   options: { keepDisagreement?: boolean } = {},
 ): { turnPlan: TurnPlanV3; authority: ProblemAuthorityV1Response } {
-  const reconciledPlan = applyDeterministicSourceAuthority(question, reconcileTurnPlanWithSolver(
-    planToReconcile,
-    authority.problemIR,
-    authority.solverResult,
-    options,
-  ), authority, debug);
-  const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
-  if (options.keepDisagreement === true) {
-    return { turnPlan: withoutDisagreedValues(reconciledPlan, refreshedAuthority.audit), authority: refreshedAuthority };
-  }
-  return { turnPlan: reconciledPlan, authority: refreshedAuthority };
+  const reconcile = (keepDisagreement: boolean) => {
+    const reconciledPlan = applyDeterministicSourceAuthority(question, reconcileTurnPlanWithSolver(
+      planToReconcile,
+      authority.problemIR,
+      authority.solverResult,
+      keepDisagreement ? { keepDisagreement: true } : {},
+    ), authority, debug);
+    return { turnPlan: reconciledPlan, authority: refreshSolverAuthorityForPlan(authority, reconciledPlan, question) };
+  };
+  if (options.keepDisagreement !== true) return reconcile(false);
+  // The switch acts only where the audit names a value that disagrees with the
+  // solver, which stops the lesson. Anywhere else a kept value could be taught,
+  // or carried on by a stop that names no value, so the turn goes as dev.
+  const kept = reconcile(true);
+  const disagreed = new Set(kept.authority.audit.issues.flatMap((issue) =>
+    issue.code === "solver_turnplan_contradiction" && issue.quantityId ? [issue.quantityId] : []));
+  if (disagreed.size === 0) return reconcile(false);
+  return { turnPlan: withoutDisagreedValues(kept.turnPlan, disagreed), authority: kept.authority };
 }
 
 /**
@@ -137,10 +144,8 @@ export function reconcilePlanWithAuthority(
  * on. If what is left fails validation, the readers drop the plan, and still no
  * value of the disagreement reaches the student.
  */
-function withoutDisagreedValues(plan: TurnPlanV3, audit: ProblemAuthorityV1Response["audit"]): TurnPlanV3 {
-  const withdrawn = new Set(audit.issues.flatMap((issue) =>
-    issue.code === "solver_turnplan_contradiction" && issue.quantityId ? [issue.quantityId] : []));
-  if (withdrawn.size === 0) return plan;
+function withoutDisagreedValues(plan: TurnPlanV3, disagreed: ReadonlySet<string>): TurnPlanV3 {
+  const withdrawn = new Set(disagreed);
   for (let grew = true; grew;) {
     grew = false;
     for (const quantity of plan.derived) {
