@@ -27,6 +27,7 @@ import {
 import { findSpokenToken } from "../../../../packages/tutor-core/src/sync/cueWindow";
 import { inferSceneCapabilities } from "../../../../packages/tutor-core/src/planners/sceneCapabilities";
 import { cpuMs } from "../../../../packages/scene-engine/scripts/verify/cpuTime";
+import { parseMathExpression } from "../../../../packages/scene-engine/src/math/expression";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
 const LIMIT_MS = 2_000;
@@ -444,6 +445,11 @@ const stepsWork = withSharedLabelWork(() => compileSceneDocument(curve as never)
 if (stepsWork.value.ok || stepsWork.work.spent !== "expression_step_budget") fail("a compile past the expression budget refuses", stepsWork.work);
 const counted = withSharedLabelWork(() => compileSceneDocument(curve as never));
 if (counted.work.expressionSteps === 0) fail("expression steps count", counted.work);
+const expressionRead = parseMathExpression("x^2+1");
+const stepsOf = (read: () => unknown) => withSharedLabelWork(read).work.expressionSteps;
+if (stepsOf(() => expressionRead.evaluate(0.5)) === 0) fail("a value counts its expression steps", null);
+if (stepsOf(() => expressionRead.derivative(0.5)) === 0) fail("a slope counts its expression steps", null);
+if (stepsOf(() => expressionRead.assertContinuousOn(0, 1)) === 0) fail("a range counts its expression steps", null);
 if (counted.work.points === 0) fail("points count", counted.work);
 const laneWork = withSharedLabelWork(() => compileSceneDocument(((d) => { put(d, "c0", "implicit_curve", "polyline", { expression: "x^2+y^2-1", xMin: -2, xMax: 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); put(d, "s", "point", "point", { x: -3, y: 0, coordinateSpace: "layout" }); put(d, "t", "point", "point", { x: 3, y: 0, coordinateSpace: "layout" }); put(d, "b", "dimension", "dimension", { start: "s", end: "t" }); return d; })(plain()) as never));
 if (laneWork.work.overlaps < 100) fail("the lane search counts as work", laneWork.work);
@@ -503,11 +509,13 @@ for (const figure of figures) {
     fail("a stop outside a layout left the compile", String(error).slice(0, 80));
   }
   if (!stopped || stopped.ok || stopped.renderScene !== null) fail("a stop outside a layout refuses", stopped?.report.issues.slice(0, 2));
+  if (stopped?.report.valid !== false) fail("a stop outside a layout reports itself invalid", stopped?.report.valid);
 }
 const atTheBudget = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { overlaps: LABEL_OVERLAP_WORK_BUDGET });
 if (atTheBudget.value.ok || atTheBudget.work.spent !== "label_overlap_budget") fail("an overlap test past the budget stops the compile", atTheBudget.work);
 const spentBefore = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { spent: "label_overlap_budget" });
 if (spentBefore.value.ok || spentBefore.value.renderScene !== null || !spentBefore.value.report.issues.some((issue) => issue.code === "label_overlap_budget")) fail("a compile that spent its budget never draws", spentBefore.value.report.issues.slice(0, 2));
+if (spentBefore.value.report.valid !== false) fail("a finished compile that spent its budget reports itself invalid", spentBefore.value.report.valid);
 
 // A refused document never carries its text in the issue.
 const refusal = validateSceneDocument(withLabel(`secretword${spaces(40)}`)).report.issues[0];
