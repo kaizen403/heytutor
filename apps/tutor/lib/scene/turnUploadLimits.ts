@@ -120,6 +120,35 @@ export function validateTurnUploadParts(
 export const MAX_CHECKPOINT_METADATA_BYTES = 384 * 1024;
 /** Merged (stored plus appended) turn metadata keeps today's one-shot limit. */
 export const MAX_TURN_MERGED_METADATA_BYTES = MAX_TURN_METADATA_BYTES;
+
+/**
+ * Word timings are per character, as two arrays of seconds. Written at full float
+ * precision they cost about 34 bytes a character, far more than the words: one
+ * recorded lesson held 193 KB of timings against 5.7 KB of narration, and hit the
+ * turn's metadata limit, so the rest of that lesson was refused.
+ */
+/**
+ * Past this the rows still to come keep their words, ink and voice but lose their
+ * timings, which leaves room to finish the lesson. Replay then paces those rows by
+ * their real length: about 320 ms of mean error in the pen on the recorded lesson.
+ */
+export const TIMINGS_KEEP_BYTES = Math.floor(MAX_TURN_MERGED_METADATA_BYTES * 0.75);
+
+const roundMs = (value: unknown): unknown =>
+  typeof value === "number" && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : value;
+
+/** One millisecond is finer than the pen can show. Anything not shaped like timings passes untouched. */
+export function compactTimings(raw: unknown): unknown {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const timings = raw as Record<string, unknown>;
+  if (!Array.isArray(timings.charStartTimes) || !Array.isArray(timings.charDurations)) return raw;
+  return {
+    ...timings,
+    charStartTimes: timings.charStartTimes.map(roundMs),
+    charDurations: timings.charDurations.map(roundMs),
+    totalDuration: roundMs(timings.totalDuration),
+  };
+}
 export const MAX_TURN_AUDIO_TOTAL_BYTES = MAX_TURN_TOTAL_AUDIO_BYTES;
 
 /**

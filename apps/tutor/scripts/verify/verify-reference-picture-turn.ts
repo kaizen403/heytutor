@@ -9,6 +9,9 @@
  *   npx tsx scripts/verify/verify-reference-picture-turn.ts
  */
 import { readFileSync } from "node:fs";
+import { classifyTurnFailure } from "../../lib/obs/turnFailureClassification";
+import { liveTurnScene } from "../../features/tutor-session/lib/turn/liveTurnSave";
+import type { BoardPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { fileURLToPath } from "node:url";
 import {
   REFERENCE_PICTURE_ZONE,
@@ -259,6 +262,41 @@ async function main(): Promise<void> {
     check(missing.value.segments.some((segment) => segment.narration === presentation.introSegments[0]!.narration && segment.command == null), "missing: intro words kept");
     const teaching = missing.value.segments.find((segment) => segment.narration.startsWith("A cell"));
     check(parseStoredSegmentCommands(teaching?.command).every((command) => command.type === "WRITE"), "missing: FOCUS on the absent picture dropped");
+  }
+
+  // The outcome reads what the save kept. Only the server's artifact makes a
+  // shown picture: a record it could not load leaves the refusal a failure.
+  const refused = { degradation: { attemptedTier: "exact_verified", reason: "candidate_invalid", candidateCount: 2, issueCodes: [] } };
+  for (const [name, load, expected] of [
+    ["record found", loader, "picture_shown"],
+    ["record missing", async () => null, "failed"],
+  ] as const) {
+    const saved = await canonicalizeTurnSceneMetadata(
+      { question: QUESTION, visualStatus: "text_only", sceneArtifacts: artifacts(refused), segments: rows(introCommands[0]!, introCommands[1]!) },
+      { loadReferencePicture: load },
+    );
+    check(saved.ok, `outcome after save, ${name}: save succeeds`);
+    if (saved.ok) {
+      const failure = classifyTurnFailure({ visualStatus: saved.value.visualStatus, status: "complete", sceneArtifacts: saved.value.sceneArtifacts, segments: saved.value.segments });
+      check(failure.classification === expected, `outcome after save, ${name}: ${failure.classification}`);
+      check(failure.code === "candidate_invalid", `outcome after save, ${name}: the engine's reason survives`);
+      check(saved.value.sceneArtifacts?.figureSource === "text_only" && saved.value.sceneArtifacts?.diagramResultStatus === "text_only", `outcome after save, ${name}: engine metrics stay text only`);
+    }
+  }
+
+  // Stop during the picture wait: the page's in progress record reaches the save
+  // and survives it, and it is no picture.
+  const waitOutcome = { attempted: true, status: "skipped", reason: "wait_in_progress", ms: 0, speculative: false };
+  const stoppedPage = { turn: { kind: "lesson", scene: { sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: { ...artifacts(refused), referencePicture: undefined, referencePictureOutcome: waitOutcome } } }, figureDrawn: false, lessonQuestion: QUESTION } as unknown as BoardPageRecord;
+  const stoppedScene = liveTurnScene({ page: stoppedPage, kind: "lesson", preview: QUESTION, opensPage: true, status: "stopped", textOnly: false });
+  const stoppedSave = await canonicalizeTurnSceneMetadata(
+    { question: QUESTION, visualStatus: stoppedScene.visualStatus, sceneArtifacts: stoppedScene.sceneArtifacts, segments: [] },
+    { loadReferencePicture: loader },
+  );
+  check(stoppedSave.ok, `stop during the wait: save succeeds (${stoppedSave.ok ? "" : stoppedSave.error})`);
+  if (stoppedSave.ok) {
+    check((stoppedSave.value.sceneArtifacts as Record<string, { reason?: string }> | null)?.referencePictureOutcome?.reason === "wait_in_progress", "stop during the wait: the record is saved");
+    check(!stoppedSave.value.sceneArtifacts?.referencePicture, "stop during the wait: no picture is claimed");
   }
 
   // A resume under a picture an earlier turn drew: no passes of its own, so

@@ -1,0 +1,235 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Derive the quadratic formula from ax² + bx + c = 0 by completing the square.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_2_quadratic_equations.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "algebra only; runtime Given row is a separate fault"
+ },
+ "selection": {
+  "question": "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square.",
+   "givens": [],
+   "unknowns": [
+    {
+     "id": "u1",
+     "symbol": "x"
+    }
+   ],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Divide by a (a nonzero) to make the leading coefficient 1.",
+     "expected": "x^2 + (b/a)x + c/a = 0",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "Move the constant term to the right side.",
+     "expected": "x^2 + (b/a)x = -c/a",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "Add (b/2a)^2 to both sides to complete the square.",
+     "expected": "x^2 + (b/a)x + b^2/(4a^2) = b^2/(4a^2) - c/a",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c4",
+     "claim": "Write the left side as a perfect square and combine the right side over a common denominator.",
+     "expected": "(x + b/(2a))^2 = (b^2 - 4ac)/(4a^2)",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c5",
+     "claim": "Take square roots of both sides, including both signs.",
+     "expected": "x + b/(2a) = ±sqrt(b^2 - 4ac)/(2a)",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c6",
+     "claim": "Isolate x to obtain the quadratic formula.",
+     "expected": "x = (-b ± sqrt(b^2 - 4ac))/(2a)",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    }
+   ],
+   "lawIds": [
+    "completing-the-square",
+    "square-root-property",
+    "algebraic-manipulation"
+   ],
+   "assumptions": [
+    "a, b, c are real constants with a ≠ 0",
+    "The discriminant b^2 - 4ac determines whether roots are real or complex"
+   ],
+   "visualRequirement": "none"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fEquation",
+     "kind": "given",
+     "statement": "quadratic equation ax^2+bx+c=0",
+     "evidence": {
+      "source": "question",
+      "start": 34,
+      "end": 51,
+      "quote": "ax^2 + bx + c = 0"
+     }
+    },
+    {
+     "id": "fMethod",
+     "kind": "requested",
+     "statement": "derive quadratic formula by completing square",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 28,
+      "quote": "Derive the quadratic formula"
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "quadEq",
+     "kind": "other",
+     "label": "quadratic equation",
+     "evidenceFactIds": [
+      "fEquation"
+     ]
+    }
+   ],
+   "expressions": [],
+   "constraints": [],
+   "representationIntents": [],
+   "solveRequests": [],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square."
+  },
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "circle",
+    "circle_tangent_at",
+    "function_curve",
+    "curve_anchor"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fEquation",
+      "kind": "given",
+      "statement": "quadratic equation ax^2+bx+c=0",
+      "evidence": {
+       "source": "question",
+       "start": 34,
+       "end": 51,
+       "quote": "ax^2 + bx + c = 0"
+      }
+     },
+     {
+      "id": "fMethod",
+      "kind": "requested",
+      "statement": "derive quadratic formula by completing square",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 28,
+       "quote": "Derive the quadratic formula"
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "quadEq",
+      "kind": "other",
+      "label": "quadratic equation",
+      "evidenceFactIds": [
+       "fEquation"
+      ]
+     }
+    ],
+    "expressions": [],
+    "constraints": [],
+    "representationIntents": [],
+    "solveRequests": [],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Derive the quadratic formula from ax^2 + bx + c = 0 by completing the square."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [],
+    "proofs": [],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

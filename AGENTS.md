@@ -70,7 +70,7 @@ described in rule 5.
 - [Diagram engine priority](docs/plans/diagram-engine-priority.md) — ranked issues; live-check patches first, then honest families, then persist
 - [DSA lessons](docs/agent/dsa-lessons.md) — the LeetCode lane: simulators, what a frame may draw, lesson shape, and the gates
 - [Chemistry lessons](docs/agent/chemistry-lessons.md) — the chemistry lane: 13 figure families computed from the formula, the subject test, the board notation, and the gates
-- [LLM provider](docs/agent/llm-provider.md): `LLM_PROVIDER=azure` (gpt-6.1-sol on Foundry) or `fireworks` (Kimi K3); what the Azure model accepts and same-harness numbers
+- [LLM provider](docs/agent/llm-provider.md): `LLM_PROVIDER=azure` (gpt-6.1-sol on Foundry), `openai_compat` (a relay, gpt-6-sol, with a Fireworks circuit breaker) or `fireworks` (Kimi K3); what each accepts and same-harness numbers
 - [Lecture lab](docs/agent/lecture-lab.md) — run whole lectures offline against the dev server, grade them, and diff rounds; the DSA lane replays a LeetCode turn and renders every board frame
 - [Wrong figures: causes and ranked fixes](docs/plans/figure-relevance-fixes.md) — 87 wrong figures traced to the probe cue and the family layer, with counts per fix
 - [Start — architecture map](start.md)
@@ -106,7 +106,13 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
    label, annotate, erase, circle, or supply focus coordinates. `[FOCUS:id]` may
    trace existing verified geometry, or (with `REFERENCE_PICTURE_PART_FOCUS=on`)
    ring a label the server located on a stored reference picture. Filters and `useCommandExecution()` enforce
-   ownership.
+   ownership. One owner-approved exception (28 Oct 2026): `[FOCUS:id|keep]`
+   leaves a ring on a verified scene part until the work column turns its page
+   or the figure leaves the zone. The ring's geometry comes only from the scene
+   entity's verified anchor, never from the model. With `DIAGRAM_LESSON_FIGURES=on`,
+   `[FOCUS:figure_2]` or `[FOCUS:figure_3]` may move the zone forward to a later
+   lesson figure the engine already verified; the executor draws that figure, and
+   the teaching stream supplies only the id, never geometry.
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot
    pair with a correct diagram.

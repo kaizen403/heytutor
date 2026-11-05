@@ -8,6 +8,7 @@ import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
 import { validateVelocityTriangleTruth } from "./velocityTriangleTruth";
+import { validateContactTruth } from "./contactTruth";
 import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
 import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
@@ -44,6 +45,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
+import { chargeFigurePoints, chargeLabelOverlaps, chargeLayoutSteps, countFigurePoints, isLabelWorkSpent, stopIfWorkSpent, withSharedLabelWork } from "./figureWork";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -243,6 +245,33 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const { value: compiled, work } = withSharedLabelWork(() => {
+    try {
+      return compileWithPointRule(document, options);
+    } catch (error) {
+      if (!isLabelWorkSpent(error)) throw error;
+      return null;
+    }
+  });
+  if (compiled && !work.spent) return compiled;
+  // However the work ran out, a figure laid out only in part is never drawn.
+  // Nothing here reads the document again, so refusing costs nothing further.
+  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "This figure needs more work than one compile may spend", severity: "fatal" };
+  return {
+    ok: false,
+    renderScene: null,
+    report: compiled
+      ? { ...compiled.report, valid: false, issues: [...compiled.report.issues, issue] }
+      : {
+        engineVersion: SCENE_ENGINE_VERSION,
+        valid: false,
+        issues: [issue],
+        stats: { entityCount: document.entities?.length ?? 0, constructionCount: document.constructions?.length ?? 0, primitiveCount: 0, assertionCount: document.assertions?.length ?? 0 },
+      },
+  };
+}
+
+function compileWithPointRule(document: SceneDocument, options: CompileOptions): CompileResult {
   if (options.pointLabelRivals === false) return compileSceneDocumentOnce(document, options, undefined);
   const rule = { moved: false };
   const result = compileSceneDocumentOnce(document, options, () => { rule.moved = true; });
@@ -313,6 +342,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       construction.outputs.forEach((id, outputIndex) => {
         const next = outputs[outputIndex]!;
         if (assignChainedRefractInternalPath(id, outputIndex, construction, document, geometry)) return;
+        chargeFigurePoints(countFigurePoints(next));
         geometry.set(id, next);
       });
       document = withEvaluatedOutputLabels(construction, originalIndex, inputs, outputs, document, {
@@ -320,6 +350,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         point: (value) => resolvePoint(value, geometry),
       }, issues, checkedClaimOutputIds);
     } catch (error) {
+      stopIfWorkSpent();
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
   }
@@ -436,6 +467,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   issues.push(...validateVelocityTriangleTruth(document, geometry));
+  if (options.figureConsistency) issues.push(...validateContactTruth(document, geometry));
   issues.push(...validateQualitativeLabelTruth(document, geometry));
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   issues.push(...validateLaunchVelocityTruth(document, geometry));
@@ -3378,6 +3410,7 @@ function relocateObstructedDimensions(
     // keeps a label lane; every other bar takes the first clear lane.
     const keepsLabelLane = entity?.provenance?.keepLabelLane === true;
     const crowded = (candidateBar: RenderPrimitive): boolean => keepsLabelLane && Boolean(text) &&
+      (chargeLayoutSteps(other.length * document.entities.length, "crowdedLane"), true) &&
       dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
     if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -3460,7 +3493,7 @@ function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boo
     { x: point.x + normal.x * DIMENSION_CAP_HALF_PX, y: point.y + normal.y * DIMENSION_CAP_HALF_PX },
   ]);
   return [[start, end] as [Point, Point], ...caps].some((segment) => ink.some((obstacle) =>
-    obstacle.segments!.some((other) => !dimensionEndpointCarrier(bar, other) && (segmentsTouch(segment, other) ||
+    obstacle.segments!.some((other) => (chargeLabelOverlaps(4), !dimensionEndpointCarrier(bar, other)) && (segmentsTouch(segment, other) ||
       Math.min(pointSegmentResidual(segment[0], other), pointSegmentResidual(segment[1], other),
         pointSegmentResidual(other[0], segment), pointSegmentResidual(other[1], segment)) < 4)),
   ));
@@ -6262,6 +6295,7 @@ function geometriesTouch(first: Geometry, second: Geometry): boolean {
   if (firstPoints.some((point) => secondPoints.some((candidate) => distance(point, candidate) < EPSILON))) return true;
   const firstSegments = geometrySegments(first);
   const secondSegments = geometrySegments(second);
+  chargeLayoutSteps((firstPoints.length + firstSegments.length) * (secondPoints.length + secondSegments.length) * 4, "touch");
   if (firstPoints.some((point) => secondSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   if (secondPoints.some((point) => firstSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   return firstSegments.some((firstSegment) =>

@@ -8,6 +8,7 @@ import {
   type ValidationReport,
   type ValidationResult,
 } from "../types";
+import { sceneCountOverLimit, sceneTextOverLimit } from "./textLimits";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import { AXIS_BASELINE, piecewiseLinearGraph, polygonMatchesGraphRegion, regionGrid, type GraphBoundary, type GraphPoint } from "../compile/graphRegion";
 import {
@@ -4118,6 +4119,8 @@ function escapeRegExp(value: string): string {
 }
 
 export function validateSceneDocument(raw: unknown): ValidationResult {
+  const overLimit = sceneTextOverLimit(raw);
+  if (overLimit) return result(null, [overLimit]);
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
     return result(null, [{ code: "invalid_document", message: "SceneDocument must be an object", severity: "fatal", path: "$" }]);
@@ -4128,6 +4131,8 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     relations: raw.relations ?? [],
     annotations: raw.annotations ?? [],
   });
+  const overCount = sceneCountOverLimit(normalizedRaw);
+  if (overCount) return result(null, [overCount]);
   if (normalizedRaw.visualDecision === "scene" || normalizedRaw.visualDecision === "text_only") {
     normalizedRaw.visualDecision = {
       mode: normalizedRaw.visualDecision,

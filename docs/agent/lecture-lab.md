@@ -453,6 +453,72 @@ teaching quality, board and voice coupling, and question coverage. Ranked
 findings from them drive the next fix; the rubric only keeps the fixed things
 fixed.
 
+## Home screen suggestions
+
+A new student's first lesson is usually a card we wrote, so every fixed card
+must teach, and every card that needs a figure must draw a right one. The cards
+live in `apps/tutor/lib/account/homeSuggestions.ts` and
+`features/tutor-session/constants.ts`; `shownHomeSuggestions()` lists every one
+that can show (DSA cards never show while DSA is coming soon). Personalized
+cards that the model writes per student are only checked for shape, in
+`verify-landing-suggestions`, never for figures.
+
+`data/home-suggestions/oracle.jsonl` holds one diagram evaluation row per card,
+written from the question alone. `data/home-suggestions/recorded/` holds each
+card's judged lab inputs: turn plan, ProblemIR, the raw selected planner
+document, and the figure that was judged.
+
+```bash
+cd apps/tutor
+# the evaluation set, built from the cards that can show; fails on a card without an oracle row
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts eval --out .lecture-lab/home-suggestions.jsonl
+# one paid round of full lessons on production's routing (orchestrator's yes and a cap first)
+DIAGRAM_YIELD_POLICY=verified_parts pnpm exec tsx scripts/lecture-lab/run.ts --eval .lecture-lab/home-suggestions.jsonl \
+  --arm planner_examples_strict --production-strict-subjects maths,physics --model fast \
+  --scene-planner-limit-ms 60000 --figure-only=false --concurrency 2 --max-usd <cap> --yes --out .lecture-lab/home-<date>
+# per card: teaches, draws, tier, source; every drawn figure as SVG and PNG under home-figures/
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts report .lecture-lab/home-<date>
+# after judging the PNGs: freeze the judged figures for the gate
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts record .lecture-lab/home-<date> --judgements judged.json
+# replay every recording through today's engine and render it, $0
+pnpm exec tsx scripts/lecture-lab/home-suggestions.ts render --out .lecture-lab/home-replay
+```
+
+The offline gate `scripts/verify/verify-home-suggestion-figures.ts` runs in CI, in
+the `security` job of `deploy-tutor.yml`, at $0, so a failure blocks that deploy.
+It fails when a card has no oracle row or no judged recording, when a card that
+needs a figure is not judged right, and when today's engine draws something
+different from what was judged: a moved, reversed, added or lost shape, a solid
+mark gone dashed, lost or added entities, text changed or moved to another mark, a
+different figure source or tier, or no figure.
+
+It does not see everything a student sees. Label positions, the caption, reveal
+order, stroke width or role, and a stray line flagged as a label leader all stay
+green. Refitting a whole figure is treated as layout and passes. Replay revalidates
+the raw planner document and rebuilds the family figure, so it tests the engine and
+not a saved verdict, but each recording is one planner document from one run: it
+says nothing about a fresh planner run, and nothing about a reference picture a
+student may see instead. Production drew the projectile card wrong after the lab
+judged it right.
+
+When the gate fails on an engine change you meant to make, no paid round is needed unless the saved document no longer validates:
+`render` the recordings, look at that card's PNG, and if it is right, write the
+verdict and run `home-suggestions.ts rejudge --judgements judged.json`. It replays
+the saved document with no planner call and refuses a verdict other than `right`
+or `text_only_honest`. If it is not right, fix the engine or pull the card. A card
+is chosen only because the general engine already draws it right; never add a
+template for one.
+
+The gate runs with `--allow-unjudged`, which exempts only the cards in its
+`PARTIAL_FIGURES` list: they drew a figure that is true but missing something or
+hard to read. A green run names them. They have no recording, so their figures can
+get worse with the gate green. Any other card with no recording still fails, a
+deleted recording still fails, and adding an entry means raising `PARTIAL_CEILING`
+or swapping one out, in the same diff. No gate can stop an edit to itself, so review
+is what guards this list and its ceiling. An entry leaves when its card draws a figure judged
+right or leaves the home screen. The ceiling must come down as entries leave, and
+the flag fails once the list is empty, so it has to be removed then.
+
 ## The DSA lane
 
 `lecturePipeline.ts` replays the physics path. A LeetCode question takes a
@@ -496,6 +562,109 @@ values match the drawn text at every address, whether every block was typed and
 every frame shown, and whether the narration read code aloud, leaked machinery
 words, or repeated itself. Whether the explanation teaches well is a reviewer's
 job.
+
+## The doubt lane
+
+`doubt-run.ts` asks a doubt on the page a lesson left: the measurement for
+"figures at any point" (`.context/plans/figures-any-time-brief.md`, section 5).
+The set is `data/doubt-probes/doubts-v1.jsonl`, 40 lesson and doubt pairs
+written from the subject, never from engine output. Each row names the part a
+teacher would point at (`expect.point`, with `pointTerms`: the marks a teacher
+would write on it), or the new figure a teacher would draw (`expect.newFigure`),
+or neither. A row may circle a figure part or a work row first (`mark`,
+`markTerms`). DSA rows may pick the frame on the board (`dsaFrame`, negative
+counts from the end; the default is the last).
+
+| Lane | Rows | Point | New figure | Neither |
+|---|---|---|---|---|
+| `physics_maths` (hand coded families) | 14 | 8 | 6 | 0 |
+| `chemistry` | 8 | 5 | 3 | 0 |
+| `dsa` | 8 | 7 | 1, out of scope: must draw nothing | 0 |
+| `reference_picture` | 6 | 6 | 0 | 0 |
+| `control` | 4 | 0 | 0 | 4 |
+
+Per row, the runner:
+
+1. builds the lesson. Physics, maths, chemistry and picture rows run
+   `runLecture` once per distinct lesson question (rows sharing a question share
+   it), saved under `lessons/`; `--lessons <round>` reuses a prior round's at
+   $0. Picture rows run the reference picture step, so the dev server needs
+   `DIAGRAM_REFERENCE_PICTURE=on` (and `REFERENCE_PICTURE_PART_FOCUS=on` with
+   `--reference-picture-part-focus`). DSA rows build the walk-through offline
+   with `resolveDsaFrames`;
+2. lays the lesson's rows out with the live slot finder, so `workColumnRows`
+   and `workColumnRoom` hand the prompt the rows and room the board would;
+3. asks the doubt as live does: `buildDoubtPrompt`, or `buildMarkedDoubtPrompt`
+   with a mark built from `collectMarkCandidates`; `buildDoubtTeachingPrompt`;
+   the dev server's `/api/chat` with the continuation loop; then per segment
+   `prepareVerifiedLessonSegments`, the streamed FOCUS fold and `doubtSegment`
+   with the arm's pointing policy;
+4. resolves every FOCUS and ANNOTATE that survived with
+   `resolveVerifiedDiagramFocusTargets`;
+5. saves it in process: `doubtFigureRefFor` and `doubtTurnScene` build the
+   artifacts, and `canonicalizeTurnSceneMetadata` runs with an in-memory
+   `loadPageFigure` that returns the lesson's figure.
+
+Arms run on the same rows and the same lesson: `today` grants nothing,
+`pointing` grants `DIAGRAM_DOUBT_POINTING` (the begin-turn `doubtPointing`),
+`figures` also grants `DIAGRAM_DOUBT_FIGURES` (phase 2). `--doubt-pointing` and
+`--doubt-figures` add those arms. The lab builds the grant itself, as live
+builds it from begin-turn, so a server that knows neither flag is unaffected.
+
+What differs from live: no hedged first request and no startup retry reason;
+the doubt is asked after the lesson finished, never mid lesson; a DSA board
+has no code plan (the panel is hidden, so its text is never quoted); a long
+WRITE row takes one row, not its wrapped lines; and the page figure the save
+checks against is the lesson's own presentation, not one restored from a
+saved row (the loader rules are `verify-doubt-figure-pointing`'s job).
+
+Grades (`doubtGrade.ts`, pure, so `--regrade` rescores a round):
+
+- pointing: `right_part` when a pointed part carries a `pointTerms` mark,
+  `wrong_part` (sent to a human), `no_pointer`, or `no_figure` when the lesson
+  drew nothing to point at; a row expecting no point records
+  `pointed_unasked` if it pointed anyway;
+- new figure: `none_when_needed`, `drawn_when_not_needed`, `drawn_unjudged`
+  until a judge says right or wrong, and `ok_out_of_scope` or
+  `drawn_out_of_scope` for the DSA row;
+- wrong pins: a `|keep` ring on a part that is not the expected one, or any
+  ring on a row expecting no point;
+- saved equals live: every live FOCUS id survives the save (a dropped ANNOTATE
+  is reported apart: the save drops a withheld answer label by design).
+
+The bar per arm: 0 wrong figures, 0 wrong pins, saved equals live on every
+row, and p50 time to first word on doubts that drew no figure within 0.5 s of
+the `today` arm.
+
+Rows the rule cannot settle go to `judge-queue.jsonl`. A judge (a human, or a
+subagent with the row's transcript) appends one line per row to
+`judgments.jsonl`: `{"id","arm","pointing"?,"newFigure"?,"pins"?,"by","reason"}`,
+with `pointing` one of `right_part | wrong_part | no_pointer`, and `newFigure`
+and `pins` one of `right | wrong`. Then `--regrade` rewrites `grades.jsonl`
+and `summary.json`. A human reviews every `wrong`.
+
+```bash
+cd apps/tutor
+# offline: parse the set, print the plan and spend estimate, smoke the doubt
+# path on real DSA frames and a fixture figure with scripted answers
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --dry-run
+# synthetic checks of the grades
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --check
+# the paid round: both arms, live cap (default $5), concurrency 2 (default)
+DIAGRAM_YIELD_POLICY=verified_parts caffeinate -i pnpm exec tsx scripts/lecture-lab/doubt-run.ts --max-usd 5 --out .lecture-lab/doubts-01
+# the pointing rows only, reusing that round's lessons at $0
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --lessons .lecture-lab/doubts-01 --lanes physics_maths,chemistry,dsa --max-usd 2 --out .lecture-lab/doubts-02
+pnpm exec tsx scripts/lecture-lab/doubt-run.ts --regrade .lecture-lab/doubts-01
+```
+
+Spend: every chat, visual need and picture request reserves its worst case
+before it is sent and settles after (conservative mode, the pieces `run.ts`
+uses). A request that would pass `--max-usd` is never sent, and its row is
+listed as untested, not graded. A picture lesson reserves the route's full
+ceiling ($0.40, or $0.80 with an image provider), so the six picture rows alone
+can take most of a $5 cap: run them as their own `--lanes reference_picture`
+round, or reuse recorded lessons. An output directory with a
+`spend-checkpoint.json` is never reused. Never build while a round runs.
 
 ## Semantic review
 

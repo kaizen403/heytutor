@@ -97,7 +97,8 @@ try {
   assert(!metadataOnly);
   assert(buildDoubtTeachingPrompt({ ...codeCommon, codeFigureVisible: metadataOnly }).runtimeAddon.includes(absence));
   const handler = readFileSync(new URL("../../features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url), "utf8");
-  assert(/codeFigureVisible: Boolean\(codeLessonBoard && doubtPage\?\.figureOnPage &&\s*activeVerifiedDiagramRef\.current && verifiedDiagramHasDrawableInk\(activeVerifiedDiagramRef\.current\)\)/.test(handler),
+  assert(/const codeFigureVisible = Boolean\(codeLessonBoard && doubtPage\?\.figureOnPage &&\s*activeVerifiedDiagramRef\.current && verifiedDiagramHasDrawableInk\(activeVerifiedDiagramRef\.current\)\);/.test(handler) &&
+    /buildDoubtTeachingPrompt\(\{[^}]*\bcodeFigureVisible,/.test(handler),
     "the actual caller must pass current-page drawable ink as visibility, separately from diagram prompt authority");
   for (const includeCode of [true, false]) {
     const resume = buildResumeTeachingPrompt({ ...codeCommon, reason: "stop", codeLesson: code,

@@ -53,6 +53,7 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
     if (!evaluation) continue;
     if ("declined" in evaluation) {
       declined.push({ lawId, reason: evaluation.declined });
+      if (evaluation.sizes) inconsistencies.push(...auditDerivedSizes(plan, lawId, evaluation.sizes));
       continue;
     }
     checkedLawIds.push(lawId);
@@ -65,18 +66,25 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
   return { plan, inconsistencies, checkedLawIds, declined };
 }
 
+const IMAGE_DISTANCE_ALIASES = ["image_distance", "imagedistance", "v"];
+const MAGNIFICATION_ALIASES = ["magnification", "m"];
+const SUBSCRIPT_OBJECT_DISTANCE = "d_o";
+const SUBSCRIPT_IMAGE_DISTANCE = "d_i";
+
 interface EvaluatedOutput {
   aliases: string[];
   value: number;
   dimension: Dimension;
   /** The sign depends on the convention; a plan value differing only in sign is a convention clash, not a slip. */
   conventionSigned?: boolean;
+  /** Read only under this exact name, never by a looser match. */
+  exactName?: string;
 }
 
 function evaluatePlanLaw(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-): { outputs: EvaluatedOutput[] } | { declined: string } | null {
+): { outputs: EvaluatedOutput[] } | { declined: string; sizes?: LawSizes } | null {
   const given = (aliases: string[], dimension: Dimension, absolute = false): number | null => {
     const quantity = findQuantity(plan.givens, aliases);
     if (!quantity) return null;
@@ -98,20 +106,44 @@ function evaluatePlanLaw(
 
   if (lawId === "mirror_formula" || lawId === "thin_lens_formula") {
     const element = opticalElement(plan, lawId === "mirror_formula" ? "mirror" : "lens");
-    const objectQuantity = findQuantity(plan.givens, ["object_distance", "objectdistance", "u"]);
+    const plainObject = findQuantity(plan.givens, ["object_distance", "objectdistance", "u"]);
+    const subscriptObjects = plainObject ? [] : exactlyNamed(plan.givens, SUBSCRIPT_OBJECT_DISTANCE);
+    const objectQuantity = plainObject ?? (subscriptObjects.length === 1 ? subscriptObjects[0]! : null);
     const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
     if (!objectQuantity || !focalQuantity) return null;
+    const readsSubscripts = plainObject === null;
+    // Reads this law did not make before answer to a stricter test of one
+    // element. The plainly named path keeps its own, so nothing it rejects loosens.
+    if (readsSubscripts && (leavesOneCaseOpen(plan.question) || /\bdiameter\b/i.test(plan.question))) {
+      return { declined: SECOND_ELEMENT_DECLINE };
+    }
     const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
-    if ("reason" in signs) return { declined: signs.reason };
+    if ("reason" in signs) {
+      if (!signs.signsConflict || element.converging === null) return { declined: signs.reason };
+      if (leavesOneCaseOpen(plan.question)) return { declined: SECOND_ELEMENT_DECLINE };
+      // No convention can be read from these signs, but a single element and a
+      // real object leave no choice about sizes: |v| and |m| follow from |u|,
+      // |f| and the element the stem names, whatever convention was meant.
+      const sizes = evaluate({
+        objectDistance: Math.abs(toBaseUnit(objectQuantity.value, objectQuantity.unit, "length")),
+        focalLength: Math.abs(toBaseUnit(focalQuantity.value, focalQuantity.unit, "length")) * (element.converging ? 1 : -1),
+      });
+      if (!sizes) return { declined: signs.reason };
+      return { declined: signs.reason, sizes: {
+        imageDistance: sizes.imageDistance!,
+        magnification: sizes.magnification!,
+        imageNames: readsSubscripts ? [...IMAGE_DISTANCE_ALIASES, SUBSCRIPT_IMAGE_DISTANCE] : IMAGE_DISTANCE_ALIASES,
+      } };
+    }
     const values = evaluate(toRealIsPositive(element, signs));
     if (!values) return { declined: "the law has no finite real-object solution for these givens" };
     return { outputs: [
       // A v equal in size and opposite in sign is a convention clash only
       // when the convention is not fixed by signed givens; otherwise it is
       // reported as an inconsistency like any other.
-      output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
+      { ...output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens), ...(readsSubscripts ? { exactName: SUBSCRIPT_IMAGE_DISTANCE } : {}) },
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
-      output(["magnification", "m"], values.magnification!, "scalar"),
+      output(MAGNIFICATION_ALIASES, values.magnification!, "scalar", readsSubscripts),
     ] };
   }
   if (lawId === "snell_law") {
@@ -311,14 +343,46 @@ function evaluatePlanLaw(
   return null;
 }
 
+interface LawSizes {
+  imageDistance: number;
+  magnification: number;
+  imageNames: readonly string[];
+}
+
+/**
+ * The size check for a plan whose signs cannot be read: only a size the law
+ * rules out is reported, so a right plan with mixed signs stays declined. It
+ * reads a quantity only under its exact name, an image distance only in a unit
+ * of length and a magnification only with no unit, and it allows the rounding
+ * the plan states.
+ */
+function auditDerivedSizes(plan: TurnPlanV3, lawId: OpticsLawId, sizes: LawSizes): OpticsPlanInconsistency[] {
+  const named = (names: readonly string[]) => plan.derived.filter((quantity) => names.includes(quantity.id) || names.includes(quantity.symbol));
+  const report = (quantity: TurnPlanQuantityV3, lawValue: number): OpticsPlanInconsistency[] =>
+    roundsToStatedValue(Math.abs(quantity.value), lawValue) ? [] : [{ lawId, quantityId: quantity.id, planValue: quantity.value, lawValue }];
+  return [
+    ...named(sizes.imageNames)
+      .filter((quantity) => LENGTH_TO_METERS[normalizeUnit(quantity.unit)] !== undefined)
+      .flatMap((quantity) => report(quantity, Math.abs(fromBaseUnit(sizes.imageDistance, quantity.unit, "length")))),
+    ...named(MAGNIFICATION_ALIASES)
+      .filter((quantity) => !quantity.unit || normalizeUnit(quantity.unit) === "dimensionless")
+      .flatMap((quantity) => report(quantity, Math.abs(sizes.magnification))),
+  ];
+}
+
+function roundsToStatedValue(planValue: number, lawValue: number): boolean {
+  const halfLastPlace = 0.5 * 10 ** -statedDecimalPlaces(planValue);
+  return Math.abs(planValue - lawValue) <= Math.max(lawValue * 0.005, Math.min(halfLastPlace, lawValue * 0.1)) * (1 + 1e-9);
+}
+
 function auditDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-  { aliases, value: baseValue, dimension, conventionSigned }: EvaluatedOutput,
+  { aliases, value: baseValue, dimension, conventionSigned, exactName }: EvaluatedOutput,
 ): { inconsistencies: OpticsPlanInconsistency[]; declined: OpticsPlanDecline[] } {
   const unknown = findQuantity(plan.unknowns, aliases);
   const expandedAliases = unknown ? [...aliases, unknown.id, unknown.symbol] : aliases;
-  const targets = findOutputQuantities(plan.derived, expandedAliases);
+  const targets = [...new Set([...findOutputQuantities(plan.derived, expandedAliases), ...(exactName ? exactlyNamed(plan.derived, exactName) : [])])];
   const inconsistencies: OpticsPlanInconsistency[] = [];
   const declined: OpticsPlanDecline[] = [];
   for (const target of targets) {
@@ -389,7 +453,7 @@ function resolveSignedDistances(
   element: OpticalElement,
   objectQuantity: TurnPlanQuantityV3,
   focalQuantity: TurnPlanQuantityV3 | null,
-): SignedDistances | { reason: string } {
+): SignedDistances | { reason: string; signsConflict?: boolean } {
   const objectReason = realObjectDeclineReason(plan);
   if (objectReason) return { reason: objectReason };
   const object = signedLength(objectQuantity);
@@ -399,18 +463,18 @@ function resolveSignedDistances(
 
   const votes = new Set<SignConvention>();
   const declared = declaredConvention(plan);
-  if (declared === "conflict") return { reason: "the plan states both Cartesian and real-is-positive conventions" };
+  if (declared === "conflict") return { reason: "the plan states both Cartesian and real-is-positive conventions", signsConflict: true };
   if (declared) votes.add(declared);
   if (!object.magnitudeOnly) votes.add(object.value < 0 ? "cartesian" : "real_is_positive");
   if (focal && !focal.magnitudeOnly && element.converging !== null) {
     if (element.kind === "mirror") {
       votes.add((focal.value < 0) === element.converging ? "cartesian" : "real_is_positive");
     } else if ((focal.value > 0) !== element.converging) {
-      return { reason: "focal length sign contradicts the stated lens type" };
+      return { reason: "focal length sign contradicts the stated lens type", signsConflict: true };
     }
   }
   if (votes.size === 0) return { reason: "no signed distance or stated convention fixes the sign convention" };
-  if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs" };
+  if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs", signsConflict: true };
   const convention = [...votes][0]!;
   const explicitlySigned = (quantity: TurnPlanQuantityV3, length: SignedLength) =>
     !length.magnitudeOnly && (length.value < 0 || quantity.sign === "positive" || quantity.sign === "negative");
@@ -495,6 +559,32 @@ function convergenceMayBeVirtualObject(text: string): boolean {
 const MULTIPLE_ELEMENT_CUE =
   /\b(?:lenses|mirrors|combination|system)\b|\b(?:first|second|third|another|other)\s+(?:[a-z-]+\s+)?(?:lens|mirror)\b/i;
 
+/**
+ * A stem can join two elements with no such word: "followed by a convex lens",
+ * "behind it is a converging lens". Two elements introduced, or two focal
+ * lengths stated, keep the audit's new reads declining. A repeated wording of
+ * one element trips this too, which costs a check and rejects nothing.
+ */
+const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[\w-]+\s+){0,3}?(?:lens|mirror)\b/gi;
+const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
+const SECOND_ELEMENT_DECLINE = "more than one optical element: a later element's object may be virtual";
+
+const ANOTHER_CASE_WORD = /\b(?:if|suppose|instead|repeat|other|now|about|student'?s\s+doubt)\b/i;
+const ELEMENT_TYPE_WORD = /\b(?:convex|concave|converging|diverging)\b/gi;
+
+/**
+ * Whether the new reads should hold back: a second element, or a stem that may
+ * go on to another case ("what if the lens were concave?"), whose plan may answer
+ * that case and not the element first named. A broad test on purpose: it only
+ * withholds a check dev never made, and rejects nothing.
+ */
+function leavesOneCaseOpen(question: string): boolean {
+  return (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1
+    || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1
+    || ANOTHER_CASE_WORD.test(question)
+    || new Set((question.match(ELEMENT_TYPE_WORD) ?? []).map((word) => word.toLowerCase())).size > 1;
+}
+
 /** Something physical placed before the element: the stem's evidence of a real object. */
 const REAL_OBJECT_CUE =
   /\b(?:object|candle|pin|needle|flame|bulb|lamp|arrow|source|filament|person|man|woman|boy|girl|child|face|tree|building|tower|coin|insect|bird|fish|toy|card|pencil|rod|stick|matchstick)\b/i;
@@ -517,7 +607,7 @@ function realObjectDeclineReason(plan: TurnPlanV3): string | null {
   }
   const question = plan.question.toLowerCase();
   if (MULTIPLE_ELEMENT_CUE.test(question) || (/\blens\b/.test(question) && /\bmirror\b/.test(question))) {
-    return "more than one optical element: a later element's object may be virtual";
+    return SECOND_ELEMENT_DECLINE;
   }
   if (!REAL_OBJECT_CUE.test(question)) {
     return "the question does not establish a real object in front of the element";
@@ -595,6 +685,10 @@ function claimedOrientation(plan: TurnPlanV3): 1 | -1 | null {
     orientation = sign;
   }
   return orientation;
+}
+
+function exactlyNamed<T extends { id: string; symbol: string }>(quantities: readonly T[], name: string): T[] {
+  return quantities.filter((quantity) => quantity.id === name || quantity.symbol === name);
 }
 
 function findOutputQuantities<T extends { id: string; symbol: string }>(

@@ -3,6 +3,7 @@
  * Paths come from already-compiled target geometry — never from model pixels.
  */
 
+import { chargeFigurePoints, chargeLayoutSteps, countFigurePoints, stopIfWorkSpent } from "./figureWork";
 import {
   SCENE_ANNOTATION_KINDS,
   type RenderPoint,
@@ -112,7 +113,9 @@ export function appendCompiledAnnotations(
       let marks: ReturnType<typeof geometryFor>;
       try {
         marks = geometryFor(annotation, targetSet, verifiedPartsEnabled);
+        chargeFigurePoints(countFigurePoints(marks));
       } catch (error) {
+        stopIfWorkSpent();
         issues.push({
           code: "annotation_geometry_unresolved",
           message: `Annotation ${annotation.id}: ${error instanceof Error ? error.message : "invalid geometry"}`,
@@ -478,6 +481,7 @@ function straightLineEnds(primitives: RenderPrimitive[]): { start: RenderPoint; 
 }
 
 function convexHull(points: RenderPoint[]): RenderPoint[] {
+  chargeLayoutSteps(points.length * points.length / 2, "hull");
   const unique = points.filter((point, index) =>
     points.findIndex((candidate) => candidate.x === point.x && candidate.y === point.y) === index,
   );

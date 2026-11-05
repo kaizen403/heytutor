@@ -1,0 +1,122 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Explain Le Chatelier's principle using the Haber process when pressure increases.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_chemistry_6_le_chateliers_principle.json",
+ "judged": {
+  "verdict": "text_only_honest",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "no figure needed"
+ },
+ "selection": {
+  "question": "Explain Le Chatelier's principle using the Haber process when pressure increases.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "chemistry",
+   "question": "Explain Le Chatelier's principle using the Haber process when pressure increases.",
+   "givens": [],
+   "unknowns": [],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "Le Chatelier's principle: when a constraint (change of pressure, temperature or concentration) is imposed on a system at equilibrium, the system adjusts to oppose that change and restore equilibrium.",
+     "expected": "System counteracts the imposed change"
+    },
+    {
+     "id": "c2",
+     "claim": "Haber process equilibrium: N2(g) + 3H2(g) ⇌ 2NH3(g); 4 moles of gas on the left, 2 moles of gas on the right.",
+     "expected": "4 mol gas reactants vs 2 mol gas product"
+    },
+    {
+     "id": "c3",
+     "claim": "When pressure is increased, the equilibrium shifts to the side with fewer moles of gas to reduce the pressure.",
+     "expected": "Shift toward fewer gas moles"
+    },
+    {
+     "id": "c4",
+     "claim": "For the Haber process, increased pressure shifts equilibrium to the right (forward direction), producing more NH3.",
+     "expected": "Forward shift, yield of NH3 increases"
+    },
+    {
+     "id": "c5",
+     "claim": "The position of equilibrium moves right but the equilibrium constant K is unchanged because temperature is unchanged.",
+     "expected": "K constant at fixed temperature"
+    },
+    {
+     "id": "c6",
+     "claim": "Industrially this is why the Haber process uses high pressure (about 200 atm), favouring ammonia yield.",
+     "expected": "High pressure used industrially"
+    }
+   ],
+   "lawIds": [
+    "le-chatelier-principle",
+    "gas-mole-counting-equilibrium-shift"
+   ],
+   "assumptions": [
+    "Gases behave ideally so mole ratio determines pressure response",
+    "Temperature held constant when pressure is changed"
+   ],
+   "visualRequirement": "optional"
+  },
+  "problemIR": null,
+  "sceneCapabilities": {
+   "visualRequired": false,
+   "families": [],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "circle",
+    "circle_tangent_at",
+    "function_curve",
+    "curve_anchor"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached"
+   ],
+   "planningGuidance": []
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": null,
+  "policy": {
+   "preferPlanner": false,
+   "allowedFigureSources": [
+    "fast_family",
+    "family",
+    "archetype",
+    "chemistry_family",
+    "matrix_source",
+    "linear_source",
+    "source_grounded",
+    "last_resort",
+    "text_only",
+    "dsa_trace"
+   ]
+  },
+  "candidate": null,
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": false,
+  "figureSource": "text_only",
+  "tier": null,
+  "family": null,
+  "entityIds": [],
+  "texts": [],
+  "marks": [],
+  "inkHash": null
+ }
+}

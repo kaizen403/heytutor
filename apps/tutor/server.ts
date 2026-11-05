@@ -12,6 +12,7 @@ import { installGracefulShutdown, settleThenFlush } from "./lib/http/gracefulShu
 import { flushServerSentry } from "./lib/obs/sentryNode";
 import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
 import { startFailedTurnSentryWorker } from "./lib/obs/failedTurnSentry";
+import { startAiCreditsWorker } from "./lib/admin/aiCredits";
 import { prisma } from "./lib/db/prisma";
 import { assertOwnedTrace } from "./lib/obs/traceOwnership";
 import { readTraceIdHeader } from "@heytutor/tutor-core";
@@ -55,6 +56,7 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
 app.prepare().then(() => {
   startObjectDeletionWorker();
   startFailedTurnSentryWorker();
+  startAiCreditsWorker();
   const server = createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
     if (!protectNodeRequest(req, res)) return;
     const parsedUrl = parseUrl(req.url ?? "", true);

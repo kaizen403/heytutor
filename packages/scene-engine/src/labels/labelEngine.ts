@@ -6,6 +6,17 @@
  */
 
 import type { RenderPoint, RenderPrimitive } from "../types";
+import { SCENE_TEXT_LIMITS } from "../document/textLimits";
+import {
+  LABEL_MEASURE_CHAR_BUDGET,
+  chargeLabelOverlaps,
+  chargeLayoutSteps,
+  chargeMeasuredChars,
+  isLabelWorkSpent,
+  spentLabelWorkCode,
+  withSharedLabelWork,
+  type LabelWork,
+} from "../compile/figureWork";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
 import { LABEL_IN_NAMED_GAP, insideNamedGap, namedGaps, ownerNamedGaps } from "./levelGap";
 
@@ -131,6 +142,8 @@ export interface LabelEngineOptions {
   measureTextPx?: (text: string, fontHeightPx: number) => number;
   /** Actual renderer ink at the top-left run position, including scripts. */
   measureTextInkBounds?: (text: string, x: number, y: number, fontHeightPx: number) => LabelBounds | null;
+  /** Override `LABEL_MEASURE_CHAR_BUDGET` for one call. */
+  measureCharBudget?: number;
   /** Override `LABEL_SEARCH_WORK_BUDGET` for one call. */
   searchWorkBudget?: number;
   /**
@@ -167,7 +180,7 @@ export interface LabelEngineResult {
     leaderPath?: RenderPoint[];
   }>;
   issues: Array<{
-    code: "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
+    code: NonNullable<LabelWork["spent"]> | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
     entityId: string;
     message: string;
     overlappingIds?: string[];
@@ -440,6 +453,7 @@ function textBoundsAtSlot(
 }
 
 export function boundsOverlap(a: LabelBounds, b: LabelBounds, gap = 0): boolean {
+  chargeLabelOverlaps(1);
   return !(
     a.x + a.width + gap <= b.x ||
     b.x + b.width + gap <= a.x ||
@@ -467,7 +481,16 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
   // named gap rules admits (it falls back to that layout whenever a ruled
   // layout fails or is not kept), so feasibility asks that layout, stopping
   // at the first clear slot.
-  return placeLabelsInternal([owner], obstacles, { ...options, pointRivals: false, namedGaps: false }, true).ok;
+  // A label over its size fails that layout whatever its slot, so no slot is tried.
+  if (owner.text.length > (options.maxLabelChars ?? DEFAULTS.maxLabelChars)) return false;
+  return withSharedLabelWork(() => {
+    try {
+      return placeLabelsInternal([owner], obstacles, { ...measuredWithinBudget(options), pointRivals: false, namedGaps: false }, true).ok;
+    } catch (error) {
+      if (!isLabelWorkSpent(error)) throw error;
+      return false;
+    }
+  }).value;
 }
 
 /**
@@ -476,10 +499,69 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
  */
 const NAMED_GAP_GUARD = true;
 
+/** The search's own budget resets for each layout, and its work counts toward the compile's too. */
+function spendSearchWork(work: LabelSearchWork, count: number): void {
+  work.spent += count;
+  chargeLabelOverlaps(count);
+}
+
+function measuredWithinBudget(options: LabelEngineOptions): LabelEngineOptions {
+  const measure = options.measureTextInkBounds;
+  if (!measure) return options;
+  const budget = options.measureCharBudget ?? LABEL_MEASURE_CHAR_BUDGET;
+  return {
+    ...options,
+    measureTextInkBounds: (text, x, y, fontHeightPx) => {
+      chargeMeasuredChars(text.length, budget);
+      return measure(text, x, y, fontHeightPx);
+    },
+  };
+}
+
 export function placeLabels(
   owners: LabelOwner[],
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
+): LabelEngineResult {
+  // A label over the size is refused wherever it would sit, so nothing lays it out.
+  const overSize = owners.filter((owner) => owner.text.length > SCENE_TEXT_LIMITS.labelChars);
+  if (overSize.length > 0) {
+    return {
+      ok: false,
+      placements: [],
+      issues: overSize.map((owner) => ({
+        code: "label_too_long" as const,
+        entityId: owner.entityId,
+        message: `Label for ${owner.entityId} exceeds ${SCENE_TEXT_LIMITS.labelChars} characters`,
+      })),
+      searchWork: 0,
+      solvedBy: null,
+    };
+  }
+  return withSharedLabelWork((): LabelEngineResult => {
+    try {
+      return placeLabelsMeasured(owners, obstacles, measuredWithinBudget(options));
+    } catch (error) {
+      if (!isLabelWorkSpent(error)) throw error;
+      return {
+        ok: false,
+        placements: [],
+        issues: owners.slice(0, 1).map((owner) => ({
+          code: spentLabelWorkCode(),
+          entityId: owner.entityId,
+          message: "Labels need more layout work than one compile may spend",
+        })),
+        searchWork: 0,
+        solvedBy: null,
+      };
+    }
+  }).value;
+}
+
+function placeLabelsMeasured(
+  owners: LabelOwner[],
+  obstacles: LabelObstacle[],
+  options: LabelEngineOptions,
 ): LabelEngineResult {
   const withRivals = (gapRule: boolean): LabelEngineResult => {
     const plain = placeLabelsInternal(owners, obstacles, { ...options, pointRivals: false, namedGaps: gapRule });
@@ -551,7 +633,7 @@ interface LabelReading {
  * point from the across a rival line test. Null when two placements share a
  * key, so the layouts cannot be compared label by label.
  */
-function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
+export function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
   const checks = POINT_RIVAL_GUARD_CHECKS;
   const key = (labelId: string, text: string) => `${labelId}\u0000${text}`;
   const ownerByKey = new Map(owners.map((owner) => [key(owner.labelId ?? `label:${owner.entityId}`, owner.text), owner]));
@@ -568,6 +650,7 @@ function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacle
       readings.set(placementKey, { point: false, misread: true, boxes: [], bounds: placement.bounds, leader, straightOwnLeader: false });
       continue;
     }
+    chargeLayoutSteps(geometry.reduce((steps, obstacle) => steps + (obstacle.segments?.length ?? 1), 0) * 4, "layoutReading");
     const own = geometry.filter((obstacle) => obstacle.entityId === owner.entityId);
     const point = own.length > 0 && own.every((obstacle) => obstacle.primitiveKind === "point");
     const ownDots = own.filter((obstacle) => !obstacle.segments?.length).map((obstacle) => centre(obstacle.bounds));
@@ -1243,8 +1326,9 @@ export function stackLabelRows(
   origins: LabelRowOrigin[],
   viewBounds: LabelBounds | undefined,
   obstacles: LabelObstacle[],
-  options: LabelEngineOptions = {},
+  rawOptions: LabelEngineOptions = {},
 ): LabelOwner[] | null {
+  const options = measuredWithinBudget(rawOptions);
   const minGapPx = options.minGapPx ?? DEFAULTS.minGapPx;
   for (const origin of origins) {
     const rows: LabelOwner[] = [];
@@ -1309,7 +1393,7 @@ function boxClearanceDirections(text: string, distance: number, options: LabelEn
   return directions;
 }
 
-function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions, gap: number): RenderPoint[] {
+export function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions, gap: number): RenderPoint[] {
   const size = centeredTextBounds(owner.text, owner.anchor, options);
   const dx = size.width / 2 + gap + 1;
   const dy = size.height / 2 + gap + 1;
@@ -1323,6 +1407,7 @@ function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], op
       if (Math.abs(y - owner.anchor.y) <= owner.tetherPx!) ys.add(y);
     }
   }
+  chargeLayoutSteps(obstacles.length * 4 + xs.size * ys.size, "tether");
   return [...xs].flatMap((x) => [...ys].map((y) => ({ x, y })))
     .filter((center) => Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y) <= owner.tetherPx! + 1e-6);
 }
@@ -1372,7 +1457,8 @@ function solveLabelPlacements(
       const owner = byIndex.get(index)?.owner;
       const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
       const otherLeaders = [...routed.values()].flatMap(leaderPoints);
-      work.spent += routeLeaderWork(candidate, boxes, geometry, otherLeaders);
+      chargeLayoutSteps(boxes.length * 2 + geometry.length * 2, "routedSelection");
+      spendSearchWork(work, routeLeaderWork(candidate, boxes, geometry, otherLeaders));
       const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders, owner?.leaderGeometrySafe ? geometryQuery : undefined);
       if (!route) return null;
       routed.set(index, route);
@@ -1467,12 +1553,12 @@ function solveLabelPlacements(
             // Keep the identical deterministic work accounting. Once one
             // domain is empty no later compatibility result can save this
             // branch, so its remaining pair tests need not execute.
-            work.spent += domain.count;
+            spendSearchWork(work, domain.count);
             continue;
           }
           // No budget decision occurs inside this domain. Charge the same
           // number of tests together, before the next search boundary.
-          work.spent += domain.count;
+          spendSearchWork(work, domain.count);
           const compatible = narrow(index, domain, placed);
           narrowed.set(index, compatible);
           if (compatible.count === 0) impossible = true;
@@ -1597,7 +1683,7 @@ function routeLeaderWork(
 }
 
 /** A small deterministic set of elbows around reserved text; no arbitrary pixels. */
-function routeLeader(
+export function routeLeader(
   candidate: LabelPlacementCandidate,
   obstacles: LabelBounds[],
   viewBounds: LabelBounds | undefined,
@@ -1613,6 +1699,7 @@ function routeLeader(
   // no elbow enumeration can improve the length/order tie-break below.
   const straight = { ...candidate, leaderPath: undefined };
   const directPath = [from, to];
+  chargeLayoutSteps(obstacles.length, "directLeader");
   if ((!viewBounds || directPath.every(point =>
       point.x >= viewBounds.x && point.x <= viewBounds.x + viewBounds.width &&
       point.y >= viewBounds.y && point.y <= viewBounds.y + viewBounds.height)) &&
@@ -1640,6 +1727,7 @@ function routeLeader(
   }
   const routeLength = (path: RenderPoint[]) => path.slice(1).reduce((total, point, index) =>
     total + Math.hypot(point.x - path[index]!.x, point.y - path[index]!.y), 0);
+  chargeLayoutSteps(routes.length * (obstacles.length + otherLeaders.length + 2) * 3, "leaderRoutes");
   const legal = routes
     .map((path) => path.filter((point, index) => index === 0 || Math.hypot(point.x - path[index - 1]!.x, point.y - path[index - 1]!.y) > 1e-6))
     .filter((path) => !viewBounds || path.every((point) =>
@@ -1731,6 +1819,7 @@ export function boundsInSideRegion(bounds: LabelBounds, region: LabelSideRegion)
     const nearestY = Math.max(bounds.y, Math.min(region.center.y, bounds.y + bounds.height));
     return Math.hypot(nearestX - region.center.x, nearestY - region.center.y) >= region.radius;
   }
+  chargeLayoutSteps(region.points.length * 5, "sideRegion");
   const crossesEdge = pathSegments(region.points, true).some(([start, end]) => segmentIntersectsBounds(start, end, bounds));
   if (crossesEdge) return false;
   const cornersInside = corners.map((corner) => pointInPolygon(corner, region.points));
@@ -1905,6 +1994,7 @@ function isLabelBounds(value: unknown): value is LabelBounds {
 function labelOverlapsObstacle(label: LabelBounds, obstacle: LabelObstacle, gap: number): boolean {
   if (!boundsOverlap(label, obstacle.bounds, gap)) return false;
   if (!obstacle.segments || obstacle.segments.length === 0) return true;
+  chargeLabelOverlaps(obstacle.segments.length);
   const expanded = {
     x: label.x - gap,
     y: label.y - gap,
@@ -2002,7 +2092,7 @@ const OWNERSHIP_TOLERANCE_PX = 1;
 /** A box anchor further than this from the owner's ink sits in empty air. */
 const SLOT_ANCHOR_DRIFT_PX = 8;
 
-interface StrokeOwnership {
+export interface StrokeOwnership {
   ink: Array<[RenderPoint, RenderPoint]>;
   /** The owner's longest single stroke, where its stroke slots are taken. */
   stroke: Array<[RenderPoint, RenderPoint]>;
@@ -2068,7 +2158,7 @@ const POINT_ESCAPE_SCORE = 300;
 const POINT_RIVAL_SCORE = 1000;
 const POINT_RIVAL_SPOTS = 40;
 
-interface PointRivalMarks {
+export interface PointRivalMarks {
   /** Straight strokes that do not pass through the point. */
   strokes: Array<Array<[RenderPoint, RenderPoint]>>;
   /** Centres of other entities' point dots. */
@@ -2114,7 +2204,8 @@ function pointRivalMarks(owner: LabelOwner, obstacles: LabelObstacle[]): PointRi
   return foreign.length || dots.length ? { strokes: foreign, dots } : null;
 }
 
-function pointLabelNearerForeign(box: LabelBounds, anchor: RenderPoint, rivals: PointRivalMarks): boolean {
+export function pointLabelNearerForeign(box: LabelBounds, anchor: RenderPoint, rivals: PointRivalMarks): boolean {
+  chargeLayoutSteps(rivals.dots.length + rivals.strokes.reduce((steps, segments) => steps + segments.length, 0), "rivalMarks");
   return pointLabelNearerRivalDot(box, anchor, rivals) || pointLabelAcrossRivalLine(box, anchor, rivals);
 }
 
@@ -2150,7 +2241,8 @@ const OWNERSHIP_CLEAR_MARGIN_PX = 8;
 const AMBIGUOUS_OWNER_PENALTY = 12;
 
 /** Nearest foreign stroke distance minus nearest owner stroke distance. */
-function ownershipMargin(box: LabelBounds, ownership: StrokeOwnership): number {
+export function ownershipMargin(box: LabelBounds, ownership: StrokeOwnership): number {
+  chargeLayoutSteps(ownership.ink.length + ownership.foreign.reduce((steps, segments) => steps + segments.length, 0), "ownership");
   const own = segmentsToBoundsDistance(ownership.ink, box);
   let foreign = Infinity;
   for (const segments of ownership.foreign) {
@@ -2209,7 +2301,7 @@ const STROKE_SLOT_MAX_SLIDE_PX = 96;
  * same margin a box anchor gives an axis-aligned stroke. A slot that runs
  * along the stroke and never clears it is dropped.
  */
-function strokeSlotPlacements(
+export function strokeSlotPlacements(
   owner: LabelOwner,
   ownership: StrokeOwnership,
   slot: { slot: Exclude<LabelSlot, "leader">; dx: number; dy: number },
@@ -2224,6 +2316,7 @@ function strokeSlotPlacements(
   ].filter((point, index, all) => all.findIndex((other) => Math.hypot(other.x - point.x, other.y - point.y) < 4) === index);
   return stations.flatMap((anchor) => {
     for (let slide = 0; slide <= STROKE_SLOT_MAX_SLIDE_PX; slide += 2) {
+      chargeLayoutSteps(ownership.ink.length, "strokeSlot");
       const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, slide);
       if (segmentsToBoundsDistance(ownership.ink, bounds) >= clearance) return [{ anchor, bounds }];
     }

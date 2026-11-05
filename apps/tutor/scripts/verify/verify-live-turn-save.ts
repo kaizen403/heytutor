@@ -38,6 +38,7 @@ import {
   type TurnCheckpointResult,
   type TurnCloseInput,
 } from "../../lib/boards/boardsClient";
+import { classifySaveFailure } from "../../lib/boards/boardsClient";
 import { boardContinuationOf } from "../../lib/boards/boardContinuation";
 import { MAX_PAGE_AWAY_TELEMETRY_BYTES, MAX_TELEMETRY_BODY_BYTES } from "../../lib/obs/turnTelemetry";
 import {
@@ -50,7 +51,19 @@ import {
   SAVE_RETRY_DELAYS_MS,
   type LiveTurnMirrorEvent,
 } from "../../features/tutor-session/lib/turn/liveTurnSave";
-import { lessonPageRecord, doubtPageRecord, textOnlyTurnScene, type BoardPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
+import {
+  doubtFigureRefFor,
+  doubtPageRecord,
+  doubtTurnScene,
+  lessonPageRecord,
+  partialTurnScene,
+  partialTurnSegments,
+  textOnlyTurnScene,
+  type BoardPageRecord,
+} from "../../features/tutor-session/lib/turn/doubtTurn";
+import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
+import { doubtFigureRefOf, type DoubtFigureRef } from "../../lib/boards/doubtFigureRef";
+import { parseStoredSegmentCommands, type VerifiedDiagram } from "@heytutor/drawing";
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -62,7 +75,7 @@ type Call =
 
 interface ServerTurn { count: number; seq: number; status: "live" | "stopped" | "complete"; rows: Array<{ narration: string; audio: boolean }> }
 
-function harness() {
+function harness(options: { mintId?: () => string } = {}) {
   let now = 1_000;
   let online = true;
   let nextTimer = 1;
@@ -85,7 +98,7 @@ function harness() {
     },
     now: () => now,
     isOnline: () => online,
-    mintId: () => `turn-${++ids}`,
+    mintId: options.mintId ?? (() => `turn-${++ids}`),
   });
 
   const settle = async () => {
@@ -417,6 +430,120 @@ async function doubtWaitsForTheLessonItStopped() {
   assert.equal(f.registry.statusFor("board-1").kind, "failed", "the lost lesson is reported, not hidden");
 }
 
+/**
+ * A doubt names the figure on its page only when it continues a page with a
+ * figure drawn on it, and never over a replay. A stopped doubt keeps the
+ * pointing it spoke, locally and in what it sends.
+ */
+async function doubtPointsAtTheFigure() {
+  const LESSON_TURN = "11111111-1111-4111-8111-111111111111";
+  const STORED_LESSON = "22222222-2222-4222-8222-222222222222";
+  const diagram = (extra: Partial<VerifiedDiagram> = {}): VerifiedDiagram => ({
+    id: "scene", name: "", commands: [], reveals: [], promptAddon: "",
+    anchors: [{ id: "start_value", labels: ["2"], x: 600, y: 300, width: 20, height: 20 }], groups: [],
+    ...extra,
+  }) as unknown as VerifiedDiagram;
+  const scene = diagram();
+  const picture = diagram({ id: "reference_picture" });
+  const code = diagram({ layout: "code_lesson" });
+  const lessonPage: BoardPageRecord = { ...lessonPageRecord("board-1", LESSON), figureDrawn: true, figureTurnId: LESSON_TURN };
+  const base = { record: lessonPage, boardId: "board-1", afterReplay: false, figureOnPage: true, storedTurns: [], activeDiagram: scene, codeLessonFrameIndex: null };
+
+  const ref = doubtFigureRefFor(base);
+  assert.deepEqual(ref, { schemaVersion: "doubt-figure-ref/v1", turnId: LESSON_TURN, kind: "verified_scene" }, "a drawn lesson figure is named");
+  assert.equal(doubtFigureRefFor({ ...base, afterReplay: true }), null, "a doubt over a replay names no figure");
+  assert.equal(doubtFigureRefFor({ ...base, figureOnPage: false }), null, "no figure on the page: no reference");
+  assert.equal(doubtFigureRefFor({ ...base, activeDiagram: null }), null, "no figure in the zone: no reference");
+  assert.equal(doubtFigureRefFor({ ...base, boardId: "board-2" }), null, "another board's record names nothing here");
+  assert.equal(doubtFigureRefFor({ ...base, activeDiagram: picture })?.kind, "reference_picture", "a picture in the zone is named as one");
+  assert.deepEqual(doubtFigureRefFor({ ...base, activeDiagram: code, codeLessonFrameIndex: 3 }),
+    { schemaVersion: "doubt-figure-ref/v1", turnId: LESSON_TURN, kind: "dsa_frame", frameIndex: 3 }, "a code board names its current frame");
+  assert.equal(doubtFigureRefFor({ ...base, activeDiagram: code, codeLessonFrameIndex: null }), null, "a code board with no frame index names nothing");
+
+  // A restored board: no record, the newest figure on the last saved page.
+  const storedTurn = (id: string, extra: Partial<StoredTurn>): StoredTurn => ({
+    id, orderIndex: 0, question: LESSON, rawResponse: "", speedMultiplier: 1, traceId: null,
+    sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
+    segments: [{ id: `${id}:0`, orderIndex: 0, narration: "", spokenText: "", command: { type: "CLEAR", params: [], charPosition: 0, narrationBefore: "" }, audioUrl: null, durationMs: 0, timings: null }],
+    ...extra,
+  });
+  const storedLesson = storedTurn(STORED_LESSON, { visualStatus: "validated", sceneArtifacts: { turnPlan: null } });
+  const storedDoubt = storedTurn("33333333-3333-4333-8333-333333333333", {
+    question: "Doubt: why?", sceneArtifacts: boardContinuationArtifacts(LESSON),
+    segments: [{ id: "d:0", orderIndex: 0, narration: "because", spokenText: "because", command: null, audioUrl: null, durationMs: 0, timings: null }],
+  });
+  const restored = { ...base, record: null, storedTurns: [storedLesson, storedDoubt] };
+  assert.equal(doubtFigureRefFor(restored)?.turnId, STORED_LESSON, "a restored board names the saved lesson figure through a doubt");
+  assert.equal(doubtFigureRefFor({ ...restored, afterReplay: true }), null, "a restored board over a replay names nothing");
+  const textLesson = storedTurn("44444444-4444-4444-8444-444444444444", {});
+  assert.equal(doubtFigureRefFor({ ...restored, storedTurns: [storedLesson, textLesson] }), null, "a figure on an earlier page is not named");
+  assert.equal(doubtFigureRefFor({ ...restored, activeDiagram: code, codeLessonFrameIndex: 0 }), null, "a stored kind that disagrees with the zone names nothing");
+  const freshLesson = lessonPageRecord("board-1", "A new question.");
+  assert.equal(doubtFigureRefFor({ ...restored, record: freshLesson }), null, "a fresh page with no figure committed here never borrows the last saved page's figure");
+
+  // The doubt record carries the figure turn and the reference.
+  const doubtPage = doubtPageRecord({
+    boardId: "board-1", lessonQuestion: LESSON, title: "Why does it start at 2?", continuesBoard: true,
+    figureDrawn: true, turnPlan: null, solverProjection: null, replaces: lessonPage, pointsAtFigure: ref,
+  });
+  assert.equal(doubtPage.figureTurnId, LESSON_TURN, "the doubt record keeps the figure turn of the record it replaces");
+  assert.deepEqual(doubtFigureRefOf(doubtPage.turn.scene?.sceneArtifacts), ref, "and saves the reference in its scene");
+  const ownPage = doubtPageRecord({
+    boardId: "board-1", lessonQuestion: LESSON, title: "Why?", continuesBoard: false,
+    figureDrawn: false, turnPlan: null, solverProjection: null, replaces: lessonPage, pointsAtFigure: ref,
+  });
+  assert.equal(ownPage.figureTurnId, null, "a doubt on a page of its own has no figure turn");
+  assert.equal(doubtFigureRefOf(ownPage.turn.scene?.sceneArtifacts), null, "nor a reference");
+  assert.equal(doubtFigureRefOf(doubtTurnScene(LESSON, false, undefined, ref).sceneArtifacts), null, "a doubt that opens its own page never names a figure");
+  assert.deepEqual(doubtFigureRefOf(partialTurnScene(doubtPage).sceneArtifacts), ref, "a stopped doubt is saved with its reference");
+  // The next doubt on the same page names the same figure.
+  const second = doubtFigureRefFor({ ...base, record: doubtPage });
+  assert.equal(second?.turnId, LESSON_TURN, "a second doubt on the page names the same figure");
+
+  // Through the registry: the commit names the figure, the doubt sends it, a stop keeps it.
+  // Checkpoint ids are UUIDs in the browser, and the reference requires one.
+  const h = harness({ mintId: () => crypto.randomUUID() });
+  const mirrored: LiveTurnMirrorEvent[] = [];
+  h.registry.attach(owner, { openBoardId: () => "board-1", mirror: (event) => mirrored.push(event) });
+  const lesson = begin(h, { generation: 1 });
+  h.registry.recordRow(owner, 1, row("lesson step"), { intro: false });
+  lesson.page.figureDrawn = true;
+  h.registry.figureCommitted(owner, 1);
+  assert.equal(lesson.page.figureTurnId, lesson.handle.turnId, "a committed figure names its turn on the page record");
+  await h.settle();
+  lesson.handle.close();
+  const liveRef = doubtFigureRefFor({ ...base, record: lesson.page });
+  assert.equal(liveRef?.turnId, lesson.handle.turnId, "the doubt names the lesson turn that drew the figure");
+  const page = doubtPageRecord({
+    boardId: "board-1", lessonQuestion: LESSON, title: "Why does it start at 2?", continuesBoard: true,
+    figureDrawn: true, turnPlan: null, solverProjection: null, replaces: lesson.page, pointsAtFigure: liveRef,
+  });
+  const doubt = begin(h, { generation: 2, kind: "doubt", continuesBoard: true, page });
+  const focusRow: RecordedSegmentPayload = { ...row("it starts at two"), command: { type: "FOCUS", params: [], text: "start_value", charPosition: 0, narrationBefore: "" } as never };
+  h.registry.recordRow(owner, 2, focusRow, { intro: false });
+  await h.settle();
+  for (const call of [...h.calls]) await h.ack(call);
+  const doubtCall = h.calls.find((call) => call.turnId === doubt.handle.turnId && call.method === "PUT");
+  assert(doubtCall && doubtCall.method === "PUT", "the doubt checkpoints");
+  assert.deepEqual(doubtFigureRefOf(doubtCall.input.scene.sceneArtifacts), liveRef, "the doubt's save carries pointsAtFigure");
+  doubt.handle.close();
+  await h.settle();
+  const stopped = h.registry.liveTurnFor(owner, "board-1");
+  assert(stopped && stopped.id === doubt.handle.turnId, "the stopped doubt is exported");
+  assert(stopped.segments.some((s) => parseStoredSegmentCommands(s.command).some((c) => c.type === "FOCUS" && c.text === "start_value")),
+    "a stopped doubt keeps its pointing in the local copy");
+  const local = mirrored.filter((event) => event.turnId === doubt.handle.turnId).at(-1);
+  assert(local && local.rows.some((r) => parseStoredSegmentCommands(r.command).some((c) => c.type === "FOCUS")), "and in the board's own mirror");
+
+  // Without a reference a stopped doubt's pointing goes, as before.
+  const plain = doubtTurnScene(LESSON, true);
+  const kept = partialTurnSegments([focusRow], plain);
+  assert(!kept.some((r) => parseStoredSegmentCommands(r.command).some((c) => c.type === "FOCUS")), "no reference: the stopped doubt drops its pointing");
+  const withRef = partialTurnSegments([focusRow, { ...row("trusted"), command: { trustedDiagramGeometry: true, commands: [] } as never }], doubtTurnScene(LESSON, true, undefined, ref as DoubtFigureRef));
+  assert(withRef.some((r) => parseStoredSegmentCommands(r.command).some((c) => c.type === "FOCUS")), "with a reference: FOCUS survives");
+  assert(!withRef.some((r) => r.narration === "trusted" && r.command !== null), "with a reference: trusted geometry still goes");
+}
+
 async function backoffThenFailedThenRetry() {
   const h = harness();
   begin(h, { generation: 1 });
@@ -717,6 +844,87 @@ async function reopenKeepsUnsavedTurns() {
   assert.equal(q.registry.reopen("board-1").length, 1, "a lesson the server refused still shows on its board");
   assert.equal(q.calls.length, 1, "a quota failure is not retried on its own");
   assert.deepEqual(q.registry.reopen("board-2"), [], "never another board's turn");
+}
+
+// The rejection codes production logged from 26 Oct to 2 Nov, read back through
+// the real classifier. A turn the server holds must not stay live after one.
+async function refusedSaveStillClosesItsRow() {
+  const recorded: Array<[string, number, Record<string, unknown>]> = [
+    ["multipart_invalid", 400, { code: "multipart_invalid" }],
+    ["scene_solver_artifacts_incomplete", 400, { code: "scene_solver_artifacts_incomplete" }],
+    ["turn_metadata_oversized", 413, { code: "turn_metadata_oversized" }],
+    ["storage_commit_rejected", 413, { code: "storage_commit_rejected" }],
+    ["save_allowance_used", 409, { code: "save_allowance_used" }],
+  ];
+  for (const [name, status, body] of recorded) {
+    for (const ending of ["stop", "complete"] as const) {
+      const h = harness();
+      const turn = begin(h, { generation: 1 });
+      h.registry.recordRow(owner, 1, row("step one"), { intro: false });
+      await h.settle();
+      await h.ack(h.calls[0]!);
+      h.registry.recordRow(owner, 1, row("step two"), { intro: false });
+      await h.settle();
+      const refused = classifySaveFailure(status, { error: "refused", ...body });
+      assert.equal(refused.retryable, false, `${name}: not retried on its own`);
+      await h.fail(h.calls[h.calls.length - 1]!, refused);
+      if (refused.reason === "refused" && status === 400) {
+        // Decision 7: saved once more as text only, then given up on.
+        await h.settle();
+        await h.fail(h.calls[h.calls.length - 1]!, refused);
+      }
+      assert.equal(h.server.get(h.calls[0]!.turnId)?.status, "live", `${name}: the row is still live when the save is refused`);
+      if (ending === "stop") turn.handle.close();
+      else void turn.handle.complete({ rawResponse: "all of it" });
+      await h.settle();
+      // A Stop then a finish before the answer must not send a second one.
+      if (ending === "stop") void turn.handle.complete({ rawResponse: "all of it" });
+      await h.settle();
+      const closes = h.calls.filter((call) => call.method === "PATCH");
+      assert.equal(closes.length, 1, `${name}, ${ending}: one close goes out after the refusal`);
+      assert.equal(closes[0]!.input.status, "stopped", `${name}, ${ending}: it stops the row`);
+      assert.deepEqual(closes[0]!.input.segments ?? [], [], `${name}, ${ending}: it carries no rows to refuse`);
+      await h.ack(closes[0]!);
+      assert.equal(h.server.get(h.calls[0]!.turnId)?.status, "stopped", `${name}, ${ending}: the row is closed`);
+      turn.handle.close();
+      await h.settle();
+      assert.equal(h.calls.filter((call) => call.method === "PATCH").length, 1, `${name}, ${ending}: and only once`);
+    }
+  }
+  // Stop while the refused save is still in flight: the refusal itself closes it.
+  const racing = harness();
+  const stopped = begin(racing, { generation: 1 });
+  racing.registry.recordRow(owner, 1, row("step one"), { intro: false });
+  await racing.settle();
+  await racing.ack(racing.calls[0]!);
+  racing.registry.recordRow(owner, 1, row("step two"), { intro: false });
+  await racing.settle();
+  stopped.handle.close();
+  await racing.settle();
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 0, "the save in flight owns the turn until it answers");
+  await racing.fail(racing.calls[racing.calls.length - 1]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(racing.calls.filter((call) => call.method === "PATCH").length, 1, "a refusal after Stop closes the row");
+  // Still teaching: the refused save leaves the turn open until it ends.
+  const open = harness();
+  const live = begin(open, { generation: 1 });
+  open.registry.recordRow(owner, 1, row("step one"), { intro: false });
+  await open.settle();
+  await open.ack(open.calls[0]!);
+  open.registry.recordRow(owner, 1, row("step two"), { intro: false });
+  await open.settle();
+  await open.fail(open.calls[open.calls.length - 1]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(open.calls.filter((call) => call.method === "PATCH").length, 0, "no close while the lesson is still teaching");
+  live.handle.close();
+  await open.settle();
+  assert.equal(open.calls.filter((call) => call.method === "PATCH").length, 1, "the close goes out when it ends");
+  // Never created on the server: there is no row to close.
+  const never = harness();
+  const unsaved = begin(never, { generation: 1 });
+  never.registry.recordRow(owner, 1, row("step"), { intro: false });
+  unsaved.handle.close();
+  await never.settle();
+  await never.fail(never.calls[0]!, classifySaveFailure(413, { code: "turn_metadata_oversized", error: "x" }));
+  assert.equal(never.calls.length, 1, "a turn the server never held sends no close");
 }
 
 async function keepaliveCloseFitsTheBudget() {
@@ -1091,8 +1299,10 @@ async function main() {
   await closeIsIdempotentAndKeepsEmptyTurns();
   await emptyDoubtIsNotSaved();
   await doubtWaitsForTheLessonItStopped();
+  await doubtPointsAtTheFigure();
   await backoffThenFailedThenRetry();
   await refusedFigureSavesOnceAsText();
+  await refusedSaveStillClosesItsRow();
   await conflictResendsFromServerCount();
   await cutRowAndLiveTurn();
   await cutFirstStepOfDoubtOrResumeIsKept();

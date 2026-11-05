@@ -53,6 +53,9 @@ import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
 import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { sceneKeepsReferencePictureRows } from "@/lib/scene/referencePicturePersistence";
+import { doubtFigurePageCheckFor, lessonFigureStartFor, pageFigureLoaderFor } from "@/lib/scene/pageFigureLoader";
+import { boardContinuationOf } from "@/lib/boards/boardContinuation";
+import { doubtFigureRefOf } from "@/lib/boards/doubtFigureRef";
 import {
   audioPrefixMatchesType,
   validateCheckpointUploadParts,
@@ -61,6 +64,8 @@ import {
   MAX_TURN_MERGED_METADATA_BYTES,
   MAX_TURN_SEGMENTS,
   MAX_TURN_UPLOAD_BYTES,
+  compactTimings,
+  TIMINGS_KEEP_BYTES,
 } from "@/lib/scene/turnUploadLimits";
 import {
   isTurnKind,
@@ -80,6 +85,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const VISUAL_STATUSES = new Set(["validated", "text_only", "legacy", "retry_required"]);
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
 const SCENE_POINTING = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
+/** A doubt naming its page's figure keeps these for the canonicalizer to check against that figure. */
+const DOUBT_POINTING = new Set<DrawCommand["type"]>(["FOCUS", "ANNOTATE"]);
 
 type VisualStatus = "validated" | "text_only" | "legacy" | "retry_required";
 
@@ -284,7 +291,7 @@ function parseRows(value: unknown, baseCount: number): Parsed<CheckpointRow[]> {
       spokenText,
       command: raw.command ?? null,
       ...(raw.durationMs != null ? { durationMs: raw.durationMs as number } : {}),
-      ...(raw.timings != null ? { timings: raw.timings } : {}),
+      ...(raw.timings != null ? { timings: compactTimings(raw.timings) } : {}),
     });
   }
   return { ok: true, value: rows };
@@ -377,13 +384,21 @@ function parseScene(raw: Record<string, unknown>): Parsed<CheckpointScene> {
  * rows a validated scene accepted earlier; a later text-only checkpoint (the
  * client's fallback when a figure is refused) must not be refused for them.
  * It only drops what the text-only canonicalizer would refuse.
+ *
+ * `keepPointing`: a doubt whose artifacts name its page's figure keeps its
+ * FOCUS and ANNOTATE, which the canonicalizer checks against that figure.
+ * Trusted geometry still goes.
  */
-export function stripSceneInk<T extends CheckpointRow>(rows: readonly T[]): T[] {
+export function stripSceneInk<T extends CheckpointRow>(
+  rows: readonly T[],
+  options: { keepPointing?: boolean } = {},
+): T[] {
   const kept: T[] = [];
   for (const row of rows) {
     if (isStoredCommandTrustedGeometry(row.command)) continue;
     const commands = parseStoredSegmentCommands(row.command);
-    const allowed = commands.filter((command) => !SCENE_POINTING.has(command.type));
+    const allowed = commands.filter((command) =>
+      !SCENE_POINTING.has(command.type) || (options.keepPointing === true && DOUBT_POINTING.has(command.type)));
     if (allowed.length === commands.length) {
       kept.push(row);
       continue;
@@ -392,6 +407,10 @@ export function stripSceneInk<T extends CheckpointRow>(rows: readonly T[]): T[] 
     kept.push({ ...row, command: allowed.length > 0 ? serializeSegmentCommands(allowed) : null });
   }
   return kept;
+}
+
+function sceneKeepsDoubtPointing(sceneArtifacts: unknown): boolean {
+  return boardContinuationOf(sceneArtifacts) !== null && doubtFigureRefOf(sceneArtifacts) !== null;
 }
 
 function sceneOf(turn: Turn): CheckpointScene {
@@ -470,6 +489,9 @@ export async function handleTurnCheckpoint(request: Request, params: RouteParams
  * applies. With rows (the unsent tail, words and ink) it appends them under the
  * turn's stored scene and takes `seq`.
  */
+/** What the server refuses in a close's payload. Sign in, ownership and rate limits are not the payload. */
+const CLOSE_REFUSALS = new Set([400, 409, 413]);
+
 export async function handleTurnClose(request: Request, params: RouteParams): Promise<Response> {
   params = { ...params, entryPoint: "checkpoint_close" };
   const reject = checkpointRejection(params);
@@ -484,7 +506,6 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   }
   if (!isRecord(raw)) return reject("close_body_invalid", "invalid close body", 400);
   const common = parseCommon(raw, "patch");
-  if (!common.ok) return reject("turn_fields_invalid", common.error, 400);
   // A close that creates the turn saves it as text: the figure never committed
   // on this tab's checkpoints, and the body has no room for a scene. Its
   // artifacts may still carry the plan and the page continuation marker.
@@ -496,15 +517,27 @@ export async function handleTurnClose(request: Request, params: RouteParams): Pr
   if (existing && (existing.userId !== auth.userId || existing.boardId !== params.boardId)) {
     return reject("turn_not_found", "not found", 404);
   }
+  // A close always closes a turn that exists. Rows the server refuses are not
+  // saved, and the page that sent them is usually gone, so they must not leave
+  // the turn reading as still being taught. The refusal is still the answer: a
+  // page that lives on must hear that its rows were not saved.
+  const closedDespite = async (refusal: Response): Promise<Response> => {
+    // A turn already closed has nothing to close: a refusal leaves it untouched.
+    if (!existing || existing.status !== "live" || !CLOSE_REFUSALS.has(refusal.status)) return refusal;
+    const bare = parseCommon({ seq: raw.seq, status: raw.status, traceId: raw.traceId, baseCount: raw.baseCount }, "patch");
+    if (bare.ok) await closeStatusOnly(request, auth.userId, params, existing, bare.value, { afterRefusal: true });
+    return refusal;
+  };
+  if (!common.ok) return closedDespite(reject("turn_fields_invalid", common.error, 400));
   if (!existing && !common.value.question?.trim()) return reject("turn_not_found", "turn not found", 404);
   if (existing && common.value.appendSegments.length === 0) {
-    return closeStatusOnly(request, auth.userId, params, existing, common.value);
+    return closedDespite(await closeStatusOnly(request, auth.userId, params, existing, common.value));
   }
-  return applyCheckpoint(request, auth.userId, params, {
+  return closedDespite(await applyCheckpoint(request, auth.userId, params, {
     ...common.value,
     scene: existing ? "stored" : createScene,
     tolerateOverlap: true,
-  }, new Map());
+  }, new Map()));
 }
 
 async function ownedTraceAllowed(userId: string, boardId: string, traceId: string | undefined): Promise<boolean> {
@@ -517,13 +550,16 @@ async function closeStatusOnly(
   params: RouteParams,
   existing: Turn,
   input: Omit<CheckpointInput, "scene" | "tolerateOverlap">,
+  options: { afterRefusal?: boolean } = {},
 ): Promise<Response> {
   const reject = checkpointRejection(params, input.traceId ?? existing.traceId ?? undefined);
   // New metadata has the same canonical byte budget/quota as a full save.
   // Only a status-only or stale-header close may skip that charged path.
   // Legacy rows also need their existing scene receipt envelope accounted.
-  if (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
-    (input.rawResponse !== undefined || input.resumeState !== undefined))) {
+  // After a refusal only the status changes: the held rows stay as stored, so it
+  // needs no new bytes and a full account can still close its turn.
+  if (!options.afterRefusal && (Array.isArray(existing.submittedSegments) || (input.seq > existing.checkpointSeq &&
+    (input.rawResponse !== undefined || input.resumeState !== undefined)))) {
     return applyCheckpoint(request, userId, params, {
       ...input, baseCount: heldRows(existing).length, appendSegments: [],
       scene: "stored", tolerateOverlap: true,
@@ -681,6 +717,11 @@ async function applyCheckpoint(
     return reject("turn_not_persistable", "question and rawResponse required unless persisting a required-diagram failure", 400);
   }
 
+  // A long lesson gives up its timings before it gives up its rows.
+  const timedRows = append.filter((row) => row.timings != null).length;
+  const dropTimings = timedRows > 0 && utf8Bytes({ question, rawResponse, ...scene, segments: [...stored, ...append] }) > TIMINGS_KEEP_BYTES;
+  if (dropTimings) append = append.map((row) => ({ ...row, timings: undefined }));
+
   const merged: HeldRow[] = [...stored, ...append];
   if (merged.length > MAX_TURN_SEGMENTS) return reject("turn_segments_oversized", "turn has too many segments", 413);
 
@@ -709,7 +750,11 @@ async function applyCheckpoint(
 
   // A reference picture turn is text only for the engine, but its picture rows
   // must reach the persistence branch that rebuilds them from the stored record.
-  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" || sceneKeepsReferencePictureRows(selected.sceneArtifacts) ? merged : stripSceneInk(merged))
+  // A doubt naming the figure on its page keeps its pointing for the
+  // canonicalizer, which checks it against that figure's own saved row.
+  const canonicalRowsFor = (selected: CheckpointScene) => (selected.visualStatus === "validated" || sceneKeepsReferencePictureRows(selected.sceneArtifacts)
+    ? merged
+    : stripSceneInk(merged, { keepPointing: sceneKeepsDoubtPointing(selected.sceneArtifacts) }))
     .map((row): CheckpointRow => ({
       orderIndex: row.orderIndex,
       narration: row.narration,
@@ -722,7 +767,15 @@ async function applyCheckpoint(
   if (utf8Bytes({ ...header, segments: merged }) > MAX_TURN_MERGED_METADATA_BYTES) {
     return reject("turn_metadata_oversized", "turn metadata exceeds the size limit", 413);
   }
-  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) });
+  const loadPageFigure = pageFigureLoaderFor({ boardId, userId, turnId }, prisma);
+  // A doubt figure must belong to the stored page of the lesson it names.
+  const checkDoubtFigurePage = doubtFigurePageCheckFor({ boardId, userId, turnId }, prisma);
+  // A resume's teaching starts on the lesson figure the stored page had reached.
+  const lessonFigureStart = lessonFigureStartFor({ boardId, userId, turnId }, prisma);
+  // A doubt figure is admitted on a doubt only, so the canonicalizer is told the kind.
+  const rawKind = before?.kind ?? input.kind;
+  const turnKind = isTurnKind(rawKind) ? rawKind : undefined;
+  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure, checkDoubtFigurePage, lessonFigureStart, kind: turnKind });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
@@ -732,7 +785,7 @@ async function applyCheckpoint(
     // scene. A surviving producer must submit a fresh, coherent scene.
     ownsScene = false;
     const storedScene = sceneOf(before);
-    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) });
+    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure, checkDoubtFigurePage, lessonFigureStart, kind: turnKind });
     if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
@@ -977,7 +1030,10 @@ async function applyCheckpoint(
     settled = true;
     switch (outcome.kind) {
       case "retry_stopped": return applyCheckpoint(request, userId, { boardId, turnId, entryPoint }, input, files, stoppedRetries + 1);
-      case "saved": return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
+      case "saved":
+        // Only rows that were saved have lost anything.
+        if (dropTimings) console.warn("[turn-timings-dropped]", { event: "turn_timings_dropped", rows: timedRows, entryPoint });
+        return json(turnBody(outcome.turn, { sceneAccepted: outcome.sceneAccepted }));
       case "stale": return json(turnBody(outcome.turn, { stale: true, sceneAccepted: false }));
       case "final": return json(turnBody(outcome.turn, { stale: true, final: true }));
       case "conflict": return reject("checkpoint_rows_conflict", "checkpoint does not continue the saved rows", 409, { serverCount: outcome.serverCount, serverSeq: outcome.serverSeq });
