@@ -712,12 +712,7 @@ async function doubtFigureAsText(
   continuation: NonNullable<ReturnType<typeof boardContinuationOf>>,
   options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
 ): Promise<TurnScenePersistenceResult> {
-  const segments = submitted.segments.map((segment) => {
-    if (segment.command == null) return segment;
-    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
-    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
-    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
-  });
+  const segments = withoutFigureInk(submitted.segments);
   return canonicalizeTurnSceneMetadata({
     ...submitted,
     visualStatus: "text_only",
@@ -725,6 +720,16 @@ async function doubtFigureAsText(
     sceneArtifacts: { boardContinuation: continuation },
     segments,
   }, { ...options, loadPageFigure: undefined });
+}
+
+/** Rows with the figure's ink and any pointing at it taken out, the words kept. */
+function withoutFigureInk(segments: SubmittedTurnSceneMetadata["segments"]): SubmittedTurnSceneMetadata["segments"] {
+  return segments.map((segment) => {
+    if (segment.command == null) return segment;
+    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
+    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
 }
 
 /**
@@ -735,12 +740,7 @@ async function figureQuestionAsText(
   submitted: SubmittedTurnSceneMetadata,
   options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
 ): Promise<TurnScenePersistenceResult> {
-  const segments = submitted.segments.map((segment) => {
-    if (segment.command == null) return segment;
-    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
-    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
-    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
-  });
+  const segments = withoutFigureInk(submitted.segments);
   return canonicalizeTurnSceneMetadata({
     ...submitted,
     visualStatus: "text_only",
