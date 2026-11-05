@@ -569,16 +569,20 @@ const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[\w-]+\s+){0,3}?(?:lens|mirror)\b/gi
 const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
 const SECOND_ELEMENT_DECLINE = "more than one optical element: a later element's object may be virtual";
 
+const ANOTHER_CASE_WORD = /\b(?:if|suppose|instead|repeat|other|now|about|student'?s\s+doubt)\b/i;
+const ELEMENT_TYPE_WORD = /\b(?:convex|concave|converging|diverging)\b/gi;
+
 /**
- * Whether the new reads should hold back: a second element, or a stem that goes
- * on to ask about another case ("what if the lens were concave?"), whose plan
- * may answer that case and not the element first named.
+ * Whether the new reads should hold back: a second element, or a stem that may
+ * go on to another case ("what if the lens were concave?"), whose plan may answer
+ * that case and not the element first named. A broad test on purpose: it only
+ * withholds a check dev never made, and rejects nothing.
  */
 function leavesOneCaseOpen(question: string): boolean {
   return (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1
     || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1
-    || /\bwhat\s+if\b|\bstudent'?s\s+doubt\b/i.test(question)
-    || (/\b(?:convex|converging)\b/i.test(question) && /\b(?:concave|diverging)\b/i.test(question));
+    || ANOTHER_CASE_WORD.test(question)
+    || new Set((question.match(ELEMENT_TYPE_WORD) ?? []).map((word) => word.toLowerCase())).size > 1;
 }
 
 /** Something physical placed before the element: the stem's evidence of a real object. */

@@ -182,6 +182,14 @@ async function main() {
     ["f were negative", `${CONVEX_TEN} What if f = -10 cm?`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
     ["a composed doubt", `${CONVEX_TEN}\n\nStudent's doubt: what happens when it flips?`, [["f", -10, "cm"], ["d_o", 30, "cm"]], [["d_i", -7.5, "cm"]], LENS],
     ["the mirror were convex", `${CONCAVE_TWELVE} What if it were convex?`, [["f", 12, "cm"], ["d_o", 30, "cm"]], [["v", 8.571, "cm"]], MIRROR],
+    ["the mirror were diverging", `${CONCAVE_TWELVE} And if it were diverging?`, [["f", 12, "cm"], ["d_o", 30, "cm"]], [["d_i", 8.571, "cm"]], MIRROR],
+    ["what happens if", `${CONVEX_TEN} What happens if f = -10 cm?`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["what about", `${CONVEX_TEN} What about f = -10 cm?`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["suppose", `${CONVEX_TEN} Suppose f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["repeat", `${CONVEX_TEN} Repeat for f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["the other type", `${CONVEX_TEN} Use the other type of lens.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["instead", `${CONVEX_TEN} Use f = -10 cm instead.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["now", `${CONVEX_TEN} Now take f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
   ] as [string, string, Named[], Named[], string[]][]) {
     await check(`another case asked keeps the new reads declining: ${name}`, () => {
       const candidate = plan(question, givens, results, laws);
@@ -189,6 +197,10 @@ async function main() {
       assert.ok(parse(candidate).plan);
     });
   }
+
+  await check("a conditional word does not loosen a rejection on plain names", () => {
+    assert.equal(parse(plan(`${CONVEX_LENS} What if it moved?`, [["f", 15, "cm"], ["u", 40, "cm"]], [["v", 17.14, "cm"]], LENS)).plan, null);
+  });
 
   const COIN = "A coin of diameter 4 cm stands 30 cm from a convex lens of focal length 10 cm. Find the image.";
   await check("an image diameter named d_i is not read as a distance when u and v are named", () => {
