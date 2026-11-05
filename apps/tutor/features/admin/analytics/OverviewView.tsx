@@ -7,6 +7,7 @@ import { AdminPageHeader } from "../shared/components/AdminPageHeader";
 import { EmptyState } from "../shared/components/EmptyState";
 import { useAdminQuery } from "../shared/hooks/useAdminQuery";
 import { formatRelativeTime } from "../shared/lib/format";
+import { OverviewAiCredits } from "./OverviewAiCredits";
 import { OverviewBreakdown } from "./OverviewBreakdown";
 import { OverviewCost } from "./OverviewCost";
 import { OverviewKpis } from "./OverviewKpis";
@@ -54,6 +55,7 @@ export function OverviewView() {
 
       {data ? (
         <>
+          <OverviewAiCredits credits={data.aiCredits} />
           <OverviewKpis kpis={data.kpis} validatedTurns7d={data.outcomes7d.validated} />
           <OverviewCost cost={data.cost} />
           <OverviewBreakdown payload={data} />

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { calculateLlmCostDetails, type UsageCounts } from "../obs/usageCost";
+import { calculateLlmCostDetails, resolveLlmRateLane, type UsageCounts } from "../obs/usageCost";
+import { RELAY_HIDDEN_PROMPT_TOKENS } from "../llm/llmProvider";
 import { billingResponse } from "./errors";
 import type { SpendActor } from "./actor";
 import { acquirePaidCall, getTurnGrant, syncGrantUsdRemaining, type PaidCallKind, type TurnGrant, PAID_CALL_LIMITS } from "./grant";
@@ -135,11 +136,16 @@ export async function reservePaidUsage(input: {
   return { ensureReserved, settle, finish: () => settle(), cancelBeforeDispatch: () => settle(0) };
 }
 
+export { RELAY_HIDDEN_PROMPT_TOKENS };
+
 /** Text-only input upper bound: at most one token per UTF-8 byte plus protocol
  * overhead. Models/output lengths are exclusively server-selected. */
 export function maximumLlmCost(messages: unknown, maxTokens: number, models: readonly string[], attempts = 1): number {
   const input = new TextEncoder().encode(JSON.stringify(messages)).length + 2048;
-  return Math.max(...models.map(model => calculateLlmCostDetails({ input, output: maxTokens }, { model }).total ?? 0)) * attempts;
+  return Math.max(...models.map(model => calculateLlmCostDetails({
+    input: input + (resolveLlmRateLane(model) === "openai-compat" ? RELAY_HIDDEN_PROMPT_TOKENS : 0),
+    output: maxTokens,
+  }, { model }).total ?? 0)) * attempts;
 }
 
 export function actualLlmCost(usage: UsageCounts | undefined, model: string): number | undefined {

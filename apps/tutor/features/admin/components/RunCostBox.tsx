@@ -110,6 +110,9 @@ export function RunCostBox({
   const azureRate = data?.pricing.llmProvider === "azure"
     ? data.pricing.llm.find((row) => row.lane === "gpt-6.1-sol")
     : undefined;
+  const compatRate = data?.pricing.llmProvider === "openai_compat"
+    ? data.pricing.llm.find((row) => row.lane === "openai-compat")
+    : undefined;
   const jevRate = data?.pricing.llm.find(
     (row) => row.lane === "jev",
   )?.inputUsdPer1M;
@@ -238,7 +241,9 @@ export function RunCostBox({
             <p className="type-accent-xs leading-relaxed text-faint">
               {azureRate
                 ? `AI is gpt-6.1-sol on Azure, ${formatUsd(azureRate.inputUsdPer1M)} in and ${formatUsd(azureRate.outputUsdPer1M)} out per 1M tokens`
-                : "AI is Fireworks serverless"}
+                : compatRate
+                  ? `AI is a relay model, priced at ${formatUsd(compatRate.inputUsdPer1M)} in and ${formatUsd(compatRate.outputUsdPer1M)} out per 1M tokens`
+                  : "AI is Fireworks serverless"}
               {jevRate != null
                 ? ` plus Jev at ${formatUsd(jevRate)} / 1M input tokens`
                 : ""}
