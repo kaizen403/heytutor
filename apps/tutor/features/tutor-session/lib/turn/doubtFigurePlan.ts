@@ -124,16 +124,18 @@ export function reconcilePlanWithAuthority(
     options,
   ), authority, debug);
   const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
-  if (options.keepDisagreement === true && refreshedAuthority.audit.status === "contradiction") {
+  if (options.keepDisagreement === true) {
     return { turnPlan: withoutDisagreedValues(reconciledPlan, refreshedAuthority.audit), authority: refreshedAuthority };
   }
   return { turnPlan: reconciledPlan, authority: refreshedAuthority };
 }
 
 /**
- * The contradiction stops this lesson, but a later doubt or Continue reads the
- * plan the turn carries, with no audit. Neither side of a disagreement is known
- * right, so that value and anything worked from it are not carried on.
+ * A disagreement makes the audit a contradiction, which stops this lesson, but a
+ * later doubt or Continue reads the plan the turn carries, with no audit. Neither
+ * side is known right, so that value and anything worked from it are not carried
+ * on. If what is left fails validation, the readers drop the plan, and still no
+ * value of the disagreement reaches the student.
  */
 function withoutDisagreedValues(plan: TurnPlanV3, audit: ProblemAuthorityV1Response["audit"]): TurnPlanV3 {
   const withdrawn = new Set(audit.issues.flatMap((issue) =>

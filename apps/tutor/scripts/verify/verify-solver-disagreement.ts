@@ -129,14 +129,24 @@ async function main() {
       ...rightPlan,
       unknowns: [...rightPlan.unknowns, { id: "z", symbol: "z" }, { id: "w", symbol: "w" }],
       derived: [...rightPlan.derived,
-        { id: "z", symbol: "z", value: 4, provenance: "derived", dependsOn: ["y"], sourceText: "z = 2y" },
-        { id: "w", symbol: "w", value: 8, provenance: "derived", dependsOn: ["z"], sourceText: "w = 2z" }],
+        { id: "w", symbol: "w", value: 8, provenance: "derived", dependsOn: ["z"], sourceText: "w = 2z" },
+        { id: "z", symbol: "z", value: 4, provenance: "derived", dependsOn: ["y"], sourceText: "z = 2y" }],
       qualitativeClaims: [{ id: "c1", claim: "y is positive", expected: "y is positive", relatedQuantityIds: ["y"] }, { id: "c2", claim: "x is positive", expected: "x is positive", relatedQuantityIds: ["x"] }],
     } as unknown as TurnPlanV3;
     const audit = verifyTurnPlanAgainstSolver(falseProblem, falseResult, chained, STEM);
     const on = reconcilePlanWithAuthority(STEM, chained, { problemIR: falseProblem, solverResult: falseResult, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never, { keepDisagreement: true });
     assert.deepEqual(on.turnPlan.derived.map((quantity) => quantity.id), ["x"]);
     assert.deepEqual(on.turnPlan.qualitativeClaims.map((claim) => claim.id), ["c2"]);
+  });
+  await check("off: a contradiction the overwrite cannot reach is carried as dev carries it", () => {
+    const quiet = () => undefined;
+    const unlisted = { ...rightPlan, unknowns: rightPlan.unknowns.filter((quantity) => quantity.id !== "y") } as TurnPlanV3;
+    const audit = verifyTurnPlanAgainstSolver(falseProblem, falseResult, unlisted, STEM);
+    const off = reconcilePlanWithAuthority(STEM, unlisted, { problemIR: falseProblem, solverResult: falseResult, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never);
+    assert.equal((off.authority as { audit: { status: string } }).audit.status, "contradiction", "the fixture is a contradiction with the switch off");
+    assert.equal(valueOf(off.turnPlan, "y"), 2, "dev carries it, and the switch off must too");
+    const on = reconcilePlanWithAuthority(STEM, unlisted, { problemIR: falseProblem, solverResult: falseResult, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never, { keepDisagreement: true });
+    assert.equal(valueOf(on.turnPlan, "y"), undefined, "the switch on withdraws it");
   });
   await check("on: a model written uncertainty does not let a disagreement pass", () => {
     const loose = planFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: 2 }]);
