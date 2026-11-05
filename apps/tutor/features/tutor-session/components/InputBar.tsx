@@ -1,5 +1,6 @@
 "use client";
 
+import { FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars } from "@/lib/scene/figureQuestion";
 import { Highlighter, Settings } from "lucide-react";
 import { resolveApiUrl, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
@@ -959,6 +960,11 @@ export function InputBar({
       {submitError && (
         <p role="alert" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
           {submitError}
+        </p>
+      )}
+      {!submitError && figureQuestionChars(question) > FIGURE_QUESTION_CHARS && (
+        <p role="status" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
+          {FIGURE_QUESTION_NOTE}
         </p>
       )}
       {extractLatencyMs != null && !extractError && (

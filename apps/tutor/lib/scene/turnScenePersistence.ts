@@ -1,3 +1,4 @@
+import { figureQuestionTooLong } from "@/lib/scene/figureQuestion";
 import {
   LocalDeterministicSolverProvider,
   FIGURE_SOURCES,
@@ -181,6 +182,8 @@ export async function canonicalizeTurnSceneMetadata(
      * resume starts on figure 1.
      */
     lessonFigureStart?: LessonFigureStartLoader;
+    /** The question already saved on this turn, when the turn saves again. */
+    storedQuestion?: string | null;
   } = {},
 ): Promise<TurnScenePersistenceResult> {
   const question = submittedMetadata.question?.trim();
@@ -363,6 +366,11 @@ export async function canonicalizeTurnSceneMetadata(
   const sceneQuestion = doubtFigure && doubtContinuation
     ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, question)
     : question;
+  const storedSceneQuestion = typeof options.storedQuestion !== "string" ? null
+    : doubtFigure && doubtContinuation ? composeDoubtFigureQuestion(doubtContinuation.lessonQuestion, options.storedQuestion) : options.storedQuestion;
+  if (metadata.sceneArtifacts.turnPlan != null && figureQuestionTooLong(sceneQuestion, storedSceneQuestion)) {
+    return figureQuestionAsText(submittedMetadata, options);
+  }
 
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, sceneQuestion);
   const turnPlan = planResult.plan;
@@ -717,6 +725,28 @@ async function doubtFigureAsText(
     sceneArtifacts: { boardContinuation: continuation },
     segments,
   }, { ...options, loadPageFigure: undefined });
+}
+
+/**
+ * A new question past the figure size saves as text. The figure's ink and its
+ * pointing go, and the rest of the turn saves as it was taught.
+ */
+async function figureQuestionAsText(
+  submitted: SubmittedTurnSceneMetadata,
+  options: Parameters<typeof canonicalizeTurnSceneMetadata>[1],
+): Promise<TurnScenePersistenceResult> {
+  const segments = submitted.segments.map((segment) => {
+    if (segment.command == null) return segment;
+    if (isStoredCommandTrustedGeometry(segment.command)) return { ...segment, command: null };
+    const kept = parseStoredSegmentCommands(segment.command).filter((command) => !SCENE_POINTING_COMMANDS.has(command.type));
+    return { ...segment, command: kept.length > 0 ? serializeSegmentCommands(kept, { trustedDiagramGeometry: false }) : null };
+  });
+  return canonicalizeTurnSceneMetadata({
+    ...submitted,
+    visualStatus: "text_only",
+    sceneDocument: null,
+    segments,
+  }, options);
 }
 
 function minimalFailureArtifacts(

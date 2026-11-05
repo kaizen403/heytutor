@@ -365,6 +365,16 @@ const stored = (turnId: string) => turns.find((t) => t.id === turnId)!;
 const rowsOf = (turnId: string) => segments.filter((s) => s.turnId === turnId).sort((a, b) => a.orderIndex - b.orderIndex);
 const audioKeyOf = (url: string | null) => url ? decodeURIComponent(url.split("key=")[1] ?? "") : null;
 
+// A turn's question already saved is passed on, so a board saved with a long question keeps its figure when it saves again.
+async function resumeSavePassesTheStoredQuestion() {
+  const turn = crypto.randomUUID();
+  const asked = "Find the slope of the line through the two points shown.";
+  assert.equal((await put(turn, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")] })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, undefined, "a first save has no stored question");
+  assert.equal((await put(turn, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [row(1, "second")] })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "a later save passes the question already saved");
+}
+
 async function failedEarlierCreationKeepsDurableOrder() {
   const a = crypto.randomUUID(), b = crypto.randomUUID();
   assert.equal((await put(a, { seq: 1, baseCount: 0, status: "stopped", question: "REFUSE", appendSegments: [row(0, "a")] })).status, 400);
@@ -1049,6 +1059,7 @@ async function main() {
   await closeMetadataSequenceOwnership();
   await timingsGiveWayBeforeRows();
   await refusedCloseStillClosesTheTurn();
+  await resumeSavePassesTheStoredQuestion();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   // --- 1. the first checkpoint creates the turn ------------------------------
   const lesson = crypto.randomUUID();

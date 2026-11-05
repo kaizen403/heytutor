@@ -775,7 +775,7 @@ async function applyCheckpoint(
   // A doubt figure is admitted on a doubt only, so the canonicalizer is told the kind.
   const rawKind = before?.kind ?? input.kind;
   const turnKind = isTurnKind(rawKind) ? rawKind : undefined;
-  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure, checkDoubtFigurePage, lessonFigureStart, kind: turnKind });
+  let canonical = await canonicalizeTurnSceneMetadata({ ...header, question, segments: canonicalRowsFor(scene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion: before?.question, lessonFigureStart, kind: turnKind });
   if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   const resumeState = ownsMetadata && input.resumeState !== undefined ? input.resumeState : (before?.resumeState ?? null);
   const sceneOnlyRepair = before && input.question === undefined && input.rawResponse === undefined && input.resumeState === undefined;
@@ -785,7 +785,7 @@ async function applyCheckpoint(
     // scene. A surviving producer must submit a fresh, coherent scene.
     ownsScene = false;
     const storedScene = sceneOf(before);
-    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure, checkDoubtFigurePage, lessonFigureStart, kind: turnKind });
+    canonical = await canonicalizeTurnSceneMetadata({ question, ...storedScene, segments: canonicalRowsFor(storedScene) }, { loadPageFigure, checkDoubtFigurePage, storedQuestion: before?.question, lessonFigureStart, kind: turnKind });
     if (!canonical.ok) return reject(canonical.code ?? "scene_persistence_rejected", `scene persistence rejected: ${canonical.error}`, 400);
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
