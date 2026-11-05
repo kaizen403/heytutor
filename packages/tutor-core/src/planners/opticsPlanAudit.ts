@@ -53,6 +53,7 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
     if (!evaluation) continue;
     if ("declined" in evaluation) {
       declined.push({ lawId, reason: evaluation.declined });
+      for (const output of evaluation.sizes ?? []) inconsistencies.push(...auditDerivedSize(plan, lawId, output));
       continue;
     }
     checkedLawIds.push(lawId);
@@ -65,6 +66,8 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
   return { plan, inconsistencies, checkedLawIds, declined };
 }
 
+const IMAGE_DISTANCE_ALIASES = ["image_distance", "imagedistance", "v", "d_i"];
+
 interface EvaluatedOutput {
   aliases: string[];
   value: number;
@@ -76,7 +79,7 @@ interface EvaluatedOutput {
 function evaluatePlanLaw(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-): { outputs: EvaluatedOutput[] } | { declined: string } | null {
+): { outputs: EvaluatedOutput[] } | { declined: string; sizes?: EvaluatedOutput[] } | null {
   const given = (aliases: string[], dimension: Dimension, absolute = false): number | null => {
     const quantity = findQuantity(plan.givens, aliases);
     if (!quantity) return null;
@@ -98,18 +101,32 @@ function evaluatePlanLaw(
 
   if (lawId === "mirror_formula" || lawId === "thin_lens_formula") {
     const element = opticalElement(plan, lawId === "mirror_formula" ? "mirror" : "lens");
-    const objectQuantity = findQuantity(plan.givens, ["object_distance", "objectdistance", "u"]);
+    const objectQuantity = findQuantity(plan.givens, ["object_distance", "objectdistance", "u", "d_o"]);
     const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
     if (!objectQuantity || !focalQuantity) return null;
     const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
-    if ("reason" in signs) return { declined: signs.reason };
+    if ("reason" in signs) {
+      if (!signs.signsConflict || element.converging === null) return { declined: signs.reason };
+      // No convention can be read from these signs, but a single element and a
+      // real object leave no choice about sizes: |v| and |m| follow from |u|,
+      // |f| and the element the stem names, whatever convention was meant.
+      const sizes = evaluate({
+        objectDistance: Math.abs(toBaseUnit(objectQuantity.value, objectQuantity.unit, "length")),
+        focalLength: Math.abs(toBaseUnit(focalQuantity.value, focalQuantity.unit, "length")) * (element.converging ? 1 : -1),
+      });
+      if (!sizes) return { declined: signs.reason };
+      return { declined: signs.reason, sizes: [
+        output(IMAGE_DISTANCE_ALIASES, sizes.imageDistance!, "length"),
+        output(["magnification", "m"], sizes.magnification!, "scalar"),
+      ] };
+    }
     const values = evaluate(toRealIsPositive(element, signs));
     if (!values) return { declined: "the law has no finite real-object solution for these givens" };
     return { outputs: [
       // A v equal in size and opposite in sign is a convention clash only
       // when the convention is not fixed by signed givens; otherwise it is
       // reported as an inconsistency like any other.
-      output(["image_distance", "imagedistance", "v"], imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
+      output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
       output(["magnification", "m"], values.magnification!, "scalar"),
     ] };
@@ -311,6 +328,25 @@ function evaluatePlanLaw(
   return null;
 }
 
+/**
+ * The size check for a plan whose signs cannot be read: only a size the law
+ * rules out is reported, so a right plan with mixed signs stays declined.
+ */
+function auditDerivedSize(
+  plan: TurnPlanV3,
+  lawId: OpticsLawId,
+  { aliases, value: baseValue, dimension }: EvaluatedOutput,
+): OpticsPlanInconsistency[] {
+  const unknown = findQuantity(plan.unknowns, aliases);
+  const targets = findOutputQuantities(plan.derived, unknown ? [...aliases, unknown.id, unknown.symbol] : aliases);
+  return targets.flatMap((target) => {
+    const lawValue = Math.abs(fromBaseUnit(baseValue, target.unit, dimension));
+    return matchesWithinStatedPrecision(Math.abs(target.value), lawValue)
+      ? []
+      : [{ lawId, quantityId: target.id, planValue: target.value, lawValue }];
+  });
+}
+
 function auditDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
@@ -389,7 +425,7 @@ function resolveSignedDistances(
   element: OpticalElement,
   objectQuantity: TurnPlanQuantityV3,
   focalQuantity: TurnPlanQuantityV3 | null,
-): SignedDistances | { reason: string } {
+): SignedDistances | { reason: string; signsConflict?: boolean } {
   const objectReason = realObjectDeclineReason(plan);
   if (objectReason) return { reason: objectReason };
   const object = signedLength(objectQuantity);
@@ -399,18 +435,18 @@ function resolveSignedDistances(
 
   const votes = new Set<SignConvention>();
   const declared = declaredConvention(plan);
-  if (declared === "conflict") return { reason: "the plan states both Cartesian and real-is-positive conventions" };
+  if (declared === "conflict") return { reason: "the plan states both Cartesian and real-is-positive conventions", signsConflict: true };
   if (declared) votes.add(declared);
   if (!object.magnitudeOnly) votes.add(object.value < 0 ? "cartesian" : "real_is_positive");
   if (focal && !focal.magnitudeOnly && element.converging !== null) {
     if (element.kind === "mirror") {
       votes.add((focal.value < 0) === element.converging ? "cartesian" : "real_is_positive");
     } else if ((focal.value > 0) !== element.converging) {
-      return { reason: "focal length sign contradicts the stated lens type" };
+      return { reason: "focal length sign contradicts the stated lens type", signsConflict: true };
     }
   }
   if (votes.size === 0) return { reason: "no signed distance or stated convention fixes the sign convention" };
-  if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs" };
+  if (votes.size > 1) return { reason: "the plan mixes Cartesian and real-is-positive signs", signsConflict: true };
   const convention = [...votes][0]!;
   const explicitlySigned = (quantity: TurnPlanQuantityV3, length: SignedLength) =>
     !length.magnitudeOnly && (length.value < 0 || quantity.sign === "positive" || quantity.sign === "negative");
@@ -495,6 +531,21 @@ function convergenceMayBeVirtualObject(text: string): boolean {
 const MULTIPLE_ELEMENT_CUE =
   /\b(?:lenses|mirrors|combination|system)\b|\b(?:first|second|third|another|other)\s+(?:[a-z-]+\s+)?(?:lens|mirror)\b/i;
 
+/**
+ * A stem can join two elements with no such word: "followed by a convex lens",
+ * "behind it is a converging lens". Two elements introduced, or two focal
+ * lengths stated, leave the audit declining.
+ */
+const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[a-z-]+\s+){0,3}?(?:lens|mirror)\b/gi;
+const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
+
+function namesSecondElement(question: string): boolean {
+  return MULTIPLE_ELEMENT_CUE.test(question)
+    || (/\blens\b/.test(question) && /\bmirror\b/.test(question))
+    || (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1
+    || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1;
+}
+
 /** Something physical placed before the element: the stem's evidence of a real object. */
 const REAL_OBJECT_CUE =
   /\b(?:object|candle|pin|needle|flame|bulb|lamp|arrow|source|filament|person|man|woman|boy|girl|child|face|tree|building|tower|coin|insect|bird|fish|toy|card|pencil|rod|stick|matchstick)\b/i;
@@ -516,7 +567,7 @@ function realObjectDeclineReason(plan: TurnPlanV3): string | null {
     return "the object may be virtual, which reverses the object distance sign, so it cannot fix the convention";
   }
   const question = plan.question.toLowerCase();
-  if (MULTIPLE_ELEMENT_CUE.test(question) || (/\blens\b/.test(question) && /\bmirror\b/.test(question))) {
+  if (namesSecondElement(question)) {
     return "more than one optical element: a later element's object may be virtual";
   }
   if (!REAL_OBJECT_CUE.test(question)) {
