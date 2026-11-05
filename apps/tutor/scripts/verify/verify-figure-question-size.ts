@@ -4,6 +4,7 @@
  * turn keeps its figure, and a saved board still reopens with it.
  */
 import { SCENE_DOCUMENT_VERSION, SCENE_TEXT_LIMITS } from "@heytutor/scene-engine";
+import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
 import { FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars, figureQuestionTooLong } from "../../lib/scene/figureQuestion";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { liveSceneSaveFailure } from "../../lib/scene/sceneSaveAdmission";
@@ -83,6 +84,11 @@ const main = async () => {
   const lessonSaved = await canonicalizeTurnSceneMetadata(lesson.metadata);
   if (!lessonSaved.ok) { fail("the lesson saves", lessonSaved.error); return; }
   const lessonTurn = stored(LESSON_TURN_ID, 0, lesson.question, lessonSaved.value, { opensOnClear: true, kind: "lesson" });
+  // A long new question on a lesson that drew its figure saves as text, without the figure's ink.
+  const inkedPast = { ...sceneMetadataOn(lesson.metadata, pastSize, {}, lesson.metadata.segments), question: pastSize };
+  if (!lesson.metadata.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) fail("the lesson draws its figure ink", null);
+  const inkedSaved = await canonicalizeTurnSceneMetadata(inkedPast);
+  if (!inkedSaved.ok || inkedSaved.value.visualStatus !== "text_only" || inkedSaved.value.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) fail("a long question saves its lesson without the figure's ink", inkedSaved.ok ? inkedSaved.value.visualStatus : inkedSaved.code);
   const doubtOf = (title: string) => ({
     ...sceneMetadataOn(lesson.metadata, composeDoubtFigureQuestion(lesson.question, title), { ...boardContinuationArtifacts(lesson.question), ...doubtFigureArtifacts(LESSON_TURN_ID) }, lesson.metadata.segments),
     question: title,
