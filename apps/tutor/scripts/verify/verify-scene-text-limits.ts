@@ -359,6 +359,15 @@ const put = (d: ReturnType<typeof plain>, id: string, operator: string, kind: st
   d.requiredEntityIds.push(id);
   d.revealGroups[0]!.entityIds.push(id);
 };
+const putBody = (d: ReturnType<typeof plain>, id: string, inputs: Record<string, unknown>) => {
+  const outputs = many((inputs.parts as unknown[]).length + 1, (index) => `${id}_${index}`);
+  d.constructions.push({ id: `c_${id}`, operator: "centre_of_mass", inputs, outputs });
+  outputs.forEach((output, index) => {
+    d.entities.push({ id: output, kind: index < outputs.length - 1 ? "circle" : "point", role: "body" });
+    d.requiredEntityIds.push(output);
+    d.revealGroups[0]!.entityIds.push(output);
+  });
+};
 const ring = (count: number, radius: number, centre: number) => many(count, (index) => [centre + radius * Math.cos((2 * Math.PI * index) / count), radius * Math.sin((2 * Math.PI * index) / count)]);
 const longY = (start: string) => { let text = start; while (text.length < 240 && (text.match(/[-+*/()]|\w+/g) ?? []).length < 118) text += "+sin(y)*0"; return text; };
 const wave = { amplitude: 1, waveNumber: 1, angularFrequency: 1, phase: 0, phaseUnit: "rad", time: 0, xMin: 0, xMax: 6, origin: { x: 0, y: 0 } };
@@ -371,12 +380,38 @@ const largest: Array<[string, (d: ReturnType<typeof plain>) => void]> = [
   ["implicit curves at their count, long expressions", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: longY(`(x-${index * 5})^2+y^2-1`), xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
   ["implicit curves at their count, many loops", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(15*(x-${index * 5}))*sin(15*y)-0.3`, xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
   ["regions at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.constraint_region; index += 1) put(d, `k${index}`, "constraint_region", "polygon", { constraints: [...many(5, (part) => ({ expression: longY(`sin(7*y)+${index + part + 2}`), relation: "ge" })), { expression: "y-0.4", relation: "ge" }], xMin: index * 3 - 1, xMax: index * 3 + 1, yMin: 0, yMax: 6.28, samples: 161 }); }],
-  ["bodies at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.centre_of_mass; index += 1) put(d, `k${index}`, "centre_of_mass", "point", { parts: many(16, (part) => ({ kind: "solid_sphere", mass: 1, radius: 1, center: { x: part * 3, y: index } })), axis: { origin: { x: 0, y: 0 } }, displayLength: 1, lengthUnit: "m" }); }],
+  ["bodies at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.centre_of_mass; index += 1) putBody(d, `k${index}`, { parts: many(16, (part) => ({ kind: "solid_sphere", mass: 1, radius: 1, center: { x: part * 3, y: index } })), axis: { origin: { x: 0, y: 0 } }, displayLength: 1, lengthUnit: "m" }); }],
   ["linear regions at their count, largest inputs", (d) => { for (let index = 0; index < N.kinds.linear_feasible_region; index += 1) put(d, `k${index}`, "linear_feasible_region", "linear_region", { variables: ["x", "y"], constraints: many(16, (part) => `${part + 1}*x + ${16 - part}*y = ${17 * (index + 1)}`) }); }],
   ["waves at their count and size", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); for (let index = 0; index < N.kinds.wave_superposition; index += 1) put(d, `k${index}`, "wave_superposition", "polyline", { waves: ids, samples: 2047 }); }],
   ["curve anchors at their count, on the largest wave", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); put(d, "sum", "wave_superposition", "polyline", { waves: ids, samples: 2047 }); for (let index = 0; index < N.kinds.curve_anchor; index += 1) put(d, `a${index}`, "curve_anchor", "point", { curve: "sum", at: 1 + index * 0.01 }); }],
   ["dimensions over the most points", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(78.54*(x-${(4 + index * 0.25).toFixed(2)}))`, xMin: 4, xMax: 6, yMin: 4, yMax: 6, xSamples: 161, ySamples: 161 }); for (let index = 0; index < N.kinds.dimension; index += 1) { put(d, `s${index}`, "point", "point", { x: -3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `t${index}`, "point", "point", { x: 3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `b${index}`, "dimension", "dimension", { start: `s${index}`, end: `t${index}` }); } }],
 ];
+// One document holding one row of each kind.
+const tagged = (document: ReturnType<typeof plain>, tag: string): ReturnType<typeof plain> => {
+  const ids = new Set([...document.entities, ...document.constructions].map((item) => (item as { id: string }).id));
+  const walk = (value: unknown): unknown => {
+    if (typeof value === "string") return ids.has(value) ? `${tag}${value}` : value;
+    if (Array.isArray(value)) return value.map(walk);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, walk(item)]));
+    return value;
+  };
+  return walk(document) as ReturnType<typeof plain>;
+};
+const together = (d: ReturnType<typeof plain>) => {
+  const kinds = ["field lines at their count and size", "implicit curves at their count, long expressions", "regions at their count and largest inputs", "bodies at their count and largest inputs", "linear regions at their count, largest inputs", "curve anchors at their count, on the largest wave"];
+  kinds.forEach((name, index) => {
+    const row = largest.find(([rowName]) => rowName === name);
+    if (!row) { fail("a row for one kind", name); return; }
+    const one = plain();
+    row[1](one);
+    const part = tagged(one, `p${index}_`);
+    d.entities.push(...part.entities);
+    d.constructions.push(...part.constructions);
+    d.requiredEntityIds.push(...part.requiredEntityIds);
+    d.revealGroups[0]!.entityIds.push(...part.revealGroups[0]!.entityIds);
+  });
+};
+largest.push(["one of each kind at its limit", together]);
 const LARGEST_LIMIT_MS = LIMIT_MS * 5;
 for (const [name, build] of largest) {
   const document = plain();
