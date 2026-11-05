@@ -54,6 +54,15 @@ export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY
   return parseDiagramYieldPolicy(raw);
 }
 
+/**
+ * Switch for keeping a plan value that disagrees with the solver beyond rounding,
+ * instead of overwriting it. The audit then reports a contradiction, which stops
+ * the lesson before narration. Only `SOLVER_DISAGREEMENT_STOPS=on` turns it on; default off.
+ */
+export function resolveSolverDisagreementStops(raw = process.env.SOLVER_DISAGREEMENT_STOPS): boolean {
+  return (raw ?? "").trim().toLowerCase() === "on";
+}
+
 /** Switch for strict drawing the owning optics archetype: only `OPTICS_ARCHETYPE_IN_STRICT=on` turns it on; default off. */
 export function resolveOpticsArchetypeInStrict(raw = process.env.OPTICS_ARCHETYPE_IN_STRICT): boolean {
   return (raw ?? "").trim().toLowerCase() === "on";

@@ -115,14 +115,53 @@ export function reconcilePlanWithAuthority(
   planToReconcile: TurnPlanV3,
   authority: ProblemAuthorityV1Response,
   debug: Debug = plannerDebug,
+  options: { keepDisagreement?: boolean } = {},
 ): { turnPlan: TurnPlanV3; authority: ProblemAuthorityV1Response } {
-  const reconciledPlan = applyDeterministicSourceAuthority(question, reconcileTurnPlanWithSolver(
-    planToReconcile,
-    authority.problemIR,
-    authority.solverResult,
-  ), authority, debug);
-  const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
-  return { turnPlan: reconciledPlan, authority: refreshedAuthority };
+  const reconcile = (keepDisagreement: boolean) => {
+    const reconciledPlan = applyDeterministicSourceAuthority(question, reconcileTurnPlanWithSolver(
+      planToReconcile,
+      authority.problemIR,
+      authority.solverResult,
+      keepDisagreement ? { keepDisagreement: true } : {},
+    ), authority, debug);
+    return { turnPlan: reconciledPlan, authority: refreshSolverAuthorityForPlan(authority, reconciledPlan, question) };
+  };
+  if (options.keepDisagreement !== true) return reconcile(false);
+  // The switch acts only where the audit names a value that disagrees with the
+  // solver, which stops the lesson. Anywhere else a kept value could be taught,
+  // or carried on by a stop that names no value, so the turn goes as dev.
+  const kept = reconcile(true);
+  const disagreed = new Set(kept.authority.audit.issues.flatMap((issue) =>
+    issue.code === "solver_turnplan_contradiction" && issue.quantityId ? [issue.quantityId] : []));
+  if (disagreed.size === 0) return reconcile(false);
+  return { turnPlan: withoutDisagreedValues(kept.turnPlan, disagreed), authority: kept.authority };
+}
+
+/**
+ * A disagreement makes the audit a contradiction, which stops this lesson, but a
+ * later doubt or Continue reads the plan the turn carries, with no audit. Neither
+ * side is known right, so that value is not carried on, nor any value or claim
+ * the plan declares as worked from it. A value worked from it with no declared
+ * link stays, as it does on dev. If what is left fails validation, the readers
+ * drop the plan.
+ */
+function withoutDisagreedValues(plan: TurnPlanV3, disagreed: ReadonlySet<string>): TurnPlanV3 {
+  const withdrawn = new Set(disagreed);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const quantity of plan.derived) {
+      if (!withdrawn.has(quantity.id) && quantity.dependsOn?.some((id) => withdrawn.has(id))) {
+        withdrawn.add(quantity.id);
+        grew = true;
+      }
+    }
+  }
+  return {
+    ...plan,
+    unknowns: plan.unknowns.filter((quantity) => !withdrawn.has(quantity.id)),
+    derived: plan.derived.filter((quantity) => !withdrawn.has(quantity.id)),
+    qualitativeClaims: plan.qualitativeClaims.filter((claim) => !claim.relatedQuantityIds?.some((id) => withdrawn.has(id))),
+  };
 }
 
 /** The fast verified tier: hand coded families, chemistry families, archetypes. */
@@ -441,6 +480,8 @@ export async function planDoubtFigure(input: {
   narrationLanguage?: NarrationLanguage;
   now?: () => number;
   debug?: Debug;
+  /** The turn's SOLVER_DISAGREEMENT_STOPS grant. */
+  keepSolverDisagreement?: boolean;
 }): Promise<DoubtFigureOutcome> {
   const now = input.now ?? Date.now;
   const startedAt = now();
@@ -472,7 +513,7 @@ export async function planDoubtFigure(input: {
     if (settled === TIMED_OUT) return miss("budget_exhausted");
     let authority: ProblemAuthorityV1Response | null = null;
     if (settled) {
-      const reconciled = reconcilePlanWithAuthority(question, turnPlan, settled, input.debug);
+      const reconciled = reconcilePlanWithAuthority(question, turnPlan, settled, input.debug, { keepDisagreement: input.keepSolverDisagreement === true });
       turnPlan = reconciled.turnPlan;
       authority = reconciled.authority;
       if (authority.audit.status === "contradiction") return miss("solver_contradiction");

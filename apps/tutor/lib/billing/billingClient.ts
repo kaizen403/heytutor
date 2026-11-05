@@ -27,6 +27,8 @@ export interface BeginTurnOk {
   diagramYieldPolicy?: DiagramYieldPolicy;
   /** True only when the server set OPTICS_ARCHETYPE_IN_STRICT=on. */
   opticsArchetypeInStrict?: boolean;
+  /** True only when the server set SOLVER_DISAGREEMENT_STOPS=on. */
+  solverDisagreementStops?: boolean;
   /** Default off: draw a judged reference picture when no verified figure is drawn. */
   referencePicture?: boolean;
   /** Default off: the pen may point at a reference picture's located parts and key rows. */
@@ -239,6 +241,7 @@ async function beginTurnOnce(input: {
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
     opticsArchetypeInStrict: payload.opticsArchetypeInStrict === true,
+    solverDisagreementStops: payload.solverDisagreementStops === true,
     referencePicture: payload.referencePicture === true,
     referencePicturePartFocus: payload.referencePicturePartFocus === true,
     doubtPointing: payload.doubtPointing === true,
