@@ -1,7 +1,8 @@
 /**
  * The save audit runs the same two checks this change corrected, so a board drawn from
  * these plans must pass its next resume save, and a false plan must still be refused
- * there. Figures dev built keep passing, since this change only stops two misreadings.
+ * there, each for its own reason. Boards dev saved keep passing, on the plan example path
+ * too, which reads the same claims.
  *
  *   tsx --tsconfig tsconfig.json scripts/verify/verify-chemistry-vsepr-plan-facts-save.ts
  */
@@ -54,18 +55,40 @@ for (const [question, derived, claims] of [
   });
 }
 
-// A saved board whose plan is false is refused at the save, as on dev.
+// A saved board whose plan is false is refused at the save, each for its own reason, as on dev.
 const NH3 = "shape of NH3 molecule";
 const board = JSON.parse(JSON.stringify(select(NH3, planFor(NH3, [], [])).representation!.sceneDocument));
-for (const [label, derived, claims] of [
-  ["wrong angle", [ANGLE(109.5)], []],
-  ["wrong shape", [], ["NH3 is tetrahedral."]],
-  ["a scalar naming another species in words", [{ symbol: "bond angle of water", value: 107, unit: "degrees" }], []],
-  ["a wrong shape beside a reference angle in one claim", [], ["NH3 has a tetrahedral molecular shape and an electron geometry with tetrahedral angles"]],
-  ["wrong shape beside a reference angle", [], ["NH3 is a tetrahedral molecule, with an angle below 109.5 degrees."]],
-] as Array<[string, Scalar[], string[]]>) {
-  check(`a false plan is still refused at the save: ${label}`, () => {
-    assert.match(sceneSaveAdmissionFailure({ document: board, question: NH3, turnPlan: planFor(NH3, derived, claims), tier: "qualitative_verified" }) ?? "", /./);
+check("the control: the same board on an empty plan saves", () => {
+  assert.equal(sceneSaveAdmissionFailure({ document: board, question: NH3, turnPlan: planFor(NH3, [], []), tier: "qualitative_verified" }), null);
+});
+for (const [label, derived, claims, reason] of [
+  ["wrong angle", [ANGLE(109.5)], [], /vsepr_plan_fact_unverified/],
+  ["a nearby angle", [ANGLE(108)], [], /vsepr_plan_fact_unverified/],
+  ["a scalar naming another species in words", [{ symbol: "bond angle of water", value: 107, unit: "degrees" }], [], /vsepr_plan_fact_unverified/],
+  ["wrong shape", [], ["NH3 is tetrahedral."], /contradicts the source-derived/],
+  ["wrong shape before a number", [], ["NH3 is tetrahedral 109.5 degrees"], /contradicts the source-derived/],
+  ["wrong shape beside a reference angle", [], ["NH3 is a tetrahedral molecule, with an angle below 109.5 degrees."], /contradicts the source-derived/],
+  ["a wrong shape beside a reference angle in one claim", [], ["NH3 has a tetrahedral molecular shape and an electron geometry with tetrahedral angles"], /contradicts the source-derived/],
+] as Array<[string, Scalar[], string[], RegExp]>) {
+  check(`a false plan is refused at the save for its own reason: ${label}`, () => {
+    assert.match(sceneSaveAdmissionFailure({ document: board, question: NH3, turnPlan: planFor(NH3, derived, claims), tier: "qualitative_verified" }) ?? "", reason);
+  });
+}
+
+// Rule 3 on the plan example path, which reads the same claims: boards dev saved still save.
+for (const [question, formula, claim] of [
+  ["what is vsepr theory", "BF3", "BF3 is trigonal planar 120 degrees"],
+  ["what is vsepr theory", "CH4", "CH4 has tetrahedral bond angles of 109.5 degrees"],
+  ["what is sp3 hybridisation", "CH4", "CH4 is tetrahedral 109.5 degrees"],
+  ["what is sp3 hybridisation", "CH4", "CH4 has tetrahedral bond angles"],
+  ["what is a tetrahedral molecule", "CH4", "CH4 has tetrahedral angles"],
+] as Array<[string, string, string]>) {
+  check(`a plan example board saves: ${question} ${claim}`, () => {
+    const turnPlan = { ...planFor(question, [], []), exampleSpecies: [{ formula, claim }] } as unknown as TurnPlanV3;
+    const selection = select(question, turnPlan);
+    assert.equal(selection.representation?.family, "chem_vsepr", String(selection.reason));
+    const document = JSON.parse(JSON.stringify(selection.representation!.sceneDocument));
+    assert.equal(sceneSaveAdmissionFailure({ document, question, turnPlan, tier: "qualitative_verified" }), null);
   });
 }
 

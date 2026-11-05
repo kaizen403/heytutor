@@ -3,7 +3,8 @@
  * draws it alone. The plan writes "bond angle = 107 degrees" and names no species,
  * because only one is asked about: with one species drawn that is not ambiguous, and the
  * value must still equal the one computed for it. And it writes "less than the ideal
- * tetrahedral angle", which names a reference angle, not this molecule's shape.
+ * tetrahedral angle", which compares with a reference angle. A shape word is a reference
+ * only with a comparison before it and an angle after it; otherwise it is a claim.
  *
  *   tsx --tsconfig ../../apps/tutor/tsconfig.json scripts/verify/verify-chemistry-vsepr-single-species-scalar.ts
  */
@@ -59,12 +60,18 @@ for (const [question, scalars] of [
   ["shape of NH3 molecule", [{ symbol: "steric number", value: 3, unit: "" }]],
   ["shape of H2O", [ANGLE(107)]],
   ["shape of NH3 molecule", [{ symbol: "bond angle of H2O", value: 107, unit: "degrees" }]],
+  // The value must be the computed one, not close to it.
+  ["shape of NH3 molecule", [ANGLE(108)]],
+  ["shape of NH3 molecule", [ANGLE(107.1)]],
   // A target named in words is a target, even with the right value.
   ["shape of NH3 molecule", [{ symbol: "bond angle of water", value: 107, unit: "degrees" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle of methane", value: 107, unit: "degrees" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle of silane", value: 107, unit: "degrees" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in water" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "as in carbon dioxide" }]],
+  ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "in ammonia and water" }]],
+  ["shape of NH3 molecule", [{ symbol: "water bond angle", value: 107, unit: "degrees" }]],
+  ["shape of NH3 molecule", [{ symbol: "ammonia bond angle", value: 107, unit: "degrees" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "degrees", sourceText: "the angle in H2O" }]],
   ["shape of NH3 molecule", [{ symbol: "bond angle", value: 107, unit: "pm" }]],
   ["shape of NH3 molecule", [{ symbol: "unnamed", value: 107, unit: "degrees" }]],
@@ -87,7 +94,7 @@ for (const [question, scalars] of [
 
 // The other half of the same row: a shape word before an angle or a number names that
 // reference, and it says nothing about this molecule's shape.
-const conflict = (question: string, claim: string) => vseprPlanConflict(question, { ...createFallbackTurnPlanV3(question), subject: "chemistry", qualitativeClaims: [{ id: "c1", claim, expected: true }] } as unknown as TurnPlanV3);
+const conflict = (question: string, claim: string, expected: boolean | string | number = true) => vseprPlanConflict(question, { ...createFallbackTurnPlanV3(question), subject: "chemistry", qualitativeClaims: [{ id: "c1", claim, expected }] } as unknown as TurnPlanV3);
 for (const [question, claim] of [
   ["shape of NH3 molecule", "Bond angle is approximately 107 degrees, less than ideal tetrahedral 109.5 degrees due to lone pair-bond pair repulsion"],
   ["shape of NH3 molecule", "The bond angle is about 107 degrees, less than the ideal tetrahedral angle of 109.5 degrees."],
@@ -95,6 +102,11 @@ for (const [question, claim] of [
   ["shape of H2O", "The H-O-H bond angle is about 104.5 degrees, less than the ideal tetrahedral angle of 109.5 degrees."],
   ["shape of H2O", "Lone pair repulsion compresses the angle below the tetrahedral value."],
   ["shape of NH3 molecule", "NH3 is trigonal pyramidal, with an angle below the tetrahedral 109.5 degrees."],
+  ["shape of NH3 molecule", "The angle is 107 degrees, under the tetrahedral 109.5 degrees."],
+  ["shape of NH3 molecule", "The angle has shrunk from the tetrahedral 109.5 degrees."],
+  ["shape of NH3 molecule", "The angle is 107 degrees versus the tetrahedral 109.5 degrees."],
+  ["shape of NH3 molecule", "The angle is 107 degrees compared to the tetrahedral 109.5 degrees."],
+  ["shape of NH3 molecule", "The angle is 107 degrees compared with the ideal tetrahedral angle."],
 ] as Array<[string, string]>) {
   check(`a reference angle is no shape claim: ${claim}`, () => assert.equal(conflict(question, claim), null));
 }
@@ -109,9 +121,31 @@ for (const [question, claim] of [
   ["shape of NH3 molecule", "NH3 has a tetrahedral molecular shape and an electron geometry with tetrahedral angles"],
   ["shape of NH3 molecule", "The molecular shape is tetrahedral and the electron geometry has a tetrahedral angle"],
   ["shape of NH3 molecule", "NH3 is trigonal planar, with an angle below the tetrahedral 109.5 degrees."],
+  // A shape word then a number or an angle, with no comparison before it, is a claim.
+  ["shape of NH3 molecule", "The molecular shape of NH3 is tetrahedral 109.5 degrees"],
+  ["shape of NH3 molecule", "NH3 is tetrahedral 109.5 degrees"],
+  ["shape of NH3 molecule", "Molecular shape: tetrahedral 109.5 degrees"],
+  ["shape of NH3 molecule", "NH3 is trigonal planar 120 degrees"],
+  ["shape of NH3 molecule", "NH3 is tetrahedral 3 bonds"],
+  ["shape of NH3 molecule", "NH3 has a tetrahedral angle"],
+  ["shape of NH3 molecule", "NH3 is not trigonal pyramidal 107 degrees"],
+  ["shape of H2O", "H2O is linear 180 degrees"],
+  ["shape of H2O", "The molecule is linear 2 lone pairs"],
+  ["geometry of CH4", "CH4 is square planar 90 degrees"],
+  ["shape of CO2", "CO2 is bent 120 degrees"],
+  ["shape of BF3", "BF3 is trigonal pyramidal 107 degrees"],
+  // A comparison with no angle after it, a word before the number, and a denial of the true shape.
+  ["shape of NH3 molecule", "The angle is less than tetrahedral"],
+  ["shape of NH3 molecule", "The angle is less than tetrahedral at 109.5 degrees"],
+  ["shape of NH3 molecule", "The molecular shape of NH3 is flat rather than trigonal pyramidal 107 degrees"],
   ["shape of NH3 molecule", "The molecular shape of NH3 is trigonal planar, with a planar angle of 120 degrees."],
 ] as Array<[string, string]>) {
   check(`a false shape claim still refuses: ${claim}`, () => assert.ok(conflict(question, claim)?.includes("contradicts")));
+}
+
+// The claim and its expected value are read together.
+for (const [claim, expected] of [["NH3 is tetrahedral", 109.5], ["molecular shape of NH3", "tetrahedral 109.5"]] as Array<[string, string | number]>) {
+  check(`a false shape in a claim with its expected value refuses: ${claim}`, () => assert.ok(conflict("shape of NH3 molecule", claim, expected)?.includes("contradicts")));
 }
 
 console.log(`verify-chemistry-vsepr-single-species-scalar: ${passed} passed, ${failed} failed`);

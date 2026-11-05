@@ -42,6 +42,12 @@ const DRAW: Array<[string, string, string]> = [
   ["what is sp2 hybridisation", "BF3", "BF3 is sp2 hybridised and trigonal planar"],
   ["explain hybridisation", "CH4", "CH4 is sp3 and tetrahedral"],
   ["explain vsepr theory", "H2O", "H2O is bent with two lone pairs on O"],
+  // A shape word then a number is the claim's fact, so a true one keeps its figure.
+  ["what is vsepr theory", "BF3", "BF3 is trigonal planar 120 degrees"],
+  ["what is vsepr theory", "CH4", "CH4 has tetrahedral bond angles of 109.5 degrees"],
+  ["what is sp3 hybridisation", "CH4", "CH4 is tetrahedral 109.5 degrees"],
+  ["what is sp3 hybridisation", "CH4", "CH4 has tetrahedral bond angles"],
+  ["what is a tetrahedral molecule", "CH4", "CH4 has tetrahedral angles"],
 ];
 for (const [question, formula, claim] of DRAW) {
   const turnPlan = plan(question, [{ formula, claim }]);
@@ -78,6 +84,9 @@ for (const [question, example, label] of DECLINE) {
 // The example must illustrate what the question names: an sp3 figure is not
 // an answer to "what is sp2 hybridisation", however true it is of CH4.
 const OFF_TOPIC: Array<[string, string, string, string]> = [
+  ["what is vsepr theory", "NH3", "NH3 is sp3 and tetrahedral 109.5 degrees", "a false shape before a number"],
+  ["what is vsepr theory", "H2O", "H2O is sp3 and linear 180 degrees", "a false shape before a number, on water"],
+  ["what is vsepr theory", "NH3", "NH3 is tetrahedral 109.5 degrees with one lone pair", "a false shape beside a true count"],
   ["what is sp2 hybridisation", "CH4", "CH4 is sp3 and tetrahedral", "an sp3 example for an sp2 ask"],
   ["what is sp3d2 hybridisation", "PCl5", "PCl5 is sp3d and trigonal bipyramidal", "an sp3d example for an sp3d2 ask"],
   ["explain sp hybridisation", "BF3", "BF3 is sp2 and trigonal planar", "an sp2 example for an sp ask"],

@@ -687,6 +687,9 @@ function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: re
   return own === null || other === null || own === other;
 }
 
+const REFERENCE_LEAD = /\b(?:(?<!rather\s+)than|below|under|from|versus|vs\.?|compared\s+(?:to|with))\s+(?:(?:the|an?|ideal|perfect|regular|normal|expected)\s+)*$/;
+const REFERENCE_NOUN = /^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/;
+
 /** Bind each geometry in its property clause, including compound claims. */
 function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
@@ -733,9 +736,11 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
         && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(join)
         && !(BARE_COMMA_JOIN.test(join) && !bareCommaJoinsList(clause, shapes, index));
       const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index, ownersOf);
-      // "less than the ideal tetrahedral angle of 109.5" names an angle, not this
-      // molecule's shape. It stays in the list so the other words keep their reading.
-      if (!/^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/.test(clause.slice(shape.end))) claims.push({ shape: shape.shape, target, negated, owners });
+      // "less than the ideal tetrahedral angle of 109.5" compares with a reference angle,
+      // and says nothing about this molecule's shape. Without the comparison it is a claim.
+      // It stays in the list so the other words keep their reading.
+      const namesReference = REFERENCE_LEAD.test(clause.slice(0, shape.start)) && REFERENCE_NOUN.test(clause.slice(shape.end));
+      if (!namesReference) claims.push({ shape: shape.shape, target, negated, owners });
       previousShape = { end: shape.end, negated };
     }
   }
