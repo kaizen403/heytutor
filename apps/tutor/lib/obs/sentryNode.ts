@@ -40,6 +40,12 @@ export function flushServerSentry(timeoutMs: number): Promise<unknown> {
   return Sentry.flush(timeoutMs);
 }
 
+/** AI credits budget alerts: spend figures only. */
+export function captureAiCreditsAlert(message: string, level: "warning" | "error"): void {
+  if (!dsn || !sentryServerRuntimeEnabled()) return;
+  Sentry.captureMessage(message, { level, tags: { area: "ai-credits" } });
+}
+
 /** Speech-relay failures. The student text and provider credentials stay out of the event. */
 export function captureTtsRelayFailure(error: unknown): void {
   if (!dsn || !sentryServerRuntimeEnabled()) return;
