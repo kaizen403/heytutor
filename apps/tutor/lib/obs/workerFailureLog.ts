@@ -1,4 +1,4 @@
-export type WorkerName = "failed_turn_recovery" | "failed_turn_delivery" | "object_cleanup";
+export type WorkerName = "failed_turn_recovery" | "failed_turn_delivery" | "object_cleanup" | "ai_credits_poll";
 export type WorkerErrorCode = "database_unavailable" | "database_auth" | "database_schema"
   | "database_timeout" | "database_conflict" | "object_store_unavailable" | "delivery_unacknowledged" | "unknown";
 
@@ -6,6 +6,7 @@ const MESSAGES: Record<WorkerName, string> = {
   failed_turn_recovery: "[sentry] failed-turn recovery unavailable; events remain queued",
   failed_turn_delivery: "[sentry] failed-turn delivery unavailable; events remain queued",
   object_cleanup: "[objects] cleanup worker failed; durable jobs remain queued",
+  ai_credits_poll: "[ai-credits] could not read the relay usage counter; the last figure stands",
 };
 const CODES: Record<string, WorkerErrorCode> = {
   P1001: "database_unavailable", P1017: "database_unavailable", ECONNREFUSED: "database_unavailable", ECONNRESET: "database_unavailable",

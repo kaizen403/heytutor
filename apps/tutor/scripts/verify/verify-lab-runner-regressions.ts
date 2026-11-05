@@ -94,6 +94,15 @@ check("reservation honors the server output ceiling, not the smaller client cap"
   assert(cost >= 8096 * 10 / 1_000_000);
 });
 
+check("a relay's worst case reserves its hidden prompt; Azure does not", () => {
+  const request = { body: JSON.stringify({ messages: [], max_tokens: 100 }) };
+  const rates = { lane: "openai-compat" as const, inputUsdPer1M: 2, outputUsdPer1M: 10, cachedInputUsdPer1M: 0.1 };
+  const relay = plannerRequestWorstCaseUsd(request, "gpt-6.1-sol", 0, undefined, { endpoint: { provider: "openai_compat" }, rates });
+  const azure = plannerRequestWorstCaseUsd(request, "gpt-6.1-sol", 0, undefined, { endpoint: { provider: "azure" }, rates });
+  // Same body translation and rates on both, so the difference is the hidden prompt.
+  assert.equal(Math.round((relay - azure) * 1e6), 4500 * 2, "4,500 hidden prompt tokens at $2 per 1M");
+});
+
 check("reservation covers server-prepared multibyte input before dispatch", () => {
   const request = { body: JSON.stringify({ messages: [{ role: "user", content: "चित्र" }], max_tokens: 60 }) };
   const base = plannerRequestWorstCaseUsd(request, "accounts/fireworks/models/deepseek-v4p1-flash", 60);
