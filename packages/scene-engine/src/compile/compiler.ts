@@ -14,6 +14,7 @@ import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
 import { validateMarkedAngleTruth } from "./angleTruth";
 import { isVerifiedPartsEnabled, withDiagramYieldPolicy } from "./yieldPolicy";
+import { isCurveLabelPlacementOnStroke } from "./curveLabels";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -717,7 +718,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
     }
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
-    const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
+    const spaceElementPlacement = { ...functionCurveLabelPlacement(document, entity.id, target, primitives), ...spaceElementLabelPlacement(entity.id, target, primitives) };
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
@@ -890,6 +891,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         leaderGeometrySafe: targetEntity?.kind === "point" || secantLabel,
         allowLeader: endpointLabel || (targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined),
         ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
+        ...functionCurveLabelPlacement(document, targetId, target, primitives),
       });
     }
   }
@@ -4299,6 +4301,42 @@ function spaceElementLabelPlacement(entityId: string, value: Geometry, primitive
   const segments: Array<[RenderPoint, RenderPoint]> = [];
   for (const primitive of primitives) {
     if (primitive.kind === "label" || (isLine && primitive.entityId === entityId)) continue;
+    const points = primitive.points;
+    if (points.length === 1 || primitive.kind === "point") { segments.push([points[0]!, points[0]!]); continue; }
+    for (let index = 1; index < points.length; index += 1) segments.push([points[index - 1]!, points[index]!]);
+    if ((primitive.kind === "polygon" || primitive.kind === "rectangle") && points.length > 2) segments.push([points.at(-1)!, points[0]!]);
+  }
+  const room = (point: RenderPoint): number => segments.length === 0
+    ? Infinity
+    : Math.min(...segments.map(([a, b]) => pointSegmentResidual(point, [a, b])));
+  let best = candidates[0]!;
+  let bestRoom = room(best);
+  for (const candidate of candidates.slice(1)) {
+    const candidateRoom = room(candidate);
+    if (candidateRoom > bestRoom + 1) { best = candidate; bestRoom = candidateRoom; }
+  }
+  return { anchor: { x: best.x, y: best.y }, useOwnerBounds: false };
+}
+
+/**
+ * A graph of y = f(x) carries its name beside the stretch of its own stroke
+ * with the most room, as a space line does, not at a slot of its bounding box,
+ * which on a tall, narrow graph sits far from the stroke. Only with the curve
+ * label switch stamped on the document (`curveLabels.ts`); otherwise nothing
+ * changes. Other curves keep their slots: placed this way, angle marks,
+ * springs, coils and parametric curves read worse.
+ */
+function functionCurveLabelPlacement(document: SceneDocument, entityId: string, value: Geometry, primitives: RenderPrimitive[]): Partial<LabelOwner> {
+  if (!isCurveLabelPlacementOnStroke(document)) return {};
+  if (value.kind !== "path" || value.closed || value.infinite || value.spaceLine || value.spacePlane) return {};
+  if (!document.constructions.some((construction) => construction.operator === "function_curve" && construction.outputs.includes(entityId))) return {};
+  const own = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "polyline");
+  if (!own || own.points.length < 8) return {};
+  const at = (t: number): RenderPoint => own.points[Math.min(own.points.length - 1, Math.max(0, Math.round(t * (own.points.length - 1))))]!;
+  const candidates = [0.85, 0.15, 0.7, 0.3, 0.5, 0.95, 0.05].map(at);
+  const segments: Array<[RenderPoint, RenderPoint]> = [];
+  for (const primitive of primitives) {
+    if (primitive.kind === "label" || primitive.entityId === entityId) continue;
     const points = primitive.points;
     if (points.length === 1 || primitive.kind === "point") { segments.push([points[0]!, points[0]!]); continue; }
     for (let index = 1; index < points.length; index += 1) segments.push([points[index - 1]!, points[index]!]);

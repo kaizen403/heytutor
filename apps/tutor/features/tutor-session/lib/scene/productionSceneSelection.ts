@@ -4,6 +4,8 @@
  */
 import {
   prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
+  withCurveLabelPlacement,
+  documentHasFunctionCurve,
   ARCHETYPES, blockFlowGroundingIssues, compileSceneDocument, completeSceneDocument, detectArchetype, refusedArchetypeLead, isChemistryQuestion, isChemistrySceneFamily, lawOnlyArchetypeLead,
   PLAN_EXAMPLE_PROVENANCE, buildPlanExampleDocument,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry, planStatesChain,
@@ -128,12 +130,28 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
 }
 
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
-export function validateProductionSceneCandidate(input: {
+type ProductionSceneCandidateInput = {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
   yieldPolicy?: DiagramYieldPolicy;
+  /** `DIAGRAM_CURVE_LABELS`, from begin-turn: stamps a graph of y = f(x) for placement by its own stroke. Default off. */
+  curveLabels?: boolean;
   /** As `ProductionSceneInput.blockFlowEligible`; without it any block_flow is refused. */
   blockFlowEligible?: boolean;
-}): SceneCandidateValidation<ValidatedSceneCandidate> {
+};
+
+/**
+ * The curve label switch moves labels only on a figure dev already draws: the
+ * candidate is validated as dev first, and a figure dev refuses stays refused.
+ * If the moved labels would refuse it, dev's result stands.
+ */
+export function validateProductionSceneCandidate(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
+  const asDev = validateCandidateOnce({ ...input, curveLabels: false });
+  if (input.curveLabels !== true || !asDev.valid || !asDev.value || !documentHasFunctionCurve(asDev.value.document)) return asDev;
+  const onStroke = validateCandidateOnce(input);
+  return onStroke.valid ? onStroke : asDev;
+}
+
+function validateCandidateOnce(input: ProductionSceneCandidateInput): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { question, turnPlan: authoritativePlan } = input;
   // A block diagram carries no planner text beyond its grounded boxes: its
   // narration notes and entity titles are dropped, never drawn (a title
@@ -162,6 +180,8 @@ export function validateProductionSceneCandidate(input: {
       errors: validated.report.issues,
     };
   }
+  // The stamp is the engine's, set here from the switch: a candidate's own is replaced.
+  validated.document = withCurveLabelPlacement(validated.document, input.curveLabels === true);
   const routeNormalized = normalizeClaimedClosedRouteGeometry(
     validated.document,
     authoritativePlan,

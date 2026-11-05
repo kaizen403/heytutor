@@ -25,6 +25,8 @@ export interface BeginTurnOk {
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
   diagramYieldPolicy?: DiagramYieldPolicy;
+  /** True only when the server set DIAGRAM_CURVE_LABELS=on. */
+  diagramCurveLabels?: boolean;
   /** True only when the server set OPTICS_ARCHETYPE_IN_STRICT=on. */
   opticsArchetypeInStrict?: boolean;
   /** True only when the server set SOLVER_DISAGREEMENT_STOPS=on. */
@@ -240,6 +242,7 @@ async function beginTurnOnce(input: {
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
+    diagramCurveLabels: payload.diagramCurveLabels === true,
     opticsArchetypeInStrict: payload.opticsArchetypeInStrict === true,
     solverDisagreementStops: payload.solverDisagreementStops === true,
     referencePicture: payload.referencePicture === true,

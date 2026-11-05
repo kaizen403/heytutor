@@ -78,12 +78,29 @@ export interface StoredSceneAdmissionInput {
   planSubmitted?: boolean;
   /** Why the submitted plan failed validation, for the refusal message. */
   planIssues?: ReadonlyArray<{ code?: string; path?: string; message: string }>;
+  /**
+   * The server's curve label switch for this figure (`DIAGRAM_CURVE_LABELS`).
+   * A curve label stamp on a submitted document is kept only when this is on;
+   * otherwise the figure is admitted as dev draws it.
+   */
+  curveLabels?: boolean;
 }
 
 const MEMO_LIMIT = 64;
 const memo = new Map<string, StoredSceneAdmission>();
 
-export function admitStoredScene(input: StoredSceneAdmissionInput): StoredSceneAdmission {
+export function admitStoredScene(submitted: StoredSceneAdmissionInput): StoredSceneAdmission {
+  // A curve label stamp is kept only with the server's switch on, and only on a
+  // figure dev admits: a figure dev refuses stays refused, and if the moved
+  // labels would refuse it, dev's admission stands.
+  const asDevDocument = withoutCurveLabelStamp(submitted.sceneDocument);
+  const asDev = admitMemoized({ ...submitted, sceneDocument: asDevDocument });
+  if (submitted.curveLabels !== true || asDevDocument === submitted.sceneDocument || !asDev.ok) return asDev;
+  const onStroke = admitMemoized(submitted);
+  return onStroke.ok ? onStroke : asDev;
+}
+
+function admitMemoized(input: StoredSceneAdmissionInput): StoredSceneAdmission {
   const key = createHash("sha256").update(JSON.stringify([
     input.sceneDocument ?? null,
     input.sceneQuestion,
@@ -343,6 +360,16 @@ function formatIssues(issues: ReadonlyArray<{ code?: string; path?: string; mess
   return issues.slice(0, 4).map((issue) =>
     `${issue.code ?? issue.path ?? "invalid"}: ${issue.message}`,
   ).join("; ");
+}
+
+/** The stamp is the engine's: a submitted one is dropped unless the server's switch is on. */
+function withoutCurveLabelStamp(sceneDocument: unknown): unknown {
+  if (!sceneDocument || typeof sceneDocument !== "object" || Array.isArray(sceneDocument)) return sceneDocument;
+  const source = (sceneDocument as { source?: unknown }).source;
+  if (!source || typeof source !== "object" || Array.isArray(source) || !("curveLabelPlacement" in source)) return sceneDocument;
+  const rest: Record<string, unknown> = { ...(source as Record<string, unknown>) };
+  delete rest.curveLabelPlacement;
+  return { ...(sceneDocument as Record<string, unknown>), source: rest };
 }
 
 function refuse(code: StoredSceneAdmissionCode, message: string): { ok: false; code: StoredSceneAdmissionCode; message: string } {

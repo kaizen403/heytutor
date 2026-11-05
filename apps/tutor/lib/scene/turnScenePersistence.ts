@@ -50,6 +50,7 @@ import {
   type DoubtFigureMarker,
 } from "@/lib/boards/doubtFigure";
 import type { TurnKind } from "@/lib/boards/turnStatus";
+import { resolveDiagramCurveLabels } from "@/lib/scene/diagramStrategy.server";
 import type { DoubtFigurePageCheck, LessonFigureStartLoader, PageFigureLoader } from "@/lib/scene/pageFigureLoader";
 import { resolveDoubtPointingEnabled } from "@/lib/scene/doubtPointingFlag";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -177,6 +178,8 @@ export async function canonicalizeTurnSceneMetadata(
     doubtPointingEnabled?: boolean;
     /** DIAGRAM_LESSON_FIGURES at save time; read from the environment when absent. */
     lessonFiguresEnabled?: boolean;
+    /** DIAGRAM_CURVE_LABELS at save time; read from the environment when absent. */
+    curveLabelsEnabled?: boolean;
     /**
      * Bound by the save route like `loadPageFigure`: the lesson figure the
      * stored page had reached, which a resume's teaching starts on. Absent, a
@@ -403,6 +406,8 @@ export async function canonicalizeTurnSceneMetadata(
     narrationLanguage,
     planSubmitted: metadata.sceneArtifacts.turnPlan != null,
     planIssues: planResult.issues,
+    // A doubt's own figure and later lesson figures stay as dev draws them.
+    curveLabels: doubtFigure === null && (options.curveLabelsEnabled ?? resolveDiagramCurveLabels()),
   });
   if (!admitted.ok) return failure(admitted.code, admitted.message);
   const { document, presentation: expectedPresentation } = admitted;
