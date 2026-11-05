@@ -53,7 +53,7 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
     if (!evaluation) continue;
     if ("declined" in evaluation) {
       declined.push({ lawId, reason: evaluation.declined });
-      for (const output of evaluation.sizes ?? []) inconsistencies.push(...auditDerivedSize(plan, lawId, output));
+      if (evaluation.sizes) inconsistencies.push(...auditDerivedSizes(plan, lawId, evaluation.sizes));
       continue;
     }
     checkedLawIds.push(lawId);
@@ -66,7 +66,10 @@ export function reconcileTurnPlanWithOpticsLaws(plan: TurnPlanV3): OpticsPlanAud
   return { plan, inconsistencies, checkedLawIds, declined };
 }
 
-const IMAGE_DISTANCE_ALIASES = ["image_distance", "imagedistance", "v", "d_i"];
+const IMAGE_DISTANCE_ALIASES = ["image_distance", "imagedistance", "v"];
+const MAGNIFICATION_ALIASES = ["magnification", "m"];
+const SUBSCRIPT_OBJECT_DISTANCE = "d_o";
+const SUBSCRIPT_IMAGE_DISTANCE = "d_i";
 
 interface EvaluatedOutput {
   aliases: string[];
@@ -74,12 +77,14 @@ interface EvaluatedOutput {
   dimension: Dimension;
   /** The sign depends on the convention; a plan value differing only in sign is a convention clash, not a slip. */
   conventionSigned?: boolean;
+  /** Read only under this exact name, never by a looser match. */
+  exactName?: string;
 }
 
 function evaluatePlanLaw(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-): { outputs: EvaluatedOutput[] } | { declined: string; sizes?: EvaluatedOutput[] } | null {
+): { outputs: EvaluatedOutput[] } | { declined: string; sizes?: LawSizes } | null {
   const given = (aliases: string[], dimension: Dimension, absolute = false): number | null => {
     const quantity = findQuantity(plan.givens, aliases);
     if (!quantity) return null;
@@ -101,12 +106,21 @@ function evaluatePlanLaw(
 
   if (lawId === "mirror_formula" || lawId === "thin_lens_formula") {
     const element = opticalElement(plan, lawId === "mirror_formula" ? "mirror" : "lens");
-    const objectQuantity = findQuantity(plan.givens, ["object_distance", "objectdistance", "u", "d_o"]);
+    const plainObject = findQuantity(plan.givens, ["object_distance", "objectdistance", "u"]);
+    const subscriptObjects = plainObject ? [] : exactlyNamed(plan.givens, SUBSCRIPT_OBJECT_DISTANCE);
+    const objectQuantity = plainObject ?? (subscriptObjects.length === 1 ? subscriptObjects[0]! : null);
     const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
     if (!objectQuantity || !focalQuantity) return null;
+    const readsSubscripts = plainObject === null;
+    // Reads this law did not make before answer to a stricter test of one
+    // element. The plainly named path keeps its own, so nothing it rejects loosens.
+    if (readsSubscripts && (introducesSecondElement(plan.question) || /\bdiameter\b/i.test(plan.question))) {
+      return { declined: SECOND_ELEMENT_DECLINE };
+    }
     const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
     if ("reason" in signs) {
       if (!signs.signsConflict || element.converging === null) return { declined: signs.reason };
+      if (introducesSecondElement(plan.question)) return { declined: SECOND_ELEMENT_DECLINE };
       // No convention can be read from these signs, but a single element and a
       // real object leave no choice about sizes: |v| and |m| follow from |u|,
       // |f| and the element the stem names, whatever convention was meant.
@@ -115,10 +129,11 @@ function evaluatePlanLaw(
         focalLength: Math.abs(toBaseUnit(focalQuantity.value, focalQuantity.unit, "length")) * (element.converging ? 1 : -1),
       });
       if (!sizes) return { declined: signs.reason };
-      return { declined: signs.reason, sizes: [
-        output(IMAGE_DISTANCE_ALIASES, sizes.imageDistance!, "length"),
-        output(["magnification", "m"], sizes.magnification!, "scalar"),
-      ] };
+      return { declined: signs.reason, sizes: {
+        imageDistance: sizes.imageDistance!,
+        magnification: sizes.magnification!,
+        imageNames: readsSubscripts ? [...IMAGE_DISTANCE_ALIASES, SUBSCRIPT_IMAGE_DISTANCE] : IMAGE_DISTANCE_ALIASES,
+      } };
     }
     const values = evaluate(toRealIsPositive(element, signs));
     if (!values) return { declined: "the law has no finite real-object solution for these givens" };
@@ -126,9 +141,9 @@ function evaluatePlanLaw(
       // A v equal in size and opposite in sign is a convention clash only
       // when the convention is not fixed by signed givens; otherwise it is
       // reported as an inconsistency like any other.
-      output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens),
+      { ...output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens), ...(readsSubscripts ? { exactName: SUBSCRIPT_IMAGE_DISTANCE } : {}) },
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
-      output(["magnification", "m"], values.magnification!, "scalar"),
+      output(MAGNIFICATION_ALIASES, values.magnification!, "scalar", readsSubscripts),
     ] };
   }
   if (lawId === "snell_law") {
@@ -328,33 +343,46 @@ function evaluatePlanLaw(
   return null;
 }
 
+interface LawSizes {
+  imageDistance: number;
+  magnification: number;
+  imageNames: readonly string[];
+}
+
 /**
  * The size check for a plan whose signs cannot be read: only a size the law
- * rules out is reported, so a right plan with mixed signs stays declined.
+ * rules out is reported, so a right plan with mixed signs stays declined. It
+ * reads a quantity only under its exact name, an image distance only in a unit
+ * of length and a magnification only with no unit, and it allows the rounding
+ * the plan states.
  */
-function auditDerivedSize(
-  plan: TurnPlanV3,
-  lawId: OpticsLawId,
-  { aliases, value: baseValue, dimension }: EvaluatedOutput,
-): OpticsPlanInconsistency[] {
-  const unknown = findQuantity(plan.unknowns, aliases);
-  const targets = findOutputQuantities(plan.derived, unknown ? [...aliases, unknown.id, unknown.symbol] : aliases);
-  return targets.flatMap((target) => {
-    const lawValue = Math.abs(fromBaseUnit(baseValue, target.unit, dimension));
-    return matchesWithinStatedPrecision(Math.abs(target.value), lawValue)
-      ? []
-      : [{ lawId, quantityId: target.id, planValue: target.value, lawValue }];
-  });
+function auditDerivedSizes(plan: TurnPlanV3, lawId: OpticsLawId, sizes: LawSizes): OpticsPlanInconsistency[] {
+  const named = (names: readonly string[]) => plan.derived.filter((quantity) => names.includes(quantity.id) || names.includes(quantity.symbol));
+  const report = (quantity: TurnPlanQuantityV3, lawValue: number): OpticsPlanInconsistency[] =>
+    roundsToStatedValue(Math.abs(quantity.value), lawValue) ? [] : [{ lawId, quantityId: quantity.id, planValue: quantity.value, lawValue }];
+  return [
+    ...named(sizes.imageNames)
+      .filter((quantity) => LENGTH_TO_METERS[normalizeUnit(quantity.unit)] !== undefined)
+      .flatMap((quantity) => report(quantity, Math.abs(fromBaseUnit(sizes.imageDistance, quantity.unit, "length")))),
+    ...named(MAGNIFICATION_ALIASES)
+      .filter((quantity) => !quantity.unit || normalizeUnit(quantity.unit) === "dimensionless")
+      .flatMap((quantity) => report(quantity, Math.abs(sizes.magnification))),
+  ];
+}
+
+function roundsToStatedValue(planValue: number, lawValue: number): boolean {
+  const halfLastPlace = 0.5 * 10 ** -statedDecimalPlaces(planValue);
+  return Math.abs(planValue - lawValue) <= Math.max(lawValue * 0.005, Math.min(halfLastPlace, lawValue * 0.1)) * (1 + 1e-9);
 }
 
 function auditDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-  { aliases, value: baseValue, dimension, conventionSigned }: EvaluatedOutput,
+  { aliases, value: baseValue, dimension, conventionSigned, exactName }: EvaluatedOutput,
 ): { inconsistencies: OpticsPlanInconsistency[]; declined: OpticsPlanDecline[] } {
   const unknown = findQuantity(plan.unknowns, aliases);
   const expandedAliases = unknown ? [...aliases, unknown.id, unknown.symbol] : aliases;
-  const targets = findOutputQuantities(plan.derived, expandedAliases);
+  const targets = [...new Set([...findOutputQuantities(plan.derived, expandedAliases), ...(exactName ? exactlyNamed(plan.derived, exactName) : [])])];
   const inconsistencies: OpticsPlanInconsistency[] = [];
   const declined: OpticsPlanDecline[] = [];
   for (const target of targets) {
@@ -534,16 +562,15 @@ const MULTIPLE_ELEMENT_CUE =
 /**
  * A stem can join two elements with no such word: "followed by a convex lens",
  * "behind it is a converging lens". Two elements introduced, or two focal
- * lengths stated, leave the audit declining.
+ * lengths stated, keep the audit's new reads declining. A repeated wording of
+ * one element trips this too, which costs a check and rejects nothing.
  */
-const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[a-z-]+\s+){0,3}?(?:lens|mirror)\b/gi;
+const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[\w-]+\s+){0,3}?(?:lens|mirror)\b/gi;
 const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
+const SECOND_ELEMENT_DECLINE = "more than one optical element: a later element's object may be virtual";
 
-function namesSecondElement(question: string): boolean {
-  return MULTIPLE_ELEMENT_CUE.test(question)
-    || (/\blens\b/.test(question) && /\bmirror\b/.test(question))
-    || (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1
-    || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1;
+function introducesSecondElement(question: string): boolean {
+  return (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1 || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1;
 }
 
 /** Something physical placed before the element: the stem's evidence of a real object. */
@@ -567,8 +594,8 @@ function realObjectDeclineReason(plan: TurnPlanV3): string | null {
     return "the object may be virtual, which reverses the object distance sign, so it cannot fix the convention";
   }
   const question = plan.question.toLowerCase();
-  if (namesSecondElement(question)) {
-    return "more than one optical element: a later element's object may be virtual";
+  if (MULTIPLE_ELEMENT_CUE.test(question) || (/\blens\b/.test(question) && /\bmirror\b/.test(question))) {
+    return SECOND_ELEMENT_DECLINE;
   }
   if (!REAL_OBJECT_CUE.test(question)) {
     return "the question does not establish a real object in front of the element";
@@ -646,6 +673,10 @@ function claimedOrientation(plan: TurnPlanV3): 1 | -1 | null {
     orientation = sign;
   }
   return orientation;
+}
+
+function exactlyNamed<T extends { id: string; symbol: string }>(quantities: readonly T[], name: string): T[] {
+  return quantities.filter((quantity) => quantity.id === name || quantity.symbol === name);
 }
 
 function findOutputQuantities<T extends { id: string; symbol: string }>(
