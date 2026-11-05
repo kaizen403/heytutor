@@ -33,6 +33,7 @@ import { createLeaderGeometryQuery } from "../../../../packages/scene-engine/src
 import { insideNamedGap, namedGaps, ownerNamedGaps, type NamedGap } from "../../../../packages/scene-engine/src/labels/levelGap";
 import { boundsInSideRegion, labelReadings, nearbyTetheredCenters, ownershipMargin, pointLabelNearerForeign, routeLeader, strokeSlotPlacements } from "../../../../packages/scene-engine/src/labels/labelEngine";
 import { crossings } from "../../../../packages/scene-engine/src/compile/lightPathElements";
+import { validateRefractingAngleBindings } from "../../../../packages/scene-engine/src/compile/opticalPathTruth";
 import { validateRegionLabelPlacement } from "../../../../packages/scene-engine/src/compile/figureConsistency";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
@@ -360,9 +361,9 @@ const plain = () => ({
   revealGroups: [{ id: "g", dependsOn: [], entityIds: [] as string[], narrationCue: "the figure" }],
   assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
 });
-const put = (d: ReturnType<typeof plain>, id: string, operator: string, kind: string, inputs: Record<string, unknown>) => {
+const put = (d: ReturnType<typeof plain>, id: string, operator: string, kind: string, inputs: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
   d.constructions.push({ id: `c_${id}`, operator, inputs, outputs: [id] });
-  d.entities.push({ id, kind, role: kind });
+  d.entities.push({ id, kind, role: kind, ...extra });
   d.requiredEntityIds.push(id);
   d.revealGroups[0]!.entityIds.push(id);
 };
@@ -500,6 +501,73 @@ for (const [name, run, least] of stepRows) {
   const steps = layoutSteps(run);
   if (steps < least) fail(`${name} count`, { steps, least });
 }
+if ((withSharedLabelWork(() => routeLeader({ leaderFrom: { x: 0, y: 0 }, leaderTo: { x: 100, y: 0 }, bounds: { x: 100, y: -5, width: 10, height: 10 } } as never, many(64, (index) => ({ x: 10 * index, y: 300, width: 8, height: 8 })), undefined, 2)).work.searchSteps.directLeader ?? 0) < 64) fail("a clear leader's boxes count", null);
+
+// Each search counts on a figure that reaches it.
+const world = (x: number, y: number) => ({ x, y, coordinateSpace: "world" });
+const at = (x: number, y: number) => ({ x, y, coordinateSpace: "layout" });
+const lensFigure = () => {
+  const d = plain();
+  put(d, "O", "point", "point", world(0, 0));
+  put(d, "axis", "line", "line", { start: "O", direction: [1, 0] }, { role: "principal axis" });
+  put(d, "lens", "lens_section", "polygon", { center: "O", axis: "axis", radius1: 14, radius2: -14, halfHeight: 4 }, { role: "lens" });
+  put(d, "FR", "point", "point", world(5, 0), { role: "right focus" });
+  put(d, "ob", "point", "point", world(-8, 0));
+  put(d, "ot", "point", "point", world(-8, 2));
+  put(d, "object", "vector", "vector", { start: "ob", end: "ot" }, { role: "object" });
+  put(d, "P", "point", "point", world(0, 2));
+  put(d, "parallelIn", "segment", "segment", { start: "ot", end: "P" }, { role: "parallel incident ray" });
+  put(d, "parallelOut", "ray", "ray", { start: "P", end: "FR" }, { role: "ray through right focus" });
+  put(d, "central", "ray", "ray", { start: "ot", end: "O" }, { role: "undeviated central ray" });
+  put(d, "it", "intersection", "point", { first: "parallelOut", second: "central" });
+  put(d, "ib", "point", "point", world(40 / 3, 0));
+  put(d, "image", "vector", "vector", { start: "ib", end: "it" }, { role: "real inverted image" });
+  return d;
+};
+const packedLabels = () => {
+  const d = plain();
+  for (let index = 0; index < 12; index += 1) put(d, `p${index}`, "point", "point", at(700 + (index % 4) * 6, 300 + Math.floor(index / 4) * 6), { label: `P${index}` });
+  [[660, 260], [764, 260], [764, 376], [660, 376]].forEach(([x, y], index) => put(d, `c${index}`, "point", "point", at(x!, y!)));
+  [0, 1, 2, 3].forEach((index) => put(d, `w${index}`, "segment", "segment", { start: `c${index}`, end: `c${(index + 1) % 4}` }));
+  return d;
+};
+const loopedStrokes = () => {
+  const d = plain();
+  for (let index = 0; index < 16; index += 1) {
+    put(d, `a${index}`, "point", "point", at(420 + index * 40, 100));
+    put(d, `b${index}`, "point", "point", at(420 + index * 40, 300));
+    put(d, `s${index}`, "segment", "segment", { start: `a${index}`, end: `b${index}` });
+  }
+  (d as unknown as { annotations: unknown[] }).annotations = [{ id: "ring", kind: "loop", targetIds: many(16, (index) => `s${index}`) }];
+  return d;
+};
+const generated = (question: string) => synthesizeFamilyScene({ question, families: inferSceneCapabilities(question).families })?.document;
+const searchRows: Array<[string, unknown, string[]]> = [
+  ["a lens figure", lensFigure(), ["rayJoin"]],
+  ["labels packed inside walls", packedLabels(), ["routedSelection", "tether", "layoutReading", "rivalMarks"]],
+  ["a loop around strokes", loopedStrokes(), ["hull"]],
+  ["a generated prism", generated("A ray of light passes through a glass prism of refracting angle 60 degrees and refractive index 1.5. Draw the ray diagram."), ["closedRegions", "lightCrossings", "lightHits", "opticsSides"]],
+  ["a generated lens", generated("An object is placed 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram."), ["crowdedLane", "leader", "leaderRoutes", "levelPairs", "levelArrows", "ownerGaps", "boxGaps"]],
+  ["a generated refraction", generated("Draw the refraction of light from air into water at an angle of incidence of 40 degrees."), ["ownership", "strokeSlot"]],
+];
+for (const [name, document, searches] of searchRows) {
+  if (!document) { fail(`${name}: a figure to read`, null); continue; }
+  const steps = withSharedLabelWork(() => compileSceneDocument(document as never)).work.searchSteps;
+  for (const search of searches) if (!((steps[search] ?? 0) > 0)) fail(`${name}: ${search} counts`, steps);
+}
+const prismPoints = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 8 }];
+const angleSteps = withSharedLabelWork(() => validateRefractingAngleBindings({
+  requiredEntityIds: ["ang", "prism", "face", "V", "A", "B"],
+  entities: [{ id: "ang", kind: "angle_mark", role: "refracting angle" }, { id: "prism", kind: "polygon", role: "prism" }, { id: "face", kind: "segment", role: "refracting face" }, { id: "V", kind: "point", role: "apex" }, { id: "A", kind: "point", role: "base" }, { id: "B", kind: "point", role: "base" }],
+  constructions: [{ id: "c", operator: "angle_mark", inputs: { vertex: "V", a: "A", b: "B" }, outputs: ["ang"] }],
+} as never, new Map<string, { kind: string }>(Object.entries({ V: { kind: "point", point: prismPoints[2] }, A: { kind: "point", point: prismPoints[0] }, B: { kind: "point", point: prismPoints[1] }, prism: { kind: "path", closed: true, points: prismPoints }, face: { kind: "path", points: [prismPoints[2], prismPoints[0]] } })), [])).work.searchSteps;
+if (!angleSteps.angleBodies || !angleSteps.angleFaces) fail("a refracting angle counts its bodies and faces", angleSteps);
+// A budget spent inside an annotation ends the compile with one refusal.
+const markedCurves = plain();
+for (let index = 0; index < 2; index += 1) denseCurve(markedCurves, `k${index}`, 4 + index * 0.25);
+(markedCurves as unknown as { annotations: unknown[] }).annotations = many(N.annotations, (index) => ({ id: `n${index}`, kind: "trace", targetIds: [`k${index % 2}`] }));
+const markedIssues = compileSceneDocument(markedCurves as never).report.issues.filter((issue) => issue.severity === "fatal");
+if (markedIssues.length !== 1 || markedIssues[0]?.code !== "figure_point_budget") fail("a budget spent on a mark ends the compile", markedIssues.slice(0, 2));
 // One past a size is refused by the validator, not only by a compile.
 const pastSize = plain(); fieldLines(pastSize, 0, 16, I.fieldLineSteps / 16 + 1);
 if (!validateSceneDocument(pastSize).report.issues.some((issue) => issue.severity === "fatal" && issue.code.includes("field_lines"))) fail("field lines one past their size", null);

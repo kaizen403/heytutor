@@ -82,7 +82,7 @@ export function bindOpticsLabelSides(
     }
     const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
     const boundMedia: ClosedMedium[] = [];
-    chargeLayoutSteps(media.reduce((steps, medium) => steps + medium.indexInputs.length, 0) * 16);
+    chargeLayoutSteps(media.reduce((steps, medium) => steps + medium.indexInputs.length, 0) * 16, "opticsSides");
     for (const medium of owner.labelId && summaryLabelIds.has(owner.labelId) ? [] : media) {
       const bound = Boolean(annotation) && medium.indexInputs.some((input) => boundToIndex(annotation!, input, document));
       // On the region itself, an unbound label names the medium only when it

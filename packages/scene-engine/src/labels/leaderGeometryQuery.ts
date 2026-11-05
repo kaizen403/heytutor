@@ -12,7 +12,7 @@ export function createLeaderGeometryQuery(obstacles: LabelObstacle[]): (path: Re
       left: Math.min(a.x, b.x), right: Math.max(a.x, b.x), top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y) };
   }));
   return path => {
-    chargeLayoutSteps(strokes.length * Math.max(0, path.length - 1) / 8);
+    chargeLayoutSteps(strokes.length * Math.max(0, path.length - 1) / 8, "leader");
     const anchor = path[0]!;
     for (let index = 1; index < path.length; index++) {
       const start = path[index - 1]!, end = path[index]!;

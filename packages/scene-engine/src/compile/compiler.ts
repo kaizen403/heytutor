@@ -3410,7 +3410,7 @@ function relocateObstructedDimensions(
     // keeps a label lane; every other bar takes the first clear lane.
     const keepsLabelLane = entity?.provenance?.keepLabelLane === true;
     const crowded = (candidateBar: RenderPrimitive): boolean => keepsLabelLane && Boolean(text) &&
-      (chargeLayoutSteps(other.length * document.entities.length), true) &&
+      (chargeLayoutSteps(other.length * document.entities.length, "crowdedLane"), true) &&
       dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
     if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -6295,7 +6295,7 @@ function geometriesTouch(first: Geometry, second: Geometry): boolean {
   if (firstPoints.some((point) => secondPoints.some((candidate) => distance(point, candidate) < EPSILON))) return true;
   const firstSegments = geometrySegments(first);
   const secondSegments = geometrySegments(second);
-  chargeLayoutSteps((firstPoints.length + firstSegments.length) * (secondPoints.length + secondSegments.length) * 4);
+  chargeLayoutSteps((firstPoints.length + firstSegments.length) * (secondPoints.length + secondSegments.length) * 4, "touch");
   if (firstPoints.some((point) => secondSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   if (secondPoints.some((point) => firstSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   return firstSegments.some((firstSegment) =>

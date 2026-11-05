@@ -256,7 +256,7 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
   if (!(span > 1e-9)) return;
   const tolerance = 4e-3 * span;
   for (const [id, value] of closedRegions) {
-    chargeLayoutSteps(allVertices.length * elementSize(value));
+    chargeLayoutSteps(allVertices.length * elementSize(value), "closedRegions");
     if (allVertices.some((vertex) => boundaryDistance(vertex, value) <= tolerance)) candidates.set(id, value);
   }
   if (candidates.size === 0) return;
@@ -275,7 +275,7 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
       // Thin lens convention: a path across the centre plane inside the aperture passes the lens.
       if (lensChords.get(elementId)?.some((lens) => passesThinLens(segments, path.vertices, lens, element, tolerance))) continue;
       for (const hit of crossings(segments, element, far)) {
-        chargeLayoutSteps(path.vertices.length);
+        chargeLayoutSteps(path.vertices.length, "lightHits");
         if (path.vertices.some((vertex) => distance(vertex, hit.point) <= tolerance)) continue;
         // Normal incidence: light crosses glass along the normal unbent.
         if (glass.get(elementId) && alongNormal(hit)) continue;
@@ -751,7 +751,7 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     const support = candidates.filter(({ across }) => !across.some((index) => arrowAxes.includes(index)));
     for (let joined = true; joined && support.length > 0;) {
       joined = false;
-      chargeLayoutSteps(support.length * joinedRays.reduce((steps, { points }) => steps + points.length, 0) * 2);
+      chargeLayoutSteps(support.length * joinedRays.reduce((steps, { points }) => steps + points.length, 0) * 2, "rayJoin");
       for (let index = support.length - 1; index >= 0; index -= 1) {
         const { points } = support[index]!;
         if (![points[0]!, points.at(-1)!].some((end) => onAnchor(end) || onRayStroke(joinedRays, end))) continue;
@@ -1008,7 +1008,7 @@ type Hit = { s: number; point: Point; direction: Point; normal: Point };
 /** Where the path crosses the element, with the path direction and the boundary normal there. */
 export function crossings(segments: Segment[], element: ElementValue, far: number): Hit[] {
   const hits: Hit[] = [];
-  chargeLayoutSteps(segments.length * elementSize(element));
+  chargeLayoutSteps(segments.length * elementSize(element), "lightCrossings");
   for (const segment of segments) {
     const direction = { x: segment.b.x - segment.a.x, y: segment.b.y - segment.a.y };
     if (element.kind === "path") {

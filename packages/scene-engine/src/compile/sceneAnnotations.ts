@@ -481,7 +481,7 @@ function straightLineEnds(primitives: RenderPrimitive[]): { start: RenderPoint; 
 }
 
 function convexHull(points: RenderPoint[]): RenderPoint[] {
-  chargeLayoutSteps(points.length * points.length / 2);
+  chargeLayoutSteps(points.length * points.length / 2, "hull");
   const unique = points.filter((point, index) =>
     points.findIndex((candidate) => candidate.x === point.x && candidate.y === point.y) === index,
   );

@@ -364,7 +364,7 @@ export function validateRegionLabelPlacement(document: SceneDocument, primitives
     const owners = labelOwners(document, label);
     const ownerOutlines = outlines.filter((outline) => owners.includes(outline.entityId));
     if (ownerOutlines.length === 0) continue;
-    chargeLayoutSteps(outlines.reduce((steps, body) => steps + body.outline.length, 0) * (1 + ownerOutlines.reduce((steps, owner) => steps + owner.outline.length, 0)));
+    chargeLayoutSteps(outlines.reduce((steps, body) => steps + body.outline.length, 0) * (1 + ownerOutlines.reduce((steps, owner) => steps + owner.outline.length, 0)), "regionLabel");
     const at = label.points[0];
     const nested = outlines.find((body) => !owners.includes(body.entityId)
       && insidePolygon(at, body.outline)

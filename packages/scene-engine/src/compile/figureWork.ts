@@ -17,6 +17,7 @@ export interface LabelWork {
   overlaps: number;
   points: number;
   expressionSteps: number;
+  searchSteps: Record<string, number>;
   spent: "label_measure_budget" | "label_overlap_budget" | "figure_point_budget" | "expression_step_budget" | null;
 }
 
@@ -36,9 +37,12 @@ export function chargeLabelOverlaps(count: number): void {
   if (work.overlaps > LABEL_OVERLAP_WORK_BUDGET) stop(work, "label_overlap_budget");
 }
 
-/** Layout steps that are not overlap tests, in the same count. */
-export function chargeLayoutSteps(steps: number): void {
-  if (activeLabelWork && steps > 0) chargeLabelOverlaps(Math.ceil(steps));
+/** Layout steps that are not overlap tests, in the same count, kept by search so a gate can tell each one still counts. */
+export function chargeLayoutSteps(steps: number, search: string): void {
+  const work = activeLabelWork;
+  if (!work || !(steps > 0)) return;
+  work.searchSteps[search] = (work.searchSteps[search] ?? 0) + steps;
+  chargeLabelOverlaps(Math.ceil(steps));
 }
 
 export function chargeMeasuredChars(count: number, budget: number): void {
@@ -80,7 +84,7 @@ export function spentLabelWorkCode(): NonNullable<LabelWork["spent"]> {
 /** Every layout inside `run` shares one budget. Nested calls share the outer one. */
 export function withSharedLabelWork<T>(run: () => T, start: Partial<LabelWork> = {}): { value: T; work: LabelWork } {
   const outer = activeLabelWork;
-  const work = outer ?? { measuredChars: 0, overlaps: 0, points: 0, expressionSteps: 0, spent: null, ...start };
+  const work = outer ?? { measuredChars: 0, overlaps: 0, points: 0, expressionSteps: 0, searchSteps: {}, spent: null, ...start };
   activeLabelWork = work;
   try {
     return { value: run(), work };
