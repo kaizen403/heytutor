@@ -45,7 +45,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
-import { chargeFigurePoints, chargeLabelOverlaps, countFigurePoints, isLabelWorkSpent, withSharedLabelWork } from "./figureWork";
+import { chargeFigurePoints, chargeLabelOverlaps, countFigurePoints, isLabelWorkSpent, stopIfWorkSpent, withSharedLabelWork } from "./figureWork";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -256,7 +256,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (compiled && !work.spent) return compiled;
   // However the work ran out, a figure laid out only in part is never drawn.
   // Nothing here reads the document again, so refusing costs nothing further.
-  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "Labels need more layout work than one compile may spend", severity: "fatal" };
+  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "This figure needs more work than one compile may spend", severity: "fatal" };
   return {
     ok: false,
     renderScene: null,
@@ -350,6 +350,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         point: (value) => resolvePoint(value, geometry),
       }, issues, checkedClaimOutputIds);
     } catch (error) {
+      stopIfWorkSpent();
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
   }

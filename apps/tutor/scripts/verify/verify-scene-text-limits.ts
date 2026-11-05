@@ -15,6 +15,7 @@ import {
   boundsOverlap,
   canPlaceSingleLabel,
   compileSceneDocument,
+  countFigurePoints,
   isLabelWorkSpent,
   placeLabels,
   sceneCountOverLimit,
@@ -440,6 +441,10 @@ if (!waveCodes(waveDoc(8, 2049)).length) fail("a wave one past its size", null);
 const pointsWork = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { points: FIGURE_POINT_BUDGET });
 if (pointsWork.value.ok || pointsWork.work.spent !== "figure_point_budget" || !pointsWork.value.report.issues.some((issue) => issue.code === "figure_point_budget")) fail("a compile past the point budget refuses", pointsWork.work);
 if (pointsWork.value.report.valid !== false) fail("a compile past a budget reports itself invalid", pointsWork.value.report.valid);
+if (pointsWork.value.report.issues.length !== 1) fail("a compile past a budget builds nothing further", pointsWork.value.report.issues.slice(0, 2));
+if (countFigurePoints({ kind: "point", point: { x: 1, y: 2 } }) !== 1) fail("a single point counts", null);
+if (countFigurePoints({ kind: "circle", center: { x: 1, y: 2 }, radius: 3 }) !== 1) fail("a centre counts", null);
+if (countFigurePoints({ kind: "path", points: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }], start: { x: 0, y: 0 } }) !== 4) fail("points and paths add up", null);
 const curve = plain(); put(curve, "k", "implicit_curve", "polyline", { expression: "x^2+y^2-1", xMin: -2, xMax: 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 });
 const stepsWork = withSharedLabelWork(() => compileSceneDocument(curve as never), { expressionSteps: EXPRESSION_STEP_BUDGET });
 if (stepsWork.value.ok || stepsWork.work.spent !== "expression_step_budget") fail("a compile past the expression budget refuses", stepsWork.work);

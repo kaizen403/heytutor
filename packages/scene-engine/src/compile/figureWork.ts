@@ -62,6 +62,11 @@ export function isLabelWorkSpent(error: unknown): boolean {
   return error instanceof LabelWorkSpent;
 }
 
+/** Stops the work once a budget is spent, however an earlier stop was handled on its way up. */
+export function stopIfWorkSpent(): void {
+  if (activeLabelWork?.spent) throw new LabelWorkSpent();
+}
+
 /** Which budget stopped the current work. */
 export function spentLabelWorkCode(): NonNullable<LabelWork["spent"]> {
   return activeLabelWork?.spent ?? "label_overlap_budget";
@@ -89,6 +94,8 @@ export function countFigurePoints(value: unknown, depth = 0): number {
     for (const entry of value) count += countFigurePoints(entry, depth + 1);
     return count;
   }
+  const point = value as { x?: unknown; y?: unknown };
+  if (typeof point.x === "number" && typeof point.y === "number") return 1;
   let count = 0;
   for (const entry of Object.values(value)) if (typeof entry === "object" && entry !== null) count += countFigurePoints(entry, depth + 1);
   return count;
