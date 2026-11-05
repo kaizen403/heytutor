@@ -53,7 +53,7 @@ import {
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype } from "@/features/tutor-session/lib/scene/diagramStrategy";
-import { resolveOpticsArchetypeInStrict, resolveSolverDisagreementStops } from "@/lib/scene/diagramStrategy.server";
+import { resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -674,20 +674,17 @@ export async function runLecture(
       deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
       applyAuthority: (planToReconcile, authority) => {
-        const reconcile = (keepDisagreement: boolean) => {
-          const plan = reconcileTurnPlanWithSolver(
-            planToReconcile,
-            authority.problemIR,
-            authority.solverResult,
-            keepDisagreement ? { keepDisagreement: true } : {},
-          );
-          return { plan, audit: verifyTurnPlanAgainstSolver(authority.problemIR, authority.solverResult, plan, question) };
-        };
-        // As in the lesson: the switch acts only where the audit names a value that disagrees with the solver.
-        const keep = resolveSolverDisagreementStops();
-        let reconciled = reconcile(keep);
-        if (keep && !reconciled.audit.issues.some((issue) => issue.code === "solver_turnplan_contradiction")) reconciled = reconcile(false);
-        const { plan: reconciledPlan, audit: authorityAudit } = reconciled;
+        const reconciledPlan = reconcileTurnPlanWithSolver(
+          planToReconcile,
+          authority.problemIR,
+          authority.solverResult,
+        );
+        const authorityAudit = verifyTurnPlanAgainstSolver(
+          authority.problemIR,
+          authority.solverResult,
+          reconciledPlan,
+          question,
+        );
         return {
           turnPlan: reconciledPlan,
           authority: {

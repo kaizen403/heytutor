@@ -140,9 +140,10 @@ export function reconcilePlanWithAuthority(
 /**
  * A disagreement makes the audit a contradiction, which stops this lesson, but a
  * later doubt or Continue reads the plan the turn carries, with no audit. Neither
- * side is known right, so that value and anything worked from it are not carried
- * on. If what is left fails validation, the readers drop the plan, and still no
- * value of the disagreement reaches the student.
+ * side is known right, so that value is not carried on, nor any value or claim
+ * the plan declares as worked from it. A value worked from it with no declared
+ * link stays, as it does on dev. If what is left fails validation, the readers
+ * drop the plan.
  */
 function withoutDisagreedValues(plan: TurnPlanV3, disagreed: ReadonlySet<string>): TurnPlanV3 {
   const withdrawn = new Set(disagreed);

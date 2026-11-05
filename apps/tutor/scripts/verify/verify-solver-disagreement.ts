@@ -123,7 +123,7 @@ async function main() {
     assert.equal(valueOf(on.turnPlan, "x"), 3);
     assert.ok(validateTurnPlanV3(on.turnPlan, STEM).plan, "the plan that is left is still valid");
   });
-  await check("on: anything worked from the disagreed value goes with it, and its claims", () => {
+  await check("on: anything the plan declares as worked from the disagreed value goes with it, and its claims", () => {
     const quiet = () => undefined;
     const chained = {
       ...rightPlan,
@@ -346,10 +346,11 @@ async function main() {
   await check("the doubt passes the grant to planDoubtFigure", () => {
     assert.ok(source("features/tutor-session/hooks/turn/useQuestionHandler.ts").includes("keepSolverDisagreement: billed.solverDisagreementStops === true,"));
   });
-  await check("the lab keeps a disagreement only where the audit names it, as the lesson does", () => {
+  await check("the lab does not read the switch, so a lab round is dev either way", () => {
+    // The lab's authority step has no source authority and no stop, so it could not follow the lesson's rule.
     const lab = source("scripts/lecture-lab/lecturePipeline.ts");
-    assert.ok(lab.includes("keepDisagreement ? { keepDisagreement: true } : {},"), "the lab passes nothing new with the switch off");
-    assert.ok(lab.includes("const keep = resolveSolverDisagreementStops();\n        let reconciled = reconcile(keep);\n        if (keep && !reconciled.audit.issues.some((issue) => issue.code === \"solver_turnplan_contradiction\")) reconciled = reconcile(false);"), "the lab falls back to dev where the audit names no value");
+    assert.ok(!lab.includes("SolverDisagreement"), "the lab reads the switch");
+    assert.ok(!lab.includes("keepDisagreement"), "the lab passes the keep option");
   });
   await check("the switch is named in the example env, commented out", () => {
     assert.ok(source(".env.example").includes("# SOLVER_DISAGREEMENT_STOPS=on"));
