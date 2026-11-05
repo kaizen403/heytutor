@@ -109,7 +109,7 @@ export interface TurnPlanArithmeticReconciliation {
 export interface TurnPlanArithmeticDecline {
   quantityId: string;
   /** Why the written arithmetic was not used to check or replace the value. */
-  reason: "mixed_units";
+  reason: "mixed_units" | "reading_in_doubt";
 }
 
 export interface TurnPlanArithmeticReconciliationResult {
@@ -274,6 +274,12 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       addNumericBinding(numericBindings, value, bindingMeta, evidence.value !== null);
       return value;
     }
+    const targetKeys = [value.id, value.symbol].filter((key): key is string => typeof key === "string");
+    if (disagreesInDoubt(evidence.value, value.value, value.sourceText, value.unit, targetKeys, numericBindings, bindingMeta)) {
+      declined.push({ quantityId: value.id, reason: "reading_in_doubt" });
+      addNumericBinding(numericBindings, value, bindingMeta, false);
+      return value;
+    }
     reconciliations.push({
       quantityId: value.id,
       previousValue: value.value,
@@ -313,16 +319,22 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
  * protect the JSON boundary, so reject malformed or internally inconsistent
  * facts before they become authoritative for the scene and narration.
  */
-export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
+export function validateTurnPlanV3(
+  raw: unknown,
+  expectedQuestion?: string,
+  /** Only a plan fresh from the model is held to a reading in doubt. A stored plan was accepted when saved, so reopening it changes nothing. */
+  options: { freshFromModel?: boolean } = {},
+): TurnPlanValidationResult {
   const overLimit = turnPlanTextOverLimit(raw, expectedQuestion);
   if (overLimit) return { valid: false, plan: null, issues: [overLimit] };
   return validateBoundedTurnPlan(
     isRecord(raw) && typeof raw.question === "string" ? { ...raw, question: questionForPlanReaders(raw.question) } : raw,
     expectedQuestion === undefined ? undefined : questionForPlanReaders(expectedQuestion),
+    options,
   );
 }
 
-function validateBoundedTurnPlan(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
+function validateBoundedTurnPlan(raw: unknown, expectedQuestion: string | undefined, options: { freshFromModel?: boolean }): TurnPlanValidationResult {
   const issues: TurnPlanValidationIssue[] = [];
   if (!isRecord(raw)) {
     return {
@@ -439,7 +451,14 @@ function validateBoundedTurnPlan(raw: unknown, expectedQuestion?: string): TurnP
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
       { bindingMeta: validationBindingMeta, declaredValue: value.value },
     );
-    if (evidence.invalid) {
+    const targetKeys = [value.id, value.symbol].filter((key): key is string => typeof key === "string");
+    const reading = options.freshFromModel ? evaluateExplicitArithmetic(
+      value.sourceText, value.unit, knownUnits, validationBindings, true, targetKeys,
+      { bindingMeta: validationBindingMeta, declaredValue: value.value },
+    ).value : null;
+    if (evidence.invalid || (reading !== null && disagreesInDoubt(
+      reading, value.value, value.sourceText, value.unit, targetKeys, validationBindings, validationBindingMeta,
+    ))) {
       issues.push({
         code: "source_text_arithmetic_invalid",
         path: `derived[${index}].sourceText`,
@@ -840,6 +859,125 @@ function readLiteralVoltOhmQuotient(
   // Only two measured operands qualify. Genuine products (12*V, k V),
   // prefixed inputs/results and all other unit/binding collisions stay unchanged.
   return `${volts.value}/(${ohms.value})`;
+}
+
+const STATEMENT_BOUNDARY =
+  /,\s*(?=\p{L})|\.\s+(?=\p{L})|\b(?:and|or|but|so|then|hence|thus|therefore|giving|gives|where|with|while|since|because|which)\b/giu;
+
+/** Where the next statement starts inside a member between two equals signs, or null if the member is one value. */
+function statementBoundary(member: string): { at: number; head: number } | null {
+  let found: { at: number; head: number } | null = null;
+  let depth = 0;
+  let scanned = 0;
+  for (const match of member.matchAll(STATEMENT_BOUNDARY)) {
+    const at = match.index ?? 0;
+    for (; scanned < at; scanned += 1) {
+      if ("([{".includes(member[scanned]!)) depth += 1;
+      else if (")]}".includes(member[scanned]!)) depth -= 1;
+    }
+    if (depth === 0 && /\p{L}/u.test(member.slice(at + match[0].length))) found = { at, head: at + match[0].length };
+  }
+  return found;
+}
+
+function computesInMember(member: string): boolean {
+  return explicitArithmeticOperation(member.replace(/[×·⋅÷]/g, "*").replace(/[−–]/g, "-"));
+}
+
+/** "x = 5, SP = 0.96 × 5 = 4.8": a later statement computes something that is not the target. */
+function readingFromAnotherStatement(sourceText: string, targetKeys: string[]): boolean {
+  return splitArithmeticClauses(sourceText).some((clause) => {
+    const members = splitEqualityParts(clause);
+    let head = members[0] ?? "";
+    let computes = false;
+    let split = false;
+    let stray = false;
+    members.slice(1).forEach((member, index) => {
+      const boundary = index < members.length - 2 ? statementBoundary(member) : null;
+      if (!boundary) {
+        computes ||= computesInMember(member);
+        return;
+      }
+      computes ||= computesInMember(member.slice(0, boundary.at));
+      stray ||= computes && !clauseMentionsTarget([head], targetKeys);
+      head = member.slice(boundary.head);
+      computes = false;
+      split = true;
+    });
+    return split && (stray || (computes && !clauseMentionsTarget([head], targetKeys)));
+  });
+}
+
+/** "2x + 3 = 11, so x = 4": read as one chain, the equation's left side is set equal to the answer. */
+function equationBeforeAnswer(members: string[], targetKeys: string[]): boolean {
+  const first = members[0] ?? "";
+  const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
+  if (members.length < 3 || targets.has(normalizeNumericBindingKey(first)) || !clauseMentionsTarget([first], targetKeys)) return false;
+  for (const member of members.slice(1, -1)) {
+    const boundary = statementBoundary(member);
+    if (boundary) return !computesInMember(member.slice(0, boundary.at));
+    if (computesInMember(member)) return false;
+  }
+  return false;
+}
+
+/** A mark for detection only. The reader itself is unchanged. */
+const DEGREE_MARK = /(?:\d|\.)\s*(?:(?:degrees?|deg)\b|°)/i;
+
+/** "C = 180° − 50°", "s = 6 m × 30°": this reader converts a mark outside a trig argument to radians. */
+function degreeMarkInArithmetic(members: string[]): boolean {
+  return members.some((member) => {
+    const clause = member.replace(/(\d)\s*(?=(?:sin|cos|tan)(?![A-Za-z0-9_]))/gi, "$1*");
+    const outsideTrig = mapTrigArguments(clause, () => " ")
+      .replace(/\b(?:sin|cos|tan)\s*(?:\d+(?:\.\d*)?|\.\d+)\s*(?:(?:degrees?|deg)\b|°)/gi, " ");
+    return DEGREE_MARK.test(outsideTrig) && /[+\-−–*/×·⋅÷^()]/.test(outsideTrig.trim().replace(/^[+\-−]/, ""));
+  });
+}
+
+/** "12 V" or "3 m/s" beside a quantity named V or m. "2 m g" and "0.5 m v^2" are plainly products. */
+const NUMBER_THEN_LABEL = new RegExp(
+  String.raw`(?<![\p{L}\p{N}_.])(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\s*([A-Za-zΩμµ][A-Za-z0-9]*(?:\^-?\d+|[²³])?(?:\s*\/\s*[A-Za-zΩμµ][A-Za-z0-9]*(?:\^-?\d+|[²³])?)*)(?![\p{L}\p{N}_(])(?!\s*[\p{L}(])`,
+  "gu",
+);
+
+function namesBindingAsUnit(member: string, numericBindings: Map<string, number>): boolean {
+  const isLabel = (label: string) => (unitScale(label)?.signature ?? "") !== "" &&
+    (label.match(/[A-Za-zΩμµ][A-Za-z0-9]*/g) ?? []).some((token) => substituteNumericBindings(token, numericBindings) !== token);
+  return [...member.matchAll(NUMBER_THEN_LABEL)].some((match) =>
+    isLabel(match[1]!) || isLabel(match[1]!.split("/", 1)[0]!.trim()));
+}
+
+/**
+ * A chain this reader is known to misread with no sign of it in the number it
+ * returns. Nothing here changes the reading. If this returns true the reading
+ * does not write the value, and validation refuses the plan whatever else the
+ * text holds, so the plan never holds a value this reader would not have held.
+ * A reading from another statement must match exactly, because however close it
+ * is it belongs to something else. The others may differ within the plan value's
+ * own precision, and then go on exactly as they did.
+ */
+function disagreesInDoubt(
+  reading: number,
+  planValue: number,
+  sourceText: string,
+  expectedUnit: unknown,
+  targetKeys: string[],
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): boolean {
+  if (approximatelyEqual(reading, planValue)) return false;
+  if (readingFromAnotherStatement(sourceText, targetKeys)) return true;
+  if (withinDisplayedPrecision(reading, { value: planValue, tolerance: displayedNumberTolerance(String(planValue)) })) return false;
+  const usesInverseTrig = (text: string) => /\b(?:asin|acos|atan|arcsin|arccos|arctan)\s*\(/i.test(normalizeInverseTrigNotation(text));
+  return splitArithmeticClauses(sourceText).some((clause) => {
+    const members = splitEqualityParts(clause);
+    return equationBeforeAnswer(members, targetKeys) ||
+      (!usesInverseTrig(clause) && degreeMarkInArithmetic(members)) ||
+      members.some((member) => namesBindingAsUnit(
+        readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta),
+        numericBindings,
+      ));
+  });
 }
 
 function evaluateExplicitArithmetic(
