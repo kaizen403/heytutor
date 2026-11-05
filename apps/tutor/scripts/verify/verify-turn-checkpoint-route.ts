@@ -214,7 +214,7 @@ const canonicalize = async (meta: Row, options?: Row) => {
     ? rows.map((s: Row) => drawing.isStoredCommandTrustedGeometry(s.command) ? { ...s, command: SERVER_INK } : s)
     : [rows[0], { orderIndex: 0, narration: "", spokenText: "", command: SERVER_INK, sourceOrderIndex: null }, ...rows.slice(1)];
   return { ok: true, value: { sceneDocument: { id: "doc" }, sceneEngineVersion: "test", validationReport: { valid: true },
-    visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3" },
+    visualStatus: "validated", sceneArtifacts: { schemaVersion: "scene-artifacts/v3", ...(meta.sceneArtifacts?.turnPlan ? { turnPlan: meta.sceneArtifacts.turnPlan } : {}) },
     segments: merged.map((s: Row, orderIndex: number) => ({ ...s, orderIndex })) } };
 };
 
@@ -365,21 +365,39 @@ const stored = (turnId: string) => turns.find((t) => t.id === turnId)!;
 const rowsOf = (turnId: string) => segments.filter((s) => s.turnId === turnId).sort((a, b) => a.orderIndex - b.orderIndex);
 const audioKeyOf = (url: string | null) => url ? decodeURIComponent(url.split("key=")[1] ?? "") : null;
 
-// A turn's question already saved is passed on, so a board saved with a long question keeps its figure when it saves again.
+// A turn's question already saved with a figure and its plan is passed on, so a board saved with a long question keeps its figure when it saves again.
 async function resumeSavePassesTheStoredQuestion() {
-  const turn = crypto.randomUUID();
   const asked = "Find the slope of the line through the two points shown.";
-  assert.equal((await put(turn, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")] })).status, 200);
+  const planned = { schemaVersion: "scene-artifacts/v3", turnPlan: { schemaVersion: "turn-plan/v3", question: asked } };
+  const figure = { visualStatus: "validated", sceneDocument: { id: "figure" }, sceneArtifacts: planned };
+  // Rows first, then the figure: the row holds no figure yet, so its question is not passed on.
+  const twoCall = crypto.randomUUID();
+  assert.equal((await put(twoCall, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")] })).status, 200);
   assert.equal(lastCanonicalizeOptions?.storedQuestion, undefined, "a first save has no stored question");
-  assert.equal((await put(turn, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [row(1, "second")] })).status, 200);
-  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "a later save passes the question already saved");
+  assert.equal((await put(twoCall, { seq: 2, baseCount: 1, status: "live", question: asked, appendSegments: [row(1, "second")], ...figure })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, undefined, "a row saved without a figure passes no stored question");
+  // A row saved with a figure and its plan passes its question on.
+  const figured = crypto.randomUUID();
+  assert.equal((await put(figured, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")], ...figure })).status, 200);
+  assert.equal(stored(figured).visualStatus, "validated");
+  assert.equal((await put(figured, { seq: 2, baseCount: 1, status: "live", question: asked, appendSegments: [row(1, "second")], ...figure })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "a later save passes the question already saved with a figure and its plan");
+  assert.equal(typeof lastCanonicalizeOptions?.loadPageLessonFigureQuestion, "function", "the checkpoint binds the page lesson question");
+  // The keepalive close of that row passes it on too.
+  assert.equal((await close(figured, { seq: 3, status: "stopped", rawResponse: "Closed." })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "the close passes the question already saved with a figure and its plan");
+  // A figure saved without a plan passes nothing.
+  const unplanned = crypto.randomUUID();
+  assert.equal((await put(unplanned, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")], visualStatus: "validated", sceneDocument: { id: "figure" }, sceneArtifacts: { schemaVersion: "scene-artifacts/v3" } })).status, 200);
+  assert.equal((await put(unplanned, { seq: 2, baseCount: 1, status: "live", question: asked, appendSegments: [row(1, "second")], ...figure })).status, 200);
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, undefined, "a figure saved without a plan passes no stored question");
   // A late scene that disagrees with the newer resume authority is replaced by the held scene, saved with the same stored question.
   const held = crypto.randomUUID();
-  assert.equal((await put(held, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")] })).status, 200);
+  assert.equal((await put(held, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")], ...figure })).status, 200);
   const closed = await close(held, { seq: 3, status: "stopped", rawResponse: "Current narration.", resumeState: { v: 1, solverProjection: { value: 1 } } });
   assert.equal(closed.status, 200, `the close saves: ${JSON.stringify(closed.body)}`);
   const callsBefore = canonicalizeCalls;
-  const late = await put(held, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [], visualStatus: "validated", sceneDocument: { id: "late" }, sceneArtifacts: { schemaVersion: "scene-artifacts/v3" } });
+  const late = await put(held, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [], ...figure, sceneDocument: { id: "late" } });
   assert.equal(late.status, 200, `a late scene saves its rows: ${JSON.stringify(late.body)}`);
   assert.equal(canonicalizeCalls - callsBefore, 2, "the held scene is saved again");
   assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "the held scene's save passes the question already saved");

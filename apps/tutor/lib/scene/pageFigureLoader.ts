@@ -25,6 +25,7 @@
  * replaced is a figure on that page.
  */
 import {
+  isStoredCommandTrustedGeometry,
   type ReferencePictureRecord,
   type VerifiedDiagram,
 } from "@heytutor/drawing";
@@ -523,6 +524,52 @@ export function lessonFigureStartFor(
   db: Parameters<typeof prismaPageFigureStore>[0],
 ): LessonFigureStartLoader {
   return bindLessonFigureStart(context, { store: prismaPageFigureStore(db) });
+}
+
+/**
+ * The question of the lesson that opened this page, read from the server's own
+ * rows, when that lesson was saved with figure ink and a plan; otherwise null.
+ * A resume of that lesson asks the same question on a new turn.
+ */
+export type PageLessonFigureQuestionLoader = () => Promise<string | null>;
+
+export function bindPageLessonFigureQuestion(
+  context: PageFigureContext,
+  deps: { store: PageFigureStore },
+): PageLessonFigureQuestionLoader {
+  return async () => {
+    try {
+      const self = context.turnId ? await deps.store.findTurn(context.turnId) : null;
+      if (self && (self.boardId !== context.boardId || self.userId !== context.userId)) return null;
+      const earlier = await deps.store.turnsBefore(context.boardId, self?.orderIndex ?? null);
+      let between = 0;
+      for (const turn of earlier) {
+        if (turn.id === context.turnId) continue;
+        if (storedTurnContinuesBoard(asContinuationTurn(turn))) {
+          between += 1;
+          if (between > PAGE_FIGURE_MAX_TURNS_BETWEEN) return null;
+          continue;
+        }
+        if (turn.boardId !== context.boardId || turn.userId !== context.userId) return null;
+        const plan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
+          ? (turn.sceneArtifacts as Record<string, unknown>).turnPlan
+          : undefined;
+        if (plan == null || !turn.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) return null;
+        return turn.question;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** The production page lesson question for one save. */
+export function pageLessonFigureQuestionFor(
+  context: PageFigureContext,
+  db: Parameters<typeof prismaPageFigureStore>[0],
+): PageLessonFigureQuestionLoader {
+  return bindPageLessonFigureQuestion(context, { store: prismaPageFigureStore(db) });
 }
 
 /** The production doubt figure page check for one save. */

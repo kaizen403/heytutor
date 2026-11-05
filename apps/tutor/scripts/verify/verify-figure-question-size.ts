@@ -12,7 +12,9 @@ import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
-import { doubtPageCheck, LESSON_TURN_ID, sceneMetadataOn, stored } from "./fixtures/doubtFigureScene";
+import { doubtPageCheck, focus, LESSON_TURN_ID, pageRowsOf, sceneMetadataOn, stored } from "./fixtures/doubtFigureScene";
+import { bindPageLessonFigureQuestion, memoryPageFigureStore } from "../../lib/scene/pageFigureLoader";
+import { parseStoredSegmentCommands, serializeSegmentCommands } from "@heytutor/drawing";
 
 const fail = (name: string, detail: unknown): never => {
   console.error(`FAIL ${name}: ${JSON.stringify(detail).slice(0, 200)}`);
@@ -72,6 +74,34 @@ const main = async () => {
   const reopened = sourceCheckedStoredTurn({ question: longest, rawResponse: "x", visualStatus: "validated", sceneDocument: figure(longest), sceneArtifacts: metadata(longest).sceneArtifacts, segments: [] } as never);
   if (reopened.visualStatus !== "validated") fail("a board saved with the longest question reopens with its figure", reopened.visualStatus);
   if (await statusOf(metadata(longest), { storedQuestion: longest }) !== "validated") fail("a board saved with the longest question saves again", null);
+
+  // A resume is a new turn on the page. It keeps its figure and its pointing when the page's own lesson was saved with a figure and its plan.
+  const savedLong = await canonicalizeTurnSceneMetadata(metadata(pastSize), { storedQuestion: pastSize });
+  if (!savedLong.ok || savedLong.value.visualStatus !== "validated") { fail("a board saved with a long question", savedLong.ok ? savedLong.value.visualStatus : savedLong.code); return; }
+  const longLesson = stored(LESSON_TURN_ID, 0, pastSize, savedLong.value, { opensOnClear: true, kind: "lesson" });
+  if (!longLesson.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) fail("the saved lesson holds its figure ink", null);
+  const RESUME_TURN_ID = "44444444-4444-4444-8444-444444444444";
+  const pageLesson = (turns: Parameters<typeof pageRowsOf>[0], owner = "u1") => bindPageLessonFigureQuestion({ boardId: "b1", userId: "u1", turnId: RESUME_TURN_ID }, { store: memoryPageFigureStore(pageRowsOf(turns, owner)) });
+  const pointing = [{ orderIndex: 0, narration: "Look at this side.", spokenText: "Look at this side.", command: serializeSegmentCommands([focus("s")]) }];
+  const resumeOf = (question: string) => ({
+    ...metadata(question),
+    sceneArtifacts: { ...(metadata(question).sceneArtifacts as Record<string, unknown>), ...boardContinuationArtifacts(question) },
+    segments: pointing,
+  } as unknown as SubmittedTurnSceneMetadata);
+  const resumed = await canonicalizeTurnSceneMetadata(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([longLesson]) });
+  if (!resumed.ok || resumed.value.visualStatus !== "validated") fail("a resume of a saved long lesson keeps its figure", resumed.ok ? resumed.value.visualStatus : resumed.code);
+  else {
+    if (!resumed.value.segments.some((segment) => parseStoredSegmentCommands(segment.command).some((command) => command.type === "FOCUS" && command.text === "s"))) fail("a resume of a saved long lesson keeps its pointing", resumed.value.segments);
+    const resumeTurn = stored(RESUME_TURN_ID, 1, pastSize, resumed.value, { opensOnClear: false, kind: "resume" });
+    if (sourceCheckedStoredTurn(resumeTurn).visualStatus !== "validated" || sourceCheckedStoredTurn(longLesson).visualStatus !== "validated") fail("replay and reopen keep both figures", null);
+    if (!sourceCheckedStoredTurn(resumeTurn).segments.some((segment) => parseStoredSegmentCommands(segment.command).some((command) => command.type === "FOCUS"))) fail("replay keeps the resume's pointing", null);
+  }
+  if (await statusOf(resumeOf(words(FIGURE_QUESTION_CHARS + 2)), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([longLesson]) }) !== "text_only") fail("a resume with another question is not exempt", null);
+  if (await statusOf(resumeOf(pastSize), { kind: "resume" }) !== "text_only") fail("a resume with no page lesson is not exempt", null);
+  if (await statusOf(resumeOf(pastSize), { kind: "lesson", loadPageLessonFigureQuestion: pageLesson([longLesson]) }) !== "text_only") fail("only a resume reads its page lesson", null);
+  const textLesson = stored(LESSON_TURN_ID, 0, pastSize, (await canonicalizeTurnSceneMetadata(metadata(pastSize)) as { value: Parameters<typeof stored>[3] }).value, { opensOnClear: true, kind: "lesson" });
+  if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([textLesson]) }) !== "text_only") fail("a lesson saved as text lends no exemption", null);
+  if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([longLesson], "someone else") }) !== "text_only") fail("another owner's lesson lends no exemption", null);
 
   // The browser drops the figure before it is drawn, with the same size.
   const live = (question: string) => liveSceneSaveFailure({ document: figure(question) as never, question, turnPlan: plan(question) as never, tier: "qualitative_verified" as never });
