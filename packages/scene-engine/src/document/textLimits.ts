@@ -76,6 +76,10 @@ export const SCENE_COUNT_LIMITS = Object.freeze({
     harmonic_wave: 8,
     wave_superposition: 4,
     function_region: 8,
+    linear_half_plane: 8,
+    linear_system: 8,
+    number_line_set: 8,
+    wave_sample: 8,
   }),
 });
 

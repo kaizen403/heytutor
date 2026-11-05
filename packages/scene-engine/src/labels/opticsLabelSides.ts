@@ -27,6 +27,7 @@
  * the one nearest its anchor; never in all of them, which no box can satisfy.
  */
 
+import { chargeLayoutSteps } from "../compile/figureWork";
 import { parseSidePlacementIntent } from "../document/placementIntent";
 import type { RenderPoint, SceneAnnotation, SceneDocument } from "../types";
 import type { LabelEngineResult, LabelOwner, LabelSideRegion } from "./labelEngine";
@@ -81,6 +82,7 @@ export function bindOpticsLabelSides(
     }
     const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
     const boundMedia: ClosedMedium[] = [];
+    chargeLayoutSteps(media.reduce((steps, medium) => steps + medium.indexInputs.length, 0) * 16);
     for (const medium of owner.labelId && summaryLabelIds.has(owner.labelId) ? [] : media) {
       const bound = Boolean(annotation) && medium.indexInputs.some((input) => boundToIndex(annotation!, input, document));
       // On the region itself, an unbound label names the medium only when it

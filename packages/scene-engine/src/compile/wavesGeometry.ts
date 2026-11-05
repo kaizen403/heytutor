@@ -384,6 +384,8 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   return invalid("quantity", "wave values must resolve to finite scalar numbers");
 }
 class DeferredWaveOrigin extends WavesInputError { constructor() { super("origin", "derived 2D origins will be checked against compiled geometry"); } }
+const replayCaches = new WeakMap<SceneDocument, Map<string, WavesGeometry>>();
+
 export function validateWavesConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
   const add = (key: string, message: string): void => { issues.push({ code: `invalid_${construction.operator}_${key}`, severity: "fatal", message, path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}` }); };
   const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
@@ -409,7 +411,10 @@ export function validateWavesConstruction(construction: SceneConstruction, index
     if (children.some((child) => child.sourceUnits.position !== sourceUnits.position || child.sourceUnits.time !== sourceUnits.time || child.sourceUnits.amplitude !== sourceUnits.amplitude)) invalid("units", "superposition source units must agree before evaluating their display origins");
     return { sourceUnits, count, depth };
   };
-  const cache = new Map<string, WavesGeometry>(); const visiting = new Set<string>();
+  // One validation pass replays each wave once, however many constructions read it.
+  let cache = replayCaches.get(document);
+  if (!cache) { cache = new Map(); replayCaches.set(document, cache); }
+  const visiting = new Set<string>();
   const context: WavesEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) {

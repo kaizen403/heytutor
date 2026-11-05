@@ -1,4 +1,5 @@
 /** Object/image claims must describe the same optical construction as its rays. */
+import { chargeLayoutSteps } from "./figureWork";
 import type { SceneDocument, SceneEntity, SceneIssue } from "../types";
 interface Point {
     x: number;
@@ -250,6 +251,8 @@ function validateRefractingAngleBindings(document: SceneDocument, geometry: Read
     const bodies = document.entities.filter(e => drawn.has(e.id)).flatMap(e => { const g = path(geometry.get(e.id)); return g?.closed && g.points.length >= 3 ? [{ id: e.id, g }] : []; });
     const edges = (body: typeof bodies[number]) => body.g.points.map((p, i) => [p, body.g.points[(i + 1) % body.g.points.length]!] as const);
     const tolerance = (body: typeof bodies[number]) => 1e-7 * Math.max(1, ...body.g.points.map(p => distance(p, vertex)));
+    const bodySteps = bodies.reduce((steps, body) => steps + body.g.points.length * body.g.points.length, 0);
+    chargeLayoutSteps(bodySteps);
     const owners = bodies.filter(body => {
         const epsilon = tolerance(body), incident = edges(body).filter(([p, q]) => distance(vertex, p) <= epsilon || distance(vertex, q) <= epsilon);
         return incident.some(([p, q]) => nearSegment(a, p, q, epsilon)) && incident.some(([p, q]) => nearSegment(b, p, q, epsilon));
@@ -261,6 +264,7 @@ function validateRefractingAngleBindings(document: SceneDocument, geometry: Read
         const g = path(geometry.get(face.id));
         if (!g || g.points.length !== 2)
             continue;
+        chargeLayoutSteps(bodySteps);
         const faceOwners = bodies.filter(body => edges(body).some(([p, q]) => g.points.every(v => nearSegment(v, p, q, tolerance(body)))));
         if (faceOwners.length !== 1 || faceOwners[0]!.id !== owner.id)
             continue;

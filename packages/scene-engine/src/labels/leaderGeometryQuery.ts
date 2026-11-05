@@ -1,5 +1,6 @@
 import type { RenderPoint } from "../types";
 import type { LabelObstacle } from "./labelEngine";
+import { chargeLayoutSteps } from "../compile/figureWork";
 
 /** Prepare immutable stroke terms once for all leader candidates in a placement.
  * Every intersection still uses the original predicate, tolerance, operation
@@ -11,6 +12,7 @@ export function createLeaderGeometryQuery(obstacles: LabelObstacle[]): (path: Re
       left: Math.min(a.x, b.x), right: Math.max(a.x, b.x), top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y) };
   }));
   return path => {
+    chargeLayoutSteps(strokes.length * Math.max(0, path.length - 1) / 8);
     const anchor = path[0]!;
     for (let index = 1; index < path.length; index++) {
       const start = path[index - 1]!, end = path[index]!;

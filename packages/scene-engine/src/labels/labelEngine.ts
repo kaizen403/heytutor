@@ -10,6 +10,7 @@ import { SCENE_TEXT_LIMITS } from "../document/textLimits";
 import {
   LABEL_MEASURE_CHAR_BUDGET,
   chargeLabelOverlaps,
+  chargeLayoutSteps,
   chargeMeasuredChars,
   isLabelWorkSpent,
   spentLabelWorkCode,
@@ -632,7 +633,7 @@ interface LabelReading {
  * point from the across a rival line test. Null when two placements share a
  * key, so the layouts cannot be compared label by label.
  */
-function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
+export function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacles: LabelObstacle[]): Map<string, LabelReading> | null {
   const checks = POINT_RIVAL_GUARD_CHECKS;
   const key = (labelId: string, text: string) => `${labelId}\u0000${text}`;
   const ownerByKey = new Map(owners.map((owner) => [key(owner.labelId ?? `label:${owner.entityId}`, owner.text), owner]));
@@ -649,6 +650,7 @@ function labelReadings(result: LabelEngineResult, owners: LabelOwner[], obstacle
       readings.set(placementKey, { point: false, misread: true, boxes: [], bounds: placement.bounds, leader, straightOwnLeader: false });
       continue;
     }
+    chargeLayoutSteps(geometry.reduce((steps, obstacle) => steps + (obstacle.segments?.length ?? 1), 0) * 4);
     const own = geometry.filter((obstacle) => obstacle.entityId === owner.entityId);
     const point = own.length > 0 && own.every((obstacle) => obstacle.primitiveKind === "point");
     const ownDots = own.filter((obstacle) => !obstacle.segments?.length).map((obstacle) => centre(obstacle.bounds));
@@ -1391,7 +1393,7 @@ function boxClearanceDirections(text: string, distance: number, options: LabelEn
   return directions;
 }
 
-function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions, gap: number): RenderPoint[] {
+export function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions, gap: number): RenderPoint[] {
   const size = centeredTextBounds(owner.text, owner.anchor, options);
   const dx = size.width / 2 + gap + 1;
   const dy = size.height / 2 + gap + 1;
@@ -1405,6 +1407,7 @@ function nearbyTetheredCenters(owner: LabelOwner, obstacles: LabelObstacle[], op
       if (Math.abs(y - owner.anchor.y) <= owner.tetherPx!) ys.add(y);
     }
   }
+  chargeLayoutSteps(obstacles.length * 4 + xs.size * ys.size);
   return [...xs].flatMap((x) => [...ys].map((y) => ({ x, y })))
     .filter((center) => Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y) <= owner.tetherPx! + 1e-6);
 }
@@ -1454,6 +1457,7 @@ function solveLabelPlacements(
       const owner = byIndex.get(index)?.owner;
       const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
       const otherLeaders = [...routed.values()].flatMap(leaderPoints);
+      chargeLayoutSteps(boxes.length * 2 + geometry.length * 2);
       spendSearchWork(work, routeLeaderWork(candidate, boxes, geometry, otherLeaders));
       const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders, owner?.leaderGeometrySafe ? geometryQuery : undefined);
       if (!route) return null;
@@ -1679,7 +1683,7 @@ function routeLeaderWork(
 }
 
 /** A small deterministic set of elbows around reserved text; no arbitrary pixels. */
-function routeLeader(
+export function routeLeader(
   candidate: LabelPlacementCandidate,
   obstacles: LabelBounds[],
   viewBounds: LabelBounds | undefined,
@@ -1702,6 +1706,7 @@ function routeLeader(
       obstacles.every(box => !leaderCrosses(straight, box, gap)) &&
       !(geometryQuery ? geometryQuery(directPath) : leaderCrossesGeometry(directPath, geometry)) &&
       otherLeaders.every(other => !leaderPathsConflict(directPath, other))) return straight;
+  chargeLayoutSteps(obstacles.length);
   const routes: RenderPoint[][] = [
     [from, to],
     [from, { x: from.x, y: to.y }, to],
@@ -1722,6 +1727,7 @@ function routeLeader(
   }
   const routeLength = (path: RenderPoint[]) => path.slice(1).reduce((total, point, index) =>
     total + Math.hypot(point.x - path[index]!.x, point.y - path[index]!.y), 0);
+  chargeLayoutSteps(routes.length * (obstacles.length + otherLeaders.length + 2) * 3);
   const legal = routes
     .map((path) => path.filter((point, index) => index === 0 || Math.hypot(point.x - path[index - 1]!.x, point.y - path[index - 1]!.y) > 1e-6))
     .filter((path) => !viewBounds || path.every((point) =>
@@ -1813,6 +1819,7 @@ export function boundsInSideRegion(bounds: LabelBounds, region: LabelSideRegion)
     const nearestY = Math.max(bounds.y, Math.min(region.center.y, bounds.y + bounds.height));
     return Math.hypot(nearestX - region.center.x, nearestY - region.center.y) >= region.radius;
   }
+  chargeLayoutSteps(region.points.length * 5);
   const crossesEdge = pathSegments(region.points, true).some(([start, end]) => segmentIntersectsBounds(start, end, bounds));
   if (crossesEdge) return false;
   const cornersInside = corners.map((corner) => pointInPolygon(corner, region.points));
@@ -2085,7 +2092,7 @@ const OWNERSHIP_TOLERANCE_PX = 1;
 /** A box anchor further than this from the owner's ink sits in empty air. */
 const SLOT_ANCHOR_DRIFT_PX = 8;
 
-interface StrokeOwnership {
+export interface StrokeOwnership {
   ink: Array<[RenderPoint, RenderPoint]>;
   /** The owner's longest single stroke, where its stroke slots are taken. */
   stroke: Array<[RenderPoint, RenderPoint]>;
@@ -2151,7 +2158,7 @@ const POINT_ESCAPE_SCORE = 300;
 const POINT_RIVAL_SCORE = 1000;
 const POINT_RIVAL_SPOTS = 40;
 
-interface PointRivalMarks {
+export interface PointRivalMarks {
   /** Straight strokes that do not pass through the point. */
   strokes: Array<Array<[RenderPoint, RenderPoint]>>;
   /** Centres of other entities' point dots. */
@@ -2197,7 +2204,8 @@ function pointRivalMarks(owner: LabelOwner, obstacles: LabelObstacle[]): PointRi
   return foreign.length || dots.length ? { strokes: foreign, dots } : null;
 }
 
-function pointLabelNearerForeign(box: LabelBounds, anchor: RenderPoint, rivals: PointRivalMarks): boolean {
+export function pointLabelNearerForeign(box: LabelBounds, anchor: RenderPoint, rivals: PointRivalMarks): boolean {
+  chargeLayoutSteps(rivals.dots.length + rivals.strokes.reduce((steps, segments) => steps + segments.length, 0));
   return pointLabelNearerRivalDot(box, anchor, rivals) || pointLabelAcrossRivalLine(box, anchor, rivals);
 }
 
@@ -2233,7 +2241,8 @@ const OWNERSHIP_CLEAR_MARGIN_PX = 8;
 const AMBIGUOUS_OWNER_PENALTY = 12;
 
 /** Nearest foreign stroke distance minus nearest owner stroke distance. */
-function ownershipMargin(box: LabelBounds, ownership: StrokeOwnership): number {
+export function ownershipMargin(box: LabelBounds, ownership: StrokeOwnership): number {
+  chargeLayoutSteps(ownership.ink.length + ownership.foreign.reduce((steps, segments) => steps + segments.length, 0));
   const own = segmentsToBoundsDistance(ownership.ink, box);
   let foreign = Infinity;
   for (const segments of ownership.foreign) {
@@ -2292,7 +2301,7 @@ const STROKE_SLOT_MAX_SLIDE_PX = 96;
  * same margin a box anchor gives an axis-aligned stroke. A slot that runs
  * along the stroke and never clears it is dropped.
  */
-function strokeSlotPlacements(
+export function strokeSlotPlacements(
   owner: LabelOwner,
   ownership: StrokeOwnership,
   slot: { slot: Exclude<LabelSlot, "leader">; dx: number; dy: number },
@@ -2307,6 +2316,7 @@ function strokeSlotPlacements(
   ].filter((point, index, all) => all.findIndex((other) => Math.hypot(other.x - point.x, other.y - point.y) < 4) === index);
   return stations.flatMap((anchor) => {
     for (let slide = 0; slide <= STROKE_SLOT_MAX_SLIDE_PX; slide += 2) {
+      chargeLayoutSteps(ownership.ink.length);
       const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, slide);
       if (segmentsToBoundsDistance(ownership.ink, bounds) >= clearance) return [{ anchor, bounds }];
     }

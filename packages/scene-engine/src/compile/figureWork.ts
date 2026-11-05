@@ -5,12 +5,12 @@
 
 /** Characters one compile may pass to the ink measure. */
 export const LABEL_MEASURE_CHAR_BUDGET = 200_000;
-/** Overlap tests one compile may run, across every layout and lane check. */
+/** Overlap tests one compile may run, across every layout and lane check. Other layout steps count too. */
 export const LABEL_OVERLAP_WORK_BUDGET = 48_000_000;
-/** Points one compile may hold, across every construction and primitive. */
+/** Points one compile may hold, across construction outputs and annotation marks. */
 export const FIGURE_POINT_BUDGET = 16_384;
 /** Steps one compile may spend evaluating expressions. */
-export const EXPRESSION_STEP_BUDGET = 16_000_000;
+export const EXPRESSION_STEP_BUDGET = 64_000_000;
 
 export interface LabelWork {
   measuredChars: number;
@@ -34,6 +34,11 @@ export function chargeLabelOverlaps(count: number): void {
   if (!work) return;
   work.overlaps += count;
   if (work.overlaps > LABEL_OVERLAP_WORK_BUDGET) stop(work, "label_overlap_budget");
+}
+
+/** Layout steps that are not overlap tests, in the same count. */
+export function chargeLayoutSteps(steps: number): void {
+  if (activeLabelWork && steps > 0) chargeLabelOverlaps(Math.ceil(steps));
 }
 
 export function chargeMeasuredChars(count: number, budget: number): void {

@@ -29,6 +29,11 @@ import { findSpokenToken } from "../../../../packages/tutor-core/src/sync/cueWin
 import { inferSceneCapabilities } from "../../../../packages/tutor-core/src/planners/sceneCapabilities";
 import { cpuMs } from "../../../../packages/scene-engine/scripts/verify/cpuTime";
 import { parseMathExpression } from "../../../../packages/scene-engine/src/math/expression";
+import { createLeaderGeometryQuery } from "../../../../packages/scene-engine/src/labels/leaderGeometryQuery";
+import { insideNamedGap, namedGaps, ownerNamedGaps, type NamedGap } from "../../../../packages/scene-engine/src/labels/levelGap";
+import { boundsInSideRegion, labelReadings, nearbyTetheredCenters, ownershipMargin, pointLabelNearerForeign, routeLeader, strokeSlotPlacements } from "../../../../packages/scene-engine/src/labels/labelEngine";
+import { crossings } from "../../../../packages/scene-engine/src/compile/lightPathElements";
+import { validateRegionLabelPlacement } from "../../../../packages/scene-engine/src/compile/figureConsistency";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
 const LIMIT_MS = 2_000;
@@ -50,10 +55,10 @@ if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", 
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
 if (LABEL_OVERLAP_WORK_BUDGET !== 48_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
 if (FIGURE_POINT_BUDGET !== 16_384) fail("the point budget moved", FIGURE_POINT_BUDGET);
-if (EXPRESSION_STEP_BUDGET !== 16_000_000) fail("the expression budget moved", EXPRESSION_STEP_BUDGET);
+if (EXPRESSION_STEP_BUDGET !== 64_000_000) fail("the expression budget moved", EXPRESSION_STEP_BUDGET);
 const PINNED_COUNTS = {
   entities: 768, constructions: 768, annotations: 64, revealGroups: 32, assertions: 256, quantities: 128, relations: 32, teachingTimeline: 128, perKind: 32,
-  kinds: { point: 768, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16, field_lines: 4, implicit_curve: 8, constraint_region: 4, centre_of_mass: 4, simple_body_inertia: 4, linear_feasible_region: 3, harmonic_wave: 8, wave_superposition: 4, function_region: 8 },
+  kinds: { point: 768, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16, field_lines: 4, implicit_curve: 8, constraint_region: 4, centre_of_mass: 4, simple_body_inertia: 4, linear_feasible_region: 3, harmonic_wave: 8, wave_superposition: 4, function_region: 8, linear_half_plane: 8, linear_system: 8, number_line_set: 8, wave_sample: 8 },
 };
 if (JSON.stringify(N) !== JSON.stringify(PINNED_COUNTS)) fail("the scene counts moved", N);
 if (JSON.stringify(I) !== JSON.stringify({ fieldLineSteps: 1_600, waveHarmonicSamples: 16_384 })) fail("the input sizes moved", I);
@@ -377,18 +382,36 @@ const fieldLines = (d: ReturnType<typeof plain>, index: number, starts: number, 
   put(d, `q${index}`, "point", "point", { x: 3 * index, y: 0, coordinateSpace: "layout" });
   put(d, `k${index}`, "field_lines", "polyline", { charges: [{ id: `c${index}`, position: `q${index}`, charge: 1 }], starts: ring(starts, 1.1, 3 * index), stepLength: 0.25, stepCount, k: 1, exclusionRadius: 1 });
 };
-const largest: Array<[string, (d: ReturnType<typeof plain>) => void]> = [
-  ["field lines at their count and size", (d) => { for (let index = 0; index < N.kinds.field_lines; index += 1) fieldLines(d, index, 16, I.fieldLineSteps / 16); }],
-  ["implicit curves at their count, long expressions", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: longY(`(x-${index * 5})^2+y^2-1`), xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
-  ["implicit curves at their count, many loops", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(15*(x-${index * 5}))*sin(15*y)-0.3`, xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
-  ["regions at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.constraint_region; index += 1) put(d, `k${index}`, "constraint_region", "polygon", { constraints: [...many(5, (part) => ({ expression: longY(`sin(7*y)+${index + part + 2}`), relation: "ge" })), { expression: "y-0.4", relation: "ge" }], xMin: index * 3 - 1, xMax: index * 3 + 1, yMin: 0, yMax: 6.28, samples: 161 }); }],
-  ["bodies at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.centre_of_mass; index += 1) putBody(d, `k${index}`, { parts: many(16, (part) => ({ kind: "solid_sphere", mass: 1, radius: 1, center: { x: part * 3, y: index } })), axis: { origin: { x: 0, y: 0 } }, displayLength: 1, lengthUnit: "m" }); }],
-  ["linear regions at their count, largest inputs", (d) => { for (let index = 0; index < N.kinds.linear_feasible_region; index += 1) put(d, `k${index}`, "linear_feasible_region", "linear_region", { variables: ["x", "y"], constraints: many(16, (part) => `${part + 1}*x + ${16 - part}*y = ${17 * (index + 1)}`) }); }],
-  ["waves at their count and size", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); for (let index = 0; index < N.kinds.wave_superposition; index += 1) put(d, `k${index}`, "wave_superposition", "polyline", { waves: ids, samples: 2047 }); }],
-  ["curve anchors at their count, on the largest wave", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); put(d, "sum", "wave_superposition", "polyline", { waves: ids, samples: 2047 }); for (let index = 0; index < N.kinds.curve_anchor; index += 1) put(d, `a${index}`, "curve_anchor", "point", { curve: "sum", at: 1 + index * 0.01 }); }],
-  ["dimensions over the most points", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(78.54*(x-${(4 + index * 0.25).toFixed(2)}))`, xMin: 4, xMax: 6, yMin: 4, yMax: 6, xSamples: 161, ySamples: 161 }); for (let index = 0; index < N.kinds.dimension; index += 1) { put(d, `s${index}`, "point", "point", { x: -3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `t${index}`, "point", "point", { x: 3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `b${index}`, "dimension", "dimension", { start: `s${index}`, end: `t${index}` }); } }],
+type Reach = { least: Partial<Record<"overlaps" | "points" | "expressionSteps" | "measuredChars", number>>; codes: string[] };
+const plainCurve = (d: ReturnType<typeof plain>, id: string, at: number) => put(d, id, "implicit_curve", "polyline", { expression: `(x-${at})^2/4+(y-${at})^2/9-1`, xMin: at - 4, xMax: at + 4, yMin: at - 4, yMax: at + 4, xSamples: 161, ySamples: 161 });
+const denseCurve = (d: ReturnType<typeof plain>, id: string, at: number) => put(d, id, "implicit_curve", "polyline", { expression: `sin(78.54*(x-${at.toFixed(2)}))`, xMin: 4, xMax: 6, yMin: 4, yMax: 6, xSamples: 161, ySamples: 161 });
+const functionCurve = (d: ReturnType<typeof plain>, id: string, index: number) => put(d, id, "function_curve", "polyline", { expression: `${(index % 8) + 1}+sin(${(index % 5) + 1}*x+${index})`, xMin: 0, xMax: 6, samples: 161 });
+const sumOfWaves = (d: ReturnType<typeof plain>, samples: number, sums: number) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples })); for (let index = 0; index < sums; index += 1) put(d, `sum${index}`, "wave_superposition", "polyline", { waves: ids.slice(0, ids.length - index), samples }); };
+const allFieldLines = (d: ReturnType<typeof plain>) => { for (let index = 0; index < N.kinds.field_lines; index += 1) fieldLines(d, index, 16, I.fieldLineSteps / 16); };
+const body = (index: number) => ({ parts: many(16, (part) => ({ kind: "solid_sphere", mass: 1 + part, radius: 1, center: { x: part * 3, y: index } })), axis: { origin: { x: 0, y: 0 } }, displayLength: 1, lengthUnit: "m" });
+const equalities = (index: number) => ({ variables: ["x", "y"], constraints: many(16, (part) => `${part + 1}*x + ${16 - part}*y = ${17 * (index + 1)}`) });
+const largest: Array<[string, (d: ReturnType<typeof plain>) => void, Reach]> = [
+  ["field lines at their count and size", allFieldLines, { least: { overlaps: 1_000_000, points: 6_000 }, codes: [] }],
+  ["implicit curves at their count, the largest grid", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) plainCurve(d, `k${index}`, index); }, { least: { expressionSteps: 40_000_000, points: 3_000 }, codes: [] }],
+  ["implicit curves at their count, long expressions", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: longY(`(x-${index * 5})^2+y^2-1`), xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }, { least: { expressionSteps: EXPRESSION_STEP_BUDGET }, codes: ["expression_step_budget"] }],
+  ["implicit curves at the point budget", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(15*(x-${index * 5}))*sin(15*y)-0.3`, xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }, { least: { points: FIGURE_POINT_BUDGET }, codes: ["figure_point_budget"] }],
+  ["regions at their count, plain boundaries", (d) => { for (let index = 0; index < N.kinds.constraint_region; index += 1) put(d, `k${index}`, "constraint_region", "polygon", { constraints: [{ expression: `(x-${index * 8})^2+y^2-4`, relation: "le" }, { expression: `y-(x-${index * 8})^2/2+1`, relation: "le" }, { expression: `x-${index * 8}+y`, relation: "ge" }], xMin: index * 8 - 3, xMax: index * 8 + 3, yMin: -3, yMax: 3, samples: 161 }); }, { least: { expressionSteps: 1_000_000, points: 100 }, codes: [] }],
+  ["regions at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.constraint_region; index += 1) put(d, `k${index}`, "constraint_region", "polygon", { constraints: [...many(5, (part) => ({ expression: longY(`sin(7*y)+${index + part + 2}`), relation: "ge" })), { expression: "y-0.4", relation: "ge" }], xMin: index * 3 - 1, xMax: index * 3 + 1, yMin: 0, yMax: 6.28, samples: 161 }); }, { least: { expressionSteps: EXPRESSION_STEP_BUDGET }, codes: ["expression_step_budget"] }],
+  ["bodies at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.centre_of_mass; index += 1) putBody(d, `k${index}`, body(index)); }, { least: { overlaps: LABEL_OVERLAP_WORK_BUDGET }, codes: ["label_overlap_budget"] }],
+  ["linear regions at their count, largest inputs", (d) => { for (let index = 0; index < N.kinds.linear_feasible_region; index += 1) put(d, `k${index}`, "linear_feasible_region", "linear_region", equalities(index)); }, { least: { overlaps: LABEL_OVERLAP_WORK_BUDGET }, codes: ["label_overlap_budget"] }],
+  ["half planes at their count", (d) => { for (let index = 0; index < N.kinds.linear_half_plane; index += 1) put(d, `k${index}`, "linear_half_plane", "linear_region", { variables: ["x", "y"], inequality: `${index + 1}x+${index + 2}y<=${12 + index}` }); }, { least: { overlaps: 1_000_000 }, codes: ["label_overlap_budget", "label_overlap_unresolved"] }],
+  ["linear systems at their count", (d) => { for (let index = 0; index < N.kinds.linear_system; index += 1) put(d, `k${index}`, "linear_system", "linear_region", { variables: ["x", "y"], equations: many(2, (part) => `${part + 1}x + ${16 - part}y = ${17 * (index + 1)}`) }); }, { least: { overlaps: 1_000_000 }, codes: ["label_overlap_budget", "label_overlap_unresolved"] }],
+  ["number line sets at their count", (d) => { for (let index = 0; index < N.kinds.number_line_set; index += 1) put(d, `k${index}`, "number_line_set", "linear_region", { variable: "x", expression: { union: many(16, (part) => ({ inequality: `${part + 1}x<${(index + 1) * (part + 7)}` })) } }); }, { least: { overlaps: 1_000_000 }, codes: ["label_overlap_budget", "label_overlap_unresolved"] }],
+  ["waves at their count and size", (d) => sumOfWaves(d, 2047, 1), { least: { points: FIGURE_POINT_BUDGET }, codes: ["figure_point_budget"] }],
+  ["waves at their count, under the point budget", (d) => sumOfWaves(d, 1023, N.kinds.wave_superposition), { least: { points: 12_000 }, codes: [] }],
+  ["curve anchors at their count", (d) => { sumOfWaves(d, 1023, 1); for (let index = 0; index < N.kinds.curve_anchor; index += 1) put(d, `k${index}`, "curve_anchor", "point", { curve: "sum0", at: 1 + index * 0.01 }); }, { least: { points: 9_000 }, codes: [] }],
+  ["wave samples at their count", (d) => { sumOfWaves(d, 1023, 1); for (let index = 0; index < N.kinds.wave_sample; index += 1) put(d, `k${index}`, "wave_sample", "point", { wave: "sum0", x: 1 + index * 0.1 }); }, { least: { points: 9_000, overlaps: 1_000_000 }, codes: ["label_overlap_budget", "label_overlap_unresolved"] }],
+  ["dimensions over the most points", (d) => { for (let index = 0; index < 2; index += 1) denseCurve(d, `k${index}`, 4 + index * 0.25); for (let index = 0; index < N.kinds.dimension; index += 1) { put(d, `s${index}`, "point", "point", { x: -3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `t${index}`, "point", "point", { x: 3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `b${index}`, "dimension", "dimension", { start: `s${index}`, end: `t${index}` }); } put(d, "pa", "point", "point", { x: 0, y: -6, coordinateSpace: "layout" }); put(d, "pb", "point", "point", { x: 0, y: 6, coordinateSpace: "layout" }); put(d, "wall", "segment", "segment", { start: "pa", end: "pb" }); }, { least: { overlaps: 1_000_000, points: 16_000 }, codes: ["dimension_overlap_unresolved", "label_overlap_budget"] }],
+  ["field lines and one linear region", (d) => { allFieldLines(d); put(d, "r0", "linear_feasible_region", "linear_region", equalities(0)); }, { least: { overlaps: LABEL_OVERLAP_WORK_BUDGET }, codes: ["label_overlap_budget"] }],
+  ["connected assertions over the most curves", (d) => { for (let index = 0; index < N.perKind; index += 1) functionCurve(d, `k${index}`, index); (d as unknown as { assertions: unknown[] }).assertions = many(64, (index) => ({ id: `c${index}`, predicate: "connected", entities: [`k${index % N.perKind}`, `k${(index + 1) % N.perKind}`], expected: true, severity: "warning" })); }, { least: { overlaps: 10_000_000 }, codes: ["label_overlap_budget"] }],
+  ["traces at their count, over the most points", (d) => { for (let index = 0; index < 2; index += 1) denseCurve(d, `k${index}`, 4 + index * 0.25); (d as unknown as { annotations: unknown[] }).annotations = many(N.annotations, (index) => ({ id: `n${index}`, kind: "trace", targetIds: [`k${index % 2}`] })); }, { least: { points: FIGURE_POINT_BUDGET }, codes: ["figure_point_budget"] }],
 ];
-// One document holding one row of each kind.
+// One document holding one row of each kind, small enough to reach its layout.
 const tagged = (document: ReturnType<typeof plain>, tag: string): ReturnType<typeof plain> => {
   const ids = new Set([...document.entities, ...document.constructions].map((item) => (item as { id: string }).id));
   const walk = (value: unknown): unknown => {
@@ -400,12 +423,17 @@ const tagged = (document: ReturnType<typeof plain>, tag: string): ReturnType<typ
   return walk(document) as ReturnType<typeof plain>;
 };
 const together = (d: ReturnType<typeof plain>) => {
-  const kinds = ["field lines at their count and size", "implicit curves at their count, long expressions", "regions at their count and largest inputs", "bodies at their count and largest inputs", "linear regions at their count, largest inputs", "curve anchors at their count, on the largest wave"];
-  kinds.forEach((name, index) => {
-    const row = largest.find(([rowName]) => rowName === name);
-    if (!row) { fail("a row for one kind", name); return; }
+  const parts: Array<(one: ReturnType<typeof plain>) => void> = [
+    (one) => { fieldLines(one, 0, 16, I.fieldLineSteps / 16); },
+    (one) => { plainCurve(one, "c", 2); },
+    (one) => { put(one, "g", "constraint_region", "polygon", { constraints: [{ expression: "x^2+y^2-4", relation: "le" }, { expression: "y-x^2/2+1", relation: "le" }, { expression: "x+y", relation: "ge" }], xMin: -3, xMax: 3, yMin: -3, yMax: 3, samples: 161 }); },
+    (one) => { putBody(one, "b", body(0)); },
+    (one) => { put(one, "l", "linear_feasible_region", "linear_region", equalities(0)); },
+    (one) => { sumOfWaves(one, 513, 1); },
+  ];
+  parts.forEach((build, index) => {
     const one = plain();
-    row[1](one);
+    build(one);
     const part = tagged(one, `p${index}_`);
     d.entities.push(...part.entities);
     d.constructions.push(...part.constructions);
@@ -413,19 +441,64 @@ const together = (d: ReturnType<typeof plain>) => {
     d.revealGroups[0]!.entityIds.push(...part.revealGroups[0]!.entityIds);
   });
 };
-largest.push(["one of each kind at its limit", together]);
+largest.push(["one of each kind", together, { least: { overlaps: 1_000_000, points: 5_000 }, codes: ["label_overlap_budget", "label_overlap_unresolved", "label_measure_budget"] }]);
 const LARGEST_LIMIT_MS = LIMIT_MS * 5;
-for (const [name, build] of largest) {
+for (const [name, build, reach] of largest) {
   const document = plain();
   build(document);
   const over = sceneTextOverLimit(document) ?? sceneCountOverLimit(document);
   if (over) fail(`${name}: inside the limits`, over);
+  const reached = withSharedLabelWork(() => compileSceneDocument(structuredClone(document) as never));
+  for (const [count, least] of Object.entries(reach.least) as Array<[keyof typeof reach.least, number]>) {
+    if ((reached.work[count] as number) < least) fail(`${name}: reaches its work, ${count}`, reached.work);
+  }
+  const refusals = [...new Set(reached.value.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code))];
+  const other = refusals.filter((code) => !reach.codes.includes(code));
+  if (other.length) fail(`${name}: refused for another reason`, { other, work: reached.work });
+  if (reach.codes.length === 0 && !reached.value.ok) fail(`${name}: draws`, refusals);
   const started = process.cpuUsage();
   let threw: unknown = null;
   try { await save(document as unknown as Figure); } catch (error) { threw = String(error).slice(0, 80); }
   const used = process.cpuUsage(started);
   if (threw) fail(`${name}: threw`, threw);
   if ((used.user + used.system) / 1000 > LARGEST_LIMIT_MS) fail(`${name}: over the limit`, (used.user + used.system) / 1000);
+}
+
+// A wave read many times is worked out once in one validation pass.
+const samplesOnASum = (count: number) => { const d = plain(); sumOfWaves(d, 2047, 1); for (let index = 0; index < count; index += 1) put(d, `k${index}`, "wave_sample", "point", { wave: "sum0", x: 1 + index * 0.1 }); return d; };
+const oneRead = cpuMs(() => { validateSceneDocument(samplesOnASum(1)); }, LIMIT_MS);
+const manyReads = cpuMs(() => { validateSceneDocument(samplesOnASum(N.kinds.wave_sample)); }, LIMIT_MS);
+if (manyReads > oneRead * 3) fail("a wave read many times is worked out once", { oneRead, manyReads });
+
+// Every layout search counts its steps.
+const layoutSteps = (run: () => unknown) => withSharedLabelWork(run).work.overlaps;
+type Pt = { x: number; y: number };
+const strokesFar = many(800, (index): [Pt, Pt] => [{ x: index, y: 600 }, { x: index + 0.5, y: 600 }]);
+const farInk = { kind: "geometry", entityId: "far", primitiveKind: "polyline", bounds: { x: 0, y: 600, width: 800, height: 1 }, segments: strokesFar };
+const obstacleBox = (index: number) => ({ kind: "geometry", entityId: `o${index}`, primitiveKind: "rectangle", bounds: { x: 10 * index, y: 300, width: 8, height: 8 } });
+const levelLine = (index: number) => ({ kind: "geometry", entityId: `l${index}`, primitiveKind: "line", bounds: { x: 0, y: 20 * index, width: 200, height: 1 }, segments: [[{ x: 0, y: 20 * index }, { x: 200, y: 20 * index }]] });
+const crossArrow = (index: number) => ({ kind: "geometry", entityId: `v${index}`, primitiveKind: "vector", bounds: { x: 2 * index, y: 0, width: 1, height: 20 }, segments: [[{ x: 2 * index, y: 0 }, { x: 2 * index, y: 20 }]] });
+const manyGaps: NamedGap[] = many(256, (index) => ({ tangent: { x: 1, y: 0 }, normal: { x: 0, y: 1 }, low: 1000 + index, high: 1001 + index, from: 0, to: 10, arrowEntityId: "v" }));
+const smallBox = { x: 0, y: 0, width: 10, height: 10 };
+const stepRows: Array<[string, () => unknown, number]> = [
+  ["a leader's strokes", () => createLeaderGeometryQuery([farInk] as never)([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }]), 200],
+  ["level pairs", () => namedGaps(many(32, levelLine) as never), 496],
+  ["arrows across level pairs", () => namedGaps([...many(32, levelLine), ...many(16, crossArrow)] as never), 496 + 31],
+  ["gaps for one owner", () => ownerNamedGaps({ entityId: "l0", text: "a", anchor: { x: 0, y: 0 } } as never, [levelLine(0)] as never, manyGaps), 256],
+  ["gaps for one box", () => insideNamedGap(smallBox, manyGaps), 256],
+  ["a polygon side region", () => boundsInSideRegion(smallBox, { kind: "polygon", inside: true, points: many(100, (index) => ({ x: 500 + 100 * Math.cos(index), y: 500 + 100 * Math.sin(index) })) }), 500],
+  ["tethered centres", () => nearbyTetheredCenters({ entityId: "a", text: "a", anchor: { x: 0, y: 0 }, tetherPx: 40 } as never, many(64, obstacleBox) as never, {}, 2), 256],
+  ["a blocked leader's routes", () => routeLeader({ leaderFrom: { x: 0, y: 0 }, leaderTo: { x: 100, y: 0 }, bounds: { x: 100, y: -5, width: 10, height: 10 } } as never, [{ x: 40, y: -5, width: 10, height: 10 }, ...many(31, (index) => ({ x: 10 * index, y: 300, width: 8, height: 8 }))], undefined, 2), 13_000],
+  ["rival marks", () => pointLabelNearerForeign(smallBox, { x: 5, y: 5 }, { dots: many(64, (index) => ({ x: index, y: 900 })), strokes: [strokesFar.slice(0, 64)] }), 128],
+  ["stroke ownership", () => ownershipMargin(smallBox, { ink: strokesFar.slice(0, 64), stroke: strokesFar.slice(0, 64), foreign: [strokesFar.slice(64, 128)] }), 128],
+  ["stroke slots", () => strokeSlotPlacements({ entityId: "a", text: "a", anchor: { x: 0, y: 600 } } as never, { ink: strokesFar.slice(0, 64), stroke: strokesFar.slice(0, 64), foreign: [] }, { slot: "above", dx: 0, dy: 0 } as never, {}, 10_000), 64],
+  ["reading a layout", () => labelReadings({ ok: true, placements: [{ labelId: "a", text: "a", bounds: smallBox }], issues: [] } as never, [{ labelId: "a", entityId: "a", text: "a", anchor: { x: 0, y: 0 } }] as never, [farInk] as never), 3_200],
+  ["a path against an element", () => crossings(many(64, (index) => ({ a: { x: index, y: 0 }, b: { x: index + 1, y: 0 }, s0: index, length: 1 })), { kind: "path", points: many(64, (index) => ({ x: index, y: 50 })) } as never, 1_000), 64 * 64],
+  ["a name inside a body", () => validateRegionLabelPlacement({ annotations: [], entities: [{ id: "a", kind: "polygon", role: "body" }], constructions: [] } as never, [{ kind: "polygon", entityId: "a", points: many(64, (index) => ({ x: 100 * Math.cos(index / 10), y: 100 * Math.sin(index / 10) })) }, { kind: "label", entityId: "a", text: "a", points: [{ x: 1, y: 1 }] }] as never), 64 * 65],
+];
+for (const [name, run, least] of stepRows) {
+  const steps = layoutSteps(run);
+  if (steps < least) fail(`${name} count`, { steps, least });
 }
 // One past a size is refused by the validator, not only by a compile.
 const pastSize = plain(); fieldLines(pastSize, 0, 16, I.fieldLineSteps / 16 + 1);
