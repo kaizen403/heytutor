@@ -12,7 +12,7 @@
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-solver-disagreement.ts
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   LocalDeterministicSolverProvider,
@@ -348,9 +348,15 @@ async function main() {
   });
   await check("the lab does not read the switch, so a lab round is dev either way", () => {
     // The lab's authority step has no source authority and no stop, so it could not follow the lesson's rule.
-    const lab = source("scripts/lecture-lab/lecturePipeline.ts");
-    assert.ok(!lab.includes("SolverDisagreement"), "the lab reads the switch");
-    assert.ok(!lab.includes("keepDisagreement"), "the lab passes the keep option");
+    // Every lab file, since the doubt scripts reach the shared call through planDoubtFigure.
+    const files = (readdirSync(join(__dirname, "../lecture-lab"), { recursive: true }) as string[]).filter((file) => /\.(ts|mts|mjs|js)$/.test(file));
+    assert.ok(files.includes("lecturePipeline.ts") && files.includes("doubt-run.ts") && files.includes("doubt-precheck.ts"), "the lab files were not found");
+    for (const file of files) {
+      const text = source(`scripts/lecture-lab/${file}`).toLowerCase();
+      for (const word of ["solverdisagreement", "solver_disagreement", "keepdisagreement"]) {
+        assert.ok(!text.includes(word), `${file} reads the switch or passes the keep option (${word})`);
+      }
+    }
   });
   await check("the switch is named in the example env, commented out", () => {
     assert.ok(source(".env.example").includes("# SOLVER_DISAGREEMENT_STOPS=on"));
