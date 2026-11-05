@@ -174,6 +174,22 @@ async function main() {
     });
   }
 
+  const CONVEX_TEN = "An object stands 30 cm from a convex lens of focal length 10 cm.";
+  const CONCAVE_TWELVE = "An object stands 30 cm from a concave mirror of focal length 12 cm.";
+  for (const [name, question, givens, results, laws] of [
+    ["the lens were concave", `${CONVEX_TEN} What if the lens were concave?`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["the lens were diverging", `${CONVEX_TEN} And if the lens were diverging?`, [["f", -10, "cm"], ["d_o", 30, "cm"]], [["d_i", -7.5, "cm"]], LENS],
+    ["f were negative", `${CONVEX_TEN} What if f = -10 cm?`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["a composed doubt", `${CONVEX_TEN}\n\nStudent's doubt: what happens when it flips?`, [["f", -10, "cm"], ["d_o", 30, "cm"]], [["d_i", -7.5, "cm"]], LENS],
+    ["the mirror were convex", `${CONCAVE_TWELVE} What if it were convex?`, [["f", 12, "cm"], ["d_o", 30, "cm"]], [["v", 8.571, "cm"]], MIRROR],
+  ] as [string, string, Named[], Named[], string[]][]) {
+    await check(`another case asked keeps the new reads declining: ${name}`, () => {
+      const candidate = plan(question, givens, results, laws);
+      assert.deepEqual(reconcileTurnPlanWithOpticsLaws(candidate).inconsistencies, []);
+      assert.ok(parse(candidate).plan);
+    });
+  }
+
   const COIN = "A coin of diameter 4 cm stands 30 cm from a convex lens of focal length 10 cm. Find the image.";
   await check("an image diameter named d_i is not read as a distance when u and v are named", () => {
     assert.ok(parse(plan(COIN, [["f", 10, "cm"], ["u", -30, "cm"]], [["v", 15, "cm"], ["d_i", 2, "cm"]], LENS)).plan);

@@ -114,13 +114,13 @@ function evaluatePlanLaw(
     const readsSubscripts = plainObject === null;
     // Reads this law did not make before answer to a stricter test of one
     // element. The plainly named path keeps its own, so nothing it rejects loosens.
-    if (readsSubscripts && (introducesSecondElement(plan.question) || /\bdiameter\b/i.test(plan.question))) {
+    if (readsSubscripts && (leavesOneCaseOpen(plan.question) || /\bdiameter\b/i.test(plan.question))) {
       return { declined: SECOND_ELEMENT_DECLINE };
     }
     const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
     if ("reason" in signs) {
       if (!signs.signsConflict || element.converging === null) return { declined: signs.reason };
-      if (introducesSecondElement(plan.question)) return { declined: SECOND_ELEMENT_DECLINE };
+      if (leavesOneCaseOpen(plan.question)) return { declined: SECOND_ELEMENT_DECLINE };
       // No convention can be read from these signs, but a single element and a
       // real object leave no choice about sizes: |v| and |m| follow from |u|,
       // |f| and the element the stem names, whatever convention was meant.
@@ -569,8 +569,16 @@ const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[\w-]+\s+){0,3}?(?:lens|mirror)\b/gi
 const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
 const SECOND_ELEMENT_DECLINE = "more than one optical element: a later element's object may be virtual";
 
-function introducesSecondElement(question: string): boolean {
-  return (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1 || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1;
+/**
+ * Whether the new reads should hold back: a second element, or a stem that goes
+ * on to ask about another case ("what if the lens were concave?"), whose plan
+ * may answer that case and not the element first named.
+ */
+function leavesOneCaseOpen(question: string): boolean {
+  return (question.match(ELEMENT_INTRODUCED)?.length ?? 0) > 1
+    || (question.match(FOCAL_LENGTH_STATED)?.length ?? 0) > 1
+    || /\bwhat\s+if\b|\bstudent'?s\s+doubt\b/i.test(question)
+    || (/\b(?:convex|converging)\b/i.test(question) && /\b(?:concave|diverging)\b/i.test(question));
 }
 
 /** Something physical placed before the element: the stem's evidence of a real object. */
