@@ -106,6 +106,12 @@ async function main() {
       assert.deepEqual(audit.inconsistencies, []);
       assert.ok(audit.declined.some((item) => row.reason.test(item.reason)), "the decline stays on the record");
     });
+    await check(`${row.name}: a false magnification alone rejects`, () => {
+      assert.equal(parse(plan(row.question, row.givens, [row.right[0]!, row.wrong[1]!], row.laws, row.assumptions)).plan, null);
+    });
+    await check(`${row.name}: a false image distance alone rejects`, () => {
+      assert.equal(parse(plan(row.question, row.givens, [row.wrong[0]!, row.right[1]!], row.laws, row.assumptions)).plan, null);
+    });
     await check(`${row.name}: the image sign alone is no fault`, () => {
       const flipped = plan(row.question, row.givens, row.right.map(([id, value, unit]) => [id, -value, unit] as Named), row.laws, row.assumptions);
       assert.ok(parse(flipped).plan);
@@ -150,7 +156,7 @@ async function main() {
   });
   await check("an element the stem does not name keeps declining", () => {
     const stem = "An object stands 30 cm from a mirror of focal length 12 cm. Find the image.";
-    const candidate = plan(stem, [["f", 12, "cm"], ["u", -30, "cm"]], [["v", 8.571, "cm"]], MIRROR);
+    const candidate = plan(stem, [["f", 12, "cm"], ["u", -30, "cm"]], [["v", 50, "cm"]], MIRROR);
     assert.deepEqual(reconcileTurnPlanWithOpticsLaws(candidate).inconsistencies, []);
     assert.ok(parse(candidate).plan);
   });
