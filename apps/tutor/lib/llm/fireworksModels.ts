@@ -1,10 +1,11 @@
-import { activeAzureDeployment } from "./llmProvider";
+import { activeSingleDeployment } from "./llmProvider";
 
 /**
  * Every LLM lane's model. Change models in ENV, not in call sites.
  *
  * With `LLM_PROVIDER=azure` (and the Azure env complete) every resolver below
- * returns `AZURE_OPENAI_DEPLOYMENT`: planners, fast planners, teaching and
+ * returns `AZURE_OPENAI_DEPLOYMENT`, and with `LLM_PROVIDER=openai_compat` it
+ * returns `OPENAI_COMPAT_MODEL`: planners, fast planners, teaching and
  * fast teaching, Problem IR, the cheap lane, vision, notes chat, and home
  * suggestions. Otherwise the Fireworks defaults and overrides apply exactly as
  * they did before the switch. See `llmProvider.ts`.
@@ -105,7 +106,7 @@ export function resolveFireworksModel(options: {
   env?: Record<string, string | undefined>;
 } = {}): string {
   const env = options.env ?? process.env;
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   return (
     resolveLaneFastModel(
@@ -130,7 +131,7 @@ export function resolveTeachingFireworksModel(options: {
   env?: Record<string, string | undefined>;
 } = {}): string {
   const env = options.env ?? process.env;
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   return (
     resolveLaneFastModel(
@@ -164,8 +165,8 @@ export function resolveTeachingAlternateFireworksModel(options: {
   env?: Record<string, string | undefined>;
 } = {}): string | null {
   const env = options.env ?? process.env;
-  // One Azure deployment; there is no second serving path to fall back to.
-  if (activeAzureDeployment(env)) return null;
+  // One Azure deployment or relay model; there is no second serving path to fall back to.
+  if (activeSingleDeployment(env)) return null;
   const fastLane = resolveLaneFastModel(
     env.FIREWORKS_TEACHING_FAST_MODEL,
     DEFAULT_TEACHING_FAST_MODEL,
@@ -187,7 +188,7 @@ export function resolveFireworksModels(options: {
 export function resolveFireworksVisionModel(
   env: Record<string, string | undefined> = process.env,
 ): string {
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   return trimModel(env.FIREWORKS_VISION_MODEL) || DEFAULT_FIREWORKS_VISION_MODEL;
 }
@@ -200,7 +201,7 @@ export function resolveFireworksVisionModel(
 export function resolveFireworksVisionModels(
   env: Record<string, string | undefined> = process.env,
 ): string[] {
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return [deployment];
   return [...new Set([resolveFireworksVisionModel(env), DEFAULT_FIREWORKS_VISION_MODEL])];
 }
@@ -215,7 +216,7 @@ export function resolveProblemIRFireworksModel(options: {
   env?: Record<string, string | undefined>;
 } = {}): string {
   const env = options.env ?? process.env;
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   return trimModel(env.FIREWORKS_PROBLEM_IR_MODEL) || DEFAULT_PROBLEM_IR_MODEL;
 }
@@ -229,7 +230,7 @@ export function resolveCheapFireworksModel(options: {
   env?: Record<string, string | undefined>;
 } = {}): string {
   const env = options.env ?? process.env;
-  const deployment = activeAzureDeployment(env);
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   return trimModel(env.FIREWORKS_PROBLEM_IR_MODEL) || DEFAULT_CHEAP_FIREWORKS_MODEL;
 }

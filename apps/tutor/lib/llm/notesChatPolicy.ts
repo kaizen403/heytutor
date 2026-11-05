@@ -3,7 +3,7 @@ import { formatLessonNotesForPrompt } from "@/features/tutor-session/lib/notes/l
 import { selectNotesForPrompt } from "@/features/tutor-session/lib/notes/notesContext";
 import type { NotesChatTag } from "@/features/tutor-session/lib/notes/notesChatTag";
 import { resolveCheapFireworksModel, resolveTeachingFireworksModel } from "./fireworksModels";
-import { activeAzureDeployment } from "./llmProvider";
+import { activeSingleDeployment } from "./llmProvider";
 import { assessTutorState } from "./evaluation/gateway";
 import { NOTES_DATA_NOTICE } from "./evaluation/rubrics";
 import type { TutorAssessment } from "./evaluation/types";
@@ -45,8 +45,8 @@ function strongNotesModel(env: Record<string, string | undefined>): string {
 }
 
 function cheapNotesModel(env: Record<string, string | undefined>): string {
-  // FIREWORKS_NOTES_MODEL names a Fireworks model; on Azure the cheap lane is the deployment.
-  const deployment = activeAzureDeployment(env);
+  // FIREWORKS_NOTES_MODEL names a Fireworks model; on Azure or a relay the cheap lane is the one model.
+  const deployment = activeSingleDeployment(env);
   if (deployment) return deployment;
   const override = env.FIREWORKS_NOTES_MODEL?.trim();
   return override || resolveCheapFireworksModel({ env });
