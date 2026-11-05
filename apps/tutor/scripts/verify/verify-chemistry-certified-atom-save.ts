@@ -46,9 +46,9 @@ function saved(question: string, bodies: Array<[string, string]>) {
 
 for (const [question, bodies] of [
   ["geometry of PCl5", [["other", "PCl5 molecule"], ["point", "central P atom"], ["point", "Cl atoms"]]],
-  ["Use VSEPR to predict the shapes of SF4 and XeF4.", [["other", "SF4 molecule"], ["other", "XeF4 molecule"], ["point", "central S atom"]]],
+  ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [["other", "ClF3 molecule"], ["other", "BrF5 molecule"], ["point", "central Cl atom"]]],
   // Dev drew these already, and must still save.
-  ["Use VSEPR to predict the shapes of SF4 and XeF4.", [["other", "SF4 molecule"], ["other", "XeF4 molecule"]]],
+  ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [["other", "ClF3 molecule"], ["other", "BrF5 molecule"]]],
   ["shape of NH3 molecule", [["other", "NH3 molecule"]]],
 ] as Array<[string, Array<[string, string]>]>) {
   check(`next resume save passes: ${question} ${bodies.map(([, label]) => label).join(", ")}`, () => {

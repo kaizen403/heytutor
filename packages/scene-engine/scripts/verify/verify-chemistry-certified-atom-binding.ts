@@ -40,7 +40,7 @@ function missing(question: string, bodies: Array<[Kind, string]>): string[] {
 }
 
 const PCL5 = "geometry of PCl5";
-const SHAPES = "Use VSEPR to predict the shapes of SF4 and XeF4.";
+const SHAPES = "Use VSEPR to predict the shapes of ClF3 and BrF5.";
 
 for (const [question, label, kind] of [
   [PCL5, "central P atom", "point"],
@@ -51,8 +51,8 @@ for (const [question, label, kind] of [
   [PCL5, "Cl atoms", "point"],
   [PCL5, "chlorine atoms", "other"],
   [PCL5, "Cl atom", "point"],
-  [SHAPES, "central S atom", "point"],
-  [SHAPES, "central Xe atom", "other"],
+  [SHAPES, "central Cl atom", "point"],
+  [SHAPES, "central Br atom", "other"],
   [SHAPES, "F atoms", "point"],
 ] as Array<[string, string, Kind]>) {
   check(`binds: ${label} on ${question}`, () => assert.deepEqual(missing(question, [[kind, label]]), []));
@@ -74,8 +74,8 @@ for (const [question, label] of [
   [PCL5, "central atom"],
   [PCL5, "chlorine"],
   [SHAPES, "central F atom"],
-  [SHAPES, "central Cl atom"],
-  [SHAPES, "S atoms"],
+  [SHAPES, "central S atom"],
+  [SHAPES, "Cl atoms"],
 ] as Array<[string, string]>) {
   check(`refuses: ${label} on ${question}`, () => assert.equal(missing(question, [["point", label]]).length, 1));
 }
