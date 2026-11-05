@@ -70,7 +70,7 @@ const COUNT_NOT_VALUE = /^\s+\S+\s+(?:of|ways?|reasons?|things?|examples?|kinds?
 const NUMBER_WORDS = "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|million";
 const UNIT = "(?:(?:square|cubic)\\s+)?(?:rupees?|paise|dollars?|cents?|meters?|metres?|centimeters?|centimetres?|millimeters?|millimetres?|kilometers?|kilometres?|nanometers?|seconds?|milliseconds?|minutes?|hours?|years?|grams?|kilograms?|milligrams?|newtons?|joules?|kilojoules?|watts?|kilowatts?|volts?|kilovolts?|millivolts?|amperes?|amps?|milliamps?|milliamperes?|ohms?|hertz|kilohertz|megahertz|kelvin|coulombs?|celsius|tesla|pascals?|kilopascals?|moles?|radians?|liters?|litres?|milliliters?|millilitres?|farads?|microfarads?|henries|henry|webers?|atmospheres?|calories?|kilocalories?|decibels?|degrees?|electron\\s+volts?|light\\s+years?)\\b";
 const OPERATION = `(?:squared|cubed|(?:over|times|plus|minus|divided\\s+by|remainder|to\\s+the\\s+power(?:\\s+of)?)\\s+(?:(?:${NUMBER_WORDS})\\b|\\d|(?![iI]\\b)\\p{L}\\b))`;
-const CLAUSE_END = "\\s*(?:[,.;:!?)\u2014\u2013]|$)";
+const CLAUSE_END = "\\s*(?:[,.;:!?)]|$)";
 const FRACTION = "(?:half|halves|thirds?|quarters?|(?:fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\\p{L}+teenth|\\p{L}+tieth|hundredth|thousandth|millionth)s?)";
 const SPOKEN_VALUE_END = new RegExp(
   `^\\s+(?:${UNIT}(?:\\s+(?:per\\s+${UNIT}|squared|cubed|${UNIT}))*${CLAUSE_END}|${OPERATION}|${FRACTION}(?:${CLAUSE_END}|\\s+${OPERATION}|\\s+(?![iI]\\b)\\p{L}\\b))`,
@@ -229,7 +229,11 @@ function repairLectureStep(rawStep: string): string {
       // A value spoken in words needs strong evidence (isSpokenValue).
       if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !isSpokenValue(after))) continue;
       // A numeral needs the same strong evidence, except that it may end the clause.
-      if (/^\s+\d/.test(after) && !isNumeralValue(after)) continue;
+      // Refusing it must not hand the rewrite to an earlier "is" in the step.
+      if (/^\s+\d/.test(after) && !isNumeralValue(after)) {
+        last = null;
+        continue;
+      }
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }

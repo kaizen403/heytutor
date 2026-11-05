@@ -304,6 +304,10 @@ for (const [step, kept] of [
   ["[STEP]Here also is 1. [WRITE:n = 1,90,211][/STEP]", "Here also is 1"],
   ["[STEP]The cube is 3-dimensional. [WRITE:d = 3,90,211][/STEP]", "The cube is 3-dimensional"],
   ["[STEP]so y is 12.5x. [WRITE:y = 12.5x,90,211][/STEP]", "y is 12.5x"],
+  ["[STEP]The ball is 5 metres \u2013 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is 5 metres \u2013 above"],
+  ["[STEP]The ball is five metres \u2013 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is five metres \u2013 above"],
+  ["[STEP]The ball is 5 metres \u2014 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is 5 metres \u2014 above"],
+  ["[STEP]Chapter is 3. The force is 3 newtons acting down. [WRITE:F = 3 N,90,211][/STEP]", "Chapter is 3. The force is 3 newtons acting down"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a numeral without strong evidence stays as spoken: ${spokenAfter(step)}`);
 }
@@ -313,7 +317,9 @@ for (const [step, spoken] of [
   ["[STEP]25°C is 25 + 273 = 298 K. [WRITE:T = 25 + 273 = 298 K,90,211][/STEP]", "25°C equals 25 + 273"],
   ["[STEP]half of 9 V is 4.5 V. [WRITE:V = 4.5 V,90,211][/STEP]", "half of 9 V equals 4.5 V"],
   ["[STEP]the room is 25 °C. [WRITE:T = 25 °C,90,211][/STEP]", "the room equals 25 °C"],
-  ["[STEP]the wavelength is 2 metres — consistent with step one. [WRITE:λ = 2 m,90,211][/STEP]", "the wavelength equals 2 metres —"],
+  ["[STEP]so x is 25 - -3. [WRITE:x = 25 - -3,90,211][/STEP]", "x equals 25 - -3"],
+  ["[STEP]the share is 25%. [WRITE:s = 25%,90,211][/STEP]", "the share equals 25%"],
+  ["[STEP]the area is 2 m^2. [WRITE:A = 2 m^2,90,211][/STEP]", "the area equals 2 m^2"],
   ["[STEP]Here x is 5. [WRITE:x = 5,90,211][/STEP]", "Here x equals 5"],
   ["[STEP]so x is 25 - y. [WRITE:x = 25 - y,90,211][/STEP]", "x equals 25 - y"],
   ["[STEP]so x is 2 * -3. [WRITE:x = 2 * -3,90,211][/STEP]", "x equals 2 * -3"],
