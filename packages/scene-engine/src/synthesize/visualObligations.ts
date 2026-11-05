@@ -752,7 +752,7 @@ function bindCertifiedAtom(
   consumed: ReadonlySet<string>,
   originalQuestion: string | undefined,
 ): string | null {
-  if (molecule?.structures.length !== 1 || !plainShapeAskOfOneFormula(originalQuestion)) return null;
+  if (!molecule || !plainShapeAskOfOneFormula(originalQuestion)) return null;
   if (!ATOM_BODY_KINDS.has(obligation.problemKind) || !obligation.problemLabel) return null;
   const read = /^(?:[Tt]he\s+)?([Cc]entral\s+)?(\S+)\s+(atoms?)$/.exec(obligation.problemLabel.trim());
   if (!read || (read[1] && read[3] === "atoms")) return null;

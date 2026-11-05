@@ -55,6 +55,7 @@ for (const [question, label, kind] of [
   ["What is the shape of ClF3?", "F atoms", "point"],
   ["Find the molecular geometry of BrF5.", "central Br atom", "other"],
   ["Describe the shape of the BrF5 molecule.", "Br atom", "point"],
+  ["shape of I3-", "central I atom", "point"],
 ] as Array<[string, string, Kind]>) {
   check(`binds: ${label} as ${kind} on ${question}`, () => assert.deepEqual(missing(question, [[kind, label]]), []));
 }
@@ -75,6 +76,8 @@ for (const [question, bodies] of [
   ["Use VSEPR to predict the shapes of ClF3 and BrF5.", [["point", "central Cl atom"]]],
   ["Compare the shapes of NH3 and NF3.", [["point", "N atoms"]]],
   ["Compare the shapes of NH3 and NF3.", [["point", "N atom"]]],
+  ["In the solid, what is the geometry of PCl5?", [["point", "P atom"]]],
+  ["After protonation, what is the shape of NH3?", [["point", "N atom"]]],
   ["geometry of PCl5 at high pressure", [["point", "P atom"]]],
   ["geometry of PCl5 in the solid", [["point", "P atom"]]],
   ["Why is the geometry of PCl5 not square pyramidal?", [["point", "P atom"]]],
@@ -106,6 +109,7 @@ for (const [question, label, kind] of [
   [PCL5, "Cl atoms", "region"],
   [PCL5, "Cl atoms", "line"],
   ["shape of NO2", "NO atom", "point"],
+  ["shape of I3-", "central I atoms", "point"],
   ["shape of ClF3", "central F atom", "point"],
 ] as Array<[string, string, Kind]>) {
   check(`refuses: ${label} as ${kind} on ${question}`, () => assert.equal(missing(question, [[kind, label]]).length, 1));
