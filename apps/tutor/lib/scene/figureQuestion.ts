@@ -1,4 +1,3 @@
-import { boardContinuationArtifacts } from "@/lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion } from "@/lib/boards/doubtFigure";
 
 /**
@@ -28,11 +27,11 @@ export const FIGURE_QUESTION_NOTE = "This question is too long to draw a figure 
 export const FIGURE_DOUBT_NOTE = "This doubt and its lesson are too long to draw a figure for. The answer will still teach it.";
 
 /**
- * The note under the input box, or null. A doubt is counted as its figure is:
- * its title with the page's lesson question as the page keeps it.
+ * The note under the input box, or null. A doubt is counted as the browser
+ * plans its figure: its title with the page's whole lesson question.
  */
 export function figureQuestionNote(question: string, doubtPageQuestion?: string): string | null {
-  const page = doubtPageQuestion?.trim() ? boardContinuationArtifacts(doubtPageQuestion).boardContinuation.lessonQuestion : "";
+  const page = doubtPageQuestion?.trim() ?? "";
   const asked = question.trim();
   if (page && asked) return figureQuestionChars(composeDoubtFigureQuestion(page, asked)) > FIGURE_QUESTION_CHARS ? FIGURE_DOUBT_NOTE : null;
   return figureQuestionChars(question) > FIGURE_QUESTION_CHARS ? FIGURE_QUESTION_NOTE : null;
