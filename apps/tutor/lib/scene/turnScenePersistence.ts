@@ -744,7 +744,6 @@ async function figureQuestionAsText(
   return canonicalizeTurnSceneMetadata({
     ...submitted,
     visualStatus: "text_only",
-    sceneDocument: null,
     segments,
   }, options);
 }

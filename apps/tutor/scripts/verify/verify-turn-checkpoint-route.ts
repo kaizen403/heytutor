@@ -373,6 +373,16 @@ async function resumeSavePassesTheStoredQuestion() {
   assert.equal(lastCanonicalizeOptions?.storedQuestion, undefined, "a first save has no stored question");
   assert.equal((await put(turn, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [row(1, "second")] })).status, 200);
   assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "a later save passes the question already saved");
+  // A late scene that disagrees with the newer resume authority is replaced by the held scene, saved with the same stored question.
+  const held = crypto.randomUUID();
+  assert.equal((await put(held, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")] })).status, 200);
+  const closed = await close(held, { seq: 3, status: "stopped", rawResponse: "Current narration.", resumeState: { v: 1, solverProjection: { value: 1 } } });
+  assert.equal(closed.status, 200, `the close saves: ${JSON.stringify(closed.body)}`);
+  const callsBefore = canonicalizeCalls;
+  const late = await put(held, { seq: 2, baseCount: 1, status: "stopped", question: asked, appendSegments: [], visualStatus: "validated", sceneDocument: { id: "late" }, sceneArtifacts: { schemaVersion: "scene-artifacts/v3" } });
+  assert.equal(late.status, 200, `a late scene saves its rows: ${JSON.stringify(late.body)}`);
+  assert.equal(canonicalizeCalls - callsBefore, 2, "the held scene is saved again");
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "the held scene's save passes the question already saved");
 }
 
 async function failedEarlierCreationKeepsDurableOrder() {
