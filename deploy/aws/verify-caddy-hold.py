@@ -174,7 +174,10 @@ class CaddyHold(unittest.TestCase):
         for name, awk in [
             ("lost its output", "#!/usr/bin/env bash\nexit 0\n"),
             ("skipped the block", '#!/usr/bin/env bash\ncat "${@: -1}"\n'),
-            ("cut after the block", '#!/usr/bin/env bash\n/usr/bin/awk "$@" | head -n 12\n'),
+            # Only the line count can see this one: the marker is still there.
+            ("lost its last line", """#!/usr/bin/env bash\n/usr/bin/awk "$@" | sed '$d'\n"""),
+            # Only the marker can see this one: the line count is right.
+            ("padded without the block", """#!/usr/bin/env bash\ncat "${@: -1}"; printf '\\n%.0s' 1 2 3 4 5 6 7 8 9 10\n"""),
         ]:
             with self.subTest(name):
                 self.log.unlink(missing_ok=True)
