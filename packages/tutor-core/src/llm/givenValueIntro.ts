@@ -1,9 +1,10 @@
 /**
  * Runtime-owned opening for problem-solving turns.
  *
- * If the submitted question states values, write them first as "Given: ...",
- * then the verified figure can be revealed and the teaching stream can solve.
- * The teaching model must not restate or rewrite this list.
+ * A value the question writes literally as symbol = number is written first as
+ * "Given: ...", then the verified figure can be revealed and the teaching stream
+ * can solve. The teaching model is told exactly which rows are on the board, must
+ * not rewrite them, and writes every other value where it first uses it.
  */
 import { WORK_ZONE, measureTextWidth, workRowFontSize, type TutorSegment } from "@heytutor/drawing";
 import { isConceptLessonQuestion } from "./reasoningEffort";
@@ -15,6 +16,11 @@ export interface QuestionGiven {
   spoken: string;
 }
 
+/** A row this code could write, and whether the question positively states it. */
+interface GivenCandidate extends QuestionGiven {
+  stated: boolean;
+}
+
 interface TurnPlanLike {
   givens?: unknown;
   unknowns?: unknown;
@@ -22,6 +28,8 @@ interface TurnPlanLike {
 
 const ASK_SPLIT =
   /\b(?:find|calculate|locate|determine|compute|evaluate|how much|what is|show that|draw the)\b/i;
+/** What is to be shown is not given, though a row may reach this far in the statement. */
+const NOT_GIVEN_FROM = /\b(?:prove|derive|verify)\b/i;
 
 const UNIT_SPEECH: ReadonlyArray<readonly [RegExp, string]> = [
   [/m\/s\^2|m\/s²/i, "meters per second squared"],
@@ -61,14 +69,14 @@ export function collectQuestionGivens(
   }
   const statement = givenStatement(question);
   const unknownKeys = unknownKeysOf(turnPlan);
-  const collected: QuestionGiven[] = [];
+  const collected: GivenCandidate[] = [];
   const seen = new Set<string>();
   // A planner often emits both the qualified and the bare form of one quantity
   // — "n_glass = 1.5" and "n = 1.5" — and listing both says there are two
   // refractive indices when there is one. Same base symbol, same value, same
   // unit is the same fact; anything less exact stays two facts.
   const facts = new Set<string>();
-  const add = (given: QuestionGiven | null): void => {
+  const add = (given: GivenCandidate | null): void => {
     if (!given) return;
     const key = normalizeKey(given.symbol);
     if (!key || seen.has(key) || unknownKeys.has(key)) return;
@@ -84,13 +92,17 @@ export function collectQuestionGivens(
   if (turnPlan && Array.isArray(turnPlan.givens)) {
     turnPlan.givens.forEach((row, index) => add(givenFromPlan(row, index, question)));
   }
-  for (const assignment of assignmentsFromQuestion(statement)) {
+  for (const assignment of assignmentsFromQuestion(statement, question)) {
     add(assignment);
   }
   if (collected.length === 0) {
     add(equationFromQuestion(statement));
   }
-  return collected.slice(0, 8);
+  // The list is chosen first and only then checked, so this check can only
+  // remove a row: a row it refuses never makes room for another.
+  return collected.slice(0, 8)
+    .filter((given) => given.stated)
+    .map(({ symbol, board, spoken }) => ({ symbol, board, spoken }));
 }
 
 const GIVEN_LEAD = "Given: ";
@@ -176,19 +188,20 @@ export function buildGivenValueSegments(
   }));
 }
 
-export function givenValuesPromptAddon(hasGivens: boolean): string {
-  if (!hasGivens) return "";
+export function givenValuesPromptAddon(writtenRows: readonly string[]): string {
+  if (writtenRows.length === 0) return "";
   return `GIVEN VALUES ARE ALREADY ON THE BOARD
-The runtime already spoke the opening line, wrote the given quantities as "Given: ..." and will reveal any verified figure next. Do not rewrite those givens as a second list, do not say what the question asks for again, and do not read the question back.
+The runtime already spoke the opening line, wrote the given quantities as "Given: ..." and will reveal any verified figure next. On the board now, and nothing else: ${writtenRows.join("; ")}. Do not rewrite those givens as a second list, do not say what the question asks for again, and do not read the question back. Any other value the question states is not on the board yet: say it and [WRITE] it where you first use it.
 Start by saying what each of those symbols physically is, and [WRITE] that meaning line first. If a figure is visible, read it next: name each labeled part, say what it represents and which way it points or where it acts, and [FOCUS:entity_id] on the part you just named.
 Then write each general formula in symbols before substituting the given values, write the rearranged form, write the substitution with its units, write the result, and close with one line reading what the result means. Write each working line as you speak it. Every step must [WRITE] or [FOCUS] so the marker moves with the voice. Use [EMPHASIZE:last] to box the current work line when you want the student to hold it.`;
 }
 
-function givenFromPlan(raw: unknown, index: number, question: string): QuestionGiven | null {
+function givenFromPlan(raw: unknown, index: number, question: string): GivenCandidate | null {
   if (!isRecord(raw)) return null;
   if (raw.provenance !== undefined && raw.provenance !== "given") return null;
   if (typeof raw.value !== "number" || !Number.isFinite(raw.value)) return null;
-  const symbol = compactSymbol(raw.symbol) ?? compactSymbol(raw.id) ?? `q${index + 1}`;
+  const named = compactSymbol(raw.symbol);
+  const symbol = named ?? compactSymbol(raw.id) ?? `q${index + 1}`;
   const unit = displayUnit(raw.unit);
   // "Given: ..." asserts that the *question* stated this value, so the number
   // itself has to be findable in the question. Nothing softer holds: asked for
@@ -206,24 +219,38 @@ function givenFromPlan(raw: unknown, index: number, question: string): QuestionG
     symbol,
     board,
     spoken: `${speakSymbol(symbol)} equals ${speakNumber(raw.value)}${unit ? ` ${speakUnit(unit)}` : ""}`,
+    // A plan's internal id is never a symbol the question wrote.
+    stated: named !== null && questionLiterallyStates(question, raw.value, named, unit),
   };
 }
 
-function assignmentsFromQuestion(statement: string): QuestionGiven[] {
-  const givens: QuestionGiven[] = [];
+/** Where a statement stops stating: at the answer options, or at what is to be shown. */
+function statedEnd(statement: string): number {
+  const shown = NOT_GIVEN_FROM.exec(statement)?.index ?? statement.length;
+  return Math.min(shown, withoutAnswerOptions(statement).length);
+}
+
+function assignmentsFromQuestion(statement: string, question: string): GivenCandidate[] {
+  const givens: GivenCandidate[] = [];
+  const end = statedEnd(statement);
+  const { reassigned } = statedOf(withoutAnswerOptions(question));
   const pattern =
     /(?:^|[,;]|\s)((?:d[A-Za-z]\/d[A-Za-z]|[A-Za-z][A-Za-z0-9_/^']{0,12}))\s*=\s*/g;
   for (const match of statement.matchAll(pattern)) {
     const symbol = compactSymbol(match[1]);
-    const sourceRhs = readAssignmentRhs(statement, (match.index ?? 0) + match[0].length);
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const sourceRhs = readAssignmentRhs(statement, valueStart);
     if (sourceRhs === null) continue;
     const rhs = compactRhs(sourceRhs);
     if (!symbol || !rhs || !hasGivenContent(rhs)) continue;
     if (isAskedUnknownAssignment(statement, symbol)) continue;
+    const symbolStart = (match.index ?? 0) + match[0].indexOf(match[1]!);
     givens.push({
       symbol,
       board: `${symbol} = ${rhs}`,
       spoken: `${speakSymbol(symbol)} equals ${speakRhs(rhs)}`,
+      stated: symbolStart < end && isPlainValue(rhs) && standsAlone(statement, symbolStart) && !reassigned.has(symbol) &&
+        !continuesAsList(statement, valueStart),
     });
   }
   return givens;
@@ -248,7 +275,7 @@ function readAssignmentRhs(statement: string, start: number): string | null {
   return closing.length === 0 ? statement.slice(start, end) : null;
 }
 
-function equationFromQuestion(statement: string): QuestionGiven | null {
+function equationFromQuestion(statement: string): GivenCandidate | null {
   const match = /([^\n=]{1,48}=\s*[^\n=]{1,48})/.exec(statement);
   if (!match || readAssignmentRhs(match[1], match[1].indexOf("=") + 1) === null) return null;
   const equation = compactRhs(match[1]).replace(
@@ -260,6 +287,9 @@ function equationFromQuestion(statement: string): QuestionGiven | null {
     symbol: "equation",
     board: equation,
     spoken: speakRhs(equation),
+    // An equation is not a symbol equal to a value. It stays on this list only so
+    // that refusing it cannot change which rows the list holds.
+    stated: false,
   };
 }
 
@@ -274,6 +304,22 @@ function spokenGivenList(givens: QuestionGiven[], lead = true, language?: Narrat
   if (parts.length === 1) return `${opener}${parts[0]}.`;
   if (parts.length === 2) return `${opener}${parts[0]}. And ${parts[1]}.`;
   return `${opener}${parts.slice(0, -1).join(". ")}. And ${parts.at(-1)}.`;
+}
+
+/** Labelled choices, a first label and then its second, start the options. A lone "(a)" is a part of the question. */
+const OPTION_LABELS: ReadonlyArray<readonly [RegExp, RegExp]> = [
+  [/(?:^|\s)(?:\(\s*[Aa]\s*\)|[Aa]\))\s/, /(?:^|\s)(?:\(\s*[Bb]\s*\)|[Bb]\))\s/],
+  [/(?:^|\s)[Aa]\.\s/, /\s[Bb]\.\s/],
+];
+
+function withoutAnswerOptions(question: string): string {
+  let end = question.length;
+  for (const [firstLabel, secondLabel] of OPTION_LABELS) {
+    const first = firstLabel.exec(question);
+    if (first && secondLabel.test(question.slice(first.index + first[0].length))) end = Math.min(end, first.index);
+  }
+  const named = /\b(?:options|choices)\s*:/i.exec(question);
+  return question.slice(0, named ? Math.min(end, named.index) : end);
 }
 
 function givenStatement(question: string): string {
@@ -302,6 +348,223 @@ function isAskedUnknownAssignment(statement: string, symbol: string): boolean {
 
 function hasGivenContent(rhs: string): boolean {
   return /\d|[a-z]/i.test(rhs);
+}
+
+/** SI prefixes and bases, and the spelled units a question uses. Anything else is not known to be a unit. */
+const UNIT_TOKEN =
+  /^(?:(?:[fpnuµμmcdkMGT]?(?:m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|l|Pa|Hz|eV|mol|ohm|ohms|bar))|min|mins|h|hr|hrs|sec|secs|deg|rad|rpm|atm|torr|cal|kcal|(?:kilo|centi|milli)?(?:met(?:er|re)s?|grams?)|seconds?|minutes?|hours?|years?|days?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|hertz|kelvin|pascals?|coulombs?|farads?|henrys?|teslas?|moles?|lit(?:er|re)s?|degrees?|radians?|rupees?|dollars?|M|mM|kmph|kph|mph)$/;
+const MATH_WORD = /^(?:sin|cos|tan|cot|sec|csc|cosec|arcsin|arccos|arctan|sinh|cosh|tanh|log|ln|exp|sqrt|pi|alpha|beta|gamma|theta|lambda|mu|omega|sigma|phi|rho|tau|epsilon|delta)$/i;
+
+/** A value is short, so a right side with no end in this reach is not one. */
+const RHS_REACH = 200;
+
+/** The right side, read no further than a value could run. Long pasted prompts stay linear. */
+function readValueRhs(text: string, start: number): string | null {
+  const reach = text.slice(start, start + RHS_REACH);
+  const rhs = readAssignmentRhs(reach, 0);
+  return rhs !== null && rhs.length === reach.length && start + RHS_REACH < text.length ? null : rhs;
+}
+
+/**
+ * The clause ended, but the value did not: "10,000", "x = 1, 2", "x = 2; 3",
+ * "m = 2 kg and 3 kg", and "c = 3" with "× 10^8 m/s" wrapped onto the next line.
+ */
+function continuesAsList(text: string, start: number): boolean {
+  const rhs = readValueRhs(text, start);
+  if (rhs === null) return false;
+  const rest = text.slice(start + rhs.length, start + rhs.length + WINDOW);
+  return /^(?:[,;]|\s*and\b)\s*[+\-−–]?\.?\d/iu.test(rest) || /^\s*\n\s*(?:[×*·^/+\-−–=]|[xX]\s*\d)/u.test(rest);
+}
+
+/**
+ * A number with at most its unit: all a row may state. "AX = B", "y = sin x",
+ * "CH2 = CH-CH2+" and "0 by completing the square" are not values.
+ */
+function isPlainValue(text: string): boolean {
+  const match = /^[+\-−–]?\s*(?:\d+(?:\.\d+)?|\.\d+)\s*(.*)$/su.exec(text);
+  if (!match) return false;
+  const unit = match[1]!.trim();
+  return !unit || unit === "%" || unit === "°" || unit.split(/\s+/).every(isUnitText);
+}
+
+/** A limit ("from x = 0 to x = 2"), not a stated value. */
+const CONDITION_WORD = /(?:^|[^\p{L}])(?:from|to|between|until|till|through)$/iu;
+const BETWEEN_LIMITS = /\bbetween\s+\S+\s*=\s*\S+(?:\s+\S+)?\s+and$/iu;
+const LAST_WORD = /(?:^|[^\p{L}\p{N}_])([\p{L}\p{N}][\p{L}\p{M}\p{N}_.]*)$/u;
+
+/**
+ * "bx + c = 0" has no given c: the symbol is a term of a larger expression. So
+ * does "sin x = 1/2", "3 x = 12" and "m a = 10": the word before it multiplies it
+ * or applies to it. A bracket opened after a space ("(g = 10 m/s^2)") is an aside.
+ */
+function standsAlone(statement: string, symbolStart: number): boolean {
+  const before = statement.slice(Math.max(0, symbolStart - WINDOW), symbolStart);
+  const trimmed = before.trimEnd();
+  if (trimmed.endsWith("(") && /(?:^|\s)\($/.test(trimmed)) return true;
+  if (/[+\-*/^×·(=)\]]$/.test(trimmed) || CONDITION_WORD.test(trimmed) || BETWEEN_LIMITS.test(trimmed)) return false;
+  // Only a gap separates them: "force, x = 2" has a comma, so nothing multiplies x.
+  // A line break does not separate them: maths wraps.
+  const last = /\s$/.test(before) ? LAST_WORD.exec(trimmed)?.[1] : undefined;
+  // "sin² x" and "log2 x" are functions too.
+  // A word with a digit or a subscript is a symbol too: "m_1 a = 10".
+  return !last || !(last.length === 1 || /[\p{N}_]/u.test(last) || MATH_WORD.test(last));
+}
+
+/** How far back a value's own context can reach. */
+const WINDOW = 80;
+
+const SPELLED_UNITS: Record<string, string> = {
+  ohm: "Ω", volt: "V", amp: "A", ampere: "A", newton: "N", joule: "J", watt: "W", hertz: "Hz", kelvin: "K",
+  pascal: "Pa", coulomb: "C", farad: "F", henry: "H", tesla: "T", liter: "L", litre: "L", mole: "mol", degree: "°",
+  meter: "m", metre: "m", gram: "g", second: "s", minute: "min", hour: "h", deg: "°", sec: "s",
+};
+const SUPERSCRIPTS: Record<string, string> = { "²": "^2", "³": "^3", "⁻¹": "^-1", "⁻²": "^-2", "⁻³": "^-3" };
+const PREFIX_FACTOR: Record<string, number> = { f: 1e-15, p: 1e-12, n: 1e-9, u: 1e-6, "µ": 1e-6, "μ": 1e-6, m: 1e-3, c: 1e-2, d: 1e-1, k: 1e3, M: 1e6, G: 1e9, T: 1e12 };
+const SPELLED_PREFIX: Record<string, number> = { kilo: 1e3, centi: 1e-2, milli: 1e-3 };
+const BASE_UNIT = /^(m|g|s|A|K|N|J|W|V|C|F|H|T|Ω|L|Pa|Hz|eV|mol|bar)$/;
+const TIME_FACTOR: Record<string, number> = { min: 60, mins: 60, h: 3600, hr: 3600, hrs: 3600 };
+
+/** "m/s²" and "m/s^2" are one unit. */
+function plainUnit(unit: string): string {
+  return unit.replace(/⁻[¹²³]|[²³]/g, (mark) => SUPERSCRIPTS[mark] ?? mark);
+}
+
+/** One unit word as its base and what it is worth in that base. */
+function unitPart(word: string): { base: string; factor: number } {
+  // No unit is this long: it can only be opaque, and it must never recurse deep.
+  if (word.length > 32) return { base: word, factor: 1 };
+  const bare = word.replace(/s$/, "");
+  const spelledPrefix = /^(kilo|centi|milli)(.+)$/.exec(word);
+  if (spelledPrefix) {
+    const inner = unitPart(spelledPrefix[2]!);
+    return { base: inner.base, factor: inner.factor * SPELLED_PREFIX[spelledPrefix[1]!]! };
+  }
+  if (TIME_FACTOR[word]) return { base: "s", factor: TIME_FACTOR[word]! };
+  const named = SPELLED_UNITS[word.toLowerCase()] ?? SPELLED_UNITS[bare.toLowerCase()];
+  if (named && (word.length > 2 || word === "Ω")) return TIME_FACTOR[named] ? { base: "s", factor: TIME_FACTOR[named]! } : { base: named, factor: 1 };
+  if (word === "l") return { base: "L", factor: 1 };
+  if (word === "ml") return { base: "L", factor: 1e-3 };
+  if (BASE_UNIT.test(word)) return { base: word, factor: 1 };
+  const prefix = PREFIX_FACTOR[word[0] ?? ""];
+  const rest = word.slice(1);
+  if (prefix !== undefined && BASE_UNIT.test(rest)) return { base: rest, factor: prefix };
+  if (prefix !== undefined && /^ohms?$/i.test(rest)) return { base: "Ω", factor: prefix };
+  return { base: word, factor: 1 };
+}
+
+/** A unit as what it measures and its size, so "g mL^-1" and "g/mL" agree and "m/s" and "m/s^2" do not. */
+function readUnit(unit: string): { signature: string; factor: number } {
+  let factor = 1;
+  const powers = new Map<string, number>();
+  plainUnit(unit).trim().split("/").forEach((group, groupIndex) => {
+    for (const piece of group.split(/[\s·*]+/).filter(Boolean)) {
+      const match = /^(.+?)(?:\^(-?\d+))?$/.exec(piece);
+      if (!match) continue;
+      const part = unitPart(match[1]!);
+      const power = Number(match[2] ?? 1) * (groupIndex === 0 ? 1 : -1);
+      factor *= part.factor ** power;
+      powers.set(part.base, (powers.get(part.base) ?? 0) + power);
+    }
+  });
+  const signature = [...powers.entries()].filter(([, power]) => power !== 0).map(([base, power]) => `${base}^${power}`).sort().join(" ");
+  return { signature, factor };
+}
+
+interface StatedQuantity {
+  value: number;
+  unit: string;
+  /** The symbol assigned this number in the question, if any. */
+  owner: string | null;
+  /** The whole right side is this number and its unit. Any other value still counts as a second value. */
+  plain: boolean;
+}
+
+/**
+ * The number at each place the question states one as a quantity, with the unit
+ * written beside it and the symbol assigned it. A term or a bound is not a value.
+ */
+function statedQuantities(question: string): StatedQuantity[] {
+  const stated: StatedQuantity[] = [];
+  for (const match of question.matchAll(/\d+(?:\.\d+)?|\.\d+/g)) {
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    const before = question.slice(Math.max(0, start - WINDOW), start).trimEnd();
+    const after = question.slice(end, end + WINDOW);
+    const owner = /(?<![\p{L}\p{N}_])([\p{L}][\p{L}\p{M}\p{N}_'/]*(?:\([^()]*\))?)\s*=\s*[+\-−–]?$/u.exec(before);
+    // The whole right side has to be the value: "x = 3 times y" states no x = 3.
+    // An aside closes its own bracket: "(g = 10 m/s^2)".
+    const rightSide = readValueRhs(question, start) ?? question.slice(start, start + WINDOW).split(")")[0]!;
+    // "bx + c = 0" states no c, even for a plan row named c. It still counts as a
+    // value below: refusing a row must not hide that the symbol has two values.
+    const plain = (!owner || standsAlone(before, owner.index)) &&
+      isPlainValue(rightSide.trim().replace(/[.,;:]+$/, "")) && !continuesAsList(question, start);
+    // A glued word is read as written: "20cm" is a length, and "3i" matches no unit.
+    const glued = /^[\p{L}µ°%Ω](?:[\p{L}\p{N}/²³⁻¹°]|\^-?)*/u.exec(after)?.[0];
+    // A compound unit may be spaced ("10 N m", "1.08 g mL^-1"): read all of it.
+    const spacedUnits: string[] = [];
+    // A unit ends with its line.
+    const unitWords = /^[^\S\n]/.test(after) ? (after.split("\n")[0] ?? "").trimStart().split(/\s+/) : [];
+    for (const word of unitWords) {
+      const bare = word.replace(/[.,;:)]+$/, "");
+      if (!isUnitText(bare)) break;
+      spacedUnits.push(bare);
+      if (bare !== word) break;
+    }
+    const unit = (glued ?? spacedUnits.join(" ")).replace(/[.,;:]+$/, "");
+    const negative = /[-−–]$/.test(before);
+    stated.push({ value: (negative ? -1 : 1) * Number(match[0]), unit, owner: owner?.[1] ?? null, plain });
+  }
+  return stated;
+}
+
+function isUnitText(text: string): boolean {
+  const parts = plainUnit(text).replace(/[.,;:]+$/, "").split(/[/·]/);
+  return parts.length > 0 && parts.every((part) => /^°[CF]$/.test(part) || UNIT_TOKEN.test(part.replace(/\^-?\d+$/, "")));
+}
+
+const statedCache = new Map<string, { stated: StatedQuantity[]; reassigned: Set<string> }>();
+
+/**
+ * The question's stated quantities, and the symbols it gives more than one value:
+ * "A = 0 and A = 1", "masses at x = -1 m and x = 1 m". Such a symbol has cases, not
+ * a given, so neither value can be written as what the question stated.
+ */
+function statedOf(question: string): { stated: StatedQuantity[]; reassigned: Set<string> } {
+  const cached = statedCache.get(question);
+  if (cached) return cached;
+  const stated = statedQuantities(question);
+  const values = new Map<string, Set<string>>();
+  for (const { owner, value, unit } of stated) {
+    if (owner) values.set(owner, (values.get(owner) ?? new Set()).add(`${value} ${unit}`));
+  }
+  const entry = { stated, reassigned: new Set([...values].filter(([, seen]) => seen.size > 1).map(([owner]) => owner)) };
+  // One question at a time reads a few spellings of itself: no need to keep more.
+  if (statedCache.size >= 4) statedCache.clear();
+  statedCache.set(question, entry);
+  return entry;
+}
+
+/**
+ * Does the question literally say this symbol equals this value, with this unit?
+ * `questionStatesValue` asks only whether the number is somewhere in the text,
+ * which is what a teaching prompt needs. A "Given:" row claims the question stated
+ * it, and reading a plan's symbols onto a question's numbers has been wrong in
+ * every form tried: tuples, coefficients, limits, parts of a time. So a row needs
+ * the question's own words. "A 2 kg block" writes no row, and the lesson still teaches.
+ */
+function questionLiterallyStates(question: string, value: number, symbol: string, unit: string): boolean {
+  // One value across the whole question, but stated before anything is asked of it.
+  const { reassigned } = statedOf(withoutAnswerOptions(question));
+  if (reassigned.has(symbol)) return false;
+  const asked = givenStatement(question);
+  const statedPart = asked.slice(0, statedEnd(asked));
+  return statedOf(statedPart).stated.some((stated) => {
+    if (stated.owner !== symbol || stated.value !== value || !stated.plain) return false;
+    if (!unit || !stated.unit) return !unit && !stated.unit;
+    const planned = readUnit(unit);
+    const written = readUnit(stated.unit);
+    return planned.signature === written.signature && planned.factor === written.factor;
+  });
 }
 
 function compactSymbol(value: unknown): string | null {
@@ -336,7 +599,7 @@ function formatNumber(value: number): string {
 }
 
 /** Keep a plus the question wrote. An unsigned 1 is not the oxidation state +1. */
-function boardNumber(value: number, sourceText: unknown, names: unknown[]): string {
+export function boardNumber(value: number, sourceText: unknown, names: unknown[]): string {
   const plain = formatNumber(value);
   if (typeof sourceText !== "string" || !(value > 0)) return plain;
   const numbers = [...sourceText.matchAll(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g)];
@@ -521,9 +784,9 @@ export function isQuotedPhysicalConstant(symbol: string, value: number): boolean
 /**
  * Did the question actually state this number?
  *
- * The board's "Given: ..." row has always been gated on this, because a
- * planner will happily invent a whole worked example and mark every value
- * `provenance: "given"` with a confident sourceText. The teaching prompt was
+ * A planner will happily invent a whole worked example and mark every value
+ * `provenance: "given"` with a confident sourceText. The board's "Given: ..." row
+ * asks for more than this (`questionLiterallyStates`). The teaching prompt was
  * not gated on it: it handed the model every planner given as authoritative,
  * so a lesson said "substitute the given values" over numbers the question
  * never contained, and once told a student Earth's magnetic field is one tesla.
@@ -540,12 +803,6 @@ export function questionStatesValue(question: string, value: number): boolean {
     if (stated.some((token) => Number(token) === Number(needle))) return true;
   }
   return false;
-}
-
-function questionMentions(question: string, snippet: string): boolean {
-  const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9=]+/g, "");
-  const needle = compact(snippet);
-  return needle.length > 0 && compact(question).includes(needle);
 }
 
 function normalizeKey(value: string): string {

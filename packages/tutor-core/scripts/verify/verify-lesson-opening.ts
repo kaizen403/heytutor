@@ -274,7 +274,7 @@ assert(
   "the model must be told the lesson has already been opened",
 );
 for (const [name, addon] of [
-  ["given values", givenValuesPromptAddon(true)],
+  ["given values", givenValuesPromptAddon(["Given: a = 2"])],
   ["dsa opening", dsaOpeningPromptAddon(true)],
   ["system prompt", TUTOR_SYSTEM_PROMPT],
 ]) {

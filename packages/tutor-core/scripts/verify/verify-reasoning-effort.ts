@@ -136,7 +136,7 @@ const teachingPrompts = [
   FAST_MODE_TEACHING_ADDON,
   FAMILIARITY_ADDONS.revision,
   FAMILIARITY_ADDONS.new,
-  givenValuesPromptAddon(true),
+  givenValuesPromptAddon(["Given: a = 2"]),
 ];
 for (const prompt of teachingPrompts) {
   assert(
