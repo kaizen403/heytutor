@@ -1,0 +1,1 @@
+tsx --tsconfig tsconfig.json scripts/verify/verify-chemistry-certified-atom-save.ts
