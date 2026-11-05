@@ -9,6 +9,7 @@ import { FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars, figur
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { liveSceneSaveFailure } from "../../lib/scene/sceneSaveAdmission";
 import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
+import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
@@ -108,6 +109,22 @@ const main = async () => {
   if (live(atSize) !== null) fail("the browser keeps a figure at the size", live(atSize));
   if (live(pastSize) === null) fail("the browser drops a figure past the size", null);
   if (figureQuestionTooLong(pastSize) !== true || figureQuestionTooLong(atSize) !== false) fail("the size check", null);
+  // Spacing and characters at the edge count the same on the server and in the browser.
+  const edges: Array<[string, string, string]> = [
+    ["line breaks", atSize.replace(/ /g, "\r\n"), "validated"],
+    ["no break spaces", atSize.replace(/ /g, "\u00a0"), "validated"],
+    ["a zero width character past the size", `${atSize}\u200b`, "text_only"],
+    ["one more letter past the size", `${atSize}y`, "text_only"],
+  ];
+  for (const [name, question, expected] of edges) {
+    if (await statusOf(metadata(question)) !== expected) fail(`${name}: saves as ${expected}`, await statusOf(metadata(question)));
+    if ((live(question) === null) !== (expected === "validated")) fail(`${name}: the browser agrees`, live(question));
+  }
+  // A long question saved as text reopens, replays and shares as text.
+  const textRow = stored("55555555-5555-4555-8555-555555555555", 0, pastSize, (pastSaved as { value: Parameters<typeof stored>[3] }).value, { opensOnClear: true, kind: "lesson" });
+  if (sourceCheckedStoredTurn(textRow).visualStatus !== "text_only") fail("a long question saved as text reopens as text", sourceCheckedStoredTurn(textRow).visualStatus);
+  if (buildReplayTimeline([textRow]).cues.length === 0) fail("a long question saved as text replays its rows", null);
+
 
   // A doubt figure counts the lesson question and the doubt together.
   const lesson = await checkpointSceneFixture();

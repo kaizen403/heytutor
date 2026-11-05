@@ -185,9 +185,11 @@ const SERVER_INK = drawing.serializeSegmentCommands(
 );
 
 let lastCanonicalizeOptions: Row | undefined;
+let lastCanonicalizeQuestion: unknown;
 const canonicalize = async (meta: Row, options?: Row) => {
   canonicalizeCalls += 1;
   lastCanonicalizeOptions = options;
+  lastCanonicalizeQuestion = meta.question;
   // A doubt naming its page's figure goes through the real canonicalizer and
   // the real page figure loader, bound by the route to this in-memory board.
   if (meta.sceneArtifacts?.problemIR || meta.sceneArtifacts?.pointsAtFigure) {
@@ -401,6 +403,16 @@ async function resumeSavePassesTheStoredQuestion() {
   assert.equal(late.status, 200, `a late scene saves its rows: ${JSON.stringify(late.body)}`);
   assert.equal(canonicalizeCalls - callsBefore, 2, "the held scene is saved again");
   assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "the held scene's save passes the question already saved");
+  // A late scene that also changes the question: the held scene saves under the stored question, and the stored question is what is passed on.
+  const changed = crypto.randomUUID();
+  assert.equal((await put(changed, { seq: 1, baseCount: 0, status: "live", question: asked, appendSegments: [row(0, "first")], ...figure })).status, 200);
+  assert.equal((await close(changed, { seq: 3, status: "stopped", rawResponse: "Current narration.", resumeState: { v: 1, solverProjection: { value: 1 } } })).status, 200);
+  const changedCalls = canonicalizeCalls;
+  const lateChanged = await put(changed, { seq: 2, baseCount: 1, status: "stopped", question: "A different and much longer question.", appendSegments: [], ...figure, sceneDocument: { id: "late" } });
+  assert.equal(lateChanged.status, 200, `a late scene with a changed question saves its rows: ${JSON.stringify(lateChanged.body)}`);
+  assert.equal(canonicalizeCalls - changedCalls, 2, "the held scene is saved again");
+  assert.equal(lastCanonicalizeQuestion, asked, "the held scene saves under the stored question");
+  assert.equal(lastCanonicalizeOptions?.storedQuestion, asked, "and passes the stored question, not the changed one");
 }
 
 async function failedEarlierCreationKeepsDurableOrder() {
