@@ -79,6 +79,8 @@ interface EvaluatedOutput {
   conventionSigned?: boolean;
   /** Read only under this exact name, never by a looser match. */
   exactName?: string;
+  /** Read only a plan quantity in a unit of length: one with no unit would be read as metres. */
+  lengthUnitOnly?: boolean;
 }
 
 function evaluatePlanLaw(
@@ -112,14 +114,18 @@ function evaluatePlanLaw(
     const focalQuantity = findQuantity(plan.givens, ["focal_length", "focallength", "f"]);
     if (!objectQuantity || !focalQuantity) return null;
     const readsSubscripts = plainObject === null;
-    // Reads this law did not make before answer to a stricter test of one
-    // element. The plainly named path keeps its own, so nothing it rejects loosens.
+    // The reads this law did not make before take a distance only in a unit of
+    // length: one with no unit would be read as metres.
+    const unitsStated = hasLengthUnit(objectQuantity) && hasLengthUnit(focalQuantity);
+    if (readsSubscripts && !unitsStated) return { declined: NO_LENGTH_UNIT_DECLINE };
+    // They also answer to a stricter test of one element. The plainly named
+    // path keeps its own, so nothing it rejects loosens.
     if (readsSubscripts && (leavesOneCaseOpen(plan.question) || /\bdiameter\b/i.test(plan.question))) {
       return { declined: SECOND_ELEMENT_DECLINE };
     }
     const signs = resolveSignedDistances(plan, element, objectQuantity, focalQuantity);
     if ("reason" in signs) {
-      if (!signs.signsConflict || element.converging === null) return { declined: signs.reason };
+      if (!signs.signsConflict || element.converging === null || !unitsStated) return { declined: signs.reason };
       if (leavesOneCaseOpen(plan.question)) return { declined: SECOND_ELEMENT_DECLINE };
       // No convention can be read from these signs, but a single element and a
       // real object leave no choice about sizes: |v| and |m| follow from |u|,
@@ -141,7 +147,7 @@ function evaluatePlanLaw(
       // A v equal in size and opposite in sign is a convention clash only
       // when the convention is not fixed by signed givens; otherwise it is
       // reported as an inconsistency like any other.
-      { ...output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens), ...(readsSubscripts ? { exactName: SUBSCRIPT_IMAGE_DISTANCE } : {}) },
+      { ...output(IMAGE_DISTANCE_ALIASES, imageSideBetweenConventions(element, signs.convention, values.imageDistance!), "length", !signs.fixedByGivens), ...(readsSubscripts ? { exactName: SUBSCRIPT_IMAGE_DISTANCE, lengthUnitOnly: true } : {}) },
       // Magnification is the ratio of image to object height, so it reads the same in both conventions.
       output(MAGNIFICATION_ALIASES, values.magnification!, "scalar", readsSubscripts),
     ] };
@@ -362,7 +368,7 @@ function auditDerivedSizes(plan: TurnPlanV3, lawId: OpticsLawId, sizes: LawSizes
     roundsToStatedValue(Math.abs(quantity.value), lawValue) ? [] : [{ lawId, quantityId: quantity.id, planValue: quantity.value, lawValue }];
   return [
     ...named(sizes.imageNames)
-      .filter((quantity) => LENGTH_TO_METERS[normalizeUnit(quantity.unit)] !== undefined)
+      .filter(hasLengthUnit)
       .flatMap((quantity) => report(quantity, Math.abs(fromBaseUnit(sizes.imageDistance, quantity.unit, "length")))),
     ...named(MAGNIFICATION_ALIASES)
       .filter((quantity) => !quantity.unit || normalizeUnit(quantity.unit) === "dimensionless")
@@ -378,11 +384,12 @@ function roundsToStatedValue(planValue: number, lawValue: number): boolean {
 function auditDerivedQuantity(
   plan: TurnPlanV3,
   lawId: OpticsLawId,
-  { aliases, value: baseValue, dimension, conventionSigned, exactName }: EvaluatedOutput,
+  { aliases, value: baseValue, dimension, conventionSigned, exactName, lengthUnitOnly }: EvaluatedOutput,
 ): { inconsistencies: OpticsPlanInconsistency[]; declined: OpticsPlanDecline[] } {
   const unknown = findQuantity(plan.unknowns, aliases);
   const expandedAliases = unknown ? [...aliases, unknown.id, unknown.symbol] : aliases;
-  const targets = [...new Set([...findOutputQuantities(plan.derived, expandedAliases), ...(exactName ? exactlyNamed(plan.derived, exactName) : [])])];
+  const targets = [...new Set([...findOutputQuantities(plan.derived, expandedAliases), ...(exactName ? exactlyNamed(plan.derived, exactName) : [])])]
+    .filter((target) => !lengthUnitOnly || hasLengthUnit(target));
   const inconsistencies: OpticsPlanInconsistency[] = [];
   const declined: OpticsPlanDecline[] = [];
   for (const target of targets) {
@@ -568,6 +575,7 @@ const MULTIPLE_ELEMENT_CUE =
 const ELEMENT_INTRODUCED = /\b(?:a|an)\s+(?:[\w-]+\s+){0,3}?(?:lens|mirror)\b/gi;
 const FOCAL_LENGTH_STATED = /\bfocal\s+lengths?\b/gi;
 const SECOND_ELEMENT_DECLINE = "more than one optical element: a later element's object may be virtual";
+const NO_LENGTH_UNIT_DECLINE = "an object or focal distance has no unit of length";
 
 const ANOTHER_CASE_WORD = /\b(?:if|suppose|instead|repeat|other|now|about|student'?s\s+doubt)\b/i;
 const ELEMENT_TYPE_WORD = /\b(?:convex|concave|converging|diverging)\b/gi;
@@ -685,6 +693,10 @@ function claimedOrientation(plan: TurnPlanV3): 1 | -1 | null {
     orientation = sign;
   }
   return orientation;
+}
+
+function hasLengthUnit(quantity: { unit?: string }): boolean {
+  return LENGTH_TO_METERS[normalizeUnit(quantity.unit)] !== undefined;
 }
 
 function exactlyNamed<T extends { id: string; symbol: string }>(quantities: readonly T[], name: string): T[] {

@@ -20,7 +20,7 @@ import {
   type TurnPlanRequestOutcome,
 } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 
 type Named = [id: string, value: number, unit?: string];
@@ -89,10 +89,10 @@ const numbersDrawn = (selection: ReturnType<typeof selectProductionScene>): stri
   (selection.representation?.renderScene?.primitives ?? [])
     .map((primitive) => (primitive as { text?: unknown }).text)
     .filter((text): text is string => typeof text === "string" && /\d/.test(text));
-const segmentFigure = (question: string): Record<string, unknown> => ({
+const segmentFigure = (question: string, label = "AB"): Record<string, unknown> => ({
   schemaVersion: "scene-document/v2", source: { question, nonMetric: true, representationTier: "qualitative_verified" },
   visualDecision: { mode: "scene", reason: "a labelled axis segment" }, quantities: [],
-  entities: [{ id: "a", kind: "point", role: "endpoint", label: "A" }, { id: "b", kind: "point", role: "endpoint", label: "B" }, { id: "ab", kind: "segment", role: "segment", label: "AB" }],
+  entities: [{ id: "a", kind: "point", role: "endpoint", label: "A" }, { id: "b", kind: "point", role: "endpoint", label: "B" }, { id: "ab", kind: "segment", role: "segment", label }],
   constructions: [{ id: "pa", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["a"] }, { id: "pb", operator: "point", inputs: { x: 3, y: 0 }, outputs: ["b"] }, { id: "sab", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ab"] }],
   relations: [], assertions: [{ id: "exists", predicate: "exists", entities: ["ab"], expected: true, severity: "fatal" }],
   annotations: [], requiredEntityIds: ["a", "b", "ab"],
@@ -141,6 +141,46 @@ async function main() {
   await check("a Cartesian d_o is read the same way", () => {
     assert.ok(parse(plan(CONVEX_LENS, [["f", 15, "cm"], ["d_o", -40, "cm"]], [["d_i", 24, "cm"]], LENS)).plan);
     assert.equal(parse(plan(CONVEX_LENS, [["f", 15, "cm"], ["d_o", -40, "cm"]], [["d_i", 17.14, "cm"]], LENS)).plan, null);
+  });
+
+  // A distance with no unit would be read as metres, so the reads dev never made take one only in a unit of length.
+  // Truth for 40 cm and 15 cm is 24 cm; read as 40 m it would be 15.06 cm.
+  const noUnit = /no unit of length/;
+  for (const [name, givens] of [
+    ["an object distance", [["f", -15, "cm"], ["u", 40]]],
+    ["a focal length", [["f", -15], ["u", 40, "cm"]]],
+  ] as [string, Named[]][]) {
+    await check(`the size check is not made on ${name} with no unit, as dev`, () => {
+      const candidate = plan(CONVEX_LENS, givens, [["v", 24, "cm"]], LENS);
+      const audit = reconcileTurnPlanWithOpticsLaws(candidate);
+      assert.deepEqual(audit.inconsistencies, []);
+      assert.ok(audit.declined.some((item) => /contradicts the stated lens type/.test(item.reason)), "declined on the sign, as dev");
+      assert.ok(parse(candidate).plan);
+    });
+  }
+  await check("the size check with units stated still rejects a false image and keeps the true one", () => {
+    assert.equal(parse(plan(CONVEX_LENS, [["f", -15, "cm"], ["u", 40, "cm"]], [["v", 17.14, "cm"]], LENS)).plan, null);
+    assert.ok(parse(plan(CONVEX_LENS, [["f", -15, "cm"], ["u", 40, "cm"]], [["v", 24, "cm"]], LENS)).plan);
+  });
+  for (const [name, givens] of [
+    ["d_o", [["f", 15, "cm"], ["d_o", 40]]],
+    ["the focal length beside d_o", [["f", 15], ["d_o", 40, "cm"]]],
+  ] as [string, Named[]][]) {
+    await check(`${name} with no unit is not read`, () => {
+      const candidate = plan(CONVEX_LENS, givens, [["d_i", 24, "cm"]], LENS);
+      const audit = reconcileTurnPlanWithOpticsLaws(candidate);
+      assert.deepEqual(audit.inconsistencies, []);
+      assert.deepEqual(audit.checkedLawIds, []);
+      assert.ok(audit.declined.some((item) => noUnit.test(item.reason)), "declined, not skipped");
+      assert.ok(parse(candidate).plan);
+    });
+  }
+  await check("d_i with no unit is not read, and d_i in a unit of length still is", () => {
+    const unitless = plan(CONVEX_LENS, [["f", 15, "cm"], ["d_o", 40, "cm"]], [["d_i", 24]], LENS);
+    assert.deepEqual(reconcileTurnPlanWithOpticsLaws(unitless).inconsistencies, []);
+    assert.ok(parse(unitless).plan);
+    assert.ok(parse(plan(CONVEX_LENS, [["f", 15, "cm"], ["d_o", 40, "cm"]], [["d_i", 240, "mm"]], LENS)).plan);
+    assert.equal(parse(plan(CONVEX_LENS, [["f", 15, "cm"], ["d_o", 40, "cm"]], [["d_i", 171.4, "mm"]], LENS)).plan, null);
   });
 
   const shapes: [string, Named[], Named[]][] = [
@@ -285,7 +325,14 @@ async function main() {
         assert.deepEqual(numbersDrawn(selected), []);
       });
       await check(`a candidate under the fallback draws no number on ${name}: ${question.slice(0, 40)}`, () => {
-        const selected = selectProductionScene({ question, turnPlan: fallback, problemIR: null, candidate: segmentFigure(question), requiredRetryEnabled: true, policy } as Parameters<typeof selectProductionScene>[0]);
+        // A number that survives validation in the candidate's own label, so drawing it would show. On these
+        // stems the optics archetype owns the figure: the planner candidate is dropped and strict suppresses the archetype.
+        const candidate = segmentFigure(question, "AB 3");
+        const validated = validateProductionSceneCandidate({ candidate, question, turnPlan: fallback });
+        assert.ok(validated.valid, "the numbered candidate is valid");
+        assert.ok(numbersDrawn({ representation: validated.value } as never).length > 0, "its validated render carries the number");
+        const selected = selectProductionScene({ question, turnPlan: fallback, problemIR: null, candidate, requiredRetryEnabled: true, policy } as Parameters<typeof selectProductionScene>[0]);
+        assert.equal(selected.representation, null);
         assert.deepEqual(numbersDrawn(selected), []);
       });
     }
