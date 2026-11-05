@@ -250,7 +250,7 @@ if (sceneTextOverLimit(keysLast)?.code !== OVER || sceneTextOverLimit(keysFirst)
 
 // Each count, right at it and one past it, for lists and for kinds.
 const COUNT = "scene_count_over_limit";
-const many = (count: number, make: (index: number) => unknown) => Array.from({ length: count }, (_, index) => make(index));
+const many = <T>(count: number, make: (index: number) => T): T[] => Array.from({ length: count }, (_, index) => make(index));
 for (const field of ["entities", "constructions", "annotations", "revealGroups", "assertions", "quantities", "relations", "teachingTimeline"] as const) {
   if (sceneCountOverLimit({ [field]: many(N[field], () => ({})) }) !== null) fail(`${field}: at the count`, null);
   const past = sceneCountOverLimit({ [field]: many(N[field] + 1, () => ({})) });
