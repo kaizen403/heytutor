@@ -12,6 +12,10 @@ import {
 } from "@heytutor/drawing";
 import { DSA_DIAGRAM_ZONE } from "../../features/tutor-session/constants";
 import { restoreVerifiedDiagramFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import { takeDeferredAnnotations, type VerifiedDiagram } from "@heytutor/drawing";
+import { storedTurnContinuesBoard } from "../../lib/boards/boardContinuation";
+import { syncStoredPageFigure } from "../../features/tutor-session/lib/replay/pageFigureSync";
+import { doubtFigurePageFixture } from "./fixtures/doubtFigureScene";
 import {
   createScheduledWriteClock,
   simulateScheduledWriteWait,
@@ -199,6 +203,55 @@ void (async () => {
   );
   releaseReplayAudioBytes(enriched[0]!.audioUrl!);
   assert.equal(replayAudioBytesForUrl(enriched[0]!.audioUrl!), null);
+
+  // A doubt that drew its own figure (DIAGRAM_DOUBT_FIGURES): replay walks the
+  // page through the same step the live board took. The doubt's FOCUS resolves
+  // on its own figure, and the resume gets the lesson's figure back with the
+  // label the student already saw, never lettered a second time.
+  {
+    const fixture = await doubtFigurePageFixture();
+    const turns = fixture.turns;
+    const timeline = buildReplayTimeline(turns);
+    let active: VerifiedDiagram | null = null;
+    const labels: Array<{ text: string | undefined; turnIndex: number; stamped: boolean }> = [];
+    let playing = -1;
+    const executeCommand = async (command: DrawCommand, options?: { durationScale?: number }) => {
+      if (command.type === "LABEL") labels.push({ text: command.text, turnIndex: playing, stamped: options?.durationScale === 0 });
+    };
+    const wb = { eraseSceneInk: async () => {}, erasePinnedInk: () => {} };
+    let synced = -1;
+    for (const cue of timeline.cues) {
+      if (cue.turnIndex !== synced) {
+        synced = cue.turnIndex;
+        playing = cue.turnIndex;
+        const turn = turns[cue.turnIndex]!;
+        if (!storedTurnContinuesBoard(turn)) {
+          active = restoreVerifiedDiagramFromTurn(turn);
+        } else {
+          const figure = await syncStoredPageFigure({ turns, turnIndex: cue.turnIndex, whiteboard: wb, executeCommand, shouldCancel: () => false });
+          if (figure.changed) active = figure.diagram;
+        }
+      }
+      for (const command of cue.commands) {
+        if (command.type !== "FOCUS" || !active) continue;
+        const targets = resolveVerifiedDiagramFocusTargets(command, active);
+        assert.ok(targets.length > 0, `turn ${cue.turnIndex} FOCUS ${command.text} resolves on the figure in the zone`);
+        for (const next of takeDeferredAnnotations(active, { entityIds: [command.text ?? "", ...targets.map((target) => target.id)] })) {
+          labels.push({ text: next.text, turnIndex: cue.turnIndex, stamped: false });
+        }
+      }
+    }
+    assert.deepEqual(
+      labels.map((entry) => `${entry.turnIndex}:${entry.text}:${entry.stamped ? "stamped" : "lettered"}`),
+      ["0:2:lettered", "1:5:lettered", "3:2:stamped"],
+      "the lesson letters 2, the doubt's figure letters 5, the resume stamps 2 back once",
+    );
+    assert.deepEqual(active?.deferredAnnotations?.map((entry) => entry.entityId), ["sum_value"],
+      "the returned lesson figure still withholds only the sum, for its own FOCUS or the final flush");
+    const replaySync = readFileSync(resolve(import.meta.dirname, "../../features/tutor-session/hooks/useReplay.ts"), "utf8");
+    assert.equal((replaySync.match(/await syncReplayTurn\(/g) ?? []).length, 3,
+      "playback and both seek paths await the figure step before a turn's cues draw");
+  }
   console.log("verify-replay: ok");
 })().catch((error: unknown) => {
   console.error(error);

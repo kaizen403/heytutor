@@ -1340,6 +1340,7 @@ async function main(): Promise<void> {
   if (galleryPath) console.log(`gallery: ${galleryPath}`);
 }
 
-if (process.argv[1]?.endsWith("run.ts")) {
+// Anchored to the file name: doubt-run.ts and dsa-run.ts also end in "run.ts".
+if (/(^|[\\/])run\.ts$/.test(process.argv[1] ?? "")) {
   void main().catch((error) => { console.error(error); process.exitCode = 1; });
 }

@@ -19,6 +19,7 @@ import {
   serializeSegmentCommands,
   type DrawCommand,
   type TutorSegment,
+  type VerifiedDiagram,
 } from "@heytutor/drawing";
 import type { CodeLessonPlan } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
@@ -29,13 +30,28 @@ import type {
 } from "@/lib/boards/boardsClient";
 import {
   boardContinuationArtifacts,
+  boardContinuationOf,
+  pageTurnsEndingAt,
   storedTurnContinuesBoard,
+  storedTurnPageQuestion,
 } from "@/lib/boards/boardContinuation";
+import {
+  doubtFigureRefArtifacts,
+  doubtFigureRefOf,
+  DOUBT_FIGURE_REF_VERSION,
+  type DoubtFigureKind,
+  type DoubtFigureRef,
+  type DoubtPointingPolicy,
+} from "@/lib/boards/doubtFigureRef";
+
+import { doubtFigureArtifacts, doubtFigureOf } from "@/lib/boards/doubtFigure";
+import type { LessonFigureId } from "@/lib/boards/lessonFigures";
 
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
 import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
 import {
+  isReferencePictureDiagram,
   isReferencePictureRow,
   pointsAtReferencePicture,
   readStoredReferencePicture,
@@ -77,6 +93,31 @@ export interface BoardPageRecord {
   solverProjection: unknown;
   /** The verified figure's intro committed: its ink is on the page, not merely planned. */
   figureDrawn: boolean;
+  /**
+   * Checkpoint id of the turn whose figure is in the zone: set when a turn's
+   * figure commits, copied onto the doubt record that replaces it. Absent or
+   * null when this tab did not see the figure drawn (a restored board).
+   */
+  figureTurnId?: string | null;
+  /**
+   * Set while a doubt's own figure stands in the zone: the lesson figure it
+   * replaced, returned when the lesson resumes (DIAGRAM_DOUBT_FIGURES).
+   * `presentation` is what returnPageFigure redraws. A null `diagram`: the
+   * zone stood empty, and the resume clears it again.
+   */
+  zoneStash?: import("../scene/figureSwap").ZoneStash | null;
+  /**
+   * The lesson's later figure in the zone (DIAGRAM_LESSON_FIGURES), set when
+   * `[FOCUS:figure_k]` drew it; absent while figure 1 stands.
+   */
+  lessonFigureId?: import("@/lib/boards/lessonFigures").LessonFigureId | null;
+  /**
+   * This doubt turned a fresh page for its own figure (lane 9): the lesson's
+   * page is held by the whiteboard until the lesson resumes. Saved as
+   * `boardContinuation.freshPage`. Never carried to a later record: a doubt
+   * asked on the doubt page continues that page.
+   */
+  turnedFreshPage?: boolean;
   /** The turn teaching on this page now, or the last one that did. */
   turn: {
     kind: PageTurnKind;
@@ -109,27 +150,82 @@ export function lessonPageRecord(boardId: string, question: string): BoardPageRe
     turnPlan: null,
     solverProjection: null,
     figureDrawn: false,
+    figureTurnId: null,
     turn: { kind: "lesson", question, continuesBoard: false, scene: null, saved: false },
   };
 }
 
 /**
- * A doubt is text on the page it continues. Its FOCUS names figure parts the
- * lesson's saved scene owns, and the server only keeps a FOCUS it can check
- * against a scene, so a saved doubt keeps its rows and boxes and drops its
- * pointing. The marker is what keeps it on the lesson's page.
+ * A doubt is text on the page it continues. Its FOCUS names figure parts an
+ * earlier turn's saved scene owns. The marker keeps it on the lesson's page;
+ * `pointsAtFigure` names the turn whose figure was in the zone, so the server
+ * can check the doubt's pointing against that figure and keep what resolves.
+ * Without the reference, or one the server cannot resolve, the doubt keeps its
+ * rows and boxes and drops its pointing, as before.
  */
 export function doubtTurnScene(
   lessonQuestion: string,
   continuesBoard: boolean,
   diagramStrategy?: DiagramStrategy,
+  pointsAtFigure?: DoubtFigureRef | null,
 ): PersistedTurnScene {
+  const ref = continuesBoard && pointsAtFigure ? doubtFigureRefOf(doubtFigureRefArtifacts(pointsAtFigure)) : null;
   return {
     ...textOnlyTurnScene(diagramStrategy),
     sceneArtifacts: continuesBoard
-      ? { ...boardContinuationArtifacts(lessonQuestion), ...(diagramStrategy ? { diagramStrategy } : {}) }
+      ? {
+          ...boardContinuationArtifacts(lessonQuestion),
+          ...(ref ? doubtFigureRefArtifacts(ref) : {}),
+          ...(diagramStrategy ? { diagramStrategy } : {}),
+        }
       : diagramStrategy ? { diagramStrategy } : null,
   };
+}
+
+/**
+ * A doubt that drew its own figure (DIAGRAM_DOUBT_FIGURES) is saved as its own
+ * validated scene, on the lesson's page: the scene the doubt planned and
+ * verified on the composed question, plus the continuation marker and the
+ * doubt figure marker naming the figure it replaced. It points at its own
+ * figure, so no `pointsAtFigure` rides with it. Lane C sets the doubt record's
+ * `turn.scene` to this once the doubt's figure is selected.
+ */
+export function doubtFigureTurnScene(
+  scene: PersistedTurnScene,
+  lessonQuestion: string,
+  replacedTurnId: string | null,
+): PersistedTurnScene {
+  const artifacts = isRecord(scene.sceneArtifacts) ? { ...scene.sceneArtifacts } : {};
+  delete artifacts.pointsAtFigure;
+  return {
+    ...scene,
+    sceneArtifacts: {
+      ...artifacts,
+      ...boardContinuationArtifacts(lessonQuestion),
+      ...doubtFigureArtifacts(replacedTurnId),
+    },
+  };
+}
+
+/** The doubt's own validated figure scene, when the record holds one. */
+export function doubtOwnFigureScene(record: Pick<BoardPageRecord, "turn"> | null | undefined): PersistedTurnScene | null {
+  const scene = record?.turn.kind === "doubt" && record.turn.continuesBoard ? record.turn.scene : null;
+  if (!scene || scene.visualStatus !== "validated" || !scene.sceneDocument) return null;
+  if (!doubtFigureOf(scene.sceneArtifacts) || !boardContinuationOf(scene.sceneArtifacts)) return null;
+  return scene;
+}
+
+/**
+ * The scene a doubt with its own figure is saved with. Its figure is saved
+ * only once its intro committed (`figureDrawn`, set by enqueueVerifiedIntro
+ * after the swap cleared it); before that the doubt is text on the page,
+ * pointing at nothing, since the zone stood empty.
+ */
+export function doubtFigureSaveScene(record: BoardPageRecord, textOnly = false): PersistedTurnScene | null {
+  const scene = doubtOwnFigureScene(record);
+  if (!scene) return null;
+  if (record.figureDrawn && !textOnly) return scene;
+  return doubtTurnScene(record.lessonQuestion, true, undefined, null);
 }
 
 export function doubtPageRecord(input: {
@@ -140,21 +236,99 @@ export function doubtPageRecord(input: {
   figureDrawn: boolean;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
+  /** The record this doubt replaces (`boardPageRef.current`): its figure turn carries over. */
+  replaces?: BoardPageRecord | null;
+  /** `doubtFigureRefFor`: the figure this doubt may point at, saved with it. */
+  pointsAtFigure?: DoubtFigureRef | null;
 }): BoardPageRecord {
+  const replaced = input.replaces?.boardId === input.boardId ? input.replaces : null;
   return {
     boardId: input.boardId,
     lessonQuestion: input.lessonQuestion,
     turnPlan: input.turnPlan,
     solverProjection: input.solverProjection,
     figureDrawn: input.figureDrawn,
+    figureTurnId: input.continuesBoard
+      ? replaced?.figureTurnId ?? input.pointsAtFigure?.turnId ?? null
+      : null,
     turn: {
       kind: "doubt",
       question: input.title,
       continuesBoard: input.continuesBoard,
-      scene: doubtTurnScene(input.lessonQuestion, input.continuesBoard),
+      scene: doubtTurnScene(input.lessonQuestion, input.continuesBoard, undefined, input.pointsAtFigure),
       saved: false,
     },
   };
+}
+
+/** Which kind of figure is in the zone, judged from the diagram the board holds. */
+function activeFigureKind(diagram: VerifiedDiagram): DoubtFigureKind {
+  if (diagram.layout === "code_lesson") return "dsa_frame";
+  if (isReferencePictureDiagram(diagram)) return "reference_picture";
+  return "verified_scene";
+}
+
+/** The figure kind a saved turn holds, or null when it saved none. */
+function storedFigureKind(turn: Pick<StoredTurn, "visualStatus" | "sceneArtifacts">): DoubtFigureKind | null {
+  if (referencePictureIdOf(turn.sceneArtifacts) && readStoredReferencePicture(turn.sceneArtifacts)) {
+    return "reference_picture";
+  }
+  if (turn.visualStatus !== "validated") return null;
+  return isRecord(turn.sceneArtifacts) && isRecord(turn.sceneArtifacts.codeLesson) ? "dsa_frame" : "verified_scene";
+}
+
+/**
+ * The figure a doubt points at, saved on it as `sceneArtifacts.pointsAtFigure`.
+ *
+ * Null unless the doubt continues a page with a figure drawn on it and was not
+ * asked over a replay (whose page is not the last saved one). The live record
+ * names the turn whose figure committed in this tab; on a restored board there
+ * is no such record, and the figure is the newest saved turn on the last page
+ * that holds a validated scene or a stored picture. The server checks the
+ * reference again before it keeps any pointing, so a wrong guess here loses
+ * the pointing, never the doubt.
+ */
+export function doubtFigureRefFor(input: {
+  record: BoardPageRecord | null;
+  boardId: string;
+  afterReplay: boolean;
+  figureOnPage: boolean;
+  storedTurns: readonly StoredTurn[];
+  activeDiagram: VerifiedDiagram | null;
+  codeLessonFrameIndex: number | null;
+  /** `lessonFigureIdInZone`: the lesson's later figure in the zone, or null for its own figure. */
+  lessonFigureId?: LessonFigureId | null;
+}): DoubtFigureRef | null {
+  if (input.afterReplay || !input.figureOnPage || !input.activeDiagram) return null;
+  const kind = activeFigureKind(input.activeDiagram);
+  let frameIndex: number | undefined;
+  if (kind === "dsa_frame") {
+    const index = input.codeLessonFrameIndex;
+    if (index === null || !Number.isInteger(index) || index < 0) return null;
+    frameIndex = index;
+  }
+  const build = (turnId: string): DoubtFigureRef | null => doubtFigureRefOf(doubtFigureRefArtifacts({
+    schemaVersion: DOUBT_FIGURE_REF_VERSION,
+    turnId,
+    kind,
+    ...(frameIndex !== undefined ? { frameIndex } : {}),
+    ...(kind === "verified_scene" && input.lessonFigureId ? { figureId: input.lessonFigureId } : {}),
+  }));
+  const record = input.record?.boardId === input.boardId ? input.record : null;
+  if (record?.figureTurnId) return build(record.figureTurnId);
+  // A live lesson that opened a fresh page and committed no figure in this tab:
+  // the saved turns end on the page before, whose figure is not in the zone.
+  if (record && !record.turn.continuesBoard) return null;
+  const page = pageTurnsEndingAt(input.storedTurns);
+  for (let index = page.length - 1; index >= 0; index -= 1) {
+    const turn = page[index]!;
+    const stored = storedFigureKind(turn);
+    if (!stored) continue;
+    if (stored !== kind) return null;
+    if (record && storedTurnPageQuestion(turn).trim() !== record.lessonQuestion.trim()) return null;
+    return build(turn.id);
+  }
+  return null;
 }
 
 /**
@@ -197,6 +371,12 @@ export interface PausedLessonRequest {
    * figure is not stored twice. Only set when `figureDrawn`.
    */
   remainingIntro?: readonly TutorSegment[];
+  /**
+   * A reloaded board whose zone holds a doubt's own figure: the stored turn
+   * whose figure the resume returns (`turnId` null: the zone empties) and the
+   * ids earlier turns released on it. The live board uses `zoneStash`.
+   */
+  returnsFigure?: { turnId: string | null; consumedIds: string[]; figureId?: import("@/lib/boards/lessonFigures").LessonFigureId };
 }
 
 /**
@@ -265,7 +445,10 @@ export function pausedLessonFromPage(
     turnPlan: record.turnPlan,
     solverProjection: record.solverProjection,
     scene: record.turn.kind === "lesson" ? record.turn.scene : null,
-    figureDrawn: record.figureDrawn,
+    // A doubt's own figure is not the lesson's: the lesson's was drawn when
+    // the doubt stashed it from the zone. A doubt that drew on an empty zone
+    // stashed nothing drawn.
+    figureDrawn: doubtOwnFigureScene(record) ? Boolean(record.zoneStash?.diagram) : record.figureDrawn,
     codeLesson,
   };
 }
@@ -488,8 +671,15 @@ function planOnlyArtifacts(artifacts: unknown): unknown | null {
  * never saw.
  */
 export function partialTurnScene(record: BoardPageRecord): PersistedTurnScene {
+  const doubtFigure = doubtFigureSaveScene(record);
+  if (doubtFigure) return doubtFigure;
   if (record.turn.kind === "doubt") {
-    return doubtTurnScene(record.lessonQuestion, record.turn.continuesBoard);
+    return doubtTurnScene(
+      record.lessonQuestion,
+      record.turn.continuesBoard,
+      undefined,
+      doubtFigureRefOf(record.turn.scene?.sceneArtifacts),
+    );
   }
   const scene = record.turn.scene;
   if (!scene) return textOnlyTurnScene();
@@ -574,19 +764,45 @@ const NOT_BESIDE_THE_CODE_PANEL = new Set<DrawCommand["type"]>(["WRITE", "EMPHAS
 /**
  * The segment as a doubt may draw it, or null when nothing is left to say or
  * draw. Narration always survives; only the ink this board cannot take goes.
+ *
+ * With `pointing.enabled` (DIAGRAM_DOUBT_POINTING granted for this turn) a
+ * doubt may also name a withheld measurement of the figure in the zone with
+ * ANNOTATE, and its FOCUS keeps only ids of that figure. A code board takes
+ * FOCUS on the current frame's cells only, as a spotlight that never stays.
+ * Without the policy, or with it off, nothing changes.
  */
 export function doubtSegment(
   segment: TutorSegment,
-  options: { codePanelShowing: boolean; boardRows?: readonly { workId?: string; text: string }[] },
+  options: {
+    codePanelShowing: boolean;
+    boardRows?: readonly { workId?: string; text: string }[];
+    pointing?: DoubtPointingPolicy;
+  },
 ): TutorSegment | null {
   const commands = getSegmentCommands(segment);
-  const kept = commands.filter(
-    (command) =>
-      !NOT_A_DOUBT_COMMAND.has(command.type) &&
+  const pointing = options.pointing?.enabled === true ? options.pointing : null;
+  let changed = false;
+  const kept: DrawCommand[] = [];
+  for (const command of commands) {
+    const allowed =
+      (!NOT_A_DOUBT_COMMAND.has(command.type) || (pointing !== null && command.type === "ANNOTATE")) &&
       !(options.codePanelShowing && NOT_BESIDE_THE_CODE_PANEL.has(command.type)) &&
-      (command.type !== "EMPHASIZE" || groundedDoubtEmphasis(command.text, options.boardRows ?? [])),
-  );
-  if (kept.length === commands.length) return segment;
+      (command.type !== "EMPHASIZE" || groundedDoubtEmphasis(command.text, options.boardRows ?? []));
+    if (!allowed) {
+      changed = true;
+      continue;
+    }
+    if (!pointing || (command.type !== "FOCUS" && command.type !== "ANNOTATE")) {
+      kept.push(command);
+      continue;
+    }
+    const pointed = command.type === "FOCUS"
+      ? doubtFocusOnFigure(command, pointing)
+      : doubtAnnotateOnFigure(command, pointing);
+    if (pointed !== command) changed = true;
+    if (pointed) kept.push(pointed);
+  }
+  if (!changed) return segment;
   if (kept.length === 0 && !segment.narration.trim()) return null;
   const next: TutorSegment = { ...segment, command: kept[0] ?? null };
   if (kept.length > 1) {
@@ -595,6 +811,45 @@ export function doubtSegment(
     delete next.commands;
   }
   return next;
+}
+
+/** The target a FOCUS or ANNOTATE names: the semantic ref wins over the text, as live. */
+function pointingTarget(command: DrawCommand): string {
+  return (command.semanticRef?.entityId ?? command.text ?? "").trim();
+}
+
+function withPointingTarget(command: DrawCommand, target: string): DrawCommand {
+  return {
+    ...command,
+    text: target,
+    ...(command.semanticRef ? { semanticRef: { ...command.semanticRef, entityId: target } } : {}),
+  };
+}
+
+/**
+ * A doubt's FOCUS on the figure in the zone: only the ids that figure owns
+ * survive, in the order spoken. Modifiers are kept as written, except on a code
+ * board, where the mark is always a spotlight and never stays (a frame cell
+ * changes with the frame, and a frame id would step the walk-through).
+ */
+function doubtFocusOnFigure(command: DrawCommand, pointing: DoubtPointingPolicy): DrawCommand | null {
+  const raw = pointingTarget(command);
+  const [idsPart = "", ...modifiers] = raw.split("|");
+  const ids = idsPart.split(",").map((id) => id.trim()).filter(Boolean);
+  const known = ids.filter((id) => pointing.figureIds.has(id.toLowerCase()));
+  if (known.length === 0) return null;
+  const kept = pointing.codeBoard
+    ? ["spotlight"]
+    : modifiers.map((modifier) => modifier.trim()).filter(Boolean);
+  const target = [known.join(","), ...kept].join("|");
+  return target === raw ? command : withPointingTarget(command, target);
+}
+
+/** A doubt may letter a withheld measurement only by an id of the figure in the zone, and never on a code board. */
+function doubtAnnotateOnFigure(command: DrawCommand, pointing: DoubtPointingPolicy): DrawCommand | null {
+  if (pointing.codeBoard) return null;
+  const target = pointingTarget(command).toLowerCase();
+  return target && pointing.figureIds.has(target) ? command : null;
 }
 
 /** A doubt may box only a line whose exact text it copied from this page. */
@@ -616,6 +871,17 @@ function groundedDoubtEmphasis(
 
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
 const SCENE_POINTING = new Set<DrawCommand["type"]>(["POINT", "FOCUS", "FRAME", "ANNOTATE"]);
+/**
+ * What a doubt that names its page's figure (`pointsAtFigure`) still sends:
+ * the server checks each target against that figure. POINT and FRAME walk a
+ * code lesson a doubt never conducts.
+ */
+const DOUBT_POINTING = new Set<DrawCommand["type"]>(["FOCUS", "ANNOTATE"]);
+
+/** A doubt saved onto a page whose figure it names: its pointing goes to the server for checking. */
+export function sceneKeepsDoubtPointing(sceneArtifacts: unknown): boolean {
+  return boardContinuationOf(sceneArtifacts) !== null && doubtFigureRefOf(sceneArtifacts) !== null;
+}
 
 /**
  * The segments a stopped turn is saved with. Saved as a figure, it keeps them
@@ -635,6 +901,8 @@ export function partialTurnSegments(
   const pictureId = referencePictureIdOf(scene.sceneArtifacts);
   const storedPicture = pictureId ? readStoredReferencePicture(scene.sceneArtifacts) : null;
   const pointables = storedPicture ? referencePicturePointables(storedPicture) : null;
+  // A stopped doubt that names its page's figure keeps the pointing it spoke.
+  const keepDoubtPointing = !pictureId && sceneKeepsDoubtPointing(scene.sceneArtifacts);
   const kept: RecordedSegmentPayload[] = [];
   for (const segment of recorded) {
     if (pictureId && isReferencePictureRow(segment.command, pictureId)) {
@@ -645,7 +913,9 @@ export function partialTurnSegments(
     if (isStoredCommandTrustedGeometry(segment.command)) continue;
     const commands = parseStoredSegmentCommands(segment.command);
     const allowed = commands.filter((command) =>
-      !SCENE_POINTING.has(command.type) || (pictureId !== null && pointsAtReferencePicture(command, pointables)));
+      !SCENE_POINTING.has(command.type) ||
+      (keepDoubtPointing && DOUBT_POINTING.has(command.type)) ||
+      (pictureId !== null && pointsAtReferencePicture(command, pointables)));
     if (allowed.length === commands.length) {
       kept.push(segment);
       continue;

@@ -1,0 +1,1676 @@
+{
+ "schemaVersion": "home-suggestion-recording/v1",
+ "question": "Derive the area under y = x² from x = 0 to x = 2 using integration.",
+ "recordedFrom": ".lecture-lab/home-20261103b/runs/home_maths_8_areas_bounded_by_curves.json",
+ "judged": {
+  "verdict": "right",
+  "by": "lane 2 (salem) and an independent Opus reviewer, from renders of home-20261103b, 3 Nov 2026",
+  "note": "curve exact, shading from 0 to 2 under the curve; curve label sits by the x = 2 edge"
+ },
+ "selection": {
+  "question": "Derive the area under y = x^2 from x = 0 to x = 2 using integration.",
+  "turnPlan": {
+   "schemaVersion": "turn-plan/v3",
+   "subject": "maths",
+   "question": "Derive the area under y = x^2 from x = 0 to x = 2 using integration.",
+   "givens": [
+    {
+     "id": "g2",
+     "symbol": "a",
+     "value": 0,
+     "sourceText": "x = 0",
+     "provenance": "given"
+    },
+    {
+     "id": "g3",
+     "symbol": "b",
+     "value": 2,
+     "sourceText": "x = 2",
+     "provenance": "given"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "u1",
+     "symbol": "A",
+     "unit": "square units"
+    }
+   ],
+   "derived": [
+    {
+     "id": "u1",
+     "symbol": "A",
+     "value": 2.6666666666666665,
+     "unit": "square units",
+     "sourceText": "A = ∫₀² x² dx = [x³/3]₀² = 8/3 − 0 = 8/3 ≈ 2.6667",
+     "provenance": "derived",
+     "dependsOn": [
+      "g2",
+      "g3"
+     ]
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "The area under y = x² from 0 to 2 equals the definite integral of x² over [0, 2].",
+     "expected": "A = ∫₀² x² dx",
+     "relatedQuantityIds": [
+      "u1",
+      "u1"
+     ]
+    },
+    {
+     "id": "c2",
+     "claim": "An antiderivative of x² is x³/3 by the power rule for integration.",
+     "expected": "∫ x² dx = x³/3 + C",
+     "relatedQuantityIds": [
+      "u1"
+     ]
+    },
+    {
+     "id": "c3",
+     "claim": "By the Fundamental Theorem of Calculus, A = F(2) − F(0) = 8/3 − 0 = 8/3 ≈ 2.6667 square units.",
+     "expected": "A = [x³/3]₀² = 8/3",
+     "relatedQuantityIds": [
+      "u1",
+      "u1"
+     ]
+    }
+   ],
+   "lawIds": [
+    "definite integral as area under a curve",
+    "power rule for integration",
+    "Fundamental Theorem of Calculus"
+   ],
+   "assumptions": [
+    "Area means the region between the curve and the x-axis; since x² ≥ 0 on [0, 2], the integral gives the area directly.",
+    "Removed 1 invalid planner dependency reference.",
+    "A verified illustration is required by the question's spatial or explicit visual request."
+   ],
+   "visualRequirement": "required"
+  },
+  "problemIR": {
+   "facts": [
+    {
+     "id": "fCurve",
+     "kind": "given",
+     "statement": "curve is y equals x squared",
+     "evidence": {
+      "source": "question",
+      "start": 22,
+      "end": 29,
+      "quote": "y = x^2"
+     }
+    },
+    {
+     "id": "fLower",
+     "kind": "given",
+     "statement": "lower limit x equals 0",
+     "evidence": {
+      "source": "question",
+      "start": 35,
+      "end": 40,
+      "quote": "x = 0"
+     }
+    },
+    {
+     "id": "fUpper",
+     "kind": "given",
+     "statement": "upper limit x equals 2",
+     "evidence": {
+      "source": "question",
+      "start": 44,
+      "end": 49,
+      "quote": "x = 2"
+     }
+    },
+    {
+     "id": "fArea",
+     "kind": "requested",
+     "statement": "area under curve via integration",
+     "evidence": {
+      "source": "question",
+      "start": 0,
+      "end": 68,
+      "quote": "Derive the area under y = x^2 from x = 0 to x = 2 using integration."
+     }
+    }
+   ],
+   "entities": [
+    {
+     "id": "parabola",
+     "kind": "curve",
+     "label": "y = x^2",
+     "evidenceFactIds": [
+      "fCurve"
+     ]
+    },
+    {
+     "id": "region",
+     "kind": "region",
+     "label": "area under curve",
+     "evidenceFactIds": [
+      "fCurve",
+      "fLower",
+      "fUpper",
+      "fArea"
+     ]
+    }
+   ],
+   "expressions": [
+    {
+     "id": "eArea",
+     "valueType": "function",
+     "evidenceFactIds": [
+      "fCurve"
+     ],
+     "root": {
+      "kind": "binary",
+      "operator": "^",
+      "left": {
+       "kind": "variable",
+       "name": "x"
+      },
+      "right": {
+       "kind": "number",
+       "value": 2
+      }
+     }
+    }
+   ],
+   "constraints": [],
+   "representationIntents": [
+    {
+     "id": "iRegion",
+     "kind": "bounded_region",
+     "entityIds": [
+      "parabola",
+      "region"
+     ],
+     "evidenceFactIds": [
+      "fCurve",
+      "fLower",
+      "fUpper",
+      "fArea"
+     ]
+    }
+   ],
+   "solveRequests": [
+    {
+     "id": "sArea",
+     "kind": "definite_integral",
+     "expressionId": "eArea",
+     "variable": "x",
+     "lower": 0,
+     "upper": 2,
+     "resultBinding": {
+      "turnPlanQuantityId": "u1",
+      "symbol": "A",
+      "unit": "square units",
+      "evidenceFactIds": [
+       "fArea"
+      ]
+     }
+    }
+   ],
+   "schemaVersion": "problem-ir/v1",
+   "id": "problem",
+   "question": "Derive the area under y = x^2 from x = 0 to x = 2 using integration."
+  },
+  "sceneCapabilities": {
+   "visualRequired": true,
+   "families": [
+    "bounded_region",
+    "analytic_curve"
+   ],
+   "constructionOperators": [
+    "point",
+    "segment",
+    "line",
+    "polyline",
+    "vector",
+    "label",
+    "dimension",
+    "angle_mark",
+    "tick_mark",
+    "sign_badge",
+    "number_line_set",
+    "linear_half_plane",
+    "linear_feasible_region",
+    "linear_system",
+    "axes",
+    "function_curve",
+    "function_region",
+    "constraint_region",
+    "representative_slice",
+    "solid_of_revolution",
+    "circle",
+    "arc",
+    "rectangle",
+    "polygon",
+    "right_angle_mark",
+    "elastic_profile",
+    "elastic_state",
+    "parametric_curve",
+    "polar_curve",
+    "implicit_curve",
+    "tangent_line",
+    "normal_line",
+    "intersection",
+    "vector_components",
+    "conic",
+    "conic_anchor",
+    "conic_directrix",
+    "conic_asymptotes",
+    "conic_tangent",
+    "constant_acceleration_trajectory",
+    "trajectory_state",
+    "curve_anchor",
+    "curve_secant",
+    "curve_derivative",
+    "harmonic_wave",
+    "wave_superposition",
+    "wave_sample",
+    "flux_process",
+    "induction_state",
+    "flux_sinusoid",
+    "sinusoid_state",
+    "harmonic_motion",
+    "harmonic_state",
+    "motion_graph",
+    "potential_curve",
+    "projectile_trajectory",
+    "hydrostatic_profile",
+    "hydrostatic_state",
+    "complex_point",
+    "complex_transform",
+    "complex_roots",
+    "histogram",
+    "frequency_polygon",
+    "cumulative_frequency"
+   ],
+   "proofPredicates": [
+    "exists",
+    "label_attached",
+    "function_value",
+    "root",
+    "between",
+    "on",
+    "incident",
+    "perpendicular"
+   ],
+   "planningGuidance": [
+    "For planar mensuration, construct the source's straight or circular boundaries with polygon, rectangle, circle or arc, using shared world points and labelled dimensions. Never substitute an unrelated graph. For function-bounded area, use function_curve plus function_region and a representative_slice strip. A disk or washer about y=axisY uses representative_slice method disk or washer; solid_of_revolution derives the generating-profile silhouette. Never sketch a disk or washer by guessed polygons.",
+    "Use the question's expression in function_curve, parametric_curve, polar_curve, or implicit_curve. A supplied motion or potential graph uses motion_graph or potential_curve; an incline projectile uses projectile_trajectory. Derive tangent_line and normal_line from that curve; never send a slope or guessed endpoints. Prove a named point with function_value {x, y} as cartesian coordinates on that curve (optionally include t or theta). Do not treat the parameter t as x."
+   ]
+  },
+  "blockFlowEligible": false,
+  "exactFigureSource": "planner",
+  "solverAuthorityBlocked": false,
+  "requiredRetryEnabled": true,
+  "completionEnabled": false,
+  "solverAuthority": {
+   "problemIR": {
+    "facts": [
+     {
+      "id": "fCurve",
+      "kind": "given",
+      "statement": "curve is y equals x squared",
+      "evidence": {
+       "source": "question",
+       "start": 22,
+       "end": 29,
+       "quote": "y = x^2"
+      }
+     },
+     {
+      "id": "fLower",
+      "kind": "given",
+      "statement": "lower limit x equals 0",
+      "evidence": {
+       "source": "question",
+       "start": 35,
+       "end": 40,
+       "quote": "x = 0"
+      }
+     },
+     {
+      "id": "fUpper",
+      "kind": "given",
+      "statement": "upper limit x equals 2",
+      "evidence": {
+       "source": "question",
+       "start": 44,
+       "end": 49,
+       "quote": "x = 2"
+      }
+     },
+     {
+      "id": "fArea",
+      "kind": "requested",
+      "statement": "area under curve via integration",
+      "evidence": {
+       "source": "question",
+       "start": 0,
+       "end": 68,
+       "quote": "Derive the area under y = x^2 from x = 0 to x = 2 using integration."
+      }
+     }
+    ],
+    "entities": [
+     {
+      "id": "parabola",
+      "kind": "curve",
+      "label": "y = x^2",
+      "evidenceFactIds": [
+       "fCurve"
+      ]
+     },
+     {
+      "id": "region",
+      "kind": "region",
+      "label": "area under curve",
+      "evidenceFactIds": [
+       "fCurve",
+       "fLower",
+       "fUpper",
+       "fArea"
+      ]
+     }
+    ],
+    "expressions": [
+     {
+      "id": "eArea",
+      "valueType": "function",
+      "evidenceFactIds": [
+       "fCurve"
+      ],
+      "root": {
+       "kind": "binary",
+       "operator": "^",
+       "left": {
+        "kind": "variable",
+        "name": "x"
+       },
+       "right": {
+        "kind": "number",
+        "value": 2
+       }
+      }
+     }
+    ],
+    "constraints": [],
+    "representationIntents": [
+     {
+      "id": "iRegion",
+      "kind": "bounded_region",
+      "entityIds": [
+       "parabola",
+       "region"
+      ],
+      "evidenceFactIds": [
+       "fCurve",
+       "fLower",
+       "fUpper",
+       "fArea"
+      ]
+     }
+    ],
+    "solveRequests": [
+     {
+      "id": "sArea",
+      "kind": "definite_integral",
+      "expressionId": "eArea",
+      "variable": "x",
+      "lower": 0,
+      "upper": 2,
+      "resultBinding": {
+       "turnPlanQuantityId": "u1",
+       "symbol": "A",
+       "unit": "square units",
+       "evidenceFactIds": [
+        "fArea"
+       ]
+      }
+     }
+    ],
+    "schemaVersion": "problem-ir/v1",
+    "id": "problem",
+    "question": "Derive the area under y = x^2 from x = 0 to x = 2 using integration."
+   },
+   "solverResult": {
+    "schemaVersion": "solver-result/v1",
+    "problemId": "problem",
+    "providerId": "local-deterministic/v1",
+    "status": "solved",
+    "values": [
+     {
+      "id": "value_sArea",
+      "requestId": "sArea",
+      "valueType": "scalar",
+      "exact": {
+       "kind": "rational",
+       "value": "8/3"
+      },
+      "approximate": 2.6666666666666665,
+      "errorBound": 0
+     }
+    ],
+    "proofs": [
+     {
+      "id": "proof_sArea",
+      "requestId": "sArea",
+      "method": "exact_polynomial_integral",
+      "expressionIds": [
+       "eArea"
+      ],
+      "verified": true,
+      "residual": 0,
+      "tolerance": 1e-9,
+      "detail": "Integrated exact rational polynomial coefficients over exact rational bounds."
+     }
+    ],
+    "issues": []
+   }
+  },
+  "policy": {
+   "preferPlanner": true,
+   "allowedFigureSources": [
+    "planner",
+    "linear_source",
+    "text_only",
+    "verified_recovery"
+   ]
+  },
+  "candidate": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "area under y = x^2 from x = 0 to x = 2; the region between the curve and the x-axis is the definite integral"
+   },
+   "source": {
+    "question": "Derive the area under y = x^2 from x = 0 to x = 2 using integration.",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "ax",
+     "kind": "axes",
+     "role": "coordinate axes"
+    },
+    {
+     "id": "curve",
+     "kind": "polyline",
+     "role": "parabola y = x^2",
+     "label": "y = x^2"
+    },
+    {
+     "id": "baseline",
+     "kind": "polyline",
+     "role": "x-axis under the region"
+    },
+    {
+     "id": "region",
+     "kind": "polygon",
+     "role": "area under the curve"
+    },
+    {
+     "id": "x0",
+     "kind": "point",
+     "role": "lower limit",
+     "label": "x = 0"
+    },
+    {
+     "id": "x2",
+     "kind": "point",
+     "role": "upper limit",
+     "label": "x = 2"
+    },
+    {
+     "id": "top",
+     "kind": "point",
+     "role": "curve at upper limit",
+     "label": "(2, 4)"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_axes",
+     "operator": "axes",
+     "inputs": {
+      "xMin": -0.5,
+      "xMax": 2.6,
+      "yMin": -0.5,
+      "yMax": 4.6
+     },
+     "outputs": [
+      "ax"
+     ]
+    },
+    {
+     "id": "make_curve",
+     "operator": "function_curve",
+     "inputs": {
+      "expression": "x^2",
+      "variable": "x",
+      "xMin": -0.3,
+      "xMax": 2.15,
+      "samples": 65
+     },
+     "outputs": [
+      "curve"
+     ]
+    },
+    {
+     "id": "make_baseline",
+     "operator": "function_curve",
+     "inputs": {
+      "expression": "0",
+      "variable": "x",
+      "xMin": 0,
+      "xMax": 2,
+      "samples": 17
+     },
+     "outputs": [
+      "baseline"
+     ]
+    },
+    {
+     "id": "make_region",
+     "operator": "function_region",
+     "inputs": {
+      "upper": "curve",
+      "lower": "baseline",
+      "xMin": 0,
+      "xMax": 2
+     },
+     "outputs": [
+      "region"
+     ]
+    },
+    {
+     "id": "make_x0",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "x0"
+     ]
+    },
+    {
+     "id": "make_x2",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "x2"
+     ]
+    },
+    {
+     "id": "make_top",
+     "operator": "curve_anchor",
+     "inputs": {
+      "curve": "curve",
+      "at": 2
+     },
+     "outputs": [
+      "top"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "top_on_curve",
+     "predicate": "function_value",
+     "entities": [
+      "curve"
+     ],
+     "expected": {
+      "x": 2,
+      "y": 4
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "label_curve",
+     "predicate": "label_attached",
+     "entities": [
+      "curve"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_x0",
+     "predicate": "label_attached",
+     "entities": [
+      "x0"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "label_x2",
+     "predicate": "label_attached",
+     "entities": [
+      "x2"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "drop_top",
+     "kind": "drop",
+     "targetIds": [
+      "top",
+      "ax"
+     ]
+    }
+   ],
+   "requiredEntityIds": [
+    "ax",
+    "curve",
+    "baseline",
+    "region",
+    "x0",
+    "x2",
+    "top"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "ax",
+      "curve",
+      "baseline",
+      "region",
+      "x0",
+      "x2",
+      "top"
+     ],
+     "dependsOn": [],
+     "narrationCue": "the parabola y = x^2, the limits x = 0 and x = 2, and the shaded region whose area is the definite integral"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "rebuildFamilyFigure": false,
+  "yieldPolicy": "verified_parts"
+ },
+ "expected": {
+  "drawn": true,
+  "figureSource": "planner",
+  "tier": "qualitative_verified",
+  "family": null,
+  "entityIds": [
+   "ax",
+   "baseline",
+   "curve",
+   "region",
+   "top",
+   "x0",
+   "x2"
+  ],
+  "texts": [
+   "curve: y = x^2",
+   "top: (2, 4)",
+   "x0: x = 0",
+   "x2: x = 2"
+  ],
+  "marks": [
+   {
+    "entityId": "ax",
+    "kind": "axes",
+    "dashed": false,
+    "points": [
+     [
+      0,
+      902
+     ],
+     [
+      605,
+      902
+     ],
+     [
+      98,
+      1000
+     ],
+     [
+      98,
+      4
+     ]
+    ]
+   },
+   {
+    "entityId": "baseline",
+    "kind": "polyline",
+    "dashed": false,
+    "points": [
+     [
+      98,
+      902
+     ],
+     [
+      122,
+      902
+     ],
+     [
+      146,
+      902
+     ],
+     [
+      171,
+      902
+     ],
+     [
+      195,
+      902
+     ],
+     [
+      220,
+      902
+     ],
+     [
+      244,
+      902
+     ],
+     [
+      268,
+      902
+     ],
+     [
+      293,
+      902
+     ],
+     [
+      317,
+      902
+     ],
+     [
+      342,
+      902
+     ],
+     [
+      366,
+      902
+     ],
+     [
+      390,
+      902
+     ],
+     [
+      415,
+      902
+     ],
+     [
+      439,
+      902
+     ],
+     [
+      464,
+      902
+     ],
+     [
+      488,
+      902
+     ]
+    ]
+   },
+   {
+    "entityId": "curve",
+    "kind": "polyline",
+    "dashed": false,
+    "points": [
+     [
+      39,
+      885
+     ],
+     [
+      47,
+      889
+     ],
+     [
+      54,
+      893
+     ],
+     [
+      61,
+      896
+     ],
+     [
+      69,
+      898
+     ],
+     [
+      76,
+      900
+     ],
+     [
+      84,
+      901
+     ],
+     [
+      91,
+      902
+     ],
+     [
+      99,
+      902
+     ],
+     [
+      106,
+      902
+     ],
+     [
+      114,
+      901
+     ],
+     [
+      121,
+      900
+     ],
+     [
+      129,
+      897
+     ],
+     [
+      136,
+      895
+     ],
+     [
+      144,
+      892
+     ],
+     [
+      151,
+      888
+     ],
+     [
+      159,
+      883
+     ],
+     [
+      166,
+      878
+     ],
+     [
+      174,
+      873
+     ],
+     [
+      181,
+      867
+     ],
+     [
+      189,
+      860
+     ],
+     [
+      196,
+      853
+     ],
+     [
+      203,
+      845
+     ],
+     [
+      211,
+      837
+     ],
+     [
+      218,
+      828
+     ],
+     [
+      226,
+      818
+     ],
+     [
+      233,
+      808
+     ],
+     [
+      241,
+      797
+     ],
+     [
+      248,
+      786
+     ],
+     [
+      256,
+      774
+     ],
+     [
+      263,
+      762
+     ],
+     [
+      271,
+      749
+     ],
+     [
+      278,
+      735
+     ],
+     [
+      286,
+      721
+     ],
+     [
+      293,
+      707
+     ],
+     [
+      301,
+      691
+     ],
+     [
+      308,
+      675
+     ],
+     [
+      316,
+      659
+     ],
+     [
+      323,
+      642
+     ],
+     [
+      330,
+      625
+     ],
+     [
+      338,
+      606
+     ],
+     [
+      345,
+      588
+     ],
+     [
+      353,
+      569
+     ],
+     [
+      360,
+      549
+     ],
+     [
+      368,
+      528
+     ],
+     [
+      375,
+      507
+     ],
+     [
+      383,
+      486
+     ],
+     [
+      390,
+      464
+     ],
+     [
+      398,
+      441
+     ],
+     [
+      405,
+      418
+     ],
+     [
+      413,
+      394
+     ],
+     [
+      420,
+      369
+     ],
+     [
+      428,
+      344
+     ],
+     [
+      435,
+      319
+     ],
+     [
+      443,
+      293
+     ],
+     [
+      450,
+      266
+     ],
+     [
+      458,
+      239
+     ],
+     [
+      465,
+      211
+     ],
+     [
+      472,
+      183
+     ],
+     [
+      480,
+      154
+     ],
+     [
+      487,
+      124
+     ],
+     [
+      495,
+      94
+     ],
+     [
+      502,
+      63
+     ],
+     [
+      510,
+      32
+     ],
+     [
+      517,
+      0
+     ]
+    ]
+   },
+   {
+    "entityId": "drop_top",
+    "kind": "line",
+    "dashed": true,
+    "points": [
+     [
+      488,
+      122
+     ],
+     [
+      98,
+      122
+     ]
+    ]
+   },
+   {
+    "entityId": "region",
+    "kind": "polygon",
+    "dashed": false,
+    "points": [
+     [
+      98,
+      902
+     ],
+     [
+      104,
+      902
+     ],
+     [
+      110,
+      902
+     ],
+     [
+      116,
+      902
+     ],
+     [
+      122,
+      902
+     ],
+     [
+      128,
+      902
+     ],
+     [
+      134,
+      902
+     ],
+     [
+      140,
+      902
+     ],
+     [
+      146,
+      902
+     ],
+     [
+      153,
+      902
+     ],
+     [
+      159,
+      902
+     ],
+     [
+      165,
+      902
+     ],
+     [
+      171,
+      902
+     ],
+     [
+      177,
+      902
+     ],
+     [
+      183,
+      902
+     ],
+     [
+      189,
+      902
+     ],
+     [
+      195,
+      902
+     ],
+     [
+      201,
+      902
+     ],
+     [
+      207,
+      902
+     ],
+     [
+      214,
+      902
+     ],
+     [
+      220,
+      902
+     ],
+     [
+      226,
+      902
+     ],
+     [
+      232,
+      902
+     ],
+     [
+      238,
+      902
+     ],
+     [
+      244,
+      902
+     ],
+     [
+      250,
+      902
+     ],
+     [
+      256,
+      902
+     ],
+     [
+      262,
+      902
+     ],
+     [
+      268,
+      902
+     ],
+     [
+      275,
+      902
+     ],
+     [
+      281,
+      902
+     ],
+     [
+      287,
+      902
+     ],
+     [
+      293,
+      902
+     ],
+     [
+      299,
+      902
+     ],
+     [
+      305,
+      902
+     ],
+     [
+      311,
+      902
+     ],
+     [
+      317,
+      902
+     ],
+     [
+      323,
+      902
+     ],
+     [
+      329,
+      902
+     ],
+     [
+      336,
+      902
+     ],
+     [
+      342,
+      902
+     ],
+     [
+      348,
+      902
+     ],
+     [
+      354,
+      902
+     ],
+     [
+      360,
+      902
+     ],
+     [
+      366,
+      902
+     ],
+     [
+      372,
+      902
+     ],
+     [
+      378,
+      902
+     ],
+     [
+      384,
+      902
+     ],
+     [
+      390,
+      902
+     ],
+     [
+      397,
+      902
+     ],
+     [
+      403,
+      902
+     ],
+     [
+      409,
+      902
+     ],
+     [
+      415,
+      902
+     ],
+     [
+      421,
+      902
+     ],
+     [
+      427,
+      902
+     ],
+     [
+      433,
+      902
+     ],
+     [
+      439,
+      902
+     ],
+     [
+      445,
+      902
+     ],
+     [
+      451,
+      902
+     ],
+     [
+      458,
+      902
+     ],
+     [
+      464,
+      902
+     ],
+     [
+      470,
+      902
+     ],
+     [
+      476,
+      902
+     ],
+     [
+      482,
+      902
+     ],
+     [
+      488,
+      902
+     ],
+     [
+      488,
+      122
+     ],
+     [
+      482,
+      146
+     ],
+     [
+      476,
+      170
+     ],
+     [
+      470,
+      193
+     ],
+     [
+      464,
+      216
+     ],
+     [
+      458,
+      239
+     ],
+     [
+      451,
+      261
+     ],
+     [
+      445,
+      283
+     ],
+     [
+      439,
+      305
+     ],
+     [
+      433,
+      326
+     ],
+     [
+      427,
+      346
+     ],
+     [
+      421,
+      367
+     ],
+     [
+      415,
+      387
+     ],
+     [
+      409,
+      407
+     ],
+     [
+      403,
+      426
+     ],
+     [
+      397,
+      445
+     ],
+     [
+      390,
+      463
+     ],
+     [
+      384,
+      481
+     ],
+     [
+      378,
+      499
+     ],
+     [
+      372,
+      516
+     ],
+     [
+      366,
+      533
+     ],
+     [
+      360,
+      550
+     ],
+     [
+      354,
+      566
+     ],
+     [
+      348,
+      582
+     ],
+     [
+      342,
+      597
+     ],
+     [
+      336,
+      612
+     ],
+     [
+      329,
+      627
+     ],
+     [
+      323,
+      641
+     ],
+     [
+      317,
+      655
+     ],
+     [
+      311,
+      669
+     ],
+     [
+      305,
+      682
+     ],
+     [
+      299,
+      695
+     ],
+     [
+      293,
+      707
+     ],
+     [
+      287,
+      719
+     ],
+     [
+      281,
+      731
+     ],
+     [
+      275,
+      742
+     ],
+     [
+      268,
+      753
+     ],
+     [
+      262,
+      763
+     ],
+     [
+      256,
+      774
+     ],
+     [
+      250,
+      783
+     ],
+     [
+      244,
+      793
+     ],
+     [
+      238,
+      802
+     ],
+     [
+      232,
+      810
+     ],
+     [
+      226,
+      818
+     ],
+     [
+      220,
+      826
+     ],
+     [
+      214,
+      834
+     ],
+     [
+      207,
+      841
+     ],
+     [
+      201,
+      847
+     ],
+     [
+      195,
+      854
+     ],
+     [
+      189,
+      860
+     ],
+     [
+      183,
+      865
+     ],
+     [
+      177,
+      870
+     ],
+     [
+      171,
+      875
+     ],
+     [
+      165,
+      879
+     ],
+     [
+      159,
+      883
+     ],
+     [
+      153,
+      887
+     ],
+     [
+      146,
+      890
+     ],
+     [
+      140,
+      893
+     ],
+     [
+      134,
+      896
+     ],
+     [
+      128,
+      898
+     ],
+     [
+      122,
+      899
+     ],
+     [
+      116,
+      901
+     ],
+     [
+      110,
+      902
+     ],
+     [
+      104,
+      902
+     ],
+     [
+      98,
+      902
+     ]
+    ]
+   },
+   {
+    "entityId": "top",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      488,
+      122
+     ]
+    ]
+   },
+   {
+    "entityId": "x0",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      98,
+      902
+     ]
+    ]
+   },
+   {
+    "entityId": "x2",
+    "kind": "point",
+    "dashed": false,
+    "points": [
+     [
+      488,
+      902
+     ]
+    ]
+   }
+  ],
+  "inkHash": "502d26786ef8"
+ }
+}
