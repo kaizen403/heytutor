@@ -292,4 +292,44 @@ assert(spokenAfter("[STEP]so the velocity is v final. [WRITE:v = v_final,90,211]
 assert(spokenAfter("[STEP]so the answer is twenty-five. [WRITE:x = 25,90,211][/STEP]").includes("the answer equals twenty-five"), "a hyphenated number word is a value");
 assert(spokenAfter("[STEP]so x is two to the power of four. [WRITE:x = 2^4,90,211][/STEP]").includes("x equals two to the power of four"), "a power spoken in words is a value");
 
+// A numeral needs strong evidence too, except that it may end the clause: "1"
+// is never a pronoun the way "one" is. A unit used loosely, a count, "here is"
+// and "there still is" stay as spoken.
+for (const [step, kept] of [
+  ["[STEP]The object is 10 centimeters from the lens. [WRITE:u = 10 cm,90,211][/STEP]", "The object is 10 centimeters from the lens"],
+  ["[STEP]Ali is 10 years old. [WRITE:a = 10,90,211][/STEP]", "Ali is 10 years old"],
+  ["[STEP]Here is 1. [WRITE:n = 1,90,211][/STEP]", "Here is 1"],
+  ["[STEP]There still is 1. [WRITE:n = 1,90,211][/STEP]", "There still is 1"],
+  ["[STEP]This is 2 of the cases. [WRITE:n = 2,90,211][/STEP]", "This is 2 of the cases"],
+  ["[STEP]Here also is 1. [WRITE:n = 1,90,211][/STEP]", "Here also is 1"],
+  ["[STEP]The cube is 3-dimensional. [WRITE:d = 3,90,211][/STEP]", "The cube is 3-dimensional"],
+  ["[STEP]so y is 12.5x. [WRITE:y = 12.5x,90,211][/STEP]", "y is 12.5x"],
+  ["[STEP]The ball is 5 metres \u2013 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is 5 metres \u2013 above"],
+  ["[STEP]The ball is five metres \u2013 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is five metres \u2013 above"],
+  ["[STEP]The ball is 5 metres \u2014 above the ground. [WRITE:h = 5 m,90,211][/STEP]", "The ball is 5 metres \u2014 above"],
+  ["[STEP]Chapter is 3. The force is 3 newtons acting down. [WRITE:F = 3 N,90,211][/STEP]", "Chapter is 3. The force is 3 newtons acting down"],
+] as const) {
+  assert(spokenAfter(step).includes(kept), `a numeral without strong evidence stays as spoken: ${spokenAfter(step)}`);
+}
+for (const [step, spoken] of [
+  ["[STEP]so the answer is 25. [WRITE:x = 25,90,211][/STEP]", "the answer equals 25"],
+  ["[STEP]so the frequency is 170 hertz. [WRITE:f = 170 Hz,90,211][/STEP]", "the frequency equals 170 hertz"],
+  ["[STEP]25°C is 25 + 273 = 298 K. [WRITE:T = 25 + 273 = 298 K,90,211][/STEP]", "25°C equals 25 + 273"],
+  ["[STEP]half of 9 V is 4.5 V. [WRITE:V = 4.5 V,90,211][/STEP]", "half of 9 V equals 4.5 V"],
+  ["[STEP]the room is 25 °C. [WRITE:T = 25 °C,90,211][/STEP]", "the room equals 25 °C"],
+  ["[STEP]so x is 25 - -3. [WRITE:x = 25 - -3,90,211][/STEP]", "x equals 25 - -3"],
+  ["[STEP]the share is 25%. [WRITE:s = 25%,90,211][/STEP]", "the share equals 25%"],
+  ["[STEP]the area is 2 m^2. [WRITE:A = 2 m^2,90,211][/STEP]", "the area equals 2 m^2"],
+  ["[STEP]Here x is 5. [WRITE:x = 5,90,211][/STEP]", "Here x equals 5"],
+  ["[STEP]so x is 25 - y. [WRITE:x = 25 - y,90,211][/STEP]", "x equals 25 - y"],
+  ["[STEP]so x is 2 * -3. [WRITE:x = 2 * -3,90,211][/STEP]", "x equals 2 * -3"],
+  ["[STEP]the answer is 25. Now check it. [WRITE:x = 25,90,211][/STEP]", "the answer equals 25. Now check it"],
+  ["[STEP]the force is 2.5. Now check it. [WRITE:F = 2.5,90,211][/STEP]", "the force equals 2.5. Now check it"],
+  ["[STEP]the total is 10,000, so stop. [WRITE:T = 10,000,90,211][/STEP]", "the total equals 10,000, so stop"],
+  ["[STEP]the acceleration is 2 m/s². [WRITE:a = 2 m/s²,90,211][/STEP]", "the acceleration equals 2 m/s²"],
+  ["[STEP]the volume is 4 cm³. [WRITE:V = 4 cm³,90,211][/STEP]", "the volume equals 4 cm³"],
+] as const) {
+  assert(spokenAfter(step).includes(spoken), `a numeral with strong evidence is spoken as equals: ${spokenAfter(step)}`);
+}
+
 console.log("lecture cue repair: equals on the friction row, box on the closing relation; only an is that its row's value follows becomes equals; repaired rows are never rewritten; tag-closed rows do not widen the spoken repair");
