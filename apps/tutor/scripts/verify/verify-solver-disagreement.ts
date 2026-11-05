@@ -72,6 +72,12 @@ const check = async (name: string, run: () => void | Promise<void>) => {
 const source = (path: string) => readFileSync(join(__dirname, "../..", path), "utf8");
 
 async function main() {
+  // The gate sets the switch itself for each arm and puts back whatever the shell had.
+  const startingSwitch = process.env.SOLVER_DISAGREEMENT_STOPS;
+  const restoreSwitch = () => {
+    if (startingSwitch === undefined) delete process.env.SOLVER_DISAGREEMENT_STOPS;
+    else process.env.SOLVER_DISAGREEMENT_STOPS = startingSwitch;
+  };
   const rightPlan = planFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: 2 }]);
   const falseProblem = problemFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: -7 }]);
   const falseResult = await solve(falseProblem);
@@ -330,9 +336,17 @@ async function main() {
 
   // The switch and its wiring.
   await check("the switch is off unless on", () => {
-    for (const raw of [undefined, "", "off", "1", "true", "yes"]) assert.equal(resolveSolverDisagreementStops(raw), false, String(raw));
-    for (const raw of ["on", " ON "]) assert.equal(resolveSolverDisagreementStops(raw), true, raw);
-    assert.equal(resolveSolverDisagreementStops(undefined), false);
+    try {
+      delete process.env.SOLVER_DISAGREEMENT_STOPS;
+      for (const raw of [undefined, "", "off", "1", "true", "yes"]) assert.equal(resolveSolverDisagreementStops(raw), false, String(raw));
+      for (const raw of ["on", " ON "]) assert.equal(resolveSolverDisagreementStops(raw), true, raw);
+      assert.equal(resolveSolverDisagreementStops(), false, "unset reads off");
+      process.env.SOLVER_DISAGREEMENT_STOPS = "on";
+      assert.equal(resolveSolverDisagreementStops(), true, "the default reads the environment");
+      assert.equal(resolveSolverDisagreementStops(""), false, "an explicit value wins over the environment");
+    } finally {
+      restoreSwitch();
+    }
   });
   await check("begin turn sends nothing new with the switch off", () => {
     assert.ok(source("app/api/billing/begin-turn/route.ts").includes("...(resolveSolverDisagreementStops() ? { solverDisagreementStops: true } : {}),"));
@@ -404,7 +418,10 @@ async function main() {
       assert.equal(valueOf(stored!, "x"), 3);
     });
   }
-  delete process.env.SOLVER_DISAGREEMENT_STOPS;
+  restoreSwitch();
+  await check("the gate leaves the switch as it found it", () => {
+    assert.equal(process.env.SOLVER_DISAGREEMENT_STOPS, startingSwitch);
+  });
 
   if (failures.length) {
     for (const failure of failures) console.log(`FAIL ${failure}`);
