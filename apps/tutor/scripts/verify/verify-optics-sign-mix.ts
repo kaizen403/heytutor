@@ -325,9 +325,12 @@ async function main() {
         assert.deepEqual(numbersDrawn(selected), []);
       });
       await check(`a candidate under the fallback draws no number on ${name}: ${question.slice(0, 40)}`, () => {
-        // A number in the candidate's own label, so drawing it would show.
-        const candidate = segmentFigure(question, "AB = 3 cm");
-        assert.ok(validateProductionSceneCandidate({ candidate, question, turnPlan: fallback }).valid, "the numbered candidate is valid");
+        // A number that survives validation in the candidate's own label, so drawing it would show. On these
+        // stems the optics archetype owns the figure: the planner candidate is dropped and strict suppresses the archetype.
+        const candidate = segmentFigure(question, "AB 3");
+        const validated = validateProductionSceneCandidate({ candidate, question, turnPlan: fallback });
+        assert.ok(validated.valid, "the numbered candidate is valid");
+        assert.ok(numbersDrawn({ representation: validated.value } as never).length > 0, "its validated render carries the number");
         const selected = selectProductionScene({ question, turnPlan: fallback, problemIR: null, candidate, requiredRetryEnabled: true, policy } as Parameters<typeof selectProductionScene>[0]);
         assert.equal(selected.representation, null);
         assert.deepEqual(numbersDrawn(selected), []);
