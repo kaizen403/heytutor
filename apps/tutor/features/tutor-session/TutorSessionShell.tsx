@@ -84,6 +84,7 @@ import {
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
+import { LessonFigureSequence } from "./lib/scene/lessonFigureSequence";
 import { useReplay } from "./hooks/useReplay";
 import { useBoardThumbnail } from "./hooks/useBoardThumbnail";
 import { useLectureRewind } from "./hooks/useLectureRewind";
@@ -136,6 +137,7 @@ import {
 } from "./lib/sessionCapabilities";
 import {
   buildMarkedDoubtPrompt,
+  markedEntityIds,
   summarizeMarks,
   type BoardMark,
 } from "./lib/board/boardMarking";
@@ -847,6 +849,9 @@ export function TutorSessionShell({
   // handle) so tutor typing never re-renders the shell per character.
   const [codeLessonController] = useState(() => new CodeLessonController());
   const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+  // A lesson's later figures (DIAGRAM_LESSON_FIGURES), one sequence per page.
+  const [lessonFigureSequence] = useState(() => new LessonFigureSequence());
+  const lessonFiguresRef = useRef<LessonFigureSequence | null>(lessonFigureSequence);
   const codeLessonActive = useSyncExternalStore(
     listener => codeLessonController.subscribe(listener),
     () => Boolean(codeLessonController.getActivePlan()),
@@ -873,6 +878,7 @@ export function TutorSessionShell({
     inkPaceRef,
     adaptiveFactorRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     setActiveVerifiedDiagram,
   });
 
@@ -945,10 +951,12 @@ export function TutorSessionShell({
     executeCommand,
     skipInkRestoreRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
     readBoard,
+    boardLayoutRef,
   });
 
   // Page load clock only: the first loaded board of this document. Declared
@@ -1023,6 +1031,7 @@ export function TutorSessionShell({
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     codeLessonControllerRef,
+    lessonFiguresRef,
     segmentPlanStatsRef,
     stopTurnRef,
     speedRef,
@@ -1054,6 +1063,7 @@ export function TutorSessionShell({
     clearCancelTimers,
     resetBoardLayout,
     beginBoardEpoch,
+    captureNotesEpoch,
     reserveTextCommandPlacements,
     persistTurnForReplay,
     registerReplayBlobUrl,
@@ -1217,6 +1227,7 @@ export function TutorSessionShell({
     handleReplaySpeedChange: applyReplaySpeed,
   } = useReplay({
     whiteboardRef,
+    boardLayoutRef,
     cancelRef,
     speedRef,
     isPausedRef,
@@ -1225,6 +1236,7 @@ export function TutorSessionShell({
     replayAudioPreloadRef,
     storedTurnsRef,
     codeLessonControllerRef,
+    lessonFiguresRef,
     activeVerifiedDiagramRef,
     setActiveVerifiedDiagram,
     fbdPhaseStartedRef,
@@ -1499,7 +1511,7 @@ export function TutorSessionShell({
       }
       const prompt = buildMarkedDoubtPrompt(marks, doubt, liveQuestionRef.current);
       marking.disarm();
-      handleAskDoubt(doubt, { prompt, title });
+      handleAskDoubt(doubt, { prompt, title, markedFigureIds: markedEntityIds(marks) });
     },
     [boardLayoutRef, handleAskDoubt, marking],
   );

@@ -1,7 +1,9 @@
 import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { storedPageTurnAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { pageFigureAt } from "@/lib/boards/pageFigure";
+import { storedLessonFigurePresentation } from "@/features/tutor-session/lib/replay/pageFigureSync";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
 import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
@@ -178,6 +180,49 @@ function chapterTitle(question: string, chapterNumber: number): string {
   return normalized;
 }
 
+/**
+ * Whether a verified figure stands in the zone while each cue's turn plays,
+ * as the player's syncTurn installs it. Exported for the gates.
+ */
+export function lectureInstalledDiagramByTurn(
+  turns: readonly StoredTurn[],
+  cues: ReturnType<typeof buildReplayTimeline>["cues"],
+): Map<number, boolean> {
+  // Only ERASE discovery needs installed authority. Match syncTurn: turns
+  // without cues never install anything, and a continuation keeps the prior
+  // owner (including null for a first standalone continued turn).
+  const installedDiagramByTurn = new Map<number, boolean>();
+  if (cues.some((cue) => cue.commands.some((command) => command.type === "ERASE"))) {
+    const controller = { frames: new DsaFrameController() };
+    let installedDiagram = false;
+    let previousTurn = -1;
+    for (const cue of cues) {
+      if (cue.turnIndex !== previousTurn) {
+        const turn = turns[cue.turnIndex];
+        if (turn && !storedTurnContinuesBoard(turn)) {
+          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
+          installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
+            restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
+        } else if (turn) {
+          // A doubt's own figure swaps in and the resume returns the lesson's,
+          // or installs it when the resume's own rows drew it first.
+          const figure = pageFigureAt(turns, cue.turnIndex);
+          if (figure.swapIn || figure.returnsLesson || figure.installsLesson) {
+            const source = figure.sourceIndex === null ? undefined : turns[figure.sourceIndex];
+            // A resume returns the lesson at the figure it had moved to.
+            installedDiagram = Boolean(source && (figure.figureId === "figure_1"
+              ? restoreVerifiedDiagramFromTurn(source) ?? restoreReferencePictureFromTurn(source)
+              : storedLessonFigurePresentation(source, figure.figureId).diagram));
+          }
+        }
+        previousTurn = cue.turnIndex;
+      }
+      installedDiagramByTurn.set(cue.turnIndex, installedDiagram);
+    }
+  }
+  return installedDiagramByTurn;
+}
+
 export function buildLecturePlayerTimeline(
   turns: StoredTurn[],
 ): LecturePlayerTimeline {
@@ -216,33 +261,19 @@ export function buildLecturePlayerTimeline(
     pageStartTurnIndex.push(keepsPage ? pageStartTurnIndex[turnIndex - 1]! : turnIndex);
   });
 
-  // Only ERASE discovery needs installed authority. Match syncTurn: turns
-  // without cues never install anything, and a continuation keeps the prior
-  // owner (including null for a first standalone continued turn).
-  const installedDiagramByTurn = new Map<number, boolean>();
-  if (cues.some((cue) => cue.commands.some((command) => command.type === "ERASE"))) {
-    const controller = { frames: new DsaFrameController() };
-    let installedDiagram = false;
-    let previousTurn = -1;
-    for (const cue of cues) {
-      if (cue.turnIndex !== previousTurn) {
-        const turn = turns[cue.turnIndex];
-        if (turn && !storedTurnContinuesBoard(turn)) {
-          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
-          installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
-            restoreVerifiedDiagramFromTurn(turn) ?? restoreReferencePictureFromTurn(turn));
-        }
-        previousTurn = cue.turnIndex;
-      }
-      installedDiagramByTurn.set(cue.turnIndex, installedDiagram);
-    }
-  }
+  const installedDiagramByTurn = lectureInstalledDiagramByTurn(turns, cues);
+  // A doubt's fresh page and the resume that returns the lesson's (lane 9).
+  const pageTurnByTurn = new Map<number, "hold" | "return">();
+  turns.forEach((_, turnIndex) => {
+    const pageTurn = storedPageTurnAt(turns, turnIndex);
+    if (pageTurn) pageTurnByTurn.set(turnIndex, pageTurn);
+  });
   return {
     cues,
     totalMs,
     chapters,
     pageStartTurnIndex,
-    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn),
+    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn, pageTurnByTurn),
   };
 }
 

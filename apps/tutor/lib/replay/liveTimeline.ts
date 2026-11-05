@@ -4,7 +4,7 @@ import type {
   StoredSegment,
   StoredTurn,
 } from "@/lib/boards/boardsClient";
-import { boardContinuationArtifacts } from "@/lib/boards/boardContinuation";
+import { boardContinuationArtifacts, storedFreshPageOpen } from "@/lib/boards/boardContinuation";
 import { buildReplayTimeline, type ReplayTimeline } from "./replayTimeline";
 
 /**
@@ -87,6 +87,10 @@ export function buildLectureTimeline(input: {
   audioUrlFor: (segment: RecordedSegmentPayload) => string | null;
   /** The live turn is a doubt answering on the page `liveQuestion` opened. */
   liveContinuesBoard?: boolean;
+  /** The live doubt turned a fresh page for its figure (lane 9). */
+  liveFreshPage?: boolean;
+  /** The live turn's kind; read only around a doubt's fresh page, so a resume returns the lesson's page. */
+  liveKind?: StoredTurn["kind"];
 }): { turns: StoredTurn[]; timeline: ReplayTimeline } {
   const turns = [...input.storedTurns];
 
@@ -105,8 +109,12 @@ export function buildLectureTimeline(input: {
       // The marker is what tells the replay engine to keep the page's figure
       // and code panel through this turn, the same as a saved doubt.
       sceneArtifacts: input.liveContinuesBoard
-        ? boardContinuationArtifacts(input.liveQuestion)
+        ? boardContinuationArtifacts(input.liveQuestion, { freshPage: input.liveFreshPage === true })
         : null,
+      // Only around a fresh page: every other live turn keeps today's shape.
+      ...(input.liveContinuesBoard && input.liveKind && (input.liveFreshPage === true || storedFreshPageOpen(input.storedTurns))
+        ? { kind: input.liveKind }
+        : {}),
       segments: buildLiveTurnSegments(input.liveSegments, input.audioUrlFor, {
         continuesBoard: input.liveContinuesBoard,
       }),

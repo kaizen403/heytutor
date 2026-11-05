@@ -1,0 +1,38 @@
+{
+  "figure": {
+    "system": "edb85c1bb66b9f67065695406ba2974dd27eadec314b086210dd08b16c213436",
+    "continuation": "dce812e068b0fb8fdb62d0b8456aeb5e9499a9fdacdd1807d727f5c29030725d"
+  },
+  "figureNormal": {
+    "system": "50146baded6cb761e8130af06ae3a4284cdcb7ebc578347d23218bc32c81bf27",
+    "continuation": "cfa7661a98ce3d5398afe4736efc581250d7927be7616fad33f0ee7dcca7a494"
+  },
+  "full": {
+    "system": "95c9e3bfd5204b33e8df07862abaafd8103432688aa08b8e13bcab1b39fd75bb",
+    "continuation": "834c8a41868a6c489f4adda9916323374427a5b5d0fc78c6ce2c944bced4cc9b"
+  },
+  "fullFigure": {
+    "system": "ceff8aa1958f7850cf180c075e2440da26ae0606cf5c7ccf74dd92b7ef6cae9d",
+    "continuation": "6fc42bd4bfd0d606113738f272d76da382dd5547697ac67df2dfe5afadcedcc6"
+  },
+  "noFigure": {
+    "system": "d1fe711c4064feddbfcf897159e4b99e2fb55a9df0d06e9972b21da5fdc2db30",
+    "continuation": "6717ff7a74c75e17c87cf89c32f9f468e953e3f6067a23f15776d5f5e22bc818"
+  },
+  "codePanel": {
+    "system": "963e7a1fe250ade4ebf8890b3e688e2e9e874463d970e5040dc9479d2edb3643",
+    "continuation": "913bcaff25e2bb425ddc343afeb46975b5063d0c692ffd82e75eea2d23e43022"
+  },
+  "codePanelNoFigure": {
+    "system": "09a585a616a0dab65975fde2bd58e65c7039e2cf762fb136c7d87b61b844fabf",
+    "continuation": "df160e8dd3d355db275c0feee2e9c7c69fbabd0b63d5a50fc8719eb5cb488aff"
+  },
+  "codeHidden": {
+    "system": "e5316379ba0ed3b76e92df09b6c29428f7210cc23a4cbd969ee21ea2ab4d1bb5",
+    "continuation": "cba1de84fcbabb143bdb92e1fb38ee46474c4f8cf45f6122cae44f62d2f16cd7"
+  },
+  "codeHiddenNoFigure": {
+    "system": "6d2e119bae4157f5fbaf44f3dd31672db87c463c4e32315ae8d3ecc6abb88dc6",
+    "continuation": "39d93ea856abb01bb072ae52b93e26c5ba4f51381091089de1136e6ad6127897"
+  }
+}
