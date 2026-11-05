@@ -738,8 +738,11 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
       const negated = explicitNegative || joinedNegative || contrastedShape(clause, roles, shapes, index, ownersOf);
       // "less than the ideal tetrahedral angle of 109.5" compares with a reference angle,
       // and says nothing about this molecule's shape. Without the comparison it is a claim.
-      // It stays in the list so the other words keep their reading.
-      const namesReference = REFERENCE_LEAD.test(clause.slice(0, shape.start)) && REFERENCE_NOUN.test(clause.slice(shape.end));
+      // Only a word that would read as a false molecular shape is skipped, so a claim that
+      // passes without this rule still passes with it. It stays in the list so the other
+      // words keep their reading.
+      const namesReference = target !== "electron" && shape.shape !== result.shape
+        && REFERENCE_LEAD.test(clause.slice(0, shape.start)) && REFERENCE_NOUN.test(clause.slice(shape.end));
       if (!namesReference) claims.push({ shape: shape.shape, target, negated, owners });
       previousShape = { end: shape.end, negated };
     }

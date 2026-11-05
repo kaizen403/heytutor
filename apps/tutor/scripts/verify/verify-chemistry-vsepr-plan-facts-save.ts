@@ -82,6 +82,10 @@ for (const [question, formula, claim] of [
   ["what is sp3 hybridisation", "CH4", "CH4 is tetrahedral 109.5 degrees"],
   ["what is sp3 hybridisation", "CH4", "CH4 has tetrahedral bond angles"],
   ["what is a tetrahedral molecule", "CH4", "CH4 has tetrahedral angles"],
+  // The only fact is a comparison with the species' own true shape, and it stays a fact.
+  ["what is sp3 hybridisation", "CH4", "The angle in CH4 does not fall below the tetrahedral 109.5 degrees"],
+  ["what is vsepr theory", "CH4", "CH4 keeps its angle equal to, not less than the tetrahedral angle"],
+  ["what is vsepr theory", "NH3", "The electron geometry of NH3 does not differ from the tetrahedral 109.5 degrees"],
 ] as Array<[string, string, string]>) {
   check(`a plan example board saves: ${question} ${claim}`, () => {
     const turnPlan = { ...planFor(question, [], []), exampleSpecies: [{ formula, claim }] } as unknown as TurnPlanV3;
