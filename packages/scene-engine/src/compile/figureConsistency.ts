@@ -250,15 +250,14 @@ export function validateParallelCellsLoadCurrent(document: SceneDocument): Scene
   const symbols = document.constructions.filter((construction) => construction.operator === "symbol");
   const cells = symbols.filter((construction) => POLARISED_SOURCES.has(symbolName(construction)));
   if (cells.length < 2 || symbols.some((construction) => OTHER_SOURCES.has(symbolName(construction)))) return [];
-  const edges: Array<Conductor & { cell: boolean; resistive: boolean }> = [];
+  const edges: Array<Conductor & { resistive: boolean }> = [];
   for (const construction of document.constructions) {
     if (!construction.outputs[0] || (construction.operator !== "symbol" && construction.operator !== "connect")) continue;
     if (construction.operator === "symbol" && !conducts(construction)) continue;
     const start = construction.inputs.start ?? construction.inputs.from ?? construction.inputs.a;
     const end = construction.inputs.end ?? construction.inputs.to ?? construction.inputs.b;
     if (typeof start !== "string" || typeof end !== "string" || start === end) continue;
-    edges.push({ id: construction.outputs[0], start, end, cell: cells.includes(construction),
-      resistive: construction.operator === "connect" || RESISTIVE.has(symbolName(construction)) });
+    edges.push({ id: construction.outputs[0], start, end, resistive: construction.operator === "connect" || RESISTIVE.has(symbolName(construction)) });
   }
   const degree = new Map<string, number>();
   for (const edge of edges) for (const node of [edge.start, edge.end]) degree.set(node, (degree.get(node) ?? 0) + 1);
@@ -288,12 +287,12 @@ export function validateParallelCellsLoadCurrent(document: SceneDocument): Scene
     if (sense !== "positive" && sense !== "negative") continue;
     const target = badge.inputs.target ?? badge.inputs.axis ?? badge.inputs.path;
     const edge = edges.find((candidate) => candidate.id === target);
-    if (!edge || edge.cell) continue;
+    if (!edge) continue;
     const startSide = branchEnd(edges, junctions, edge, edge.start), endSide = branchEnd(edges, junctions, edge, edge.end);
     if (!startSide || !endSide) continue;
-    // Only a load branch: resistive elements between the two rails, no cell.
-    const branch = [...startSide.passed, ...endSide.passed];
-    if (branch.some((member) => member.cell || !member.resistive)) continue;
+    // Only a load branch: resistive elements between the two rails. A cell is not resistive, so a cell's own branch,
+    // which may carry a charging current, is never judged.
+    if ([...startSide.passed, ...endSide.passed].some((member) => !member.resistive)) continue;
     if (new Set([startSide.junction, endSide.junction]).size !== 2 || ![rails.positive, rails.negative].includes(startSide.junction)) continue;
     const drawnForward = sense === "positive";
     if (drawnForward === (startSide.junction === rails.positive)) continue;
