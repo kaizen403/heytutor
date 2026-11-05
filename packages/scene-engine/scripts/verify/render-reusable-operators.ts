@@ -8,7 +8,7 @@ const out = resolve(process.argv[2] ?? "/tmp/heytutor-operator-coverage");
 mkdirSync(out, { recursive: true });
 const examples: Array<{ title: string; entities: SceneEntity[]; constructions: SceneConstruction[] }> = [];
 const entity = (id: string, kind: string, label?: string): SceneEntity => ({ id, kind, role: `${kind} in the requested construction`, ...(label ? { label } : {}) });
-const construction = (operator: string, inputs: Record<string, unknown>, outputs: string[]): SceneConstruction => ({ id: `make_${outputs.join("_")}`, operator, inputs, outputs });
+const construction = (operator: string, inputs: Record<string, unknown>, outputs: string[]): SceneConstruction => ({ id: `make_${outputs[0]}`, operator, inputs, outputs });
 const origin = construction("point", { x: 0, y: 0 }, ["origin"]);
 const originEntity: SceneEntity = { id: "origin", kind: "point", role: "construction helper point" };
 

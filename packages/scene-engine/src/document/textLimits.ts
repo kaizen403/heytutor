@@ -40,8 +40,8 @@ export const SCENE_TEXT_LIMITS = Object.freeze({
  * generator output sit well inside them.
  */
 export const SCENE_COUNT_LIMITS = Object.freeze({
-  entities: 640,
-  constructions: 640,
+  entities: 768,
+  constructions: 768,
   annotations: 64,
   revealGroups: 32,
   assertions: 256,
@@ -51,7 +51,7 @@ export const SCENE_COUNT_LIMITS = Object.freeze({
   /** One kind of entity or construction, unless named below. */
   perKind: 32,
   kinds: Object.freeze({
-    point: 512,
+    point: 768,
     segment: 256,
     rectangle: 256,
     vector: 128,
@@ -67,7 +67,24 @@ export const SCENE_COUNT_LIMITS = Object.freeze({
     polyline: 48,
     symbol: 48,
     dimension: 16,
+    field_lines: 4,
+    implicit_curve: 8,
+    constraint_region: 4,
+    centre_of_mass: 4,
+    simple_body_inertia: 4,
+    linear_feasible_region: 3,
+    harmonic_wave: 8,
+    wave_superposition: 4,
+    function_region: 8,
   }),
+});
+
+/** Sizes of one construction's inputs, where they multiply. */
+export const SCENE_INPUT_LIMITS = Object.freeze({
+  /** Starts times steps in one set of field lines. */
+  fieldLineSteps: 1_600,
+  /** Harmonics times samples in one wave. */
+  waveHarmonicSamples: 16_384,
 });
 
 const COUNTED_LISTS = ["entities", "constructions", "annotations", "revealGroups", "assertions", "quantities", "relations", "teachingTimeline"] as const;

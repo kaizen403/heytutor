@@ -7,6 +7,15 @@
 
 import type { RenderPoint, RenderPrimitive } from "../types";
 import { SCENE_TEXT_LIMITS } from "../document/textLimits";
+import {
+  LABEL_MEASURE_CHAR_BUDGET,
+  chargeLabelOverlaps,
+  chargeMeasuredChars,
+  isLabelWorkSpent,
+  spentLabelWorkCode,
+  withSharedLabelWork,
+  type LabelWork,
+} from "../compile/figureWork";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
 import { LABEL_IN_NAMED_GAP, insideNamedGap, namedGaps, ownerNamedGaps } from "./levelGap";
 
@@ -170,7 +179,7 @@ export interface LabelEngineResult {
     leaderPath?: RenderPoint[];
   }>;
   issues: Array<{
-    code: "label_measure_budget" | "label_overlap_budget" | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
+    code: NonNullable<LabelWork["spent"]> | "label_overlap_unresolved" | "label_outside_view" | "label_too_long" | "label_duplicate" | "label_unattached";
     entityId: string;
     message: string;
     overlappingIds?: string[];
@@ -475,9 +484,9 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
   if (owner.text.length > (options.maxLabelChars ?? DEFAULTS.maxLabelChars)) return false;
   return withSharedLabelWork(() => {
     try {
-      return placeLabelsInternal([owner], obstacles, { ...measuredWithinBudget(options, activeLabelWork!), pointRivals: false, namedGaps: false }, true).ok;
+      return placeLabelsInternal([owner], obstacles, { ...measuredWithinBudget(options), pointRivals: false, namedGaps: false }, true).ok;
     } catch (error) {
-      if (!(error instanceof LabelWorkSpent)) throw error;
+      if (!isLabelWorkSpent(error)) throw error;
       return false;
     }
   }).value;
@@ -489,74 +498,20 @@ export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[
  */
 const NAMED_GAP_GUARD = true;
 
-/**
- * Characters one compile may pass to the ink measure, across every layout and
- * lane check. Every real figure stays well under this.
- */
-export const LABEL_MEASURE_CHAR_BUDGET = 200_000;
-
-/**
- * Overlap tests one compile may run, across every layout and lane check. A
- * count, so a figure's layout never depends on the clock. Every real figure
- * stays well under this.
- */
-export const LABEL_OVERLAP_WORK_BUDGET = 48_000_000;
-
-export interface LabelWork {
-  measuredChars: number;
-  overlaps: number;
-  spent: "label_measure_budget" | "label_overlap_budget" | null;
-}
-
-class LabelWorkSpent extends Error {}
-
-let activeLabelWork: LabelWork | null = null;
-
-function chargeLabelOverlaps(count: number): void {
-  const work = activeLabelWork;
-  if (!work) return;
-  work.overlaps += count;
-  if (work.overlaps > LABEL_OVERLAP_WORK_BUDGET) {
-    work.spent = "label_overlap_budget";
-    throw new LabelWorkSpent();
-  }
-}
-
 /** The search's own budget resets for each layout, and its work counts toward the compile's too. */
 function spendSearchWork(work: LabelSearchWork, count: number): void {
   work.spent += count;
   chargeLabelOverlaps(count);
 }
 
-/** True when a budget stopped the work. A compile refuses the figure when it sees this. */
-export function isLabelWorkSpent(error: unknown): boolean {
-  return error instanceof LabelWorkSpent;
-}
-
-/** Every layout inside `run` shares one budget. Nested calls share the outer one. */
-export function withSharedLabelWork<T>(run: () => T, start: Partial<LabelWork> = {}): { value: T; work: LabelWork } {
-  const outer = activeLabelWork;
-  const work = outer ?? { measuredChars: 0, overlaps: 0, spent: null, ...start };
-  activeLabelWork = work;
-  try {
-    return { value: run(), work };
-  } finally {
-    activeLabelWork = outer;
-  }
-}
-
-function measuredWithinBudget(options: LabelEngineOptions, work: LabelWork): LabelEngineOptions {
+function measuredWithinBudget(options: LabelEngineOptions): LabelEngineOptions {
   const measure = options.measureTextInkBounds;
   if (!measure) return options;
   const budget = options.measureCharBudget ?? LABEL_MEASURE_CHAR_BUDGET;
   return {
     ...options,
     measureTextInkBounds: (text, x, y, fontHeightPx) => {
-      work.measuredChars += text.length;
-      if (work.measuredChars > budget) {
-        work.spent = "label_measure_budget";
-        throw new LabelWorkSpent();
-      }
+      chargeMeasuredChars(text.length, budget);
       return measure(text, x, y, fontHeightPx);
     },
   };
@@ -583,16 +538,15 @@ export function placeLabels(
     };
   }
   return withSharedLabelWork((): LabelEngineResult => {
-    const work = activeLabelWork!;
     try {
-      return placeLabelsMeasured(owners, obstacles, measuredWithinBudget(options, work));
+      return placeLabelsMeasured(owners, obstacles, measuredWithinBudget(options));
     } catch (error) {
-      if (!(error instanceof LabelWorkSpent)) throw error;
+      if (!isLabelWorkSpent(error)) throw error;
       return {
         ok: false,
         placements: [],
         issues: owners.slice(0, 1).map((owner) => ({
-          code: work.spent ?? "label_overlap_budget",
+          code: spentLabelWorkCode(),
           entityId: owner.entityId,
           message: "Labels need more layout work than one compile may spend",
         })),
@@ -1372,7 +1326,7 @@ export function stackLabelRows(
   obstacles: LabelObstacle[],
   rawOptions: LabelEngineOptions = {},
 ): LabelOwner[] | null {
-  const options = activeLabelWork ? measuredWithinBudget(rawOptions, activeLabelWork) : rawOptions;
+  const options = measuredWithinBudget(rawOptions);
   const minGapPx = options.minGapPx ?? DEFAULTS.minGapPx;
   for (const origin of origins) {
     const rows: LabelOwner[] = [];

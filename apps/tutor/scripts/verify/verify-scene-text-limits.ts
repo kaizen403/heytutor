@@ -5,8 +5,12 @@
  */
 import {
   LABEL_MEASURE_CHAR_BUDGET,
+  EXPRESSION_STEP_BUDGET,
+  FIGURE_POINT_BUDGET,
   LABEL_OVERLAP_WORK_BUDGET,
   SCENE_COUNT_LIMITS as N,
+  SCENE_DOCUMENT_VERSION,
+  SCENE_INPUT_LIMITS as I,
   SCENE_TEXT_LIMITS as L,
   boundsOverlap,
   canPlaceSingleLabel,
@@ -43,11 +47,14 @@ const PINNED = {
 if (JSON.stringify(L) !== JSON.stringify(PINNED)) fail("the scene sizes moved", L);
 if (LABEL_MEASURE_CHAR_BUDGET !== 200_000) fail("the measure budget moved", LABEL_MEASURE_CHAR_BUDGET);
 if (LABEL_OVERLAP_WORK_BUDGET !== 48_000_000) fail("the overlap budget moved", LABEL_OVERLAP_WORK_BUDGET);
+if (FIGURE_POINT_BUDGET !== 16_384) fail("the point budget moved", FIGURE_POINT_BUDGET);
+if (EXPRESSION_STEP_BUDGET !== 16_000_000) fail("the expression budget moved", EXPRESSION_STEP_BUDGET);
 const PINNED_COUNTS = {
-  entities: 640, constructions: 640, annotations: 64, revealGroups: 32, assertions: 256, quantities: 128, relations: 32, teachingTimeline: 128, perKind: 32,
-  kinds: { point: 512, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16 },
+  entities: 768, constructions: 768, annotations: 64, revealGroups: 32, assertions: 256, quantities: 128, relations: 32, teachingTimeline: 128, perKind: 32,
+  kinds: { point: 768, segment: 256, rectangle: 256, vector: 128, label: 128, circle: 96, connect: 96, connector: 96, tick_mark: 64, space_point: 64, space_segment: 64, component: 48, curve_anchor: 48, polyline: 48, symbol: 48, dimension: 16, field_lines: 4, implicit_curve: 8, constraint_region: 4, centre_of_mass: 4, simple_body_inertia: 4, linear_feasible_region: 3, harmonic_wave: 8, wave_superposition: 4, function_region: 8 },
 };
 if (JSON.stringify(N) !== JSON.stringify(PINNED_COUNTS)) fail("the scene counts moved", N);
+if (JSON.stringify(I) !== JSON.stringify({ fieldLineSteps: 1_600, waveHarmonicSamples: 16_384 })) fail("the input sizes moved", I);
 
 interface FigureEntity { id: string; label?: string; role?: string }
 interface Figure {
@@ -334,6 +341,77 @@ for (const [name, grow] of [
   const used = process.cpuUsage(started);
   if ((used.user + used.system) / 1000 > LIMIT_MS * 3) fail(`${name}: save time`, used);
 }
+
+// A kind the normalizer renames is counted as what it becomes.
+if (validateSceneDocument({ ...clone(base), entities: many(N.kinds.polyline, (index) => ({ id: `c${index}`, kind: "curve", role: "curve" })), constructions: [] }).report.issues.some((issue) => issue.code === COUNT)) fail("a renamed kind counts as what it becomes", null);
+
+// Each input at its own largest value, through save.
+const plain = () => ({
+  schemaVersion: SCENE_DOCUMENT_VERSION, visualDecision: { mode: "scene", reason: "figure" },
+  source: { question: "Draw the figure.", nonMetric: true, representationTier: "qualitative_verified" },
+  entities: [] as unknown[], constructions: [] as unknown[], requiredEntityIds: [] as string[],
+  revealGroups: [{ id: "g", dependsOn: [], entityIds: [] as string[], narrationCue: "the figure" }],
+  assertions: [], annotations: [], quantities: [], relations: [], teachingTimeline: [],
+});
+const put = (d: ReturnType<typeof plain>, id: string, operator: string, kind: string, inputs: Record<string, unknown>) => {
+  d.constructions.push({ id: `c_${id}`, operator, inputs, outputs: [id] });
+  d.entities.push({ id, kind, role: kind });
+  d.requiredEntityIds.push(id);
+  d.revealGroups[0]!.entityIds.push(id);
+};
+const ring = (count: number, radius: number, centre: number) => many(count, (index) => [centre + radius * Math.cos((2 * Math.PI * index) / count), radius * Math.sin((2 * Math.PI * index) / count)]);
+const longY = (start: string) => { let text = start; while (text.length < 240 && (text.match(/[-+*/()]|\w+/g) ?? []).length < 118) text += "+sin(y)*0"; return text; };
+const wave = { amplitude: 1, waveNumber: 1, angularFrequency: 1, phase: 0, phaseUnit: "rad", time: 0, xMin: 0, xMax: 6, origin: { x: 0, y: 0 } };
+const fieldLines = (d: ReturnType<typeof plain>, index: number, starts: number, stepCount: number) => {
+  put(d, `q${index}`, "point", "point", { x: 3 * index, y: 0, coordinateSpace: "layout" });
+  put(d, `k${index}`, "field_lines", "polyline", { charges: [{ id: `c${index}`, position: `q${index}`, charge: 1 }], starts: ring(starts, 1.1, 3 * index), stepLength: 0.25, stepCount, k: 1, exclusionRadius: 1 });
+};
+const largest: Array<[string, (d: ReturnType<typeof plain>) => void]> = [
+  ["field lines at their count and size", (d) => { for (let index = 0; index < N.kinds.field_lines; index += 1) fieldLines(d, index, 16, I.fieldLineSteps / 16); }],
+  ["implicit curves at their count, long expressions", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: longY(`(x-${index * 5})^2+y^2-1`), xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
+  ["implicit curves at their count, many loops", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(15*(x-${index * 5}))*sin(15*y)-0.3`, xMin: index * 5 - 2, xMax: index * 5 + 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); }],
+  ["regions at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.constraint_region; index += 1) put(d, `k${index}`, "constraint_region", "polygon", { constraints: [...many(5, (part) => ({ expression: longY(`sin(7*y)+${index + part + 2}`), relation: "ge" })), { expression: "y-0.4", relation: "ge" }], xMin: index * 3 - 1, xMax: index * 3 + 1, yMin: 0, yMax: 6.28, samples: 161 }); }],
+  ["bodies at their count and largest inputs", (d) => { for (let index = 0; index < N.kinds.centre_of_mass; index += 1) put(d, `k${index}`, "centre_of_mass", "point", { parts: many(16, (part) => ({ kind: "solid_sphere", mass: 1, radius: 1, center: { x: part * 3, y: index } })), axis: { origin: { x: 0, y: 0 } }, displayLength: 1, lengthUnit: "m" }); }],
+  ["linear regions at their count, largest inputs", (d) => { for (let index = 0; index < N.kinds.linear_feasible_region; index += 1) put(d, `k${index}`, "linear_feasible_region", "linear_region", { variables: ["x", "y"], constraints: many(16, (part) => `${part + 1}*x + ${16 - part}*y = ${17 * (index + 1)}`) }); }],
+  ["waves at their count and size", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); for (let index = 0; index < N.kinds.wave_superposition; index += 1) put(d, `k${index}`, "wave_superposition", "polyline", { waves: ids, samples: 2047 }); }],
+  ["curve anchors at their count, on the largest wave", (d) => { const ids = many(N.kinds.harmonic_wave, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples: 2047 })); put(d, "sum", "wave_superposition", "polyline", { waves: ids, samples: 2047 }); for (let index = 0; index < N.kinds.curve_anchor; index += 1) put(d, `a${index}`, "curve_anchor", "point", { curve: "sum", at: 1 + index * 0.01 }); }],
+  ["dimensions over the most points", (d) => { for (let index = 0; index < N.kinds.implicit_curve; index += 1) put(d, `k${index}`, "implicit_curve", "polyline", { expression: `sin(78.54*(x-${(4 + index * 0.25).toFixed(2)}))`, xMin: 4, xMax: 6, yMin: 4, yMax: 6, xSamples: 161, ySamples: 161 }); for (let index = 0; index < N.kinds.dimension; index += 1) { put(d, `s${index}`, "point", "point", { x: -3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `t${index}`, "point", "point", { x: 3, y: 0.1 * index, coordinateSpace: "layout" }); put(d, `b${index}`, "dimension", "dimension", { start: `s${index}`, end: `t${index}` }); } }],
+];
+const LARGEST_LIMIT_MS = LIMIT_MS * 5;
+for (const [name, build] of largest) {
+  const document = plain();
+  build(document);
+  const over = sceneTextOverLimit(document) ?? sceneCountOverLimit(document);
+  if (over) fail(`${name}: inside the limits`, over);
+  const started = process.cpuUsage();
+  let threw: unknown = null;
+  try { await save(document as unknown as Figure); } catch (error) { threw = String(error).slice(0, 80); }
+  const used = process.cpuUsage(started);
+  if (threw) fail(`${name}: threw`, threw);
+  if ((used.user + used.system) / 1000 > LARGEST_LIMIT_MS) fail(`${name}: save time`, (used.user + used.system) / 1000);
+}
+// One past a size is refused by the validator, not only by a compile.
+const pastSize = plain(); fieldLines(pastSize, 0, 16, I.fieldLineSteps / 16 + 1);
+if (!validateSceneDocument(pastSize).report.issues.some((issue) => issue.severity === "fatal" && issue.code.includes("field_lines"))) fail("field lines one past their size", null);
+const atSize = plain(); fieldLines(atSize, 0, 16, I.fieldLineSteps / 16);
+if (validateSceneDocument(atSize).report.issues.some((issue) => issue.severity === "fatal" && issue.code.includes("field_lines"))) fail("field lines at their size", null);
+const waveDoc = (harmonics: number, samples: number) => { const d = plain(); const ids = many(harmonics, (index) => `w${index}`); ids.forEach((id, index) => put(d, id, "harmonic_wave", "polyline", { ...wave, waveNumber: 1 + index * 0.25, samples })); put(d, "sum", "wave_superposition", "polyline", { waves: ids, samples }); return d; };
+const waveCodes = (d: ReturnType<typeof plain>) => validateSceneDocument(d).report.issues.filter((issue) => issue.severity === "fatal" && issue.code.includes("wave")).map((issue) => issue.code);
+if (waveCodes(waveDoc(8, 2047)).length) fail("a wave at its size", waveCodes(waveDoc(8, 2047)));
+if (!waveCodes(waveDoc(8, 2049)).length) fail("a wave one past its size", null);
+
+// A figure past the point budget or the expression budget returns a refusal and never throws.
+const pointsWork = withSharedLabelWork(() => compileSceneDocument(clone(base) as never), { points: FIGURE_POINT_BUDGET });
+if (pointsWork.value.ok || pointsWork.work.spent !== "figure_point_budget" || !pointsWork.value.report.issues.some((issue) => issue.code === "figure_point_budget")) fail("a compile past the point budget refuses", pointsWork.work);
+if (pointsWork.value.report.valid !== false) fail("a compile past a budget reports itself invalid", pointsWork.value.report.valid);
+const curve = plain(); put(curve, "k", "implicit_curve", "polyline", { expression: "x^2+y^2-1", xMin: -2, xMax: 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 });
+const stepsWork = withSharedLabelWork(() => compileSceneDocument(curve as never), { expressionSteps: EXPRESSION_STEP_BUDGET });
+if (stepsWork.value.ok || stepsWork.work.spent !== "expression_step_budget") fail("a compile past the expression budget refuses", stepsWork.work);
+const counted = withSharedLabelWork(() => compileSceneDocument(curve as never));
+if (counted.work.expressionSteps === 0) fail("expression steps count", counted.work);
+if (counted.work.points === 0) fail("points count", counted.work);
+const laneWork = withSharedLabelWork(() => compileSceneDocument(((d) => { put(d, "c0", "implicit_curve", "polyline", { expression: "x^2+y^2-1", xMin: -2, xMax: 2, yMin: -2, yMax: 2, xSamples: 161, ySamples: 161 }); put(d, "s", "point", "point", { x: -3, y: 0, coordinateSpace: "layout" }); put(d, "t", "point", "point", { x: 3, y: 0, coordinateSpace: "layout" }); put(d, "b", "dimension", "dimension", { start: "s", end: "t" }); return d; })(plain()) as never));
+if (laneWork.work.overlaps < 100) fail("the lane search counts as work", laneWork.work);
 
 // One budget across a whole compile, whichever layout or lane check spends it.
 const single = (entityId: string, text: string) => ({ entityId, text, anchor: { x: 500, y: 300 } });

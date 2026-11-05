@@ -29,8 +29,6 @@ import {
 import {
   createTextInkBoundsCache,
   canPlaceSingleLabel,
-  isLabelWorkSpent,
-  withSharedLabelWork,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -47,6 +45,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
+import { chargeFigurePoints, chargeLabelOverlaps, countFigurePoints, isLabelWorkSpent, withSharedLabelWork } from "./figureWork";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -343,6 +342,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       construction.outputs.forEach((id, outputIndex) => {
         const next = outputs[outputIndex]!;
         if (assignChainedRefractInternalPath(id, outputIndex, construction, document, geometry)) return;
+        chargeFigurePoints(countFigurePoints(next));
         geometry.set(id, next);
       });
       document = withEvaluatedOutputLabels(construction, originalIndex, inputs, outputs, document, {
@@ -3491,7 +3491,7 @@ function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boo
     { x: point.x + normal.x * DIMENSION_CAP_HALF_PX, y: point.y + normal.y * DIMENSION_CAP_HALF_PX },
   ]);
   return [[start, end] as [Point, Point], ...caps].some((segment) => ink.some((obstacle) =>
-    obstacle.segments!.some((other) => !dimensionEndpointCarrier(bar, other) && (segmentsTouch(segment, other) ||
+    obstacle.segments!.some((other) => (chargeLabelOverlaps(4), !dimensionEndpointCarrier(bar, other)) && (segmentsTouch(segment, other) ||
       Math.min(pointSegmentResidual(segment[0], other), pointSegmentResidual(segment[1], other),
         pointSegmentResidual(other[0], segment), pointSegmentResidual(other[1], segment)) < 4)),
   ));

@@ -1,3 +1,4 @@
+import { SCENE_INPUT_LIMITS } from "../document/textLimits";
 import { validatePublicationDerivedClaims, type PublicationClaimAuthority } from "./publicationDerivedClaims";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
@@ -420,6 +421,7 @@ function fieldLines(inputs: Record<string, unknown>, context: DipoleFieldEvaluat
       if (hypot(sub(charges[i]!.position, charges[j]!.position)) <= exclusion * 2) invalid("exclusionRadius", "charge exclusion regions must not overlap");
     }
   }
+  if (inputs.starts.length * stepCount > SCENE_INPUT_LIMITS.fieldLineSteps) invalid("starts", `starts times stepCount must be at most ${SCENE_INPUT_LIMITS.fieldLineSteps}`);
   const lines = inputs.starts.map((start, index) => traceLine(pointValue(start, `starts[${index}]`, context), charges, k, stepLength, stepCount, exclusion));
   for (let i = 0; i < lines.length; i += 1) {
     for (let j = i + 1; j < lines.length; j += 1) {

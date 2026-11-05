@@ -1,3 +1,4 @@
+import { SCENE_INPUT_LIMITS } from "../document/textLimits";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import type { CalculusAnchorDefinition } from "./calculusGeometry";
 
@@ -248,6 +249,7 @@ function wavePath(model: WaveDefinition, requestedSamples?: number): Extract<Wav
   model.zeroCertified = active.length === 0;
   const { amplitudeEnvelope, maxWaveNumber, minimum } = physicalBounds(active, model);
   const samples = samplingCount(minimum, requestedSamples);
+  if (samples * active.length > SCENE_INPUT_LIMITS.waveHarmonicSamples) invalid("samples", `harmonics times samples must be at most ${SCENE_INPUT_LIMITS.waveHarmonicSamples}`);
   model.samples = samples;
   const evaluate = (x: number): RenderPoint => {
     if (!Number.isFinite(x) || x < model.xMin || x > model.xMax) invalid("x", "wave parameter must lie inside the verified physical domain");
