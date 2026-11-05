@@ -367,7 +367,14 @@ export function reconcileTurnPlanWithSolver(
       ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(quantity.value))
       : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
     if (Math.abs(quantity.value - value.approximate) <= tolerance) return quantity;
-    if (options.keepDisagreement === true && !withinPlanRounding(quantity.value, value.approximate)) return quantity;
+    // A value certified from the source has real authority, so it still corrects the plan.
+    if (options.keepDisagreement === true && !selections.has(request.id) && !withinPlanRounding(quantity.value, value.approximate)) {
+      if (quantity.uncertainty === undefined) return quantity;
+      // A model written uncertainty must not let the audit pass the disagreement.
+      changed = true;
+      const { uncertainty: _uncertainty, ...kept } = quantity;
+      return kept;
+    }
     changed = true;
     return {
       ...quantity,

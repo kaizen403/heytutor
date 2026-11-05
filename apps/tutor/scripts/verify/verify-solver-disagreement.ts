@@ -4,8 +4,10 @@
  * ProblemIR is written by a model that saw the plan, so its arithmetic is no independent authority. Overwriting wrote a
  * false value over a right plan, and the audit then called it verified. With the switch on, only a rounding of the
  * solver's value is overwritten. A real disagreement stays, the audit reports a contradiction, and the existing path
- * stops the lesson before narration. With the switch off, which is the default, nothing changes. The save path reads no
- * switch. Every stem and number here is authored.
+ * stops the lesson before narration, and the turn carries that value no further, so a later doubt or Continue cannot
+ * teach it. A value certified from the source still corrects the plan. With the switch off, which is the default, nothing
+ * changes; the proof of that across commits is a replay against dev, since this gate runs on one tree. The save path reads
+ * no switch. Every stem and number here is authored.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-solver-disagreement.ts
  */
@@ -17,6 +19,7 @@ import {
   reconcileTurnPlanWithSolver,
   validateProblemIR,
   validateSolverResult,
+  validateTurnPlanV3,
   verifyTurnPlanAgainstSolver,
   type ProblemIR,
   type SolverResult,
@@ -109,9 +112,38 @@ async function main() {
   await check("on: the shared call ends in a contradiction with no projection", () => {
     const quiet = () => undefined;
     const on = reconcilePlanWithAuthority(STEM, rightPlan, authority(), quiet as never, { keepDisagreement: true });
-    assert.equal(valueOf(on.turnPlan, "y"), 2);
     assert.equal((on.authority as { audit: { status: string } }).audit.status, "contradiction");
     assert.equal((on.authority as { projection: unknown }).projection, null);
+  });
+  await check("on: the turn carries the disagreed value no further, and keeps the rest", () => {
+    const quiet = () => undefined;
+    const on = reconcilePlanWithAuthority(STEM, rightPlan, authority(), quiet as never, { keepDisagreement: true });
+    assert.equal(valueOf(on.turnPlan, "y"), undefined);
+    assert.ok(!on.turnPlan.unknowns.some((quantity) => quantity.id === "y"));
+    assert.equal(valueOf(on.turnPlan, "x"), 3);
+    assert.ok(validateTurnPlanV3(on.turnPlan, STEM).plan, "the plan that is left is still valid");
+  });
+  await check("on: anything worked from the disagreed value goes with it, and its claims", () => {
+    const quiet = () => undefined;
+    const chained = {
+      ...rightPlan,
+      unknowns: [...rightPlan.unknowns, { id: "z", symbol: "z" }, { id: "w", symbol: "w" }],
+      derived: [...rightPlan.derived,
+        { id: "z", symbol: "z", value: 4, provenance: "derived", dependsOn: ["y"], sourceText: "z = 2y" },
+        { id: "w", symbol: "w", value: 8, provenance: "derived", dependsOn: ["z"], sourceText: "w = 2z" }],
+      qualitativeClaims: [{ id: "c1", claim: "y is positive", expected: "y is positive", relatedQuantityIds: ["y"] }, { id: "c2", claim: "x is positive", expected: "x is positive", relatedQuantityIds: ["x"] }],
+    } as unknown as TurnPlanV3;
+    const audit = verifyTurnPlanAgainstSolver(falseProblem, falseResult, chained, STEM);
+    const on = reconcilePlanWithAuthority(STEM, chained, { problemIR: falseProblem, solverResult: falseResult, audit, projection: null, rawContent: "", elapsedMs: 0 } as never, quiet as never, { keepDisagreement: true });
+    assert.deepEqual(on.turnPlan.derived.map((quantity) => quantity.id), ["x"]);
+    assert.deepEqual(on.turnPlan.qualitativeClaims.map((claim) => claim.id), ["c2"]);
+  });
+  await check("on: a model written uncertainty does not let a disagreement pass", () => {
+    const loose = planFor(STEM, [{ id: "x", value: 3 }, { id: "y", value: 2 }]);
+    (loose.derived[1] as { uncertainty?: number }).uncertainty = 10;
+    const next = reconcileTurnPlanWithSolver(loose, falseProblem, falseResult, { keepDisagreement: true });
+    assert.equal(valueOf(next, "y"), 2);
+    assert.equal(verifyTurnPlanAgainstSolver(falseProblem, falseResult, next, STEM).status, "contradiction");
   });
 
   // What counts as rounding.
@@ -122,8 +154,9 @@ async function main() {
     ["a round number within 1 percent", 400, 398.63],
     ["a whole number within half its place and 5 percent", 2, 2.05],
     ["a negative value", -3.2, -3.2026],
-    ["an exponent form", 0.0012, 0.00121],
+    ["a small decimal", 0.0012, 0.00121],
     ["a small fraction", 0.67, 0.6667],
+    ["a whole number within half its place, under 5 percent", 21, 20.6],
   ];
   for (const [name, planValue, solverValue] of within) {
     await check(`on: ${name} is corrected`, async () => {
@@ -140,6 +173,7 @@ async function main() {
     ["a sign flip", 3.2, -3.2026],
     ["a value against zero", 0.4, 0],
     ["a stated decimal 2 percent off", 3.27, 3.2026],
+    ["a stated decimal under 2 percent off", 3.26, 3.2026],
     ["ten times too large", 32, 3.2026],
     ["a small value in exponent form 5 percent off", 1.2e-7, 1.26e-7],
   ];
@@ -163,10 +197,53 @@ async function main() {
     assert.equal(reconcileTurnPlanWithSolver(plan, problem, await solve(problem), { keepDisagreement: true }), plan);
   });
 
-  // A contradiction draws nothing, which the existing path already holds.
-  await check("on: the selection draws nothing under the contradiction", () => {
-    const selected = selectProductionScene({ question: STEM, turnPlan: kept, problemIR: falseProblem, candidate: null, requiredRetryEnabled: true, solverAuthorityBlocked: true, policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "linear_source", "text_only"] } } as Parameters<typeof selectProductionScene>[0]);
-    assert.equal(selected.representation, null);
+  // A value certified from the source keeps its authority, switch on or off.
+  await check("on: a source certified boundary still corrects a stale plan", async () => {
+    const question = "On a number line, solve x > 2 and x < 5. Find the left boundary and right boundary.";
+    const quote = (text: string) => ({ source: "question", start: question.indexOf(text), end: question.indexOf(text) + text.length, quote: text });
+    const x = { kind: "variable", name: "x" };
+    const raw = {
+      schemaVersion: "problem-ir/v1", id: "interval", question,
+      facts: [{ id: "lower", kind: "given", statement: "x > 2", evidence: quote("x > 2") }, { id: "upper", kind: "given", statement: "x < 5", evidence: quote("x < 5") }, { id: "boundaries", kind: "requested", statement: "boundaries", evidence: quote("Find the left boundary") }],
+      entities: [], representationIntents: [],
+      expressions: [
+        { id: "x", valueType: "scalar", root: x, evidenceFactIds: ["lower", "upper"] }, { id: "two", valueType: "scalar", root: num(2), evidenceFactIds: ["lower"] }, { id: "five", valueType: "scalar", root: num(5), evidenceFactIds: ["upper"] },
+        { id: "leftRoot", valueType: "function", root: { kind: "binary", operator: "-", left: x, right: num(2) }, evidenceFactIds: ["lower"] },
+        { id: "rightRoot", valueType: "function", root: { kind: "binary", operator: "-", left: x, right: num(5) }, evidenceFactIds: ["upper"] },
+      ],
+      constraints: [
+        { id: "lowerConstraint", kind: "inequality", leftExpressionId: "x", rightExpressionId: "two", relation: ">", evidenceFactIds: ["lower"] },
+        { id: "upperConstraint", kind: "inequality", leftExpressionId: "x", rightExpressionId: "five", relation: "<", evidenceFactIds: ["upper"] },
+      ],
+      solveRequests: [
+        { id: "findLeft", kind: "roots", expressionId: "leftRoot", variable: "x", domain: { min: -10, max: 10 }, resultBinding: { turnPlanQuantityId: "left", symbol: "left boundary", evidenceFactIds: ["boundaries"] } },
+        { id: "findRight", kind: "roots", expressionId: "rightRoot", variable: "x", domain: { min: -10, max: 10 }, resultBinding: { turnPlanQuantityId: "right", symbol: "right boundary", evidenceFactIds: ["boundaries"] } },
+      ],
+    };
+    const validated = validateProblemIR(raw, question);
+    assert.ok(validated.problem, JSON.stringify(validated.issues).slice(0, 200));
+    const result = await solve(validated.problem!);
+    const stale = { schemaVersion: "turn-plan/v3", question, visualRequirement: "required", givens: [], unknowns: [{ id: "left", symbol: "left boundary" }, { id: "right", symbol: "right boundary" }], derived: [{ id: "left", symbol: "left boundary", value: 9, provenance: "derived" }, { id: "right", symbol: "right boundary", value: 5, provenance: "derived" }], qualitativeClaims: [], lawIds: [], assumptions: [] } as unknown as TurnPlanV3;
+    assert.equal(valueOf(reconcileTurnPlanWithSolver(stale, validated.problem!, result), "left"), 2, "as dev");
+    assert.equal(valueOf(reconcileTurnPlanWithSolver(stale, validated.problem!, result, { keepDisagreement: true }), "left"), 2, "with the switch on");
+  });
+
+  // A contradiction draws nothing, which the existing path already holds. The twin shows the same candidate draws without it.
+  const figureFor = (question: string) => ({
+    schemaVersion: "scene-document/v2", source: { question, nonMetric: true, representationTier: "qualitative_verified" },
+    visualDecision: { mode: "scene", reason: "a segment" }, quantities: [],
+    entities: [{ id: "a", kind: "point", role: "endpoint", label: "A" }, { id: "b", kind: "point", role: "endpoint", label: "B" }, { id: "ab", kind: "segment", role: "segment", label: "AB" }],
+    constructions: [{ id: "pa", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["a"] }, { id: "pb", operator: "point", inputs: { x: 3, y: 0 }, outputs: ["b"] }, { id: "sab", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ab"] }],
+    relations: [], assertions: [{ id: "exists", predicate: "exists", entities: ["ab"], expected: true, severity: "fatal" }],
+    annotations: [], requiredEntityIds: ["a", "b", "ab"],
+    revealGroups: [{ id: "setup", entityIds: ["a", "b", "ab"], dependsOn: [], narrationCue: "Draw AB." }],
+    teachingTimeline: [{ id: "reveal", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Draw AB." }],
+  });
+  const STRICT = { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "linear_source", "text_only"] };
+  await check("the same candidate draws with no contradiction, and nothing under one", () => {
+    const pick = (solverAuthorityBlocked: boolean) => selectProductionScene({ question: STEM, turnPlan: kept, problemIR: null, candidate: figureFor(STEM), requiredRetryEnabled: true, solverAuthorityBlocked, exactFigureSource: "planner", policy: STRICT } as never);
+    assert.ok(pick(false).representation, "the twin draws, so the refusal below is the contradiction's");
+    assert.equal(pick(true).representation, null);
   });
 
   // A doubt's figure, which production has off.
@@ -227,16 +304,7 @@ async function main() {
     assert.ok(!source("lib/scene/sceneSaveAdmission.ts").includes("reconcileTurnPlanWithSolver"));
     assert.ok(!source("lib/scene/turnScenePersistence.ts").includes("SOLVER_DISAGREEMENT_STOPS"));
   });
-  const figure = {
-    schemaVersion: "scene-document/v2", source: { question: STEM, nonMetric: true, representationTier: "qualitative_verified" },
-    visualDecision: { mode: "scene", reason: "a segment" }, quantities: [],
-    entities: [{ id: "a", kind: "point", role: "endpoint", label: "A" }, { id: "b", kind: "point", role: "endpoint", label: "B" }, { id: "ab", kind: "segment", role: "segment", label: "AB" }],
-    constructions: [{ id: "pa", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["a"] }, { id: "pb", operator: "point", inputs: { x: 3, y: 0 }, outputs: ["b"] }, { id: "sab", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ab"] }],
-    relations: [], assertions: [{ id: "exists", predicate: "exists", entities: ["ab"], expected: true, severity: "fatal" }],
-    annotations: [], requiredEntityIds: ["a", "b", "ab"],
-    revealGroups: [{ id: "setup", entityIds: ["a", "b", "ab"], dependsOn: [], narrationCue: "Draw AB." }],
-    teachingTimeline: [{ id: "reveal", action: "reveal", targetId: "setup", dependsOn: [], narrationIntent: "Draw AB." }],
-  };
+  const figure = figureFor(STEM);
   const artifacts = (plan: TurnPlanV3, drawn: boolean) => ({
     schemaVersion: "scene-artifacts/v3", diagramResultStatus: drawn ? "ready" : "text_only", representationTier: drawn ? "qualitative_verified" : "text_only", nonMetric: true,
     figureSource: drawn ? "planner" : "text_only", turnPlan: plan, problemIR: falseProblem, solverResult: falseResult,
@@ -260,10 +328,16 @@ async function main() {
       assert.equal(result.ok, false);
       assert.equal((result as { code?: string }).code, "scene_solver_plan_contradiction");
     });
-    await check(`${name}: the text of a lesson under a disagreeing plan still saves`, async () => {
+    await check(`${name}: the text of a stopped lesson saves, and carries no disagreed value`, async () => {
       setSwitch();
-      const result = await save(rightPlan, false);
+      const quiet = () => undefined;
+      const carried = reconcilePlanWithAuthority(STEM, rightPlan, authority(), quiet as never, { keepDisagreement: true }).turnPlan;
+      const result = await save(carried, false);
       assert.ok(result.ok, result.ok ? "" : `${result.code}: ${result.error}`);
+      const stored = ((result as { value?: { sceneArtifacts?: { turnPlan?: TurnPlanV3 } } }).value?.sceneArtifacts?.turnPlan);
+      assert.ok(stored, "the plan is stored");
+      assert.equal(valueOf(stored!, "y"), undefined);
+      assert.equal(valueOf(stored!, "x"), 3);
     });
   }
   delete process.env.SOLVER_DISAGREEMENT_STOPS;

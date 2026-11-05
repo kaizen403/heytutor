@@ -124,7 +124,36 @@ export function reconcilePlanWithAuthority(
     options,
   ), authority, debug);
   const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
+  if (options.keepDisagreement === true && refreshedAuthority.audit.status === "contradiction") {
+    return { turnPlan: withoutDisagreedValues(reconciledPlan, refreshedAuthority.audit), authority: refreshedAuthority };
+  }
   return { turnPlan: reconciledPlan, authority: refreshedAuthority };
+}
+
+/**
+ * The contradiction stops this lesson, but a later doubt or Continue reads the
+ * plan the turn carries, with no audit. Neither side of a disagreement is known
+ * right, so that value and anything worked from it are not carried on.
+ */
+function withoutDisagreedValues(plan: TurnPlanV3, audit: ProblemAuthorityV1Response["audit"]): TurnPlanV3 {
+  const withdrawn = new Set(audit.issues.flatMap((issue) =>
+    issue.code === "solver_turnplan_contradiction" && issue.quantityId ? [issue.quantityId] : []));
+  if (withdrawn.size === 0) return plan;
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const quantity of plan.derived) {
+      if (!withdrawn.has(quantity.id) && quantity.dependsOn?.some((id) => withdrawn.has(id))) {
+        withdrawn.add(quantity.id);
+        grew = true;
+      }
+    }
+  }
+  return {
+    ...plan,
+    unknowns: plan.unknowns.filter((quantity) => !withdrawn.has(quantity.id)),
+    derived: plan.derived.filter((quantity) => !withdrawn.has(quantity.id)),
+    qualitativeClaims: plan.qualitativeClaims.filter((claim) => !claim.relatedQuantityIds?.some((id) => withdrawn.has(id))),
+  };
 }
 
 /** The fast verified tier: hand coded families, chemistry families, archetypes. */
