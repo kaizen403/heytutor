@@ -328,6 +328,13 @@ expect("more than two junctions is not judged", parallel({ ladder: true, loadSen
 expect("an electron flow mark on the load is not judged", parallel({ loadSense: "negative", role: "electron flow" }), LOAD, false);
 expect("mutation: a reversed load badge named I_L with a neutral role is judged", parallel({ loadSense: "negative", role: "direction marker", label: "I_L" }), LOAD, true);
 expect("a reversed load badge named Image is not read as a current", parallel({ loadSense: "negative", role: "direction marker", label: "Image" }), LOAD, false);
+// Scope: one cell feeding loads in parallel is the single cell rule's, which judges series conductors only.
+const oneCell = parallel({ up: [true], loadSense: "negative" });
+(oneCell.entities as Entity[]).push({ id: "load2", kind: "component", role: "load", label: "R2" });
+(oneCell.constructions as Construction[]).push({ id: "make_load2", operator: "symbol", inputs: { start: "T", end: "B", symbol: "resistor" }, outputs: ["load2"] });
+(oneCell.requiredEntityIds as string[]).push("load2");
+((oneCell.revealGroups as Array<{ entityIds: string[] }>)[0]!.entityIds).push("load2");
+expect("one cell with loads in parallel is left to the single cell rule", oneCell, LOAD, false);
 
 // --- polarity marks against the plates ----------------------------------------------
 // The loop's cell runs P to S, so its long plate is at P. Marks on terminal points land in the order the points are
