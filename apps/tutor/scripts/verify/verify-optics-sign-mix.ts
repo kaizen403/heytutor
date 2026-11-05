@@ -188,6 +188,8 @@ async function main() {
     ["suppose", `${CONVEX_TEN} Suppose f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
     ["repeat", `${CONVEX_TEN} Repeat for f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
     ["the other type", `${CONVEX_TEN} Use the other type of lens.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["a second type word on a lens", `${CONVEX_TEN} Treat it as concave.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
+    ["a second type word on a mirror", `${CONCAVE_TWELVE} Treat it as diverging.`, [["f", 12, "cm"], ["d_o", 30, "cm"]], [["d_i", 8.571, "cm"]], MIRROR],
     ["instead", `${CONVEX_TEN} Use f = -10 cm instead.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
     ["now", `${CONVEX_TEN} Now take f = -10 cm.`, [["f", -10, "cm"], ["u", 30, "cm"]], [["v", -7.5, "cm"]], LENS],
   ] as [string, string, Named[], Named[], string[]][]) {
