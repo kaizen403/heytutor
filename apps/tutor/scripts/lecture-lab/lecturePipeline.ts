@@ -53,7 +53,7 @@ import {
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { chemistryRefusesPlannerFigure, diagramStrategyAllowsFigureSource, strictAdmitsOwningOpticsArchetype } from "@/features/tutor-session/lib/scene/diagramStrategy";
-import { resolveOpticsArchetypeInStrict } from "@/lib/scene/diagramStrategy.server";
+import { resolveOpticsArchetypeInStrict, resolveSolverDisagreementStops } from "@/lib/scene/diagramStrategy.server";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -678,6 +678,7 @@ export async function runLecture(
           planToReconcile,
           authority.problemIR,
           authority.solverResult,
+          { keepDisagreement: resolveSolverDisagreementStops() },
         );
         const authorityAudit = verifyTurnPlanAgainstSolver(
           authority.problemIR,

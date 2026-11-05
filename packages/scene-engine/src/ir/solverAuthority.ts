@@ -302,6 +302,16 @@ export function buildSolverAuthorityProjection(
   };
 }
 
+export interface SolverReconcileOptions {
+  /**
+   * Keep a plan value that differs from the solver by more than rounding, so
+   * the audit reports the disagreement. ProblemIR is written by a model that saw
+   * the plan, so neither side is known to be right. Off by default: the server
+   * switch is SOLVER_DISAGREEMENT_STOPS.
+   */
+  keepDisagreement?: boolean;
+}
+
 /**
  * Correct only scalar arithmetic values whose explicit binding, symbol, and
  * unit already agree. Structural, formulation, symbol, and unit conflicts are
@@ -311,6 +321,7 @@ export function reconcileTurnPlanWithSolver(
   plan: TurnPlanV3,
   problem: ProblemIR,
   result: SolverResult,
+  options: SolverReconcileOptions = {},
 ): TurnPlanV3 {
   const valuesByRequest = new Map(result.values.map((value) => [value.requestId, value]));
   // Reconciliation consumes the same independently source-certified scalar
@@ -356,6 +367,7 @@ export function reconcileTurnPlanWithSolver(
       ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(quantity.value))
       : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
     if (Math.abs(quantity.value - value.approximate) <= tolerance) return quantity;
+    if (options.keepDisagreement === true && !withinPlanRounding(quantity.value, value.approximate)) return quantity;
     changed = true;
     return {
       ...quantity,
@@ -365,6 +377,14 @@ export function reconcileTurnPlanWithSolver(
     };
   });
   return changed ? { ...plan, derived } : plan;
+}
+
+/** Whether a plan value is a rounding of the solver's: within 1 percent, or half its last stated place up to 5 percent. */
+function withinPlanRounding(planValue: number, solverValue: number): boolean {
+  const scale = Math.abs(solverValue);
+  const [mantissa, exponent] = Math.abs(planValue).toString().toLowerCase().split("e");
+  const places = Math.max(0, (mantissa?.split(".")[1]?.length ?? 0) - Number(exponent ?? 0));
+  return Math.abs(planValue - solverValue) <= Math.max(scale * 0.01, Math.min(0.5 * 10 ** -places, scale * 0.05));
 }
 
 /**

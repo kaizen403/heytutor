@@ -5,6 +5,7 @@ import {
   resolveDiagramStrictSubjects,
   resolveDiagramYieldPolicy,
   resolveOpticsArchetypeInStrict,
+  resolveSolverDisagreementStops,
   resolveReferencePictureEnabled,
   resolveReferencePicturePartFocusEnabled,
 } from "@/lib/scene/diagramStrategy.server";
@@ -39,6 +40,7 @@ export async function POST(request: Request): Promise<Response> {
     diagramStrictSubjects: resolveDiagramStrictSubjects(),
     diagramYieldPolicy: resolveDiagramYieldPolicy(),
     opticsArchetypeInStrict: resolveOpticsArchetypeInStrict(),
+    ...(resolveSolverDisagreementStops() ? { solverDisagreementStops: true } : {}),
     referencePicture: resolveReferencePictureEnabled(),
     referencePicturePartFocus: resolveReferencePicturePartFocusEnabled(),
     doubtPointing: resolveDoubtPointingEnabled(),

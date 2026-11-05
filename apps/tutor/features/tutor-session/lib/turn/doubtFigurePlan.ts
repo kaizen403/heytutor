@@ -115,11 +115,13 @@ export function reconcilePlanWithAuthority(
   planToReconcile: TurnPlanV3,
   authority: ProblemAuthorityV1Response,
   debug: Debug = plannerDebug,
+  options: { keepDisagreement?: boolean } = {},
 ): { turnPlan: TurnPlanV3; authority: ProblemAuthorityV1Response } {
   const reconciledPlan = applyDeterministicSourceAuthority(question, reconcileTurnPlanWithSolver(
     planToReconcile,
     authority.problemIR,
     authority.solverResult,
+    options,
   ), authority, debug);
   const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
   return { turnPlan: reconciledPlan, authority: refreshedAuthority };
@@ -441,6 +443,8 @@ export async function planDoubtFigure(input: {
   narrationLanguage?: NarrationLanguage;
   now?: () => number;
   debug?: Debug;
+  /** The turn's SOLVER_DISAGREEMENT_STOPS grant. */
+  keepSolverDisagreement?: boolean;
 }): Promise<DoubtFigureOutcome> {
   const now = input.now ?? Date.now;
   const startedAt = now();
@@ -472,7 +476,7 @@ export async function planDoubtFigure(input: {
     if (settled === TIMED_OUT) return miss("budget_exhausted");
     let authority: ProblemAuthorityV1Response | null = null;
     if (settled) {
-      const reconciled = reconcilePlanWithAuthority(question, turnPlan, settled, input.debug);
+      const reconciled = reconcilePlanWithAuthority(question, turnPlan, settled, input.debug, { keepDisagreement: input.keepSolverDisagreement === true });
       turnPlan = reconciled.turnPlan;
       authority = reconciled.authority;
       if (authority.audit.status === "contradiction") return miss("solver_contradiction");

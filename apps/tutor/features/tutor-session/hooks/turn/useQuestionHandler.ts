@@ -1547,7 +1547,7 @@ export function useQuestionHandler(
           deriveGate: deriveSceneGate,
           applyAuthority: (planToReconcile, authority) => {
             const { turnPlan: reconciledPlan, authority: refreshedAuthority } =
-              reconcilePlanWithAuthority(question, planToReconcile, authority);
+              reconcilePlanWithAuthority(question, planToReconcile, authority, undefined, { keepDisagreement: billed.solverDisagreementStops === true });
             const authorityAudit = refreshedAuthority.audit;
             if (authorityAudit.status !== "contradiction") prepareOriginalOpening(reconciledPlan);
             tutorDebug("planner", "solver authority audit", {
@@ -1960,6 +1960,7 @@ export function useQuestionHandler(
           }, () => {});
           const doubtStartedAt = Date.now() - Math.max(0, performance.now() - askOrigin);
           const outcome = await awaitCurrentTurn(planDoubtFigure({
+            keepSolverDisagreement: billed.solverDisagreementStops === true,
             lessonQuestion: doubt.lessonQuestion,
             doubtTitle: doubt.title,
             zoneFigure,
