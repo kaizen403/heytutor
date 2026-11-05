@@ -103,6 +103,11 @@ const main = async () => {
   const textLesson = stored(LESSON_TURN_ID, 0, pastSize, (await canonicalizeTurnSceneMetadata(metadata(pastSize)) as { value: Parameters<typeof stored>[3] }).value, { opensOnClear: true, kind: "lesson" });
   if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([textLesson]) }) !== "text_only") fail("a lesson saved as text lends no exemption", null);
   if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([longLesson], "someone else") }) !== "text_only") fail("another owner's lesson lends no exemption", null);
+  const unplannedSave = await canonicalizeTurnSceneMetadata(metadata(pastSize, false));
+  if (!unplannedSave.ok || unplannedSave.value.visualStatus !== "validated") { fail("a long lesson saved with a figure and no plan", unplannedSave.ok ? unplannedSave.value.visualStatus : unplannedSave.code); return; }
+  const unplannedLesson = stored(LESSON_TURN_ID, 0, pastSize, unplannedSave.value, { opensOnClear: true, kind: "lesson" });
+  if (!unplannedLesson.segments.some((segment) => isStoredCommandTrustedGeometry(segment.command))) fail("that lesson holds its figure ink", null);
+  if (await statusOf(resumeOf(pastSize), { kind: "resume", loadPageLessonFigureQuestion: pageLesson([unplannedLesson]) }) !== "text_only") fail("a lesson saved without a plan lends no exemption", null);
 
   // The browser drops the figure before it is drawn, with the same size.
   const live = (question: string) => liveSceneSaveFailure({ document: figure(question) as never, question, turnPlan: plan(question) as never, tier: "qualitative_verified" as never });
