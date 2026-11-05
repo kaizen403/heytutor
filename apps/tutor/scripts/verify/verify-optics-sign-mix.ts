@@ -156,8 +156,10 @@ async function main() {
   });
   await check("an element the stem does not name keeps declining", () => {
     const stem = "An object stands 30 cm from a mirror of focal length 12 cm. Find the image.";
-    const candidate = plan(stem, [["f", 12, "cm"], ["u", -30, "cm"]], [["v", 50, "cm"]], MIRROR);
-    assert.deepEqual(reconcileTurnPlanWithOpticsLaws(candidate).inconsistencies, []);
+    const candidate = plan(stem, [["f", 12, "cm"], ["u", -30, "cm"]], [["v", 50, "cm"]], MIRROR, BOTH);
+    const audit = reconcileTurnPlanWithOpticsLaws(candidate);
+    assert.deepEqual(audit.inconsistencies, []);
+    assert.ok(audit.declined.some((item) => /both Cartesian/.test(item.reason)), "the sign conflict is what it declines on");
     assert.ok(parse(candidate).plan);
   });
   await check("a virtual object keeps declining", () => {
