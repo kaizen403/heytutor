@@ -68,12 +68,30 @@ export interface VerifiedScenePresentationOptions {
   figureFamily?: string;
 }
 
-/** Convert validated render primitives into the whiteboard command transport. */
+/** A presentation, or why the figure is refused: a label found no place on the board. */
+export type VerifiedPresentationResult =
+  | { ok: true; presentation: VerifiedDiagramPresentation }
+  | { ok: false; code: "label_unplaced" };
+
+/**
+ * Convert validated render primitives into the whiteboard command transport.
+ * A refused figure comes back with no ink, which every caller already treats
+ * as no figure: the lesson teaches as text and a reopen skips the figure.
+ */
 export function buildVerifiedDiagramPresentation(
   document: SceneDocument,
   renderScene: RenderScene,
   options: VerifiedScenePresentationOptions = {},
 ): VerifiedDiagramPresentation {
+  return presentationOrNoInk(presentVerifiedDiagram(document, renderScene, options), options);
+}
+
+/** As `buildVerifiedDiagramPresentation`, with the refusal named, for the save. */
+export function presentVerifiedDiagram(
+  document: SceneDocument,
+  renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions = {},
+): VerifiedPresentationResult {
   return buildDiagramPresentation(document, renderScene, options, null);
 }
 
@@ -84,7 +102,26 @@ export function buildSourceBoundChemistryPresentation(
   options: VerifiedScenePresentationOptions & { originalQuestion: string },
 ): VerifiedDiagramPresentation {
   const policy = prepareNeutralPanelPresentation(document, renderScene, options?.originalQuestion);
-  return buildDiagramPresentation(document, renderScene, options ?? {}, policy);
+  return presentationOrNoInk(buildDiagramPresentation(document, renderScene, options ?? {}, policy), options ?? {});
+}
+
+function presentationOrNoInk(
+  result: VerifiedPresentationResult,
+  options: VerifiedScenePresentationOptions,
+): VerifiedDiagramPresentation {
+  if (result.ok) return result.presentation;
+  return {
+    diagram: {
+      id: "verified_scene",
+      name: "refused figure",
+      commands: [],
+      anchors: [],
+      reveals: [],
+      promptAddon: "",
+      ...(options.layout === "code_lesson" ? { layout: "code_lesson" as const } : {}),
+    },
+    introSegments: [],
+  };
 }
 
 function buildDiagramPresentation(
@@ -92,7 +129,7 @@ function buildDiagramPresentation(
   renderScene: RenderScene,
   options: VerifiedScenePresentationOptions,
   neutralPolicy: ReturnType<typeof prepareNeutralPanelPresentation>,
-): VerifiedDiagramPresentation {
+): VerifiedPresentationResult {
   const molecule = verifiedVseprStructure(document, options.originalQuestion);
   const freshMolecule = molecule ? compileSceneDocument(molecule.document) : null;
   const structuralSymbolIds = freshMolecule?.ok && freshMolecule.renderScene &&
@@ -141,6 +178,7 @@ function buildDiagramPresentation(
     // label enters the obstacle set below at its actual rendered bounds.
     obstacles: [...obstaclesFromPrimitives(renderScene.primitives.filter((primitive) => primitive.kind !== "label" || primitive.labelPlacement === "absolute")), layout.protectedColumn],
     layout,
+    unplaced: false,
   };
   const commandKeys = new Set<string>();
   const rolesByEntityId = new Map(document.entities.map((entity) => [entity.id, entity.role]));
@@ -229,7 +267,9 @@ function buildDiagramPresentation(
     const helperRole = isHelperRole(rolesByEntityId.get(primitive.entityId));
     const suppressInlineLabel = helperRole && (primitive.kind !== "label" || isGenericHelperLabel(primitive.text));
     const phase = revealPhaseForPrimitive(primitive);
-    for (const command of primitiveCommands(primitive, labels, suppressInlineLabel)) {
+    const primitiveInk = primitiveCommands(primitive, labels, suppressInlineLabel);
+    if (labels.unplaced) return { ok: false, code: "label_unplaced" };
+    for (const command of primitiveInk) {
       const styled: VerifiedDiagramCommand = {
         ...command,
         ...(regionEntityIds.has(primitive.entityId) && primitive.kind === "polygon"
@@ -516,7 +556,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
 
   const presentation = { diagram, introSegments: spokenIntro };
   neutralPolicy?.assertComplete(presentation);
-  return presentation;
+  return { ok: true, presentation };
 }
 
 const SCALE_DISCLAIMER = /Do not read scale from this figure\.?/gi;
@@ -2014,7 +2054,11 @@ function addLabel(
 
   const solution = solve(labels.obstacles);
   const placement = solution.ok ? solution.placements[0] : undefined;
-  if (!placement) throw new Error(`Verified diagram label ${primitive.id} has no collision-free placement`);
+  // A label with no clear place refuses the whole figure, never draws over ink.
+  if (!placement) {
+    labels.unplaced = true;
+    return;
+  }
   const placed = placement.bounds;
 
   labels.rects.push(placed);
@@ -2105,6 +2149,8 @@ interface LabelPlacementState {
   obstacles: LabelObstacle[];
   /** Mode-aware clamp region for this turn's board split. */
   layout: LabelLayout;
+  /** A label found no place: the figure is refused. */
+  unplaced: boolean;
 }
 
 /** Labels render at 24 px — measure at 24 px, not at the 32 px default. */
