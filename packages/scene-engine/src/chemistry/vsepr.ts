@@ -687,7 +687,7 @@ function contrastedShape(clause: string, roles: readonly ShapeRole[], shapes: re
   return own === null || other === null || own === other;
 }
 
-const REFERENCE_LEAD = /\b(?:(?<!rather\s+)than|below|under|from|versus|vs\.?|compared\s+(?:to|with))\s+(?:(?:the|an?|ideal|perfect|regular|normal|expected)\s+)*$/;
+const REFERENCE_LEAD = /\b(?:than|below|under|from|versus|vs\.?|compared\s+(?:to|with))\s+(?:(?:the|an?|ideal|perfect|regular|normal|expected)\s+)*$/;
 const REFERENCE_NOUN = /^\s+(?:(?:bond\s+)?angles?\b|values?\b|\d)/;
 
 /** Bind each geometry in its property clause, including compound claims. */
