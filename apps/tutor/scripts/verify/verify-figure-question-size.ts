@@ -10,6 +10,7 @@ import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "
 import { liveSceneSaveFailure } from "../../lib/scene/sceneSaveAdmission";
 import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
 import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
+import { doubtTurnTitle } from "../../features/tutor-session/lib/input/askDoubt";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { composeDoubtFigureQuestion, doubtFigureArtifacts } from "../../lib/boards/doubtFigure";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
@@ -117,8 +118,15 @@ const main = async () => {
   // The note under the input box: a question past the size, and a doubt whose composed question is past it.
   if (figureQuestionNote(atSize) !== null || figureQuestionNote(pastSize) !== FIGURE_QUESTION_NOTE) fail("the note shows past the size only", null);
   const pageOfLongDoubt = words(FIGURE_QUESTION_CHARS - 100);
-  if (figureQuestionNote("Why does this step hold?", pageOfLongDoubt) !== null) fail("a short doubt on a lesson under the size shows no note", null);
-  if (figureQuestionNote(words(200), pageOfLongDoubt) !== FIGURE_DOUBT_NOTE) fail("a doubt whose composed question is past the size shows the doubt note", null);
+  if (figureQuestionNote(doubtTurnTitle("Why does this step hold?"), pageOfLongDoubt) !== null) fail("a short doubt on a lesson under the size shows no note", null);
+  if (figureQuestionNote(doubtTurnTitle(words(200)), pageOfLongDoubt) !== FIGURE_DOUBT_NOTE) fail("a doubt whose composed question is past the size shows the doubt note", null);
+  // The note counts the doubt's title, which keeps 160 characters, as the doubt's figure does.
+  if (figureQuestionNote(doubtTurnTitle(words(1_100)), words(3_000)) !== null) fail("a long doubt on a shorter lesson counts its title, not all it typed", null);
+  // The page keeps a lesson question to 4,000 characters, and a doubt's figure is checked on that.
+  const cutPage = `${words(3_900)}${" ".repeat(200)}${words(3_000)}`;
+  const keptPage = boardContinuationArtifacts(cutPage).boardContinuation.lessonQuestion;
+  if (figureQuestionChars(composeDoubtFigureQuestion(keptPage, doubtTurnTitle("Why?"))) > FIGURE_QUESTION_CHARS || figureQuestionChars(cutPage) <= FIGURE_QUESTION_CHARS) fail("the cut page question is under the size and the whole one past it", null);
+  if (figureQuestionNote(doubtTurnTitle("Why?"), cutPage) !== null) fail("the note counts the lesson question as the page keeps it", null);
   if (figureQuestionNote("", pageOfLongDoubt) !== null) fail("an empty doubt shows no note", null);
   if (!/too long to draw a figure/.test(FIGURE_DOUBT_NOTE) || !/still teach/.test(FIGURE_DOUBT_NOTE)) fail("the doubt note says why there is no figure and that the answer teaches", FIGURE_DOUBT_NOTE);
   // Spacing and characters at the edge count the same on the server and in the browser.

@@ -16,6 +16,7 @@ import { fileFromClipboardData } from "@/features/tutor-session/lib/input/questi
 import {
   DOUBT_INTERRUPT_HINT,
   DOUBT_PLACEHOLDER,
+  doubtTurnTitle,
 } from "@/features/tutor-session/lib/input/askDoubt";
 import {
   MARK_MODE_PLACEHOLDER,
@@ -215,7 +216,8 @@ export function InputBar({
   const canInterruptWithDoubt = isLiveLesson && Boolean(onAskDoubt);
   const inputLocked = isExtracting || (disabled && !canInterruptWithDoubt);
   const doubtPageQuestion = (isDoubt || canInterruptWithDoubt) && trimmed.length > 0 ? pageQuestion?.() ?? "" : "";
-  const figureNote = figureQuestionNote(question, doubtPageQuestion);
+  // A doubt's figure is planned on its title (`doubtTurnTitle`), so the note counts the same text.
+  const figureNote = doubtPageQuestion.trim() ? figureQuestionNote(doubtTurnTitle(trimmed), doubtPageQuestion) : figureQuestionNote(question);
   /**
    * A mark is a question on its own — "explain this again" is the commonest
    * doubt a student has and the one they are least able to word. So the submit
