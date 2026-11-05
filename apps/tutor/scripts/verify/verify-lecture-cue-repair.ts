@@ -303,6 +303,7 @@ for (const [step, kept] of [
   ["[STEP]This is 2 of the cases. [WRITE:n = 2,90,211][/STEP]", "This is 2 of the cases"],
   ["[STEP]Here also is 1. [WRITE:n = 1,90,211][/STEP]", "Here also is 1"],
   ["[STEP]The cube is 3-dimensional. [WRITE:d = 3,90,211][/STEP]", "The cube is 3-dimensional"],
+  ["[STEP]so y is 12.5x. [WRITE:y = 12.5x,90,211][/STEP]", "y is 12.5x"],
 ] as const) {
   assert(spokenAfter(step).includes(kept), `a numeral without strong evidence stays as spoken: ${spokenAfter(step)}`);
 }
@@ -316,6 +317,11 @@ for (const [step, spoken] of [
   ["[STEP]Here x is 5. [WRITE:x = 5,90,211][/STEP]", "Here x equals 5"],
   ["[STEP]so x is 25 - y. [WRITE:x = 25 - y,90,211][/STEP]", "x equals 25 - y"],
   ["[STEP]so x is 2 * -3. [WRITE:x = 2 * -3,90,211][/STEP]", "x equals 2 * -3"],
+  ["[STEP]the answer is 25. Now check it. [WRITE:x = 25,90,211][/STEP]", "the answer equals 25. Now check it"],
+  ["[STEP]the force is 2.5. Now check it. [WRITE:F = 2.5,90,211][/STEP]", "the force equals 2.5. Now check it"],
+  ["[STEP]the total is 10,000, so stop. [WRITE:T = 10,000,90,211][/STEP]", "the total equals 10,000, so stop"],
+  ["[STEP]the acceleration is 2 m/s². [WRITE:a = 2 m/s²,90,211][/STEP]", "the acceleration equals 2 m/s²"],
+  ["[STEP]the volume is 4 cm³. [WRITE:V = 4 cm³,90,211][/STEP]", "the volume equals 4 cm³"],
 ] as const) {
   assert(spokenAfter(step).includes(spoken), `a numeral with strong evidence is spoken as equals: ${spokenAfter(step)}`);
 }
