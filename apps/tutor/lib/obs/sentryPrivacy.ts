@@ -276,7 +276,7 @@ const SAVE_LOG_CODES = new Set([
   "save_allowance_required", "save_allowance_used", "scene_admission_failed",
   "scene_artifacts_missing", "scene_artifacts_schema_invalid", "scene_code_lesson_invalid",
   "scene_compile_failed", "scene_document_invalid", "scene_document_tier_mismatch",
-  "scene_metric_geometry_outside_exact", "scene_non_metric_mismatch", "scene_persistence_rejected",
+  "scene_label_unplaced", "scene_metric_geometry_outside_exact", "scene_non_metric_mismatch", "scene_persistence_rejected",
   "scene_point_line_annotation_invalid", "scene_point_line_quantity_invalid", "scene_point_line_solver_binding_required",
   "scene_point_line_solver_evidence_invalid", "scene_point_line_solver_quantity_mismatch", "scene_problem_ir_invalid",
   "scene_proof_failed", "scene_question_required", "scene_representation_not_scene",

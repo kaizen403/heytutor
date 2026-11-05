@@ -26,7 +26,7 @@ import {
 } from "@heytutor/scene-engine";
 import type { VerifiedDiagram, VerifiedDiagramPresentation } from "@heytutor/drawing";
 import type { NarrationLanguage } from "@heytutor/tutor-core";
-import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
+import { presentVerifiedDiagram } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import { sceneSaveAdmissionFailure } from "@/lib/scene/sceneSaveAdmission";
 import { DSA_DIAGRAM_ZONE } from "@/features/tutor-session/constants";
 import {
@@ -51,7 +51,7 @@ export type StoredSceneAdmissionCode =
   | "scene_representation_tier_invalid" | "scene_document_invalid" | "scene_turn_plan_invalid"
   | "scene_representation_not_scene" | "scene_source_question_mismatch" | "scene_document_tier_mismatch"
   | "scene_metric_geometry_outside_exact" | "scene_compile_failed" | "scene_proof_failed"
-  | "scene_admission_failed" | "scene_validation_report_invalid";
+  | "scene_admission_failed" | "scene_validation_report_invalid" | "scene_label_unplaced";
 
 export type StoredSceneAdmission =
   | {
@@ -234,7 +234,7 @@ function admitUncached(input: StoredSceneAdmissionInput): StoredSceneAdmission {
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return refuse("scene_validation_report_invalid", "current scene engine did not produce a valid report");
   }
-  const presentation = buildVerifiedDiagramPresentation(
+  const presented = presentVerifiedDiagram(
     document,
     renderScene,
     {
@@ -249,7 +249,8 @@ function admitUncached(input: StoredSceneAdmissionInput): StoredSceneAdmission {
       ...(turnPlan ? { turnPlan } : {}),
     },
   );
-  return { ok: true, document, compiled: { report, renderScene }, presentation, tier };
+  if (!presented.ok) return refuse("scene_label_unplaced", "a figure label has no place on the board");
+  return { ok: true, document, compiled: { report, renderScene }, presentation: presented.presentation, tier };
 }
 
 /** A lesson turn's later figures, each admitted on its own composed question. */

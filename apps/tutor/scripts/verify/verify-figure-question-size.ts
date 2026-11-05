@@ -131,11 +131,11 @@ const main = async () => {
   if (figureQuestionNote(doubtTurnTitle(words(200)), pageOfLongDoubt) !== FIGURE_DOUBT_NOTE) fail("a doubt whose composed question is past the size shows the doubt note", null);
   // The note counts the doubt's title, which keeps 160 characters, as the doubt's figure does.
   if (figureQuestionNote(doubtTurnTitle(words(1_100)), words(3_000)) !== null) fail("a long doubt on a shorter lesson counts its title, not all it typed", null);
-  // The page keeps a lesson question to 4,000 characters, and a doubt's figure is checked on that.
+  // The browser plans a doubt's figure on the page's whole lesson question, so the note counts all of it, even where the page keeps less.
   const cutPage = `${words(3_900)}${" ".repeat(200)}${words(3_000)}`;
   const keptPage = boardContinuationArtifacts(cutPage).boardContinuation.lessonQuestion;
-  if (figureQuestionChars(composeDoubtFigureQuestion(keptPage, doubtTurnTitle("Why?"))) > FIGURE_QUESTION_CHARS || figureQuestionChars(cutPage) <= FIGURE_QUESTION_CHARS) fail("the cut page question is under the size and the whole one past it", null);
-  if (figureQuestionNote(doubtTurnTitle("Why?"), cutPage) !== null) fail("the note counts the lesson question as the page keeps it", null);
+  if (figureQuestionChars(composeDoubtFigureQuestion(keptPage, doubtTurnTitle("Why?"))) > FIGURE_QUESTION_CHARS || figureQuestionChars(cutPage) <= FIGURE_QUESTION_CHARS) fail("the kept page question is under the size and the whole one past it", null);
+  if (figureQuestionNote(doubtTurnTitle("Why?"), cutPage) !== FIGURE_DOUBT_NOTE) fail("the note counts the whole lesson question, as the browser plans the doubt figure", null);
   if (figureQuestionNote("", pageOfLongDoubt) !== null) fail("an empty doubt shows no note", null);
   if (!/too long to draw a figure/.test(FIGURE_DOUBT_NOTE) || !/still teach/.test(FIGURE_DOUBT_NOTE)) fail("the doubt note says why there is no figure and that the answer teaches", FIGURE_DOUBT_NOTE);
   // Spacing and characters at the edge count the same on the server and in the browser.
