@@ -141,6 +141,7 @@ async function main() {
     ["a value against zero", 0.4, 0],
     ["a stated decimal 2 percent off", 3.27, 3.2026],
     ["ten times too large", 32, 3.2026],
+    ["a small value in exponent form 5 percent off", 1.2e-7, 1.26e-7],
   ];
   for (const [name, planValue, solverValue] of beyond) {
     await check(`on: ${name} is kept and reported`, async () => {
