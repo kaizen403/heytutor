@@ -1,6 +1,6 @@
 "use client";
 
-import { FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars } from "@/lib/scene/figureQuestion";
+import { figureQuestionNote } from "@/lib/scene/figureQuestion";
 import { Highlighter, Settings } from "lucide-react";
 import { resolveApiUrl, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
@@ -49,6 +49,8 @@ export interface InputBarProps {
   onImageSelect?: (file: File) => void;
   disabled?: boolean;
   submitMode?: InputSubmitMode;
+  /** Reads the lesson question a doubt is asked on: a doubt's figure counts it with the doubt. */
+  pageQuestion?: () => string;
   isPaused?: boolean;
   onPauseToggle?: (source?: "control" | "doubt-composer") => void;
   onCancel?: () => void;
@@ -134,6 +136,7 @@ export function InputBar({
   onImageSelect,
   disabled = false,
   submitMode = "ask",
+  pageQuestion,
   isPaused = false,
   onPauseToggle,
   onCancel,
@@ -211,6 +214,8 @@ export function InputBar({
    */
   const canInterruptWithDoubt = isLiveLesson && Boolean(onAskDoubt);
   const inputLocked = isExtracting || (disabled && !canInterruptWithDoubt);
+  const doubtPageQuestion = (isDoubt || canInterruptWithDoubt) && trimmed.length > 0 ? pageQuestion?.() ?? "" : "";
+  const figureNote = figureQuestionNote(question, doubtPageQuestion);
   /**
    * A mark is a question on its own — "explain this again" is the commonest
    * doubt a student has and the one they are least able to word. So the submit
@@ -962,9 +967,9 @@ export function InputBar({
           {submitError}
         </p>
       )}
-      {!submitError && figureQuestionChars(question) > FIGURE_QUESTION_CHARS && (
+      {!submitError && figureNote && (
         <p role="status" className="px-3 text-center text-xs" style={{ color: "var(--text-soft)" }}>
-          {FIGURE_QUESTION_NOTE}
+          {figureNote}
         </p>
       )}
       {extractLatencyMs != null && !extractError && (

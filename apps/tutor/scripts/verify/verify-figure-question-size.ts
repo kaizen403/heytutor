@@ -5,7 +5,7 @@
  */
 import { SCENE_DOCUMENT_VERSION, SCENE_TEXT_LIMITS } from "@heytutor/scene-engine";
 import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
-import { FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars, figureQuestionTooLong } from "../../lib/scene/figureQuestion";
+import { FIGURE_DOUBT_NOTE, FIGURE_QUESTION_CHARS, FIGURE_QUESTION_NOTE, figureQuestionChars, figureQuestionNote, figureQuestionTooLong } from "../../lib/scene/figureQuestion";
 import { canonicalizeTurnSceneMetadata, type SubmittedTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { liveSceneSaveFailure } from "../../lib/scene/sceneSaveAdmission";
 import { sourceCheckedStoredTurn } from "../../lib/scene/storedSceneSource";
@@ -114,6 +114,13 @@ const main = async () => {
   if (live(atSize) !== null) fail("the browser keeps a figure at the size", live(atSize));
   if (live(pastSize) === null) fail("the browser drops a figure past the size", null);
   if (figureQuestionTooLong(pastSize) !== true || figureQuestionTooLong(atSize) !== false) fail("the size check", null);
+  // The note under the input box: a question past the size, and a doubt whose composed question is past it.
+  if (figureQuestionNote(atSize) !== null || figureQuestionNote(pastSize) !== FIGURE_QUESTION_NOTE) fail("the note shows past the size only", null);
+  const pageOfLongDoubt = words(FIGURE_QUESTION_CHARS - 100);
+  if (figureQuestionNote("Why does this step hold?", pageOfLongDoubt) !== null) fail("a short doubt on a lesson under the size shows no note", null);
+  if (figureQuestionNote(words(200), pageOfLongDoubt) !== FIGURE_DOUBT_NOTE) fail("a doubt whose composed question is past the size shows the doubt note", null);
+  if (figureQuestionNote("", pageOfLongDoubt) !== null) fail("an empty doubt shows no note", null);
+  if (!/too long to draw a figure/.test(FIGURE_DOUBT_NOTE) || !/still teach/.test(FIGURE_DOUBT_NOTE)) fail("the doubt note says why there is no figure and that the answer teaches", FIGURE_DOUBT_NOTE);
   // Spacing and characters at the edge count the same on the server and in the browser.
   const edges: Array<[string, string, string]> = [
     ["line breaks", atSize.replace(/ /g, "\r\n"), "validated"],
