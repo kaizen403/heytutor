@@ -346,6 +346,11 @@ async function main() {
   await check("the doubt passes the grant to planDoubtFigure", () => {
     assert.ok(source("features/tutor-session/hooks/turn/useQuestionHandler.ts").includes("keepSolverDisagreement: billed.solverDisagreementStops === true,"));
   });
+  await check("the lab keeps a disagreement only where the audit names it, as the lesson does", () => {
+    const lab = source("scripts/lecture-lab/lecturePipeline.ts");
+    assert.ok(lab.includes("keepDisagreement ? { keepDisagreement: true } : {},"), "the lab passes nothing new with the switch off");
+    assert.ok(lab.includes("const keep = resolveSolverDisagreementStops();\n        let reconciled = reconcile(keep);\n        if (keep && !reconciled.audit.issues.some((issue) => issue.code === \"solver_turnplan_contradiction\")) reconciled = reconcile(false);"), "the lab falls back to dev where the audit names no value");
+  });
   await check("the switch is named in the example env, commented out", () => {
     assert.ok(source(".env.example").includes("# SOLVER_DISAGREEMENT_STOPS=on"));
   });

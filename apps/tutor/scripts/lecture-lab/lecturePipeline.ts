@@ -674,18 +674,20 @@ export async function runLecture(
       deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
       applyAuthority: (planToReconcile, authority) => {
-        const reconciledPlan = reconcileTurnPlanWithSolver(
-          planToReconcile,
-          authority.problemIR,
-          authority.solverResult,
-          { keepDisagreement: resolveSolverDisagreementStops() },
-        );
-        const authorityAudit = verifyTurnPlanAgainstSolver(
-          authority.problemIR,
-          authority.solverResult,
-          reconciledPlan,
-          question,
-        );
+        const reconcile = (keepDisagreement: boolean) => {
+          const plan = reconcileTurnPlanWithSolver(
+            planToReconcile,
+            authority.problemIR,
+            authority.solverResult,
+            keepDisagreement ? { keepDisagreement: true } : {},
+          );
+          return { plan, audit: verifyTurnPlanAgainstSolver(authority.problemIR, authority.solverResult, plan, question) };
+        };
+        // As in the lesson: the switch acts only where the audit names a value that disagrees with the solver.
+        const keep = resolveSolverDisagreementStops();
+        let reconciled = reconcile(keep);
+        if (keep && !reconciled.audit.issues.some((issue) => issue.code === "solver_turnplan_contradiction")) reconciled = reconcile(false);
+        const { plan: reconciledPlan, audit: authorityAudit } = reconciled;
         return {
           turnPlan: reconciledPlan,
           authority: {
