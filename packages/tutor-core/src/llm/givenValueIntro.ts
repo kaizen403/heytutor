@@ -380,7 +380,6 @@ function continuesAsList(text: string, start: number): boolean {
  * A number with at most its unit: all a row may state. "AX = B", "y = sin x",
  * "CH2 = CH-CH2+" and "0 by completing the square" are not values.
  */
-
 function isPlainValue(text: string): boolean {
   const match = /^[+\-−–]?\s*(?:\d+(?:\.\d+)?|\.\d+)\s*(.*)$/su.exec(text);
   if (!match) return false;
