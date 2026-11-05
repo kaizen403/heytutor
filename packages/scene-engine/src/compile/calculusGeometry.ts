@@ -180,8 +180,13 @@ function validateUnits(construction: SceneConstruction, document: SceneDocument,
   }
 }
 
+const replayCaches = new WeakMap<SceneDocument, Map<SceneConstruction, readonly unknown[]>>();
+
 function analyticReplayContext(document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>): CalculusEvaluationContext {
-  const cache = new Map<SceneConstruction, readonly unknown[]>(); const visiting = new Set<SceneConstruction>();
+  // One validation pass replays each producer once, however many constructions read it.
+  let cache = replayCaches.get(document);
+  if (!cache) { cache = new Map(); replayCaches.set(document, cache); }
+  const visiting = new Set<SceneConstruction>();
   const context: CalculusEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) {

@@ -21,6 +21,7 @@ export * from "./ir/pointLineSource";
 export * from "./ir/sectionFormulaSource";
 export * from "./topology/topology";
 export * from "./labels/labelEngine";
+export * from "./compile/figureWork";
 export * from "./math/expression";
 export * from "./ir/problemIR";
 export * from "./ir/circuitNetwork";

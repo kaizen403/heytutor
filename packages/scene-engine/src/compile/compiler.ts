@@ -29,8 +29,6 @@ import {
 import {
   createTextInkBoundsCache,
   canPlaceSingleLabel,
-  isLabelWorkSpent,
-  withSharedLabelWork,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -47,6 +45,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
+import { chargeFigurePoints, chargeLabelOverlaps, chargeLayoutSteps, countFigurePoints, isLabelWorkSpent, stopIfWorkSpent, withSharedLabelWork } from "./figureWork";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -257,7 +256,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (compiled && !work.spent) return compiled;
   // However the work ran out, a figure laid out only in part is never drawn.
   // Nothing here reads the document again, so refusing costs nothing further.
-  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "Labels need more layout work than one compile may spend", severity: "fatal" };
+  const issue: SceneIssue = { code: work.spent ?? "label_overlap_budget", message: "This figure needs more work than one compile may spend", severity: "fatal" };
   return {
     ok: false,
     renderScene: null,
@@ -343,6 +342,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
       construction.outputs.forEach((id, outputIndex) => {
         const next = outputs[outputIndex]!;
         if (assignChainedRefractInternalPath(id, outputIndex, construction, document, geometry)) return;
+        chargeFigurePoints(countFigurePoints(next));
         geometry.set(id, next);
       });
       document = withEvaluatedOutputLabels(construction, originalIndex, inputs, outputs, document, {
@@ -350,6 +350,7 @@ function compileSceneDocumentOnce(document: SceneDocument, options: CompileOptio
         point: (value) => resolvePoint(value, geometry),
       }, issues, checkedClaimOutputIds);
     } catch (error) {
+      stopIfWorkSpent();
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
   }
@@ -3409,6 +3410,7 @@ function relocateObstructedDimensions(
     // keeps a label lane; every other bar takes the first clear lane.
     const keepsLabelLane = entity?.provenance?.keepLabelLane === true;
     const crowded = (candidateBar: RenderPrimitive): boolean => keepsLabelLane && Boolean(text) &&
+      (chargeLayoutSteps(other.length * document.entities.length, "crowdedLane"), true) &&
       dimensionLabelLaneCrowded(candidateBar, other.filter((primitive) => Boolean(dimensionLabelText(document, primitive.entityId))), labelWidth);
     if (!dimensionBarObstructed(bar, ink) && !crowded(bar) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -3491,7 +3493,7 @@ function dimensionBarObstructed(bar: RenderPrimitive, ink: LabelObstacle[]): boo
     { x: point.x + normal.x * DIMENSION_CAP_HALF_PX, y: point.y + normal.y * DIMENSION_CAP_HALF_PX },
   ]);
   return [[start, end] as [Point, Point], ...caps].some((segment) => ink.some((obstacle) =>
-    obstacle.segments!.some((other) => !dimensionEndpointCarrier(bar, other) && (segmentsTouch(segment, other) ||
+    obstacle.segments!.some((other) => (chargeLabelOverlaps(4), !dimensionEndpointCarrier(bar, other)) && (segmentsTouch(segment, other) ||
       Math.min(pointSegmentResidual(segment[0], other), pointSegmentResidual(segment[1], other),
         pointSegmentResidual(other[0], segment), pointSegmentResidual(other[1], segment)) < 4)),
   ));
@@ -6293,6 +6295,7 @@ function geometriesTouch(first: Geometry, second: Geometry): boolean {
   if (firstPoints.some((point) => secondPoints.some((candidate) => distance(point, candidate) < EPSILON))) return true;
   const firstSegments = geometrySegments(first);
   const secondSegments = geometrySegments(second);
+  chargeLayoutSteps((firstPoints.length + firstSegments.length) * (secondPoints.length + secondSegments.length) * 4, "touch");
   if (firstPoints.some((point) => secondSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   if (secondPoints.some((point) => firstSegments.some((segment) => pointSegmentResidual(point, segment) < EPSILON))) return true;
   return firstSegments.some((firstSegment) =>

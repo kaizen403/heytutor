@@ -6,6 +6,7 @@
  * says the kinetic energy is φ. Labels of the spanning arrows stay free; a
  * level's label goes beside its line or on its open side.
  */
+import { chargeLayoutSteps } from "../compile/figureWork";
 import type { RenderPoint } from "../types";
 import type { LabelBounds, LabelObstacle, LabelOwner } from "./labelEngine";
 
@@ -71,6 +72,7 @@ export function namedGaps(obstacles: LabelObstacle[]): NamedGap[] {
     .flatMap((obstacle) => (obstacle.segments ?? []).map(([a, b]) => ({ entityId: obstacle.entityId, a, b })))
     .filter((arrow) => length(arrow) >= MIN_GAP_PX);
   const gaps: NamedGap[] = [];
+  chargeLayoutSteps(levels.length * levels.length / 2, "levelPairs");
   for (let i = 0; i < levels.length; i++) {
     for (let j = i + 1; j < levels.length; j++) {
       const first = levels[i]!, second = levels[j]!;
@@ -84,6 +86,7 @@ export function namedGaps(obstacles: LabelObstacle[]): NamedGap[] {
       const from = Math.max(firstFrom, secondFrom), to = Math.min(firstTo, secondTo);
       if (to - from < LEVEL_MIN_PX) continue;
       const onLine = (point: RenderPoint, offset: number) => Math.abs(dot(point, normal) - offset) <= ON_LEVEL_PX;
+      chargeLayoutSteps(arrows.length, "levelArrows");
       for (const arrow of arrows) {
         if (!parallel(unit(arrow), normal)) continue;
         const joins = (onLine(arrow.a, offsetFirst) && onLine(arrow.b, offsetSecond)) || (onLine(arrow.a, offsetSecond) && onLine(arrow.b, offsetFirst));
@@ -114,6 +117,7 @@ export function ownerNamedGaps(owner: LabelOwner, obstacles: LabelObstacle[], ga
     : [];
   const hosts = [...ownLevels, ...hostLevels];
   if (hosts.length === 0) return [];
+  chargeLayoutSteps(gaps.length * hosts.length, "ownerGaps");
   return gaps.filter((gap) => {
     if (gap.arrowEntityId === owner.entityId) return false;
     const hostOnBand = hosts.filter((host) => parallel(unit(host), gap.tangent));
@@ -129,6 +133,7 @@ export function ownerNamedGaps(owner: LabelOwner, obstacles: LabelObstacle[], ga
 }
 
 export function insideNamedGap(box: LabelBounds, gaps: NamedGap[]): boolean {
+  chargeLayoutSteps(gaps.length, "boxGaps");
   const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const corners = [
     { x: box.x, y: box.y }, { x: box.x + box.width, y: box.y },

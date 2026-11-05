@@ -1,3 +1,4 @@
+import { SCENE_INPUT_LIMITS } from "../document/textLimits";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import type { CalculusAnchorDefinition } from "./calculusGeometry";
 
@@ -248,6 +249,7 @@ function wavePath(model: WaveDefinition, requestedSamples?: number): Extract<Wav
   model.zeroCertified = active.length === 0;
   const { amplitudeEnvelope, maxWaveNumber, minimum } = physicalBounds(active, model);
   const samples = samplingCount(minimum, requestedSamples);
+  if (samples * active.length > SCENE_INPUT_LIMITS.waveHarmonicSamples) invalid("samples", `harmonics times samples must be at most ${SCENE_INPUT_LIMITS.waveHarmonicSamples}`);
   model.samples = samples;
   const evaluate = (x: number): RenderPoint => {
     if (!Number.isFinite(x) || x < model.xMin || x > model.xMax) invalid("x", "wave parameter must lie inside the verified physical domain");
@@ -382,6 +384,8 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   return invalid("quantity", "wave values must resolve to finite scalar numbers");
 }
 class DeferredWaveOrigin extends WavesInputError { constructor() { super("origin", "derived 2D origins will be checked against compiled geometry"); } }
+const replayCaches = new WeakMap<SceneDocument, Map<string, WavesGeometry>>();
+
 export function validateWavesConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
   const add = (key: string, message: string): void => { issues.push({ code: `invalid_${construction.operator}_${key}`, severity: "fatal", message, path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}` }); };
   const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
@@ -407,7 +411,10 @@ export function validateWavesConstruction(construction: SceneConstruction, index
     if (children.some((child) => child.sourceUnits.position !== sourceUnits.position || child.sourceUnits.time !== sourceUnits.time || child.sourceUnits.amplitude !== sourceUnits.amplitude)) invalid("units", "superposition source units must agree before evaluating their display origins");
     return { sourceUnits, count, depth };
   };
-  const cache = new Map<string, WavesGeometry>(); const visiting = new Set<string>();
+  // One validation pass replays each wave once, however many constructions read it.
+  let cache = replayCaches.get(document);
+  if (!cache) { cache = new Map(); replayCaches.set(document, cache); }
+  const visiting = new Set<string>();
   const context: WavesEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) {

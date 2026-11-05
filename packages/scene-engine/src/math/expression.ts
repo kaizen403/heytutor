@@ -1,3 +1,5 @@
+import { chargeExpressionSteps } from "../compile/figureWork";
+
 const MAX_EXPRESSION_LENGTH = 256;
 const MAX_TOKENS = 128;
 // Recursive-descent precedence layers consume several stack levels for each
@@ -303,6 +305,7 @@ function evaluateNode(
   budget: { remaining: number },
 ): number {
   budget.remaining -= 1;
+  chargeExpressionSteps(1);
   if (budget.remaining < 0) throw new Error("expression evaluation exceeded the operation budget");
   switch (node.kind) {
     case "number": return node.value;
@@ -339,6 +342,7 @@ type Dual = { value: number; derivative: number; constant: boolean };
 /** Forward-mode chain rule on the parser's AST; no sampled differences or new expression grammar. */
 function evaluateDerivative(node: ExpressionNode, x: number, budget: { remaining: number }): Dual {
   budget.remaining -= 1;
+  chargeExpressionSteps(1);
   if (budget.remaining < 0) throw new Error("expression derivative exceeded the operation budget");
   const dual = (value: number, derivative: number, constant: boolean): Dual => ({ value: checked(value, "derivative expression value"), derivative: checked(derivative, "analytic derivative"), constant });
   if (node.kind === "number") return dual(node.value, 0, true);
@@ -413,6 +417,7 @@ function evaluateInterval(
   budget: { remaining: number },
 ): Interval {
   budget.remaining -= 1;
+  chargeExpressionSteps(1);
   if (budget.remaining < 0) throw new Error("expression interval analysis exceeded the operation budget");
   switch (node.kind) {
     case "number": return { low: node.value, high: node.value };
