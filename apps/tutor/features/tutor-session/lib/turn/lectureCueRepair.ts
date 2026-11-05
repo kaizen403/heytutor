@@ -23,9 +23,9 @@ import {
 const RELATION = /[=<>]|\b(?:sqrt|sum|int)\b/;
 const OPEN_UNKNOWN = /=\s*\?\s*$/;
 const SAYS_EQUALS = /\bequals\b|\bequal to\b/i;
-/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is" or "here is". */
+/** "is" used as a copula, not "is the", "is no", "is stuck", and not "there is", "here is" or "there still is". */
 const COPULA_IS =
-  /(?<!\b(?:there|here)\s+)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/gi;
+  /(?<!\b(?:here|there)\s+(?:(?:still|also|now|only|just)\s+)?)\bis\b(?!\s+(?:the|a|an|no|not|its|stuck|there|this|that|what|still|only|now)\b)/giu;
 
 function isRelationWrite(command: DrawCommand): boolean {
   if (command.type !== "WRITE") return false;
@@ -96,6 +96,28 @@ function isSpokenValue(after: string): boolean {
     rest = rest.slice(token[0].length);
   }
   return SPOKEN_VALUE_END.test(rest) || (words >= 2 && new RegExp(`^${CLAUSE_END}`, "u").test(rest));
+}
+
+/**
+ * After a numeral: an operator sign with its operand ("25 + 273", "2 * -3"), or a
+ * unit symbol that ends the clause ("9 V.", "25 °C."). An ASCII minus counts only
+ * spaced ("25 - y"): "3-dimensional" is a word.
+ */
+const DIGIT_VALUE_END = new RegExp(`^(?:\\s*[+\u2212\u00d7*/\u00f7^=]\\s*[-\u2212]?[\\p{L}\\p{N}(\u221a]|\\s+-\\s*[-\u2212]?[\\p{L}\\p{N}(\u221a]|\\s*\u00b0\\s*[CFK]?${CLAUSE_END}|\\s+\\p{L}{1,3}(?:/\\p{L}{1,3})?(?:\\^?\\d|[²³])?${CLAUSE_END})`, "u");
+// A sentence's full stop or comma is not part of the number: "is 25. Now check it."
+const NUMERAL = /^\s+\d+(?:[.,]\d+)*%?(?![.,]?[\p{L}\p{N}])/u;
+
+/**
+ * A value written as a numeral. "1" is never a pronoun the way "one" is, so a
+ * numeral that ends the clause is the value ("the answer is 25."). Otherwise it
+ * needs the evidence a number word needs: "the object is 10 centimeters from
+ * the lens" and "Ali is 10 years old" stay as spoken.
+ */
+function isNumeralValue(after: string): boolean {
+  const numeral = NUMERAL.exec(after);
+  if (!numeral) return false;
+  const rest = after.slice(numeral[0].length);
+  return new RegExp(`^${CLAUSE_END}`, "u").test(rest) || DIGIT_VALUE_END.test(rest) || isSpokenValue(after);
 }
 const SMALL_NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
   "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
@@ -206,6 +228,12 @@ function repairLectureStep(rawStep: string): string {
       if (COMPARISON_AFTER_NUMBER.test(rest)) continue;
       // A value spoken in words needs strong evidence (isSpokenValue).
       if (/^\s+\p{L}/u.test(after) && rest !== after && (COUNT_NOT_VALUE.test(after) || !isSpokenValue(after))) continue;
+      // A numeral needs the same strong evidence, except that it may end the clause.
+      // Refusing it must not hand the rewrite to an earlier "is" in the step.
+      if (/^\s+\d/.test(after) && !isNumeralValue(after)) {
+        last = null;
+        continue;
+      }
       last = { start: from + match.index, end: from + match.index + match[0].length };
     }
   }
